@@ -1,0 +1,8 @@
+{
+  "welcome": "Welcome to Fawtir ASP",
+  "description": "A bilingual React application with English and Arabic support.",
+  "language": "Language",
+  "english": "English",
+  "arabic": "Arabic",
+  "getStarted": "Get started by editing pages, components, hooks, and API modules."
+}
