@@ -10,6 +10,7 @@ import { LoginPage } from './pages/LoginPage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
+import { DashboardPage } from './pages/DashboardPage'
 import { SignupPage } from './pages/SignupPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
@@ -35,6 +36,7 @@ function App() {
           <Route path="/address-contact" element={<AddressContactPage />} />
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/payment" element={<PaymentPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

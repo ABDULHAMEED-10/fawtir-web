@@ -1,0 +1,214 @@
+import type { ComponentType } from 'react'
+import salesIcon from '../assets/dashboard/kpi-sales.svg'
+import receivablesIcon from '../assets/dashboard/kpi-receivables.svg'
+import payablesIcon from '../assets/dashboard/kpi-payables.svg'
+import {
+  NavCatalogIcon,
+  NavCustomersIcon,
+  NavDashboardIcon,
+  NavDocumentsIcon,
+  NavExpenditureIcon,
+  NavInvoicesIcon,
+  NavReportsIcon,
+  NavSettingsIcon,
+  NavSuppliersIcon,
+  NavTddIcon,
+} from '../layouts/AppShell/navIcons'
+
+export type NavItem = {
+  id: string
+  labelKey: string
+  Icon: ComponentType<{ className?: string; active?: boolean }>
+  to: string
+  badge?: number
+}
+
+export type NavGroup = {
+  id: string
+  labelKey: string
+  items: NavItem[]
+}
+
+export const DASHBOARD_NAV: NavGroup[] = [
+  {
+    id: 'main',
+    labelKey: 'dashboard.nav.main',
+    items: [
+      { id: 'dashboard', labelKey: 'dashboard.nav.dashboard', Icon: NavDashboardIcon, to: '/dashboard' },
+      { id: 'invoices', labelKey: 'dashboard.nav.invoices', Icon: NavInvoicesIcon, to: '/dashboard', badge: 3 },
+      {
+        id: 'expenditure',
+        labelKey: 'dashboard.nav.expenditure',
+        Icon: NavExpenditureIcon,
+        to: '/dashboard',
+      },
+    ],
+  },
+  {
+    id: 'catalog',
+    labelKey: 'dashboard.nav.catalogContacts',
+    items: [
+      { id: 'catalog', labelKey: 'dashboard.nav.catalog', Icon: NavCatalogIcon, to: '/dashboard' },
+      { id: 'customers', labelKey: 'dashboard.nav.customers', Icon: NavCustomersIcon, to: '/dashboard' },
+      { id: 'suppliers', labelKey: 'dashboard.nav.suppliers', Icon: NavSuppliersIcon, to: '/dashboard' },
+    ],
+  },
+  {
+    id: 'compliance',
+    labelKey: 'dashboard.nav.compliance',
+    items: [
+      { id: 'tdd', labelKey: 'dashboard.nav.tddOta', Icon: NavTddIcon, to: '/dashboard', badge: 2 },
+      { id: 'documents', labelKey: 'dashboard.nav.documents', Icon: NavDocumentsIcon, to: '/dashboard' },
+    ],
+  },
+  {
+    id: 'insights',
+    labelKey: 'dashboard.nav.insights',
+    items: [{ id: 'reports', labelKey: 'dashboard.nav.reports', Icon: NavReportsIcon, to: '/dashboard' }],
+  },
+]
+
+export const SETTINGS_NAV: NavItem = {
+  id: 'settings',
+  labelKey: 'dashboard.nav.settings',
+  Icon: NavSettingsIcon,
+  to: '/dashboard',
+}
+
+export const ACCOUNT = {
+  name: 'Al Bahja Coffee',
+  planKey: 'dashboard.account.premiumPlan',
+}
+
+export const USER = {
+  name: 'Hafidh Saif',
+  roleKey: 'dashboard.account.owner',
+  firstName: 'Hafidh',
+}
+
+export type InvoiceStatus = 'reported' | 'rejected' | 'sent' | 'draft'
+
+export type RecentInvoice = {
+  id: string
+  customer: string
+  meta: string
+  status: InvoiceStatus
+  amount: string
+}
+
+export const RECENT_INVOICES: RecentInvoice[] = [
+  {
+    id: 'INV-2043',
+    customer: 'Muscat Grand Hotel',
+    meta: 'B2B · 18 Jul',
+    status: 'reported',
+    amount: '1,860 OMR',
+  },
+  {
+    id: 'INV-2042',
+    customer: 'Walk in Customer',
+    meta: 'B2C · 18 Jul',
+    status: 'reported',
+    amount: '24 OMR',
+  },
+  {
+    id: 'INV-2041',
+    customer: 'Al Noor Trading LLC',
+    meta: 'B2B · 17 Jul',
+    status: 'rejected',
+    amount: '540 OMR',
+  },
+  {
+    id: 'INV-2040',
+    customer: 'Bahwan Group',
+    meta: 'B2B · 17 Jul',
+    status: 'sent',
+    amount: '3,120 OMR',
+  },
+  {
+    id: 'INV-2039',
+    customer: 'Salalah Resort',
+    meta: 'B2B · 16 Jul',
+    status: 'draft',
+    amount: '890 OMR',
+  },
+]
+
+export type RevenueBar = {
+  day: string
+  value: number
+  active?: boolean
+  tooltip?: { amount: string; date: string }
+}
+
+export const REVENUE_BARS: RevenueBar[] = [
+  { day: 'Mon', value: 62 },
+  { day: 'Tue', value: 72 },
+  { day: 'Wed', value: 72 },
+  {
+    day: 'Thu',
+    value: 100,
+    active: true,
+    tooltip: { amount: 'OMR 2,845', date: 'Thu, 12 Jul' },
+  },
+  { day: 'Fri', value: 72 },
+  { day: 'Sat', value: 72 },
+  { day: 'Sun', value: 72 },
+]
+
+export const KPI = {
+  sales: {
+    titleKey: 'dashboard.kpi.sales',
+    icon: salesIcon,
+    amount: '1,240',
+    trend: '20%',
+    trendLabelKey: 'dashboard.kpi.vsYesterday',
+  },
+  receivables: {
+    titleKey: 'dashboard.kpi.receivables',
+    icon: receivablesIcon,
+    amount: '14,320',
+    badgeKey: 'dashboard.kpi.open',
+    badgeValue: '12',
+    metaKey: 'dashboard.kpi.overdue',
+    metaValue: '3',
+  },
+  payables: {
+    titleKey: 'dashboard.kpi.payables',
+    icon: payablesIcon,
+    amount: '6,780',
+    badgeKey: 'dashboard.kpi.dueSoon',
+    badgeValue: '2',
+    metaKey: 'dashboard.kpi.suppliers',
+    metaValue: '5',
+    warning: true,
+  },
+}
+
+export const COMPLIANCE = {
+  accepted: '98.7%',
+  reported: 340,
+  mls: '99.1%',
+  rejected: 2,
+  alertCount: 2,
+}
+
+export const QUOTA = {
+  used: 342,
+  total: 1000,
+  percent: 34,
+  resetLabelKey: 'dashboard.quota.reset',
+}
+
+export const VAT = {
+  net: '1,180',
+  output: '2,360',
+  input: '1,180',
+}
+
+export const REVENUE = {
+  total: '28,450',
+  yTicks: ['OMR 3,000', 'OMR 2,000', 'OMR 1,000', 'OMR 0'],
+}
+
+export type PeriodOption = 'day' | 'week' | 'month'

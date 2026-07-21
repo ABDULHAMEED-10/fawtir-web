@@ -380,10 +380,90 @@
     "payCta": "ادفع {{amount}} وفعّل",
     "bankCta": "أرسل لي الفاتورة المبدئية"
   },
+  "dashboard": {
+    "searchPlaceholder": "ابحث في الفواتير، العملاء، المستندات...",
+    "createInvoice": "إنشاء فاتورة",
+    "notifications": "الإشعارات",
+    "greeting": "صباح الخير، {{name}}",
+    "date": "السبت، 18 يوليو 2026",
+    "thisMonth": "هذا الشهر",
+    "nav": {
+      "main": "الرئيسي",
+      "dashboard": "لوحة التحكم",
+      "invoices": "الفواتير",
+      "expenditure": "المصروفات",
+      "catalogContacts": "الكتالوج وجهات الاتصال",
+      "catalog": "الكتالوج",
+      "customers": "العملاء",
+      "suppliers": "الموردون",
+      "compliance": "الامتثال",
+      "tddOta": "TDD وجهاز الضرائب",
+      "documents": "المستندات",
+      "insights": "التحليلات",
+      "reports": "التقارير",
+      "settings": "الإعدادات"
+    },
+    "account": {
+      "premiumPlan": "الخطة المميزة",
+      "owner": "المالك"
+    },
+    "kpi": {
+      "sales": "مبيعات اليوم",
+      "receivables": "المستحقات",
+      "payables": "المدفوعات",
+      "vsYesterday": "مقارنة بالأمس",
+      "open": "{{count}} مفتوحة",
+      "overdue": "{{count}} متأخرة",
+      "dueSoon": "{{count}} مستحقة قريبًا",
+      "suppliers": "{{count}} موردون"
+    },
+    "revenue": {
+      "title": "الإيرادات",
+      "periodLabel": "فترة الإيرادات",
+      "day": "يوم",
+      "week": "أسبوع",
+      "month": "شهر",
+      "thisMonth": "هذا الشهر"
+    },
+    "invoices": {
+      "title": "أحدث الفواتير",
+      "colInvoice": "الفاتورة",
+      "colCustomer": "العميل",
+      "colStatus": "الحالة",
+      "colAmount": "المبلغ",
+      "status": {
+        "reported": "مُبلَّغ",
+        "rejected": "مرفوض",
+        "sent": "مُرسل",
+        "draft": "مسودة"
+      }
+    },
+    "compliance": {
+      "title": "صحة الامتثال",
+      "accepted": "مقبول",
+      "reported": "مُبلَّغ لجهاز الضرائب",
+      "mls": "MLS ضمن SLA",
+      "rejected": "مرفوض",
+      "alert": "{{count}} تقارير TDD تحتاج انتباهك"
+    },
+    "quota": {
+      "title": "حصة الفواتير",
+      "billingPeriod": "فترة الفوترة",
+      "used": "مستخدم",
+      "reset": "18 يومًا متبقية · يُعاد في 1 أغسطس"
+    },
+    "vat": {
+      "title": "وضع ضريبة القيمة المضافة",
+      "report": "تقرير ←",
+      "netPayable": "صافي مستحق",
+      "output": "ضريبة المخرجات",
+      "input": "ضريبة المدخلات"
+    }
+  },
   "home": {
     "badge": "الفوترة الإلكترونية في عُمان",
     "heroTitle": "الامتثال للفوترة الإلكترونية، نتولى أمره عنك.",
     "heroSubtitle": "أنشئ وتحقق ووقّع وأبلغ عن كل فاتورة إلى جهاز الضرائب — دون التعامل مع Peppol بنفسك.",
-    "waitingForDesigns": "شاشات المصادقة حتى /payment."
+    "waitingForDesigns": "المصادقة حتى /payment ثم /dashboard."
   }
 }

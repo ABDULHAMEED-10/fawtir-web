@@ -66,7 +66,7 @@ export function PaymentForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate('/', {
+    navigate('/dashboard', {
       state: {
         ...state,
         paymentMethod: method,

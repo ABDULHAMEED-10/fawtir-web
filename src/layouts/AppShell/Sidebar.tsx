@@ -1,0 +1,131 @@
+import type { ComponentType } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { DASHBOARD_NAV, SETTINGS_NAV, ACCOUNT, USER } from '../../lib/dashboard'
+import bahjaLogo from '../../assets/dashboard/bahja-logo.svg'
+import avatar from '../../assets/dashboard/avatar.png'
+import chevron from '../../assets/dashboard/chevron.svg'
+
+type SidebarNavItemProps = {
+  to: string
+  Icon: ComponentType<{ className?: string; active?: boolean }>
+  label: string
+  badge?: number
+  active?: boolean
+}
+
+function SidebarNavItem({ to, Icon, label, badge, active }: SidebarNavItemProps) {
+  return (
+    <Link
+      to={to}
+      aria-current={active ? 'page' : undefined}
+      className={[
+        'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
+        active
+          ? 'bg-primary-50 text-primary-900'
+          : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+      ].join(' ')}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        <Icon active={active} className="size-5 shrink-0" />
+        <span
+          className={[
+            'truncate text-base leading-[1.2]',
+            active ? 'font-semibold text-primary-900' : 'font-medium',
+          ].join(' ')}
+        >
+          {label}
+        </span>
+      </span>
+      {badge != null ? (
+        <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white">
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  )
+}
+
+export function Sidebar() {
+  const { t } = useTranslation()
+  const location = useLocation()
+  const onDashboard = location.pathname.startsWith('/dashboard')
+
+  return (
+    <aside className="flex h-dvh w-[248px] shrink-0 flex-col border-e border-black/10 bg-surface-tab-bar">
+      <div className="flex h-[74px] items-center px-5">
+        <span className="bg-gradient-to-r from-[#265DF7] to-[#6EC8FF] bg-clip-text text-[24px] font-semibold tracking-[5.8px] text-transparent">
+          {t('brand.name')}
+        </span>
+      </div>
+      <div className="h-px w-full bg-black/10" />
+
+      <div className="px-[21px] pt-3">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-sm border border-black/[0.06] bg-surface-tab-bar p-[9px] text-start"
+        >
+          <span className="flex min-w-0 items-center gap-[7px]">
+            <img src={bahjaLogo} alt="" className="size-[31px] shrink-0 rounded-full object-cover" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e]">
+                {ACCOUNT.name}
+              </span>
+              <span className="block truncate text-xs font-medium leading-[1.2] text-text-quaternary">
+                {t(ACCOUNT.planKey)}
+              </span>
+            </span>
+          </span>
+          <img src={chevron} alt="" className="size-5 rotate-90 opacity-70" />
+        </button>
+      </div>
+
+      <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[21px] pb-4">
+        {DASHBOARD_NAV.map((group) => (
+          <div key={group.id} className="flex flex-col gap-[7px]">
+            <p className="text-xs font-semibold uppercase tracking-[1.44px] text-text-quaternary">
+              {t(group.labelKey)}
+            </p>
+            <div className="flex flex-col">
+              {group.items.map((item) => (
+                <SidebarNavItem
+                  key={item.id}
+                  to={item.to}
+                  Icon={item.Icon}
+                  label={t(item.labelKey)}
+                  badge={item.badge}
+                  active={item.id === 'dashboard' && onDashboard}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      <div className="mt-auto px-[21px] pb-4">
+        <SidebarNavItem
+          to={SETTINGS_NAV.to}
+          Icon={SETTINGS_NAV.Icon}
+          label={t(SETTINGS_NAV.labelKey)}
+        />
+        <button
+          type="button"
+          className="mt-1 flex w-full items-center justify-between rounded-sm border border-black/[0.06] bg-[#292d32] p-[9px] text-start"
+        >
+          <span className="flex min-w-0 items-center gap-[7px]">
+            <img src={avatar} alt="" className="size-9 shrink-0 rounded-full object-cover" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium leading-[1.2] text-white">
+                {USER.name}
+              </span>
+              <span className="block truncate text-xs font-medium leading-[1.2] text-white/70">
+                {t(USER.roleKey)}
+              </span>
+            </span>
+          </span>
+          <img src={chevron} alt="" className="size-5 rotate-90 brightness-0 invert opacity-80" />
+        </button>
+      </div>
+    </aside>
+  )
+}

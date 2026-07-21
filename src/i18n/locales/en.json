@@ -380,10 +380,90 @@
     "payCta": "Pay {{amount}} & activate",
     "bankCta": "Email me the proforma invoice"
   },
+  "dashboard": {
+    "searchPlaceholder": "Search invoices, customers. documents...",
+    "createInvoice": "Create Invoice",
+    "notifications": "Notifications",
+    "greeting": "Good morning, {{name}}",
+    "date": "Saturday, 18 July 2026",
+    "thisMonth": "This month",
+    "nav": {
+      "main": "MAIN",
+      "dashboard": "Dashboard",
+      "invoices": "Invoices",
+      "expenditure": "Expenditure",
+      "catalogContacts": "Catalog & contacts",
+      "catalog": "Catalog",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "compliance": "Compliance",
+      "tddOta": "TDD & OTA",
+      "documents": "Documents",
+      "insights": "Insights",
+      "reports": "Reports",
+      "settings": "Settings"
+    },
+    "account": {
+      "premiumPlan": "Premium plan",
+      "owner": "Owner"
+    },
+    "kpi": {
+      "sales": "Today’s sales",
+      "receivables": "Receivables",
+      "payables": "Payables",
+      "vsYesterday": "vs yesterday",
+      "open": "{{count}} open",
+      "overdue": "{{count}} overdue",
+      "dueSoon": "{{count}} due soon",
+      "suppliers": "{{count}} suppliers"
+    },
+    "revenue": {
+      "title": "Revenue",
+      "periodLabel": "Revenue period",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "thisMonth": "this month"
+    },
+    "invoices": {
+      "title": "Recent invoices",
+      "colInvoice": "Invoice",
+      "colCustomer": "Customer",
+      "colStatus": "Status",
+      "colAmount": "Amount",
+      "status": {
+        "reported": "Reported",
+        "rejected": "Rejected",
+        "sent": "Sent",
+        "draft": "Draft"
+      }
+    },
+    "compliance": {
+      "title": "Compliance health",
+      "accepted": "accepted",
+      "reported": "Reported to OTA",
+      "mls": "MLS within SLA",
+      "rejected": "Rejected",
+      "alert": "{{count}} TDDs need your attention"
+    },
+    "quota": {
+      "title": "Invoice quota",
+      "billingPeriod": "Billing period",
+      "used": "used",
+      "reset": "18 days left · resets 1 Aug"
+    },
+    "vat": {
+      "title": "VAT Position",
+      "report": "Report →",
+      "netPayable": "net payable",
+      "output": "Output VAT",
+      "input": "Input VAT"
+    }
+  },
   "home": {
     "badge": "Oman e-invoicing",
     "heroTitle": "E-invoicing compliance, handled for you.",
     "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority — without touching Peppol yourself.",
-    "waitingForDesigns": "Auth screens through /payment."
+    "waitingForDesigns": "Auth through /payment, then /dashboard."
   }
 }
