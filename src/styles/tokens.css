@@ -1,0 +1,81 @@
+/* FAWTIR design tokens — sourced from fintech-design-system + spacing-radius tokens */
+
+@theme {
+  --font-sans: "Urbanist", system-ui, sans-serif;
+
+  /* Primary */
+  --color-primary-900: #1a2f6e;
+  --color-primary-800: #233e92;
+  --color-primary-700: #2c4eb7;
+  --color-primary-600: #4160be;
+  --color-primary-500: #5671c5;
+  --color-primary-400: #6b83cd;
+  --color-primary-300: #8095d4;
+  --color-primary-200: #96a7db;
+  --color-primary-150: #abb8e2;
+  --color-primary-100: #c0cae9;
+  --color-primary-75: #d5dcf1;
+  --color-primary-50: #eaedf8;
+  --color-primary-25: #f4f6fb;
+
+  /* Text */
+  --color-text-primary: #151c2d;
+  --color-text-secondary: #2c3342;
+  --color-text-tertiary: #444957;
+  --color-text-quaternary: #5b606c;
+  --color-text-muted: #737781;
+  --color-text-placeholder: #8a8e96;
+  --color-text-disabled: #a1a4ab;
+  --color-text-on-primary: #ffffff;
+  --color-text-brand: #2c4eb7;
+  --color-text-danger: #98140b;
+  --color-text-success: #4c6c5a;
+
+  /* Neutral */
+  --color-neutral-900: #151c2d;
+  --color-neutral-800: #2c3342;
+  --color-neutral-700: #444957;
+  --color-neutral-600: #5b606c;
+  --color-neutral-500: #737781;
+  --color-neutral-400: #8a8e96;
+  --color-neutral-300: #a1a4ab;
+  --color-neutral-200: #b9bbc0;
+  --color-neutral-100: #d0d2d5;
+  --color-neutral-50: #e8e8ea;
+  --color-neutral-25: #f3f4f5;
+
+  /* Surface */
+  --color-surface-card: #ffffff;
+  --color-surface-tab-bar: #fafafa;
+  --color-surface-background: #f3f3f3;
+  --color-surface-elevated: #ffffff;
+  --color-surface-inverse: #151c2d;
+  --color-surface-brand: #2c4eb7;
+  --color-surface-brand-subtle: #eaedf8;
+
+  /* Border */
+  --color-border-subtle: #e8e8ea;
+  --color-border-default: #d0d2d5;
+  --color-border-strong: #a1a4ab;
+  --color-border-brand: #2c4eb7;
+  --color-border-brand-subtle: #c0cae9;
+  --color-border-danger: #98140b;
+
+  /* Danger / Success / Warning */
+  --color-danger-700: #98140b;
+  --color-danger-100: #fff0f0;
+  --color-success-700: #4c6c5a;
+  --color-success-100: #e6efea;
+  --color-warning-700: #887147;
+  --color-warning-100: #f7f1e6;
+
+  /* Radius */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-full: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 8px rgb(21 28 45 / 6%);
+  --shadow-elevated: 0 8px 24px rgb(21 28 45 / 10%);
+}

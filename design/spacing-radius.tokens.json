@@ -1,0 +1,24 @@
+{
+  "primitives": {
+    "radius": {
+      "none": { "value": "0", "type": "borderRadius", "description": "Square corners - full-bleed images, dividers" },
+      "sm": { "value": "4", "type": "borderRadius", "description": "Chips, badges, checkboxes, icon tiles, nested corners inside an 8px card" },
+      "md": { "value": "8", "type": "borderRadius", "description": "Default - cards, buttons, inputs, bottom sheets, modals" },
+      "full": { "value": "999", "type": "borderRadius", "description": "Avatars, pills, toggle knobs, circular icon buttons" }
+    },
+
+    "spacing": {
+      "0": { "value": "0", "type": "spacing", "description": "No gap - flush elements" },
+      "1": { "value": "4", "type": "spacing", "description": "Icon to label, tightest possible gap" },
+      "2": { "value": "8", "type": "spacing", "description": "Stacked text lines, chip padding, badge padding" },
+      "3": { "value": "12", "type": "spacing", "description": "Inside compact components, input padding" },
+      "4": { "value": "16", "type": "spacing", "description": "Default - card padding, screen side margin" },
+      "5": { "value": "20", "type": "spacing", "description": "Between list items" },
+      "6": { "value": "24", "type": "spacing", "description": "Between sections within a screen" },
+      "7": { "value": "28", "type": "spacing", "description": "Large section break" },
+      "8": { "value": "32", "type": "spacing", "description": "Screen top padding, major group separation" },
+      "10": { "value": "40", "type": "spacing", "description": "Empty states, onboarding blocks" },
+      "12": { "value": "48", "type": "spacing", "description": "Above bottom CTA, hero spacing" }
+    }
+  }
+}

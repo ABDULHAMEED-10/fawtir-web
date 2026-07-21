@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1085" height="716" viewBox="0 0 1085 716" fill="none" aria-hidden="true">
+  <defs>
+    <filter id="glowRight" x="-20%" y="-40%" width="140%" height="180%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="80" result="blur" />
+    </filter>
+  </defs>
+  <ellipse cx="720" cy="520" rx="342.5" ry="158" fill="#D5DCF1" filter="url(#glowRight)" />
+</svg>

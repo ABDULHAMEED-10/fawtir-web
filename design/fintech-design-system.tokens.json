@@ -1,0 +1,252 @@
+{
+  "global": {
+    "color": {
+      "primary": {
+        "900": { "value": "#1A2F6E", "type": "color", "description": "Primary darkest - pressed states, dark headings on light" },
+        "800": { "value": "#233E92", "type": "color", "description": "Primary dark - hover / pressed on buttons" },
+        "700": { "value": "#2C4EB7", "type": "color", "description": "PRIMARY / Base brand color" },
+        "600": { "value": "#4160BE", "type": "color", "description": "Primary 90%" },
+        "500": { "value": "#5671C5", "type": "color", "description": "Primary 80%" },
+        "400": { "value": "#6B83CD", "type": "color", "description": "Primary 70%" },
+        "300": { "value": "#8095D4", "type": "color", "description": "Primary 60%" },
+        "200": { "value": "#96A7DB", "type": "color", "description": "Primary 50% - disabled primary" },
+        "150": { "value": "#ABB8E2", "type": "color", "description": "Primary 40%" },
+        "100": { "value": "#C0CAE9", "type": "color", "description": "Primary 30% - borders" },
+        "75": { "value": "#D5DCF1", "type": "color", "description": "Primary 20% - subtle borders" },
+        "50": { "value": "#EAEDF8", "type": "color", "description": "Primary 10% - selected row / chip bg" },
+        "25": { "value": "#F4F6FB", "type": "color", "description": "Primary 5% - lightest tint bg" }
+      },
+      "text": {
+        "primary": { "value": "#151C2D", "type": "color", "description": "100% - headings, main content" },
+        "secondary": { "value": "#2C3342", "type": "color", "description": "90%" },
+        "tertiary": { "value": "#444957", "type": "color", "description": "80% - body copy" },
+        "quaternary": { "value": "#5B606C", "type": "color", "description": "70% - supporting text" },
+        "muted": { "value": "#737781", "type": "color", "description": "60% - labels, captions" },
+        "placeholder": { "value": "#8A8E96", "type": "color", "description": "50% - placeholder / hint" },
+        "disabled": { "value": "#A1A4AB", "type": "color", "description": "40% - disabled text" },
+        "on-primary": { "value": "#FFFFFF", "type": "color", "description": "Text on primary/dark fills" },
+        "on-danger": { "value": "#FFFFFF", "type": "color", "description": "Text on danger fills" },
+        "brand": { "value": "#2C4EB7", "type": "color", "description": "Links, interactive text" },
+        "danger": { "value": "#98140B", "type": "color", "description": "Error text, negative amounts" },
+        "success": { "value": "#4C6C5A", "type": "color", "description": "Success text, positive amounts" }
+      },
+      "neutral": {
+        "900": { "value": "#151C2D", "type": "color" },
+        "800": { "value": "#2C3342", "type": "color" },
+        "700": { "value": "#444957", "type": "color" },
+        "600": { "value": "#5B606C", "type": "color" },
+        "500": { "value": "#737781", "type": "color" },
+        "400": { "value": "#8A8E96", "type": "color" },
+        "300": { "value": "#A1A4AB", "type": "color" },
+        "200": { "value": "#B9BBC0", "type": "color" },
+        "100": { "value": "#D0D2D5", "type": "color" },
+        "50": { "value": "#E8E8EA", "type": "color" },
+        "25": { "value": "#F3F4F5", "type": "color" }
+      },
+      "surface": {
+        "card": { "value": "#FFFFFF", "type": "color", "description": "Cards, sheets, modals" },
+        "tab-bar": { "value": "#FAFAFA", "type": "color", "description": "Tab bar / bottom nav" },
+        "background": { "value": "#F3F3F3", "type": "color", "description": "Dashboard / screen background" },
+        "elevated": { "value": "#FFFFFF", "type": "color", "description": "Popovers, dropdowns" },
+        "inverse": { "value": "#151C2D", "type": "color", "description": "Dark surfaces, tooltips" },
+        "brand": { "value": "#2C4EB7", "type": "color", "description": "Primary filled surfaces" },
+        "brand-subtle": { "value": "#EAEDF8", "type": "color", "description": "Tinted brand surface" },
+        "overlay": { "value": "#151C2D", "type": "color", "description": "Scrim - apply 40-60% opacity in Figma" }
+      },
+      "border": {
+        "subtle": { "value": "#E8E8EA", "type": "color", "description": "Dividers, card outlines" },
+        "default": { "value": "#D0D2D5", "type": "color", "description": "Input borders, default stroke" },
+        "strong": { "value": "#A1A4AB", "type": "color", "description": "Hover borders" },
+        "brand": { "value": "#2C4EB7", "type": "color", "description": "Focused input, active state" },
+        "brand-subtle": { "value": "#C0CAE9", "type": "color" },
+        "danger": { "value": "#98140B", "type": "color", "description": "Error input border" },
+        "success": { "value": "#4C6C5A", "type": "color" }
+      },
+      "danger": {
+        "900": { "value": "#7A1009", "type": "color", "description": "Pressed / dark danger" },
+        "700": { "value": "#98140B", "type": "color", "description": "DANGER / Base" },
+        "500": { "value": "#AD433C", "type": "color" },
+        "400": { "value": "#C1726D", "type": "color" },
+        "300": { "value": "#D6A19D", "type": "color" },
+        "200": { "value": "#EAD0CE", "type": "color", "description": "Borders on danger banners" },
+        "100": { "value": "#FFF0F0", "type": "color", "description": "Danger surface / alert bg" }
+      },
+      "success": {
+        "900": { "value": "#3D5648", "type": "color", "description": "Pressed / dark success" },
+        "700": { "value": "#4C6C5A", "type": "color", "description": "SUCCESS / Base" },
+        "500": { "value": "#70897B", "type": "color" },
+        "400": { "value": "#94A79C", "type": "color" },
+        "300": { "value": "#B7C4BD", "type": "color" },
+        "200": { "value": "#DBE2DE", "type": "color" },
+        "100": { "value": "#E6EFEA", "type": "color", "description": "Success surface / badge bg" }
+      },
+      "warning": {
+        "900": { "value": "#6D5A39", "type": "color" },
+        "700": { "value": "#887147", "type": "color", "description": "WARNING / Base - gold accent" },
+        "500": { "value": "#A08D6C", "type": "color" },
+        "400": { "value": "#B8AA91", "type": "color" },
+        "300": { "value": "#CFC6B5", "type": "color" },
+        "200": { "value": "#E7E3DA", "type": "color" },
+        "100": { "value": "#F7F1E6", "type": "color", "description": "Warning surface / pending bg" }
+      },
+      "info": {
+        "900": { "value": "#474A5E", "type": "color" },
+        "700": { "value": "#595D75", "type": "color", "description": "INFO / Base - slate secondary" },
+        "500": { "value": "#7A7D91", "type": "color" },
+        "400": { "value": "#9B9EAC", "type": "color" },
+        "300": { "value": "#BDBEC8", "type": "color" },
+        "200": { "value": "#DEDFE3", "type": "color" },
+        "100": { "value": "#E3E4EA", "type": "color", "description": "Neutral chip / info surface" }
+      }
+    },
+
+    "typography": {
+      "display": {
+        "40-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "40", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Balance / hero amounts"
+        },
+        "40-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "40", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Hero amount emphasised"
+        }
+      },
+      "heading": {
+        "32-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "32", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Screen title"
+        },
+        "32-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "32", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography"
+        },
+        "24-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "24", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Section heading, modal title"
+        },
+        "24-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "24", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography"
+        },
+        "20-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "20", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Card title, list section header"
+        },
+        "20-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "20", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography"
+        }
+      },
+      "body": {
+        "16-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "16", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "List item title, emphasised body"
+        },
+        "16-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "16", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Default body / input value"
+        },
+        "14-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "14", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography"
+        },
+        "14-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "14", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Secondary body, descriptions"
+        }
+      },
+      "label": {
+        "16-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "16", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Primary button / CTA label"
+        },
+        "16-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "16", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Secondary / ghost button label"
+        },
+        "14-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "14", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Small button, input label"
+        },
+        "14-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "14", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography"
+        },
+        "12-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "12", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Badge, chip, tiny button"
+        },
+        "12-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "12", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Tab bar label, helper text"
+        }
+      },
+      "caption": {
+        "10-semibold": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "SemiBold", "fontSize": "10", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Micro label, status pill"
+        },
+        "10-medium": {
+          "value": { "fontFamily": "Urbanist", "fontWeight": "Medium", "fontSize": "10", "lineHeight": "120%", "letterSpacing": "0%", "paragraphSpacing": "0", "textCase": "none", "textDecoration": "none" },
+          "type": "typography",
+          "description": "Timestamps, legal, footnote"
+        }
+      }
+    },
+
+    "radius": {
+      "none": { "value": "0", "type": "borderRadius" },
+      "sm": { "value": "4", "type": "borderRadius", "description": "Chips, badges, small inputs, icon containers" },
+      "md": { "value": "8", "type": "borderRadius", "description": "Cards, buttons, inputs, sheets - default" },
+      "full": { "value": "999", "type": "borderRadius", "description": "Pills, avatars, toggle knobs" }
+    },
+
+    "spacing": {
+      "0": { "value": "0", "type": "spacing" },
+      "1": { "value": "4", "type": "spacing", "description": "Icon-to-label, tightest gap" },
+      "2": { "value": "8", "type": "spacing", "description": "Between stacked text lines, chip padding" },
+      "3": { "value": "12", "type": "spacing", "description": "Inside compact components" },
+      "4": { "value": "16", "type": "spacing", "description": "Card padding, screen side margin - default" },
+      "5": { "value": "20", "type": "spacing", "description": "Between list items" },
+      "6": { "value": "24", "type": "spacing", "description": "Between sections" },
+      "7": { "value": "28", "type": "spacing", "description": "Large section break" },
+      "8": { "value": "32", "type": "spacing", "description": "Screen top padding, major group separation" },
+      "10": { "value": "40", "type": "spacing", "description": "Empty states, onboarding blocks" },
+      "12": { "value": "48", "type": "spacing", "description": "Above bottom CTA, hero spacing" }
+    },
+
+    "effect": {
+      "shadow": {
+        "card": {
+          "value": { "x": "0", "y": "2", "blur": "8", "spread": "0", "color": "#151C2D", "type": "dropShadow" },
+          "type": "boxShadow",
+          "description": "Set to 6% opacity on the fill in Figma"
+        },
+        "elevated": {
+          "value": { "x": "0", "y": "8", "blur": "24", "spread": "0", "color": "#151C2D", "type": "dropShadow" },
+          "type": "boxShadow",
+          "description": "Set to 10% opacity - modals, sheets, dropdowns"
+        },
+        "tab-bar": {
+          "value": { "x": "0", "y": "-2", "blur": "12", "spread": "0", "color": "#151C2D", "type": "dropShadow" },
+          "type": "boxShadow",
+          "description": "Set to 6% opacity - upward shadow for bottom nav"
+        }
+      }
+    }
+  }
+}
