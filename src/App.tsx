@@ -1,22 +1,29 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LanguageSwitcher } from './components/LanguageSwitcher'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
+import { LoginPage } from './pages/LoginPage'
+import { NewPasswordPage } from './pages/NewPasswordPage'
+import { SignupPage } from './pages/SignupPage'
+import { VerifyCodePage } from './pages/VerifyCodePage'
 
 function App() {
   const { i18n } = useTranslation()
-  const isRtl = i18n.language === 'ar'
+  const isRtl = i18n.language === 'ar' || i18n.language.startsWith('ar')
 
   return (
-    <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <h1 className="text-xl font-semibold tracking-tight">Fawtir ASP</h1>
-          <LanguageSwitcher />
-        </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-4 py-10">
-        <HomePage />
-      </main>
+    <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-dvh font-sans text-text-primary">
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-code" element={<VerifyCodePage />} />
+          <Route path="/new-password" element={<NewPasswordPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
     </div>
   )
 }

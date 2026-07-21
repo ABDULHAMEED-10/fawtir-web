@@ -1,8 +1,83 @@
 {
-  "welcome": "مرحبًا بكم في فواتير ASP",
-  "description": "تطبيق React ثنائي اللغة يدعم الإنجليزية والعربية.",
-  "language": "اللغة",
-  "english": "الإنجليزية",
-  "arabic": "العربية",
-  "getStarted": "ابدأ بتعديل الصفحات والمكونات والخطافات ووحدات واجهة البرمجة."
+  "brand": {
+    "name": "FAWTIR"
+  },
+  "common": {
+    "clear": "مسح",
+    "back": "رجوع"
+  },
+  "language": {
+    "label": "اللغة",
+    "english": "English",
+    "arabic": "العربية"
+  },
+  "login": {
+    "title": "مرحبًا، سجّل الدخول الآن!",
+    "methodLabel": "طريقة تسجيل الدخول",
+    "emailTab": "البريد",
+    "phoneTab": "الهاتف",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "أدخل بريدك الإلكتروني",
+    "phoneLabel": "الهاتف",
+    "phonePlaceholder": "أدخل رقم هاتفك",
+    "passwordLabel": "كلمة المرور",
+    "passwordPlaceholder": "أدخل كلمة المرور",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
+    "rememberMe": "تذكرني",
+    "forgotPassword": "نسيت كلمة المرور؟",
+    "submit": "تسجيل الدخول",
+    "notMember": "لست عضوًا بعد؟",
+    "signUp": "سجّل هنا",
+    "heroTitle": "الامتثال للفوترة الإلكترونية، نتولى أمره عنك.",
+    "heroSubtitle": "أنشئ وتحقق ووقّع وأبلغ عن كل فاتورة إلى جهاز الضرائب العماني، دون التعامل مع Peppol مباشرة."
+  },
+  "signup": {
+    "title": "أنشئ حسابك في فواتير",
+    "fullNameLabel": "الاسم الكامل",
+    "fullNamePlaceholder": "حافظ سيف",
+    "emailLabel": "البريد الإلكتروني",
+    "emailPlaceholder": "you@company.com",
+    "phoneLabel": "رقم الهاتف",
+    "phonePlaceholder": "9XXX XXXX",
+    "passwordLabel": "كلمة المرور",
+    "passwordPlaceholder": "أنشئ كلمة مرور قوية",
+    "confirmPasswordLabel": "تأكيد كلمة المرور",
+    "confirmPasswordPlaceholder": "أعد إدخال كلمة المرور",
+    "agreePrefix": "أوافق على",
+    "terms": "شروط الخدمة",
+    "and": "و",
+    "privacy": "سياسة الخصوصية",
+    "submit": "إنشاء حساب",
+    "alreadyMember": "لديك حساب بالفعل؟",
+    "loginHere": "سجّل الدخول هنا"
+  },
+  "forgotPassword": {
+    "title": "هل نسيت كلمة المرور؟",
+    "description": "لا مشكلة. اختر طريقة إعادة التعيين وسنرسل لك طريقة آمنة للعودة.",
+    "methodLabel": "طريقة إعادة التعيين",
+    "submit": "إرسال رمز إعادة التعيين"
+  },
+  "verifyCode": {
+    "title": "أدخل رمز التحقق",
+    "description": "أرسلنا رمزًا مكوّنًا من 6 أرقام إلى {{contact}}. ينتهي خلال {{minutes}} دقائق.",
+    "resendIn": "إعادة الإرسال خلال {{time}}",
+    "resend": "إعادة إرسال الرمز",
+    "submit": "تحقق ومتابعة"
+  },
+  "newPassword": {
+    "title": "أنشئ كلمة مرور جديدة",
+    "description": "اختر كلمة قوية لم تستخدمها من قبل. سيتم تسجيل خروجك من كل الأجهزة الأخرى.",
+    "passwordLabel": "كلمة المرور الجديدة",
+    "passwordPlaceholder": "أدخل كلمة مرور جديدة",
+    "confirmPasswordLabel": "تأكيد كلمة المرور",
+    "confirmPasswordPlaceholder": "أعد إدخال كلمة المرور",
+    "submit": "إعادة تعيين كلمة المرور"
+  },
+  "home": {
+    "badge": "الفوترة الإلكترونية في عُمان",
+    "heroTitle": "الامتثال للفوترة الإلكترونية، نتولى أمره عنك.",
+    "heroSubtitle": "أنشئ وتحقق ووقّع وأبلغ عن كل فاتورة إلى جهاز الضرائب — دون التعامل مع Peppol بنفسك.",
+    "waitingForDesigns": "شاشات المصادقة: /login و /signup و /forgot-password و /verify-code."
+  }
 }

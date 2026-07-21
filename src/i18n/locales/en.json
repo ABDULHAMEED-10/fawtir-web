@@ -1,8 +1,83 @@
 {
-  "welcome": "Welcome to Fawtir ASP",
-  "description": "A bilingual React application with English and Arabic support.",
-  "language": "Language",
-  "english": "English",
-  "arabic": "Arabic",
-  "getStarted": "Get started by editing pages, components, hooks, and API modules."
+  "brand": {
+    "name": "FAWTIR"
+  },
+  "common": {
+    "clear": "Clear",
+    "back": "Back"
+  },
+  "language": {
+    "label": "Language",
+    "english": "English",
+    "arabic": "العربية"
+  },
+  "login": {
+    "title": "Hey, Login Now!",
+    "methodLabel": "Login method",
+    "emailTab": "Email",
+    "phoneTab": "Phone",
+    "emailLabel": "Email",
+    "emailPlaceholder": "Enter you email",
+    "phoneLabel": "Phone",
+    "phonePlaceholder": "Enter your phone number",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password ?",
+    "submit": "Login",
+    "notMember": "Not a member yet?",
+    "signUp": "Sign up here",
+    "heroTitle": "E-invoicing compliance, handled for you.",
+    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol."
+  },
+  "signup": {
+    "title": "Create your Fawtir account",
+    "fullNameLabel": "Full name",
+    "fullNamePlaceholder": "Hafidh Saif",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@company.com",
+    "phoneLabel": "Phone number",
+    "phonePlaceholder": "9XXX XXXX",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Create a strong password",
+    "confirmPasswordLabel": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter your password",
+    "agreePrefix": "I agree to Fawtir's",
+    "terms": "Terms of Service",
+    "and": "and",
+    "privacy": "Privacy Policy",
+    "submit": "Create account",
+    "alreadyMember": "Already a member ?",
+    "loginHere": "Log in here"
+  },
+  "forgotPassword": {
+    "title": "Forgot your password?",
+    "description": "No problem. Choose how you'd like to reset it and we'll send you a secure way back in.",
+    "methodLabel": "Reset method",
+    "submit": "Send reset code"
+  },
+  "verifyCode": {
+    "title": "Enter your verification code",
+    "description": "We sent a 6-digit code to your phone {{contact}}. It expires in {{minutes}} minutes.",
+    "resendIn": "Resend code in {{time}}",
+    "resend": "Resend code",
+    "submit": "Verify & continue"
+  },
+  "newPassword": {
+    "title": "Create a new password",
+    "description": "Choose something strong you haven't used before. You'll be signed out everywhere else.",
+    "passwordLabel": "New password",
+    "passwordPlaceholder": "Enter a new password",
+    "confirmPasswordLabel": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter your password",
+    "submit": "Reset password"
+  },
+  "home": {
+    "badge": "Oman e-invoicing",
+    "heroTitle": "E-invoicing compliance, handled for you.",
+    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority — without touching Peppol yourself.",
+    "waitingForDesigns": "Auth screens: /login, /signup, /forgot-password, /verify-code."
+  }
 }
