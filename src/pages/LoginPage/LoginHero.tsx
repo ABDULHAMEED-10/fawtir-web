@@ -12,7 +12,7 @@ export function LoginHero() {
         src={glowLeft}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-[25%] left-[-40%] z-0 h-auto w-[170%] max-w-none rotate-180 select-none opacity-80"
+        className="pointer-events-none absolute -bottom-[28%] left-[-42%] z-0 h-auto w-[180%] max-w-none rotate-180 select-none opacity-85"
       />
 
       <div className="relative z-10 flex h-full min-h-0 flex-col px-8 py-6 xl:py-8">

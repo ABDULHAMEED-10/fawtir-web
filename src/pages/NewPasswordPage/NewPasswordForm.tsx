@@ -27,16 +27,16 @@ export function NewPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="flex w-full max-w-[400px] flex-col gap-11">
       <div className="flex flex-col gap-9">
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('newPassword.title')}
           </h2>
-          <p className="text-sm font-medium leading-relaxed text-text-muted">
+          <p className="text-base font-medium leading-[1.2] text-text-quaternary">
             {t('newPassword.description')}
           </p>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-10">
           <div className="flex flex-col gap-2.5">
             <Input
               label={t('newPassword.passwordLabel')}

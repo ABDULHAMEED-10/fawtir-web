@@ -34,7 +34,7 @@ export function VerifyCodeForm() {
       navigate('/new-password')
       return
     }
-    navigate('/login')
+    navigate('/about-business')
   }
 
   const handleResend = () => {

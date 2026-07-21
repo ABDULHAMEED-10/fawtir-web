@@ -39,7 +39,7 @@ export function SegmentedControl<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={[
-              'flex h-9 w-[86px] items-center justify-center rounded-sm px-[15px] text-base transition-colors',
+              'flex h-9 flex-1 items-center justify-center rounded-sm px-3 text-base transition-colors',
               active
                 ? 'bg-surface-card font-semibold text-primary-800'
                 : 'bg-transparent font-medium text-text-quaternary hover:text-text-secondary',
