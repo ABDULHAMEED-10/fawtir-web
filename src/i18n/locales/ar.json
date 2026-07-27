@@ -1,6 +1,7 @@
 {
   "brand": {
-    "name": "FAWTIR"
+    "name": "فوتر",
+    "wordmark": "فوتر"
   },
   "common": {
     "clear": "مسح",
@@ -369,7 +370,7 @@
       "annual": "سنوي",
       "monthly": "شهري",
       "planLine": "{{plan}} ({{cycle}})",
-      "monthlyRate": "OMR {{rate}} / شهر يُفوتر سنويًا",
+      "monthlyRate": "{{rate}} / شهر يُفوتر سنويًا",
       "months": "{{count}} أشهر",
       "vat": "ضريبة القيمة المضافة (5%)",
       "totalDue": "المستحق اليوم",
@@ -380,10 +381,628 @@
     "payCta": "ادفع {{amount}} وفعّل",
     "bankCta": "أرسل لي الفاتورة المبدئية"
   },
+  "dashboard": {
+    "searchPlaceholder": "ابحث في الفواتير، العملاء، المستندات...",
+    "createInvoice": "إنشاء فاتورة",
+    "notifications": "الإشعارات",
+    "greeting": "صباح الخير، {{name}}",
+    "date": "السبت، 18 يوليو 2026",
+    "thisMonth": "هذا الشهر",
+    "nav": {
+      "main": "الرئيسي",
+      "dashboard": "لوحة التحكم",
+      "income": "الدخل",
+      "invoices": "الفواتير",
+      "incomeChildren": {
+        "invoice": "فاتورة",
+        "reminders": "تذكيرات",
+        "periodic": "فواتير دورية",
+        "creditNotes": "إشعارات دائن",
+        "quotations": "عروض أسعار",
+        "orderForms": "نماذج طلب",
+        "deliveryNotes": "إشعارات تسليم"
+      },
+      "expenditure": "المصروفات",
+      "catalogContacts": "الكتالوج وجهات الاتصال",
+      "catalog": "الكتالوج",
+      "customers": "العملاء",
+      "suppliers": "الموردون",
+      "compliance": "الامتثال",
+      "tddOta": "TDD وجهاز الضرائب",
+      "documents": "المستندات",
+      "insights": "التحليلات",
+      "reports": "التقارير",
+      "settings": "الإعدادات"
+    },
+    "account": {
+      "premiumPlan": "الخطة المميزة",
+      "owner": "المالك"
+    },
+    "kpi": {
+      "sales": "مبيعات اليوم",
+      "receivables": "المستحقات",
+      "payables": "المدفوعات",
+      "vsYesterday": "مقارنة بالأمس",
+      "open": "{{count}} مفتوحة",
+      "overdue": "{{count}} متأخرة",
+      "dueSoon": "{{count}} مستحقة قريبًا",
+      "suppliers": "{{count}} موردون"
+    },
+    "revenue": {
+      "title": "الإيرادات",
+      "periodLabel": "فترة الإيرادات",
+      "day": "يوم",
+      "week": "أسبوع",
+      "month": "شهر",
+      "thisMonth": "هذا الشهر"
+    },
+    "invoices": {
+      "title": "أحدث الفواتير",
+      "colInvoice": "الفاتورة",
+      "colCustomer": "العميل",
+      "colStatus": "الحالة",
+      "colAmount": "المبلغ",
+      "status": {
+        "reported": "مُبلَّغ",
+        "rejected": "مرفوض",
+        "sent": "مُرسل",
+        "draft": "مسودة"
+      }
+    },
+    "compliance": {
+      "title": "صحة الامتثال",
+      "accepted": "مقبول",
+      "reported": "مُبلَّغ لجهاز الضرائب",
+      "mls": "MLS ضمن SLA",
+      "rejected": "مرفوض",
+      "alert": "{{count}} تقارير TDD تحتاج انتباهك"
+    },
+    "quota": {
+      "title": "حصة الفواتير",
+      "billingPeriod": "فترة الفوترة",
+      "used": "مستخدم",
+      "reset": "18 يومًا متبقية · يُعاد في 1 أغسطس"
+    },
+    "vat": {
+      "title": "وضع ضريبة القيمة المضافة",
+      "report": "تقرير ←",
+      "netPayable": "صافي مستحق",
+      "output": "ضريبة المخرجات",
+      "input": "ضريبة المدخلات"
+    }
+  },
+  "invoicesPage": {
+    "title": "الفواتير",
+    "subtitle": "كل مستند أصدرته — تم التحقق منه وتوقيعه والإبلاغ عنه إلى جهاز الضرائب العُماني.",
+    "bulkUpload": "رفع جماعي",
+    "export": "تصدير",
+    "createInvoice": "إنشاء فاتورة",
+    "searchPlaceholder": "ابحث في الفواتير، العملاء، المستندات...",
+    "rowMenu": "إجراءات الفاتورة",
+    "showResult": "عرض النتائج:",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "kpi": {
+      "outstanding": "المستحق",
+      "outstandingMeta": "عبر 4 فواتير غير مدفوعة",
+      "paid": "مدفوع",
+      "paidMeta": "فاتورتان تم تحصيلهما",
+      "awaiting": "بانتظار الدفع",
+      "awaitingMeta": "فاتورتان تستحقان قريبًا",
+      "overdue": "متأخر",
+      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا"
+    },
+    "tabs": {
+      "all": "الكل",
+      "drafts": "مسودات",
+      "toSend": "للإرسال",
+      "awaiting": "بانتظار",
+      "overdue": "متأخر",
+      "paid": "مدفوع"
+    },
+    "filters": {
+      "thisMonth": "هذا الشهر",
+      "docType": "نوع المستند",
+      "channel": "القناة",
+      "sort": "ترتيب"
+    },
+    "col": {
+      "invoice": "الفاتورة",
+      "customer": "العميل",
+      "issued": "الإصدار",
+      "due": "الاستحقاق",
+      "amount": "المبلغ",
+      "status": "الحالة"
+    },
+    "status": {
+      "overdue": "متأخر",
+      "awaiting": "بانتظار الدفع",
+      "partial": "مدفوع جزئيًا",
+      "toSend": "للإرسال",
+      "paid": "مدفوع",
+      "draft": "مسودة"
+    }
+  },
+  "invoiceDetails": {
+    "breadcrumbIncome": "الدخل",
+    "breadcrumbInvoices": "الفواتير",
+    "title": "فاتورة {{id}}",
+    "issued": "صدرت",
+    "to": "إلى",
+    "outstandingBalance": "الرصيد المستحق",
+    "invoiceTotal": "إجمالي الفاتورة",
+    "paid": "مدفوع",
+    "outstanding": "المستحق",
+    "billTo": "فاتورة إلى",
+    "viewCustomer": "عرض العميل",
+    "onPeppol": "على Peppol",
+    "pdfTitle": "PDF الفاتورة",
+    "pdfAlt": "معاينة الفاتورة {{id}}",
+    "zoomOut": "تصغير",
+    "zoomIn": "تكبير",
+    "download": "تنزيل",
+    "print": "طباعة",
+    "fullscreen": "ملء الشاشة",
+    "delete": "حذف",
+    "items": "البنود",
+    "actions": {
+      "send": "إرسال",
+      "creditNote": "إشعار دائن",
+      "periodic": "فاتورة دورية",
+      "duplicate": "تكرار",
+      "more": "المزيد"
+    },
+    "fields": {
+      "issueDate": "تاريخ الإصدار",
+      "dueDate": "تاريخ الاستحقاق",
+      "deliveryDate": "تاريخ التسليم",
+      "paymentTerms": "شروط الدفع",
+      "currency": "العملة",
+      "vatRate": "معدل الضريبة",
+      "branch": "الفرع",
+      "project": "المشروع",
+      "poReference": "مرجع أمر الشراء",
+      "subject": "الموضوع",
+      "paymentMethod": "طريقة الدفع"
+    },
+    "col": {
+      "description": "الوصف",
+      "unitPrice": "سعر الوحدة",
+      "vat": "الضريبة",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "disc": "خصم %",
+      "total": "الإجمالي"
+    },
+    "totals": {
+      "subtotal": "المجموع الفرعي (بدون ضريبة)",
+      "discount": "الخصم",
+      "net": "صافي المبلغ",
+      "vat": "الضريبة · قياسي 5%",
+      "total": "المبلغ الإجمالي"
+    },
+    "notes": {
+      "title": "ملاحظات",
+      "customer": "ملاحظة للعميل",
+      "onInvoice": "على الفاتورة",
+      "internal": "ملاحظة داخلية",
+      "private": "خاصة"
+    },
+    "attachments": {
+      "title": "المرفقات",
+      "drop": "أسقط الملفات هنا أو تصفح",
+      "hint": "PDF، JPG، PNG · بحد أقصى 10 ميجابايت لكل ملف"
+    },
+    "payments": {
+      "title": "المدفوعات",
+      "add": "إضافة دفعة",
+      "paidPrefix": "مدفوع",
+      "of": "من"
+    },
+    "timeline": {
+      "title": "الجدول الزمني"
+    }
+  },
+  "createInvoice": {
+    "breadcrumb": "الفواتير",
+    "title": "فاتورة جديدة",
+    "draftMeta": "INV-2044 · مسودة",
+    "docTypes": {
+      "invoice": "فاتورة",
+      "credit": "إشعار دائن",
+      "debit": "إشعار مدين",
+      "selfBilled": "ذاتية الفوترة"
+    },
+    "sections": {
+      "customer": "العميل",
+      "details": "تفاصيل الفاتورة",
+      "items": "البنود",
+      "payment": "الدفع والحالة",
+      "notes": "ملاحظات ومرفقات"
+    },
+    "customerTypes": {
+      "business": "أعمال",
+      "businessSub": "B2B - عبر Peppol",
+      "consumer": "مستهلك",
+      "consumerSub": "B2C - إيصال QR",
+      "government": "حكومة",
+      "governmentSub": "B2G - عبر Peppol"
+    },
+    "customer": {
+      "name": "Muscat Grand Hotel LLC",
+      "vat": "ضريبة OM1100447102 · 0248:OM1100447102",
+      "onPeppol": "على Peppol",
+      "change": "تغيير",
+      "addCustomer": "إضافة عميل",
+      "select": "اختر عميلاً",
+      "selectHint": "اختر عميلاً موجودًا أو أضف عميلاً جديدًا"
+    },
+    "consumer": {
+      "name": "اسم العميل",
+      "namePlaceholder": "عميل عابر",
+      "contact": "الهاتف أو البريد",
+      "contactPlaceholder": "لإرسال الإيصال",
+      "peppolNote": "لا حاجة لمعرّف Peppol. سنستخدم معرّف المشارك البديل لـ OTA 997770000099 ونُنشئ رمز QR الإلزامي على الإيصال.",
+      "receiptQr": "رمز QR للإيصال",
+      "receiptQrHint": "مُرمّز TLV وفق مواصفات OTA.\nيُنشأ عند الإرسال."
+    },
+    "summary": {
+      "title": "الملخص",
+      "subtotal": "المجموع الفرعي",
+      "discount": "الخصم",
+      "net": "صافي المبلغ",
+      "vat": "ضريبة · قياسي 5%",
+      "totalDue": "الإجمالي المستحق"
+    },
+    "fields": {
+      "invoiceNumber": "رقم الفاتورة",
+      "issueDate": "تاريخ الإصدار",
+      "dueDate": "تاريخ الاستحقاق",
+      "deliveryDate": "تاريخ التسليم",
+      "paymentTerms": "شروط الدفع",
+      "branch": "الفرع",
+      "currency": "العملة",
+      "taxCategory": "فئة الضريبة الافتراضية",
+      "project": "المشروع",
+      "subject": "الموضوع / الوصف",
+      "po": "مرجع أمر الشراء",
+      "paymentMethod": "طريقة الدفع",
+      "paymentReference": "مرجع الدفع",
+      "paymentDate": "تاريخ الدفع"
+    },
+    "values": {
+      "net30": "صافي 30 يومًا",
+      "branch": "Al Bahja Coffee (Main)",
+      "currency": "OMR - الريال العماني",
+      "tax": "المعدل القياسي - 5%",
+      "project": "توريد رمضان 2026",
+      "subject": "توريد القهوة الشهري وتدريب الباريستا — يوليو",
+      "bankTransfer": "تحويل بنكي"
+    },
+    "items": {
+      "exclVat": "بدون ضريبة",
+      "inclVat": "شامل الضريبة",
+      "description": "الوصف",
+      "excl": "بدون",
+      "vat": "الضريبة (%)",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "discount": "الخصم",
+      "totExcl": "الإجمالي بدون",
+      "addLine": "إضافة بند",
+      "remove": "حذف البند",
+      "totalExcluding": "الإجمالي بدون ضريبة",
+      "vatAmount": "الضريبة",
+      "totalAmount": "المبلغ الإجمالي"
+    },
+    "toggles": {
+      "paid": "تعليم كمدفوع",
+      "paidHint": "يسجّل الدفع ويحدّث إجمالي المستحقات.",
+      "sent": "تعليم كمرسل يدويًا",
+      "sentHint": "عادةً تلقائي بعد الإرسال إلى Peppol — استخدمه فقط للتسليم دون اتصال."
+    },
+    "notes": {
+      "toCustomer": "ملاحظة للعميل",
+      "onInvoice": "على الفاتورة",
+      "internal": "ملاحظة داخلية",
+      "private": "خاصة",
+      "customerText": "شكرًا لتعاملكم. يرجى السداد خلال 30 يومًا عبر التحويل البنكي باستخدام المرجع أعلاه.",
+      "internalText": "خصم الولاء وافق عليه Hafidh في 15 يوليو. المتابعة إن لم يُدفع بحلول 20 أغسطس.",
+      "uploadTitle": "اسحب الملفات وأفلتها هنا، أو انقر للتصفح",
+      "uploadHint": "PDF، JPG، XLSX · حتى 10 ميجابايت لكل ملف"
+    },
+    "actions": {
+      "preview": "معاينة",
+      "saveDraft": "حفظ مسودة",
+      "submit": "تحقق وإرسال"
+    }
+  },
+  "periodicInvoice": {
+    "breadcrumbIncome": "الدخل",
+    "breadcrumb": "الفواتير الدورية",
+    "active": "نشط",
+    "recurring": "سلسلة متكررة",
+    "next": "التشغيل التالي",
+    "saveChanges": "حفظ التغييرات",
+    "pauseSeries": "إيقاف السلسلة مؤقتًا",
+    "more": "المزيد",
+    "invoiceDetails": "تفاصيل الفاتورة",
+    "customer": "العميل",
+    "onPeppol": "على Peppol",
+    "change": "تغيير",
+    "fields": {
+      "subject": "الموضوع",
+      "po": "أمر شراء / مرجع",
+      "terms": "شروط الدفع",
+      "currency": "العملة",
+      "tax": "فئة الضريبة",
+      "branch": "الفرع",
+      "project": "المشروع"
+    },
+    "notesTitle": "ملاحظات",
+    "noteCustomer": "ملاحظة للعميل",
+    "noteInternal": "ملاحظة داخلية",
+    "items": "بنود الفاتورة",
+    "exclVat": "بدون ضريبة",
+    "inclVat": "شامل الضريبة",
+    "col": {
+      "description": "الوصف",
+      "excl": "بدون",
+      "vat": "ضريبة",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "disc": "خصم",
+      "total": "الإجمالي"
+    },
+    "addLine": "إضافة بند",
+    "totalExcl": "الإجمالي بدون ضريبة",
+    "vat": "الضريبة",
+    "totalAmount": "المبلغ الإجمالي",
+    "itemsBanner": "كل تشغيل سيُصدر فاتورة بمبلغ {{amount}} ر.ع. لـ {{customer}}.",
+    "generated": "الفواتير المُنشأة",
+    "nextBanner": "ستُنشأ الفاتورة التالية في {{date}}.",
+    "schedule": "الجدول",
+    "frequency": "التكرار",
+    "weekly": "أسبوعي",
+    "monthly": "شهري",
+    "quarterly": "ربع سنوي",
+    "yearly": "سنوي",
+    "repeatsOn": "يتكرر في",
+    "starts": "يبدأ",
+    "ends": "ينتهي",
+    "sendAuto": "إرسال تلقائي",
+    "sendAutoHint": "إصدار وإرسال عبر Peppol في كل تشغيل.",
+    "notify": "إشعار عند التشغيل",
+    "notifyHint": "أرسل بريدًا عند إنشاء كل فاتورة.",
+    "upcoming": "القادمة",
+    "started": "بدأت",
+    "issued": "صدرت",
+    "each": "كل مرة"
+  },
+  "creditNotesPage": {
+    "title": "إشعارات دائنة",
+    "subtitle": "6 إشعارات دائنة · 69.060 ر.ع مُقيدة هذا الربع",
+    "export": "تصدير",
+    "newCreditNote": "إشعار دائن جديد",
+    "searchPlaceholder": "ابحث بالرقم أو الفاتورة أو العميل...",
+    "filters": "تصفية",
+    "sort": "ترتيب",
+    "rowMenu": "إجراءات الإشعار الدائن",
+    "showResult": "عرض النتائج:",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "kpi": {
+      "credited": "مُقيد · 30 يوماً",
+      "creditedMeta": "6 إشعارات دائنة صادرة",
+      "refundDue": "استرداد مستحق",
+      "refundDueMeta": "2 استردادات للدفع",
+      "applied": "مطبّق على الفواتير",
+      "appliedMeta": "2 مقاصة، بدون نقد",
+      "refunded": "مُسترد",
+      "refundedMeta": "1 أُعيد للعميل"
+    },
+    "tabs": {
+      "all": "الكل",
+      "drafts": "مسودات",
+      "toSend": "للإرسال",
+      "refundDue": "استرداد مستحق",
+      "applied": "مطبّق",
+      "refunded": "مُسترد"
+    },
+    "col": {
+      "creditNote": "إشعار دائن",
+      "reverses": "يعكس",
+      "customer": "العميل",
+      "issued": "تاريخ الإصدار",
+      "creditAmount": "مبلغ الائتمان",
+      "refund": "الاسترداد",
+      "status": "الحالة"
+    },
+    "status": {
+      "toSend": "للإرسال",
+      "refundDue": "استرداد مستحق",
+      "applied": "مطبّق",
+      "refunded": "مُسترد",
+      "draft": "مسودة"
+    },
+    "refund": {
+      "due": "استرداد مستحق",
+      "applied": "مطبّق",
+      "offset": "مقاصة فاتورة",
+      "refundedOn": "مُسترد 10 يوليو"
+    }
+  },
+  "creditNoteDetails": {
+    "breadcrumbIncome": "الدخل",
+    "breadcrumb": "إشعارات الدائن",
+    "title": "إشعار دائن جديد",
+    "draft": "مسودة",
+    "reversing": "عكس",
+    "for": "لـ",
+    "saveDraft": "حفظ مسودة",
+    "issue": "إصدار إشعار دائن",
+    "more": "المزيد",
+    "amountToCredit": "المبلغ المراد إشعاره",
+    "reducesRevenue": "يخفض الإيرادات المعترف بها",
+    "creditTotal": "إجمالي الإشعار",
+    "appliedTo": "مطبّق على {{id}}",
+    "refundDue": "استرداد مستحق",
+    "refundBannerTitle": "استرداد مستحق لـ {{customer}}",
+    "refundBannerHint": "{{id}} مسددة بالكامل؛ يتجاوز الإشعار هذا المبلغ.",
+    "notSent": "لم يُرسل بعد.",
+    "notSentHint": "إشعار الدائن جاهز للتسليم إلى {{customer}} عبر Peppol.",
+    "details": "التفاصيل",
+    "viewCustomer": "عرض العميل",
+    "reverses": "يعكس {{id}}",
+    "settled": "سُددت بهذا الإشعار",
+    "originalMeta": "الإجمالي الأصلي OMR {{amount}} · صدرت {{date}}",
+    "openInvoice": "فتح الفاتورة",
+    "onPeppol": "على Peppol",
+    "fields": {
+      "number": "رقم إشعار الدائن",
+      "issueDate": "تاريخ الإصدار",
+      "currency": "العملة",
+      "concerning": "بخصوص الفاتورة",
+      "po": "مرجع أمر الشراء",
+      "tax": "فئة الضريبة",
+      "reason": "سبب الإشعار"
+    },
+    "pdfTitle": "ملف PDF",
+    "pdfAlt": "معاينة إشعار الدائن {{id}}",
+    "zoomOut": "تصغير",
+    "zoomIn": "تكبير",
+    "download": "تنزيل",
+    "print": "طباعة",
+    "fullscreen": "ملء الشاشة",
+    "items": "البنود",
+    "col": {
+      "description": "الوصف",
+      "unitPrice": "سعر الوحدة",
+      "vat": "الضريبة",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "disc": "خصم %",
+      "total": "الإجمالي"
+    },
+    "totals": {
+      "net": "الصافي المُشعَر (بدون ضريبة)",
+      "vat": "الضريبة المعكوسة · 5%",
+      "total": "إجمالي المُشعَر"
+    },
+    "notesTitle": "ملاحظات ومرفقات",
+    "noteCustomer": "ملاحظة للعميل",
+    "onCreditNote": "على إشعار الدائن",
+    "noteInternal": "ملاحظة داخلية",
+    "private": "خاصة",
+    "supportingDocs": "المستندات الداعمة",
+    "dropFiles": "أسقط الملفات أو انقر للرفع",
+    "dropHint": "أوامر شراء، ملاحظات تسليم، عقود · PDF، JPG، XLSX",
+    "refunds": "الاستردادات",
+    "recordRefund": "تسجيل استرداد",
+    "refundPending": "استرداد معلّق",
+    "refundPendingHint": "يمسح الإشعار رصيد {{id}} ويترك استردادًا مستحقًا. سجّله هنا بعد إرسال المبلغ.",
+    "activity": "النشاط"
+  },
+  "creditNote": {
+    "breadcrumbIncome": "الدخل",
+    "breadcrumb": "إشعارات الدائن",
+    "title": "إشعار دائن جديد",
+    "draft": "مسودة",
+    "reversing": "عكس",
+    "for": "لـ",
+    "saveDraft": "حفظ مسودة",
+    "issue": "إصدار إشعار دائن",
+    "more": "المزيد",
+    "original": "الفاتورة الأصلية",
+    "invoiceTotal": "إجمالي الفاتورة",
+    "alreadyCredited": "تم إشعاره سابقًا",
+    "creditable": "قابل للإشعار",
+    "whatToCredit": "ما الذي يُشعَر",
+    "modes": {
+      "full": "الفاتورة كاملة",
+      "fullSub": "إشعار بالمبلغ بالكامل",
+      "lines": "بنود محددة",
+      "linesSub": "اختر البنود للعكس",
+      "custom": "مبلغ مخصص",
+      "customSub": "أدخل إشعارًا جزئيًا"
+    },
+    "fullWarning": "سيؤدي هذا إلى عكس INV-2044 بالكامل. سيتم مسح أي رصيد متبقٍ ويصبح المبلغ الزائد مستردًا.",
+    "reasonTitle": "السبب",
+    "shownOnNote": "يظهر على الإشعار",
+    "reason": "السبب",
+    "reference": "مرجعك",
+    "noteToCustomer": "ملاحظة للعميل",
+    "detailsTitle": "تفاصيل إشعار الدائن",
+    "number": "رقم إشعار الدائن",
+    "issueDate": "تاريخ الإصدار",
+    "concerning": "بخصوص الفاتورة",
+    "currency": "العملة",
+    "sendPeppol": "إرسال عبر Peppol",
+    "onPeppol": "العميل على Peppol",
+    "attachments": "المرفقات",
+    "dropFiles": "اسحب الملفات وأفلتها هنا، أو انقر للتصفح",
+    "dropHint": "PDF، JPG، XLSX · حتى 10 ميجابايت لكل ملف",
+    "amountToCredit": "المبلغ المراد إشعاره",
+    "reducesRevenue": "يخفض الإيرادات",
+    "netToCredit": "الصافي للإشعار",
+    "vatReversed": "الضريبة المعكوسة",
+    "effectOn": "الأثر على {{customer}}",
+    "outstanding": "المستحق",
+    "applied": "مطبّق على الرصيد",
+    "newBalance": "الرصيد الجديد",
+    "refundDue": "استرداد مستحق",
+    "refundHint": "دفع العميل زيادة — استرد هذا المبلغ بشكل منفصل.",
+    "footerNote": "مرتبط بـ {{id}} · مسودة حتى الإصدار"
+  },
+  "addCustomer": {
+    "title": "ملف عميل جديد",
+    "subtitle": "إعداد بيانات الشركة وتفاصيل الفوترة لأعمال عُمان.",
+    "close": "إغلاق",
+    "collapse": "طي",
+    "expand": "توسيع",
+    "cancel": "إلغاء",
+    "save": "حفظ ملف العميل",
+    "kinds": {
+      "company": "شركة",
+      "companySub": "كيان تجاري برقم ضريبة",
+      "private": "فرد",
+      "privateSub": "تسجيل شخصي فردي"
+    },
+    "sections": {
+      "companyDetails": "تفاصيل الشركة",
+      "personalDetails": "التفاصيل الشخصية",
+      "address": "عنوان الفوترة",
+      "notes": "ملاحظات وتعليقات داخلية"
+    },
+    "fields": {
+      "vat": "رقم الضريبة أو CBE",
+      "corporateName": "الاسم التجاري",
+      "directorFirst": "الاسم الأول للمدير",
+      "lastNameManager": "اسم عائلة المدير",
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "email": "البريد الإلكتروني",
+      "language": "اللغة المفضلة",
+      "telephone": "الهاتف",
+      "mobile": "الجوال",
+      "attn": "عناية (Attn)",
+      "country": "الدولة",
+      "city": "المدينة / المنطقة",
+      "zone": "رقم المنطقة",
+      "street": "رقم الشارع",
+      "building": "رقم المبنى",
+      "poBox": "صندوق البريد",
+      "note": "ملاحظة للعميل",
+      "notePlaceholder": "أضف تعليمات داخلية اختيارية أو تفاصيل الفوترة..."
+    }
+  },
   "home": {
-    "badge": "الفوترة الإلكترونية في عُمان",
+    "stage": "مرحلة التطوير",
     "heroTitle": "الامتثال للفوترة الإلكترونية، نتولى أمره عنك.",
-    "heroSubtitle": "أنشئ وتحقق ووقّع وأبلغ عن كل فاتورة إلى جهاز الضرائب — دون التعامل مع Peppol بنفسك.",
-    "waitingForDesigns": "شاشات المصادقة حتى /payment."
+    "heroSubtitle": "أنشئ وتحقق ووقّع وأبلغ عن كل فاتورة إلى جهاز الضرائب، دون التعامل مع Peppol بنفسك.",
+    "dashboard": "لوحة التحكم",
+    "login": "تسجيل الدخول",
+    "signup": "إنشاء حساب",
+    "footerNote": "هذه الصفحة الرئيسية للاختبار والتنقّل فقط."
   }
 }

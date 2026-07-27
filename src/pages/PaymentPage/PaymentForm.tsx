@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   Input,
+  OmAmount,
   SelectionCard,
 } from '../../components/ui'
 import {
@@ -66,7 +67,7 @@ export function PaymentForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate('/', {
+    navigate('/dashboard', {
       state: {
         ...state,
         paymentMethod: method,
@@ -260,9 +261,11 @@ function OrderSummaryCard({
                   cycle: t(`payment.summary.${billing}`),
                 })}
               </span>
-              <span className="font-semibold text-text-primary/80">
-                {formatOmr(summary.subtotal)}
-              </span>
+              <OmAmount
+                size="xs"
+                amount={formatOmr(summary.subtotal)}
+                amountClassName="font-semibold text-text-primary/80"
+              />
             </div>
             {billing === 'annual' ? (
               <div className="flex items-center justify-between gap-2 text-sm">
@@ -276,7 +279,11 @@ function OrderSummaryCard({
             ) : null}
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-medium text-text-primary/70">{t('payment.summary.vat')}</span>
-              <span className="font-semibold text-text-primary/80">{formatOmr(summary.vat)}</span>
+              <OmAmount
+                size="xs"
+                amount={formatOmr(summary.vat)}
+                amountClassName="font-semibold text-text-primary/80"
+              />
             </div>
           </>
         ) : (
@@ -294,7 +301,17 @@ function OrderSummaryCard({
         <span className="text-base font-medium text-text-primary/90">
           {t('payment.summary.totalDue')}
         </span>
-        <span className="text-[22px] font-semibold text-text-primary/90">{totalLabel}</span>
+        <span className="text-[22px] font-semibold text-text-primary/90">
+          {summary ? (
+            <OmAmount
+              size="sm"
+              amount={formatOmr(summary.total)}
+              amountClassName="text-[22px] font-semibold text-text-primary/90"
+            />
+          ) : (
+            totalLabel
+          )}
+        </span>
       </div>
       <div className="border-t border-dashed border-[#e8e8e8]" />
 

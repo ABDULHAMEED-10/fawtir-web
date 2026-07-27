@@ -1,6 +1,7 @@
 {
   "brand": {
-    "name": "FAWTIR"
+    "name": "FAWTIR",
+    "wordmark": "AWTIR"
   },
   "common": {
     "clear": "Clear",
@@ -369,7 +370,7 @@
       "annual": "annual",
       "monthly": "monthly",
       "planLine": "{{plan}} ({{cycle}})",
-      "monthlyRate": "OMR {{rate}} / mo billed yearly",
+      "monthlyRate": "{{rate}} / mo billed yearly",
       "months": "{{count}} months",
       "vat": "VAT (5%)",
       "totalDue": "Total due today",
@@ -380,10 +381,628 @@
     "payCta": "Pay {{amount}} & activate",
     "bankCta": "Email me the proforma invoice"
   },
+  "dashboard": {
+    "searchPlaceholder": "Search invoices, customers. documents...",
+    "createInvoice": "Create Invoice",
+    "notifications": "Notifications",
+    "greeting": "Good morning, {{name}}",
+    "date": "Saturday, 18 July 2026",
+    "thisMonth": "This month",
+    "nav": {
+      "main": "MAIN",
+      "dashboard": "Dashboard",
+      "income": "Income",
+      "invoices": "Invoices",
+      "incomeChildren": {
+        "invoice": "Invoice",
+        "reminders": "Reminders",
+        "periodic": "Periodic invoices",
+        "creditNotes": "Credit notes",
+        "quotations": "Quotations",
+        "orderForms": "Order forms",
+        "deliveryNotes": "Delivery notes"
+      },
+      "expenditure": "Expenditure",
+      "catalogContacts": "Catalog & contacts",
+      "catalog": "Catalog",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "compliance": "Compliance",
+      "tddOta": "TDD & OTA",
+      "documents": "Documents",
+      "insights": "Insights",
+      "reports": "Reports",
+      "settings": "Settings"
+    },
+    "account": {
+      "premiumPlan": "Premium plan",
+      "owner": "Owner"
+    },
+    "kpi": {
+      "sales": "Today’s sales",
+      "receivables": "Receivables",
+      "payables": "Payables",
+      "vsYesterday": "vs yesterday",
+      "open": "{{count}} open",
+      "overdue": "{{count}} overdue",
+      "dueSoon": "{{count}} due soon",
+      "suppliers": "{{count}} suppliers"
+    },
+    "revenue": {
+      "title": "Revenue",
+      "periodLabel": "Revenue period",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "thisMonth": "this month"
+    },
+    "invoices": {
+      "title": "Recent invoices",
+      "colInvoice": "Invoice",
+      "colCustomer": "Customer",
+      "colStatus": "Status",
+      "colAmount": "Amount",
+      "status": {
+        "reported": "Reported",
+        "rejected": "Rejected",
+        "sent": "Sent",
+        "draft": "Draft"
+      }
+    },
+    "compliance": {
+      "title": "Compliance health",
+      "accepted": "accepted",
+      "reported": "Reported to OTA",
+      "mls": "MLS within SLA",
+      "rejected": "Rejected",
+      "alert": "{{count}} TDDs need your attention"
+    },
+    "quota": {
+      "title": "Invoice quota",
+      "billingPeriod": "Billing period",
+      "used": "used",
+      "reset": "18 days left · resets 1 Aug"
+    },
+    "vat": {
+      "title": "VAT Position",
+      "report": "Report →",
+      "netPayable": "net payable",
+      "output": "Output VAT",
+      "input": "Input VAT"
+    }
+  },
+  "invoicesPage": {
+    "title": "Invoices",
+    "subtitle": "Every document you’ve issued — validated, signed and reported to the Oman Tax Authority.",
+    "bulkUpload": "Bulk upload",
+    "export": "Export",
+    "createInvoice": "Create Invoice",
+    "searchPlaceholder": "Search invoices, customers. documents...",
+    "rowMenu": "Invoice actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "kpi": {
+      "outstanding": "Outstanding",
+      "outstandingMeta": "Across 4 unpaid invoices",
+      "paid": "Paid",
+      "paidMeta": "2 invoices collected",
+      "awaiting": "Awaiting payment",
+      "awaitingMeta": "2 invoices due soon",
+      "overdue": "Overdue",
+      "overdueMeta": "1 invoice · oldest 20 days"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "toSend": "To send",
+      "awaiting": "Awaiting",
+      "overdue": "Overdue",
+      "paid": "Paid"
+    },
+    "filters": {
+      "thisMonth": "This month",
+      "docType": "Doc Type",
+      "channel": "Channel",
+      "sort": "Sort"
+    },
+    "col": {
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "issued": "Issued",
+      "due": "Due",
+      "amount": "Amount",
+      "status": "Status"
+    },
+    "status": {
+      "overdue": "Overdue",
+      "awaiting": "Awaiting payment",
+      "partial": "Partially paid",
+      "toSend": "To be sent",
+      "paid": "Paid",
+      "draft": "Draft"
+    }
+  },
+  "invoiceDetails": {
+    "breadcrumbIncome": "Income",
+    "breadcrumbInvoices": "Invoices",
+    "title": "Invoice {{id}}",
+    "issued": "Issued",
+    "to": "To",
+    "outstandingBalance": "Outstanding balance",
+    "invoiceTotal": "Invoice total",
+    "paid": "Paid",
+    "outstanding": "Outstanding",
+    "billTo": "Bill to",
+    "viewCustomer": "View customer",
+    "onPeppol": "On Peppol",
+    "pdfTitle": "Invoice PDF",
+    "pdfAlt": "Preview of invoice {{id}}",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "download": "Download",
+    "print": "Print",
+    "fullscreen": "Fullscreen",
+    "delete": "Delete",
+    "items": "Items",
+    "actions": {
+      "send": "Send",
+      "creditNote": "Credit Note",
+      "periodic": "Periodic invoice",
+      "duplicate": "Duplicate",
+      "more": "More actions"
+    },
+    "fields": {
+      "issueDate": "Issue date",
+      "dueDate": "Due date",
+      "deliveryDate": "Delivery date",
+      "paymentTerms": "Payment terms",
+      "currency": "Currency",
+      "vatRate": "VAT rate",
+      "branch": "Branch",
+      "project": "Project",
+      "poReference": "PO reference",
+      "subject": "Subject",
+      "paymentMethod": "Payment method"
+    },
+    "col": {
+      "description": "Description",
+      "unitPrice": "Unit price",
+      "vat": "VAT",
+      "qty": "Qty",
+      "unit": "Unit",
+      "disc": "Disc %",
+      "total": "Total"
+    },
+    "totals": {
+      "subtotal": "Subtotal (excl. VAT)",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "total": "Total amount"
+    },
+    "notes": {
+      "title": "Notes",
+      "customer": "Note to customer",
+      "onInvoice": "on invoice",
+      "internal": "Internal note",
+      "private": "private"
+    },
+    "attachments": {
+      "title": "Attachments",
+      "drop": "Drop files here or browse",
+      "hint": "PDF, JPG, PNG · max 10 MB each"
+    },
+    "payments": {
+      "title": "Payments",
+      "add": "Add payment",
+      "paidPrefix": "Paid",
+      "of": "of"
+    },
+    "timeline": {
+      "title": "Timeline"
+    }
+  },
+  "createInvoice": {
+    "breadcrumb": "Invoices",
+    "title": "New invoice",
+    "draftMeta": "INV-2044 · Draft",
+    "docTypes": {
+      "invoice": "Invoice",
+      "credit": "Credit note",
+      "debit": "Debit note",
+      "selfBilled": "Self-billed"
+    },
+    "sections": {
+      "customer": "Customer",
+      "details": "Invoice details",
+      "items": "Items",
+      "payment": "Payment & status",
+      "notes": "Notes & attachments"
+    },
+    "customerTypes": {
+      "business": "Business",
+      "businessSub": "B2B - via Peppol",
+      "consumer": "Consumer",
+      "consumerSub": "B2C - QR receipt",
+      "government": "Government",
+      "governmentSub": "B2G - via Peppol"
+    },
+    "customer": {
+      "name": "Muscat Grand Hotel LLC",
+      "vat": "VAT OM1100447102 · 0248:OM1100447102",
+      "onPeppol": "On Peppol",
+      "change": "Change",
+      "addCustomer": "Add customer",
+      "select": "Select customer",
+      "selectHint": "Choose an existing customer or add a new one"
+    },
+    "consumer": {
+      "name": "Customer name",
+      "namePlaceholder": "Walk-in customer",
+      "contact": "Phone or email",
+      "contactPlaceholder": "To send the receipt",
+      "peppolNote": "No Peppol ID needed. We’ll use the OTA substitute participant ID 997770000099 and generate the mandatory QR code on the receipt.",
+      "receiptQr": "Receipt QR",
+      "receiptQrHint": "TLV-encoded per OTA spec.\nGenerated on submit."
+    },
+    "summary": {
+      "title": "Summary",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "totalDue": "Total due"
+    },
+    "fields": {
+      "invoiceNumber": "Invoice number",
+      "issueDate": "Issue date",
+      "dueDate": "Due date",
+      "deliveryDate": "Delivery date",
+      "paymentTerms": "Payment terms",
+      "branch": "Branch",
+      "currency": "Currency",
+      "taxCategory": "Default tax category",
+      "project": "Project",
+      "subject": "Subject / about",
+      "po": "Purchase order reference",
+      "paymentMethod": "Payment method",
+      "paymentReference": "Payment reference",
+      "paymentDate": "Payment date"
+    },
+    "values": {
+      "net30": "Net 30 days",
+      "branch": "Al Bahja Coffee (Main)",
+      "currency": "OMR - Omani Rial",
+      "tax": "Standard rate - 5%",
+      "project": "Ramadan 2026 supply",
+      "subject": "Monthly coffee supply & barista training — July",
+      "bankTransfer": "Bank transfer"
+    },
+    "items": {
+      "exclVat": "Excl. VAT",
+      "inclVat": "Incl. VAT",
+      "description": "Description",
+      "excl": "Excl.",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
+      "unit": "Unit",
+      "discount": "Discount",
+      "totExcl": "Tot. Excl.",
+      "addLine": "Add line item",
+      "remove": "Remove line",
+      "totalExcluding": "Total excluding",
+      "vatAmount": "Vat",
+      "totalAmount": "Total amount"
+    },
+    "toggles": {
+      "paid": "Mark as paid",
+      "paidHint": "Records the payment and updates the receivables total.",
+      "sent": "Mark as sent manually",
+      "sentHint": "Usually automatic once submitted to Peppol — use this only for offline delivery."
+    },
+    "notes": {
+      "toCustomer": "Note to customer",
+      "onInvoice": "on invoice",
+      "internal": "Internal note",
+      "private": "private",
+      "customerText": "Thank you for your business. Please settle within 30 days by bank transfer using the reference above.",
+      "internalText": "Loyalty discount approved by Hafidh on 15 Jul. Follow up if unpaid by 20 Aug.",
+      "uploadTitle": "Drag & drop files here, or click to browse",
+      "uploadHint": "PDF, JPG, XLSX · up to 10 MB each"
+    },
+    "actions": {
+      "preview": "Preview",
+      "saveDraft": "Save draft",
+      "submit": "Validate & submit"
+    }
+  },
+  "periodicInvoice": {
+    "breadcrumbIncome": "Income",
+    "breadcrumb": "Periodic invoices",
+    "active": "Active",
+    "recurring": "Recurring series",
+    "next": "Next run",
+    "saveChanges": "Save changes",
+    "pauseSeries": "Pause series",
+    "more": "More actions",
+    "invoiceDetails": "Invoice details",
+    "customer": "Customer",
+    "onPeppol": "On Peppol",
+    "change": "Change",
+    "fields": {
+      "subject": "Subject",
+      "po": "PO / reference",
+      "terms": "Payment terms",
+      "currency": "Currency",
+      "tax": "Tax category",
+      "branch": "Branch",
+      "project": "Project"
+    },
+    "notesTitle": "Notes",
+    "noteCustomer": "Note to customer",
+    "noteInternal": "Internal note",
+    "items": "Line items",
+    "exclVat": "Excl. VAT",
+    "inclVat": "Incl. VAT",
+    "col": {
+      "description": "Description",
+      "excl": "Excl.",
+      "vat": "VAT",
+      "qty": "Qty",
+      "unit": "Unit",
+      "disc": "Disc.",
+      "total": "Total"
+    },
+    "addLine": "Add line",
+    "totalExcl": "Total excl. VAT",
+    "vat": "VAT",
+    "totalAmount": "Total amount",
+    "itemsBanner": "Each run will bill {{amount}} OMR to {{customer}}.",
+    "generated": "Generated invoices",
+    "nextBanner": "Next invoice will be generated on {{date}}.",
+    "schedule": "Schedule",
+    "frequency": "Frequency",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "yearly": "Yearly",
+    "repeatsOn": "Repeats on",
+    "starts": "Starts",
+    "ends": "Ends",
+    "sendAuto": "Send automatically",
+    "sendAutoHint": "Issue and send via Peppol on each run.",
+    "notify": "Notify on run",
+    "notifyHint": "Email you when each invoice is created.",
+    "upcoming": "Upcoming",
+    "started": "Started",
+    "issued": "Issued",
+    "each": "Each"
+  },
+  "creditNotesPage": {
+    "title": "Credit notes",
+    "subtitle": "6 credit notes · OMR 69.060 credited this quarter",
+    "export": "Export",
+    "newCreditNote": "New credit note",
+    "searchPlaceholder": "Search by number, invoice, customer...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "rowMenu": "Credit note actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "kpi": {
+      "credited": "Credited · 30 days",
+      "creditedMeta": "6 credit notes issued",
+      "refundDue": "Refund due",
+      "refundDueMeta": "2 refunds to pay out",
+      "applied": "Applied to invoices",
+      "appliedMeta": "2 offset, no cash out",
+      "refunded": "Refunded",
+      "refundedMeta": "1 paid back to customer"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "toSend": "To send",
+      "refundDue": "Refund due",
+      "applied": "Applied",
+      "refunded": "Refunded"
+    },
+    "col": {
+      "creditNote": "Credit note",
+      "reverses": "Reverses",
+      "customer": "Customer",
+      "issued": "Issued",
+      "creditAmount": "Credit amount",
+      "refund": "Refund",
+      "status": "Status"
+    },
+    "status": {
+      "toSend": "To be sent",
+      "refundDue": "Refund due",
+      "applied": "Applied",
+      "refunded": "Refunded",
+      "draft": "Draft"
+    },
+    "refund": {
+      "due": "refund due",
+      "applied": "Applied",
+      "offset": "offset invoice",
+      "refundedOn": "refunded 10 Jul"
+    }
+  },
+  "creditNoteDetails": {
+    "breadcrumbIncome": "Income",
+    "breadcrumb": "Credit notes",
+    "title": "New credit note",
+    "draft": "Draft",
+    "reversing": "Reversing",
+    "for": "For",
+    "saveDraft": "Save draft",
+    "issue": "Issue credit note",
+    "more": "More actions",
+    "amountToCredit": "Amount to credit",
+    "reducesRevenue": "Reduces recognised revenue",
+    "creditTotal": "Credit total",
+    "appliedTo": "Applied to {{id}}",
+    "refundDue": "Refund due",
+    "refundBannerTitle": "Refund due to {{customer}}",
+    "refundBannerHint": "{{id}} is settled in full; the credit exceeds it by this amount.",
+    "notSent": "Not sent yet.",
+    "notSentHint": "This credit note is ready to deliver to {{customer}} over Peppol.",
+    "details": "Details",
+    "viewCustomer": "View customer",
+    "reverses": "Reverses {{id}}",
+    "settled": "Settled by this credit",
+    "originalMeta": "Original total OMR {{amount}} · issued {{date}}",
+    "openInvoice": "Open Invoice",
+    "onPeppol": "On Peppol",
+    "fields": {
+      "number": "Credit note number",
+      "issueDate": "Issue date",
+      "currency": "Currency",
+      "concerning": "Concerning invoice",
+      "po": "PO reference",
+      "tax": "Tax category",
+      "reason": "Reason for credit"
+    },
+    "pdfTitle": "Invoice PDF",
+    "pdfAlt": "Credit note {{id}} preview",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "download": "Download",
+    "print": "Print",
+    "fullscreen": "Fullscreen",
+    "items": "Items",
+    "col": {
+      "description": "Description",
+      "unitPrice": "Unit price",
+      "vat": "VAT",
+      "qty": "Qty",
+      "unit": "Unit",
+      "disc": "Disc %",
+      "total": "Total"
+    },
+    "totals": {
+      "net": "Net credited (excl. VAT)",
+      "vat": "VAT reversed · 5%",
+      "total": "Total credited"
+    },
+    "notesTitle": "Notes & attachments",
+    "noteCustomer": "Note to customer",
+    "onCreditNote": "On credit note",
+    "noteInternal": "Internal note",
+    "private": "Private",
+    "supportingDocs": "Supporting documents",
+    "dropFiles": "Drop files or click to upload",
+    "dropHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+    "refunds": "Refunds",
+    "recordRefund": "Record refund",
+    "refundPending": "refund pending",
+    "refundPendingHint": "The credit clears {{id}}'s balance and leaves a refund owed. Record it here once the money is sent back.",
+    "activity": "Activity"
+  },
+  "creditNote": {
+    "breadcrumbIncome": "Income",
+    "breadcrumb": "Credit notes",
+    "title": "New credit note",
+    "draft": "Draft",
+    "reversing": "Reversing",
+    "for": "for",
+    "saveDraft": "Save draft",
+    "issue": "Issue credit note",
+    "more": "More actions",
+    "original": "Original invoice",
+    "invoiceTotal": "Invoice total",
+    "alreadyCredited": "Already credited",
+    "creditable": "Still creditable",
+    "whatToCredit": "What to credit",
+    "modes": {
+      "full": "Full invoice",
+      "fullSub": "Credit the entire amount",
+      "lines": "Specific lines",
+      "linesSub": "Pick items to reverse",
+      "custom": "Custom amount",
+      "customSub": "Enter a partial credit"
+    },
+    "fullWarning": "This will fully reverse INV-2044. Any remaining balance will be cleared and overpayment will become a refund.",
+    "reasonTitle": "Reason",
+    "shownOnNote": "shown on note",
+    "reason": "Reason",
+    "reference": "Your reference",
+    "noteToCustomer": "Note to customer",
+    "detailsTitle": "Credit note details",
+    "number": "Credit note number",
+    "issueDate": "Issue date",
+    "concerning": "Concerning invoice",
+    "currency": "Currency",
+    "sendPeppol": "Send via Peppol",
+    "onPeppol": "Customer is on Peppol",
+    "attachments": "Attachments",
+    "dropFiles": "Drag & drop files here, or click to browse",
+    "dropHint": "PDF, JPG, XLSX · up to 10 MB each",
+    "amountToCredit": "Amount to credit",
+    "reducesRevenue": "Reduces revenue",
+    "netToCredit": "Net to credit",
+    "vatReversed": "VAT reversed",
+    "effectOn": "Effect on {{customer}}",
+    "outstanding": "Outstanding",
+    "applied": "Applied to balance",
+    "newBalance": "New balance",
+    "refundDue": "Refund due",
+    "refundHint": "Customer overpaid — refund this amount separately.",
+    "footerNote": "Linked to {{id}} · draft until issued"
+  },
+  "addCustomer": {
+    "title": "New Customer Profile",
+    "subtitle": "Set up company credentials and billing details for Oman business operations.",
+    "close": "Close",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "cancel": "Cancel",
+    "save": "Save Customer Profile",
+    "kinds": {
+      "company": "Company",
+      "companySub": "Commercial entity with VAT number",
+      "private": "Private Individual",
+      "privateSub": "Individual personal registration"
+    },
+    "sections": {
+      "companyDetails": "Company Details",
+      "personalDetails": "Personal Details",
+      "address": "Invoicing Address",
+      "notes": "Internal Notes & Comments"
+    },
+    "fields": {
+      "vat": "VAT or CBE NO.",
+      "corporateName": "Corporate Name",
+      "directorFirst": "Director First Name",
+      "lastNameManager": "Last Name Manager",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "language": "Preferred Language",
+      "telephone": "Telephone",
+      "mobile": "Mobile Phone",
+      "attn": "Attention (Attn)",
+      "country": "Country",
+      "city": "City / Area",
+      "zone": "Zone No.",
+      "street": "Street No.",
+      "building": "Building No.",
+      "poBox": "PO Box",
+      "note": "Note to customer",
+      "notePlaceholder": "Add optional internal instructions or billing details..."
+    }
+  },
   "home": {
-    "badge": "Oman e-invoicing",
+    "stage": "Development stage",
     "heroTitle": "E-invoicing compliance, handled for you.",
-    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority — without touching Peppol yourself.",
-    "waitingForDesigns": "Auth screens through /payment."
+    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching Peppol yourself.",
+    "dashboard": "Dashboard",
+    "login": "Log in",
+    "signup": "Sign up",
+    "footerNote": "This home page is for testing and navigation only."
   }
 }

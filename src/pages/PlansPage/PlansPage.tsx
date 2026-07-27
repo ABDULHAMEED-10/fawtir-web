@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BackButton, PricingCard, SegmentedControl } from '../../components/ui'
+import { BrandLogo } from '../../components/BrandLogo'
+import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
 import patternLeft from '../../assets/plans/pattern-left.png'
 import patternRight from '../../assets/plans/pattern-right.png'
 import checkIcon from '../../assets/plans/check.svg'
@@ -60,10 +61,11 @@ export function PlansPage() {
       />
 
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col px-8 pb-10 pt-8">
+        <BrandLogo size="md" className="absolute start-8 top-8 z-20" />
         <BackButton
           to="/address-contact"
           state={location.state}
-          className="absolute start-8 top-8 z-20"
+          className="absolute start-8 top-[76px] z-20"
         />
 
         <div className="flex flex-1 flex-col items-center">
@@ -95,9 +97,12 @@ export function PlansPage() {
               name={t('plans.starter.name')}
               description={t('plans.starter.description')}
               priceLabel={
-                <p className="font-semibold text-text-primary">
-                  <span className="text-base">OMR </span>
-                  <span className="text-[40px] leading-[1.2]">{starterPrice}</span>
+                <p className="flex items-baseline gap-1 font-semibold text-text-primary">
+                  <OmAmount
+                    size="sm"
+                    amount={starterPrice}
+                    amountClassName="text-[40px] leading-[1.2]"
+                  />
                   <span className="text-base text-neutral-300">/month</span>
                 </p>
               }
@@ -131,9 +136,13 @@ export function PlansPage() {
               name={t('plans.premium.name')}
               description={t('plans.premium.description')}
               priceLabel={
-                <p className="font-semibold text-white">
-                  <span className="text-base">OMR </span>
-                  <span className="text-[40px] leading-[1.2]">{premiumPrice}</span>
+                <p className="flex items-baseline gap-1 font-semibold text-white">
+                  <OmAmount
+                    size="sm"
+                    onDark
+                    amount={premiumPrice}
+                    amountClassName="text-[40px] leading-[1.2] text-white"
+                  />
                   <span className="text-base text-primary-25">/month</span>
                 </p>
               }

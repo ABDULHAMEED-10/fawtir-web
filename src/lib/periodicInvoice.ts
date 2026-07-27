@@ -1,0 +1,75 @@
+export type PeriodicFrequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+
+export const PERIODIC_SERIES = {
+  title: 'Monthly coffee supply, Muscat Grand Hotel',
+  status: 'active' as const,
+  cadence: 'Every month on the 18th',
+  nextRun: '18 Aug 2026',
+  customer: {
+    name: 'Muscat Grand Hotel LLC',
+    vat: 'VAT OM1100447102 · 0248:OM1100447102',
+  },
+  subject: 'Monthly coffee supply & barista training',
+  poReference: 'PO-88213',
+  paymentTerms: 'Net 30 days',
+  currency: 'OMR - Omani Rial',
+  taxCategory: 'Standard rate · 5%',
+  branch: 'Al Bahja Coffee (Main)',
+  project: 'Ramadan 2026 supply',
+  noteCustomer:
+    'Thank you for your continued business. This invoice is issued automatically under our supply agreement.',
+  noteInternal: 'Auto-generated from REC series. Confirm stock before each run.',
+  items: [
+    {
+      id: '1',
+      description: 'Cappuccino - Large',
+      excl: '1.800',
+      vat: '5%',
+      qty: '12',
+      unit: 'EA',
+      discount: '0',
+      total: '21.600',
+    },
+    {
+      id: '2',
+      description: 'Coffee Beans 1kg - House Blend',
+      excl: '9.500',
+      vat: '5%',
+      qty: '4',
+      unit: 'KG',
+      discount: '10%',
+      total: '34.200',
+    },
+  ],
+  totals: {
+    excluding: '55.800',
+    vat: '2.790',
+    total: '58.590',
+  },
+  generated: [
+    {
+      id: 'INV-2044',
+      meta: 'Issued 18 Jul 2026 · sent via Peppol',
+      status: 'partial' as const,
+      amount: '58.590',
+    },
+  ],
+  schedule: {
+    summary: 'Every month on the 18th, until you stop it.',
+    nextIn: 'Next in 23 days',
+    frequency: 'monthly' as PeriodicFrequency,
+    repeatsOn: 'Day 18 of each month',
+    starts: '18 Jul 2026',
+    ends: 'Never',
+    sendAutomatically: true,
+    notifyOnRun: true,
+  },
+  upcoming: [
+    { date: '18 Aug 2026', amount: '58.590' },
+    { date: '18 Sep 2026', amount: '58.590' },
+    { date: '18 Oct 2026', amount: '58.590' },
+    { date: '18 Nov 2026', amount: '58.590' },
+  ],
+  started: '18 Jul 2026',
+  issuedCount: 1,
+}
