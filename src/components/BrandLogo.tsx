@@ -11,10 +11,26 @@ type BrandLogoProps = {
   className?: string
 }
 
+/**
+ * Figma sidebar lockup (23:788): mark 41.76×43.55, overlap -11.53px,
+ * wordmark 22px / tracking 0.44px / #0F2A6B, items-end.
+ */
 const SIZE = {
-  sm: { mark: 'h-[28px] w-[27px]', text: 'text-[16px] tracking-[0.32px]', gap: '-ms-1.5' },
-  md: { mark: 'h-[44px] w-[42px]', text: 'text-[22px] tracking-[0.44px]', gap: '-ms-2.5' },
-  lg: { mark: 'h-[42px] w-[41px]', text: 'text-[26px] tracking-[0.5px]', gap: '-ms-2' },
+  sm: {
+    mark: 'h-[28px] w-[27px]',
+    text: 'text-[16px] tracking-[0.32px]',
+    overlap: '-me-[7.5px]',
+  },
+  md: {
+    mark: 'h-[43.55px] w-[41.76px]',
+    text: 'text-[22px] tracking-[0.44px]',
+    overlap: '-me-[11.53px]',
+  },
+  lg: {
+    mark: 'h-[42px] w-[40px]',
+    text: 'text-[26px] tracking-[0.52px]',
+    overlap: '-me-[11px]',
+  },
 } as const
 
 export function BrandLogo({
@@ -32,7 +48,7 @@ export function BrandLogo({
       <img
         src={onDark ? logoMarkLight : logoMark}
         alt=""
-        className={[s.mark, s.gap, 'shrink-0'].join(' ')}
+        className={[s.mark, s.overlap, 'shrink-0 object-contain'].join(' ')}
       />
       <span
         className={[

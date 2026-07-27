@@ -66,22 +66,36 @@ function GhostButton({
   icon,
   label,
   iconOnly,
+  to,
 }: {
   icon: string
   label: string
   iconOnly?: boolean
+  to?: string
 }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className={[
-        'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white',
-        iconOnly ? 'justify-center px-4' : 'px-4',
-      ].join(' ')}
-    >
+  const className = [
+    'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white',
+    iconOnly ? 'justify-center px-4' : 'px-4',
+  ].join(' ')
+
+  const content = (
+    <>
       <img src={icon} alt="" className="size-6 shrink-0" />
       {iconOnly ? null : label}
+    </>
+  )
+
+  if (to) {
+    return (
+      <Link to={to} aria-label={label} className={className}>
+        {content}
+      </Link>
+    )
+  }
+
+  return (
+    <button type="button" aria-label={label} className={className}>
+      {content}
     </button>
   )
 }
@@ -143,8 +157,12 @@ export function InvoiceDetailsPage() {
               <img src={sendIcon} alt="" className="size-6" />
               {t('invoiceDetails.actions.send')}
             </button>
-            <GhostButton icon={creditNoteIcon} label={t('invoiceDetails.actions.creditNote')} />
-            <GhostButton icon={periodicIcon} label={t('invoiceDetails.actions.periodic')} />
+            <GhostButton
+              icon={creditNoteIcon}
+              label={t('invoiceDetails.actions.creditNote')}
+              to="/income/credit-notes/CRN-0087"
+            />
+            <GhostButton icon={periodicIcon} label={t('invoiceDetails.actions.periodic')} to="/income/periodic" />
             <GhostButton icon={copyIcon} label={t('invoiceDetails.actions.duplicate')} />
             <GhostButton icon={menuIcon} label={t('invoiceDetails.actions.more')} iconOnly />
           </div>

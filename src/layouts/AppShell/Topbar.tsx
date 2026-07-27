@@ -8,7 +8,8 @@ import bellIcon from '../../assets/dashboard/bell.svg'
 export function Topbar() {
   const { t } = useTranslation()
   const location = useLocation()
-  const showCreateInvoice = !location.pathname.startsWith('/invoices')
+  const showCreateInvoice =
+    !location.pathname.startsWith('/invoices') && !location.pathname.startsWith('/income')
 
   return (
     <header className="flex h-[74px] shrink-0 items-center justify-between gap-4 border-b border-black/10 bg-surface-tab-bar px-5">

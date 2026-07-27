@@ -14,6 +14,10 @@ import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
+import { PeriodicInvoicePage } from './pages/PeriodicInvoicePage'
+import { NewCreditNotePage } from './pages/NewCreditNotePage'
+import { CreditNotesPage } from './pages/CreditNotesPage'
+import { CreditNoteDetailsPage } from './pages/CreditNoteDetailsPage'
 import { SignupPage } from './pages/SignupPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
@@ -43,6 +47,10 @@ function App() {
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+          <Route path="/income/periodic" element={<PeriodicInvoicePage />} />
+          <Route path="/income/credit-notes" element={<CreditNotesPage />} />
+          <Route path="/income/credit-notes/new" element={<NewCreditNotePage />} />
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

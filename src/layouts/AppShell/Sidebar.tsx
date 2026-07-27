@@ -145,7 +145,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-dvh w-[248px] shrink-0 flex-col border-e border-black/10 bg-surface-tab-bar">
-      <div className="flex h-[74px] items-center px-5">
+      <div className="flex h-[74px] w-full items-center justify-center">
         <BrandLogo size="md" />
       </div>
       <div className="h-px w-full bg-black/10" />

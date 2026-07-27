@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { AddCustomerModal, type SavedCustomer } from '../../components/AddCustomerModal'
 import backIcon from '../../assets/create-invoice/back.svg'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import consumerIcon from '../../assets/create-invoice/consumer.svg'
@@ -10,6 +11,7 @@ import tickIcon from '../../assets/create-invoice/tick.svg'
 import customerLogo from '../../assets/create-invoice/customer-logo.svg'
 import peppolIcon from '../../assets/create-invoice/peppol.svg'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
+import plusIcon from '../../assets/invoices/plus.svg'
 import omrIcon from '../../assets/create-invoice/omr.svg'
 import calendarIcon from '../../assets/create-invoice/calendar.svg'
 import eyeIcon from '../../assets/create-invoice/eye.svg'
@@ -113,6 +115,42 @@ export function CreateInvoicePage() {
   const [customerType, setCustomerType] = useState<CustomerType>('business')
   const [docType, setDocType] = useState<DocType>('invoice')
   const [exclVat, setExclVat] = useState(true)
+  const [customers, setCustomers] = useState<SavedCustomer[]>([
+    {
+      id: 'CUS-001',
+      name: 'Muscat Grand Hotel LLC',
+      vat: 'VAT OM1100447102 · 0248:OM1100447102',
+      onPeppol: true,
+      kind: 'company',
+    },
+  ])
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>('CUS-001')
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId) ?? null
+
+  useEffect(() => {
+    if (!pickerOpen) return
+    const onDocClick = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [pickerOpen])
+
+  const openAddCustomer = () => {
+    setPickerOpen(false)
+    setAddCustomerOpen(true)
+  }
+
+  const handleSaveCustomer = (customer: SavedCustomer) => {
+    setCustomers((prev) => [...prev, customer])
+    setSelectedCustomerId(customer.id)
+  }
 
   const customerTypes: { id: CustomerType; titleKey: string; subtitleKey: string; icon: string }[] = [
     { id: 'business', titleKey: 'createInvoice.customerTypes.business', subtitleKey: 'createInvoice.customerTypes.businessSub', icon: businessIcon },
@@ -233,32 +271,95 @@ export function CreateInvoicePage() {
                   </p>
                 </div>
               </>
+            ) : customers.length === 0 ? (
+              <button
+                type="button"
+                onClick={openAddCustomer}
+                className="inline-flex h-[65px] w-full items-center justify-center gap-2 rounded-sm border border-dashed border-primary-300 bg-primary-25 px-4 text-base font-semibold text-primary-800 transition-colors hover:bg-primary-50"
+              >
+                <img src={plusIcon} alt="" className="size-6" />
+                {t('createInvoice.customer.addCustomer')}
+              </button>
             ) : (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-primary-300 bg-primary-25 px-3 py-4">
+              <div
+                ref={pickerRef}
+                className="relative flex flex-wrap items-center justify-between gap-3 rounded-sm border border-primary-300 bg-primary-25 px-3 py-4"
+              >
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
+                  {selectedCustomer ? (
+                    <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
+                  ) : (
+                    <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-sm bg-white text-sm font-semibold text-primary-800">
+                      +
+                    </span>
+                  )}
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-text-primary">
-                      {t('createInvoice.customer.name')}
+                      {selectedCustomer?.name ?? t('createInvoice.customer.select')}
                     </p>
                     <p className="truncate text-xs font-medium text-text-quaternary">
-                      {t('createInvoice.customer.vat')}
+                      {selectedCustomer?.vat ?? t('createInvoice.customer.selectHint')}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary-75 bg-white/70 py-1.5 ps-1.5 pe-3 text-xs font-semibold text-primary-800">
-                    <img src={peppolIcon} alt="" className="size-4" />
-                    {t('createInvoice.customer.onPeppol')}
-                  </span>
+                  {selectedCustomer?.onPeppol ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary-75 bg-white/70 py-1.5 ps-1.5 pe-3 text-xs font-semibold text-primary-800">
+                      <img src={peppolIcon} alt="" className="size-4" />
+                      {t('createInvoice.customer.onPeppol')}
+                    </span>
+                  ) : null}
                   <button
                     type="button"
+                    aria-expanded={pickerOpen}
+                    onClick={() => setPickerOpen((v) => !v)}
                     className="inline-flex items-center gap-0.5 rounded-sm border border-border-subtle bg-white py-1.5 ps-3.5 pe-2.5 text-sm font-semibold text-primary-800"
                   >
-                    {t('createInvoice.customer.change')}
-                    <img src={chevronIcon} alt="" className="size-6 rotate-90" />
+                    {selectedCustomer
+                      ? t('createInvoice.customer.change')
+                      : t('createInvoice.customer.select')}
+                    <img
+                      src={chevronIcon}
+                      alt=""
+                      className={['size-6 transition-transform', pickerOpen ? '-rotate-90' : 'rotate-90'].join(' ')}
+                    />
                   </button>
                 </div>
+
+                {pickerOpen ? (
+                  <div className="absolute end-3 top-[calc(100%-8px)] z-20 w-[min(100%,320px)] overflow-hidden rounded-sm border border-border-subtle bg-white shadow-card">
+                    <ul className="max-h-56 overflow-y-auto py-1">
+                      {customers.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomerId(c.id)
+                              setPickerOpen(false)
+                            }}
+                            className={[
+                              'flex w-full flex-col gap-0.5 px-3 py-2.5 text-start transition-colors hover:bg-primary-25',
+                              c.id === selectedCustomerId ? 'bg-primary-25' : '',
+                            ].join(' ')}
+                          >
+                            <span className="text-sm font-semibold text-text-primary">{c.name}</span>
+                            <span className="text-xs font-medium text-text-quaternary">{c.vat}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="border-t border-border-subtle p-1">
+                      <button
+                        type="button"
+                        onClick={openAddCustomer}
+                        className="inline-flex w-full items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-semibold text-primary-800 transition-colors hover:bg-primary-25"
+                      >
+                        <img src={plusIcon} alt="" className="size-5" />
+                        {t('createInvoice.customer.addCustomer')}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </section>
@@ -598,6 +699,12 @@ export function CreateInvoicePage() {
           </button>
         </div>
       </div>
+
+      <AddCustomerModal
+        open={addCustomerOpen}
+        onClose={() => setAddCustomerOpen(false)}
+        onSave={handleSaveCustomer}
+      />
     </AppShell>
   )
 }

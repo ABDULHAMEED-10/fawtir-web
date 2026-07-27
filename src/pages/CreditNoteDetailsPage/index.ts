@@ -1,0 +1,1 @@
+export { CreditNoteDetailsPage } from './CreditNoteDetailsPage'
