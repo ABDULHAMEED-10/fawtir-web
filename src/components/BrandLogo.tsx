@@ -12,24 +12,42 @@ type BrandLogoProps = {
 }
 
 /**
- * Figma sidebar lockup (23:788): mark 41.76×43.55, overlap -11.53px,
- * wordmark 22px / tracking 0.44px / #0F2A6B, items-end.
+ * EN lockup (23:788): mark 41.76×43.55 + AWTIR 22px.
+ * AR lockup (28:2720 / 28:2750): same mark + فوتر in Noto Sans Arabic Bold.
  */
-const SIZE = {
+const SIZE_EN = {
   sm: {
     mark: 'h-[28px] w-[27px]',
-    text: 'text-[16px] tracking-[0.32px]',
+    text: 'text-[16px] font-semibold tracking-[0.32px] leading-none',
     overlap: '-me-[7.5px]',
   },
   md: {
     mark: 'h-[43.55px] w-[41.76px]',
-    text: 'text-[22px] tracking-[0.44px]',
+    text: 'text-[22px] font-semibold tracking-[0.44px] leading-none',
     overlap: '-me-[11.53px]',
   },
   lg: {
     mark: 'h-[42px] w-[40px]',
-    text: 'text-[26px] tracking-[0.52px]',
+    text: 'text-[26px] font-semibold tracking-[0.52px] leading-none',
     overlap: '-me-[11px]',
+  },
+} as const
+
+const SIZE_AR = {
+  sm: {
+    mark: 'h-[28px] w-[27px]',
+    text: 'text-[18px] font-bold leading-[1.4]',
+    overlap: '-me-[7.5px]',
+  },
+  md: {
+    mark: 'h-[43.55px] w-[41.76px]',
+    text: 'text-[28px] font-bold leading-[1.4]',
+    overlap: '-me-[11.53px]',
+  },
+  lg: {
+    mark: 'h-[54px] w-[52px]',
+    text: 'text-[32px] font-bold leading-[1.4]',
+    overlap: '-me-[14px]',
   },
 } as const
 
@@ -39,12 +57,14 @@ export function BrandLogo({
   to = '/',
   className = '',
 }: BrandLogoProps) {
-  const { t } = useTranslation()
-  const s = SIZE[size]
+  const { t, i18n } = useTranslation()
+  const isAr = i18n.language === 'ar' || i18n.language.startsWith('ar')
+  const s = (isAr ? SIZE_AR : SIZE_EN)[size]
   const onDark = tone === 'onDark'
 
   const content = (
-    <span className="inline-flex items-end">
+    /* Lockup order matches Figma 28:2720: mark then wordmark (LTR). */
+    <span className="inline-flex items-end" dir="ltr">
       <img
         src={onDark ? logoMarkLight : logoMark}
         alt=""
@@ -52,10 +72,13 @@ export function BrandLogo({
       />
       <span
         className={[
-          'font-semibold leading-none',
           s.text,
+          isAr ? 'font-[family-name:var(--font-arabic)]' : '',
           onDark ? 'text-white' : 'text-[#0f2a6b]',
-        ].join(' ')}
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        dir={isAr ? 'rtl' : 'ltr'}
       >
         {t('brand.wordmark')}
       </span>

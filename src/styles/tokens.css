@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: "Urbanist", system-ui, sans-serif;
+  --font-arabic: "Noto Sans Arabic", "Urbanist", system-ui, sans-serif;
 
   /* Primary */
   --color-primary-900: #1a2f6e;
