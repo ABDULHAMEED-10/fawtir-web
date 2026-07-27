@@ -1,6 +1,7 @@
 {
   "brand": {
-    "name": "FAWTIR"
+    "name": "FAWTIR",
+    "wordmark": "AWTIR"
   },
   "common": {
     "clear": "Clear",
@@ -369,7 +370,7 @@
       "annual": "annual",
       "monthly": "monthly",
       "planLine": "{{plan}} ({{cycle}})",
-      "monthlyRate": "OMR {{rate}} / mo billed yearly",
+      "monthlyRate": "{{rate}} / mo billed yearly",
       "months": "{{count}} months",
       "vat": "VAT (5%)",
       "totalDue": "Total due today",
@@ -390,7 +391,17 @@
     "nav": {
       "main": "MAIN",
       "dashboard": "Dashboard",
+      "income": "Income",
       "invoices": "Invoices",
+      "incomeChildren": {
+        "invoice": "Invoice",
+        "reminders": "Reminders",
+        "periodic": "Periodic invoices",
+        "creditNotes": "Credit notes",
+        "quotations": "Quotations",
+        "orderForms": "Order forms",
+        "deliveryNotes": "Delivery notes"
+      },
       "expenditure": "Expenditure",
       "catalogContacts": "Catalog & contacts",
       "catalog": "Catalog",
@@ -458,6 +469,249 @@
       "netPayable": "net payable",
       "output": "Output VAT",
       "input": "Input VAT"
+    }
+  },
+  "invoicesPage": {
+    "title": "Invoices",
+    "subtitle": "Every document you’ve issued — validated, signed and reported to the Oman Tax Authority.",
+    "bulkUpload": "Bulk upload",
+    "export": "Export",
+    "createInvoice": "Create Invoice",
+    "searchPlaceholder": "Search invoices, customers. documents...",
+    "rowMenu": "Invoice actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "kpi": {
+      "outstanding": "Outstanding",
+      "outstandingMeta": "Across 4 unpaid invoices",
+      "paid": "Paid",
+      "paidMeta": "2 invoices collected",
+      "awaiting": "Awaiting payment",
+      "awaitingMeta": "2 invoices due soon",
+      "overdue": "Overdue",
+      "overdueMeta": "1 invoice · oldest 20 days"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "toSend": "To send",
+      "awaiting": "Awaiting",
+      "overdue": "Overdue",
+      "paid": "Paid"
+    },
+    "filters": {
+      "thisMonth": "This month",
+      "docType": "Doc Type",
+      "channel": "Channel",
+      "sort": "Sort"
+    },
+    "col": {
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "issued": "Issued",
+      "due": "Due",
+      "amount": "Amount",
+      "status": "Status"
+    },
+    "status": {
+      "overdue": "Overdue",
+      "awaiting": "Awaiting payment",
+      "partial": "Partially paid",
+      "toSend": "To be sent",
+      "paid": "Paid",
+      "draft": "Draft"
+    }
+  },
+  "invoiceDetails": {
+    "breadcrumbIncome": "Income",
+    "breadcrumbInvoices": "Invoices",
+    "title": "Invoice {{id}}",
+    "issued": "Issued",
+    "to": "To",
+    "outstandingBalance": "Outstanding balance",
+    "invoiceTotal": "Invoice total",
+    "paid": "Paid",
+    "outstanding": "Outstanding",
+    "billTo": "Bill to",
+    "viewCustomer": "View customer",
+    "onPeppol": "On Peppol",
+    "pdfTitle": "Invoice PDF",
+    "pdfAlt": "Preview of invoice {{id}}",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "download": "Download",
+    "print": "Print",
+    "fullscreen": "Fullscreen",
+    "delete": "Delete",
+    "items": "Items",
+    "actions": {
+      "send": "Send",
+      "creditNote": "Credit Note",
+      "periodic": "Periodic invoice",
+      "duplicate": "Duplicate",
+      "more": "More actions"
+    },
+    "fields": {
+      "issueDate": "Issue date",
+      "dueDate": "Due date",
+      "deliveryDate": "Delivery date",
+      "paymentTerms": "Payment terms",
+      "currency": "Currency",
+      "vatRate": "VAT rate",
+      "branch": "Branch",
+      "project": "Project",
+      "poReference": "PO reference",
+      "subject": "Subject",
+      "paymentMethod": "Payment method"
+    },
+    "col": {
+      "description": "Description",
+      "unitPrice": "Unit price",
+      "vat": "VAT",
+      "qty": "Qty",
+      "unit": "Unit",
+      "disc": "Disc %",
+      "total": "Total"
+    },
+    "totals": {
+      "subtotal": "Subtotal (excl. VAT)",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "total": "Total amount"
+    },
+    "notes": {
+      "title": "Notes",
+      "customer": "Note to customer",
+      "onInvoice": "on invoice",
+      "internal": "Internal note",
+      "private": "private"
+    },
+    "attachments": {
+      "title": "Attachments",
+      "drop": "Drop files here or browse",
+      "hint": "PDF, JPG, PNG · max 10 MB each"
+    },
+    "payments": {
+      "title": "Payments",
+      "add": "Add payment",
+      "paidPrefix": "Paid",
+      "of": "of"
+    },
+    "timeline": {
+      "title": "Timeline"
+    }
+  },
+  "createInvoice": {
+    "breadcrumb": "Invoices",
+    "title": "New invoice",
+    "draftMeta": "INV-2044 · Draft",
+    "docTypes": {
+      "invoice": "Invoice",
+      "credit": "Credit note",
+      "debit": "Debit note",
+      "selfBilled": "Self-billed"
+    },
+    "sections": {
+      "customer": "Customer",
+      "details": "Invoice details",
+      "items": "Items",
+      "payment": "Payment & status",
+      "notes": "Notes & attachments"
+    },
+    "customerTypes": {
+      "business": "Business",
+      "businessSub": "B2B - via Peppol",
+      "consumer": "Consumer",
+      "consumerSub": "B2C - QR receipt",
+      "government": "Government",
+      "governmentSub": "B2G - via Peppol"
+    },
+    "customer": {
+      "name": "Muscat Grand Hotel LLC",
+      "vat": "VAT OM1100447102 · 0248:OM1100447102",
+      "onPeppol": "On Peppol",
+      "change": "Change"
+    },
+    "consumer": {
+      "name": "Customer name",
+      "namePlaceholder": "Walk-in customer",
+      "contact": "Phone or email",
+      "contactPlaceholder": "To send the receipt",
+      "peppolNote": "No Peppol ID needed. We’ll use the OTA substitute participant ID 997770000099 and generate the mandatory QR code on the receipt.",
+      "receiptQr": "Receipt QR",
+      "receiptQrHint": "TLV-encoded per OTA spec.\nGenerated on submit."
+    },
+    "summary": {
+      "title": "Summary",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "totalDue": "Total due"
+    },
+    "fields": {
+      "invoiceNumber": "Invoice number",
+      "issueDate": "Issue date",
+      "dueDate": "Due date",
+      "deliveryDate": "Delivery date",
+      "paymentTerms": "Payment terms",
+      "branch": "Branch",
+      "currency": "Currency",
+      "taxCategory": "Default tax category",
+      "project": "Project",
+      "subject": "Subject / about",
+      "po": "Purchase order reference",
+      "paymentMethod": "Payment method",
+      "paymentReference": "Payment reference",
+      "paymentDate": "Payment date"
+    },
+    "values": {
+      "net30": "Net 30 days",
+      "branch": "Al Bahja Coffee (Main)",
+      "currency": "OMR - Omani Rial",
+      "tax": "Standard rate - 5%",
+      "project": "Ramadan 2026 supply",
+      "subject": "Monthly coffee supply & barista training — July",
+      "bankTransfer": "Bank transfer"
+    },
+    "items": {
+      "exclVat": "Excl. VAT",
+      "inclVat": "Incl. VAT",
+      "description": "Description",
+      "excl": "Excl.",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
+      "unit": "Unit",
+      "discount": "Discount",
+      "totExcl": "Tot. Excl.",
+      "addLine": "Add line item",
+      "remove": "Remove line",
+      "totalExcluding": "Total excluding",
+      "vatAmount": "Vat",
+      "totalAmount": "Total amount"
+    },
+    "toggles": {
+      "paid": "Mark as paid",
+      "paidHint": "Records the payment and updates the receivables total.",
+      "sent": "Mark as sent manually",
+      "sentHint": "Usually automatic once submitted to Peppol — use this only for offline delivery."
+    },
+    "notes": {
+      "toCustomer": "Note to customer",
+      "onInvoice": "on invoice",
+      "internal": "Internal note",
+      "private": "private",
+      "customerText": "Thank you for your business. Please settle within 30 days by bank transfer using the reference above.",
+      "internalText": "Loyalty discount approved by Hafidh on 15 Jul. Follow up if unpaid by 20 Aug.",
+      "uploadTitle": "Drag & drop files here, or click to browse",
+      "uploadHint": "PDF, JPG, XLSX · up to 10 MB each"
+    },
+    "actions": {
+      "preview": "Preview",
+      "saveDraft": "Save draft",
+      "submit": "Validate & submit"
     }
   },
   "home": {

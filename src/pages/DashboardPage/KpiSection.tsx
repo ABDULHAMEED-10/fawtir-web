@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { OmAmount } from '../../components/ui'
 import { KPI } from '../../lib/dashboard'
 import trendIcon from '../../assets/dashboard/kpi-trend.svg'
 import { PeriodSelect } from './DashboardCard'
@@ -34,10 +35,11 @@ export function KpiCards() {
             {t(KPI.sales.titleKey)}
           </h3>
         </div>
-        <p className="font-semibold leading-[1.2] text-[#201f23]">
-          <span className="text-2xl">OMR </span>
-          <span className="text-[40px]">{KPI.sales.amount}</span>
-        </p>
+        <OmAmount
+          size="xl"
+          amount={KPI.sales.amount}
+          amountClassName="text-[40px] font-semibold leading-[1.2] text-[#201f23]"
+        />
         <div className="mt-1 flex items-center gap-2.5">
           <span className="inline-flex items-center gap-0.5 rounded-md bg-[rgba(64,95,31,0.1)] px-1 py-0.5">
             <img src={trendIcon} alt="" className="size-[11px]" />
@@ -56,10 +58,11 @@ export function KpiCards() {
             {t(KPI.receivables.titleKey)}
           </h3>
         </div>
-        <p className="font-semibold leading-[1.2] text-[#201f23]">
-          <span className="text-2xl">OMR </span>
-          <span className="text-[40px]">{KPI.receivables.amount}</span>
-        </p>
+        <OmAmount
+          size="xl"
+          amount={KPI.receivables.amount}
+          amountClassName="text-[40px] font-semibold leading-[1.2] text-[#201f23]"
+        />
         <div className="mt-1 flex items-center gap-2.5">
           <span className="inline-flex h-7 items-center rounded-md bg-[rgba(64,95,31,0.1)] px-2 text-sm font-semibold text-[#395917]">
             {t(KPI.receivables.badgeKey, { count: KPI.receivables.badgeValue })}
@@ -77,12 +80,13 @@ export function KpiCards() {
             {t(KPI.payables.titleKey)}
           </h3>
         </div>
-        <p className="font-semibold leading-[1.2] text-[#201f23]">
-          <span className="text-xl">OMR </span>
-          <span className="text-[40px]">{KPI.payables.amount}</span>
-        </p>
+        <OmAmount
+          size="xl"
+          amount={KPI.payables.amount}
+          amountClassName="text-[40px] font-semibold leading-[1.2] text-[#201f23]"
+        />
         <div className="mt-1 flex items-center gap-2.5">
-          <span className="inline-flex h-7 items-center rounded-md bg-[rgba(241,232,214,0.6)] px-2 text-sm font-semibold text-[#83642a]">
+          <span className="inline-flex h-7 items-center rounded-md bg-warning-100 px-2 text-sm font-semibold text-warning-700">
             {t(KPI.payables.badgeKey, { count: KPI.payables.badgeValue })}
           </span>
           <span className="text-sm font-medium text-[#596269] opacity-80">

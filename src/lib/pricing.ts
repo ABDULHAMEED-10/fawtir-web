@@ -17,7 +17,7 @@ export type OrderSummary = {
 }
 
 export function formatOmr(amount: number) {
-  return `OMR ${amount.toFixed(3)}`
+  return amount.toFixed(3)
 }
 
 export function getOrderSummary(

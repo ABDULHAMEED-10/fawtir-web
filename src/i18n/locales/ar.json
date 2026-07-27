@@ -1,6 +1,7 @@
 {
   "brand": {
-    "name": "FAWTIR"
+    "name": "FAWTIR",
+    "wordmark": "AWTIR"
   },
   "common": {
     "clear": "مسح",
@@ -369,7 +370,7 @@
       "annual": "سنوي",
       "monthly": "شهري",
       "planLine": "{{plan}} ({{cycle}})",
-      "monthlyRate": "OMR {{rate}} / شهر يُفوتر سنويًا",
+      "monthlyRate": "{{rate}} / شهر يُفوتر سنويًا",
       "months": "{{count}} أشهر",
       "vat": "ضريبة القيمة المضافة (5%)",
       "totalDue": "المستحق اليوم",
@@ -390,7 +391,17 @@
     "nav": {
       "main": "الرئيسي",
       "dashboard": "لوحة التحكم",
+      "income": "الدخل",
       "invoices": "الفواتير",
+      "incomeChildren": {
+        "invoice": "فاتورة",
+        "reminders": "تذكيرات",
+        "periodic": "فواتير دورية",
+        "creditNotes": "إشعارات دائن",
+        "quotations": "عروض أسعار",
+        "orderForms": "نماذج طلب",
+        "deliveryNotes": "إشعارات تسليم"
+      },
       "expenditure": "المصروفات",
       "catalogContacts": "الكتالوج وجهات الاتصال",
       "catalog": "الكتالوج",
@@ -458,6 +469,249 @@
       "netPayable": "صافي مستحق",
       "output": "ضريبة المخرجات",
       "input": "ضريبة المدخلات"
+    }
+  },
+  "invoicesPage": {
+    "title": "الفواتير",
+    "subtitle": "كل مستند أصدرته — تم التحقق منه وتوقيعه والإبلاغ عنه إلى جهاز الضرائب العُماني.",
+    "bulkUpload": "رفع جماعي",
+    "export": "تصدير",
+    "createInvoice": "إنشاء فاتورة",
+    "searchPlaceholder": "ابحث في الفواتير، العملاء، المستندات...",
+    "rowMenu": "إجراءات الفاتورة",
+    "showResult": "عرض النتائج:",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "kpi": {
+      "outstanding": "المستحق",
+      "outstandingMeta": "عبر 4 فواتير غير مدفوعة",
+      "paid": "مدفوع",
+      "paidMeta": "فاتورتان تم تحصيلهما",
+      "awaiting": "بانتظار الدفع",
+      "awaitingMeta": "فاتورتان تستحقان قريبًا",
+      "overdue": "متأخر",
+      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا"
+    },
+    "tabs": {
+      "all": "الكل",
+      "drafts": "مسودات",
+      "toSend": "للإرسال",
+      "awaiting": "بانتظار",
+      "overdue": "متأخر",
+      "paid": "مدفوع"
+    },
+    "filters": {
+      "thisMonth": "هذا الشهر",
+      "docType": "نوع المستند",
+      "channel": "القناة",
+      "sort": "ترتيب"
+    },
+    "col": {
+      "invoice": "الفاتورة",
+      "customer": "العميل",
+      "issued": "الإصدار",
+      "due": "الاستحقاق",
+      "amount": "المبلغ",
+      "status": "الحالة"
+    },
+    "status": {
+      "overdue": "متأخر",
+      "awaiting": "بانتظار الدفع",
+      "partial": "مدفوع جزئيًا",
+      "toSend": "للإرسال",
+      "paid": "مدفوع",
+      "draft": "مسودة"
+    }
+  },
+  "invoiceDetails": {
+    "breadcrumbIncome": "الدخل",
+    "breadcrumbInvoices": "الفواتير",
+    "title": "فاتورة {{id}}",
+    "issued": "صدرت",
+    "to": "إلى",
+    "outstandingBalance": "الرصيد المستحق",
+    "invoiceTotal": "إجمالي الفاتورة",
+    "paid": "مدفوع",
+    "outstanding": "المستحق",
+    "billTo": "فاتورة إلى",
+    "viewCustomer": "عرض العميل",
+    "onPeppol": "على Peppol",
+    "pdfTitle": "PDF الفاتورة",
+    "pdfAlt": "معاينة الفاتورة {{id}}",
+    "zoomOut": "تصغير",
+    "zoomIn": "تكبير",
+    "download": "تنزيل",
+    "print": "طباعة",
+    "fullscreen": "ملء الشاشة",
+    "delete": "حذف",
+    "items": "البنود",
+    "actions": {
+      "send": "إرسال",
+      "creditNote": "إشعار دائن",
+      "periodic": "فاتورة دورية",
+      "duplicate": "تكرار",
+      "more": "المزيد"
+    },
+    "fields": {
+      "issueDate": "تاريخ الإصدار",
+      "dueDate": "تاريخ الاستحقاق",
+      "deliveryDate": "تاريخ التسليم",
+      "paymentTerms": "شروط الدفع",
+      "currency": "العملة",
+      "vatRate": "معدل الضريبة",
+      "branch": "الفرع",
+      "project": "المشروع",
+      "poReference": "مرجع أمر الشراء",
+      "subject": "الموضوع",
+      "paymentMethod": "طريقة الدفع"
+    },
+    "col": {
+      "description": "الوصف",
+      "unitPrice": "سعر الوحدة",
+      "vat": "الضريبة",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "disc": "خصم %",
+      "total": "الإجمالي"
+    },
+    "totals": {
+      "subtotal": "المجموع الفرعي (بدون ضريبة)",
+      "discount": "الخصم",
+      "net": "صافي المبلغ",
+      "vat": "الضريبة · قياسي 5%",
+      "total": "المبلغ الإجمالي"
+    },
+    "notes": {
+      "title": "ملاحظات",
+      "customer": "ملاحظة للعميل",
+      "onInvoice": "على الفاتورة",
+      "internal": "ملاحظة داخلية",
+      "private": "خاصة"
+    },
+    "attachments": {
+      "title": "المرفقات",
+      "drop": "أسقط الملفات هنا أو تصفح",
+      "hint": "PDF، JPG، PNG · بحد أقصى 10 ميجابايت لكل ملف"
+    },
+    "payments": {
+      "title": "المدفوعات",
+      "add": "إضافة دفعة",
+      "paidPrefix": "مدفوع",
+      "of": "من"
+    },
+    "timeline": {
+      "title": "الجدول الزمني"
+    }
+  },
+  "createInvoice": {
+    "breadcrumb": "الفواتير",
+    "title": "فاتورة جديدة",
+    "draftMeta": "INV-2044 · مسودة",
+    "docTypes": {
+      "invoice": "فاتورة",
+      "credit": "إشعار دائن",
+      "debit": "إشعار مدين",
+      "selfBilled": "ذاتية الفوترة"
+    },
+    "sections": {
+      "customer": "العميل",
+      "details": "تفاصيل الفاتورة",
+      "items": "البنود",
+      "payment": "الدفع والحالة",
+      "notes": "ملاحظات ومرفقات"
+    },
+    "customerTypes": {
+      "business": "أعمال",
+      "businessSub": "B2B - عبر Peppol",
+      "consumer": "مستهلك",
+      "consumerSub": "B2C - إيصال QR",
+      "government": "حكومة",
+      "governmentSub": "B2G - عبر Peppol"
+    },
+    "customer": {
+      "name": "Muscat Grand Hotel LLC",
+      "vat": "ضريبة OM1100447102 · 0248:OM1100447102",
+      "onPeppol": "على Peppol",
+      "change": "تغيير"
+    },
+    "consumer": {
+      "name": "اسم العميل",
+      "namePlaceholder": "عميل عابر",
+      "contact": "الهاتف أو البريد",
+      "contactPlaceholder": "لإرسال الإيصال",
+      "peppolNote": "لا حاجة لمعرّف Peppol. سنستخدم معرّف المشارك البديل لـ OTA 997770000099 ونُنشئ رمز QR الإلزامي على الإيصال.",
+      "receiptQr": "رمز QR للإيصال",
+      "receiptQrHint": "مُرمّز TLV وفق مواصفات OTA.\nيُنشأ عند الإرسال."
+    },
+    "summary": {
+      "title": "الملخص",
+      "subtotal": "المجموع الفرعي",
+      "discount": "الخصم",
+      "net": "صافي المبلغ",
+      "vat": "ضريبة · قياسي 5%",
+      "totalDue": "الإجمالي المستحق"
+    },
+    "fields": {
+      "invoiceNumber": "رقم الفاتورة",
+      "issueDate": "تاريخ الإصدار",
+      "dueDate": "تاريخ الاستحقاق",
+      "deliveryDate": "تاريخ التسليم",
+      "paymentTerms": "شروط الدفع",
+      "branch": "الفرع",
+      "currency": "العملة",
+      "taxCategory": "فئة الضريبة الافتراضية",
+      "project": "المشروع",
+      "subject": "الموضوع / الوصف",
+      "po": "مرجع أمر الشراء",
+      "paymentMethod": "طريقة الدفع",
+      "paymentReference": "مرجع الدفع",
+      "paymentDate": "تاريخ الدفع"
+    },
+    "values": {
+      "net30": "صافي 30 يومًا",
+      "branch": "Al Bahja Coffee (Main)",
+      "currency": "OMR - الريال العماني",
+      "tax": "المعدل القياسي - 5%",
+      "project": "توريد رمضان 2026",
+      "subject": "توريد القهوة الشهري وتدريب الباريستا — يوليو",
+      "bankTransfer": "تحويل بنكي"
+    },
+    "items": {
+      "exclVat": "بدون ضريبة",
+      "inclVat": "شامل الضريبة",
+      "description": "الوصف",
+      "excl": "بدون",
+      "vat": "الضريبة (%)",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "discount": "الخصم",
+      "totExcl": "الإجمالي بدون",
+      "addLine": "إضافة بند",
+      "remove": "حذف البند",
+      "totalExcluding": "الإجمالي بدون ضريبة",
+      "vatAmount": "الضريبة",
+      "totalAmount": "المبلغ الإجمالي"
+    },
+    "toggles": {
+      "paid": "تعليم كمدفوع",
+      "paidHint": "يسجّل الدفع ويحدّث إجمالي المستحقات.",
+      "sent": "تعليم كمرسل يدويًا",
+      "sentHint": "عادةً تلقائي بعد الإرسال إلى Peppol — استخدمه فقط للتسليم دون اتصال."
+    },
+    "notes": {
+      "toCustomer": "ملاحظة للعميل",
+      "onInvoice": "على الفاتورة",
+      "internal": "ملاحظة داخلية",
+      "private": "خاصة",
+      "customerText": "شكرًا لتعاملكم. يرجى السداد خلال 30 يومًا عبر التحويل البنكي باستخدام المرجع أعلاه.",
+      "internalText": "خصم الولاء وافق عليه Hafidh في 15 يوليو. المتابعة إن لم يُدفع بحلول 20 أغسطس.",
+      "uploadTitle": "اسحب الملفات وأفلتها هنا، أو انقر للتصفح",
+      "uploadHint": "PDF، JPG، XLSX · حتى 10 ميجابايت لكل ملف"
+    },
+    "actions": {
+      "preview": "معاينة",
+      "saveDraft": "حفظ مسودة",
+      "submit": "تحقق وإرسال"
     }
   },
   "home": {

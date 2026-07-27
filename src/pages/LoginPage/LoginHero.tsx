@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BrandLogo } from '../../components/BrandLogo'
 import loginHero from '../../assets/auth/login-hero.png'
 import glowLeft from '../../assets/auth/glow-left.png'
 
@@ -16,12 +16,7 @@ export function LoginHero() {
       />
 
       <div className="relative z-10 flex h-full min-h-0 flex-col px-8 py-6 xl:py-8">
-        <Link
-          to="/"
-          className="w-fit shrink-0 bg-gradient-to-r from-[#265DF7] to-[#6EC8FF] bg-clip-text text-[42px] font-semibold tracking-[10px] text-transparent"
-        >
-          {t('brand.name')}
-        </Link>
+        <BrandLogo tone="onDark" size="lg" />
 
         <div className="mx-auto mt-8 flex min-h-0 w-full max-w-[530px] flex-1 flex-col items-center gap-6 xl:mt-12 xl:gap-10">
           <div className="flex w-full shrink-0 flex-col gap-3">

@@ -1,3 +1,4 @@
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import searchIcon from '../../assets/dashboard/search.svg'
@@ -6,6 +7,8 @@ import bellIcon from '../../assets/dashboard/bell.svg'
 
 export function Topbar() {
   const { t } = useTranslation()
+  const location = useLocation()
+  const showCreateInvoice = !location.pathname.startsWith('/invoices')
 
   return (
     <header className="flex h-[74px] shrink-0 items-center justify-between gap-4 border-b border-black/10 bg-surface-tab-bar px-5">
@@ -19,13 +22,15 @@ export function Topbar() {
       </label>
 
       <div className="flex items-center gap-4">
-        <button
-          type="button"
-          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={plusIcon} alt="" className="size-6" />
-          {t('dashboard.createInvoice')}
-        </button>
+        {showCreateInvoice ? (
+          <Link
+            to="/invoices/new"
+            className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            <img src={plusIcon} alt="" className="size-6" />
+            {t('dashboard.createInvoice')}
+          </Link>
+        ) : null}
 
         <button
           type="button"

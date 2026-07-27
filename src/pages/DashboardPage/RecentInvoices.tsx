@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { OmAmount } from '../../components/ui'
 import { RECENT_INVOICES, type InvoiceStatus } from '../../lib/dashboard'
 import { DashboardCard } from './DashboardCard'
 
@@ -52,7 +54,11 @@ export function RecentInvoices() {
               const status = STATUS_STYLES[row.status]
               return (
                 <tr key={row.id} className="border-b border-border-subtle last:border-b-0">
-                  <td className="px-5 py-4 text-base font-medium text-text-primary">{row.id}</td>
+                  <td className="px-5 py-4 text-base font-medium text-text-primary">
+                    <Link to={`/invoices/${row.id}`} className="hover:text-primary-700">
+                      {row.id}
+                    </Link>
+                  </td>
                   <td className="px-5 py-4">
                     <p className="text-base font-medium text-text-primary">{row.customer}</p>
                     <p className="text-sm font-medium text-text-quaternary">{row.meta}</p>
@@ -69,8 +75,12 @@ export function RecentInvoices() {
                       {t(status.labelKey)}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-base font-semibold text-text-primary">
-                    {row.amount}
+                  <td className="px-5 py-4">
+                    <OmAmount
+                      size="sm"
+                      amount={row.amount}
+                      amountClassName="text-base font-semibold text-text-primary"
+                    />
                   </td>
                 </tr>
               )

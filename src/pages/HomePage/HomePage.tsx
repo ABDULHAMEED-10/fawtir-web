@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BrandLogo } from '../../components/BrandLogo'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import { Button } from '../../components/ui'
 
@@ -10,7 +11,7 @@ export function HomePage() {
     <div className="min-h-screen bg-surface-background">
       <header className="border-b border-border-subtle bg-surface-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <p className="text-xl font-bold tracking-wide text-primary-700">{t('brand.name')}</p>
+          <BrandLogo size="sm" />
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
             <Link to="/signup">

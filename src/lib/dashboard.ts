@@ -15,12 +15,19 @@ import {
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
 
+export type NavChild = {
+  id: string
+  labelKey: string
+  to: string
+}
+
 export type NavItem = {
   id: string
   labelKey: string
   Icon: ComponentType<{ className?: string; active?: boolean }>
   to: string
   badge?: number
+  children?: NavChild[]
 }
 
 export type NavGroup = {
@@ -29,13 +36,58 @@ export type NavGroup = {
   items: NavItem[]
 }
 
+export const INCOME_PATHS = [
+  '/invoices',
+  '/income/reminders',
+  '/income/periodic',
+  '/income/credit-notes',
+  '/income/quotations',
+  '/income/order-forms',
+  '/income/delivery-notes',
+] as const
+
 export const DASHBOARD_NAV: NavGroup[] = [
   {
     id: 'main',
     labelKey: 'dashboard.nav.main',
     items: [
       { id: 'dashboard', labelKey: 'dashboard.nav.dashboard', Icon: NavDashboardIcon, to: '/dashboard' },
-      { id: 'invoices', labelKey: 'dashboard.nav.invoices', Icon: NavInvoicesIcon, to: '/dashboard', badge: 3 },
+      {
+        id: 'income',
+        labelKey: 'dashboard.nav.income',
+        Icon: NavInvoicesIcon,
+        to: '/invoices',
+        badge: 3,
+        children: [
+          { id: 'invoice', labelKey: 'dashboard.nav.incomeChildren.invoice', to: '/invoices' },
+          { id: 'reminders', labelKey: 'dashboard.nav.incomeChildren.reminders', to: '/income/reminders' },
+          {
+            id: 'periodic',
+            labelKey: 'dashboard.nav.incomeChildren.periodic',
+            to: '/income/periodic',
+          },
+          {
+            id: 'creditNotes',
+            labelKey: 'dashboard.nav.incomeChildren.creditNotes',
+            to: '/income/credit-notes',
+          },
+          {
+            id: 'quotations',
+            labelKey: 'dashboard.nav.incomeChildren.quotations',
+            to: '/income/quotations',
+          },
+          {
+            id: 'orderForms',
+            labelKey: 'dashboard.nav.incomeChildren.orderForms',
+            to: '/income/order-forms',
+          },
+          {
+            id: 'deliveryNotes',
+            labelKey: 'dashboard.nav.incomeChildren.deliveryNotes',
+            to: '/income/delivery-notes',
+          },
+        ],
+      },
       {
         id: 'expenditure',
         labelKey: 'dashboard.nav.expenditure',
@@ -102,35 +154,35 @@ export const RECENT_INVOICES: RecentInvoice[] = [
     customer: 'Muscat Grand Hotel',
     meta: 'B2B · 18 Jul',
     status: 'reported',
-    amount: '1,860 OMR',
+    amount: '1,860',
   },
   {
     id: 'INV-2042',
     customer: 'Walk in Customer',
     meta: 'B2C · 18 Jul',
     status: 'reported',
-    amount: '24 OMR',
+    amount: '24',
   },
   {
     id: 'INV-2041',
     customer: 'Al Noor Trading LLC',
     meta: 'B2B · 17 Jul',
     status: 'rejected',
-    amount: '540 OMR',
+    amount: '540',
   },
   {
     id: 'INV-2040',
     customer: 'Bahwan Group',
     meta: 'B2B · 17 Jul',
     status: 'sent',
-    amount: '3,120 OMR',
+    amount: '3,120',
   },
   {
     id: 'INV-2039',
     customer: 'Salalah Resort',
     meta: 'B2B · 16 Jul',
     status: 'draft',
-    amount: '890 OMR',
+    amount: '890',
   },
 ]
 
@@ -149,7 +201,7 @@ export const REVENUE_BARS: RevenueBar[] = [
     day: 'Thu',
     value: 100,
     active: true,
-    tooltip: { amount: 'OMR 2,845', date: 'Thu, 12 Jul' },
+    tooltip: { amount: '2,845', date: 'Thu, 12 Jul' },
   },
   { day: 'Fri', value: 72 },
   { day: 'Sat', value: 72 },

@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BrandLogo } from '../../components/BrandLogo'
 import glowLeft from '../../assets/auth/glow-left.png'
 
 export type InvoicePreviewData = {
@@ -61,12 +61,7 @@ export function BusinessIdentityHero({
       />
 
       <div className="relative z-10 flex h-full min-h-0 flex-col px-8 py-6 xl:py-8">
-        <Link
-          to="/"
-          className="w-fit shrink-0 bg-gradient-to-r from-[#265DF7] to-[#6EC8FF] bg-clip-text text-[42px] font-semibold tracking-[10px] text-transparent"
-        >
-          {t('brand.name')}
-        </Link>
+        <BrandLogo tone="onDark" size="lg" />
 
         <div className="mx-auto flex min-h-0 w-full max-w-[532px] flex-1 flex-col justify-center gap-4 py-6">
           <div className="flex flex-col gap-3">

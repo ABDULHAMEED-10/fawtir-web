@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { OmAmount } from '../../components/ui'
 import { COMPLIANCE, QUOTA, VAT } from '../../lib/dashboard'
 import { DashboardCard } from './DashboardCard'
 
@@ -77,10 +78,12 @@ export function ComplianceHealth() {
 
       <button
         type="button"
-        className="flex w-full items-center justify-between bg-warning-100 px-4 py-2.5 text-start text-base font-medium text-warning-700"
+        className="mx-1 mb-1 flex w-[calc(100%-8px)] items-center justify-between rounded-md bg-warning-100 px-4 py-2.5 text-start text-base font-semibold tracking-[0.16px] text-warning-700"
       >
         {t('dashboard.compliance.alert', { count: COMPLIANCE.alertCount })}
-        <span aria-hidden="true">→</span>
+        <span aria-hidden="true" className="font-medium">
+          →
+        </span>
       </button>
     </section>
   )
@@ -132,8 +135,12 @@ export function VatPosition() {
       }
     >
       <p className="flex flex-wrap items-center gap-2 font-semibold text-text-primary">
-        <span className="text-[22px]">OMR {VAT.net}</span>
-        <span className="rounded-sm bg-warning-100 px-2 py-1 text-sm font-medium text-warning-700">
+        <OmAmount
+          size="md"
+          amount={VAT.net}
+          amountClassName="text-[22px] font-semibold text-text-primary"
+        />
+        <span className="rounded-full bg-warning-100 px-2 py-1 text-sm font-medium text-warning-700">
           {t('dashboard.vat.netPayable')}
         </span>
       </p>
@@ -142,11 +149,21 @@ export function VatPosition() {
           <p className="text-sm font-medium text-text-quaternary">
             {t('dashboard.vat.output')}
           </p>
-          <p className="text-base font-semibold text-text-primary">OMR {VAT.output}</p>
+          <OmAmount
+            size="sm"
+            amount={VAT.output}
+            className="mt-1"
+            amountClassName="text-base font-semibold text-text-primary"
+          />
         </div>
         <div className="rounded-sm bg-primary-25 px-3.5 py-2.5">
           <p className="text-sm font-medium text-text-quaternary">{t('dashboard.vat.input')}</p>
-          <p className="text-base font-semibold text-text-primary">OMR {VAT.input}</p>
+          <OmAmount
+            size="sm"
+            amount={VAT.input}
+            className="mt-1"
+            amountClassName="text-base font-semibold text-text-primary"
+          />
         </div>
       </div>
     </DashboardCard>

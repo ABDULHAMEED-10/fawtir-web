@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SegmentedControl } from '../../components/ui'
+import { OmAmount, SegmentedControl } from '../../components/ui'
 import { REVENUE, REVENUE_BARS, type PeriodOption } from '../../lib/dashboard'
 import { DashboardCard } from './DashboardCard'
 
@@ -26,8 +26,12 @@ export function RevenueChart() {
       }
       bodyClassName="pt-3"
     >
-      <p className="mb-4 font-semibold leading-[1.2] text-text-primary">
-        <span className="text-2xl">OMR {REVENUE.total}</span>{' '}
+      <p className="mb-4 flex flex-wrap items-baseline gap-2 font-semibold leading-[1.2] text-text-primary">
+        <OmAmount
+          size="md"
+          amount={REVENUE.total}
+          amountClassName="text-2xl font-semibold text-text-primary"
+        />
         <span className="text-sm font-medium text-text-quaternary">
           {t('dashboard.revenue.thisMonth')}
         </span>
@@ -54,7 +58,11 @@ export function RevenueChart() {
                   <div className="absolute -top-2 z-10 -translate-y-full rounded-sm border border-border-subtle bg-surface-card px-3 py-2 shadow-card">
                     <p className="flex items-center gap-2 text-xs font-semibold text-text-primary">
                       <span className="size-2.5 rounded-full bg-primary-700" />
-                      {bar.tooltip.amount}
+                      <OmAmount
+                        size="xs"
+                        amount={bar.tooltip.amount}
+                        amountClassName="text-xs font-semibold text-text-primary"
+                      />
                     </p>
                     <p className="mt-1 text-center text-xs font-medium text-text-quaternary">
                       {bar.tooltip.date}

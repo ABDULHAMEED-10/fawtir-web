@@ -66,8 +66,9 @@
   --color-danger-100: #fff0f0;
   --color-success-700: #4c6c5a;
   --color-success-100: #e6efea;
-  --color-warning-700: #887147;
-  --color-warning-100: #f7f1e6;
+  /* Peach warnings (Figma: rgba(252,197,145,0.4) / #A92910) */
+  --color-warning-700: #a92910;
+  --color-warning-100: #fde8d3;
 
   /* Radius */
   --radius-none: 0;

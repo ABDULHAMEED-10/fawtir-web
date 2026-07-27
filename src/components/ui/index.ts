@@ -10,6 +10,7 @@ export { SelectionCard } from './SelectionCard'
 export { BusinessTypeChip } from './BusinessTypeChip'
 export { Chip } from './Chip'
 export { PricingCard } from './PricingCard'
+export { OmAmount } from './OmAmount'
 export {
   MailIcon,
   LockIcon,

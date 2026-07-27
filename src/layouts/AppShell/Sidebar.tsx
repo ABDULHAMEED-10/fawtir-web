@@ -1,7 +1,16 @@
-import type { ComponentType } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { DASHBOARD_NAV, SETTINGS_NAV, ACCOUNT, USER } from '../../lib/dashboard'
+import {
+  DASHBOARD_NAV,
+  SETTINGS_NAV,
+  ACCOUNT,
+  USER,
+  INCOME_PATHS,
+  type NavChild,
+  type NavItem,
+} from '../../lib/dashboard'
+import { BrandLogo } from '../../components/BrandLogo'
 import bahjaLogo from '../../assets/dashboard/bahja-logo.svg'
 import avatar from '../../assets/dashboard/avatar.png'
 import chevron from '../../assets/dashboard/chevron.svg'
@@ -12,12 +21,14 @@ type SidebarNavItemProps = {
   label: string
   badge?: number
   active?: boolean
+  onClick?: () => void
 }
 
-function SidebarNavItem({ to, Icon, label, badge, active }: SidebarNavItemProps) {
+function SidebarNavItem({ to, Icon, label, badge, active, onClick }: SidebarNavItemProps) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={[
         'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
@@ -46,17 +57,96 @@ function SidebarNavItem({ to, Icon, label, badge, active }: SidebarNavItemProps)
   )
 }
 
+function isPathActive(pathname: string, to: string) {
+  if (to === '/dashboard') return pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+  if (to === '/invoices') return pathname === '/invoices' || pathname.startsWith('/invoices/')
+  return pathname === to || pathname.startsWith(`${to}/`)
+}
+
+function isIncomePath(pathname: string) {
+  return INCOME_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+}
+
+function IncomeNavItem({ item }: { item: NavItem }) {
+  const { t } = useTranslation()
+  const location = useLocation()
+  const incomeActive = isIncomePath(location.pathname)
+  const [open, setOpen] = useState(incomeActive)
+
+  useEffect(() => {
+    if (incomeActive) setOpen(true)
+  }, [incomeActive])
+
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
+          incomeActive
+            ? 'text-primary-900'
+            : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+        ].join(' ')}
+        aria-expanded={open}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <item.Icon active={incomeActive} className="size-5 shrink-0" />
+          <span
+            className={[
+              'truncate text-base leading-[1.2]',
+              incomeActive ? 'font-semibold text-primary-900' : 'font-medium',
+            ].join(' ')}
+          >
+            {t(item.labelKey)}
+          </span>
+        </span>
+        {item.badge != null ? (
+          <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white">
+            {item.badge}
+          </span>
+        ) : null}
+        <img
+          src={chevron}
+          alt=""
+          className={['size-4 opacity-60 transition-transform', open ? 'rotate-90' : ''].join(' ')}
+        />
+      </button>
+
+      {open && item.children ? (
+        <div className="ms-6 flex flex-col py-2">
+          {item.children.map((child: NavChild) => {
+            const childActive = isPathActive(location.pathname, child.to)
+            return (
+              <Link
+                key={child.id}
+                to={child.to}
+                aria-current={childActive ? 'page' : undefined}
+                className={[
+                  'flex w-[168px] items-center rounded-md px-3 py-2 text-base leading-[1.2] transition-colors',
+                  childActive
+                    ? 'bg-primary-50 font-medium text-primary-900'
+                    : 'font-medium text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+                ].join(' ')}
+              >
+                {t(child.labelKey)}
+              </Link>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function Sidebar() {
   const { t } = useTranslation()
   const location = useLocation()
-  const onDashboard = location.pathname.startsWith('/dashboard')
 
   return (
     <aside className="flex h-dvh w-[248px] shrink-0 flex-col border-e border-black/10 bg-surface-tab-bar">
       <div className="flex h-[74px] items-center px-5">
-        <span className="bg-gradient-to-r from-[#265DF7] to-[#6EC8FF] bg-clip-text text-[24px] font-semibold tracking-[5.8px] text-transparent">
-          {t('brand.name')}
-        </span>
+        <BrandLogo size="md" />
       </div>
       <div className="h-px w-full bg-black/10" />
 
@@ -87,16 +177,24 @@ export function Sidebar() {
               {t(group.labelKey)}
             </p>
             <div className="flex flex-col">
-              {group.items.map((item) => (
-                <SidebarNavItem
-                  key={item.id}
-                  to={item.to}
-                  Icon={item.Icon}
-                  label={t(item.labelKey)}
-                  badge={item.badge}
-                  active={item.id === 'dashboard' && onDashboard}
-                />
-              ))}
+              {group.items.map((item) =>
+                item.children ? (
+                  <IncomeNavItem key={item.id} item={item} />
+                ) : (
+                  <SidebarNavItem
+                    key={item.id}
+                    to={item.to}
+                    Icon={item.Icon}
+                    label={t(item.labelKey)}
+                    badge={item.badge}
+                    active={
+                      item.to === '/dashboard'
+                        ? item.id === 'dashboard' && location.pathname.startsWith('/dashboard')
+                        : isPathActive(location.pathname, item.to)
+                    }
+                  />
+                ),
+              )}
             </div>
           </div>
         ))}

@@ -11,6 +11,9 @@ import { NewPasswordPage } from './pages/NewPasswordPage'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { InvoicesPage } from './pages/InvoicesPage'
+import { CreateInvoicePage } from './pages/CreateInvoicePage'
+import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SignupPage } from './pages/SignupPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
@@ -37,6 +40,9 @@ function App() {
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/payment" element={<PaymentPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/invoices" element={<InvoicesPage />} />
+          <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
