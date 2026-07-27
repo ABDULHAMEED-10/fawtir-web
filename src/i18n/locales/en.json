@@ -997,9 +997,12 @@
     }
   },
   "home": {
-    "badge": "Oman e-invoicing",
+    "stage": "Development stage",
     "heroTitle": "E-invoicing compliance, handled for you.",
-    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority — without touching Peppol yourself.",
-    "waitingForDesigns": "Auth through /payment, then /dashboard."
+    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching Peppol yourself.",
+    "dashboard": "Dashboard",
+    "login": "Log in",
+    "signup": "Sign up",
+    "footerNote": "This home page is for testing and navigation only."
   }
 }

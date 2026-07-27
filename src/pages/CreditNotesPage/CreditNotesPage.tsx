@@ -109,7 +109,7 @@ function CreditNoteKpiCards() {
       {CREDIT_NOTE_KPI.map((kpi) => (
         <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
           <div className="flex items-center gap-2.5">
-            <img src={KPI_ICONS[kpi.icon]} alt="" className="size-11 shrink-0" />
+            <img src={KPI_ICONS[kpi.icon]} alt="" className="size-[45px] shrink-0" />
             <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
               {t(kpi.titleKey)}
             </h3>
@@ -157,7 +157,15 @@ function RefundCell({
         <img
           src={omrRowIcon}
           alt=""
-          className={['size-6 shrink-0', isRefunded ? 'opacity-80' : ''].join(' ')}
+          className="size-6 shrink-0"
+          style={
+            isRefunded
+              ? {
+                  filter:
+                    'brightness(0) saturate(100%) invert(38%) sepia(12%) saturate(900%) hue-rotate(95deg) brightness(0.95)',
+                }
+              : undefined
+          }
         />
         <span
           className={[
@@ -190,7 +198,7 @@ function CreditNotesTable() {
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
+      <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4">
         {CREDIT_NOTE_TABS.map((tab) => {
           const active = tab.id === activeTab
           return (
@@ -315,7 +323,15 @@ function CreditNotesTable() {
                   <td className="px-2 py-2.5">
                     <span className="inline-flex items-center gap-1 text-[#98140b]">
                       <span className="text-base font-bold leading-[1.5]">-</span>
-                      <img src={omrRowIcon} alt="" className="size-6 shrink-0" />
+                      <img
+                        src={omrRowIcon}
+                        alt=""
+                        className="size-6 shrink-0"
+                        style={{
+                          filter:
+                            'brightness(0) saturate(100%) invert(12%) sepia(68%) saturate(4500%) hue-rotate(358deg) brightness(0.85)',
+                        }}
+                      />
                       <span className="text-base font-bold leading-[1.5]">{row.creditAmount}</span>
                     </span>
                   </td>

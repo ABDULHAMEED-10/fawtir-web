@@ -1,0 +1,76 @@
+@keyframes home-hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(36px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes home-hero-glow-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -2%, 0) scale(1.04);
+  }
+}
+
+.home-hero__brand {
+  animation: home-hero-fade-up 0.7s ease-out both;
+}
+
+.home-hero__stage {
+  animation: home-hero-fade-up 0.7s ease-out 0.08s both;
+}
+
+.home-hero__title {
+  animation: home-hero-fade-up 0.75s ease-out 0.16s both;
+}
+
+.home-hero__subtitle {
+  animation: home-hero-fade-up 0.75s ease-out 0.24s both;
+}
+
+.home-hero__cta {
+  animation: home-hero-fade-up 0.75s ease-out 0.32s both;
+}
+
+.home-hero__image {
+  animation: home-hero-rise 1s ease-out 0.2s both;
+}
+
+.home-hero__glow--left {
+  animation: home-hero-glow-drift 14s ease-in-out infinite;
+}
+
+.home-hero__glow--right {
+  animation: home-hero-glow-drift 18s ease-in-out infinite reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero__brand,
+  .home-hero__stage,
+  .home-hero__title,
+  .home-hero__subtitle,
+  .home-hero__cta,
+  .home-hero__image,
+  .home-hero__glow--left,
+  .home-hero__glow--right {
+    animation: none;
+  }
+}
