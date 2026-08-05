@@ -11,6 +11,7 @@ import {
   NavInvoicesIcon,
   NavReportsIcon,
   NavSettingsIcon,
+  NavStockIcon,
   NavSuppliersIcon,
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
@@ -38,12 +39,26 @@ export type NavGroup = {
 
 export const INCOME_PATHS = [
   '/invoices',
+  '/income/self-billing',
   '/income/reminders',
   '/income/periodic',
   '/income/credit-notes',
-  '/income/quotations',
-  '/income/order-forms',
-  '/income/delivery-notes',
+  '/income/debit-notes',
+] as const
+
+export const EXPENDITURE_PATHS = [
+  '/expenditure/bills',
+  '/expenditure/recurring-bills',
+  '/expenditure/reminders',
+  '/expenditure/credit-notes',
+  '/expenditure/debit-notes',
+] as const
+
+export const TRADE_DOCUMENT_PATHS = [
+  '/trade-documents/quotations',
+  '/trade-documents/order-forms',
+  '/trade-documents/delivery-notes',
+  '/trade-documents/projects',
 ] as const
 
 export const DASHBOARD_NAV: NavGroup[] = [
@@ -60,6 +75,11 @@ export const DASHBOARD_NAV: NavGroup[] = [
         badge: 3,
         children: [
           { id: 'invoice', labelKey: 'dashboard.nav.incomeChildren.invoice', to: '/invoices' },
+          {
+            id: 'selfBilling',
+            labelKey: 'dashboard.nav.incomeChildren.selfBilling',
+            to: '/income/self-billing',
+          },
           { id: 'reminders', labelKey: 'dashboard.nav.incomeChildren.reminders', to: '/income/reminders' },
           {
             id: 'periodic',
@@ -72,19 +92,9 @@ export const DASHBOARD_NAV: NavGroup[] = [
             to: '/income/credit-notes',
           },
           {
-            id: 'quotations',
-            labelKey: 'dashboard.nav.incomeChildren.quotations',
-            to: '/income/quotations',
-          },
-          {
-            id: 'orderForms',
-            labelKey: 'dashboard.nav.incomeChildren.orderForms',
-            to: '/income/order-forms',
-          },
-          {
-            id: 'deliveryNotes',
-            labelKey: 'dashboard.nav.incomeChildren.deliveryNotes',
-            to: '/income/delivery-notes',
+            id: 'debitNotes',
+            labelKey: 'dashboard.nav.incomeChildren.debitNotes',
+            to: '/income/debit-notes',
           },
         ],
       },
@@ -92,17 +102,77 @@ export const DASHBOARD_NAV: NavGroup[] = [
         id: 'expenditure',
         labelKey: 'dashboard.nav.expenditure',
         Icon: NavExpenditureIcon,
-        to: '/dashboard',
+        to: '/expenditure/bills',
+        children: [
+          { id: 'bills', labelKey: 'dashboard.nav.expenditureChildren.bills', to: '/expenditure/bills' },
+          {
+            id: 'reminders',
+            labelKey: 'dashboard.nav.expenditureChildren.reminders',
+            to: '/expenditure/reminders',
+          },
+          {
+            id: 'recurringBills',
+            labelKey: 'dashboard.nav.expenditureChildren.recurringBills',
+            to: '/expenditure/recurring-bills',
+          },
+          {
+            id: 'creditNotes',
+            labelKey: 'dashboard.nav.expenditureChildren.creditNotes',
+            to: '/expenditure/credit-notes',
+          },
+          {
+            id: 'debitNotes',
+            labelKey: 'dashboard.nav.expenditureChildren.debitNotes',
+            to: '/expenditure/debit-notes',
+          },
+        ],
+      },
+      {
+        // Quotations, order forms and delivery notes run in both directions — sale and
+        // purchase — so they sit apart from Income and Expenditure rather than under either.
+        id: 'tradeDocuments',
+        labelKey: 'dashboard.nav.tradeDocuments',
+        Icon: NavDocumentsIcon,
+        to: '/trade-documents/quotations',
+        children: [
+          {
+            id: 'quotations',
+            labelKey: 'dashboard.nav.tradeDocumentChildren.quotations',
+            to: '/trade-documents/quotations',
+          },
+          {
+            id: 'orderForms',
+            labelKey: 'dashboard.nav.tradeDocumentChildren.orderForms',
+            to: '/trade-documents/order-forms',
+          },
+          {
+            id: 'deliveryNotes',
+            labelKey: 'dashboard.nav.tradeDocumentChildren.deliveryNotes',
+            to: '/trade-documents/delivery-notes',
+          },
+          {
+            id: 'projects',
+            labelKey: 'dashboard.nav.tradeDocumentChildren.projects',
+            to: '/trade-documents/projects',
+          },
+        ],
       },
     ],
   },
   {
+    id: 'contacts',
+    labelKey: 'dashboard.nav.contacts',
+    items: [
+      { id: 'customers', labelKey: 'dashboard.nav.customers', Icon: NavCustomersIcon, to: '/customers' },
+      { id: 'suppliers', labelKey: 'dashboard.nav.suppliers', Icon: NavSuppliersIcon, to: '/suppliers' },
+    ],
+  },
+  {
     id: 'catalog',
-    labelKey: 'dashboard.nav.catalogContacts',
+    labelKey: 'dashboard.nav.catalogStock',
     items: [
       { id: 'catalog', labelKey: 'dashboard.nav.catalog', Icon: NavCatalogIcon, to: '/dashboard' },
-      { id: 'customers', labelKey: 'dashboard.nav.customers', Icon: NavCustomersIcon, to: '/dashboard' },
-      { id: 'suppliers', labelKey: 'dashboard.nav.suppliers', Icon: NavSuppliersIcon, to: '/dashboard' },
+      { id: 'stock', labelKey: 'dashboard.nav.stock', Icon: NavStockIcon, to: '/stock' },
     ],
   },
   {

@@ -1,0 +1,1 @@
+export { NewDebitNotePage } from './NewDebitNotePage'

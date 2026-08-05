@@ -1,0 +1,1 @@
+export { DebitNoteDetailPage } from './DebitNoteDetailPage'

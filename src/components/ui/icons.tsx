@@ -225,6 +225,36 @@ export function IdCardIcon({ className = '', size = 20 }: IconProps) {
   )
 }
 
+export function CheckCircleIcon({ className = '', size = 27 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 27 27" fill="none" className={className} aria-hidden="true">
+      <circle cx="13.5" cy="13.5" r="12.25" stroke="currentColor" strokeWidth="2.5" />
+      <path
+        d="m8.5 13.8 3.4 3.4 6.6-6.6"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+export function ExternalLinkIcon({ className = '', size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M16.5 11.5v4a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path d="M12.5 3.5h4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m16.5 3.5-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function ChevronDownIcon({ className = '', size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">

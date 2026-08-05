@@ -1,0 +1,1 @@
+export { NewCustomerPage } from './NewCustomerPage'

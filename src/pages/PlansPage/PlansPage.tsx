@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BrandLogo } from '../../components/BrandLogo'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
 import patternLeft from '../../assets/plans/pattern-left.png'
 import patternRight from '../../assets/plans/pattern-right.png'
@@ -61,11 +60,10 @@ export function PlansPage() {
       />
 
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col px-8 pb-10 pt-8">
-        <BrandLogo size="md" className="absolute start-8 top-8 z-20" />
         <BackButton
           to="/address-contact"
           state={location.state}
-          className="absolute start-8 top-[76px] z-20"
+          className="absolute start-8 top-8 z-20"
         />
 
         <div className="flex flex-1 flex-col items-center">

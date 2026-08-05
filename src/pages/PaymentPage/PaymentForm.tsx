@@ -67,7 +67,7 @@ export function PaymentForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate('/dashboard', {
+    navigate('/fawtara-status', {
       state: {
         ...state,
         paymentMethod: method,
