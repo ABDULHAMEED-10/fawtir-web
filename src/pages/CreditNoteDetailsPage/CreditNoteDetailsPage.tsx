@@ -17,7 +17,8 @@ import zoomInIcon from '../../assets/invoice-details/zoom-in.svg'
 import downloadIcon from '../../assets/invoice-details/download.svg'
 import printIcon from '../../assets/invoice-details/print.svg'
 import fullscreenIcon from '../../assets/invoice-details/fullscreen.svg'
-import timelineCheckIcon from '../../assets/invoice-details/timeline-check.svg'
+// Green timeline, unlike the blue one on the invoice page.
+import timelineCheckIcon from '../../assets/credit-note-detail/timeline-check.svg'
 import saveDraftIcon from '../../assets/credit-note-detail/save-draft.svg'
 import issueIcon from '../../assets/credit-note-detail/issue.svg'
 import arrowUpLeftIcon from '../../assets/credit-note-detail/arrow-up-left.svg'
@@ -109,15 +110,8 @@ export function CreditNoteDetailsPage() {
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-                {t('creditNoteDetails.title')}
-              </h1>
-              <span className="inline-flex h-[31px] items-center gap-2 rounded-full border border-[#b9bbc0] bg-[#e3e4ea] px-3 text-sm font-semibold text-text-tertiary">
-                <span className="size-1.5 rounded-full bg-text-tertiary" />
-                {t('creditNoteDetails.draft')}
-              </span>
-            </div>
+            {/* Figma titles this page with the credit note number, not a generic label. */}
+            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{note.id}</h1>
 
             <div className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
               <span className="font-medium text-text-quaternary">
@@ -256,7 +250,7 @@ export function CreditNoteDetailsPage() {
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t('creditNoteDetails.viewCustomer')}
-                  <img src={chevronIcon} alt="" className="size-5 rotate-180" />
+                  <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
                 </button>
               }
             >
@@ -566,7 +560,7 @@ export function CreditNoteDetailsPage() {
                       ) : (
                         <img src={timelineCheckIcon} alt="" className="size-[27px] shrink-0" />
                       )}
-                      {isLast ? null : <span className="my-1 w-0.5 flex-1 bg-primary-200" />}
+                      {isLast ? null : <span className="my-1 w-0.5 flex-1 bg-success-700" />}
                     </div>
                     <div className={['min-w-0 pb-6', isLast ? 'pb-0' : ''].join(' ')}>
                       <p className="text-base font-medium text-text-secondary">{event.title}</p>

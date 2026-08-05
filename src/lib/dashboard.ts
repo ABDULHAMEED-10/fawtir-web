@@ -38,9 +38,11 @@ export type NavGroup = {
 
 export const INCOME_PATHS = [
   '/invoices',
+  '/income/self-billing',
   '/income/reminders',
   '/income/periodic',
   '/income/credit-notes',
+  '/income/debit-notes',
   '/income/quotations',
   '/income/order-forms',
   '/income/delivery-notes',
@@ -60,6 +62,11 @@ export const DASHBOARD_NAV: NavGroup[] = [
         badge: 3,
         children: [
           { id: 'invoice', labelKey: 'dashboard.nav.incomeChildren.invoice', to: '/invoices' },
+          {
+            id: 'selfBilling',
+            labelKey: 'dashboard.nav.incomeChildren.selfBilling',
+            to: '/income/self-billing',
+          },
           { id: 'reminders', labelKey: 'dashboard.nav.incomeChildren.reminders', to: '/income/reminders' },
           {
             id: 'periodic',
@@ -70,6 +77,11 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'creditNotes',
             labelKey: 'dashboard.nav.incomeChildren.creditNotes',
             to: '/income/credit-notes',
+          },
+          {
+            id: 'debitNotes',
+            labelKey: 'dashboard.nav.incomeChildren.debitNotes',
+            to: '/income/debit-notes',
           },
           {
             id: 'quotations',
@@ -101,8 +113,8 @@ export const DASHBOARD_NAV: NavGroup[] = [
     labelKey: 'dashboard.nav.catalogContacts',
     items: [
       { id: 'catalog', labelKey: 'dashboard.nav.catalog', Icon: NavCatalogIcon, to: '/dashboard' },
-      { id: 'customers', labelKey: 'dashboard.nav.customers', Icon: NavCustomersIcon, to: '/dashboard' },
-      { id: 'suppliers', labelKey: 'dashboard.nav.suppliers', Icon: NavSuppliersIcon, to: '/dashboard' },
+      { id: 'customers', labelKey: 'dashboard.nav.customers', Icon: NavCustomersIcon, to: '/customers' },
+      { id: 'suppliers', labelKey: 'dashboard.nav.suppliers', Icon: NavSuppliersIcon, to: '/suppliers' },
     ],
   },
   {

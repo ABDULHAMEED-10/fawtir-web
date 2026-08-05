@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { ActionMenu } from '../../components/ui'
+import { invoiceRowActions } from '../../lib/rowActions'
 import {
   INVOICE_KPI,
   INVOICE_ROWS,
   INVOICE_TABS,
   type InvoiceListStatus,
   type InvoiceTabId,
+  type TransmissionState,
 } from '../../lib/invoices'
 import outstandingIcon from '../../assets/invoices/kpi-outstanding.svg'
 import paidIcon from '../../assets/invoices/kpi-paid.svg'
@@ -20,7 +23,6 @@ import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import sortIcon from '../../assets/invoices/sort.svg'
-import menuIcon from '../../assets/invoices/menu.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 const KPI_ICONS = {
@@ -69,6 +71,38 @@ const STATUS_STYLES: Record<
     dot: 'bg-text-quaternary',
     text: 'text-text-quaternary',
     labelKey: 'invoicesPage.status.draft',
+  },
+}
+
+/**
+ * Figma prints the raw Peppol/OTA codes (AP / AB / RE). We spell them out instead —
+ * `acknowledged` (AB) is still an acceptance, so it reads "Accepted" but in blue to
+ * distinguish it from a confirmed clearance.
+ */
+const TRANSMISSION_STYLES: Record<
+  TransmissionState,
+  { bg: string; fg: string; dot: string; labelKey: string; titleKey: string }
+> = {
+  accepted: {
+    bg: 'bg-success-100',
+    fg: 'text-success-700',
+    dot: 'bg-success-700',
+    labelKey: 'invoicesPage.transmission.accepted',
+    titleKey: 'invoicesPage.transmission.acceptedHint',
+  },
+  acknowledged: {
+    bg: 'bg-primary-25',
+    fg: 'text-primary-700',
+    dot: 'bg-primary-700',
+    labelKey: 'invoicesPage.transmission.acknowledged',
+    titleKey: 'invoicesPage.transmission.acknowledgedHint',
+  },
+  rejected: {
+    bg: 'bg-danger-100',
+    fg: 'text-danger-700',
+    dot: 'bg-danger-700',
+    labelKey: 'invoicesPage.transmission.rejected',
+    titleKey: 'invoicesPage.transmission.rejectedHint',
   },
 }
 
@@ -128,7 +162,7 @@ function InvoiceKpiCards() {
             </h3>
           </div>
           <div className="flex items-center gap-1">
-            <img src={omrIcon} alt="" className="size-8 shrink-0" />
+            <img src={omrIcon} alt="" className="w-8 h-auto shrink-0" />
             <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary">
               {kpi.amount}
             </p>
@@ -238,6 +272,7 @@ function InvoiceTable() {
               <th className="px-2 py-2.5 font-semibold">{t('invoicesPage.col.due')}</th>
               <th className="px-2 py-2.5 font-semibold">{t('invoicesPage.col.amount')}</th>
               <th className="px-2 py-2.5 font-semibold">{t('invoicesPage.col.status')}</th>
+              <th className="px-2 py-2.5 font-semibold">{t('invoicesPage.col.transmission')}</th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
@@ -274,7 +309,7 @@ function InvoiceTable() {
                   <td className="px-2 py-2.5 text-sm font-medium text-text-tertiary">{row.due}</td>
                   <td className="px-2 py-2.5">
                     <span className="inline-flex items-center gap-1">
-                      <img src={omrRowIcon} alt="" className="size-6 shrink-0" />
+                      <img src={omrRowIcon} alt="" className="w-6 h-auto shrink-0" />
                       <span className="text-base font-bold leading-[1.5] text-text-secondary">
                         {row.amount}
                       </span>
@@ -293,13 +328,29 @@ function InvoiceTable() {
                     </span>
                   </td>
                   <td className="px-2 py-2.5">
-                    <button
-                      type="button"
-                      className="inline-flex size-6 items-center justify-center"
-                      aria-label={t('invoicesPage.rowMenu')}
-                    >
-                      <img src={menuIcon} alt="" className="size-6" />
-                    </button>
+                    {row.transmission ? (
+                      (() => {
+                        const tx = TRANSMISSION_STYLES[row.transmission]
+                        return (
+                          <span
+                            title={t(tx.titleKey)}
+                            className={[
+                              'inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium',
+                              tx.bg,
+                              tx.fg,
+                            ].join(' ')}
+                          >
+                            <span className={['size-1.5 shrink-0 rounded-full', tx.dot].join(' ')} />
+                            {t(tx.labelKey)}
+                          </span>
+                        )
+                      })()
+                    ) : (
+                      <span className="text-sm font-medium text-text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <ActionMenu items={invoiceRowActions(row.id)} label={t('invoicesPage.rowMenu')} />
                   </td>
                 </tr>
               )
@@ -325,7 +376,7 @@ function InvoiceTable() {
             className="inline-flex size-10 items-center justify-center rounded-md text-text-muted"
             aria-label={t('invoicesPage.prevPage')}
           >
-            <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
+            <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
           </button>
           {PAGE_NUMBERS.map((n) => {
             if (n === '...') {
@@ -360,7 +411,7 @@ function InvoiceTable() {
             className="inline-flex size-10 items-center justify-center rounded-md text-text-muted"
             aria-label={t('invoicesPage.nextPage')}
           >
-            <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
+            <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
           </button>
         </div>
       </div>

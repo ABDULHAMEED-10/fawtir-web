@@ -8,6 +8,15 @@ export type InvoiceListStatus =
 
 export type InvoiceTabId = 'all' | 'drafts' | 'toSend' | 'awaiting' | 'overdue' | 'paid'
 
+/**
+ * Peppol / OTA response codes. Figma prints the raw codes; the UI spells them out.
+ *  - `accepted`     (AP) cleared and confirmed by the OTA
+ *  - `acknowledged` (AB) accepted, but confirmation is still outstanding
+ *  - `rejected`     (RE) refused — the invoice must be corrected and resent
+ * Omitted while the invoice has never left the building (draft / not sent).
+ */
+export type TransmissionState = 'accepted' | 'acknowledged' | 'rejected'
+
 export type InvoiceRow = {
   id: string
   customer: string
@@ -16,6 +25,7 @@ export type InvoiceRow = {
   due: string
   amount: string
   status: InvoiceListStatus
+  transmission?: TransmissionState
 }
 
 export const INVOICE_TABS: { id: InvoiceTabId; labelKey: string; count: number; danger?: boolean }[] =
@@ -68,6 +78,7 @@ export const INVOICE_ROWS: InvoiceRow[] = [
     due: '05 Jul 2026',
     amount: '120.400',
     status: 'overdue',
+    transmission: 'rejected',
   },
   {
     id: 'INV-2042',
@@ -77,6 +88,7 @@ export const INVOICE_ROWS: InvoiceRow[] = [
     due: '30 Jul 2026',
     amount: '46.200',
     status: 'awaiting',
+    transmission: 'acknowledged',
   },
   {
     id: 'INV-2041',
@@ -86,6 +98,7 @@ export const INVOICE_ROWS: InvoiceRow[] = [
     due: '17 Aug 2026',
     amount: '58.590',
     status: 'partial',
+    transmission: 'acknowledged',
   },
   {
     id: 'INV-2040',
@@ -95,6 +108,7 @@ export const INVOICE_ROWS: InvoiceRow[] = [
     due: '20 Aug 2026',
     amount: '22.300',
     status: 'toSend',
+    transmission: 'acknowledged',
   },
   {
     id: 'INV-2038',
@@ -104,6 +118,7 @@ export const INVOICE_ROWS: InvoiceRow[] = [
     due: '11 Aug 2026',
     amount: '15.750',
     status: 'paid',
+    transmission: 'accepted',
   },
   {
     id: 'INV-2039',

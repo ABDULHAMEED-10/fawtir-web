@@ -11,6 +11,7 @@ export { BusinessTypeChip } from './BusinessTypeChip'
 export { Chip } from './Chip'
 export { PricingCard } from './PricingCard'
 export { OmAmount } from './OmAmount'
+export { ActionMenu, type ActionMenuItem } from './ActionMenu'
 export {
   MailIcon,
   LockIcon,
@@ -31,4 +32,6 @@ export {
   LocationPinIcon,
   IdCardIcon,
   ChevronDownIcon,
+  CheckCircleIcon,
+  ExternalLinkIcon,
 } from './icons'

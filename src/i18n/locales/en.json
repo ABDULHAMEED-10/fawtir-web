@@ -381,6 +381,21 @@
     "payCta": "Pay {{amount}} & activate",
     "bankCta": "Email me the proforma invoice"
   },
+  "fawtaraStatus": {
+    "heroTitle": "E-invoicing compliance, handled for you.",
+    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
+    "title": "Waiting for Fawtara approval",
+    "description": "You’ve requested to authorize Fawtir as your provider on the Fawtara Portal. As soon as the OTA approves it, this page updates on its own.",
+    "badge": "Pending approval",
+    "steps": {
+      "connected": "Connected",
+      "awaitingApproval": "Awaiting OTA approval",
+      "requestSent": "Request sent"
+    },
+    "openPortal": "Open Fawtara portal",
+    "footer": "This usually takes a few minutes. We’ll email {{email}} the moment it’s approved, you can safely close this page. Approval taking too long?",
+    "contactSupport": "Contact support"
+  },
   "dashboard": {
     "searchPlaceholder": "Search invoices, customers. documents...",
     "createInvoice": "Create Invoice",
@@ -395,9 +410,11 @@
       "invoices": "Invoices",
       "incomeChildren": {
         "invoice": "Invoice",
+        "selfBilling": "Self-billing",
         "reminders": "Reminders",
         "periodic": "Periodic invoices",
         "creditNotes": "Credit notes",
+        "debitNotes": "Debit notes",
         "quotations": "Quotations",
         "orderForms": "Order forms",
         "deliveryNotes": "Delivery notes"
@@ -471,6 +488,422 @@
       "input": "Input VAT"
     }
   },
+  "rowActions": {
+    "delete": "Delete",
+    "invoice": {
+      "view": "View invoice",
+      "send": "Send",
+      "duplicate": "Duplicate",
+      "creditNote": "Issue credit note",
+      "periodic": "Periodic invoice"
+    },
+    "customer": {
+      "view": "View customer",
+      "newInvoice": "New invoice",
+      "statement": "Send statement",
+      "edit": "Edit"
+    },
+    "creditNote": {
+      "view": "View credit note"
+    },
+    "supplier": {
+      "view": "View supplier",
+      "recordBill": "Record a bill",
+      "statement": "Request statement",
+      "edit": "Edit"
+    },
+    "schedule": {
+      "view": "View schedule",
+      "generate": "Generate invoice",
+      "pause": "Pause series",
+      "duplicate": "Duplicate",
+      "edit": "Edit series"
+    },
+    "selfBill": {
+      "view": "View document",
+      "edit": "Edit"
+    },
+    "agreement": {
+      "view": "View agreement",
+      "renew": "Renew",
+      "resend": "Resend for signature",
+      "terminate": "Terminate"
+    }
+  },
+  "customersPage": {
+    "title": "Customers",
+    "subtitle": "8 customers · OMR 217.490 receivable",
+    "bulkUpload": "Bulk upload",
+    "export": "Export",
+    "newCustomer": "New customer",
+    "kpi": {
+      "receivables": "Receivables",
+      "receivablesMeta": "Owed by 4 customers",
+      "overdue": "Overdue",
+      "overdueMeta": "From 1 customer",
+      "customers": "Customers",
+      "customersMeta": "6 business · 1 government · 1 consumer",
+      "peppolReady": "Peppol-ready",
+      "peppolMeta": "Reachable for e-invoicing",
+      "ofTwelve": "of 12"
+    },
+    "tabs": {
+      "all": "All",
+      "business": "Business",
+      "government": "Government",
+      "consumer": "Consumer"
+    },
+    "kind": {
+      "business": "Business",
+      "government": "Government",
+      "consumer": "Consumer"
+    },
+    "peppol": {
+      "onPeppol": "On Peppol",
+      "notConnected": "Not connected",
+      "qrReceipt": "QR receipt"
+    },
+    "note": {
+      "daysOverdue": "{{days}} days overdue",
+      "partiallyPaid": "partially paid",
+      "awaitingSend": "awaiting send",
+      "settled": "Settled"
+    },
+    "invoiceCount_one": "{{count}} invoice",
+    "invoiceCount_other": "{{count}} invoices",
+    "searchPlaceholder": "Search by name, VAT, contact, email...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "col": {
+      "customer": "Customer",
+      "contact": "Contact",
+      "location": "Location",
+      "peppol": "Peppol",
+      "invoices": "Invoices",
+      "receivable": "Receivable"
+    },
+    "rowMenu": "Row actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "newCustomer": {
+    "title": "New customer",
+    "advancedFields": "Advanced fields",
+    "save": "Save customer",
+    "saveAndAddAnother": "Save & add another",
+    "cancel": "Cancel",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "sections": {
+      "customerType": "Customer type",
+      "details": "Details",
+      "contact": "Contact",
+      "billing": "Billing & tax defaults",
+      "sending": "How invoices are sent",
+      "addresses": "Addresses",
+      "notes": "Internal Notes & Comments"
+    },
+    "types": {
+      "business": {
+        "title": "Business",
+        "subtitle": "B2B - via Peppol"
+      },
+      "consumer": {
+        "title": "Consumer",
+        "subtitle": "B2C - QR receipt"
+      },
+      "government": {
+        "title": "Government",
+        "subtitle": "B2G - via Peppol"
+      }
+    },
+    "details": {
+      "logo": "Company logo",
+      "logoTitle": "Logo or image",
+      "logoHint": "Appears on the customer's profile, in lists, and optionally on their invoices. PNG, JPG or SVG · up to 2 MB.",
+      "firstName": "First name",
+      "firstNamePlaceholder": "e.g. Ahmed",
+      "lastName": "Last name",
+      "lastNamePlaceholder": "e.g. Al Rawahi",
+      "legalName": "Legal / registered name",
+      "legalNamePlaceholder": "e.g. Muscat Grand Hotel LLC",
+      "entityName": "Entity / ministry name",
+      "entityNamePlaceholder": "e.g. Ministry of Tourism",
+      "commercialName": "Commercial name",
+      "commercialNamePlaceholder": "Trading name (if different)",
+      "commercialRegistration": "Commercial registration (CR)",
+      "crPlaceholder": "CR number",
+      "vatNumber": "VAT registration number",
+      "registeredForVat": "Registered for VAT",
+      "website": "Website",
+      "peppolSection": "Peppol / e-invoicing",
+      "registeredOnPeppol": "Registered on Peppol",
+      "peppolId": "Peppol participant ID"
+    },
+    "government": {
+      "title": "Public procurement references",
+      "hint": "Oman's B2G invoices are cleared through Peppol and are normally rejected without a buyer reference. Capture it once here and it is applied to every invoice for this entity.",
+      "entityCode": "Entity / ministry code",
+      "entityCodePlaceholder": "e.g. MOT-004",
+      "buyerReference": "Buyer reference",
+      "buyerReferencePlaceholder": "e.g. BR-2026-0142",
+      "buyerReferenceHint": "Peppol BT-10. Supplied by the government buyer.",
+      "purchaseOrder": "Purchase order number",
+      "purchaseOrderPlaceholder": "e.g. PO-88213",
+      "contractReference": "Contract / tender reference",
+      "contractReferencePlaceholder": "e.g. TND-2026-77"
+    },
+    "contact": {
+      "person": "Contact person",
+      "personPlaceholder": "Full name",
+      "role": "Role / title",
+      "rolePlaceholder": "e.g. Finance Manager",
+      "email": "Email · one per line for multiple recipients",
+      "telephone": "Telephone",
+      "mobile": "Mobile Phone",
+      "preferredLanguage": "Preferred Language"
+    },
+    "billing": {
+      "currency": "Default currency",
+      "taxCategory": "Default tax category",
+      "paymentTerms": "Payment terms",
+      "paymentMethod": "Default payment method",
+      "iban": "IBAN",
+      "bic": "BIC / SWIFT"
+    },
+    "sending": {
+      "method": "Sending method",
+      "peppol": "Peppol (e-invoice)",
+      "qrReceipt": "QR receipt",
+      "emailPdf": "Email PDF",
+      "alsoEmailPdf": "Also email a PDF copy",
+      "alsoEmailPdfHint": "Send a PDF alongside the Peppol e-invoice.",
+      "autoReminders": "Automatic payment reminders",
+      "autoRemindersHint": "Fawtir chases overdue invoices for this customer on a schedule."
+    },
+    "address": {
+      "invoicing": "Invoicing address",
+      "delivery": "Delivery address",
+      "sameAsInvoicing": "Same as invoicing address",
+      "sameAsInvoicingHint": "Delivery goes to the invoicing address.",
+      "attn": "Attn",
+      "attnPlaceholder": "Attention to",
+      "country": "Country",
+      "city": "City / Governorate",
+      "cityPlaceholder": "e.g. Muscat",
+      "street": "Street & building",
+      "streetPlaceholder": "Way / building",
+      "poBox": "PO Box",
+      "poBoxPlaceholder": "PO Box",
+      "postalCode": "Postal code",
+      "postalCodePlaceholder": "Postal code"
+    },
+    "notes": {
+      "label": "Note to customer",
+      "placeholder": "Add optional internal instructions or billing details..."
+    }
+  },
+  "periodicList": {
+    "title": "Periodic invoices",
+    "subtitle": "6 recurring schedules · 3 active",
+    "export": "Export",
+    "newRecurring": "New recurring invoice",
+    "kpi": {
+      "revenue": "Recurring revenue",
+      "perMonth": "/month",
+      "revenueMeta": "Across 3 active schedules",
+      "due": "Due next 30 days",
+      "dueMeta": "5 invoices to generate",
+      "generated": "Generated this month",
+      "generatedMeta": "4 invoices issued",
+      "attention": "Needs attention",
+      "attentionMeta": "1 paused · 1 on request"
+    },
+    "tabs": {
+      "all": "All",
+      "active": "Active",
+      "onRequest": "On request",
+      "paused": "Paused",
+      "draft": "Draft"
+    },
+    "status": {
+      "active": "Active",
+      "onRequest": "On request",
+      "paused": "Paused",
+      "draft": "Draft"
+    },
+    "searchPlaceholder": "Search by name, customer, reference...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "col": {
+      "schedule": "Schedule",
+      "customer": "Customer",
+      "frequency": "Frequency",
+      "nextInvoice": "Next invoice",
+      "perInvoice": "Per invoice",
+      "generated": "Generated",
+      "status": "Status"
+    },
+    "rowMenu": "Row actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "suppliersPage": {
+    "title": "Suppliers",
+    "subtitle": "5 suppliers · OMR 6.780 payable",
+    "bulkUpload": "Bulk upload",
+    "export": "Export",
+    "newSupplier": "New supplier",
+    "kpi": {
+      "payables": "Payables",
+      "payablesMeta": "Owed to 4 suppliers",
+      "overdue": "Overdue",
+      "overdueMeta": "To 1 supplier",
+      "suppliers": "Suppliers",
+      "suppliersMeta": "4 business · 1 government",
+      "peppolReady": "Peppol-ready",
+      "peppolMeta": "Can invoice us electronically",
+      "ofFive": "of 5"
+    },
+    "tabs": {
+      "all": "All",
+      "business": "Business",
+      "government": "Government",
+      "selfBilling": "Self-billing"
+    },
+    "kind": {
+      "business": "Business",
+      "government": "Government"
+    },
+    "channel": {
+      "onPeppol": "On Peppol",
+      "notConnected": "Not connected",
+      "selfBilled": "Self-billed"
+    },
+    "note": {
+      "daysOverdue": "{{days}} days overdue",
+      "dueInDays": "due in {{days}} days",
+      "awaitingApproval": "awaiting approval",
+      "settled": "Settled"
+    },
+    "billCount_one": "{{count}} bill",
+    "billCount_other": "{{count}} bills",
+    "searchPlaceholder": "Search by name, VAT, contact, email...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "col": {
+      "supplier": "Supplier",
+      "contact": "Contact",
+      "location": "Location",
+      "channel": "Channel",
+      "bills": "Bills",
+      "payable": "Payable"
+    },
+    "rowMenu": "Row actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "newSupplier": {
+    "title": "New supplier",
+    "advancedFields": "Advanced fields",
+    "save": "Save supplier",
+    "saveAndAddAnother": "Save & add another",
+    "cancel": "Cancel",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "sections": {
+      "supplierType": "Supplier type",
+      "details": "Details",
+      "contact": "Contact",
+      "payment": "Payment & tax defaults",
+      "receiving": "How invoices are received",
+      "addresses": "Addresses",
+      "notes": "Internal Notes & Comments"
+    },
+    "types": {
+      "business": {
+        "title": "Business",
+        "subtitle": "B2B - via Peppol"
+      },
+      "government": {
+        "title": "Government",
+        "subtitle": "B2G - via Peppol"
+      }
+    },
+    "details": {
+      "logo": "Supplier logo",
+      "logoTitle": "Logo or image",
+      "logoHint": "Appears on the supplier's profile, in lists, and on bills you record. PNG, JPG or SVG · up to 2 MB.",
+      "legalName": "Legal / registered name",
+      "legalNamePlaceholder": "e.g. Oman Coffee Roasters LLC",
+      "entityName": "Entity / ministry name",
+      "entityNamePlaceholder": "e.g. Muscat Municipality",
+      "commercialName": "Commercial name",
+      "commercialNamePlaceholder": "Trading name (if different)",
+      "commercialRegistration": "Commercial registration (CR)",
+      "crPlaceholder": "CR number",
+      "vatNumber": "VAT registration number",
+      "vatHint": "Required to reclaim input VAT on this supplier's invoices.",
+      "registeredForVat": "Registered for VAT",
+      "peppolSection": "Peppol / e-invoicing",
+      "registeredOnPeppol": "Registered on Peppol",
+      "peppolId": "Peppol participant ID",
+      "peppolIdHint": "The ID this supplier sends from. We match incoming invoices on it."
+    },
+    "contact": {
+      "person": "Contact person",
+      "personPlaceholder": "Full name",
+      "role": "Role / title",
+      "rolePlaceholder": "e.g. Accounts Receivable",
+      "email": "Email · one per line for multiple recipients",
+      "telephone": "Telephone",
+      "mobile": "Mobile Phone",
+      "preferredLanguage": "Preferred Language",
+      "website": "Website"
+    },
+    "payment": {
+      "currency": "Default currency",
+      "taxCategory": "Default tax category",
+      "paymentTerms": "Payment terms",
+      "paymentMethod": "Default payment method",
+      "iban": "IBAN",
+      "bic": "BIC / SWIFT"
+    },
+    "receiving": {
+      "method": "Receiving channel",
+      "peppol": "Peppol (e-invoice)",
+      "emailPdf": "Email PDF",
+      "manual": "Manual entry",
+      "selfBilling": "Self-billing agreement",
+      "selfBillingHint": "We raise invoices on this supplier's behalf. Requires a signed agreement.",
+      "approvalRequired": "Require approval before payment",
+      "approvalRequiredHint": "Incoming bills wait for an approver before they can be paid."
+    },
+    "address": {
+      "billing": "Billing address",
+      "pickup": "Pickup / delivery address",
+      "sameAsBilling": "Same as billing address",
+      "sameAsBillingHint": "Goods are collected from the billing address.",
+      "attn": "Attn",
+      "attnPlaceholder": "Attention to",
+      "country": "Country",
+      "city": "City / Governorate",
+      "cityPlaceholder": "e.g. Muscat",
+      "street": "Street & building",
+      "streetPlaceholder": "Way / building",
+      "poBox": "PO Box",
+      "poBoxPlaceholder": "PO Box",
+      "postalCode": "Postal code",
+      "postalCodePlaceholder": "Postal code"
+    },
+    "notes": {
+      "label": "Note about supplier",
+      "placeholder": "Add optional internal instructions or payment details..."
+    }
+  },
   "invoicesPage": {
     "title": "Invoices",
     "subtitle": "Every document you’ve issued — validated, signed and reported to the Oman Tax Authority.",
@@ -512,7 +945,16 @@
       "issued": "Issued",
       "due": "Due",
       "amount": "Amount",
-      "status": "Status"
+      "status": "Status",
+      "transmission": "Transmission"
+    },
+    "transmission": {
+      "accepted": "Accepted",
+      "acceptedHint": "Cleared and confirmed by the Oman Tax Authority.",
+      "acknowledged": "Accepted",
+      "acknowledgedHint": "Accepted, but the Tax Authority has not confirmed it yet.",
+      "rejected": "Rejected",
+      "rejectedHint": "Refused by the Tax Authority — correct the invoice and send it again."
     },
     "status": {
       "overdue": "Overdue",
@@ -590,8 +1032,8 @@
     },
     "attachments": {
       "title": "Attachments",
-      "drop": "Drop files here or browse",
-      "hint": "PDF, JPG, PNG · max 10 MB each"
+      "drop": "Drop files or click to upload",
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
     },
     "payments": {
       "title": "Payments",
@@ -600,19 +1042,13 @@
       "of": "of"
     },
     "timeline": {
-      "title": "Timeline"
+      "title": "Activity"
     }
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
     "title": "New invoice",
     "draftMeta": "INV-2044 · Draft",
-    "docTypes": {
-      "invoice": "Invoice",
-      "credit": "Credit note",
-      "debit": "Debit note",
-      "selfBilled": "Self-billed"
-    },
     "sections": {
       "customer": "Customer",
       "details": "Invoice details",
@@ -714,53 +1150,54 @@
     "actions": {
       "preview": "Preview",
       "saveDraft": "Save draft",
-      "submit": "Validate & submit"
+      "submit": "Create invoice"
     }
   },
   "periodicInvoice": {
+    "removeLine": "Remove line item",
     "breadcrumbIncome": "Income",
     "breadcrumb": "Periodic invoices",
     "active": "Active",
-    "recurring": "Recurring series",
-    "next": "Next run",
+    "recurring": "Recurring invoice",
+    "next": "Next",
     "saveChanges": "Save changes",
-    "pauseSeries": "Pause series",
+    "pauseSeries": "Pause Series",
     "more": "More actions",
     "invoiceDetails": "Invoice details",
     "customer": "Customer",
     "onPeppol": "On Peppol",
     "change": "Change",
     "fields": {
-      "subject": "Subject",
-      "po": "PO / reference",
+      "subject": "Subject / about",
+      "po": "PO reference",
       "terms": "Payment terms",
       "currency": "Currency",
       "tax": "Tax category",
       "branch": "Branch",
       "project": "Project"
     },
-    "notesTitle": "Notes",
+    "notesTitle": "Notes on every invoice",
     "noteCustomer": "Note to customer",
     "noteInternal": "Internal note",
-    "items": "Line items",
+    "items": "Items",
     "exclVat": "Excl. VAT",
     "inclVat": "Incl. VAT",
     "col": {
       "description": "Description",
       "excl": "Excl.",
-      "vat": "VAT",
-      "qty": "Qty",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
       "unit": "Unit",
-      "disc": "Disc.",
-      "total": "Total"
+      "disc": "Discount",
+      "total": "Tot. Excl."
     },
-    "addLine": "Add line",
-    "totalExcl": "Total excl. VAT",
+    "addLine": "Add line item",
+    "totalExcl": "Total excluding",
     "vat": "VAT",
     "totalAmount": "Total amount",
-    "itemsBanner": "Each run will bill {{amount}} OMR to {{customer}}.",
-    "generated": "Generated invoices",
-    "nextBanner": "Next invoice will be generated on {{date}}.",
+    "itemsBanner": "Fawtir will issue an invoice for OMR {{amount}} every month and send it to {{customer}} automatically.",
+    "generated": "Invoices generated",
+    "nextBanner": "The next invoice generates on {{date}}. It will appear here the moment it's issued.",
     "schedule": "Schedule",
     "frequency": "Frequency",
     "weekly": "Weekly",
@@ -771,13 +1208,21 @@
     "starts": "Starts",
     "ends": "Ends",
     "sendAuto": "Send automatically",
-    "sendAutoHint": "Issue and send via Peppol on each run.",
-    "notify": "Notify on run",
-    "notifyHint": "Email you when each invoice is created.",
-    "upcoming": "Upcoming",
+    "sendAutoHint": "Each invoice is issued and delivered to the customer over Peppol without review.",
+    "notify": "Notify me on each run",
+    "notifyHint": "Get an email confirmation whenever a new invoice is generated.",
+    "upcoming": "Upcoming invoices",
     "started": "Started",
     "issued": "Issued",
-    "each": "Each"
+    "each": "Each",
+    "noteOnInvoice": "on invoice",
+    "notePrivate": "private",
+    "billingCadence": "Billing cadence",
+    "newTitle": "New recurring invoice",
+    "newSubtitle": "Set up a schedule and Fawtir will issue the invoice for you on every run.",
+    "cancel": "Cancel",
+    "createSeries": "Create series",
+    "editSeries": "Edit series"
   },
   "creditNotesPage": {
     "title": "Credit notes",
@@ -835,8 +1280,6 @@
   "creditNoteDetails": {
     "breadcrumbIncome": "Income",
     "breadcrumb": "Credit notes",
-    "title": "New credit note",
-    "draft": "Draft",
     "reversing": "Reversing",
     "for": "For",
     "saveDraft": "Save draft",
@@ -867,7 +1310,7 @@
       "tax": "Tax category",
       "reason": "Reason for credit"
     },
-    "pdfTitle": "Invoice PDF",
+    "pdfTitle": "Credit Note PDF",
     "pdfAlt": "Credit note {{id}} preview",
     "zoomOut": "Zoom out",
     "zoomIn": "Zoom in",
@@ -1004,5 +1447,278 @@
     "login": "Log in",
     "signup": "Sign up",
     "footerNote": "This home page is for testing and navigation only."
+  },
+  "selfBilling": {
+    "title": "Self-billed invoices",
+    "subtitle": "Fawtir sends your supplier invoices via Peppol and reports them to Oman Tax Authority.",
+    "agreements": "Agreements",
+    "export": "Export",
+    "create": "Create self-billing invoice",
+    "kpi": {
+      "raised": "Raised this month",
+      "raisedMeta": "Across 9 documents",
+      "inputVat": "Input VAT claimed",
+      "inputVatMeta": "Recoverable on this quarter's return",
+      "awaiting": "Awaiting supplier",
+      "awaitingMeta": "Oldest raised 6 days ago",
+      "expiring": "Agreements expiring",
+      "expiringMeta": "Al Noor Dates expires in 9 days"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "toSend": "To send",
+      "awaiting": "Awaiting confirmation",
+      "disputed": "Disputed",
+      "confirmed": "Confirmed",
+      "paid": "Paid"
+    },
+    "status": {
+      "draft": "Draft",
+      "toBeSent": "To be sent",
+      "awaitingConfirmation": "Awaiting confirmation",
+      "disputed": "Disputed by supplier",
+      "confirmed": "Confirmed",
+      "paid": "Paid"
+    },
+    "searchPlaceholder": "Search by document, supplier or VAT number",
+    "filters": "Filters",
+    "sort": "Sort",
+    "col": {
+      "document": "Document",
+      "supplier": "Supplier",
+      "issued": "Issued",
+      "due": "Due",
+      "amount": "Amount",
+      "status": "Status",
+      "transmission": "Transmission"
+    },
+    "rowMenu": "Row actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "agreements": {
+    "breadcrumbIncome": "Income",
+    "breadcrumbSelfBilled": "Self -billed",
+    "title": "Agreements",
+    "subtitle": "Your permission to invoice on each supplier's behalf. A supplier must have an active agreement here before you can raise a self-billed invoice for them.",
+    "export": "Export",
+    "newAgreement": "New agreement",
+    "alert": {
+      "title": "Nizwa Dairy Farms' agreement expired on 12 July 2026",
+      "body": "1 draft self-billed invoice for OMR 318.900 is blocked until the agreement is renewed. Existing documents stay valid and reportable.",
+      "action": "Renew agreement"
+    },
+    "kpi": {
+      "active": "Active",
+      "activeMeta": "Suppliers you can self-bill today",
+      "expiringSoon": "Expiring soon",
+      "expiringSoonMeta": "Al Noor Dates in 9 days",
+      "awaiting": "Awaiting supplier",
+      "awaitingMeta": "Sent for acceptance, not yet signed",
+      "expired": "Expired",
+      "expiredMeta": "Blocking 1 draft invoice"
+    },
+    "tabs": {
+      "all": "All",
+      "active": "Active",
+      "awaiting": "Awaiting acceptance",
+      "expiringSoon": "Expiring soon",
+      "expired": "Expired",
+      "terminated": "Terminated"
+    },
+    "status": {
+      "active": "Active",
+      "expiringSoon": "Expiring soon",
+      "awaitingAcceptance": "Awaiting acceptance",
+      "expired": "Expired",
+      "terminated": "Terminated"
+    },
+    "kind": {
+      "agreed": "Agreed",
+      "statutory": "Statutory"
+    },
+    "signature": {
+      "onFile": "Signed copy on file",
+      "notRequired": "No signature required",
+      "sentResend": "Sent 3 days ago · resend",
+      "blocking": "Blocking 1 draft"
+    },
+    "onPeppol": "On Peppol",
+    "searchPlaceholder": "Search by document, supplier or VAT number",
+    "filters": "Filters",
+    "sort": "Sort",
+    "col": {
+      "supplier": "Supplier",
+      "kind": "Kind",
+      "coverage": "Coverage",
+      "valid": "Valid",
+      "documents": "Documents issued",
+      "status": "Status"
+    },
+    "rowMenu": "Row actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "newSelfBill": {
+    "breadcrumb": "Self-billed",
+    "title": "New self-billed invoice",
+    "onPeppol": "On Peppol",
+    "change": "Change",
+    "sections": {
+      "supplier": "Supplier you are billing for",
+      "document": "Document details",
+      "items": "Items supplied to you",
+      "payment": "Payment to supplier",
+      "notes": "Notes & attachments"
+    },
+    "kinds": {
+      "agreed": "Agreed self-bill",
+      "agreedHint": "Omani supplier with a signed agreement",
+      "statutory": "Statutory self-bill",
+      "statutoryHint": "Import or reverse charge, no agreement needed"
+    },
+    "parties": {
+      "seller": "Seller · issues the supply",
+      "sellerNote": "Named as supplier on the document",
+      "buyer": "Buyer · raises this document",
+      "buyerNote": "You pay this and reclaim the VAT",
+      "you": "YOU"
+    },
+    "agreementBanner": "Covered by agreement {{reference}}. You may raise self-billed invoices for this supplier.",
+    "viewAgreement": "View agreement",
+    "payableNote": "This is money you owe. It posts to Expenditure as a payable and does not affect your sales figures.",
+    "summary": {
+      "title": "Summary",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "totalDue": "Total due"
+    },
+    "fields": {
+      "number": "Self-bill number",
+      "issueDate": "Issue date",
+      "supplyDate": "Supply date",
+      "supplyDateHint": "when goods were received",
+      "paymentTerms": "Payment terms",
+      "paymentDue": "Payment due",
+      "receivingBranch": "Receiving branch",
+      "currency": "Currency",
+      "taxCategory": "Default tax category",
+      "agreement": "Agreement",
+      "subject": "Subject / about",
+      "poReference": "Purchase order reference",
+      "paymentMethod": "Payment method",
+      "paymentReference": "Payment reference"
+    },
+    "exclVat": "Excl. VAT",
+    "inclVat": "Incl. VAT",
+    "col": {
+      "description": "Description",
+      "excl": "Excl.",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
+      "unit": "Unit",
+      "disc": "Discount",
+      "total": "Tot. Excl."
+    },
+    "addLine": "Add line item",
+    "removeLine": "Remove line item",
+    "totals": {
+      "excluding": "Total excluding",
+      "vat": "Vat",
+      "total": "Total amount"
+    },
+    "toggles": {
+      "recordPayment": "Record payment now",
+      "recordPaymentHint": "Marks the supplier as paid and clears the payable in Expenditure.",
+      "deliverByEmail": "Deliver by email instead",
+      "deliverByEmailHint": "Peppol delivery is used by default. Switch this on only if the supplier asks for a PDF copy as well."
+    },
+    "notes": {
+      "supplier": "Note to supplier",
+      "printed": "printed on the document",
+      "internal": "Internal note",
+      "private": "private"
+    },
+    "attachments": {
+      "drop": "Drop files or click to upload",
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
+    },
+    "actions": {
+      "preview": "Preview",
+      "saveDraft": "Save draft",
+      "issue": "Issue self-billed invoice"
+    }
+  },
+  "selfBillDetail": {
+    "breadcrumbIncome": "Income",
+    "breadcrumbSelfBilled": "Self-billed",
+    "raisedFor": "Raised for",
+    "to": "To",
+    "download": "Download",
+    "sendReminder": "Send reminder",
+    "recordPayment": "Record payment",
+    "status": {
+      "awaitingConfirmation": "Awaiting confirmation"
+    },
+    "tracks": {
+      "peppol": "Peppol delivery",
+      "ota": "OTA reporting",
+      "supplier": "Supplier confirmation"
+    },
+    "sections": {
+      "parties": "Parties & details",
+      "items": "Items supplied to you",
+      "history": "History",
+      "attachments": "Attachments"
+    },
+    "parties": {
+      "seller": "Seller · issues the supply",
+      "sellerNote": "Named as supplier on the document",
+      "buyer": "Buyer · raises this document",
+      "buyerNote": "You pay this and reclaim the VAT",
+      "you": "YOU"
+    },
+    "fields": {
+      "issueDate": "Issue date",
+      "supplyDate": "Supply date",
+      "paymentDue": "Payment due",
+      "agreement": "Agreement",
+      "receivingBranch": "Receiving branch",
+      "purchaseOrder": "Purchase order"
+    },
+    "col": {
+      "description": "Description",
+      "unitPrice": "Unit price",
+      "vat": "VAT",
+      "qty": "Qty",
+      "unit": "Unit",
+      "disc": "Disc %",
+      "total": "Total"
+    },
+    "totals": {
+      "subtotal": "Subtotal (excl. VAT)",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "total": "Total amount"
+    },
+    "summary": {
+      "title": "Summary",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "net": "Net amount",
+      "vat": "VAT · Standard 5%",
+      "totalDue": "Total due"
+    },
+    "viewValidationReport": "View validation report",
+    "attachments": {
+      "drop": "Drop files or click to upload",
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
+    }
   }
 }

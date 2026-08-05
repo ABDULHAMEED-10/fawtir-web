@@ -21,9 +21,9 @@ import toggleOnIcon from '../../assets/create-invoice/toggle-on.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import qrBadgeIcon from '../../assets/create-invoice/qr-badge.svg'
 import receiptQrIcon from '../../assets/create-invoice/receipt-qr.svg'
+import deleteLineIcon from '../../assets/create-invoice/delete.svg'
 
 type CustomerType = 'business' | 'consumer' | 'government'
-type DocType = 'invoice' | 'credit' | 'debit' | 'selfBilled'
 
 const LINE_ITEMS = [
   {
@@ -99,7 +99,7 @@ function OmAmount({
   size?: 'sm' | 'md' | 'lg'
   muted?: boolean
 }) {
-  const iconSize = size === 'lg' ? 'size-6' : 'size-4'
+  const iconSize = size === 'lg' ? 'w-6 h-auto' : 'w-4 h-auto'
   const textSize =
     size === 'lg' ? 'text-[22px] font-semibold' : size === 'md' ? 'text-base font-semibold' : 'text-sm font-semibold'
   return (
@@ -113,7 +113,6 @@ function OmAmount({
 export function CreateInvoicePage() {
   const { t } = useTranslation()
   const [customerType, setCustomerType] = useState<CustomerType>('business')
-  const [docType, setDocType] = useState<DocType>('invoice')
   const [exclVat, setExclVat] = useState(true)
   const [customers, setCustomers] = useState<SavedCustomer[]>([
     {
@@ -158,13 +157,6 @@ export function CreateInvoicePage() {
     { id: 'government', titleKey: 'createInvoice.customerTypes.government', subtitleKey: 'createInvoice.customerTypes.governmentSub', icon: governmentIcon },
   ]
 
-  const docTypes: { id: DocType; labelKey: string }[] = [
-    { id: 'invoice', labelKey: 'createInvoice.docTypes.invoice' },
-    { id: 'credit', labelKey: 'createInvoice.docTypes.credit' },
-    { id: 'debit', labelKey: 'createInvoice.docTypes.debit' },
-    { id: 'selfBilled', labelKey: 'createInvoice.docTypes.selfBilled' },
-  ]
-
   return (
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-28">
@@ -183,26 +175,6 @@ export function CreateInvoicePage() {
             </h1>
             <span className="text-sm font-medium text-[#8f8f8f]">{t('createInvoice.draftMeta')}</span>
           </div>
-        </div>
-
-        {/* Doc type tabs */}
-        <div className="inline-flex w-fit rounded-md border border-border-subtle bg-surface-card p-1">
-          {docTypes.map((tab) => {
-            const active = tab.id === docType
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setDocType(tab.id)}
-                className={[
-                  'rounded-sm px-4 py-2 text-sm font-medium transition-colors',
-                  active ? 'bg-primary-50 text-primary-800' : 'text-text-tertiary hover:text-text-secondary',
-                ].join(' ')}
-              >
-                {t(tab.labelKey)}
-              </button>
-            )
-          })}
         </div>
 
         {/* 1 Customer + Summary */}
@@ -562,10 +534,10 @@ export function CreateInvoicePage() {
                       <OmAmount value={row.total} size="md" />
                       <button
                         type="button"
-                        className="inline-flex size-8 items-center justify-center rounded-sm text-text-quaternary hover:bg-neutral-25"
+                        className="inline-flex size-8 items-center justify-center rounded-sm hover:bg-neutral-25"
                         aria-label={t('createInvoice.items.remove')}
                       >
-                        ×
+                        <img src={deleteLineIcon} alt="" className="size-4" />
                       </button>
                     </div>
                   </div>
@@ -674,7 +646,8 @@ export function CreateInvoicePage() {
       </div>
 
       {/* Sticky footer actions */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-black/10 bg-surface-tab-bar md:ps-[248px]">
+      {/* Starts after the 248px sidebar so the bar never sits on top of it. */}
+      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-black/10 bg-surface-tab-bar md:start-[248px]">
         <div className="mx-auto flex max-w-[1144px] items-center justify-end gap-3 px-4 py-4">
           <button
             type="button"

@@ -11,12 +11,16 @@ type OmAmountProps = {
   onDark?: boolean
 }
 
+/**
+ * Width only — the glyph is 32×20.99 (≈1.52:1) and its SVG sets `preserveAspectRatio="none"`,
+ * so a square box stretches it vertically. `h-auto` keeps the natural proportions.
+ */
 const ICON_SIZE = {
-  xs: 'size-4',
-  sm: 'size-5',
-  md: 'size-6',
-  lg: 'size-8',
-  xl: 'size-[38px]',
+  xs: 'w-4 h-auto',
+  sm: 'w-5 h-auto',
+  md: 'w-6 h-auto',
+  lg: 'w-8 h-auto',
+  xl: 'w-[38px] h-auto',
 } as const
 
 export function OmAmount({

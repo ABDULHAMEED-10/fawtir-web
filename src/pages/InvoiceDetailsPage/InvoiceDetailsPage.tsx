@@ -24,7 +24,9 @@ import downloadIcon from '../../assets/invoice-details/download.svg'
 import printIcon from '../../assets/invoice-details/print.svg'
 import fullscreenIcon from '../../assets/invoice-details/fullscreen.svg'
 import deleteIcon from '../../assets/invoice-details/delete.svg'
-import timelineCheckIcon from '../../assets/invoice-details/timeline-check.svg'
+// Blue marks the invoice's current state; green marks everything already completed.
+import timelineCurrentIcon from '../../assets/invoice-details/timeline-check.svg'
+import timelineDoneIcon from '../../assets/credit-note-detail/timeline-check.svg'
 import invoicePreview from '../../assets/invoice-details/invoice-preview.png'
 import plusIcon from '../../assets/invoices/plus.svg'
 
@@ -80,7 +82,8 @@ function GhostButton({
 
   const content = (
     <>
-      <img src={icon} alt="" className="size-6 shrink-0" />
+      {/* width-driven: square icons are unaffected, non-square ones keep their ratio */}
+      <img src={icon} alt="" className="h-auto w-6 shrink-0" />
       {iconOnly ? null : label}
     </>
   )
@@ -149,7 +152,16 @@ export function InvoiceDetailsPage() {
             </div>
           </div>
 
+          {/* Figma order, left to right: more · Duplicate · Periodic invoice · Credit Note · Send. */}
           <div className="flex flex-wrap items-center gap-3">
+            <GhostButton icon={menuIcon} label={t('invoiceDetails.actions.more')} iconOnly />
+            <GhostButton icon={copyIcon} label={t('invoiceDetails.actions.duplicate')} />
+            <GhostButton icon={periodicIcon} label={t('invoiceDetails.actions.periodic')} to="/income/periodic" />
+            <GhostButton
+              icon={creditNoteIcon}
+              label={t('invoiceDetails.actions.creditNote')}
+              to="/income/credit-notes/CRN-0087"
+            />
             <button
               type="button"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
@@ -157,14 +169,6 @@ export function InvoiceDetailsPage() {
               <img src={sendIcon} alt="" className="size-6" />
               {t('invoiceDetails.actions.send')}
             </button>
-            <GhostButton
-              icon={creditNoteIcon}
-              label={t('invoiceDetails.actions.creditNote')}
-              to="/income/credit-notes/CRN-0087"
-            />
-            <GhostButton icon={periodicIcon} label={t('invoiceDetails.actions.periodic')} to="/income/periodic" />
-            <GhostButton icon={copyIcon} label={t('invoiceDetails.actions.duplicate')} />
-            <GhostButton icon={menuIcon} label={t('invoiceDetails.actions.more')} iconOnly />
           </div>
         </div>
 
@@ -247,7 +251,8 @@ export function InvoiceDetailsPage() {
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
                   {t('invoiceDetails.viewCustomer')}
-                  <img src={chevronIcon} alt="" className="size-5 rotate-180" />
+                  {/* asset points left natively, so forward = rotated in LTR */}
+                  <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
                 </button>
               }
             >
@@ -597,11 +602,23 @@ export function InvoiceDetailsPage() {
           <ol className="flex flex-col">
             {invoice.timeline.map((event, index) => {
               const isLast = index === invoice.timeline.length - 1
+              const current = event.tone === 'current'
               return (
                 <li key={event.id} className="flex gap-3">
                   <div className="flex w-8 flex-col items-center">
-                    <img src={timelineCheckIcon} alt="" className="size-[27px] shrink-0" />
-                    {isLast ? null : <span className="my-1 w-px flex-1 bg-primary-200" />}
+                    <img
+                      src={current ? timelineCurrentIcon : timelineDoneIcon}
+                      alt=""
+                      className="size-[27px] shrink-0"
+                    />
+                    {isLast ? null : (
+                      <span
+                        className={[
+                          'my-1 w-0.5 flex-1',
+                          current ? 'bg-primary-700' : 'bg-success-700',
+                        ].join(' ')}
+                      />
+                    )}
                   </div>
                   <div className={['min-w-0 pb-6', isLast ? 'pb-0' : ''].join(' ')}>
                     <p className="text-base font-medium text-text-primary">{event.title}</p>

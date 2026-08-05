@@ -28,6 +28,11 @@ export type InvoiceTimelineEvent = {
   id: string
   title: string
   detail: string
+  /**
+   * Figma colours the timeline per event: the newest sits at the top in brand blue
+   * as the invoice's current state, everything already completed below it in green.
+   */
+  tone?: 'current' | 'done'
 }
 
 export const INVOICE_DETAIL = {
@@ -116,31 +121,43 @@ export const INVOICE_DETAIL = {
       amount: '30.000',
     },
   ] satisfies InvoicePayment[],
+  /** Newest first, as drawn — the top entry is the invoice's current state. */
   timeline: [
     {
-      id: 't1',
-      title: 'Invoice created',
-      detail: '18 Jul 2026, 09:14 by Hafidh Saif',
+      id: 't6',
+      title: 'Partially paid',
+      detail: 'Outstanding OMR 28.590 · due in 23 days',
+      tone: 'current',
     },
     {
-      id: 't2',
-      title: 'Sent via Peppol',
-      detail: '18 Jul 2026, 14:32 · UUID 550e8400-e29b-41d4-a716-446655440000',
+      id: 't4',
+      title: 'Payment received — OMR 30.000',
+      detail: 'Bank transfer · 22 Jul 2026, 09:14',
+      tone: 'done',
+    },
+    {
+      id: 't3b',
+      title: "Delivered to recipient's Peppol inbox",
+      detail: '18 Jul 2026, 14:32',
+      tone: 'done',
     },
     {
       id: 't3',
       title: 'Reported to OTA',
       detail: '18 Jul 2026, 14:33 · Cleared · UUID 7c9e6679-7425-40de-944b-e07fc1f90ae7',
+      tone: 'done',
     },
     {
-      id: 't4',
-      title: 'Payment received',
-      detail: '22 Jul 2026, 11:05 · Bank transfer · OMR 30.000',
+      id: 't2',
+      title: 'Sent via Peppol',
+      detail: '18 Jul 2026, 14:32 · UUID 550e8400-e29b-41d4-a716-446655440000',
+      tone: 'done',
     },
     {
-      id: 't5',
-      title: 'Reminder scheduled',
-      detail: 'Auto-reminder set for 10 Aug 2026 if still unpaid',
+      id: 't1',
+      title: 'Invoice created',
+      detail: '18 Jul 2026, 09:14 by Hafidh Saif',
+      tone: 'done',
     },
   ] satisfies InvoiceTimelineEvent[],
 }

@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { OmAmount } from '../../components/ui/OmAmount'
+import { ActionMenu } from '../../components/ui'
+import { creditNoteRowActions } from '../../lib/rowActions'
 import {
   CREDIT_NOTE_KPI,
   CREDIT_NOTE_ROWS,
@@ -19,7 +21,6 @@ import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import sortIcon from '../../assets/invoices/sort.svg'
-import menuIcon from '../../assets/invoices/menu.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
 
@@ -350,15 +351,11 @@ function CreditNotesTable() {
                       {t(status.labelKey)}
                     </span>
                   </td>
-                  <td className="px-2 py-2.5">
-                    <button
-                      type="button"
-                      className="inline-flex size-6 items-center justify-center"
-                      aria-label={t('creditNotesPage.rowMenu')}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <img src={menuIcon} alt="" className="size-6" />
-                    </button>
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <ActionMenu
+                      items={creditNoteRowActions(row.id)}
+                      label={t('creditNotesPage.rowMenu')}
+                    />
                   </td>
                 </tr>
               )
@@ -384,7 +381,7 @@ function CreditNotesTable() {
             className="inline-flex size-10 items-center justify-center rounded-md text-text-muted"
             aria-label={t('creditNotesPage.prevPage')}
           >
-            <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
+            <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
           </button>
           {PAGE_NUMBERS.map((n) => {
             if (n === '...') {
@@ -419,7 +416,7 @@ function CreditNotesTable() {
             className="inline-flex size-10 items-center justify-center rounded-md text-text-muted"
             aria-label={t('creditNotesPage.nextPage')}
           >
-            <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
+            <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
           </button>
         </div>
       </div>
