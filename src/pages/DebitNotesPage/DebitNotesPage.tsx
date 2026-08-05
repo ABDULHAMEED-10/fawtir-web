@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu } from '../../components/ui'
@@ -187,6 +187,7 @@ function DebitNoteRowCells({ row }: { row: DebitNoteRow }) {
 
 function DebitNotesTable() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<DebitNoteTabId>('all')
   const [page, setPage] = useState(2)
 
@@ -276,13 +277,14 @@ function DebitNotesTable() {
             {DEBIT_NOTE_ROWS.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
+                className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
+                onClick={() => navigate(`/income/debit-notes/${row.id}`)}
               >
                 <td className="px-5 py-2.5">
                   <span className="block size-[15px] rounded-sm border border-border-default" />
                 </td>
                 <DebitNoteRowCells row={row} />
-                <td className="px-2 py-2.5">
+                <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
                   <ActionMenu items={debitNoteRowActions(row.id)} label={t('debitNotes.rowMenu')} />
                 </td>
               </tr>

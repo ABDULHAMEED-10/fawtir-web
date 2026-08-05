@@ -14,8 +14,9 @@ import infoIcon from '../../assets/debit-note-create/info.svg'
 import trendUpIcon from '../../assets/debit-note-create/trend-up.svg'
 import peppolIcon from '../../assets/debit-note-create/peppol.svg'
 import tickCircle from '../../assets/customers/tick-circle.svg'
-import issueIcon from '../../assets/customers/save.svg'
+import issueIcon from '../../assets/debit-note-create/issue.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+import backIcon from '../../assets/invoice-details/back.svg'
 import calendarIcon from '../../assets/create-invoice/calendar.svg'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
@@ -158,13 +159,20 @@ export function NewDebitNotePage() {
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-4">
+            {/* Income › Debit notes — a chevron separates the crumbs. */}
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <Link
                 to="/invoices"
                 className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
               >
                 {t('newDebitNote.breadcrumbIncome')}
               </Link>
+              <img
+                src={backIcon}
+                alt=""
+                aria-hidden="true"
+                className="size-6 rotate-180 rtl:rotate-0"
+              />
               <Link
                 to="/income/debit-notes"
                 className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
@@ -207,7 +215,7 @@ export function NewDebitNotePage() {
               type="button"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
-              <img src={issueIcon} alt="" className="size-6 brightness-0 invert" />
+              <img src={issueIcon} alt="" className="size-6" />
               {t('newDebitNote.issue')}
             </button>
           </div>

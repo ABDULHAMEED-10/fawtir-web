@@ -1865,5 +1865,76 @@
       "drop": "Drop files or click to upload",
       "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
     }
+  },
+  "debitNoteDetail": {
+    "breadcrumbIncome": "Income",
+    "breadcrumbDebitNotes": "Debit notes",
+    "reversing": "Reversing",
+    "for": "For",
+    "status": {
+      "awaitingPayment": "Awaiting payment"
+    },
+    "download": "Download",
+    "sendReminder": "Send reminder",
+    "recordPayment": "Record payment",
+    "amountCharged": "Amount charged",
+    "increasesRevenue": "Increases recognised revenue",
+    "stats": {
+      "debitTotal": "Debit total",
+      "addedTo": "Added to {{invoice}}",
+      "nowDue": "Now due on the invoice"
+    },
+    "awaitingFrom": "Awaiting payment from {{customer}}",
+    "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due 29 Aug 2026 — in 30 days.",
+    "sections": {
+      "details": "Details",
+      "items": "Items",
+      "notes": "Notes & attachments",
+      "refunds": "Refunds",
+      "activity": "Activity"
+    },
+    "viewCustomer": "View customer",
+    "adjusts": "Adjusts {{invoice}}",
+    "balanceIncreased": "Balance increased",
+    "openInvoice": "Open Invoice",
+    "onPeppol": "On Peppol",
+    "fields": {
+      "number": "Debit note number",
+      "issueDate": "Issue date",
+      "paymentDue": "Payment due",
+      "concerningInvoice": "Concerning invoice",
+      "poReference": "PO reference",
+      "taxCategory": "Tax category",
+      "reason": "Reason for debit"
+    },
+    "col": {
+      "description": "Description",
+      "difference": "Difference",
+      "vat": "VAT",
+      "qty": "Qty",
+      "unit": "Unit",
+      "disc": "Disc %",
+      "total": "Total"
+    },
+    "totals": {
+      "net": "Net charged (excl. VAT)",
+      "vat": "VAT added · 5%",
+      "total": "Total charged"
+    },
+    "notes": {
+      "customer": "Note to customer",
+      "onDebitNote": "on debit note",
+      "internal": "Internal note",
+      "private": "Private"
+    },
+    "refunds": {
+      "record": "Record payments",
+      "awaitingPayment": "awaiting payment"
+    },
+    "pdfTitle": "Debit note PDF",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "print": "Print",
+    "fullScreen": "Full screen"
   }
 }

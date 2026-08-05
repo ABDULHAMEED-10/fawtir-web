@@ -1871,5 +1871,76 @@
       "drop": "أفلت الملفات أو انقر للرفع",
       "hint": "أوامر الشراء، إشعارات التسليم، العقود · PDF أو JPG أو XLSX"
     }
+  },
+  "debitNoteDetail": {
+    "breadcrumbIncome": "الإيرادات",
+    "breadcrumbDebitNotes": "إشعارات مدين",
+    "reversing": "يعدّل",
+    "for": "لصالح",
+    "status": {
+      "awaitingPayment": "بانتظار السداد"
+    },
+    "download": "تنزيل",
+    "sendReminder": "إرسال تذكير",
+    "recordPayment": "تسجيل الدفع",
+    "amountCharged": "المبلغ المُحمَّل",
+    "increasesRevenue": "يزيد الإيراد المعترف به",
+    "stats": {
+      "debitTotal": "إجمالي الإشعار",
+      "addedTo": "أُضيف إلى {{invoice}}",
+      "nowDue": "المستحق الآن على الفاتورة"
+    },
+    "awaitingFrom": "بانتظار السداد من {{customer}}",
+    "awaitingHint": "انضم المبلغ إلى رصيد {{invoice}}، لذا يسدّد العميل مبلغًا واحدًا. يستحق في ٢٩ أغسطس ٢٠٢٦ — خلال ٣٠ يومًا.",
+    "sections": {
+      "details": "البيانات",
+      "items": "البنود",
+      "notes": "ملاحظات ومرفقات",
+      "refunds": "المدفوعات",
+      "activity": "النشاط"
+    },
+    "viewCustomer": "عرض العميل",
+    "adjusts": "يعدّل {{invoice}}",
+    "balanceIncreased": "زاد الرصيد",
+    "openInvoice": "فتح الفاتورة",
+    "onPeppol": "على Peppol",
+    "fields": {
+      "number": "رقم الإشعار المدين",
+      "issueDate": "تاريخ الإصدار",
+      "paymentDue": "استحقاق الدفع",
+      "concerningInvoice": "الفاتورة المعنية",
+      "poReference": "مرجع أمر الشراء",
+      "taxCategory": "الفئة الضريبية",
+      "reason": "سبب الإشعار المدين"
+    },
+    "col": {
+      "description": "الوصف",
+      "difference": "الفرق",
+      "vat": "الضريبة",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "disc": "الخصم %",
+      "total": "الإجمالي"
+    },
+    "totals": {
+      "net": "الصافي المُحمَّل (بدون ضريبة)",
+      "vat": "الضريبة المضافة · ٥٪",
+      "total": "إجمالي المُحمَّل"
+    },
+    "notes": {
+      "customer": "ملاحظة للعميل",
+      "onDebitNote": "على الإشعار المدين",
+      "internal": "ملاحظة داخلية",
+      "private": "خاصة"
+    },
+    "refunds": {
+      "record": "تسجيل المدفوعات",
+      "awaitingPayment": "بانتظار السداد"
+    },
+    "pdfTitle": "PDF الإشعار المدين",
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "print": "طباعة",
+    "fullScreen": "ملء الشاشة"
   }
 }
