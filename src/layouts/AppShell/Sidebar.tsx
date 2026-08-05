@@ -6,7 +6,6 @@ import {
   SETTINGS_NAV,
   ACCOUNT,
   USER,
-  INCOME_PATHS,
   type NavChild,
   type NavItem,
 } from '../../lib/dashboard'
@@ -63,39 +62,41 @@ function isPathActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`)
 }
 
-function isIncomePath(pathname: string) {
-  return INCOME_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+/** A group is open when the route matches any of its own child paths. */
+function isGroupActive(pathname: string, item: NavItem) {
+  return (item.children ?? []).some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))
 }
 
-function IncomeNavItem({ item }: { item: NavItem }) {
+function ExpandableNavItem({ item }: { item: NavItem }) {
   const { t } = useTranslation()
   const location = useLocation()
-  const incomeActive = isIncomePath(location.pathname)
-  const [open, setOpen] = useState(incomeActive)
+  const groupActive = isGroupActive(location.pathname, item)
+  const [open, setOpen] = useState(groupActive)
 
   useEffect(() => {
-    if (incomeActive) setOpen(true)
-  }, [incomeActive])
+    if (groupActive) setOpen(true)
+  }, [groupActive])
 
   return (
     <div className="flex flex-col">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((v: boolean) => !v)}
         className={[
           'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
-          incomeActive
+          groupActive
             ? 'text-primary-900'
             : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
         ].join(' ')}
         aria-expanded={open}
       >
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
-          <item.Icon active={incomeActive} className="size-5 shrink-0" />
+          <item.Icon active={groupActive} className="size-5 shrink-0" />
+          {/* No truncate — a parent label should never be clipped by the badge/chevron. */}
           <span
             className={[
-              'truncate text-base leading-[1.2]',
-              incomeActive ? 'font-semibold text-primary-900' : 'font-medium',
+              'whitespace-nowrap text-base leading-[1.2]',
+              groupActive ? 'font-semibold text-primary-900' : 'font-medium',
             ].join(' ')}
           >
             {t(item.labelKey)}
@@ -179,7 +180,7 @@ export function Sidebar() {
             <div className="flex flex-col">
               {group.items.map((item) =>
                 item.children ? (
-                  <IncomeNavItem key={item.id} item={item} />
+                  <ExpandableNavItem key={item.id} item={item} />
                 ) : (
                   <SidebarNavItem
                     key={item.id}

@@ -91,6 +91,21 @@ export function creditNoteRowActions(creditNoteId: string): ActionMenuItem[] {
   ]
 }
 
+/** Debit note row menu — no Figma frame, modelled on the credit note one. */
+export function debitNoteRowActions(debitNoteId: string): ActionMenuItem[] {
+  return [
+    {
+      id: 'view',
+      labelKey: 'rowActions.debitNote.view',
+      icon: viewIcon,
+      to: `/income/debit-notes/${debitNoteId}`,
+    },
+    { id: 'send', labelKey: 'rowActions.invoice.send', icon: sendIcon },
+    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+  ]
+}
+
 /** Agreement row menu — no Figma frame; actions follow the agreement lifecycle. */
 export function agreementRowActions(agreementId: string): ActionMenuItem[] {
   return [

@@ -155,11 +155,13 @@ export const SELF_BILL_DETAIL = {
   attachments: [
     {
       id: 'a1',
+      kind: 'pdf' as const,
       name: 'Readable copy',
       meta: 'Purchase order · 248 KB · Uploaded 18 Jul 2026',
     },
     {
       id: 'a2',
+      kind: 'jpg' as const,
       name: 'Signed delivery note — 18 Jul.jpg',
       meta: 'Delivery note · 1.2 MB · Uploaded 18 Jul 2026',
     },

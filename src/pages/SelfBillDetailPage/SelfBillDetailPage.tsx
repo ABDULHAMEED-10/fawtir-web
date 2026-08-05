@@ -6,17 +6,22 @@ import {
   type SelfBillTrack,
   type TrackTone,
 } from '../../lib/selfBillDetail'
-import peppolTrackIcon from '../../assets/agreements/kpi-active.svg'
-import otaTrackIcon from '../../assets/self-billing/kpi-input-vat.svg'
-import supplierTrackIcon from '../../assets/self-billing/kpi-awaiting.svg'
+import peppolTrackIcon from '../../assets/self-bill-detail/track-peppol.svg'
+import otaTrackIcon from '../../assets/self-bill-detail/track-ota.svg'
+import supplierTrackIcon from '../../assets/self-bill-detail/track-supplier.svg'
 import timelineDoneIcon from '../../assets/credit-note-detail/timeline-check.svg'
-import downloadIcon from '../../assets/invoices/export.svg'
-import recordPaymentIcon from '../../assets/customers/save.svg'
-import chevronIcon from '../../assets/invoices/chevron.svg'
+import downloadIcon from '../../assets/self-bill-detail/download.svg'
+import recordPaymentIcon from '../../assets/self-bill-detail/record-payment.svg'
+import arrowNextIcon from '../../assets/self-bill-detail/arrow-next.svg'
+import timelineOpenIcon from '../../assets/self-bill-detail/timeline-open.svg'
+import linkArrowIcon from '../../assets/self-bill-detail/link-arrow.svg'
+import filePdfIcon from '../../assets/self-bill-detail/file-pdf.svg'
+import fileJpgIcon from '../../assets/self-bill-detail/file-jpg.svg'
+import fileDownloadIcon from '../../assets/self-bill-detail/file-download.svg'
+import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
-import attachmentIcon from '../../assets/periodic/invoice-tile.svg'
-import infoIcon from '../../assets/periodic/info.svg'
+import warningIcon from '../../assets/self-bill-detail/warning.svg'
 
 const TRACK_ICONS: Record<string, string> = {
   peppol: peppolTrackIcon,
@@ -59,13 +64,7 @@ function TrackPanel({ track }: { track: SelfBillTrack }) {
   return (
     <article className="rounded-sm bg-surface-card p-4">
       <div className="flex items-start gap-3.5">
-        <span
-          className={['flex size-11 shrink-0 items-center justify-center rounded-sm', tone.tile].join(
-            ' ',
-          )}
-        >
-          <img src={TRACK_ICONS[track.id]} alt="" className="size-6" />
-        </span>
+        <img src={TRACK_ICONS[track.id]} alt="" className="size-11 shrink-0" />
         <div className="min-w-0">
           <p className="text-xs font-semibold leading-[1.2] text-text-quaternary">
             {t(track.labelKey)}
@@ -166,7 +165,7 @@ export function SelfBillDetailPage() {
               type="button"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
-              <img src={recordPaymentIcon} alt="" className="size-6 brightness-0 invert" />
+              <img src={recordPaymentIcon} alt="" className="size-6" />
               {t('selfBillDetail.recordPayment')}
             </button>
           </div>
@@ -179,7 +178,6 @@ export function SelfBillDetailPage() {
           ))}
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1fr_332px]">
         {/* Parties & details sits beside the Summary rail; the rest run full width. */}
         <div className="grid gap-4 xl:grid-cols-[1fr_332px]">
           <SectionCard title={t('selfBillDetail.sections.parties')}>
@@ -196,7 +194,7 @@ export function SelfBillDetailPage() {
                 </p>
               </div>
               <span className="flex shrink-0 items-center justify-center px-2">
-                <img src={chevronIcon} alt="" className="size-6 opacity-70 rtl:rotate-180" />
+                <img src={arrowNextIcon} alt="" className="size-6 rtl:rotate-180" />
               </span>
               <div className="flex-1 rounded-sm border border-primary-75 bg-primary-25 p-3.5">
                 <p className="text-xs font-semibold leading-[1.2] text-text-quaternary">
@@ -378,9 +376,10 @@ export function SelfBillDetailPage() {
             action={
               <button
                 type="button"
-                className="text-sm font-semibold text-primary-700 hover:underline"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:underline"
               >
                 {t('selfBillDetail.viewValidationReport')}
+                <img src={linkArrowIcon} alt="" className="size-[18px] rtl:rotate-180" />
               </button>
             }
           >
@@ -392,8 +391,9 @@ export function SelfBillDetailPage() {
                   <li key={event.id} className="flex gap-3">
                     <div className="flex w-7 shrink-0 flex-col items-center">
                       {current ? (
+                        // 28px #887147 disc with the white clock inside, per Figma.
                         <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-pending-500">
-                          <span className="size-[18px] rounded-full border-2 border-white" />
+                          <img src={timelineOpenIcon} alt="" className="size-[18px]" />
                         </span>
                       ) : (
                         <img src={timelineDoneIcon} alt="" className="size-[27px] shrink-0" />
@@ -421,7 +421,7 @@ export function SelfBillDetailPage() {
                       </p>
                       {event.callout ? (
                         <div className="mt-2.5 flex items-start gap-2 rounded-sm border border-border-brand-subtle bg-primary-25 p-2.5">
-                          <img src={infoIcon} alt="" className="mt-0.5 size-[18px] shrink-0" />
+                          <img src={warningIcon} alt="" className="mt-0.5 size-[18px] shrink-0" />
                           <p className="text-xs font-medium leading-[1.4] text-text-secondary">
                             {event.callout}
                           </p>
@@ -443,8 +443,12 @@ export function SelfBillDetailPage() {
                   key={file.id}
                   className="flex items-center gap-3 rounded-sm border border-border-subtle p-2.5"
                 >
-                  <img src={attachmentIcon} alt="" className="size-9 shrink-0" />
-                  <div className="min-w-0">
+                  <img
+                    src={file.kind === 'pdf' ? filePdfIcon : fileJpgIcon}
+                    alt=""
+                    className="size-9 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-base font-medium leading-[1.2] text-text-primary">
                       {file.name}
                     </p>
@@ -452,6 +456,21 @@ export function SelfBillDetailPage() {
                       {file.meta}
                     </p>
                   </div>
+                  {/* Figma gives each file a 32px download and delete button. */}
+                  <button
+                    type="button"
+                    aria-label={t('selfBillDetail.attachments.download')}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle transition-colors hover:bg-neutral-25"
+                  >
+                    <img src={fileDownloadIcon} alt="" className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('selfBillDetail.attachments.delete')}
+                    className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle transition-colors hover:bg-danger-100"
+                  >
+                    <img src={fileDeleteIcon} alt="" className="size-4" />
+                  </button>
                 </div>
               ))}
               <div className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar py-8">
@@ -465,8 +484,6 @@ export function SelfBillDetailPage() {
               </div>
             </div>
           </SectionCard>
-        </div>
-
       </div>
     </AppShell>
   )

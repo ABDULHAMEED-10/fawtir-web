@@ -414,13 +414,9 @@
         "reminders": "تذكيرات",
         "periodic": "فواتير دورية",
         "creditNotes": "إشعارات دائن",
-        "debitNotes": "إشعارات مدين",
-        "quotations": "عروض أسعار",
-        "orderForms": "نماذج طلب",
-        "deliveryNotes": "إشعارات تسليم"
+        "debitNotes": "إشعارات مدين"
       },
       "expenditure": "المصروفات",
-      "catalogContacts": "الكتالوج وجهات الاتصال",
       "catalog": "الكتالوج",
       "customers": "العملاء",
       "suppliers": "الموردون",
@@ -429,7 +425,24 @@
       "documents": "المستندات",
       "insights": "التحليلات",
       "reports": "التقارير",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "stock": "المخزون",
+      "expenditureChildren": {
+        "bills": "فواتير الموردين",
+        "recurringBills": "فواتير متكررة",
+        "creditNotes": "إشعارات دائن",
+        "debitNotes": "إشعارات مدين",
+        "reminders": "تذكيرات"
+      },
+      "catalogStock": "الكتالوج والمخزون",
+      "contacts": "جهات التعامل",
+      "tradeDocuments": "مستندات التعامل",
+      "tradeDocumentChildren": {
+        "quotations": "عروض أسعار",
+        "orderForms": "نماذج طلب",
+        "deliveryNotes": "إشعارات تسليم",
+        "projects": "المشاريع"
+      }
     },
     "account": {
       "premiumPlan": "الخطة المميزة",
@@ -528,6 +541,9 @@
       "renew": "تجديد",
       "resend": "إعادة الإرسال للتوقيع",
       "terminate": "إنهاء"
+    },
+    "debitNote": {
+      "view": "عرض الإشعار المدين"
     }
   },
   "customersPage": {
@@ -1722,6 +1738,135 @@
       "totalDue": "الإجمالي المستحق"
     },
     "viewValidationReport": "عرض تقرير التحقق",
+    "attachments": {
+      "drop": "أفلت الملفات أو انقر للرفع",
+      "hint": "أوامر الشراء، إشعارات التسليم، العقود · PDF أو JPG أو XLSX",
+      "download": "تنزيل الملف",
+      "delete": "حذف الملف"
+    }
+  },
+  "debitNotes": {
+    "title": "إشعارات مدين",
+    "subtitle": "٥ إشعارات مدين · ١٢٫٧٥٠ ر.ع. مُحمّلة هذا الربع",
+    "export": "تصدير",
+    "newDebitNote": "إشعار مدين جديد",
+    "kpi": {
+      "charged": "المُحمّل · ٣٠ يومًا",
+      "chargedMeta": "صدرت ٥ إشعارات مدين",
+      "awaiting": "بانتظار السداد",
+      "awaitingMeta": "٣ لم تُحصَّل بعد",
+      "collected": "المُحصَّل",
+      "collectedMeta": "سدّد العميل اثنين",
+      "overdue": "متأخرة",
+      "overdueMeta": "إشعار واحد · متأخر ١٢ يومًا"
+    },
+    "tabs": {
+      "all": "الكل",
+      "drafts": "المسودات",
+      "toSend": "للإرسال",
+      "awaiting": "بانتظار السداد",
+      "overdue": "متأخرة",
+      "paid": "مدفوعة"
+    },
+    "status": {
+      "draft": "مسودة",
+      "toBeSent": "للإرسال",
+      "awaitingPayment": "بانتظار السداد",
+      "overdue": "متأخرة",
+      "paid": "مدفوعة"
+    },
+    "searchPlaceholder": "ابحث بالرقم أو الفاتورة أو العميل...",
+    "filters": "عوامل التصفية",
+    "sort": "ترتيب",
+    "col": {
+      "debitNote": "الإشعار المدين",
+      "adjusts": "يعدّل",
+      "customer": "العميل",
+      "issued": "الإصدار",
+      "amount": "مبلغ الإشعار",
+      "payment": "السداد",
+      "status": "الحالة"
+    },
+    "rowMenu": "إجراءات الصف",
+    "showResult": "عرض النتائج:",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية"
+  },
+  "newDebitNote": {
+    "breadcrumbIncome": "الإيرادات",
+    "breadcrumbDebitNotes": "إشعارات مدين",
+    "title": "إشعار مدين جديد",
+    "draft": "مسودة",
+    "adjusting": "يعدّل",
+    "for": "لصالح",
+    "more": "إجراءات أخرى",
+    "saveDraft": "حفظ كمسودة",
+    "issue": "إصدار الإشعار المدين",
+    "sections": {
+      "original": "الفاتورة الأصلية",
+      "whatToCredit": "ما الذي تريد تعديله",
+      "items": "البنود",
+      "reason": "سبب الإشعار المدين",
+      "details": "بيانات الإشعار المدين",
+      "attachments": "المرفقات"
+    },
+    "original": {
+      "partiallyPaid": "مدفوعة جزئيًا",
+      "invoiceTotal": "إجمالي الفاتورة",
+      "alreadyCredited": "المُعدّل سابقًا",
+      "creditable": "القابل للتعديل"
+    },
+    "basis": {
+      "correctLines": "تصحيح بنود قائمة",
+      "correctLinesHint": "رفع السعر أو الكمية على بند سبق إصدار فاتورة به",
+      "additionalItems": "بنود إضافية",
+      "additionalItemsHint": "بضائع أو خدمات سُلّمت بعد إصدار الفاتورة",
+      "flatCharge": "رسم ثابت",
+      "flatChargeHint": "مبلغ واحد للشحن أو رسم إضافي أو غرامة تأخير"
+    },
+    "basisNote": "يُحمَّل الفرق فقط. تبقى بنود {{invoice}} الأصلية كما صدرت تمامًا — يغطي هذا الإشعار النقص.",
+    "amount": {
+      "title": "المبلغ المُحمَّل",
+      "increasesRevenue": "يزيد الإيراد المعترف به",
+      "netToCharge": "الصافي المُحمَّل",
+      "vatAdded": "الضريبة المضافة · ٥٪",
+      "effectOn": "الأثر على {{customer}}",
+      "outstanding": "المستحق على {{invoice}}",
+      "addedByNote": "المضاف بهذا الإشعار",
+      "newBalance": "رصيد الفاتورة الجديد"
+    },
+    "col": {
+      "description": "الوصف",
+      "excl": "بدون ضريبة",
+      "vat": "الضريبة (%)",
+      "qty": "الكمية",
+      "unit": "الوحدة",
+      "disc": "الخصم",
+      "total": "الإجمالي بدون ضريبة"
+    },
+    "totals": {
+      "vatAdded": "الضريبة المضافة · ٥٪ قياسية",
+      "totalToCharge": "إجمالي المُحمَّل"
+    },
+    "shownOnNote": "يظهر على الإشعار",
+    "fields": {
+      "reason": "السبب",
+      "reference": "المرجع / RMA",
+      "noteToCustomer": "ملاحظة للعميل",
+      "noteToCustomerHint": "تُطبع على الإشعار المدين",
+      "number": "رقم الإشعار المدين",
+      "issueDate": "تاريخ الإصدار",
+      "paymentDue": "استحقاق الدفع",
+      "paymentDueHint": "يتبع شروط الفاتورة",
+      "concerningInvoice": "الفاتورة المعنية",
+      "currency": "العملة",
+      "taxCategory": "الفئة الضريبية الافتراضية"
+    },
+    "peppol": {
+      "title": "الإرسال إلى العميل عبر Peppol",
+      "onPeppol": "على Peppol",
+      "hint": "يصل الإشعار المدين إلى {{customer}} فور إصداره، ويُبلَّغ عن الضريبة الإضافية لجهاز الضرائب في الوقت نفسه."
+    },
     "attachments": {
       "drop": "أفلت الملفات أو انقر للرفع",
       "hint": "أوامر الشراء، إشعارات التسليم، العقود · PDF أو JPG أو XLSX"

@@ -16,6 +16,8 @@ import { InvoicesPage } from './pages/InvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
+import { DebitNotesPage } from './pages/DebitNotesPage'
+import { NewDebitNotePage } from './pages/NewDebitNotePage'
 import { AgreementsPage } from './pages/AgreementsPage'
 import { NewSelfBillPage } from './pages/NewSelfBillPage'
 import { SelfBillDetailPage } from './pages/SelfBillDetailPage'
@@ -58,6 +60,8 @@ function App() {
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+          <Route path="/income/debit-notes" element={<DebitNotesPage />} />
+          <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
           <Route path="/income/self-billing" element={<SelfBillingPage />} />
           <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
           <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />

@@ -414,13 +414,9 @@
         "reminders": "Reminders",
         "periodic": "Periodic invoices",
         "creditNotes": "Credit notes",
-        "debitNotes": "Debit notes",
-        "quotations": "Quotations",
-        "orderForms": "Order forms",
-        "deliveryNotes": "Delivery notes"
+        "debitNotes": "Debit notes"
       },
       "expenditure": "Expenditure",
-      "catalogContacts": "Catalog & contacts",
       "catalog": "Catalog",
       "customers": "Customers",
       "suppliers": "Suppliers",
@@ -429,7 +425,24 @@
       "documents": "Documents",
       "insights": "Insights",
       "reports": "Reports",
-      "settings": "Settings"
+      "settings": "Settings",
+      "stock": "Stock",
+      "expenditureChildren": {
+        "bills": "Bills",
+        "recurringBills": "Recurring bills",
+        "creditNotes": "Credit notes",
+        "debitNotes": "Debit notes",
+        "reminders": "Reminders"
+      },
+      "catalogStock": "Catalog & stock",
+      "contacts": "Contacts",
+      "tradeDocuments": "Trade documents",
+      "tradeDocumentChildren": {
+        "quotations": "Quotations",
+        "orderForms": "Order forms",
+        "deliveryNotes": "Delivery notes",
+        "projects": "Projects"
+      }
     },
     "account": {
       "premiumPlan": "Premium plan",
@@ -528,6 +541,9 @@
       "renew": "Renew",
       "resend": "Resend for signature",
       "terminate": "Terminate"
+    },
+    "debitNote": {
+      "view": "View debit note"
     }
   },
   "customersPage": {
@@ -1716,6 +1732,135 @@
       "totalDue": "Total due"
     },
     "viewValidationReport": "View validation report",
+    "attachments": {
+      "drop": "Drop files or click to upload",
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+      "download": "Download file",
+      "delete": "Delete file"
+    }
+  },
+  "debitNotes": {
+    "title": "Debit notes",
+    "subtitle": "5 debit notes · OMR12.750 charged this quarter",
+    "export": "Export",
+    "newDebitNote": "New debit note",
+    "kpi": {
+      "charged": "Charged · 30 days",
+      "chargedMeta": "5 debit notes issued",
+      "awaiting": "Awaiting payment",
+      "awaitingMeta": "3 still to collect",
+      "collected": "Collected",
+      "collectedMeta": "2 settled by the customer",
+      "overdue": "Overdue",
+      "overdueMeta": "1 note · 12 days late"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "toSend": "To send",
+      "awaiting": "Awaiting payment",
+      "overdue": "Overdue",
+      "paid": "Paid"
+    },
+    "status": {
+      "draft": "Draft",
+      "toBeSent": "To be sent",
+      "awaitingPayment": "Awaiting payment",
+      "overdue": "Overdue",
+      "paid": "Paid"
+    },
+    "searchPlaceholder": "Search by number, invoice, customer...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "col": {
+      "debitNote": "Debit note",
+      "adjusts": "Adjusts",
+      "customer": "Customer",
+      "issued": "Issued",
+      "amount": "Debit amount",
+      "payment": "Payment",
+      "status": "Status"
+    },
+    "rowMenu": "Row actions",
+    "showResult": "Show result:",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "newDebitNote": {
+    "breadcrumbIncome": "Income",
+    "breadcrumbDebitNotes": "Debit notes",
+    "title": "New debit note",
+    "draft": "Draft",
+    "adjusting": "Adjusting",
+    "for": "For",
+    "more": "More actions",
+    "saveDraft": "Save draft",
+    "issue": "Issue debit note",
+    "sections": {
+      "original": "Original invoice",
+      "whatToCredit": "What to credit",
+      "items": "Items",
+      "reason": "Reason for debit",
+      "details": "Debit note details",
+      "attachments": "Attachments"
+    },
+    "original": {
+      "partiallyPaid": "Partially paid",
+      "invoiceTotal": "Invoice total",
+      "alreadyCredited": "Already credited",
+      "creditable": "Creditable"
+    },
+    "basis": {
+      "correctLines": "Correct existing lines",
+      "correctLinesHint": "Raise the price or quantity on something already invoiced",
+      "additionalItems": "Additional items",
+      "additionalItemsHint": "Goods or services delivered after the invoice went out",
+      "flatCharge": "Flat charge",
+      "flatChargeHint": "One amount freight, surcharge or a late payment fee"
+    },
+    "basisNote": "Only the difference is charged. {{invoice}}'s original lines stay exactly as they were issued — this note bills the shortfall.",
+    "amount": {
+      "title": "Amount to charge",
+      "increasesRevenue": "Increases recognised revenue",
+      "netToCharge": "Net to charge",
+      "vatAdded": "VAT added · 5%",
+      "effectOn": "Effect on {{customer}}",
+      "outstanding": "Outstanding on {{invoice}}",
+      "addedByNote": "Added by this note",
+      "newBalance": "New invoice balance"
+    },
+    "col": {
+      "description": "Description",
+      "excl": "Excl.",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
+      "unit": "Unit",
+      "disc": "Discount",
+      "total": "Tot. Excl."
+    },
+    "totals": {
+      "vatAdded": "VAT added · Standard 5%",
+      "totalToCharge": "Total to charge"
+    },
+    "shownOnNote": "Shown on the credit note",
+    "fields": {
+      "reason": "Reason",
+      "reference": "Reference / RMA",
+      "noteToCustomer": "Note to customer",
+      "noteToCustomerHint": "printed on debit note",
+      "number": "Debit note number",
+      "issueDate": "Issue date",
+      "paymentDue": "Payment due",
+      "paymentDueHint": "follows the invoice terms",
+      "concerningInvoice": "Concerning invoice",
+      "currency": "Currency",
+      "taxCategory": "Default tax category"
+    },
+    "peppol": {
+      "title": "Send to customer over Peppol",
+      "onPeppol": "On Peppol",
+      "hint": "The debit note reaches {{customer}} the moment it's issued, and the additional VAT is reported to the OTA at the same time."
+    },
     "attachments": {
       "drop": "Drop files or click to upload",
       "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"

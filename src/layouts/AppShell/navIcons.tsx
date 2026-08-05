@@ -8,6 +8,7 @@ import expenditureSrc from '../../assets/dashboard/nav-figma/expenditure.svg'
 import catalogSrc from '../../assets/dashboard/nav-figma/catalog.svg'
 import customersSrc from '../../assets/dashboard/nav-figma/customers.svg'
 import suppliersSrc from '../../assets/dashboard/nav-figma/suppliers.svg'
+import stockSrc from '../../assets/dashboard/nav-figma/stock.svg'
 import tddSrc from '../../assets/dashboard/nav-figma/tdd.svg'
 import documentsSrc from '../../assets/dashboard/nav-figma/documents.svg'
 import reportsSrc from '../../assets/dashboard/nav-figma/reports.svg'
@@ -53,6 +54,10 @@ export function NavCustomersIcon(props: IconProps) {
 
 export function NavSuppliersIcon(props: IconProps) {
   return <NavIcon src={suppliersSrc} {...props} />
+}
+
+export function NavStockIcon(props: IconProps) {
+  return <NavIcon src={stockSrc} {...props} />
 }
 
 export function NavTddIcon(props: IconProps) {
