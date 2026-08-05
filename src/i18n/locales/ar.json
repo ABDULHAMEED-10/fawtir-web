@@ -544,6 +544,24 @@
     },
     "debitNote": {
       "view": "عرض الإشعار المدين"
+    },
+    "quotation": {
+      "view": "عرض عرض السعر",
+      "send": "إرسال إلى العميل",
+      "edit": "تعديل عرض السعر",
+      "convert": "تحويل إلى نموذج طلب"
+    },
+    "orderForm": {
+      "view": "عرض نموذج الطلب",
+      "edit": "تعديل نموذج الطلب",
+      "delivery": "تسجيل تسليم",
+      "invoice": "إصدار فاتورة"
+    },
+    "deliveryNote": {
+      "view": "عرض إشعار التسليم",
+      "edit": "تعديل إشعار التسليم",
+      "invoice": "إصدار فاتورة",
+      "print": "طباعة قسيمة التسليم"
     }
   },
   "customersPage": {
@@ -1942,5 +1960,389 @@
     "zoomOut": "تصغير",
     "print": "طباعة",
     "fullScreen": "ملء الشاشة"
+  },
+  "quotations": {
+    "breadcrumbParent": "المستندات التجارية",
+    "title": "عروض الأسعار",
+    "subtitle": "٢٤ عرض سعر · ٢٢٬٤٨٠٫٥٠٠ ر.ع. مفتوحة بانتظار القرار",
+    "export": "تصدير",
+    "newQuotation": "عرض سعر جديد",
+    "searchPlaceholder": "ابحث بالرقم أو الفاتورة أو العميل...",
+    "filters": "عوامل التصفية",
+    "sort": "ترتيب",
+    "showResult": "عرض النتائج:",
+    "selectAll": "تحديد كل عروض الأسعار",
+    "selectRow": "تحديد {{id}}",
+    "rowMenu": "إجراءات عرض السعر",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "kpi": {
+      "open": "مفتوحة",
+      "openMeta": "٧ بانتظار القرار",
+      "accepted": "مقبولة · ٣٠ يوماً",
+      "acceptedMeta": "٤ تحولت إلى طلبات",
+      "winRate": "نسبة الفوز",
+      "winRateMeta": "آخر ٩٠ يوماً، محسوبة بالقيمة",
+      "expiring": "تنتهي قريباً",
+      "expiringMeta": "باقة تدريب الموظفين خلال يومين"
+    },
+    "tabs": {
+      "all": "الكل",
+      "drafts": "المسودات",
+      "sent": "المرسلة",
+      "expiring": "تنتهي قريباً",
+      "accepted": "المقبولة",
+      "declined": "المرفوضة",
+      "expired": "المنتهية"
+    },
+    "col": {
+      "quotation": "عرض السعر",
+      "customer": "العميل",
+      "validUntil": "صالح حتى",
+      "amount": "المبلغ",
+      "progress": "التقدم",
+      "status": "الحالة"
+    },
+    "step": {
+      "quote": "عرض",
+      "order": "طلب",
+      "deliver": "تسليم",
+      "invoice": "فاتورة"
+    },
+    "status": {
+      "draft": "مسودة",
+      "sent": "مرسلة",
+      "accepted": "مقبولة",
+      "delivering": "قيد التسليم",
+      "expiring": "تنتهي قريباً",
+      "declined": "مرفوضة"
+    }
+  },
+  "newQuotation": {
+    "breadcrumb": "عروض الأسعار",
+    "title": "عرض سعر جديد",
+    "savedJustNow": "تم الحفظ للتو",
+    "customer": "العميل",
+    "change": "تغيير",
+    "prospectHint": "تقدّم عرضاً لعميل جديد؟ الاسم والبريد الإلكتروني يكفيان — بيانات ضريبة القيمة المضافة و«بيبول» مطلوبة فقط عند تحويل العرض إلى فاتورة.",
+    "addProspect": "إضافة عميل محتمل",
+    "summary": "الملخص",
+    "subtotal": "المجموع الفرعي",
+    "discount": "الخصم",
+    "net": "الصافي",
+    "vatLine": "ضريبة القيمة المضافة · القياسية ٥٪",
+    "totalDue": "الإجمالي المستحق",
+    "detailsTitle": "تفاصيل عرض السعر",
+    "quotationNumber": "رقم عرض السعر",
+    "issueDate": "تاريخ الإصدار",
+    "validUntil": "صالح حتى",
+    "validUntilHint": "الأسعار مثبّتة حتى هذا التاريخ",
+    "subject": "الموضوع",
+    "subjectHint": "هذا أول ما يراه العميل",
+    "branch": "الفرع",
+    "itemsTitle": "ما تقدّمه",
+    "exclVat": "بدون الضريبة",
+    "inclVat": "شامل الضريبة",
+    "col": {
+      "description": "الوصف",
+      "unitPrice": "سعر الوحدة",
+      "vat": "الضريبة (٪)",
+      "quantity": "الكمية",
+      "unit": "الوحدة",
+      "discount": "الخصم",
+      "totExcl": "الإجمالي بدون الضريبة"
+    },
+    "addLineItem": "إضافة بند",
+    "removeLine": "حذف البند",
+    "subtotalExcl": "المجموع الفرعي (بدون الضريبة)",
+    "quotedTotal": "إجمالي عرض السعر",
+    "termsTitle": "الشروط",
+    "paymentTerms": "شروط الدفع",
+    "expectedDelivery": "التسليم المتوقع",
+    "leadTime": "مدة التنفيذ / ملاحظة الصلاحية",
+    "notesTitle": "الملاحظات والمرفقات",
+    "noteToCustomer": "ملاحظة للعميل",
+    "noteToCustomerHint": "تُطبع على عرض السعر",
+    "internalNote": "ملاحظة داخلية",
+    "internalNoteHint": "خاصة",
+    "supportingDocuments": "المستندات الداعمة",
+    "dropFiles": "أفلت الملفات أو انقر للرفع",
+    "dropFilesHint": "أوامر الشراء، إشعارات التسليم، العقود · PDF، JPG، XLSX",
+    "preview": "معاينة",
+    "saveDraft": "حفظ كمسودة",
+    "sendQuotation": "إرسال عرض السعر"
+  },
+  "quotationDetail": {
+    "breadcrumbParent": "المستندات التجارية",
+    "breadcrumbQuotations": "عروض الأسعار",
+    "status": {
+      "sent": "مرسلة"
+    },
+    "for": "إلى",
+    "moreActions": "إجراءات إضافية",
+    "download": "تنزيل",
+    "sendReminder": "إرسال تذكير",
+    "print": "طباعة",
+    "fullScreen": "ملء الشاشة",
+    "zoomIn": "تكبير",
+    "zoomOut": "تصغير",
+    "markAccepted": "تعليم كمقبول",
+    "markDeclined": "تعليم كمرفوض",
+    "extendValidity": "تمديد الصلاحية",
+    "reviseResend": "مراجعة وإعادة إرسال",
+    "sent": "أُرسل",
+    "lastOpened": "آخر فتح",
+    "validUntil": "صالح حتى",
+    "preparedBy": "أعدّه",
+    "details": "التفاصيل",
+    "viewCustomer": "عرض العميل",
+    "issueDate": "تاريخ الإصدار",
+    "paymentTerms": "شروط الدفع",
+    "expectedDelivery": "التسليم المتوقع",
+    "branch": "الفرع",
+    "taxCategory": "الفئة الضريبية",
+    "pdfTitle": "ملف عرض السعر",
+    "itemsTitle": "ما تم عرضه",
+    "col": {
+      "description": "الوصف",
+      "unitPrice": "سعر الوحدة",
+      "qty": "الكمية",
+      "disc": "الخصم ٪",
+      "total": "الإجمالي"
+    },
+    "subtotalExcl": "المجموع الفرعي (بدون الضريبة)",
+    "discount": "الخصم",
+    "vatLine": "ضريبة القيمة المضافة · القياسية ٥٪",
+    "optionalItems": "البنود الاختيارية، إن أُخذت",
+    "quotedTotal": "إجمالي عرض السعر",
+    "activity": "سجل النشاط",
+    "notesTitle": "الملاحظات والمرفقات",
+    "noteToCustomer": "ملاحظة للعميل",
+    "noteToCustomerHint": "على عرض السعر",
+    "internalNote": "ملاحظة داخلية",
+    "internalNoteHint": "خاصة"
+  },
+  "orderForms": {
+    "breadcrumbParent": "المستندات التجارية",
+    "title": "نماذج الطلب",
+    "subtitle": "طلبات العملاء المؤكدة. ما تم الوعد به، وما تم إرساله، وما تمت فوترته.",
+    "export": "تصدير",
+    "newOrderForm": "نموذج طلب جديد",
+    "searchPlaceholder": "ابحث بالرقم أو العميل أو المورّد...",
+    "filters": "عوامل التصفية",
+    "sort": "ترتيب",
+    "showResult": "عرض النتائج:",
+    "selectAll": "تحديد كل نماذج الطلب",
+    "selectRow": "تحديد {{id}}",
+    "rowMenu": "إجراءات نموذج الطلب",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "mode": {
+      "all": "كل الطلبات",
+      "allHint": "كلا الاتجاهين",
+      "sales": "طلبات البيع",
+      "salesHint": "عملاء يطلبون منك",
+      "purchase": "طلبات الشراء",
+      "purchaseHint": "أنت تطلب من المورّدين"
+    },
+    "kpi": {
+      "open": "الطلبات المفتوحة",
+      "openSales": "٣١٬٤٧٠ بيع",
+      "openPurchase": "١٥٬٤١٠ شراء",
+      "inTransit": "قيد النقل",
+      "transitDeliver": "١٨٬٢٤٠ للتسليم",
+      "transitReceive": "٨٬٣٧٠ للاستلام",
+      "deliveredNotInvoiced": "مُسلّمة وغير مفوترة",
+      "invoiceOrders": "فوترة ٤ طلبات",
+      "receivedNotInvoiced": "مستلمة وغير مفوترة",
+      "reviewOrders": "مراجعة ٣ طلبات"
+    },
+    "tabs": {
+      "all": "الكل",
+      "draft": "مسودة",
+      "open": "مفتوحة",
+      "overdue": "متأخرة",
+      "readyToInvoice": "جاهزة للفوترة",
+      "awaitingSupplierBill": "بانتظار فاتورة المورّد",
+      "completed": "مكتملة"
+    },
+    "col": {
+      "order": "الطلب",
+      "party": "العميل / المورّد",
+      "movementDue": "موعد الحركة",
+      "value": "قيمة الطلب",
+      "fulfilment": "التنفيذ",
+      "status": "الحالة والخطوة التالية"
+    },
+    "direction": {
+      "sales": "بيع",
+      "purchase": "شراء"
+    },
+    "role": {
+      "customer": "عميل",
+      "supplier": "مورّد"
+    },
+    "status": {
+      "readyToInvoice": "جاهزة للفوترة",
+      "awaitingSupplierBill": "بانتظار فاتورة المورّد",
+      "inProgress": "قيد التنفيذ",
+      "partReceived": "مستلمة جزئياً",
+      "deliveryOverdue": "التسليم متأخر",
+      "ordered": "مطلوبة",
+      "completed": "مكتملة"
+    },
+    "action": {
+      "issueInvoice": "إصدار فاتورة",
+      "selfBillSupplier": "فوترة ذاتية للمورّد",
+      "logDelivery": "تسجيل تسليم",
+      "recordReceipt": "تسجيل استلام",
+      "viewInvoice": "عرض INV-2038"
+    },
+    "legend": {
+      "sales": "بيع",
+      "purchase": "شراء",
+      "invoiced": "مفوترة",
+      "deliveredNotInvoiced": "مُسلّمة وغير مفوترة",
+      "stillToDeliver": "لم تُسلَّم بعد",
+      "billedBySupplier": "مفوترة من المورّد",
+      "receivedNotBilled": "مستلمة وغير مفوترة"
+    }
+  },
+  "orderFormDetail": {
+    "breadcrumbParent": "المستندات التجارية",
+    "breadcrumbOrderForms": "نماذج الطلب",
+    "status": {
+      "inProgress": "قيد التنفيذ"
+    },
+    "for": "إلى",
+    "moreActions": "إجراءات إضافية",
+    "download": "تنزيل",
+    "convertToDelivery": "تحويل إلى تسليم",
+    "convertToInvoice": "تحويل إلى فاتورة",
+    "step": {
+      "quoteSent": "أُرسل العرض",
+      "accepted": "قُبل",
+      "orderConfirmed": "تأكيد\nالطلب",
+      "delivered": "التسليم",
+      "invoiced": "الفوترة",
+      "paid": "مدفوع"
+    },
+    "fulfilment": "التنفيذ",
+    "delivered": "مُسلّم",
+    "readyToInvoice": "جاهز للفوترة",
+    "stillToDeliver": "لم يُسلَّم بعد",
+    "legend": {
+      "billed": "مفوتر",
+      "deliveredNotBilled": "مُسلّم وغير مفوتر",
+      "stillToDeliver": "لم يُسلَّم بعد"
+    },
+    "orderValue": "قيمة الطلب",
+    "subtotal": "المجموع الفرعي",
+    "vatLine": "ضريبة القيمة المضافة · القياسية ٥٪",
+    "orderTotal": "إجمالي الطلب",
+    "lines": "البنود",
+    "col": {
+      "item": "البند",
+      "ordered": "المطلوب",
+      "delivered": "المُسلّم",
+      "invoiced": "المفوتر",
+      "toInvoice": "للفوترة",
+      "toDeliver": "للتسليم",
+      "total": "الإجمالي"
+    },
+    "activity": "سجل النشاط",
+    "attachments": "المرفقات",
+    "downloadFile": "تنزيل الملف",
+    "removeFile": "حذف الملف",
+    "dropFiles": "أفلت الملفات أو انقر للرفع",
+    "dropFilesHint": "أوامر الشراء، إشعارات التسليم، العقود · PDF، JPG، XLSX"
+  },
+  "deliveryNotes": {
+    "breadcrumbParent": "المستندات التجارية",
+    "title": "إشعارات التسليم",
+    "subtitle": "إثبات انتقال البضائع — ما أرسلته إلى العملاء، وما أرسله المورّدون إليك. الكميات فقط، دون أسعار.",
+    "export": "تصدير",
+    "newDeliveryNote": "إشعار تسليم جديد",
+    "searchPlaceholder": "ابحث بالرقم أو الطلب أو العميل أو المورّد...",
+    "filters": "عوامل التصفية",
+    "sort": "ترتيب",
+    "showResult": "عرض النتائج:",
+    "selectAll": "تحديد كل إشعارات التسليم",
+    "selectRow": "تحديد {{id}}",
+    "rowMenu": "إجراءات إشعار التسليم",
+    "prevPage": "الصفحة السابقة",
+    "nextPage": "الصفحة التالية",
+    "mode": {
+      "all": "كل إشعارات التسليم",
+      "allHint": "كلا الاتجاهين",
+      "sales": "تسليمات البيع",
+      "salesHint": "سلّمت إلى عميل",
+      "purchase": "إيصالات الشراء",
+      "purchaseHint": "سلّم إليك مورّد"
+    },
+    "kpi": {
+      "onTheMove": "قيد النقل اليوم",
+      "movingOut": "٤ صادرة",
+      "movingIn": "٢ واردة",
+      "noProof": "بلا إثبات استلام",
+      "noProofMeta": "سُلّمت ولم يوقّع أحد",
+      "chaseSignatures": "متابعة التوقيعات",
+      "deliveredNotInvoiced": "مُسلّمة وغير مفوترة",
+      "deliveredNotInvoicedMeta": "إشعارات لم تُصدر بحقها فاتورة",
+      "review": "مراجعة",
+      "shortDeliveries": "تسليمات ناقصة",
+      "shortDeliveriesMeta": "هذا الشهر · كلاهما في جانب الشراء"
+    },
+    "tabs": {
+      "all": "الكل",
+      "draft": "مسودة",
+      "open": "مفتوحة",
+      "overdue": "متأخرة",
+      "readyToInvoice": "جاهزة للفوترة",
+      "awaitingSupplierBill": "بانتظار فاتورة المورّد",
+      "completed": "مكتملة"
+    },
+    "col": {
+      "note": "إشعار التسليم",
+      "party": "العميل / المورّد",
+      "date": "تاريخ الحركة",
+      "whatMoved": "ما تم نقله",
+      "proof": "إثبات الاستلام",
+      "status": "الحالة والخطوة التالية"
+    },
+    "direction": {
+      "sales": "بيع",
+      "purchase": "شراء"
+    },
+    "role": {
+      "customer": "عميل",
+      "supplier": "مورّد"
+    },
+    "status": {
+      "readyToInvoice": "جاهزة للفوترة",
+      "awaitingSupplierBill": "بانتظار فاتورة المورّد",
+      "inProgress": "قيد التنفيذ",
+      "partReceived": "مستلمة جزئياً",
+      "deliveryOverdue": "التسليم متأخر",
+      "inTransit": "قيد النقل",
+      "completed": "مكتملة"
+    },
+    "action": {
+      "issueInvoice": "إصدار فاتورة",
+      "selfBillSupplier": "فوترة ذاتية للمورّد",
+      "logDelivery": "تسجيل تسليم",
+      "recordReceipt": "تسجيل استلام",
+      "chaseSignature": "متابعة التوقيع",
+      "viewInvoice": "عرض INV-2038"
+    },
+    "legend": {
+      "sales": "بيع",
+      "purchase": "شراء",
+      "invoiced": "مفوترة",
+      "deliveredNotInvoiced": "مُسلّمة وغير مفوترة",
+      "stillToDeliver": "لم تُسلَّم بعد",
+      "billedBySupplier": "مفوترة من المورّد",
+      "receivedNotBilled": "مستلمة وغير مفوترة"
+    }
   }
 }

@@ -544,6 +544,24 @@
     },
     "debitNote": {
       "view": "View debit note"
+    },
+    "quotation": {
+      "view": "View quotation",
+      "send": "Send to customer",
+      "edit": "Edit quotation",
+      "convert": "Convert to order form"
+    },
+    "orderForm": {
+      "view": "View order form",
+      "edit": "Edit order form",
+      "delivery": "Log a delivery",
+      "invoice": "Issue invoice"
+    },
+    "deliveryNote": {
+      "view": "View delivery note",
+      "edit": "Edit delivery note",
+      "invoice": "Issue invoice",
+      "print": "Print delivery slip"
     }
   },
   "customersPage": {
@@ -1936,5 +1954,389 @@
     "zoomOut": "Zoom out",
     "print": "Print",
     "fullScreen": "Full screen"
+  },
+  "quotations": {
+    "breadcrumbParent": "Trade documents",
+    "title": "Quotations",
+    "subtitle": "24 quotations · OMR 22,480.500 open and awaiting a decision",
+    "export": "Export",
+    "newQuotation": "New quotation",
+    "searchPlaceholder": "Search by number, invoice, customer...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "showResult": "Show result:",
+    "selectAll": "Select all quotations",
+    "selectRow": "Select {{id}}",
+    "rowMenu": "Quotation actions",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "kpi": {
+      "open": "Open",
+      "openMeta": "7 awaiting a decision",
+      "accepted": "Accepted · 30 days",
+      "acceptedMeta": "4 turned into orders",
+      "winRate": "Win rate",
+      "winRateMeta": "Last 90 days, measured by value",
+      "expiring": "Expiring soon",
+      "expiringMeta": "Staff training package in 2 days"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "sent": "Sent",
+      "expiring": "Expiring",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "expired": "Expired"
+    },
+    "col": {
+      "quotation": "Quotation",
+      "customer": "Customer",
+      "validUntil": "Valid until",
+      "amount": "Amount",
+      "progress": "Progress",
+      "status": "Status"
+    },
+    "step": {
+      "quote": "Quote",
+      "order": "Order",
+      "deliver": "Deliver",
+      "invoice": "Invoice"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "delivering": "Delivering",
+      "expiring": "Expiring",
+      "declined": "Declined"
+    }
+  },
+  "newQuotation": {
+    "breadcrumb": "Quotations",
+    "title": "New quotation",
+    "savedJustNow": "Saved just now",
+    "customer": "Customer",
+    "change": "Change",
+    "prospectHint": "Quoting someone new? A name and email is enough — VAT and Peppol details are only needed when the quote becomes an invoice.",
+    "addProspect": "Add a prospect",
+    "summary": "Summary",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "net": "Net amount",
+    "vatLine": "VAT · Standard 5%",
+    "totalDue": "Total due",
+    "detailsTitle": "Quotation details",
+    "quotationNumber": "Quotation number",
+    "issueDate": "Issue date",
+    "validUntil": "Valid until",
+    "validUntilHint": "prices are held to this date",
+    "subject": "Subject",
+    "subjectHint": "the customer sees this first",
+    "branch": "Branch",
+    "itemsTitle": "What you're offering",
+    "exclVat": "Excl. VAT",
+    "inclVat": "Incl. VAT",
+    "col": {
+      "description": "Description",
+      "unitPrice": "Unit price",
+      "vat": "VAT (%)",
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "discount": "Discount",
+      "totExcl": "Tot. Excl."
+    },
+    "addLineItem": "Add line item",
+    "removeLine": "Remove line item",
+    "subtotalExcl": "Subtotal (excl. VAT)",
+    "quotedTotal": "Quoted total",
+    "termsTitle": "Terms",
+    "paymentTerms": "Payment terms",
+    "expectedDelivery": "Expected delivery",
+    "leadTime": "Lead time / validity note",
+    "notesTitle": "Notes & attachments",
+    "noteToCustomer": "Note to customer",
+    "noteToCustomerHint": "printed on the quotation",
+    "internalNote": "Internal note",
+    "internalNoteHint": "private",
+    "supportingDocuments": "Supporting documents",
+    "dropFiles": "Drop files or click to upload",
+    "dropFilesHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+    "preview": "Preview",
+    "saveDraft": "Save draft",
+    "sendQuotation": "Send quotation"
+  },
+  "quotationDetail": {
+    "breadcrumbParent": "Trade documents",
+    "breadcrumbQuotations": "Quotations",
+    "status": {
+      "sent": "Sent"
+    },
+    "for": "For",
+    "moreActions": "More actions",
+    "download": "Download",
+    "sendReminder": "Send reminder",
+    "print": "Print",
+    "fullScreen": "Full screen",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "markAccepted": "Mark as accepted",
+    "markDeclined": "Mark as declined",
+    "extendValidity": "Extend validity",
+    "reviseResend": "Revise & resend",
+    "sent": "Sent",
+    "lastOpened": "Last opened",
+    "validUntil": "Valid until",
+    "preparedBy": "Prepared by",
+    "details": "Details",
+    "viewCustomer": "View customer",
+    "issueDate": "Issue date",
+    "paymentTerms": "Payment terms",
+    "expectedDelivery": "Expected delivery",
+    "branch": "Branch",
+    "taxCategory": "Tax category",
+    "pdfTitle": "Quotation PDF",
+    "itemsTitle": "What was offered",
+    "col": {
+      "description": "Description",
+      "unitPrice": "Unit price",
+      "qty": "Qty",
+      "disc": "Disc %",
+      "total": "Total"
+    },
+    "subtotalExcl": "Subtotal (excl. VAT)",
+    "discount": "Discount",
+    "vatLine": "VAT · Standard 5%",
+    "optionalItems": "Optional items, if taken",
+    "quotedTotal": "Quoted total",
+    "activity": "Activity",
+    "notesTitle": "Notes & attachments",
+    "noteToCustomer": "Note to customer",
+    "noteToCustomerHint": "on the quotation",
+    "internalNote": "Internal note",
+    "internalNoteHint": "Private"
+  },
+  "orderForms": {
+    "breadcrumbParent": "Trade documents",
+    "title": "Order forms",
+    "subtitle": "Confirmed customer orders. What's been promised, what's gone out, and what's been billed.",
+    "export": "Export",
+    "newOrderForm": "New order form",
+    "searchPlaceholder": "Search by number, customer, supplier...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "showResult": "Show result:",
+    "selectAll": "Select all order forms",
+    "selectRow": "Select {{id}}",
+    "rowMenu": "Order form actions",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "mode": {
+      "all": "All orders",
+      "allHint": "Both directions",
+      "sales": "Sales orders",
+      "salesHint": "Customers ordering from you",
+      "purchase": "Purchase orders",
+      "purchaseHint": "You ordering from suppliers"
+    },
+    "kpi": {
+      "open": "Open orders",
+      "openSales": "31,470 sales",
+      "openPurchase": "15,410 purchase",
+      "inTransit": "In transit",
+      "transitDeliver": "18,240 to deliver",
+      "transitReceive": "8,370 to receive",
+      "deliveredNotInvoiced": "Delivered, not invoiced",
+      "invoiceOrders": "Invoice 4 orders",
+      "receivedNotInvoiced": "Received, not invoiced",
+      "reviewOrders": "Review 3 orders"
+    },
+    "tabs": {
+      "all": "All",
+      "draft": "Draft",
+      "open": "Open",
+      "overdue": "Overdue",
+      "readyToInvoice": "Ready to invoice",
+      "awaitingSupplierBill": "Awaiting supplier bill",
+      "completed": "Completed"
+    },
+    "col": {
+      "order": "Order",
+      "party": "Customer / Supplier",
+      "movementDue": "Movement due",
+      "value": "Order value",
+      "fulfilment": "Fulfilment",
+      "status": "Status & next step"
+    },
+    "direction": {
+      "sales": "sales",
+      "purchase": "purchase"
+    },
+    "role": {
+      "customer": "Customer",
+      "supplier": "Supplier"
+    },
+    "status": {
+      "readyToInvoice": "Ready to invoice",
+      "awaitingSupplierBill": "Awaiting supplier bill",
+      "inProgress": "In progress",
+      "partReceived": "Part received",
+      "deliveryOverdue": "Delivery overdue",
+      "ordered": "Ordered",
+      "completed": "Completed"
+    },
+    "action": {
+      "issueInvoice": "Issue invoice",
+      "selfBillSupplier": "Self-bill supplier",
+      "logDelivery": "Log a delivery",
+      "recordReceipt": "Record receipt",
+      "viewInvoice": "View INV-2038"
+    },
+    "legend": {
+      "sales": "Sales",
+      "purchase": "Purchase",
+      "invoiced": "Invoiced",
+      "deliveredNotInvoiced": "Delivered, not invoiced",
+      "stillToDeliver": "Still to deliver",
+      "billedBySupplier": "Billed by supplier",
+      "receivedNotBilled": "Received, not billed"
+    }
+  },
+  "orderFormDetail": {
+    "breadcrumbParent": "Trade documents",
+    "breadcrumbOrderForms": "Order forms",
+    "status": {
+      "inProgress": "In progress"
+    },
+    "for": "For",
+    "moreActions": "More actions",
+    "download": "Download",
+    "convertToDelivery": "Convert to delivery",
+    "convertToInvoice": "Convert to invoice",
+    "step": {
+      "quoteSent": "Quote sent",
+      "accepted": "Accepted",
+      "orderConfirmed": "Order\nconfirmed",
+      "delivered": "Delivered",
+      "invoiced": "Invoiced",
+      "paid": "Paid"
+    },
+    "fulfilment": "Fulfilment",
+    "delivered": "Delivered",
+    "readyToInvoice": "Ready to invoice",
+    "stillToDeliver": "Still to deliver",
+    "legend": {
+      "billed": "Billed",
+      "deliveredNotBilled": "Delivered, not billed",
+      "stillToDeliver": "Still to deliver"
+    },
+    "orderValue": "Order value",
+    "subtotal": "Subtotal",
+    "vatLine": "VAT · Standard 5%",
+    "orderTotal": "Order total",
+    "lines": "Lines",
+    "col": {
+      "item": "Item",
+      "ordered": "Ordered",
+      "delivered": "Delivered",
+      "invoiced": "Invoiced",
+      "toInvoice": "To invoice",
+      "toDeliver": "To deliver",
+      "total": "Total"
+    },
+    "activity": "Activity",
+    "attachments": "Attachments",
+    "downloadFile": "Download file",
+    "removeFile": "Remove file",
+    "dropFiles": "Drop files or click to upload",
+    "dropFilesHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
+  },
+  "deliveryNotes": {
+    "breadcrumbParent": "Trade documents",
+    "title": "Delivery notes",
+    "subtitle": "Proof that goods changed hands — what you sent to customers, and what suppliers sent to you. Quantities only, never prices.",
+    "export": "Export",
+    "newDeliveryNote": "New delivery note",
+    "searchPlaceholder": "Search by number, order, customer, supplier...",
+    "filters": "Filters",
+    "sort": "Sort",
+    "showResult": "Show result:",
+    "selectAll": "Select all delivery notes",
+    "selectRow": "Select {{id}}",
+    "rowMenu": "Delivery note actions",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "mode": {
+      "all": "All delivery notes",
+      "allHint": "Both directions",
+      "sales": "Sales deliveries",
+      "salesHint": "You delivered to a customer",
+      "purchase": "Purchase receipts",
+      "purchaseHint": "A supplier delivered to you"
+    },
+    "kpi": {
+      "onTheMove": "On the move today",
+      "movingOut": "4 out",
+      "movingIn": "2 arriving",
+      "noProof": "No proof of receipt",
+      "noProofMeta": "Delivered but nobody signed",
+      "chaseSignatures": "Chase signatures",
+      "deliveredNotInvoiced": "Delivered, not invoiced",
+      "deliveredNotInvoicedMeta": "Notes with no invoice raised against them",
+      "review": "Review",
+      "shortDeliveries": "Short deliveries",
+      "shortDeliveriesMeta": "This month · both on the purchase side"
+    },
+    "tabs": {
+      "all": "All",
+      "draft": "Draft",
+      "open": "Open",
+      "overdue": "Overdue",
+      "readyToInvoice": "Ready to invoice",
+      "awaitingSupplierBill": "Awaiting supplier bill",
+      "completed": "Completed"
+    },
+    "col": {
+      "note": "Delivery note",
+      "party": "Customer / Supplier",
+      "date": "Movement date",
+      "whatMoved": "What moved",
+      "proof": "Proof of receipt",
+      "status": "Status & next step"
+    },
+    "direction": {
+      "sales": "sales",
+      "purchase": "purchase"
+    },
+    "role": {
+      "customer": "Customer",
+      "supplier": "Supplier"
+    },
+    "status": {
+      "readyToInvoice": "Ready to invoice",
+      "awaitingSupplierBill": "Awaiting supplier bill",
+      "inProgress": "In progress",
+      "partReceived": "Part received",
+      "deliveryOverdue": "Delivery overdue",
+      "inTransit": "In transit",
+      "completed": "Completed"
+    },
+    "action": {
+      "issueInvoice": "Issue invoice",
+      "selfBillSupplier": "Self-bill supplier",
+      "logDelivery": "Log a delivery",
+      "recordReceipt": "Record receipt",
+      "chaseSignature": "Chase signature",
+      "viewInvoice": "View INV-2038"
+    },
+    "legend": {
+      "sales": "Sales",
+      "purchase": "Purchase",
+      "invoiced": "Invoiced",
+      "deliveredNotInvoiced": "Delivered, not invoiced",
+      "stillToDeliver": "Still to deliver",
+      "billedBySupplier": "Billed by supplier",
+      "receivedNotBilled": "Received, not billed"
+    }
   }
 }

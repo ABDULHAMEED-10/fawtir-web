@@ -17,6 +17,12 @@ import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
+import { QuotationsPage } from './pages/QuotationsPage'
+import { NewQuotationPage } from './pages/NewQuotationPage'
+import { QuotationDetailPage } from './pages/QuotationDetailPage'
+import { OrderFormsPage } from './pages/OrderFormsPage'
+import { OrderFormDetailPage } from './pages/OrderFormDetailPage'
+import { DeliveryNotesPage } from './pages/DeliveryNotesPage'
 import { NewDebitNotePage } from './pages/NewDebitNotePage'
 import { DebitNoteDetailPage } from './pages/DebitNoteDetailPage'
 import { AgreementsPage } from './pages/AgreementsPage'
@@ -62,6 +68,12 @@ function App() {
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
+          <Route path="/trade-documents/quotations" element={<QuotationsPage />} />
+          <Route path="/trade-documents/quotations/new" element={<NewQuotationPage />} />
+          <Route path="/trade-documents/quotations/:id" element={<QuotationDetailPage />} />
+          <Route path="/trade-documents/order-forms" element={<OrderFormsPage />} />
+          <Route path="/trade-documents/order-forms/:id" element={<OrderFormDetailPage />} />
+          <Route path="/trade-documents/delivery-notes" element={<DeliveryNotesPage />} />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
           <Route path="/income/self-billing" element={<SelfBillingPage />} />

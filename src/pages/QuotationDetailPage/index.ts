@@ -1,0 +1,1 @@
+export { QuotationDetailPage } from './QuotationDetailPage'

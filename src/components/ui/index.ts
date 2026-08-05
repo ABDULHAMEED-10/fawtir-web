@@ -12,6 +12,7 @@ export { Chip } from './Chip'
 export { PricingCard } from './PricingCard'
 export { OmAmount } from './OmAmount'
 export { ActionMenu, type ActionMenuItem } from './ActionMenu'
+export { StepTracker, type StepState, type TrackerStep } from './StepTracker'
 export {
   MailIcon,
   LockIcon,

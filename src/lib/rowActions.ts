@@ -153,3 +153,51 @@ export function scheduleRowActions(): ActionMenuItem[] {
     { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
   ]
 }
+
+export function quotationRowActions(documentId: string): ActionMenuItem[] {
+  return [
+    {
+      id: 'view',
+      labelKey: 'rowActions.quotation.view',
+      icon: viewIcon,
+      to: `/trade-documents/quotations/${documentId}`,
+    },
+    { id: 'send', labelKey: 'rowActions.quotation.send', icon: sendIcon },
+    { id: 'edit', labelKey: 'rowActions.quotation.edit', icon: editIcon },
+    { id: 'convert', labelKey: 'rowActions.quotation.convert', icon: invoiceIcon },
+    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+  ]
+}
+
+export function orderFormRowActions(documentId: string): ActionMenuItem[] {
+  return [
+    {
+      id: 'view',
+      labelKey: 'rowActions.orderForm.view',
+      icon: viewIcon,
+      to: `/trade-documents/order-forms/${documentId}`,
+    },
+    { id: 'edit', labelKey: 'rowActions.orderForm.edit', icon: editIcon },
+    { id: 'delivery', labelKey: 'rowActions.orderForm.delivery', icon: sendIcon },
+    { id: 'invoice', labelKey: 'rowActions.orderForm.invoice', icon: invoiceIcon },
+    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+  ]
+}
+
+export function deliveryNoteRowActions(documentId: string): ActionMenuItem[] {
+  return [
+    {
+      id: 'view',
+      labelKey: 'rowActions.deliveryNote.view',
+      icon: viewIcon,
+      to: `/trade-documents/delivery-notes/${documentId}`,
+    },
+    { id: 'edit', labelKey: 'rowActions.deliveryNote.edit', icon: editIcon },
+    { id: 'invoice', labelKey: 'rowActions.deliveryNote.invoice', icon: invoiceIcon },
+    { id: 'print', labelKey: 'rowActions.deliveryNote.print', icon: sendIcon },
+    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+  ]
+}
