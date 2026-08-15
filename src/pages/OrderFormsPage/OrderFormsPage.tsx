@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu } from '../../components/ui'
 import { orderFormRowActions } from '../../lib/rowActions'
 import {
+  BAR_TRACK,
   ORDER_KPI,
   ORDER_MODES,
   ORDER_PAGE_NUMBERS,
@@ -16,34 +17,27 @@ import {
   type OrderStatus,
   type OrderTabId,
 } from '../../lib/orderForms'
-import kpiOrdersIcon from '../../assets/order-forms/kpi-orders.svg'
-import kpiTransitIcon from '../../assets/order-forms/kpi-transit.svg'
-import kpiDeliveredIcon from '../../assets/order-forms/kpi-delivered.svg'
-import kpiReceivedIcon from '../../assets/order-forms/kpi-received.svg'
-import modeAllIcon from '../../assets/order-forms/mode-all.svg'
-import modeSalesIcon from '../../assets/order-forms/mode-sales.svg'
-import modePurchaseIcon from '../../assets/order-forms/mode-purchase.svg'
-import chipSalesIcon from '../../assets/order-forms/chip-sales.svg'
-import chipPurchaseIcon from '../../assets/order-forms/chip-purchase.svg'
-import invoiceActionIcon from '../../assets/order-forms/invoice-action.svg'
-import arrowRightIcon from '../../assets/order-forms/arrow-right.svg'
-import backIcon from '../../assets/quotations/back.svg'
-import exportIcon from '../../assets/quotations/export.svg'
-import plusIcon from '../../assets/quotations/plus.svg'
-import searchIcon from '../../assets/quotations/search.svg'
-import filterIcon from '../../assets/quotations/filter.svg'
-import sortIcon from '../../assets/quotations/sort.svg'
-import chevronDownIcon from '../../assets/quotations/chevron-down.svg'
-import chevronLeftIcon from '../../assets/quotations/chevron-left.svg'
-import omrLargeIcon from '../../assets/quotations/omr-lg.svg'
-import omrRowIcon from '../../assets/quotations/omr-row.svg'
-
-const KPI_TILES = {
-  orders: { icon: kpiOrdersIcon, disc: 'bg-[#f4f6fb]' },
-  transit: { icon: kpiTransitIcon, disc: 'bg-[#f7f1e6]' },
-  delivered: { icon: kpiDeliveredIcon, disc: 'bg-[#f4f6fb]' },
-  received: { icon: kpiReceivedIcon, disc: 'bg-[#f7f1e6]' },
-} as const
+import backIcon from '../../assets/order-forms-v2/back.svg'
+import exportIcon from '../../assets/order-forms-v2/export.svg'
+import plusIcon from '../../assets/order-forms-v2/plus.svg'
+import modeAllIcon from '../../assets/order-forms-v2/mode-all.svg'
+import modeSalesIcon from '../../assets/order-forms-v2/mode-sales.svg'
+import modePurchaseIcon from '../../assets/order-forms-v2/mode-purchase.svg'
+import kpiOpenIcon from '../../assets/order-forms-v2/kpi-open.svg'
+import kpiTransitIcon from '../../assets/order-forms-v2/kpi-transit.svg'
+import kpiDeliveredIcon from '../../assets/order-forms-v2/kpi-delivered.svg'
+import kpiReceivedIcon from '../../assets/order-forms-v2/kpi-received.svg'
+import linkChevronIcon from '../../assets/order-forms-v2/link-chevron.svg'
+import searchIcon from '../../assets/order-forms-v2/search.svg'
+import filterIcon from '../../assets/order-forms-v2/filter.svg'
+import sortIcon from '../../assets/order-forms-v2/sort.svg'
+import actInvoiceIcon from '../../assets/order-forms-v2/act-invoice.svg'
+import actSelfBillIcon from '../../assets/order-forms-v2/act-selfbill.svg'
+import actDeliverIcon from '../../assets/order-forms-v2/act-deliver.svg'
+import actTickIcon from '../../assets/order-forms-v2/act-tick.svg'
+import chevronDownIcon from '../../assets/order-forms-v2/chevron-down.svg'
+import chevronLeftIcon from '../../assets/order-forms-v2/chevron-left.svg'
+import omrIcon from '../../assets/order-forms-v2/omr.svg'
 
 const MODE_ICONS: Record<OrderMode, string> = {
   all: modeAllIcon,
@@ -51,53 +45,100 @@ const MODE_ICONS: Record<OrderMode, string> = {
   purchase: modePurchaseIcon,
 }
 
-/** Fulfilment bar fills — the legend at the foot of the table names each one. */
-const BAR_FILLS: Record<BarTone, string> = {
+const KPI_ICONS = {
+  open: kpiOpenIcon,
+  transit: kpiTransitIcon,
+  delivered: kpiDeliveredIcon,
+  received: kpiReceivedIcon,
+} as const
+
+/** Bar and legend fills, straight from the Figma swatches. */
+const TONE_FILL: Record<BarTone, string> = {
   invoiced: 'bg-[#2c4eb7]',
-  unbilled: 'bg-[#b99a66]',
+  delivered: 'bg-[#b99a66]',
   supplierBilled: 'bg-[#595d75]',
 }
 
-const STATUS_STYLES: Record<OrderStatus, { bg: string; fg: string; labelKey: string }> = {
+const STATUS_STYLES: Record<
+  OrderStatus,
+  { bg: string; fg: string; dot: string; labelKey: string }
+> = {
   readyToInvoice: {
     bg: 'bg-[#f7f1e6]',
     fg: 'text-[#6d5a39]',
+    dot: 'bg-[#6d5a39]',
     labelKey: 'orderForms.status.readyToInvoice',
   },
   awaitingSupplierBill: {
     bg: 'bg-[#f7f1e6]',
     fg: 'text-[#6d5a39]',
+    dot: 'bg-[#6d5a39]',
     labelKey: 'orderForms.status.awaitingSupplierBill',
   },
-  inProgress: { bg: 'bg-[#f4f6fb]', fg: 'text-[#2c4eb7]', labelKey: 'orderForms.status.inProgress' },
+  inProgress: {
+    bg: 'bg-[#f4f6fb]',
+    fg: 'text-[#2c4eb7]',
+    dot: 'bg-[#2c4eb7]',
+    labelKey: 'orderForms.status.inProgress',
+  },
   partReceived: {
     bg: 'bg-[#f3f3f3]',
     fg: 'text-[#2c3342]',
+    dot: 'bg-[#2c3342]',
     labelKey: 'orderForms.status.partReceived',
   },
   deliveryOverdue: {
     bg: 'bg-[#fff0f0]',
     fg: 'text-[#98140b]',
+    dot: 'bg-[#98140b]',
     labelKey: 'orderForms.status.deliveryOverdue',
   },
-  ordered: { bg: 'bg-[#f3f3f3]', fg: 'text-[#2c3342]', labelKey: 'orderForms.status.ordered' },
-  completed: { bg: 'bg-[#e6efea]', fg: 'text-[#4c6c5a]', labelKey: 'orderForms.status.completed' },
+  ordered: {
+    bg: 'bg-[#f3f3f3]',
+    fg: 'text-[#2c3342]',
+    dot: 'bg-[#2c3342]',
+    labelKey: 'orderForms.status.ordered',
+  },
+  completed: {
+    bg: 'bg-[#e6efea]',
+    fg: 'text-[#4c6c5a]',
+    dot: 'bg-[#4c6c5a]',
+    labelKey: 'orderForms.status.completed',
+  },
 }
 
-const ACTION_STYLES = {
-  primary: 'bg-primary-700 text-white hover:bg-primary-800',
-  slate: 'bg-[#595d75] text-white hover:bg-[#4a4e63]',
-  outline: 'border border-[#e8e8ea] bg-white text-[#444957]',
-  link: '',
+const ACTION_ICONS = {
+  invoice: actInvoiceIcon,
+  selfbill: actSelfBillIcon,
+  deliver: actDeliverIcon,
+  receipt: actTickIcon,
 } as const
+
+function Amount({
+  value,
+  size = 'md',
+  className = '',
+}: {
+  value: string
+  size?: 'xs' | 'sm' | 'md' | 'lg'
+  className?: string
+}) {
+  const mark = { xs: 'w-3.5', sm: 'w-5', md: 'w-6', lg: 'w-8' }[size]
+  return (
+    <span className="inline-flex items-center gap-1">
+      <img src={omrIcon} alt="" className={['h-auto shrink-0', mark].join(' ')} />
+      <span className={className}>{value}</span>
+    </span>
+  )
+}
 
 function OrderFormsHeader() {
   const { t } = useTranslation()
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="max-w-[564px]">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/trade-documents/quotations"
             className="text-2xl font-medium leading-[1.2] text-[#5b606c]"
@@ -109,7 +150,7 @@ function OrderFormsHeader() {
             {t('orderForms.title')}
           </h1>
         </div>
-        <p className="mt-1 max-w-[564px] text-sm font-medium leading-[1.2] text-[#8f8f8f]">
+        <p className="mt-1 text-sm font-medium leading-[1.2] text-[#8f8f8f]">
           {t('orderForms.subtitle')}
         </p>
       </div>
@@ -123,7 +164,7 @@ function OrderFormsHeader() {
         </button>
         <Link
           to="/trade-documents/order-forms/new"
-          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
         >
           <img src={plusIcon} alt="" className="size-6" />
           {t('orderForms.newOrderForm')}
@@ -133,7 +174,7 @@ function OrderFormsHeader() {
   )
 }
 
-/** All orders / Sales orders / Purchase orders — the dual nature of an order form. */
+/** All orders / Sales orders / Purchase orders — 373x65 cards, selected gets a 2px brand border. */
 function ModeSelector({ mode, onChange }: { mode: OrderMode; onChange: (m: OrderMode) => void }) {
   const { t } = useTranslation()
 
@@ -146,15 +187,18 @@ function ModeSelector({ mode, onChange }: { mode: OrderMode; onChange: (m: Order
             key={option.id}
             type="button"
             onClick={() => onChange(option.id)}
+            aria-pressed={active}
             className={[
-              'flex h-[65px] items-center justify-between gap-2 rounded-sm px-4 text-start',
-              active ? 'border-2 border-[#5671c5] bg-[#eaedf8]' : 'border border-[#d0d2d5] bg-white',
+              'flex h-[65px] items-center justify-between gap-2 rounded-sm px-4 text-start transition-colors',
+              active
+                ? 'border-2 border-[#5671c5] bg-[#eaedf8]'
+                : 'border border-[#d0d2d5] bg-white',
             ].join(' ')}
           >
             <span className="flex min-w-0 items-center gap-2">
               <img src={MODE_ICONS[option.id]} alt="" className="size-6 shrink-0" />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-base font-medium leading-[1.2] text-[#0c0d34]">
+                <span className="truncate text-base font-medium leading-[1.2] text-[#151c2d]">
                   {t(option.titleKey)}
                 </span>
                 <span className="mt-1 truncate text-xs font-medium leading-[1.2] text-[#444957]">
@@ -177,113 +221,159 @@ function OrderKpiCards() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {ORDER_KPI.map((kpi) => {
-        const tile = KPI_TILES[kpi.icon]
-        return (
-          <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
-            <div className="flex items-center gap-2.5">
-              <span
-                className={[
-                  'flex size-[45px] shrink-0 items-center justify-center rounded-full',
-                  tile.disc,
-                ].join(' ')}
-              >
-                <img src={tile.icon} alt="" className="size-6" />
-              </span>
-              <h3 className="text-xl font-medium leading-[1.2] text-[#2c3342]">{t(kpi.titleKey)}</h3>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <img src={omrLargeIcon} alt="" className="h-auto w-8 shrink-0" />
-              <p className="text-[32px] font-semibold leading-[1.2] text-[#2c3342]">{kpi.amount}</p>
-            </div>
-            {kpi.split ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-3 shrink-0 rounded-full bg-[#233e92]" />
-                  <span className="text-sm font-medium leading-[1.2] text-[#444957]">
-                    {t(kpi.split.salesKey)}
+      {ORDER_KPI.map((kpi) => (
+        <article key={kpi.id} className="flex flex-col rounded-md bg-surface-card p-5">
+          <div className="-me-5 flex items-center gap-2.5">
+            <span
+              className={[
+                'flex size-[45px] shrink-0 items-center justify-center rounded-full',
+                kpi.disc,
+              ].join(' ')}
+            >
+              <img src={KPI_ICONS[kpi.icon]} alt="" className="size-6" />
+            </span>
+            <h3 className="whitespace-nowrap text-xl font-medium leading-[1.2] text-[#2c3342]">
+              {t(kpi.titleKey)}
+            </h3>
+          </div>
+          <div className="mt-2.5">
+            <Amount
+              value={kpi.amount}
+              size="lg"
+              className="text-[32px] font-semibold leading-[1.2] text-[#2c3342]"
+            />
+          </div>
+          {'legend' in kpi && kpi.legend ? (
+            <div className="-me-5 mt-2.5 flex items-center gap-3">
+              {kpi.legend.map((entry) => (
+                <span key={entry.labelKey} className="inline-flex items-center gap-1.5">
+                  <span
+                    className={['size-2 shrink-0 rounded-full', TONE_FILL[entry.tone]].join(' ')}
+                  />
+                  <span className="whitespace-nowrap text-sm font-medium leading-[1.2] text-[#444957]">
+                    {t(entry.labelKey)}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-3 shrink-0 rounded-full bg-[#a1a4ab]" />
-                  <span className="text-sm font-medium leading-[1.2] text-[#444957]">
-                    {t(kpi.split.purchaseKey)}
-                  </span>
-                </span>
-              </div>
-            ) : null}
-            {kpi.link ? (
-              <button
-                type="button"
-                className="inline-flex items-center gap-0.5 self-start text-base font-semibold text-[#233e92]"
-              >
-                {t(kpi.link)}
-                <img src={arrowRightIcon} alt="" className="size-[17px] rtl:rotate-180" />
-              </button>
-            ) : null}
-          </article>
-        )
-      })}
+              ))}
+            </div>
+          ) : null}
+          {'link' in kpi && kpi.link ? (
+            <Link
+              to={kpi.link.to}
+              className="mt-2.5 inline-flex items-center gap-0.5 text-base font-semibold leading-[1.2] text-[#233e92]"
+            >
+              {t(kpi.link.labelKey)}
+              <img
+                src={linkChevronIcon}
+                alt=""
+                aria-hidden="true"
+                className="size-[17px] rtl:rotate-180"
+              />
+            </Link>
+          ) : null}
+        </article>
+      ))}
     </div>
   )
 }
 
-/** 225px track showing how much of the order's value has moved and been billed. */
+/** 225px track; segments paint in order so a later blue can sit over an earlier tan. */
 function FulfilmentBar({ row }: { row: OrderRow }) {
-  if (row.barPercent === 0 && row.barText) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="flex max-w-[225px] flex-col gap-[3px]">
+      <div className="relative h-3 w-full overflow-hidden rounded-[2px] bg-[#f3f3f3]">
+        {row.segments.map((segment, index) => (
+          <span
+            key={index}
+            className={['absolute inset-y-0 start-0 rounded-[2px]', TONE_FILL[segment.tone]].join(
+              ' ',
+            )}
+            style={{ width: `${(segment.width / BAR_TRACK) * 100}%` }}
+          />
+        ))}
+      </div>
+      {row.note.kind === 'amount' ? (
+        <span className="flex flex-wrap items-center gap-1">
+          <span className={['size-2 shrink-0 rounded-[2px]', TONE_FILL[row.note.tone]].join(' ')} />
+          <Amount
+            value={row.note.amount}
+            size="xs"
+            className="text-[9px] font-semibold leading-[1.2] text-[#2c3342]"
+          />
+          <span className="text-[8px] font-semibold leading-[1.2] text-[#737781]">
+            {t(row.note.labelKey)}
+          </span>
+        </span>
+      ) : row.note.kind === 'done' ? (
+        <span className="inline-flex items-center gap-1">
+          <img src={actTickIcon} alt="" className="size-3" />
+          <span className="text-[9px] font-medium leading-[1.2] text-[#4c6c5a]">
+            {t(row.note.labelKey)}
+          </span>
+        </span>
+      ) : (
+        <span className="text-[9px] font-medium leading-[1.2] text-[#2c3342]">
+          {t(row.note.labelKey)}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function NextStepButton({ row }: { row: OrderRow }) {
+  const { t } = useTranslation()
+  const action = row.action
+
+  if (action.kind === 'link') {
     return (
-      <p
-        className={[
-          'text-[9px] font-medium leading-[1.2]',
-          row.barText.tone === 'done' ? 'text-[#4c6c5a]' : 'text-[#2c3342]',
-        ].join(' ')}
+      <Link
+        to={`/invoices/${action.target}`}
+        onClick={(event) => event.stopPropagation()}
+        className="inline-flex items-center gap-0.5 text-base font-semibold leading-[1.2] text-[#233e92]"
       >
-        {row.barText.text}
-      </p>
+        {t(action.labelKey, { id: action.target })}
+        <img
+          src={linkChevronIcon}
+          alt=""
+          aria-hidden="true"
+          className="size-[17px] rtl:rotate-180"
+        />
+      </Link>
     )
   }
 
+  const filled =
+    action.kind === 'invoice'
+      ? 'bg-[#2c4eb7] text-white'
+      : action.kind === 'selfbill'
+        ? 'bg-[#595d75] text-white'
+        : 'border border-[#d0d2d5] bg-white text-[#444957]'
+
   return (
-    <div className="flex flex-col gap-[3px]">
-      <div className="h-3 w-full max-w-[225px] overflow-hidden rounded-[2px] bg-[#f3f3f3]">
-        <div
-          className={['h-full rounded-[2px]', BAR_FILLS[row.barTone]].join(' ')}
-          style={{ width: `${row.barPercent}%` }}
-        />
-      </div>
-      {row.barText ? (
-        <p
-          className={[
-            'text-[9px] font-medium leading-[1.2]',
-            row.barText.tone === 'done' ? 'text-[#4c6c5a]' : 'text-[#2c3342]',
-          ].join(' ')}
-        >
-          {row.barText.text}
-        </p>
-      ) : null}
-      {row.legend ? (
-        <div className="flex items-center gap-1.5">
-          {row.legend.dots.map((dot) => (
-            <span key={dot} className={['size-2 shrink-0 rounded-[2px]', BAR_FILLS[dot]].join(' ')} />
-          ))}
-          <span className="inline-flex items-center gap-0.5">
-            <img src={omrRowIcon} alt="" className="h-auto w-3.5 shrink-0" />
-            <span className="text-[9px] font-semibold leading-[1.2] text-[#2c3342]">
-              {row.legend.amount}
-            </span>
-          </span>
-          <span className="text-[8px] font-semibold leading-[1.2] text-[#737781]">
-            {row.legend.label}
-          </span>
-        </div>
-      ) : null}
-    </div>
+    <button
+      type="button"
+      onClick={(event) => event.stopPropagation()}
+      className={[
+        'inline-flex h-9 items-center gap-1 rounded-sm px-2.5 text-sm font-semibold leading-[1.2] transition-opacity hover:opacity-90',
+        filled,
+      ].join(' ')}
+    >
+      <img
+        src={ACTION_ICONS[action.kind]}
+        alt=""
+        className={['size-5', action.kind === 'receipt' ? '' : ''].join(' ')}
+      />
+      {t(action.labelKey)}
+    </button>
   )
 }
 
 function OrderRowCells({ row }: { row: OrderRow }) {
   const { t } = useTranslation()
   const status = STATUS_STYLES[row.status]
+  const sales = row.direction === 'sales'
 
   return (
     <>
@@ -291,33 +381,36 @@ function OrderRowCells({ row }: { row: OrderRow }) {
         <p className="text-sm font-semibold leading-[1.2] text-[#2c3342]">{row.id}</p>
         <span
           className={[
-            'mt-[3px] inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[10px] font-semibold leading-[1.2]',
-            row.direction === 'sales' ? 'bg-[#f4f6fb] text-[#2c4eb7]' : 'bg-[#ededed] text-[#5b606c]',
+            'mt-[3px] inline-flex items-center gap-1 rounded-sm px-2 py-1',
+            sales ? 'bg-[#f4f6fb]' : 'bg-[#ededed]',
           ].join(' ')}
         >
-          <img
-            src={row.direction === 'sales' ? chipSalesIcon : chipPurchaseIcon}
-            alt=""
-            className="size-3"
-          />
-          {t(
-            row.direction === 'sales'
-              ? 'orderForms.direction.sales'
-              : 'orderForms.direction.purchase',
-          )}
+          <img src={sales ? modeSalesIcon : modePurchaseIcon} alt="" className="size-3 shrink-0" />
+          <span
+            className={[
+              'text-[10px] font-semibold uppercase leading-[1.2]',
+              sales ? 'text-[#2c4eb7]' : 'text-[#5b606c]',
+            ].join(' ')}
+          >
+            {t(sales ? 'orderForms.chip.sales' : 'orderForms.chip.purchase')}
+          </span>
         </span>
-        <p className="mt-[7px] text-xs font-medium leading-[1.2] text-[#5b606c]">{row.origin}</p>
+        <p className="mt-1.5 text-xs font-medium leading-[1.2] text-[#5b606c]">
+          {t(row.sourceKey)}
+        </p>
       </td>
       <td className="px-2 py-3.5 align-top">
         <p className="text-sm font-semibold leading-[1.2] text-[#151c2d]">{row.party}</p>
         <p
           className={[
             'mt-1 text-xs font-medium leading-[1.2]',
-            row.partyRole === 'customer' ? 'text-[#233e92]' : 'text-[#444957]',
+            row.partyKind === 'customer' ? 'text-[#233e92]' : 'text-[#444957]',
           ].join(' ')}
         >
           {t(
-            row.partyRole === 'customer' ? 'orderForms.role.customer' : 'orderForms.role.supplier',
+            row.partyKind === 'customer'
+              ? 'orderForms.party.customer'
+              : 'orderForms.party.supplier',
           )}
         </p>
       </td>
@@ -325,19 +418,22 @@ function OrderRowCells({ row }: { row: OrderRow }) {
         <p className="text-sm font-semibold leading-[1.2] text-[#151c2d]">{row.due}</p>
         <p
           className={[
-            'mt-1 text-xs font-medium leading-[1.2]',
-            row.dueTone === 'danger' ? 'text-[#98140b]' : 'text-[#444957]',
+            'mt-1 text-xs leading-[1.2]',
+            row.dueOverdue ? 'font-medium text-[#98140b]' : 'font-medium text-[#444957]',
           ].join(' ')}
         >
-          {row.dueNote}
+          {t(row.dueNoteKey)}
         </p>
       </td>
       <td className="px-2 py-3.5 align-top">
-        <span className="inline-flex items-center gap-1">
-          <img src={omrRowIcon} alt="" className="h-auto w-6 shrink-0" />
-          <span className="text-base font-semibold leading-[1.2] text-[#2c3342]">{row.value}</span>
-        </span>
-        <p className="mt-1.5 text-xs font-semibold leading-[1.2] text-[#737781]">{row.valueNote}</p>
+        <Amount
+          value={row.value}
+          size="md"
+          className="text-base font-semibold leading-[1.2] text-[#2c3342]"
+        />
+        <p className="mt-1 text-xs font-semibold leading-[1.2] text-[#737781]">
+          {t(row.valueNoteKey)}
+        </p>
       </td>
       <td className="px-2 py-3.5 align-top">
         <FulfilmentBar row={row} />
@@ -345,40 +441,62 @@ function OrderRowCells({ row }: { row: OrderRow }) {
       <td className="px-2 py-3.5 align-top">
         <span
           className={[
-            'inline-flex items-center rounded-full px-3 py-[5px] text-sm font-semibold',
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-[5px]',
             status.bg,
-            status.fg,
           ].join(' ')}
         >
-          {t(status.labelKey)}
+          <span className={['size-1.5 shrink-0 rounded-full', status.dot].join(' ')} />
+          <span className={['text-sm font-semibold leading-[1.2]', status.fg].join(' ')}>
+            {t(status.labelKey)}
+          </span>
         </span>
-        {row.action ? (
-          row.action.variant === 'link' ? (
-            <button
-              type="button"
-              className="mt-2 block text-base font-semibold text-[#233e92]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {t(row.action.labelKey)}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className={[
-                'mt-2 inline-flex h-9 items-center gap-1 rounded-sm px-2.5 text-sm font-semibold',
-                ACTION_STYLES[row.action.variant],
-              ].join(' ')}
-            >
-              {row.action.icon ? (
-                <img src={invoiceActionIcon} alt="" className="size-5" />
-              ) : null}
-              {t(row.action.labelKey)}
-            </button>
-          )
-        ) : null}
+        <div className="mt-2">
+          <NextStepButton row={row} />
+        </div>
       </td>
     </>
+  )
+}
+
+/** The two directions read their bars differently, so each gets its own key. */
+function BarLegend() {
+  const { t } = useTranslation()
+
+  const entry = (tone: BarTone, labelKey: string) => (
+    <span key={labelKey} className="inline-flex items-center gap-1">
+      <span className={['h-[7px] w-[18px] shrink-0 rounded-[2px]', TONE_FILL[tone]].join(' ')} />
+      <span className="text-xs font-medium leading-[1.2] text-[#444957]">{t(labelKey)}</span>
+    </span>
+  )
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 pb-4 pt-1">
+      <span className="inline-flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium leading-[1.2] text-[#151c2d]">
+          {t('orderForms.legend.sales')}
+        </span>
+        <span className="inline-flex flex-wrap items-center gap-4">
+          {entry('invoiced', 'orderForms.legend.invoiced')}
+          {entry('delivered', 'orderForms.legend.deliveredNotInvoiced')}
+          <span className="inline-flex items-center gap-1">
+            <span className="h-[7px] w-[18px] shrink-0 rounded-[2px] bg-[#f3f3f3]" />
+            <span className="text-xs font-medium leading-[1.2] text-[#444957]">
+              {t('orderForms.legend.stillToDeliver')}
+            </span>
+          </span>
+        </span>
+      </span>
+      <span aria-hidden="true" className="hidden h-[18px] w-px bg-[#f3f3f3] lg:block" />
+      <span className="inline-flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium leading-[1.2] text-[#151c2d]">
+          {t('orderForms.legend.purchase')}
+        </span>
+        <span className="inline-flex flex-wrap items-center gap-4">
+          {entry('supplierBilled', 'orderForms.legend.billedBySupplier')}
+          {entry('delivered', 'orderForms.legend.receivedNotBilled')}
+        </span>
+      </span>
+    </div>
   )
 }
 
@@ -390,8 +508,7 @@ function OrderFormsTable() {
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-x-[52px] gap-y-3 px-6 pt-[17px]">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-4 pt-4">
         {ORDER_TABS.map((tab) => {
           const active = tab.id === activeTab
           return (
@@ -399,41 +516,38 @@ function OrderFormsTable() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className="flex items-center gap-1"
+              className={[
+                'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
+                active
+                  ? 'font-semibold text-[#233e92]'
+                  : 'font-medium text-[#5b606c] hover:text-text-secondary',
+              ].join(' ')}
             >
+              {t(tab.labelKey)}
               <span
                 className={[
-                  'text-base leading-[1.2]',
-                  active ? 'font-semibold text-[#233e92]' : 'font-medium text-[#5b606c]',
-                ].join(' ')}
-              >
-                {t(tab.labelKey)}
-              </span>
-              <span
-                className={[
-                  'inline-flex h-[18px] items-center rounded-full px-1.5 text-xs font-semibold leading-[1.2]',
-                  tab.tone === 'danger'
-                    ? 'bg-[#fff0f0] text-[#98140b]'
-                    : active
-                      ? 'bg-[#f4f6fb] text-[#233e92]'
-                      : 'bg-[#f4f6fb] text-[#5b606c]',
+                  'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                  tab.danger ? 'bg-[#fff0f0] text-[#98140b]' : 'bg-[#f4f6fb]',
+                  tab.danger ? '' : active ? 'text-[#233e92]' : 'text-[#5b606c]',
                 ].join(' ')}
               >
                 {tab.count}
               </span>
+              {active ? (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[#233e92]" />
+              ) : null}
             </button>
           )
         })}
       </div>
 
-      {/* Search + Filters/Sort */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-[27px]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
         <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
             placeholder={t('orderForms.searchPlaceholder')}
-            className="w-full bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-[#8a8e96]"
+            className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-[#8a8e96]"
           />
         </label>
         <div className="flex items-center gap-4">
@@ -454,29 +568,44 @@ function OrderFormsTable() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[1100px] border-collapse text-start">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1124px] table-fixed border-collapse text-start">
+          {/* Column widths straight from Figma so the 225px fulfilment track is not squeezed. */}
+          <colgroup>
+            <col className="w-[45px]" />
+            <col className="w-[152px]" />
+            <col className="w-[186px]" />
+            <col className="w-[126px]" />
+            <col className="w-[147px]" />
+            <col className="w-[257px]" />
+            <col className="w-[193px]" />
+            <col className="w-[44px]" />
+          </colgroup>
           <thead>
-            <tr className="bg-[#2c3342] text-start text-xs leading-[1.2] text-white">
-              <th className="w-10 px-5 py-2.5">
+            <tr className="bg-[#2c3342]">
+              <th className="px-4 py-2.5 text-start">
                 <input
                   type="checkbox"
                   aria-label={t('orderForms.selectAll')}
                   className="size-[15px] rounded-[4px] border border-[#d0d2d5] bg-transparent"
                 />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('orderForms.col.order')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('orderForms.col.party')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">
-                {t('orderForms.col.movementDue')}
-              </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('orderForms.col.value')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">
-                {t('orderForms.col.fulfilment')}
-              </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('orderForms.col.status')}</th>
-              <th className="w-14 px-2 py-2.5" />
+              {[
+                'orderForms.columns.order',
+                'orderForms.columns.party',
+                'orderForms.columns.movementDue',
+                'orderForms.columns.orderValue',
+                'orderForms.columns.fulfilment',
+                'orderForms.columns.statusNextStep',
+              ].map((key) => (
+                <th
+                  key={key}
+                  className="px-2 py-2.5 text-start text-xs font-semibold uppercase leading-[1.2] text-white"
+                >
+                  {t(key)}
+                </th>
+              ))}
+              <th className="px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
@@ -486,11 +615,11 @@ function OrderFormsTable() {
                 className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
                 onClick={() => navigate(`/trade-documents/order-forms/${row.id}`)}
               >
-                <td className="px-5 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
+                <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     aria-label={t('orderForms.selectRow', { id: row.id })}
-                    className="mt-6 size-[15px] rounded-[4px] border border-[#d0d2d5]"
+                    className="mt-1 size-[15px] rounded-[4px] border border-[#d0d2d5]"
                   />
                 </td>
                 <OrderRowCells row={row} />
@@ -503,105 +632,57 @@ function OrderFormsTable() {
         </table>
       </div>
 
-      {/* Bar legend — what each fill colour means, split by direction. */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 pt-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-medium leading-[1.2] text-[#151c2d]">
-            {t('orderForms.legend.sales')}
-          </span>
-          <span className="flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#2c4eb7]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('orderForms.legend.invoiced')}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#b99a66]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('orderForms.legend.deliveredNotInvoiced')}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#f3f3f3]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('orderForms.legend.stillToDeliver')}
-              </span>
-            </span>
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-medium leading-[1.2] text-[#151c2d]">
-            {t('orderForms.legend.purchase')}
-          </span>
-          <span className="flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#595d75]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('orderForms.legend.billedBySupplier')}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#b99a66]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('orderForms.legend.receivedNotBilled')}
-              </span>
-            </span>
-          </span>
-        </div>
-      </div>
+      <BarLegend />
 
-      {/* Pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-[#737781]">{t('orderForms.showResult')}</span>
-          <span className="inline-flex items-center gap-2.5 rounded-sm border border-[#e8e8ea] px-3 py-2 text-sm font-semibold text-[#2c3342]">
-            7
+      <div className="flex flex-wrap items-center justify-between gap-4 px-4 pb-4">
+        <label className="flex items-center gap-4 text-sm font-medium text-[#737781]">
+          {t('orderForms.showResult')}
+          <span className="inline-flex h-[33px] items-center gap-2.5 rounded-sm border border-[#e8e8ea] px-3 text-sm font-semibold text-[#2c3342]">
+            6
             <img src={chevronDownIcon} alt="" className="size-4" />
           </span>
-        </div>
-        <div className="flex items-center">
+        </label>
+        <nav className="flex items-center" aria-label={t('orderForms.pagination')}>
           <button
             type="button"
-            aria-label={t('orderForms.prevPage')}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label={t('orderForms.previous')}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rtl:rotate-180" />
           </button>
-          {ORDER_PAGE_NUMBERS.map((n, i) =>
-            n === '...' ? (
+          {ORDER_PAGE_NUMBERS.map((label, index) =>
+            label === '...' ? (
               <span
-                key={`gap-${i}`}
+                key={`gap-${index}`}
                 className="flex size-10 items-center justify-center text-sm font-medium text-[#737781]"
               >
                 …
               </span>
             ) : (
               <button
-                key={n}
+                key={label}
                 type="button"
-                onClick={() => setPage(Number(n))}
+                onClick={() => setPage(Number(label))}
+                aria-current={page === Number(label) ? 'page' : undefined}
                 className={[
                   'flex size-10 items-center justify-center rounded-xl',
-                  page === Number(n)
+                  page === Number(label)
                     ? 'bg-[#f4f6fb] text-base font-extrabold text-[#2c4eb7]'
                     : 'text-sm font-medium text-[#737781]',
                 ].join(' ')}
               >
-                {n}
+                {label}
               </button>
             ),
           )}
           <button
             type="button"
-            aria-label={t('orderForms.nextPage')}
-            onClick={() => setPage((p) => p + 1)}
+            aria-label={t('orderForms.next')}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
           </button>
-        </div>
+        </nav>
       </div>
     </section>
   )

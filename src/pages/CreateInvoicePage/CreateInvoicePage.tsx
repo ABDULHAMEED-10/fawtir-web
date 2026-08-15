@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { AddCustomerModal, type SavedCustomer } from '../../components/AddCustomerModal'
+import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
+import { DEFAULT_LINKED_DOCS, type LinkedDoc } from '../../lib/linkedDocuments'
 import backIcon from '../../assets/create-invoice/back.svg'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import consumerIcon from '../../assets/create-invoice/consumer.svg'
@@ -114,6 +116,9 @@ export function CreateInvoicePage() {
   const { t } = useTranslation()
   const [customerType, setCustomerType] = useState<CustomerType>('business')
   const [exclVat, setExclVat] = useState(true)
+  /** Shared across all three customer types — a B2C receipt can settle a delivery note too. */
+  const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>(DEFAULT_LINKED_DOCS)
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [customers, setCustomers] = useState<SavedCustomer[]>([
     {
       id: 'CUS-001',
@@ -571,9 +576,20 @@ export function CreateInvoicePage() {
           </div>
         </section>
 
-        {/* 4 Payment & status */}
+        {/* 4 Link related documents — the delivery notes and orders this invoice settles. */}
         <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
-          <SectionTitle step={4} title={t('createInvoice.sections.payment')} />
+          <LinkedDocuments
+            titleSlot={<SectionTitle step={4} title={t('createInvoice.sections.linked')} />}
+            docs={linkedDocs}
+            onRemove={(id: string) =>
+              setLinkedDocs((cur: LinkedDoc[]) => cur.filter((d) => d.id !== id))
+            }
+          />
+        </section>
+
+        {/* 5 Payment & status */}
+        <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
+          <SectionTitle step={5} title={t('createInvoice.sections.payment')} />
           <div className="h-px w-full bg-border-subtle" />
           <div className="grid gap-4 md:grid-cols-3">
             <div className="flex flex-col gap-1">
@@ -615,7 +631,7 @@ export function CreateInvoicePage() {
 
         {/* 5 Notes */}
         <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
-          <SectionTitle step={5} title={t('createInvoice.sections.notes')} />
+          <SectionTitle step={6} title={t('createInvoice.sections.notes')} />
           <div className="h-px w-full bg-border-subtle" />
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-1">
@@ -673,6 +689,16 @@ export function CreateInvoicePage() {
         </div>
       </div>
 
+      <LinkDocumentsModal
+        open={linkModalOpen}
+        customer={selectedCustomer?.name ?? ''}
+        initialSelected={linkedDocs.map((d) => d.id)}
+        onClose={() => setLinkModalOpen(false)}
+        onConfirm={(docs) => {
+          setLinkedDocs(docs)
+          setLinkModalOpen(false)
+        }}
+      />
       <AddCustomerModal
         open={addCustomerOpen}
         onClose={() => setAddCustomerOpen(false)}

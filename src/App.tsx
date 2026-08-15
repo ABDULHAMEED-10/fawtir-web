@@ -17,12 +17,17 @@ import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
+import { PosPage } from './pages/PosPage'
 import { QuotationsPage } from './pages/QuotationsPage'
 import { NewQuotationPage } from './pages/NewQuotationPage'
 import { QuotationDetailPage } from './pages/QuotationDetailPage'
 import { OrderFormsPage } from './pages/OrderFormsPage'
+import { NewOrderFormPage } from './pages/NewOrderFormPage'
+import { NewDeliveryNotePage } from './pages/NewDeliveryNotePage'
+import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { OrderFormDetailPage } from './pages/OrderFormDetailPage'
 import { DeliveryNotesPage } from './pages/DeliveryNotesPage'
+import { DeliveryNoteDetailPage } from './pages/DeliveryNoteDetailPage'
 import { NewDebitNotePage } from './pages/NewDebitNotePage'
 import { DebitNoteDetailPage } from './pages/DebitNoteDetailPage'
 import { AgreementsPage } from './pages/AgreementsPage'
@@ -67,19 +72,25 @@ function App() {
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+          <Route path="/pos" element={<PosPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route path="/trade-documents/quotations" element={<QuotationsPage />} />
           <Route path="/trade-documents/quotations/new" element={<NewQuotationPage />} />
           <Route path="/trade-documents/quotations/:id" element={<QuotationDetailPage />} />
           <Route path="/trade-documents/order-forms" element={<OrderFormsPage />} />
+          <Route path="/trade-documents/order-forms/new" element={<NewOrderFormPage />} />
           <Route path="/trade-documents/order-forms/:id" element={<OrderFormDetailPage />} />
           <Route path="/trade-documents/delivery-notes" element={<DeliveryNotesPage />} />
+          <Route path="/trade-documents/delivery-notes/new" element={<NewDeliveryNotePage />} />
+          <Route path="/trade-documents/delivery-notes/:id" element={<DeliveryNoteDetailPage />} />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
           <Route path="/income/self-billing" element={<SelfBillingPage />} />
           <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
           <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
           <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
+          <Route path="/settings/payment-reminders" element={<PaymentRemindersPage />} />
+          <Route path="/income/reminders" element={<PaymentRemindersPage />} />
           <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />
           <Route path="/income/periodic/new" element={<PeriodicInvoicePage mode="create" />} />
           <Route path="/income/periodic/:id" element={<PeriodicInvoicePage mode="view" />} />

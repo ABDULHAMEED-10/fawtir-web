@@ -3,6 +3,7 @@
  * Rendered as <img> (CSS mask was showing solid boxes).
  */
 import dashboardSrc from '../../assets/dashboard/nav-figma/dashboard.svg'
+import posSrc from '../../assets/dashboard/nav-figma/pos.svg'
 import incomeSrc from '../../assets/dashboard/nav-figma/income.svg'
 import expenditureSrc from '../../assets/dashboard/nav-figma/expenditure.svg'
 import catalogSrc from '../../assets/dashboard/nav-figma/catalog.svg'
@@ -34,6 +35,10 @@ function NavIcon({ src, className = '', active }: IconProps & { src: string }) {
 
 export function NavDashboardIcon(props: IconProps) {
   return <NavIcon src={dashboardSrc} {...props} />
+}
+
+export function NavPosIcon(props: IconProps) {
+  return <NavIcon src={posSrc} {...props} />
 }
 
 export function NavInvoicesIcon(props: IconProps) {

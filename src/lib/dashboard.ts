@@ -9,6 +9,7 @@ import {
   NavDocumentsIcon,
   NavExpenditureIcon,
   NavInvoicesIcon,
+  NavPosIcon,
   NavReportsIcon,
   NavSettingsIcon,
   NavStockIcon,
@@ -67,6 +68,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
     labelKey: 'dashboard.nav.main',
     items: [
       { id: 'dashboard', labelKey: 'dashboard.nav.dashboard', Icon: NavDashboardIcon, to: '/dashboard' },
+      { id: 'pos', labelKey: 'dashboard.nav.pos', Icon: NavPosIcon, to: '/pos' },
       {
         id: 'income',
         labelKey: 'dashboard.nav.income',
