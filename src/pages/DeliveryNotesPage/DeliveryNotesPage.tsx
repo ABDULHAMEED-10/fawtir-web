@@ -12,36 +12,35 @@ import {
   DELIVERY_TABS,
   type DeliveryMode,
   type DeliveryRow,
-  type DeliveryStatus,
   type DeliveryTabId,
+  type ProofKind,
 } from '../../lib/deliveryNotes'
-import kpiOrdersIcon from '../../assets/order-forms/kpi-orders.svg'
-import kpiTransitIcon from '../../assets/order-forms/kpi-transit.svg'
-import kpiDeliveredIcon from '../../assets/order-forms/kpi-delivered.svg'
-import kpiReceivedIcon from '../../assets/order-forms/kpi-received.svg'
-import modeAllIcon from '../../assets/order-forms/mode-all.svg'
-import modeSalesIcon from '../../assets/order-forms/mode-sales.svg'
-import modePurchaseIcon from '../../assets/order-forms/mode-purchase.svg'
-import chipSalesIcon from '../../assets/order-forms/chip-sales.svg'
-import chipPurchaseIcon from '../../assets/order-forms/chip-purchase.svg'
-import invoiceActionIcon from '../../assets/order-forms/invoice-action.svg'
-import arrowRightIcon from '../../assets/order-forms/arrow-right.svg'
-import backIcon from '../../assets/quotations/back.svg'
-import exportIcon from '../../assets/quotations/export.svg'
-import plusIcon from '../../assets/quotations/plus.svg'
-import searchIcon from '../../assets/quotations/search.svg'
-import filterIcon from '../../assets/quotations/filter.svg'
-import sortIcon from '../../assets/quotations/sort.svg'
-import chevronDownIcon from '../../assets/quotations/chevron-down.svg'
-import chevronLeftIcon from '../../assets/quotations/chevron-left.svg'
-
-/** The first and last cards are sand (movement/exception), the middle two brand blue. */
-const KPI_TILES = {
-  transit: { icon: kpiTransitIcon, disc: 'bg-[#f7f1e6]' },
-  orders: { icon: kpiOrdersIcon, disc: 'bg-[#f4f6fb]' },
-  delivered: { icon: kpiDeliveredIcon, disc: 'bg-[#f4f6fb]' },
-  received: { icon: kpiReceivedIcon, disc: 'bg-[#f7f1e6]' },
-} as const
+import { type OrderStatus } from '../../lib/orderForms'
+import backIcon from '../../assets/order-forms-v2/back.svg'
+import exportIcon from '../../assets/order-forms-v2/export.svg'
+import plusIcon from '../../assets/order-forms-v2/plus.svg'
+import modeAllIcon from '../../assets/order-forms-v2/mode-all.svg'
+import modeSalesIcon from '../../assets/order-forms-v2/mode-sales.svg'
+import modePurchaseIcon from '../../assets/order-forms-v2/mode-purchase.svg'
+import linkChevronIcon from '../../assets/order-forms-v2/link-chevron.svg'
+import searchIcon from '../../assets/order-forms-v2/search.svg'
+import filterIcon from '../../assets/order-forms-v2/filter.svg'
+import sortIcon from '../../assets/order-forms-v2/sort.svg'
+import actInvoiceIcon from '../../assets/order-forms-v2/act-invoice.svg'
+import actSelfBillIcon from '../../assets/order-forms-v2/act-selfbill.svg'
+import actDeliverIcon from '../../assets/order-forms-v2/act-deliver.svg'
+import actTickIcon from '../../assets/order-forms-v2/act-tick.svg'
+import chevronDownIcon from '../../assets/order-forms-v2/chevron-down.svg'
+import chevronLeftIcon from '../../assets/order-forms-v2/chevron-left.svg'
+import kpiMoveIcon from '../../assets/delivery-notes-v2/kpi-move.svg'
+import kpiNoProofIcon from '../../assets/delivery-notes-v2/kpi-noproof.svg'
+import kpiDeliveredIcon from '../../assets/delivery-notes-v2/kpi-delivered.svg'
+import kpiShortIcon from '../../assets/delivery-notes-v2/kpi-short.svg'
+import proofSignedIcon from '../../assets/delivery-notes-v2/proof-signed.svg'
+import proofCheckIcon from '../../assets/delivery-notes-v2/proof-check.svg'
+import proofClockIcon from '../../assets/delivery-notes-v2/proof-clock.svg'
+import proofXIcon from '../../assets/delivery-notes-v2/proof-x.svg'
+import proofCameraIcon from '../../assets/delivery-notes-v2/proof-camera.svg'
 
 const MODE_ICONS: Record<DeliveryMode, string> = {
   all: modeAllIcon,
@@ -49,45 +48,77 @@ const MODE_ICONS: Record<DeliveryMode, string> = {
   purchase: modePurchaseIcon,
 }
 
-const STATUS_STYLES: Record<DeliveryStatus, { bg: string; fg: string; labelKey: string }> = {
+const KPI_ICONS = {
+  move: kpiMoveIcon,
+  noproof: kpiNoProofIcon,
+  delivered: kpiDeliveredIcon,
+  short: kpiShortIcon,
+} as const
+
+/** Each proof outcome has its own disc fill, border and glyph. */
+const PROOF_STYLES: Record<ProofKind, { ring: string; icon: string; danger?: boolean }> = {
+  signed: { ring: 'border-[#e8e8ea] bg-transparent', icon: proofSignedIcon },
+  check: { ring: 'border-[#b7c4bd] bg-[#e6efea]', icon: proofCheckIcon },
+  clock: { ring: 'border-[#d0d2d5] bg-[#f3f4f5]', icon: proofClockIcon },
+  short: { ring: 'border-[#d6a19d] bg-[#fff0f0]', icon: proofXIcon, danger: true },
+  unsigned: { ring: 'border-[#e8e8ea] bg-[#f3f4f5]', icon: proofXIcon },
+  photo: { ring: 'border-[#d0d2d5] bg-transparent', icon: proofCameraIcon },
+  awaiting: { ring: 'border-[#d0d2d5] bg-[#f3f4f5]', icon: proofClockIcon },
+}
+
+const STATUS_STYLES: Record<
+  OrderStatus,
+  { bg: string; fg: string; dot: string; labelKey: string }
+> = {
   readyToInvoice: {
     bg: 'bg-[#f7f1e6]',
     fg: 'text-[#6d5a39]',
-    labelKey: 'deliveryNotes.status.readyToInvoice',
+    dot: 'bg-[#6d5a39]',
+    labelKey: 'orderForms.status.readyToInvoice',
   },
   awaitingSupplierBill: {
     bg: 'bg-[#f7f1e6]',
     fg: 'text-[#6d5a39]',
-    labelKey: 'deliveryNotes.status.awaitingSupplierBill',
+    dot: 'bg-[#6d5a39]',
+    labelKey: 'orderForms.status.awaitingSupplierBill',
   },
   inProgress: {
     bg: 'bg-[#f4f6fb]',
     fg: 'text-[#2c4eb7]',
-    labelKey: 'deliveryNotes.status.inProgress',
+    dot: 'bg-[#2c4eb7]',
+    labelKey: 'orderForms.status.inProgress',
   },
   partReceived: {
     bg: 'bg-[#f3f3f3]',
     fg: 'text-[#2c3342]',
-    labelKey: 'deliveryNotes.status.partReceived',
+    dot: 'bg-[#2c3342]',
+    labelKey: 'orderForms.status.partReceived',
   },
   deliveryOverdue: {
     bg: 'bg-[#fff0f0]',
     fg: 'text-[#98140b]',
-    labelKey: 'deliveryNotes.status.deliveryOverdue',
+    dot: 'bg-[#98140b]',
+    labelKey: 'orderForms.status.deliveryOverdue',
   },
-  inTransit: { bg: 'bg-[#f3f3f3]', fg: 'text-[#2c3342]', labelKey: 'deliveryNotes.status.inTransit' },
+  ordered: {
+    bg: 'bg-[#f3f3f3]',
+    fg: 'text-[#2c3342]',
+    dot: 'bg-[#2c3342]',
+    labelKey: 'orderForms.status.ordered',
+  },
   completed: {
     bg: 'bg-[#e6efea]',
     fg: 'text-[#4c6c5a]',
-    labelKey: 'deliveryNotes.status.completed',
+    dot: 'bg-[#4c6c5a]',
+    labelKey: 'orderForms.status.completed',
   },
 }
 
-const ACTION_STYLES = {
-  primary: 'bg-primary-700 text-white hover:bg-primary-800',
-  slate: 'bg-[#595d75] text-white hover:bg-[#4a4e63]',
-  outline: 'border border-[#e8e8ea] bg-white text-[#444957]',
-  link: '',
+const ACTION_ICONS = {
+  invoice: actInvoiceIcon,
+  selfbill: actSelfBillIcon,
+  deliver: actDeliverIcon,
+  receipt: actTickIcon,
 } as const
 
 function DeliveryNotesHeader() {
@@ -95,8 +126,8 @@ function DeliveryNotesHeader() {
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <div className="flex flex-wrap items-center gap-1">
+      <div className="max-w-[790px]">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             to="/trade-documents/quotations"
             className="text-2xl font-medium leading-[1.2] text-[#5b606c]"
@@ -108,7 +139,7 @@ function DeliveryNotesHeader() {
             {t('deliveryNotes.title')}
           </h1>
         </div>
-        <p className="mt-1 max-w-[768px] text-sm font-medium leading-[1.2] text-[#8f8f8f]">
+        <p className="mt-1 text-sm font-medium leading-[1.2] text-[#8f8f8f]">
           {t('deliveryNotes.subtitle')}
         </p>
       </div>
@@ -122,7 +153,7 @@ function DeliveryNotesHeader() {
         </button>
         <Link
           to="/trade-documents/delivery-notes/new"
-          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+          className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-[#2c4eb7] py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
         >
           <img src={plusIcon} alt="" className="size-6" />
           {t('deliveryNotes.newDeliveryNote')}
@@ -132,8 +163,13 @@ function DeliveryNotesHeader() {
   )
 }
 
-/** All / Sales deliveries / Purchase receipts — the two directions goods travel. */
-function ModeSelector({ mode, onChange }: { mode: DeliveryMode; onChange: (m: DeliveryMode) => void }) {
+function ModeSelector({
+  mode,
+  onChange,
+}: {
+  mode: DeliveryMode
+  onChange: (m: DeliveryMode) => void
+}) {
   const { t } = useTranslation()
 
   return (
@@ -145,15 +181,18 @@ function ModeSelector({ mode, onChange }: { mode: DeliveryMode; onChange: (m: De
             key={option.id}
             type="button"
             onClick={() => onChange(option.id)}
+            aria-pressed={active}
             className={[
-              'flex h-[65px] items-center justify-between gap-2 rounded-sm px-4 text-start',
-              active ? 'border-2 border-[#5671c5] bg-[#eaedf8]' : 'border border-[#d0d2d5] bg-white',
+              'flex h-[65px] items-center justify-between gap-2 rounded-sm px-4 text-start transition-colors',
+              active
+                ? 'border-2 border-[#5671c5] bg-[#eaedf8]'
+                : 'border border-[#d0d2d5] bg-white',
             ].join(' ')}
           >
             <span className="flex min-w-0 items-center gap-2">
               <img src={MODE_ICONS[option.id]} alt="" className="size-6 shrink-0" />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-base font-medium leading-[1.2] text-[#0c0d34]">
+                <span className="truncate text-base font-medium leading-[1.2] text-[#151c2d]">
                   {t(option.titleKey)}
                 </span>
                 <span className="mt-1 truncate text-xs font-medium leading-[1.2] text-[#444957]">
@@ -171,66 +210,124 @@ function ModeSelector({ mode, onChange }: { mode: DeliveryMode; onChange: (m: De
   )
 }
 
+/** Counts, not amounts — these cards are 209px tall and carry no currency mark. */
 function DeliveryKpiCards() {
   const { t } = useTranslation()
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {DELIVERY_KPI.map((kpi) => {
-        const tile = KPI_TILES[kpi.icon]
-        return (
-          <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
-            <div className="flex items-center gap-2.5">
-              <span
-                className={[
-                  'flex size-[45px] shrink-0 items-center justify-center rounded-full',
-                  tile.disc,
-                ].join(' ')}
-              >
-                <img src={tile.icon} alt="" className="size-6" />
-              </span>
-              <h3 className="text-xl font-medium leading-[1.2] text-[#2c3342]">{t(kpi.titleKey)}</h3>
+      {DELIVERY_KPI.map((kpi) => (
+        <article
+          key={kpi.id}
+          className="flex min-h-[209px] flex-col rounded-md bg-surface-card p-5"
+        >
+          <div className="-me-5 flex items-center gap-2.5">
+            <span
+              className={[
+                'flex size-[45px] shrink-0 items-center justify-center rounded-full',
+                kpi.disc,
+              ].join(' ')}
+            >
+              <img src={KPI_ICONS[kpi.icon]} alt="" className="size-6" />
+            </span>
+            <h3 className="whitespace-nowrap text-xl font-medium leading-[1.2] text-[#2c3342]">
+              {t(kpi.titleKey)}
+            </h3>
+          </div>
+          <p className="mt-2.5 text-[32px] font-semibold leading-[1.2] text-[#2c3342]">
+            {kpi.count}
+          </p>
+          {'legend' in kpi && kpi.legend ? (
+            <div className="mt-2.5 flex items-center gap-3">
+              {kpi.legend.map((entry) => (
+                <span key={entry.labelKey} className="inline-flex items-center gap-1.5">
+                  <span
+                    className={[
+                      'size-2 shrink-0 rounded-full',
+                      entry.tone === 'out' ? 'bg-[#2c4eb7]' : 'bg-[#a9adb4]',
+                    ].join(' ')}
+                  />
+                  <span className="whitespace-nowrap text-sm font-medium leading-[1.2] text-[#444957]">
+                    {t(entry.labelKey)}
+                  </span>
+                </span>
+              ))}
             </div>
-            {/* Delivery notes count movements, so the headline is a plain number — no OMR. */}
-            <p className="text-[32px] font-semibold leading-[1.2] text-[#2c3342]">{kpi.count}</p>
-            {kpi.split ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-3 shrink-0 rounded-full bg-[#233e92]" />
-                  <span className="text-sm font-medium leading-[1.2] text-[#444957]">
-                    {t(kpi.split.outKey)}
-                  </span>
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-3 shrink-0 rounded-full bg-[#a1a4ab]" />
-                  <span className="text-sm font-medium leading-[1.2] text-[#444957]">
-                    {t(kpi.split.inKey)}
-                  </span>
-                </span>
-              </div>
-            ) : null}
-            {kpi.metaKey ? (
-              <p className="text-sm font-medium leading-[1.2] text-[#444957]">{t(kpi.metaKey)}</p>
-            ) : null}
-            {kpi.link ? (
-              <button
-                type="button"
-                className="inline-flex items-center gap-0.5 self-start text-base font-semibold text-[#233e92]"
-              >
-                {t(kpi.link)}
-                <img src={arrowRightIcon} alt="" className="size-[17px] rtl:rotate-180" />
-              </button>
-            ) : null}
-          </article>
-        )
-      })}
+          ) : null}
+          {'noteKey' in kpi && kpi.noteKey ? (
+            <p className="mt-2.5 text-sm font-medium leading-[1.2] text-[#444957]">
+              {t(kpi.noteKey)}
+            </p>
+          ) : null}
+          {'link' in kpi && kpi.link ? (
+            <Link
+              to={kpi.link.to}
+              className="mt-2.5 inline-flex items-center gap-0.5 text-base font-semibold leading-[1.2] text-[#233e92]"
+            >
+              {t(kpi.link.labelKey)}
+              <img
+                src={linkChevronIcon}
+                alt=""
+                aria-hidden="true"
+                className="size-[17px] rtl:rotate-180"
+              />
+            </Link>
+          ) : null}
+        </article>
+      ))}
     </div>
+  )
+}
+
+function NextStepButton({ row }: { row: DeliveryRow }) {
+  const { t } = useTranslation()
+  const action = row.action
+
+  if (action.kind === 'link') {
+    return (
+      <Link
+        to={`/invoices/${action.target}`}
+        onClick={(event) => event.stopPropagation()}
+        className="inline-flex items-center gap-0.5 text-base font-semibold leading-[1.2] text-[#233e92]"
+      >
+        {t(action.labelKey, { id: action.target })}
+        <img
+          src={linkChevronIcon}
+          alt=""
+          aria-hidden="true"
+          className="size-[17px] rtl:rotate-180"
+        />
+      </Link>
+    )
+  }
+
+  const filled =
+    action.kind === 'invoice'
+      ? 'bg-[#2c4eb7] text-white'
+      : action.kind === 'selfbill'
+        ? 'bg-[#595d75] text-white'
+        : 'border border-[#d0d2d5] bg-white text-[#444957]'
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => event.stopPropagation()}
+      className={[
+        'inline-flex h-9 items-center gap-1 rounded-sm px-2.5 text-sm font-semibold leading-[1.2] transition-opacity hover:opacity-90',
+        filled,
+      ].join(' ')}
+    >
+      <img src={ACTION_ICONS[action.kind]} alt="" className="size-5" />
+      {t(action.labelKey)}
+    </button>
   )
 }
 
 function DeliveryRowCells({ row }: { row: DeliveryRow }) {
   const { t } = useTranslation()
   const status = STATUS_STYLES[row.status]
+  const proof = PROOF_STYLES[row.proof]
+  const sales = row.direction === 'sales'
 
   return (
     <>
@@ -238,104 +335,101 @@ function DeliveryRowCells({ row }: { row: DeliveryRow }) {
         <p className="text-sm font-semibold leading-[1.2] text-[#2c3342]">{row.id}</p>
         <span
           className={[
-            'mt-[3px] inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[10px] font-semibold leading-[1.2]',
-            row.direction === 'sales' ? 'bg-[#f4f6fb] text-[#2c4eb7]' : 'bg-[#ededed] text-[#5b606c]',
+            'mt-[3px] inline-flex items-center gap-1 rounded-sm px-2 py-1',
+            sales ? 'bg-[#f4f6fb]' : 'bg-[#ededed]',
           ].join(' ')}
         >
-          <img
-            src={row.direction === 'sales' ? chipSalesIcon : chipPurchaseIcon}
-            alt=""
-            className="size-3"
-          />
-          {t(
-            row.direction === 'sales'
-              ? 'deliveryNotes.direction.sales'
-              : 'deliveryNotes.direction.purchase',
-          )}
+          <img src={sales ? modeSalesIcon : modePurchaseIcon} alt="" className="size-3 shrink-0" />
+          <span
+            className={[
+              'text-[10px] font-semibold uppercase leading-[1.2]',
+              sales ? 'text-[#2c4eb7]' : 'text-[#5b606c]',
+            ].join(' ')}
+          >
+            {t(sales ? 'orderForms.chip.sales' : 'orderForms.chip.purchase')}
+          </span>
         </span>
-        <p className="mt-[7px] text-xs font-medium leading-[1.2] text-[#5b606c]">{row.against}</p>
+        <p className="mt-1.5 text-xs font-medium leading-[1.2] text-[#5b606c]">
+          {t(row.sourceKey)}
+        </p>
       </td>
       <td className="px-2 py-3.5 align-top">
         <p className="text-sm font-semibold leading-[1.2] text-[#151c2d]">{row.party}</p>
         <p
           className={[
             'mt-1 text-xs font-medium leading-[1.2]',
-            row.partyRole === 'customer' ? 'text-[#233e92]' : 'text-[#444957]',
+            row.partyKind === 'customer' ? 'text-[#233e92]' : 'text-[#444957]',
           ].join(' ')}
         >
           {t(
-            row.partyRole === 'customer'
-              ? 'deliveryNotes.role.customer'
-              : 'deliveryNotes.role.supplier',
+            row.partyKind === 'customer'
+              ? 'orderForms.party.customer'
+              : 'orderForms.party.supplier',
           )}
         </p>
       </td>
       <td className="px-2 py-3.5 align-top">
-        <p className="text-sm font-semibold leading-[1.2] text-[#151c2d]">{row.date}</p>
+        <p className="text-sm font-semibold leading-[1.2] text-[#151c2d]">{row.due}</p>
         <p
           className={[
             'mt-1 text-xs font-medium leading-[1.2]',
-            row.dateTone === 'danger' ? 'text-[#98140b]' : 'text-[#444957]',
+            row.dueOverdue ? 'text-[#98140b]' : 'text-[#444957]',
           ].join(' ')}
         >
-          {row.dateNote}
+          {t(row.dueNoteKey)}
         </p>
       </td>
       <td className="px-2 py-3.5 align-top">
         <p className="text-base font-semibold leading-[1.2] text-[#2c3342]">{row.lines}</p>
         <p
           className={[
-            'mt-1.5 text-xs font-semibold leading-[1.2]',
-            row.quantitiesTone === 'danger' ? 'text-[#98140b]' : 'text-[#737781]',
+            'mt-1 text-xs font-semibold leading-[1.2]',
+            row.quantitiesAlert ? 'text-[#98140b]' : 'text-[#737781]',
           ].join(' ')}
         >
           {row.quantities}
         </p>
       </td>
       <td className="px-2 py-3.5 align-top">
-        <p
-          className={[
-            'text-base font-semibold leading-[1.2]',
-            row.proofTone === 'danger' ? 'text-[#98140b]' : 'text-[#2c3342]',
-          ].join(' ')}
-        >
-          {row.proof}
-        </p>
-        <p className="mt-1.5 text-xs font-semibold leading-[1.2] text-[#737781]">{row.proofNote}</p>
+        <div className="flex items-start gap-[7px]">
+          <span
+            className={[
+              'flex size-[47px] shrink-0 items-center justify-center rounded-full border',
+              proof.ring,
+            ].join(' ')}
+          >
+            <img src={proof.icon} alt="" className="size-[19px]" />
+          </span>
+          <span className="min-w-0 pt-1">
+            <span
+              className={[
+                'block text-base font-semibold leading-[1.2]',
+                proof.danger ? 'text-[#98140b]' : 'text-[#2c3342]',
+              ].join(' ')}
+            >
+              {t(row.proofTitleKey)}
+            </span>
+            <span className="mt-1 block text-xs font-semibold leading-[1.2] text-[#737781]">
+              {t(row.proofNoteKey)}
+            </span>
+          </span>
+        </div>
       </td>
       <td className="px-2 py-3.5 align-top">
         <span
           className={[
-            'inline-flex items-center rounded-full px-3 py-[5px] text-sm font-semibold',
+            'inline-flex items-center gap-1.5 rounded-full px-3 py-[5px]',
             status.bg,
-            status.fg,
           ].join(' ')}
         >
-          {t(status.labelKey)}
+          <span className={['size-1.5 shrink-0 rounded-full', status.dot].join(' ')} />
+          <span className={['text-sm font-semibold leading-[1.2]', status.fg].join(' ')}>
+            {t(status.labelKey)}
+          </span>
         </span>
-        {row.action ? (
-          row.action.variant === 'link' ? (
-            <button
-              type="button"
-              className="mt-2 block text-base font-semibold text-[#233e92]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {t(row.action.labelKey)}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className={[
-                'mt-2 inline-flex h-9 items-center gap-1 rounded-sm px-2.5 text-sm font-semibold',
-                ACTION_STYLES[row.action.variant],
-              ].join(' ')}
-            >
-              {row.action.icon ? <img src={invoiceActionIcon} alt="" className="size-5" /> : null}
-              {t(row.action.labelKey)}
-            </button>
-          )
-        ) : null}
+        <div className="mt-2">
+          <NextStepButton row={row} />
+        </div>
       </td>
     </>
   )
@@ -349,8 +443,7 @@ function DeliveryNotesTable() {
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-x-[52px] gap-y-3 px-6 pt-[17px]">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-4 pt-4">
         {DELIVERY_TABS.map((tab) => {
           const active = tab.id === activeTab
           return (
@@ -358,20 +451,18 @@ function DeliveryNotesTable() {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className="flex items-center gap-1"
+              className={[
+                'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
+                active
+                  ? 'font-semibold text-[#233e92]'
+                  : 'font-medium text-[#5b606c] hover:text-text-secondary',
+              ].join(' ')}
             >
+              {t(tab.labelKey)}
               <span
                 className={[
-                  'text-base leading-[1.2]',
-                  active ? 'font-semibold text-[#233e92]' : 'font-medium text-[#5b606c]',
-                ].join(' ')}
-              >
-                {t(tab.labelKey)}
-              </span>
-              <span
-                className={[
-                  'inline-flex h-[18px] items-center rounded-full px-1.5 text-xs font-semibold leading-[1.2]',
-                  tab.tone === 'danger'
+                  'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                  tab.danger
                     ? 'bg-[#fff0f0] text-[#98140b]'
                     : active
                       ? 'bg-[#f4f6fb] text-[#233e92]'
@@ -380,19 +471,21 @@ function DeliveryNotesTable() {
               >
                 {tab.count}
               </span>
+              {active ? (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[#233e92]" />
+              ) : null}
             </button>
           )
         })}
       </div>
 
-      {/* Search + Filters/Sort */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-[27px]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
         <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
             placeholder={t('deliveryNotes.searchPlaceholder')}
-            className="w-full bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-[#8a8e96]"
+            className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-[#8a8e96]"
           />
         </label>
         <div className="flex items-center gap-4">
@@ -401,45 +494,56 @@ function DeliveryNotesTable() {
             className="inline-flex h-11 items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-3 text-sm font-semibold text-[#444957]"
           >
             <img src={filterIcon} alt="" className="size-6" />
-            {t('deliveryNotes.filters')}
+            {t('orderForms.filters')}
           </button>
           <button
             type="button"
             className="inline-flex h-11 items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-3 text-sm font-semibold text-[#444957]"
           >
             <img src={sortIcon} alt="" className="size-6" />
-            {t('deliveryNotes.sort')}
+            {t('orderForms.sort')}
           </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[1100px] border-collapse text-start">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1124px] table-fixed border-collapse text-start">
+          {/* Figma column widths — the proof column is 201 wide, wider than order forms. */}
+          <colgroup>
+            <col className="w-[45px]" />
+            <col className="w-[152px]" />
+            <col className="w-[186px]" />
+            <col className="w-[126px]" />
+            <col className="w-[147px]" />
+            <col className="w-[201px]" />
+            <col className="w-[193px]" />
+            <col className="w-[44px]" />
+          </colgroup>
           <thead>
-            <tr className="bg-[#2c3342] text-start text-xs leading-[1.2] text-white">
-              <th className="w-10 px-5 py-2.5">
+            <tr className="bg-[#2c3342]">
+              <th className="px-4 py-2.5 text-start">
                 <input
                   type="checkbox"
                   aria-label={t('deliveryNotes.selectAll')}
                   className="size-[15px] rounded-[4px] border border-[#d0d2d5] bg-transparent"
                 />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('deliveryNotes.col.note')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">
-                {t('deliveryNotes.col.party')}
-              </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('deliveryNotes.col.date')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">
-                {t('deliveryNotes.col.whatMoved')}
-              </th>
-              <th className="px-2 py-2.5 text-start font-semibold">
-                {t('deliveryNotes.col.proof')}
-              </th>
-              <th className="px-2 py-2.5 text-start font-semibold">
-                {t('deliveryNotes.col.status')}
-              </th>
-              <th className="w-14 px-2 py-2.5" />
+              {[
+                'orderForms.columns.order',
+                'orderForms.columns.party',
+                'orderForms.columns.movementDue',
+                'deliveryNotes.columns.whatMoved',
+                'orderForms.columns.fulfilment',
+                'orderForms.columns.statusNextStep',
+              ].map((key) => (
+                <th
+                  key={key}
+                  className="px-2 py-2.5 text-start text-xs font-semibold uppercase leading-[1.2] text-white"
+                >
+                  {t(key)}
+                </th>
+              ))}
+              <th className="px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
@@ -449,11 +553,11 @@ function DeliveryNotesTable() {
                 className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
                 onClick={() => navigate(`/trade-documents/delivery-notes/${row.id}`)}
               >
-                <td className="px-5 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
+                <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     aria-label={t('deliveryNotes.selectRow', { id: row.id })}
-                    className="mt-6 size-[15px] rounded-[4px] border border-[#d0d2d5]"
+                    className="mt-1 size-[15px] rounded-[4px] border border-[#d0d2d5]"
                   />
                 </td>
                 <DeliveryRowCells row={row} />
@@ -469,105 +573,55 @@ function DeliveryNotesTable() {
         </table>
       </div>
 
-      {/* Legend — what each fill colour means, split by direction. */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 pt-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-medium leading-[1.2] text-[#151c2d]">
-            {t('deliveryNotes.legend.sales')}
-          </span>
-          <span className="flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#2c4eb7]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('deliveryNotes.legend.invoiced')}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#b99a66]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('deliveryNotes.legend.deliveredNotInvoiced')}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#f3f3f3]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('deliveryNotes.legend.stillToDeliver')}
-              </span>
-            </span>
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs font-medium leading-[1.2] text-[#151c2d]">
-            {t('deliveryNotes.legend.purchase')}
-          </span>
-          <span className="flex flex-wrap items-center gap-4">
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#595d75]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('deliveryNotes.legend.billedBySupplier')}
-              </span>
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-[7px] w-[18px] rounded-[2px] bg-[#b99a66]" />
-              <span className="text-xs font-medium leading-[1.2] text-[#444957]">
-                {t('deliveryNotes.legend.receivedNotBilled')}
-              </span>
-            </span>
-          </span>
-        </div>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-[#737781]">{t('deliveryNotes.showResult')}</span>
-          <span className="inline-flex items-center gap-2.5 rounded-sm border border-[#e8e8ea] px-3 py-2 text-sm font-semibold text-[#2c3342]">
-            7
+      <div className="flex flex-wrap items-center justify-between gap-4 px-4 pb-4 pt-3">
+        <label className="flex items-center gap-4 text-sm font-medium text-[#737781]">
+          {t('orderForms.showResult')}
+          <span className="inline-flex h-[33px] items-center gap-2.5 rounded-sm border border-[#e8e8ea] px-3 text-sm font-semibold text-[#2c3342]">
+            6
             <img src={chevronDownIcon} alt="" className="size-4" />
           </span>
-        </div>
-        <div className="flex items-center">
+        </label>
+        <nav className="flex items-center" aria-label={t('orderForms.pagination')}>
           <button
             type="button"
-            aria-label={t('deliveryNotes.prevPage')}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label={t('orderForms.previous')}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rtl:rotate-180" />
           </button>
-          {DELIVERY_PAGE_NUMBERS.map((n, i) =>
-            n === '...' ? (
+          {DELIVERY_PAGE_NUMBERS.map((label, index) =>
+            label === '...' ? (
               <span
-                key={`gap-${i}`}
+                key={`gap-${index}`}
                 className="flex size-10 items-center justify-center text-sm font-medium text-[#737781]"
               >
                 …
               </span>
             ) : (
               <button
-                key={n}
+                key={label}
                 type="button"
-                onClick={() => setPage(Number(n))}
+                onClick={() => setPage(Number(label))}
+                aria-current={page === Number(label) ? 'page' : undefined}
                 className={[
                   'flex size-10 items-center justify-center rounded-xl',
-                  page === Number(n)
+                  page === Number(label)
                     ? 'bg-[#f4f6fb] text-base font-extrabold text-[#2c4eb7]'
                     : 'text-sm font-medium text-[#737781]',
                 ].join(' ')}
               >
-                {n}
+                {label}
               </button>
             ),
           )}
           <button
             type="button"
-            aria-label={t('deliveryNotes.nextPage')}
-            onClick={() => setPage((p) => p + 1)}
+            aria-label={t('orderForms.next')}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
           </button>
-        </div>
+        </nav>
       </div>
     </section>
   )

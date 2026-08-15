@@ -1,259 +1,239 @@
 /**
- * Delivery notes management (Figma 13:38570).
+ * Delivery notes (Figma 68:39213).
  *
- * A delivery note is proof that goods changed hands — quantities only, never prices.
- * Like order forms it is dual-natured: a *sales* delivery is what you sent a customer,
- * a *purchase* receipt (GRN) is what a supplier sent you.
+ * A delivery note records that goods changed hands — quantities only, never prices. Like order
+ * forms it runs in both directions: sales deliveries you sent out, and purchase receipts a
+ * supplier sent you. The fulfilment column carries the *proof*: who signed, or why nobody did.
  */
 
-export type DeliveryDirection = 'sales' | 'purchase'
+import type { NextStep, OrderStatus, PartyKind } from './orderForms'
 
 export type DeliveryMode = 'all' | 'sales' | 'purchase'
+export type DeliveryDirection = 'sales' | 'purchase'
 
-export type DeliveryTabId =
-  | 'all'
-  | 'draft'
-  | 'open'
-  | 'overdue'
-  | 'readyToInvoice'
-  | 'awaitingSupplierBill'
-  | 'completed'
-
-export type DeliveryStatus =
-  | 'readyToInvoice'
-  | 'awaitingSupplierBill'
-  | 'inProgress'
-  | 'partReceived'
-  | 'deliveryOverdue'
-  | 'inTransit'
-  | 'completed'
+/** The proof disc: fill, border and glyph all change with the outcome. */
+export type ProofKind = 'signed' | 'check' | 'clock' | 'short' | 'unsigned' | 'photo' | 'awaiting'
 
 export type DeliveryRow = {
   id: string
   direction: DeliveryDirection
-  /** What the note was raised against — an order, or "Standalone". */
-  against: string
+  /** "vs SO-0073" — the order this note was raised against, or "Standalone". */
+  sourceKey: string
   party: string
-  partyRole: 'customer' | 'supplier'
-  date: string
-  dateNote: string
-  dateTone: 'normal' | 'danger'
+  partyKind: PartyKind
+  due: string
+  dueNoteKey: string
+  dueOverdue?: boolean
+  /** "3 lines" plus the quantity breakdown underneath. */
   lines: string
   quantities: string
-  /** Red when the delivery came up short. */
-  quantitiesTone: 'normal' | 'danger'
-  proof: string
-  proofNote: string
-  proofTone: 'normal' | 'danger'
-  status: DeliveryStatus
-  action?: { labelKey: string; variant: 'primary' | 'slate' | 'outline' | 'link'; icon?: boolean }
+  quantitiesAlert?: boolean
+  proof: ProofKind
+  proofTitleKey: string
+  proofNoteKey: string
+  status: OrderStatus
+  action: NextStep
 }
 
-export const DELIVERY_MODES: { id: DeliveryMode; titleKey: string; hintKey: string; count: string }[] =
-  [
-    {
-      id: 'all',
-      titleKey: 'deliveryNotes.mode.all',
-      hintKey: 'deliveryNotes.mode.allHint',
-      count: '48',
-    },
-    {
-      id: 'sales',
-      titleKey: 'deliveryNotes.mode.sales',
-      hintKey: 'deliveryNotes.mode.salesHint',
-      count: '31',
-    },
-    {
-      id: 'purchase',
-      titleKey: 'deliveryNotes.mode.purchase',
-      hintKey: 'deliveryNotes.mode.purchaseHint',
-      count: '13',
-    },
-  ]
-
-export const DELIVERY_KPI: {
-  id: string
-  icon: 'transit' | 'orders' | 'delivered' | 'received'
+export const DELIVERY_MODES: {
+  id: DeliveryMode
   titleKey: string
-  count: string
-  /** The first card splits its count by direction, two others offer a next step. */
-  split?: { outKey: string; inKey: string }
-  metaKey?: string
-  link?: string
+  hintKey: string
+  count: number
 }[] = [
   {
-    id: 'moving',
-    icon: 'transit',
-    titleKey: 'deliveryNotes.kpi.onTheMove',
-    count: '6',
-    split: { outKey: 'deliveryNotes.kpi.movingOut', inKey: 'deliveryNotes.kpi.movingIn' },
+    id: 'all',
+    titleKey: 'deliveryNotes.mode.all',
+    hintKey: 'deliveryNotes.mode.allHint',
+    count: 48,
   },
   {
-    id: 'unsigned',
-    icon: 'orders',
-    titleKey: 'deliveryNotes.kpi.noProof',
-    count: '3',
-    metaKey: 'deliveryNotes.kpi.noProofMeta',
-    link: 'deliveryNotes.kpi.chaseSignatures',
+    id: 'sales',
+    titleKey: 'deliveryNotes.mode.sales',
+    hintKey: 'deliveryNotes.mode.salesHint',
+    count: 31,
   },
   {
-    id: 'uninvoiced',
-    icon: 'delivered',
-    titleKey: 'deliveryNotes.kpi.deliveredNotInvoiced',
-    count: '9',
-    metaKey: 'deliveryNotes.kpi.deliveredNotInvoicedMeta',
-    link: 'deliveryNotes.kpi.review',
-  },
-  {
-    id: 'short',
-    icon: 'received',
-    titleKey: 'deliveryNotes.kpi.shortDeliveries',
-    count: '2',
-    metaKey: 'deliveryNotes.kpi.shortDeliveriesMeta',
+    id: 'purchase',
+    titleKey: 'deliveryNotes.mode.purchase',
+    hintKey: 'deliveryNotes.mode.purchaseHint',
+    count: 13,
   },
 ]
 
-export const DELIVERY_TABS: { id: DeliveryTabId; labelKey: string; count: string; tone?: 'danger' }[] =
-  [
-    { id: 'all', labelKey: 'deliveryNotes.tabs.all', count: '32' },
-    { id: 'draft', labelKey: 'deliveryNotes.tabs.draft', count: '4' },
-    { id: 'open', labelKey: 'deliveryNotes.tabs.open', count: '6' },
-    { id: 'overdue', labelKey: 'deliveryNotes.tabs.overdue', count: '1', tone: 'danger' },
-    { id: 'readyToInvoice', labelKey: 'deliveryNotes.tabs.readyToInvoice', count: '9' },
-    {
-      id: 'awaitingSupplierBill',
-      labelKey: 'deliveryNotes.tabs.awaitingSupplierBill',
-      count: '9',
-    },
-    { id: 'completed', labelKey: 'deliveryNotes.tabs.completed', count: '9' },
-  ]
+/** These KPIs count documents, not money — no OMR mark anywhere on this screen. */
+export const DELIVERY_KPI = [
+  {
+    id: 'move',
+    icon: 'move' as const,
+    disc: 'bg-[#f4f6fb]',
+    titleKey: 'deliveryNotes.kpi.move',
+    count: '6',
+    legend: [
+      { labelKey: 'deliveryNotes.kpi.moveOut', tone: 'out' as const },
+      { labelKey: 'deliveryNotes.kpi.moveIn', tone: 'in' as const },
+    ],
+  },
+  {
+    id: 'noProof',
+    icon: 'noproof' as const,
+    disc: 'bg-[#f4f6fb]',
+    titleKey: 'deliveryNotes.kpi.noProof',
+    count: '3',
+    noteKey: 'deliveryNotes.kpi.noProofNote',
+    link: { labelKey: 'deliveryNotes.kpi.noProofLink', to: '/trade-documents/delivery-notes' },
+  },
+  {
+    id: 'notInvoiced',
+    icon: 'delivered' as const,
+    disc: 'bg-[#f7f1e6]',
+    titleKey: 'deliveryNotes.kpi.notInvoiced',
+    count: '9',
+    noteKey: 'deliveryNotes.kpi.notInvoicedNote',
+    link: { labelKey: 'deliveryNotes.kpi.notInvoicedLink', to: '/trade-documents/delivery-notes' },
+  },
+  {
+    id: 'short',
+    icon: 'short' as const,
+    disc: 'bg-[#f7f1e6]',
+    titleKey: 'deliveryNotes.kpi.short',
+    count: '2',
+    noteKey: 'deliveryNotes.kpi.shortNote',
+  },
+]
+
+export type DeliveryTabId =
+  'all' | 'draft' | 'open' | 'overdue' | 'readyToInvoice' | 'awaitingSupplierBill' | 'completed'
+
+export const DELIVERY_TABS: {
+  id: DeliveryTabId
+  labelKey: string
+  count: number
+  danger?: boolean
+}[] = [
+  { id: 'all', labelKey: 'deliveryNotes.tabs.all', count: 32 },
+  { id: 'draft', labelKey: 'deliveryNotes.tabs.draft', count: 4 },
+  { id: 'open', labelKey: 'deliveryNotes.tabs.open', count: 6 },
+  { id: 'overdue', labelKey: 'deliveryNotes.tabs.overdue', count: 1, danger: true },
+  { id: 'readyToInvoice', labelKey: 'deliveryNotes.tabs.readyToInvoice', count: 9 },
+  { id: 'awaitingSupplierBill', labelKey: 'deliveryNotes.tabs.awaitingSupplierBill', count: 9 },
+  { id: 'completed', labelKey: 'deliveryNotes.tabs.completed', count: 9 },
+]
 
 export const DELIVERY_ROWS: DeliveryRow[] = [
   {
     id: 'DN-0124',
     direction: 'sales',
-    against: 'vs SO-0073',
+    sourceKey: 'deliveryNotes.source.vsSo0073',
     party: 'Nizwa Souq Café',
-    partyRole: 'customer',
-    date: '27 Jul 2026',
-    dateNote: 'Delivered 09:20',
-    dateTone: 'normal',
+    partyKind: 'customer',
+    due: '27 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.delivered0920',
     lines: '3 lines',
     quantities: '24 KG · 18 EA · 3 EA',
-    quantitiesTone: 'normal',
-    proof: 'Khalid Al Rashid',
-    proofNote: 'Signed on device',
-    proofTone: 'normal',
+    proof: 'signed',
+    proofTitleKey: 'deliveryNotes.proof.khalid',
+    proofNoteKey: 'deliveryNotes.proof.signedOnDevice',
     status: 'readyToInvoice',
-    action: { labelKey: 'deliveryNotes.action.issueInvoice', variant: 'primary', icon: true },
+    action: { kind: 'invoice', labelKey: 'orderForms.action.issueInvoice' },
   },
   {
     id: 'GRN-0087',
     direction: 'purchase',
-    against: 'vs PO-0031',
+    sourceKey: 'deliveryNotes.source.vsPo0031',
     party: 'Muscat Roastery Co',
-    partyRole: 'supplier',
-    date: '28 Jul 2026',
-    dateNote: 'Received 07:45',
-    dateTone: 'normal',
+    partyKind: 'supplier',
+    due: '28 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.received0745',
     lines: '2 lines',
     quantities: '240 KG · 60 EA',
-    quantitiesTone: 'normal',
-    proof: 'Yusuf',
-    proofNote: 'Checked in Main store',
-    proofTone: 'normal',
+    proof: 'check',
+    proofTitleKey: 'deliveryNotes.proof.yusuf',
+    proofNoteKey: 'deliveryNotes.proof.checkedInMainStore',
     status: 'awaitingSupplierBill',
-    action: { labelKey: 'deliveryNotes.action.selfBillSupplier', variant: 'slate' },
+    action: { kind: 'selfbill', labelKey: 'orderForms.action.selfBillSupplier' },
   },
   {
     id: 'DN-0131',
     direction: 'sales',
-    against: 'vs SO-0071',
+    sourceKey: 'deliveryNotes.source.vsSo0071',
     party: 'Salalah Beach Resort',
-    partyRole: 'customer',
-    date: '30 Jul 2026',
-    dateNote: 'Left depot 06:10',
-    dateTone: 'normal',
+    partyKind: 'customer',
+    due: '30 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.leftDepot0610',
     lines: '4 lines',
     quantities: '180 KG · 40 EA · 12 EA · 6 EA',
-    quantitiesTone: 'normal',
-    proof: 'Not yet delivered',
-    proofNote: 'Driver Salim',
-    proofTone: 'normal',
+    proof: 'clock',
+    proofTitleKey: 'deliveryNotes.proof.notYetDelivered',
+    proofNoteKey: 'deliveryNotes.proof.driverSalim',
     status: 'inProgress',
-    action: { labelKey: 'deliveryNotes.action.logDelivery', variant: 'outline' },
+    action: { kind: 'deliver', labelKey: 'orderForms.action.logDelivery' },
   },
   {
     id: 'GRN-0085',
     direction: 'purchase',
-    against: 'vs PO-0029',
+    sourceKey: 'deliveryNotes.source.vsPo0029',
     party: 'Al Noor Dates LLC',
-    partyRole: 'supplier',
-    date: '26 Jul 2026',
-    dateNote: 'Received 11:30',
-    dateTone: 'normal',
+    partyKind: 'supplier',
+    due: '26 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.received1130',
     lines: '2 lines',
     quantities: '18 of 21 boxes · 3 short',
-    quantitiesTone: 'danger',
-    proof: 'Short by 3 boxes',
-    proofNote: 'Noted by Yusuf · photo attached',
-    proofTone: 'danger',
+    quantitiesAlert: true,
+    proof: 'short',
+    proofTitleKey: 'deliveryNotes.proof.shortBy3',
+    proofNoteKey: 'deliveryNotes.proof.notedByYusuf',
     status: 'partReceived',
-    action: { labelKey: 'deliveryNotes.action.recordReceipt', variant: 'outline' },
+    action: { kind: 'receipt', labelKey: 'orderForms.action.recordReceipt' },
   },
   {
     id: 'DN-0119',
     direction: 'sales',
-    against: 'Standalone',
+    sourceKey: 'deliveryNotes.source.standalone',
     party: 'Al Mouj Marina Café',
-    partyRole: 'customer',
-    date: '25 Jul 2026',
-    dateNote: 'Unsigned for 5 days',
-    dateTone: 'danger',
+    partyKind: 'customer',
+    due: '25 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.unsigned5Days',
+    dueOverdue: true,
     lines: '1 line',
     quantities: '40 KG',
-    quantitiesTone: 'normal',
-    proof: 'Nobody signed',
-    proofNote: 'Left at reception',
-    proofTone: 'normal',
+    proof: 'unsigned',
+    proofTitleKey: 'deliveryNotes.proof.nobodySigned',
+    proofNoteKey: 'deliveryNotes.proof.leftAtReception',
     status: 'deliveryOverdue',
-    action: { labelKey: 'deliveryNotes.action.chaseSignature', variant: 'outline' },
+    action: { kind: 'deliver', labelKey: 'orderForms.action.logDelivery' },
   },
   {
     id: 'DN-0112',
-    direction: 'sales',
-    against: 'vs SO-0068',
+    direction: 'purchase',
+    sourceKey: 'deliveryNotes.source.vsSo0068',
     party: 'Bahla Fort Restaurant',
-    partyRole: 'customer',
-    date: '18 Jul 2026',
-    dateNote: 'Delivered 08:05',
-    dateTone: 'normal',
+    partyKind: 'customer',
+    due: '18 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.delivered0805',
     lines: '3 lines',
     quantities: '120 KG · 30 EA · 8 EA',
-    quantitiesTone: 'normal',
-    proof: 'Photo at door',
-    proofNote: 'Signed by Ahmed · 18 Jul',
-    proofTone: 'normal',
-    status: 'completed',
-    action: { labelKey: 'deliveryNotes.action.viewInvoice', variant: 'link' },
+    proof: 'photo',
+    proofTitleKey: 'deliveryNotes.proof.photoToDoor',
+    proofNoteKey: 'deliveryNotes.proof.signedByAhmed',
+    status: 'ordered',
+    action: { kind: 'receipt', labelKey: 'orderForms.action.recordReceipt' },
   },
   {
     id: 'GRN-0089',
-    direction: 'purchase',
-    against: 'vs PO-0028',
+    direction: 'sales',
+    sourceKey: 'deliveryNotes.source.vsPo0028',
     party: 'Sohar Packaging LLC',
-    partyRole: 'supplier',
-    date: '30 Jul 2026',
-    dateNote: 'Expected today',
-    dateTone: 'normal',
+    partyKind: 'supplier',
+    due: '30 Jul 2026',
+    dueNoteKey: 'deliveryNotes.due.expectedToday',
     lines: '2 lines',
     quantities: 'expected 60 EA · 20 EA',
-    quantitiesTone: 'normal',
-    proof: 'Not arrived',
-    proofNote: 'Awaiting the van',
-    proofTone: 'normal',
-    status: 'inTransit',
-    action: { labelKey: 'deliveryNotes.action.recordReceipt', variant: 'outline' },
+    proof: 'awaiting',
+    proofTitleKey: 'deliveryNotes.proof.notArrived',
+    proofNoteKey: 'deliveryNotes.proof.awaitingVan',
+    status: 'completed',
+    action: { kind: 'link', labelKey: 'orderForms.action.viewInvoice', target: 'INV-2038' },
   },
 ]
 
