@@ -2,33 +2,146 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { PAYMENT_REMINDERS, type ReminderStep } from '../../lib/tradeCreate'
+import { TemplateEditorModal } from '../../components/reminders/ReminderModals'
+import {
+  BEFORE_SENT_RULES,
+  CUSTOMER_SEES,
+  RIGHT_NOW,
+  SCHEDULE_STEPS,
+  SENDING_SETTINGS,
+  STOP_RULES,
+  TONE_CHIP,
+  TONE_LABEL_KEY as TONE_LABEL,
+} from '../../lib/reminders'
 import backIcon from '../../assets/trade-create/back.svg'
 import editIcon from '../../assets/trade-create/edit-msg.svg'
 import deleteIcon from '../../assets/trade-create/delete-msg.svg'
 import plusIcon from '../../assets/trade-create/plus.svg'
 import arrowNextIcon from '../../assets/trade-create/arrow-next.svg'
+import clockIcon from '../../assets/trade-create/clock.svg'
+import chevronIcon from '../../assets/create-invoice/chevron.svg'
+import tickCircleIcon from '../../assets/trade-create/tick-circle.svg'
 import bellIcon from '../../assets/dashboard/bell.svg'
 
-/** The tone chip escalates with the step — polite, then direct, then firm. */
-const TONE_STYLES: Record<ReminderStep['tone'], string> = {
-  polite: 'bg-[#eaedf8] text-[#2c4eb7]',
-  direct: 'bg-[#f7f1e6] text-[#6d5a39]',
-  firm: 'bg-[#fff0f0] text-[#98140b]',
+function SectionCard({
+  step,
+  title,
+  hint,
+  children,
+}: {
+  step: number
+  title: string
+  hint?: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-sm bg-surface-card p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex size-6 items-center justify-center rounded-[5px] bg-surface-background text-[13px] font-extrabold leading-[1.2] text-primary-800">
+          {step}
+        </span>
+        <h2 className="text-xl font-medium leading-[1.2] text-[#2c3342]">{title}</h2>
+        {hint ? (
+          <span className="text-xs font-medium leading-[1.2] text-[#5b606c]">{hint}</span>
+        ) : null}
+      </div>
+      <div className="mt-3 h-px w-full bg-border-subtle" />
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
+
+/** A checkbox rule with its explanation underneath — used by sections 2 and 4. */
+function RuleRow({
+  titleKey,
+  noteKey,
+  defaultOn,
+  boxed,
+}: {
+  titleKey: string
+  noteKey: string
+  defaultOn: boolean
+  boxed?: boolean
+}) {
+  const { t } = useTranslation()
+  const [on, setOn] = useState(defaultOn)
+
+  return (
+    <label
+      className={[
+        'flex cursor-pointer items-start gap-3',
+        boxed
+          ? [
+              'rounded-sm border p-3',
+              on ? 'border-[#2c4eb7] bg-[#f4f6fb]/60' : 'border-[#e8e8ea]',
+            ].join(' ')
+          : 'py-3',
+      ].join(' ')}
+    >
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={() => setOn((v) => !v)}
+        className="mt-0.5 size-5 shrink-0 rounded-[4px] accent-[#2c4eb7]"
+      />
+      <span className="min-w-0">
+        <span className="block text-base font-medium leading-[1.2] text-[#151c2d]">
+          {t(titleKey)}
+        </span>
+        <span className="mt-1 block text-sm font-medium leading-[1.3] text-[#5b606c]">
+          {t(noteKey)}
+        </span>
+      </span>
+    </label>
+  )
+}
+
+function SelectField({
+  label,
+  required,
+  value,
+  suffix = 'chevron',
+}: {
+  label: string
+  required?: boolean
+  value: string
+  suffix?: 'chevron' | 'clock'
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-[#151c2d]">
+        {label}
+        {required ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
+      </span>
+      <div className="flex h-[50px] w-full items-center justify-between gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-secondary">
+          {value}
+        </span>
+        {suffix === 'clock' ? (
+          <img src={clockIcon} alt="" className="size-6" />
+        ) : (
+          <img src={chevronIcon} alt="" className="size-6 rotate-90" />
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function PaymentRemindersPage() {
   const { t } = useTranslation()
-  const doc = PAYMENT_REMINDERS
-  const [enabled, setEnabled] = useState(doc.enabled)
+  const [enabled, setEnabled] = useState(true)
+  const [templateOpen, setTemplateOpen] = useState(false)
 
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-28">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link to="/dashboard" className="text-2xl font-medium leading-[1.2] text-[#5b606c]">
+              <Link
+                to="/income/reminders"
+                className="text-2xl font-medium leading-[1.2] text-[#5b606c]"
+              >
                 {t('reminders.breadcrumb')}
               </Link>
               <img src={backIcon} alt="" aria-hidden="true" className="size-6 rtl:rotate-180" />
@@ -41,6 +154,7 @@ export function PaymentRemindersPage() {
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5b606c]">
+            <img src={tickCircleIcon} alt="" className="size-5" />
             {t('tradeCreate.savedJustNow')}
           </span>
         </div>
@@ -55,10 +169,10 @@ export function PaymentRemindersPage() {
                 </span>
                 <span className="min-w-0">
                   <span className="block text-base font-medium leading-[1.2] text-[#151c2d]">
-                    {t(doc.bannerTitleKey)}
+                    {t('reminders.bannerTitle')}
                   </span>
                   <span className="mt-1 block text-sm font-medium leading-[1.2] text-[#5b606c]">
-                    {t(doc.bannerNoteKey)}
+                    {t('reminders.bannerNote')}
                   </span>
                 </span>
               </span>
@@ -66,7 +180,7 @@ export function PaymentRemindersPage() {
                 type="button"
                 role="switch"
                 aria-checked={enabled}
-                aria-label={t(doc.bannerTitleKey)}
+                aria-label={t('reminders.bannerTitle')}
                 onClick={() => setEnabled((v) => !v)}
                 className={[
                   'relative h-[23px] w-[42px] shrink-0 rounded-full transition-colors',
@@ -82,22 +196,13 @@ export function PaymentRemindersPage() {
               </button>
             </div>
 
-            <section className="rounded-sm bg-surface-card p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex size-6 items-center justify-center rounded-[5px] bg-surface-background text-[13px] font-extrabold leading-[1.2] text-primary-800">
-                  1
-                </span>
-                <h2 className="text-xl font-medium leading-[1.2] text-[#2c3342]">
-                  {t(doc.scheduleTitleKey)}
-                </h2>
-                <span className="text-xs font-medium leading-[1.2] text-[#5b606c]">
-                  {t(doc.scheduleHintKey)}
-                </span>
-              </div>
-              <div className="mt-3 h-px w-full bg-border-subtle" />
-
-              <div className="mt-4 flex flex-col gap-3">
-                {doc.steps.map((step) => (
+            <SectionCard
+              step={1}
+              title={t('reminders.scheduleTitle')}
+              hint={t('reminders.scheduleHint')}
+            >
+              <div className="flex flex-col gap-3">
+                {SCHEDULE_STEPS.map((step) => (
                   <div
                     key={step.id}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-[#e8e8ea] p-3"
@@ -119,10 +224,10 @@ export function PaymentRemindersPage() {
                           <span
                             className={[
                               'inline-flex items-center rounded-full px-2.5 py-[3px] text-xs font-semibold',
-                              TONE_STYLES[step.tone],
+                              TONE_CHIP[step.tone],
                             ].join(' ')}
                           >
-                            {t(step.toneKey)}
+                            {t(TONE_LABEL[step.tone])}
                           </span>
                         </span>
                         <span className="mt-1.5 block text-sm font-medium leading-[1.2] text-[#444957]">
@@ -136,6 +241,7 @@ export function PaymentRemindersPage() {
                     <span className="flex shrink-0 items-center gap-2">
                       <button
                         type="button"
+                        onClick={() => setTemplateOpen(true)}
                         className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
                       >
                         <img src={editIcon} alt="" className="size-4" />
@@ -160,17 +266,17 @@ export function PaymentRemindersPage() {
                 <img src={plusIcon} alt="" className="size-5" />
                 {t('reminders.addStep')}
               </button>
-            </section>
+            </SectionCard>
           </div>
 
           <div className="flex flex-col gap-4">
             <section className="rounded-sm bg-surface-card p-4">
               <h2 className="text-base font-medium leading-[1.2] text-[#151c2d]">
-                {t(doc.customerSees.titleKey)}
+                {t('reminders.customerSeesTitle')}
               </h2>
               <div className="mt-3 h-px w-full bg-border-subtle" />
               <ol className="mt-4 flex flex-col gap-4">
-                {doc.customerSees.rows.map((row) => (
+                {CUSTOMER_SEES.map((row) => (
                   <li key={row.n} className="flex items-start gap-3">
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#f3f3f3] text-xs font-semibold text-[#5b606c]">
                       {row.n}
@@ -191,19 +297,19 @@ export function PaymentRemindersPage() {
             <section className="rounded-sm bg-surface-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-base font-medium leading-[1.2] text-[#151c2d]">
-                  {t(doc.rightNow.titleKey)}
+                  {t('reminders.rightNowTitle')}
                 </h2>
-                <button
-                  type="button"
+                <Link
+                  to="/income/reminders"
                   className="inline-flex items-center gap-1 text-sm font-semibold text-[#233e92]"
                 >
-                  {t(doc.rightNow.linkKey)}
+                  {t('reminders.viewQueue')}
                   <img src={arrowNextIcon} alt="" className="size-4 rtl:rotate-180" />
-                </button>
+                </Link>
               </div>
               <div className="mt-3 h-px w-full bg-border-subtle" />
               <dl className="mt-4 flex flex-col gap-3">
-                {doc.rightNow.rows.map((row) => (
+                {RIGHT_NOW.map((row) => (
                   <div key={row.labelKey} className="flex items-center justify-between gap-3">
                     <dt className="text-sm font-medium leading-[1.2] text-[#5b606c]">
                       {t(row.labelKey)}
@@ -217,7 +323,74 @@ export function PaymentRemindersPage() {
             </section>
           </div>
         </div>
+
+        <SectionCard step={2} title={t('reminders.stopTitle')}>
+          <div className="flex flex-col">
+            {STOP_RULES.map((rule) => (
+              <RuleRow
+                key={rule.id}
+                titleKey={rule.titleKey}
+                noteKey={rule.noteKey}
+                defaultOn={rule.on}
+              />
+            ))}
+          </div>
+        </SectionCard>
+
+        <SectionCard step={3} title={t('reminders.sendingTitle')}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <SelectField
+              label={t('reminders.sending.sendFrom')}
+              required
+              value={SENDING_SETTINGS.sendFrom}
+            />
+            <SelectField label={t('reminders.sending.replyTo')} value={SENDING_SETTINGS.replyTo} />
+            <SelectField
+              label={t('reminders.sending.sendAt')}
+              value={SENDING_SETTINGS.sendAt}
+              suffix="clock"
+            />
+            <SelectField
+              label={t('reminders.sending.attachPdf')}
+              value={SENDING_SETTINGS.attachPdf}
+            />
+          </div>
+        </SectionCard>
+
+        {/* Figma numbers this "3" as well — kept as 4 so the sequence reads correctly. */}
+        <SectionCard step={4} title={t('reminders.beforeTitle')}>
+          <div className="flex flex-col gap-3">
+            {BEFORE_SENT_RULES.map((rule) => (
+              <RuleRow
+                key={rule.id}
+                titleKey={rule.titleKey}
+                noteKey={rule.noteKey}
+                defaultOn={rule.on}
+                boxed
+              />
+            ))}
+          </div>
+        </SectionCard>
       </div>
+
+      <div className="fixed bottom-0 end-0 start-0 z-30 border-t border-border-subtle bg-white px-4 py-3 md:start-[248px]">
+        <div className="mx-auto flex max-w-[1144px] flex-wrap items-center justify-end gap-3">
+          <button
+            type="button"
+            className="inline-flex h-[46px] items-center rounded-sm border border-[#e8e8ea] bg-white px-6 text-base font-medium text-[#3a3a3a]"
+          >
+            {t('reminders.sendMyselfTest')}
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-[46px] items-center rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white"
+          >
+            {t('reminders.saveChanges')}
+          </button>
+        </div>
+      </div>
+
+      <TemplateEditorModal open={templateOpen} onClose={() => setTemplateOpen(false)} />
     </AppShell>
   )
 }
