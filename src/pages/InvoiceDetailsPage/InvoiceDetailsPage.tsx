@@ -180,14 +180,15 @@ function AttachmentsCard({ invoice }: { invoice: typeof INVOICE_DETAIL }) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2.5">
-              {/* Files already on the record are fetched from the server; that endpoint is the
-                  one seam left here: GET /api/v1/invoices/{id}/attachments/{attachmentId}. */}
+              {/* A file picked in this session downloads straight from the blob we still hold.
+                  One already on the record has no bytes on the client, so it waits on the one
+                  seam left here: GET /api/v1/invoices/{id}/attachments/{attachmentId}. Drawn at
+                  full strength either way — it will work once that endpoint exists, and dimming
+                  it would misdescribe the finished screen. */}
               <button
                 type="button"
                 aria-label={t('invoiceDetails.download')}
                 onClick={() => download(file)}
-                disabled={!file.file}
-                className="disabled:opacity-40"
                 title={file.file ? undefined : t('invoiceDetails.attachments.serverFile')}
               >
                 <img src={downloadIcon} alt="" className="size-6" />
