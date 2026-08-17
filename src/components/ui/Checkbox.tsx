@@ -29,7 +29,13 @@ export function Checkbox({ label, id, className = '', ...props }: CheckboxProps)
           ].join(' ')}
           aria-hidden="true"
         >
-          <svg width="12" height="10" viewBox="0 0 12 10" fill="none" className="opacity-0 transition-opacity">
+          <svg
+            width="12"
+            height="10"
+            viewBox="0 0 12 10"
+            fill="none"
+            className="opacity-0 transition-opacity"
+          >
             <path
               d="M1 5.2L4.2 8.5L11 1.5"
               stroke="white"

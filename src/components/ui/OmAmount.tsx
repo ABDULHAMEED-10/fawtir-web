@@ -37,12 +37,7 @@ export function OmAmount({
         src={omrIcon}
         alt=""
         aria-hidden="true"
-        className={[
-          ICON_SIZE[size],
-          'shrink-0',
-          onDark ? 'brightness-0 invert' : '',
-          iconClassName,
-        ]
+        className={[ICON_SIZE[size], 'shrink-0', onDark ? 'brightness-0 invert' : '', iconClassName]
           .filter(Boolean)
           .join(' ')}
       />

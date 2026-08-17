@@ -28,12 +28,7 @@ type ActionMenuProps = {
  * Row overflow menu — the "Actions" popup from Figma (158px, 16px padding,
  * 38px item pitch, divider above the destructive item).
  */
-export function ActionMenu({
-  items,
-  label,
-  alignStart = false,
-  variant = 'row',
-}: ActionMenuProps) {
+export function ActionMenu({ items, label, alignStart = false, variant = 'row' }: ActionMenuProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)

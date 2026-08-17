@@ -42,8 +42,20 @@ const CURRENT_STEP_ICONS = [stepQuoteIcon, stepOrderIcon, stepOrderIcon, stepQuo
 
 /** Table rows use the 31px chain; document headers use the 37px one. */
 const SIZES = {
-  sm: { circle: 'size-[31px]', width: 'w-[31px]', glyph: 'size-4', line: 'w-[27px] mt-[15px] mx-2', label: 'text-[8px]' },
-  md: { circle: 'size-[37px]', width: 'w-[37px]', glyph: 'size-[19px]', line: 'w-8 mt-[18px] mx-[9px]', label: 'text-[9px]' },
+  sm: {
+    circle: 'size-[31px]',
+    width: 'w-[31px]',
+    glyph: 'size-4',
+    line: 'w-[27px] mt-[15px] mx-2',
+    label: 'text-[8px]',
+  },
+  md: {
+    circle: 'size-[37px]',
+    width: 'w-[37px]',
+    glyph: 'size-[19px]',
+    line: 'w-8 mt-[18px] mx-[9px]',
+    label: 'text-[9px]',
+  },
 } as const
 
 export function StepTracker({
@@ -64,7 +76,10 @@ export function StepTracker({
         return (
           <div key={step.labelKey} className="flex items-start">
             {i > 0 ? (
-              <span aria-hidden="true" className={['h-px shrink-0 bg-[#e8e8ea]', s.line].join(' ')} />
+              <span
+                aria-hidden="true"
+                className={['h-px shrink-0 bg-[#e8e8ea]', s.line].join(' ')}
+              />
             ) : null}
             <div className={['flex flex-col items-center gap-[3px]', s.width].join(' ')}>
               <span

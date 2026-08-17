@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, TableCheckbox } from '../../components/ui'
 import { deliveryNoteRowActions } from '../../lib/rowActions'
 import {
   DELIVERY_KPI,
@@ -440,6 +440,16 @@ function DeliveryNotesTable() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<DeliveryTabId>('all')
   const [page, setPage] = useState(2)
+  const [selected, setSelected] = useState<string[]>([])
+
+  const toggleRow = (id: string) =>
+    setSelected((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    )
+  const allSelected = selected.length === DELIVERY_ROWS.length
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : DELIVERY_ROWS.map((row) => row.id))
+
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -522,10 +532,11 @@ function DeliveryNotesTable() {
           <thead>
             <tr className="bg-[#2c3342]">
               <th className="px-4 py-2.5 text-start">
-                <input
-                  type="checkbox"
-                  aria-label={t('deliveryNotes.selectAll')}
-                  className="size-[15px] rounded-[4px] border border-[#d0d2d5] bg-transparent"
+                <TableCheckbox
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  indeterminate={selected.length > 0 && !allSelected}
+                  ariaLabel={t('deliveryNotes.selectAll')}
                 />
               </th>
               {[
@@ -554,11 +565,11 @@ function DeliveryNotesTable() {
                 onClick={() => navigate(`/trade-documents/delivery-notes/${row.id}`)}
               >
                 <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={t('deliveryNotes.selectRow', { id: row.id })}
-                    className="mt-1 size-[15px] rounded-[4px] border border-[#d0d2d5]"
-                  />
+                  <TableCheckbox
+                      checked={selected.includes(row.id)}
+                      onChange={() => toggleRow(row.id)}
+                      ariaLabel={t('deliveryNotes.selectRow', { id: row.id })}
+                    />
                 </td>
                 <DeliveryRowCells row={row} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>

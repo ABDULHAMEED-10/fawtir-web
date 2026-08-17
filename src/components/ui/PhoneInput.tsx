@@ -20,7 +20,10 @@ export function PhoneInput({
 
   return (
     <div className="flex w-full flex-col gap-1">
-      <label htmlFor={inputId} className="inline-flex items-center gap-0.5 text-sm font-medium text-text-primary">
+      <label
+        htmlFor={inputId}
+        className="inline-flex items-center gap-0.5 text-sm font-medium text-text-primary"
+      >
         {label}
         {requiredMark ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
       </label>
@@ -41,7 +44,9 @@ export function PhoneInput({
           height={20}
           className="h-5 w-5 shrink-0 rounded-[2px] object-cover"
         />
-        <span className="shrink-0 text-sm font-medium tracking-[0.14px] text-text-tertiary">+968</span>
+        <span className="shrink-0 text-sm font-medium tracking-[0.14px] text-text-tertiary">
+          +968
+        </span>
         <input
           id={inputId}
           type="tel"

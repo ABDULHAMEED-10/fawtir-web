@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, TableCheckbox } from '../../components/ui'
 import { orderFormRowActions } from '../../lib/rowActions'
 import {
   BAR_TRACK,
@@ -505,6 +505,16 @@ function OrderFormsTable() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<OrderTabId>('all')
   const [page, setPage] = useState(2)
+  const [selected, setSelected] = useState<string[]>([])
+
+  const toggleRow = (id: string) =>
+    setSelected((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    )
+  const allSelected = selected.length === ORDER_ROWS.length
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : ORDER_ROWS.map((row) => row.id))
+
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -584,10 +594,11 @@ function OrderFormsTable() {
           <thead>
             <tr className="bg-[#2c3342]">
               <th className="px-4 py-2.5 text-start">
-                <input
-                  type="checkbox"
-                  aria-label={t('orderForms.selectAll')}
-                  className="size-[15px] rounded-[4px] border border-[#d0d2d5] bg-transparent"
+                <TableCheckbox
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  indeterminate={selected.length > 0 && !allSelected}
+                  ariaLabel={t('orderForms.selectAll')}
                 />
               </th>
               {[
@@ -616,11 +627,11 @@ function OrderFormsTable() {
                 onClick={() => navigate(`/trade-documents/order-forms/${row.id}`)}
               >
                 <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={t('orderForms.selectRow', { id: row.id })}
-                    className="mt-1 size-[15px] rounded-[4px] border border-[#d0d2d5]"
-                  />
+                  <TableCheckbox
+                      checked={selected.includes(row.id)}
+                      onChange={() => toggleRow(row.id)}
+                      ariaLabel={t('orderForms.selectRow', { id: row.id })}
+                    />
                 </td>
                 <OrderRowCells row={row} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>

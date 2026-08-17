@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { TableCheckbox } from '../../components/ui'
 import {
   PauseRemindersModal,
   SendReminderModal,
@@ -220,6 +221,16 @@ export function RemindersPage() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<QueueTabId>('scheduled')
   const [page, setPage] = useState(2)
+  const [selected, setSelected] = useState<string[]>([])
+
+  const toggleRow = (id: string) =>
+    setSelected((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    )
+  const allSelected = selected.length === QUEUE_ROWS.length && QUEUE_ROWS.length > 0
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : QUEUE_ROWS.map((row) => row.invoice))
+
   const [pauseOpen, setPauseOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
@@ -306,11 +317,12 @@ export function RemindersPage() {
               <thead>
                 <tr className="bg-[#2c3342]">
                   <th className="px-4 py-2.5 text-start">
-                    <input
-                      type="checkbox"
-                      aria-label={t('reminders.queue.selectAll')}
-                      className="size-[15px] rounded-[4px] border border-[#d0d2d5] bg-transparent"
-                    />
+                    <TableCheckbox
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  indeterminate={selected.length > 0 && !allSelected}
+                  ariaLabel={t('reminders.queue.selectAll')}
+                />
                   </th>
                   {[
                     'reminders.queue.cols.sending',
@@ -333,11 +345,11 @@ export function RemindersPage() {
                 {QUEUE_ROWS.map((row) => (
                   <tr key={row.id} className="border-b border-[#f3f3f3] last:border-b-0">
                     <td className="px-4 py-3.5 align-top">
-                      <input
-                        type="checkbox"
-                        aria-label={t('reminders.queue.selectRow', { id: row.invoice })}
-                        className="mt-1 size-[15px] rounded-[4px] border border-[#d0d2d5]"
-                      />
+                      <TableCheckbox
+                          checked={selected.includes(row.invoice)}
+                          onChange={() => toggleRow(row.invoice)}
+                          ariaLabel={t('reminders.queue.selectRow', { id: row.invoice })}
+                        />
                     </td>
                     <RowCells row={row} onPause={() => setPauseOpen(true)} />
                   </tr>

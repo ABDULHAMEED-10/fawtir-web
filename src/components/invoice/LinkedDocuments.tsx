@@ -31,12 +31,21 @@ export function LinkedDocuments({
   titleSlot,
   onRemove,
   onLink,
+  linkableCount = 0,
 }: {
   docs: LinkedDoc[]
   /** The numbered section heading — sits opposite the link button, as in Figma. */
   titleSlot?: ReactNode
   onRemove?: (id: string) => void
   onLink?: () => void
+  /**
+   * How many of this customer's documents are still unlinked.
+   *
+   * The count on the button is the number left to link, not the number already linked — the
+   * button is an action, so "Link 2 documents" has to mean two are waiting. With nothing left
+   * the button goes away entirely rather than opening an empty picker.
+   */
+  linkableCount?: number
 }) {
   const { t } = useTranslation()
 
@@ -44,20 +53,38 @@ export function LinkedDocuments({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {titleSlot}
-        <button
-          type="button"
-          onClick={onLink}
-          className="inline-flex h-10 items-center gap-1.5 rounded-sm border border-[#e8e8ea] px-2.5 text-base font-semibold leading-[1.2] text-[#444957] transition-colors hover:bg-surface-tab-bar"
-        >
-          <img src={linkIcon} alt="" className="size-5" />
-          {t('createInvoice.linked.linkDocuments', { count: docs.length })}
-        </button>
+        {linkableCount > 0 ? (
+          <button
+            type="button"
+            onClick={onLink}
+            className="inline-flex h-10 items-center gap-1.5 rounded-sm border border-[#e8e8ea] px-2.5 text-base font-semibold leading-[1.2] text-[#444957] transition-colors hover:bg-surface-tab-bar"
+          >
+            <img src={linkIcon} alt="" className="size-5" />
+            {t('createInvoice.linked.linkDocuments', { count: linkableCount })}
+          </button>
+        ) : (
+          <p className="text-sm font-medium leading-[1.2] text-text-tertiary">
+            {t('createInvoice.linked.allLinked')}
+          </p>
+        )}
       </div>
       <div className="h-px w-full bg-border-subtle" />
       {docs.length === 0 ? (
-        <p className="py-4 text-center text-sm font-medium text-text-tertiary">
-          {t('createInvoice.linked.empty')}
-        </p>
+        <div className="flex flex-col items-center gap-3 py-6">
+          <p className="text-sm font-medium text-text-tertiary">
+            {t('createInvoice.linked.empty')}
+          </p>
+          {linkableCount > 0 ? (
+            <button
+              type="button"
+              onClick={onLink}
+              className="inline-flex h-10 items-center gap-1.5 rounded-sm border border-primary-300 bg-primary-25 px-3 text-sm font-semibold leading-[1.2] text-primary-800 transition-colors hover:border-primary-500"
+            >
+              <img src={linkIcon} alt="" className="size-5" />
+              {t('createInvoice.linked.browse')}
+            </button>
+          ) : null}
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {docs.map((doc) => {
