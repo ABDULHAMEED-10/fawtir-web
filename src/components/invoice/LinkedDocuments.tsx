@@ -41,9 +41,10 @@ export function LinkedDocuments({
   /**
    * How many of this customer's documents are still unlinked.
    *
-   * The count on the button is the number left to link, not the number already linked — the
-   * button is an action, so "Link 2 documents" has to mean two are waiting. With nothing left
-   * the button goes away entirely rather than opening an empty picker.
+   * Only used to decide whether there is anything to link at all — with nothing left the
+   * button goes away rather than opening an empty picker. It is deliberately not printed on
+   * the button: a number there reads as "link this many", which is why the design ended up
+   * with "Link 1 documents". The picker shows the counts, where they mean something.
    */
   linkableCount?: number
 }) {
@@ -60,7 +61,7 @@ export function LinkedDocuments({
             className="inline-flex h-10 items-center gap-1.5 rounded-sm border border-[#e8e8ea] px-2.5 text-base font-semibold leading-[1.2] text-[#444957] transition-colors hover:bg-surface-tab-bar"
           >
             <img src={linkIcon} alt="" className="size-5" />
-            {t('createInvoice.linked.linkDocuments', { count: linkableCount })}
+            {t('createInvoice.linked.linkDocuments')}
           </button>
         ) : (
           <p className="text-sm font-medium leading-[1.2] text-text-tertiary">

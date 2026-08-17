@@ -1457,7 +1457,13 @@
     "attachments": {
       "title": "Attachments",
       "drop": "Drop files or click to upload",
-      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+      "note": "Kept with the invoice record for audit and disputes. Files added after issuing are not part of the cleared document sent over Peppol.",
+      "justAdded": "{{size}} · Added just now · not yet saved",
+      "serverFile": "Stored on the server",
+      "remove": "Remove {{name}}",
+      "tooLarge": "{{name}} is larger than 10 MB.",
+      "wrongType": "{{name}} is not a supported format."
     },
     "payments": {
       "title": "Payments",
@@ -1622,10 +1628,9 @@
       "inProgress": "In progress",
       "unlink": "Unlink {{id}}",
       "empty": "No documents linked yet.",
-      "linkDocuments_one": "Link 1 document",
-      "linkDocuments_other": "Link {{count}} documents",
       "allLinked": "All related documents are linked",
-      "browse": "Browse documents"
+      "browse": "Browse documents",
+      "linkDocuments": "Link documents"
     }
   },
   "periodicInvoice": {

@@ -2,10 +2,11 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { OmAmount } from '../../components/ui'
+import { FileDropzone, OmAmount } from '../../components/ui'
 import { DocumentPreview } from '../../components/invoice'
 import { INVOICE_DETAIL } from '../../lib/invoiceDetails'
 import { invoiceToPreview } from '../../lib/documentPreview'
+import { formatFileSize } from '../../lib/files'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import sendIcon from '../../assets/invoice-details/send.svg'
@@ -104,6 +105,144 @@ function GhostButton({
 
 /** Zoom steps the toolbar cycles through, matching the 100% the design prints. */
 const ZOOM_STEPS = [0.6, 0.8, 1, 1.25, 1.5, 2]
+
+/** An attachment already on the record, or one the user just added in this session. */
+type Attachment = {
+  id: string
+  name: string
+  meta: string
+  type: 'pdf' | 'jpg'
+  /** Present only for files picked in this session, which is what makes them downloadable now. */
+  file?: File
+}
+
+const ATTACHMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.xlsx,.xls'
+const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+
+/**
+ * Supporting evidence stored against the invoice — the buyer's purchase order, the signed
+ * delivery note, a contract.
+ *
+ * These are deliberately not part of the cleared document: once an invoice has been reported
+ * to the OTA its UBL payload is immutable, so anything added afterwards belongs to the record
+ * rather than to what travelled over Peppol. The note under the heading says so, because
+ * otherwise uploading here reads as amending a cleared invoice, which it is not.
+ */
+function AttachmentsCard({ invoice }: { invoice: typeof INVOICE_DETAIL }) {
+  const { t } = useTranslation()
+  const [files, setFiles] = useState<Attachment[]>(() => invoice.attachments.map((file) => file))
+  const [error, setError] = useState<string>()
+
+  const add = (incoming: File[]) => {
+    setError(undefined)
+    setFiles((current) => [
+      ...current,
+      ...incoming.map((file) => ({
+        id: `${file.name}-${file.lastModified}`,
+        name: file.name,
+        meta: t('invoiceDetails.attachments.justAdded', { size: formatFileSize(file.size) }),
+        type: /\.pdf$/i.test(file.name) ? ('pdf' as const) : ('jpg' as const),
+        file,
+      })),
+    ])
+  }
+
+  const download = (attachment: Attachment) => {
+    if (!attachment.file) return
+    const url = URL.createObjectURL(attachment.file)
+    const anchor = window.document.createElement('a')
+    anchor.href = url
+    anchor.download = attachment.name
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <SectionCard title={t('invoiceDetails.attachments.title')}>
+      <p className="-mt-1 mb-3 text-sm font-medium leading-[1.3] text-text-quaternary">
+        {t('invoiceDetails.attachments.note')}
+      </p>
+      <div className="flex flex-col gap-3">
+        {files.map((file) => (
+          <div
+            key={file.id}
+            className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-2.5 py-2.5"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <img
+                src={file.type === 'pdf' ? pdfIcon : jpgIcon}
+                alt=""
+                className="size-9 shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-base font-medium text-text-primary">{file.name}</p>
+                <p className="truncate text-sm font-medium text-text-quaternary">{file.meta}</p>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2.5">
+              {/* Files already on the record are fetched from the server; that endpoint is the
+                  one seam left here: GET /api/v1/invoices/{id}/attachments/{attachmentId}. */}
+              <button
+                type="button"
+                aria-label={t('invoiceDetails.download')}
+                onClick={() => download(file)}
+                disabled={!file.file}
+                className="disabled:opacity-40"
+                title={file.file ? undefined : t('invoiceDetails.attachments.serverFile')}
+              >
+                <img src={downloadIcon} alt="" className="size-6" />
+              </button>
+              <button
+                type="button"
+                aria-label={t('invoiceDetails.attachments.remove', { name: file.name })}
+                onClick={() => setFiles((current) => current.filter((f) => f.id !== file.id))}
+              >
+                <img src={deleteIcon} alt="" className="size-6" />
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <FileDropzone
+          accept={ATTACHMENT_ACCEPT}
+          multiple
+          maxBytes={ATTACHMENT_MAX_BYTES}
+          onFiles={add}
+          onReject={(reason, file) =>
+            setError(
+              reason === 'size'
+                ? t('invoiceDetails.attachments.tooLarge', { name: file.name })
+                : t('invoiceDetails.attachments.wrongType', { name: file.name }),
+            )
+          }
+        >
+          {({ dragging }) => (
+            <div
+              className={[
+                'flex w-full flex-wrap items-center justify-center gap-2 rounded-sm border border-dashed px-4 py-4 text-base font-medium transition-colors',
+                dragging
+                  ? 'border-primary-700 bg-primary-25 text-primary-800'
+                  : 'border-border-default bg-surface-tab-bar text-text-secondary',
+              ].join(' ')}
+            >
+              <img src={uploadIcon} alt="" className="size-6" />
+              <span>{t('invoiceDetails.attachments.drop')}</span>
+              <span className="text-sm font-medium text-text-quaternary">
+                {t('invoiceDetails.attachments.hint')}
+              </span>
+            </div>
+          )}
+        </FileDropzone>
+
+        {error ? (
+          <p className="text-xs font-medium text-danger-700" role="alert">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </SectionCard>
+  )
+}
 
 function InvoicePreviewPanel({
   invoice,
@@ -644,47 +783,7 @@ export function InvoiceDetailsPage() {
           </div>
         </SectionCard>
 
-        {/* Attachments */}
-        <SectionCard title={t('invoiceDetails.attachments.title')}>
-          <div className="flex flex-col gap-3">
-            {invoice.attachments.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-2.5 py-2.5"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <img
-                    src={file.type === 'pdf' ? pdfIcon : jpgIcon}
-                    alt=""
-                    className="size-9 shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-medium text-text-primary">{file.name}</p>
-                    <p className="truncate text-sm font-medium text-text-quaternary">{file.meta}</p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2.5">
-                  <button type="button" aria-label={t('invoiceDetails.download')}>
-                    <img src={downloadIcon} alt="" className="size-6" />
-                  </button>
-                  <button type="button" aria-label={t('invoiceDetails.delete')}>
-                    <img src={deleteIcon} alt="" className="size-6" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="flex w-full flex-wrap items-center justify-center gap-2 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-4 text-base font-medium text-text-secondary"
-            >
-              <img src={uploadIcon} alt="" className="size-6" />
-              <span>{t('invoiceDetails.attachments.drop')}</span>
-              <span className="text-sm font-medium text-text-quaternary">
-                {t('invoiceDetails.attachments.hint')}
-              </span>
-            </button>
-          </div>
-        </SectionCard>
+        <AttachmentsCard invoice={invoice} />
 
         {/* Payments */}
         <SectionCard
