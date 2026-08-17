@@ -27,10 +27,9 @@ export function BusinessTypeChip({
         src={iconSrc}
         alt=""
         aria-hidden="true"
-        className={[
-          'size-6 shrink-0 object-contain',
-          selected ? 'brightness-0 invert' : '',
-        ].join(' ')}
+        className={['size-6 shrink-0 object-contain', selected ? 'brightness-0 invert' : ''].join(
+          ' ',
+        )}
       />
       <span className="whitespace-nowrap">{label}</span>
     </button>

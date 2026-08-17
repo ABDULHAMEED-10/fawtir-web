@@ -135,9 +135,7 @@ export function PricingCard({
                 <span
                   className={[
                     'text-xs leading-[1.2]',
-                    isDark
-                      ? 'font-semibold text-white'
-                      : 'font-medium text-text-secondary',
+                    isDark ? 'font-semibold text-white' : 'font-medium text-text-secondary',
                   ].join(' ')}
                 >
                   {feature}

@@ -5,7 +5,9 @@
   },
   "common": {
     "clear": "Clear",
-    "back": "Back"
+    "back": "Back",
+    "close": "Close",
+    "cancel": "Cancel"
   },
   "language": {
     "label": "Language",
@@ -182,61 +184,412 @@
       "vehicleInspection": "Vehicle inspection"
     },
     "groups": {
-      "coffeeShop": ["Drinks", "Food", "Desserts", "Bakery", "Combos", "Add-ons"],
-      "restaurant": ["Starters", "Mains", "Sides", "Drinks", "Desserts", "Add-ons"],
-      "bakery": ["Bread", "Pastries", "Cakes", "Drinks", "Combos", "Add-ons"],
-      "fastFood": ["Burgers", "Sides", "Drinks", "Combos", "Desserts", "Add-ons"],
-      "juiceBar": ["Juices", "Smoothies", "Bowls", "Snacks", "Combos", "Add-ons"],
-      "dessertShop": ["Cakes", "Ice cream", "Pastries", "Drinks", "Combos", "Add-ons"],
-      "catering": ["Packages", "Mains", "Sides", "Drinks", "Desserts", "Add-ons"],
-      "grocery": ["Produce", "Dairy", "Pantry", "Beverages", "Frozen", "Household"],
-      "electronics": ["Phones", "Computers", "Accessories", "Audio", "Gaming", "Services"],
-      "fashion": ["Men", "Women", "Kids", "Accessories", "Footwear", "Sale"],
-      "flowerShop": ["Bouquets", "Arrangements", "Plants", "Gifts", "Occasions", "Add-ons"],
-      "giftShop": ["Gifts", "Cards", "Toys", "Decor", "Stationery", "Wrap"],
-      "bookstore": ["Books", "Magazines", "Stationery", "Kids", "Gifts", "Services"],
-      "petShop": ["Food", "Toys", "Accessories", "Health", "Grooming", "Services"],
-      "homeStore": ["Furniture", "Kitchen", "Decor", "Lighting", "Storage", "Outdoor"],
-      "beautySalon": ["Hair", "Makeup", "Treatments", "Packages", "Products", "Add-ons"],
-      "barberShop": ["Cuts", "Beard", "Shave", "Packages", "Products", "Add-ons"],
-      "spa": ["Massages", "Facials", "Body", "Packages", "Products", "Add-ons"],
-      "nailSalon": ["Manicure", "Pedicure", "Nail art", "Packages", "Products", "Add-ons"],
-      "massageCenter": ["Swedish", "Deep tissue", "Relaxation", "Packages", "Add-ons"],
-      "fitnessStudio": ["Classes", "Personal training", "Memberships", "Merchandise", "Add-ons"],
-      "consultancy": ["Sessions", "Retainers", "Packages", "Reports", "Add-ons"],
-      "cleaning": ["Home", "Office", "Deep clean", "Packages", "Add-ons"],
-      "laundry": ["Wash", "Dry clean", "Ironing", "Packages", "Add-ons"],
-      "tailoring": ["Alterations", "Custom", "Repairs", "Packages", "Add-ons"],
-      "printing": ["Documents", "Banners", "Cards", "Packages", "Add-ons"],
-      "repair": ["Diagnostics", "Parts", "Labor", "Packages", "Add-ons"],
-      "maintenance": ["Inspections", "Repairs", "Contracts", "Parts", "Add-ons"],
-      "freelanceServices": ["Projects", "Hourly", "Retainers", "Packages", "Add-ons"],
-      "medicalClinic": ["Consultations", "Procedures", "Labs", "Pharmacy", "Packages"],
-      "dentalClinic": ["Checkups", "Treatments", "Cosmetic", "Orthodontics", "Packages"],
-      "physiotherapy": ["Sessions", "Assessments", "Packages", "Products", "Add-ons"],
-      "laboratory": ["Blood tests", "Imaging", "Panels", "Packages", "Add-ons"],
-      "pharmacy": ["Medicines", "OTC", "Wellness", "Devices", "Services"],
-      "medicalSupplies": ["Consumables", "Devices", "Equipment", "PPE", "Services"],
-      "hotel": ["Rooms", "F&B", "Spa", "Events", "Packages", "Add-ons"],
-      "resort": ["Rooms", "Activities", "F&B", "Spa", "Packages", "Add-ons"],
-      "guestHouse": ["Rooms", "Breakfast", "Extras", "Packages", "Add-ons"],
-      "travelAgency": ["Flights", "Hotels", "Packages", "Visas", "Insurance"],
-      "tourOperator": ["Tours", "Day trips", "Packages", "Transfers", "Add-ons"],
-      "carRental": ["Economy", "SUV", "Luxury", "Insurance", "Add-ons"],
-      "eventVenue": ["Halls", "Catering", "AV", "Packages", "Add-ons"],
-      "trainingCenter": ["Courses", "Workshops", "Certificates", "Packages", "Materials"],
-      "tuitionCenter": ["Subjects", "Groups", "1-to-1", "Packages", "Materials"],
-      "nursery": ["Programs", "Activities", "Meals", "Packages", "Add-ons"],
-      "school": ["Tuition", "Activities", "Transport", "Uniforms", "Add-ons"],
-      "drivingSchool": ["Lessons", "Tests", "Packages", "Theory", "Add-ons"],
-      "onlineAcademy": ["Courses", "Live classes", "Subscriptions", "Certificates", "Materials"],
-      "garage": ["Service", "Repairs", "Diagnostics", "Parts", "Packages"],
-      "carWash": ["Exterior", "Interior", "Full wash", "Packages", "Add-ons"],
-      "detailing": ["Exterior", "Interior", "Ceramic", "Packages", "Add-ons"],
-      "tireShop": ["Tires", "Balancing", "Alignment", "Packages", "Add-ons"],
-      "spareParts": ["Engine", "Body", "Electrical", "Fluids", "Accessories"],
-      "batteryShop": ["Batteries", "Testing", "Installation", "Packages", "Add-ons"],
-      "vehicleInspection": ["Inspections", "Certificates", "Retests", "Packages", "Add-ons"]
+      "coffeeShop": [
+        "Drinks",
+        "Food",
+        "Desserts",
+        "Bakery",
+        "Combos",
+        "Add-ons"
+      ],
+      "restaurant": [
+        "Starters",
+        "Mains",
+        "Sides",
+        "Drinks",
+        "Desserts",
+        "Add-ons"
+      ],
+      "bakery": [
+        "Bread",
+        "Pastries",
+        "Cakes",
+        "Drinks",
+        "Combos",
+        "Add-ons"
+      ],
+      "fastFood": [
+        "Burgers",
+        "Sides",
+        "Drinks",
+        "Combos",
+        "Desserts",
+        "Add-ons"
+      ],
+      "juiceBar": [
+        "Juices",
+        "Smoothies",
+        "Bowls",
+        "Snacks",
+        "Combos",
+        "Add-ons"
+      ],
+      "dessertShop": [
+        "Cakes",
+        "Ice cream",
+        "Pastries",
+        "Drinks",
+        "Combos",
+        "Add-ons"
+      ],
+      "catering": [
+        "Packages",
+        "Mains",
+        "Sides",
+        "Drinks",
+        "Desserts",
+        "Add-ons"
+      ],
+      "grocery": [
+        "Produce",
+        "Dairy",
+        "Pantry",
+        "Beverages",
+        "Frozen",
+        "Household"
+      ],
+      "electronics": [
+        "Phones",
+        "Computers",
+        "Accessories",
+        "Audio",
+        "Gaming",
+        "Services"
+      ],
+      "fashion": [
+        "Men",
+        "Women",
+        "Kids",
+        "Accessories",
+        "Footwear",
+        "Sale"
+      ],
+      "flowerShop": [
+        "Bouquets",
+        "Arrangements",
+        "Plants",
+        "Gifts",
+        "Occasions",
+        "Add-ons"
+      ],
+      "giftShop": [
+        "Gifts",
+        "Cards",
+        "Toys",
+        "Decor",
+        "Stationery",
+        "Wrap"
+      ],
+      "bookstore": [
+        "Books",
+        "Magazines",
+        "Stationery",
+        "Kids",
+        "Gifts",
+        "Services"
+      ],
+      "petShop": [
+        "Food",
+        "Toys",
+        "Accessories",
+        "Health",
+        "Grooming",
+        "Services"
+      ],
+      "homeStore": [
+        "Furniture",
+        "Kitchen",
+        "Decor",
+        "Lighting",
+        "Storage",
+        "Outdoor"
+      ],
+      "beautySalon": [
+        "Hair",
+        "Makeup",
+        "Treatments",
+        "Packages",
+        "Products",
+        "Add-ons"
+      ],
+      "barberShop": [
+        "Cuts",
+        "Beard",
+        "Shave",
+        "Packages",
+        "Products",
+        "Add-ons"
+      ],
+      "spa": [
+        "Massages",
+        "Facials",
+        "Body",
+        "Packages",
+        "Products",
+        "Add-ons"
+      ],
+      "nailSalon": [
+        "Manicure",
+        "Pedicure",
+        "Nail art",
+        "Packages",
+        "Products",
+        "Add-ons"
+      ],
+      "massageCenter": [
+        "Swedish",
+        "Deep tissue",
+        "Relaxation",
+        "Packages",
+        "Add-ons"
+      ],
+      "fitnessStudio": [
+        "Classes",
+        "Personal training",
+        "Memberships",
+        "Merchandise",
+        "Add-ons"
+      ],
+      "consultancy": [
+        "Sessions",
+        "Retainers",
+        "Packages",
+        "Reports",
+        "Add-ons"
+      ],
+      "cleaning": [
+        "Home",
+        "Office",
+        "Deep clean",
+        "Packages",
+        "Add-ons"
+      ],
+      "laundry": [
+        "Wash",
+        "Dry clean",
+        "Ironing",
+        "Packages",
+        "Add-ons"
+      ],
+      "tailoring": [
+        "Alterations",
+        "Custom",
+        "Repairs",
+        "Packages",
+        "Add-ons"
+      ],
+      "printing": [
+        "Documents",
+        "Banners",
+        "Cards",
+        "Packages",
+        "Add-ons"
+      ],
+      "repair": [
+        "Diagnostics",
+        "Parts",
+        "Labor",
+        "Packages",
+        "Add-ons"
+      ],
+      "maintenance": [
+        "Inspections",
+        "Repairs",
+        "Contracts",
+        "Parts",
+        "Add-ons"
+      ],
+      "freelanceServices": [
+        "Projects",
+        "Hourly",
+        "Retainers",
+        "Packages",
+        "Add-ons"
+      ],
+      "medicalClinic": [
+        "Consultations",
+        "Procedures",
+        "Labs",
+        "Pharmacy",
+        "Packages"
+      ],
+      "dentalClinic": [
+        "Checkups",
+        "Treatments",
+        "Cosmetic",
+        "Orthodontics",
+        "Packages"
+      ],
+      "physiotherapy": [
+        "Sessions",
+        "Assessments",
+        "Packages",
+        "Products",
+        "Add-ons"
+      ],
+      "laboratory": [
+        "Blood tests",
+        "Imaging",
+        "Panels",
+        "Packages",
+        "Add-ons"
+      ],
+      "pharmacy": [
+        "Medicines",
+        "OTC",
+        "Wellness",
+        "Devices",
+        "Services"
+      ],
+      "medicalSupplies": [
+        "Consumables",
+        "Devices",
+        "Equipment",
+        "PPE",
+        "Services"
+      ],
+      "hotel": [
+        "Rooms",
+        "F&B",
+        "Spa",
+        "Events",
+        "Packages",
+        "Add-ons"
+      ],
+      "resort": [
+        "Rooms",
+        "Activities",
+        "F&B",
+        "Spa",
+        "Packages",
+        "Add-ons"
+      ],
+      "guestHouse": [
+        "Rooms",
+        "Breakfast",
+        "Extras",
+        "Packages",
+        "Add-ons"
+      ],
+      "travelAgency": [
+        "Flights",
+        "Hotels",
+        "Packages",
+        "Visas",
+        "Insurance"
+      ],
+      "tourOperator": [
+        "Tours",
+        "Day trips",
+        "Packages",
+        "Transfers",
+        "Add-ons"
+      ],
+      "carRental": [
+        "Economy",
+        "SUV",
+        "Luxury",
+        "Insurance",
+        "Add-ons"
+      ],
+      "eventVenue": [
+        "Halls",
+        "Catering",
+        "AV",
+        "Packages",
+        "Add-ons"
+      ],
+      "trainingCenter": [
+        "Courses",
+        "Workshops",
+        "Certificates",
+        "Packages",
+        "Materials"
+      ],
+      "tuitionCenter": [
+        "Subjects",
+        "Groups",
+        "1-to-1",
+        "Packages",
+        "Materials"
+      ],
+      "nursery": [
+        "Programs",
+        "Activities",
+        "Meals",
+        "Packages",
+        "Add-ons"
+      ],
+      "school": [
+        "Tuition",
+        "Activities",
+        "Transport",
+        "Uniforms",
+        "Add-ons"
+      ],
+      "drivingSchool": [
+        "Lessons",
+        "Tests",
+        "Packages",
+        "Theory",
+        "Add-ons"
+      ],
+      "onlineAcademy": [
+        "Courses",
+        "Live classes",
+        "Subscriptions",
+        "Certificates",
+        "Materials"
+      ],
+      "garage": [
+        "Service",
+        "Repairs",
+        "Diagnostics",
+        "Parts",
+        "Packages"
+      ],
+      "carWash": [
+        "Exterior",
+        "Interior",
+        "Full wash",
+        "Packages",
+        "Add-ons"
+      ],
+      "detailing": [
+        "Exterior",
+        "Interior",
+        "Ceramic",
+        "Packages",
+        "Add-ons"
+      ],
+      "tireShop": [
+        "Tires",
+        "Balancing",
+        "Alignment",
+        "Packages",
+        "Add-ons"
+      ],
+      "spareParts": [
+        "Engine",
+        "Body",
+        "Electrical",
+        "Fluids",
+        "Accessories"
+      ],
+      "batteryShop": [
+        "Batteries",
+        "Testing",
+        "Installation",
+        "Packages",
+        "Add-ons"
+      ],
+      "vehicleInspection": [
+        "Inspections",
+        "Certificates",
+        "Retests",
+        "Packages",
+        "Add-ons"
+      ]
     },
     "submit": "Continue"
   },
@@ -970,9 +1323,26 @@
     },
     "filters": {
       "thisMonth": "This month",
-      "docType": "Doc Type",
       "channel": "Channel",
-      "sort": "Sort"
+      "sort": "Sort",
+      "period": {
+        "thisMonth": "This month",
+        "lastMonth": "Last month",
+        "last3Months": "Last 3 months",
+        "thisYear": "This year",
+        "all": "All time"
+      },
+      "chan": {
+        "all": "All channels",
+        "peppol": "Peppol network",
+        "email": "Email"
+      },
+      "invoiceType": "Invoice type",
+      "kind": {
+        "all": "All invoices",
+        "standard": "Standard (B2B/B2G)",
+        "simplified": "Simplified (B2C)"
+      }
     },
     "col": {
       "invoice": "Invoice",
@@ -998,6 +1368,25 @@
       "toSend": "To be sent",
       "paid": "Paid",
       "draft": "Draft"
+    },
+    "selectAll": "Select all invoices on this page",
+    "selectRow": "Select {{id}}",
+    "noResults": "No invoices match this filter.",
+    "resultCount": "{{count}} invoices",
+    "bulk": {
+      "title": "Bulk upload invoices",
+      "subtitle": "Import a spreadsheet, or drop the UBL and PDF files you already have.",
+      "dropHere": "Drop files here or click to browse",
+      "formats": "CSV, XLSX, XML or PDF · up to 20 MB each",
+      "tooLarge": "{{name}} is larger than 20 MB.",
+      "wrongType": "{{name}} is not a supported format.",
+      "emptyFile": "File was empty",
+      "remove": "Remove {{name}}",
+      "import": "Import {{count}} file(s)",
+      "importing": "Importing…",
+      "imported": "Imported",
+      "failed": "Failed",
+      "summary": "{{imported}} imported, {{failed}} failed."
     }
   },
   "invoiceDetails": {
@@ -1068,7 +1457,13 @@
     "attachments": {
       "title": "Attachments",
       "drop": "Drop files or click to upload",
-      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX"
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+      "note": "Kept with the invoice record for audit and disputes. Files added after issuing are not part of the cleared document sent over Peppol.",
+      "justAdded": "{{size}} · Added just now · not yet saved",
+      "serverFile": "Stored on the server",
+      "remove": "Remove {{name}}",
+      "tooLarge": "{{name}} is larger than 10 MB.",
+      "wrongType": "{{name}} is not a supported format."
     },
     "payments": {
       "title": "Payments",
@@ -1078,6 +1473,29 @@
     },
     "timeline": {
       "title": "Activity"
+    },
+    "preview": {
+      "kind": "Tax invoice",
+      "from": "From",
+      "billTo": "Bill to",
+      "issueDate": "Issue date",
+      "dueDate": "Due date",
+      "poRef": "PO ref",
+      "terms": "Terms",
+      "description": "Description",
+      "price": "Price",
+      "qty": "Qty",
+      "vat": "VAT",
+      "total": "Total",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "net": "Net amount",
+      "totalDue": "Total due",
+      "amountPaid": "Amount paid",
+      "balanceDue": "Balance due",
+      "payTo": "Pay to",
+      "peppol": "Peppol",
+      "qrAlt": "QR code carrying the invoice summary for tax verification"
     }
   },
   "createInvoice": {
@@ -1149,7 +1567,9 @@
       "tax": "Standard rate - 5%",
       "project": "Ramadan 2026 supply",
       "subject": "Monthly coffee supply & barista training — July",
-      "bankTransfer": "Bank transfer"
+      "bankTransfer": "Bank transfer",
+      "numberOnIssue": "Assigned when the invoice is issued",
+      "projectPending": "Not available yet"
     },
     "items": {
       "exclVat": "Excl. VAT",
@@ -1165,7 +1585,15 @@
       "remove": "Remove line",
       "totalExcluding": "Total excluding",
       "vatAmount": "Vat",
-      "totalAmount": "Total amount"
+      "totalAmount": "Total amount",
+      "subtotal": "Subtotal (excl. VAT)",
+      "lineDiscounts": "Line discounts",
+      "documentDiscount": "Document discount",
+      "documentDiscountHint": "Applied after line discounts and shared across lines in proportion to what each is worth.",
+      "discountType": "discount type",
+      "omr": "OMR",
+      "descriptionPlaceholder": "Describe what you are billing for",
+      "incl": "Incl."
     },
     "toggles": {
       "paid": "Mark as paid",
@@ -1181,7 +1609,10 @@
       "customerText": "Thank you for your business. Please settle within 30 days by bank transfer using the reference above.",
       "internalText": "Loyalty discount approved by Hafidh on 15 Jul. Follow up if unpaid by 20 Aug.",
       "uploadTitle": "Drag & drop files here, or click to browse",
-      "uploadHint": "PDF, JPG, XLSX · up to 10 MB each"
+      "uploadHint": "PDF, JPG, XLSX · up to 10 MB each",
+      "removeFile": "Remove {{name}}",
+      "tooLarge": "{{name}} is over 10 MB and was not added.",
+      "wrongType": "{{name}} is not a supported file type."
     },
     "actions": {
       "preview": "Preview",
@@ -1189,7 +1620,6 @@
       "submit": "Create invoice"
     },
     "linked": {
-      "linkDocuments": "Link {{count}} documents",
       "dn0124": "DN-0124 · delivery note",
       "dn0124Meta": "Delivered 27 Jul · signed by Khalid Al Rashdi · 3 lines",
       "so0073": "SO-0073 · order form",
@@ -1197,7 +1627,10 @@
       "notInvoiced": "Not invoiced",
       "inProgress": "In progress",
       "unlink": "Unlink {{id}}",
-      "empty": "No documents linked yet."
+      "empty": "No documents linked yet.",
+      "allLinked": "All related documents are linked",
+      "browse": "Browse documents",
+      "linkDocuments": "Link documents"
     }
   },
   "periodicInvoice": {
@@ -2889,6 +3322,8 @@
     "editMessage": "Edit message",
     "deleteStep": "Delete step",
     "addStep": "Add another step",
+    "sendMyselfTest": "Send myself a test",
+    "saveChanges": "Save Changes",
     "tones": {
       "polite": "Polite",
       "direct": "Direct",
@@ -2923,6 +3358,183 @@
       "queued": "Reminders queued",
       "muted": "Customers muted",
       "sent": "Sent this month"
+    },
+    "stopTitle": "Stop sending when",
+    "stop": {
+      "paid": "The invoice is paid in full",
+      "paidNote": "Reminders stop the moment payment is recorded",
+      "partPayment": "A part payment arrives",
+      "partPaymentNote": "Pause and let someone decide, rather than chasing the balance automatically",
+      "creditNote": "A credit note is raised against it",
+      "creditNoteNote": "The amount is under correction, so chasing it would be wrong",
+      "replies": "The customer replies to a reminder",
+      "repliesNote": "A conversation has started — the next step waits for you",
+      "dispute": "The invoice is marked in dispute",
+      "disputeNote": "Off by default — turn on if your team uses the dispute flag"
+    },
+    "sendingTitle": "Sending",
+    "sending": {
+      "sendFrom": "Send from",
+      "replyTo": "Reply-to",
+      "sendAt": "Send at",
+      "attachPdf": "Attach the invoice PDF"
+    },
+    "beforeTitle": "Before anything is sent",
+    "before": {
+      "hold": "Hold each reminder for 24 hours first",
+      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you — if you do nothing, it sends.",
+      "approveFinal": "Require approval for the final notice",
+      "approveFinalNote": "The firm step never sends on its own — someone has to press send. Useful when the relationship matters more than the invoice."
+    },
+    "queue": {
+      "title": "Payment reminders",
+      "subtitle": "Everything the reminder schedule is about to send, and everything it already has.",
+      "scheduleSettings": "Schedule settings",
+      "sendAReminder": "Send a reminder",
+      "holdTitle": "Reminders are held for 24 hours before they go out",
+      "holdNote": "Anything below with a countdown can still be cancelled. If you do nothing, it sends at 09:00.",
+      "pauseEverything": "Pause everything",
+      "searchPlaceholder": "Search customer or invoice...",
+      "selectAll": "Select all reminders",
+      "selectRow": "Select reminder for {{id}}",
+      "tabs": {
+        "scheduled": "Scheduled",
+        "sent": "Sent",
+        "paused": "Paused",
+        "notSending": "Not sending"
+      },
+      "kpi": {
+        "goingOut": "Going out tomorrow",
+        "goingOutNote": "Still cancellable",
+        "overdue": "Overdue and chased",
+        "overdueNote": "Across 6 invoices",
+        "paid": "Paid after a reminder",
+        "paidNote": "Last 30 days · 11 sent",
+        "paused": "Paused",
+        "pausedNote": "1 customer, 1 invoice"
+      },
+      "cols": {
+        "sending": "Sending",
+        "customer": "Customer",
+        "invoice": "Invoice",
+        "whichReminder": "Which reminder",
+        "amount": "Amount",
+        "actions": "Actions"
+      },
+      "tomorrow": "Tomorrow",
+      "in16Hours": "in 16 hours · 09:00",
+      "aug4": "4 Aug",
+      "in5Days": "in 5 days",
+      "aug11": "11 Aug",
+      "in12Days": "in 12 days",
+      "paused": "Paused",
+      "until15Aug": "until 15 Aug",
+      "promisedByPhone": "Payment promised by phone",
+      "overdue7": "7 days overdue",
+      "overdue14": "14 days overdue",
+      "overdue21": "21 days overdue",
+      "overdue30": "30 days overdue",
+      "due23Jul": "Due 23 Jul",
+      "due16Jul": "Due 16 Jul",
+      "due28Jul": "Due 28 Jul",
+      "due12Jul": "Due 12 Jul",
+      "due9Jul": "Due 9 Jul",
+      "actions": {
+        "sendNow": "Send now",
+        "review": "Review",
+        "resume": "Resume",
+        "cancel": "Cancel",
+        "pause": "Pause"
+      }
+    },
+    "pause": {
+      "title": "Pause reminders",
+      "subtitle": "Stop chasing for now. Nothing is cancelled — the schedule picks up where it left off.",
+      "targetMeta": "21 days overdue · reminder 2 due tomorrow",
+      "whatToPause": "What to pause",
+      "scopeInvoice": "Just this invoice",
+      "scopeInvoiceNote": "Other invoices for Al Mouj Marina Cafe keep being chased as normal",
+      "scopeCustomer": "Every invoice for this customer",
+      "scopeCustomerNote": "Nothing goes to Al Mouj Marina Cafe until you resume",
+      "why": "Why",
+      "whyHint": "so the next person knows",
+      "reasons": {
+        "promised": "Payment promised",
+        "dispute": "Invoice in dispute",
+        "correction": "Correction on the way",
+        "relationship": "Relationship - handle by hand",
+        "other": "Other"
+      },
+      "resume": "Resume",
+      "in7Days": "In 7 days",
+      "onADate": "On a date",
+      "note": "Note",
+      "confirm": "Pause until {{date}}"
+    },
+    "send": {
+      "title": "Send a reminder now",
+      "subtitle": "This goes out immediately and replaces the next scheduled reminder for this invoice.",
+      "targetMeta": "Due 23 Jul · 7 days overdue · no reminder sent yet",
+      "outstanding": "outstanding",
+      "whichMessage": "Which message",
+      "friendlyHint": "Assume it was simply missed",
+      "followUpHint": "Direct, states the day overdue",
+      "finalNoticeHint": "Firm - use with care",
+      "to": "To",
+      "toHint": "the customer's billing contact",
+      "subject": "Subject",
+      "sendNow": "Send now",
+      "editJustThisOne": "Edit just this one",
+      "editTemplate": "Edit the template",
+      "preview": {
+        "label": "Preview",
+        "from": "From",
+        "repliesTo": "replies go to",
+        "dear": "Dear",
+        "body1": "I hope things are going well at the café. This is a gentle reminder that invoice",
+        "body2": "is still showing as unpaid on our side.",
+        "body3": "If it has already been paid, please ignore this note and accept our apologies. If there is a query on the invoice, just reply to this email and we will sort it out.",
+        "cta": "View and pay invoice",
+        "signOff": "Kind regards,",
+        "attached": "attached automatically",
+        "invoice": "Invoice",
+        "issued": "Issued",
+        "due": "Due",
+        "outstanding": "Amount outstanding"
+      }
+    },
+    "template": {
+      "friendlyDescription": "The first message a customer gets. Sent 7 days after the invoice was due.",
+      "subjectLine": "Subject line",
+      "message": "Message",
+      "livePreview": "Live preview",
+      "invoiceWord": "Invoice",
+      "attached": "attached",
+      "sendTest": "Send myself a test",
+      "save": "Save message"
     }
+  },
+  "scanToFill": {
+    "button": "Scan to fill",
+    "title": "Scan an invoice to fill this form",
+    "subtitle": "Upload a supplier invoice or a photo of one. We read it and pre-fill the fields — you review everything before it is applied.",
+    "drop": "Drop a file here, or click to choose",
+    "dropHint": "PDF, JPG or PNG · up to 10 MB",
+    "privacy": "The file is read to extract invoice fields and is not attached to this invoice unless you add it yourself.",
+    "reading": "Reading the document…",
+    "failed": "That file could not be read. Try a clearer scan, or enter the invoice by hand.",
+    "tooLarge": "That file is over 10 MB. Please upload a smaller one.",
+    "readCount": "Read {{fields}} fields and {{lines}} line items",
+    "checkFields": "{{count}} field(s) were unclear — please check them after filling.",
+    "check": "check",
+    "fieldsFound": "Fields found",
+    "linesFound": "Line items found",
+    "fill": "Fill the form",
+    "fieldCustomer": "Customer",
+    "fieldIssueDate": "Issue date",
+    "fieldDueDate": "Due date",
+    "fieldPurchaseOrder": "Purchase order reference",
+    "fieldSubject": "Subject",
+    "wrongType": "That file type is not supported. Use PDF, JPG or PNG."
   }
 }

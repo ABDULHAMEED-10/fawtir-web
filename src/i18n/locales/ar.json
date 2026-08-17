@@ -5,7 +5,9 @@
   },
   "common": {
     "clear": "مسح",
-    "back": "رجوع"
+    "back": "رجوع",
+    "close": "إغلاق",
+    "cancel": "إلغاء"
   },
   "language": {
     "label": "اللغة",
@@ -182,61 +184,411 @@
       "vehicleInspection": "فحص مركبات"
     },
     "groups": {
-      "coffeeShop": ["مشروبات", "طعام", "حلويات", "مخبوزات", "وجبات مجمّعة", "إضافات"],
-      "restaurant": ["مقبلات", "أطباق رئيسية", "جانبية", "مشروبات", "حلويات", "إضافات"],
-      "bakery": ["خبز", "معجنات", "كعك", "مشروبات", "وجبات مجمّعة", "إضافات"],
-      "fastFood": ["برغر", "جانبية", "مشروبات", "وجبات مجمّعة", "حلويات", "إضافات"],
-      "juiceBar": ["عصائر", "سموثي", "أطباق", "وجبات خفيفة", "وجبات مجمّعة", "إضافات"],
-      "dessertShop": ["كعك", "آيس كريم", "معجنات", "مشروبات", "وجبات مجمّعة", "إضافات"],
-      "catering": ["باقات", "أطباق رئيسية", "جانبية", "مشروبات", "حلويات", "إضافات"],
-      "grocery": ["خضار وفواكه", "ألبان", "معلبات", "مشروبات", "مجمدات", "منزلية"],
-      "electronics": ["هواتف", "حواسيب", "إكسسوارات", "صوتيات", "ألعاب", "خدمات"],
-      "fashion": ["رجال", "نساء", "أطفال", "إكسسوارات", "أحذية", "تخفيضات"],
-      "flowerShop": ["باقات", "تنسيقات", "نباتات", "هدايا", "مناسبات", "إضافات"],
-      "giftShop": ["هدايا", "بطاقات", "ألعاب", "ديكور", "قرطاسية", "تغليف"],
-      "bookstore": ["كتب", "مجلات", "قرطاسية", "أطفال", "هدايا", "خدمات"],
-      "petShop": ["طعام", "ألعاب", "إكسسوارات", "صحة", "عناية", "خدمات"],
-      "homeStore": ["أثاث", "مطبخ", "ديكور", "إضاءة", "تخزين", "خارجي"],
-      "beautySalon": ["شعر", "مكياج", "علاجات", "باقات", "منتجات", "إضافات"],
-      "barberShop": ["قص", "لحية", "حلاقة", "باقات", "منتجات", "إضافات"],
-      "spa": ["مساج", "وجه", "جسم", "باقات", "منتجات", "إضافات"],
-      "nailSalon": ["مانيكير", "بيديكير", "فن أظافر", "باقات", "منتجات", "إضافات"],
-      "massageCenter": ["سويدي", "عميق", "استرخاء", "باقات", "إضافات"],
-      "fitnessStudio": ["حصص", "تدريب شخصي", "اشتراكات", "منتجات", "إضافات"],
-      "consultancy": ["جلسات", "عقود", "باقات", "تقارير", "إضافات"],
-      "cleaning": ["منزل", "مكتب", "تنظيف عميق", "باقات", "إضافات"],
-      "laundry": ["غسيل", "تنظيف جاف", "كي", "باقات", "إضافات"],
-      "tailoring": ["تعديلات", "تفصيل", "إصلاح", "باقات", "إضافات"],
-      "printing": ["مستندات", "لافتات", "بطاقات", "باقات", "إضافات"],
-      "repair": ["تشخيص", "قطع", "عمالة", "باقات", "إضافات"],
-      "maintenance": ["فحوصات", "إصلاحات", "عقود", "قطع", "إضافات"],
-      "freelanceServices": ["مشاريع", "بالساعة", "عقود", "باقات", "إضافات"],
-      "medicalClinic": ["استشارات", "إجراءات", "تحاليل", "صيدلية", "باقات"],
-      "dentalClinic": ["فحوصات", "علاجات", "تجميل", "تقويم", "باقات"],
-      "physiotherapy": ["جلسات", "تقييمات", "باقات", "منتجات", "إضافات"],
-      "laboratory": ["تحاليل دم", "تصوير", "لوحات", "باقات", "إضافات"],
-      "pharmacy": ["أدوية", "بدون وصفة", "عافية", "أجهزة", "خدمات"],
-      "medicalSupplies": ["مستهلكات", "أجهزة", "معدات", "وقاية", "خدمات"],
-      "hotel": ["غرف", "طعام وشراب", "سبا", "فعاليات", "باقات", "إضافات"],
-      "resort": ["غرف", "أنشطة", "طعام وشراب", "سبا", "باقات", "إضافات"],
-      "guestHouse": ["غرف", "إفطار", "إضافات", "باقات"],
-      "travelAgency": ["طيران", "فنادق", "باقات", "تأشيرات", "تأمين"],
-      "tourOperator": ["جولات", "رحلات يومية", "باقات", "نقل", "إضافات"],
-      "carRental": ["اقتصادي", "SUV", "فاخر", "تأمين", "إضافات"],
-      "eventVenue": ["قاعات", "تموين", "صوتيات", "باقات", "إضافات"],
-      "trainingCenter": ["دورات", "ورش", "شهادات", "باقات", "مواد"],
-      "tuitionCenter": ["مواد", "مجموعات", "فردي", "باقات", "مواد"],
-      "nursery": ["برامج", "أنشطة", "وجبات", "باقات", "إضافات"],
-      "school": ["رسوم", "أنشطة", "نقل", "زي", "إضافات"],
-      "drivingSchool": ["دروس", "اختبارات", "باقات", "نظري", "إضافات"],
-      "onlineAcademy": ["دورات", "بث مباشر", "اشتراكات", "شهادات", "مواد"],
-      "garage": ["صيانة", "إصلاحات", "تشخيص", "قطع", "باقات"],
-      "carWash": ["خارجي", "داخلي", "غسيل كامل", "باقات", "إضافات"],
-      "detailing": ["خارجي", "داخلي", "سيراميك", "باقات", "إضافات"],
-      "tireShop": ["إطارات", "موازنة", "محاذاة", "باقات", "إضافات"],
-      "spareParts": ["محرك", "هيكل", "كهرباء", "سوائل", "إكسسوارات"],
-      "batteryShop": ["بطاريات", "فحص", "تركيب", "باقات", "إضافات"],
-      "vehicleInspection": ["فحوصات", "شهادات", "إعادة فحص", "باقات", "إضافات"]
+      "coffeeShop": [
+        "مشروبات",
+        "طعام",
+        "حلويات",
+        "مخبوزات",
+        "وجبات مجمّعة",
+        "إضافات"
+      ],
+      "restaurant": [
+        "مقبلات",
+        "أطباق رئيسية",
+        "جانبية",
+        "مشروبات",
+        "حلويات",
+        "إضافات"
+      ],
+      "bakery": [
+        "خبز",
+        "معجنات",
+        "كعك",
+        "مشروبات",
+        "وجبات مجمّعة",
+        "إضافات"
+      ],
+      "fastFood": [
+        "برغر",
+        "جانبية",
+        "مشروبات",
+        "وجبات مجمّعة",
+        "حلويات",
+        "إضافات"
+      ],
+      "juiceBar": [
+        "عصائر",
+        "سموثي",
+        "أطباق",
+        "وجبات خفيفة",
+        "وجبات مجمّعة",
+        "إضافات"
+      ],
+      "dessertShop": [
+        "كعك",
+        "آيس كريم",
+        "معجنات",
+        "مشروبات",
+        "وجبات مجمّعة",
+        "إضافات"
+      ],
+      "catering": [
+        "باقات",
+        "أطباق رئيسية",
+        "جانبية",
+        "مشروبات",
+        "حلويات",
+        "إضافات"
+      ],
+      "grocery": [
+        "خضار وفواكه",
+        "ألبان",
+        "معلبات",
+        "مشروبات",
+        "مجمدات",
+        "منزلية"
+      ],
+      "electronics": [
+        "هواتف",
+        "حواسيب",
+        "إكسسوارات",
+        "صوتيات",
+        "ألعاب",
+        "خدمات"
+      ],
+      "fashion": [
+        "رجال",
+        "نساء",
+        "أطفال",
+        "إكسسوارات",
+        "أحذية",
+        "تخفيضات"
+      ],
+      "flowerShop": [
+        "باقات",
+        "تنسيقات",
+        "نباتات",
+        "هدايا",
+        "مناسبات",
+        "إضافات"
+      ],
+      "giftShop": [
+        "هدايا",
+        "بطاقات",
+        "ألعاب",
+        "ديكور",
+        "قرطاسية",
+        "تغليف"
+      ],
+      "bookstore": [
+        "كتب",
+        "مجلات",
+        "قرطاسية",
+        "أطفال",
+        "هدايا",
+        "خدمات"
+      ],
+      "petShop": [
+        "طعام",
+        "ألعاب",
+        "إكسسوارات",
+        "صحة",
+        "عناية",
+        "خدمات"
+      ],
+      "homeStore": [
+        "أثاث",
+        "مطبخ",
+        "ديكور",
+        "إضاءة",
+        "تخزين",
+        "خارجي"
+      ],
+      "beautySalon": [
+        "شعر",
+        "مكياج",
+        "علاجات",
+        "باقات",
+        "منتجات",
+        "إضافات"
+      ],
+      "barberShop": [
+        "قص",
+        "لحية",
+        "حلاقة",
+        "باقات",
+        "منتجات",
+        "إضافات"
+      ],
+      "spa": [
+        "مساج",
+        "وجه",
+        "جسم",
+        "باقات",
+        "منتجات",
+        "إضافات"
+      ],
+      "nailSalon": [
+        "مانيكير",
+        "بيديكير",
+        "فن أظافر",
+        "باقات",
+        "منتجات",
+        "إضافات"
+      ],
+      "massageCenter": [
+        "سويدي",
+        "عميق",
+        "استرخاء",
+        "باقات",
+        "إضافات"
+      ],
+      "fitnessStudio": [
+        "حصص",
+        "تدريب شخصي",
+        "اشتراكات",
+        "منتجات",
+        "إضافات"
+      ],
+      "consultancy": [
+        "جلسات",
+        "عقود",
+        "باقات",
+        "تقارير",
+        "إضافات"
+      ],
+      "cleaning": [
+        "منزل",
+        "مكتب",
+        "تنظيف عميق",
+        "باقات",
+        "إضافات"
+      ],
+      "laundry": [
+        "غسيل",
+        "تنظيف جاف",
+        "كي",
+        "باقات",
+        "إضافات"
+      ],
+      "tailoring": [
+        "تعديلات",
+        "تفصيل",
+        "إصلاح",
+        "باقات",
+        "إضافات"
+      ],
+      "printing": [
+        "مستندات",
+        "لافتات",
+        "بطاقات",
+        "باقات",
+        "إضافات"
+      ],
+      "repair": [
+        "تشخيص",
+        "قطع",
+        "عمالة",
+        "باقات",
+        "إضافات"
+      ],
+      "maintenance": [
+        "فحوصات",
+        "إصلاحات",
+        "عقود",
+        "قطع",
+        "إضافات"
+      ],
+      "freelanceServices": [
+        "مشاريع",
+        "بالساعة",
+        "عقود",
+        "باقات",
+        "إضافات"
+      ],
+      "medicalClinic": [
+        "استشارات",
+        "إجراءات",
+        "تحاليل",
+        "صيدلية",
+        "باقات"
+      ],
+      "dentalClinic": [
+        "فحوصات",
+        "علاجات",
+        "تجميل",
+        "تقويم",
+        "باقات"
+      ],
+      "physiotherapy": [
+        "جلسات",
+        "تقييمات",
+        "باقات",
+        "منتجات",
+        "إضافات"
+      ],
+      "laboratory": [
+        "تحاليل دم",
+        "تصوير",
+        "لوحات",
+        "باقات",
+        "إضافات"
+      ],
+      "pharmacy": [
+        "أدوية",
+        "بدون وصفة",
+        "عافية",
+        "أجهزة",
+        "خدمات"
+      ],
+      "medicalSupplies": [
+        "مستهلكات",
+        "أجهزة",
+        "معدات",
+        "وقاية",
+        "خدمات"
+      ],
+      "hotel": [
+        "غرف",
+        "طعام وشراب",
+        "سبا",
+        "فعاليات",
+        "باقات",
+        "إضافات"
+      ],
+      "resort": [
+        "غرف",
+        "أنشطة",
+        "طعام وشراب",
+        "سبا",
+        "باقات",
+        "إضافات"
+      ],
+      "guestHouse": [
+        "غرف",
+        "إفطار",
+        "إضافات",
+        "باقات"
+      ],
+      "travelAgency": [
+        "طيران",
+        "فنادق",
+        "باقات",
+        "تأشيرات",
+        "تأمين"
+      ],
+      "tourOperator": [
+        "جولات",
+        "رحلات يومية",
+        "باقات",
+        "نقل",
+        "إضافات"
+      ],
+      "carRental": [
+        "اقتصادي",
+        "SUV",
+        "فاخر",
+        "تأمين",
+        "إضافات"
+      ],
+      "eventVenue": [
+        "قاعات",
+        "تموين",
+        "صوتيات",
+        "باقات",
+        "إضافات"
+      ],
+      "trainingCenter": [
+        "دورات",
+        "ورش",
+        "شهادات",
+        "باقات",
+        "مواد"
+      ],
+      "tuitionCenter": [
+        "مواد",
+        "مجموعات",
+        "فردي",
+        "باقات",
+        "مواد"
+      ],
+      "nursery": [
+        "برامج",
+        "أنشطة",
+        "وجبات",
+        "باقات",
+        "إضافات"
+      ],
+      "school": [
+        "رسوم",
+        "أنشطة",
+        "نقل",
+        "زي",
+        "إضافات"
+      ],
+      "drivingSchool": [
+        "دروس",
+        "اختبارات",
+        "باقات",
+        "نظري",
+        "إضافات"
+      ],
+      "onlineAcademy": [
+        "دورات",
+        "بث مباشر",
+        "اشتراكات",
+        "شهادات",
+        "مواد"
+      ],
+      "garage": [
+        "صيانة",
+        "إصلاحات",
+        "تشخيص",
+        "قطع",
+        "باقات"
+      ],
+      "carWash": [
+        "خارجي",
+        "داخلي",
+        "غسيل كامل",
+        "باقات",
+        "إضافات"
+      ],
+      "detailing": [
+        "خارجي",
+        "داخلي",
+        "سيراميك",
+        "باقات",
+        "إضافات"
+      ],
+      "tireShop": [
+        "إطارات",
+        "موازنة",
+        "محاذاة",
+        "باقات",
+        "إضافات"
+      ],
+      "spareParts": [
+        "محرك",
+        "هيكل",
+        "كهرباء",
+        "سوائل",
+        "إكسسوارات"
+      ],
+      "batteryShop": [
+        "بطاريات",
+        "فحص",
+        "تركيب",
+        "باقات",
+        "إضافات"
+      ],
+      "vehicleInspection": [
+        "فحوصات",
+        "شهادات",
+        "إعادة فحص",
+        "باقات",
+        "إضافات"
+      ]
     },
     "submit": "متابعة"
   },
@@ -976,9 +1328,26 @@
     },
     "filters": {
       "thisMonth": "هذا الشهر",
-      "docType": "نوع المستند",
       "channel": "القناة",
-      "sort": "ترتيب"
+      "sort": "ترتيب",
+      "period": {
+        "thisMonth": "هذا الشهر",
+        "lastMonth": "الشهر الماضي",
+        "last3Months": "آخر ٣ أشهر",
+        "thisYear": "هذه السنة",
+        "all": "كل الفترات"
+      },
+      "chan": {
+        "all": "كل القنوات",
+        "peppol": "شبكة Peppol",
+        "email": "البريد الإلكتروني"
+      },
+      "invoiceType": "نوع الفاتورة",
+      "kind": {
+        "all": "كل الفواتير",
+        "standard": "قياسية (منشآت/حكومة)",
+        "simplified": "مبسطة (أفراد)"
+      }
     },
     "col": {
       "invoice": "الفاتورة",
@@ -1004,6 +1373,25 @@
       "toSend": "للإرسال",
       "paid": "مدفوع",
       "draft": "مسودة"
+    },
+    "selectAll": "تحديد كل الفواتير في هذه الصفحة",
+    "selectRow": "تحديد {{id}}",
+    "noResults": "لا توجد فواتير مطابقة لهذه التصفية.",
+    "resultCount": "{{count}} فاتورة",
+    "bulk": {
+      "title": "رفع الفواتير دفعة واحدة",
+      "subtitle": "استورد ملف جدول بيانات، أو أفلت ملفات UBL وPDF الموجودة لديك.",
+      "dropHere": "أفلت الملفات هنا أو انقر للاختيار",
+      "formats": "CSV أو XLSX أو XML أو PDF · حتى ٢٠ ميغابايت للملف",
+      "tooLarge": "حجم {{name}} أكبر من ٢٠ ميغابايت.",
+      "wrongType": "صيغة {{name}} غير مدعومة.",
+      "emptyFile": "الملف فارغ",
+      "remove": "إزالة {{name}}",
+      "import": "استيراد {{count}} ملف",
+      "importing": "جارٍ الاستيراد…",
+      "imported": "تم الاستيراد",
+      "failed": "فشل",
+      "summary": "تم استيراد {{imported}}، وفشل {{failed}}."
     }
   },
   "invoiceDetails": {
@@ -1074,7 +1462,13 @@
     "attachments": {
       "title": "المرفقات",
       "drop": "أفلت الملفات أو انقر للرفع",
-      "hint": "أوامر الشراء، إشعارات التسليم، العقود · PDF أو JPG أو XLSX"
+      "hint": "أوامر الشراء، إشعارات التسليم، العقود · PDF أو JPG أو XLSX",
+      "note": "تُحفظ مع سجل الفاتورة للتدقيق والنزاعات. الملفات المضافة بعد الإصدار ليست جزءًا من المستند المعتمد المرسل عبر Peppol.",
+      "justAdded": "{{size}} · أُضيف للتو · لم يُحفظ بعد",
+      "serverFile": "محفوظ على الخادم",
+      "remove": "إزالة {{name}}",
+      "tooLarge": "حجم {{name}} أكبر من ١٠ ميغابايت.",
+      "wrongType": "صيغة {{name}} غير مدعومة."
     },
     "payments": {
       "title": "المدفوعات",
@@ -1084,6 +1478,29 @@
     },
     "timeline": {
       "title": "النشاط"
+    },
+    "preview": {
+      "kind": "فاتورة ضريبية",
+      "from": "من",
+      "billTo": "إلى",
+      "issueDate": "تاريخ الإصدار",
+      "dueDate": "تاريخ الاستحقاق",
+      "poRef": "رقم أمر الشراء",
+      "terms": "الشروط",
+      "description": "الوصف",
+      "price": "السعر",
+      "qty": "الكمية",
+      "vat": "ض.ق.م",
+      "total": "الإجمالي",
+      "subtotal": "المجموع الفرعي",
+      "discount": "الخصم",
+      "net": "الصافي",
+      "totalDue": "الإجمالي المستحق",
+      "amountPaid": "المبلغ المدفوع",
+      "balanceDue": "الرصيد المستحق",
+      "payTo": "الدفع إلى",
+      "peppol": "Peppol",
+      "qrAlt": "رمز QR يحمل ملخص الفاتورة للتحقق الضريبي"
     }
   },
   "createInvoice": {
@@ -1155,7 +1572,9 @@
       "tax": "المعدل القياسي - 5%",
       "project": "توريد رمضان 2026",
       "subject": "توريد القهوة الشهري وتدريب الباريستا — يوليو",
-      "bankTransfer": "تحويل بنكي"
+      "bankTransfer": "تحويل بنكي",
+      "numberOnIssue": "يُخصَّص عند إصدار الفاتورة",
+      "projectPending": "غير متاح بعد"
     },
     "items": {
       "exclVat": "بدون ضريبة",
@@ -1171,7 +1590,15 @@
       "remove": "حذف البند",
       "totalExcluding": "الإجمالي بدون ضريبة",
       "vatAmount": "الضريبة",
-      "totalAmount": "المبلغ الإجمالي"
+      "totalAmount": "المبلغ الإجمالي",
+      "subtotal": "المجموع الفرعي (بدون ضريبة)",
+      "lineDiscounts": "خصومات البنود",
+      "documentDiscount": "خصم على مستوى الفاتورة",
+      "documentDiscountHint": "يُطبَّق بعد خصومات البنود ويُوزَّع على البنود بنسبة قيمة كل بند.",
+      "discountType": "نوع الخصم",
+      "omr": "ر.ع.",
+      "descriptionPlaceholder": "صف ما تقوم بفوترته",
+      "incl": "شامل"
     },
     "toggles": {
       "paid": "تعليم كمدفوع",
@@ -1187,7 +1614,10 @@
       "customerText": "شكرًا لتعاملكم. يرجى السداد خلال 30 يومًا عبر التحويل البنكي باستخدام المرجع أعلاه.",
       "internalText": "خصم الولاء وافق عليه Hafidh في 15 يوليو. المتابعة إن لم يُدفع بحلول 20 أغسطس.",
       "uploadTitle": "اسحب الملفات وأفلتها هنا، أو انقر للتصفح",
-      "uploadHint": "PDF، JPG، XLSX · حتى 10 ميجابايت لكل ملف"
+      "uploadHint": "PDF، JPG، XLSX · حتى 10 ميجابايت لكل ملف",
+      "removeFile": "إزالة {{name}}",
+      "tooLarge": "{{name}} يتجاوز ١٠ ميجابايت ولم تتم إضافته.",
+      "wrongType": "{{name}} ليس نوع ملف مدعوم."
     },
     "actions": {
       "preview": "معاينة",
@@ -1195,7 +1625,6 @@
       "submit": "إنشاء الفاتورة"
     },
     "linked": {
-      "linkDocuments": "ربط {{count}} مستندات",
       "dn0124": "DN-0124 · إشعار تسليم",
       "dn0124Meta": "سُلّم ٢٧ يوليو · وقّعه خالد الراشدي · ٣ بنود",
       "so0073": "SO-0073 · أمر بيع",
@@ -1203,7 +1632,10 @@
       "notInvoiced": "دون فوترة",
       "inProgress": "قيد التنفيذ",
       "unlink": "إلغاء ربط {{id}}",
-      "empty": "لم يتم ربط أي مستندات بعد."
+      "empty": "لم يتم ربط أي مستندات بعد.",
+      "allLinked": "تم ربط جميع المستندات ذات الصلة",
+      "browse": "تصفح المستندات",
+      "linkDocuments": "ربط المستندات"
     }
   },
   "periodicInvoice": {
@@ -2886,15 +3318,17 @@
   "reminders": {
     "breadcrumb": "الإعدادات",
     "title": "تذكيرات الدفع",
-    "subtitle": "Chase overdue invoices automatically by email. Set the days, the tone, and the rules that stop a reminder going out when it shouldn't.",
+    "subtitle": "تابع الفواتير المتأخرة تلقائيًا بالبريد الإلكتروني. حدّد الأيام والنبرة والقواعد التي توقف إرسال التذكير عند عدم الحاجة إليه.",
     "bannerTitle": "التذكيرات التلقائية مفعّلة",
-    "bannerNote": "Applies to every customer unless you switch them off individually on their profile.",
+    "bannerNote": "تنطبق على كل العملاء ما لم توقفها لكل عميل من ملفه.",
     "scheduleTitle": "الجدول الزمني",
-    "scheduleHint": "counted from the invoice due date",
+    "scheduleHint": "محسوبة من تاريخ استحقاق الفاتورة",
     "daysLate": "يوم تأخير",
     "editMessage": "تعديل الرسالة",
-    "deleteStep": "Delete step",
+    "deleteStep": "حذف الخطوة",
     "addStep": "إضافة خطوة أخرى",
+    "sendMyselfTest": "أرسل لي نسخة تجريبية",
+    "saveChanges": "حفظ التغييرات",
     "tones": {
       "polite": "لطيف",
       "direct": "مباشر",
@@ -2929,6 +3363,183 @@
       "queued": "Reminders queued",
       "muted": "Customers muted",
       "sent": "Sent this month"
+    },
+    "stopTitle": "أوقف الإرسال عند",
+    "stop": {
+      "paid": "The invoice is paid in full",
+      "paidNote": "Reminders stop the moment payment is recorded",
+      "partPayment": "A part payment arrives",
+      "partPaymentNote": "Pause and let someone decide, rather than chasing the balance automatically",
+      "creditNote": "A credit note is raised against it",
+      "creditNoteNote": "The amount is under correction, so chasing it would be wrong",
+      "replies": "The customer replies to a reminder",
+      "repliesNote": "A conversation has started — the next step waits for you",
+      "dispute": "The invoice is marked in dispute",
+      "disputeNote": "Off by default — turn on if your team uses the dispute flag"
+    },
+    "sendingTitle": "الإرسال",
+    "sending": {
+      "sendFrom": "الإرسال من",
+      "replyTo": "الرد إلى",
+      "sendAt": "يُرسل في",
+      "attachPdf": "إرفاق ملف الفاتورة"
+    },
+    "beforeTitle": "قبل إرسال أي شيء",
+    "before": {
+      "hold": "Hold each reminder for 24 hours first",
+      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you — if you do nothing, it sends.",
+      "approveFinal": "Require approval for the final notice",
+      "approveFinalNote": "The firm step never sends on its own — someone has to press send. Useful when the relationship matters more than the invoice."
+    },
+    "queue": {
+      "title": "تذكيرات الدفع",
+      "subtitle": "كل ما سيرسله جدول التذكيرات، وكل ما أرسله بالفعل.",
+      "scheduleSettings": "إعدادات الجدول",
+      "sendAReminder": "إرسال تذكير",
+      "holdTitle": "تُحجز التذكيرات ٢٤ ساعة قبل إرسالها",
+      "holdNote": "يمكن إلغاء أي عنصر أدناه يحمل عدًّا تنازليًا. إذا لم تفعل شيئًا، يُرسل في ٠٩:٠٠.",
+      "pauseEverything": "إيقاف الكل مؤقتًا",
+      "searchPlaceholder": "ابحث بالعميل أو الفاتورة...",
+      "selectAll": "Select all reminders",
+      "selectRow": "Select reminder for {{id}}",
+      "tabs": {
+        "scheduled": "مجدولة",
+        "sent": "مُرسلة",
+        "paused": "موقوفة",
+        "notSending": "لن تُرسل"
+      },
+      "kpi": {
+        "goingOut": "Going out tomorrow",
+        "goingOutNote": "Still cancellable",
+        "overdue": "Overdue and chased",
+        "overdueNote": "Across 6 invoices",
+        "paid": "Paid after a reminder",
+        "paidNote": "Last 30 days · 11 sent",
+        "paused": "Paused",
+        "pausedNote": "1 customer, 1 invoice"
+      },
+      "cols": {
+        "sending": "الإرسال",
+        "customer": "العميل",
+        "invoice": "الفاتورة",
+        "whichReminder": "أي تذكير",
+        "amount": "المبلغ",
+        "actions": "الإجراءات"
+      },
+      "tomorrow": "غدًا",
+      "in16Hours": "in 16 hours · 09:00",
+      "aug4": "4 Aug",
+      "in5Days": "in 5 days",
+      "aug11": "11 Aug",
+      "in12Days": "in 12 days",
+      "paused": "موقوف مؤقتًا",
+      "until15Aug": "until 15 Aug",
+      "promisedByPhone": "Payment promised by phone",
+      "overdue7": "7 days overdue",
+      "overdue14": "14 days overdue",
+      "overdue21": "21 days overdue",
+      "overdue30": "30 days overdue",
+      "due23Jul": "Due 23 Jul",
+      "due16Jul": "Due 16 Jul",
+      "due28Jul": "Due 28 Jul",
+      "due12Jul": "Due 12 Jul",
+      "due9Jul": "Due 9 Jul",
+      "actions": {
+        "sendNow": "إرسال الآن",
+        "review": "مراجعة",
+        "resume": "استئناف",
+        "cancel": "إلغاء",
+        "pause": "إيقاف مؤقت"
+      }
+    },
+    "pause": {
+      "title": "إيقاف التذكيرات مؤقتًا",
+      "subtitle": "أوقف المتابعة الآن. لا شيء يُلغى — يستأنف الجدول من حيث توقف.",
+      "targetMeta": "21 days overdue · reminder 2 due tomorrow",
+      "whatToPause": "ما الذي سيتوقف",
+      "scopeInvoice": "هذه الفاتورة فقط",
+      "scopeInvoiceNote": "Other invoices for Al Mouj Marina Cafe keep being chased as normal",
+      "scopeCustomer": "كل فواتير هذا العميل",
+      "scopeCustomerNote": "Nothing goes to Al Mouj Marina Cafe until you resume",
+      "why": "السبب",
+      "whyHint": "so the next person knows",
+      "reasons": {
+        "promised": "Payment promised",
+        "dispute": "Invoice in dispute",
+        "correction": "Correction on the way",
+        "relationship": "Relationship - handle by hand",
+        "other": "Other"
+      },
+      "resume": "الاستئناف",
+      "in7Days": "خلال ٧ أيام",
+      "onADate": "في تاريخ محدد",
+      "note": "ملاحظة",
+      "confirm": "إيقاف حتى {{date}}"
+    },
+    "send": {
+      "title": "إرسال تذكير الآن",
+      "subtitle": "يُرسل فورًا ويحل محل التذكير المجدول التالي لهذه الفاتورة.",
+      "targetMeta": "Due 23 Jul · 7 days overdue · no reminder sent yet",
+      "outstanding": "outstanding",
+      "whichMessage": "أي رسالة",
+      "friendlyHint": "Assume it was simply missed",
+      "followUpHint": "Direct, states the day overdue",
+      "finalNoticeHint": "Firm - use with care",
+      "to": "إلى",
+      "toHint": "the customer's billing contact",
+      "subject": "الموضوع",
+      "sendNow": "إرسال الآن",
+      "editJustThisOne": "تعديل هذه فقط",
+      "editTemplate": "تعديل القالب",
+      "preview": {
+        "label": "Preview",
+        "from": "From",
+        "repliesTo": "replies go to",
+        "dear": "Dear",
+        "body1": "I hope things are going well at the café. This is a gentle reminder that invoice",
+        "body2": "is still showing as unpaid on our side.",
+        "body3": "If it has already been paid, please ignore this note and accept our apologies. If there is a query on the invoice, just reply to this email and we will sort it out.",
+        "cta": "View and pay invoice",
+        "signOff": "Kind regards,",
+        "attached": "attached automatically",
+        "invoice": "Invoice",
+        "issued": "Issued",
+        "due": "Due",
+        "outstanding": "Amount outstanding"
+      }
+    },
+    "template": {
+      "friendlyDescription": "The first message a customer gets. Sent 7 days after the invoice was due.",
+      "subjectLine": "سطر الموضوع",
+      "message": "الرسالة",
+      "livePreview": "معاينة مباشرة",
+      "invoiceWord": "Invoice",
+      "attached": "attached",
+      "sendTest": "أرسل لي نسخة تجريبية",
+      "save": "حفظ الرسالة"
     }
+  },
+  "scanToFill": {
+    "button": "مسح لتعبئة الحقول",
+    "title": "امسح فاتورة لتعبئة هذا النموذج",
+    "subtitle": "ارفع فاتورة مورد أو صورة لها. سنقرأها ونعبّئ الحقول — وتراجع كل شيء قبل تطبيقه.",
+    "drop": "أفلت ملفًا هنا، أو اضغط للاختيار",
+    "dropHint": "PDF أو JPG أو PNG · حتى ١٠ ميجابايت",
+    "privacy": "يُقرأ الملف لاستخراج بيانات الفاتورة ولا يُرفق بالفاتورة ما لم ترفقه بنفسك.",
+    "reading": "جارٍ قراءة المستند…",
+    "failed": "تعذّرت قراءة هذا الملف. جرّب مسحًا أوضح، أو أدخل الفاتورة يدويًا.",
+    "tooLarge": "حجم الملف يتجاوز ١٠ ميجابايت. الرجاء رفع ملف أصغر.",
+    "readCount": "تمت قراءة {{fields}} حقلًا و{{lines}} بندًا",
+    "checkFields": "{{count}} حقل غير واضح — الرجاء مراجعته بعد التعبئة.",
+    "check": "راجع",
+    "fieldsFound": "الحقول المكتشفة",
+    "linesFound": "البنود المكتشفة",
+    "fill": "تعبئة النموذج",
+    "fieldCustomer": "العميل",
+    "fieldIssueDate": "تاريخ الإصدار",
+    "fieldDueDate": "تاريخ الاستحقاق",
+    "fieldPurchaseOrder": "مرجع أمر الشراء",
+    "fieldSubject": "الموضوع",
+    "wrongType": "نوع الملف غير مدعوم. استخدم PDF أو JPG أو PNG."
   }
 }

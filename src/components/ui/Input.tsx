@@ -30,7 +30,10 @@ export function Input({
   return (
     <div className="flex w-full flex-col gap-1">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={inputId} className="inline-flex items-center gap-0.5 text-sm font-medium text-text-primary">
+        <label
+          htmlFor={inputId}
+          className="inline-flex items-center gap-0.5 text-sm font-medium text-text-primary"
+        >
           {label}
           {requiredMark ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
         </label>
@@ -66,7 +69,9 @@ export function Input({
         ) : null}
       </div>
       {error ? <p className="text-xs font-medium text-text-danger">{error}</p> : null}
-      {!error && hint ? <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">{hint}</p> : null}
+      {!error && hint ? (
+        <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">{hint}</p>
+      ) : null}
     </div>
   )
 }

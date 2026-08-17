@@ -25,6 +25,7 @@ import { OrderFormsPage } from './pages/OrderFormsPage'
 import { NewOrderFormPage } from './pages/NewOrderFormPage'
 import { NewDeliveryNotePage } from './pages/NewDeliveryNotePage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
+import { RemindersPage } from './pages/RemindersPage'
 import { OrderFormDetailPage } from './pages/OrderFormDetailPage'
 import { DeliveryNotesPage } from './pages/DeliveryNotesPage'
 import { DeliveryNoteDetailPage } from './pages/DeliveryNoteDetailPage'
@@ -90,7 +91,8 @@ function App() {
           <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
           <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
           <Route path="/settings/payment-reminders" element={<PaymentRemindersPage />} />
-          <Route path="/income/reminders" element={<PaymentRemindersPage />} />
+          <Route path="/income/reminders" element={<RemindersPage />} />
+          <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
           <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />
           <Route path="/income/periodic/new" element={<PeriodicInvoicePage mode="create" />} />
           <Route path="/income/periodic/:id" element={<PeriodicInvoicePage mode="view" />} />

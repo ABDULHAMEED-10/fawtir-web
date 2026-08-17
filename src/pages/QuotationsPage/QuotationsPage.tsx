@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, StepTracker } from '../../components/ui'
+import { ActionMenu, StepTracker, TableCheckbox } from '../../components/ui'
 import { quotationRowActions } from '../../lib/rowActions'
 import {
   QUOTATION_KPI,
@@ -182,6 +182,15 @@ function QuotationsTable() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<QuotationTabId>('all')
+  const [selected, setSelected] = useState<string[]>([])
+
+  const toggleRow = (id: string) =>
+    setSelected((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    )
+  const allSelected = selected.length === QUOTATION_ROWS.length
+  const toggleAll = () =>
+    setSelected(allSelected ? [] : QUOTATION_ROWS.map((row) => row.id))
   const [page, setPage] = useState(2)
 
   return (
@@ -256,10 +265,11 @@ function QuotationsTable() {
           <thead>
             <tr className="bg-[#2c3342] text-start text-xs leading-[1.2] text-white">
               <th className="w-10 px-5 py-2.5">
-                <input
-                  type="checkbox"
-                  aria-label={t('quotations.selectAll')}
-                  className="size-[15px] rounded-[4px] border border-[#d0d2d5] bg-transparent"
+                <TableCheckbox
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  indeterminate={selected.length > 0 && !allSelected}
+                  ariaLabel={t('quotations.selectAll')}
                 />
               </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.quotation')}</th>
@@ -279,11 +289,11 @@ function QuotationsTable() {
                 onClick={() => navigate(`/trade-documents/quotations/${row.id}`)}
               >
                 <td className="px-5 py-2.5" onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={t('quotations.selectRow', { id: row.id })}
-                    className="size-[15px] rounded-[4px] border border-[#d0d2d5]"
-                  />
+                  <TableCheckbox
+                      checked={selected.includes(row.id)}
+                      onChange={() => toggleRow(row.id)}
+                      ariaLabel={t('quotations.selectRow', { id: row.id })}
+                    />
                 </td>
                 <QuotationRowCells row={row} />
                 <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>

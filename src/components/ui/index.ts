@@ -37,3 +37,10 @@ export {
   CheckCircleIcon,
   ExternalLinkIcon,
 } from './icons'
+export { Select, type SelectOption } from './Select'
+export { Combobox } from './Combobox'
+export { DateField } from './DateField'
+export { Popover } from './Popover'
+export { FileDropzone } from './FileDropzone'
+export { TableCheckbox } from './TableCheckbox'
+export { FilterMenu, type FilterMenuOption } from './FilterMenu'

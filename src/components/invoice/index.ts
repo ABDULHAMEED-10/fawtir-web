@@ -1,2 +1,4 @@
 export { LinkedDocuments } from './LinkedDocuments'
 export { LinkDocumentsModal } from './LinkDocumentsModal'
+export { BulkUploadModal } from './BulkUploadModal'
+export { DocumentPreview, type PreviewDocument } from './DocumentPreview'

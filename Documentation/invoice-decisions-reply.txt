@@ -1,0 +1,386 @@
+================================================================================
+FAWTIR — INVOICE AUTHORING MODULE
+Front-end reply: product decisions, and findings against the built UI
+================================================================================
+
+In reply to : FAWTIR-INV-SRS-001 v2.0  (invoice-module-srs.md)
+              FAWTIR-INV-TD-001  v1.0  (invoice-technical-design.md)
+From        : Front-end / UI
+Re          : the 19 open INV-PD-* decisions in SRS §47.2, plus seven points
+              where the built UI and the specification disagree
+
+Both documents were read in full. Nothing below asks you to change an
+already-resolved decision. Section A answers what you asked. Section B raises
+what we found going the other way — please treat those as questions back to you,
+not as objections.
+
+
+================================================================================
+SECTION A — ANSWERS TO THE OPEN PRODUCT DECISIONS
+================================================================================
+
+Format:  ID | our answer | ACCEPT = your safe default is fine as-is
+                          PREFER = we are asking for something different
+
+--------------------------------------------------------------------------------
+INV-PD-019  VAT-inclusive entry: discount ordering
+--------------------------------------------------------------------------------
+PREFER — adopt Option A: convert at entry.
+
+    exclusiveUnitPrice = inclusiveUnitPrice / (1 + rate/100)  at CALCULATION_SCALE
+
+then run the single exclusive path unchanged, with discounts applying to the
+derived exclusive base.
+
+Reason: it is your own recommendation in TD §9.2, it keeps one calculation path
+and one set of golden tests, and it is the only option that lets the
+"Excl. VAT / Incl. VAT" toggle in the design actually ship.
+
+We accept the two consequences you record: 1.800 / 1.05 repeats, so inclusive
+entry needs the same residual reconciliation as everything else; and the derived
+exclusive price will not round-trip to the typed inclusive price, so any
+inclusive figure we display will be a projection of the exclusive figures and
+never the typed value echoed back (INV-FR-169).
+
+Until this is formally approved we will keep the Incl. VAT control disabled
+rather than let it produce a document the server would refuse.
+
+--------------------------------------------------------------------------------
+INV-PD-005  Due date derivation
+--------------------------------------------------------------------------------
+PREFER — derive from payment terms, but allow manual override.
+
+Reason: the design already shows Payment terms and Due date side by side, and
+"Net 30 days" that does not fill the date is a field the user has to compute by
+hand every time. Override matters because real customers negotiate one-off dates.
+
+Behaviour we will build: choosing terms fills the due date and marks it
+system-set; if the user edits it, it becomes user-set and terms no longer
+overwrite it. That is the same provenance rule as INV-PD-018 below, so it is one
+mechanism, not two.
+
+--------------------------------------------------------------------------------
+INV-PD-010  Free-text lines without a product reference
+--------------------------------------------------------------------------------
+PREFER — allow a free-text line; product reference optional.
+
+Reason: the catalogue will not be complete on day one, and the tenants this
+serves (coffee shops, small retail) bill one-off items — delivery charges,
+a repair, a custom order. Requiring a catalogue product means a user must create
+a permanent product to invoice something once.
+
+We accept that a free-text line still needs an explicit unit code and tax
+category, and that where a product IS referenced the line must snapshot its
+description and price per INV-FR-101.
+
+--------------------------------------------------------------------------------
+INV-PD-016  B2G quick-create
+--------------------------------------------------------------------------------
+PREFER — add Government to the quick-create modal.
+
+Reason: Government is a first-class tab in section 1 of the invoice composer.
+Sending the user out to the full Customer form only for B2G breaks the flow at
+exactly the point where the buyer is most likely to be new.
+
+Fields needed beyond the business form: buyer reference (IBT-010), purchase
+order reference (IBT-013), contract/tender reference. We can supply a design.
+
+--------------------------------------------------------------------------------
+INV-PD-018  Customer-default precedence on customer change
+--------------------------------------------------------------------------------
+ACCEPT — your recommended four-step behaviour, in full.
+
+Populate on selection, mark each populated field system-set, mark any field the
+user edits as user-set, and on customer change re-resolve system-set fields
+silently while returning user-set conflicts in a defaultConflicts[] array.
+
+We will build the confirmation UI for defaultConflicts[]. Please keep the
+provenance on the server as you propose — the client must not be the one that
+remembers which fields were touched.
+
+--------------------------------------------------------------------------------
+INV-PD-001  "VAT or CBE No." in quick-create
+--------------------------------------------------------------------------------
+ACCEPT — do not persist a new identifier; reuse the Customer VATIN and
+participant identifier.
+
+The wording is ours and it is wrong. We will relabel the field to "VAT number
+(VATIN)" and remove the "or CBE No." Please confirm no separate commercial
+registration number is required for B2B before we finalise the label.
+
+Related: "Director First Name / Last Name Manager" in the same modal is also
+unclear wording on our side. We will change it to a single contact person field
+mapping to CustomerContact.contactPerson unless you need the two roles apart.
+
+--------------------------------------------------------------------------------
+INV-PD-004  Numbering scope, and manual numbers
+--------------------------------------------------------------------------------
+ACCEPT — Option A. Server-assigned, tenant-wide per document type, separate
+series for invoice / credit note / debit note, no manual entry.
+
+We agree manual numbers (Option D) should not be offered — gaplessness becomes
+unprovable, and the UI would be promising something the system cannot guarantee.
+
+--------------------------------------------------------------------------------
+INV-PD-009  Project: free text or entity
+--------------------------------------------------------------------------------
+ACCEPT — do not persist it in this phase.
+
+We will remove the Project field from the composer rather than ship a free-text
+field that becomes an entity later. Your point stands: that conversion is a
+migration with a data-parsing step. When projects exist as a real feature we
+will add it back as an entity reference.
+
+--------------------------------------------------------------------------------
+INV-PD-014  "Mark as paid" accounting effect, and overpayment
+--------------------------------------------------------------------------------
+ACCEPT — record a payment with amount, method, reference and date; derive the
+receivable; no ledger posting in this module. Refuse overpayment for now.
+
+We will change the control so it captures an amount rather than acting as a
+flag, and defaults to the full outstanding figure.
+
+--------------------------------------------------------------------------------
+INV-PD-020  Maximum attachments per invoice
+--------------------------------------------------------------------------------
+ACCEPT — 10 per invoice, 10 MB each, PDF / JPG / PNG / XLSX.
+
+--------------------------------------------------------------------------------
+INV-PD-007  Attachments embedded in the Peppol payload
+--------------------------------------------------------------------------------
+ACCEPT — portal-only for now. No UI implication either way.
+
+--------------------------------------------------------------------------------
+INV-PD-013  Retention and cleanup for drafts, attachments, exports
+--------------------------------------------------------------------------------
+ACCEPT — retain indefinitely, no automatic deletion, until legal confirms.
+
+We note your warning about the Customer module's orphan-object issue and would
+rather carry storage growth than repeat it.
+
+--------------------------------------------------------------------------------
+INV-PD-008  Cancelling a delivered invoice
+--------------------------------------------------------------------------------
+ACCEPT — refuse cancellation once delivery state is SENT or DELIVERED; a credit
+note is the correction path.
+
+The UI will hide Cancel and offer "Create credit note" in that state, so the
+user is not shown an action that will be refused.
+
+--------------------------------------------------------------------------------
+INV-PD-011  Branch address vs company address on the document
+--------------------------------------------------------------------------------
+ACCEPT — company address on the document. Branch stays a reference and a
+snapshot, not the printed address.
+
+--------------------------------------------------------------------------------
+INV-PD-012  Line-level tax category override
+--------------------------------------------------------------------------------
+ACCEPT — refuse override until the rule set is defined.
+
+Note for later: a grocery basket genuinely mixes zero-rated staples and
+standard-rated household goods on one document, so we expect to need per-line
+categories before long. Not a blocker now; flagging the direction.
+
+--------------------------------------------------------------------------------
+INV-PD-006  Exchange rate source, timing, rounding
+--------------------------------------------------------------------------------
+ACCEPT — refuse any document currency other than the tenant's tax currency.
+OMR only for now. No UI implication.
+
+--------------------------------------------------------------------------------
+INV-PD-015  Default role-to-permission assignment
+--------------------------------------------------------------------------------
+ACCEPT — tenant ADMIN only until the RBAC rollout.
+
+--------------------------------------------------------------------------------
+INV-PD-017  Advanced / full-profile path from quick-create
+--------------------------------------------------------------------------------
+ACCEPT — a link to the full Customer form. The modal stays small deliberately.
+
+--------------------------------------------------------------------------------
+INV-PD-021  Does invoice.approve gate issuance
+--------------------------------------------------------------------------------
+ACCEPT — leave it dormant. invoice.issue alone gates issuance.
+
+--------------------------------------------------------------------------------
+INV-AD-004  Revoking DELETE on issued-invoice and audit tables
+--------------------------------------------------------------------------------
+ENDORSE — yes, revoke it, and diverge from peppol.invoices deliberately as you
+propose. There is no UI action that should ever delete an issued tax document.
+
+
+================================================================================
+SECTION B — WHERE THE BUILT UI AND THE SPEC DISAGREE
+================================================================================
+
+Seven points. The first is a design question we cannot answer alone.
+
+--------------------------------------------------------------------------------
+B1. ONE STATUS CHIP vs THREE INDEPENDENT STATE AXES   <-- needs your input
+--------------------------------------------------------------------------------
+INV-FR-012 and INV-FR-374 are explicit: authoring state, payment state and
+delivery state are three separate fields and must never be collapsed into one
+"status". TD §1.3 and §15.4 repeat it.
+
+The built invoice list shows a single chip whose values mix all three:
+
+    Draft               -> authoring state
+    To be sent          -> delivery state
+    Awaiting payment    -> payment state
+    Overdue             -> derived from due date + payment state
+    Paid                -> payment state
+
+An invoice can legitimately be ISSUED + UNDELIVERABLE + PARTIALLY_PAID at once,
+and the current chip cannot say that.
+
+Two ways forward, and we need a decision:
+
+  (a) Show the three axes separately in the table — more columns, more honest,
+      closer to the API you are building.
+  (b) Keep one chip, and define an explicit, documented precedence that maps
+      three axes to one label. This must be written down, because whoever
+      implements it will otherwise invent it.
+
+Our preference is (a) for the detail screen, where there is room, and (b) for
+the list, with the precedence rule agreed by you rather than by us.
+
+--------------------------------------------------------------------------------
+B2. DISCOUNT TYPE WAS NOT CAPTURED                              [FIXED]
+--------------------------------------------------------------------------------
+INV-FR-180: discount type is an explicit stored enum and must not be inferred
+from the value's magnitude. Our items table showed a bare "10" with nothing
+saying whether it meant 10 % or 10 OMR.
+
+Fixed. Each line now has a % / OMR switch, and a percentage shows the money it
+resolves to live underneath ("= 3.800 OMR").
+
+--------------------------------------------------------------------------------
+B3. NO DOCUMENT-LEVEL DISCOUNT CONTROL                          [FIXED]
+--------------------------------------------------------------------------------
+You have full support for a header discount allocated proportionally across
+lines — the most intricate arithmetic in the engine — and the UI had no field
+for it at all.
+
+Fixed. There is now a document-discount control with the same % / OMR switch and
+a live OMR figure, and the totals recompute as it changes.
+
+--------------------------------------------------------------------------------
+B4. INVOICE NUMBER IS PREFILLED ON A DRAFT
+--------------------------------------------------------------------------------
+The composer shows "INV-2044" in the Invoice number field before issue.
+INV-FR-240 and INV-FR-255: a draft must not hold or reserve a legal number.
+
+We will change it to a non-editable placeholder that reads "assigned on issue",
+and show a draft handle instead. Confirm that is what you want the API to
+return for a draft.
+
+--------------------------------------------------------------------------------
+B5. "ON PEPPOL" BADGE IS CURRENTLY NOT TRUE
+--------------------------------------------------------------------------------
+SRS §7 note: the Customer Peppol projection returns PENDING_VERIFICATION for
+every customer until an approved Discovery integration exists (CUS-CB-003), and
+"the UI MUST NOT render 'On Peppol' as a confirmed capability while that is so."
+
+The composer and the customer screens both show a confirmed "On Peppol" pill.
+We will change it to reflect the real projection value — "Peppol status
+pending" — until Discovery lands. Please confirm the exact wording you want,
+since it appears on a compliance-adjacent surface.
+
+--------------------------------------------------------------------------------
+B6. INCL. VAT TOGGLE IS LIVE BUT UNSUPPORTED
+--------------------------------------------------------------------------------
+Blocked on INV-PD-019 above. The control is currently active in the build. We
+will disable it with a named reason until the ordering is approved, per
+INV-FR-168.
+
+--------------------------------------------------------------------------------
+B7. SCREENS BUILT AHEAD OF YOUR PLAN — SEQUENCING QUESTION
+--------------------------------------------------------------------------------
+SRS §46 lists as future scope: delivery notes, self-billing authoring, recurring
+invoices, invoice templates. Debit-note authoring is disabled outright until
+INV-CB-003 resolves.
+
+The front end has already built, to approved designs:
+
+    - Delivery notes  (list, sale detail, purchase detail, create, receipt)
+    - Order forms     (list, sale detail, purchase detail, create x2)
+    - Self-billing    (list, agreements, create, detail)
+    - Periodic / recurring invoices
+    - Credit notes and DEBIT NOTES (list, create, detail)
+    - Quotations
+    - Payment reminders (queue, settings, pause, send, template editor)
+    - POS
+
+This is not a complaint — those screens were requested and designed. It is a
+sequencing question: the UI is several modules ahead of the backend plan, and
+debit notes in particular are built against a capability you have disabled.
+
+Please tell us the intended build order so we can prioritise correctly, and say
+whether debit-note screens should be hidden behind a flag until INV-CB-003.
+
+
+================================================================================
+SECTION C — WHAT THE FRONT END HAS ALREADY DONE TO MATCH YOU
+================================================================================
+
+1. Money is calculated with BigInt fixed point, never JS floats — INV-FR-173
+   applies to us too, and 0.1 + 0.2 is exactly the error class it guards.
+
+2. We implemented your algorithm rather than an approximation: scale 10
+   internally, HALF_UP at every boundary, VAT per (category, rate) on the
+   aggregated base with lines reconciled to it, and the fixed header discount
+   allocated in ONE division per INV-FR-188.
+
+3. We ran it against your four published vectors and all four reproduce exactly:
+
+     design screen, no header discount  59.600 / 3.800 / 55.800 / 2.790 / 58.590
+     TD §8.1 Run 1, FIXED 5.000         5.000 / 50.800 / 2.540 / 53.340
+                                        allocations 1.935 / 3.065
+                                        taxables    19.665 / 31.135
+     TD §8.2 Run 2, PERCENTAGE 10 %     5.580 / 50.220 / 2.511 / 52.731
+     TD §8.3 Run 3, residual            line 1 = 6.666, lines 2-3 = 6.667
+
+4. Your §8.3 vector caught a real defect in our first version. We formatted each
+   figure independently, and Run 3 displayed 6.667 / 6.667 / 6.667 = 20.001
+   against a total of 20.000. That is precisely what §8.3 predicts. We added a
+   projection step that re-runs the reconciler at display scale, so a column now
+   always sums to the total beside it — INV-FR-198 in practice. Worth saying
+   plainly: the worked example earned its keep.
+
+5. Understood and accepted: this arithmetic is PREVIEW ONLY. The server computes
+   and owns the issued figures. When the API exists this becomes a call to
+   POST /api/v1/invoice-drafts/{id}/preview, and computed totals will be absent
+   from our request payload entirely, per TD §10 and INV-FR-091 — not sent and
+   ignored, but not present in the DTO at all.
+
+6. The design's 3-decimal OMR display, which you used as one of six sources to
+   close INV-CB-008, is what we ship. We have no 2-decimal money anywhere.
+
+
+================================================================================
+SECTION D — WHAT WE NEED BACK, IN PRIORITY ORDER
+================================================================================
+
+1. B1 — the status-axis decision. It changes the invoice list and detail layout
+   materially and we cannot resolve it on our own.
+
+2. INV-PD-019 — approve Option A so the Incl. VAT toggle can ship, or confirm we
+   remove the control.
+
+3. B7 — the intended build order, and whether debit notes go behind a flag.
+
+4. Confirmation of the PREFER items: INV-PD-005, INV-PD-010, INV-PD-016.
+
+5. Wording for B5, since it sits on a compliance-adjacent surface.
+
+Everything else in Section A is us accepting your safe defaults; no reply needed
+on those unless you disagree.
+
+We make no compliance claim, and nothing here asks you to lift a production
+blocker. INV-CB-009 and INV-CB-010 are noted and understood as QA-gating for
+emitted documents.
+
+================================================================================
+end
+================================================================================
