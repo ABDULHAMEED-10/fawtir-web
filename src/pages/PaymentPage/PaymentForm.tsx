@@ -18,6 +18,16 @@ import {
   type BillingCycle,
   type PlanId,
 } from '../../lib/pricing'
+import {
+  cardNumber as validateCard,
+  cvc as validateCvc,
+  expiry as validateExpiry,
+  formatCardNumber,
+  formatExpiry,
+  isClean,
+  required,
+  type FieldError,
+} from '../../lib/validation'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
 import emailIcon from '../../assets/payment/email.svg'
@@ -30,17 +40,6 @@ type PaymentMethod = 'card' | 'bank'
 type LocationState = {
   plan?: PlanId
   billing?: BillingCycle
-}
-
-function formatCardNumber(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 16)
-  return digits.replace(/(\d{4})(?=\d)/g, '$1 ').trim()
-}
-
-function formatExpiry(value: string) {
-  const digits = value.replace(/\D/g, '').slice(0, 4)
-  if (digits.length <= 2) return digits
-  return `${digits.slice(0, 2)}/${digits.slice(2)}`
 }
 
 export function PaymentForm() {
@@ -60,6 +59,10 @@ export function PaymentForm() {
   const [cvc, setCvc] = useState('')
   const [billingCountry, setBillingCountry] = useState('Oman')
   const [saveCard, setSaveCard] = useState(true)
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
   const planName = t(`plans.${plan}.name`)
   const totalLabel = summary ? formatOmr(summary.total) : t('plans.enterprise.price')
@@ -67,13 +70,22 @@ export function PaymentForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    // Bank transfer collects nothing here, so only the card branch has anything to check.
+    if (method === 'card') {
+      const next: Record<string, FieldError> = {
+        nameOnCard: required(nameOnCard),
+        cardNumber: validateCard(cardNumber),
+        expiry: validateExpiry(expiry),
+        cvc: validateCvc(cvc),
+      }
+      setErrors(next)
+      if (!isClean(next)) return
+    }
     navigate('/fawtara-status', {
       state: {
         ...state,
         paymentMethod: method,
-        ...(method === 'card'
-          ? { nameOnCard, cardNumber, expiry, billingCountry, saveCard }
-          : {}),
+        ...(method === 'card' ? { nameOnCard, cardNumber, expiry, billingCountry, saveCard } : {}),
       },
     })
   }
@@ -118,7 +130,11 @@ export function PaymentForm() {
                   label={t('payment.card.nameLabel')}
                   requiredMark
                   value={nameOnCard}
-                  onChange={(e) => setNameOnCard(e.target.value)}
+                  onChange={(e) => {
+                    setNameOnCard(e.target.value)
+                    clearError('nameOnCard')
+                  }}
+                  error={errors.nameOnCard ? t(errors.nameOnCard) : undefined}
                   autoComplete="cc-name"
                   className="border border-primary-300"
                 />
@@ -128,7 +144,11 @@ export function PaymentForm() {
                   requiredMark
                   placeholder={t('payment.card.numberPlaceholder')}
                   value={cardNumber}
-                  onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                  onChange={(e) => {
+                    setCardNumber(formatCardNumber(e.target.value))
+                    clearError('cardNumber')
+                  }}
+                  error={errors.cardNumber ? t(errors.cardNumber) : undefined}
                   inputMode="numeric"
                   autoComplete="cc-number"
                   labelEnd={
@@ -152,7 +172,11 @@ export function PaymentForm() {
                     requiredMark
                     placeholder={t('payment.card.expiryPlaceholder')}
                     value={expiry}
-                    onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                    onChange={(e) => {
+                      setExpiry(formatExpiry(e.target.value))
+                      clearError('expiry')
+                    }}
+                    error={errors.expiry ? t(errors.expiry) : undefined}
                     inputMode="numeric"
                     autoComplete="cc-exp"
                   />
@@ -161,7 +185,11 @@ export function PaymentForm() {
                     requiredMark
                     placeholder={t('payment.card.cvcPlaceholder')}
                     value={cvc}
-                    onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    onChange={(e) => {
+                      setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))
+                      clearError('cvc')
+                    }}
+                    error={errors.cvc ? t(errors.cvc) : undefined}
                     inputMode="numeric"
                     autoComplete="cc-csc"
                     type="password"
@@ -210,9 +238,7 @@ export function PaymentForm() {
       </div>
 
       <Button type="submit" className="w-full max-w-[400px] gap-1.5">
-        {method === 'card'
-          ? t('payment.payCta', { amount: totalLabel })
-          : t('payment.bankCta')}
+        {method === 'card' ? t('payment.payCta', { amount: totalLabel }) : t('payment.bankCta')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>
     </form>

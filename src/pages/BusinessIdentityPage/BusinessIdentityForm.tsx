@@ -13,6 +13,14 @@ import {
 import type { AboutBusinessAnswers } from '../../lib/onboarding'
 import { isBusinessTypeId, type BusinessTypeId } from '../../lib/subBusinessTypes'
 import type { InvoicePreviewData } from './BusinessIdentityHero'
+import {
+  crNumber as validateCr,
+  isClean,
+  peppolIdFor,
+  required,
+  vatin as validateVatin,
+  type FieldError,
+} from '../../lib/validation'
 
 const ACCENT_COLORS = ['#2C4EB7', '#007D58', '#D43400', '#8635F6', '#CA0005', '#0A1032'] as const
 
@@ -55,8 +63,12 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   const [vatin, setVatin] = useState('OM1100112233')
   const [accentColor, setAccentColor] = useState<string>(ACCENT_COLORS[0])
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
 
-  const peppolId = vatin.trim() ? `0248:${vatin.trim()}` : ''
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+
+  const peppolId = peppolIdFor(vatin)
   const initials = getInitials(companyName)
 
   const businessTypeLabel = useMemo(() => {
@@ -74,8 +86,9 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
       peppolId,
       initials,
       accentColor,
+      logoUrl: logoPreview,
     }),
-    [accentColor, companyName, crNumber, initials, peppolId, vatin],
+    [accentColor, companyName, crNumber, initials, logoPreview, peppolId, vatin],
   )
 
   useEffect(() => {
@@ -84,6 +97,13 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      companyName: required(companyName),
+      crNumber: validateCr(crNumber),
+      vatin: validateVatin(vatin),
+    }
+    setErrors(next)
+    if (!isClean(next)) return
     navigate('/address-contact', {
       state: {
         ...answers,
@@ -92,21 +112,40 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
         vatin,
         peppolId,
         accentColor,
+        logoUrl: logoPreview,
       },
     })
   }
 
   const handleLogoChange = (file: File | null) => {
+    clearError('logo')
     if (!file) {
       setLogoPreview(null)
       return
     }
-    const url = URL.createObjectURL(file)
-    setLogoPreview(url)
+    const ACCEPTED = ['image/png', 'image/svg+xml']
+    if (!ACCEPTED.includes(file.type)) {
+      setErrors((current) => ({ ...current, logo: 'validation.logoType' }))
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setErrors((current) => ({ ...current, logo: 'validation.logoSize' }))
+      return
+    }
+    // A data URL rather than an object URL: a blob URL dies with this screen, and the logo has
+    // to survive the step that follows, which renders the same preview. It is also already in
+    // the shape the upload will take.
+    const reader = new FileReader()
+    reader.onload = () => setLogoPreview(typeof reader.result === 'string' ? reader.result : null)
+    reader.onerror = () => setErrors((current) => ({ ...current, logo: 'validation.logoType' }))
+    reader.readAsDataURL(file)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-[700px] flex-col items-center gap-11">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full max-w-[700px] flex-col items-center gap-11"
+    >
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
           <span className="inline-flex h-[29px] w-fit items-center justify-center rounded-sm border border-primary-150 px-2.5 text-base font-medium text-primary-700">
@@ -139,13 +178,29 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               </span>
               <span className="flex flex-col gap-1">
                 <span className="text-base font-medium leading-[1.2] text-text-primary">
-                  {t('businessIdentity.logoTitle')}
+                  {logoPreview
+                    ? t('businessIdentity.logoReplace')
+                    : t('businessIdentity.logoTitle')}
                 </span>
                 <span className="text-xs font-medium leading-[1.2] text-text-tertiary">
                   {t('businessIdentity.logoHint')}
                 </span>
               </span>
             </button>
+            {logoPreview ? (
+              <button
+                type="button"
+                onClick={() => handleLogoChange(null)}
+                className="w-fit text-xs font-semibold text-primary-700 hover:text-primary-800"
+              >
+                {t('businessIdentity.logoRemove')}
+              </button>
+            ) : null}
+            {errors.logo ? (
+              <p className="text-xs font-medium text-text-danger" role="alert">
+                {t(errors.logo)}
+              </p>
+            ) : null}
             <input
               ref={fileInputRef}
               type="file"
@@ -160,7 +215,11 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               label={t('businessIdentity.companyNameLabel')}
               requiredMark
               value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
+              onChange={(e) => {
+                setCompanyName(e.target.value)
+                clearError('companyName')
+              }}
+              error={errors.companyName ? t(errors.companyName) : undefined}
               leadingIcon={<UserIcon size={20} />}
               trailingIcon={
                 companyName ? (
@@ -180,7 +239,11 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               label={t('businessIdentity.crLabel')}
               requiredMark
               value={crNumber}
-              onChange={(e) => setCrNumber(e.target.value)}
+              onChange={(e) => {
+                setCrNumber(e.target.value)
+                clearError('crNumber')
+              }}
+              error={errors.crNumber ? t(errors.crNumber) : undefined}
               leadingIcon={<HashIcon size={14} />}
               hint={t('businessIdentity.crHint')}
             />
@@ -189,7 +252,11 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               label={t('businessIdentity.vatinLabel')}
               requiredMark
               value={vatin}
-              onChange={(e) => setVatin(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setVatin(e.target.value.toUpperCase())
+                clearError('vatin')
+              }}
+              error={errors.vatin ? t(errors.vatin) : undefined}
               leadingIcon={<HashIcon size={14} />}
               hint={t('businessIdentity.vatinHint')}
             />
@@ -227,7 +294,13 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
                       style={{ backgroundColor: color }}
                     >
                       {selected ? (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          aria-hidden="true"
+                        >
                           <path
                             d="M3.26 8.85 6.11 11.7 12.47 5.33"
                             stroke="white"

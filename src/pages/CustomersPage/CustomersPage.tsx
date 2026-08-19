@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, TableCheckbox } from '../../components/ui'
 import { customerRowActions } from '../../lib/rowActions'
 import {
   CUSTOMER_KPI,
-  CUSTOMER_PAGE_NUMBERS,
   CUSTOMER_ROWS,
   CUSTOMER_TABS,
   type CustomerKind,
@@ -43,7 +42,10 @@ const AVATAR_STYLES: Record<CustomerKind, string> = {
 }
 
 /** Peppol state renders as a dot pill, not bare text. */
-const PEPPOL_STYLES: Record<PeppolState, { bg: string; fg: string; dot: string; labelKey: string }> = {
+const PEPPOL_STYLES: Record<
+  PeppolState,
+  { bg: string; fg: string; dot: string; labelKey: string }
+> = {
   onPeppol: {
     bg: 'bg-success-100',
     fg: 'text-success-700',
@@ -229,24 +231,97 @@ function CustomerRowCells({ row }: { row: CustomerRow }) {
   )
 }
 
+const PAGE_SIZE = 6
+
+type CustomerSortKey = 'nameAsc' | 'nameDesc' | 'receivableDesc' | 'invoicesDesc'
+
+const CUSTOMER_SORT_OPTIONS: { value: CustomerSortKey; labelKey: string }[] = [
+  { value: 'nameAsc', labelKey: 'customersPage.sortOptions.nameAsc' },
+  { value: 'nameDesc', labelKey: 'customersPage.sortOptions.nameDesc' },
+  { value: 'receivableDesc', labelKey: 'customersPage.sortOptions.receivableDesc' },
+  { value: 'invoicesDesc', labelKey: 'customersPage.sortOptions.invoicesDesc' },
+]
+
+const PEPPOL_FILTERS: { id: PeppolState | 'all'; labelKey: string }[] = [
+  { id: 'all', labelKey: 'customersPage.peppolFilter.all' },
+  { id: 'onPeppol', labelKey: 'customersPage.peppol.onPeppol' },
+  { id: 'notConnected', labelKey: 'customersPage.peppol.notConnected' },
+  { id: 'qrReceipt', labelKey: 'customersPage.peppol.qrReceipt' },
+]
+
+/** `1,204.500` → a comparable number; a customer with nothing owing sorts as zero. */
+const receivableValue = (amount?: string) => (amount ? Number(amount.replace(/,/g, '')) || 0 : 0)
+
 function CustomerTable() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<CustomerTabId>('all')
   const [page, setPage] = useState(1)
+  const [query, setQuery] = useState('')
+  const [peppolFilter, setPeppolFilter] = useState<PeppolState | 'all'>('all')
+  const [sort, setSort] = useState<CustomerSortKey>('nameAsc')
+  const [selected, setSelected] = useState<string[]>([])
+  const [sortOpen, setSortOpen] = useState(false)
+  const sortRef = useRef<HTMLButtonElement>(null)
 
-  const rows =
-    activeTab === 'all' ? CUSTOMER_ROWS : CUSTOMER_ROWS.filter((row) => row.kind === activeTab)
+  /** Tab, then Peppol state, then free-text, then order — the same sequence the server applies. */
+  const rows = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const filtered = CUSTOMER_ROWS.filter((row) => {
+      const inTab = activeTab === 'all' || row.kind === activeTab
+      const inPeppol = peppolFilter === 'all' || row.peppol === peppolFilter
+      const matches =
+        needle === '' ||
+        row.name.toLowerCase().includes(needle) ||
+        row.subtitle.toLowerCase().includes(needle) ||
+        row.contactName.toLowerCase().includes(needle) ||
+        row.contactEmail.toLowerCase().includes(needle) ||
+        row.location.toLowerCase().includes(needle)
+      return inTab && inPeppol && matches
+    })
+    return [...filtered].sort((a, b) => {
+      if (sort === 'nameAsc') return a.name.localeCompare(b.name)
+      if (sort === 'nameDesc') return b.name.localeCompare(a.name)
+      if (sort === 'invoicesDesc') return b.invoiceCount - a.invoiceCount
+      return receivableValue(b.amount) - receivableValue(a.amount)
+    })
+  }, [activeTab, peppolFilter, query, sort])
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const current = Math.min(page, pageCount)
+  const visible = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
+  const allOnPageSelected = visible.length > 0 && visible.every((row) => selected.includes(row.id))
+  const someOnPageSelected = !allOnPageSelected && visible.some((row) => selected.includes(row.id))
+
+  /** Elide the middle when there are many pages, keeping first, last and the neighbours. */
+  const pageNumbers = useMemo<(number | string)[]>(() => {
+    if (pageCount <= 6) return Array.from({ length: pageCount }, (_, i) => i + 1)
+    const near = [current - 1, current, current + 1].filter((n) => n > 1 && n < pageCount)
+    return [
+      1,
+      ...(near[0] > 2 ? ['…'] : []),
+      ...near,
+      ...(near.at(-1)! < pageCount - 1 ? ['…'] : []),
+      pageCount,
+    ]
+  }, [pageCount, current])
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
       <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
         {CUSTOMER_TABS.map((tab) => {
           const active = tab.id === activeTab
+          const tabCount =
+            tab.id === 'all'
+              ? CUSTOMER_ROWS.length
+              : CUSTOMER_ROWS.filter((row) => row.kind === tab.id).length
           return (
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setPage(1)
+              }}
               className={[
                 'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
                 active
@@ -261,7 +336,7 @@ function CustomerTable() {
                   active ? 'bg-primary-25 text-primary-800' : 'bg-primary-25 text-text-quaternary',
                 ].join(' ')}
               >
-                {tab.count}
+                {tabCount}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
@@ -276,25 +351,76 @@ function CustomerTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
             placeholder={t('customersPage.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
         </label>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 text-sm font-semibold text-text-tertiary"
-          >
-            {t('customersPage.filters')}
-            <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-70" />
-          </button>
-          <button
-            type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
-          >
-            <img src={sortIcon} alt="" className="size-6" />
-            {t('customersPage.sort')}
-          </button>
+          <FilterMenu
+            label={t('customersPage.filters')}
+            value={peppolFilter}
+            defaultValue="all"
+            onChange={(value) => {
+              setPeppolFilter(value)
+              setPage(1)
+            }}
+            options={PEPPOL_FILTERS.map((option) => ({
+              value: option.id,
+              label: t(option.labelKey),
+            }))}
+          />
+          <div>
+            <button
+              ref={sortRef}
+              type="button"
+              onClick={() => setSortOpen((open) => !open)}
+              aria-haspopup="listbox"
+              aria-expanded={sortOpen}
+              className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+            >
+              <img src={sortIcon} alt="" className="size-6" />
+              {t(
+                CUSTOMER_SORT_OPTIONS.find((option) => option.value === sort)?.labelKey ??
+                  'customersPage.sort',
+              )}
+            </button>
+            <Popover
+              open={sortOpen}
+              anchorRef={sortRef}
+              onClose={() => setSortOpen(false)}
+              width={220}
+              align="end"
+            >
+              <ul role="listbox" className="py-1">
+                {CUSTOMER_SORT_OPTIONS.map((option) => (
+                  <li key={option.value}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={option.value === sort}
+                      onClick={() => {
+                        setSort(option.value)
+                        setSortOpen(false)
+                      }}
+                      className={[
+                        'w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-primary-25',
+                        option.value === sort
+                          ? 'font-semibold text-primary-800'
+                          : 'font-medium text-text-secondary',
+                      ].join(' ')}
+                    >
+                      {t(option.labelKey)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Popover>
+          </div>
         </div>
       </div>
 
@@ -303,25 +429,58 @@ function CustomerTable() {
           <thead>
             <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
               <th className="w-10 px-5 py-2.5">
-                <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
+                <TableCheckbox
+                  checked={allOnPageSelected}
+                  indeterminate={someOnPageSelected}
+                  onChange={() =>
+                    setSelected((current) =>
+                      allOnPageSelected
+                        ? current.filter((id) => !visible.some((row) => row.id === id))
+                        : [...new Set([...current, ...visible.map((row) => row.id)])],
+                    )
+                  }
+                  ariaLabel={t('customersPage.selectAll')}
+                />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('customersPage.col.customer')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('customersPage.col.contact')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('customersPage.col.location')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('customersPage.col.peppol')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('customersPage.col.invoices')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('customersPage.col.receivable')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('customersPage.col.customer')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('customersPage.col.contact')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('customersPage.col.location')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('customersPage.col.peppol')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('customersPage.col.invoices')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('customersPage.col.receivable')}
+              </th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {visible.map((row) => (
               <tr
                 key={row.id}
                 className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
               >
                 <td className="px-5 py-2.5">
-                  <span className="block size-[15px] rounded-sm border border-border-default" />
+                  <TableCheckbox
+                    checked={selected.includes(row.id)}
+                    onChange={() =>
+                      setSelected((current) =>
+                        current.includes(row.id)
+                          ? current.filter((id) => id !== row.id)
+                          : [...current, row.id],
+                      )
+                    }
+                    ariaLabel={t('customersPage.selectRow', { name: row.name })}
+                  />
                 </td>
                 <CustomerRowCells row={row} />
                 <td className="px-2 py-2.5">
@@ -338,7 +497,9 @@ function CustomerTable() {
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-text-muted">{t('customersPage.showResult')}</span>
+          <span className="text-sm font-medium text-text-muted">
+            {t('customersPage.showResult')} {rows.length}
+          </span>
           <button
             type="button"
             className="inline-flex h-9 w-[55px] items-center justify-between rounded-sm border border-border-subtle px-3 text-sm font-semibold text-text-secondary"
@@ -350,23 +511,25 @@ function CustomerTable() {
         <div className="flex items-center">
           <button
             type="button"
-            className="inline-flex size-10 items-center justify-center rounded-md text-text-muted"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={current === 1}
+            className="inline-flex size-10 items-center justify-center rounded-md text-text-muted disabled:opacity-40"
             aria-label={t('customersPage.prevPage')}
           >
             <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
           </button>
-          {CUSTOMER_PAGE_NUMBERS.map((n) => {
-            if (n === '...') {
+          {pageNumbers.map((n) => {
+            if (typeof n === 'string') {
               return (
                 <span
-                  key="ellipsis"
+                  key={'gap-' + n}
                   className="inline-flex size-10 items-center justify-center text-sm font-medium text-text-muted"
                 >
                   …
                 </span>
               )
             }
-            const active = n === page
+            const active = n === current
             return (
               <button
                 key={n}
@@ -385,7 +548,9 @@ function CustomerTable() {
           })}
           <button
             type="button"
-            className="inline-flex size-10 items-center justify-center rounded-md text-text-muted"
+            onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+            disabled={current === pageCount}
+            className="inline-flex size-10 items-center justify-center rounded-md text-text-muted disabled:opacity-40"
             aria-label={t('customersPage.nextPage')}
           >
             <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />

@@ -9,6 +9,7 @@ import {
   PhoneIcon,
   SegmentedControl,
 } from '../../components/ui'
+import { email as validateEmail, isClean, omanPhone, type FieldError } from '../../lib/validation'
 
 type ResetMethod = 'email' | 'phone'
 
@@ -18,17 +19,24 @@ export function ForgotPasswordForm() {
   const [method, setMethod] = useState<ResetMethod>('email')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+
+  const clearError = () =>
+    setErrors((current) => (current.contact ? { ...current, contact: undefined } : current))
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      contact: method === 'email' ? validateEmail(email) : omanPhone(phone),
+    }
+    setErrors(next)
+    if (!isClean(next)) return
     navigate('/verify-code', {
       state: {
         from: 'forgot-password',
         method,
-        contact:
-          method === 'email'
-            ? email || 'you@company.com'
-            : `+968 ${phone || '•••• 4567'}`,
+        // Validation guarantees both are real values by this point.
+        contact: method === 'email' ? email : `+968 ${phone}`,
       },
     })
   }
@@ -49,7 +57,10 @@ export function ForgotPasswordForm() {
           <SegmentedControl
             ariaLabel={t('forgotPassword.methodLabel')}
             value={method}
-            onChange={setMethod}
+            onChange={(next) => {
+              setMethod(next)
+              clearError()
+            }}
             options={[
               { value: 'email', label: t('login.emailTab') },
               { value: 'phone', label: t('login.phoneTab') },
@@ -64,7 +75,11 @@ export function ForgotPasswordForm() {
               autoComplete="email"
               placeholder={t('login.emailPlaceholder')}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                clearError()
+              }}
+              error={errors.contact ? t(errors.contact) : undefined}
               leadingIcon={<MailIcon />}
             />
           ) : (
@@ -75,7 +90,11 @@ export function ForgotPasswordForm() {
               autoComplete="tel"
               placeholder={t('signup.phonePlaceholder')}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                clearError()
+              }}
+              error={errors.contact ? t(errors.contact) : undefined}
               leadingIcon={<PhoneIcon />}
             />
           )}

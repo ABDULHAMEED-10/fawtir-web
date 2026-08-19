@@ -19,6 +19,7 @@ export function VerifyCodeForm() {
 
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''))
   const [seconds, setSeconds] = useState(10)
+  const [error, setError] = useState<string>()
 
   useEffect(() => {
     if (seconds <= 0) return
@@ -30,6 +31,10 @@ export function VerifyCodeForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (otp.some((digit) => digit === '')) {
+      setError('validation.codeIncomplete')
+      return
+    }
     if (from === 'forgot-password') {
       navigate('/new-password')
       return
@@ -40,6 +45,8 @@ export function VerifyCodeForm() {
   const handleResend = () => {
     if (seconds > 0) return
     setSeconds(10)
+    setOtp(Array(6).fill(''))
+    setError(undefined)
   }
 
   const timeLabel = `0:${String(Math.max(seconds, 0)).padStart(2, '0')}`
@@ -57,12 +64,22 @@ export function VerifyCodeForm() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <OtpInput value={otp} onChange={setOtp} />
+          <OtpInput
+            value={otp}
+            onChange={(next) => {
+              setOtp(next)
+              setError(undefined)
+            }}
+          />
+
+          {error ? (
+            <p className="text-xs font-medium text-text-danger" role="alert">
+              {t(error)}
+            </p>
+          ) : null}
 
           <div className="flex items-center justify-between gap-3 text-xs font-medium">
-            <span className="text-text-muted">
-              {t('verifyCode.resendIn', { time: timeLabel })}
-            </span>
+            <span className="text-text-muted">{t('verifyCode.resendIn', { time: timeLabel })}</span>
             <button
               type="button"
               onClick={handleResend}

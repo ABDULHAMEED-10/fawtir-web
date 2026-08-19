@@ -33,7 +33,8 @@
     "notMember": "Not a member yet?",
     "signUp": "Sign up here",
     "heroTitle": "E-invoicing compliance, handled for you.",
-    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol."
+    "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
+    "submitting": "Signing in…"
   },
   "signup": {
     "title": "Create your Fawtir account",
@@ -53,7 +54,8 @@
     "privacy": "Privacy Policy",
     "submit": "Create account",
     "alreadyMember": "Already a member ?",
-    "loginHere": "Log in here"
+    "loginHere": "Log in here",
+    "submitting": "Creating account…"
   },
   "forgotPassword": {
     "title": "Forgot your password?",
@@ -614,7 +616,9 @@
     "peppolLabel": "Peppol Participant ID",
     "peppolHint": "Generated from your VATIN (Oman scheme 0248), how the network finds you.",
     "accentLabel": "Invoice accent color",
-    "submit": "Continue"
+    "submit": "Continue",
+    "logoRemove": "Remove logo",
+    "logoReplace": "Replace logo"
   },
   "addressContact": {
     "title": "Address & contact",
@@ -973,7 +977,18 @@
     "rowMenu": "Row actions",
     "showResult": "Show result:",
     "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "nextPage": "Next page",
+    "sortOptions": {
+      "nameAsc": "Name A–Z",
+      "nameDesc": "Name Z–A",
+      "receivableDesc": "Receivable: high to low",
+      "invoicesDesc": "Most invoices"
+    },
+    "peppolFilter": {
+      "all": "All Peppol states"
+    },
+    "selectAll": "Select all customers on this page",
+    "selectRow": "Select {{name}}"
   },
   "newCustomer": {
     "title": "New customer",
@@ -3536,5 +3551,28 @@
     "fieldPurchaseOrder": "Purchase order reference",
     "fieldSubject": "Subject",
     "wrongType": "That file type is not supported. Use PDF, JPG or PNG."
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Enter a valid email address",
+    "phoneLength": "Enter the 8-digit number, without +968",
+    "phonePrefix": "Omani numbers start with 7, 9 or 2",
+    "vatin": "Format is OM followed by 10 digits",
+    "crNumber": "The CR number is 7 digits",
+    "postalCode": "Omani postal codes are 3 digits",
+    "passwordShort": "Use at least 8 characters",
+    "passwordWeak": "Include at least one letter and one number",
+    "passwordMismatch": "Passwords do not match",
+    "agreeRequired": "Please accept the terms to continue",
+    "selectOne": "Choose an option to continue",
+    "codeIncomplete": "Enter all 6 digits",
+    "cardShort": "Card number is too short",
+    "cardInvalid": "Check the card number",
+    "expiryFormat": "Use MM/YY",
+    "expiryMonth": "Enter a month between 01 and 12",
+    "expiryPast": "This card has expired",
+    "cvc": "CVC is 3 or 4 digits",
+    "logoType": "Use a PNG or SVG image",
+    "logoSize": "Keep the logo under 2 MB"
   }
 }

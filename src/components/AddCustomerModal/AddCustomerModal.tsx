@@ -1,4 +1,11 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
+import {
+  isClean,
+  peppolIdFor,
+  required,
+  vatin as validateVatin,
+  type FieldError,
+} from '../../lib/validation'
 import { useTranslation } from 'react-i18next'
 import closeIcon from '../../assets/add-customer/close.svg'
 import tickIcon from '../../assets/add-customer/tick.svg'
@@ -39,28 +46,50 @@ function TextField({
   defaultValue,
   placeholder,
   suffix,
+  value,
+  onChange,
+  error,
 }: {
   label: string
   required?: boolean
   defaultValue?: string
   placeholder?: string
   suffix?: ReactNode
+  /** Pass with `onChange` to control the field; omit to leave it uncontrolled. */
+  value?: string
+  onChange?: (value: string) => void
+  /** Already-translated message. */
+  error?: string
 }) {
   const id = useId()
+  const controlled = value !== undefined
   return (
     <div className="flex w-full flex-col">
       <label htmlFor={id}>
         <FieldLabel label={label} required={required} />
       </label>
-      <div className="flex h-[50px] w-full items-center justify-between rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
+      <div
+        className={[
+          'flex h-[50px] w-full items-center justify-between rounded-sm border bg-surface-tab-bar px-4',
+          error ? 'border-border-danger' : 'border-primary-300',
+        ].join(' ')}
+      >
         <input
           id={id}
-          defaultValue={defaultValue}
+          {...(controlled
+            ? { value, onChange: (event) => onChange?.(event.target.value) }
+            : { defaultValue })}
           placeholder={placeholder}
+          aria-invalid={error ? true : undefined}
           className="h-full min-w-0 flex-1 border-0 bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder"
         />
         {suffix}
       </div>
+      {error ? (
+        <p className="mt-1 text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -129,6 +158,16 @@ export function AddCustomerModal({ open, onClose, onSave }: AddCustomerModalProp
   const [kind, setKind] = useState<CustomerProfileKind>('company')
   const [addressOpen, setAddressOpen] = useState(true)
   const [notesOpen, setNotesOpen] = useState(true)
+  // The VAT number in the design's seed was a date (07/18/2026), which cannot be a VATIN —
+  // Oman's format is OM plus 10 digits, so the placeholder here is a well-formed one.
+  const [vat, setVat] = useState('OM1100447102')
+  const [corporateName, setCorporateName] = useState('Golden Tech WLL')
+  const [firstName, setFirstName] = useState('Atiq')
+  const [lastName, setLastName] = useState('Abdullah')
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
   useEffect(() => {
     if (!open) return
@@ -147,18 +186,27 @@ export function AddCustomerModal({ open, onClose, onSave }: AddCustomerModalProp
   if (!open) return null
 
   const handleSave = () => {
+    const next: Record<string, FieldError> =
+      kind === 'company'
+        ? { corporateName: required(corporateName), vat: validateVatin(vat) }
+        : { firstName: required(firstName), lastName: required(lastName) }
+    setErrors(next)
+    if (!isClean(next)) return
+
+    const trimmedVat = vat.trim().toUpperCase()
     const customer: SavedCustomer =
       kind === 'company'
         ? {
             id: `CUS-${Date.now()}`,
-            name: 'Golden Tech WLL',
-            vat: 'VAT OM07182026 · 0248:OM07182026',
+            name: corporateName.trim(),
+            // A company on the network is reachable at its VATIN under Oman's 0248 scheme.
+            vat: `VAT ${trimmedVat} · ${peppolIdFor(trimmedVat)}`,
             onPeppol: true,
             kind,
           }
         : {
             id: `CUS-${Date.now()}`,
-            name: 'Atiq Abdullah',
+            name: `${firstName.trim()} ${lastName.trim()}`.trim(),
             vat: 'Private individual',
             onPeppol: false,
             kind,
@@ -263,19 +311,26 @@ export function AddCustomerModal({ open, onClose, onSave }: AddCustomerModalProp
                   <TextField
                     label={t('addCustomer.fields.vat')}
                     required
-                    defaultValue="07/18/2026"
+                    value={vat}
+                    onChange={(next) => {
+                      setVat(next.toUpperCase())
+                      clearError('vat')
+                    }}
+                    error={errors.vat ? t(errors.vat) : undefined}
                   />
                   <TextField
                     label={t('addCustomer.fields.corporateName')}
                     required
-                    defaultValue="Golden Tech WLL"
+                    value={corporateName}
+                    onChange={(next) => {
+                      setCorporateName(next)
+                      clearError('corporateName')
+                    }}
+                    error={errors.corporateName ? t(errors.corporateName) : undefined}
                   />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <TextField
-                    label={t('addCustomer.fields.directorFirst')}
-                    defaultValue="Atiq"
-                  />
+                  <TextField label={t('addCustomer.fields.directorFirst')} defaultValue="Atiq" />
                   <TextField
                     label={t('addCustomer.fields.lastNameManager')}
                     defaultValue="Abdullah"
@@ -284,11 +339,25 @@ export function AddCustomerModal({ open, onClose, onSave }: AddCustomerModalProp
               </>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
-                <TextField label={t('addCustomer.fields.firstName')} required defaultValue="Atiq" />
+                <TextField
+                  label={t('addCustomer.fields.firstName')}
+                  required
+                  value={firstName}
+                  onChange={(next) => {
+                    setFirstName(next)
+                    clearError('firstName')
+                  }}
+                  error={errors.firstName ? t(errors.firstName) : undefined}
+                />
                 <TextField
                   label={t('addCustomer.fields.lastName')}
                   required
-                  defaultValue="Abdullah"
+                  value={lastName}
+                  onChange={(next) => {
+                    setLastName(next)
+                    clearError('lastName')
+                  }}
+                  error={errors.lastName ? t(errors.lastName) : undefined}
                 />
               </div>
             )}

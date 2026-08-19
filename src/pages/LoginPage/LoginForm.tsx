@@ -12,6 +12,7 @@ import {
   PhoneIcon,
   SegmentedControl,
 } from '../../components/ui'
+import { email as validateEmail, isClean, omanPhone, type FieldError } from '../../lib/validation'
 
 type LoginMethod = 'email' | 'phone'
 
@@ -24,9 +25,27 @@ export function LoginForm() {
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  /** Clear a field's error as soon as the user edits it — re-reporting on every keystroke nags. */
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      identifier: method === 'email' ? validateEmail(email) : omanPhone(phone),
+      // The password only needs to be present here; strength rules belong on signup.
+      password: password ? undefined : 'validation.required',
+    }
+    setErrors(next)
+    if (!isClean(next)) return
+
+    setSubmitting(true)
+    // Seam for the auth call: POST /api/v1/auth/login → { token, user }.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    setSubmitting(false)
     navigate('/')
   }
 
@@ -41,7 +60,10 @@ export function LoginForm() {
           <SegmentedControl
             ariaLabel={t('login.methodLabel')}
             value={method}
-            onChange={setMethod}
+            onChange={(next) => {
+              setMethod(next)
+              clearError('identifier')
+            }}
             options={[
               { value: 'email', label: t('login.emailTab') },
               { value: 'phone', label: t('login.phoneTab') },
@@ -58,7 +80,11 @@ export function LoginForm() {
                   autoComplete="email"
                   placeholder={t('login.emailPlaceholder')}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    clearError('identifier')
+                  }}
+                  error={errors.identifier ? t(errors.identifier) : undefined}
                   leadingIcon={<MailIcon />}
                 />
               ) : (
@@ -69,7 +95,11 @@ export function LoginForm() {
                   autoComplete="tel"
                   placeholder={t('login.phonePlaceholder')}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value)
+                    clearError('identifier')
+                  }}
+                  error={errors.identifier ? t(errors.identifier) : undefined}
                   leadingIcon={<PhoneIcon />}
                 />
               )}
@@ -81,7 +111,11 @@ export function LoginForm() {
                 autoComplete="current-password"
                 placeholder={t('login.passwordPlaceholder')}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  clearError('password')
+                }}
+                error={errors.password ? t(errors.password) : undefined}
                 leadingIcon={<LockIcon />}
                 trailingIcon={
                   <button
@@ -114,8 +148,8 @@ export function LoginForm() {
       </div>
 
       <div className="flex flex-col gap-6">
-        <Button type="submit" fullWidth>
-          {t('login.submit')}
+        <Button type="submit" fullWidth disabled={submitting}>
+          {submitting ? t('login.submitting') : t('login.submit')}
         </Button>
 
         <p className="text-center text-xs font-medium text-text-primary">
