@@ -18,11 +18,8 @@
     "title": "مرحبًا، سجّل الدخول الآن!",
     "usernameLabel": "اسم المستخدم",
     "usernamePlaceholder": "أدخل اسم المستخدم",
-    "emailTab": "البريد",
-    "phoneTab": "الهاتف",
     "emailLabel": "البريد الإلكتروني",
     "emailPlaceholder": "أدخل بريدك الإلكتروني",
-    "phoneLabel": "الهاتف",
     "passwordLabel": "كلمة المرور",
     "passwordPlaceholder": "أدخل كلمة المرور",
     "showPassword": "إظهار كلمة المرور",
@@ -59,16 +56,16 @@
   },
   "forgotPassword": {
     "title": "هل نسيت كلمة المرور؟",
-    "description": "لا مشكلة. اختر طريقة إعادة التعيين وسنرسل لك طريقة آمنة للعودة.",
-    "methodLabel": "طريقة إعادة التعيين",
+    "description": "لا مشكلة. أدخل البريد الإلكتروني المرتبط بحسابك وسنرسل لك طريقة آمنة للعودة.",
     "submit": "إرسال رمز إعادة التعيين"
   },
   "verifyCode": {
     "title": "أدخل رمز التحقق",
-    "description": "أرسلنا رمزًا مكوّنًا من 6 أرقام إلى {{contact}}. ينتهي خلال {{minutes}} دقائق.",
     "resendIn": "إعادة الإرسال خلال {{time}}",
     "resend": "إعادة إرسال الرمز",
-    "submit": "تحقق ومتابعة"
+    "submit": "تحقق ومتابعة",
+    "descriptionEmail": "أرسلنا رمزًا من ٦ أرقام إلى {{contact}}. تنتهي صلاحيته خلال {{minutes}} دقائق.",
+    "descriptionPhone": "أرسلنا رمزًا من ٦ أرقام إلى هاتفك {{contact}}. تنتهي صلاحيته خلال {{minutes}} دقائق."
   },
   "newPassword": {
     "title": "أنشئ كلمة مرور جديدة",

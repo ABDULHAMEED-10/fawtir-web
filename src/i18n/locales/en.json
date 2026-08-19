@@ -18,11 +18,8 @@
     "title": "Hey, Login Now!",
     "usernameLabel": "Username",
     "usernamePlaceholder": "Enter your username",
-    "emailTab": "Email",
-    "phoneTab": "Phone",
     "emailLabel": "Email",
-    "emailPlaceholder": "Enter you email",
-    "phoneLabel": "Phone",
+    "emailPlaceholder": "Enter your email",
     "passwordLabel": "Password",
     "passwordPlaceholder": "Enter your password",
     "showPassword": "Show password",
@@ -59,16 +56,16 @@
   },
   "forgotPassword": {
     "title": "Forgot your password?",
-    "description": "No problem. Choose how you'd like to reset it and we'll send you a secure way back in.",
-    "methodLabel": "Reset method",
+    "description": "No problem. Enter the email on your account and we'll send you a secure way back in.",
     "submit": "Send reset code"
   },
   "verifyCode": {
     "title": "Enter your verification code",
-    "description": "We sent a 6-digit code to your phone {{contact}}. It expires in {{minutes}} minutes.",
     "resendIn": "Resend code in {{time}}",
     "resend": "Resend code",
-    "submit": "Verify & continue"
+    "submit": "Verify & continue",
+    "descriptionEmail": "We sent a 6-digit code to {{contact}}. It expires in {{minutes}} minutes.",
+    "descriptionPhone": "We sent a 6-digit code to your phone {{contact}}. It expires in {{minutes}} minutes."
   },
   "newPassword": {
     "title": "Create a new password",

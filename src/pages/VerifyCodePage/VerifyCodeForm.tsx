@@ -59,7 +59,12 @@ export function VerifyCodeForm() {
             {t('verifyCode.title')}
           </h2>
           <p className="text-sm font-medium leading-relaxed text-text-muted">
-            {t('verifyCode.description', { contact, minutes: 10 })}
+            {t(
+              from === 'forgot-password'
+                ? 'verifyCode.descriptionEmail'
+                : 'verifyCode.descriptionPhone',
+              { contact, minutes: 10 },
+            )}
           </p>
         </div>
 
