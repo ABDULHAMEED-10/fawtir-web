@@ -24,6 +24,7 @@ export function FilterMenu<T extends string>({
   options,
   onChange,
   width = 220,
+  icon,
 }: {
   label: string
   value: T
@@ -31,6 +32,8 @@ export function FilterMenu<T extends string>({
   options: FilterMenuOption<T>[]
   onChange: (value: T) => void
   width?: number
+  /** Leading glyph on the trigger. */
+  icon?: string
 }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -52,6 +55,7 @@ export function FilterMenu<T extends string>({
             : 'border-border-subtle bg-surface-tab-bar text-text-tertiary hover:border-primary-300',
         ].join(' ')}
       >
+        {icon ? <img src={icon} alt="" aria-hidden="true" className="size-5 shrink-0" /> : null}
         {active ? (selected?.label ?? label) : label}
         <img
           src={chevronIcon}

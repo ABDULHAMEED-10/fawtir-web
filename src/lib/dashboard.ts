@@ -49,6 +49,7 @@ export const INCOME_PATHS = [
 
 export const EXPENDITURE_PATHS = [
   '/expenditure/bills',
+  '/expenditure/payments',
   '/expenditure/recurring-bills',
   '/expenditure/reminders',
   '/expenditure/credit-notes',
@@ -67,7 +68,12 @@ export const DASHBOARD_NAV: NavGroup[] = [
     id: 'main',
     labelKey: 'dashboard.nav.main',
     items: [
-      { id: 'dashboard', labelKey: 'dashboard.nav.dashboard', Icon: NavDashboardIcon, to: '/dashboard' },
+      {
+        id: 'dashboard',
+        labelKey: 'dashboard.nav.dashboard',
+        Icon: NavDashboardIcon,
+        to: '/dashboard',
+      },
       { id: 'pos', labelKey: 'dashboard.nav.pos', Icon: NavPosIcon, to: '/pos' },
       {
         id: 'income',
@@ -82,7 +88,11 @@ export const DASHBOARD_NAV: NavGroup[] = [
             labelKey: 'dashboard.nav.incomeChildren.selfBilling',
             to: '/income/self-billing',
           },
-          { id: 'reminders', labelKey: 'dashboard.nav.incomeChildren.reminders', to: '/income/reminders' },
+          {
+            id: 'reminders',
+            labelKey: 'dashboard.nav.incomeChildren.reminders',
+            to: '/income/reminders',
+          },
           {
             id: 'periodic',
             labelKey: 'dashboard.nav.incomeChildren.periodic',
@@ -106,11 +116,15 @@ export const DASHBOARD_NAV: NavGroup[] = [
         Icon: NavExpenditureIcon,
         to: '/expenditure/bills',
         children: [
-          { id: 'bills', labelKey: 'dashboard.nav.expenditureChildren.bills', to: '/expenditure/bills' },
           {
-            id: 'reminders',
-            labelKey: 'dashboard.nav.expenditureChildren.reminders',
-            to: '/expenditure/reminders',
+            id: 'bills',
+            labelKey: 'dashboard.nav.expenditureChildren.bills',
+            to: '/expenditure/bills',
+          },
+          {
+            id: 'payments',
+            labelKey: 'dashboard.nav.expenditureChildren.payments',
+            to: '/expenditure/payments',
           },
           {
             id: 'recurringBills',
@@ -126,6 +140,11 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'debitNotes',
             labelKey: 'dashboard.nav.expenditureChildren.debitNotes',
             to: '/expenditure/debit-notes',
+          },
+          {
+            id: 'reminders',
+            labelKey: 'dashboard.nav.expenditureChildren.reminders',
+            to: '/expenditure/reminders',
           },
         ],
       },
@@ -165,8 +184,18 @@ export const DASHBOARD_NAV: NavGroup[] = [
     id: 'contacts',
     labelKey: 'dashboard.nav.contacts',
     items: [
-      { id: 'customers', labelKey: 'dashboard.nav.customers', Icon: NavCustomersIcon, to: '/customers' },
-      { id: 'suppliers', labelKey: 'dashboard.nav.suppliers', Icon: NavSuppliersIcon, to: '/suppliers' },
+      {
+        id: 'customers',
+        labelKey: 'dashboard.nav.customers',
+        Icon: NavCustomersIcon,
+        to: '/customers',
+      },
+      {
+        id: 'suppliers',
+        labelKey: 'dashboard.nav.suppliers',
+        Icon: NavSuppliersIcon,
+        to: '/suppliers',
+      },
     ],
   },
   {
@@ -182,13 +211,20 @@ export const DASHBOARD_NAV: NavGroup[] = [
     labelKey: 'dashboard.nav.compliance',
     items: [
       { id: 'tdd', labelKey: 'dashboard.nav.tddOta', Icon: NavTddIcon, to: '/dashboard', badge: 2 },
-      { id: 'documents', labelKey: 'dashboard.nav.documents', Icon: NavDocumentsIcon, to: '/dashboard' },
+      {
+        id: 'documents',
+        labelKey: 'dashboard.nav.documents',
+        Icon: NavDocumentsIcon,
+        to: '/compliance/documents',
+      },
     ],
   },
   {
     id: 'insights',
     labelKey: 'dashboard.nav.insights',
-    items: [{ id: 'reports', labelKey: 'dashboard.nav.reports', Icon: NavReportsIcon, to: '/dashboard' }],
+    items: [
+      { id: 'reports', labelKey: 'dashboard.nav.reports', Icon: NavReportsIcon, to: '/dashboard' },
+    ],
   },
 ]
 

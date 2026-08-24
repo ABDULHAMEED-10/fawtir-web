@@ -18,7 +18,12 @@ import deleteIcon from '../assets/actions/delete.svg'
 
 export function invoiceRowActions(invoiceId: string): ActionMenuItem[] {
   return [
-    { id: 'view', labelKey: 'rowActions.invoice.view', icon: viewIcon, to: `/invoices/${invoiceId}` },
+    {
+      id: 'view',
+      labelKey: 'rowActions.invoice.view',
+      icon: viewIcon,
+      to: `/invoices/${invoiceId}`,
+    },
     { id: 'send', labelKey: 'rowActions.invoice.send', icon: sendIcon },
     { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
     {
@@ -140,7 +145,12 @@ export function selfBillRowActions(documentId: string): ActionMenuItem[] {
 
 export function scheduleRowActions(): ActionMenuItem[] {
   return [
-    { id: 'view', labelKey: 'rowActions.schedule.view', icon: viewIcon, to: '/income/periodic/monthly-coffee-supply' },
+    {
+      id: 'view',
+      labelKey: 'rowActions.schedule.view',
+      icon: viewIcon,
+      to: '/income/periodic/monthly-coffee-supply',
+    },
     {
       id: 'edit',
       labelKey: 'rowActions.schedule.edit',
@@ -199,5 +209,20 @@ export function deliveryNoteRowActions(documentId: string): ActionMenuItem[] {
     { id: 'print', labelKey: 'rowActions.deliveryNote.print', icon: sendIcon },
     { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
     { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+  ]
+}
+
+/** Bills row menu — open, take the file, or take it out of the payment run. */
+export function billRowActions(billId: string): ActionMenuItem[] {
+  return [
+    {
+      id: 'view',
+      labelKey: 'rowActions.bill.view',
+      icon: viewIcon,
+      to: `/expenditure/bills/${billId}`,
+    },
+    { id: 'download', labelKey: 'rowActions.bill.download', icon: statementIcon },
+    { id: 'hold', labelKey: 'rowActions.bill.hold', icon: pauseIcon },
+    { id: 'reject', labelKey: 'rowActions.bill.reject', icon: deleteIcon, danger: true },
   ]
 }

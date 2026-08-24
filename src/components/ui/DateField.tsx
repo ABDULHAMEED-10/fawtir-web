@@ -26,6 +26,7 @@ export function DateField({
   min,
   max,
   highlighted,
+  unsure,
   disabled,
   placeholder,
 }: {
@@ -36,6 +37,8 @@ export function DateField({
   min?: string
   max?: string
   highlighted?: boolean
+  /** Amber shell: a value a reader guessed and a person still has to confirm. */
+  unsure?: boolean
   disabled?: boolean
   placeholder?: string
 }) {
@@ -75,7 +78,11 @@ export function DateField({
         aria-expanded={open}
         className={[
           'flex h-[50px] w-full items-center justify-between gap-2 rounded-sm border border-primary-300 px-4 text-start transition-colors',
-          highlighted ? 'bg-primary-25' : 'bg-surface-tab-bar',
+          unsure
+            ? 'border-[#d8c9a8] bg-[#faf5ea]'
+            : highlighted
+              ? 'bg-primary-25'
+              : 'bg-surface-tab-bar',
           disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary-500',
         ].join(' ')}
       >

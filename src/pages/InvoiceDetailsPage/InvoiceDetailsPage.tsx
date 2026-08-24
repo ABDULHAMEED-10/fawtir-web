@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { FileDropzone, OmAmount } from '../../components/ui'
-import { DocumentPreview } from '../../components/invoice'
+import { DocumentPreview, ReminderBanner } from '../../components/invoice'
 import { INVOICE_DETAIL } from '../../lib/invoiceDetails'
 import { invoiceToPreview } from '../../lib/documentPreview'
 import { formatFileSize } from '../../lib/files'
@@ -64,6 +64,14 @@ function MetaField({ label, value }: { label: string; value: string }) {
   )
 }
 
+/**
+ * Header action.
+ *
+ * The five actions plus the invoice number do not fit one line below roughly 1280px, so the
+ * labels drop out and the buttons become square icons. `title` is set either way, which is
+ * what puts the name back on hover once the text is gone — and `aria-label` keeps it
+ * available to a screen reader in both states.
+ */
 function GhostButton({
   icon,
   label,
@@ -72,32 +80,33 @@ function GhostButton({
 }: {
   icon: string
   label: string
+  /** Never shows a label, at any width — the overflow menu. */
   iconOnly?: boolean
   to?: string
 }) {
   const className = [
-    'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white',
-    iconOnly ? 'justify-center px-4' : 'px-4',
+    'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white',
+    iconOnly ? 'w-[46px]' : 'w-[46px] xl:w-auto xl:px-4',
   ].join(' ')
 
   const content = (
     <>
       {/* width-driven: square icons are unaffected, non-square ones keep their ratio */}
       <img src={icon} alt="" className="h-auto w-6 shrink-0" />
-      {iconOnly ? null : label}
+      {iconOnly ? null : <span className="hidden xl:inline">{label}</span>}
     </>
   )
 
   if (to) {
     return (
-      <Link to={to} aria-label={label} className={className}>
+      <Link to={to} aria-label={label} title={label} className={className}>
         {content}
       </Link>
     )
   }
 
   return (
-    <button type="button" aria-label={label} className={className}>
+    <button type="button" aria-label={label} title={label} className={className}>
       {content}
     </button>
   )
@@ -415,12 +424,22 @@ export function InvoiceDetailsPage() {
   const { id } = useParams()
   const invoice = INVOICE_DETAIL
   const invoiceId = id ?? invoice.id
+  /**
+   * "Send reminder" toggles the reminder strip.
+   *
+   * It never sends on its own: a reminder is an email to a customer, and the strip's own
+   * "Send now" is the deliberate action. The header button only decides whether the strip is
+   * on screen at all: it starts hidden, appears on the first press, and pressing again takes
+   * it away completely.
+   */
+  const [reminderShown, setReminderShown] = useState(false)
+  const [reminderOpen, setReminderOpen] = useState(false)
 
   return (
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Link
@@ -438,6 +457,7 @@ export function InvoiceDetailsPage() {
               </Link>
             </div>
 
+            {/* Title, status and every action on one row, actions hard right. */}
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
                 {t('invoiceDetails.title', { id: invoiceId })}
@@ -446,6 +466,34 @@ export function InvoiceDetailsPage() {
                 <span className="size-1.5 rounded-full bg-[#6d5a39]" />
                 {t('invoicesPage.status.partial')}
               </span>
+
+              {/* Figma order, left to right: more · Duplicate · Periodic invoice · Credit Note · Send reminder. */}
+              <div className="flex flex-wrap items-center gap-3 ms-auto">
+                <GhostButton icon={menuIcon} label={t('invoiceDetails.actions.more')} iconOnly />
+                <GhostButton icon={copyIcon} label={t('invoiceDetails.actions.duplicate')} />
+                <GhostButton
+                  icon={periodicIcon}
+                  label={t('invoiceDetails.actions.periodic')}
+                  to="/income/periodic"
+                />
+                <GhostButton
+                  icon={creditNoteIcon}
+                  label={t('invoiceDetails.actions.creditNote')}
+                  to="/income/credit-notes/CRN-0087"
+                />
+                <button
+                  type="button"
+                  onClick={() => setReminderShown((shown) => !shown)}
+                  aria-pressed={reminderShown}
+                  title={t('invoiceDetails.actions.sendReminder')}
+                  className="inline-flex h-[46px] w-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800 xl:w-auto xl:px-4"
+                >
+                  <img src={sendIcon} alt="" className="size-6 shrink-0" />
+                  <span className="hidden xl:inline">
+                    {t('invoiceDetails.actions.sendReminder')}
+                  </span>
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
@@ -458,34 +506,14 @@ export function InvoiceDetailsPage() {
               <span className="font-semibold text-text-primary">{invoice.customer.name}</span>
             </div>
           </div>
-
-          {/* Figma order, left to right: more · Duplicate · Periodic invoice · Credit Note · Send. */}
-          <div className="flex flex-wrap items-center gap-3">
-            <GhostButton icon={menuIcon} label={t('invoiceDetails.actions.more')} iconOnly />
-            <GhostButton icon={copyIcon} label={t('invoiceDetails.actions.duplicate')} />
-            <GhostButton
-              icon={periodicIcon}
-              label={t('invoiceDetails.actions.periodic')}
-              to="/income/periodic"
-            />
-            <GhostButton
-              icon={creditNoteIcon}
-              label={t('invoiceDetails.actions.creditNote')}
-              to="/income/credit-notes/CRN-0087"
-            />
-            <button
-              type="button"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              <img src={sendIcon} alt="" className="size-6" />
-              {t('invoiceDetails.actions.send')}
-            </button>
-          </div>
         </div>
 
-        {/* Balance + Bill to + PDF */}
+        {/* Reminder + Balance + Bill to + PDF */}
         <div className="flex flex-col gap-4 xl:flex-row">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
+            {reminderShown ? (
+              <ReminderBanner expanded={reminderOpen} onExpandedChange={setReminderOpen} />
+            ) : null}
             <section className="rounded-sm bg-surface-card p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">

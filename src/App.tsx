@@ -13,6 +13,23 @@ import { PaymentPage } from './pages/PaymentPage'
 import { FawtaraStatusPage } from './pages/FawtaraStatusPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
+import { BillsPage } from './pages/BillsPage'
+import { BillDetailPage } from './pages/BillDetailPage'
+import { UploadBillPage } from './pages/UploadBillPage'
+import { ScanReceiptsPage } from './pages/ScanReceiptsPage'
+import { PaymentRunPage } from './pages/PaymentRunPage'
+import { RecurringBillsPage } from './pages/RecurringBillsPage'
+import { NewRecurringBillPage } from './pages/NewRecurringBillPage'
+import { RecurringBillDetailPage } from './pages/RecurringBillDetailPage'
+import { SupplierCreditNotesPage } from './pages/SupplierCreditNotesPage'
+import { UploadCreditNotePage } from './pages/UploadCreditNotePage'
+import { SupplierCreditNoteDetailPage } from './pages/SupplierCreditNoteDetailPage'
+import { SupplierDebitNotesPage } from './pages/SupplierDebitNotesPage'
+import { UploadDebitNotePage } from './pages/UploadDebitNotePage'
+import { SupplierDebitNoteDetailPage } from './pages/SupplierDebitNoteDetailPage'
+import { ExpenditureRemindersPage } from './pages/ExpenditureRemindersPage'
+import { DocumentsPage } from './pages/DocumentsPage'
+import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
@@ -71,6 +88,26 @@ function App() {
           <Route path="/fawtara-status" element={<FawtaraStatusPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/invoices" element={<InvoicesPage />} />
+          <Route path="/expenditure/bills" element={<BillsPage />} />
+          <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
+          <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
+          <Route path="/expenditure/payments" element={<PaymentRunPage />} />
+          <Route path="/expenditure/recurring-bills" element={<RecurringBillsPage />} />
+          <Route path="/expenditure/recurring-bills/new" element={<NewRecurringBillPage />} />
+          <Route path="/expenditure/recurring-bills/:id" element={<RecurringBillDetailPage />} />
+          <Route path="/expenditure/credit-notes" element={<SupplierCreditNotesPage />} />
+          <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
+          <Route path="/expenditure/credit-notes/:id" element={<SupplierCreditNoteDetailPage />} />
+          <Route path="/expenditure/debit-notes" element={<SupplierDebitNotesPage />} />
+          <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
+          <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
+          <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
+          <Route path="/compliance/documents" element={<DocumentsPage />} />
+          <Route
+            path="/expenditure/payments/:runId/invoices"
+            element={<PaymentRunInvoicesPage />}
+          />
+          <Route path="/expenditure/bills/:id" element={<BillDetailPage />} />
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
           <Route path="/pos" element={<PosPage />} />

@@ -30,6 +30,7 @@ export function Select({
   ariaLabel,
   disabled,
   highlighted,
+  unsure,
   compact,
   footer,
 }: {
@@ -40,6 +41,8 @@ export function Select({
   ariaLabel?: string
   disabled?: boolean
   highlighted?: boolean
+  /** Amber shell: a value a reader guessed and a person still has to confirm. */
+  unsure?: boolean
   /** 42px instead of 50px — used inside dense table rows. */
   compact?: boolean
   /** Rendered under the list, e.g. an "Add new…" action. */
@@ -99,9 +102,10 @@ export function Select({
         aria-expanded={open}
         aria-label={ariaLabel}
         className={[
-          'flex w-full items-center justify-between gap-2 rounded-sm border border-primary-300 px-4 text-start transition-colors',
+          'flex w-full items-center justify-between gap-2 rounded-sm border px-4 text-start transition-colors',
+          unsure ? 'border-[#d8c9a8]' : 'border-primary-300',
           compact ? 'h-[42px]' : 'h-[50px]',
-          highlighted ? 'bg-primary-25' : 'bg-surface-tab-bar',
+          unsure ? 'bg-[#faf5ea]' : highlighted ? 'bg-primary-25' : 'bg-surface-tab-bar',
           disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary-500',
         ].join(' ')}
       >
