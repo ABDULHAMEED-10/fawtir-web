@@ -29,6 +29,7 @@ import { UploadDebitNotePage } from './pages/UploadDebitNotePage'
 import { SupplierDebitNoteDetailPage } from './pages/SupplierDebitNoteDetailPage'
 import { ExpenditureRemindersPage } from './pages/ExpenditureRemindersPage'
 import { DocumentsPage } from './pages/DocumentsPage'
+import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
@@ -103,6 +104,7 @@ function App() {
           <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
           <Route path="/compliance/documents" element={<DocumentsPage />} />
+          <Route path="/compliance/documents/:id" element={<DocumentDetailPage />} />
           <Route
             path="/expenditure/payments/:runId/invoices"
             element={<PaymentRunInvoicesPage />}
