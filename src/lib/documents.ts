@@ -365,12 +365,19 @@ export const DOC_STATS = {
   auditPeriod: 'Q1 2026',
 }
 
-export const totalKb = (record: DocRecord) =>
-  record.files.reduce((sum, file) => sum + file.kb, 0)
+export const totalKb = (record: DocRecord) => record.files.reduce((sum, file) => sum + file.kb, 0)
 
 /** `173` → "173 KB", `1400` → "1.4 MB". */
-export const formatSize = (kb: number) =>
-  kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`
+export const formatSize = (kb: number) => (kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`)
+
+/**
+ * The day the archive is being read on.
+ *
+ * A share link expires so many days from now, not from when the invoice was issued, and the
+ * integrity sweep is dated the same day — holding it as one constant keeps the two agreeing
+ * and keeps the screens reproducible.
+ */
+export const TODAY = '30 Jul 2026'
 
 export const PAGE_SIZE = 6
 
@@ -406,7 +413,13 @@ export const DOC_DETAIL = {
       order: 'NSC-PO-4471',
     },
     lines: [
-      { item: 'Green beans — House Blend', qty: '24 KG', unit: '9.500', vat: '5%', amount: '228.000' },
+      {
+        item: 'Green beans — House Blend',
+        qty: '24 KG',
+        unit: '9.500',
+        vat: '5%',
+        amount: '228.000',
+      },
       {
         item: 'Roasting service — per batch',
         qty: '18 EA',

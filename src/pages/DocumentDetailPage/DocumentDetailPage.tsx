@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { ShareDocumentModal } from '../../components/documents/ShareDocumentModal'
 import {
   DOC_DETAIL,
   DOC_RECORDS,
@@ -10,10 +11,6 @@ import {
   totalKb,
   type DocFile,
 } from '../../lib/documents'
-import fileXmlIcon from '../../assets/documents/file-xml.svg'
-import fileTddIcon from '../../assets/documents/file-tdd.svg'
-import fileQrIcon from '../../assets/documents/file-qr.svg'
-import fileMlsIcon from '../../assets/documents/file-mls.svg'
 import verifiedIcon from '../../assets/documents/verified.svg'
 import kpiHoldIcon from '../../assets/documents/kpi-hold.svg'
 import recInvoiceIcon from '../../assets/documents/rec-invoice.svg'
@@ -27,14 +24,6 @@ import customerIcon from '../../assets/create-invoice/doc-order.svg'
 import deliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import infoIcon from '../../assets/expenditure-reminders/info.svg'
 
-const FILE_ICON = {
-  xml: fileXmlIcon,
-  tdd: fileTddIcon,
-  pdf: fileXmlIcon,
-  qr: fileQrIcon,
-  mls: fileMlsIcon,
-}
-
 const BADGE_TONE = {
   blue: 'bg-primary-50 text-primary-700',
   green: 'bg-success-100 text-[#3d5648]',
@@ -47,7 +36,15 @@ const RELATES_ICON = {
   delivery: deliveryIcon,
 }
 
-function Card({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+function Card({
+  title,
+  action,
+  children,
+}: {
+  title: string
+  action?: ReactNode
+  children: ReactNode
+}) {
   return (
     <section className="rounded-md bg-surface-card p-5">
       <div className="flex items-center justify-between gap-3">
@@ -94,6 +91,7 @@ export function DocumentDetailPage() {
   const [tags, setTags] = useState(detail.tags)
   const [newTag, setNewTag] = useState('')
   const [addingTag, setAddingTag] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
   const size = formatSize(totalKb(record))
   const sheet = detail.sheet
@@ -110,7 +108,9 @@ export function DocumentDetailPage() {
             {t('documents.title')}
           </Link>
           <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-          <span className="text-2xl font-medium leading-[1.2] text-text-primary">{record.title}</span>
+          <span className="text-2xl font-medium leading-[1.2] text-text-primary">
+            {record.title}
+          </span>
         </div>
 
         {/* Title row */}
@@ -157,6 +157,7 @@ export function DocumentDetailPage() {
             </button>
             <button
               type="button"
+              onClick={() => setSharing(true)}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
               <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
@@ -278,10 +279,7 @@ export function DocumentDetailPage() {
                   fields: [
                     [t('documents.detail.business'), sheet.sender.name],
                     [t('documents.detail.vatNumber'), sheet.sender.vat],
-                    [
-                      t('documents.detail.peppolId'),
-                      <Code key="sp">{sheet.sender.peppol}</Code>,
-                    ],
+                    [t('documents.detail.peppolId'), <Code key="sp">{sheet.sender.peppol}</Code>],
                     [t('documents.detail.address'), sheet.sender.address],
                   ],
                 },
@@ -290,10 +288,7 @@ export function DocumentDetailPage() {
                   fields: [
                     [t('documents.detail.business'), sheet.receiver.name],
                     [t('documents.detail.vatNumber'), sheet.receiver.vat],
-                    [
-                      t('documents.detail.peppolId'),
-                      <Code key="rp">{sheet.receiver.peppol}</Code>,
-                    ],
+                    [t('documents.detail.peppolId'), <Code key="rp">{sheet.receiver.peppol}</Code>],
                     [t('documents.detail.theirOrder'), sheet.receiver.order],
                   ],
                 },
@@ -620,6 +615,14 @@ export function DocumentDetailPage() {
           </aside>
         </div>
       </div>
+
+      <ShareDocumentModal
+        open={sharing}
+        onClose={() => setSharing(false)}
+        recordId={record.title}
+        files={record.files}
+        uuid={sheet.uuid}
+      />
     </AppShell>
   )
 }
