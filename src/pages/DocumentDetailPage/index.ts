@@ -1,0 +1,1 @@
+export { DocumentDetailPage } from './DocumentDetailPage'

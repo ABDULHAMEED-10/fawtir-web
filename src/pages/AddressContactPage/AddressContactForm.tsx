@@ -16,6 +16,14 @@ import {
   UserIcon,
 } from '../../components/ui'
 import type { InvoicePreviewData } from '../BusinessIdentityPage/BusinessIdentityHero'
+import {
+  email as validateEmail,
+  isClean,
+  omanPhone,
+  postalCode as validatePostal,
+  required,
+  type FieldError,
+} from '../../lib/validation'
 
 type LocationState = {
   businessSize?: string
@@ -27,6 +35,7 @@ type LocationState = {
   vatin?: string
   peppolId?: string
   accentColor?: string
+  logoUrl?: string | null
 }
 
 type AddressContactFormProps = {
@@ -66,6 +75,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   const vatin = answers.vatin ?? 'OM1100112233'
   const peppolId = answers.peppolId ?? (vatin ? `0248:${vatin}` : '')
   const accentColor = answers.accentColor ?? '#2C4EB7'
+  const logoUrl = answers.logoUrl ?? null
 
   const [addressLine, setAddressLine] = useState('Building 22, Al Khuwair Street, Block 33')
   const [postalCode, setPostalCode] = useState('133')
@@ -75,6 +85,10 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   const [role, setRole] = useState('Owner')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('hafidh@albahja.om')
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
   const preview = useMemo<InvoicePreviewData>(
     () => ({
@@ -84,6 +98,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
       peppolId,
       initials: getInitials(companyName),
       accentColor,
+      logoUrl,
       addressLine,
       city,
       governorate,
@@ -91,6 +106,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
     }),
     [
       accentColor,
+      logoUrl,
       addressLine,
       city,
       companyName,
@@ -108,6 +124,16 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      addressLine: required(addressLine),
+      postalCode: validatePostal(postalCode),
+      city: required(city),
+      contactName: required(contactName),
+      phone: omanPhone(phone),
+      email: validateEmail(email),
+    }
+    setErrors(next)
+    if (!isClean(next)) return
     navigate('/plans', {
       state: {
         ...answers,
@@ -124,7 +150,10 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-[700px] flex-col items-center gap-11">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full max-w-[700px] flex-col items-center gap-11"
+    >
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -144,7 +173,11 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
               label={t('addressContact.addressLine')}
               requiredMark
               value={addressLine}
-              onChange={(e) => setAddressLine(e.target.value)}
+              onChange={(e) => {
+                setAddressLine(e.target.value)
+                clearError('addressLine')
+              }}
+              error={errors.addressLine ? t(errors.addressLine) : undefined}
               leadingIcon={<LocationPinIcon size={20} />}
               trailingIcon={
                 addressLine ? (
@@ -162,14 +195,22 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             <Input
               label={t('addressContact.postalCode')}
               value={postalCode}
-              onChange={(e) => setPostalCode(e.target.value)}
+              onChange={(e) => {
+                setPostalCode(e.target.value)
+                clearError('postalCode')
+              }}
+              error={errors.postalCode ? t(errors.postalCode) : undefined}
               leadingIcon={<HashIcon size={14} />}
             />
             <Input
               label={t('addressContact.city')}
               requiredMark
               value={city}
-              onChange={(e) => setCity(e.target.value)}
+              onChange={(e) => {
+                setCity(e.target.value)
+                clearError('city')
+              }}
+              error={errors.city ? t(errors.city) : undefined}
               leadingIcon={<BuildingIcon size={20} />}
             />
             <div className="flex w-full flex-col gap-1">
@@ -213,7 +254,11 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
               label={t('addressContact.contactName')}
               requiredMark
               value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
+              onChange={(e) => {
+                setContactName(e.target.value)
+                clearError('contactName')
+              }}
+              error={errors.contactName ? t(errors.contactName) : undefined}
               leadingIcon={<UserIcon size={20} />}
             />
             <Input
@@ -227,14 +272,22 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
               requiredMark
               placeholder={t('signup.phonePlaceholder')}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                clearError('phone')
+              }}
+              error={errors.phone ? t(errors.phone) : undefined}
             />
             <Input
               label={t('addressContact.email')}
               requiredMark
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                clearError('email')
+              }}
+              error={errors.email ? t(errors.email) : undefined}
               leadingIcon={<MailIcon size={20} />}
             />
           </div>

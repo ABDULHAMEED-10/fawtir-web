@@ -8,25 +8,40 @@ import {
   EyeOffIcon,
   Input,
   LockIcon,
-  MailIcon,
-  PhoneIcon,
-  SegmentedControl,
+  UserIcon,
 } from '../../components/ui'
-
-type LoginMethod = 'email' | 'phone'
+import { isClean, required, type FieldError } from '../../lib/validation'
 
 export function LoginForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [method, setMethod] = useState<LoginMethod>('email')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  /** Clear a field's error as soon as the user edits it — re-reporting on every keystroke nags. */
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      // Presence only. The server owns what a username may look like, so anything stricter
+      // here would reject accounts it would have accepted.
+      username: required(username),
+      // The password only needs to be present too; strength rules belong on signup.
+      password: password ? undefined : 'validation.required',
+    }
+    setErrors(next)
+    if (!isClean(next)) return
+
+    setSubmitting(true)
+    // Seam for the auth call: POST /api/v1/auth/login takes { username, password, tenantCode }.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    setSubmitting(false)
     navigate('/')
   }
 
@@ -37,85 +52,67 @@ export function LoginForm() {
           {t('login.title')}
         </h2>
 
-        <div className="flex flex-col gap-3">
-          <SegmentedControl
-            ariaLabel={t('login.methodLabel')}
-            value={method}
-            onChange={setMethod}
-            options={[
-              { value: 'email', label: t('login.emailTab') },
-              { value: 'phone', label: t('login.phoneTab') },
-            ]}
-          />
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-4">
+            <Input
+              label={t('login.usernameLabel')}
+              requiredMark
+              autoComplete="username"
+              placeholder={t('login.usernamePlaceholder')}
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value)
+                clearError('username')
+              }}
+              error={errors.username ? t(errors.username) : undefined}
+              leadingIcon={<UserIcon />}
+            />
 
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col gap-4">
-              {method === 'email' ? (
-                <Input
-                  label={t('login.emailLabel')}
-                  requiredMark
-                  type="email"
-                  autoComplete="email"
-                  placeholder={t('login.emailPlaceholder')}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  leadingIcon={<MailIcon />}
-                />
-              ) : (
-                <Input
-                  label={t('login.phoneLabel')}
-                  requiredMark
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder={t('login.phonePlaceholder')}
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  leadingIcon={<PhoneIcon />}
-                />
-              )}
+            <Input
+              label={t('login.passwordLabel')}
+              requiredMark
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder={t('login.passwordPlaceholder')}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                clearError('password')
+              }}
+              error={errors.password ? t(errors.password) : undefined}
+              leadingIcon={<LockIcon />}
+              trailingIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="inline-flex text-text-quaternary transition-colors hover:text-text-secondary"
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                >
+                  {showPassword ? <EyeIcon /> : <EyeOffIcon />}
+                </button>
+              }
+            />
+          </div>
 
-              <Input
-                label={t('login.passwordLabel')}
-                requiredMark
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                placeholder={t('login.passwordPlaceholder')}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                leadingIcon={<LockIcon />}
-                trailingIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="inline-flex text-text-quaternary transition-colors hover:text-text-secondary"
-                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-                  >
-                    {showPassword ? <EyeIcon /> : <EyeOffIcon />}
-                  </button>
-                }
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-3">
-              <Checkbox
-                label={t('login.rememberMe')}
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <Link
-                to="/forgot-password"
-                className="text-xs font-medium text-primary-700 transition-colors hover:text-primary-800"
-              >
-                {t('login.forgotPassword')}
-              </Link>
-            </div>
+          <div className="flex items-center justify-between gap-3">
+            <Checkbox
+              label={t('login.rememberMe')}
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-primary-700 transition-colors hover:text-primary-800"
+            >
+              {t('login.forgotPassword')}
+            </Link>
           </div>
         </div>
       </div>
 
       <div className="flex flex-col gap-6">
-        <Button type="submit" fullWidth>
-          {t('login.submit')}
+        <Button type="submit" fullWidth disabled={submitting}>
+          {submitting ? t('login.submitting') : t('login.submit')}
         </Button>
 
         <p className="text-center text-xs font-medium text-text-primary">

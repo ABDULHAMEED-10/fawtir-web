@@ -39,7 +39,7 @@ export function parseDateKey(key: string): Date | null {
 export function formatDisplayDate(key: string): string {
   const date = parseDateKey(key)
   if (!date) return ''
-  return `${pad(date.getDate())} ${MONTHS[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`
+  return `${date.getDate()} ${MONTHS[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`
 }
 
 /** Add days to a date key, staying in local time. */

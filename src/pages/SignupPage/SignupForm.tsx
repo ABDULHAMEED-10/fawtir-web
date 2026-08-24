@@ -14,6 +14,15 @@ import {
   PhoneInput,
   UserIcon,
 } from '../../components/ui'
+import {
+  confirmPassword as validateConfirm,
+  email as validateEmail,
+  isClean,
+  omanPhone,
+  password as validatePassword,
+  required,
+  type FieldError,
+} from '../../lib/validation'
 
 export function SignupForm() {
   const { t } = useTranslation()
@@ -26,13 +35,34 @@ export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [agreed, setAgreed] = useState(true)
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      fullName: required(fullName),
+      email: validateEmail(email),
+      phone: omanPhone(phone),
+      password: validatePassword(password),
+      confirmPassword: validateConfirm(confirmPassword, password),
+      agreed: agreed ? undefined : 'validation.agreeRequired',
+    }
+    setErrors(next)
+    if (!isClean(next)) return
+
+    setSubmitting(true)
+    // Seam for the account call: POST /api/v1/auth/register → sends the OTP.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    setSubmitting(false)
     navigate('/verify-code', {
       state: {
         from: 'signup',
-        contact: phone ? `+968 ${phone}` : email || '+968 •••• 4567',
+        // The OTP goes to the phone, so that is the contact to echo on the next screen.
+        contact: `+968 ${phone}`,
       },
     })
   }
@@ -52,7 +82,11 @@ export function SignupForm() {
               autoComplete="name"
               placeholder={t('signup.fullNamePlaceholder')}
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value)
+                clearError('fullName')
+              }}
+              error={errors.fullName ? t(errors.fullName) : undefined}
               leadingIcon={<UserIcon />}
               trailingIcon={
                 fullName ? (
@@ -75,7 +109,11 @@ export function SignupForm() {
               autoComplete="email"
               placeholder={t('signup.emailPlaceholder')}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                clearError('email')
+              }}
+              error={errors.email ? t(errors.email) : undefined}
               leadingIcon={<MailIcon />}
             />
 
@@ -85,7 +123,11 @@ export function SignupForm() {
               autoComplete="tel-national"
               placeholder={t('signup.phonePlaceholder')}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                clearError('phone')
+              }}
+              error={errors.phone ? t(errors.phone) : undefined}
             />
 
             <div className="flex flex-col gap-2.5">
@@ -96,7 +138,11 @@ export function SignupForm() {
                 autoComplete="new-password"
                 placeholder={t('signup.passwordPlaceholder')}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  clearError('password')
+                }}
+                error={errors.password ? t(errors.password) : undefined}
                 leadingIcon={<LockIcon />}
                 trailingIcon={
                   <button
@@ -119,7 +165,11 @@ export function SignupForm() {
               autoComplete="new-password"
               placeholder={t('signup.confirmPasswordPlaceholder')}
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                clearError('confirmPassword')
+              }}
+              error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
               leadingIcon={<LockIcon />}
               trailingIcon={
                 <button
@@ -139,7 +189,10 @@ export function SignupForm() {
               <input
                 type="checkbox"
                 checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
+                onChange={(e) => {
+                  setAgreed(e.target.checked)
+                  clearError('agreed')
+                }}
                 className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
               />
               <span className="flex h-5 w-5 items-center justify-center rounded-sm border border-border-default bg-surface-card peer-checked:border-primary-700 peer-checked:bg-primary-700 peer-checked:[&_svg]:opacity-100">
@@ -166,12 +219,17 @@ export function SignupForm() {
               .
             </span>
           </label>
+          {errors.agreed ? (
+            <p className="mt-1 text-xs font-medium text-text-danger" role="alert">
+              {t(errors.agreed)}
+            </p>
+          ) : null}
         </div>
       </div>
 
       <div className="flex flex-col gap-6">
-        <Button type="submit" fullWidth className="gap-1.5">
-          {t('signup.submit')}
+        <Button type="submit" fullWidth disabled={submitting} className="gap-1.5">
+          {submitting ? t('signup.submitting') : t('signup.submit')}
           <ChevronRightIcon size={18} className="rtl:rotate-180" />
         </Button>
 

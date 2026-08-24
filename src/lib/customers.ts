@@ -161,5 +161,3 @@ export const CUSTOMER_ROWS: CustomerRow[] = [
     state: 'settled',
   },
 ]
-
-export const CUSTOMER_PAGE_NUMBERS = [1, 2, 3, 4, '...', 20] as const

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { crNumber as validateCr, omanPhone, vatin as validateVatin } from '../../lib/validation'
 import type { CustomerKind } from '../../lib/customers'
 import {
   CheckboxRow,
@@ -33,7 +34,13 @@ const TYPE_CARDS: { id: CustomerKind; icon: string }[] = [
  * Figma gives the invoicing column six fields and the delivery column only four —
  * PO Box and postal code are invoicing-only.
  */
-function AddressBlock({ prefix, t }: { prefix: 'invoicing' | 'delivery'; t: (k: string) => string }) {
+function AddressBlock({
+  prefix,
+  t,
+}: {
+  prefix: 'invoicing' | 'delivery'
+  t: (k: string) => string
+}) {
   const isInvoicing = prefix === 'invoicing'
 
   return (
@@ -95,14 +102,53 @@ export function NewCustomerPage() {
   const [sameAsInvoicing, setSameAsInvoicing] = useState(true)
   const [addressesOpen, setAddressesOpen] = useState(true)
   const [notesOpen, setNotesOpen] = useState(true)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const isConsumer = customerType === 'consumer'
   const isGovernment = customerType === 'government'
   /** Business and government share the organisation-shaped field set. */
   const isOrganisation = !isConsumer
 
+  /**
+   * Collect the form, then apply the checks HTML cannot express.
+   *
+   * The fields are uncontrolled and carry `name`, so `FormData` is the natural read and is
+   * already the shape the create call wants. Presence is handled by the native `required`
+   * attributes; what is left are the Omani formats — VATIN, CR and mobile — plus the rule
+   * that a Peppol id is only meaningful when the customer is actually on the network.
+   */
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const read = (key: string) => String(data.get(key) ?? '').trim()
+
+    const next: Record<string, string> = {}
+    if (isOrganisation && registeredForVat) {
+      const vat = validateVatin(read('vatNumber'))
+      if (vat) next.vatNumber = vat
+    }
+    if (isOrganisation && advanced && read('crNumber')) {
+      const cr = validateCr(read('crNumber'))
+      if (cr) next.crNumber = cr
+    }
+    if (read('mobile')) {
+      const mobile = omanPhone(read('mobile'))
+      if (mobile) next.mobile = mobile
+    }
+    if (registeredOnPeppol && isOrganisation && !read('peppolId')) {
+      next.peppolId = 'validation.required'
+    }
+
+    setErrors(next)
+    if (Object.keys(next).length > 0) {
+      // Put the user on the first problem rather than making them hunt for it.
+      const first = event.currentTarget.elements.namedItem(Object.keys(next)[0])
+      if (first instanceof HTMLElement) first.scrollIntoView({ block: 'center' })
+      if (first instanceof HTMLInputElement) first.focus()
+      return
+    }
+
+    // Seam for the create call: POST /api/v1/customers with this payload.
     navigate('/customers')
   }
 
@@ -182,9 +228,7 @@ export function NewCustomerPage() {
                       {t(`newCustomer.types.${card.id}.subtitle`)}
                     </span>
                   </span>
-                  {active ? (
-                    <img src={tickCircle} alt="" className="size-[18px] shrink-0" />
-                  ) : null}
+                  {active ? <img src={tickCircle} alt="" className="size-[18px] shrink-0" /> : null}
                 </button>
               )
             })}
@@ -250,6 +294,7 @@ export function NewCustomerPage() {
                         <TextField
                           id="cr-number"
                           name="crNumber"
+                          error={errors.crNumber ? t(errors.crNumber) : undefined}
                           label={t('newCustomer.details.commercialRegistration')}
                           placeholder={t('newCustomer.details.crPlaceholder')}
                         />
@@ -261,6 +306,7 @@ export function NewCustomerPage() {
                       <TextField
                         id="vat-number"
                         name="vatNumber"
+                        error={errors.vatNumber ? t(errors.vatNumber) : undefined}
                         label={t('newCustomer.details.vatNumber')}
                         placeholder="OM1100000000"
                       />
@@ -272,7 +318,6 @@ export function NewCustomerPage() {
                         onChange={setRegisteredForVat}
                       />
                     </div>
-
                   </>
                 )}
 
@@ -331,6 +376,7 @@ export function NewCustomerPage() {
                       <TextField
                         id="peppol-id"
                         name="peppolId"
+                        error={errors.peppolId ? t(errors.peppolId) : undefined}
                         label={t('newCustomer.details.peppolId')}
                         placeholder="0248:OM1100000000"
                         defaultValue="0248:OM1100000000"
@@ -348,7 +394,12 @@ export function NewCustomerPage() {
                     id="currency"
                     name="currency"
                     label={t('newCustomer.billing.currency')}
-                    options={['OMR - Omani Rial', 'USD - US Dollar', 'EUR - Euro', 'AED - UAE Dirham']}
+                    options={[
+                      'OMR - Omani Rial',
+                      'USD - US Dollar',
+                      'EUR - Euro',
+                      'AED - UAE Dirham',
+                    ]}
                   />
                   <SelectField
                     id="tax-category"
@@ -424,7 +475,12 @@ export function NewCustomerPage() {
                     name="telephone"
                     label={t('newCustomer.contact.telephone')}
                   />
-                  <PhoneField id="mobile" name="mobile" label={t('newCustomer.contact.mobile')} />
+                  <PhoneField
+                    id="mobile"
+                    name="mobile"
+                    label={t('newCustomer.contact.mobile')}
+                    error={errors.mobile ? t(errors.mobile) : undefined}
+                  />
                 </FieldGrid>
 
                 <SelectField

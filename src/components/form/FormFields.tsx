@@ -70,6 +70,7 @@ export function TextField({
   type = 'text',
   hint,
   defaultValue,
+  error,
 }: {
   id: string
   name: string
@@ -79,6 +80,8 @@ export function TextField({
   type?: string
   hint?: string
   defaultValue?: string
+  /** Already-translated message; replaces the hint while it is present. */
+  error?: string
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -90,9 +93,22 @@ export function TextField({
         required={required}
         placeholder={placeholder}
         defaultValue={defaultValue}
-        className={[FIELD_BASE, defaultValue ? FIELD_FILLED : FIELD_EMPTY].join(' ')}
+        aria-invalid={error ? true : undefined}
+        className={[
+          FIELD_BASE,
+          defaultValue ? FIELD_FILLED : FIELD_EMPTY,
+          error ? 'ring-1 ring-border-danger' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
       />
-      {hint ? <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p> : null}
+      {error ? (
+        <p className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p>
+      ) : null}
     </div>
   )
 }
@@ -169,7 +185,9 @@ export function SelectField({
           className="pointer-events-none absolute end-4 top-1/2 size-6 -translate-y-1/2 rotate-90 opacity-70"
         />
       </div>
-      {hint ? <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p> : null}
+      {hint ? (
+        <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p>
+      ) : null}
     </div>
   )
 }
@@ -180,17 +198,30 @@ export function PhoneField({
   name,
   label,
   placeholder = '9XXX XXXX',
+  error,
 }: {
   id: string
   name: string
   label: string
   placeholder?: string
+  /** Already-translated message. */
+  error?: string
 }) {
   return (
     <div className="flex flex-col gap-1">
       <FieldLabel label={label} htmlFor={id} />
-      <div className="flex h-[50px] w-full items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 transition-colors focus-within:border-primary-700">
-        <img src={omanFlag} alt="" aria-hidden="true" className="size-5 shrink-0 rounded-[2px] object-cover" />
+      <div
+        className={[
+          'flex h-[50px] w-full items-center gap-2 rounded-sm border bg-surface-tab-bar px-4 transition-colors focus-within:border-primary-700',
+          error ? 'border-border-danger' : 'border-border-subtle',
+        ].join(' ')}
+      >
+        <img
+          src={omanFlag}
+          alt=""
+          aria-hidden="true"
+          className="size-5 shrink-0 rounded-[2px] object-cover"
+        />
         <span className="shrink-0 text-sm font-medium text-text-secondary">+968</span>
         <input
           id={id}
@@ -198,9 +229,15 @@ export function PhoneField({
           type="tel"
           inputMode="tel"
           placeholder={placeholder}
+          aria-invalid={error ? true : undefined}
           className="h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder"
         />
       </div>
+      {error ? (
+        <p className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -233,7 +270,9 @@ export function CheckboxRow({
         aria-hidden="true"
         className={[
           'inline-flex size-5 shrink-0 items-center justify-center rounded-sm border transition-colors',
-          checked ? 'border-primary-700 bg-primary-700' : 'border-border-default bg-surface-tab-bar',
+          checked
+            ? 'border-primary-700 bg-primary-700'
+            : 'border-border-default bg-surface-tab-bar',
           'peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300',
         ].join(' ')}
       >
@@ -389,7 +428,9 @@ export function ImageUploadField({
           aria-label={title}
           className={[
             'flex size-[72px] shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dashed bg-surface-tab-bar transition-colors',
-            dragging ? 'border-primary-700 bg-primary-25' : 'border-neutral-300 hover:border-primary-300',
+            dragging
+              ? 'border-primary-700 bg-primary-25'
+              : 'border-neutral-300 hover:border-primary-300',
           ].join(' ')}
         >
           {preview ? (

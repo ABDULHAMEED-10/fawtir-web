@@ -10,6 +10,12 @@ import {
   LockIcon,
   PasswordStrength,
 } from '../../components/ui'
+import {
+  confirmPassword as validateConfirm,
+  isClean,
+  password as validatePassword,
+  type FieldError,
+} from '../../lib/validation'
 
 export function NewPasswordForm() {
   const { t } = useTranslation()
@@ -18,9 +24,19 @@ export function NewPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+
+  const clearError = (field: string) =>
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = {
+      password: validatePassword(password),
+      confirmPassword: validateConfirm(confirmPassword, password),
+    }
+    setErrors(next)
+    if (!isClean(next)) return
     navigate('/login')
   }
 
@@ -45,7 +61,11 @@ export function NewPasswordForm() {
               autoComplete="new-password"
               placeholder={t('newPassword.passwordPlaceholder')}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                clearError('password')
+              }}
+              error={errors.password ? t(errors.password) : undefined}
               leadingIcon={<LockIcon />}
               trailingIcon={
                 <button
@@ -68,7 +88,11 @@ export function NewPasswordForm() {
             autoComplete="new-password"
             placeholder={t('newPassword.confirmPasswordPlaceholder')}
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value)
+              clearError('confirmPassword')
+            }}
+            error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
             leadingIcon={<LockIcon />}
             trailingIcon={
               <button

@@ -9,6 +9,8 @@ export type InvoicePreviewData = {
   peppolId: string
   initials: string
   accentColor: string
+  /** Object URL for the logo the user just picked; falls back to initials when absent. */
+  logoUrl?: string | null
   addressLine?: string
   city?: string
   governorate?: string
@@ -46,7 +48,9 @@ export function BusinessIdentityHero({
   const addressText = [
     preview.addressLine,
     [preview.city, preview.governorate, preview.postalCode].filter(Boolean).join(', '),
-    preview.city || preview.governorate || preview.postalCode ? t('addressContact.countryOman') : null,
+    preview.city || preview.governorate || preview.postalCode
+      ? t('addressContact.countryOman')
+      : null,
   ]
     .filter(Boolean)
     .join('\n')
@@ -73,13 +77,30 @@ export function BusinessIdentityHero({
               <div className="mx-auto flex w-full max-w-[505px] flex-col gap-[21px]">
                 <div className="flex flex-col gap-[9px]">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex size-[88px] items-center justify-center overflow-hidden rounded-sm bg-surface-background">
-                      <span className="text-[40px] font-medium leading-none text-primary-800">
-                        {preview.initials || 'AB'}
-                      </span>
+                    <div
+                      className="flex size-[88px] items-center justify-center overflow-hidden rounded-sm bg-surface-background"
+                      style={
+                        preview.logoUrl
+                          ? undefined
+                          : { backgroundColor: `${preview.accentColor}14` }
+                      }
+                    >
+                      {preview.logoUrl ? (
+                        <img src={preview.logoUrl} alt="" className="size-full object-contain" />
+                      ) : (
+                        <span
+                          className="text-[40px] font-medium leading-none"
+                          style={{ color: preview.accentColor }}
+                        >
+                          {preview.initials || 'AB'}
+                        </span>
+                      )}
                     </div>
                     <div className="flex w-[94px] flex-col items-end gap-[3px] text-end">
-                      <p className="text-base font-semibold leading-[1.2] text-text-primary">
+                      <p
+                        className="text-base font-semibold leading-[1.2]"
+                        style={{ color: preview.accentColor }}
+                      >
                         {t('businessIdentity.taxInvoice')}
                       </p>
                       <p className="w-full text-sm font-semibold leading-[1.2] text-text-quaternary">

@@ -1,34 +1,29 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import {
-  Button,
-  ChevronRightIcon,
-  Input,
-  MailIcon,
-  PhoneIcon,
-  SegmentedControl,
-} from '../../components/ui'
-
-type ResetMethod = 'email' | 'phone'
+import { Button, ChevronRightIcon, Input, MailIcon } from '../../components/ui'
+import { email as validateEmail, isClean, type FieldError } from '../../lib/validation'
 
 export function ForgotPasswordForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [method, setMethod] = useState<ResetMethod>('email')
   const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+
+  const clearError = () =>
+    setErrors((current) => (current.contact ? { ...current, contact: undefined } : current))
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const next: Record<string, FieldError> = { contact: validateEmail(email) }
+    setErrors(next)
+    if (!isClean(next)) return
     navigate('/verify-code', {
       state: {
         from: 'forgot-password',
-        method,
-        contact:
-          method === 'email'
-            ? email || 'you@company.com'
-            : `+968 ${phone || '•••• 4567'}`,
+        method: 'email',
+        // Validation guarantees this is a real address by now.
+        contact: email,
       },
     })
   }
@@ -45,41 +40,20 @@ export function ForgotPasswordForm() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <SegmentedControl
-            ariaLabel={t('forgotPassword.methodLabel')}
-            value={method}
-            onChange={setMethod}
-            options={[
-              { value: 'email', label: t('login.emailTab') },
-              { value: 'phone', label: t('login.phoneTab') },
-            ]}
-          />
-
-          {method === 'email' ? (
-            <Input
-              label={t('login.emailLabel')}
-              requiredMark
-              type="email"
-              autoComplete="email"
-              placeholder={t('login.emailPlaceholder')}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              leadingIcon={<MailIcon />}
-            />
-          ) : (
-            <Input
-              label={t('login.phoneLabel')}
-              requiredMark
-              type="tel"
-              autoComplete="tel"
-              placeholder={t('signup.phonePlaceholder')}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              leadingIcon={<PhoneIcon />}
-            />
-          )}
-        </div>
+        <Input
+          label={t('login.emailLabel')}
+          requiredMark
+          type="email"
+          autoComplete="email"
+          placeholder={t('login.emailPlaceholder')}
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            clearError()
+          }}
+          error={errors.contact ? t(errors.contact) : undefined}
+          leadingIcon={<MailIcon />}
+        />
       </div>
 
       <Button type="submit" fullWidth className="gap-1.5">
