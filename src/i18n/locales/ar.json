@@ -797,7 +797,15 @@
         "deliveryNotes": "إشعارات تسليم",
         "projects": "المشاريع"
       },
-      "pos": "نقطة البيع"
+      "pos": "نقطة البيع",
+      "reportChildren": {
+        "income": "الإيرادات",
+        "expenditure": "المصروفات",
+        "cashFlow": "التدفق النقدي",
+        "vat": "الضريبة",
+        "compliance": "الامتثال",
+        "lists": "الجداول"
+      }
     },
     "account": {
       "premiumPlan": "الخطة المميزة",
@@ -5081,6 +5089,280 @@
       "nothingPicked": "اختر ملفًا واحدًا على الأقل للمشاركة.",
       "cancel": "إلغاء",
       "copyLink": "نسخ الرابط"
+    }
+  },
+  "reports": {
+    "title": "التقارير",
+    "exportPdf": "تصدير PDF",
+    "expand": "افتح هذا الرسم بمفرده",
+    "periods": {
+      "yearly": "سنوي",
+      "quarterly": "ربع سنوي",
+      "monthly": "شهري"
+    },
+    "months": {
+      "aug": "أغس",
+      "sep": "سبت",
+      "oct": "أكت",
+      "nov": "نوف",
+      "dec": "ديس",
+      "jan": "ينا",
+      "feb": "فبر",
+      "mar": "مار",
+      "apr": "أبر",
+      "may": "مايو",
+      "jun": "يون",
+      "jul": "يول"
+    },
+    "monthsLong": {
+      "aug": "أغسطس",
+      "sep": "سبتمبر",
+      "oct": "أكتوبر",
+      "nov": "نوفمبر",
+      "dec": "ديسمبر",
+      "jan": "يناير",
+      "feb": "فبراير",
+      "mar": "مارس",
+      "apr": "أبريل",
+      "may": "مايو",
+      "jun": "يونيو",
+      "jul": "يوليو"
+    },
+    "income": {
+      "title": "الإيرادات",
+      "subtitle": "ما فوترته، وكيف يتجه، ومن أين يأتي. كل رسم يُصدَّر على حدة.",
+      "kpi": {
+        "invoiced": "المفوتر، دون الضريبة",
+        "invoicedNote": "مقارنة بالعام السابق",
+        "vat": "الضريبة المحصّلة",
+        "vatNote": "٥٪ في كل الأحوال",
+        "sent": "الفواتير المرسلة",
+        "sentNote": "أكثر من العام الماضي",
+        "average": "متوسط الفاتورة",
+        "averageNote": "النمو من حجم العمليات",
+        "steady": "مستقر"
+      },
+      "monthly": "شهريًا",
+      "quarterly": "ربع سنوي",
+      "annually": "سنويًا",
+      "topCustomers": "أبرز العملاء",
+      "netInvoiced": "صافي المفوتر",
+      "vatCharged": "الضريبة المحصّلة",
+      "bestMonth": "{{month}} كان أفضل شهر · <amount>{{value}}</amount>",
+      "thisYear": "هذا العام",
+      "lastYear": "العام الماضي",
+      "quarterlyNote": "كل ربع يتقدم على العام الماضي",
+      "onTrack": "في الطريق إلى <amount>{{value}}</amount>",
+      "invoicedThisYear": "المفوتر هذا العام",
+      "topShare": "أبرز ٥ عملاء يمثلون {{percent}}٪ من الإيرادات"
+    },
+    "expenditure": {
+      "title": "المصروفات",
+      "subtitle": "الفواتير الواردة عبر Peppol والمرفوعة والممسوحة تُحتسب جميعها معًا.",
+      "kpi": {
+        "billed": "المفوتر عليك، دون الضريبة",
+        "billedNote": "مقارنة بالعام السابق",
+        "vat": "الضريبة القابلة للاسترداد",
+        "vatNote": "كلها بالنسبة القياسية",
+        "received": "الفواتير المستلمة",
+        "receivedNote": "أكثر من العام الماضي",
+        "average": "متوسط الفاتورة",
+        "averageNote": "أصغر وأكثر تكرارًا"
+      },
+      "monthly": "شهريًا",
+      "topSuppliers": "أبرز الموردين",
+      "byCategory": "حسب الفئة",
+      "howBillsReach": "كيف تصلك الفواتير",
+      "netBilled": "صافي المفوتر",
+      "vatCharged": "الضريبة المحصّلة",
+      "heaviestMonth": "{{month}} كان الأثقل · <amount>{{value}}</amount>",
+      "billedThisYear": "المفوتر هذا العام",
+      "topSupplierShare": "{{name}} يمثل {{percent}}٪ من الإنفاق",
+      "topCategoryShare": "{{name}} تمثل {{percent}}٪",
+      "peppol": "Peppol",
+      "uploaded": "مرفوعة",
+      "scanned": "ممسوحة",
+      "peppolUp": "Peppol ارتفع {{points}} نقطة خلال عام",
+      "q1": "الربع الأول ٢٠٢٦",
+      "q2": "الربع الثاني ٢٠٢٦",
+      "q3SoFar": "الربع الثالث حتى الآن",
+      "categories": {
+        "rawMaterials": "المواد الخام",
+        "packaging": "التغليف",
+        "logistics": "الشحن",
+        "utilities": "المرافق",
+        "rent": "الإيجار والمقر"
+      }
+    },
+    "cashFlow": {
+      "title": "التدفق النقدي",
+      "subtitle": "الداخل مقابل الخارج، وما يتبقى لك، وما هو ملتزم به للأسابيع القادمة.",
+      "kpi": {
+        "in": "النقد الداخل",
+        "inNote": "مدفوعات العملاء المستلمة",
+        "out": "النقد الخارج",
+        "outNote": "مدفوعات الموردين المسددة",
+        "kept": "المتبقي",
+        "keptNote": "على مدى اثني عشر شهرًا",
+        "dueOut": "مستحق الخروج خلال ٣٠ يومًا",
+        "dueOutNote": "مقابل <amount>{{value}}</amount> متوقع دخوله"
+      },
+      "monthlyInOut": "الداخل والخارج شهريًا",
+      "whatYouKept": "ما احتفظت به",
+      "nextEightWeeks": "الأسابيع الثمانية القادمة",
+      "whereItWent": "أين ذهب",
+      "moneyIn": "النقد الداخل",
+      "moneyOut": "النقد الخارج",
+      "positiveEveryMonth": "موجب في كل شهر هذا العام",
+      "surplus": "الفائض",
+      "bestMonth": "أفضل شهر · <amount>{{value}}</amount>",
+      "expectedIn": "متوقع دخوله",
+      "committedOut": "ملتزم بخروجه",
+      "tightestWeek": "أضيق أسبوع هو {{week}}",
+      "paidThisYear": "المسدد هذا العام",
+      "suppliersShare": "الموردون يمثلون {{percent}}٪ من كل الخارج",
+      "where": {
+        "suppliers": "الموردون",
+        "rent": "الإيجار والمقر",
+        "wages": "الأجور",
+        "utilities": "المرافق",
+        "everythingElse": "كل ما عدا ذلك"
+      }
+    },
+    "vat": {
+      "title": "الضريبة",
+      "subtitle": "ما حصّلته على المبيعات، وما دفعته على المشتريات، وما هو مستحق لهيئة الضرائب.",
+      "kpi": {
+        "collected": "الضريبة المحصّلة على المبيعات",
+        "collectedNote": "ضريبة المخرجات",
+        "paid": "الضريبة المدفوعة على المشتريات",
+        "paidNote": "ضريبة المدخلات، قابلة للاسترداد",
+        "owed": "المستحق للهيئة",
+        "owedNote": "على مدى اثني عشر شهرًا",
+        "nextReturn": "الإقرار القادم",
+        "nextReturnNote": "الربع الثالث · شهران من ثلاثة"
+      },
+      "quarterlyPosition": "الوضع الربع سنوي",
+      "monthlyNetPayable": "الصافي المستحق شهريًا",
+      "byTreatment": "حسب المعالجة الضريبية",
+      "reclaimBySupplier": "الاسترداد حسب المورد",
+      "collectedOnSales": "المحصّل على المبيعات",
+      "paidOnPurchases": "المدفوع على المشتريات",
+      "gapWidening": "الفجوة تتسع مع نمو المبيعات",
+      "netPayable": "صافي الضريبة المستحقة",
+      "peakMonth": "{{month}} · <amount>{{value}}</amount>",
+      "standard": "قياسية ٥٪",
+      "zeroRated": "صفرية",
+      "exempt": "معفاة",
+      "almostAllStandard": "كل شيء تقريبًا بالنسبة القياسية",
+      "reclaimable": "الضريبة القابلة للاسترداد",
+      "allBacked": "كلها مدعومة بفواتير ضريبية صحيحة",
+      "sales": "المبيعات",
+      "purchases": "المشتريات",
+      "others": "آخرون",
+      "q4Last": "الربع الرابع ٢٠٢٥",
+      "q1": "الربع الأول ٢٠٢٦",
+      "q2": "الربع الثاني ٢٠٢٦",
+      "q3SoFar": "الربع الثالث حتى الآن"
+    },
+    "compliance": {
+      "title": "الامتثال",
+      "subtitle": "كيف تتعامل هيئة الضرائب وشبكة Peppol مع فواتيرك.",
+      "kpi": {
+        "accepted": "قُبلت من أول مرة",
+        "acceptedNote": "{{accepted}} من {{sent}}",
+        "timeToClear": "متوسط زمن الإجازة",
+        "timeToClearNote": "أسرع من العام الماضي",
+        "rejections": "حالات الرفض",
+        "rejectionsNote": "أقل من العام الماضي",
+        "delivered": "سُلّمت داخل النافذة",
+        "deliveredNote": "{{late}} متأخرة من {{sent}}"
+      },
+      "acceptedFirstTime": "القبول من أول مرة",
+      "whyRejected": "لماذا تُرفض",
+      "timeToClear": "زمن الإجازة لدى الهيئة",
+      "whatHappened": "ماذا حدث لما أرسلته",
+      "acceptanceSeries": "القبول من أول مرة، ٪",
+      "bestMonthYet": "أفضل شهر حتى الآن · {{percent}}٪",
+      "rejections": "حالات الرفض",
+      "oneCause": "سبب واحد يمثل {{percent}}٪ منها جميعًا",
+      "secondsToAcceptance": "ثوانٍ حتى القبول",
+      "insideTheRule": "ضمن قاعدة الـ٢٤ ساعة بفارق مريح",
+      "firstTime": "من أول مرة",
+      "onRetry": "بعد إعادة المحاولة",
+      "deliveryFailed": "فشل التسليم",
+      "retriesFalling": "إعادة المحاولات تتراجع كل ربع",
+      "reasons": {
+        "peppolId": "معرّف Peppol مفقود",
+        "taxCategory": "فئة ضريبية خاطئة",
+        "totals": "المجاميع لا تتطابق",
+        "buyerVat": "الرقم الضريبي للمشتري",
+        "everythingElse": "كل ما عدا ذلك"
+      }
+    },
+    "lists": {
+      "title": "الجداول",
+      "subtitle": "الأرقام الخام خلف الرسوم، كجداول يمكنك تسليمها للمحاسب أو فتحها في Excel.",
+      "sections": {
+        "sales": "المبيعات",
+        "purchases": "المشتريات",
+        "accountant": "للمحاسب"
+      },
+      "rows": "{{formattedCount}} صفًا",
+      "columns": "· {{count}} عمودًا",
+      "downloadExcel": "تنزيل Excel",
+      "csv": "CSV",
+      "pdf": "PDF",
+      "items": {
+        "everyInvoice": {
+          "title": "كل فاتورة",
+          "detail": "صف لكل فاتورة مع العميل والتواريخ والصافي والضريبة والإجمالي وحالة السداد ونتيجة الهيئة."
+        },
+        "customers": {
+          "title": "العملاء",
+          "detail": "كل عميل مع رقمه الضريبي ومعرّف Peppol والشروط وإجمالي المفوتر ومتوسط أيام السداد."
+        },
+        "catalogLines": {
+          "title": "أسطر الكتالوج المباعة",
+          "detail": "كل بند في كل فاتورة — الكمية وسعر الوحدة والخصم والفئة الضريبية."
+        },
+        "paymentsReceived": {
+          "title": "المدفوعات المستلمة",
+          "detail": "كل دفعة مقابل كل فاتورة، مع الطريقة والمرجع وتاريخ التحصيل."
+        },
+        "everyBill": {
+          "title": "كل فاتورة واردة",
+          "detail": "صف لكل فاتورة مع المورد وطريقة الوصول وحالة المطابقة والاعتماد والسداد."
+        },
+        "suppliers": {
+          "title": "الموردون",
+          "detail": "كل مورد مع رقمه الضريبي وبياناته البنكية وإجمالي المفوتر وسجل السداد."
+        },
+        "paymentsMade": {
+          "title": "المدفوعات المسددة",
+          "detail": "كل تحويل، مجمّعًا حسب دفعة السداد، مع المرجع البنكي وتاريخ التسوية."
+        },
+        "creditDebitNotes": {
+          "title": "الإشعارات الدائنة والمدينة",
+          "detail": "كلا النوعين، مع الفاتورة التي يصححها كل منها وما إذا استُخدم أو رُفض أو ما زال مفتوحًا."
+        },
+        "vatLedger": {
+          "title": "دفتر الضريبة",
+          "detail": "ضريبة المخرجات والمدخلات سطرًا سطرًا، مقسمة حسب النسبة، بالتنسيق الذي يتطلبه الإقرار."
+        },
+        "tddRegister": {
+          "title": "سجل المستندات الضريبية",
+          "detail": "كل مستند بيانات ضريبية قُدّم للهيئة، ومعرّفه في فوترة، ووقت قبوله، ومقابل أي فاتورة."
+        },
+        "agedDebtors": {
+          "title": "أعمار الذمم المدينة والدائنة",
+          "detail": "كلا جدولي الأعمار في مصنف واحد، في ورقتين منفصلتين، كما في نهاية الفترة."
+        },
+        "journal": {
+          "title": "تصدير القيود",
+          "detail": "كل شيء كقيود مزدوجة، جاهزة لـ Tally أو QuickBooks أو Zoho Books."
+        }
+      }
     }
   }
 }

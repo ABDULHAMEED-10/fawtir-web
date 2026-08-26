@@ -223,7 +223,32 @@ export const DASHBOARD_NAV: NavGroup[] = [
     id: 'insights',
     labelKey: 'dashboard.nav.insights',
     items: [
-      { id: 'reports', labelKey: 'dashboard.nav.reports', Icon: NavReportsIcon, to: '/dashboard' },
+      {
+        id: 'reports',
+        labelKey: 'dashboard.nav.reports',
+        Icon: NavReportsIcon,
+        to: '/reports/income',
+        children: [
+          { id: 'income', labelKey: 'dashboard.nav.reportChildren.income', to: '/reports/income' },
+          {
+            id: 'expenditure',
+            labelKey: 'dashboard.nav.reportChildren.expenditure',
+            to: '/reports/expenditure',
+          },
+          {
+            id: 'cashFlow',
+            labelKey: 'dashboard.nav.reportChildren.cashFlow',
+            to: '/reports/cash-flow',
+          },
+          { id: 'vat', labelKey: 'dashboard.nav.reportChildren.vat', to: '/reports/vat-tax' },
+          {
+            id: 'compliance',
+            labelKey: 'dashboard.nav.reportChildren.compliance',
+            to: '/reports/compliance',
+          },
+          { id: 'lists', labelKey: 'dashboard.nav.reportChildren.lists', to: '/reports/lists' },
+        ],
+      },
     ],
   },
 ]
