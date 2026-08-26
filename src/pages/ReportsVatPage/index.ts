@@ -1,0 +1,1 @@
+export { ReportsVatPage } from './ReportsVatPage'

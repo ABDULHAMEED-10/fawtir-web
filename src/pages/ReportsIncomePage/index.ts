@@ -1,0 +1,1 @@
+export { ReportsIncomePage } from './ReportsIncomePage'

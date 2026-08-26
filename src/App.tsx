@@ -25,6 +25,12 @@ import { SupplierCreditNotesPage } from './pages/SupplierCreditNotesPage'
 import { UploadCreditNotePage } from './pages/UploadCreditNotePage'
 import { SupplierCreditNoteDetailPage } from './pages/SupplierCreditNoteDetailPage'
 import { SupplierDebitNotesPage } from './pages/SupplierDebitNotesPage'
+import { ReportsIncomePage } from './pages/ReportsIncomePage'
+import { ReportsExpenditurePage } from './pages/ReportsExpenditurePage'
+import { ReportsCashFlowPage } from './pages/ReportsCashFlowPage'
+import { ReportsVatPage } from './pages/ReportsVatPage'
+import { ReportsCompliancePage } from './pages/ReportsCompliancePage'
+import { ReportsListsPage } from './pages/ReportsListsPage'
 import { UploadDebitNotePage } from './pages/UploadDebitNotePage'
 import { SupplierDebitNoteDetailPage } from './pages/SupplierDebitNoteDetailPage'
 import { ExpenditureRemindersPage } from './pages/ExpenditureRemindersPage'
@@ -101,6 +107,13 @@ function App() {
           <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
           <Route path="/expenditure/credit-notes/:id" element={<SupplierCreditNoteDetailPage />} />
           <Route path="/expenditure/debit-notes" element={<SupplierDebitNotesPage />} />
+          <Route path="/reports" element={<Navigate to="/reports/income" replace />} />
+          <Route path="/reports/income" element={<ReportsIncomePage />} />
+          <Route path="/reports/expenditure" element={<ReportsExpenditurePage />} />
+          <Route path="/reports/cash-flow" element={<ReportsCashFlowPage />} />
+          <Route path="/reports/vat-tax" element={<ReportsVatPage />} />
+          <Route path="/reports/compliance" element={<ReportsCompliancePage />} />
+          <Route path="/reports/lists" element={<ReportsListsPage />} />
           <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
           <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
