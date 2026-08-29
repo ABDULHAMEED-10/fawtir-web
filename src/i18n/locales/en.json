@@ -775,7 +775,7 @@
       "customers": "Customers",
       "suppliers": "Suppliers",
       "compliance": "Compliance",
-      "tddOta": "TDD & OTA",
+      "tddOta": "Activity",
       "documents": "Documents",
       "insights": "Insights",
       "reports": "Reports",
@@ -5904,5 +5904,121 @@
     "downloadPdf": "Download PDF",
     "downloadExcel": "Download Excel",
     "emailIt": "Email it to them"
+  },
+  "activity": {
+    "title": "Activity",
+    "subtitle": "Every step your documents take through Peppol and the Tax Authority, newest first. Nothing here is a status you set — it is what the networks replied.",
+    "searchPlaceholder": "Search a document or a party...",
+    "filters": "Filters",
+    "allKinds": "All document types",
+    "empty": "Nothing matches what you are looking for.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "kpi": {
+      "cleared": "Cleared",
+      "clearedNote": "Through both Peppol and the OTA",
+      "waiting": "Waiting on the OTA",
+      "waitingNote": "Oldest is {{minutes}} minutes old",
+      "attention": "Needs attention",
+      "attentionNote": "Nothing moves until these are dealt with",
+      "volume": "Events today",
+      "volumeNote": "Across {{count}} documents"
+    },
+    "tabs": {
+      "all": "All",
+      "attention": "Needs attention",
+      "waiting": "Waiting",
+      "cleared": "Cleared"
+    },
+    "col": {
+      "when": "When",
+      "document": "Document",
+      "whatHappened": "What happened",
+      "network": "Network",
+      "outcome": "Outcome"
+    },
+    "channel": {
+      "peppol": "Peppol",
+      "ota": "Tax Authority"
+    },
+    "direction": {
+      "outbound": "Sent",
+      "inbound": "Received"
+    },
+    "kind": {
+      "standardInvoice": "Standard invoice",
+      "simplifiedInvoice": "Simplified invoice",
+      "creditNote": "Credit note",
+      "debitNote": "Debit note",
+      "selfBilled": "Self-billed invoice",
+      "bill": "Bill"
+    },
+    "outcome": {
+      "cleared": "Cleared",
+      "waiting": "Waiting",
+      "attention": "Needs attention",
+      "failed": "Failed"
+    },
+    "step": {
+      "sentOverPeppol": "Sent over Peppol",
+      "arrivedOverPeppol": "Arrived over Peppol",
+      "tddFiled": "Tax Data Document filed",
+      "receiverTddFiled": "Receiver-side TDD filed",
+      "tddRejected": "Tax Data Document rejected",
+      "tddResent": "Tax Data Document resent"
+    },
+    "detail": {
+      "deliveredTo": "Delivered to {{id}}",
+      "waitingOta": "Sent {{minutes}} minutes ago, no reply yet",
+      "heldForReview": "Held in Needs attention — nobody has accepted the charge",
+      "buyerVatUnknown": "Buyer VAT number is not one the Authority recognises",
+      "acceptedIn": "Accepted in {{seconds}} seconds",
+      "matchedToOrder": "Filed and matched to {{po}}",
+      "acceptedOnRetry": "Accepted after the rounding was corrected",
+      "roundingMismatch": "Line totals did not add up to the invoice total"
+    },
+    "attempt": "Attempt {{n}}",
+    "action": {
+      "review": "Review it",
+      "fixAndResend": "Fix and resend"
+    },
+    "acceptanceRate": "{{percent}}% of filings accepted",
+    "showing": "Showing {{shown}} of {{total}} events",
+    "fawtaraId": "Fawtara ID"
+  },
+  "activityEvent": {
+    "copyXml": "Copy the XML",
+    "copy": "Copy",
+    "copied": "Copied",
+    "downloadXml": "Download the XML",
+    "field": "Field",
+    "journey": "Everything that happened to {{document}}",
+    "thisEvent": "This event",
+    "openThisStep": "Open this step",
+    "payload": "The document as it went on the wire",
+    "payloadNote": "PINT-OM: UBL 2.1 with the Oman customisation. This is the exact body the network received.",
+    "thisTransmission": "This transmission",
+    "direction": "Direction",
+    "sentAt": "Sent at",
+    "attempt": "Attempt",
+    "roundTrip": "Round trip",
+    "messageId": "Message ID",
+    "fawtara": "Fawtara identifier",
+    "fawtaraNote": "The Tax Authority issues this once it accepts the filing. Quote it in any query about this document.",
+    "retryHistory": "Filing attempts",
+    "firstTime": "Accepted the first time it was sent.",
+    "theDocument": "The document",
+    "kind": "Kind",
+    "party": "Party",
+    "net": "Net",
+    "vat": "VAT",
+    "total": "Total",
+    "response": {
+      "delivered": "Delivered to the recipient's access point",
+      "received": "Received and stored",
+      "accepted": "Accepted and reported",
+      "buyerVatUnknown": "Buyer VAT number is not registered with the Authority",
+      "roundingMismatch": "Tax inclusive amount does not equal net plus tax"
+    }
   }
 }
