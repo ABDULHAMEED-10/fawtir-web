@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -10,6 +10,9 @@ import {
   SELF_BILL_PAGE_NUMBERS,
   SELF_BILL_ROWS,
   SELF_BILL_TABS,
+  countSelfBillTab,
+  matchesSelfBillQuery,
+  matchesSelfBillTab,
   type AgreementTone,
   type SelfBillRow,
   type SelfBillStatus,
@@ -40,14 +43,22 @@ const KPI_ICONS = {
 /** Status pill fills read straight off the Figma labels. */
 const STATUS_STYLES: Record<SelfBillStatus, { bg: string; fg: string; labelKey: string }> = {
   draft: { bg: 'bg-neutral-25', fg: 'text-neutral-700', labelKey: 'selfBilling.status.draft' },
-  toBeSent: { bg: 'bg-primary-25', fg: 'text-primary-900', labelKey: 'selfBilling.status.toBeSent' },
+  toBeSent: {
+    bg: 'bg-primary-25',
+    fg: 'text-primary-900',
+    labelKey: 'selfBilling.status.toBeSent',
+  },
   awaitingConfirmation: {
     bg: 'bg-pending-100',
     fg: 'text-pending-700',
     labelKey: 'selfBilling.status.awaitingConfirmation',
   },
   disputed: { bg: 'bg-danger-100', fg: 'text-danger-700', labelKey: 'selfBilling.status.disputed' },
-  confirmed: { bg: 'bg-success-100', fg: 'text-success-700', labelKey: 'selfBilling.status.confirmed' },
+  confirmed: {
+    bg: 'bg-success-100',
+    fg: 'text-success-700',
+    labelKey: 'selfBilling.status.confirmed',
+  },
   paid: { bg: 'bg-success-100', fg: 'text-success-700', labelKey: 'selfBilling.status.paid' },
 }
 
@@ -119,7 +130,11 @@ function SelfBillingHeader() {
         >
           <img src={plusIcon} alt="" className="size-6" />
           {t('selfBilling.create')}
-          <img src={chevronIcon} alt="" className="size-[18px] brightness-0 invert rtl:rotate-180" />
+          <img
+            src={chevronIcon}
+            alt=""
+            className="size-[18px] brightness-0 invert rtl:rotate-180"
+          />
         </Link>
       </div>
     </div>
@@ -228,7 +243,16 @@ function SelfBillingTable() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<SelfBillTabId>('all')
-  const [page, setPage] = useState(2)
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+
+  const rows = useMemo(
+    () =>
+      SELF_BILL_ROWS.filter(
+        (row) => matchesSelfBillTab(row, activeTab) && matchesSelfBillQuery(row, query),
+      ),
+    [activeTab, query],
+  )
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -239,7 +263,10 @@ function SelfBillingTable() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setPage(1)
+              }}
               className={[
                 'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
                 active
@@ -258,7 +285,7 @@ function SelfBillingTable() {
                       : 'bg-primary-25 text-text-quaternary',
                 ].join(' ')}
               >
-                {tab.count}
+                {countSelfBillTab(tab.id)}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
@@ -273,6 +300,11 @@ function SelfBillingTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setPage(1)
+            }}
             placeholder={t('selfBilling.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
@@ -302,18 +334,30 @@ function SelfBillingTable() {
               <th className="w-10 px-5 py-2.5">
                 <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.document')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.supplier')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.issued')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('selfBilling.col.document')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('selfBilling.col.supplier')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('selfBilling.col.issued')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.due')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.amount')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.status')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('selfBilling.col.transmission')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('selfBilling.col.amount')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('selfBilling.col.status')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('selfBilling.col.transmission')}
+              </th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {SELF_BILL_ROWS.map((row) => (
+            {rows.map((row) => (
               <tr
                 key={row.id}
                 className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"

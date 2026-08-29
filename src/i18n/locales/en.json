@@ -1778,7 +1778,7 @@
     "totalExcl": "Total excluding",
     "vat": "VAT",
     "totalAmount": "Total amount",
-    "itemsBanner": "Fawtir will issue an invoice for OMR {{amount}} every month and send it to {{customer}} automatically.",
+    "itemsBanner": "Fawtir will issue an invoice for OMR {{amount}} every {{cadence}} and send it to {{customer}} automatically.",
     "generated": "Invoices generated",
     "nextBanner": "The next invoice generates on {{date}}. It will appear here the moment it's issued.",
     "schedule": "Schedule",
@@ -1805,7 +1805,13 @@
     "newSubtitle": "Set up a schedule and Fawtir will issue the invoice for you on every run.",
     "cancel": "Cancel",
     "createSeries": "Create series",
-    "editSeries": "Edit series"
+    "editSeries": "Edit series",
+    "cadence": {
+      "weekly": "week",
+      "monthly": "month",
+      "quarterly": "quarter",
+      "yearly": "year"
+    }
   },
   "creditNotesPage": {
     "title": "Credit notes",
@@ -1978,7 +1984,9 @@
     "newBalance": "New balance",
     "refundDue": "Refund due",
     "refundHint": "Customer overpaid — refund this amount separately.",
-    "footerNote": "Linked to {{id}} · draft until issued"
+    "footerNote": "Linked to {{id}} · draft until issued",
+    "customAmount": "Amount to credit",
+    "customMax": "Up to {{amount}} can still be credited on this invoice."
   },
   "addCustomer": {
     "title": "New Customer Profile",

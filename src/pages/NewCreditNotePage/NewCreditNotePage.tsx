@@ -3,7 +3,13 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { OmAmount } from '../../components/ui'
-import { CREDIT_NOTE, type CreditMode } from '../../lib/creditNote'
+import {
+  CREDIT_NOTE,
+  CREDITABLE,
+  deriveCredit,
+  formatCredit,
+  type CreditMode,
+} from '../../lib/creditNote'
 import backIcon from '../../assets/invoice-details/back.svg'
 import menuIcon from '../../assets/invoices/menu.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -16,6 +22,7 @@ import issueIcon from '../../assets/credit-note/issue.svg'
 import invoiceIcon from '../../assets/credit-note/invoice-icon.svg'
 import fullInvoiceIcon from '../../assets/credit-note/full-invoice.svg'
 import linesIcon from '../../assets/credit-note/lines.svg'
+import omrIcon from '../../assets/invoices/omr-row.svg'
 import customAmountIcon from '../../assets/credit-note/custom-amount.svg'
 import tickIcon from '../../assets/credit-note/tick.svg'
 import warningIcon from '../../assets/credit-note/warning.svg'
@@ -25,13 +32,7 @@ function FieldLabel({ label }: { label: string }) {
   return <p className="mb-1 text-sm font-medium text-text-primary">{label}</p>
 }
 
-function FieldShell({
-  children,
-  suffix,
-}: {
-  children: ReactNode
-  suffix?: ReactNode
-}) {
+function FieldShell({ children, suffix }: { children: ReactNode; suffix?: ReactNode }) {
   return (
     <div className="flex h-[50px] w-full items-center justify-between rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
       <div className="min-w-0 flex-1 text-sm font-medium text-text-secondary">{children}</div>
@@ -44,6 +45,27 @@ export function NewCreditNotePage() {
   const { t } = useTranslation()
   const data = CREDIT_NOTE
   const [mode, setMode] = useState<CreditMode>('full')
+  const [chosen, setChosen] = useState<string[]>(data.lines.map((line) => line.id))
+  const [customAmount, setCustomAmount] = useState(formatCredit(CREDITABLE))
+
+  /**
+   * What is actually being credited.
+   *
+   * Full credits the whole invoice, picking lines credits those lines, and a custom amount is
+   * taken as typed — so the summary below always follows the choice above it.
+   */
+  const gross =
+    mode === 'full'
+      ? CREDITABLE
+      : mode === 'lines'
+        ? data.lines
+            .filter((line) => chosen.includes(line.id))
+            .reduce((sum, line) => sum + line.amount, 0)
+        : Number(customAmount.replace(/,/g, '')) || 0
+  const summary = deriveCredit(gross)
+
+  const toggleLine = (id: string) =>
+    setChosen((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
 
   const modes: {
     id: CreditMode
@@ -99,7 +121,10 @@ export function NewCreditNotePage() {
             </div>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-base">
               <span className="font-medium text-text-quaternary">{t('creditNote.reversing')}</span>
-              <Link to={`/invoices/${data.reversingId}`} className="font-semibold text-text-primary hover:text-primary-700">
+              <Link
+                to={`/invoices/${data.reversingId}`}
+                className="font-semibold text-text-primary hover:text-primary-700"
+              >
                 {data.reversingId}
               </Link>
               <span className="size-1 rounded-full bg-text-quaternary" />
@@ -135,7 +160,9 @@ export function NewCreditNotePage() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
           <div className="flex min-w-0 flex-1 flex-col gap-4">
             <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('creditNote.original')}</h2>
+              <h2 className="text-xl font-medium text-text-secondary">
+                {t('creditNote.original')}
+              </h2>
               <div className="my-3 h-px bg-border-subtle" />
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-primary-75 bg-primary-25 px-3 py-2.5">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -150,23 +177,39 @@ export function NewCreditNotePage() {
                         {t('invoicesPage.status.partial')}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm font-medium text-text-tertiary">{data.original.issued}</p>
+                    <p className="mt-1 text-sm font-medium text-text-tertiary">
+                      {data.original.issued}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-6 text-end">
                   <div>
-                    <p className="text-xs font-medium text-[#727579]">{t('creditNote.invoiceTotal')}</p>
-                    <OmAmount size="xs" amount={data.original.total} amountClassName="text-sm font-medium" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#727579]">{t('creditNote.alreadyCredited')}</p>
-                    <OmAmount size="xs" amount={data.original.alreadyCredited} amountClassName="text-sm font-medium" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#727579]">{t('creditNote.creditable')}</p>
+                    <p className="text-xs font-medium text-[#727579]">
+                      {t('creditNote.invoiceTotal')}
+                    </p>
                     <OmAmount
                       size="xs"
-                      amount={data.original.creditable}
+                      amount={formatCredit(CREDITABLE)}
+                      amountClassName="text-sm font-medium"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#727579]">
+                      {t('creditNote.alreadyCredited')}
+                    </p>
+                    <OmAmount
+                      size="xs"
+                      amount={formatCredit(data.original.alreadyCredited)}
+                      amountClassName="text-sm font-medium"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#727579]">
+                      {t('creditNote.creditable')}
+                    </p>
+                    <OmAmount
+                      size="xs"
+                      amount={formatCredit(CREDITABLE - gross)}
                       amountClassName="text-sm font-semibold text-[#3d5648]"
                     />
                   </div>
@@ -175,7 +218,9 @@ export function NewCreditNotePage() {
             </section>
 
             <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('creditNote.whatToCredit')}</h2>
+              <h2 className="text-xl font-medium text-text-secondary">
+                {t('creditNote.whatToCredit')}
+              </h2>
               <div className="my-3 h-px bg-border-subtle" />
               <div className="grid gap-3 sm:grid-cols-3">
                 {modes.map((m) => {
@@ -203,7 +248,9 @@ export function NewCreditNotePage() {
                           </span>
                         </span>
                       </span>
-                      {active ? <img src={tickIcon} alt="" className="size-[18px] shrink-0" /> : null}
+                      {active ? (
+                        <img src={tickIcon} alt="" className="size-[18px] shrink-0" />
+                      ) : null}
                     </button>
                   )
                 })}
@@ -212,33 +259,94 @@ export function NewCreditNotePage() {
               {mode === 'full' ? (
                 <div className="mt-3 flex items-start gap-2 rounded-sm border border-[#e7e3da] bg-warning-100 px-3 py-2.5">
                   <img src={warningIcon} alt="" className="mt-0.5 size-5 shrink-0" />
-                  <p className="text-sm font-medium text-[#6d5a39]">{t('creditNote.fullWarning')}</p>
+                  <p className="text-sm font-medium text-[#6d5a39]">
+                    {t('creditNote.fullWarning')}
+                  </p>
+                </div>
+              ) : null}
+
+              {/* A custom credit is typed, and capped at what is left to credit. */}
+              {mode === 'custom' ? (
+                <div className="mt-3">
+                  <FieldLabel label={t('creditNote.customAmount')} />
+                  <div className="flex h-[50px] w-full max-w-[280px] items-center gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
+                    <img src={omrIcon} alt="" className="h-auto w-4 shrink-0" />
+                    <input
+                      value={customAmount}
+                      onChange={(event) => setCustomAmount(event.target.value)}
+                      inputMode="decimal"
+                      aria-label={t('creditNote.customAmount')}
+                      className="w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-secondary outline-none"
+                    />
+                  </div>
+                  <p className="mt-1.5 text-xs font-medium text-text-quaternary">
+                    {t('creditNote.customMax', { amount: formatCredit(CREDITABLE) })}
+                  </p>
                 </div>
               ) : null}
 
               <div className="mt-3 flex flex-col gap-2">
-                {data.lines.map((line) => (
-                  <div
-                    key={line.id}
-                    className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-3 py-2.5"
-                  >
-                    <p className="text-sm font-medium text-text-primary">{line.description}</p>
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-danger-700">
-                      −
-                      <OmAmount
-                        size="xs"
-                        amount={line.amount}
-                        amountClassName="text-sm font-semibold text-danger-700"
-                      />
-                    </span>
-                  </div>
-                ))}
+                {data.lines.map((line) => {
+                  const picked = mode === 'full' || chosen.includes(line.id)
+                  return (
+                    <button
+                      key={line.id}
+                      type="button"
+                      disabled={mode !== 'lines'}
+                      onClick={() => toggleLine(line.id)}
+                      aria-pressed={picked}
+                      className={[
+                        'flex w-full items-center justify-between gap-3 rounded-sm border px-3 py-2.5 text-start transition-colors',
+                        picked
+                          ? 'border-primary-700 bg-primary-25'
+                          : 'border-border-subtle bg-white',
+                        mode === 'lines' ? 'hover:border-primary-300' : 'cursor-default',
+                      ].join(' ')}
+                    >
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        {mode === 'lines' ? (
+                          <span
+                            className={[
+                              'flex size-[18px] shrink-0 items-center justify-center rounded-[4px] border',
+                              picked
+                                ? 'border-primary-700 bg-primary-700 text-white'
+                                : 'border-border-default bg-white',
+                            ].join(' ')}
+                          >
+                            {picked ? <span className="text-[11px] leading-none">✓</span> : null}
+                          </span>
+                        ) : null}
+                        <span className="truncate text-sm font-medium text-text-primary">
+                          {line.description}
+                        </span>
+                      </span>
+                      <span
+                        className={[
+                          'inline-flex shrink-0 items-center gap-1 text-sm font-semibold',
+                          picked ? 'text-danger-700' : 'text-text-quaternary',
+                        ].join(' ')}
+                      >
+                        −
+                        <OmAmount
+                          size="xs"
+                          amount={formatCredit(line.amount)}
+                          amountClassName={[
+                            'text-sm font-semibold',
+                            picked ? 'text-danger-700' : 'text-text-quaternary',
+                          ].join(' ')}
+                        />
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </section>
 
             <section className="rounded-sm bg-surface-card p-4">
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-medium text-text-secondary">{t('creditNote.reasonTitle')}</h2>
+                <h2 className="text-xl font-medium text-text-secondary">
+                  {t('creditNote.reasonTitle')}
+                </h2>
                 <span className="rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-medium text-text-quaternary">
                   {t('creditNote.shownOnNote')}
                 </span>
@@ -247,7 +355,11 @@ export function NewCreditNotePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <FieldLabel label={t('creditNote.reason')} />
-                  <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                  <FieldShell
+                    suffix={
+                      <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                    }
+                  >
                     {data.reason}
                   </FieldShell>
                 </div>
@@ -265,7 +377,9 @@ export function NewCreditNotePage() {
             </section>
 
             <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('creditNote.detailsTitle')}</h2>
+              <h2 className="text-xl font-medium text-text-secondary">
+                {t('creditNote.detailsTitle')}
+              </h2>
               <div className="my-3 h-px bg-border-subtle" />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -274,7 +388,9 @@ export function NewCreditNotePage() {
                 </div>
                 <div>
                   <FieldLabel label={t('creditNote.issueDate')} />
-                  <FieldShell suffix={<img src={calendarIcon} alt="" className="size-5 opacity-60" />}>
+                  <FieldShell
+                    suffix={<img src={calendarIcon} alt="" className="size-5 opacity-60" />}
+                  >
                     {data.details.issueDate}
                   </FieldShell>
                 </div>
@@ -284,14 +400,20 @@ export function NewCreditNotePage() {
                 </div>
                 <div>
                   <FieldLabel label={t('creditNote.currency')} />
-                  <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                  <FieldShell
+                    suffix={
+                      <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                    }
+                  >
                     {data.details.currency}
                   </FieldShell>
                 </div>
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border-subtle px-3 py-3">
                 <div>
-                  <p className="text-sm font-semibold text-text-primary">{t('creditNote.sendPeppol')}</p>
+                  <p className="text-sm font-semibold text-text-primary">
+                    {t('creditNote.sendPeppol')}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full border border-primary-75 bg-primary-25 py-1 ps-1.5 pe-3 text-xs font-semibold text-primary-800">
@@ -304,28 +426,36 @@ export function NewCreditNotePage() {
             </section>
 
             <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('creditNote.attachments')}</h2>
+              <h2 className="text-xl font-medium text-text-secondary">
+                {t('creditNote.attachments')}
+              </h2>
               <div className="my-3 h-px bg-border-subtle" />
               <button
                 type="button"
                 className="flex w-full flex-col items-center justify-center gap-2 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-8"
               >
                 <img src={uploadIcon} alt="" className="size-6" />
-                <span className="text-sm font-semibold text-text-secondary">{t('creditNote.dropFiles')}</span>
-                <span className="text-xs font-medium text-text-quaternary">{t('creditNote.dropHint')}</span>
+                <span className="text-sm font-semibold text-text-secondary">
+                  {t('creditNote.dropFiles')}
+                </span>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('creditNote.dropHint')}
+                </span>
               </button>
             </section>
           </div>
 
           <aside className="w-full shrink-0 xl:sticky xl:top-4 xl:w-[332px]">
             <section className="rounded-sm border border-[#f3f3f3] bg-surface-card p-4">
-              <h3 className="text-base font-medium text-text-primary">{t('creditNote.amountToCredit')}</h3>
+              <h3 className="text-base font-medium text-text-primary">
+                {t('creditNote.amountToCredit')}
+              </h3>
               <div className="my-3 h-px bg-border-subtle" />
               <p className="flex items-center gap-1 text-[32px] font-semibold leading-none text-danger-700">
                 −
                 <OmAmount
                   size="lg"
-                  amount={data.summary.total}
+                  amount={formatCredit(summary.total)}
                   amountClassName="text-[32px] font-semibold text-danger-700"
                 />
               </p>
@@ -338,14 +468,22 @@ export function NewCreditNotePage() {
                   <span className="text-text-tertiary">{t('creditNote.netToCredit')}</span>
                   <span className="inline-flex items-center gap-1 font-semibold text-text-primary">
                     −
-                    <OmAmount size="xs" amount={data.summary.net} amountClassName="text-sm font-semibold" />
+                    <OmAmount
+                      size="xs"
+                      amount={formatCredit(summary.net)}
+                      amountClassName="text-sm font-semibold"
+                    />
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-tertiary">{t('creditNote.vatReversed')}</span>
                   <span className="inline-flex items-center gap-1 font-semibold text-text-primary">
                     −
-                    <OmAmount size="xs" amount={data.summary.vat} amountClassName="text-sm font-semibold" />
+                    <OmAmount
+                      size="xs"
+                      amount={formatCredit(summary.vat)}
+                      amountClassName="text-sm font-semibold"
+                    />
                   </span>
                 </div>
               </div>
@@ -356,7 +494,11 @@ export function NewCreditNotePage() {
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-text-tertiary">{t('creditNote.outstanding')}</span>
-                  <OmAmount size="xs" amount={data.summary.outstanding} amountClassName="text-sm font-semibold" />
+                  <OmAmount
+                    size="xs"
+                    amount={formatCredit(summary.outstanding)}
+                    amountClassName="text-sm font-semibold"
+                  />
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-tertiary">{t('creditNote.applied')}</span>
@@ -364,25 +506,33 @@ export function NewCreditNotePage() {
                     −
                     <OmAmount
                       size="xs"
-                      amount={data.summary.applied}
+                      amount={formatCredit(summary.applied)}
                       amountClassName="text-sm font-semibold text-danger-700"
                     />
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-text-tertiary">{t('creditNote.newBalance')}</span>
-                  <OmAmount size="xs" amount={data.summary.newBalance} amountClassName="text-sm font-semibold" />
+                  <OmAmount
+                    size="xs"
+                    amount={formatCredit(summary.newBalance)}
+                    amountClassName="text-sm font-semibold"
+                  />
                 </div>
               </div>
               <div className="mt-4 rounded-sm border border-success-100 bg-success-100/60 px-3 py-2.5">
-                <p className="text-sm font-semibold text-success-700">{t('creditNote.refundDue')}</p>
+                <p className="text-sm font-semibold text-success-700">
+                  {t('creditNote.refundDue')}
+                </p>
                 <OmAmount
                   size="sm"
-                  amount={data.summary.refund}
+                  amount={formatCredit(summary.refund)}
                   className="mt-1"
                   amountClassName="text-base font-semibold text-success-700"
                 />
-                <p className="mt-1 text-xs font-medium text-success-700/80">{t('creditNote.refundHint')}</p>
+                <p className="mt-1 text-xs font-medium text-success-700/80">
+                  {t('creditNote.refundHint')}
+                </p>
               </div>
               <p className="mt-4 text-center text-[10px] font-medium text-text-quaternary">
                 {t('creditNote.footerNote', { id: data.reversingId })}

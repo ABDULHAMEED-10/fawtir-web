@@ -9,6 +9,9 @@ import {
   SCHEDULE_PAGE_NUMBERS,
   SCHEDULE_ROWS,
   SCHEDULE_TABS,
+  countScheduleTab,
+  matchesScheduleQuery,
+  matchesScheduleTab,
   type ScheduleRow,
   type ScheduleStatus,
   type ScheduleTabId,
@@ -33,7 +36,10 @@ const KPI_ICONS = {
 } as const
 
 /** Status pill colours read straight off the Figma labels. */
-const STATUS_STYLES: Record<ScheduleStatus, { bg: string; fg: string; dot: string; labelKey: string }> = {
+const STATUS_STYLES: Record<
+  ScheduleStatus,
+  { bg: string; fg: string; dot: string; labelKey: string }
+> = {
   active: {
     bg: 'bg-success-100',
     fg: 'text-success-700',
@@ -166,7 +172,9 @@ function ScheduleRowCells({ row }: { row: ScheduleRow }) {
       <td className="px-2 py-2.5">
         <p className="text-sm font-medium leading-[1.2] text-text-secondary">{row.generated}</p>
         {row.generatedNote ? (
-          <p className="text-xs font-medium leading-[1.2] text-text-tertiary">{row.generatedNote}</p>
+          <p className="text-xs font-medium leading-[1.2] text-text-tertiary">
+            {row.generatedNote}
+          </p>
         ) : null}
       </td>
       <td className="px-2 py-2.5">
@@ -188,10 +196,11 @@ function ScheduleRowCells({ row }: { row: ScheduleRow }) {
 function ScheduleTable() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<ScheduleTabId>('all')
+  const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
-
-  const rows =
-    activeTab === 'all' ? SCHEDULE_ROWS : SCHEDULE_ROWS.filter((row) => row.status === activeTab)
+  const rows = SCHEDULE_ROWS.filter(
+    (row) => matchesScheduleTab(row, activeTab) && matchesScheduleQuery(row, query),
+  )
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -217,7 +226,7 @@ function ScheduleTable() {
                   active ? 'bg-primary-25 text-primary-800' : 'bg-primary-25 text-text-quaternary',
                 ].join(' ')}
               >
-                {tab.count}
+                {countScheduleTab(tab.id)}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
@@ -232,6 +241,8 @@ function ScheduleTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder={t('periodicList.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
@@ -261,13 +272,27 @@ function ScheduleTable() {
               <th className="w-10 px-5 py-2.5">
                 <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.schedule')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.customer')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.frequency')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.nextInvoice')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.perInvoice')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.generated')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('periodicList.col.status')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.schedule')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.customer')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.frequency')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.nextInvoice')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.perInvoice')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.generated')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('periodicList.col.status')}
+              </th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
@@ -292,7 +317,9 @@ function ScheduleTable() {
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-text-muted">{t('periodicList.showResult')}</span>
+          <span className="text-sm font-medium text-text-muted">
+            {t('periodicList.showResult')}
+          </span>
           <button
             type="button"
             className="inline-flex h-9 w-[55px] items-center justify-between rounded-sm border border-border-subtle px-3 text-sm font-semibold text-text-secondary"

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { NEW_SELF_BILL, SELF_BILL_KINDS, type SelfBillKind } from '../../lib/selfBillCreate'
+import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
+import { formatAtScale } from '../../lib/invoiceMath'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import statutoryIcon from '../../assets/customers/type-government.svg'
 import tickCircle from '../../assets/customers/tick-circle.svg'
@@ -11,13 +13,35 @@ import backIcon from '../../assets/invoice-details/back.svg'
 import savedIcon from '../../assets/self-bill-detail/saved.svg'
 import peppolIcon from '../../assets/periodic/peppol.svg'
 import customerLogo from '../../assets/periodic/customer-logo.svg'
-import deleteLineIcon from '../../assets/create-invoice/delete.svg'
-import plusIcon from '../../assets/periodic/plus.svg'
 import eyeIcon from '../../assets/actions/view.svg'
 import saveDraftIcon from '../../assets/customers/save.svg'
 import arrowIcon from '../../assets/create-invoice/arrow.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import signedIcon from '../../assets/agreements/signed.svg'
+
+/** The two lines from the design, priced through the same engine the invoice uses. */
+const INITIAL_LINES: LineItem[] = [
+  {
+    id: '1',
+    description: 'Cappuccino - Large',
+    unitPrice: '1.8',
+    vatRate: '5',
+    quantity: '12',
+    unit: 'EA',
+    discountType: 'PERCENTAGE',
+    discountValue: '0',
+  },
+  {
+    id: '2',
+    description: 'Coffee Beans 1kg - H Blend',
+    unitPrice: '9.5',
+    vatRate: '5',
+    quantity: '4',
+    unit: 'KGM',
+    discountType: 'PERCENTAGE',
+    discountValue: '10',
+  },
+]
 
 const KIND_ICONS: Record<SelfBillKind, string> = {
   agreed: businessIcon,
@@ -35,7 +59,15 @@ function SectionTitle({ step, title }: { step: number; title: string }) {
   )
 }
 
-function FieldLabel({ label, required, hint }: { label: string; required?: boolean; hint?: string }) {
+function FieldLabel({
+  label,
+  required,
+  hint,
+}: {
+  label: string
+  required?: boolean
+  hint?: string
+}) {
   return (
     <div className="mb-1 flex flex-wrap items-baseline gap-1">
       <span className="text-sm font-medium leading-[1.2] text-text-primary">{label}</span>
@@ -81,27 +113,6 @@ function Field({
   )
 }
 
-const ITEM_GRID =
-  'grid grid-cols-[minmax(180px,306fr)_104px_173px_103px_105px_90px_minmax(90px,1fr)_24px] items-center gap-4'
-
-function ItemCell({ value, select }: { value: string; select?: boolean }) {
-  return (
-    <div className="relative">
-      <div className="flex h-11 w-full items-center rounded-sm border border-primary-300 bg-surface-tab-bar px-3 pe-8 text-sm font-medium text-text-secondary">
-        <span className="truncate">{value}</span>
-      </div>
-      {select ? (
-        <img
-          src={chevronIcon}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute end-2 top-1/2 size-5 -translate-y-1/2 rotate-90 opacity-70"
-        />
-      ) : null}
-    </div>
-  )
-}
-
 function ToggleRow({
   label,
   hint,
@@ -142,7 +153,9 @@ function ToggleRow({
 }
 
 function Card({ children }: { children: ReactNode }) {
-  return <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">{children}</section>
+  return (
+    <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">{children}</section>
+  )
 }
 
 export function NewSelfBillPage() {
@@ -150,6 +163,8 @@ export function NewSelfBillPage() {
   const doc = NEW_SELF_BILL
   const [kind, setKind] = useState<SelfBillKind>('agreed')
   const [exclVat, setExclVat] = useState(true)
+  const [lines, setLines] = useState<LineItem[]>(INITIAL_LINES)
+  const totals = useLineTotals(lines, exclVat)
   const [recordPayment, setRecordPayment] = useState(doc.payment.recordNow)
   const [deliverByEmail, setDeliverByEmail] = useState(doc.payment.deliverByEmail)
 
@@ -344,7 +359,9 @@ export function NewSelfBillPage() {
                   <span className="font-medium text-text-primary">
                     {t('newSelfBill.summary.discount')}
                   </span>
-                  <span className="font-semibold text-text-quaternary">− {doc.summary.discount}</span>
+                  <span className="font-semibold text-text-quaternary">
+                    − {doc.summary.discount}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-primary">
@@ -382,7 +399,11 @@ export function NewSelfBillPage() {
           <div className="h-px w-full bg-surface-background" />
           <div className="grid gap-4 md:grid-cols-3">
             <Field label={t('newSelfBill.fields.number')} value={doc.fields.number} required />
-            <Field label={t('newSelfBill.fields.issueDate')} value={doc.fields.issueDate} required />
+            <Field
+              label={t('newSelfBill.fields.issueDate')}
+              value={doc.fields.issueDate}
+              required
+            />
             <Field
               label={t('newSelfBill.fields.supplyDate')}
               value={doc.fields.supplyDate}
@@ -395,21 +416,35 @@ export function NewSelfBillPage() {
               required
               select
             />
-            <Field label={t('newSelfBill.fields.paymentDue')} value={doc.fields.paymentDue} required />
+            <Field
+              label={t('newSelfBill.fields.paymentDue')}
+              value={doc.fields.paymentDue}
+              required
+            />
             <Field
               label={t('newSelfBill.fields.receivingBranch')}
               value={doc.fields.receivingBranch}
               required
               select
             />
-            <Field label={t('newSelfBill.fields.currency')} value={doc.fields.currency} required select />
+            <Field
+              label={t('newSelfBill.fields.currency')}
+              value={doc.fields.currency}
+              required
+              select
+            />
             <Field
               label={t('newSelfBill.fields.taxCategory')}
               value={doc.fields.taxCategory}
               required
               select
             />
-            <Field label={t('newSelfBill.fields.agreement')} value={doc.fields.agreement} muted select />
+            <Field
+              label={t('newSelfBill.fields.agreement')}
+              value={doc.fields.agreement}
+              muted
+              select
+            />
           </div>
           <div className="grid gap-4 md:grid-cols-[1fr_376px]">
             <Field label={t('newSelfBill.fields.subject')} value={doc.fields.subject} />
@@ -418,108 +453,56 @@ export function NewSelfBillPage() {
         </Card>
 
         {/* 3 Items supplied to you */}
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <SectionTitle step={3} title={t('newSelfBill.sections.items')} />
-            <div className="inline-flex rounded-[3px] border border-border-brand-subtle bg-primary-25 p-[3px]">
-              <button
-                type="button"
-                onClick={() => setExclVat(true)}
-                className={[
-                  'rounded-[3px] px-3 py-1.5 text-xs font-semibold transition-colors',
-                  exclVat ? 'bg-white text-primary-800' : 'text-text-quaternary',
-                ].join(' ')}
-              >
-                {t('newSelfBill.exclVat')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setExclVat(false)}
-                className={[
-                  'rounded-[3px] px-3 py-1.5 text-xs font-semibold transition-colors',
-                  !exclVat ? 'bg-white text-primary-800' : 'text-text-quaternary',
-                ].join(' ')}
-              >
-                {t('newSelfBill.inclVat')}
-              </button>
-            </div>
-          </div>
-          <div className="h-px w-full bg-surface-background" />
-          <div className="overflow-x-auto">
-            <div className="min-w-[900px]">
-              <div
-                className={[
-                  ITEM_GRID,
-                  'pb-2 text-xs font-semibold uppercase tracking-wide text-text-quaternary',
-                ].join(' ')}
-              >
-                <span>{t('newSelfBill.col.description')}</span>
-                <span>{t('newSelfBill.col.excl')}</span>
-                <span>{t('newSelfBill.col.vat')}</span>
-                <span>{t('newSelfBill.col.qty')}</span>
-                <span>{t('newSelfBill.col.unit')}</span>
-                <span>{t('newSelfBill.col.disc')}</span>
-                <span>{t('newSelfBill.col.total')}</span>
-                <span />
-              </div>
-              {doc.items.map((item) => (
-                <div key={item.id} className={[ITEM_GRID, 'py-1.5'].join(' ')}>
-                  <ItemCell value={item.description} select />
-                  <ItemCell value={item.excl} />
-                  <ItemCell value={item.vat} select />
-                  <ItemCell value={item.qty} />
-                  <ItemCell value={item.unit} select />
-                  <ItemCell value={item.discount} />
-                  <span className="flex h-11 items-center text-xl font-semibold text-text-primary">
-                    {item.total}
+        <LineItemsTable
+          lines={lines}
+          onChange={setLines}
+          exclVat={exclVat}
+          onExclVatChange={setExclVat}
+          totals={totals}
+          titleSlot={<SectionTitle step={3} title={t('newSelfBill.sections.items')} />}
+          footer={
+            <>
+              <div className="ms-auto flex w-full max-w-[301px] flex-col gap-3.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-text-secondary">
+                    {t('newSelfBill.totals.excluding')}
                   </span>
-                  <button
-                    type="button"
-                    className="flex h-11 items-center justify-center"
-                    aria-label={t('newSelfBill.removeLine')}
-                  >
-                    <img src={deleteLineIcon} alt="" className="size-4" />
-                  </button>
+                  <span className="text-base font-semibold text-text-secondary">
+                    {formatAtScale(totals.taxable)}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="flex h-12 w-full items-center gap-2 rounded-sm border border-border-default px-3 text-base font-semibold text-primary-700 transition-colors hover:bg-primary-25"
-          >
-            <img src={plusIcon} alt="" className="size-6" />
-            {t('newSelfBill.addLine')}
-          </button>
-          <div className="ms-auto flex w-full max-w-[301px] flex-col gap-3.5 pt-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-text-secondary">
-                {t('newSelfBill.totals.excluding')}
-              </span>
-              <span className="text-base font-semibold text-text-secondary">
-                {doc.itemTotals.excluding}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-text-secondary">{t('newSelfBill.totals.vat')}</span>
-              <span className="text-base font-semibold text-text-secondary">
-                {doc.itemTotals.vat}
-              </span>
-            </div>
-            <div className="h-px w-full bg-surface-background" />
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-text-primary">{t('newSelfBill.totals.total')}</span>
-              <span className="text-xl font-semibold text-text-primary">{doc.itemTotals.total}</span>
-            </div>
-          </div>
-        </Card>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-text-secondary">
+                    {t('newSelfBill.totals.vat')}
+                  </span>
+                  <span className="text-base font-semibold text-text-secondary">
+                    {formatAtScale(totals.vat)}
+                  </span>
+                </div>
+                <div className="h-px w-full bg-surface-background" />
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-text-primary">
+                    {t('newSelfBill.totals.total')}
+                  </span>
+                  <span className="text-xl font-semibold text-text-primary">
+                    {formatAtScale(totals.total)}
+                  </span>
+                </div>
+              </div>
+            </>
+          }
+        />
 
         {/* 4 Payment to supplier */}
         <Card>
           <SectionTitle step={4} title={t('newSelfBill.sections.payment')} />
           <div className="h-px w-full bg-surface-background" />
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label={t('newSelfBill.fields.paymentMethod')} value={doc.payment.method} select />
+            <Field
+              label={t('newSelfBill.fields.paymentMethod')}
+              value={doc.payment.method}
+              select
+            />
             <Field label={t('newSelfBill.fields.paymentReference')} value={doc.payment.reference} />
           </div>
           <div className="grid gap-6 pt-2 md:grid-cols-2">
@@ -604,7 +587,11 @@ export function NewSelfBillPage() {
             className="inline-flex h-[54px] min-w-[255px] items-center justify-center gap-1.5 rounded-sm bg-primary-700 text-base font-semibold text-white transition-colors hover:bg-primary-800"
           >
             {t('newSelfBill.actions.issue')}
-            <img src={chevronIcon} alt="" className="size-[18px] brightness-0 invert rtl:rotate-180" />
+            <img
+              src={chevronIcon}
+              alt=""
+              className="size-[18px] brightness-0 invert rtl:rotate-180"
+            />
           </button>
         </div>
       </div>

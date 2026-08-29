@@ -291,3 +291,16 @@ export const SCHEDULE_ROWS: ScheduleRow[] = [
 ]
 
 export const SCHEDULE_PAGE_NUMBERS = [1, 2, 3, 4, '...', 20] as const
+
+export const matchesScheduleTab = (row: ScheduleRow, tab: ScheduleTabId) =>
+  tab === 'all' || row.status === tab
+
+/** Counts come off the rows, so a tab cannot promise more than it shows. */
+export const countScheduleTab = (tab: ScheduleTabId) =>
+  SCHEDULE_ROWS.filter((row) => matchesScheduleTab(row, tab)).length
+
+export const matchesScheduleQuery = (row: ScheduleRow, query: string) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return row.id.toLowerCase().includes(needle) || row.customer.toLowerCase().includes(needle)
+}

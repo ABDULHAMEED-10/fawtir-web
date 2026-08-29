@@ -7,14 +7,10 @@
  */
 
 export type SelfBillStatus =
-  | 'draft'
-  | 'toBeSent'
-  | 'awaitingConfirmation'
-  | 'disputed'
-  | 'confirmed'
-  | 'paid'
+  'draft' | 'toBeSent' | 'awaitingConfirmation' | 'disputed' | 'confirmed' | 'paid'
 
-export type SelfBillTabId = 'all' | 'drafts' | 'toSend' | 'awaiting' | 'disputed' | 'confirmed' | 'paid'
+export type SelfBillTabId =
+  'all' | 'drafts' | 'toSend' | 'awaiting' | 'disputed' | 'confirmed' | 'paid'
 
 /** Peppol / OTA response, spelled out in the UI. Absent until the document is sent. */
 export type SelfBillTransmission = 'accepted' | 'acknowledged' | 'rejected'
@@ -73,16 +69,31 @@ export const SELF_BILL_KPI = [
   },
 ] as const
 
-export const SELF_BILL_TABS: { id: SelfBillTabId; labelKey: string; count: number; danger?: boolean }[] =
-  [
-    { id: 'all', labelKey: 'selfBilling.tabs.all', count: 342 },
-    { id: 'drafts', labelKey: 'selfBilling.tabs.drafts', count: 4 },
-    { id: 'toSend', labelKey: 'selfBilling.tabs.toSend', count: 6 },
-    { id: 'awaiting', labelKey: 'selfBilling.tabs.awaiting', count: 9 },
-    { id: 'disputed', labelKey: 'selfBilling.tabs.disputed', count: 2, danger: true },
-    { id: 'confirmed', labelKey: 'selfBilling.tabs.confirmed', count: 3 },
-    { id: 'paid', labelKey: 'selfBilling.tabs.paid', count: 3 },
-  ]
+export const SELF_BILL_TABS: {
+  id: SelfBillTabId
+  labelKey: string
+  count: number
+  danger?: boolean
+}[] = [
+  { id: 'all', labelKey: 'selfBilling.tabs.all', count: 342 },
+  { id: 'drafts', labelKey: 'selfBilling.tabs.drafts', count: 4 },
+  { id: 'toSend', labelKey: 'selfBilling.tabs.toSend', count: 6 },
+  { id: 'awaiting', labelKey: 'selfBilling.tabs.awaiting', count: 9 },
+  { id: 'disputed', labelKey: 'selfBilling.tabs.disputed', count: 2, danger: true },
+  { id: 'confirmed', labelKey: 'selfBilling.tabs.confirmed', count: 3 },
+  { id: 'paid', labelKey: 'selfBilling.tabs.paid', count: 3 },
+]
+
+/** Which statuses each tab gathers. */
+export const SELF_BILL_TAB_STATUS: Record<SelfBillTabId, SelfBillStatus[]> = {
+  all: [],
+  drafts: ['draft'],
+  toSend: ['toBeSent'],
+  awaiting: ['awaitingConfirmation'],
+  disputed: ['disputed'],
+  confirmed: ['confirmed'],
+  paid: ['paid'],
+}
 
 export const SELF_BILL_ROWS: SelfBillRow[] = [
   {
@@ -160,3 +171,22 @@ export const SELF_BILL_ROWS: SelfBillRow[] = [
 export const SELF_BILL_AGREEMENT_COUNT = 12
 
 export const SELF_BILL_PAGE_NUMBERS = [1, 2, 3, 4, '...', 20] as const
+
+export const matchesSelfBillTab = (row: SelfBillRow, tab: SelfBillTabId) => {
+  const statuses = SELF_BILL_TAB_STATUS[tab]
+  return statuses.length === 0 || statuses.includes(row.status)
+}
+
+export const countSelfBillTab = (tab: SelfBillTabId) =>
+  SELF_BILL_ROWS.filter((row) => matchesSelfBillTab(row, tab)).length
+
+/** Free-text match across the columns a person would search by. */
+export const matchesSelfBillQuery = (row: SelfBillRow, query: string) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return (
+    row.id.toLowerCase().includes(needle) ||
+    row.supplier.toLowerCase().includes(needle) ||
+    row.amount.toLowerCase().includes(needle)
+  )
+}

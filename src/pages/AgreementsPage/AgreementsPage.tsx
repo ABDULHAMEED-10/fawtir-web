@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -9,6 +9,9 @@ import {
   AGREEMENT_PAGE_NUMBERS,
   AGREEMENT_ROWS,
   AGREEMENT_TABS,
+  countAgreementTab,
+  matchesAgreementQuery,
+  matchesAgreementTab,
   type AgreementKind,
   type AgreementRow,
   type AgreementStatus,
@@ -130,7 +133,11 @@ function AgreementsHeader() {
         >
           <img src={plusIcon} alt="" className="size-6" />
           {t('agreements.newAgreement')}
-          <img src={chevronIcon} alt="" className="size-[18px] brightness-0 invert rtl:rotate-180" />
+          <img
+            src={chevronIcon}
+            alt=""
+            className="size-[18px] brightness-0 invert rtl:rotate-180"
+          />
         </button>
       </div>
     </div>
@@ -177,12 +184,11 @@ function AgreementKpiCards() {
               {t(kpi.titleKey)}
             </h3>
           </div>
-          <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary">{kpi.amount}</p>
+          <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary">
+            {kpi.amount}
+          </p>
           <p
-            className={[
-              'text-sm font-medium leading-[1.2]',
-              KPI_META_TONE[kpi.metaTone],
-            ].join(' ')}
+            className={['text-sm font-medium leading-[1.2]', KPI_META_TONE[kpi.metaTone]].join(' ')}
           >
             {t(kpi.metaKey)}
           </p>
@@ -302,6 +308,15 @@ function AgreementRowCells({ row }: { row: AgreementRow }) {
 function AgreementsTable() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<AgreementTabId>('all')
+  const [query, setQuery] = useState('')
+
+  const rows = useMemo(
+    () =>
+      AGREEMENT_ROWS.filter(
+        (row) => matchesAgreementTab(row, activeTab) && matchesAgreementQuery(row, query),
+      ),
+    [activeTab, query],
+  )
   const [page, setPage] = useState(2)
 
   return (
@@ -332,7 +347,7 @@ function AgreementsTable() {
                       : 'bg-primary-25 text-text-quaternary',
                 ].join(' ')}
               >
-                {tab.count}
+                {countAgreementTab(tab.id)}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
@@ -347,6 +362,8 @@ function AgreementsTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder={t('agreements.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
@@ -376,17 +393,23 @@ function AgreementsTable() {
               <th className="w-10 px-5 py-2.5">
                 <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('agreements.col.supplier')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('agreements.col.supplier')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('agreements.col.kind')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('agreements.col.coverage')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('agreements.col.coverage')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('agreements.col.valid')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('agreements.col.documents')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('agreements.col.documents')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('agreements.col.status')}</th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {AGREEMENT_ROWS.map((row) => (
+            {rows.map((row) => (
               <tr
                 key={row.id}
                 className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"

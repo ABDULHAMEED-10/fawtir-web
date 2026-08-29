@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { useDocumentPreview } from '../../components/invoice/useDocumentPreview'
 import { DEBIT_NOTE_DETAIL } from '../../lib/debitNoteDetail'
 import downloadIcon from '../../assets/self-bill-detail/download.svg'
 import recordPaymentIcon from '../../assets/debit-note-create/issue.svg'
@@ -83,6 +84,7 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 
 export function DebitNoteDetailPage() {
   const { t } = useTranslation()
+  const preview = useDocumentPreview()
   const doc = DEBIT_NOTE_DETAIL
 
   return (
@@ -98,7 +100,12 @@ export function DebitNoteDetailPage() {
               >
                 {t('debitNoteDetail.breadcrumbIncome')}
               </Link>
-              <img src={backIcon} alt="" aria-hidden="true" className="size-6 rotate-180 rtl:rotate-0" />
+              <img
+                src={backIcon}
+                alt=""
+                aria-hidden="true"
+                className="size-6 rotate-180 rtl:rotate-0"
+              />
               <Link
                 to="/income/debit-notes"
                 className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
@@ -251,7 +258,10 @@ export function DebitNoteDetailPage() {
 
               <div className="mt-5 grid gap-5 sm:grid-cols-3">
                 <DetailField label={t('debitNoteDetail.fields.number')} value={doc.fields.number} />
-                <DetailField label={t('debitNoteDetail.fields.issueDate')} value={doc.fields.issueDate} />
+                <DetailField
+                  label={t('debitNoteDetail.fields.issueDate')}
+                  value={doc.fields.issueDate}
+                />
                 <DetailField
                   label={t('debitNoteDetail.fields.paymentDue')}
                   value={doc.fields.paymentDue}
@@ -297,22 +307,46 @@ export function DebitNoteDetailPage() {
               </span>
               <span className="flex items-center gap-[10px]">
                 <span className="flex items-center gap-1.5">
-                  <button type="button" aria-label={t('debitNoteDetail.zoomOut')}>
+                  <button
+                    type="button"
+                    aria-label={t('debitNoteDetail.zoomOut')}
+                    disabled={!preview.canZoomOut}
+                    onClick={preview.zoomOut}
+                    className="disabled:opacity-40"
+                  >
                     <img src={zoomOutIcon} alt="" className="size-6" />
                   </button>
-                  <span className="text-xs font-medium leading-[1.2] text-[#444957]">100%</span>
-                  <button type="button" aria-label={t('debitNoteDetail.zoomIn')}>
+                  <span className="min-w-[38px] text-center text-xs font-medium leading-[1.2] text-[#444957] tabular-nums">
+                    {preview.zoom}%
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={t('debitNoteDetail.zoomIn')}
+                    disabled={!preview.canZoomIn}
+                    onClick={preview.zoomIn}
+                    className="disabled:opacity-40"
+                  >
                     <img src={zoomInIcon} alt="" className="size-6" />
                   </button>
                 </span>
                 <span className="flex items-center gap-2.5">
-                  <button type="button" aria-label={t('debitNoteDetail.download')}>
+                  {/* Nothing is generated yet, so download hands over the page we are showing. */}
+                  <a href={debitPreview} download aria-label={t('debitNoteDetail.download')}>
                     <img src={pdfDownloadIcon} alt="" className="size-6" />
-                  </button>
-                  <button type="button" aria-label={t('debitNoteDetail.print')}>
+                  </a>
+                  <button
+                    type="button"
+                    aria-label={t('debitNoteDetail.print')}
+                    onClick={preview.print}
+                  >
                     <img src={printIcon} alt="" className="size-6" />
                   </button>
-                  <button type="button" aria-label={t('debitNoteDetail.fullScreen')}>
+                  <button
+                    type="button"
+                    aria-label={t('debitNoteDetail.fullScreen')}
+                    aria-pressed={preview.fullscreen}
+                    onClick={preview.openFullscreen}
+                  >
                     <img src={fullScreenIcon} alt="" className="size-6" />
                   </button>
                 </span>
@@ -322,9 +356,33 @@ export function DebitNoteDetailPage() {
               <img
                 src={debitPreview}
                 alt={t('debitNoteDetail.pdfTitle')}
-                className="w-full max-w-[429px] self-start object-contain object-top"
+                style={{ width: `${preview.zoom}%` }}
+                className="max-w-[429px] self-start object-contain object-top transition-[width]"
               />
             </div>
+
+            {preview.fullscreen ? (
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={t('debitNoteDetail.pdfTitle')}
+                className="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/70 p-6"
+                onClick={preview.closeFullscreen}
+              >
+                <img
+                  src={debitPreview}
+                  alt={t('debitNoteDetail.pdfTitle')}
+                  className="max-h-full rounded-sm shadow-card"
+                />
+                <button
+                  type="button"
+                  onClick={preview.closeFullscreen}
+                  className="absolute end-6 top-6 rounded-sm bg-white/90 px-3 py-1.5 text-sm font-semibold text-text-secondary"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            ) : null}
           </aside>
         </div>
 
@@ -338,8 +396,12 @@ export function DebitNoteDetailPage() {
             <table className="w-full min-w-[900px] border-collapse text-start">
               <thead>
                 <tr className="text-xs font-semibold uppercase tracking-wide text-text-quaternary">
-                  <th className="pb-2 text-start font-semibold">{t('debitNoteDetail.col.description')}</th>
-                  <th className="pb-2 text-start font-semibold">{t('debitNoteDetail.col.difference')}</th>
+                  <th className="pb-2 text-start font-semibold">
+                    {t('debitNoteDetail.col.description')}
+                  </th>
+                  <th className="pb-2 text-start font-semibold">
+                    {t('debitNoteDetail.col.difference')}
+                  </th>
                   <th className="pb-2 text-start font-semibold">{t('debitNoteDetail.col.vat')}</th>
                   <th className="pb-2 text-start font-semibold">{t('debitNoteDetail.col.qty')}</th>
                   <th className="pb-2 text-start font-semibold">{t('debitNoteDetail.col.unit')}</th>
@@ -358,11 +420,15 @@ export function DebitNoteDetailPage() {
                         {item.meta}
                       </p>
                     </td>
-                    <td className="py-3 text-sm font-medium text-text-secondary">{item.difference}</td>
+                    <td className="py-3 text-sm font-medium text-text-secondary">
+                      {item.difference}
+                    </td>
                     <td className="py-3 text-sm font-medium text-text-secondary">{item.vat}</td>
                     <td className="py-3 text-base font-medium text-text-secondary">{item.qty}</td>
                     <td className="py-3 text-base font-medium text-text-secondary">{item.unit}</td>
-                    <td className="py-3 text-sm font-medium text-text-secondary">{item.discount}</td>
+                    <td className="py-3 text-sm font-medium text-text-secondary">
+                      {item.discount}
+                    </td>
                     <td className="py-3 text-end text-xl font-semibold text-text-primary">
                       {item.total}
                     </td>

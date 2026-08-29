@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -9,6 +9,9 @@ import {
   CREDIT_NOTE_KPI,
   CREDIT_NOTE_ROWS,
   CREDIT_NOTE_TABS,
+  countCreditNoteTab,
+  matchesCreditNoteQuery,
+  matchesCreditNoteTab,
   type CreditNoteListStatus,
   type CreditNoteTabId,
 } from '../../lib/creditNotes'
@@ -127,11 +130,7 @@ function CreditNoteKpiCards() {
   )
 }
 
-function RefundCell({
-  refund,
-}: {
-  refund: (typeof CREDIT_NOTE_ROWS)[number]['refund']
-}) {
+function RefundCell({ refund }: { refund: (typeof CREDIT_NOTE_ROWS)[number]['refund'] }) {
   const { t } = useTranslation()
 
   if (refund.kind === 'none') {
@@ -180,9 +179,7 @@ function RefundCell({
       <span
         className={[
           'text-xs font-semibold leading-[1.2]',
-          refund.hintKey === 'creditNotesPage.refund.due'
-            ? 'text-[#887147]'
-            : 'text-text-tertiary',
+          refund.hintKey === 'creditNotesPage.refund.due' ? 'text-[#887147]' : 'text-text-tertiary',
         ].join(' ')}
       >
         {t(refund.hintKey)}
@@ -195,6 +192,17 @@ function CreditNotesTable() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<CreditNoteTabId>('all')
+
+  const [query, setQuery] = useState('')
+
+  const rows = useMemo(
+    () =>
+      CREDIT_NOTE_ROWS.filter(
+        (row) => matchesCreditNoteTab(row, activeTab) && matchesCreditNoteQuery(row, query),
+      ),
+
+    [activeTab, query],
+  )
   const [page, setPage] = useState(2)
 
   return (
@@ -225,7 +233,7 @@ function CreditNotesTable() {
                       : 'bg-primary-25 text-text-quaternary',
                 ].join(' ')}
               >
-                {tab.count}
+                {countCreditNoteTab(tab.id)}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
@@ -240,6 +248,8 @@ function CreditNotesTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder={t('creditNotesPage.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
@@ -280,7 +290,7 @@ function CreditNotesTable() {
             </tr>
           </thead>
           <tbody>
-            {CREDIT_NOTE_ROWS.map((row) => {
+            {rows.map((row) => {
               const status = STATUS_STYLES[row.status]
               return (
                 <tr
@@ -320,7 +330,9 @@ function CreditNotesTable() {
                       {row.subtitle}
                     </p>
                   </td>
-                  <td className="px-2 py-2.5 text-sm font-medium text-text-tertiary">{row.issued}</td>
+                  <td className="px-2 py-2.5 text-sm font-medium text-text-tertiary">
+                    {row.issued}
+                  </td>
                   <td className="px-2 py-2.5">
                     <span className="inline-flex items-center gap-1 text-[#98140b]">
                       <span className="text-base font-bold leading-[1.5]">-</span>
@@ -366,7 +378,9 @@ function CreditNotesTable() {
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-text-muted">{t('creditNotesPage.showResult')}</span>
+          <span className="text-sm font-medium text-text-muted">
+            {t('creditNotesPage.showResult')}
+          </span>
           <button
             type="button"
             className="inline-flex h-9 w-[55px] items-center justify-between rounded-sm border border-border-subtle px-3 text-sm font-semibold text-text-secondary"

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { OmAmount } from '../../components/ui'
+import { PreviewPane } from '../../components/invoice/PreviewPane'
 import { CREDIT_NOTE_DETAIL } from '../../lib/creditNoteDetail'
 import backIcon from '../../assets/invoice-details/back.svg'
 import menuIcon from '../../assets/invoices/menu.svg'
@@ -11,12 +12,6 @@ import plusIcon from '../../assets/invoices/plus.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import customerLogo from '../../assets/invoice-details/customer-logo.svg'
 import peppolBadgeIcon from '../../assets/invoice-details/peppol-badge.svg'
-import pdfIcon from '../../assets/invoice-details/pdf.svg'
-import zoomOutIcon from '../../assets/invoice-details/zoom-out.svg'
-import zoomInIcon from '../../assets/invoice-details/zoom-in.svg'
-import downloadIcon from '../../assets/invoice-details/download.svg'
-import printIcon from '../../assets/invoice-details/print.svg'
-import fullscreenIcon from '../../assets/invoice-details/fullscreen.svg'
 // Green timeline, unlike the blue one on the invoice page.
 import timelineCheckIcon from '../../assets/credit-note-detail/timeline-check.svg'
 import saveDraftIcon from '../../assets/credit-note-detail/save-draft.svg'
@@ -355,43 +350,18 @@ export function CreditNoteDetailsPage() {
           </div>
 
           <aside className="flex h-[623px] w-full shrink-0 flex-col overflow-hidden rounded-sm border border-border-subtle bg-surface-background xl:w-[448px]">
-            <div className="flex items-center justify-between bg-surface-card px-3.5 py-4">
-              <div className="flex items-center gap-1.5">
-                <img src={pdfIcon} alt="" className="size-6" />
-                <p className="text-sm font-medium text-text-secondary">
-                  {t('creditNoteDetails.pdfTitle')}
-                </p>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-1.5">
-                  <button type="button" aria-label={t('creditNoteDetails.zoomOut')}>
-                    <img src={zoomOutIcon} alt="" className="size-6" />
-                  </button>
-                  <span className="text-xs font-medium text-text-tertiary">100%</span>
-                  <button type="button" aria-label={t('creditNoteDetails.zoomIn')}>
-                    <img src={zoomInIcon} alt="" className="size-6" />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <button type="button" aria-label={t('creditNoteDetails.download')}>
-                    <img src={downloadIcon} alt="" className="size-6" />
-                  </button>
-                  <button type="button" aria-label={t('creditNoteDetails.print')}>
-                    <img src={printIcon} alt="" className="size-6" />
-                  </button>
-                  <button type="button" aria-label={t('creditNoteDetails.fullscreen')}>
-                    <img src={fullscreenIcon} alt="" className="size-6" />
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-1 items-start justify-center overflow-auto p-6 pt-4">
-              <img
-                src={creditPreview}
-                alt={t('creditNoteDetails.pdfAlt', { id: noteId })}
-                className="w-full max-w-[413px] rounded-sm shadow-card"
-              />
-            </div>
+            <PreviewPane
+              src={creditPreview}
+              alt={t('creditNoteDetails.pdfAlt', { id: noteId })}
+              title={t('creditNoteDetails.pdfTitle')}
+              labels={{
+                zoomOut: t('creditNoteDetails.zoomOut'),
+                zoomIn: t('creditNoteDetails.zoomIn'),
+                download: t('creditNoteDetails.download'),
+                print: t('creditNoteDetails.print'),
+                fullscreen: t('creditNoteDetails.fullscreen'),
+              }}
+            />
           </aside>
         </div>
 
@@ -407,7 +377,9 @@ export function CreditNoteDetailsPage() {
                   <th className="py-2 font-semibold">{t('creditNoteDetails.col.qty')}</th>
                   <th className="py-2 font-semibold">{t('creditNoteDetails.col.unit')}</th>
                   <th className="py-2 font-semibold">{t('creditNoteDetails.col.disc')}</th>
-                  <th className="py-2 text-end font-semibold">{t('creditNoteDetails.col.total')}</th>
+                  <th className="py-2 text-end font-semibold">
+                    {t('creditNoteDetails.col.total')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -417,11 +389,15 @@ export function CreditNoteDetailsPage() {
                       <p className="text-base font-medium text-text-primary">{item.description}</p>
                       <p className="text-sm font-medium text-text-quaternary">{item.note}</p>
                     </td>
-                    <td className="py-3 text-sm font-medium text-text-secondary">{item.unitPrice}</td>
+                    <td className="py-3 text-sm font-medium text-text-secondary">
+                      {item.unitPrice}
+                    </td>
                     <td className="py-3 text-sm font-medium text-text-secondary">{item.vat}</td>
                     <td className="py-3 text-base font-medium text-text-secondary">{item.qty}</td>
                     <td className="py-3 text-base font-medium text-text-secondary">{item.unit}</td>
-                    <td className="py-3 text-sm font-medium text-text-secondary">{item.discount}</td>
+                    <td className="py-3 text-sm font-medium text-text-secondary">
+                      {item.discount}
+                    </td>
                     <td className="py-3 text-end text-xl font-semibold text-text-primary/90">
                       {item.total}
                     </td>
@@ -564,7 +540,9 @@ export function CreditNoteDetailsPage() {
                     </div>
                     <div className={['min-w-0 pb-6', isLast ? 'pb-0' : ''].join(' ')}>
                       <p className="text-base font-medium text-text-secondary">{event.title}</p>
-                      <p className="mt-1.5 text-sm font-medium text-text-tertiary">{event.detail}</p>
+                      <p className="mt-1.5 text-sm font-medium text-text-tertiary">
+                        {event.detail}
+                      </p>
                     </div>
                   </li>
                 )
