@@ -133,3 +133,28 @@ export const CREDIT_NOTE_ROWS: CreditNoteRow[] = [
     status: 'draft',
   },
 ]
+
+/** Which statuses each tab gathers. */
+export const CREDITNOTE_TAB_STATUS: Record<CreditNoteTabId, CreditNoteListStatus[]> = {
+  all: [],
+  drafts: ['draft'],
+  toSend: ['toSend'],
+  refundDue: ['refundDue'],
+  applied: ['applied'],
+  refunded: ['refunded'],
+}
+
+export const matchesCreditNoteTab = (row: CreditNoteRow, tab: CreditNoteTabId) => {
+  const statuses = CREDITNOTE_TAB_STATUS[tab]
+  return statuses.length === 0 || statuses.includes(row.status)
+}
+
+/** Counts come off the rows, so a tab cannot promise more than it shows. */
+export const countCreditNoteTab = (tab: CreditNoteTabId) =>
+  CREDIT_NOTE_ROWS.filter((row) => matchesCreditNoteTab(row, tab)).length
+
+export const matchesCreditNoteQuery = (row: CreditNoteRow, query: string) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return row.id.toLowerCase().includes(needle) || row.customer.toLowerCase().includes(needle)
+}

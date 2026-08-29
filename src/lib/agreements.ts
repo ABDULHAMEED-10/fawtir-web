@@ -6,9 +6,11 @@
  * regulation authorises without a signature.
  */
 
-export type AgreementStatus = 'active' | 'expiringSoon' | 'awaitingAcceptance' | 'expired' | 'terminated'
+export type AgreementStatus =
+  'active' | 'expiringSoon' | 'awaitingAcceptance' | 'expired' | 'terminated'
 
-export type AgreementTabId = 'all' | 'active' | 'awaiting' | 'expiringSoon' | 'expired' | 'terminated'
+export type AgreementTabId =
+  'all' | 'active' | 'awaiting' | 'expiringSoon' | 'expired' | 'terminated'
 
 /** `agreed` is a signed bilateral agreement; `statutory` is authorised by regulation. */
 export type AgreementKind = 'agreed' | 'statutory'
@@ -216,3 +218,32 @@ export const AGREEMENT_ROWS: AgreementRow[] = [
 ]
 
 export const AGREEMENT_PAGE_NUMBERS = [1, 2, 3, 4, '...', 20] as const
+
+/** Which statuses each tab gathers. */
+export const AGREEMENT_TAB_STATUS: Record<AgreementTabId, AgreementStatus[]> = {
+  all: [],
+  active: ['active'],
+  awaiting: ['awaitingAcceptance'],
+  expiringSoon: ['expiringSoon'],
+  expired: ['expired'],
+  terminated: ['terminated'],
+}
+
+export const matchesAgreementTab = (row: AgreementRow, tab: AgreementTabId) => {
+  const statuses = AGREEMENT_TAB_STATUS[tab]
+  return statuses.length === 0 || statuses.includes(row.status)
+}
+
+/** Counts come off the rows, so a tab cannot promise more than it shows. */
+export const countAgreementTab = (tab: AgreementTabId) =>
+  AGREEMENT_ROWS.filter((row) => matchesAgreementTab(row, tab)).length
+
+export const matchesAgreementQuery = (row: AgreementRow, query: string) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return (
+    row.id.toLowerCase().includes(needle) ||
+    row.supplier.toLowerCase().includes(needle) ||
+    row.reference.toLowerCase().includes(needle)
+  )
+}

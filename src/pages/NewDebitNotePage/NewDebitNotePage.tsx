@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
+import { formatAtScale } from '../../lib/invoiceMath'
 import { ActionMenu } from '../../components/ui'
 import { debitNoteRowActions } from '../../lib/rowActions'
 import { DEBIT_BASES, NEW_DEBIT_NOTE, type DebitBasis } from '../../lib/newDebitNote'
@@ -44,7 +46,15 @@ function SectionTitle({ title, action }: { title: string; action?: ReactNode }) 
   )
 }
 
-function FieldLabel({ label, required, hint }: { label: string; required?: boolean; hint?: string }) {
+function FieldLabel({
+  label,
+  required,
+  hint,
+}: {
+  label: string
+  required?: boolean
+  hint?: string
+}) {
   return (
     <div className="mb-1 flex flex-wrap items-baseline gap-1">
       <span className="text-sm font-medium leading-[1.2] text-text-primary">{label}</span>
@@ -95,41 +105,31 @@ function Field({
   )
 }
 
-const ITEM_GRID =
-  'grid grid-cols-[minmax(180px,306fr)_104px_173px_103px_105px_90px_minmax(90px,1fr)] items-center gap-4'
+/** The lines from the design, costed by the same engine the invoice uses. */
+const INITIAL_LINES: LineItem[] = [
+  {
+    id: '1',
+    description: 'Cappuccino - Large',
+    unitPrice: '1.8',
+    vatRate: '5',
+    quantity: '12',
+    unit: 'EA',
+    discountType: 'PERCENTAGE',
+    discountValue: '0',
+  },
+  {
+    id: '2',
+    description: 'Coffee Beans 1kg - H Blend',
+    unitPrice: '9.5',
+    vatRate: '5',
+    quantity: '4',
+    unit: 'KGM',
+    discountType: 'PERCENTAGE',
+    discountValue: '10',
+  },
+]
 
-function ItemCell({ value, select, stepper }: { value: string; select?: boolean; stepper?: boolean }) {
-  return (
-    <div className="relative">
-      <div className="flex h-11 w-full items-center rounded-sm border border-primary-300 bg-surface-tab-bar px-3 pe-8 text-sm font-medium text-text-secondary">
-        <span className="truncate">{value}</span>
-      </div>
-      {select ? (
-        <img
-          src={chevronIcon}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute end-2 top-1/2 size-5 -translate-y-1/2 rotate-90 opacity-70"
-        />
-      ) : null}
-      {stepper ? (
-        <span className="pointer-events-none absolute end-2 top-1/2 flex -translate-y-1/2 flex-col">
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-4 -rotate-90 opacity-70" />
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-4 rotate-90 opacity-70" />
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-/** Green "+ ﷼ amount" — a debit note only ever adds. */
-function PlusAmount({
-  value,
-  size = 'sm',
-}: {
-  value: string
-  size?: 'sm' | 'md' | 'lg' | 'xl'
-}) {
+function PlusAmount({ value, size = 'sm' }: { value: string; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
   const text = {
     sm: 'text-sm font-semibold',
     md: 'text-[19px] font-semibold',
@@ -150,6 +150,9 @@ function PlusAmount({
 export function NewDebitNotePage() {
   const { t } = useTranslation()
   const doc = NEW_DEBIT_NOTE
+  const [lines, setLines] = useState<LineItem[]>(INITIAL_LINES)
+  const [exclVat, setExclVat] = useState(true)
+  const totals = useLineTotals(lines, exclVat)
   const [basis, setBasis] = useState<DebitBasis>('correctLines')
   const [sendOverPeppol, setSendOverPeppol] = useState(doc.details.sendOverPeppol)
 
@@ -381,68 +384,44 @@ export function NewDebitNotePage() {
         </div>
 
         {/* Items — full width */}
-        <Card>
-          <SectionTitle title={t('newDebitNote.sections.items')} />
-          <div className="overflow-x-auto">
-            <div className="min-w-[900px]">
-              <div
-                className={[
-                  ITEM_GRID,
-                  'pb-2 text-xs font-semibold uppercase tracking-wide text-text-quaternary',
-                ].join(' ')}
-              >
-                <span>{t('newDebitNote.col.description')}</span>
-                <span>{t('newDebitNote.col.excl')}</span>
-                <span>{t('newDebitNote.col.vat')}</span>
-                <span>{t('newDebitNote.col.qty')}</span>
-                <span>{t('newDebitNote.col.unit')}</span>
-                <span>{t('newDebitNote.col.disc')}</span>
-                <span>{t('newDebitNote.col.total')}</span>
+        <LineItemsTable
+          lines={lines}
+          onChange={setLines}
+          exclVat={exclVat}
+          onExclVatChange={setExclVat}
+          totals={totals}
+          titleSlot={<SectionTitle title={t('newDebitNote.sections.items')} />}
+          footer={
+            <div className="ms-auto flex w-full max-w-[352px] flex-col gap-4 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-text-tertiary">
+                  {t('newDebitNote.amount.netToCharge')}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[19px] font-semibold text-text-tertiary">
+                  +
+                  <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
+                  {formatAtScale(totals.taxable)}
+                </span>
               </div>
-              {doc.items.map((item) => (
-                <div key={item.id} className={[ITEM_GRID, 'py-1.5'].join(' ')}>
-                  <ItemCell value={item.description} />
-                  <ItemCell value={item.excl} />
-                  <ItemCell value={item.vat} />
-                  <ItemCell value={item.qty} stepper />
-                  <ItemCell value={item.unit} select />
-                  <ItemCell value={item.discount} />
-                  <span className="flex h-11 items-center text-xl font-semibold text-text-primary">
-                    {item.total}
-                  </span>
-                </div>
-              ))}
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-text-tertiary">
+                  {t('newDebitNote.totals.vatAdded')}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[19px] font-semibold text-text-tertiary">
+                  +
+                  <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
+                  {formatAtScale(totals.vat)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-text-primary">
+                  {t('newDebitNote.totals.totalToCharge')}
+                </span>
+                <PlusAmount value={formatAtScale(totals.total)} size="lg" />
+              </div>
             </div>
-          </div>
-          <div className="ms-auto mt-4 flex w-full max-w-[352px] flex-col gap-4 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-text-tertiary">
-                {t('newDebitNote.amount.netToCharge')}
-              </span>
-              <span className="inline-flex items-center gap-1 text-[19px] font-semibold text-text-tertiary">
-                +
-                <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
-                {doc.itemTotals.net}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-text-tertiary">
-                {t('newDebitNote.totals.vatAdded')}
-              </span>
-              <span className="inline-flex items-center gap-1 text-[19px] font-semibold text-text-tertiary">
-                +
-                <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
-                {doc.itemTotals.vat}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-text-primary">
-                {t('newDebitNote.totals.totalToCharge')}
-              </span>
-              <PlusAmount value={doc.itemTotals.total} size="lg" />
-            </div>
-          </div>
-        </Card>
+          }
+        />
 
         {/* Reason for debit — full width */}
         <Card>

@@ -145,7 +145,9 @@ export function ScanToFillModal({
                   <span
                     className={[
                       'flex w-full flex-col items-center gap-2 rounded-sm border border-dashed px-4 py-10 text-center transition-colors',
-                      dragging ? 'border-primary-700 bg-primary-25' : 'border-[#d0d2d5] bg-[#fafafa]',
+                      dragging
+                        ? 'border-primary-700 bg-primary-25'
+                        : 'border-[#d0d2d5] bg-[#fafafa]',
                     ].join(' ')}
                   >
                     <img src={scanIcon} alt="" className="size-7" />

@@ -163,3 +163,28 @@ export const DEBIT_NOTE_ROWS: DebitNoteRow[] = [
 ]
 
 export const DEBIT_NOTE_PAGE_NUMBERS = [1, 2, 3, 4, '...', 20] as const
+
+/** Which statuses each tab gathers. */
+export const DEBITNOTE_TAB_STATUS: Record<DebitNoteTabId, DebitNoteStatus[]> = {
+  all: [],
+  drafts: ['draft'],
+  toSend: ['toBeSent'],
+  awaiting: ['awaitingPayment'],
+  overdue: ['overdue'],
+  paid: ['paid'],
+}
+
+export const matchesDebitNoteTab = (row: DebitNoteRow, tab: DebitNoteTabId) => {
+  const statuses = DEBITNOTE_TAB_STATUS[tab]
+  return statuses.length === 0 || statuses.includes(row.status)
+}
+
+/** Counts come off the rows, so a tab cannot promise more than it shows. */
+export const countDebitNoteTab = (tab: DebitNoteTabId) =>
+  DEBIT_NOTE_ROWS.filter((row) => matchesDebitNoteTab(row, tab)).length
+
+export const matchesDebitNoteQuery = (row: DebitNoteRow, query: string) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return row.id.toLowerCase().includes(needle) || row.customer.toLowerCase().includes(needle)
+}

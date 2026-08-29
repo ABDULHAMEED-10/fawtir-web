@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
+import { formatAtScale } from '../../lib/invoiceMath'
 import { ActionMenu, OmAmount } from '../../components/ui'
 import {
   EMPTY_PERIODIC_SERIES,
@@ -18,8 +20,6 @@ import peppolIcon from '../../assets/periodic/peppol.svg'
 import pauseIcon from '../../assets/periodic/pause.svg'
 import clockIcon from '../../assets/periodic/clock.svg'
 import toggleOnIcon from '../../assets/periodic/toggle-on.svg'
-import deleteIcon from '../../assets/periodic/delete.svg'
-import plusIcon from '../../assets/periodic/plus.svg'
 import infoIcon from '../../assets/periodic/info.svg'
 import invoiceTileIcon from '../../assets/periodic/invoice-tile.svg'
 
@@ -28,43 +28,30 @@ function FieldLabel({ label }: { label: string }) {
 }
 
 /** Column track widths taken from the Figma row: 306 / 104 / 173 / 103 / 105 / 90 / total / delete. */
-const ITEM_GRID =
-  'grid grid-cols-[minmax(180px,306fr)_104px_173px_103px_105px_90px_minmax(90px,1fr)_24px] items-center gap-4'
+/** The lines from the design, costed by the same engine the invoice uses. */
+const INITIAL_LINES: LineItem[] = [
+  {
+    id: '1',
+    description: 'Cappuccino - Large',
+    unitPrice: '1.8',
+    vatRate: '5',
+    quantity: '12',
+    unit: 'EA',
+    discountType: 'PERCENTAGE',
+    discountValue: '0',
+  },
+  {
+    id: '2',
+    description: 'Coffee Beans 1kg - H Blend',
+    unitPrice: '9.5',
+    vatRate: '5',
+    quantity: '4',
+    unit: 'KGM',
+    discountType: 'PERCENTAGE',
+    discountValue: '10',
+  },
+]
 
-/** One editable cell of a line item — 44px, #fafafa on a primary-300 border. */
-function ItemCell({
-  value,
-  select,
-  stepper,
-}: {
-  value: string
-  select?: boolean
-  stepper?: boolean
-}) {
-  return (
-    <div className="relative">
-      <div className="flex h-11 w-full items-center rounded-sm border border-primary-300 bg-surface-tab-bar px-3 pe-8 text-sm font-medium text-text-secondary">
-        <span className="truncate">{value}</span>
-      </div>
-      {select ? (
-        <img
-          src={chevronIcon}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute end-2 top-1/2 size-5 -translate-y-1/2 rotate-90 opacity-70"
-        />
-      ) : null}
-      {stepper ? (
-        <span className="pointer-events-none absolute end-2 top-1/2 flex -translate-y-1/2 flex-col">
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-4 -rotate-90 opacity-70" />
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-4 rotate-90 opacity-70" />
-        </span>
-      ) : null}
-    </div>
-  )
-}
-
-/** Note heading with the "on invoice" / "private" qualifier Figma sets beside it. */
 function NoteLabel({ label, badge }: { label: string; badge: string }) {
   return (
     <p className="mb-1 flex flex-wrap items-baseline gap-2">
@@ -116,6 +103,8 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
   const series = isCreate ? EMPTY_PERIODIC_SERIES : PERIODIC_SERIES
   const [frequency, setFrequency] = useState<PeriodicFrequency>(series.schedule.frequency)
   const [exclVat, setExclVat] = useState(true)
+  const [lines, setLines] = useState<LineItem[]>(INITIAL_LINES)
+  const totals = useLineTotals(lines, exclVat)
 
   return (
     <AppShell>
@@ -226,13 +215,19 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
               </h2>
               <div className="my-3 h-px bg-border-subtle" />
 
-              <p className="mb-2 text-sm font-medium text-text-primary">{t('periodicInvoice.customer')}</p>
+              <p className="mb-2 text-sm font-medium text-text-primary">
+                {t('periodicInvoice.customer')}
+              </p>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-primary-75 bg-primary-25 px-3 py-4">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-text-primary">{series.customer.name}</p>
-                    <p className="truncate text-xs font-medium text-text-quaternary">{series.customer.vat}</p>
+                    <p className="truncate text-sm font-medium text-text-primary">
+                      {series.customer.name}
+                    </p>
+                    <p className="truncate text-xs font-medium text-text-quaternary">
+                      {series.customer.vat}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -262,7 +257,11 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
                   </div>
                   <div>
                     <FieldLabel label={t('periodicInvoice.fields.terms')} />
-                    <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                    <FieldShell
+                      suffix={
+                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                      }
+                    >
                       {series.paymentTerms}
                     </FieldShell>
                   </div>
@@ -270,13 +269,21 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <FieldLabel label={t('periodicInvoice.fields.currency')} />
-                    <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                    <FieldShell
+                      suffix={
+                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                      }
+                    >
                       {series.currency}
                     </FieldShell>
                   </div>
                   <div>
                     <FieldLabel label={t('periodicInvoice.fields.tax')} />
-                    <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                    <FieldShell
+                      suffix={
+                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                      }
+                    >
                       {series.taxCategory}
                     </FieldShell>
                   </div>
@@ -284,13 +291,21 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <FieldLabel label={t('periodicInvoice.fields.branch')} />
-                    <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                    <FieldShell
+                      suffix={
+                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                      }
+                    >
                       {series.branch}
                     </FieldShell>
                   </div>
                   <div>
                     <FieldLabel label={t('periodicInvoice.fields.project')} />
-                    <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                    <FieldShell
+                      suffix={
+                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                      }
+                    >
                       {series.project}
                     </FieldShell>
                   </div>
@@ -299,7 +314,9 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
             </section>
 
             <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('periodicInvoice.notesTitle')}</h2>
+              <h2 className="text-xl font-medium text-text-secondary">
+                {t('periodicInvoice.notesTitle')}
+              </h2>
               <div className="my-3 h-px bg-border-subtle" />
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
@@ -322,12 +339,13 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
                 </div>
               </div>
             </section>
-
           </div>
 
           <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[332px]">
             <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('periodicInvoice.schedule')}</h2>
+              <h2 className="text-xl font-medium text-text-secondary">
+                {t('periodicInvoice.schedule')}
+              </h2>
               <div className="my-3 h-px bg-border-subtle" />
               {/* The "Billing cadence" caption sits inside the tinted card, in brand blue. */}
               <div className="mb-4 rounded-sm border border-primary-75 bg-primary-25 p-3">
@@ -375,19 +393,29 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
               <div className="flex flex-col gap-3">
                 <div>
                   <FieldLabel label={t('periodicInvoice.repeatsOn')} />
-                  <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                  <FieldShell
+                    suffix={
+                      <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                    }
+                  >
                     {series.schedule.repeatsOn}
                   </FieldShell>
                 </div>
                 <div>
                   <FieldLabel label={t('periodicInvoice.starts')} />
-                  <FieldShell suffix={<img src={calendarIcon} alt="" className="size-5 opacity-60" />}>
+                  <FieldShell
+                    suffix={<img src={calendarIcon} alt="" className="size-5 opacity-60" />}
+                  >
                     {series.schedule.starts}
                   </FieldShell>
                 </div>
                 <div>
                   <FieldLabel label={t('periodicInvoice.ends')} />
-                  <FieldShell suffix={<img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />}>
+                  <FieldShell
+                    suffix={
+                      <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
+                    }
+                  >
                     {series.schedule.ends}
                   </FieldShell>
                 </div>
@@ -403,194 +431,175 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
                 />
               </div>
             </section>
-
           </aside>
         </div>
 
         {/* Items spans the full 1144px width in Figma, below the two-column band. */}
-          <section className="rounded-sm bg-surface-card p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-medium text-text-secondary">{t('periodicInvoice.items')}</h2>
-              <div className="inline-flex rounded-[3px] border border-border-brand-subtle bg-primary-25 p-[3px]">
-                <button
-                  type="button"
-                  onClick={() => setExclVat(true)}
-                  className={['rounded-sm px-3 py-1.5 text-xs font-semibold', exclVat ? 'bg-white text-primary-800' : 'text-text-quaternary'].join(' ')}
-                >
-                  {t('periodicInvoice.exclVat')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExclVat(false)}
-                  className={['rounded-sm px-3 py-1.5 text-xs font-semibold', !exclVat ? 'bg-white text-primary-800' : 'text-text-quaternary'].join(' ')}
-                >
-                  {t('periodicInvoice.inclVat')}
-                </button>
-              </div>
-            </div>
-            <div className="mb-3 h-px bg-border-subtle" />
-            {/* Each cell is an editable 44px field in Figma, not read-only text. */}
-            <div className="overflow-x-auto">
-              <div className="min-w-[900px]">
-                <div className={[ITEM_GRID, 'pb-2 text-xs font-semibold uppercase tracking-wide text-text-quaternary'].join(' ')}>
-                  <span>{t('periodicInvoice.col.description')}</span>
-                  <span>{t('periodicInvoice.col.excl')}</span>
-                  <span>{t('periodicInvoice.col.vat')}</span>
-                  <span>{t('periodicInvoice.col.qty')}</span>
-                  <span>{t('periodicInvoice.col.unit')}</span>
-                  <span>{t('periodicInvoice.col.disc')}</span>
-                  <span>{t('periodicInvoice.col.total')}</span>
-                  <span />
+        <LineItemsTable
+          lines={lines}
+          onChange={setLines}
+          exclVat={exclVat}
+          onExclVatChange={setExclVat}
+          totals={totals}
+          titleSlot={
+            <h2 className="text-xl font-medium text-text-secondary">
+              {t('periodicInvoice.items')}
+            </h2>
+          }
+          footer={
+            <>
+              <div className="ms-auto flex w-full max-w-[280px] flex-col gap-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-tertiary">{t('periodicInvoice.totalExcl')}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.taxable)}
+                    amountClassName="text-sm font-semibold"
+                  />
                 </div>
-
-                {series.items.map((item) => (
-                  <div key={item.id} className={[ITEM_GRID, 'py-1.5'].join(' ')}>
-                    <ItemCell value={item.description} select />
-                    <ItemCell value={item.excl} />
-                    <ItemCell value={item.vat} select />
-                    <ItemCell value={item.qty} stepper />
-                    <ItemCell value={item.unit} select />
-                    <ItemCell value={item.discount} />
-                    <span className="flex h-11 items-center text-base font-semibold text-text-primary">
-                      {item.total}
-                    </span>
-                    <button
-                      type="button"
-                      className="flex h-11 items-center justify-center"
-                      aria-label={t('periodicInvoice.removeLine')}
-                    >
-                      <img src={deleteIcon} alt="" className="size-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="mt-3 flex h-12 w-full items-center gap-2 rounded-sm border border-border-default px-3 text-base font-semibold text-primary-700 transition-colors hover:bg-primary-25"
-            >
-              <img src={plusIcon} alt="" className="size-6" />
-              {t('periodicInvoice.addLine')}
-            </button>
-            <div className="mt-4 ms-auto flex w-full max-w-[280px] flex-col gap-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-text-tertiary">{t('periodicInvoice.totalExcl')}</span>
-                <OmAmount size="xs" amount={series.totals.excluding} amountClassName="text-sm font-semibold" />
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-text-tertiary">{t('periodicInvoice.vat')}</span>
-                <OmAmount size="xs" amount={series.totals.vat} amountClassName="text-sm font-semibold" />
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm font-medium text-text-primary">{t('periodicInvoice.totalAmount')}</span>
-                <OmAmount size="sm" amount={series.totals.total} amountClassName="text-base font-semibold" />
-              </div>
-            </div>
-            <div className="mt-4 flex items-start gap-2 rounded-sm border border-primary-50 bg-primary-25 p-3">
-              <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-              <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
-                {t('periodicInvoice.itemsBanner', { amount: series.totals.total, customer: series.customer.name })}
-              </p>
-            </div>
-          </section>
-
-        {isCreate ? null : (
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-
-            <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('periodicInvoice.generated')}</h2>
-              <div className="my-3 h-px bg-border-subtle" />
-              {/* Tinted row: #f4f6fb on #eaedf8 with a 54px icon tile, per Figma. */}
-              {series.generated.map((inv) => (
-                <Link
-                  key={inv.id}
-                  to={`/invoices/${inv.id}`}
-                  className="flex items-center gap-3 rounded-sm border border-border-brand-subtle bg-primary-25 p-2.5 transition-colors hover:bg-primary-50"
-                >
-                  <span className="flex size-[54px] shrink-0 items-center justify-center rounded-sm bg-primary-25">
-                    <img src={invoiceTileIcon} alt="" className="size-9" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base font-medium leading-[1.2] text-text-primary">{inv.id}</p>
-                    <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-tertiary">
-                      {inv.meta}
-                    </p>
-                  </div>
-                  <span className="inline-flex h-[31px] shrink-0 items-center gap-2 rounded-full border border-[#e7e3da] bg-pending-100 px-3 text-sm font-medium text-pending-700">
-                    <span className="size-1.5 rounded-full bg-pending-700" />
-                    {t('invoicesPage.status.partial')}
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-tertiary">{t('periodicInvoice.vat')}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.vat)}
+                    amountClassName="text-sm font-semibold"
+                  />
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-text-primary">
+                    {t('periodicInvoice.totalAmount')}
                   </span>
                   <OmAmount
                     size="sm"
-                    amount={inv.amount}
-                    amountClassName="text-2xl font-medium text-text-primary"
+                    amount={formatAtScale(totals.total)}
+                    amountClassName="text-base font-semibold"
                   />
-                  <img src={chevronIcon} alt="" className="size-5 shrink-0 opacity-60 rtl:rotate-180" />
-                </Link>
-              ))}
-              <div className="mt-3 flex items-center gap-2 rounded-sm border border-border-brand-subtle bg-primary-25 px-2 py-2.5">
-                <img src={clockIcon} alt="" className="size-5 shrink-0" />
-                <p className="text-sm font-medium text-text-tertiary">
-                  {t('periodicInvoice.nextBanner', { date: series.nextRun })}
+                </div>
+              </div>
+              <div className="mt-4 flex items-start gap-2 rounded-sm border border-primary-50 bg-primary-25 p-3">
+                <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+                <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
+                  {t('periodicInvoice.itemsBanner', {
+                    amount: formatAtScale(totals.total),
+                    cadence: t(`periodicInvoice.cadence.${frequency}`),
+                    customer: series.customer.name,
+                  })}
                 </p>
               </div>
-            </section>
-          </div>
+            </>
+          }
+        />
 
-          <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[332px]">
-            <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">{t('periodicInvoice.upcoming')}</h2>
-              <div className="my-3 h-px bg-border-subtle" />
-              {/* First run carries a blue ring marker; later ones a plain grey dot. */}
-              <div className="flex flex-col gap-3">
-                {series.upcoming.map((row, index) => {
-                  const isNext = index === 0
-                  return (
-                    <div key={row.date} className="flex items-center gap-3 text-sm">
-                      {isNext ? (
-                        <span className="flex size-2.5 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                          <span className="size-2 rounded-full bg-primary-700" />
-                        </span>
-                      ) : (
-                        <span className="ms-0.5 size-2 shrink-0 rounded-full bg-neutral-100" />
-                      )}
-                      <span
-                        className={[
-                          'flex-1 font-medium',
-                          isNext ? 'text-text-primary' : 'text-text-tertiary',
-                        ].join(' ')}
-                      >
-                        {row.date}
-                      </span>
-                      <OmAmount size="xs" amount={row.amount} amountClassName="text-sm font-medium" />
+        {isCreate ? null : (
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <section className="rounded-sm bg-surface-card p-4">
+                <h2 className="text-xl font-medium text-text-secondary">
+                  {t('periodicInvoice.generated')}
+                </h2>
+                <div className="my-3 h-px bg-border-subtle" />
+                {/* Tinted row: #f4f6fb on #eaedf8 with a 54px icon tile, per Figma. */}
+                {series.generated.map((inv) => (
+                  <Link
+                    key={inv.id}
+                    to={`/invoices/${inv.id}`}
+                    className="flex items-center gap-3 rounded-sm border border-border-brand-subtle bg-primary-25 p-2.5 transition-colors hover:bg-primary-50"
+                  >
+                    <span className="flex size-[54px] shrink-0 items-center justify-center rounded-sm bg-primary-25">
+                      <img src={invoiceTileIcon} alt="" className="size-9" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-medium leading-[1.2] text-text-primary">
+                        {inv.id}
+                      </p>
+                      <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-tertiary">
+                        {inv.meta}
+                      </p>
                     </div>
-                  )
-                })}
-              </div>
-              <div className="my-3 h-px bg-border-subtle" />
-              {/* Started / Issued / Each sit in three columns, label above value. */}
-              <div className="grid grid-cols-3 gap-3 text-sm font-medium text-text-secondary">
-                <span className="flex flex-col gap-1.5">
-                  {t('periodicInvoice.started')}
-                  <span className="text-base">{series.started}</span>
-                </span>
-                <span className="flex flex-col gap-1.5">
-                  {t('periodicInvoice.issued')}
-                  <span className="text-base">{series.issuedCount}</span>
-                </span>
-                <span className="flex flex-col gap-1.5">
-                  {t('periodicInvoice.each')}
-                  <OmAmount
-                    size="xs"
-                    amount={series.totals.total}
-                    amountClassName="text-base font-medium text-text-secondary"
-                  />
-                </span>
-              </div>
-            </section>
-          </aside>
-        </div>
+                    <span className="inline-flex h-[31px] shrink-0 items-center gap-2 rounded-full border border-[#e7e3da] bg-pending-100 px-3 text-sm font-medium text-pending-700">
+                      <span className="size-1.5 rounded-full bg-pending-700" />
+                      {t('invoicesPage.status.partial')}
+                    </span>
+                    <OmAmount
+                      size="sm"
+                      amount={inv.amount}
+                      amountClassName="text-2xl font-medium text-text-primary"
+                    />
+                    <img
+                      src={chevronIcon}
+                      alt=""
+                      className="size-5 shrink-0 opacity-60 rtl:rotate-180"
+                    />
+                  </Link>
+                ))}
+                <div className="mt-3 flex items-center gap-2 rounded-sm border border-border-brand-subtle bg-primary-25 px-2 py-2.5">
+                  <img src={clockIcon} alt="" className="size-5 shrink-0" />
+                  <p className="text-sm font-medium text-text-tertiary">
+                    {t('periodicInvoice.nextBanner', { date: series.nextRun })}
+                  </p>
+                </div>
+              </section>
+            </div>
+
+            <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[332px]">
+              <section className="rounded-sm bg-surface-card p-4">
+                <h2 className="text-xl font-medium text-text-secondary">
+                  {t('periodicInvoice.upcoming')}
+                </h2>
+                <div className="my-3 h-px bg-border-subtle" />
+                {/* First run carries a blue ring marker; later ones a plain grey dot. */}
+                <div className="flex flex-col gap-3">
+                  {series.upcoming.map((row, index) => {
+                    const isNext = index === 0
+                    return (
+                      <div key={row.date} className="flex items-center gap-3 text-sm">
+                        {isNext ? (
+                          <span className="flex size-2.5 shrink-0 items-center justify-center rounded-full bg-primary-50">
+                            <span className="size-2 rounded-full bg-primary-700" />
+                          </span>
+                        ) : (
+                          <span className="ms-0.5 size-2 shrink-0 rounded-full bg-neutral-100" />
+                        )}
+                        <span
+                          className={[
+                            'flex-1 font-medium',
+                            isNext ? 'text-text-primary' : 'text-text-tertiary',
+                          ].join(' ')}
+                        >
+                          {row.date}
+                        </span>
+                        <OmAmount
+                          size="xs"
+                          amount={row.amount}
+                          amountClassName="text-sm font-medium"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="my-3 h-px bg-border-subtle" />
+                {/* Started / Issued / Each sit in three columns, label above value. */}
+                <div className="grid grid-cols-3 gap-3 text-sm font-medium text-text-secondary">
+                  <span className="flex flex-col gap-1.5">
+                    {t('periodicInvoice.started')}
+                    <span className="text-base">{series.started}</span>
+                  </span>
+                  <span className="flex flex-col gap-1.5">
+                    {t('periodicInvoice.issued')}
+                    <span className="text-base">{series.issuedCount}</span>
+                  </span>
+                  <span className="flex flex-col gap-1.5">
+                    {t('periodicInvoice.each')}
+                    <OmAmount
+                      size="xs"
+                      amount={series.totals.total}
+                      amountClassName="text-base font-medium text-text-secondary"
+                    />
+                  </span>
+                </div>
+              </section>
+            </aside>
+          </div>
         )}
       </div>
     </AppShell>

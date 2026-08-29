@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -9,6 +9,9 @@ import {
   DEBIT_NOTE_PAGE_NUMBERS,
   DEBIT_NOTE_ROWS,
   DEBIT_NOTE_TABS,
+  countDebitNoteTab,
+  matchesDebitNoteQuery,
+  matchesDebitNoteTab,
   type DebitNoteRow,
   type DebitNoteStatus,
   type DebitNoteTabId,
@@ -139,7 +142,9 @@ function DebitNoteRowCells({ row }: { row: DebitNoteRow }) {
     <>
       <td className="px-2 py-2.5">
         <p className="text-sm font-semibold leading-[1.2] text-text-secondary">{row.id}</p>
-        <p className="mt-1.5 text-xs font-medium leading-[1.2] text-text-quaternary">{row.reason}</p>
+        <p className="mt-1.5 text-xs font-medium leading-[1.2] text-text-quaternary">
+          {row.reason}
+        </p>
       </td>
       <td className="px-2 py-2.5">
         <Link
@@ -165,7 +170,12 @@ function DebitNoteRowCells({ row }: { row: DebitNoteRow }) {
       <td className="px-2 py-2.5">
         <p className="text-sm font-semibold leading-[1.2] text-text-secondary">{row.payment}</p>
         {row.paymentNote ? (
-          <p className={['mt-1 text-[10px] leading-[1.2]', PAYMENT_NOTE_TONE[row.paymentNoteTone]].join(' ')}>
+          <p
+            className={[
+              'mt-1 text-[10px] leading-[1.2]',
+              PAYMENT_NOTE_TONE[row.paymentNoteTone],
+            ].join(' ')}
+          >
             {row.paymentNote}
           </p>
         ) : null}
@@ -189,6 +199,17 @@ function DebitNotesTable() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<DebitNoteTabId>('all')
+
+  const [query, setQuery] = useState('')
+
+  const rows = useMemo(
+    () =>
+      DEBIT_NOTE_ROWS.filter(
+        (row) => matchesDebitNoteTab(row, activeTab) && matchesDebitNoteQuery(row, query),
+      ),
+
+    [activeTab, query],
+  )
   const [page, setPage] = useState(2)
 
   return (
@@ -219,7 +240,7 @@ function DebitNotesTable() {
                       : 'bg-primary-25 text-text-quaternary',
                 ].join(' ')}
               >
-                {tab.count}
+                {countDebitNoteTab(tab.id)}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
@@ -234,6 +255,8 @@ function DebitNotesTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             placeholder={t('debitNotes.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
@@ -263,18 +286,26 @@ function DebitNotesTable() {
               <th className="w-10 px-5 py-2.5">
                 <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.debitNote')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.adjusts')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.customer')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('debitNotes.col.debitNote')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('debitNotes.col.adjusts')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('debitNotes.col.customer')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.issued')}</th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.amount')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.payment')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('debitNotes.col.payment')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('debitNotes.col.status')}</th>
               <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {DEBIT_NOTE_ROWS.map((row) => (
+            {rows.map((row) => (
               <tr
                 key={row.id}
                 className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
