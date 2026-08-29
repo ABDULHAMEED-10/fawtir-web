@@ -1,0 +1,1 @@
+export { EditSupplierPage } from './EditSupplierPage'

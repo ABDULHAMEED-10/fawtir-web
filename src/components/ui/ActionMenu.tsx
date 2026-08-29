@@ -8,8 +8,19 @@ export type ActionMenuItem = {
   labelKey: string
   /** Imported SVG exported from the Figma Actions frame. */
   icon: string
+  /**
+   * A second line under the label, saying what the item does.
+   *
+   * The supplier row menu (Figma 117:35273) explains every action; the compact row menus
+   * elsewhere have labels only, so this widens the item rather than replacing it.
+   */
+  descriptionKey?: string
+  /** Values interpolated into the label and description. */
+  values?: Record<string, string | number>
   /** Renders in danger red and is separated by a divider, as in Figma. */
   danger?: boolean
+  /** Starts a new titled group above this item. */
+  sectionKey?: string
   to?: string
   onSelect?: () => void
 }
@@ -22,13 +33,21 @@ type ActionMenuProps = {
   alignStart?: boolean
   /** `row` is the 24px table trigger; `bordered` matches the 46px header buttons. */
   variant?: 'row' | 'bordered'
+  /** Widens the panel for items that carry a description. */
+  wide?: boolean
 }
 
 /**
  * Row overflow menu — the "Actions" popup from Figma (158px, 16px padding,
  * 38px item pitch, divider above the destructive item).
  */
-export function ActionMenu({ items, label, alignStart = false, variant = 'row' }: ActionMenuProps) {
+export function ActionMenu({
+  items,
+  label,
+  alignStart = false,
+  variant = 'row',
+  wide = false,
+}: ActionMenuProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -54,7 +73,8 @@ export function ActionMenu({ items, label, alignStart = false, variant = 'row' }
 
   const itemClass = (danger?: boolean) =>
     [
-      'flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-start text-sm font-medium leading-[1.2] transition-colors',
+      'flex w-full rounded-sm px-2 text-start font-medium transition-colors',
+      wide ? 'items-start gap-2.5 py-2' : 'items-center gap-2 py-1.5 text-sm leading-[1.2]',
       danger ? 'text-danger-700 hover:bg-danger-100' : 'text-text-secondary hover:bg-primary-25',
     ].join(' ')
 
@@ -84,21 +104,47 @@ export function ActionMenu({ items, label, alignStart = false, variant = 'row' }
           id={menuId}
           role="menu"
           className={[
-            'absolute z-30 mt-1 w-[172px] rounded-sm bg-surface-card p-2 shadow-elevated',
+            'absolute z-30 mt-1 rounded-sm bg-surface-card p-2 shadow-elevated',
+            wide ? 'w-[296px]' : 'w-[172px]',
             alignStart ? 'start-0' : 'end-0',
           ].join(' ')}
         >
-          {items.map((item) => {
+          {items.map((item, index) => {
             const content = (
               <>
-                <img src={item.icon} alt="" className="size-[18px] shrink-0" />
-                {t(item.labelKey)}
+                <img
+                  src={item.icon}
+                  alt=""
+                  className={wide ? 'mt-0.5 size-[18px] shrink-0' : 'size-[18px] shrink-0'}
+                />
+                {item.descriptionKey ? (
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm leading-[1.3]">
+                      {t(item.labelKey, item.values)}
+                    </span>
+                    <span className="mt-0.5 block text-xs font-medium leading-[1.4] text-text-quaternary">
+                      {t(item.descriptionKey, item.values)}
+                    </span>
+                  </span>
+                ) : (
+                  t(item.labelKey, item.values)
+                )}
               </>
             )
 
             return (
               <div key={item.id} role="none">
-                {item.danger ? <div className="my-2 h-px bg-[#e3e4ea]" role="none" /> : null}
+                {item.sectionKey ? (
+                  <>
+                    {index > 0 ? <div className="my-2 h-px bg-[#e3e4ea]" role="none" /> : null}
+                    <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
+                      {t(item.sectionKey)}
+                    </p>
+                  </>
+                ) : null}
+                {item.danger && !item.sectionKey ? (
+                  <div className="my-2 h-px bg-[#e3e4ea]" role="none" />
+                ) : null}
                 {item.to ? (
                   <Link
                     to={item.to}
