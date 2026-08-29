@@ -774,7 +774,7 @@
       "customers": "العملاء",
       "suppliers": "الموردون",
       "compliance": "الامتثال",
-      "tddOta": "TDD وجهاز الضرائب",
+      "tddOta": "النشاط",
       "documents": "المستندات",
       "insights": "التحليلات",
       "reports": "التقارير",
@@ -5906,5 +5906,121 @@
     "downloadPdf": "تنزيل PDF",
     "downloadExcel": "تنزيل Excel",
     "emailIt": "أرسله إليهم بالبريد"
+  },
+  "activity": {
+    "title": "النشاط",
+    "subtitle": "كل خطوة تمر بها مستنداتك عبر Peppol وهيئة الضرائب، الأحدث أولًا. لا شيء هنا حالة تضبطها أنت — بل ما ردّت به الشبكات.",
+    "searchPlaceholder": "ابحث عن مستند أو طرف...",
+    "filters": "عوامل التصفية",
+    "allKinds": "كل أنواع المستندات",
+    "empty": "لا شيء يطابق بحثك.",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "kpi": {
+      "cleared": "مكتملة",
+      "clearedNote": "عبر Peppol والهيئة معًا",
+      "waiting": "بانتظار الهيئة",
+      "waitingNote": "أقدمها منذ {{minutes}} دقائق",
+      "attention": "تحتاج انتباهًا",
+      "attentionNote": "لا شيء يتحرك حتى تُعالَج",
+      "volume": "أحداث اليوم",
+      "volumeNote": "عبر {{count}} مستندًا"
+    },
+    "tabs": {
+      "all": "الكل",
+      "attention": "تحتاج انتباهًا",
+      "waiting": "بالانتظار",
+      "cleared": "مكتملة"
+    },
+    "col": {
+      "when": "الوقت",
+      "document": "المستند",
+      "whatHappened": "ما حدث",
+      "network": "الشبكة",
+      "outcome": "النتيجة"
+    },
+    "channel": {
+      "peppol": "Peppol",
+      "ota": "هيئة الضرائب"
+    },
+    "direction": {
+      "outbound": "صادر",
+      "inbound": "وارد"
+    },
+    "kind": {
+      "standardInvoice": "فاتورة قياسية",
+      "simplifiedInvoice": "فاتورة مبسطة",
+      "creditNote": "إشعار دائن",
+      "debitNote": "إشعار مدين",
+      "selfBilled": "فاتورة ذاتية",
+      "bill": "فاتورة واردة"
+    },
+    "outcome": {
+      "cleared": "مكتمل",
+      "waiting": "بالانتظار",
+      "attention": "يحتاج انتباهًا",
+      "failed": "فشل"
+    },
+    "step": {
+      "sentOverPeppol": "أُرسل عبر Peppol",
+      "arrivedOverPeppol": "وصل عبر Peppol",
+      "tddFiled": "قُدّم مستند البيانات الضريبية",
+      "receiverTddFiled": "قُدّم مستند البيانات الضريبية للمستلم",
+      "tddRejected": "رُفض مستند البيانات الضريبية",
+      "tddResent": "أُعيد إرسال مستند البيانات الضريبية"
+    },
+    "detail": {
+      "deliveredTo": "سُلّم إلى {{id}}",
+      "waitingOta": "أُرسل قبل {{minutes}} دقائق، ولا رد بعد",
+      "heldForReview": "محتجز في «يحتاج انتباهًا» — لم يقبل أحد الرسم",
+      "buyerVatUnknown": "الرقم الضريبي للمشتري غير معروف لدى الهيئة",
+      "acceptedIn": "قُبل خلال {{seconds}} ثوانٍ",
+      "matchedToOrder": "حُفظ وطوبق مع {{po}}",
+      "acceptedOnRetry": "قُبل بعد تصحيح التقريب",
+      "roundingMismatch": "مجاميع السطور لا تساوي إجمالي الفاتورة"
+    },
+    "attempt": "المحاولة {{n}}",
+    "action": {
+      "review": "راجعه",
+      "fixAndResend": "صحّح وأعد الإرسال"
+    },
+    "acceptanceRate": "{{percent}}٪ من الملفات مقبولة",
+    "showing": "عرض {{shown}} من {{total}} حدثًا",
+    "fawtaraId": "معرّف فوترة"
+  },
+  "activityEvent": {
+    "copyXml": "انسخ ملف XML",
+    "copy": "نسخ",
+    "copied": "نُسخ",
+    "downloadXml": "تنزيل ملف XML",
+    "field": "الحقل",
+    "journey": "كل ما حدث لـ {{document}}",
+    "thisEvent": "هذا الحدث",
+    "openThisStep": "افتح هذه الخطوة",
+    "payload": "المستند كما أُرسل عبر الشبكة",
+    "payloadNote": "بصيغة PINT-OM: معيار UBL 2.1 بالتخصيص العماني. هذا هو المحتوى الذي استلمته الشبكة.",
+    "thisTransmission": "هذا الإرسال",
+    "direction": "الاتجاه",
+    "sentAt": "أُرسل في",
+    "attempt": "المحاولة",
+    "roundTrip": "زمن الرد",
+    "messageId": "معرّف الرسالة",
+    "fawtara": "معرّف فوترة",
+    "fawtaraNote": "تصدره هيئة الضرائب عند قبول الملف. اذكره في أي استفسار عن هذا المستند.",
+    "retryHistory": "محاولات التقديم",
+    "firstTime": "قُبل من أول إرسال.",
+    "theDocument": "المستند",
+    "kind": "النوع",
+    "party": "الطرف",
+    "net": "الصافي",
+    "vat": "ض.ق.م",
+    "total": "الإجمالي",
+    "response": {
+      "delivered": "سُلّم إلى نقطة وصول المستلم",
+      "received": "استُلم وحُفظ",
+      "accepted": "قُبل وأُبلغ عنه",
+      "buyerVatUnknown": "الرقم الضريبي للمشتري غير مسجل لدى الهيئة",
+      "roundingMismatch": "الإجمالي شامل الضريبة لا يساوي الصافي زائد الضريبة"
+    }
   }
 }

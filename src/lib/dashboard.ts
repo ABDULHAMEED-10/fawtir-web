@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import { ATTENTION_COUNT } from './activity'
 import salesIcon from '../assets/dashboard/kpi-sales.svg'
 import receivablesIcon from '../assets/dashboard/kpi-receivables.svg'
 import payablesIcon from '../assets/dashboard/kpi-payables.svg'
@@ -210,7 +211,13 @@ export const DASHBOARD_NAV: NavGroup[] = [
     id: 'compliance',
     labelKey: 'dashboard.nav.compliance',
     items: [
-      { id: 'tdd', labelKey: 'dashboard.nav.tddOta', Icon: NavTddIcon, to: '/dashboard', badge: 2 },
+      {
+        id: 'activity',
+        labelKey: 'dashboard.nav.tddOta',
+        Icon: NavTddIcon,
+        to: '/compliance/activity',
+        badge: ATTENTION_COUNT,
+      },
       {
         id: 'documents',
         labelKey: 'dashboard.nav.documents',
