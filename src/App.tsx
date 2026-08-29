@@ -25,6 +25,9 @@ import { SupplierCreditNotesPage } from './pages/SupplierCreditNotesPage'
 import { UploadCreditNotePage } from './pages/UploadCreditNotePage'
 import { SupplierCreditNoteDetailPage } from './pages/SupplierCreditNoteDetailPage'
 import { SupplierDebitNotesPage } from './pages/SupplierDebitNotesPage'
+import { SupplierDetailPage } from './pages/SupplierDetailPage'
+import { EditSupplierPage } from './pages/EditSupplierPage'
+import { NewPurchaseOrderPage } from './pages/NewPurchaseOrderPage'
 import { ReportsIncomePage } from './pages/ReportsIncomePage'
 import { ReportsExpenditurePage } from './pages/ReportsExpenditurePage'
 import { ReportsCashFlowPage } from './pages/ReportsCashFlowPage'
@@ -158,6 +161,9 @@ function App() {
           <Route path="/customers/new" element={<NewCustomerPage />} />
           <Route path="/suppliers" element={<SuppliersPage />} />
           <Route path="/suppliers/new" element={<NewSupplierPage />} />
+          <Route path="/suppliers/:slug/edit" element={<EditSupplierPage />} />
+          <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
