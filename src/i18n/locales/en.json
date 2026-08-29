@@ -5734,5 +5734,175 @@
     "sackPrice": "Sack price",
     "inPlainWords": "In plain words",
     "plainWords": "Ordering {{amount}} of beans and sacks from {{supplier}}, wanted by {{wanted}}, payable {{payable}} on Net 30."
+  },
+  "recordBill": {
+    "title": "Record a bill",
+    "subtitle": "Typing one in by hand. Nothing is owed until it's saved, and nothing is paid until someone approves it.",
+    "discard": "Discard",
+    "sendForApproval": "Send for approval",
+    "supplierNote": "VAT {{vat}} · on Peppol, so bills normally arrive on their own — this one did not",
+    "terms": "Terms",
+    "earlySettlement": "Early settlement",
+    "openOrders": "Open orders",
+    "theirBill": "Their bill",
+    "billNumber": "Their bill number",
+    "billDate": "Bill date",
+    "paymentDue": "Payment due",
+    "whichOrder": "Which order it's against",
+    "orderPlaced": "{{id}} · placed {{date}}",
+    "order": {
+      "receivedInFull": "Received in full on GRN-0091, checked in by Yusuf on 25 Jul. Nothing billed against it yet.",
+      "waitingForBill": "Waiting for a bill",
+      "sentThisMorning": "Sent this morning, goods wanted by 6 Aug. Nothing has arrived yet.",
+      "notDelivered": "Not delivered"
+    },
+    "noOrder": "No order behind it",
+    "noOrderNote": "A service, a one-off, or something bought over the counter. Nothing gets matched.",
+    "noOrderShort": "no order",
+    "whatCharging": "What they're charging",
+    "theyreCharging": "They're charging",
+    "beforeYouSave": "Before you save",
+    "attachDocument": "Attach the document",
+    "attachDocumentNote": "A bill without a copy of the original is harder to defend in an audit",
+    "attachFile": "Attach a file",
+    "straightToApproval": "Send it straight for approval",
+    "straightToApprovalHint": "Under {{limit}}, so {{who}} can approve it - no need to wait for Hafidh",
+    "doesItMatch": "Does it match",
+    "match": {
+      "ordered": "You ordered",
+      "received": "You received",
+      "billing": "They're billing"
+    },
+    "vatEffect": "What it does to your VAT",
+    "vatOnBill": "VAT on this bill",
+    "reclaimable": "Reclaimable",
+    "allOfIt": "All of it",
+    "theirVatNumber": "Their VAT number",
+    "onFileValid": "On file, valid",
+    "after": {
+      "approves": "{{who}} approves it",
+      "approvesNote": "Under the {{limit}} limit",
+      "joinsRun": "Joins the next payment run",
+      "joinsRunNote": "Due {{due}} · early settlement by {{by}} saves OMR {{saves}}",
+      "orderCloses": "{{order}} closes",
+      "orderClosesNote": "Ordered, received and billed all complete"
+    },
+    "plainWords": "Recording {{amount}} from {{supplier}} against {{order}}, payable {{payable}}. Everything matches."
+  },
+  "importSuppliers": {
+    "breadcrumb": "Import from Excel",
+    "title": "Check before importing",
+    "subtitle": "Nothing has been saved yet. Fawtir has read every row and checked it the same way the form does — fix what's wrong here.",
+    "startOver": "Start over",
+    "step": {
+      "uploaded": "File uploaded",
+      "check": "Check the rows",
+      "bring": "Bring them in"
+    },
+    "card": {
+      "ready": "Ready to bring in",
+      "readyNote": "Everything checks out. {{peppol}} of them are on Peppol.",
+      "warning": "Worth a look",
+      "warningNote": "Will import, but something's missing or already exists.",
+      "blocked": "Can't import",
+      "blockedNote": "Fix them here, or leave them out and add them later."
+    },
+    "tab": {
+      "blocked": "Can't import",
+      "warning": "Worth a look",
+      "ready": "Ready",
+      "all": "All rows"
+    },
+    "col": {
+      "row": "Row",
+      "supplier": "Supplier",
+      "problemField": "The problem field",
+      "whatsWrong": "What's wrong"
+    },
+    "blank": "(blank)",
+    "typeAName": "Type a name",
+    "empty": "Empty",
+    "nothingHere": "Nothing in this list.",
+    "field": {
+      "vatNumber": "VAT number",
+      "peppolId": "Peppol ID",
+      "legalName": "Legal name",
+      "paymentTerms": "Payment terms",
+      "alreadyOnList": "Already on your list",
+      "iban": "IBAN"
+    },
+    "problem": {
+      "vatTooShort": "Ten digits - an Oman VATIN has twelve. Two look to have been cut off.",
+      "noScheme": "No scheme in front of it. Should read 0248: then the VAT number.",
+      "noName": "No name at all. A supplier can't be saved without one.",
+      "unknownTerms": "Not one of the terms Fawtir knows. Did you mean Net 30?",
+      "duplicateVat": "Same VAT number as a supplier you already have. Bringing it in again would give you two.",
+      "noIban": "Will import, but they can't go in a payment run until an account is added.",
+      "resolved": "Fixed - this row will come in."
+    },
+    "action": {
+      "leaveOut": "Leave it out",
+      "fixAllLikeThis": "Fix all 3 like this",
+      "yesNet30": "Yes, Net 30",
+      "updateInstead": "Update instead",
+      "bringInAnyway": "Bring in anyway"
+    },
+    "wouldComeIn": "{{coming}} of {{total}} would come in",
+    "leftOut": "· {{count}} left out unless you fix them",
+    "cancel": "Cancel",
+    "downloadFailed": "Download {{count}} that failed",
+    "bringIn": "Bring in {{count}} suppliers"
+  },
+  "supplierStatement": {
+    "title": "Statement",
+    "subtitle": "Everything that has passed between you and this supplier over the period, in the order it happened.",
+    "print": "Print",
+    "statementFor": "Statement for",
+    "issuedBy": "Issued by",
+    "prepared": "Prepared {{when}}",
+    "owedOn": "Owed on {{date}}",
+    "theyBilledYou": "They billed you",
+    "youPaid": "You paid",
+    "credits": "Credits",
+    "col": {
+      "date": "Date",
+      "whatItWas": "What it was",
+      "kind": "Kind",
+      "theyBilled": "They billed",
+      "youPaid": "You paid",
+      "owedAfter": "Owed after"
+    },
+    "kind": {
+      "bill": "Bill",
+      "credit": "Credit",
+      "payment": "Payment"
+    },
+    "entry": {
+      "broughtForward": "Brought forward",
+      "broughtForwardNote": "Owed at the start of the year",
+      "againstMatched": "Against {{po}} · matched in full",
+      "shortDelivery": "Short delivery on {{po}} · 25 KG never arrived",
+      "settled": "Bank transfer · ref {{ref}} · settled {{bill}}",
+      "clearedBroughtForward": "Bank transfer · cleared the brought-forward balance",
+      "againstDue": "Against {{po}} · due {{due}} · in draft run {{run}}"
+    },
+    "overThePeriod": "Over the period",
+    "ageing": {
+      "notDueYet": "Not due yet",
+      "dueWithin7": "Due within 30 days",
+      "alreadyLate": "Late by 30 days",
+      "onHold": "Late by 60 or more"
+    },
+    "ageingNote": {
+      "notDueYet": "—",
+      "dueWithin7": "—",
+      "alreadyLate": "Never been late with them",
+      "onHold": "—"
+    },
+    "nothing": "Nothing",
+    "footer": "owed · {{entries}} entries · {{credits}} credit note still unused",
+    "downloadPdf": "Download PDF",
+    "downloadExcel": "Download Excel",
+    "emailIt": "Email it to them"
   }
 }

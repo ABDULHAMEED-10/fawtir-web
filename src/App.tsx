@@ -28,6 +28,9 @@ import { SupplierDebitNotesPage } from './pages/SupplierDebitNotesPage'
 import { SupplierDetailPage } from './pages/SupplierDetailPage'
 import { EditSupplierPage } from './pages/EditSupplierPage'
 import { NewPurchaseOrderPage } from './pages/NewPurchaseOrderPage'
+import { RecordSupplierBillPage } from './pages/RecordSupplierBillPage'
+import { ImportSuppliersPage } from './pages/ImportSuppliersPage'
+import { SupplierStatementPage } from './pages/SupplierStatementPage'
 import { ReportsIncomePage } from './pages/ReportsIncomePage'
 import { ReportsExpenditurePage } from './pages/ReportsExpenditurePage'
 import { ReportsCashFlowPage } from './pages/ReportsCashFlowPage'
@@ -161,8 +164,11 @@ function App() {
           <Route path="/customers/new" element={<NewCustomerPage />} />
           <Route path="/suppliers" element={<SuppliersPage />} />
           <Route path="/suppliers/new" element={<NewSupplierPage />} />
+          <Route path="/suppliers/import" element={<ImportSuppliersPage />} />
           <Route path="/suppliers/:slug/edit" element={<EditSupplierPage />} />
           <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
+          <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

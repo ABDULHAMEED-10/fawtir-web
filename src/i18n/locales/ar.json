@@ -5736,5 +5736,175 @@
     "sackPrice": "سعر الكيس",
     "inPlainWords": "بعبارة بسيطة",
     "plainWords": "طلب بقيمة {{amount}} من البن والأكياس من {{supplier}}، مطلوب بحلول {{wanted}}، ويُسدَّد {{payable}} بشروط صافي ٣٠."
+  },
+  "recordBill": {
+    "title": "تسجيل فاتورة",
+    "subtitle": "إدخالها يدويًا. لا يُستحق شيء حتى تُحفظ، ولا يُدفع شيء حتى يعتمدها أحد.",
+    "discard": "تجاهل",
+    "sendForApproval": "إرسال للاعتماد",
+    "supplierNote": "الرقم الضريبي {{vat}} · على Peppol، فالفواتير تصل عادة تلقائيًا — لكن ليس هذه",
+    "terms": "الشروط",
+    "earlySettlement": "السداد المبكر",
+    "openOrders": "أوامر مفتوحة",
+    "theirBill": "فاتورتهم",
+    "billNumber": "رقم فاتورتهم",
+    "billDate": "تاريخ الفاتورة",
+    "paymentDue": "تاريخ الاستحقاق",
+    "whichOrder": "مقابل أي أمر",
+    "orderPlaced": "{{id}} · صدر {{date}}",
+    "order": {
+      "receivedInFull": "استُلم بالكامل على GRN-0091، سجّله يوسف في ٢٥ يوليو. ولم تُفوتر عليه بعد.",
+      "waitingForBill": "بانتظار فاتورة",
+      "sentThisMorning": "أُرسل هذا الصباح، والبضاعة مطلوبة بحلول ٦ أغسطس. ولم يصل شيء بعد.",
+      "notDelivered": "لم يُسلَّم"
+    },
+    "noOrder": "لا يوجد أمر خلفها",
+    "noOrderNote": "خدمة أو عملية لمرة واحدة أو شراء مباشر. لا تُطابَق بشيء.",
+    "noOrderShort": "دون أمر",
+    "whatCharging": "ما الذي يفوترونه",
+    "theyreCharging": "يفوترون",
+    "beforeYouSave": "قبل الحفظ",
+    "attachDocument": "أرفق المستند",
+    "attachDocumentNote": "الفاتورة بلا نسخة من الأصل أصعب في الدفاع عنها أثناء التدقيق",
+    "attachFile": "إرفاق ملف",
+    "straightToApproval": "أرسلها مباشرة للاعتماد",
+    "straightToApprovalHint": "أقل من {{limit}}، فيمكن لـ{{who}} اعتمادها - دون انتظار حافظ",
+    "doesItMatch": "هل تتطابق",
+    "match": {
+      "ordered": "ما طلبته",
+      "received": "ما استلمته",
+      "billing": "ما يفوترونه"
+    },
+    "vatEffect": "أثرها على ضريبتك",
+    "vatOnBill": "الضريبة على هذه الفاتورة",
+    "reclaimable": "قابلة للاسترداد",
+    "allOfIt": "كلها",
+    "theirVatNumber": "رقمهم الضريبي",
+    "onFileValid": "محفوظ وصحيح",
+    "after": {
+      "approves": "يعتمدها {{who}}",
+      "approvesNote": "أقل من حد {{limit}}",
+      "joinsRun": "تنضم إلى دفعة السداد القادمة",
+      "joinsRunNote": "تستحق {{due}} · السداد المبكر بحلول {{by}} يوفّر {{saves}} ريال",
+      "orderCloses": "يُغلق {{order}}",
+      "orderClosesNote": "الطلب والاستلام والفوترة كلها مكتملة"
+    },
+    "plainWords": "تسجيل {{amount}} من {{supplier}} مقابل {{order}}، تُسدَّد {{payable}}. كل شيء متطابق."
+  },
+  "importSuppliers": {
+    "breadcrumb": "استيراد من Excel",
+    "title": "تحقق قبل الاستيراد",
+    "subtitle": "لم يُحفظ شيء بعد. قرأ فوتر كل صف وفحصه بالطريقة نفسها التي يفحص بها النموذج — صحّح ما هو خاطئ هنا.",
+    "startOver": "ابدأ من جديد",
+    "step": {
+      "uploaded": "رُفع الملف",
+      "check": "راجع الصفوف",
+      "bring": "أدخلهم"
+    },
+    "card": {
+      "ready": "جاهز للإدخال",
+      "readyNote": "كل شيء سليم. {{peppol}} منهم على Peppol.",
+      "warning": "يستحق النظر",
+      "warningNote": "سيُستورد، لكن هناك نقصًا أو تكرارًا.",
+      "blocked": "لا يمكن استيراده",
+      "blockedNote": "صحّحها هنا، أو اتركها وأضفها لاحقًا."
+    },
+    "tab": {
+      "blocked": "لا يمكن استيراده",
+      "warning": "يستحق النظر",
+      "ready": "جاهز",
+      "all": "كل الصفوف"
+    },
+    "col": {
+      "row": "الصف",
+      "supplier": "المورد",
+      "problemField": "الحقل الخاطئ",
+      "whatsWrong": "ما الخطأ"
+    },
+    "blank": "(فارغ)",
+    "typeAName": "اكتب اسمًا",
+    "empty": "فارغ",
+    "nothingHere": "لا شيء في هذه القائمة.",
+    "field": {
+      "vatNumber": "الرقم الضريبي",
+      "peppolId": "معرّف Peppol",
+      "legalName": "الاسم القانوني",
+      "paymentTerms": "شروط السداد",
+      "alreadyOnList": "موجود لديك بالفعل",
+      "iban": "الآيبان"
+    },
+    "problem": {
+      "vatTooShort": "عشرة أرقام - والرقم الضريبي العماني اثنا عشر. يبدو أن رقمين حُذفا.",
+      "noScheme": "لا يوجد مخطط أمامه. يجب أن يبدأ بـ 0248: ثم الرقم الضريبي.",
+      "noName": "لا يوجد اسم إطلاقًا. ولا يمكن حفظ مورد بدونه.",
+      "unknownTerms": "ليست من الشروط التي يعرفها فوتر. هل تقصد صافي ٣٠؟",
+      "duplicateVat": "الرقم الضريبي نفسه لمورد لديك. إدخاله مجددًا سيعطيك اثنين.",
+      "noIban": "سيُستورد، لكن لا يمكن إدراجهم في دفعة سداد حتى يُضاف حساب.",
+      "resolved": "صُحّح - سيدخل هذا الصف."
+    },
+    "action": {
+      "leaveOut": "اتركه",
+      "fixAllLikeThis": "صحّح الثلاثة جميعًا",
+      "yesNet30": "نعم، صافي ٣٠",
+      "updateInstead": "حدّث بدلًا من ذلك",
+      "bringInAnyway": "أدخله على أي حال"
+    },
+    "wouldComeIn": "{{coming}} من {{total}} سيدخلون",
+    "leftOut": "· {{count}} سيُستبعدون ما لم تصحّحهم",
+    "cancel": "إلغاء",
+    "downloadFailed": "تنزيل {{count}} فشلوا",
+    "bringIn": "أدخل {{count}} موردًا"
+  },
+  "supplierStatement": {
+    "title": "كشف الحساب",
+    "subtitle": "كل ما جرى بينك وبين هذا المورد خلال الفترة، بالترتيب الذي حدث به.",
+    "print": "طباعة",
+    "statementFor": "كشف حساب لـ",
+    "issuedBy": "صادر عن",
+    "prepared": "أُعد في {{when}}",
+    "owedOn": "المستحق في {{date}}",
+    "theyBilledYou": "ما فوتروه عليك",
+    "youPaid": "ما سددته",
+    "credits": "إشعارات دائنة",
+    "col": {
+      "date": "التاريخ",
+      "whatItWas": "ما هو",
+      "kind": "النوع",
+      "theyBilled": "فوتروا",
+      "youPaid": "سددت",
+      "owedAfter": "الرصيد بعدها"
+    },
+    "kind": {
+      "bill": "فاتورة",
+      "credit": "دائن",
+      "payment": "دفعة"
+    },
+    "entry": {
+      "broughtForward": "رصيد مُرحّل",
+      "broughtForwardNote": "المستحق في بداية العام",
+      "againstMatched": "مقابل {{po}} · مطابقة بالكامل",
+      "shortDelivery": "تسليم ناقص على {{po}} · ٢٥ كجم لم تصل",
+      "settled": "تحويل بنكي · مرجع {{ref}} · سدّد {{bill}}",
+      "clearedBroughtForward": "تحويل بنكي · سدّد الرصيد المُرحّل",
+      "againstDue": "مقابل {{po}} · تستحق {{due}} · في مسودة الدفعة {{run}}"
+    },
+    "overThePeriod": "خلال الفترة",
+    "ageing": {
+      "notDueYet": "لم تستحق بعد",
+      "dueWithin7": "تستحق خلال ٣٠ يومًا",
+      "alreadyLate": "متأخرة ٣٠ يومًا",
+      "onHold": "متأخرة ٦٠ يومًا أو أكثر"
+    },
+    "ageingNote": {
+      "notDueYet": "—",
+      "dueWithin7": "—",
+      "alreadyLate": "لم نتأخر معهم قط",
+      "onHold": "—"
+    },
+    "nothing": "لا شيء",
+    "footer": "مستحقة · {{entries}} قيود · {{credits}} إشعار دائن غير مستخدم",
+    "downloadPdf": "تنزيل PDF",
+    "downloadExcel": "تنزيل Excel",
+    "emailIt": "أرسله إليهم بالبريد"
   }
 }

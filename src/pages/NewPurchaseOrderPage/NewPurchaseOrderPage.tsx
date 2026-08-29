@@ -217,7 +217,7 @@ export function NewPurchaseOrderPage() {
                               onChange={(event) => update(line.id, { qty: event.target.value })}
                               aria-label={t('purchaseOrder.col.quantity')}
                               className={[
-                                'h-[46px] w-[112px] rounded-sm border px-3 pe-11 text-end text-sm font-medium text-text-secondary outline-none',
+                                'h-[46px] w-[122px] rounded-sm border ps-3 pe-12 text-end text-sm font-medium text-text-secondary outline-none',
                                 SHELL,
                               ].join(' ')}
                             />
