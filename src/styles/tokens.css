@@ -86,3 +86,14 @@
   --shadow-card: 0 2px 8px rgb(21 28 45 / 6%);
   --shadow-elevated: 0 8px 24px rgb(21 28 45 / 10%);
 }
+
+/*
+ * Identifiers, XML, JSON and API paths are Latin whatever the interface language. Left to the
+ * page's own direction, Arabic reorders them — a leading comma jumps to the front of a JSON line
+ * and a path reads back to front. Direction is forced here; alignment stays with the parent so a
+ * value in a right-aligned row keeps its place.
+ */
+[dir='rtl'] .font-mono {
+  direction: ltr;
+  text-align: inherit;
+}

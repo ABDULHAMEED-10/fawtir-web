@@ -20,6 +20,7 @@ import {
   type Submission,
   type TddFlow,
 } from '../../lib/activity'
+import { CALL_DETAIL } from '../../lib/otaCallLog'
 import { ActivityEmptyState } from './ActivityEmptyState'
 import kpiAcceptedIcon from '../../assets/activity/kpi-cleared.svg'
 import kpiWaitingIcon from '../../assets/activity/kpi-attention.svg'
@@ -532,7 +533,11 @@ function SubmissionRow({ row }: { row: Submission }) {
               labelKey: 'activity.menu.viewCall',
               descriptionKey: 'activity.menu.viewCallNote',
               icon: menuCallIcon,
-              to: `/compliance/activity/call-log/${row.id}`,
+              // Only one call is held in full; the rest open the log rather than a wrong detail.
+              to:
+                row.invoice === CALL_DETAIL.invoice
+                  ? `/compliance/activity/call-log/${CALL_DETAIL.id}`
+                  : '/compliance/activity/call-log',
             },
             {
               id: 'copyUuid',

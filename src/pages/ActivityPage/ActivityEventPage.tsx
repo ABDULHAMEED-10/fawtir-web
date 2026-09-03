@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ACTIVITY_DETAIL, type Journey, type ReportVersion } from '../../lib/activityDetail'
@@ -9,7 +9,7 @@ import otaIcon from '../../assets/activity/ch-ota.svg'
 import peppolIcon from '../../assets/activity/ch-peppol.svg'
 import stepDoneIcon from '../../assets/activity/step-done.svg'
 import stepFailedIcon from '../../assets/activity/step-failed.svg'
-import warnIcon from '../../assets/activity/kpi-attention.svg'
+import warnIcon from '../../assets/activity/warn-danger.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import shieldIcon from '../../assets/bill-detail/compliance.svg'
 import sendIcon from '../../assets/activity/ch-peppol.svg'
@@ -27,9 +27,8 @@ const COPY_ICON: Record<string, string> = {
 
 export function ActivityEventPage() {
   const { t } = useTranslation()
-  const { id } = useParams()
   const record = ACTIVITY_DETAIL
-  const invoice = id ?? record.invoice
+  const invoice = record.invoice
   const [copied, setCopied] = useState(false)
 
   return (
@@ -125,7 +124,7 @@ export function ActivityEventPage() {
                   />
                 </p>
 
-                <pre className="mt-3 overflow-x-auto rounded-sm bg-white p-3 font-mono text-[11px] leading-[1.6] text-text-tertiary">
+                <pre className="mt-3 overflow-x-auto rounded-sm bg-white p-3 text-left font-mono text-[11px] leading-[1.6] text-text-tertiary">
                   {record.rejection.raw}
                 </pre>
 
