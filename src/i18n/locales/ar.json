@@ -5917,84 +5917,110 @@
   },
   "activity": {
     "title": "النشاط",
-    "subtitle": "كل خطوة تمر بها مستنداتك عبر Peppol وهيئة الضرائب، الأحدث أولًا. لا شيء هنا حالة تضبطها أنت — بل ما ردّت به الشبكات.",
-    "searchPlaceholder": "ابحث عن مستند أو طرف...",
+    "subtitle": "كل فاتورة ترسلها تُبلَّغ إلى هيئة الضرائب العمانية كمستند بيانات ضريبية.",
+    "callLog": "سجل مكالمات الهيئة",
+    "complianceReport": "تقرير الامتثال",
+    "searchPlaceholder": "رقم الفاتورة أو معرّف المستند",
     "filters": "عوامل التصفية",
-    "allKinds": "كل أنواع المستندات",
+    "sort": "ترتيب",
+    "allFlows": "كل المسارات",
     "empty": "لا شيء يطابق بحثك.",
-    "today": "اليوم",
-    "yesterday": "أمس",
+    "rowActions": "إجراءات الصف",
+    "showing": "عرض {{shown}} من {{total}} إرسالًا",
     "kpi": {
-      "cleared": "مكتملة",
-      "clearedNote": "عبر Peppol والهيئة معًا",
-      "waiting": "بانتظار الهيئة",
-      "waitingNote": "أقدمها منذ {{minutes}} دقائق",
-      "attention": "تحتاج انتباهًا",
-      "attentionNote": "لا شيء يتحرك حتى تُعالَج",
-      "volume": "أحداث اليوم",
-      "volumeNote": "عبر {{count}} مستندًا"
+      "accepted": "مقبولة لدى الهيئة",
+      "acceptedBreakdown": "{{accepted}} مقبولة · {{rejected}} مرفوضة · {{waiting}} بالانتظار",
+      "waitingOnYou": "بانتظارك",
+      "waitingOnYouNote": "مرفوضة ولم تُصحَّح بعد. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.",
+      "timeToAcceptance": "زمن القبول",
+      "timeToAcceptanceNote": "المتوسط هذا الشهر، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
+      "acknowledged": "أقرّ العميل بالاستلام",
+      "acknowledgedNote": "عاد الإشعار في الوقت المحدد في {{good}} من {{total}}"
     },
     "tabs": {
       "all": "الكل",
-      "attention": "تحتاج انتباهًا",
+      "needsAttention": "تحتاج انتباهًا",
+      "accepted": "مقبولة",
+      "rejected": "مرفوضة",
       "waiting": "بالانتظار",
-      "cleared": "مكتملة"
+      "superseded": "مُستبدلة"
     },
     "col": {
-      "when": "الوقت",
-      "document": "المستند",
-      "whatHappened": "ما حدث",
-      "network": "الشبكة",
-      "outcome": "النتيجة"
+      "invoice": "الفاتورة",
+      "reference": "مرجع المستند وفوترة",
+      "flow": "المسار",
+      "sent": "أُرسلت",
+      "otaSaid": "ما قالته الهيئة",
+      "customer": "العميل"
     },
-    "channel": {
-      "peppol": "Peppol",
-      "ota": "هيئة الضرائب"
+    "flow": {
+      "b2bDomestic": "محلي بين الشركات",
+      "b2c": "للمستهلك",
+      "export": "تصدير"
     },
-    "direction": {
-      "outbound": "صادر",
-      "inbound": "وارد"
+    "route": {
+      "bothOnPeppol": "كلاهما على Peppol · مسار {{flow}}",
+      "standIn": "معرّف بديل {{id}} · مسار {{flow}}"
     },
-    "kind": {
-      "standardInvoice": "فاتورة قياسية",
-      "simplifiedInvoice": "فاتورة مبسطة",
-      "creditNote": "إشعار دائن",
-      "debitNote": "إشعار مدين",
-      "selfBilled": "فاتورة ذاتية",
-      "bill": "فاتورة واردة"
+    "ref": {
+      "neverAccepted": "لا مرجع فوترة - لم تُقبل قط",
+      "waiting": "بانتظار المرجع",
+      "replacedBy": "استُبدلت بـ {{id}}"
     },
+    "fawtara": "فوترة {{ref}}",
     "outcome": {
-      "cleared": "مكتمل",
+      "accepted": "مقبولة",
+      "rejected": "مرفوضة",
       "waiting": "بالانتظار",
-      "attention": "يحتاج انتباهًا",
-      "failed": "فشل"
+      "superseded": "مُستبدلة"
     },
-    "step": {
-      "sentOverPeppol": "أُرسل عبر Peppol",
-      "arrivedOverPeppol": "وصل عبر Peppol",
-      "tddFiled": "قُدّم مستند البيانات الضريبية",
-      "receiverTddFiled": "قُدّم مستند البيانات الضريبية للمستلم",
-      "tddRejected": "رُفض مستند البيانات الضريبية",
-      "tddResent": "أُعيد إرسال مستند البيانات الضريبية"
+    "verdict": {
+      "noPeppolId": "لا يوجد معرّف Peppol للعميل في سجله.",
+      "totalMismatch": "الإجمالي لا يساوي مجموع السطور بفارق {{amount}} ريال.",
+      "noAnswerYet": "{{elapsed}} دون رد. المعتاد دقيقتان.",
+      "clearedNotDelivered": "أُجيزت خلال {{seconds}} ثانية · بُلّغت ولم تُسلّم لأحد",
+      "disregarded": "أهملتها الهيئة عند قبول النسخة المصححة.",
+      "clearedZeroRated": "أُجيزت خلال {{time}} · صفرية بوصفها تصديرًا",
+      "clearedIn": "أُجيزت خلال {{seconds}} ثانية"
     },
-    "detail": {
-      "deliveredTo": "سُلّم إلى {{id}}",
-      "waitingOta": "أُرسل قبل {{minutes}} دقائق، ولا رد بعد",
-      "heldForReview": "محتجز في «يحتاج انتباهًا» — لم يقبل أحد الرسم",
-      "buyerVatUnknown": "الرقم الضريبي للمشتري غير معروف لدى الهيئة",
-      "acceptedIn": "قُبل خلال {{seconds}} ثوانٍ",
-      "matchedToOrder": "حُفظ وطوبق مع {{po}}",
-      "acceptedOnRetry": "قُبل بعد تصحيح التقريب",
-      "roundingMismatch": "مجاميع السطور لا تساوي إجمالي الفاتورة"
+    "ack": {
+      "received": "استلمها",
+      "notOnPeppol": "ليس على Peppol",
+      "noCustomer": "لا يوجد عميل"
     },
-    "attempt": "المحاولة {{n}}",
-    "action": {
-      "review": "راجعه",
-      "fixAndResend": "صحّح وأعد الإرسال"
+    "today": "اليوم",
+    "sortOptions": {
+      "newest": "الأحدث أولًا",
+      "oldest": "الأقدم أولًا",
+      "invoiceAsc": "رقم الفاتورة"
     },
-    "acceptanceRate": "{{percent}}٪ من الملفات مقبولة",
-    "showing": "عرض {{shown}} من {{total}} حدثًا",
-    "fawtaraId": "معرّف فوترة"
+    "menu": {
+      "openInvoice": "افتح الفاتورة",
+      "openInvoiceNote": "اطّلع على المستند الذي بُلّغ عنه",
+      "resubmit": "صحّح وأعد الإرسال",
+      "resubmitNote": "صحّح المشكلة وأرسل مستندًا جديدًا",
+      "viewCall": "اعرض مكالمة الهيئة",
+      "viewCallNote": "الطلب والرد كما جريا تمامًا",
+      "copyUuid": "انسخ معرّف المستند",
+      "copyUuidNote": "لفتح تذكرة دعم لدى الهيئة",
+      "downloadXml": "نزّل ملف XML الموقّع",
+      "downloadXmlNote": "ما أُرسل فعلًا، مع توقيعه"
+    },
+    "emptyState": {
+      "title": "لم يُبلَّغ عن شيء بعد",
+      "body": "تمتلئ هذه الصفحة تلقائيًا. بمجرد إصدار أول فاتورة، يبني فوتر التقرير الضريبي ويرسله إلى هيئة الضرائب ويعرض لك ما عاد به — عادةً خلال دقيقتين.",
+      "action": "أنشئ أول فاتورة"
+    },
+    "ready": {
+      "headline": "أنت متصل بهيئة الضرائب وجاهز للتبليغ",
+      "testConnection": "اختبر الاتصال",
+      "vat": "مسجّل لضريبة القيمة المضافة",
+      "vatNote": "{{vat}} · مؤكَّد في سجل الهيئة",
+      "peppol": "نشط على شبكة Peppol",
+      "peppolNote": "{{id}} · يمكن للآخرين إيجادك والوصول إليك",
+      "fawtara": "اتصال فوترة مفتوح",
+      "fawtaraNote": "يستجيب خلال {{latency}} · الشهادة سارية حتى {{until}}"
+    }
   },
   "activityEvent": {
     "copyXml": "انسخ ملف XML",
@@ -6029,6 +6055,99 @@
       "accepted": "قُبل وأُبلغ عنه",
       "buyerVatUnknown": "الرقم الضريبي للمشتري غير مسجل لدى الهيئة",
       "roundingMismatch": "الإجمالي شامل الضريبة لا يساوي الصافي زائد الضريبة"
+    }
+  },
+  "activityDetail": {
+    "openInvoice": "افتح الفاتورة",
+    "lookOnPortal": "اعرضها في بوابة الهيئة",
+    "reportedAccepted": "بُلّغت وقُبلت",
+    "earlierSuperseded_one": "استُبدل تقرير سابق واحد",
+    "earlierSuperseded_other": "استُبدلت {{count}} تقارير سابقة",
+    "identity": "إلى {{customer}} · صدرت {{issued}} · {{amount}} ريال · بُلّغت في المحاولة الثانية",
+    "whereItWent": "إلى أين ذهبت",
+    "toTaxAuthority": "إلى هيئة الضرائب",
+    "toTaxAuthorityNote": "مستند البيانات الضريبية، عبر فوترة",
+    "acceptedOnSecond": "قُبلت في المحاولة الثانية",
+    "toCustomer": "إلى {{customer}}",
+    "toCustomerNote": "الفاتورة نفسها، عبر Peppol",
+    "deliveredAccepted": "سُلّمت وقُبلت",
+    "byPerson": "بواسطة حافظ سيف",
+    "step": {
+      "reportBuilt": "أُنشئ التقرير",
+      "sentToFawtara": "أُرسل إلى فوترة",
+      "turnedDown": "رُفض",
+      "correctedAndResent": "صُحّح وأُعيد إرساله",
+      "accepted": "قُبل",
+      "signed": "وُقّعت",
+      "sentOverPeppol": "أُرسلت عبر Peppol",
+      "accessPointTook": "استلمتها نقطة الوصول لديهم",
+      "confirmedReceipt": "أكّدوا الاستلام",
+      "theyAccepted": "قبلوها"
+    },
+    "whyTurnedDown": "لماذا رُفضت المحاولة الأولى",
+    "rejection": {
+      "headline": "الفئة الضريبية لا تطابق النسبة",
+      "body": "وُسم سطران بأنهما <b>صفريان</b> لكنهما حملا ضريبة ٥٪ رغم ذلك. لا تقبل هيئة الضرائب تقريرًا تتعارض فيه الفئة مع النسبة، لأنها لا تستطيع تحديد أيهما الصحيح. ضُبط السطران على <b>النسبة القياسية</b> ومرّ التقرير دون تغيير فيما عدا ذلك."
+    },
+    "seeWhatChanged": "اعرض ما تغيّر",
+    "otherInvoices": "فواتير أخرى بالمشكلة نفسها",
+    "whatOtaHolds": "ما تحتفظ به الهيئة الآن",
+    "liveAtOta": "المعتمدة لدى الهيئة",
+    "superseded": "مُستبدلة",
+    "versions": {
+      "acceptedOn": "قُبلت {{at}}",
+      "turnedDownOn": "رُفضت {{at}}",
+      "noReference": "لم يصدر مرجع فوترة",
+      "v2Body": "هذا هو السجل الذي تحتفظ به الهيئة لـ {{invoice}}. أرسله حافظ سيف بعد تصحيح الفئات الضريبية.",
+      "v1Body": "سحبتها الهيئة في ٩ يونيو عند قبول التقرير المصحح. تبقى هنا لأن الأرشيف لا يفقد شيئًا، لكنها لا تُحتسب."
+    },
+    "whichRoute": "أي مسار سلكت",
+    "route": {
+      "scenario": "السيناريو",
+      "flowOne": "المسار ١ - محلي بين الشركات، الطرفان على Peppol",
+      "documentsExchanged": "المستندات المتبادلة",
+      "documents": "فاتورة، مستند ضريبي، رسالتا حالة",
+      "yourId": "معرّفك في الشبكة",
+      "theirId": "معرّفهم في الشبكة",
+      "standIn": "معرّف بديل مستخدم",
+      "noStandIn": "لا يوجد - فهم مسجّلون، لذا استُخدم معرّفهم الحقيقي",
+      "profile": "الملف"
+    },
+    "checkItYourself": "تحقق بنفسك",
+    "fawtaraReference": "مرجع فوترة",
+    "tddUuid": "معرّف المستند الضريبي",
+    "acceptedLabel": "قُبلت",
+    "copyReference": "انسخ المرجع",
+    "copiedReference": "نُسخ",
+    "openPortal": "افتح البوابة",
+    "howLongKept": "مدة الحفظ",
+    "retention": {
+      "keptUntil": "تُحفظ حتى",
+      "timeRemaining": "المتبقي",
+      "remaining": "٩ سنوات و١٠ أشهر",
+      "reasonLabel": "السبب",
+      "reason": "قانون ضريبة القيمة المضافة العماني · ١٠ سنوات",
+      "integrity": "السلامة",
+      "checkedToday": "فُحصت اليوم"
+    },
+    "takeACopy": "احصل على نسخة",
+    "getZip": "تنزيل ZIP",
+    "copies": {
+      "accepted": "التقرير المقبول",
+      "acceptedMeta": "XML المستند · النسخة ٢",
+      "withdrawn": "التقرير المسحوب",
+      "withdrawnMeta": "XML المستند · النسخة ١",
+      "ack": "إقرار الهيئة",
+      "ackMeta": "إثباتك بأنه قُبل",
+      "replies": "ردود العميل",
+      "repliesMeta": "رسالتا الحالة",
+      "invoice": "الفاتورة",
+      "invoiceMeta": "XML الموقّع وملف PDF"
+    },
+    "sendItAgain": "أعد الإرسال",
+    "resend": {
+      "body": "قُبلت بالفعل، فلا شيء لإعادة إرساله. إن صححت هذه الفاتورة لاحقًا، يخرج تقرير جديد وتُسحب هذه بالطريقة نفسها التي سُحبت بها النسخة الأولى.",
+      "nothing": "لا شيء لإعادة إرساله"
     }
   }
 }
