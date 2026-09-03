@@ -5915,84 +5915,110 @@
   },
   "activity": {
     "title": "Activity",
-    "subtitle": "Every step your documents take through Peppol and the Tax Authority, newest first. Nothing here is a status you set — it is what the networks replied.",
-    "searchPlaceholder": "Search a document or a party...",
+    "subtitle": "Every invoice you send is reported to the Oman Tax Authority as a Tax Data Document.",
+    "callLog": "The OTA call log",
+    "complianceReport": "Compliance report",
+    "searchPlaceholder": "Invoice number, TDD UUID",
     "filters": "Filters",
-    "allKinds": "All document types",
+    "sort": "Sort",
+    "allFlows": "All flows",
     "empty": "Nothing matches what you are looking for.",
-    "today": "Today",
-    "yesterday": "Yesterday",
+    "rowActions": "Row actions",
+    "showing": "Showing {{shown}} of {{total}} submissions",
     "kpi": {
-      "cleared": "Cleared",
-      "clearedNote": "Through both Peppol and the OTA",
-      "waiting": "Waiting on the OTA",
-      "waitingNote": "Oldest is {{minutes}} minutes old",
-      "attention": "Needs attention",
-      "attentionNote": "Nothing moves until these are dealt with",
-      "volume": "Events today",
-      "volumeNote": "Across {{count}} documents"
+      "accepted": "Accepted by the OTA",
+      "acceptedBreakdown": "{{accepted}} accepted · {{rejected}} rejected · {{waiting}} still waiting",
+      "waitingOnYou": "Waiting on you",
+      "waitingOnYouNote": "Rejected and not yet corrected. Until they're fixed, those sales aren't reported.",
+      "timeToAcceptance": "Time to acceptance",
+      "timeToAcceptanceNote": "Average this month, down from {{previous}}. Well inside the 24-hour rule.",
+      "acknowledged": "Customer acknowledged",
+      "acknowledgedNote": "MLS came back in time on {{good}} of {{total}}"
     },
     "tabs": {
       "all": "All",
-      "attention": "Needs attention",
-      "waiting": "Waiting",
-      "cleared": "Cleared"
+      "needsAttention": "Needs attention",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "waiting": "Still waiting",
+      "superseded": "Superseded"
     },
     "col": {
-      "when": "When",
-      "document": "Document",
-      "whatHappened": "What happened",
-      "network": "Network",
-      "outcome": "Outcome"
+      "invoice": "Invoice",
+      "reference": "TDD and Fawtara reference",
+      "flow": "Which flow",
+      "sent": "Sent",
+      "otaSaid": "What the OTA said",
+      "customer": "Customer"
     },
-    "channel": {
-      "peppol": "Peppol",
-      "ota": "Tax Authority"
+    "flow": {
+      "b2bDomestic": "B2B Domestic",
+      "b2c": "B2C",
+      "export": "Export"
     },
-    "direction": {
-      "outbound": "Sent",
-      "inbound": "Received"
+    "route": {
+      "bothOnPeppol": "Both on Peppol · flow {{flow}}",
+      "standIn": "Stand-in ID {{id}} · flow {{flow}}"
     },
-    "kind": {
-      "standardInvoice": "Standard invoice",
-      "simplifiedInvoice": "Simplified invoice",
-      "creditNote": "Credit note",
-      "debitNote": "Debit note",
-      "selfBilled": "Self-billed invoice",
-      "bill": "Bill"
+    "ref": {
+      "neverAccepted": "No Fawtara ref - never accepted",
+      "waiting": "Waiting for the reference",
+      "replacedBy": "Replaced by {{id}}"
     },
+    "fawtara": "Fawtara {{ref}}",
     "outcome": {
-      "cleared": "Cleared",
-      "waiting": "Waiting",
-      "attention": "Needs attention",
-      "failed": "Failed"
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "waiting": "Still waiting",
+      "superseded": "Superseded"
     },
-    "step": {
-      "sentOverPeppol": "Sent over Peppol",
-      "arrivedOverPeppol": "Arrived over Peppol",
-      "tddFiled": "Tax Data Document filed",
-      "receiverTddFiled": "Receiver-side TDD filed",
-      "tddRejected": "Tax Data Document rejected",
-      "tddResent": "Tax Data Document resent"
+    "verdict": {
+      "noPeppolId": "The customer has no Peppol ID on their record.",
+      "totalMismatch": "The total doesn't equal the lines added up out by OMR {{amount}}.",
+      "noAnswerYet": "{{elapsed}} and no answer. Usually two minutes.",
+      "clearedNotDelivered": "Cleared in {{seconds}}s · reported, not delivered to anyone",
+      "disregarded": "The OTA disregarded when the corrected version was accepted.",
+      "clearedZeroRated": "Cleared in {{time}} · zero-rated as an export",
+      "clearedIn": "Cleared in {{seconds}}s"
     },
-    "detail": {
-      "deliveredTo": "Delivered to {{id}}",
-      "waitingOta": "Sent {{minutes}} minutes ago, no reply yet",
-      "heldForReview": "Held in Needs attention — nobody has accepted the charge",
-      "buyerVatUnknown": "Buyer VAT number is not one the Authority recognises",
-      "acceptedIn": "Accepted in {{seconds}} seconds",
-      "matchedToOrder": "Filed and matched to {{po}}",
-      "acceptedOnRetry": "Accepted after the rounding was corrected",
-      "roundingMismatch": "Line totals did not add up to the invoice total"
+    "ack": {
+      "received": "Received it",
+      "notOnPeppol": "Not on Peppol",
+      "noCustomer": "No customer"
     },
-    "attempt": "Attempt {{n}}",
-    "action": {
-      "review": "Review it",
-      "fixAndResend": "Fix and resend"
+    "today": "Today",
+    "sortOptions": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "invoiceAsc": "Invoice number"
     },
-    "acceptanceRate": "{{percent}}% of filings accepted",
-    "showing": "Showing {{shown}} of {{total}} events",
-    "fawtaraId": "Fawtara ID"
+    "menu": {
+      "openInvoice": "Open the invoice",
+      "openInvoiceNote": "See the document this was reported from",
+      "resubmit": "Fix and resubmit",
+      "resubmitNote": "Correct the problem and send a new TDD",
+      "viewCall": "View the OTA call",
+      "viewCallNote": "The request and reply, exactly as they went",
+      "copyUuid": "Copy the TDD UUID",
+      "copyUuidNote": "For a support ticket with the Authority",
+      "downloadXml": "Download the signed XML",
+      "downloadXmlNote": "What was actually sent, with its signature"
+    },
+    "emptyState": {
+      "title": "Nothing reported yet",
+      "body": "This page fills itself. The moment you issue your first invoice, Fawtir builds the tax report, sends it to the Tax Authority, and shows you what came back — usually within a couple of minutes.",
+      "action": "Create your first invoice"
+    },
+    "ready": {
+      "headline": "You're connected to the Tax Authority and ready to report",
+      "testConnection": "Test the connection",
+      "vat": "Registered for VAT",
+      "vatNote": "{{vat}} · confirmed against the OTA register",
+      "peppol": "Live on the Peppol network",
+      "peppolNote": "{{id}} · others can find and reach you",
+      "fawtara": "Fawtara connection open",
+      "fawtaraNote": "Answering in {{latency}} · certificate valid to {{until}}"
+    }
   },
   "activityEvent": {
     "copyXml": "Copy the XML",
@@ -6028,5 +6054,467 @@
       "buyerVatUnknown": "Buyer VAT number is not registered with the Authority",
       "roundingMismatch": "Tax inclusive amount does not equal net plus tax"
     }
+  },
+  "activityDetail": {
+    "openInvoice": "Open invoice",
+    "lookOnPortal": "Look on OTA portal",
+    "reportedAccepted": "Reported and accepted",
+    "earlierSuperseded_one": "{{count}} earlier report superseded",
+    "earlierSuperseded_other": "{{count}} earlier reports superseded",
+    "identity": "To {{customer}} · issued {{issued}} · OMR {{amount}} · reported on the second attempt",
+    "whereItWent": "Where it went",
+    "toTaxAuthority": "To the Tax Authority",
+    "toTaxAuthorityNote": "The Tax Data Document, via Fawtara",
+    "acceptedOnSecond": "Accepted on 2nd try",
+    "toCustomer": "To {{customer}}",
+    "toCustomerNote": "The invoice itself, over Peppol",
+    "deliveredAccepted": "Delivered & accepted",
+    "byPerson": "by Hafidh Saif",
+    "step": {
+      "reportBuilt": "Report built",
+      "sentToFawtara": "Sent to Fawtara",
+      "turnedDown": "Turned down",
+      "correctedAndResent": "Corrected and resent",
+      "accepted": "Accepted",
+      "signed": "Signed",
+      "sentOverPeppol": "Sent over Peppol",
+      "accessPointTook": "Their access point took it",
+      "confirmedReceipt": "They confirmed receipt",
+      "theyAccepted": "They accepted it"
+    },
+    "whyTurnedDown": "Why the first one was turned down",
+    "rejection": {
+      "headline": "The tax category didn't match the rate",
+      "body": "Two lines were marked <b>zero-rated</b> but carried VAT at 5% anyway. The Tax Authority won't accept a report where the category and the rate disagree, because it can't tell which one is right. The lines were set to <b>standard rate</b> and the report went through unchanged otherwise."
+    },
+    "seeWhatChanged": "See what changed",
+    "otherInvoices": "Other invoices with this problem",
+    "whatOtaHolds": "What the OTA holds now",
+    "liveAtOta": "Live at the OTA",
+    "superseded": "Superseded",
+    "versions": {
+      "acceptedOn": "Accepted {{at}}",
+      "turnedDownOn": "Turned down {{at}}",
+      "noReference": "no Fawtara reference issued",
+      "v2Body": "This is the record the Tax Authority has for {{invoice}}. Sent by Hafidh Saif after the tax categories were corrected.",
+      "v1Body": "Withdrawn by the OTA on 9 June when the corrected report was accepted. Kept here because the archive can't lose anything, but it counts for nothing."
+    },
+    "whichRoute": "Which route it took",
+    "route": {
+      "scenario": "Scenario",
+      "flowOne": "Flow 1 - domestic B2B, both sides on Peppol",
+      "documentsExchanged": "Documents exchanged",
+      "documents": "Invoice, TDD, MLS ×2",
+      "yourId": "Your participant ID",
+      "theirId": "Their participant ID",
+      "standIn": "Stand-in ID used",
+      "noStandIn": "None - they're registered, so their real ID was used",
+      "profile": "Profile"
+    },
+    "checkItYourself": "Check it yourself",
+    "fawtaraReference": "Fawtara reference",
+    "tddUuid": "TDD UUID",
+    "acceptedLabel": "Accepted",
+    "copyReference": "Copy reference",
+    "copiedReference": "Copied",
+    "openPortal": "Open the portal",
+    "howLongKept": "How long it's kept",
+    "retention": {
+      "keptUntil": "Kept until",
+      "timeRemaining": "Time remaining",
+      "remaining": "9 years 10 months",
+      "reasonLabel": "Reason",
+      "reason": "Oman VAT Law · 10 years",
+      "integrity": "Integrity",
+      "checkedToday": "Checked today"
+    },
+    "takeACopy": "Take a copy",
+    "getZip": "Get ZIP",
+    "copies": {
+      "accepted": "The accepted report",
+      "acceptedMeta": "TDD XML · version 2",
+      "withdrawn": "The withdrawn report",
+      "withdrawnMeta": "TDD XML · version 1",
+      "ack": "The OTA's acknowledgement",
+      "ackMeta": "Your proof it was accepted",
+      "replies": "The customer's replies",
+      "repliesMeta": "Both MLS messages",
+      "invoice": "The invoice",
+      "invoiceMeta": "Signed XML and the PDF"
+    },
+    "sendItAgain": "Send it again",
+    "resend": {
+      "body": "Already accepted, so there's nothing to resend. If you correct this invoice later, a fresh report goes out and this one is withdrawn in the same way version 1 was.",
+      "nothing": "Nothing to resend"
+    }
+  },
+  "callLog": {
+    "title": "The OTA call log",
+    "subtitle": "Every request Fawtir has made to the Tax Authority on your account, with what came back.",
+    "backToSubmissions": "Back to submissions",
+    "more": "More",
+    "privacy": "<b>Only owners and admins can see this page.</b> It shows technical detail about your own account's traffic - no invoice contents, and nothing from any other business.",
+    "searchPlaceholder": "Invoice number, TDD UUID",
+    "filters": "Filters",
+    "sort": "Sort",
+    "allResults": "All results",
+    "empty": "No calls match what you are looking for.",
+    "showing": "Showing {{shown}} of {{total}} calls today",
+    "kpi": {
+      "callsToday": "Calls today",
+      "callsTodayNote": "Submissions, status checks and acknowledgements",
+      "answered": "Answered normally",
+      "answeredNote": "{{good}} of {{total}} · {{failed}} timed out or errored",
+      "roundTrip": "Round trip, typical",
+      "roundTripNote": "Normally {{normal}}s. The OTA has been slow since {{since}}.",
+      "slowest": "Slowest today",
+      "slowestNote": "At {{at}} · timed out and retried on its own"
+    },
+    "col": {
+      "when": "When",
+      "call": "The call",
+      "about": "What it was about",
+      "cameBack": "Came back",
+      "took": "Took",
+      "means": "What it means"
+    },
+    "ago": {
+      "seconds_one": "{{count}} second ago",
+      "seconds_other": "{{count}} seconds ago",
+      "minutes_one": "{{count}} minute ago",
+      "minutes_other": "{{count}} minutes ago",
+      "hours_one": "{{count}} hour ago",
+      "hours_other": "{{count}} hours ago"
+    },
+    "purpose": {
+      "askingDecided": "Asking whether {{invoice}} has been decided yet",
+      "reportingNewSale": "Reporting a new sale",
+      "passingAck": "Passing on the customer's acknowledgement",
+      "firstTry": "Reporting a new sale · first try",
+      "retry": "Reporting a new sale · retry"
+    },
+    "status": {
+      "stillWithThem": "Still with them",
+      "accepted": "Accepted",
+      "recorded": "Recorded",
+      "noAnswer": "No answer",
+      "takenIn": "Taken in"
+    },
+    "speed": {
+      "fast": "fast",
+      "normal": "normal",
+      "slow": "slow",
+      "timedOut": "timed out"
+    },
+    "result": {
+      "ok": "Went through",
+      "pending": "Still deciding",
+      "rejected": "Turned down",
+      "noAnswer": "No answer"
+    },
+    "meaning": {
+      "acceptedNoDecision": "Accepted for processing but no decision yet. Fawtir will keep asking every ten minutes.",
+      "acceptedWithRef": "Accepted and given Fawtara reference {{ref}}.",
+      "noParticipantId": "The buyer has no participant identifier. Add a Peppol ID to {{customer}} and send it again.",
+      "deliveryConfirmed": "The customer's access point confirmed delivery, and the OTA has it on record.",
+      "otaDidNotAnswer": "The OTA didn't answer in time. Nothing wrong at your end - Fawtir sent it again two minutes later and it went through.",
+      "takenNotDecided": "Taken in but not yet decided. This is the submission still waiting."
+    },
+    "sortOptions": {
+      "newest": "Newest first",
+      "slowest": "Slowest first",
+      "problemsFirst": "Problems first"
+    }
+  },
+  "tddResubmit": {
+    "breadcrumb": "Put it right",
+    "title": "Put {{invoice}} right and send it again",
+    "subtitle": "The invoice reached {{customer}}. It's the report to the Tax Authority that was turned down, so the sale currently isn't declared.",
+    "openInvoice": "Open invoice",
+    "rejection": {
+      "headline": "The Tax Authority couldn't tell who the buyer was",
+      "body": "Every report has to name the buyer with a Peppol participant identifier, and <b>{{customer}} has none on their record</b>. Without it the OTA has no way to tie the sale to a registered business, so it won't take the report. Nothing is wrong with the invoice itself — the customer received it and the figures are fine.",
+      "turnedDown": "Turned down",
+      "attemptsSoFar": "Attempts so far",
+      "undeclaredFor": "Undeclared for",
+      "sevenHours": "7 hours",
+      "sameCause": "Same cause this week",
+      "invoices_one": "{{count}} invoice",
+      "invoices_other": "{{count}} invoices"
+    },
+    "fixItWhere": "Fix it where it went wrong",
+    "customerNote": "VAT number is on file. The Peppol ID never was — the record was created in March.",
+    "openCustomer": "Open the customer",
+    "peppolIdLabel": "Their Peppol participant ID",
+    "peppolIdHint": "Oman uses scheme 0248 followed by the VAT number, so it's 0248:{{vat}}.",
+    "peppolIdInvalid": "That is not an Oman participant ID. It should read 0248: then their VAT number.",
+    "whatWillChange": "What will change in the report",
+    "col": {
+      "field": "Field",
+      "turnedDown": "Report that was turned down",
+      "aboutToSend": "Report about to be sent"
+    },
+    "empty": "empty",
+    "unchanged": "Unchanged",
+    "field": {
+      "buyerParticipantId": "Buyer participant ID",
+      "invoiceNumber": "Invoice number",
+      "buyerVat": "Buyer VAT number",
+      "linesAndQuantities": "Lines and quantities",
+      "totalIncludingVat": "Total including VAT",
+      "vat": "VAT"
+    },
+    "whatItCosts": "What sending again costs",
+    "quotaHeadline": "Every attempt counts against your monthly allowance",
+    "quotaUsed": "{{count}} already used",
+    "quotaAboutTo": "{{count}} about to be used",
+    "quotaLeft": "{{count}} left of {{allowance}}",
+    "ifYouLeaveIt": "If you leave it",
+    "leaveIt": {
+      "salesUndeclared": "<b>{{amount}}</b> of sales stay undeclared across the three invoices.",
+      "vatMissing": "<b>{{amount}}</b> of VAT won't appear on your Q3 return.",
+      "unreported": "They'll show as unreported on any compliance report you produce.",
+      "futureFails": "Every future invoice to this customer fails the same way."
+    },
+    "thisAttempt": "This attempt",
+    "attempt": {
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "turnedDown": "Turned down",
+      "willBeAttempt": "This will be attempt",
+      "fixingAlongside": "Fixing alongside",
+      "moreInvoices": "{{count}} more invoices",
+      "quotaAfter": "Quota after this",
+      "left": "{{count}} left"
+    },
+    "stopRecurring": "Stop it recurring",
+    "stopRecurringBody": "This has cost you three rejections because a business customer can be saved without a Peppol ID. Making the field required would have caught it when the record was created.",
+    "makeRequired": "Make Peppol ID required",
+    "madeRequired": "Now required",
+    "footer": "{{invoices}} invoices · {{quota}} from your quota · nothing goes to the customer",
+    "cancel": "Cancel",
+    "saveOnly": "Save the fix, don't send yet",
+    "fixAndSend": "Fix and send all three",
+    "fixAndSendOne": "Fix and send"
+  },
+  "complianceReport": {
+    "title": "Compliance report",
+    "whichPeriod": "Which period",
+    "period": {
+      "thisMonth": "This month",
+      "q2": "Q2 2026",
+      "thisYear": "This year",
+      "custom": "Custom"
+    },
+    "whatGoesIn": "What goes in it",
+    "always": "Always",
+    "section": {
+      "register": "Every invoice and its TDD",
+      "registerNote": "Invoice number, date, customer, amount, TDD UUID, Fawtara reference, status and timestamp",
+      "rejections": "Rejections and how they were put right",
+      "rejectionsNote": "What the OTA objected to, when it was corrected, and which resubmission was accepted",
+      "superseded": "Superseded submissions",
+      "supersededNote": "Which TDDs the OTA disregarded, and which one is live for each invoice",
+      "flows": "Which flow each invoice took",
+      "flowsNote": "The document scenario and any stand-in participant ID used for B2C or export",
+      "xml": "The TDD XML files themselves",
+      "xmlNote": "Adds a zip alongside the report — {{files}} files, about {{size}}",
+      "acks": "OTA acknowledgements and MLS replies",
+      "acksNote": "Your evidence that each report was received and each invoice delivered"
+    },
+    "formatLabel": "Format",
+    "format": {
+      "pdf": "PDF",
+      "excel": "Excel"
+    },
+    "formatNote": {
+      "pdf": "Signed, paginated, with a summary page. What an auditor expects.",
+      "excel": "One row per submission, so they can sort and filter it themselves."
+    },
+    "and": " and ",
+    "whatYoullGet": "What you'll get",
+    "summary": {
+      "invoices": "Invoices in the period",
+      "accepted": "Accepted by the OTA",
+      "correctedAfterRejection": "Rejected then corrected",
+      "stillNotReported": "Still not reported",
+      "totalInvoiced": "Total invoiced",
+      "vatReported": "VAT reported"
+    },
+    "nInvoices_one": "{{count}} invoice",
+    "nInvoices_other": "{{count}} invoices",
+    "build": "Build Report",
+    "built": {
+      "title": "Your compliance report",
+      "subtitle": "Built {{at}} · covering {{period}}",
+      "download": "Download",
+      "rebuild": "Build another",
+      "ready": "Ready to hand over",
+      "readyNote": "Signed with your certificate and stamped with the moment it was built, so an auditor can tell it has not been edited since.",
+      "contents": "What's inside",
+      "sectionsIncluded": "Sections included",
+      "filesLabel": "Files",
+      "pages": "{{count}} pages",
+      "rows": "{{count}} rows",
+      "checksum": "Checksum",
+      "builtBy": "Built by",
+      "coverage": "Coverage",
+      "everyInvoice": "Every invoice in the period, with nothing filtered out"
+    }
+  },
+  "builtReport": {
+    "ready": "Ready",
+    "fixedToVersion": "Fixed to this version",
+    "subtitle": "{{range}} · built {{built}} · {{pages}} pages · kept in Documents for ten years",
+    "print": "Print",
+    "downloadExcel": "Download Excel",
+    "shareSecurely": "Share securely",
+    "pageOf": "Page {{page}} of {{total}}",
+    "summaryAndAttestation": "Summary and attestation",
+    "asp": "Accredited Service Provider · Oman",
+    "preparedFor": "Prepared for",
+    "peppolParticipant": "Peppol participant",
+    "reportingSince": "Reporting through Fawtir since {{date}}",
+    "prepared": "Prepared",
+    "by": "by {{who}}",
+    "reportReference": "Report reference",
+    "coversBranches": "Covers all branches · one branch active",
+    "whatWasReported": "What was reported",
+    "stat": {
+      "invoicesIssued": "Invoices issued",
+      "includingCreditNotes": "Including {{count}} credit notes",
+      "acceptedByOta": "Accepted by the OTA",
+      "percentOfQuarter": "{{percent}}% of the quarter",
+      "neverReported": "Never reported",
+      "setOutBelow": "Set out below",
+      "totalInvoiced": "Total invoiced",
+      "includingVat": "Including VAT",
+      "vatReported": "VAT reported",
+      "allStandard": "All at the standard 5%",
+      "notInVatFigure": "Not in the VAT figure",
+      "fromUnreported": "From the unreported invoice"
+    },
+    "thingsAuditorShouldKnow": "Things an auditor should know",
+    "neverAcceptedHeadline": "One invoice was never accepted by the Tax Authority",
+    "neverAcceptedBody": "<b>{{invoice}}</b>, issued {{issued}} to {{customer}} for <b>{{total}}</b>. The report was refused the same day under {{code}} because the tax category on one line disagreed with the rate applied. It has not been corrected or resubmitted, so <b>{{vat}} of VAT sits outside the figure above</b> and the sale is undeclared as at the date of this report.",
+    "alsoWorthNoting": "Also worth noting",
+    "correctedNote": "<b>{{count}} invoices were refused once and accepted on a second attempt.</b> In each case the correction changed a tax category or a participant identifier: no amount, quantity or date was altered. The earlier reports were withdrawn by the OTA and the accepted versions are the live records. All five are listed on page 3.",
+    "numberingNote": "<b>No invoice was issued outside Fawtir during the period.</b> Numbering runs unbroken from {{from}} to {{to}} with no gaps.",
+    "registerFirstRows": "The register · first rows of {{total}}",
+    "col": {
+      "invoice": "Invoice",
+      "date": "Date",
+      "customer": "Customer",
+      "total": "Total",
+      "vat": "VAT",
+      "reference": "Fawtara reference",
+      "outcome": "Outcome"
+    },
+    "outcome": {
+      "accepted": "Accepted",
+      "corrected": "Corrected",
+      "notReported": "Not reported"
+    },
+    "remainingRows": "The remaining {{count}} rows continue on pages {{from}} to {{to}}.",
+    "attestation": "Attestation",
+    "attestationBody": "Fawtir has prepared this report from its own records of what was transmitted to and received from the Oman Tax Authority through the Fawtara platform. Every entry is supported by a stored Tax Data Document and, where accepted, by an acknowledgement carrying the Fawtara reference shown. <b>These records cannot be edited</b> and each file carries a fingerprint taken at the moment it was stored.",
+    "attestationLimits": "<b>What this report does not do.</b> It states what was reported, not whether the underlying invoices are correct. Fawtir does not audit the amounts, the tax treatment or the trade behind them. Figures here should agree with the Tax Authority's own records, which can be checked invoice by invoice using the Fawtara references above.",
+    "fingerprintLabel": "Fingerprint of this report ·",
+    "preparedBy": "Prepared by",
+    "signedAutomatically": "Signed automatically · {{at}}",
+    "requestedBy": "Requested by",
+    "verifyThisCopy": "Verify this copy",
+    "confirmsFingerprint": "Confirms the fingerprint matches",
+    "thisReport": "This report",
+    "periodLabel": "Period",
+    "invoicesLabel": "Invoices",
+    "acceptedLabel": "Accepted",
+    "unreportedLabel": "Unreported",
+    "pagesLabel": "Pages",
+    "builtLabel": "Built",
+    "jumpTo": "Jump to",
+    "contents": {
+      "summary": "Summary and attestation",
+      "rejections": "Rejections and corrections",
+      "corrected": "The five corrected invoices",
+      "register": "The full register",
+      "withdrawn": "Withdrawn reports",
+      "flows": "Which flow each invoice took"
+    },
+    "beforeYouSend": "Before you send it",
+    "beforeYouSendBody": "{{invoice}} still shows as unreported. If you correct and resubmit it, a new report would show the quarter fully declared.",
+    "putItRight": "Put {{invoice}} right",
+    "rebuildOnceFixed": "Rebuild once it's fixed",
+    "sendingItOut": "Sending it out",
+    "sharedSoFar": "Shared so far",
+    "nobody": "Nobody",
+    "downloads": "Downloads",
+    "noneYet": "None yet"
+  },
+  "callDetail": {
+    "subtitle": "{{date}}, {{at}} · about {{invoice}} · answered in {{seconds}}",
+    "copyCurl": "Copy as cURL",
+    "downloadBoth": "Download both",
+    "openInvoice": "Open {{invoice}}",
+    "copied": "Copied",
+    "copyBody": "Copy the body",
+    "downloadBody": "Download the body",
+    "sent": "Sent",
+    "cameBack": "Came back",
+    "whatFawtirSent": "What Fawtir sent",
+    "theTaxDataDocument": "the Tax Data Document",
+    "whatOtaAnswered": "What the OTA answered",
+    "secondsLater": "{{seconds}} later",
+    "secondBySecond": "What happened, second by second",
+    "startToFinish": "{{seconds}} from start to finish",
+    "step": {
+      "built": "Report built and signed",
+      "builtNote": "took 184ms · 4.8 KB",
+      "connected": "Connected to Fawtara",
+      "connectedNote": "handshake 96ms · certificate valid to Mar 2027",
+      "sent": "Sent",
+      "sentNote": "upload 41ms",
+      "waiting": "Waiting on the OTA",
+      "waitingNote": "1.77s · all of the delay was on their side",
+      "refused": "Refused · {{status}}",
+      "refusedNote": "one fatal rule broken",
+      "noRetry": "No retry attempted",
+      "noRetryNote": "The answer said retryable: false, so Fawtir stopped and raised it with you instead of using another submission."
+    },
+    "theCall": "The call",
+    "when": "When",
+    "type": {
+      "submit": "Submit a report"
+    },
+    "answer": {
+      "refused": "refused"
+    },
+    "roundTrip": "Round trip",
+    "attempt": "Attempt",
+    "attemptOf": "{{n}} of {{total}}",
+    "quotaUsed": "Quota used",
+    "whereTimeWent": "Where the time went",
+    "phase": {
+      "building": "Building it",
+      "connecting": "Connecting",
+      "sending": "Sending",
+      "theirSide": "Their side"
+    },
+    "referencesToQuote": "References to quote",
+    "requestId": "Request ID",
+    "traceId": "OTA trace ID",
+    "documentUuid": "Document UUID",
+    "copyAllThree": "Copy all three",
+    "relatedCalls": "Related calls",
+    "sameInvoice": "Same invoice",
+    "sameErrorCode": "Same error code",
+    "sameCustomer": "Same customer",
+    "showAllThree": "Show all three",
+    "nCalls_one": "{{count}} call",
+    "nCalls_other": "{{count}} calls",
+    "nThisWeek": "{{n}} this week",
+    "nRefused": "{{n}} refused",
+    "typeLabel": "Type",
+    "answerLabel": "Answer"
   }
 }

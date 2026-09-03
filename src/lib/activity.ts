@@ -1,296 +1,293 @@
 /**
- * Activity — Compliance › Activity.
+ * Activity — Compliance › Activity (Figma 131:14102, drawn as "TDD & OTA").
  *
- * Everything that has happened to a document on its way through the two networks it has to
- * satisfy: Peppol, which carries it to the other party, and the Oman Tax Authority, which has to
- * accept the Tax Data Document before the invoice is legally reported.
+ * Every invoice sent is reported to the Oman Tax Authority as a Tax Data Document. Two things
+ * can go wrong and they are independent: the OTA can reject the TDD, and the customer's access
+ * point can fail to acknowledge delivery over Peppol. This screen is the record of both.
  *
- * The two are separate journeys and either can fail on its own — a bill can reach the customer
- * over Peppol and still be rejected by the OTA — so every event records which network it belongs
- * to and what that network said. Nothing here is a status the user sets; it is all what the
- * outside world did.
+ * One invoice can produce several submissions — a rejection that is corrected and sent again is
+ * two — so the table counts submissions while the acceptance rate counts invoices. That is why
+ * 1,643 submissions sit under 1,624 invoices.
  */
 
-/** The two networks a document passes through. */
-export type Channel = 'peppol' | 'ota'
+/** What the Authority said about a submission. */
+export type OtaOutcome = 'accepted' | 'rejected' | 'waiting' | 'superseded'
 
-/** What the network said. */
-export type Outcome = 'cleared' | 'waiting' | 'attention' | 'failed'
+/** Which reporting flow the document went down. */
+export type TddFlow = 'b2bDomestic' | 'b2c' | 'export'
 
-/** Which way the document was going. */
-export type Direction = 'outbound' | 'inbound'
+/** Whether the customer's access point acknowledged delivery. */
+export type Acknowledgement = 'received' | 'notOnPeppol' | 'noCustomer'
 
-/** Every kind of document that generates activity. */
-export type DocumentKind =
-  'standardInvoice' | 'simplifiedInvoice' | 'creditNote' | 'debitNote' | 'selfBilled' | 'bill'
-
-export type ActivityEvent = {
+export type Submission = {
   id: string
-  /** The document this happened to. */
-  document: string
-  documentKind: DocumentKind
-  /** Who it went to, or came from. */
-  party: string
-  direction: Direction
-  channel: Channel
-  /** What step of the journey this was. */
-  stepKey: string
-  detailKey: string
-  detailValues?: Record<string, string>
-  outcome: Outcome
-  /** When it happened, newest first in the list. */
-  at: string
-  day: string
-  /** The OTA's own identifier, once it has issued one. */
-  fawtaraUuid?: string
-  /** How many times it has been tried. */
-  attempt?: number
-  /** Offered when something can still be done about it. */
-  actionKey?: string
+  invoice: string
+  customer: string
+  /** Absent on a walk-in sale. */
+  customerAmount: string
+  /** The TDD UUID the OTA issues; every submission has one. */
+  tddUuid: string
+  /** The Fawtara reference, once the OTA has accepted it. */
+  fawtaraRef?: string
+  /** Why there is no Fawtara reference yet. */
+  referenceNoteKey?: string
+  flow: TddFlow
+  /** The Peppol route, or the stand-in ID used when the buyer is not on the network. */
+  routeKey: string
+  routeValues?: Record<string, string>
+  sentDate: string
+  sentTime: string
+  outcome: OtaOutcome
+  /** What the OTA said, in plain words. */
+  verdictKey: string
+  verdictValues?: Record<string, string>
+  acknowledgement: Acknowledgement
+  /** A rejection nobody has corrected yet still needs a person. */
+  needsAttention?: boolean
 }
 
-/**
- * A working day of traffic.
- *
- * The mix is deliberate: both directions, all six document kinds, and both networks, because the
- * point of the screen is that a single document can be fine on one and stuck on the other.
- */
-export const ACTIVITY: ActivityEvent[] = [
+/** The seven the design draws in full. */
+export const SUBMISSIONS: Submission[] = [
   {
-    id: 'e1',
-    document: 'INV-2044',
-    documentKind: 'standardInvoice',
-    party: 'Nizwa Souq Café',
-    direction: 'outbound',
-    channel: 'ota',
-    stepKey: 'activity.step.tddFiled',
-    detailKey: 'activity.detail.waitingOta',
-    detailValues: { minutes: '3' },
+    id: 's1',
+    invoice: 'INV-2041',
+    customer: 'Barka Resort',
+    customerAmount: '1,842.000',
+    tddUuid: '4b17-9ce2-8a04-31df',
+    referenceNoteKey: 'activity.ref.neverAccepted',
+    flow: 'b2bDomestic',
+    routeKey: 'activity.route.bothOnPeppol',
+    routeValues: { flow: '1' },
+    sentDate: '30 Jul',
+    sentTime: '09:41',
+    outcome: 'rejected',
+    verdictKey: 'activity.verdict.noPeppolId',
+    acknowledgement: 'received',
+    needsAttention: true,
+  },
+  {
+    id: 's2',
+    invoice: 'INV-2039',
+    customer: 'Mouj Marina',
+    customerAmount: '604.800',
+    tddUuid: '9d31-0af7-52bc-77e1',
+    referenceNoteKey: 'activity.ref.neverAccepted',
+    flow: 'b2bDomestic',
+    routeKey: 'activity.route.bothOnPeppol',
+    routeValues: { flow: '1' },
+    sentDate: '29 Jul',
+    sentTime: '16:08',
+    outcome: 'rejected',
+    verdictKey: 'activity.verdict.totalMismatch',
+    verdictValues: { amount: '0.400' },
+    acknowledgement: 'received',
+    needsAttention: true,
+  },
+  {
+    id: 's3',
+    invoice: 'INV-2044',
+    customer: 'Nizwa Café',
+    customerAmount: '318.780',
+    tddUuid: '7f0c-4d91-b3a8-2065',
+    referenceNoteKey: 'activity.ref.waiting',
+    flow: 'b2bDomestic',
+    routeKey: 'activity.route.bothOnPeppol',
+    routeValues: { flow: '1' },
+    sentDate: 'today',
+    sentTime: '06:12',
     outcome: 'waiting',
-    at: '09:41',
-    day: 'today',
-    attempt: 1,
+    verdictKey: 'activity.verdict.noAnswerYet',
+    verdictValues: { elapsed: '3h 40m' },
+    acknowledgement: 'received',
   },
   {
-    id: 'e2',
-    document: 'INV-2044',
-    documentKind: 'standardInvoice',
-    party: 'Nizwa Souq Café',
-    direction: 'outbound',
-    channel: 'peppol',
-    stepKey: 'activity.step.sentOverPeppol',
-    detailKey: 'activity.detail.deliveredTo',
-    detailValues: { id: '0248:OM1100882140' },
-    outcome: 'cleared',
-    at: '09:40',
-    day: 'today',
+    id: 's4',
+    invoice: 'INV-2036',
+    customer: 'Walk-in customer',
+    customerAmount: '4.200',
+    tddUuid: '2a88-71ef-c049-13b6',
+    fawtaraRef: 'OM-2026-0084398',
+    flow: 'b2c',
+    routeKey: 'activity.route.standIn',
+    routeValues: { id: '997770000099', flow: '7' },
+    sentDate: '22 Jun',
+    sentTime: '18:33',
+    outcome: 'accepted',
+    verdictKey: 'activity.verdict.clearedNotDelivered',
+    verdictValues: { seconds: '47' },
+    acknowledgement: 'noCustomer',
   },
   {
-    id: 'e3',
-    document: 'DN-0091',
-    documentKind: 'debitNote',
-    party: 'Gulf Cold Logistics',
-    direction: 'inbound',
-    channel: 'peppol',
-    stepKey: 'activity.step.arrivedOverPeppol',
-    detailKey: 'activity.detail.heldForReview',
-    outcome: 'attention',
-    at: '08:12',
-    day: 'today',
-    actionKey: 'activity.action.review',
+    id: 's5',
+    invoice: 'INV-1993',
+    customer: 'Barka Resort',
+    customerAmount: '1,842.000',
+    tddUuid: '6c25-b840-1f97-4ae3',
+    referenceNoteKey: 'activity.ref.replacedBy',
+    flow: 'b2bDomestic',
+    routeKey: 'activity.route.bothOnPeppol',
+    routeValues: { flow: '1' },
+    sentDate: '8 Jun',
+    sentTime: '11:20',
+    outcome: 'superseded',
+    verdictKey: 'activity.verdict.disregarded',
+    acknowledgement: 'received',
   },
   {
-    id: 'e4',
-    document: 'INV-2043',
-    documentKind: 'standardInvoice',
-    party: 'Muscat Grand Hotel',
-    direction: 'outbound',
-    channel: 'ota',
-    stepKey: 'activity.step.tddRejected',
-    detailKey: 'activity.detail.buyerVatUnknown',
-    outcome: 'attention',
-    at: '07:55',
-    day: 'today',
-    attempt: 1,
-    actionKey: 'activity.action.fixAndResend',
+    id: 's6',
+    invoice: 'INV-2012',
+    customer: 'Doha Traders',
+    customerAmount: '5,640.000',
+    tddUuid: '0e94-af13-6d27-8850',
+    fawtaraRef: 'OM-2026-0084201',
+    flow: 'export',
+    routeKey: 'activity.route.standIn',
+    routeValues: { id: '997770000097', flow: '11' },
+    sentDate: '14 Jun',
+    sentTime: '10:02',
+    outcome: 'accepted',
+    verdictKey: 'activity.verdict.clearedZeroRated',
+    verdictValues: { time: '2m 09s' },
+    acknowledgement: 'notOnPeppol',
   },
   {
-    id: 'e5',
-    document: 'SI-0912',
-    documentKind: 'simplifiedInvoice',
-    party: 'Counter sale',
-    direction: 'outbound',
-    channel: 'ota',
-    stepKey: 'activity.step.tddFiled',
-    detailKey: 'activity.detail.acceptedIn',
-    detailValues: { seconds: '2' },
-    outcome: 'cleared',
-    at: '07:30',
-    day: 'today',
-    fawtaraUuid: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6',
-  },
-  {
-    id: 'e6',
-    document: 'MR-INV-8821',
-    documentKind: 'bill',
-    party: 'Muscat Roastery Co',
-    direction: 'inbound',
-    channel: 'peppol',
-    stepKey: 'activity.step.arrivedOverPeppol',
-    detailKey: 'activity.detail.matchedToOrder',
-    detailValues: { po: 'PO-0031' },
-    outcome: 'cleared',
-    at: '16:22',
-    day: 'yesterday',
-  },
-  {
-    id: 'e7',
-    document: 'MR-INV-8821',
-    documentKind: 'bill',
-    party: 'Muscat Roastery Co',
-    direction: 'inbound',
-    channel: 'ota',
-    stepKey: 'activity.step.receiverTddFiled',
-    detailKey: 'activity.detail.acceptedIn',
-    detailValues: { seconds: '3' },
-    outcome: 'cleared',
-    at: '16:23',
-    day: 'yesterday',
-    fawtaraUuid: '9f2b7c10-5a41-42e8-9c33-6d1b0a77e004',
-  },
-  {
-    id: 'e8',
-    document: 'CN-0118',
-    documentKind: 'creditNote',
-    party: 'Barka Beach Resort',
-    direction: 'outbound',
-    channel: 'peppol',
-    stepKey: 'activity.step.sentOverPeppol',
-    detailKey: 'activity.detail.deliveredTo',
-    detailValues: { id: '0248:OM1100447301' },
-    outcome: 'cleared',
-    at: '14:05',
-    day: 'yesterday',
-  },
-  {
-    id: 'e9',
-    document: 'INV-2038',
-    documentKind: 'standardInvoice',
-    party: 'Al Mouj Marina',
-    direction: 'outbound',
-    channel: 'ota',
-    stepKey: 'activity.step.tddResent',
-    detailKey: 'activity.detail.acceptedOnRetry',
-    outcome: 'cleared',
-    at: '11:48',
-    day: 'yesterday',
-    attempt: 2,
-    fawtaraUuid: '3c9a1e77-2b04-4f6a-9de1-88b2c4f10a55',
-  },
-  {
-    id: 'e10',
-    document: 'INV-2038',
-    documentKind: 'standardInvoice',
-    party: 'Al Mouj Marina',
-    direction: 'outbound',
-    channel: 'ota',
-    stepKey: 'activity.step.tddRejected',
-    detailKey: 'activity.detail.roundingMismatch',
-    outcome: 'failed',
-    at: '11:31',
-    day: 'yesterday',
-    attempt: 1,
-  },
-  {
-    id: 'e11',
-    document: 'SB-0044',
-    documentKind: 'selfBilled',
-    party: 'Sohar Packaging LLC',
-    direction: 'outbound',
-    channel: 'peppol',
-    stepKey: 'activity.step.sentOverPeppol',
-    detailKey: 'activity.detail.deliveredTo',
-    detailValues: { id: '0248:OM1100628391' },
-    outcome: 'cleared',
-    at: '10:02',
-    day: 'yesterday',
-  },
-  {
-    id: 'e12',
-    document: 'SB-0044',
-    documentKind: 'selfBilled',
-    party: 'Sohar Packaging LLC',
-    direction: 'outbound',
-    channel: 'ota',
-    stepKey: 'activity.step.tddFiled',
-    detailKey: 'activity.detail.acceptedIn',
-    detailValues: { seconds: '4' },
-    outcome: 'cleared',
-    at: '10:03',
-    day: 'yesterday',
-    fawtaraUuid: 'b7e4d221-9a35-4c18-8f02-1e5a6c9b7d33',
+    id: 's7',
+    invoice: 'INV-2043',
+    customer: 'Muscat Grand Hotel',
+    customerAmount: '496.000',
+    tddUuid: '3c9a-1e77-2b04-4f6a',
+    fawtaraRef: 'OM-2026-0084412',
+    flow: 'b2bDomestic',
+    routeKey: 'activity.route.bothOnPeppol',
+    routeValues: { flow: '1' },
+    sentDate: '28 Jul',
+    sentTime: '08:15',
+    outcome: 'accepted',
+    verdictKey: 'activity.verdict.clearedIn',
+    verdictValues: { seconds: '52' },
+    acknowledgement: 'received',
   },
 ]
 
-/* ------------------------------------------------------------------ derived */
-
-const isAttention = (event: ActivityEvent) => event.outcome === 'attention'
+/* ------------------------------------------------------------- the book */
 
 /**
- * The badge on the sidebar.
+ * The whole year, which the seven rows above are a page of.
  *
- * It counts what a person still has to do something about, so a rejection that was already
- * resent successfully does not keep asking for attention.
+ * These are the figures the cards print. They are stated once here so the cards, the tabs and
+ * the pagination cannot disagree — and they are the same 1,624 invoices the Reports › Compliance
+ * screen counts, so the two screens tell one story.
  */
-export const ATTENTION_COUNT = ACTIVITY.filter(isAttention).length
-
-export const ACTIVITY_SUMMARY = {
-  total: ACTIVITY.length,
-  cleared: ACTIVITY.filter((event) => event.outcome === 'cleared').length,
-  waiting: ACTIVITY.filter((event) => event.outcome === 'waiting').length,
-  attention: ATTENTION_COUNT,
-  today: ACTIVITY.filter((event) => event.day === 'today').length,
-  /** How many separate documents the day's traffic covers. */
-  documents: new Set(ACTIVITY.map((event) => event.document)).size,
-  peppol: ACTIVITY.filter((event) => event.channel === 'peppol').length,
-  ota: ACTIVITY.filter((event) => event.channel === 'ota').length,
-  /** Everything the OTA has finished with, accepted or not. */
-  otaSettled: ACTIVITY.filter((event) => event.channel === 'ota' && event.outcome !== 'waiting')
-    .length,
-  otaAccepted: ACTIVITY.filter((event) => event.channel === 'ota' && event.outcome === 'cleared')
-    .length,
+export const BOOK = {
+  invoices: 1_624,
+  acceptedInvoices: 1_577,
+  /** Submissions that are still open with the OTA. */
+  waiting: 19,
+  /** Submissions the OTA disregarded because a corrected version replaced them. */
+  superseded: 8,
+  /** Rejections nobody has corrected yet — the only ones that need a person. */
+  needsAttention: 4,
+  /** Delivery acknowledgements that came back inside the window. */
+  acknowledged: 1_614,
+  averageSeconds: 134,
+  previousAverageSeconds: 172,
 }
 
-/** Share of OTA filings the Authority accepted, out of those it has answered. */
-export const OTA_ACCEPTANCE = ACTIVITY_SUMMARY.otaSettled
-  ? Math.round((ACTIVITY_SUMMARY.otaAccepted / ACTIVITY_SUMMARY.otaSettled) * 100)
-  : 100
+const round1 = (value: number) => Math.round(value * 10) / 10
+
+/**
+ * A rejection is a submission, not an invoice, and a corrected invoice produces a second one.
+ * Rejections are therefore whatever is left once the accepted, waiting and superseded
+ * submissions are taken off the total.
+ */
+export const SUBMISSION_TOTAL = 1_643
+export const REJECTED = SUBMISSION_TOTAL - BOOK.acceptedInvoices - BOOK.waiting - BOOK.superseded
+
+export const ACTIVITY_SUMMARY = {
+  submissions: SUBMISSION_TOTAL,
+  invoices: BOOK.invoices,
+  accepted: BOOK.acceptedInvoices,
+  rejected: REJECTED,
+  waiting: BOOK.waiting,
+  superseded: BOOK.superseded,
+  needsAttention: BOOK.needsAttention,
+
+  /** Share of invoices the Authority accepted. */
+  acceptanceRate: round1((BOOK.acceptedInvoices / BOOK.invoices) * 100),
+  /** Share of deliveries acknowledged inside the window. */
+  acknowledgedRate: round1((BOOK.acknowledged / BOOK.invoices) * 100),
+  acknowledged: BOOK.acknowledged,
+  averageSeconds: BOOK.averageSeconds,
+  previousAverageSeconds: BOOK.previousAverageSeconds,
+}
+
+/** The badge on the sidebar counts only what a person still has to act on. */
+export const ATTENTION_COUNT = BOOK.needsAttention
+
+/** `134` → `2m 14s`. */
+export const formatDuration = (seconds: number) =>
+  `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
 
 /* --------------------------------------------------------------------- tabs */
 
-export type ActivityTabId = 'all' | 'attention' | 'waiting' | 'cleared'
+export type ActivityTabId =
+  'all' | 'needsAttention' | 'accepted' | 'rejected' | 'waiting' | 'superseded'
 
 export const ACTIVITY_TABS: { id: ActivityTabId; labelKey: string }[] = [
   { id: 'all', labelKey: 'activity.tabs.all' },
-  { id: 'attention', labelKey: 'activity.tabs.attention' },
+  { id: 'needsAttention', labelKey: 'activity.tabs.needsAttention' },
+  { id: 'accepted', labelKey: 'activity.tabs.accepted' },
+  { id: 'rejected', labelKey: 'activity.tabs.rejected' },
   { id: 'waiting', labelKey: 'activity.tabs.waiting' },
-  { id: 'cleared', labelKey: 'activity.tabs.cleared' },
+  { id: 'superseded', labelKey: 'activity.tabs.superseded' },
 ]
 
-export const matchesTab = (event: ActivityEvent, tab: ActivityTabId) => {
-  if (tab === 'all') return true
-  return event.outcome === tab
+/** What each tab counts across the whole book, not just the page on screen. */
+export const TAB_TOTALS: Record<ActivityTabId, number> = {
+  all: ACTIVITY_SUMMARY.submissions,
+  needsAttention: ACTIVITY_SUMMARY.needsAttention,
+  accepted: ACTIVITY_SUMMARY.accepted,
+  rejected: ACTIVITY_SUMMARY.rejected,
+  waiting: ACTIVITY_SUMMARY.waiting,
+  superseded: ACTIVITY_SUMMARY.superseded,
 }
 
-export const countTab = (tab: ActivityTabId) =>
-  ACTIVITY.filter((event) => matchesTab(event, tab)).length
+export const matchesTab = (row: Submission, tab: ActivityTabId) => {
+  if (tab === 'all') return true
+  if (tab === 'needsAttention') return Boolean(row.needsAttention)
+  return row.outcome === tab
+}
 
-/** The document kinds, for the filter. */
-export const DOCUMENT_KINDS: DocumentKind[] = [
-  'standardInvoice',
-  'simplifiedInvoice',
-  'creditNote',
-  'debitNote',
-  'selfBilled',
-  'bill',
+export const matchesQuery = (row: Submission, query: string) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return true
+  return (
+    row.invoice.toLowerCase().includes(needle) ||
+    row.customer.toLowerCase().includes(needle) ||
+    row.tddUuid.toLowerCase().includes(needle) ||
+    (row.fawtaraRef ?? '').toLowerCase().includes(needle)
+  )
+}
+
+export const FLOWS: TddFlow[] = ['b2bDomestic', 'b2c', 'export']
+
+/** Sorting the toolbar offers. */
+export type ActivitySortKey = 'newest' | 'oldest' | 'invoiceAsc'
+
+export const ACTIVITY_SORTS: { value: ActivitySortKey; labelKey: string }[] = [
+  { value: 'newest', labelKey: 'activity.sortOptions.newest' },
+  { value: 'oldest', labelKey: 'activity.sortOptions.oldest' },
+  { value: 'invoiceAsc', labelKey: 'activity.sortOptions.invoiceAsc' },
+]
+
+/**
+ * What has to be true before anything can be reported.
+ *
+ * Shown on the empty state, where the point is that the connection is already working and only
+ * a document is missing.
+ */
+export const CONNECTION_CHECKS = [
+  { id: 'vat', values: { vat: 'OM1100392000' } },
+  { id: 'peppol', values: { id: '0248:OM1100392000' } },
+  { id: 'fawtara', values: { latency: '0.9s', until: 'Mar 2027' } },
 ]

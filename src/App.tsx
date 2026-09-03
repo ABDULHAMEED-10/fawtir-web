@@ -41,7 +41,14 @@ import { UploadDebitNotePage } from './pages/UploadDebitNotePage'
 import { SupplierDebitNoteDetailPage } from './pages/SupplierDebitNoteDetailPage'
 import { ExpenditureRemindersPage } from './pages/ExpenditureRemindersPage'
 import { DocumentsPage } from './pages/DocumentsPage'
-import { ActivityPage, ActivityEventPage } from './pages/ActivityPage'
+import {
+  ActivityPage,
+  ActivityEventPage,
+  OtaCallLogPage,
+  OtaCallDetailPage,
+  TddResubmitPage,
+  ComplianceReportPage,
+} from './pages/ActivityPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { UploadDocumentPage } from './pages/UploadDocumentPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
@@ -125,7 +132,11 @@ function App() {
           <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
+          <Route path="/compliance/activity/call-log" element={<OtaCallLogPage />} />
+          <Route path="/compliance/activity/call-log/:id" element={<OtaCallDetailPage />} />
+          <Route path="/compliance/activity/report" element={<ComplianceReportPage />} />
           <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
+          <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
           <Route path="/compliance/documents" element={<DocumentsPage />} />
           <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
           <Route path="/compliance/documents/:id" element={<DocumentDetailPage />} />

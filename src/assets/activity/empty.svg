@@ -1,0 +1,13 @@
+<svg width="190" height="110" viewBox="0 0 190 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="20.75" y="16.75" width="52.5" height="66.5" rx="4.25" fill="#FFFFFF" stroke="#C0CAE9" stroke-width="1.5"/>
+<path d="M20.75 74h52.5" stroke="#C0CAE9" stroke-width="1.5" stroke-dasharray="5 4"/>
+<rect x="31" y="30" width="32" height="4" rx="2" fill="#C0CAE9"/>
+<rect x="31" y="40" width="24" height="4" rx="2" fill="#DCE3F5"/>
+<rect x="31" y="50" width="28" height="4" rx="2" fill="#DCE3F5"/>
+<path d="M84 50h22" stroke="#C0CAE9" stroke-width="1.5" stroke-dasharray="4 4"/>
+<path d="m103 46 5 4-5 4" stroke="#C0CAE9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144 14 120 22.5v15.7c0 12 8.6 22.3 20 25.8h8c11.4-3.5 20-13.8 20-25.8V22.5L144 14Z" fill="#EEF5F0" stroke="#4C6C5A" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="m136 39 6 6 12-13" stroke="#4C6C5A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="120.75" y="72.75" width="46.5" height="14.5" rx="3.25" stroke="#C0CAE9" stroke-width="1.5" stroke-dasharray="5 4"/>
+<path d="M92 26v6M89 29h6M176 60v5M173.5 62.5h5" stroke="#C0CAE9" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
