@@ -13,7 +13,6 @@ import {
   NavPosIcon,
   NavReportsIcon,
   NavSettingsIcon,
-  NavStockIcon,
   NavSuppliersIcon,
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
@@ -203,8 +202,26 @@ export const DASHBOARD_NAV: NavGroup[] = [
     id: 'catalog',
     labelKey: 'dashboard.nav.catalogStock',
     items: [
-      { id: 'catalog', labelKey: 'dashboard.nav.catalog', Icon: NavCatalogIcon, to: '/dashboard' },
-      { id: 'stock', labelKey: 'dashboard.nav.stock', Icon: NavStockIcon, to: '/stock' },
+      {
+        id: 'catalog',
+        labelKey: 'dashboard.nav.catalog',
+        Icon: NavCatalogIcon,
+        to: '/catalog',
+        children: [
+          { id: 'allItems', labelKey: 'dashboard.nav.catalogChildren.allItems', to: '/catalog' },
+          {
+            id: 'bundles',
+            labelKey: 'dashboard.nav.catalogChildren.bundles',
+            to: '/catalog/bundles',
+          },
+          { id: 'stock', labelKey: 'dashboard.nav.catalogChildren.stock', to: '/catalog/stock' },
+          {
+            id: 'priceRules',
+            labelKey: 'dashboard.nav.catalogChildren.priceRules',
+            to: '/catalog/rules',
+          },
+        ],
+      },
     ],
   },
   {
@@ -264,7 +281,7 @@ export const SETTINGS_NAV: NavItem = {
   id: 'settings',
   labelKey: 'dashboard.nav.settings',
   Icon: NavSettingsIcon,
-  to: '/dashboard',
+  to: '/settings',
 }
 
 export const ACCOUNT = {

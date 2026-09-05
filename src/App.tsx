@@ -49,6 +49,38 @@ import {
   TddResubmitPage,
   ComplianceReportPage,
 } from './pages/ActivityPage'
+import {
+  CatalogPage,
+  ItemFormPage,
+  ItemSellsPage,
+  ItemUsedPage,
+  ItemChangesPage,
+  BundlesPage,
+  BundlePage,
+  StockPage,
+  StockDetailPage,
+  PriceRulesPage,
+  NewRulePage,
+  UploadMenuPage,
+  BuildCatalogPage,
+} from './pages/CatalogPage'
+ import {
+  SettingsPage,
+  PeppolTaxPage,
+  BranchesPage,
+  CompanyProfilePage,
+  TeamPage,
+  RolesPage,
+  PlanPage,
+  BillingPage,
+  ActivityLogPage,
+  ExportPage,
+  ClosingPage,
+  SigningInPage,
+  AddBranchPage,
+  InvitePage,
+  MakeRolePage,
+} from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { UploadDocumentPage } from './pages/UploadDocumentPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
@@ -131,6 +163,36 @@ function App() {
           <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
           <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/catalog/upload" element={<UploadMenuPage />} />
+          <Route path="/catalog/build" element={<BuildCatalogPage />} />
+          <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
+          <Route path="/catalog/rules" element={<PriceRulesPage />} />
+          <Route path="/catalog/rules/new" element={<NewRulePage />} />
+          <Route path="/catalog/stock" element={<StockPage />} />
+          <Route path="/catalog/stock/:id" element={<StockDetailPage />} />
+          <Route path="/catalog/bundles" element={<BundlesPage />} />
+          <Route path="/catalog/bundles/new" element={<BundlePage />} />
+          <Route path="/catalog/bundles/:id" element={<BundlePage />} />
+          <Route path="/catalog/:id" element={<ItemFormPage mode="edit" />} />
+          <Route path="/catalog/:id/sells" element={<ItemSellsPage />} />
+          <Route path="/catalog/:id/used" element={<ItemUsedPage />} />
+          <Route path="/catalog/:id/changes" element={<ItemChangesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/peppol" element={<PeppolTaxPage />} />
+          <Route path="/settings/branches" element={<BranchesPage />} />
+          <Route path="/settings/branches/new" element={<AddBranchPage />} />
+          <Route path="/settings/company" element={<CompanyProfilePage />} />
+          <Route path="/settings/team" element={<TeamPage />} />
+          <Route path="/settings/team/invite" element={<InvitePage />} />
+          <Route path="/settings/roles" element={<RolesPage />} />
+          <Route path="/settings/roles/new" element={<MakeRolePage />} />
+          <Route path="/settings/plan" element={<PlanPage />} />
+          <Route path="/settings/bills" element={<BillingPage />} />
+          <Route path="/settings/activity-log" element={<ActivityLogPage />} />
+          <Route path="/settings/export" element={<ExportPage />} />
+          <Route path="/settings/closing" element={<ClosingPage />} />
+          <Route path="/settings/signing-in" element={<SigningInPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
           <Route path="/compliance/activity/call-log" element={<OtaCallLogPage />} />
           <Route path="/compliance/activity/call-log/:id" element={<OtaCallDetailPage />} />

@@ -9,6 +9,14 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string
   hint?: string
   readOnlyAppearance?: boolean
+  /**
+   * Draws the field's own border.
+   *
+   * The default field is borderless because the auth and invoice forms sit on a tinted ground
+   * that separates it. On a white card — Settings, Catalog — nothing separates it, so the box
+   * has to be drawn.
+   */
+  bordered?: boolean
 }
 
 export function Input({
@@ -20,6 +28,7 @@ export function Input({
   error,
   hint,
   readOnlyAppearance = false,
+  bordered = false,
   className = '',
   id,
   ...props
@@ -44,7 +53,9 @@ export function Input({
           'flex h-[50px] items-center justify-between gap-2 rounded-sm px-4',
           readOnlyAppearance
             ? 'border border-primary-300 bg-primary-50'
-            : 'bg-surface-card transition-shadow focus-within:ring-1 focus-within:ring-border-brand',
+            : bordered
+              ? 'border border-border-default bg-white transition-colors focus-within:border-border-brand'
+              : 'bg-surface-card transition-shadow focus-within:ring-1 focus-within:ring-border-brand',
           error ? 'ring-1 ring-border-danger' : '',
           className,
         ]

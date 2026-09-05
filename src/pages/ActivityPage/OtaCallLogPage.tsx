@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover } from '../../components/ui'
+import { ActionMenu, FilterMenu, SortMenu } from '../../components/ui'
 import {
   CALL_RESULTS,
   CALL_SORTS,
@@ -16,7 +16,6 @@ import {
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import lockIcon from '../../assets/activity/lock.svg'
 import searchIcon from '../../assets/invoices/search.svg'
-import sortIcon from '../../assets/bills/sort.svg'
 import filterIcon from '../../assets/bills/filter.svg'
 import exportIcon from '../../assets/bill-capture/file.svg'
 import viewIcon from '../../assets/actions/view.svg'
@@ -46,8 +45,6 @@ export function OtaCallLogPage() {
   const [query, setQuery] = useState('')
   const [result, setResult] = useState('all')
   const [sort, setSort] = useState<CallSortKey>('newest')
-  const [sortOpen, setSortOpen] = useState(false)
-  const sortRef = useRef<HTMLButtonElement>(null)
 
   const rows = useMemo(() => {
     const filtered = OTA_CALLS.filter(
@@ -191,36 +188,12 @@ export function OtaCallLogPage() {
                 ]}
                 onChange={setResult}
               />
-              <button
-                ref={sortRef}
-                type="button"
-                onClick={() => setSortOpen((open) => !open)}
-                className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                <img src={sortIcon} alt="" className="size-5" />
-                {t('callLog.sort')}
-              </button>
-              <Popover anchorRef={sortRef} open={sortOpen} onClose={() => setSortOpen(false)}>
-                <ul className="w-[200px] py-1.5">
-                  {CALL_SORTS.map((option) => (
-                    <li key={option.value}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSort(option.value)
-                          setSortOpen(false)
-                        }}
-                        className={[
-                          'flex w-full px-4 py-2.5 text-start text-sm font-medium transition-colors hover:bg-primary-25',
-                          option.value === sort ? 'text-primary-700' : 'text-text-secondary',
-                        ].join(' ')}
-                      >
-                        {t(option.labelKey)}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Popover>
+              <SortMenu
+                label={t('callLog.sort')}
+                value={sort}
+                onChange={setSort}
+                options={CALL_SORTS}
+              />
             </div>
           </div>
 

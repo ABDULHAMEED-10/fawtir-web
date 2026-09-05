@@ -21,6 +21,14 @@ export type ActionMenuItem = {
   danger?: boolean
   /** Starts a new titled group above this item. */
   sectionKey?: string
+  /**
+   * A muted value pinned to the far edge — a count, a prefix, a consequence.
+   *
+   * The Settings row menus (Figma 135:42802, 135:42866) answer "how many?" on the item itself
+   * rather than making the reader open the screen to find out.
+   */
+  hintKey?: string
+  hint?: string
   to?: string
   onSelect?: () => void
 }
@@ -35,6 +43,8 @@ type ActionMenuProps = {
   variant?: 'row' | 'bordered'
   /** Widens the panel for items that carry a description. */
   wide?: boolean
+  /** `md` is the 272px Settings panel; `wide` stays the 296px described-item panel. */
+  size?: 'sm' | 'md'
 }
 
 /**
@@ -47,6 +57,7 @@ export function ActionMenu({
   alignStart = false,
   variant = 'row',
   wide = false,
+  size = 'sm',
 }: ActionMenuProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -105,7 +116,7 @@ export function ActionMenu({
           role="menu"
           className={[
             'absolute z-30 mt-1 rounded-sm bg-surface-card p-2 shadow-elevated',
-            wide ? 'w-[296px]' : 'w-[172px]',
+            wide ? 'w-[296px]' : size === 'md' ? 'w-[272px]' : 'w-[172px]',
             alignStart ? 'start-0' : 'end-0',
           ].join(' ')}
         >
@@ -127,8 +138,13 @@ export function ActionMenu({
                     </span>
                   </span>
                 ) : (
-                  t(item.labelKey, item.values)
+                  <span className="min-w-0 flex-1 text-start">{t(item.labelKey, item.values)}</span>
                 )}
+                {item.hint || item.hintKey ? (
+                  <span className="shrink-0 text-xs font-medium text-text-quaternary">
+                    {item.hint ?? t(item.hintKey as string, item.values)}
+                  </span>
+                ) : null}
               </>
             )
 

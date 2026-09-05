@@ -11,12 +11,15 @@ export function TableCheckbox({
   onChange,
   ariaLabel,
   indeterminate,
+  disabled,
 }: {
   checked: boolean
   onChange: () => void
   ariaLabel: string
   /** Some rows on the page selected, but not all — drawn as a dash. */
   indeterminate?: boolean
+  /** A choice that is not the reader's to make — ticked and unclickable. */
+  disabled?: boolean
 }) {
   return (
     <span className="relative inline-flex size-[15px] shrink-0 align-middle">
@@ -26,7 +29,8 @@ export function TableCheckbox({
         onChange={onChange}
         aria-label={ariaLabel}
         aria-checked={indeterminate && !checked ? 'mixed' : checked}
-        className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
+        disabled={disabled}
+        className="peer absolute inset-0 z-10 cursor-pointer opacity-0 disabled:cursor-default"
       />
       <span
         aria-hidden="true"
