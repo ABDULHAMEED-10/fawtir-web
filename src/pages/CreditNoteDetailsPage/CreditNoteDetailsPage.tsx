@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { OmAmount } from '../../components/ui'
+import { OmAmount, RowsView } from '../../components/ui'
 import { PreviewPane } from '../../components/invoice/PreviewPane'
 import { CREDIT_NOTE_DETAIL } from '../../lib/creditNoteDetail'
 import backIcon from '../../assets/invoice-details/back.svg'
@@ -367,7 +367,7 @@ export function CreditNoteDetailsPage() {
 
         {/* Items */}
         <SectionCard title={t('creditNoteDetails.items')}>
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[900px] border-collapse text-start">
               <thead>
                 <tr className="border-b border-surface-background text-xs font-semibold uppercase tracking-[1.44px] text-text-quaternary">
@@ -405,7 +405,7 @@ export function CreditNoteDetailsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           <div className="mt-4 ms-auto flex w-full max-w-[328px] flex-col gap-2">
             <div className="flex items-center justify-between gap-4 text-sm">

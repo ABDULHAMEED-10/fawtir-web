@@ -21,6 +21,7 @@ export {
   EyeOffIcon,
   PhoneIcon,
   UserIcon,
+  MenuIcon,
   CloseIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -43,6 +44,7 @@ export { DateField } from './DateField'
 export { Popover } from './Popover'
 export { FileDropzone } from './FileDropzone'
 export { TableCheckbox } from './TableCheckbox'
+export { RowsView } from './RowsView'
 export { FilterMenu, type FilterMenuOption } from './FilterMenu'
 export { Switch } from './Switch'
 export { Modal } from './Modal'

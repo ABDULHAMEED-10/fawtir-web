@@ -421,7 +421,7 @@ export function PaymentRunInvoicesPage() {
           </section>
 
           {/* The document */}
-          <section className="flex min-w-0 flex-1 flex-col self-start overflow-hidden rounded-md bg-surface-card">
+          <section className="flex min-w-0 flex-1 flex-col self-start overflow-hidden rounded-md bg-surface-card max-xl:w-full">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <p className="flex items-center gap-2 text-sm font-medium text-text-secondary">
                 <img src={fileIcon} alt="" className="size-5" />
@@ -465,7 +465,7 @@ export function PaymentRunInvoicesPage() {
                 </button>
               </div>
             </div>
-            <div className="flex justify-center overflow-auto bg-[#2c3342] p-6">
+            <div className="flex justify-center-safe overflow-auto bg-[#2c3342] p-6">
               <InvoiceSheet invoice={invoice} zoom={zoom} />
             </div>
           </section>

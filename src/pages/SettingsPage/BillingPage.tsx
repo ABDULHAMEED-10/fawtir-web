@@ -245,7 +245,7 @@ export function BillingPage() {
           <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
             {t('bills.pastBills')}
           </h3>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <span className="inline-flex h-[38px] items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary">
               {new Date().getFullYear()}
             </span>

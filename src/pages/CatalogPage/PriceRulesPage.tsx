@@ -185,7 +185,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
           </p>
         </div>
 
-        <span className="flex shrink-0 items-center gap-2.5">
+        <span className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <span
             className={[
               'inline-flex h-[24px] items-center gap-1.5 rounded-[3px] px-2 text-[10px] font-semibold uppercase tracking-[0.4px]',
@@ -389,7 +389,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
             </span>
           </p>
           <Link
-            to="/quotations"
+            to="/trade-documents/quotations"
             className="inline-flex h-[36px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
           >
             {t('priceRules.seeTheQuotes')}

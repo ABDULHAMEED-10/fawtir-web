@@ -5,7 +5,14 @@ import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
 import { GroupsPanel } from './GroupsPanel'
 import { ChangePricesModal } from './ChangePricesModal'
 import { CatalogEmptyState } from './CatalogEmptyState'
-import { ActionMenu, FilterMenu, SortMenu, TableCheckbox, Popover } from '../../components/ui'
+import {
+  ActionMenu,
+  FilterMenu,
+  Popover,
+  RowsView,
+  SortMenu,
+  TableCheckbox,
+} from '../../components/ui'
 import {
   ITEMS,
   GROUPS,
@@ -199,7 +206,7 @@ export function CatalogPage() {
             />
           </label>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <button
               ref={groupsRef}
               type="button"
@@ -283,7 +290,7 @@ export function CatalogPage() {
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <RowsView>
           <table className="w-full min-w-[1000px] border-collapse">
             <thead>
               <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -334,7 +341,7 @@ export function CatalogPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </RowsView>
 
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
           <p className="text-sm font-medium text-text-quaternary">

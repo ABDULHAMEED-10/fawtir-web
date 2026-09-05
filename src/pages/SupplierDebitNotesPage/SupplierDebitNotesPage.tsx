@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, RowsView } from '../../components/ui'
 import {
   DEBIT_TABS,
   DEBIT_TAB_STATES,
@@ -224,7 +224,7 @@ export function SupplierDebitNotesPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <label className="relative flex h-[46px] w-full max-w-[344px] items-center">
+            <label className="relative flex h-[46px] w-full max-w-[344px] items-center max-md:max-w-none max-md:basis-full">
               <img
                 src={searchIcon}
                 alt=""
@@ -283,7 +283,7 @@ export function SupplierDebitNotesPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto px-5 pb-5">
+          <RowsView className="px-5 pb-5">
             <table className="w-full min-w-[980px] border-collapse">
               <thead>
                 <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -433,7 +433,7 @@ export function SupplierDebitNotesPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </RowsView>
         </section>
       </div>
     </AppShell>

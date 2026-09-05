@@ -453,7 +453,7 @@ export const DOC_DETAIL = {
       icon: 'customer' as const,
       title: 'Nizwa Souq Café',
       noteKey: 'documents.detail.relates.customer',
-      to: '/contacts/customers',
+      to: '/customers',
     },
     {
       id: 'SO-0073',

@@ -22,6 +22,7 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 import plusIcon from '../../assets/periodic/plus.svg'
 import clockIcon from '../../assets/periodic/clock.svg'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
+import { RowsView } from '../../components/ui'
 
 /** Green "+ ﷼ amount" — a debit note only ever adds to the balance. */
 function PlusAmount({ value, size = 'sm' }: { value: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -392,7 +393,7 @@ export function DebitNoteDetailPage() {
             {t('debitNoteDetail.sections.items')}
           </h2>
           <div className="my-4 h-px bg-surface-background" />
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[900px] border-collapse text-start">
               <thead>
                 <tr className="text-xs font-semibold uppercase tracking-wide text-text-quaternary">
@@ -436,7 +437,7 @@ export function DebitNoteDetailPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </RowsView>
           <div className="ms-auto mt-5 flex w-full max-w-[354px] flex-col gap-4 text-sm">
             <div className="flex items-center justify-between">
               <span className="font-medium text-text-tertiary">

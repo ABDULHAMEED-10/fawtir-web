@@ -869,7 +869,8 @@
       "netPayable": "net payable",
       "output": "Output VAT",
       "input": "Input VAT"
-    }
+    },
+    "openNav": "Open navigation"
   },
   "rowActions": {
     "delete": "Delete",
@@ -8477,5 +8478,10 @@
     "saveForLater": "Save and finish later",
     "addToCatalog": "Add {{count}} to the catalog",
     "added": "Added"
+  },
+  "rowsView": {
+    "label": "How this list is shown",
+    "cards": "Cards",
+    "table": "Table"
   }
 }

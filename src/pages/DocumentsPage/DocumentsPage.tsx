@@ -302,7 +302,7 @@ export function DocumentsPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <label className="relative flex h-[46px] w-full max-w-[344px] items-center">
+            <label className="relative flex h-[46px] w-full max-w-[344px] items-center max-md:max-w-none max-md:basis-full">
               <img
                 src={searchIcon}
                 alt=""

@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { FileDropzone, OmAmount } from '../../components/ui'
+import { FileDropzone, OmAmount, RowsView } from '../../components/ui'
 import { DocumentPreview, ReminderBanner } from '../../components/invoice'
 import { INVOICE_DETAIL } from '../../lib/invoiceDetails'
 import { invoiceToPreview } from '../../lib/documentPreview'
@@ -188,7 +188,7 @@ function AttachmentsCard({ invoice }: { invoice: typeof INVOICE_DETAIL }) {
                 <p className="truncate text-sm font-medium text-text-quaternary">{file.meta}</p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2.5">
+            <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
               {/* A file picked in this session downloads straight from the blob we still hold.
                   One already on the record has no bytes on the client, so it waits on the one
                   seam left here: GET /api/v1/invoices/{id}/attachments/{attachmentId}. Drawn at
@@ -684,7 +684,7 @@ export function InvoiceDetailsPage() {
 
         {/* Items */}
         <SectionCard title={t('invoiceDetails.items')}>
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[900px] border-collapse text-start">
               <thead>
                 <tr className="border-b border-surface-background text-xs font-semibold uppercase tracking-[1.44px] text-text-quaternary">
@@ -720,7 +720,7 @@ export function InvoiceDetailsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           <div className="mt-4 ms-auto flex w-full max-w-[328px] flex-col gap-2">
             <div className="flex items-center justify-between gap-4 text-sm">
@@ -844,7 +844,7 @@ export function InvoiceDetailsPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2.5">
+                <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
                   <button type="button" aria-label={t('invoiceDetails.download')}>
                     <img src={downloadIcon} alt="" className="size-6" />
                   </button>

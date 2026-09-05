@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "responsive:sweep": "node tools/responsive/run.mjs sweep",
+    "responsive:baseline": "node tools/responsive/run.mjs baseline",
+    "responsive:check": "node tools/responsive/run.mjs check"
   },
   "dependencies": {
     "i18next": "^25.5.2",

@@ -97,3 +97,107 @@
   direction: ltr;
   text-align: inherit;
 }
+
+/*
+ * A list read as cards.
+ *
+ * Applied by `RowsViewBody`, and only on phones — above `md` a table is a table. The same markup
+ * is re-laid rather than rewritten: every row becomes a card and every cell a labelled line, with
+ * the label coming from that column's heading (`RowsViewBody` copies it onto the cell). Nothing
+ * here is layered, so it wins over the utility classes already on the table.
+ */
+@media (width < 48rem) {
+  .rows-cards {
+    overflow-x: visible;
+  }
+
+  .rows-cards table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rows-cards thead {
+    display: none;
+  }
+
+  .rows-cards tbody {
+    display: block;
+  }
+
+  .rows-cards tbody tr {
+    display: block;
+    /* So the row menu can be pinned to this card's own corner. */
+    position: relative;
+    margin-bottom: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface-card);
+    padding: 10px 14px;
+  }
+
+  .rows-cards tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  /*
+   * A line of a card: the column heading sits in a fixed gutter and the cell's own content flows
+   * in the rest of the width, laid out exactly as the table lays it out. Putting the heading in a
+   * gutter rather than making it a flex sibling is what lets a cell holding an avatar, a badge and
+   * a sub-line survive the change of shape — the cell keeps its own layout and simply moves over.
+   */
+  .rows-cards tbody td {
+    display: block;
+    width: auto;
+    border: 0;
+    padding: 5px 0;
+    text-align: start;
+  }
+
+  .rows-cards tbody td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 1px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    color: var(--color-text-quaternary);
+  }
+
+  /*
+   * Values give way rather than widening the card. A table column can be as wide as its content
+   * needs, so many cells are told never to wrap; in a card there is nowhere for that to go, and
+   * a name held on one line simply runs under the row menu.
+   */
+  .rows-cards tbody td,
+  .rows-cards tbody td * {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  /* Tick boxes and row menus head no column, so they carry no label and need no gutter. */
+  .rows-cards tbody td[data-label='']::before {
+    content: none;
+  }
+
+  .rows-cards tbody td[data-label=''] {
+    padding-inline-start: 0;
+    padding-inline-end: 0;
+  }
+
+  /* The row menu belongs in the corner the card opens with, not at the end of a scroll down it. */
+  .rows-cards tbody td[data-label='']:last-child {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 14px;
+    padding: 0;
+  }
+
+  /* And the first line keeps clear of it. On lists that open with a tick box there is room
+     already; on ones that open with a name — Suppliers, Catalog — there would not be. */
+  .rows-cards tbody td:first-child {
+    padding-inline-end: 40px;
+  }
+}

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, RowsView } from '../../components/ui'
 import { orderFormRowActions } from '../../lib/rowActions'
 import {
   ORDER_FORM_PURCHASE,
@@ -429,7 +429,7 @@ function SaleDetail() {
 
       <Card>
         <SectionTitle title={t('orderDetail.sale.lines')} />
-        <div className="overflow-x-auto">
+        <RowsView>
           <table className="w-full min-w-[900px] border-collapse text-start">
             <thead>
               <tr className="border-b border-[#f3f3f3]">
@@ -475,7 +475,7 @@ function SaleDetail() {
               ))}
             </tbody>
           </table>
-        </div>
+        </RowsView>
       </Card>
 
       <Card>

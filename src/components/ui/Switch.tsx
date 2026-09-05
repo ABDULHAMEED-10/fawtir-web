@@ -35,6 +35,7 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={[
         'relative shrink-0 rounded-full transition-colors disabled:opacity-40',
+        "max-md:after:absolute max-md:after:-inset-2 max-md:after:content-['']",
         track,
         checked ? 'bg-primary-700' : 'bg-[#d0d2d5]',
       ].join(' ')}

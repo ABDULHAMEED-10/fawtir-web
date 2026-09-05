@@ -49,7 +49,7 @@ export function FilterMenu<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         className={[
-          'inline-flex h-11 items-center gap-2 rounded-sm border px-4 text-sm font-semibold transition-colors',
+          'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border px-4 text-sm font-semibold transition-colors',
           active
             ? 'border-primary-700 bg-primary-25 text-primary-800'
             : 'border-border-subtle bg-surface-tab-bar text-text-tertiary hover:border-primary-300',

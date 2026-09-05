@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
-import { FilterMenu, SortMenu } from '../../components/ui'
+import { FilterMenu, RowsView, SortMenu } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   BUNDLES,
@@ -130,7 +130,7 @@ export function BundlesPage() {
               className="w-full min-w-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
           </label>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <FilterMenu
               label={t('catalog.filters')}
               value={tab}
@@ -153,7 +153,7 @@ export function BundlesPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <RowsView>
           <table className="w-full min-w-[1020px] border-collapse">
             <thead>
               <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -186,7 +186,7 @@ export function BundlesPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </RowsView>
 
         <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
           {t('bundles.showing', { shown: rows.length, total: BUNDLES.length })}

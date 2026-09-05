@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, TableCheckbox } from '../../components/ui'
+import { ActionMenu, RowsView, TableCheckbox } from '../../components/ui'
 import { orderFormRowActions } from '../../lib/rowActions'
 import {
   BAR_TRACK,
@@ -232,9 +232,7 @@ function OrderKpiCards() {
             >
               <img src={KPI_ICONS[kpi.icon]} alt="" className="size-6" />
             </span>
-            <h3 className="whitespace-nowrap text-xl font-medium leading-[1.2] text-[#2c3342]">
-              {t(kpi.titleKey)}
-            </h3>
+            <h3 className="text-xl font-medium leading-[1.2] text-[#2c3342]">{t(kpi.titleKey)}</h3>
           </div>
           <div className="mt-2.5">
             <Amount
@@ -512,9 +510,7 @@ function OrderFormsTable() {
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
   const allSelected = selected.length === ORDER_ROWS.length
-  const toggleAll = () =>
-    setSelected(allSelected ? [] : ORDER_ROWS.map((row) => row.id))
-
+  const toggleAll = () => setSelected(allSelected ? [] : ORDER_ROWS.map((row) => row.id))
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -552,7 +548,7 @@ function OrderFormsTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-        <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
+        <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
@@ -578,7 +574,7 @@ function OrderFormsTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <RowsView>
         <table className="w-full min-w-[1124px] table-fixed border-collapse text-start">
           {/* Column widths straight from Figma so the 225px fulfilment track is not squeezed. */}
           <colgroup>
@@ -628,10 +624,10 @@ function OrderFormsTable() {
               >
                 <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <TableCheckbox
-                      checked={selected.includes(row.id)}
-                      onChange={() => toggleRow(row.id)}
-                      ariaLabel={t('orderForms.selectRow', { id: row.id })}
-                    />
+                    checked={selected.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
+                    ariaLabel={t('orderForms.selectRow', { id: row.id })}
+                  />
                 </td>
                 <OrderRowCells row={row} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
@@ -641,7 +637,7 @@ function OrderFormsTable() {
             ))}
           </tbody>
         </table>
-      </div>
+      </RowsView>
 
       <BarLegend />
 

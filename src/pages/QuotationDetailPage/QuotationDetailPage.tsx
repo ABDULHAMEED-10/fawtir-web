@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, StepTracker } from '../../components/ui'
+import { ActionMenu, RowsView, StepTracker } from '../../components/ui'
 import { quotationRowActions } from '../../lib/rowActions'
 import { QUOTATION_DETAIL } from '../../lib/quotationDetail'
 import backIcon from '../../assets/quotation-detail/back.svg'
@@ -287,7 +287,7 @@ export function QuotationDetailPage() {
         {/* What was offered — full width */}
         <Card>
           <SectionTitle title={t('quotationDetail.itemsTitle')} />
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <tr className="border-b border-[#f3f3f3] text-xs font-semibold leading-[1.2] text-[#5b606c]">
@@ -321,7 +321,7 @@ export function QuotationDetailPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </RowsView>
           <div className="mt-6 flex justify-end">
             <dl className="flex w-full max-w-[328px] flex-col gap-2">
               <div className="flex items-center justify-between gap-3 text-[#444957]">

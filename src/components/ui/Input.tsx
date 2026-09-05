@@ -62,7 +62,7 @@ export function Input({
           .filter(Boolean)
           .join(' ')}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 max-md:self-stretch">
           {leadingIcon ? (
             <span className="inline-flex shrink-0 text-primary-700">{leadingIcon}</span>
           ) : null}

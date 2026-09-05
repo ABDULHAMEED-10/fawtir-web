@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { useCompact } from '../../hooks'
 import { formatTick } from '../../lib/reports'
 import { SERIES, axisMax } from './scale'
 
@@ -16,6 +17,20 @@ const GRID = '#eceef2'
 /** Five gridlines plus the baseline, which is how every Figma chart is ruled. */
 const TICKS = 5
 
+/** Five rules of numbers is a thicket on a phone; three still tells the story. */
+const COMPACT_TICKS = 3
+
+/**
+ * The coordinate system each chart is drawn in.
+ *
+ * A chart is an SVG scaled to its container, so everything in it — the axis text included —
+ * shrinks by the same factor. At 500 units wide inside a 310px phone card that factor is 0.62,
+ * which takes 11px labels down to 7px. Drawing into a narrower box on a phone means far less
+ * shrinking, and the labels stay readable without changing anything about how a chart looks on a
+ * desktop, where the box is 500 as it always was.
+ */
+const COMPACT_WIDTH = 340
+
 /** Room above the top gridline so its label is not clipped. */
 const TOP_PAD = 10
 
@@ -25,19 +40,21 @@ function GridLines({
   max,
   min = 0,
   labelWidth,
+  ticks = TICKS,
 }: {
   width: number
   height: number
   max: number
   min?: number
   labelWidth: number
+  ticks?: number
 }) {
-  const steps = Array.from({ length: TICKS + 1 }, (_, index) => index)
+  const steps = Array.from({ length: ticks + 1 }, (_, index) => index)
   return (
     <g>
       {steps.map((step) => {
-        const value = max - ((max - min) / TICKS) * step
-        const y = (height / TICKS) * step
+        const value = max - ((max - min) / ticks) * step
+        const y = (height / ticks) * step
         return (
           <g key={step}>
             <line x1={labelWidth} x2={width} y1={y} y2={y} stroke={GRID} strokeWidth={1} />
@@ -71,22 +88,28 @@ function MonthLabels({
   y: number
   highlight?: number
 }) {
+  // Twelve months will not fit across a phone, so every other one is drawn — but never at the
+  // cost of the month being pointed at. Four quarters or three years always fit, so are left be.
+  const compact = useCompact()
+  const every = compact && labels.length > 6 ? 2 : 1
   const band = (width - labelWidth) / labels.length
   return (
     <g>
-      {labels.map((label, index) => (
-        <text
-          key={label + index}
-          x={labelWidth + band * index + band / 2}
-          y={y}
-          textAnchor="middle"
-          fontSize={11}
-          fontWeight={index === highlight ? 600 : 500}
-          fill={index === highlight ? SERIES.strong : AXIS_TEXT}
-        >
-          {label}
-        </text>
-      ))}
+      {labels.map((label, index) =>
+        index % every !== 0 && index !== highlight ? null : (
+          <text
+            key={label + index}
+            x={labelWidth + band * index + band / 2}
+            y={y}
+            textAnchor="middle"
+            fontSize={11}
+            fontWeight={index === highlight ? 600 : 500}
+            fill={index === highlight ? SERIES.strong : AXIS_TEXT}
+          >
+            {label}
+          </text>
+        ),
+      )}
     </g>
   )
 }
@@ -110,7 +133,8 @@ export function StackedBars({
   height?: number
   labelWidth?: number
 }) {
-  const width = 500
+  const compact = useCompact()
+  const width = compact ? COMPACT_WIDTH : 500
   const max = axisMax(
     data.map((d) => d.base + d.top),
     1.15,
@@ -124,7 +148,13 @@ export function StackedBars({
       className="w-full"
       role="presentation"
     >
-      <GridLines width={width} height={height} max={max} labelWidth={labelWidth} />
+      <GridLines
+        width={width}
+        height={height}
+        max={max}
+        labelWidth={labelWidth}
+        ticks={compact ? COMPACT_TICKS : TICKS}
+      />
       {data.map((d, index) => {
         const x = labelWidth + band * index + (band - barWidth) / 2
         const baseHeight = (d.base / max) * height
@@ -179,7 +209,8 @@ export function GroupedBars({
   height?: number
   labelWidth?: number
 }) {
-  const width = 500
+  const compact = useCompact()
+  const width = compact ? COMPACT_WIDTH : 500
   const max = axisMax(
     data.flatMap((d) => [d.a, d.b]),
     1.188,
@@ -194,7 +225,13 @@ export function GroupedBars({
       className="w-full"
       role="presentation"
     >
-      <GridLines width={width} height={height} max={max} labelWidth={labelWidth} />
+      <GridLines
+        width={width}
+        height={height}
+        max={max}
+        labelWidth={labelWidth}
+        ticks={compact ? COMPACT_TICKS : TICKS}
+      />
       {data.map((d, index) => {
         const centre = labelWidth + band * index + band / 2
         const aHeight = (d.a / max) * height
@@ -245,7 +282,8 @@ export function PlainBars({
   height?: number
   labelWidth?: number
 }) {
-  const width = 500
+  const compact = useCompact()
+  const width = compact ? COMPACT_WIDTH : 500
   const max = axisMax(values)
   const band = (width - labelWidth) / values.length
   const barWidth = Math.min(band * 0.52, 22)
@@ -256,7 +294,13 @@ export function PlainBars({
       className="w-full"
       role="presentation"
     >
-      <GridLines width={width} height={height} max={max} labelWidth={labelWidth} />
+      <GridLines
+        width={width}
+        height={height}
+        max={max}
+        labelWidth={labelWidth}
+        ticks={compact ? COMPACT_TICKS : TICKS}
+      />
       {values.map((value, index) => {
         const barHeight = (value / max) * height
         return (
@@ -312,7 +356,8 @@ export function DivergingBars({
   height?: number
   labelWidth?: number
 }) {
-  const width = 500
+  const compact = useCompact()
+  const width = compact ? COMPACT_WIDTH : 500
   const max = axisMax(data.flatMap((d) => [d.up, d.down]))
   const half = height / 2
   const band = (width - labelWidth) / data.length
@@ -410,7 +455,8 @@ export function LineChart({
   /** Percentages read better on their own scale than from zero. */
   fromZero?: boolean
 }) {
-  const width = 500
+  const compact = useCompact()
+  const width = compact ? COMPACT_WIDTH : 500
   const gradientId = useId()
   const max = fromZero ? axisMax(values, 1.275) : Math.max(...values) * 1.02
   const plotWidth = width - labelWidth
@@ -435,7 +481,13 @@ export function LineChart({
           <stop offset="100%" stopColor={SERIES.strong} stopOpacity={0.02} />
         </linearGradient>
       </defs>
-      <GridLines width={width} height={height} max={max} labelWidth={labelWidth} />
+      <GridLines
+        width={width}
+        height={height}
+        max={max}
+        labelWidth={labelWidth}
+        ticks={compact ? COMPACT_TICKS : TICKS}
+      />
       <path d={area} fill={`url(#${gradientId})`} />
       <path d={line} fill="none" stroke={SERIES.strong} strokeWidth={2} strokeLinejoin="round" />
       {showDots

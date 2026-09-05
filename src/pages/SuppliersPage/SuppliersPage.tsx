@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, RowsView } from '../../components/ui'
 import {
   ROW_ACTION,
   SUPPLIERS,
@@ -125,7 +125,7 @@ export function SuppliersPage() {
               {t('suppliersPage.subtitle')}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <Link
               to="/suppliers/import"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
@@ -260,7 +260,7 @@ export function SuppliersPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <label className="relative flex h-[46px] w-full max-w-[344px] items-center">
+            <label className="relative flex h-[46px] w-full max-w-[344px] items-center max-md:max-w-none max-md:basis-full">
               <img
                 src={searchIcon}
                 alt=""
@@ -327,7 +327,7 @@ export function SuppliersPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto px-5">
+          <RowsView className="px-5">
             <table className="w-full min-w-[1140px] border-collapse">
               <thead>
                 <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -369,7 +369,7 @@ export function SuppliersPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           {rows.length > 0 ? (
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">

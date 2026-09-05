@@ -216,14 +216,14 @@ function SalesDeliveryForm() {
           </button>
         }
       >
-        <div className="grid grid-cols-[1fr_140px_160px] gap-3 border-b border-[#f3f3f3] pb-2 text-xs font-semibold uppercase tracking-[0.02em] text-[#5b606c]">
+        <div className="grid grid-cols-[1fr_140px_160px] max-md:grid-cols-[1fr_84px_96px] max-md:gap-2 gap-3 border-b border-[#f3f3f3] pb-2 text-xs font-semibold uppercase tracking-[0.02em] text-[#5b606c]">
           <span>{t('tradeCreate.cols.item')}</span>
           <span>{t('tradeCreate.deliveryNote.remaining')}</span>
           <span>{t('tradeCreate.deliveryNote.shippingNow')}</span>
         </div>
         {doc.lines.map((line, index) => (
           <div key={line.id}>
-            <div className="grid grid-cols-[1fr_140px_160px] items-start gap-3 border-b border-[#f3f3f3] py-4">
+            <div className="grid grid-cols-[1fr_140px_160px] max-md:grid-cols-[1fr_84px_96px] max-md:gap-2 items-start gap-3 border-b border-[#f3f3f3] py-4">
               <label className="flex min-w-0 items-start gap-3">
                 <input
                   type="checkbox"

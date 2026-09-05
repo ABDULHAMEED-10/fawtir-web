@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, RowsView } from '../../components/ui'
 import {
   CREDIT_TABS,
   CREDIT_TAB_STATES,
@@ -160,7 +160,7 @@ export function SupplierCreditNotesPage() {
         </div>
 
         {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <article className="flex flex-col gap-2.5 rounded-md border border-[#cfe0d5] bg-[#eef5f0] p-5">
             <div className="flex items-center gap-3.5">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#3d5648]">
@@ -248,7 +248,7 @@ export function SupplierCreditNotesPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-            <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
+            <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
               <img src={searchIcon} alt="" className="size-5 shrink-0" aria-hidden="true" />
               <input
                 type="search"
@@ -279,7 +279,7 @@ export function SupplierCreditNotesPage() {
                   onClick={() => setSortOpen((open) => !open)}
                   aria-haspopup="listbox"
                   aria-expanded={sortOpen}
-                  className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+                  className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
                 >
                   <img src={sortIcon} alt="" className="size-6" />
                   {sort === 'natural'
@@ -321,7 +321,7 @@ export function SupplierCreditNotesPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto px-6 pb-6">
+          <RowsView className="px-6 pb-6">
             <table className="w-full min-w-[980px] border-collapse overflow-hidden rounded-sm text-start">
               <thead>
                 <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
@@ -467,7 +467,7 @@ export function SupplierCreditNotesPage() {
                 {t('supplierCreditNotes.empty')}
               </p>
             ) : null}
-          </div>
+          </RowsView>
         </section>
       </div>
     </AppShell>
