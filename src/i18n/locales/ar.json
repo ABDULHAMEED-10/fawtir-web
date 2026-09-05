@@ -810,7 +810,6 @@
       "catalogChildren": {
         "allItems": "كل الأصناف",
         "bundles": "الحزم",
-        "stock": "المخزون",
         "priceRules": "قواعد الأسعار"
       }
     },
@@ -6884,7 +6883,11 @@
     "footer": "{{name}} · يفتح {{date}} · أول فاتورة {{invoice}}",
     "footerUnnamed": "سمِّ الفرع للمتابعة",
     "saveDraft": "احفظ كمسودة",
-    "addTheBranch": "أضف الفرع"
+    "addTheBranch": "أضف الفرع",
+    "editTitle": "{{name}} — بياناته وكيف يفوتر",
+    "editSubtitle": "عنوانه وترقيمه. الرقم الضريبي ومعرّف Peppol يأتيان من الشركة ولا يمكن تغييرهما هنا.",
+    "saveChanges": "احفظ التغييرات",
+    "closeThisBranch": "أغلق هذا الفرع"
   },
   "team": {
     "title": "أعضاء الفريق",

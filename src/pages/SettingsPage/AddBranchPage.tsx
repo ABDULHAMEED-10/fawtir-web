@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Input, Select, Switch, TableCheckbox } from '../../components/ui'
 import {
+  BRANCHES,
   NEW_BRANCH,
   GOVERNORATES,
   BRANCH_INHERITS,
@@ -18,7 +19,7 @@ import circleIcon from '../../assets/settings/minus-amber.svg'
 import tickWhiteIcon from '../../assets/settings/check-white.svg'
 
 /**
- * Settings › Add a branch (Figma 135:37971).
+ * Settings › Add a branch (Figma 135:37971), and one branch reopened in the same form.
  *
  * The prefix drives the first invoice number, the roster drives the readiness checklist, and the
  * footer restates the whole thing — all from one piece of state, so the screen cannot promise
@@ -27,18 +28,28 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
 export function AddBranchPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { id } = useParams()
 
-  const [name, setName] = useState(NEW_BRANCH.name)
+  /** Opening an existing branch fills the same form from what it already holds. */
+  const existing = BRANCHES.find((branch) => branch.id === id)
+
+  const [name, setName] = useState(existing?.name ?? NEW_BRANCH.name)
   const [arabicName, setArabicName] = useState(NEW_BRANCH.arabicName)
-  const [street, setStreet] = useState('')
-  const [town, setTown] = useState(NEW_BRANCH.town)
+  const [street, setStreet] = useState(existing?.address ?? '')
+  const [town, setTown] = useState(existing?.name ?? NEW_BRANCH.town)
   const [postalCode, setPostalCode] = useState(NEW_BRANCH.postalCode)
   const [governorate, setGovernorate] = useState(NEW_BRANCH.governorate)
   const [phone, setPhone] = useState('')
   const [opens, setOpens] = useState(NEW_BRANCH.opens)
-  const [numbering, setNumbering] = useState(NEW_BRANCH.numbering)
-  const [prefix, setPrefix] = useState(NEW_BRANCH.prefix)
-  const [staff, setStaff] = useState<string[]>(['salim'])
+  const [numbering, setNumbering] = useState(
+    existing ? (existing.prefix ? 'own' : 'shared') : NEW_BRANCH.numbering,
+  )
+  const [prefix, setPrefix] = useState(existing?.prefix ?? NEW_BRANCH.prefix)
+  const [staff, setStaff] = useState<string[]>(() =>
+    existing
+      ? MEMBERS.filter((member) => existing.staff.includes(member.initials)).map((m) => m.id)
+      : ['salim'],
+  )
   const [behaviour, setBehaviour] = useState(
     () => new Set(BRANCH_BEHAVIOUR.filter((row) => row.on).map((row) => row.id)),
   )
@@ -72,8 +83,8 @@ export function AddBranchPage() {
   return (
     <SettingsShell group="company">
       <SettingsHeader
-        title={t('addBranch.title')}
-        subtitle={t('addBranch.subtitle')}
+        title={existing ? t('addBranch.editTitle', { name: existing.name }) : t('addBranch.title')}
+        subtitle={existing ? t('addBranch.editSubtitle') : t('addBranch.subtitle')}
         actions={
           <Link
             to="/settings/branches"
@@ -448,7 +459,7 @@ export function AddBranchPage() {
             type="button"
             className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
           >
-            {t('addBranch.saveDraft')}
+            {existing ? t('addBranch.closeThisBranch') : t('addBranch.saveDraft')}
           </button>
           <button
             type="button"
@@ -457,7 +468,7 @@ export function AddBranchPage() {
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
             <img src={tickWhiteIcon} alt="" className="size-4" />
-            {t('addBranch.addTheBranch')}
+            {existing ? t('addBranch.saveChanges') : t('addBranch.addTheBranch')}
           </button>
         </div>
       </div>

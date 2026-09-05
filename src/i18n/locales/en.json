@@ -811,7 +811,6 @@
       "catalogChildren": {
         "allItems": "All Items",
         "bundles": "Bundles",
-        "stock": "Stock",
         "priceRules": "Price Rules"
       }
     },
@@ -6882,7 +6881,11 @@
     "footer": "{{name}} · opens {{date}} · first invoice {{invoice}}",
     "footerUnnamed": "Name the branch to carry on",
     "saveDraft": "Save as a draft",
-    "addTheBranch": "Add the branch"
+    "addTheBranch": "Add the branch",
+    "editTitle": "{{name}} — what it is and how it invoices",
+    "editSubtitle": "Its address and numbering. The VAT number and Peppol ID come from the company and cannot be changed here.",
+    "saveChanges": "Save the changes",
+    "closeThisBranch": "Close this branch"
   },
   "team": {
     "title": "Team members",

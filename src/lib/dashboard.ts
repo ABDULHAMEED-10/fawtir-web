@@ -5,6 +5,7 @@ import receivablesIcon from '../assets/dashboard/kpi-receivables.svg'
 import payablesIcon from '../assets/dashboard/kpi-payables.svg'
 import {
   NavCatalogIcon,
+  NavStockIcon,
   NavCustomersIcon,
   NavDashboardIcon,
   NavDocumentsIcon,
@@ -214,7 +215,6 @@ export const DASHBOARD_NAV: NavGroup[] = [
             labelKey: 'dashboard.nav.catalogChildren.bundles',
             to: '/catalog/bundles',
           },
-          { id: 'stock', labelKey: 'dashboard.nav.catalogChildren.stock', to: '/catalog/stock' },
           {
             id: 'priceRules',
             labelKey: 'dashboard.nav.catalogChildren.priceRules',
@@ -222,6 +222,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
           },
         ],
       },
+      { id: 'stock', labelKey: 'dashboard.nav.stock', Icon: NavStockIcon, to: '/catalog/stock' },
     ],
   },
   {

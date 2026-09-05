@@ -182,6 +182,7 @@ function App() {
           <Route path="/settings/peppol" element={<PeppolTaxPage />} />
           <Route path="/settings/branches" element={<BranchesPage />} />
           <Route path="/settings/branches/new" element={<AddBranchPage />} />
+          <Route path="/settings/branches/:id" element={<AddBranchPage />} />
           <Route path="/settings/company" element={<CompanyProfilePage />} />
           <Route path="/settings/team" element={<TeamPage />} />
           <Route path="/settings/team/invite" element={<InvitePage />} />
