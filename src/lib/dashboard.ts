@@ -222,7 +222,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
           },
         ],
       },
-      { id: 'stock', labelKey: 'dashboard.nav.stock', Icon: NavStockIcon, to: '/catalog/stock' },
+      { id: 'stock', labelKey: 'dashboard.nav.stock', Icon: NavStockIcon, to: '/stock' },
     ],
   },
   {
