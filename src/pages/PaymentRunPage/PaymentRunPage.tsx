@@ -218,7 +218,7 @@ export function PaymentRunPage() {
                 <div
                   role="group"
                   aria-label={t('paymentsPage.dueWindow')}
-                  className="inline-flex items-center rounded-sm bg-surface-background p-1"
+                  className="inline-flex items-center rounded-sm bg-surface-background p-1 max-md:flex max-md:w-full max-md:overflow-x-auto"
                 >
                   {DUE_WINDOWS.map((option) => {
                     const active = option.id === window

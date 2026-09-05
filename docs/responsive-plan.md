@@ -1,8 +1,113 @@
 # Making Fawtir responsive — plan
 
-**Status:** plan only, nothing implemented yet.
 **Scope:** all 119 routes / 144 page files / 45 shared components.
 **Hard constraint:** the large-screen design does not change. Not by a pixel.
+
+## Progress
+
+| Phase | State | Result |
+| --- | --- | --- |
+| 0 — harness and baseline | **done** | `npm run responsive:{sweep,baseline,check}`; 104 routes covered (88 seeded + 16 discovered); 103-route desktop baseline at 1440px |
+| 1 — the shell | **done** | sidebar drawer + phone topbar; desktop unchanged on all 103 routes |
+| 2 — the named offenders | **done** | **nothing bleeds sideways at any width** |
+| 3 — tables | **done** | all 47 wide tables reachable by scrolling on a phone |
+| 4.1 — Reports | **done** | charts drawn in a narrower box on phones, so labels stay readable |
+| 4.2–4.8 — other sections | **reviewed, little needed** | see below |
+| 5 — RTL | spot-checked | drawer, topbar, sticky bars and charts all mirror correctly |
+| 6 — final sweep | pending | wants a real device |
+
+### Phase 3 — tables
+
+Option A from Section 8: wide tables keep their horizontal scroll. 47 tables are wider than a
+phone; a probe confirmed **46 of them could already be scrolled to in full**. The one that could
+not was the invoice preview on `/expenditure/payments/PR-0014/invoices`, whose scroller used
+`justify-center` — centred overflow spills equally both ways and the leading half is unreachable.
+`justify-center-safe` centres only while the content fits and falls back to the start edge when it
+does not, so nothing changes at 1440.
+
+The three tables with no `overflow-x-auto` wrapper turned out not to need one: none carries a
+`min-w`, so all three are fluid.
+
+### Phase 4.1 — Reports
+
+Every chart is an SVG drawn in a 500-unit box and scaled to its container. On a 310px phone card
+that is a factor of 0.62, which takes 11px axis labels down to 7px — legible on a desk, not in a
+hand. Charts now ask `useCompact()` and draw into a 340-unit box on phones, so the scale factor is
+0.91 and the labels come back. Three gridlines instead of five, and twelve month labels thin to
+every other one (never dropping the month being pointed at). Desktop draws at 500 exactly as before.
+
+### Phase 4.2–4.8 — the other sections
+
+Reviewed at 360px across Income, Expenditure, Trade documents, Contacts, Catalog, Settings,
+Activity, POS and the detail screens. They need very little: the app was built throughout on
+`flex-wrap` with `min-w-[280px] flex-1` floors, so cards stack, headers wrap and forms fall to one
+column on their own. Modals already fit a phone. The remaining work is the tap-target question
+below, not layout.
+
+### Tap targets — a decision for the client
+
+Measured every control on all 104 routes at 360px. **599 land under 36px on their shorter side.**
+Three were fixed as plainly broken rather than deliberate:
+
+- the remove-add-on `×` was **8px wide** (`/catalog/new`, `/catalog/rules/new`)
+- the `Switch` is 42×23, too fiddly for a finger
+- text inputs sat 17px tall inside their own 46px box, so only the text line took the tap
+
+Each was fixed by growing the region that responds to a finger, not the drawing — an invisible
+`::after` overlay, and `max-md:self-stretch` on the field row. No pixel moves at any width.
+
+The other ~500 are 24–34px icon buttons, tabs and links. Bringing them all to 44px is the Apple and
+Google guidance, but it is a visible change to a design that has none behind it in Figma, so it
+should be the client's call rather than mine.
+
+Overflow, measured at each stage:
+
+| Viewport | Start | After Phase 1 | After Phase 2 |
+| --- | --- | --- | --- |
+| 360 | 90 / 104 | 19 / 104 | **0 / 104** |
+| 390 | 90 / 104 | 13 / 104 | **0 / 104** |
+| 768 | 6 / 104 | 1 / 104 | **0 / 104** |
+| 1024 | 1 / 104 | 1 / 104 | **0 / 104** |
+| 1280 | 1 / 104 | 1 / 104 | **0 / 104** |
+| 1440 | 0 / 104 | 0 / 104 | **0 / 104** |
+
+Phase 2 was one shared fault plus five one-offs. The shared one: the action cluster in every page
+header and sticky footer is `shrink-0`, so it always demanded its full one-line width and its own
+`flex-wrap` never got a chance to act — the last button, always the primary one, hung off the
+screen. Letting it shrink below `md` fixed **14 of the 19 routes** in a single edit across 38 files.
+
+### Design faults found and fixed in Phase 2
+
+Both were real bugs at desktop widths, not phone problems, and both are invisible at 1440 — which
+is why they had never been noticed:
+
+- **Order forms KPI titles** (`/trade-documents/order-forms`): "Received, not invoiced" is
+  `whitespace-nowrap` in a quarter-width card. It fits at 1440 with about 4px to spare and runs
+  32px out of its card at 1280. The `whitespace-nowrap` is gone; where it fits, nothing changes.
+- **Supplier credit-note KPIs** (`/expenditure/credit-notes`): three 32px money figures in
+  `md:grid-cols-3`, so from 768 up the amount ran out of its card — 26px at 768, 24px at 1024. The
+  third column now waits for `xl`, which is the first width where the figures actually fit. At
+  1440 the card count is unchanged.
+
+### Diagnostics the harness needed along the way
+
+- Culprits are measured against `main`'s **content** box. Measuring to the border box let anything
+  spilling into main's own 16px padding hide, which is what kept the credit-note bug anonymous.
+- Culprits are the **deepest** offenders. Measuring each element against its own parent fingered
+  containers instead of causes — every report came back pointing at the sticky bar's deliberate
+  `-mx-4` bleed rather than the button actually hanging out of it.
+- Overflow of 2px or less is treated as sub-pixel rounding rather than a fault.
+
+Two things the harness taught us the hard way, both now fixed in it:
+
+- **`/pos` cannot be fingerprinted.** It is the only screen that loads images from a third party —
+  24 product photos hotlinked from Wikimedia Commons — so how much has decoded when the shot is
+  taken varies per run. It is excluded from the gate (`UNSTABLE_ROUTES`) and still swept for
+  overflow. Worth deciding separately whether production should hotlink those at all.
+- **A shared browser profile can poison every result.** A probe clicked العربية, which the app
+  stores in `localStorage`; every later screenshot rendered the app right-to-left and all 103
+  fingerprints changed for reasons unrelated to the code. The runner now wipes its profile before
+  each run.
 
 ---
 

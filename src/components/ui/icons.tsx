@@ -137,6 +137,27 @@ export function UserIcon({ className = '', size = 20 }: IconProps) {
   )
 }
 
+/** The three bars that open the navigation on a screen too narrow to keep it on show. */
+export function MenuIcon({ className = '', size = 24 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M4 7h16M4 12h16M4 17h16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export function CloseIcon({ className = '', size = 16 }: IconProps) {
   return (
     <svg

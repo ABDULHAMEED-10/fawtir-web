@@ -188,7 +188,7 @@ function AttachmentsCard({ invoice }: { invoice: typeof INVOICE_DETAIL }) {
                 <p className="truncate text-sm font-medium text-text-quaternary">{file.meta}</p>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2.5">
+            <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
               {/* A file picked in this session downloads straight from the blob we still hold.
                   One already on the record has no bytes on the client, so it waits on the one
                   seam left here: GET /api/v1/invoices/{id}/attachments/{attachmentId}. Drawn at
@@ -844,7 +844,7 @@ export function InvoiceDetailsPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2.5">
+                <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
                   <button type="button" aria-label={t('invoiceDetails.download')}>
                     <img src={downloadIcon} alt="" className="size-6" />
                   </button>

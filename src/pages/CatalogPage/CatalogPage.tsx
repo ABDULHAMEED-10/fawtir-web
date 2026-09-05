@@ -199,7 +199,7 @@ export function CatalogPage() {
             />
           </label>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <button
               ref={groupsRef}
               type="button"

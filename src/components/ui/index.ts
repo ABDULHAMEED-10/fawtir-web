@@ -21,6 +21,7 @@ export {
   EyeOffIcon,
   PhoneIcon,
   UserIcon,
+  MenuIcon,
   CloseIcon,
   ChevronLeftIcon,
   ChevronRightIcon,

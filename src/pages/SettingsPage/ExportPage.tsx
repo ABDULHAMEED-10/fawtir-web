@@ -167,7 +167,7 @@ export function ExportPage() {
                 {started ? t('export.started') : t('export.footerTime')}
               </p>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+            <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}

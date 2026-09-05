@@ -160,7 +160,7 @@ export function SupplierCreditNotesPage() {
         </div>
 
         {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <article className="flex flex-col gap-2.5 rounded-md border border-[#cfe0d5] bg-[#eef5f0] p-5">
             <div className="flex items-center gap-3.5">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#3d5648]">

@@ -463,7 +463,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     type="button"
                     onClick={() => setAddOns((list) => list.filter((x) => x.id !== addOn.id))}
                     aria-label={t('item.removeAddOn')}
-                    className="text-text-quaternary transition-colors hover:text-danger-700"
+                    className="relative text-text-quaternary transition-colors after:absolute after:-inset-2 after:content-[''] hover:text-danger-700"
                   >
                     ×
                   </button>
@@ -596,7 +596,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
         <p className="text-sm font-medium text-text-tertiary">
           {t('item.footer', { sizes: sizes.length, addOns: addOns.length })}
         </p>
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link
             to="/catalog"
             className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

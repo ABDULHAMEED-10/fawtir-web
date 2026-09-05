@@ -4,9 +4,11 @@ import {
   useRef,
   useState,
   type ComponentType,
+  type RefObject,
 } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { CloseIcon } from '../../components/ui/icons'
 import {
   DASHBOARD_NAV,
   SETTINGS_NAV,
@@ -179,15 +181,86 @@ function useKeptScroll() {
   return ref
 }
 
-export function Sidebar() {
+/**
+ * Escape closes the drawer, and focus stays inside it while it is open.
+ *
+ * Only below `lg`, where it is a panel over the page — above that it is simply part of the layout
+ * and none of this applies.
+ */
+function useDrawer(open: boolean, onClose: () => void, ref: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    if (!open) return
+    const panel = ref.current
+    if (!panel) return
+
+    const focusable = () =>
+      Array.from(
+        panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex="0"]'),
+      ).filter((el) => el.offsetParent !== null)
+
+    focusable()[0]?.focus()
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const items = focusable()
+      if (!items.length) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open, onClose, ref])
+}
+
+type SidebarProps = {
+  /** Only meaningful below `lg`, where the sidebar is a drawer rather than a column. */
+  open?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const { t } = useTranslation()
   const location = useLocation()
   const navRef = useKeptScroll()
+  const panelRef = useRef<HTMLElement>(null)
+  useDrawer(open, onClose, panelRef)
 
   return (
-    <aside className="flex h-dvh w-[248px] shrink-0 flex-col border-e border-black/10 bg-surface-tab-bar">
-      <div className="flex h-[74px] w-full items-center justify-center">
+    <aside
+      ref={panelRef}
+      className={[
+        'flex h-dvh w-[248px] shrink-0 flex-col border-e border-black/10 bg-surface-tab-bar',
+        // Below lg it leaves the flow and slides in over the page from the leading edge, which
+        // `rtl:` flips for Arabic. `invisible` keeps it off the tab order while it is away.
+        'max-lg:fixed max-lg:inset-y-0 max-lg:start-0 max-lg:z-50 max-lg:shadow-2xl',
+        open
+          ? 'max-lg:visible max-lg:translate-x-0'
+          : 'max-lg:invisible max-lg:-translate-x-full max-lg:rtl:translate-x-full',
+      ].join(' ')}
+    >
+      <div className="relative flex h-[74px] w-full items-center justify-center">
         <BrandLogo size="md" />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t('common.close')}
+          className="absolute end-3 inline-flex size-9 items-center justify-center rounded-sm text-text-tertiary transition-colors hover:bg-primary-25 lg:hidden"
+        >
+          <CloseIcon size={18} />
+        </button>
       </div>
       <div className="h-px w-full bg-black/10" />
 

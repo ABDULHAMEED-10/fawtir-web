@@ -130,7 +130,7 @@ export function BundlesPage() {
               className="w-full min-w-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
           </label>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <FilterMenu
               label={t('catalog.filters')}
               value={tab}

@@ -183,7 +183,7 @@ export function SupplierStatementPage() {
               {t('supplierStatement.subtitle')}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <button
               type="button"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

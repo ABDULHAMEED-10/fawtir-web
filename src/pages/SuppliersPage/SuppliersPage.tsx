@@ -125,7 +125,7 @@ export function SuppliersPage() {
               {t('suppliersPage.subtitle')}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <Link
               to="/suppliers/import"
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

@@ -503,7 +503,7 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
                   <Link
                     key={inv.id}
                     to={`/invoices/${inv.id}`}
-                    className="flex items-center gap-3 rounded-sm border border-border-brand-subtle bg-primary-25 p-2.5 transition-colors hover:bg-primary-50"
+                    className="flex items-center gap-3 rounded-sm border border-border-brand-subtle bg-primary-25 p-2.5 transition-colors hover:bg-primary-50 max-md:flex-wrap"
                   >
                     <span className="flex size-[54px] shrink-0 items-center justify-center rounded-sm bg-primary-25">
                       <img src={invoiceTileIcon} alt="" className="size-9" />

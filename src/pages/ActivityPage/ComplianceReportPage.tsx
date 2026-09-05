@@ -72,7 +72,7 @@ export function ComplianceReportPage() {
             </p>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <button
               type="button"
               onClick={() => window.print()}

@@ -64,7 +64,7 @@ export function SupplierDetailPage() {
               {supplier.name}
             </h1>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <Link
               to={`/suppliers/${supplier.slug}/edit`}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
@@ -121,7 +121,7 @@ export function SupplierDetailPage() {
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <Link
               to={`/suppliers/${supplier.slug}/statement`}
               className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

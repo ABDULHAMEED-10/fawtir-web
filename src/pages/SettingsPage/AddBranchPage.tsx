@@ -448,7 +448,7 @@ export function AddBranchPage() {
             ? t('addBranch.footer', { name, date: opens, invoice: firstInvoice })
             : t('addBranch.footerUnnamed')}
         </p>
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link
             to="/settings/branches"
             className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

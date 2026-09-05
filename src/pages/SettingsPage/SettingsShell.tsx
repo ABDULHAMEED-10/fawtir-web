@@ -124,7 +124,7 @@ export function SettingsHeader({
         <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{subtitle}</p>
       </div>
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2.5">{actions}</div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">{actions}</div>
       ) : null}
     </div>
   )

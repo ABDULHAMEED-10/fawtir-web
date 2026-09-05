@@ -126,7 +126,7 @@ export function ActivityPage() {
               {t('activity.subtitle')}
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
             <Link
               to="/compliance/activity/call-log"
               className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"

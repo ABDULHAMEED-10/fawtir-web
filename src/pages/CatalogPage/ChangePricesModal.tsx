@@ -96,7 +96,7 @@ export function ChangePricesModal({
                   left: BULK_SCOPE.handSet,
                 })}
           </p>
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <button
               type="button"
               onClick={onClose}

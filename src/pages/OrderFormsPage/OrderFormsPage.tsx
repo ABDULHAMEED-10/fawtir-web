@@ -232,7 +232,7 @@ function OrderKpiCards() {
             >
               <img src={KPI_ICONS[kpi.icon]} alt="" className="size-6" />
             </span>
-            <h3 className="whitespace-nowrap text-xl font-medium leading-[1.2] text-[#2c3342]">
+            <h3 className="text-xl font-medium leading-[1.2] text-[#2c3342]">
               {t(kpi.titleKey)}
             </h3>
           </div>

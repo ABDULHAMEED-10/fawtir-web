@@ -87,7 +87,7 @@ export function OtaCallLogPage() {
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <ActionMenu
               variant="bordered"
               label={t('callLog.more')}

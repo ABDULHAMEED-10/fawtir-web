@@ -869,7 +869,8 @@
       "netPayable": "net payable",
       "output": "Output VAT",
       "input": "Input VAT"
-    }
+    },
+    "openNav": "Open navigation"
   },
   "rowActions": {
     "delete": "Delete",
