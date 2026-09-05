@@ -226,25 +226,6 @@ export const DASHBOARD_NAV: NavGroup[] = [
     ],
   },
   {
-    id: 'compliance',
-    labelKey: 'dashboard.nav.compliance',
-    items: [
-      {
-        id: 'activity',
-        labelKey: 'dashboard.nav.tddOta',
-        Icon: NavTddIcon,
-        to: '/compliance/activity',
-        badge: ATTENTION_COUNT,
-      },
-      {
-        id: 'documents',
-        labelKey: 'dashboard.nav.documents',
-        Icon: NavDocumentsIcon,
-        to: '/compliance/documents',
-      },
-    ],
-  },
-  {
     id: 'insights',
     labelKey: 'dashboard.nav.insights',
     items: [
@@ -273,6 +254,25 @@ export const DASHBOARD_NAV: NavGroup[] = [
           },
           { id: 'lists', labelKey: 'dashboard.nav.reportChildren.lists', to: '/reports/lists' },
         ],
+      },
+    ],
+  },
+  {
+    id: 'compliance',
+    labelKey: 'dashboard.nav.compliance',
+    items: [
+      {
+        id: 'activity',
+        labelKey: 'dashboard.nav.tddOta',
+        Icon: NavTddIcon,
+        to: '/compliance/activity',
+        badge: ATTENTION_COUNT,
+      },
+      {
+        id: 'documents',
+        labelKey: 'dashboard.nav.documents',
+        Icon: NavDocumentsIcon,
+        to: '/compliance/documents',
       },
     ],
   },
