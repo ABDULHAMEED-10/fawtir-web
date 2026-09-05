@@ -8480,5 +8480,10 @@
     "saveForLater": "احفظ وأكمل لاحقًا",
     "addToCatalog": "أضف {{count}} إلى الكتالوج",
     "added": "أُضيفت"
+  },
+  "rowsView": {
+    "label": "طريقة عرض القائمة",
+    "cards": "بطاقات",
+    "table": "جدول"
   }
 }

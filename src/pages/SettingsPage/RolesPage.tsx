@@ -20,6 +20,7 @@ import managerIcon from '../../assets/settings/menu-people.svg'
 import accountantIcon from '../../assets/settings/menu-invoice.svg'
 import tillIcon from '../../assets/settings/menu-device.svg'
 import wholesaleIcon from '../../assets/settings/menu-copy.svg'
+import { RowsView } from '../../components/ui'
 
 const ROLE_ICON: Record<RoleId, string> = {
   owner: ownerIcon,
@@ -163,7 +164,7 @@ export function RolesPage() {
 
       {/* Matrix */}
       <section className="overflow-hidden rounded-md bg-surface-card">
-        <div className="overflow-x-auto">
+        <RowsView>
           <table className="w-full min-w-[940px] border-collapse">
             <thead>
               <tr>
@@ -282,7 +283,7 @@ export function RolesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </RowsView>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
           <span className="flex flex-wrap items-center gap-4">

@@ -33,6 +33,7 @@ import calendarIcon from '../../assets/create-invoice/calendar.svg'
 import customerLogo from '../../assets/create-invoice/customer-logo.svg'
 import modeSalesIcon from '../../assets/order-forms-v2/mode-sales.svg'
 import modePurchaseIcon from '../../assets/order-forms-v2/mode-purchase.svg'
+import { RowsView } from '../../components/ui'
 
 function ModePicker({
   mode,
@@ -98,7 +99,7 @@ function LinesTable({ lines, totals }: { lines: OrderLine[]; totals: OrderTotals
 
   return (
     <>
-      <div className="overflow-x-auto">
+      <RowsView>
         <table className="w-full min-w-[900px] border-collapse text-start">
           <thead>
             <tr>
@@ -134,10 +135,7 @@ function LinesTable({ lines, totals }: { lines: OrderLine[]; totals: OrderTotals
                   <Field value={line.vat} />
                 </td>
                 <td className="py-1.5 pe-3">
-                  <Field
-                    value={line.qty}
-                    suffix={<NumberStepper />}
-                  />
+                  <Field value={line.qty} suffix={<NumberStepper />} />
                 </td>
                 <td className="py-1.5 pe-3">
                   <Field value={line.unit} suffix="chevron" />
@@ -155,7 +153,7 @@ function LinesTable({ lines, totals }: { lines: OrderLine[]; totals: OrderTotals
             ))}
           </tbody>
         </table>
-      </div>
+      </RowsView>
 
       <button
         type="button"

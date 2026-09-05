@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, StepTracker, TableCheckbox } from '../../components/ui'
+import { ActionMenu, RowsView, StepTracker, TableCheckbox } from '../../components/ui'
 import { quotationRowActions } from '../../lib/rowActions'
 import {
   QUOTATION_KPI,
@@ -41,7 +41,11 @@ const STATUS_STYLES: Record<QuotationStatus, { bg: string; fg: string; labelKey:
   draft: { bg: 'bg-[#f4f6fb]', fg: 'text-[#595d75]', labelKey: 'quotations.status.draft' },
   sent: { bg: 'bg-[#f4f6fb]', fg: 'text-[#233e92]', labelKey: 'quotations.status.sent' },
   accepted: { bg: 'bg-[#e6efea]', fg: 'text-[#3d5648]', labelKey: 'quotations.status.accepted' },
-  delivering: { bg: 'bg-[#f7f1e6]', fg: 'text-[#6d5a39]', labelKey: 'quotations.status.delivering' },
+  delivering: {
+    bg: 'bg-[#f7f1e6]',
+    fg: 'text-[#6d5a39]',
+    labelKey: 'quotations.status.delivering',
+  },
   expiring: { bg: 'bg-[#f7f1e6]', fg: 'text-[#6d5a39]', labelKey: 'quotations.status.expiring' },
   declined: { bg: 'bg-[#fff0f0]', fg: 'text-[#7a1009]', labelKey: 'quotations.status.declined' },
 }
@@ -113,7 +117,9 @@ function QuotationKpiCards() {
               >
                 <img src={tile.icon} alt="" className="size-6" />
               </span>
-              <h3 className="text-xl font-medium leading-[1.2] text-[#2c3342]">{t(kpi.titleKey)}</h3>
+              <h3 className="text-xl font-medium leading-[1.2] text-[#2c3342]">
+                {t(kpi.titleKey)}
+              </h3>
             </div>
             <div className="flex items-center gap-1.5">
               {kpi.plus ? (
@@ -149,7 +155,9 @@ function QuotationRowCells({ row }: { row: QuotationRow }) {
       <td className="px-2 py-2.5">
         <p className="text-sm font-semibold leading-[1.2] text-[#151c2d]">{row.validUntil}</p>
         {row.validNote ? (
-          <p className={['mt-1 text-xs leading-[1.2]', VALID_NOTE_TONE[row.validNoteTone]].join(' ')}>
+          <p
+            className={['mt-1 text-xs leading-[1.2]', VALID_NOTE_TONE[row.validNoteTone]].join(' ')}
+          >
             {row.validNote}
           </p>
         ) : null}
@@ -189,8 +197,7 @@ function QuotationsTable() {
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
   const allSelected = selected.length === QUOTATION_ROWS.length
-  const toggleAll = () =>
-    setSelected(allSelected ? [] : QUOTATION_ROWS.map((row) => row.id))
+  const toggleAll = () => setSelected(allSelected ? [] : QUOTATION_ROWS.map((row) => row.id))
   const [page, setPage] = useState(2)
 
   return (
@@ -233,7 +240,7 @@ function QuotationsTable() {
 
       {/* Search + Filters/Sort */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-[27px]">
-        <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
+        <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
@@ -260,7 +267,7 @@ function QuotationsTable() {
       </div>
 
       {/* Table */}
-      <div className="mt-4 overflow-x-auto">
+      <RowsView className="mt-4">
         <table className="w-full min-w-[1100px] border-collapse text-start">
           <thead>
             <tr className="bg-[#2c3342] text-start text-xs leading-[1.2] text-white">
@@ -272,11 +279,19 @@ function QuotationsTable() {
                   ariaLabel={t('quotations.selectAll')}
                 />
               </th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.quotation')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.customer')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.validUntil')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('quotations.col.quotation')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('quotations.col.customer')}
+              </th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('quotations.col.validUntil')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.amount')}</th>
-              <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.progress')}</th>
+              <th className="px-2 py-2.5 text-start font-semibold">
+                {t('quotations.col.progress')}
+              </th>
               <th className="px-2 py-2.5 text-start font-semibold">{t('quotations.col.status')}</th>
               <th className="w-14 px-2 py-2.5" />
             </tr>
@@ -290,10 +305,10 @@ function QuotationsTable() {
               >
                 <td className="px-5 py-2.5" onClick={(e) => e.stopPropagation()}>
                   <TableCheckbox
-                      checked={selected.includes(row.id)}
-                      onChange={() => toggleRow(row.id)}
-                      ariaLabel={t('quotations.selectRow', { id: row.id })}
-                    />
+                    checked={selected.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
+                    ariaLabel={t('quotations.selectRow', { id: row.id })}
+                  />
                 </td>
                 <QuotationRowCells row={row} />
                 <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
@@ -303,7 +318,7 @@ function QuotationsTable() {
             ))}
           </tbody>
         </table>
-      </div>
+      </RowsView>
 
       {/* Pagination */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5">

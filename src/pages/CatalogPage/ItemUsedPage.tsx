@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Pill, Kpi, TabStrip } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
-import { FilterMenu, SortMenu } from '../../components/ui'
+import { FilterMenu, RowsView, SortMenu } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   ITEM,
@@ -156,7 +156,7 @@ export function ItemUsedPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <RowsView>
           <table className="w-full min-w-[980px] border-collapse">
             <thead>
               <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -187,7 +187,7 @@ export function ItemUsedPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </RowsView>
 
         <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
           {t('itemUsed.showing', { shown: rows.length, total: USED_TOTAL })}

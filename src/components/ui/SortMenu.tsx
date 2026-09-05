@@ -38,7 +38,7 @@ export function SortMenu<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25"
+        className="inline-flex h-[46px] shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25"
       >
         <img src={sortIcon} alt="" className="size-5" />
         {label ?? t('common.sort')}

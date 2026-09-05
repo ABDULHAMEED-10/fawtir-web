@@ -269,7 +269,7 @@ export function NewCreditNotePage() {
               {mode === 'custom' ? (
                 <div className="mt-3">
                   <FieldLabel label={t('creditNote.customAmount')} />
-                  <div className="flex h-[50px] w-full max-w-[280px] items-center gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
+                  <div className="flex h-[50px] w-full max-w-[280px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
                     <img src={omrIcon} alt="" className="h-auto w-4 shrink-0" />
                     <input
                       value={customAmount}

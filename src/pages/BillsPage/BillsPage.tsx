@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover, TableCheckbox } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, RowsView, TableCheckbox } from '../../components/ui'
 import { billRowActions } from '../../lib/rowActions'
 import {
   BILL_KPI,
@@ -357,7 +357,7 @@ function BillTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-        <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
+        <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" aria-hidden="true" />
           <input
             type="search"
@@ -392,7 +392,7 @@ function BillTable() {
               onClick={() => setSortOpen((open) => !open)}
               aria-haspopup="listbox"
               aria-expanded={sortOpen}
-              className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+              className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
             >
               <img src={sortIcon} alt="" className="size-6" />
               {sort === 'natural'
@@ -434,7 +434,7 @@ function BillTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <RowsView>
         <table className="w-full min-w-[1080px] border-collapse text-start">
           <colgroup>
             {COLUMNS.map((column) => (
@@ -587,11 +587,7 @@ function BillTable() {
                       )}
                       {t(action.labelKey)}
                       {action.trailingIcon ? (
-                        <img
-                          src={action.icon}
-                          alt=""
-                          className="size-4 shrink-0 rtl:rotate-180"
-                        />
+                        <img src={action.icon} alt="" className="size-4 shrink-0 rtl:rotate-180" />
                       ) : null}
                     </button>
                   </td>
@@ -625,7 +621,7 @@ function BillTable() {
             {t('billsPage.empty')}
           </p>
         ) : null}
-      </div>
+      </RowsView>
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">

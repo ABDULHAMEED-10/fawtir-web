@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { FileDropzone, OmAmount } from '../../components/ui'
+import { FileDropzone, OmAmount, RowsView } from '../../components/ui'
 import { DocumentPreview, ReminderBanner } from '../../components/invoice'
 import { INVOICE_DETAIL } from '../../lib/invoiceDetails'
 import { invoiceToPreview } from '../../lib/documentPreview'
@@ -684,7 +684,7 @@ export function InvoiceDetailsPage() {
 
         {/* Items */}
         <SectionCard title={t('invoiceDetails.items')}>
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[900px] border-collapse text-start">
               <thead>
                 <tr className="border-b border-surface-background text-xs font-semibold uppercase tracking-[1.44px] text-text-quaternary">
@@ -720,7 +720,7 @@ export function InvoiceDetailsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           <div className="mt-4 ms-auto flex w-full max-w-[328px] flex-col gap-2">
             <div className="flex items-center justify-between gap-4 text-sm">

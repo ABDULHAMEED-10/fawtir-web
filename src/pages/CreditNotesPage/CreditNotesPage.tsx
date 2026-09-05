@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { OmAmount } from '../../components/ui/OmAmount'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, RowsView } from '../../components/ui'
 import { creditNoteRowActions } from '../../lib/rowActions'
 import {
   CREDIT_NOTE_KPI,
@@ -244,7 +244,7 @@ function CreditNotesTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-        <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
+        <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
@@ -257,14 +257,14 @@ function CreditNotesTable() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+            className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
           >
             <img src={filterIcon} alt="" className="size-6" />
             {t('creditNotesPage.filters')}
           </button>
           <button
             type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+            className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
           >
             <img src={sortIcon} alt="" className="size-6" />
             {t('creditNotesPage.sort')}
@@ -272,7 +272,7 @@ function CreditNotesTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <RowsView>
         <table className="w-full min-w-[1100px] border-collapse text-start">
           <thead>
             <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
@@ -374,7 +374,7 @@ function CreditNotesTable() {
             })}
           </tbody>
         </table>
-      </div>
+      </RowsView>
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">

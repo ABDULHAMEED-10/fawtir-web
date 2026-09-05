@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, TableCheckbox } from '../../components/ui'
+import { ActionMenu, RowsView, TableCheckbox } from '../../components/ui'
 import { deliveryNoteRowActions } from '../../lib/rowActions'
 import {
   DELIVERY_KPI,
@@ -447,9 +447,7 @@ function DeliveryNotesTable() {
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
   const allSelected = selected.length === DELIVERY_ROWS.length
-  const toggleAll = () =>
-    setSelected(allSelected ? [] : DELIVERY_ROWS.map((row) => row.id))
-
+  const toggleAll = () => setSelected(allSelected ? [] : DELIVERY_ROWS.map((row) => row.id))
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -490,7 +488,7 @@ function DeliveryNotesTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-        <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
+        <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
@@ -516,7 +514,7 @@ function DeliveryNotesTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <RowsView>
         <table className="w-full min-w-[1124px] table-fixed border-collapse text-start">
           {/* Figma column widths — the proof column is 201 wide, wider than order forms. */}
           <colgroup>
@@ -566,10 +564,10 @@ function DeliveryNotesTable() {
               >
                 <td className="px-4 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
                   <TableCheckbox
-                      checked={selected.includes(row.id)}
-                      onChange={() => toggleRow(row.id)}
-                      ariaLabel={t('deliveryNotes.selectRow', { id: row.id })}
-                    />
+                    checked={selected.includes(row.id)}
+                    onChange={() => toggleRow(row.id)}
+                    ariaLabel={t('deliveryNotes.selectRow', { id: row.id })}
+                  />
                 </td>
                 <DeliveryRowCells row={row} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
@@ -582,7 +580,7 @@ function DeliveryNotesTable() {
             ))}
           </tbody>
         </table>
-      </div>
+      </RowsView>
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-4 pb-4 pt-3">
         <label className="flex items-center gap-4 text-sm font-medium text-[#737781]">

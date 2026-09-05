@@ -137,7 +137,7 @@ export function TddResubmitPage() {
                   </div>
                 </div>
                 <Link
-                  to="/contacts/customers"
+                  to="/customers"
                   className="inline-flex h-[42px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
                 >
                   {t('tddResubmit.openCustomer')}
@@ -346,7 +346,7 @@ export function TddResubmitPage() {
       </div>
 
       {/* Action bar */}
-      <div className="sticky bottom-0 -mx-6 mt-auto border-t border-border-subtle bg-surface-card px-6 py-4">
+      <div className="sticky bottom-0 -mx-4 mt-auto border-t border-border-subtle bg-surface-card px-4 py-4">
         <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-text-tertiary">
             {t('tddResubmit.footer', { invoices, quota: invoices })}

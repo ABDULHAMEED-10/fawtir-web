@@ -358,7 +358,7 @@ export const CLOSING_BLOCKERS: Blocker[] = [
     blocking: false,
     tone: 'pending',
     actionKey: 'closing.seeThem',
-    to: '/quotations',
+    to: '/trade-documents/quotations',
     values: { count: BOOK.openQuotations },
   },
   { id: 'nothingOwed', blocking: false, tone: 'clear' },

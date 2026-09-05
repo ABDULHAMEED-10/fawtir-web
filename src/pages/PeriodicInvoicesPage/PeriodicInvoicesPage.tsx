@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, RowsView } from '../../components/ui'
 import { scheduleRowActions } from '../../lib/rowActions'
 import {
   SCHEDULE_KPI,
@@ -237,7 +237,7 @@ function ScheduleTable() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-        <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
+        <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
@@ -257,7 +257,7 @@ function ScheduleTable() {
           </button>
           <button
             type="button"
-            className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+            className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
           >
             <img src={sortIcon} alt="" className="size-6" />
             {t('periodicList.sort')}
@@ -265,7 +265,7 @@ function ScheduleTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <RowsView>
         <table className="w-full min-w-[1040px] border-collapse text-start">
           <thead>
             <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
@@ -313,7 +313,7 @@ function ScheduleTable() {
             ))}
           </tbody>
         </table>
-      </div>
+      </RowsView>
 
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">

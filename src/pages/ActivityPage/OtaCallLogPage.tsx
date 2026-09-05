@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, SortMenu } from '../../components/ui'
+import { ActionMenu, FilterMenu, RowsView, SortMenu } from '../../components/ui'
 import {
   CALL_RESULTS,
   CALL_SORTS,
@@ -162,7 +162,7 @@ export function OtaCallLogPage() {
         {/* Table */}
         <section className="rounded-md bg-surface-card">
           <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <label className="relative flex h-[46px] w-full max-w-[344px] items-center">
+            <label className="relative flex h-[46px] w-full max-w-[344px] items-center max-md:max-w-none max-md:basis-full">
               <img
                 src={searchIcon}
                 alt=""
@@ -197,7 +197,7 @@ export function OtaCallLogPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[1080px] border-collapse">
               <thead>
                 <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -223,7 +223,7 @@ export function OtaCallLogPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
             {t('callLog.showing', {

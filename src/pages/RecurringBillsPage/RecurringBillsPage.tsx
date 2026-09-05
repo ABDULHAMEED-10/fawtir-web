@@ -300,7 +300,7 @@ export function RecurringBillsPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-            <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
+            <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
               <img src={searchIcon} alt="" className="size-5 shrink-0" aria-hidden="true" />
               <input
                 type="search"
@@ -330,7 +330,7 @@ export function RecurringBillsPage() {
                   onClick={() => setSortOpen((open) => !open)}
                   aria-haspopup="listbox"
                   aria-expanded={sortOpen}
-                  className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+                  className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
                 >
                   <img src={sortIcon} alt="" className="size-6" />
                   {sort === 'natural'

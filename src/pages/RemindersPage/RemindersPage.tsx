@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { TableCheckbox } from '../../components/ui'
+import { RowsView, TableCheckbox } from '../../components/ui'
 import {
   PauseRemindersModal,
   SendReminderModal,
@@ -228,8 +228,7 @@ export function RemindersPage() {
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
   const allSelected = selected.length === QUEUE_ROWS.length && QUEUE_ROWS.length > 0
-  const toggleAll = () =>
-    setSelected(allSelected ? [] : QUEUE_ROWS.map((row) => row.invoice))
+  const toggleAll = () => setSelected(allSelected ? [] : QUEUE_ROWS.map((row) => row.invoice))
 
   const [pauseOpen, setPauseOpen] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
@@ -276,7 +275,7 @@ export function RemindersPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
-            <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
+            <label className="flex h-11 w-full max-w-[346px] items-center max-md:max-w-none max-md:basis-full gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-4">
               <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
                 type="search"
@@ -302,7 +301,7 @@ export function RemindersPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[1100px] table-fixed border-collapse text-start">
               {/* Figma column widths. */}
               <colgroup>
@@ -318,11 +317,11 @@ export function RemindersPage() {
                 <tr className="bg-[#2c3342]">
                   <th className="px-4 py-2.5 text-start">
                     <TableCheckbox
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  indeterminate={selected.length > 0 && !allSelected}
-                  ariaLabel={t('reminders.queue.selectAll')}
-                />
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      indeterminate={selected.length > 0 && !allSelected}
+                      ariaLabel={t('reminders.queue.selectAll')}
+                    />
                   </th>
                   {[
                     'reminders.queue.cols.sending',
@@ -346,17 +345,17 @@ export function RemindersPage() {
                   <tr key={row.id} className="border-b border-[#f3f3f3] last:border-b-0">
                     <td className="px-4 py-3.5 align-top">
                       <TableCheckbox
-                          checked={selected.includes(row.invoice)}
-                          onChange={() => toggleRow(row.invoice)}
-                          ariaLabel={t('reminders.queue.selectRow', { id: row.invoice })}
-                        />
+                        checked={selected.includes(row.invoice)}
+                        onChange={() => toggleRow(row.invoice)}
+                        ariaLabel={t('reminders.queue.selectRow', { id: row.invoice })}
+                      />
                     </td>
                     <RowCells row={row} onPause={() => setPauseOpen(true)} />
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           <div className="flex flex-wrap items-center justify-between gap-4 px-4 pb-4 pt-3">
             <label className="flex items-center gap-4 text-sm font-medium text-[#737781]">

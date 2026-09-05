@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Popover } from '../../components/ui'
+import { Popover, RowsView } from '../../components/ui'
 import { SUPPLIER_DETAIL } from '../../lib/supplierDetail'
 import { formatOmr } from '../../lib/suppliers'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -292,7 +292,7 @@ export function SupplierStatementPage() {
           </div>
 
           {/* Ledger */}
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -379,7 +379,7 @@ export function SupplierStatementPage() {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </RowsView>
 
           {/* Ageing */}
           <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">

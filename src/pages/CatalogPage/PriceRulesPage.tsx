@@ -389,7 +389,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
             </span>
           </p>
           <Link
-            to="/quotations"
+            to="/trade-documents/quotations"
             className="inline-flex h-[36px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/70"
           >
             {t('priceRules.seeTheQuotes')}

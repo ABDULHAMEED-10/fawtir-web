@@ -235,7 +235,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     lineValue: 52,
     atPrice: '1.300',
     atPriceOld: true,
-    to: '/quotations',
+    to: '/trade-documents/quotations',
   },
   {
     id: 'QT-0119',
@@ -253,7 +253,7 @@ export const USED_DOCUMENTS: UsedDocument[] = [
     lineValue: 216,
     atPrice: '1.800',
     atPriceOld: true,
-    to: '/quotations',
+    to: '/trade-documents/quotations',
   },
   {
     id: 'PKG-0007',

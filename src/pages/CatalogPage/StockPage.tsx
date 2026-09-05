@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
-import { FilterMenu, SortMenu, TableCheckbox } from '../../components/ui'
+import { FilterMenu, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
 import { omr, groupName, kindName } from '../../lib/catalog'
 import {
   STOCK_ROWS,
@@ -225,7 +225,7 @@ export function StockPage() {
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <RowsView>
           <table className="w-full min-w-[1060px] border-collapse">
             <thead>
               <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
@@ -267,7 +267,7 @@ export function StockPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </RowsView>
 
         <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
           {t('stock.showing', { shown: rows.length, total: STOCK_BOOK.counted })}

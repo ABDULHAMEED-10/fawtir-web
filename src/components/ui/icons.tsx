@@ -158,6 +158,40 @@ export function MenuIcon({ className = '', size = 24 }: IconProps) {
   )
 }
 
+/** Stacked cards — the phone shape for a list. */
+export function CardsIcon({ className = '', size = 20 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="3.5" width="14" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="3" y="11.5" width="14" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+/** Ruled rows and columns — the desk shape for a list. */
+export function TableIcon({ className = '', size = 20 }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <rect x="3" y="4" width="14" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 8h14M8.5 8v8" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
 export function CloseIcon({ className = '', size = 16 }: IconProps) {
   return (
     <svg

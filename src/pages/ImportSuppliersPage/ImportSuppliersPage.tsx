@@ -8,6 +8,7 @@ import checkIcon from '../../assets/bill-detail/tick.svg'
 import warnIcon from '../../assets/bills/match-warn.svg'
 import stopIcon from '../../assets/suppliers/consequence-stop.svg'
 import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
+import { RowsView } from '../../components/ui'
 
 /**
  * Importing a supplier list (Figma 117:34516).
@@ -307,7 +308,7 @@ export function ImportSuppliersPage() {
             })}
           </div>
 
-          <div className="overflow-x-auto">
+          <RowsView>
             <table className="w-full min-w-[980px] border-collapse">
               <thead>
                 <tr className="border-b border-surface-background text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
@@ -431,7 +432,7 @@ export function ImportSuppliersPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </RowsView>
         </section>
       </div>
 
