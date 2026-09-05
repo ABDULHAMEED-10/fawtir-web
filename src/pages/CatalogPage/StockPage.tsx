@@ -41,7 +41,7 @@ const rowIcon = (id: string) => {
 }
 
 /**
- * Catalog › Stock (Figma 135:49263).
+ * Stock (Figma 135:49263) — a place of its own beside the catalog, not a corner of it.
  *
  * Worth, cover and the low-stock colour all come from what is held against what it costs and how
  * fast it goes, so a row cannot look calm while its own numbers say it will run out on Monday.
@@ -84,7 +84,7 @@ export function StockPage() {
 
   return (
     <CatalogShell
-      crumbs={[{ labelKey: 'catalog.title', to: '/catalog' }, { labelKey: 'stock.title' }]}
+      crumbs={[]}
       title={t('stock.title')}
       subtitle={t('stock.subtitle')}
       actions={
@@ -311,7 +311,7 @@ function Row({
           </span>
           <div className="min-w-0">
             <Link
-              to={`/catalog/stock/${row.id}`}
+              to={`/stock/${row.id}`}
               className="text-sm font-semibold text-text-primary transition-colors hover:text-primary-700"
             >
               {item.name}
@@ -396,7 +396,7 @@ function Row({
 
       <td className="px-4 py-4 align-top text-end">
         <Link
-          to={`/catalog/stock/${row.id}`}
+          to={`/stock/${row.id}`}
           className={[
             'inline-flex h-[38px] items-center rounded-sm px-4 text-sm font-semibold transition-colors',
             low || out

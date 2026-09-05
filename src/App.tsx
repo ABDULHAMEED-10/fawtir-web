@@ -64,7 +64,7 @@ import {
   UploadMenuPage,
   BuildCatalogPage,
 } from './pages/CatalogPage'
- import {
+import {
   SettingsPage,
   PeppolTaxPage,
   BranchesPage,
@@ -163,14 +163,14 @@ function App() {
           <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
           <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
+          <Route path="/stock" element={<StockPage />} />
+          <Route path="/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
           <Route path="/catalog/upload" element={<UploadMenuPage />} />
           <Route path="/catalog/build" element={<BuildCatalogPage />} />
           <Route path="/catalog/new" element={<ItemFormPage mode="new" />} />
           <Route path="/catalog/rules" element={<PriceRulesPage />} />
           <Route path="/catalog/rules/new" element={<NewRulePage />} />
-          <Route path="/catalog/stock" element={<StockPage />} />
-          <Route path="/catalog/stock/:id" element={<StockDetailPage />} />
           <Route path="/catalog/bundles" element={<BundlesPage />} />
           <Route path="/catalog/bundles/new" element={<BundlePage />} />
           <Route path="/catalog/bundles/:id" element={<BundlePage />} />

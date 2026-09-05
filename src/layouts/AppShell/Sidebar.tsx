@@ -1,4 +1,10 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+} from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -140,9 +146,43 @@ function ExpandableNavItem({ item }: { item: NavItem }) {
   )
 }
 
+/**
+ * Where the reader had scrolled the nav to.
+ *
+ * Every page renders its own AppShell, so navigating unmounts this sidebar and mounts a fresh
+ * one — which would put a reader who had scrolled down to Reports back at the top the moment
+ * they clicked one of its children. Kept outside the component so it survives that remount.
+ */
+let navScrollTop = 0
+
+/** Puts the nav back where it was before the browser paints, so there is no jump to watch. */
+function useKeptScroll() {
+  const ref = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    const nav = ref.current
+    if (!nav) return
+    nav.scrollTop = navScrollTop
+
+    const remember = () => {
+      navScrollTop = nav.scrollTop
+    }
+    nav.addEventListener('scroll', remember, { passive: true })
+    return () => {
+      nav.removeEventListener('scroll', remember)
+      // Read the position once more on the way out. A scroll event is not guaranteed to have
+      // landed for every way the nav can move, and the node is still in the page at this point.
+      if (nav.isConnected) navScrollTop = nav.scrollTop
+    }
+  }, [])
+
+  return ref
+}
+
 export function Sidebar() {
   const { t } = useTranslation()
   const location = useLocation()
+  const navRef = useKeptScroll()
 
   return (
     <aside className="flex h-dvh w-[248px] shrink-0 flex-col border-e border-black/10 bg-surface-tab-bar">
@@ -171,7 +211,10 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[21px] pb-4">
+      <nav
+        ref={navRef}
+        className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[21px] pb-4"
+      >
         {DASHBOARD_NAV.map((group) => (
           <div key={group.id} className="flex flex-col gap-[7px]">
             <p className="text-xs font-semibold uppercase tracking-[1.44px] text-text-quaternary">

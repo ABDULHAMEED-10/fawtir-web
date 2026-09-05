@@ -76,11 +76,7 @@ export function StockDetailPage() {
 
   return (
     <CatalogShell
-      crumbs={[
-        { labelKey: 'catalog.title', to: '/catalog' },
-        { labelKey: 'stock.title', to: '/catalog/stock' },
-        { label: item.name },
-      ]}
+      crumbs={[{ labelKey: 'stock.title', to: '/stock' }, { label: item.name }]}
       title={item.name}
       subtitle={t('stockItem.subtitle', {
         group: groupName(item.group),
