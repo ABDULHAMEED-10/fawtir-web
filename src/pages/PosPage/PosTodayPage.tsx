@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu } from '../../components/ui'
+import { posSaleRowActions } from '../../lib/rowActions'
 import { TILL, omr } from '../../lib/pos'
 import {
   BEST_SELLER,
@@ -243,14 +244,7 @@ export function PosTodayPage() {
                         >
                           {sale.refundable ? t('pos.today.refund') : t('pos.today.seeNote')}
                         </Link>
-                        <ActionMenu
-                          items={[
-                            { id: 'receipt', labelKey: 'pos.today.printReceipt' },
-                            { id: 'email', labelKey: 'pos.today.emailReceipt' },
-                            { id: 'open', labelKey: 'pos.today.openInvoice' },
-                          ]}
-                          onSelect={() => {}}
-                        />
+                        <ActionMenu items={posSaleRowActions(sale.id)} label={t('pos.today.rowMenu')} />
                       </span>
                     </li>
                   ))}
