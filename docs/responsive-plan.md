@@ -10,11 +10,87 @@
 | 0 — harness and baseline | **done** | `npm run responsive:{sweep,baseline,check}`; 104 routes covered (88 seeded + 16 discovered); 103-route desktop baseline at 1440px |
 | 1 — the shell | **done** | sidebar drawer + phone topbar; desktop unchanged on all 103 routes |
 | 2 — the named offenders | **done** | **nothing bleeds sideways at any width** |
-| 3 — tables | **done** | all 47 wide tables reachable by scrolling on a phone |
+| 3 — tables | **done** | every wide table reachable by scrolling; then given a card view — see below |
 | 4.1 — Reports | **done** | charts drawn in a narrower box on phones, so labels stay readable |
-| 4.2–4.8 — other sections | **reviewed, little needed** | see below |
-| 5 — RTL | spot-checked | drawer, topbar, sticky bars and charts all mirror correctly |
-| 6 — final sweep | pending | wants a real device |
+| 4.2–4.8 — other sections | **done** | shared toolbar components fixed; see below |
+| 5 — RTL | spot-checked | drawer, topbar, sticky bars, cards and charts all mirror correctly |
+| 6 — final sweep | **done** | client tested on a real device, 6 Sep 2026 |
+
+Coverage is now every route the app declares: **113 swept, 112 fingerprinted** (POS cannot be
+fingerprinted — see above). **0 routes bleed at any width; all 112 desktop renders identical.**
+Confirmed on a real device by the client on 6 Sep 2026 — every phase of this plan is complete.
+
+## Held over to the integration phase
+
+Decided by the client on 6 Sep 2026: the responsive work is finished and closed, and the loose ends
+it surfaced are picked up when API integration starts, not before.
+
+| Held over | Why it can wait |
+| --- | --- |
+| **`/trade-documents/projects`** — a sidebar item pointing at a screen that does not exist; clicking "Projects" lands on the home page | needs a screen built or the item removed, which is scope, not layout |
+| **`/purchase-orders`** — the PO link on a stock item; there is a create form at `/suppliers/:slug/purchase-order` but no list or detail | same |
+| **~500 tap targets of 24–34px** | tested acceptable on a real device; raising them to 44px is a visible design change with nothing behind it in Figma |
+| **A card's first column as a title** rather than a labelled line | the labelled form reads well enough; a refinement, not a fault |
+| **The 15 middling tables (600–899px)** | mostly invoice line items, where one card per line makes a five-line invoice look like five records |
+| **POS hotlinks 24 photos from Wikimedia Commons** | works, but a third party can change or block them, and it is why POS cannot be fingerprinted |
+
+### Cards or table, the reader's choice (Phase 3, second pass)
+
+Option A alone — scroll the table sideways — is honest for a ledger and poor for a list you skim,
+so **32 list screens now read as cards on a phone by default**, with a toggle to go back to the
+table. The choice is remembered.
+
+Nothing is rewritten. `<RowsView>` wraps the `<table>` a screen already has, the styling in
+`tokens.css` re-lays the same elements, and each column heading is copied onto its cells so a card
+can name its own values — a column can never be described one way in the table and another in the
+card, and a new column needs no card work. A screen opts in by changing one line:
+
+```tsx
+<div className="overflow-x-auto">   becomes   <RowsView>
+```
+
+That one line is the only thing all 32 screens had in common; their toolbars agree on nothing. So
+the component owns the choice and renders its own toggle rather than needing a place in each
+toolbar.
+
+**The card layout took three attempts, and only screenshots caught the first two** — the overflow
+numbers were clean throughout:
+
+1. Label and value side by side read well on Invoices but mangled Suppliers, Customers and Catalog,
+   where a cell holds an avatar, a badge and a sub-line. `overflow-wrap` also broke `2,759.100` and
+   an email address mid-token.
+2. A fixed label gutter kept each cell's own layout but ate 104px of a 360px screen, breaking
+   "Muscat Roastery Co" into "Muscat / Roaster / y Co".
+3. **Label above the value** shipped. Every cell gets the card's full width and keeps its own
+   internal layout. Cards are taller; on a phone that is the right trade.
+
+Still to settle: whether the first column should read as a card **title** rather than a labelled
+line. And the 15 middling tables (600–899px) were deliberately left alone — they are mostly invoice
+line items, where one card per line makes a five-line invoice look like five records.
+
+### Shared components that were not responsive
+
+Found by looking at a phone rather than by measuring — they clipped and wrapped without ever
+overflowing the page:
+
+| Fault | Fixed in | Reach |
+| --- | --- | --- |
+| Filter and sort labels wrapping *inside* a fixed-height button | `FilterMenu`, `SortMenu` | 25 pages |
+| The same button hand-rolled inline | 10 page files | 14 instances |
+| Search squeezed to an icon by sharing a line | 20 page files | takes its own line on phones |
+
+### Dead links found on the way
+
+The gate flagged a route as unstable that turned out not to exist. A link check across the codebase
+found seven; three were false positives (tab fragments composed with a record id). Five named a real
+screen by a stale path and were fixed — `/contacts/customers` → `/customers`, `/quotations` →
+`/trade-documents/quotations`.
+
+**Two point at screens that do not exist and need a decision:**
+
+- **`/trade-documents/projects`** — a *sidebar item*. Clicking "Projects" lands on the home page.
+- **`/purchase-orders`** — the PO link on a stock item. There is a create form at
+  `/suppliers/:slug/purchase-order` but no list or detail screen.
 
 ### Phase 3 — tables
 

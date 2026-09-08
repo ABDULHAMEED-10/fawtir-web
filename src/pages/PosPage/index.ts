@@ -1,1 +1,7 @@
 export { PosPage } from './PosPage'
+export { PosPaymentPage } from './PosPaymentPage'
+export { PosDonePage } from './PosDonePage'
+export { PosCompanyPage } from './PosCompanyPage'
+export { PosTodayPage } from './PosTodayPage'
+export { PosClosePage } from './PosClosePage'
+export { PosRefundPage } from './PosRefundPage'
