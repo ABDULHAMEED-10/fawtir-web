@@ -1,24 +1,11 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ComponentType,
-  type RefObject,
-} from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CloseIcon } from '../../components/ui/icons'
-import {
-  DASHBOARD_NAV,
-  SETTINGS_NAV,
-  ACCOUNT,
-  USER,
-  type NavChild,
-  type NavItem,
-} from '../../lib/dashboard'
+import { useDrawer } from '../../hooks/useDrawer'
+import { DASHBOARD_NAV, SETTINGS_NAV, USER, type NavChild, type NavItem } from '../../lib/dashboard'
 import { BrandLogo } from '../../components/BrandLogo'
-import bahjaLogo from '../../assets/dashboard/bahja-logo.svg'
+import { AccountSwitcher, UserMenu } from '../../components/shell'
 import avatar from '../../assets/dashboard/avatar.png'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -181,50 +168,6 @@ function useKeptScroll() {
   return ref
 }
 
-/**
- * Escape closes the drawer, and focus stays inside it while it is open.
- *
- * Only below `lg`, where it is a panel over the page — above that it is simply part of the layout
- * and none of this applies.
- */
-function useDrawer(open: boolean, onClose: () => void, ref: RefObject<HTMLElement | null>) {
-  useEffect(() => {
-    if (!open) return
-    const panel = ref.current
-    if (!panel) return
-
-    const focusable = () =>
-      Array.from(
-        panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex="0"]'),
-      ).filter((el) => el.offsetParent !== null)
-
-    focusable()[0]?.focus()
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-        return
-      }
-      if (event.key !== 'Tab') return
-      const items = focusable()
-      if (!items.length) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      const active = document.activeElement
-      if (event.shiftKey && (active === first || !panel.contains(active))) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose, ref])
-}
-
 type SidebarProps = {
   /** Only meaningful below `lg`, where the sidebar is a drawer rather than a column. */
   open?: boolean
@@ -265,23 +208,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
       <div className="h-px w-full bg-black/10" />
 
       <div className="px-[21px] pt-3">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between rounded-sm border border-black/[0.06] bg-surface-tab-bar p-[9px] text-start"
-        >
-          <span className="flex min-w-0 items-center gap-[7px]">
-            <img src={bahjaLogo} alt="" className="size-[31px] shrink-0 rounded-full object-cover" />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e]">
-                {ACCOUNT.name}
-              </span>
-              <span className="block truncate text-xs font-medium leading-[1.2] text-text-quaternary">
-                {t(ACCOUNT.planKey)}
-              </span>
-            </span>
-          </span>
-          <img src={chevron} alt="" className="size-5 rotate-90 opacity-70" />
-        </button>
+        <AccountSwitcher />
       </div>
 
       <nav
@@ -323,23 +250,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
           Icon={SETTINGS_NAV.Icon}
           label={t(SETTINGS_NAV.labelKey)}
         />
-        <button
-          type="button"
-          className="mt-1 flex w-full items-center justify-between rounded-sm border border-black/[0.06] bg-[#292d32] p-[9px] text-start"
-        >
-          <span className="flex min-w-0 items-center gap-[7px]">
-            <img src={avatar} alt="" className="size-9 shrink-0 rounded-full object-cover" />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-medium leading-[1.2] text-white">
-                {USER.name}
-              </span>
-              <span className="block truncate text-xs font-medium leading-[1.2] text-white/70">
-                {t(USER.roleKey)}
-              </span>
-            </span>
-          </span>
-          <img src={chevron} alt="" className="size-5 rotate-90 brightness-0 invert opacity-80" />
-        </button>
+        <UserMenu name={USER.name} roleKey={USER.roleKey} avatar={avatar} />
       </div>
     </aside>
   )

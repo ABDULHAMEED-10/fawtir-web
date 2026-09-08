@@ -25,6 +25,12 @@ export const SEED_ROUTES = [
   // The app.
   '/dashboard',
   '/pos',
+  '/pos/payment',
+  '/pos/done',
+  '/pos/company',
+  '/pos/today',
+  '/pos/close',
+  '/pos/refund',
 
   // Income.
   '/invoices',
@@ -114,6 +120,11 @@ export const SEED_ROUTES = [
   '/settings/signing-in',
   '/settings/payment-reminders',
 
+  // The Fawtir console — a separate shell with its own navigation.
+  '/console',
+  '/console/tenants',
+  '/console/queue',
+
   // Sub-screens reached by a tab or an action rather than a plain link, so the crawl cannot find
   // them. The ids are real records from the sample data.
   '/catalog/flat-white/sells',
@@ -136,9 +147,14 @@ export const FROZEN_WIDTH = 1440
 /**
  * Screens the checksum gate cannot judge, and why.
  *
- * `/pos` is the only screen in the app that loads images from a third party — 24 product photos
- * hotlinked from Wikimedia Commons (`src/lib/pos.ts`). How much of each photo has decoded when the
- * screenshot is taken varies with the network, so the same code renders three different files in
- * three runs. It is still measured for overflow by `sweep`; it just cannot be fingerprinted.
+ * The till used to be on this list: it hotlinked 24 product photographs from Wikimedia Commons, so
+ * how much of each had decoded when the screenshot was taken varied with the network. Its tiles are
+ * drawn in the app now, and it fingerprints like every other screen.
  */
-export const UNSTABLE_ROUTES = ['/pos']
+export const UNSTABLE_ROUTES = [
+  // `/payment` prints a renewal date worked out from the real clock (`getRenewalDate` in
+  // `src/lib/pricing.ts`), so its render changes with the calendar and a fingerprint taken on one
+  // day never matches the next. Every other date in the app comes from a fixed sample clock; this
+  // one is the exception, which is worth deciding on separately rather than papering over here.
+  '/payment',
+]

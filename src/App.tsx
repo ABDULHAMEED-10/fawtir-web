@@ -88,7 +88,15 @@ import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
-import { PosPage } from './pages/PosPage'
+import {
+  PosPage,
+  PosPaymentPage,
+  PosDonePage,
+  PosCompanyPage,
+  PosTodayPage,
+  PosClosePage,
+  PosRefundPage,
+} from './pages/PosPage'
 import { QuotationsPage } from './pages/QuotationsPage'
 import { NewQuotationPage } from './pages/NewQuotationPage'
 import { QuotationDetailPage } from './pages/QuotationDetailPage'
@@ -116,6 +124,7 @@ import { SuppliersPage } from './pages/SuppliersPage'
 import { NewSupplierPage } from './pages/NewSupplierPage'
 import { SignupPage } from './pages/SignupPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
+import { ConsoleSoonPage, OperationsPage, TenantsPage } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
 
 function App() {
@@ -211,6 +220,12 @@ function App() {
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
           <Route path="/pos" element={<PosPage />} />
+          <Route path="/pos/payment" element={<PosPaymentPage />} />
+          <Route path="/pos/done" element={<PosDonePage />} />
+          <Route path="/pos/company" element={<PosCompanyPage />} />
+          <Route path="/pos/today" element={<PosTodayPage />} />
+          <Route path="/pos/close" element={<PosClosePage />} />
+          <Route path="/pos/refund" element={<PosRefundPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
           <Route path="/trade-documents/quotations" element={<QuotationsPage />} />
           <Route path="/trade-documents/quotations/new" element={<NewQuotationPage />} />
@@ -247,6 +262,14 @@ function App() {
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
+          <Route path="/console" element={<OperationsPage />} />
+          <Route path="/console/tenants" element={<TenantsPage />} />
+          <Route path="/console/queue" element={<ConsoleSoonPage />} />
+          <Route path="/console/incidents" element={<ConsoleSoonPage />} />
+          <Route path="/console/onboarding" element={<ConsoleSoonPage />} />
+          <Route path="/console/plans" element={<ConsoleSoonPage />} />
+          <Route path="/console/audit" element={<ConsoleSoonPage />} />
+          <Route path="/console/settings" element={<ConsoleSoonPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

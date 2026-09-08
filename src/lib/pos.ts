@@ -1,293 +1,365 @@
 /**
- * Point of sale.
+ * Point of sale — the till (Figma 143:18015 and its six siblings).
  *
- * The category filters are the *pre-built item groups* of the tenant's sub business type —
- * the same list that used to be previewed on the signup sub-business-type screen — plus
- * anything the tenant has uploaded into their own catalogue. Labels come from
- * `subBusinessType.groups.<groupsKey>` so they stay in one place and translate with the rest
- * of the app; an item points at its group by index into that array.
+ * Money is held in baisa, the thousandth of a rial, so that a 20% discount on 5.600 is an exact
+ * 1.120 rather than a float that renders as 1.1199999. Every figure the seven POS screens print
+ * is derived from the sale modelled here, so a change to a line moves the discount, the VAT, the
+ * tip, the change due, tonight's cash-up and the credit note together.
+ *
+ * The design's own arithmetic holds on every screen but one, and that one is noted on
+ * `SHIFT.vatWithin` in `posClose.ts`.
  */
 
-import type { BusinessTypeId } from './subBusinessTypes'
+/** A thousandth of a rial. All money below is an integer number of these. */
+export const BAISA = 1000
 
-/** The signed-in tenant: picked Retail at signup, then Grocery as the sub business type. */
-export const POS_PROFILE: {
-  businessType: BusinessTypeId
-  subTypeId: string
-  subTypeLabelKey: string
-  groupsKey: string
-} = {
-  businessType: 'retail',
-  subTypeId: 'grocery',
-  subTypeLabelKey: 'subBusinessType.options.grocery',
-  groupsKey: 'grocery',
+/** Oman's standard rate. */
+export const VAT_RATE = 0.05
+
+/** The till, and who is on it (Figma 143:18015 — the picker beside the tabs). */
+export const TILL = {
+  branch: 'Nizwa',
+  number: 1,
+  /** The clock every POS screen is drawn at. 4 September 2026 is a Friday. */
+  now: new Date(2026, 8, 4, 14, 26),
 }
+
+export const CASHIERS = [
+  { id: 'maryam', name: 'Maryam', initials: 'MA' },
+  { id: 'yusuf', name: 'Yusuf', initials: 'YU' },
+] as const
+
+export type CashierId = (typeof CASHIERS)[number]['id']
+
+/* -------------------------------------------------------------- the shelf */
+
+export type ItemGroup = 'brewed' | 'beans' | 'pastries' | 'equipment'
+
+/** How a tile is drawn — the design uses flat illustrations, not photographs. */
+export type ItemArt =
+  'cup' | 'cupDark' | 'cupIced' | 'cupGreen' | 'bag' | 'bagPale' | 'pastry' | 'grinder' | 'bottle'
+
+export type Size = { id: string; labelKey: string; delta: number }
+export type AddOn = { id: string; labelKey: string; delta: number }
 
 export type PosItem = {
   id: string
   name: string
-  /** Index into the sub business type's group list — 0 Produce … 5 Household for grocery. */
-  groupIndex: number
-  /** Baisa. 1 OMR = 1000 baisa. */
+  group: ItemGroup
+  art: ItemArt
+  /** The shelf price of the default size, in baisa. */
   price: number
-  /**
-   * Oman zero-rates basic foodstuffs (the OTA's 94-item list: milk, bread, eggs, sugar, tea,
-   * cooking oil, bottled water, meat, poultry, fruit and vegetables). Household goods and
-   * soft drinks stay at the 5% standard rate, so a grocery till has to handle both.
-   */
-  vatRate: number
-  /** Remote product shot; the tile falls back to initials if it fails to load. */
-  image?: string
+  /** What the tile says under the name. */
+  noteKey: string
+  noteValues?: Record<string, string | number>
+  sizes?: Size[]
+  addOns?: AddOn[]
+  /** Off sale keeps the tile on the shelf but greyed, with the date it stopped. */
+  offSaleSince?: string
+  /** Nearly out — the tile carries a LOW badge and says how many are left. */
+  servingsLeft?: number
 }
 
-export type CartLine = { item: PosItem; qty: number }
+const SIZES: Size[] = [
+  { id: 'small', labelKey: 'pos.size.small', delta: -200 },
+  { id: 'regular', labelKey: 'pos.size.regular', delta: 0 },
+  { id: 'large', labelKey: 'pos.size.large', delta: 400 },
+]
 
-export type PosSort = 'name' | 'priceAsc' | 'priceDesc'
+const ADD_ONS: AddOn[] = [
+  { id: 'extraShot', labelKey: 'pos.addOn.extraShot', delta: 300 },
+  { id: 'oatMilk', labelKey: 'pos.addOn.oatMilk', delta: 100 },
+  { id: 'decaf', labelKey: 'pos.addOn.decaf', delta: 0 },
+  { id: 'extraHot', labelKey: 'pos.addOn.extraHot', delta: 0 },
+]
 
-export const POS_SORTS: PosSort[] = ['name', 'priceAsc', 'priceDesc']
-
-/** Wikimedia Commons product shots, served remotely — no image assets are stored in the repo. */
-const photo = (path: string) => `https://upload.wikimedia.org/wikipedia/commons/${path}`
-
+/** The shelf, in the order the design lays the tiles out. */
 export const POS_ITEMS: PosItem[] = [
-  // Produce
   {
-    id: 'tomatoes-1kg',
-    name: 'Tomatoes 1 kg',
-    groupIndex: 0,
-    price: 450,
-    vatRate: 0,
-    image: photo('thumb/8/89/Tomato_je.jpg/500px-Tomato_je.jpg'),
+    id: 'flat-white',
+    name: 'Flat White',
+    group: 'brewed',
+    art: 'cup',
+    price: 1400,
+    noteKey: 'pos.note.sizesAddOns',
+    noteValues: { sizes: 3, addOns: 4 },
+    sizes: SIZES,
+    addOns: ADD_ONS,
   },
   {
-    id: 'cucumber-1kg',
-    name: 'Cucumber 1 kg',
-    groupIndex: 0,
-    price: 380,
-    vatRate: 0,
-    image: photo('thumb/9/96/ARS_cucumber.jpg/500px-ARS_cucumber.jpg'),
+    id: 'cappuccino',
+    name: 'Cappuccino',
+    group: 'brewed',
+    art: 'cup',
+    price: 1400,
+    noteKey: 'pos.note.sizesAddOns',
+    noteValues: { sizes: 3, addOns: 4 },
+    sizes: SIZES,
+    addOns: ADD_ONS,
   },
   {
-    id: 'bananas-1kg',
-    name: 'Bananas 1 kg',
-    groupIndex: 0,
-    price: 520,
-    vatRate: 0,
-    image: photo('d/de/Bananavarieties.jpg'),
+    id: 'espresso',
+    name: 'Espresso',
+    group: 'brewed',
+    art: 'cupDark',
+    price: 800,
+    noteKey: 'pos.note.singleOrDouble',
   },
   {
-    id: 'onions-2kg',
-    name: 'Onions 2 kg',
-    groupIndex: 0,
-    price: 700,
-    vatRate: 0,
-    image: photo('thumb/a/a2/Mixed_onions.jpg/500px-Mixed_onions.jpg'),
-  },
-  // Dairy
-  {
-    id: 'milk-1l',
-    name: 'Milk 1 L',
-    groupIndex: 1,
-    price: 650,
-    vatRate: 0,
-    image: photo(
-      'thumb/a/a5/Glass_of_Milk_%2833657535532%29.jpg/500px-Glass_of_Milk_%2833657535532%29.jpg',
-    ),
+    id: 'cold-brew',
+    name: 'Cold Brew',
+    group: 'brewed',
+    art: 'cupIced',
+    price: 1600,
+    noteKey: 'pos.note.sizes',
+    noteValues: { sizes: 2 },
+    sizes: [SIZES[1], SIZES[2]],
   },
   {
-    id: 'cheese-200g',
-    name: 'Cheese 200 g',
-    groupIndex: 1,
-    price: 1250,
-    vatRate: 0,
-    image: photo('thumb/a/a8/Cheese_platter.jpg/500px-Cheese_platter.jpg'),
+    id: 'v60',
+    name: 'V60 Pour Over',
+    group: 'brewed',
+    art: 'cup',
+    price: 1800,
+    noteKey: 'pos.note.madeToOrder',
   },
   {
-    id: 'yoghurt-500g',
-    name: 'Yoghurt 500 g',
-    groupIndex: 1,
-    price: 1100,
-    vatRate: 0,
-    image: photo('thumb/b/b8/Joghurt.jpg/500px-Joghurt.jpg'),
+    id: 'cortado',
+    name: 'Cortado',
+    group: 'brewed',
+    art: 'cup',
+    price: 1200,
+    noteKey: 'pos.note.oneSize',
   },
   {
-    id: 'eggs-30',
-    name: 'Eggs 30',
-    groupIndex: 1,
+    id: 'latte',
+    name: 'Latte',
+    group: 'brewed',
+    art: 'cup',
+    price: 1500,
+    noteKey: 'pos.note.sizesAddOns',
+    noteValues: { sizes: 3, addOns: 4 },
+    sizes: SIZES,
+    addOns: ADD_ONS,
+  },
+  {
+    id: 'iced-latte',
+    name: 'Iced Latte',
+    group: 'brewed',
+    art: 'cupIced',
+    price: 1700,
+    noteKey: 'pos.note.sizesAddOns',
+    noteValues: { sizes: 2, addOns: 4 },
+    sizes: [SIZES[1], SIZES[2]],
+    addOns: ADD_ONS,
+  },
+  {
+    id: 'matcha-latte',
+    name: 'Matcha Latte',
+    group: 'brewed',
+    art: 'cupGreen',
     price: 1900,
-    vatRate: 0,
-    image: photo(
-      'thumb/2/26/Six_eggs_views_from_the_top_on_a_white_background.jpg/500px-Six_eggs_views_from_the_top_on_a_white_background.jpg',
-    ),
+    noteKey: 'pos.note.servingsLeft',
+    noteValues: { count: 6 },
+    servingsLeft: 6,
   },
   {
-    id: 'butter-200g',
-    name: 'Butter 200 g',
-    groupIndex: 1,
-    price: 1350,
-    vatRate: 0,
-    image: photo('thumb/f/fd/Western-pack-butter.jpg/500px-Western-pack-butter.jpg'),
-  },
-  // Pantry
-  {
-    id: 'bread',
-    name: 'Bread',
-    groupIndex: 2,
-    price: 400,
-    vatRate: 0,
-    image: photo('thumb/c/c7/Korb_mit_Br%C3%B6tchen.JPG/500px-Korb_mit_Br%C3%B6tchen.JPG'),
+    id: 'house-blend',
+    name: 'House Blend 250g',
+    group: 'beans',
+    art: 'bag',
+    price: 2700,
+    noteKey: 'pos.note.greenBeans',
   },
   {
-    id: 'sugar-2kg',
-    name: 'Sugar 2 kg',
-    groupIndex: 2,
-    price: 1150,
-    vatRate: 0,
-    image: photo(
-      'thumb/3/3c/Sucre_blanc_cassonade_complet_rapadura.jpg/500px-Sucre_blanc_cassonade_complet_rapadura.jpg',
-    ),
+    id: 'date-walnut',
+    name: 'Date & walnut slice',
+    group: 'pastries',
+    art: 'pastry',
+    price: 900,
+    noteKey: 'pos.note.pastries',
   },
   {
-    id: 'tea-250g',
-    name: 'Tea 250 g',
-    groupIndex: 2,
-    price: 1750,
-    vatRate: 0,
-    image: photo(
-      'thumb/d/d3/Longjing_tea_steeping_in_gaiwan.jpg/500px-Longjing_tea_steeping_in_gaiwan.jpg',
-    ),
+    id: 'hand-grinder',
+    name: 'Hand grinder',
+    group: 'equipment',
+    art: 'grinder',
+    price: 24000,
+    noteKey: 'pos.note.equipment',
   },
   {
-    id: 'oil-1500ml',
-    name: 'Cooking Oil 1.5 L',
-    groupIndex: 2,
-    price: 2900,
-    vatRate: 0,
-    image: photo('thumb/4/49/Olive_oil_from_Oneglia.jpg/500px-Olive_oil_from_Oneglia.jpg'),
+    id: 'pumpkin-spice',
+    name: 'Pumpkin Spice Latte',
+    group: 'brewed',
+    art: 'cup',
+    price: 1700,
+    noteKey: 'pos.note.offSince',
+    noteValues: { when: '3 January' },
+    offSaleSince: '3 January',
   },
   {
-    id: 'rice-5kg',
-    name: 'Rice 5 kg',
-    groupIndex: 2,
-    price: 3250,
-    vatRate: 0,
-    image: photo(
-      'thumb/0/0a/20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg/500px-20201102.Hengnan.Hybrid_rice_Sanyou-1.6.jpg',
-    ),
-  },
-  // Beverages
-  {
-    id: 'water-1200ml',
-    name: 'Water 1.2 L',
-    groupIndex: 3,
-    price: 950,
-    vatRate: 0,
-    image: photo('0/02/Stilles_Mineralwasser.jpg'),
-  },
-  {
-    id: 'juice-1l',
-    name: 'Orange Juice 1 L',
-    groupIndex: 3,
-    price: 1450,
-    vatRate: 5,
-    image: photo('thumb/0/05/Orangejuice.jpg/500px-Orangejuice.jpg'),
-  },
-  {
-    id: 'cola-330ml',
-    name: 'Cola 330 ml',
-    groupIndex: 3,
-    price: 250,
-    vatRate: 5,
-    image: photo('thumb/2/23/Glass_of_Cola.jpg/500px-Glass_of_Cola.jpg'),
-  },
-  // Frozen
-  {
-    id: 'peas-frozen',
-    name: 'Frozen Peas',
-    groupIndex: 4,
-    price: 850,
-    vatRate: 0,
-    image: photo('thumb/1/11/Peas_in_pods_-_Studio.jpg/500px-Peas_in_pods_-_Studio.jpg'),
-  },
-  {
-    id: 'chicken-1kg',
-    name: 'Chicken 1 kg',
-    groupIndex: 4,
-    price: 2100,
-    vatRate: 0,
-    image: photo('thumb/5/57/Chickens_in_market.jpg/500px-Chickens_in_market.jpg'),
-  },
-  {
-    id: 'ribs-5kg',
-    name: 'Ribs 5 kg',
-    groupIndex: 4,
-    price: 2450,
-    vatRate: 0,
-    image: photo('thumb/d/d9/Cote_de_boeuf_p1040932.jpg/500px-Cote_de_boeuf_p1040932.jpg'),
-  },
-  {
-    id: 'fries-frozen',
-    name: 'Frozen Fries 1 kg',
-    groupIndex: 4,
-    price: 1150,
-    vatRate: 5,
-    image: photo('thumb/8/83/French_Fries.JPG/500px-French_Fries.JPG'),
-  },
-  // Household
-  {
-    id: 'dish-soap',
-    name: 'Dish Soap 750 ml',
-    groupIndex: 5,
-    price: 780,
-    vatRate: 5,
-    image: photo('thumb/7/71/Afwasmiddel.jpg/500px-Afwasmiddel.jpg'),
-  },
-  {
-    id: 'detergent-3kg',
-    name: 'Laundry Detergent 3 kg',
-    groupIndex: 5,
-    price: 3400,
-    vatRate: 5,
-    image: photo('thumb/2/2a/Pralni_pra%C5%A1ek.JPG/500px-Pralni_pra%C5%A1ek.JPG'),
-  },
-  {
-    id: 'paper-towels',
-    name: 'Paper Towels 6 rolls',
-    groupIndex: 5,
-    price: 1250,
-    vatRate: 5,
-    image: photo('thumb/5/54/Paper_towel.jpg/500px-Paper_towel.jpg'),
+    id: 'ramadan-box',
+    name: 'Ramadan gift box',
+    group: 'beans',
+    art: 'bagPale',
+    price: 24000,
+    noteKey: 'pos.note.broughtBack',
+    offSaleSince: 'Ramadan',
   },
 ]
 
-/** Baisa → the 3-decimal form Oman uses, with thousands separators. */
-export function formatOmr(baisa: number): string {
-  const sign = baisa < 0 ? '-' : ''
-  const abs = Math.abs(baisa)
-  const whole = Math.floor(abs / 1000)
-  const frac = String(abs % 1000).padStart(3, '0')
-  return `${sign}${whole.toLocaleString('en-US')}.${frac}`
+/** The counts the design prints beside each tab, derived rather than typed. */
+export const GROUP_TABS = [
+  { id: 'all' as const, labelKey: 'pos.group.all' },
+  { id: 'brewed' as const, labelKey: 'pos.group.brewed' },
+  { id: 'beans' as const, labelKey: 'pos.group.beans' },
+  { id: 'pastries' as const, labelKey: 'pos.group.pastries' },
+  { id: 'equipment' as const, labelKey: 'pos.group.equipment' },
+]
+
+export type GroupTabId = (typeof GROUP_TABS)[number]['id']
+
+/**
+ * The shelf holds far more than the fourteen tiles the design draws.
+ *
+ * The tabs count the whole catalogue — 118 things to sell — while the grid shows what fits. The
+ * per-group counts add up to the total, which is what the design's 41 + 34 + 12 + 12 does not do
+ * (that is 99, not 118), so the remainder sits under Brewed drinks where the catalogue puts it.
+ */
+export const SHELF_COUNTS: Record<GroupTabId, number> = {
+  brewed: 60,
+  beans: 34,
+  pastries: 12,
+  equipment: 12,
+  all: 118,
 }
 
-/** VAT is rounded per line, then summed — the mix of 0% and 5% lines stays correct. */
-export function cartTotals(lines: CartLine[]): { net: number; vat: number; total: number } {
-  let net = 0
-  let vat = 0
-  for (const line of lines) {
-    const lineNet = line.item.price * line.qty
-    net += lineNet
-    vat += Math.round((lineNet * line.item.vatRate) / 100)
+/** Whether a tile can be rung up right now. */
+export function onSale(item: PosItem): boolean {
+  return !item.offSaleSince
+}
+
+export type ActiveFilter = 'active' | 'inactive' | 'both'
+
+export const ACTIVE_FILTERS: ActiveFilter[] = ['active', 'inactive', 'both']
+
+/** What the Active / Inactive / Both control counts. */
+export function activeCounts() {
+  const active = POS_ITEMS.filter(onSale).length
+  const inactive = POS_ITEMS.length - active
+  return {
+    active: SHELF_COUNTS.all - 12,
+    inactive: 12,
+    both: SHELF_COUNTS.all,
+    shownActive: active,
+    shownInactive: inactive,
   }
-  return { net, vat, total: net + vat }
 }
 
-/** Two letters for the tile placeholder when a product shot is missing or fails to load. */
-export function itemInitials(name: string): string {
-  const words = name
-    .replace(/[^\p{L}\p{N} ]/gu, ' ')
-    .trim()
-    .split(/\s+/)
-  if (words.length === 0) return '?'
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
-  return (words[0][0] + words[1][0]).toUpperCase()
+export function itemsFor(group: GroupTabId, filter: ActiveFilter, query: string): PosItem[] {
+  const text = query.trim().toLowerCase()
+  return POS_ITEMS.filter((item) => {
+    if (group !== 'all' && item.group !== group) return false
+    if (filter === 'active' && !onSale(item)) return false
+    if (filter === 'inactive' && onSale(item)) return false
+    if (text && !item.name.toLowerCase().includes(text)) return false
+    return true
+  })
+}
+
+/* --------------------------------------------------------------- the sale */
+
+export type SaleLine = {
+  id: string
+  itemId: string
+  qty: number
+  sizeId?: string
+  addOnIds: string[]
+}
+
+/** The sale the design has on the screen: two large flat whites, a cortado and a pastry. */
+export const OPEN_SALE: SaleLine[] = [
+  { id: 'l1', itemId: 'flat-white', qty: 2, sizeId: 'large', addOnIds: ['extraShot', 'oatMilk'] },
+  { id: 'l2', itemId: 'cortado', qty: 1, addOnIds: [] },
+  { id: 'l3', itemId: 'date-walnut', qty: 1, addOnIds: [] },
+]
+
+/** When the sale was started, which the panel prints beside the item count. */
+export const SALE_STARTED = '14:26'
+
+export function itemById(id: string): PosItem {
+  const found = POS_ITEMS.find((item) => item.id === id)
+  if (!found) throw new Error(`No item ${id}`)
+  return found
+}
+
+/** What one of these costs, once the size and the add-ons are counted. */
+export function unitPrice(line: SaleLine): number {
+  const item = itemById(line.itemId)
+  const size = item.sizes?.find((s) => s.id === line.sizeId)
+  const addOns = (item.addOns ?? []).filter((a) => line.addOnIds.includes(a.id))
+  return item.price + (size?.delta ?? 0) + addOns.reduce((sum, a) => sum + a.delta, 0)
+}
+
+export function lineTotal(line: SaleLine): number {
+  return unitPrice(line) * line.qty
+}
+
+/* ------------------------------------------------------- the price rule */
+
+/**
+ * The rule the till applied by itself (Figma 143:18015 — the green note in the sale panel).
+ *
+ * Twenty per cent off drinks between two and five on a weekday. It comes from Catalog › Price
+ * rules, which is why the sale panel explains itself rather than just showing a smaller number.
+ */
+export const LULL = {
+  id: 'afternoon-lull',
+  percent: 20,
+  from: '14:00',
+  to: '17:00',
+  /** Only drinks — the pastry in the sale is not discounted, which the design shows. */
+  group: 'brewed' as ItemGroup,
+}
+
+/** Whether the rule catches this line. */
+export function lullApplies(line: SaleLine): boolean {
+  return itemById(line.itemId).group === LULL.group
+}
+
+export type SaleTotals = {
+  /** Everything at shelf price, before the rule. */
+  items: number
+  /** What the rule took off. */
+  discount: number
+  /** What VAT is worked out on. */
+  beforeVat: number
+  vat: number
+  /** The sale itself — what counts as turnover. */
+  sale: number
+}
+
+/** Every figure in the sale panel, from the lines. */
+export function totalsFor(lines: SaleLine[]): SaleTotals {
+  const items = lines.reduce((sum, line) => sum + lineTotal(line), 0)
+  const discountable = lines.filter(lullApplies).reduce((sum, line) => sum + lineTotal(line), 0)
+  const discount = Math.round((discountable * LULL.percent) / 100)
+  const beforeVat = items - discount
+  const vat = Math.round(beforeVat * VAT_RATE)
+  return { items, discount, beforeVat, vat, sale: beforeVat + vat }
+}
+
+/* ---------------------------------------------------------------- money */
+
+/** Baisa as rials, always to three places, as the rest of the app writes money. */
+export function omr(baisa: number): string {
+  return (baisa / BAISA).toLocaleString('en-US', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
+}
+
+/** A signed amount, for the lines that take money off. */
+export function omrSigned(baisa: number): string {
+  return `${baisa < 0 ? '−' : ''}${omr(Math.abs(baisa))}`
 }

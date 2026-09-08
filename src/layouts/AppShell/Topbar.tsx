@@ -2,20 +2,29 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
+import { GlobalSearch, NotificationsBell } from '../../components/shell'
 import { CloseIcon, MenuIcon } from '../../components/ui/icons'
 import searchIcon from '../../assets/dashboard/search.svg'
 import plusIcon from '../../assets/dashboard/plus.svg'
-import bellIcon from '../../assets/dashboard/bell.svg'
 
 /** Below this the bar cannot hold a search field as well as everything else. */
 const SEARCH_FITS = '(min-width: 48rem)'
 
-export function Topbar({ onOpenNav = () => {} }: { onOpenNav?: () => void }) {
+export function Topbar({
+  onOpenNav = () => {},
+  showCreateInvoice: allowCreateInvoice = true,
+}: {
+  onOpenNav?: () => void
+  /** The Fawtir console has no Create Invoice — nobody invoices from inside the platform. */
+  showCreateInvoice?: boolean
+}) {
   const { t } = useTranslation()
   const location = useLocation()
   const [searchOpen, setSearchOpen] = useState(false)
   const showCreateInvoice =
-    !location.pathname.startsWith('/invoices') && !location.pathname.startsWith('/income')
+    allowCreateInvoice &&
+    !location.pathname.startsWith('/invoices') &&
+    !location.pathname.startsWith('/income')
 
   // The phone search takes over the whole bar, so it must not survive into a width where the bar
   // has room for the field anyway — otherwise a rotate or resize leaves the bar showing nothing.
@@ -63,14 +72,7 @@ export function Topbar({ onOpenNav = () => {} }: { onOpenNav?: () => void }) {
             <MenuIcon size={22} />
           </button>
 
-          <label className="flex h-[50px] w-full max-w-[346px] items-center gap-2 rounded-md border border-black/10 bg-surface-card px-4 max-md:hidden">
-            <img src={searchIcon} alt="" className="size-5 shrink-0" />
-            <input
-              type="search"
-              placeholder={t('dashboard.searchPlaceholder')}
-              className="h-full w-full border-0 bg-transparent text-sm font-medium tracking-[0.14px] text-text-primary outline-none placeholder:text-text-placeholder"
-            />
-          </label>
+          <GlobalSearch className="max-md:hidden" />
 
           <button
             type="button"
@@ -93,16 +95,7 @@ export function Topbar({ onOpenNav = () => {} }: { onOpenNav?: () => void }) {
               </Link>
             ) : null}
 
-            <button
-              type="button"
-              className="relative inline-flex size-12 items-center justify-center rounded-full border border-border-subtle bg-surface-card max-md:size-10"
-              aria-label={t('dashboard.notifications')}
-            >
-              <img src={bellIcon} alt="" className="size-6" />
-              <span className="absolute end-1 top-1 inline-flex size-4 items-center justify-center rounded-full bg-primary-700 text-[10px] font-semibold text-white max-md:end-0 max-md:top-0">
-                2
-              </span>
-            </button>
+            <NotificationsBell />
 
             <div className="hidden h-12 w-px bg-border-subtle sm:block max-md:hidden" />
 
