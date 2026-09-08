@@ -49,7 +49,7 @@ export const SEARCH_INDEX: Hit[] = [
     id: row.id,
     kind: 'supplier' as const,
     title: row.name,
-    subtitle: row.subtitle ?? '',
+    subtitle: row.vat ? `VAT ${row.vat}` : '',
     to: `/suppliers/${row.slug}`,
   })),
   ...DOC_RECORDS.map((row) => ({

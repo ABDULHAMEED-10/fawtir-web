@@ -226,3 +226,26 @@ export function billRowActions(billId: string): ActionMenuItem[] {
     { id: 'reject', labelKey: 'rowActions.bill.reject', icon: deleteIcon, danger: true },
   ]
 }
+
+/** The Fawtir console's tenant rows (Figma 143:17411). */
+export function tenantRowActions(): ActionMenuItem[] {
+  return [
+    { id: 'open', labelKey: 'console.tenants.action.open', icon: viewIcon, to: '/console/tenants' },
+    { id: 'signIn', labelKey: 'console.tenants.action.signIn', icon: sendIcon },
+    { id: 'suspend', labelKey: 'console.tenants.action.suspend', icon: pauseIcon, danger: true },
+  ]
+}
+
+/** A sale in the day's list at the till (Figma 143:20498). */
+export function posSaleRowActions(invoiceId: string): ActionMenuItem[] {
+  return [
+    { id: 'receipt', labelKey: 'pos.today.printReceipt', icon: viewIcon },
+    { id: 'email', labelKey: 'pos.today.emailReceipt', icon: sendIcon },
+    {
+      id: 'open',
+      labelKey: 'pos.today.openInvoice',
+      icon: invoiceIcon,
+      to: `/invoices/${invoiceId}`,
+    },
+  ]
+}

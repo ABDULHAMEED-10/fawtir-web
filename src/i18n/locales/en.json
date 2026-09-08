@@ -3195,7 +3195,8 @@
         "cash": "Cash",
         "refunded": "Refunded",
         "mineOnly": "Mine only"
-      }
+      },
+      "rowMenu": "More for this sale"
     },
     "close": {
       "title": "Closing it",
@@ -8995,7 +8996,8 @@
         "signIn": "Sign in as them",
         "suspend": "Suspend filing"
       },
-      "showingAll": "Showing {{shown}} of {{total}}"
+      "showingAll": "Showing {{shown}} of {{total}}",
+      "rowMenu": "More for this tenant"
     },
     "soon": {
       "title": "Not built yet",

@@ -3197,7 +3197,8 @@
         "cash": "نقدًا",
         "refunded": "مستردة",
         "mineOnly": "عملياتي فقط"
-      }
+      },
+      "rowMenu": "المزيد لهذه العملية"
     },
     "close": {
       "title": "الإغلاق",
@@ -8997,7 +8998,8 @@
         "signIn": "ادخل باسمهم",
         "suspend": "أوقف الإرسال"
       },
-      "showingAll": "عرض {{shown}} من {{total}}"
+      "showingAll": "عرض {{shown}} من {{total}}",
+      "rowMenu": "المزيد لهذا المشترك"
     },
     "soon": {
       "title": "لم يُبنَ بعد",

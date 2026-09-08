@@ -8,6 +8,7 @@ import {
 } from '../../layouts/ConsoleShell/consoleIcons'
 import { NavReportsIcon } from '../../layouts/AppShell/navIcons'
 import { ActionMenu, FilterMenu, RowsView, SortMenu } from '../../components/ui'
+import { tenantRowActions } from '../../lib/rowActions'
 import {
   ALL_TENANTS,
   NEEDS_ATTENTION,
@@ -211,7 +212,7 @@ export function TenantsPage() {
               <SortMenu
                 value="name"
                 onChange={() => {}}
-                options={[{ value: 'name', label: t('console.tenants.sortName') }]}
+                options={[{ value: 'name', labelKey: 'console.tenants.sortName' }]}
               />
             </div>
           </div>
@@ -325,14 +326,7 @@ export function TenantsPage() {
                         </span>
                       </td>
                       <td className="px-2 py-4">
-                        <ActionMenu
-                          items={[
-                            { id: 'open', labelKey: 'console.tenants.action.open' },
-                            { id: 'impersonate', labelKey: 'console.tenants.action.signIn' },
-                            { id: 'suspend', labelKey: 'console.tenants.action.suspend' },
-                          ]}
-                          onSelect={() => {}}
-                        />
+                        <ActionMenu items={tenantRowActions()} label={t('console.tenants.rowMenu')} />
                       </td>
                     </tr>
                   )
