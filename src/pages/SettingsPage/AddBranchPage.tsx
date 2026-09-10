@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { Input, Select, Switch, TableCheckbox } from '../../components/ui'
+import { Input, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
 import {
   BRANCHES,
   NEW_BRANCH,
@@ -529,7 +529,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       ].join(' ')}
     >
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
-      <dd className="shrink-0 text-sm font-semibold text-text-primary">{value}</dd>
+      <dd className="shrink-0 text-sm font-semibold text-text-primary">{withRial(value)}</dd>
     </div>
   )
 }

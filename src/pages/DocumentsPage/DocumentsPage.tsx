@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { FilterMenu, Popover, TableCheckbox } from '../../components/ui'
+import { FilterMenu, Popover, TableCheckbox, withRial } from '../../components/ui'
 import {
   DOC_RECORDS,
   DOC_STATS,
@@ -534,7 +534,7 @@ function RecordRow({
             )}
           </p>
           <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-            {t(record.metaKey, record.meta)} ·{' '}
+            {withRial(t(record.metaKey, record.meta))} ·{' '}
             {record.versions
               ? t('documents.versions', { count: record.versions })
               : t('documents.filesCount', { count: record.files.length })}

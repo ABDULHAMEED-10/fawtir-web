@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { DebitCheck } from '../../lib/supplierDebitNotes'
+import { withRial } from '../ui'
 import okIcon from '../../assets/supplier-debit-notes/check-ok.svg'
 import warnIcon from '../../assets/supplier-debit-notes/check-warn.svg'
 
@@ -21,7 +22,7 @@ import warnIcon from '../../assets/supplier-debit-notes/check-warn.svg'
  * link working, and one that drops it simply loses the link rather than breaking the text.
  */
 function withRefs(text: string, refs: DebitCheck['refs']) {
-  if (!refs?.length) return text
+  if (!refs?.length) return withRial(text)
 
   const pattern = new RegExp(`(${refs.map((ref) => ref.token).join('|')})`, 'g')
   return text.split(pattern).map((part, index) => {
@@ -31,7 +32,7 @@ function withRefs(text: string, refs: DebitCheck['refs']) {
         {part}
       </Link>
     ) : (
-      <Fragment key={`t-${index}`}>{part}</Fragment>
+      <Fragment key={`t-${index}`}>{withRial(part)}</Fragment>
     )
   })
 }

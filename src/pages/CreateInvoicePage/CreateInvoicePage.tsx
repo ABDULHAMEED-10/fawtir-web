@@ -5,7 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { AddCustomerModal, type SavedCustomer } from '../../components/AddCustomerModal'
 import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
 import { ScanToFillModal, type ScanResult } from '../../components/invoice/ScanToFillModal'
-import { DateField, FileDropzone, Select } from '../../components/ui'
+import { DateField, FileDropzone, Select, withRial } from '../../components/ui'
 import {
   BRANCH_OPTIONS,
   CURRENCY_OPTIONS,
@@ -180,7 +180,7 @@ function DiscountTypeToggle({
               active ? 'bg-primary-700 text-white' : 'text-text-tertiary hover:text-text-secondary',
             ].join(' ')}
           >
-            {option.text}
+            {withRial(option.text)}
           </button>
         )
       })}
@@ -223,7 +223,7 @@ function DiscountField({
       {/* A percentage is meaningless to check without the money it comes to. */}
       {type === 'PERCENTAGE' && resolved > 0n ? (
         <span className="ps-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-          = {formatAtScale(resolved)} {t('createInvoice.items.omr')}
+          = {formatAtScale(resolved)} {withRial(t('createInvoice.items.omr'))}
         </span>
       ) : null}
     </div>

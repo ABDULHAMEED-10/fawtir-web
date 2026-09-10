@@ -7,7 +7,7 @@ import {
   ConsoleIncidentIcon,
 } from '../../layouts/ConsoleShell/consoleIcons'
 import { NavReportsIcon } from '../../layouts/AppShell/navIcons'
-import { ActionMenu, FilterMenu, RowsView, SortMenu } from '../../components/ui'
+import { ActionMenu, FilterMenu, Rial, RowsView, SortMenu, withRial } from '../../components/ui'
 import { tenantRowActions } from '../../lib/rowActions'
 import {
   ALL_TENANTS,
@@ -78,8 +78,8 @@ function KpiCard({
         </span>
         <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{title}</h3>
       </div>
-      <p className={`text-[32px] font-semibold leading-[1.2] ${valueTone}`}>{value}</p>
-      <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>
+      <p className={`text-[32px] font-semibold leading-[1.2] ${valueTone}`}>{withRial(value)}</p>
+      <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{withRial(note)}</p>
     </article>
   )
 }
@@ -282,7 +282,9 @@ export function TenantsPage() {
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
                           {tenant.state === 'onboarding'
                             ? t('console.tenants.freeUntil')
-                            : t('console.tenants.perMonth', { amount: omr(plan.monthly) })}
+                            : withRial(
+                                t('console.tenants.perMonth', { amount: omr(plan.monthly) }),
+                              )}
                         </span>
                       </td>
                       <td className="px-2 py-4">
@@ -316,8 +318,8 @@ export function TenantsPage() {
                       </td>
                       <td className="px-2 py-4 text-end">
                         <span className="block text-sm font-semibold text-text-primary">
-                          <span className="me-1 text-[10px] font-semibold uppercase text-text-quaternary">
-                            OMR
+                          <span className="me-1">
+                            <Rial />
                           </span>
                           {omr(tenant.billed)}
                         </span>
@@ -326,7 +328,10 @@ export function TenantsPage() {
                         </span>
                       </td>
                       <td className="px-2 py-4">
-                        <ActionMenu items={tenantRowActions()} label={t('console.tenants.rowMenu')} />
+                        <ActionMenu
+                          items={tenantRowActions()}
+                          label={t('console.tenants.rowMenu')}
+                        />
                       </td>
                     </tr>
                   )

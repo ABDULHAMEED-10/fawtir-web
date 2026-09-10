@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { Rial, withRial } from '../../components/ui'
 import { CREDIT_DETAIL, type CreditUse } from '../../lib/supplierCreditNotes'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import downloadIcon from '../../assets/invoice-details/download.svg'
@@ -19,13 +20,11 @@ const LINKED_ICON = { bill: billIcon, receipt: receiptIcon, file: fileIcon }
 /** Stands in for the receipt reference while the sentence is split around it. */
 const RECEIPT_SLOT = '\u0000'
 
-/** OMR is set small and uppercase before every figure on this screen. */
+/** The rial sign before every figure on this screen, in the figure's own size and colour. */
 function Omr({ className = '' }: { className?: string }) {
   return (
-    <span
-      className={['text-[11px] font-semibold uppercase text-text-tertiary', className].join(' ')}
-    >
-      OMR
+    <span className={className}>
+      <Rial />
     </span>
   )
 }
@@ -139,7 +138,11 @@ export function SupplierCreditNoteDetailPage() {
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:bg-success-700 disabled:opacity-100"
             >
               <img src={setIcon} alt="" className="size-5" />
-              {decided ? t(decided.doneKey) : t('supplierCreditNotes.detail.setAgainst')}
+              {decided ? (
+                <span>{withRial(t(decided.doneKey))}</span>
+              ) : (
+                t('supplierCreditNotes.detail.setAgainst')
+              )}
             </button>
           </div>
         </div>
@@ -155,7 +158,9 @@ export function SupplierCreditNoteDetailPage() {
                 </span>
                 <div>
                   <h2 className="text-xl font-medium leading-[1.2] text-[#2f4438]">
-                    {t('supplierCreditNotes.detail.youllPayLess', { amount: note.credit })}
+                    {withRial(
+                      t('supplierCreditNotes.detail.youllPayLess', { amount: note.credit }),
+                    )}
                   </h2>
                   <p className="mt-1.5 text-sm font-medium leading-[1.4] text-[#4f6857]">
                     {t('supplierCreditNotes.detail.youllPayLessNote')}
@@ -188,7 +193,7 @@ export function SupplierCreditNoteDetailPage() {
                       <p className="text-[11px] font-semibold uppercase leading-[1.2] tracking-[0.5px] text-text-tertiary">
                         {t(`supplierCreditNotes.detail.${tile.key}`)}
                       </p>
-                      <p className="mt-2 flex items-baseline gap-1 whitespace-nowrap text-[22px] font-semibold leading-[1.2] text-text-primary">
+                      <p className="mt-2 flex items-baseline gap-1 whitespace-nowrap text-[22px] font-semibold leading-[1.2] text-text-primary max-md:text-lg">
                         <Omr />
                         {tile.value}
                       </p>
@@ -367,7 +372,7 @@ export function SupplierCreditNoteDetailPage() {
                         {t(entry.titleKey)}
                       </p>
                       <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                        {t(entry.detailKey)}
+                        {withRial(t(entry.detailKey))}
                       </p>
                     </div>
                   </li>
@@ -390,7 +395,9 @@ export function SupplierCreditNoteDetailPage() {
               </p>
               <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
                 {decided
-                  ? t('supplierCreditNotes.detail.decisionTaken', { what: t(decided.doneKey) })
+                  ? withRial(
+                      t('supplierCreditNotes.detail.decisionTaken', { what: t(decided.doneKey) }),
+                    )
                   : t('supplierCreditNotes.detail.decisionNote', { bill: note.corrects })}
               </p>
 
@@ -491,7 +498,9 @@ export function SupplierCreditNoteDetailPage() {
                     <dt className="text-sm font-medium leading-[1.3] text-text-tertiary">
                       {label}
                     </dt>
-                    <dd className="shrink-0 text-sm font-semibold text-text-primary">{value}</dd>
+                    <dd className="shrink-0 text-sm font-semibold text-text-primary">
+                      {withRial(value)}
+                    </dd>
                   </div>
                 ))}
               </dl>

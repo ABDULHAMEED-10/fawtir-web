@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { FilterMenu, SortMenu } from '../../components/ui'
+import { FilterMenu, SortMenu, withRial } from '../../components/ui'
 import { BOOK, longDate, TODAY } from '../../lib/settings'
 import {
   LOG,
@@ -295,7 +295,7 @@ function Entry({ entry }: { entry: LogEntry }) {
                 TAG_TONE[tag.tone],
               ].join(' ')}
             >
-              {tag.label ?? t(tag.labelKey as string)}
+              {withRial(tag.label ?? t(tag.labelKey as string))}
             </span>
           ))}
         </span>
@@ -303,11 +303,11 @@ function Entry({ entry }: { entry: LogEntry }) {
         {entry.change ? (
           <span className="mt-2 flex flex-wrap items-center gap-2">
             <span className="inline-flex h-[26px] items-center rounded-[3px] bg-danger-100 px-2 text-xs font-medium text-danger-700 line-through">
-              {entry.change.from}
+              {withRial(entry.change.from)}
             </span>
             <img src={chevronIcon} alt="→" className="size-4 opacity-50 rtl:rotate-180" />
             <span className="inline-flex h-[26px] items-center rounded-[3px] bg-success-100 px-2 text-xs font-semibold text-[#3d5648]">
-              {entry.change.to}
+              {withRial(entry.change.to)}
             </span>
           </span>
         ) : null}

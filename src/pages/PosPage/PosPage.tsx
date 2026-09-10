@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
 import { PosArt } from './PosArt'
 import { PosSalePanel } from './PosSalePanel'
+import { CashierPicker } from './CashierPicker'
+import { Rial } from '../../components/ui'
 import {
   ACTIVE_FILTERS,
   GROUP_TABS,
@@ -19,8 +21,7 @@ import {
   type PosItem,
   type SaleLine,
 } from '../../lib/pos'
-import { CASHIERS } from '../../lib/pos'
-import chevron from '../../assets/dashboard/chevron.svg'
+import { CASHIERS, type CashierId } from '../../lib/pos'
 
 /** A barcode is the fastest way in; typing is the fallback. */
 function ScanField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -97,7 +98,7 @@ function Tile({ item, onAdd }: { item: PosItem; onAdd: (item: PosItem) => void }
           {t(item.noteKey, item.noteValues)}
         </span>
         <span className="mt-1.5 inline-flex items-center gap-1 text-base font-semibold text-text-primary">
-          <span className="text-[11px] font-semibold uppercase text-text-quaternary">OMR</span>
+          <Rial />
           {omr(item.price)}
         </span>
       </span>
@@ -112,7 +113,7 @@ export function PosPage() {
   const [filter, setFilter] = useState<ActiveFilter>('active')
   const [query, setQuery] = useState('')
   const [lines, setLines] = useState<SaleLine[]>(OPEN_SALE)
-  const [cashier, setCashier] = useState(CASHIERS[0].id)
+  const [cashier, setCashier] = useState<CashierId>(CASHIERS[0].id)
 
   const counts = useMemo(() => activeCounts(), [])
   const shown = itemsFor(group, filter, query)
@@ -179,24 +180,7 @@ export function PosPage() {
               })}
             </div>
 
-            <label className="inline-flex h-11 shrink-0 items-center gap-2 rounded-sm border border-border-subtle bg-surface-card ps-2 pe-3">
-              <span className="flex size-7 items-center justify-center rounded-full bg-primary-50 text-[11px] font-semibold text-primary-800">
-                {CASHIERS.find((c) => c.id === cashier)?.initials}
-              </span>
-              <select
-                value={cashier}
-                onChange={(event) => setCashier(event.target.value as typeof cashier)}
-                aria-label={t('pos.whoIsOnTill')}
-                className="appearance-none border-0 bg-transparent pe-4 text-sm font-semibold text-text-primary outline-none"
-              >
-                {CASHIERS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <img src={chevron} alt="" className="-ms-4 size-4 rotate-90 opacity-60" />
-            </label>
+            <CashierPicker value={cashier} onChange={setCashier} />
           </div>
         </div>
 

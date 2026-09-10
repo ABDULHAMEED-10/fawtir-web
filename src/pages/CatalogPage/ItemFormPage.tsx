@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
-import { Input, Select, Switch, TableCheckbox } from '../../components/ui'
+import { Input, Rial, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
 import { TAX_CATEGORY_OPTIONS, UNIT_OPTIONS } from '../../lib/catalogues'
 import { GROUPS, omr } from '../../lib/catalog'
 import {
@@ -301,7 +301,11 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 value={basePrice}
                 inputMode="decimal"
                 onChange={(event) => setBasePrice(event.target.value.replace(/[^\d.]/g, ''))}
-                leadingIcon={<span className="text-xs font-medium text-text-quaternary">OMR</span>}
+                leadingIcon={
+                  <span className="text-sm font-medium text-text-primary">
+                    <Rial />
+                  </span>
+                }
               />
               <label className="block">
                 <span className="mb-1.5 flex items-center gap-1 text-xs font-medium text-text-secondary">
@@ -322,7 +326,11 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 value={omr(shelf)}
                 readOnly
                 readOnlyAppearance
-                leadingIcon={<span className="text-xs font-medium text-text-quaternary">OMR</span>}
+                leadingIcon={
+                  <span className="text-sm font-medium text-text-primary">
+                    <Rial />
+                  </span>
+                }
               />
             </div>
 
@@ -512,7 +520,9 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                 <p className="mt-2 flex items-baseline justify-between gap-3 border-t border-border-subtle pt-2 text-sm font-semibold text-text-primary">
                   <span>{t('item.total')}</span>
                   <span className="tabular-nums">
-                    <span className="me-1 text-[10px] font-medium text-text-quaternary">OMR</span>
+                    <span className="me-1">
+                      <Rial />
+                    </span>
                     {omr(preview.total)}
                   </span>
                 </p>
@@ -677,7 +687,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       ].join(' ')}
     >
       <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
-      <dd className="shrink-0 text-sm font-semibold text-text-primary">{value}</dd>
+      <dd className="shrink-0 text-sm font-semibold text-text-primary">{withRial(value)}</dd>
     </div>
   )
 }

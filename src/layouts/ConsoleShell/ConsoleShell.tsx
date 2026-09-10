@@ -31,7 +31,7 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Topbar onOpenNav={() => setNavOpen(true)} showCreateInvoice={false} />
+        <Topbar onOpenNav={() => setNavOpen(true)} showCreateInvoice={false} notes="console" />
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-3 lg:px-4 lg:pb-6">{children}</main>
       </div>
     </div>

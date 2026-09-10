@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Select } from '../../components/ui'
+import { DateField, Rial, RialMark, Select, withRial } from '../../components/ui'
 import {
   calculateInvoice,
   formatAtScale,
@@ -419,7 +419,7 @@ export function UploadCreditNotePage() {
                   </span>
                   <div className="min-w-0">
                     <p className="text-base font-semibold leading-[1.2] text-text-primary">
-                      {upload.bill.id} · OMR {upload.bill.amount}
+                      {upload.bill.id} · <Rial /> {upload.bill.amount}
                     </p>
                     <p className="mt-1 text-sm font-medium leading-[1.3] text-text-tertiary">
                       {t(upload.bill.noteKey)}
@@ -618,7 +618,7 @@ export function UploadCreditNotePage() {
                     {t('supplierCreditNotes.upload.totalCredit')}
                   </dt>
                   <dd className="flex items-center gap-1 text-[22px] font-semibold leading-[1.2] text-[#3d5648] tabular-nums">
-                    −<img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
+                    −<RialMark className="w-5 shrink-0 text-[#3d5648]" />
                     {totals.total}
                   </dd>
                 </div>
@@ -707,7 +707,7 @@ export function UploadCreditNotePage() {
                           {option.title}
                         </span>{' '}
                         <span className="text-sm font-medium leading-[1.3] text-text-quaternary">
-                          {option.note}
+                          {withRial(option.note)}
                         </span>
                       </span>
                       {option.disabled ? (

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { OmAmount } from '../../components/ui/OmAmount'
-import { ActionMenu, RowsView } from '../../components/ui'
+import { ActionMenu, RialMark, RowsView, withRial } from '../../components/ui'
 import { creditNoteRowActions } from '../../lib/rowActions'
 import {
   CREDIT_NOTE_KPI,
@@ -25,7 +25,6 @@ import plusIcon from '../../assets/invoices/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import sortIcon from '../../assets/invoices/sort.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
 
 const KPI_ICONS = {
   credited: creditedIcon,
@@ -82,7 +81,7 @@ function CreditNotesHeader() {
           {t('creditNotesPage.title')}
         </h1>
         <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">
-          {t('creditNotesPage.subtitle')}
+          {withRial(t('creditNotesPage.subtitle'))}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -154,18 +153,11 @@ function RefundCell({ refund }: { refund: (typeof CREDIT_NOTE_ROWS)[number]['ref
   return (
     <div className="flex flex-col items-start justify-center">
       <span className="inline-flex items-center gap-1">
-        <img
-          src={omrRowIcon}
-          alt=""
-          className="size-6 shrink-0"
-          style={
-            isRefunded
-              ? {
-                  filter:
-                    'brightness(0) saturate(100%) invert(38%) sepia(12%) saturate(900%) hue-rotate(95deg) brightness(0.95)',
-                }
-              : undefined
-          }
+        <RialMark
+          className={[
+            'size-6 shrink-0',
+            isRefunded ? 'text-[#4c6c5a]' : 'text-text-secondary',
+          ].join(' ')}
         />
         <span
           className={[
@@ -336,15 +328,7 @@ function CreditNotesTable() {
                   <td className="px-2 py-2.5">
                     <span className="inline-flex items-center gap-1 text-[#98140b]">
                       <span className="text-base font-bold leading-[1.5]">-</span>
-                      <img
-                        src={omrRowIcon}
-                        alt=""
-                        className="size-6 shrink-0"
-                        style={{
-                          filter:
-                            'brightness(0) saturate(100%) invert(12%) sepia(68%) saturate(4500%) hue-rotate(358deg) brightness(0.85)',
-                        }}
-                      />
+                      <RialMark className="size-6 shrink-0 text-[#98140b]" />
                       <span className="text-base font-bold leading-[1.5]">{row.creditAmount}</span>
                     </span>
                   </td>

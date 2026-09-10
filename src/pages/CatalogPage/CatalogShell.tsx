@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { Rial } from '../../components/ui'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 export type Crumb = { labelKey?: string; label?: string; to?: string }
@@ -85,7 +86,9 @@ export function CatalogShell({
             ) : null}
           </div>
           {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">{actions}</div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
+              {actions}
+            </div>
           ) : null}
         </div>
 
@@ -138,6 +141,7 @@ export function Kpi({
   label,
   value,
   unit,
+  currency,
   note,
   tone,
   highlight,
@@ -147,6 +151,8 @@ export function Kpi({
   label: string
   value: string
   unit?: string
+  /** An amount of money — the rial sign stands before it, in the figure's size and colour. */
+  currency?: boolean
   note: string
   tone?: 'pending' | 'danger'
   /** The card the design paints in sand because it is the one asking for something. */
@@ -178,6 +184,12 @@ export function Kpi({
                 : 'text-text-primary',
           ].join(' ')}
         >
+          {currency ? (
+            <>
+              <Rial />
+              {'\u00A0'}
+            </>
+          ) : null}
           {value}
         </span>
         {unit ? <span className="text-sm font-medium text-text-quaternary">{unit}</span> : null}

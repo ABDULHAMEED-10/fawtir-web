@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { FileDropzone, OmAmount, RowsView } from '../../components/ui'
+import { FileDropzone, OmAmount, RowsView, withRial } from '../../components/ui'
 import { DocumentPreview, ReminderBanner } from '../../components/invoice'
 import { INVOICE_DETAIL } from '../../lib/invoiceDetails'
 import { invoiceToPreview } from '../../lib/documentPreview'
@@ -906,8 +906,12 @@ export function InvoiceDetailsPage() {
                     )}
                   </div>
                   <div className={['min-w-0 pb-6', isLast ? 'pb-0' : ''].join(' ')}>
-                    <p className="text-base font-medium text-text-primary">{event.title}</p>
-                    <p className="mt-1 text-sm font-medium text-text-quaternary">{event.detail}</p>
+                    <p className="text-base font-medium text-text-primary">
+                      {withRial(event.title)}
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text-quaternary">
+                      {withRial(event.detail)}
+                    </p>
                   </div>
                 </li>
               )

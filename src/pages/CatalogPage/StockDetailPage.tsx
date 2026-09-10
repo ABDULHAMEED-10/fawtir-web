@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Pill, Kpi } from './CatalogShell'
+import { withRial } from '../../components/ui'
 import { omr, groupName, kindName } from '../../lib/catalog'
 import {
   STOCK_ITEM_ID,
@@ -136,7 +137,7 @@ export function StockDetailPage() {
           icon={kpiChartIcon}
           label={t('stockItem.kpi.worth')}
           value={omr(rowWorth(row))}
-          unit="OMR"
+          currency
           note={t('stockItem.kpi.worthNote', {
             cost: omr(SUPPLIER.cost),
             sells: omr(SUPPLIER.sells),
@@ -505,7 +506,7 @@ function Row({
           tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
         ].join(' ')}
       >
-        {value}
+        {withRial(value)}
       </dd>
     </div>
   )

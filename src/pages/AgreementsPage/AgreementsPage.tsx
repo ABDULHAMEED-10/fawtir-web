@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, RowsView } from '../../components/ui'
+import { ActionMenu, RowsView, withRial } from '../../components/ui'
 import { agreementRowActions } from '../../lib/rowActions'
 import {
   AGREEMENT_KPI,
@@ -158,7 +158,7 @@ function ExpiredAlert() {
           {t('agreements.alert.title')}
         </p>
         <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-tertiary">
-          {t('agreements.alert.body')}
+          {withRial(t('agreements.alert.body'))}
         </p>
       </div>
       <button
@@ -247,7 +247,9 @@ function AgreementRowCells({ row }: { row: AgreementRow }) {
             </span>
           ) : null}
         </div>
-        <p className="mt-1.5 text-xs font-medium leading-[1.2] text-text-quaternary">{row.scope}</p>
+        <p className="mt-1.5 text-xs font-medium leading-[1.2] text-text-quaternary">
+          {withRial(row.scope)}
+        </p>
       </td>
       <td className="px-2 py-3 align-top">
         <p className="text-sm font-semibold leading-[1.2] text-text-secondary">{row.validity}</p>

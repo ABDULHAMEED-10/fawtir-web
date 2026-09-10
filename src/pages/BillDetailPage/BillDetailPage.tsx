@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { Rial, withRial } from '../../components/ui'
 import { BILL_DETAIL, type BillLinkedDoc, type BillStepState } from '../../lib/billDetail'
 import stepIcon from '../../assets/bill-detail/step.svg'
 import hdrBtnIcon from '../../assets/bill-detail/hdr-btn.svg'
@@ -245,7 +246,7 @@ export function BillDetailPage() {
                       {value.qty}
                     </p>
                     <p className="mt-1.5 text-xs font-medium leading-[1.2] text-text-quaternary">
-                      {value.note}
+                      {withRial(value.note)}
                     </p>
                   </div>
                 ))}
@@ -295,8 +296,8 @@ export function BillDetailPage() {
                           {line.qty}
                         </td>
                         <td className="py-3.5 text-end text-sm font-medium text-text-secondary">
-                          <span className="me-1 text-[10px] uppercase text-text-quaternary">
-                            OMR
+                          <span className="me-1">
+                            <Rial />
                           </span>
                           {line.unitPrice}
                         </td>
@@ -304,8 +305,8 @@ export function BillDetailPage() {
                           {line.vat}
                         </td>
                         <td className="py-3.5 text-end text-base font-semibold text-text-primary">
-                          <span className="me-1 text-[10px] uppercase text-text-quaternary">
-                            OMR
+                          <span className="me-1">
+                            <Rial />
                           </span>
                           {line.total}
                         </td>
@@ -329,7 +330,9 @@ export function BillDetailPage() {
                         {index === 0 ? t(label) : label}
                       </dt>
                       <dd className="text-sm font-semibold text-text-secondary tabular-nums">
-                        <span className="me-1 text-[10px] uppercase text-text-quaternary">OMR</span>
+                        <span className="me-1">
+                          <Rial />
+                        </span>
                         {value}
                       </dd>
                     </div>
@@ -339,7 +342,9 @@ export function BillDetailPage() {
                       {t('billDetail.lines.theyreCharging')}
                     </dt>
                     <dd className="text-[22px] font-semibold leading-[1.2] text-text-primary tabular-nums">
-                      <span className="me-1 text-xs uppercase text-text-quaternary">OMR</span>
+                      <span className="me-1">
+                        <Rial />
+                      </span>
                       {bill.totals.total}
                     </dd>
                   </div>
@@ -424,7 +429,7 @@ export function BillDetailPage() {
                         {t(event.title)}
                       </p>
                       <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                        {t(event.detail)}
+                        {withRial(t(event.detail))}
                       </p>
                     </div>
                   </li>
@@ -443,7 +448,9 @@ export function BillDetailPage() {
                 </h2>
               </div>
               <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-text-primary">
-                <span className="me-1.5 text-base uppercase text-text-quaternary">OMR</span>
+                <span className="me-1.5">
+                  <Rial />
+                </span>
                 {bill.total}
               </p>
               <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
@@ -512,7 +519,7 @@ export function BillDetailPage() {
                 ))}
               </dl>
               <p className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.3] text-text-tertiary">
-                {t(bill.terms.saving)}
+                <span>{withRial(t(bill.terms.saving))}</span>
               </p>
             </Card>
 
@@ -540,7 +547,7 @@ export function BillDetailPage() {
                 ].map(([label, value]) => (
                   <div key={label} className="flex items-center justify-between gap-3">
                     <dt className="text-sm font-medium text-text-tertiary">{t(label)}</dt>
-                    <dd className="text-sm font-semibold text-text-primary">{value}</dd>
+                    <dd className="text-sm font-semibold text-text-primary">{withRial(value)}</dd>
                   </div>
                 ))}
               </dl>

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ShareDocumentModal } from '../../components/documents/ShareDocumentModal'
+import { withRial } from '../../components/ui'
 import {
   DOC_DETAIL,
   DOC_RECORDS,
@@ -366,7 +367,7 @@ export function DocumentDetailPage() {
                   ))}
                   <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-[#151c2d] pt-3">
                     <dt className="text-base font-semibold text-text-primary">
-                      {t('documents.detail.totalOmr')}
+                      {withRial(t('documents.detail.totalOmr'))}
                     </dt>
                     <dd className="text-base font-semibold text-text-primary tabular-nums">
                       {sheet.total}

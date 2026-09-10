@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, Rial, RialText, withRial } from '../../components/ui'
 import { longDate, COMPANY } from '../../lib/settings'
 import {
   nextBill,
@@ -72,7 +72,9 @@ export function BillingPage() {
                   {t('bills.yourNextBill')}
                 </p>
                 <p className="mt-2 flex items-baseline gap-2">
-                  <span className="text-lg font-medium text-text-quaternary">OMR</span>
+                  <span className="text-[38px] font-semibold leading-[1.1] text-text-primary">
+                    <Rial />
+                  </span>
                   <span className="text-[38px] font-semibold leading-[1.1] text-text-primary tabular-nums">
                     {formatOmr(bill.total)}
                   </span>
@@ -89,6 +91,7 @@ export function BillingPage() {
             <p className="mt-3 max-w-[620px] text-sm font-medium leading-[1.6] text-text-tertiary">
               <Trans
                 i18nKey={extraPeople === 0 ? 'bills.nothingExtra' : 'bills.extraThisMonth'}
+                parent={RialText}
                 values={{
                   day: longDate(bill.dueOn),
                   amount: formatOmr(bill.withOneMore),
@@ -129,7 +132,9 @@ export function BillingPage() {
                 {t('bills.chargedOn', { date: longDate(bill.dueOn) })}
               </dt>
               <dd className="flex items-baseline gap-1.5">
-                <span className="text-xs font-medium text-text-quaternary">OMR</span>
+                <span className="text-xl font-semibold text-text-primary">
+                  <Rial />
+                </span>
                 <span className="text-xl font-semibold text-text-primary tabular-nums">
                   {formatOmr(bill.total)}
                 </span>
@@ -295,7 +300,9 @@ export function BillingPage() {
                   </td>
                   <td className="px-4 py-4 align-top text-end">
                     <p className="flex items-baseline justify-end gap-1">
-                      <span className="text-[10px] font-medium text-text-quaternary">OMR</span>
+                      <span className="text-sm font-semibold text-text-primary">
+                        <Rial />
+                      </span>
                       <span className="text-sm font-semibold text-text-primary tabular-nums">
                         {formatOmr(row.amount)}
                       </span>
@@ -354,7 +361,7 @@ function BillLine({ label, note, amount }: { label: string; note: string; amount
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-surface-background px-5 py-4">
       <div>
         <dt className="text-sm font-semibold text-text-primary">{label}</dt>
-        <dd className="mt-1 text-xs font-medium text-text-quaternary">{note}</dd>
+        <dd className="mt-1 text-xs font-medium text-text-quaternary">{withRial(note)}</dd>
       </div>
       <dd className="shrink-0 text-sm font-semibold text-text-primary tabular-nums">{amount}</dd>
     </div>

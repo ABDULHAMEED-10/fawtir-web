@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, withRial } from '../../components/ui'
 import {
   RUN_INVOICES,
   RUN_SUPPLIERS,
@@ -518,7 +518,7 @@ export function PaymentRunInvoicesPage() {
             {invoice.discountNoteKey ? (
               <p className="mt-4 flex items-start gap-2 rounded-sm bg-surface-background px-3 py-2.5 text-xs font-medium leading-[1.4] text-text-tertiary">
                 <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
-                {t(invoice.discountNoteKey)}
+                <span>{withRial(t(invoice.discountNoteKey))}</span>
               </p>
             ) : null}
 

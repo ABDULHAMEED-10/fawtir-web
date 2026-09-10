@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { RialText } from '../../components/ui'
 import {
   QUOTA_LEFT,
   TDD_RESUBMIT,
@@ -270,13 +271,17 @@ export function TddResubmitPage() {
                     values={{
                       amount: `OMR ${formatOmr(record.ifYouLeaveIt.undeclaredInclusive)}`,
                     }}
-                    components={{ b: <span className="font-semibold text-text-primary" /> }}
+                    components={{
+                      b: <RialText as="span" className="font-semibold text-text-primary" />,
+                    }}
                   />,
                   <Trans
                     key="vat"
                     i18nKey="tddResubmit.leaveIt.vatMissing"
                     values={{ amount: `OMR ${formatOmr(UNDECLARED_VAT)}` }}
-                    components={{ b: <span className="font-semibold text-text-primary" /> }}
+                    components={{
+                      b: <RialText as="span" className="font-semibold text-text-primary" />,
+                    }}
                   />,
                   t('tddResubmit.leaveIt.unreported'),
                   t('tddResubmit.leaveIt.futureFails'),

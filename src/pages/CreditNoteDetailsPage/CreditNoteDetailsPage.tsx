@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { OmAmount, RowsView } from '../../components/ui'
+import { OmAmount, RowsView, withRial } from '../../components/ui'
 import { PreviewPane } from '../../components/invoice/PreviewPane'
 import { CREDIT_NOTE_DETAIL } from '../../lib/creditNoteDetail'
 import backIcon from '../../assets/invoice-details/back.svg'
@@ -261,10 +261,12 @@ export function CreditNoteDetailsPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs font-medium text-text-quaternary">
-                    {t('creditNoteDetails.originalMeta', {
-                      amount: note.original.total,
-                      date: note.original.issued,
-                    })}
+                    {withRial(
+                      t('creditNoteDetails.originalMeta', {
+                        amount: note.original.total,
+                        date: note.original.issued,
+                      }),
+                    )}
                   </p>
                 </div>
                 <Link
@@ -460,7 +462,7 @@ export function CreditNoteDetailsPage() {
                 </span>
               </div>
               <div className="rounded-sm border border-primary-300 bg-surface-tab-bar px-4 py-4 text-sm font-medium leading-[1.2] text-text-primary">
-                {note.notes.internal}
+                {withRial(note.notes.internal)}
               </div>
             </div>
           </div>
@@ -541,7 +543,7 @@ export function CreditNoteDetailsPage() {
                     <div className={['min-w-0 pb-6', isLast ? 'pb-0' : ''].join(' ')}>
                       <p className="text-base font-medium text-text-secondary">{event.title}</p>
                       <p className="mt-1.5 text-sm font-medium text-text-tertiary">
-                        {event.detail}
+                        {withRial(event.detail)}
                       </p>
                     </div>
                   </li>

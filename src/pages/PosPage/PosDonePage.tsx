@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { AppShell } from '../../layouts/AppShell'
+import { withRial } from '../../components/ui'
 import {
   LULL,
   OPEN_SALE,
@@ -265,7 +266,7 @@ export function PosDonePage() {
 
               <div className="mt-3 flex items-center justify-between border-t border-dashed border-border-subtle pt-3">
                 <span className="text-sm font-semibold text-text-primary">
-                  {t('pos.done.totalOmr')}
+                  {withRial(t('pos.done.totalOmr'))}
                 </span>
                 <span className="text-base font-semibold text-text-primary">{omr(total)}</span>
               </div>

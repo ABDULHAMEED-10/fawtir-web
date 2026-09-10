@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField } from '../../components/ui'
+import { DateField, withRial } from '../../components/ui'
 import { SectionCard, ToggleRow } from '../../components/form'
 import {
   calculateInvoice,
@@ -541,12 +541,14 @@ export function RecordSupplierBillPage() {
                         {t(`recordBill.after.${step}`, { who: 'Yusuf', order: against })}
                       </p>
                       <p className="mt-0.5 text-xs font-medium leading-[1.4] text-text-quaternary">
-                        {t(`recordBill.after.${step}Note`, {
-                          limit: '2,000',
-                          due: '29 Aug',
-                          by: '6 Aug',
-                          saves: formatOmr(earlySaving),
-                        })}
+                        {withRial(
+                          t(`recordBill.after.${step}Note`, {
+                            limit: '2,000',
+                            due: '29 Aug',
+                            by: '6 Aug',
+                            saves: formatOmr(earlySaving),
+                          }),
+                        )}
                       </p>
                     </div>
                   </li>

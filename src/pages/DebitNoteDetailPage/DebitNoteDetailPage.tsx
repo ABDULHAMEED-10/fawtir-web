@@ -22,7 +22,7 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 import plusIcon from '../../assets/periodic/plus.svg'
 import clockIcon from '../../assets/periodic/clock.svg'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
-import { RowsView } from '../../components/ui'
+import { RialMark, RowsView, withRial } from '../../components/ui'
 
 /** Green "+ ﷼ amount" — a debit note only ever adds to the balance. */
 function PlusAmount({ value, size = 'sm' }: { value: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -35,16 +35,17 @@ function PlusAmount({ value, size = 'sm' }: { value: string; size?: 'sm' | 'md' 
   return (
     <span className="inline-flex items-center gap-1 text-success-700">
       <span className={text}>+</span>
-      <img src={omrRowIcon} alt="" className={['h-auto shrink-0', mark].join(' ')} />
+      <RialMark className={['shrink-0 text-success-700', mark].join(' ')} />
       <span className={text}>{value}</span>
     </span>
   )
 }
 
+/** The sign takes the figure's colour (`className`, or the text around it). */
 function Amount({ value, className = '' }: { value: string; className?: string }) {
   return (
     <span className={['inline-flex items-center gap-1', className].join(' ')}>
-      <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
+      <RialMark className="w-5 shrink-0" />
       {value}
     </span>
   )
@@ -169,7 +170,7 @@ export function DebitNoteDetailPage() {
 
               <p className="mt-5 inline-flex items-center gap-2 text-[40px] font-semibold leading-[1.2] text-success-700">
                 +
-                <img src={omrRowIcon} alt="" className="h-auto w-9 shrink-0" />
+                <RialMark className="w-9 shrink-0 text-success-700" />
                 {doc.amount.total}
               </p>
 
@@ -228,7 +229,7 @@ export function DebitNoteDetailPage() {
                     </span>
                   </div>
                   <p className="mt-1.5 text-xs font-medium leading-[1.2] text-text-quaternary">
-                    {doc.adjusts.meta}
+                    {withRial(doc.adjusts.meta)}
                   </p>
                 </div>
                 <Link
@@ -529,7 +530,7 @@ export function DebitNoteDetailPage() {
                 {t(doc.refund.labelKey)}
               </p>
               <p className="max-w-[400px] text-sm font-medium leading-[1.4] text-text-quaternary">
-                {doc.refund.hint}
+                {withRial(doc.refund.hint)}
               </p>
               <button
                 type="button"
@@ -574,7 +575,7 @@ export function DebitNoteDetailPage() {
                         {event.title}
                       </p>
                       <p className="mt-1.5 text-sm font-medium leading-[1.3] text-text-tertiary">
-                        {event.detail}
+                        {withRial(event.detail)}
                       </p>
                     </div>
                   </li>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../layouts/AppShell'
-import { TableCheckbox } from '../../components/ui'
+import { TableCheckbox, withRial } from '../../components/ui'
 import { LULL, OPEN_SALE, itemById, omr, omrSigned, unitPrice } from '../../lib/pos'
 import {
   CREDITED_INVOICE,
@@ -100,7 +100,7 @@ export function PosRefundPage() {
                   </span>
                   <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
                     {CREDITED_INVOICE.when} ·{' '}
-                    {t(CREDITED_INVOICE.paidKey, CREDITED_INVOICE.paidValues)}
+                    {withRial(t(CREDITED_INVOICE.paidKey, CREDITED_INVOICE.paidValues))}
                   </span>
                 </span>
                 <span className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full bg-success-100 px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-success-700">

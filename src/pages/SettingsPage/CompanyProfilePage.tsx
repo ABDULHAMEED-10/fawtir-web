@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { Input, Select } from '../../components/ui'
+import { Input, Select, withRial } from '../../components/ui'
 import { COMPANY } from '../../lib/settings'
 import { PAYMENT_TERMS_OPTIONS } from '../../lib/catalogues'
 import companyLogo from '../../assets/dashboard/bahja-logo.svg'
@@ -443,7 +443,7 @@ export function CompanyProfilePage() {
                 </ul>
 
                 <p className="mt-1 flex items-baseline justify-between gap-2 border-t border-border-subtle pt-2 text-[11px] font-semibold text-text-primary">
-                  <span>{t('companyProfile.totalOmr')}</span>
+                  <span>{withRial(t('companyProfile.totalOmr'))}</span>
                   <span className="tabular-nums">{omr(totals.total)}</span>
                 </p>
 

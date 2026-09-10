@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField } from '../../components/ui'
+import { DateField, RialMark, withRial } from '../../components/ui'
 import { SectionCard, ToggleRow } from '../../components/form'
 import {
   calculateInvoice,
@@ -548,8 +548,20 @@ function SideRow({
               : 'text-text-primary',
         ].join(' ')}
       >
-        {currency ? <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" /> : null}
-        {value}
+        {currency ? (
+          <RialMark
+            className={[
+              'w-4 shrink-0',
+              tone === 'up'
+                ? 'text-[#3d5648]'
+                : tone === 'warn'
+                  ? 'text-pending-700'
+                  : 'text-text-secondary',
+            ].join(' ')}
+          />
+        ) : null}
+        {/* One flex item, so a sign swapped into the text doesn't split it across the gap. */}
+        <span>{withRial(value)}</span>
       </dd>
     </div>
   )

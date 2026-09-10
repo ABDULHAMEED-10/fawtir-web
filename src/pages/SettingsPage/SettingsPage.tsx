@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
+import { withRial } from '../../components/ui'
 import {
   shortMonth,
   SETTINGS_TABS,
@@ -360,7 +361,7 @@ function HubCard({ card }: { card: Card }) {
         </span>
         {card.footKey ? (
           <span className="text-xs font-medium text-text-quaternary">
-            {t(card.footKey, card.footValues)}
+            {withRial(t(card.footKey, card.footValues))}
           </span>
         ) : null}
       </span>

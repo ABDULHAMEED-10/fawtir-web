@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { Input, Switch, TableCheckbox } from '../../components/ui'
+import { Input, Switch, TableCheckbox, withRial } from '../../components/ui'
 import {
   INVITE_DEFAULTS,
   INVITE_LINK_DAYS,
@@ -382,12 +382,14 @@ export function InvitePage() {
                   role: t(`team.role.${role}`).toLowerCase(),
                   branches: branchNames,
                 })
-              : t('invite.footer', {
-                  name,
-                  role: t(`team.role.${role}`).toLowerCase(),
-                  branches: branchNames,
-                  amount: cost.toFixed(3),
-                })}
+              : withRial(
+                  t('invite.footer', {
+                    name,
+                    role: t(`team.role.${role}`).toLowerCase(),
+                    branches: branchNames,
+                    amount: cost.toFixed(3),
+                  }),
+                )}
         </p>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link
@@ -455,7 +457,7 @@ function Check({ done, label }: { done: boolean; label: string }) {
           done ? 'text-text-secondary' : 'text-text-quaternary',
         ].join(' ')}
       >
-        {label}
+        {withRial(label)}
       </span>
     </li>
   )

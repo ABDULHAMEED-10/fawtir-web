@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Select } from '../../components/ui'
+import { Rial, Select, withRial } from '../../components/ui'
 import {
   CADENCES,
   CATEGORY_OPTIONS,
@@ -300,7 +300,9 @@ export function NewRecurringBillPage() {
                     {t('recurringBills.form.tellMeIfItMoves')}
                   </p>
                   <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">
-                    {t('recurringBills.form.toleranceNote', { low: band.low, high: band.high })}
+                    {withRial(
+                      t('recurringBills.form.toleranceNote', { low: band.low, high: band.high }),
+                    )}
                   </p>
                 </div>
                 <div className="inline-flex shrink-0 items-center rounded-sm border border-border-subtle bg-white">
@@ -417,7 +419,9 @@ export function NewRecurringBillPage() {
                 </p>
                 <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
                   {t('recurringBills.form.plainWordsPrefix')}{' '}
-                  <span className="font-semibold text-text-primary">OMR {amount}</span>{' '}
+                  <span className="font-semibold text-text-primary">
+                    <Rial /> {amount}
+                  </span>{' '}
                   {t('recurringBills.form.plainWordsFrom')}{' '}
                   <span className="font-semibold text-text-primary">{preparedBy}</span>,{' '}
                   {t('recurringBills.form.plainWordsExpected')}{' '}

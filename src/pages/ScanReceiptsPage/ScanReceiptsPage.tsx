@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Select } from '../../components/ui'
+import { DateField, Select, withRial } from '../../components/ui'
 import {
   EXPENSE_CATEGORIES,
   SCANNED_RECEIPTS,
@@ -209,11 +209,13 @@ export function ScanReceiptsPage() {
                 {t('scanReceipts.receiptOf', { current: index + 1, total: receipts.length })}
               </p>
               <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-                {t('scanReceipts.progressMeta', {
-                  saved: saved.length,
-                  left: receipts.length - saved.length,
-                  total: confirmedTotal,
-                })}
+                {withRial(
+                  t('scanReceipts.progressMeta', {
+                    saved: saved.length,
+                    left: receipts.length - saved.length,
+                    total: confirmedTotal,
+                  }),
+                )}
               </p>
             </div>
           </div>

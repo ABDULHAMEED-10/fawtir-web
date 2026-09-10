@@ -12,6 +12,7 @@ export { BusinessTypeChip } from './BusinessTypeChip'
 export { Chip } from './Chip'
 export { PricingCard } from './PricingCard'
 export { OmAmount } from './OmAmount'
+export { Rial, RialMark, RialText, withRial } from './Rial'
 export { ActionMenu, type ActionMenuItem } from './ActionMenu'
 export { StepTracker, type StepState, type TrackerStep } from './StepTracker'
 export {

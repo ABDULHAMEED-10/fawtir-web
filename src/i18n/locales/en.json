@@ -2325,7 +2325,7 @@
   },
   "debitNotes": {
     "title": "Debit notes",
-    "subtitle": "5 debit notes · OMR12.750 charged this quarter",
+    "subtitle": "5 debit notes · OMR 12.750 charged this quarter",
     "export": "Export",
     "newDebitNote": "New debit note",
     "kpi": {
@@ -9061,6 +9061,61 @@
       "settings": "Settings",
       "signingIn": "How you sign in",
       "signOut": "Sign out"
+    }
+  },
+  "notes": {
+    "title": "Notifications",
+    "newCount": "{{count}} new",
+    "markAllRead": "Mark all as read",
+    "settings": "Notification settings",
+    "dismiss": "Dismiss",
+    "allCaughtUp": "You are all caught up.",
+    "when": {
+      "hoursAgo_one": "{{count}} hour ago",
+      "hoursAgo_other": "{{count}} hours ago",
+      "yesterday": "Yesterday {{time}}"
+    },
+    "clearedAfter30": "Older than 30 days are cleared automatically",
+    "seeAll": "See them all",
+    "group": {
+      "today": "Today",
+      "earlier": "Earlier"
+    },
+    "certificate": {
+      "title": "Your Peppol certificate expires in {{days}} days",
+      "body": "Renews <b>{{date}}</b>. When it lapses, invoicing stops the same morning — renewal takes about a week.",
+      "renew": "Start the renewal"
+    },
+    "quota": {
+      "title": "You have used {{percent}}% of this month's invoices",
+      "body": "<b>{{used}} of {{allowance}}</b>, running out around {{runsOut}}. Overage is off, so submissions would be blocked.",
+      "plan": "Look at the plan"
+    },
+    "refused": {
+      "title": "{{invoice}} was refused by the Tax Authority",
+      "body": "The buyer had no Peppol ID. Two other invoices have the same problem.",
+      "fix": "Fix all three"
+    },
+    "stock": {
+      "title": "Four things will run out before Sunday's delivery",
+      "body": "{{first}} goes first, on Friday. All four are from {{supplier}}.",
+      "order": "Add them to {{order}}"
+    },
+    "accepted": {
+      "title": "Everything filed yesterday was accepted",
+      "body": "<b>{{count}} invoices</b> reported and acknowledged, none refused."
+    },
+    "invite": {
+      "title": "{{name}} has not accepted the invitation",
+      "body": "Sent {{sent}} days ago. It expires in {{expires}} days and the place would come back.",
+      "resend": "Send it again",
+      "resent": "Sent again just now",
+      "cancel": "Cancel it"
+    },
+    "device": {
+      "title": "{{name}} signed in from a new device",
+      "body": "An {{device}} in {{town}}. If that was not {{name}}, sign them out everywhere.",
+      "notThem": "That was not {{name}}"
     }
   }
 }

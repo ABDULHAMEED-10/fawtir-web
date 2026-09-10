@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi } from './CatalogShell'
-import { Select, TableCheckbox } from '../../components/ui'
+import { Select, TableCheckbox, withRial } from '../../components/ui'
 import { UNIT_OPTIONS } from '../../lib/catalogues'
 import { omr } from '../../lib/catalog'
 import {
@@ -390,12 +390,14 @@ export function UploadMenuPage() {
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
         <p className="text-sm font-medium text-text-tertiary">
-          {t('uploadMenu.footer', {
-            ticked: total,
-            total: READ_TOTAL,
-            rate: VAT_PERCENT,
-            currency: 'OMR',
-          })}
+          {withRial(
+            t('uploadMenu.footer', {
+              ticked: total,
+              total: READ_TOTAL,
+              rate: VAT_PERCENT,
+              currency: 'OMR',
+            }),
+          )}
         </p>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link

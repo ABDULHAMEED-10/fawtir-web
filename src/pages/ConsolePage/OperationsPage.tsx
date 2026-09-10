@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { withRial } from '../../components/ui'
 import {
   ConsoleBuildingIcon,
   ConsoleClockIcon,
@@ -166,7 +167,7 @@ function ConnectionLine({ label, value, tone }: { label: string; value: string; 
       <span
         className={`text-sm font-semibold ${tone === 'bad' ? 'text-danger-700' : 'text-text-primary'}`}
       >
-        {value}
+        {withRial(value)}
       </span>
     </div>
   )
@@ -422,7 +423,7 @@ export function OperationsPage() {
               />
             </div>
             <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
-              {t('console.across.average', { amount: omr(REVENUE_PER_TENANT) })}
+              {withRial(t('console.across.average', { amount: omr(REVENUE_PER_TENANT) }))}
             </p>
           </section>
         </div>

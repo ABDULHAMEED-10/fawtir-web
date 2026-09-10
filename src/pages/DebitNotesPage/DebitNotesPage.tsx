@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, RowsView } from '../../components/ui'
+import { ActionMenu, RialMark, RowsView, withRial } from '../../components/ui'
 import { debitNoteRowActions } from '../../lib/rowActions'
 import {
   DEBIT_NOTE_KPI,
@@ -21,8 +21,6 @@ import chargedIcon from '../../assets/debit-notes/kpi-charged.svg'
 import awaitingIcon from '../../assets/debit-notes/kpi-awaiting.svg'
 import collectedIcon from '../../assets/debit-notes/kpi-collected.svg'
 import overdueIcon from '../../assets/debit-notes/kpi-overdue.svg'
-import omrIcon from '../../assets/invoices/omr.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
@@ -65,7 +63,7 @@ function DebitNotesHeader() {
           {t('debitNotes.title')}
         </h1>
         <p className="mt-1 text-sm font-medium leading-[1.2] text-[#8f8f8f]">
-          {t('debitNotes.subtitle')}
+          {withRial(t('debitNotes.subtitle'))}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -93,43 +91,42 @@ function DebitNoteKpiCards() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {DEBIT_NOTE_KPI.map((kpi) => (
-        <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
-          <div className="flex items-center gap-3.5">
-            <img src={KPI_ICONS[kpi.icon]} alt="" className="size-11 shrink-0" />
-            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
-              {t(kpi.titleKey)}
-            </h3>
-          </div>
-          <div className="flex items-center gap-1">
-            {/* A debit note adds to what is owed, so the headline figure carries a green +. */}
-            {kpi.positive ? (
-              <span className="text-2xl font-bold leading-[1.2] text-success-700">+</span>
-            ) : null}
-            <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" />
+      {DEBIT_NOTE_KPI.map((kpi) => {
+        // The sign takes the figure's colour.
+        const amountTone = kpi.positive
+          ? 'text-success-700'
+          : 'danger' in kpi && kpi.danger
+            ? 'text-danger-700'
+            : 'text-text-secondary'
+        return (
+          <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
+            <div className="flex items-center gap-3.5">
+              <img src={KPI_ICONS[kpi.icon]} alt="" className="size-11 shrink-0" />
+              <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
+                {t(kpi.titleKey)}
+              </h3>
+            </div>
+            <div className="flex items-center gap-1">
+              {/* A debit note adds to what is owed, so the headline figure carries a green +. */}
+              {kpi.positive ? (
+                <span className="text-2xl font-bold leading-[1.2] text-success-700">+</span>
+              ) : null}
+              <RialMark className={['w-8 shrink-0', amountTone].join(' ')} />
+              <p className={['text-[32px] font-semibold leading-[1.2]', amountTone].join(' ')}>
+                {kpi.amount}
+              </p>
+            </div>
             <p
               className={[
-                'text-[32px] font-semibold leading-[1.2]',
-                kpi.positive
-                  ? 'text-success-700'
-                  : 'danger' in kpi && kpi.danger
-                    ? 'text-danger-700'
-                    : 'text-text-secondary',
+                'text-sm font-medium leading-[1.2]',
+                kpi.metaTone === 'danger' ? 'text-danger-700' : 'text-text-tertiary',
               ].join(' ')}
             >
-              {kpi.amount}
+              {t(kpi.metaKey)}
             </p>
-          </div>
-          <p
-            className={[
-              'text-sm font-medium leading-[1.2]',
-              kpi.metaTone === 'danger' ? 'text-danger-700' : 'text-text-tertiary',
-            ].join(' ')}
-          >
-            {t(kpi.metaKey)}
-          </p>
-        </article>
-      ))}
+          </article>
+        )
+      })}
     </div>
   )
 }
@@ -163,7 +160,7 @@ function DebitNoteRowCells({ row }: { row: DebitNoteRow }) {
       <td className="px-2 py-2.5">
         <span className="inline-flex items-center gap-1">
           <span className="text-base font-bold leading-[1.2] text-success-700">+</span>
-          <img src={omrRowIcon} alt="" className="h-auto w-6 shrink-0" />
+          <RialMark className="w-6 shrink-0 text-success-700" />
           <span className="text-base font-bold leading-[1.2] text-success-700">{row.amount}</span>
         </span>
       </td>

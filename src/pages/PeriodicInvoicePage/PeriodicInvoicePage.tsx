@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
 import { formatAtScale } from '../../lib/invoiceMath'
-import { ActionMenu, OmAmount } from '../../components/ui'
+import { ActionMenu, OmAmount, withRial } from '../../components/ui'
 import {
   EMPTY_PERIODIC_SERIES,
   PERIODIC_SERIES,
@@ -479,11 +479,13 @@ export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) 
               <div className="mt-4 flex items-start gap-2 rounded-sm border border-primary-50 bg-primary-25 p-3">
                 <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
                 <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
-                  {t('periodicInvoice.itemsBanner', {
-                    amount: formatAtScale(totals.total),
-                    cadence: t(`periodicInvoice.cadence.${frequency}`),
-                    customer: series.customer.name,
-                  })}
+                  {withRial(
+                    t('periodicInvoice.itemsBanner', {
+                      amount: formatAtScale(totals.total),
+                      cadence: t(`periodicInvoice.cadence.${frequency}`),
+                      customer: series.customer.name,
+                    }),
+                  )}
                 </p>
               </div>
             </>

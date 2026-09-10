@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, RowsView, StepTracker, TableCheckbox } from '../../components/ui'
+import { ActionMenu, RowsView, StepTracker, TableCheckbox, withRial } from '../../components/ui'
 import { quotationRowActions } from '../../lib/rowActions'
 import {
   QUOTATION_KPI,
@@ -76,7 +76,7 @@ function QuotationsHeader() {
           </h1>
         </div>
         <p className="mt-1 text-sm font-medium leading-[1.2] text-[#8f8f8f]">
-          {t('quotations.subtitle')}
+          {withRial(t('quotations.subtitle'))}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
