@@ -192,7 +192,7 @@ export function SupplierDebitNoteDetailPage() {
                       <p className="text-[11px] font-semibold uppercase leading-[1.2] tracking-[0.5px] text-text-tertiary">
                         {t(`supplierDebitNotes.detail.${tile.key}`)}
                       </p>
-                      <p className="mt-2 flex items-baseline gap-1 whitespace-nowrap text-[22px] font-semibold leading-[1.2] text-text-primary">
+                      <p className="mt-2 flex items-baseline gap-1 whitespace-nowrap text-[22px] font-semibold leading-[1.2] text-text-primary max-md:text-lg">
                         <Omr />
                         {tile.value}
                       </p>
