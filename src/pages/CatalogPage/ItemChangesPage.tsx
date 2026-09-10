@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Pill, TabStrip } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
-import { FilterMenu, SortMenu } from '../../components/ui'
+import { FilterMenu, RialText, SortMenu, withRial } from '../../components/ui'
 import {
   ITEM,
   SOLD_90,
@@ -212,7 +212,7 @@ function ChangeRow({ change }: { change: Change }) {
                   CHIP_TONE[chip.tone],
                 ].join(' ')}
               >
-                {chip.label}
+                {withRial(chip.label)}
               </span>
             </span>
           ))}
@@ -246,7 +246,7 @@ function ChangeRow({ change }: { change: Change }) {
               <Trans
                 i18nKey={change.outcomeKey}
                 values={change.outcomeValues}
-                components={{ b: <b className="font-semibold" /> }}
+                components={{ b: <RialText as="b" className="font-semibold" /> }}
               />
             </span>
           </p>

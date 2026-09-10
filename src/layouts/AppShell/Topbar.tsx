@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import { GlobalSearch, NotificationsBell } from '../../components/shell'
 import { CloseIcon, MenuIcon } from '../../components/ui/icons'
+import type { NoteScope } from '../../lib/notifications'
 import searchIcon from '../../assets/dashboard/search.svg'
 import plusIcon from '../../assets/dashboard/plus.svg'
 
@@ -13,10 +14,13 @@ const SEARCH_FITS = '(min-width: 48rem)'
 export function Topbar({
   onOpenNav = () => {},
   showCreateInvoice: allowCreateInvoice = true,
+  notes = 'tenant',
 }: {
   onOpenNav?: () => void
   /** The Fawtir console has no Create Invoice — nobody invoices from inside the platform. */
   showCreateInvoice?: boolean
+  /** Whose notifications the bell shows — the console's are not a shop's. */
+  notes?: NoteScope
 }) {
   const { t } = useTranslation()
   const location = useLocation()
@@ -95,7 +99,7 @@ export function Topbar({
               </Link>
             ) : null}
 
-            <NotificationsBell />
+            <NotificationsBell scope={notes} />
 
             <div className="hidden h-12 w-px bg-border-subtle sm:block max-md:hidden" />
 

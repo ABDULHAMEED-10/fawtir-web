@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu, FilterMenu, RowsView, SortMenu } from '../../components/ui'
+import { ActionMenu, FilterMenu, RowsView, SortMenu, withRial } from '../../components/ui'
 import {
   MEMBERS,
   TEAM_TABS,
@@ -255,7 +255,7 @@ function Kpi({
             tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
           ].join(' ')}
         >
-          {value}
+          {withRial(value)}
         </span>
         {unit ? <span className="text-sm font-medium text-text-quaternary">{unit}</span> : null}
       </p>

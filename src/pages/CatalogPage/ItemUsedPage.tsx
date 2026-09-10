@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Pill, Kpi, TabStrip } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
-import { FilterMenu, RowsView, SortMenu } from '../../components/ui'
+import { FilterMenu, Rial, RowsView, SortMenu } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   ITEM,
@@ -264,7 +264,9 @@ function UsedRow({ row }: { row: UsedDocument }) {
 
       <td className="px-4 py-4 align-top text-end">
         <p className="flex items-baseline justify-end gap-1">
-          <span className="text-[10px] font-medium text-text-quaternary">OMR</span>
+          <span className="text-sm font-semibold text-text-primary">
+            <Rial />
+          </span>
           <span className="text-sm font-semibold text-text-primary tabular-nums">
             {omr(row.lineValue)}
           </span>

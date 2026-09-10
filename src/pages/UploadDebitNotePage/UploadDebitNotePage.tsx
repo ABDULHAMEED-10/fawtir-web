@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Select } from '../../components/ui'
+import { DateField, Rial, RialMark, Select, withRial } from '../../components/ui'
 import { DebitChecks } from '../../components/debit/DebitChecks'
 import {
   calculateInvoice,
@@ -223,7 +223,7 @@ function DebitSheet({ zoom }: { zoom: number }) {
               style={{ fontSize: 10.5 * zoom, marginTop: 5 * zoom, paddingTop: 6 * zoom }}
               className="flex justify-between border-t border-[#151c2d] font-bold text-text-primary"
             >
-              <span>{t('supplierDebitNotes.upload.sheetTotalDue')}</span>
+              <span>{withRial(t('supplierDebitNotes.upload.sheetTotalDue'))}</span>
               <mark className={mark}>{doc.total}</mark>
             </div>
           </div>
@@ -415,7 +415,7 @@ export function UploadDebitNotePage() {
                   </span>
                   <div className="min-w-0">
                     <p className="text-base font-semibold leading-[1.2] text-text-primary">
-                      {upload.bill.id} · OMR {upload.bill.amount}
+                      {upload.bill.id} · <Rial /> {upload.bill.amount}
                     </p>
                     <p className="mt-1 text-sm font-medium leading-[1.3] text-text-tertiary">
                       {t(upload.bill.noteKey)}
@@ -611,7 +611,7 @@ export function UploadDebitNotePage() {
                     {t('supplierDebitNotes.upload.totalCharged')}
                   </dt>
                   <dd className="flex items-center gap-1 text-[22px] font-semibold leading-[1.2] text-pending-700 tabular-nums">
-                    +<img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
+                    +<RialMark className="w-5 shrink-0 text-pending-700" />
                     {totals.total}
                   </dd>
                 </div>
@@ -722,7 +722,7 @@ export function UploadDebitNotePage() {
                             {option.title}
                           </span>{' '}
                           <span className="text-sm font-medium leading-[1.3] text-text-quaternary">
-                            {option.note}
+                            {withRial(option.note)}
                           </span>
                         </span>
                       </button>

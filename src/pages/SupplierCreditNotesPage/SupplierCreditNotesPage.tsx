@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover, RowsView } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, RialMark, RowsView } from '../../components/ui'
 import {
   CREDIT_TABS,
   CREDIT_TAB_STATES,
@@ -21,7 +21,6 @@ import searchIcon from '../../assets/invoices/search.svg'
 import sortIcon from '../../assets/bills/sort.svg'
 import filterIcon from '../../assets/bills/filter.svg'
 import omrIcon from '../../assets/invoices/omr.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import statementIcon from '../../assets/actions/statement.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -424,7 +423,7 @@ export function SupplierCreditNotesPage() {
                       <td className="px-4 py-4 align-top">
                         <span className="flex items-center gap-1 text-[#3d5648]">
                           <span className="text-base font-semibold">−</span>
-                          <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
+                          <RialMark className="w-4 shrink-0 text-[#3d5648]" />
                           <span className="text-base font-semibold">{note.credit}</span>
                         </span>
                         <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">

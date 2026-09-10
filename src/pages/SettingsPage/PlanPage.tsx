@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
+import { Rial, RialText, withRial } from '../../components/ui'
 import { longDate, RESETS_ON, RAISED_TODAY, usageForecast } from '../../lib/settings'
 import {
   PLANS,
@@ -262,7 +263,14 @@ function PlanCard({ plan }: { plan: Plan }) {
       </h3>
 
       <p className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-sm font-medium text-text-quaternary">OMR</span>
+        <span
+          className={[
+            'font-semibold leading-[1.1] text-text-primary',
+            better ? 'text-[32px]' : 'text-[28px]',
+          ].join(' ')}
+        >
+          <Rial />
+        </span>
         <span
           className={[
             'font-semibold leading-[1.1] text-text-primary tabular-nums',
@@ -278,7 +286,9 @@ function PlanCard({ plan }: { plan: Plan }) {
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-2">
             <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-70" />
-            <span className="text-sm font-medium leading-[1.4] text-text-tertiary">{feature}</span>
+            <span className="text-sm font-medium leading-[1.4] text-text-tertiary">
+              {withRial(feature)}
+            </span>
           </li>
         ))}
       </ul>
@@ -292,7 +302,7 @@ function PlanCard({ plan }: { plan: Plan }) {
                 <Trans
                   i18nKey="plan.wouldCover"
                   values={{ amount: UPGRADE.extraMonthly.toFixed(3) }}
-                  components={{ b: <b className="font-semibold" /> }}
+                  components={{ b: <RialText as="b" className="font-semibold" /> }}
                 />
               </span>
             </p>

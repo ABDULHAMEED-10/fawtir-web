@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { withRial } from '../../components/ui'
 import { ACTIVITY_DETAIL, type Journey, type ReportVersion } from '../../lib/activityDetail'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import portalIcon from '../../assets/invoice-details/fullscreen.svg'
@@ -61,11 +62,13 @@ export function ActivityEventPage() {
               </span>
             </div>
             <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
-              {t('activityDetail.identity', {
-                customer: record.customer,
-                issued: record.issued,
-                amount: record.amount,
-              })}
+              {withRial(
+                t('activityDetail.identity', {
+                  customer: record.customer,
+                  issued: record.issued,
+                  amount: record.amount,
+                }),
+              )}
             </p>
           </div>
 

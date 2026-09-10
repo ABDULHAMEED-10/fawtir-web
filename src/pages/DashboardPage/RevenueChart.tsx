@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { OmAmount, SegmentedControl } from '../../components/ui'
+import { OmAmount, SegmentedControl, withRial } from '../../components/ui'
 import { REVENUE, REVENUE_BARS, type PeriodOption } from '../../lib/dashboard'
 import { DashboardCard } from './DashboardCard'
 
@@ -40,7 +40,7 @@ export function RevenueChart() {
       <div className="relative flex gap-3">
         <div className="flex h-[200px] w-[70px] flex-col justify-between pb-6 text-[11px] font-medium text-text-quaternary">
           {REVENUE.yTicks.map((tick) => (
-            <span key={tick}>{tick}</span>
+            <span key={tick}>{withRial(tick)}</span>
           ))}
         </div>
 

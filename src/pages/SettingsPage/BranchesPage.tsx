@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, Rial } from '../../components/ui'
 import { INVOICES_THIS_MONTH } from '../../lib/settings'
 import {
   BRANCHES,
@@ -282,7 +282,7 @@ function BranchCard({ branch }: { branch: Branch }) {
               </span>
             </p>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
-              OMR {branch.turnoverThisMonth}
+              <Rial /> {branch.turnoverThisMonth}
               {branch.turnoverNoteKey ? ` · ${t(branch.turnoverNoteKey)}` : ''}
             </p>
           </Cell>

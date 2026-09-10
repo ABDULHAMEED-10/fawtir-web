@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Kpi } from './CatalogShell'
-import { ActionMenu, Switch } from '../../components/ui'
+import { ActionMenu, RialText, Switch, withRial } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   RULES,
@@ -88,14 +88,14 @@ export function PriceRulesPage() {
           tint="bg-success-100"
           label={t('priceRules.kpi.givenAway')}
           value={omr(summary.givenAway)}
-          unit="OMR"
+          currency
           note={t('priceRules.kpi.givenAwayNote', { share: SHARE_OF_SALES })}
         />
         <Kpi
           icon={kpiEarningIcon}
           label={t('priceRules.kpi.broughtIn')}
           value={omr(summary.broughtIn)}
-          unit="OMR"
+          currency
           note={t('priceRules.kpi.broughtInNote', {
             count: summary.used.toLocaleString('en-US'),
           })}
@@ -341,7 +341,7 @@ function RuleCard({ rule, on, onToggle }: { rule: Rule; on: boolean; onToggle: (
               <Trans
                 i18nKey={rule.whoKey}
                 values={rule.whoValues}
-                components={{ b: <b className="font-semibold text-text-primary" /> }}
+                components={{ b: <RialText as="b" className="font-semibold text-text-primary" /> }}
               />
             </p>
           </div>
@@ -409,7 +409,9 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
       ].join(' ')}
     >
       <dt className="text-xs font-medium text-text-tertiary">{label}</dt>
-      <dd className="shrink-0 text-xs font-semibold text-text-primary tabular-nums">{value}</dd>
+      <dd className="shrink-0 text-xs font-semibold text-text-primary tabular-nums">
+        {withRial(value)}
+      </dd>
     </div>
   )
 }

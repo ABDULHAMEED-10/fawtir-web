@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { Rial, withRial } from '../../components/ui'
 import { DebitChecks } from '../../components/debit/DebitChecks'
 import { DEBIT_DETAIL, REFUSAL_REASONS, type DebitDecision } from '../../lib/supplierDebitNotes'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -17,13 +18,11 @@ import fileIcon from '../../assets/bill-capture/file.svg'
 
 const LINKED_ICON = { bill: billIcon, receipt: receiptIcon, file: fileIcon }
 
-/** OMR is set small and uppercase before every figure on this screen. */
+/** The rial sign before every figure on this screen, in the figure's own size and colour. */
 function Omr({ className = '' }: { className?: string }) {
   return (
-    <span
-      className={['text-[11px] font-semibold uppercase text-text-tertiary', className].join(' ')}
-    >
-      OMR
+    <span className={className}>
+      <Rial />
     </span>
   )
 }
@@ -160,7 +159,7 @@ export function SupplierDebitNoteDetailPage() {
                 </span>
                 <div>
                   <h2 className="text-xl font-medium leading-[1.2] text-pending-700">
-                    {t('supplierDebitNotes.detail.theyWantMore', { amount: note.extra })}
+                    {withRial(t('supplierDebitNotes.detail.theyWantMore', { amount: note.extra }))}
                   </h2>
                   <p className="mt-1.5 text-sm font-medium leading-[1.4] text-pending-500">
                     {t('supplierDebitNotes.detail.theyWantMoreNote')}
@@ -331,7 +330,7 @@ export function SupplierDebitNoteDetailPage() {
                         )}
                       </p>
                       <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                        {t(doc.detailKey)}
+                        {withRial(t(doc.detailKey))}
                       </p>
                     </div>
                   </li>
@@ -388,7 +387,7 @@ export function SupplierDebitNoteDetailPage() {
                 {note.extra}
               </p>
               <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-                {decisionText}
+                {withRial(decisionText)}
               </p>
 
               {decision ? (
@@ -598,7 +597,7 @@ export function SupplierDebitNoteDetailPage() {
                         row.tone === 'warning' ? 'text-warning-700' : 'text-text-primary',
                       ].join(' ')}
                     >
-                      {row.value}
+                      {withRial(row.value)}
                     </dd>
                   </div>
                 ))}

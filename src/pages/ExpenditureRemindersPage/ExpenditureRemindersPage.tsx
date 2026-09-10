@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Popover, Switch } from '../../components/ui'
+import { Popover, Switch, withRial } from '../../components/ui'
 import {
   CANDIDATES,
   DIGEST_TIME,
@@ -565,8 +565,8 @@ export function ExpenditureRemindersPage() {
                               {t(candidate.titleKey, { days: candidate.days })}
                             </p>
                             <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                              {t(candidate.amountKey)} · {t('expenditureReminders.preview.to')}{' '}
-                              {who}
+                              {withRial(t(candidate.amountKey))} ·{' '}
+                              {t('expenditureReminders.preview.to')} {who}
                             </p>
                           </div>
                         </li>

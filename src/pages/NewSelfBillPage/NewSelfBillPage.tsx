@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { NEW_SELF_BILL, SELF_BILL_KINDS, type SelfBillKind } from '../../lib/selfBillCreate'
 import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
+import { withRial } from '../../components/ui'
 import { formatAtScale } from '../../lib/invoiceMath'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import statutoryIcon from '../../assets/customers/type-government.svg'
@@ -549,7 +550,7 @@ export function NewSelfBillPage() {
                 </span>
               </div>
               <div className="min-h-[85px] rounded-sm border border-primary-300 bg-surface-tab-bar p-4 text-sm font-medium text-text-primary">
-                {doc.notes.internal}
+                {withRial(doc.notes.internal)}
               </div>
             </div>
           </div>

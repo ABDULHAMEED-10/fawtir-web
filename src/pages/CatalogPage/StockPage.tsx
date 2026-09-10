@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
-import { FilterMenu, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
+import { FilterMenu, Rial, RowsView, SortMenu, TableCheckbox } from '../../components/ui'
 import { omr, groupName, kindName } from '../../lib/catalog'
 import {
   STOCK_ROWS,
@@ -110,7 +110,7 @@ export function StockPage() {
           icon={kpiWorthIcon}
           label={t('stock.kpi.worth')}
           value={omr(STOCK_BOOK.worth)}
-          unit="OMR"
+          currency
           note={t('stock.kpi.worthNote', { count: STOCK_BOOK.counted })}
         />
         <Kpi
@@ -384,7 +384,9 @@ function Row({
 
       <td className="px-4 py-4 align-top text-end">
         <p className="flex items-baseline justify-end gap-1">
-          <span className="text-[10px] font-medium text-text-quaternary">OMR</span>
+          <span className="text-sm font-semibold text-text-primary">
+            <Rial />
+          </span>
           <span className="text-sm font-semibold text-text-primary tabular-nums">
             {omr(rowWorth(row))}
           </span>

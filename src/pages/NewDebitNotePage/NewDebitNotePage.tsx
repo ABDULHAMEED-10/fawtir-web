@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
 import { formatAtScale } from '../../lib/invoiceMath'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, RialMark, withRial } from '../../components/ui'
 import { debitNoteRowActions } from '../../lib/rowActions'
 import { DEBIT_BASES, NEW_DEBIT_NOTE, type DebitBasis } from '../../lib/newDebitNote'
 import saveDraftIcon from '../../assets/debit-note-create/save-draft.svg'
@@ -141,7 +141,7 @@ function PlusAmount({ value, size = 'sm' }: { value: string; size?: 'sm' | 'md' 
   return (
     <span className="inline-flex items-center gap-1 text-success-700">
       <span className={text}>+</span>
-      <img src={omrRowIcon} alt="" className={['h-auto shrink-0', mark].join(' ')} />
+      <RialMark className={['shrink-0 text-success-700', mark].join(' ')} />
       <span className={text}>{value}</span>
     </span>
   )
@@ -253,7 +253,7 @@ export function NewDebitNotePage() {
                       {t('newDebitNote.original.invoiceTotal')}
                     </p>
                     <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-primary">
-                      {doc.original.invoiceTotal}
+                      {withRial(doc.original.invoiceTotal)}
                     </p>
                   </div>
                   <div>
@@ -261,7 +261,7 @@ export function NewDebitNotePage() {
                       {t('newDebitNote.original.alreadyCredited')}
                     </p>
                     <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-primary">
-                      {doc.original.alreadyCredited}
+                      {withRial(doc.original.alreadyCredited)}
                     </p>
                   </div>
                   <div>
@@ -269,7 +269,7 @@ export function NewDebitNotePage() {
                       {t('newDebitNote.original.creditable')}
                     </p>
                     <p className="mt-1.5 text-sm font-semibold leading-[1.2] text-success-700">
-                      {doc.original.creditable}
+                      {withRial(doc.original.creditable)}
                     </p>
                   </div>
                 </div>
@@ -358,7 +358,7 @@ export function NewDebitNotePage() {
                     {t('newDebitNote.amount.outstanding', { invoice: doc.adjustsInvoice })}
                   </span>
                   <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-700">
-                    <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
+                    <RialMark className="w-4 shrink-0 text-success-700" />
                     {doc.amount.outstanding}
                   </span>
                 </div>
@@ -374,7 +374,7 @@ export function NewDebitNotePage() {
                     {t('newDebitNote.amount.newBalance')}
                   </span>
                   <span className="inline-flex items-center gap-1 text-sm font-semibold text-success-700">
-                    <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
+                    <RialMark className="w-4 shrink-0 text-success-700" />
                     {doc.amount.newBalance}
                   </span>
                 </div>

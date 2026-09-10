@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, RowsView } from '../../components/ui'
+import { ActionMenu, RowsView, withRial } from '../../components/ui'
 import { orderFormRowActions } from '../../lib/rowActions'
 import {
   ORDER_FORM_PURCHASE,
@@ -147,7 +147,7 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
               {t(event.titleKey)}
             </p>
             <p className="mt-1.5 text-sm font-medium leading-[1.2] text-[#444957]">
-              {t(event.detailKey)}
+              {withRial(t(event.detailKey))}
             </p>
           </div>
         </li>
@@ -163,7 +163,9 @@ function FileRow({ titleKey, metaKey }: { titleKey: string; metaKey: string }) {
       <img src={pdfIcon} alt="" className="size-10 shrink-0" />
       <div className="min-w-0">
         <p className="text-base font-medium leading-[1.2] text-[#151c2d]">{t(titleKey)}</p>
-        <p className="mt-1.5 text-sm font-medium leading-[1.2] text-[#444957]">{t(metaKey)}</p>
+        <p className="mt-1.5 text-sm font-medium leading-[1.2] text-[#444957]">
+          {withRial(t(metaKey))}
+        </p>
       </div>
     </div>
   )
@@ -299,7 +301,7 @@ function SaleDetail() {
       <Card>
         <LifecycleStrip steps={doc.steps} />
         <p className="mt-6 border-t border-[#f3f3f3] pt-4 text-sm font-medium leading-[1.2] text-[#444957]">
-          {t(doc.lifecycleNoteKey)}
+          {withRial(t(doc.lifecycleNoteKey))}
         </p>
       </Card>
 
@@ -548,7 +550,7 @@ function PurchaseDetail() {
       <Card>
         <LifecycleStrip steps={doc.steps} />
         <p className="mt-6 border-t border-[#f3f3f3] pt-4 text-sm font-medium leading-[1.2] text-[#444957]">
-          {t(doc.lifecycleNoteKey)}
+          {withRial(t(doc.lifecycleNoteKey))}
         </p>
       </Card>
 

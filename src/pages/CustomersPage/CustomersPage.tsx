@@ -2,7 +2,15 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover, RowsView, TableCheckbox } from '../../components/ui'
+import {
+  ActionMenu,
+  FilterMenu,
+  Popover,
+  RialMark,
+  RowsView,
+  TableCheckbox,
+  withRial,
+} from '../../components/ui'
 import { customerRowActions } from '../../lib/rowActions'
 import {
   CUSTOMER_KPI,
@@ -19,7 +27,6 @@ import overdueIcon from '../../assets/customers/kpi-overdue.svg'
 import customersIcon from '../../assets/customers/kpi-customers.svg'
 import peppolIcon from '../../assets/customers/kpi-peppol.svg'
 import omrIcon from '../../assets/invoices/omr.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import bulkUploadIcon from '../../assets/invoices/bulk-upload.svg'
 import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
@@ -66,10 +73,6 @@ const PEPPOL_STYLES: Record<
   },
 }
 
-/** Figma tints the OMR glyph to match the amount, so overdue rows get a red mark. */
-const OVERDUE_ICON_FILTER =
-  'brightness(0) saturate(100%) invert(11%) sepia(64%) saturate(5000%) hue-rotate(358deg) brightness(85%)'
-
 const AMOUNT_STYLES: Record<ReceivableState, { amount: string; note: string }> = {
   overdue: { amount: 'text-danger-700', note: 'text-danger-700' },
   attention: { amount: 'text-text-secondary', note: 'text-pending-500' },
@@ -86,7 +89,7 @@ function CustomersHeader() {
           {t('customersPage.title')}
         </h1>
         <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">
-          {t('customersPage.subtitle')}
+          {withRial(t('customersPage.subtitle'))}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -205,12 +208,7 @@ function CustomerRowCells({ row }: { row: CustomerRow }) {
         {row.amount ? (
           <>
             <span className="inline-flex items-center gap-1">
-              <img
-                src={omrRowIcon}
-                alt=""
-                className="h-auto w-6 shrink-0"
-                style={row.state === 'overdue' ? { filter: OVERDUE_ICON_FILTER } : undefined}
-              />
+              <RialMark className={['w-6 shrink-0', amount.amount].join(' ')} />
               <span className={['text-base font-semibold leading-[1.2]', amount.amount].join(' ')}>
                 {row.amount}
               </span>

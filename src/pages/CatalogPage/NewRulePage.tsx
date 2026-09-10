@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell } from './CatalogShell'
-import { Input, Select, Switch } from '../../components/ui'
+import { Input, Rial, Select, Switch } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   RULE_KINDS,
@@ -448,7 +448,9 @@ export function NewRulePage() {
                 <p className="mt-2 flex items-baseline justify-between gap-3 border-t border-border-subtle pt-2 text-sm font-semibold text-text-primary">
                   <span>{t('newRule.theyPay')}</span>
                   <span className="tabular-nums">
-                    <span className="me-1 text-[10px] font-medium text-text-quaternary">OMR</span>
+                    <span className="me-1">
+                      <Rial />
+                    </span>
                     {omr(trial.pay)}
                   </span>
                 </p>

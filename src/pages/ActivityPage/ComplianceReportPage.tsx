@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { RialText, withRial } from '../../components/ui'
 import { BUILT_REPORT, builtFigures, formatOmr, type RegisterRow } from '../../lib/complianceReport'
 import { ComplianceReportModal } from './ComplianceReportModal'
 import chevronIcon from '../../assets/invoices/chevron.svg'
@@ -226,7 +227,9 @@ export function ComplianceReportPage() {
                       code: report.unreported.code,
                       vat: `OMR ${formatOmr(report.unreported.vat)}`,
                     }}
-                    components={{ b: <span className="font-semibold text-text-primary" /> }}
+                    components={{
+                      b: <RialText as="span" className="font-semibold text-text-primary" />,
+                    }}
                   />
                 </p>
               </div>
@@ -519,7 +522,7 @@ function Stat({
     <div className={['border-s-2 ps-3', rule].join(' ')}>
       <p className="text-[10px] font-medium leading-[1.3] text-text-quaternary">{label}</p>
       <p className={['mt-1 text-lg font-semibold leading-[1.2] tabular-nums', tone].join(' ')}>
-        {value}
+        {withRial(value)}
       </p>
       <p className="mt-1 text-[10px] font-medium leading-[1.4] text-text-quaternary">{note}</p>
     </div>

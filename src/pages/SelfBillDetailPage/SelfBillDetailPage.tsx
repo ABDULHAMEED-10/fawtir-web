@@ -18,7 +18,7 @@ import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import warningIcon from '../../assets/self-bill-detail/warning.svg'
-import { RowsView } from '../../components/ui'
+import { RowsView, withRial } from '../../components/ui'
 
 const TRACK_ICONS: Record<string, string> = {
   peppol: peppolTrackIcon,
@@ -338,7 +338,7 @@ export function SelfBillDetailPage() {
                 {t('selfBillDetail.totals.subtotal')}
               </span>
               <span className="text-base font-semibold text-text-primary">
-                {doc.totals.subtotal}
+                {withRial(doc.totals.subtotal)}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -346,27 +346,33 @@ export function SelfBillDetailPage() {
                 {t('selfBillDetail.totals.discount')}
               </span>
               <span className="text-base font-semibold text-success-700">
-                {doc.totals.discount}
+                {withRial(doc.totals.discount)}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium text-text-tertiary">
                 {t('selfBillDetail.totals.net')}
               </span>
-              <span className="text-base font-semibold text-text-primary">{doc.totals.net}</span>
+              <span className="text-base font-semibold text-text-primary">
+                {withRial(doc.totals.net)}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium text-text-tertiary">
                 {t('selfBillDetail.totals.vat')}
               </span>
-              <span className="text-base font-semibold text-text-primary">{doc.totals.vat}</span>
+              <span className="text-base font-semibold text-text-primary">
+                {withRial(doc.totals.vat)}
+              </span>
             </div>
             <div className="h-px w-full bg-surface-background" />
             <div className="flex items-center justify-between">
               <span className="font-medium text-text-primary">
                 {t('selfBillDetail.totals.total')}
               </span>
-              <span className="text-xl font-semibold text-text-primary">{doc.totals.total}</span>
+              <span className="text-xl font-semibold text-text-primary">
+                {withRial(doc.totals.total)}
+              </span>
             </div>
           </div>
         </SectionCard>

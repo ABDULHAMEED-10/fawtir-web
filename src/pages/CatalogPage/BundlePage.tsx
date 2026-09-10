@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { CatalogShell, Pill } from './CatalogShell'
-import { Input, Select, Switch } from '../../components/ui'
+import { Input, Select, Switch, Rial, withRial } from '../../components/ui'
 import { GROUPS, omr } from '../../lib/catalog'
 import {
   BUNDLES,
@@ -107,7 +107,7 @@ export function BundlePage() {
       subtitle={undefined}
       pills={
         <Pill tone="success">
-          {t('bundle.savesTheCustomer', { amount: omr(working.save.amount) })}
+          {withRial(t('bundle.savesTheCustomer', { amount: omr(working.save.amount) }))}
         </Pill>
       }
       actions={
@@ -247,7 +247,7 @@ export function BundlePage() {
                           {part.free ? (
                             <>
                               <p className="text-sm font-semibold text-text-primary tabular-nums">
-                                OMR 0.000
+                                <Rial /> 0.000
                               </p>
                               <p className="mt-0.5 text-xs font-medium text-text-quaternary">
                                 {t('bundle.thrownInFree')}
@@ -256,7 +256,7 @@ export function BundlePage() {
                           ) : (
                             <>
                               <p className="text-sm font-semibold text-text-primary tabular-nums">
-                                OMR {omr(info.price * part.quantity)}
+                                <Rial /> {omr(info.price * part.quantity)}
                               </p>
                               {part.quantity > 1 ? (
                                 <p className="mt-0.5 text-xs font-medium text-text-quaternary">
@@ -372,7 +372,11 @@ export function BundlePage() {
                 value={price}
                 inputMode="decimal"
                 onChange={(event) => setPrice(event.target.value.replace(/[^\d.]/g, ''))}
-                leadingIcon={<span className="text-xs font-medium text-text-quaternary">OMR</span>}
+                leadingIcon={
+                  <span className="text-sm font-medium text-text-primary">
+                    <Rial />
+                  </span>
+                }
               />
             </div>
 
@@ -452,7 +456,9 @@ export function BundlePage() {
                 <p className="mt-1 flex items-baseline justify-between gap-3 border-t border-border-subtle pt-2 text-sm font-semibold text-text-primary">
                   <span>{t('bundle.total')}</span>
                   <span className="tabular-nums">
-                    <span className="me-1 text-[10px] font-medium text-text-quaternary">OMR</span>
+                    <span className="me-1">
+                      <Rial />
+                    </span>
                     {omr(working.pays)}
                   </span>
                 </p>
@@ -526,13 +532,15 @@ export function BundlePage() {
 
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
         <p className="text-sm font-medium text-text-tertiary">
-          {working.make.count === null
-            ? t('bundle.footerUnlimited', { parts: parts.length, price: omr(working.pays) })
-            : t('bundle.footer', {
-                parts: parts.length,
-                price: omr(working.pays),
-                canMake: working.make.count,
-              })}
+          {withRial(
+            working.make.count === null
+              ? t('bundle.footerUnlimited', { parts: parts.length, price: omr(working.pays) })
+              : t('bundle.footer', {
+                  parts: parts.length,
+                  price: omr(working.pays),
+                  canMake: working.make.count,
+                }),
+          )}
         </p>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link
@@ -620,7 +628,7 @@ function Line({
           tone === 'good' ? 'text-[#3d5648]' : 'text-text-primary',
         ].join(' ')}
       >
-        {value}
+        {withRial(value)}
       </dd>
     </div>
   )
@@ -651,7 +659,7 @@ function Row({
           tone === 'pending' ? 'text-pending-700' : 'text-text-primary',
         ].join(' ')}
       >
-        {value}
+        {withRial(value)}
       </dd>
     </div>
   )

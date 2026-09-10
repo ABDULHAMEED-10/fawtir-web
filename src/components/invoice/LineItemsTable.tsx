@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Select } from '../ui'
+import { Select, withRial } from '../ui'
 import { blankLine, convertLinePrices, type LineItem, type useLineTotals } from './lineItems'
 import { TAX_CATEGORIES, TAX_CATEGORY_OPTIONS, UNIT_OPTIONS } from '../../lib/catalogues'
 import { formatAtScale, type DiscountType } from '../../lib/invoiceMath'
@@ -80,7 +80,7 @@ function DiscountTypeToggle({
               active ? 'bg-primary-700 text-white' : 'text-text-tertiary hover:text-text-secondary',
             ].join(' ')}
           >
-            {option.text}
+            {withRial(option.text)}
           </button>
         )
       })}
@@ -123,7 +123,7 @@ function DiscountField({
       {/* A percentage is meaningless to check without the money it comes to. */}
       {type === 'PERCENTAGE' && resolved > 0n ? (
         <span className="ps-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-          = {formatAtScale(resolved)} {t('createInvoice.items.omr')}
+          = {formatAtScale(resolved)} {withRial(t('createInvoice.items.omr'))}
         </span>
       ) : null}
     </div>

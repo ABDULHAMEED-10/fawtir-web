@@ -11,6 +11,7 @@ import {
   TONE_CHIP,
   TONE_LABEL_KEY as TONE_LABEL,
 } from '../../lib/reminders'
+import { withRial } from '../ui'
 import closeIcon from '../../assets/reminders/close.svg'
 import pauseWhiteIcon from '../../assets/reminders/pause-white.svg'
 import sendWhiteIcon from '../../assets/reminders/send-white.svg'
@@ -435,7 +436,7 @@ export function SendReminderModal({
                   className="flex items-center justify-between gap-3 border-b border-[#f3f3f3] py-2.5 last:border-b-0"
                 >
                   <dt className="text-sm text-[#5b606c]">{t(row.labelKey)}</dt>
-                  <dd className="text-sm font-semibold text-[#2c3342]">{row.value}</dd>
+                  <dd className="text-sm font-semibold text-[#2c3342]">{withRial(row.value)}</dd>
                 </div>
               ))}
             </dl>
@@ -607,7 +608,7 @@ export function TemplateEditorModal({ open, onClose }: { open: boolean; onClose:
                   className="flex items-center justify-between gap-2 border-b border-[#f3f3f3] py-1 last:border-b-0"
                 >
                   <dt className="text-[#5b606c]">{t(row.labelKey)}</dt>
-                  <dd className="font-semibold">{row.value}</dd>
+                  <dd className="font-semibold">{withRial(row.value)}</dd>
                 </div>
               ))}
             </dl>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
+import { Rial, withRial } from '../ui'
 
 /**
  * The printable face of a tax document, rendered from data rather than shipped as an image.
@@ -292,7 +293,7 @@ export function DocumentPreview({
                 className="flex items-center justify-between gap-4 font-medium leading-[1.2] text-[#444957]"
               >
                 <span>{row.label}</span>
-                <span className="tabular-nums">{row.value}</span>
+                <span className="tabular-nums">{withRial(row.value)}</span>
               </div>
             ))}
             <div
@@ -300,7 +301,9 @@ export function DocumentPreview({
               className="flex items-center justify-between gap-4 border-t border-[#151c2d] font-bold leading-[1.2] text-[#151c2d]"
             >
               <span>{labels.totalDue}</span>
-              <span className="tabular-nums">OMR {doc.totals.total}</span>
+              <span className="tabular-nums">
+                <Rial /> {doc.totals.total}
+              </span>
             </div>
           </div>
         </div>
@@ -315,7 +318,7 @@ export function DocumentPreview({
               style={{ fontSize: 8.5 * zoom }}
               className="max-w-[62%] font-medium leading-[1.5] text-[#444957]"
             >
-              {doc.notes}
+              {withRial(doc.notes)}
             </p>
           ) : (
             <span />
@@ -344,7 +347,7 @@ export function DocumentPreview({
             {doc.footer.map((entry) => (
               <p key={entry.label} style={{ fontSize: 8 * zoom }} className="leading-[1.4]">
                 <span className="font-bold text-[#151c2d]">{entry.label}</span>{' '}
-                <span className="font-medium text-[#444957]">{entry.value}</span>
+                <span className="font-medium text-[#444957]">{withRial(entry.value)}</span>
               </p>
             ))}
           </div>

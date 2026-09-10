@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, Select } from '../../components/ui'
+import { DateField, Rial, Select } from '../../components/ui'
 import {
   calculateInvoice,
   formatAtScale,
@@ -561,7 +561,9 @@ export function UploadBillPage() {
                   <div key={label} className="flex items-center justify-between gap-4 py-1.5">
                     <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
                     <dd className="text-sm font-semibold text-text-secondary tabular-nums">
-                      <span className="me-1 text-[10px] uppercase text-text-quaternary">OMR</span>
+                      <span className="me-1">
+                        <Rial />
+                      </span>
                       {value}
                     </dd>
                   </div>
@@ -571,7 +573,9 @@ export function UploadBillPage() {
                     {t('uploadBill.total')}
                   </dt>
                   <dd className="text-[22px] font-semibold leading-[1.2] text-text-primary tabular-nums">
-                    <span className="me-1 text-xs uppercase text-text-quaternary">OMR</span>
+                    <span className="me-1">
+                      <Rial />
+                    </span>
                     {totals.total}
                   </dd>
                 </div>

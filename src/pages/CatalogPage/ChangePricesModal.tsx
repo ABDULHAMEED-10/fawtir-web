@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, Select, Input } from '../../components/ui'
+import { Modal, Select, Input, Rial, withRial } from '../../components/ui'
 import {
   BULK_SAMPLE,
   BULK_SCOPE,
@@ -183,7 +183,7 @@ export function ChangePricesModal({
               onChange={(event) => setAmount(event.target.value.replace(/[^\d.]/g, ''))}
               trailingIcon={
                 <span className="text-sm font-medium text-text-quaternary">
-                  {way.startsWith('percent') ? '%' : 'OMR'}
+                  {way.startsWith('percent') ? '%' : <Rial />}
                 </span>
               }
             />
@@ -340,7 +340,7 @@ function Consequence({
             : 'text-text-primary',
         ].join(' ')}
       >
-        {value}
+        {withRial(value)}
       </p>
       <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-quaternary">{note}</p>
     </div>

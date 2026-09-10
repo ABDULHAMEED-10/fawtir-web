@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal } from '../../components/ui'
+import { Modal, withRial } from '../../components/ui'
 import {
   REPORT_PERIODS,
   REPORT_SECTIONS,
@@ -255,7 +255,7 @@ function SummaryRow({ label, value, tone }: { label: string; value: string; tone
           tone ?? 'text-text-primary',
         ].join(' ')}
       >
-        {value}
+        {withRial(value)}
       </dd>
     </div>
   )

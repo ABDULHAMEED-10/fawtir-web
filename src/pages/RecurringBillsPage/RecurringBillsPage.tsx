@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, withRial } from '../../components/ui'
 import {
   RECURRING_BILLS,
   RECURRING_TABS,
@@ -142,7 +142,7 @@ function KpiCard({
         <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">{title}</h3>
       </div>
       {children}
-      <p className="text-sm font-medium leading-[1.3] text-text-tertiary">{meta}</p>
+      <p className="text-sm font-medium leading-[1.3] text-text-tertiary">{withRial(meta)}</p>
       {link ? (
         <button
           type="button"

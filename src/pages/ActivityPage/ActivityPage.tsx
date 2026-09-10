@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover, RowsView } from '../../components/ui'
+import { ActionMenu, FilterMenu, Popover, RowsView, withRial } from '../../components/ui'
 import {
   ACTIVITY_SORTS,
   ACTIVITY_SUMMARY,
@@ -492,7 +492,7 @@ function SubmissionRow({ row }: { row: Submission }) {
             ' ',
           )}
         >
-          {t(row.verdictKey, row.verdictValues)}
+          {withRial(t(row.verdictKey, row.verdictValues))}
         </p>
       </td>
 

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CatalogShell, Kpi, TabStrip } from './CatalogShell'
-import { FilterMenu, RowsView, SortMenu } from '../../components/ui'
+import { FilterMenu, Rial, RowsView, SortMenu } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   BUNDLES,
@@ -96,14 +96,14 @@ export function BundlesPage() {
           icon={kpiEarningIcon}
           label={t('bundles.kpi.broughtIn')}
           value={omr(summary.broughtIn)}
-          unit="OMR"
+          currency
           note={t('bundles.kpi.broughtInNote', { share: SHARE_OF_SALES })}
         />
         <Kpi
           icon={kpiPercentIcon}
           label={t('bundles.kpi.givenAway')}
           value={omr(summary.givenAway)}
-          unit="OMR"
+          currency
           note={t('bundles.kpi.givenAwayNote')}
         />
         <Kpi
@@ -257,7 +257,9 @@ function BundleRow({ bundle }: { bundle: Bundle }) {
 
       <td className="px-4 py-4 align-top text-end">
         <p className="flex items-baseline justify-end gap-1">
-          <span className="text-[10px] font-medium text-text-quaternary">OMR</span>
+          <span className="text-sm font-semibold text-text-primary">
+            <Rial />
+          </span>
           <span className="text-sm font-semibold text-text-primary tabular-nums">
             {omr(bundle.price)}
           </span>

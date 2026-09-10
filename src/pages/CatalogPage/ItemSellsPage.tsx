@@ -5,7 +5,7 @@ import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
 import { PlainBars, HorizontalBars } from '../../components/reports/charts'
 import { SERIES } from '../../components/reports/scale'
-import { Select } from '../../components/ui'
+import { Rial, RialText, Select } from '../../components/ui'
 import { omr } from '../../lib/catalog'
 import {
   ITEM,
@@ -113,7 +113,7 @@ export function ItemSellsPage() {
         <Stat
           label={t('itemSells.kpi.broughtIn')}
           value={omr(YEAR.broughtIn)}
-          prefix="OMR"
+          currency
           delta={`${YEAR.broughtInChangePercent}%`}
           note={t('itemSells.kpi.broughtInNote')}
         />
@@ -126,7 +126,7 @@ export function ItemSellsPage() {
         <Stat
           label={t('itemSells.kpi.average')}
           value={omr(AVERAGE_SALE)}
-          prefix="OMR"
+          currency
           delta={omr(YEAR.averageChange)}
           note={t('itemSells.kpi.averageNote')}
         />
@@ -194,7 +194,7 @@ export function ItemSellsPage() {
             <Trans
               i18nKey="itemSells.addOnNote"
               values={{ n: ONE_IN(), amount: omr(top.revenue), name: top.name.toLowerCase() }}
-              components={{ b: <b className="font-semibold text-text-primary" /> }}
+              components={{ b: <RialText as="b" className="font-semibold text-text-primary" /> }}
             />
           }
         >
@@ -280,13 +280,14 @@ export function ItemSellsPage() {
 function Stat({
   label,
   value,
-  prefix,
+  currency,
   delta,
   note,
 }: {
   label: string
   value: string
-  prefix?: string
+  /** An amount of money — the rial sign stands before it, in the figure's size and colour. */
+  currency?: boolean
   delta: string
   note: string
 }) {
@@ -294,8 +295,13 @@ function Stat({
     <article className="rounded-md bg-surface-card p-5">
       <h3 className="text-sm font-medium leading-[1.2] text-text-secondary">{label}</h3>
       <p className="mt-2 flex items-baseline gap-1.5">
-        {prefix ? <span className="text-sm font-medium text-text-quaternary">{prefix}</span> : null}
         <span className="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
+          {currency ? (
+            <>
+              <Rial />
+              {'\u00A0'}
+            </>
+          ) : null}
           {value}
         </span>
       </p>

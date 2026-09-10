@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
+import { RialText } from '../../components/ui'
 import { COMPANY, shortDate, longDate, BOOK } from '../../lib/settings'
 import {
   CLOSING_BLOCKERS,
@@ -339,7 +340,7 @@ function BlockerRow({ blocker }: { blocker: Blocker }) {
           <Trans
             i18nKey={`closing.blocker.${blocker.id}Note`}
             values={blocker.values}
-            components={{ b: <b className="font-semibold text-text-primary" /> }}
+            components={{ b: <RialText as="b" className="font-semibold text-text-primary" /> }}
           />
         </p>
       </div>

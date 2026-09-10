@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { Rial, withRial } from '../../components/ui'
 import { RECURRING_DETAIL } from '../../lib/recurringBills'
 import calSmallIcon from '../../assets/recurring/cal-small.svg'
 import calAlertIcon from '../../assets/recurring/cal-alert.svg'
@@ -52,7 +53,7 @@ function Rows({ items }: { items: [string, string, string?][] }) {
         <div key={label} className="flex items-center justify-between gap-3">
           <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
           <dd className={['text-sm font-semibold', tone || 'text-text-primary'].join(' ')}>
-            {value}
+            {withRial(value)}
           </dd>
         </div>
       ))}
@@ -133,7 +134,9 @@ export function RecurringBillDetailPage() {
             <span className="font-medium text-text-quaternary">
               {t('recurringBills.detail.usually')}
             </span>
-            <span className="font-semibold text-text-primary">OMR {bill.usual}</span>
+            <span className="font-semibold text-text-primary">
+              <Rial /> {bill.usual}
+            </span>
             <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             <span className="font-medium text-text-quaternary">
               {t('recurringBills.detail.watchedSince', { since: bill.watchedSince })}
@@ -222,7 +225,7 @@ export function RecurringBillDetailPage() {
                   ))}
                 </div>
                 <span className="text-xs font-medium text-text-tertiary">
-                  {t(bill.chart.noteKey)}
+                  {withRial(t(bill.chart.noteKey))}
                 </span>
               </div>
             </Card>
@@ -297,8 +300,8 @@ export function RecurringBillDetailPage() {
                         </td>
                         <td className="py-3.5 text-end">
                           <p className="text-sm font-semibold text-text-primary">
-                            <span className="me-1 text-[10px] uppercase text-text-quaternary">
-                              OMR
+                            <span className="me-1">
+                              <Rial />
                             </span>
                             {row.amount}
                           </p>
