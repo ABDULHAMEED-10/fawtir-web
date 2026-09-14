@@ -10,7 +10,8 @@
     "cancel": "Cancel",
     "sort": "Sort",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "digit": "Digit {{number}}"
   },
   "language": {
     "label": "Language",
@@ -34,12 +35,18 @@
     "signUp": "Sign up here",
     "heroTitle": "E-invoicing compliance, handled for you.",
     "heroSubtitle": "Create, validate, sign and report every invoice to the Oman Tax Authority, without touching a single line of Peppol.",
-    "submitting": "Signing in…"
+    "submitting": "Signing in…",
+    "failed": "Incorrect username or password, or this account can't sign in yet.",
+    "signInAgain": "That code didn't work or has expired. Sign in again to get a new code."
+  },
+  "loginCode": {
+    "description": "We sent a 6-digit code to the email address on your account. It expires in {{minutes}} minutes."
   },
   "signup": {
     "title": "Create your Fawtir account",
     "fullNameLabel": "Full name",
     "fullNamePlaceholder": "Hafidh Saif",
+    "usernamePlaceholder": "Choose a username",
     "emailLabel": "Email",
     "emailPlaceholder": "you@company.com",
     "phoneLabel": "Phone number",
@@ -68,7 +75,9 @@
     "resend": "Resend code",
     "submit": "Verify & continue",
     "descriptionEmail": "We sent a 6-digit code to {{contact}}. It expires in {{minutes}} minutes.",
-    "descriptionPhone": "We sent a 6-digit code to your phone {{contact}}. It expires in {{minutes}} minutes."
+    "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code.",
+    "expired": "This code has expired. Request a new one.",
+    "submitting": "Verifying…"
   },
   "newPassword": {
     "title": "Create a new password",
@@ -121,7 +130,8 @@
       "education": "Education & Training",
       "professional": "Professional & Home Services"
     },
-    "submit": "Continue"
+    "submit": "Continue",
+    "unavailable": "Self-service signup is open to Food & Beverage businesses for now. Other business types are coming soon."
   },
   "subBusinessType": {
     "title": "Which one fits best?",
@@ -600,25 +610,35 @@
     "taxInvoice": "TAX INVOICE",
     "companyPlaceholder": "Your company name",
     "addressPlaceholder": "Registered address, added in the next step",
-    "peppolNotePrefix": "Your VATIN becomes your",
-    "peppolNoteHighlight": "PEPPOL PARTICIPANT ID.",
-    "peppolNoteSuffix": "We register it on the OTA centralised SMP within 3 working days, so buyers and the Tax Authority can reach you automatically.",
+    "peppolNotePrefix": "Your",
+    "peppolNoteHighlight": "PEPPOL PARTICIPANT ID",
+    "peppolNoteSuffix": "is not assigned during signup. It follows the verification of your business, so it only appears once that review is complete.",
     "title": "Your business identity",
     "description": "The legal and tax details that identify you on every invoice. Straight off your CR and VAT certificates.",
     "logoLabel": "Company logo",
     "logoTitle": "Add your logo",
-    "logoHint": "PNG or SVG · shown on invoices & receipts",
+    "logoHint": "PNG or SVG · preview only — add it from your company settings once approved",
     "companyNameLabel": "Legal company name",
     "crLabel": "Commercial registration (CR) no.",
     "crHint": "The number printed on your CR certificate.",
     "vatinLabel": "VAT Identification Number (VATIN)",
     "vatinHint": "Oman VATIN · 12 characters.",
     "peppolLabel": "Peppol Participant ID",
-    "peppolHint": "Generated from your VATIN (Oman scheme 0248), how the network finds you.",
+    "peppolHint": "Set up once your business is verified — it is not assigned during signup.",
     "accentLabel": "Invoice accent color",
     "submit": "Continue",
     "logoRemove": "Remove logo",
-    "logoReplace": "Replace logo"
+    "logoReplace": "Replace logo",
+    "peppolPending": "Assigned after verification",
+    "identifierTaken": "A business with this VATIN or CR number is already registered.",
+    "accents": {
+      "BLUE": "Blue",
+      "GREEN": "Green",
+      "ORANGE": "Orange",
+      "PURPLE": "Purple",
+      "RED": "Red",
+      "NAVY": "Navy"
+    }
   },
   "addressContact": {
     "title": "Address & contact",
@@ -4013,13 +4033,18 @@
     "email": "Enter a valid email address",
     "phoneLength": "Enter the 8-digit number, without +968",
     "phonePrefix": "Omani numbers start with 7, 9 or 2",
-    "vatin": "Format is OM followed by 10 digits",
+    "vatin": "Use OM11 or OM12 followed by 8 digits",
     "crNumber": "The CR number is 7 digits",
     "postalCode": "Omani postal codes are 3 digits",
-    "passwordShort": "Use at least 8 characters",
-    "passwordWeak": "Include at least one letter and one number",
+    "usernameInvalid": "Use 3–64 English letters, digits, dots, underscores or hyphens, starting with a letter or digit",
+    "usernameTaken": "This username is taken. Choose another one",
+    "fullNameLength": "Use between 2 and 200 characters",
+    "fullNameDigits": "A name cannot contain numbers",
+    "fullNameInvalid": "Enter a valid full name",
+    "passwordLength": "Use between 12 and 128 characters",
+    "passwordComposition": "Include an uppercase letter, a lowercase letter, a number and a symbol",
     "passwordMismatch": "Passwords do not match",
-    "agreeRequired": "Please accept the terms to continue",
+    "agreeRequired": "Please accept the Terms of Service and Privacy Policy to continue",
     "selectOne": "Choose an option to continue",
     "codeIncomplete": "Enter all 6 digits",
     "cardShort": "Card number is too short",
@@ -4029,7 +4054,18 @@
     "expiryPast": "This card has expired",
     "cvc": "CVC is 3 or 4 digits",
     "logoType": "Use a PNG or SVG image",
-    "logoSize": "Keep the logo under 2 MB"
+    "logoSize": "Keep the logo under 2 MB",
+    "tooLong": "This is longer than allowed",
+    "addressTooLong": "Use 140 characters or fewer"
+  },
+  "identityErrors": {
+    "validation": "Some details were not accepted. Check the form and try again.",
+    "network": "We couldn't reach Fawtir. Check your connection and try again.",
+    "timeout": "Fawtir took too long to respond. Please try again.",
+    "rateLimited": "Too many attempts. Please wait a moment and try again.",
+    "rateLimitedFor": "Too many attempts. Please try again in {{seconds}} seconds.",
+    "service": "Fawtir is temporarily unavailable. Please try again shortly.",
+    "unexpected": "Something went wrong. Please try again."
   },
   "invoiceReminder": {
     "title": "Reminder {{current}} of {{total}}",
@@ -7570,15 +7606,19 @@
     "perMonth": "/ month",
     "feature": {
       "invoices": "{{count}} invoices a month",
-      "people": "{{count}} people",
-      "peopleThen": "{{count}} people, then OMR {{amount}} each",
+      "people_one": "{{count}} person",
+      "people_other": "{{count}} people",
+      "peopleThen_one": "{{count}} person, then OMR {{amount}} each",
+      "peopleThen_other": "{{count}} people, then OMR {{amount}} each",
       "peopleIncluded": "{{count}} people included",
       "branches_one": "{{count}} branch",
       "branches_other": "{{count}} branches",
       "unlimitedBranches": "Unlimited branches",
       "noApi": "No API access",
       "api": "API and webhooks",
-      "prioritySupport": "Priority support"
+      "prioritySupport": "Priority support",
+      "overage": "OMR {{amount}} per invoice over the quota",
+      "noOverage": "Invoicing stops at the quota"
     },
     "tooSmall": "Too small for you",
     "atTheCeiling": "You're at the ceiling on invoices and on people.",
@@ -8848,14 +8888,16 @@
       "queue": "Submission queue",
       "incidents": "Incidents",
       "tenants": "Tenants",
-      "onboarding": "Onboarding",
+      "verification": "Verification",
       "plans": "Plans and rates",
       "audit": "Audit log",
       "settings": "Console settings",
-      "bottomSettings": "Settings"
+      "bottomSettings": "Settings",
+      "operators": "Operators"
     },
     "user": {
-      "role": "Super Admin"
+      "team": "Fawtir team",
+      "confirmEmail": "Confirm new sign-in email"
     },
     "plan": {
       "starter": "Starter",
@@ -9004,6 +9046,380 @@
       "badge": "Not built yet",
       "body": "This part of the console has no design behind it yet. It is listed so the shape of the console is honest — the screen will follow the same template as Operations and Tenants once it is drawn.",
       "back": "Back to Operations"
+    },
+    "access": {
+      "checking": "Checking your access…",
+      "noAccess": "No access",
+      "notOperator": "The Fawtir console is for the Fawtir team. Your account doesn't have access to it.",
+      "missingPermission": "Your account doesn't have access to this part of the console. Ask a Fawtir administrator if you need it.",
+      "retry": "Try again"
+    },
+    "verification": {
+      "title": "Verification",
+      "subtitle": "Registrations waiting for Fawtir to confirm the company behind them.",
+      "tab": {
+        "pending": "Pending",
+        "verified": "Verified",
+        "rejected": "Rejected",
+        "all": "All"
+      },
+      "col": {
+        "company": "Company",
+        "code": "Code",
+        "submitted": "Submitted",
+        "status": "Status",
+        "decided": "Decided"
+      },
+      "status": {
+        "PENDING_VERIFICATION": "Waiting for review",
+        "VERIFIED": "Verified",
+        "REJECTED": "Rejected",
+        "notSubmitted": "Not submitted yet"
+      },
+      "noLegalName": "No company details yet",
+      "loading": "Loading registrations…",
+      "empty": {
+        "pending": "No registrations are waiting for verification.",
+        "verified": "No companies have been verified yet.",
+        "rejected": "No registrations have been rejected.",
+        "all": "There are no registrations yet."
+      },
+      "pastEnd": "There is nothing on this page.",
+      "firstPage": "Back to the first page",
+      "showing": "Showing {{from}}–{{to}} of {{total}}",
+      "pager": {
+        "label": "Pages",
+        "previous": "Previous page",
+        "next": "Next page"
+      },
+      "detail": {
+        "back": "Verification",
+        "loading": "Loading the company…",
+        "notFound": "This company doesn't exist, or it has been removed.",
+        "notSubmitted": "This registration hasn't been submitted for review. There is nothing to decide until the registrant finishes signing up.",
+        "section": {
+          "company": "Company as submitted",
+          "verification": "Verification",
+          "account": "Account",
+          "history": "History"
+        },
+        "field": {
+          "legalName": "Legal name",
+          "code": "Code",
+          "taxNumber": "VAT number",
+          "crNumber": "CR number",
+          "country": "Country",
+          "address": "Registered address",
+          "timezone": "Time zone",
+          "status": "Status",
+          "method": "How it was verified",
+          "rejectionReason": "Reason for rejection",
+          "submitted": "Submitted",
+          "decided": "Decided",
+          "revision": "Profile revision",
+          "evidence": "Evidence on file",
+          "attestation": "Attestation reference",
+          "tenantStatus": "Account status",
+          "identityStatus": "Sign-in setup",
+          "signIn": "Registrant can sign in",
+          "emailVerified": "Registrant's email confirmed",
+          "registered": "Registered"
+        },
+        "method": {
+          "MANUAL_ATTESTATION": "Manual attestation"
+        },
+        "reason": {
+          "COMPANY_PROFILE_MISMATCH": "Company details don't match",
+          "TAX_IDENTITY_EVIDENCE_MISSING": "VAT registration evidence missing",
+          "COMMERCIAL_REGISTRATION_EVIDENCE_MISSING": "Commercial registration evidence missing",
+          "REGISTERED_ADDRESS_EVIDENCE_MISSING": "Registered address evidence missing",
+          "EVIDENCE_REQUIRES_REVIEW": "Evidence needs another review"
+        },
+        "tenantStatus": {
+          "PENDING": "Pending",
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CLOSED": "Closed"
+        },
+        "identityStatus": {
+          "PENDING": "Not ready",
+          "READY": "Ready"
+        },
+        "noRegistrant": "Set up by Fawtir — there is no self-service registrant.",
+        "event": {
+          "PROFILE_SUBMITTED": "Submitted for review",
+          "PROFILE_UPDATED": "Details changed",
+          "PROFILE_RESUBMITTED": "Submitted again",
+          "PROFILE_VERIFIED": "Verified",
+          "PROFILE_REJECTED": "Rejected"
+        },
+        "revision": "Revision {{revision}}",
+        "historyEmpty": "Nothing has been recorded for this company yet.",
+        "none": "—"
+      },
+      "decision": {
+        "title": "Decision",
+        "intro": "Check the details against the registrant's documents, file the evidence, then decide.",
+        "upload": "Upload evidence",
+        "replace": "Replace evidence",
+        "uploading": "Uploading…",
+        "uploadHint": "PDF or image, up to 10 MB",
+        "wrongType": "Use a PDF, PNG or JPG file.",
+        "tooLargeLocal": "That file is larger than 10 MB.",
+        "evidenceFile": "Evidence file",
+        "evidenceSize": "Size",
+        "reference": "Attestation reference",
+        "referenceHint": "Letters, numbers, dots, dashes, underscores or slashes, up to 100.",
+        "referenceRequired": "Enter the attestation reference.",
+        "referenceInvalid": "Use only letters, numbers, dots, dashes, underscores or slashes, up to 100.",
+        "verify": "Verify company",
+        "reject": "Reject registration",
+        "verifyTitle": "Verify {{name}}?",
+        "verifyBody": "The company's account is activated, the registrant can sign in, and they get an email.",
+        "verifyConfirm": "Verify",
+        "verifying": "Verifying…",
+        "rejectTitle": "Reject this registration?",
+        "rejectBody": "The registrant gets the registration back to correct, with an email naming the reason.",
+        "reason": "Reason",
+        "reasonPlaceholder": "Choose a reason",
+        "reasonRequired": "Choose a reason.",
+        "rejectConfirm": "Reject",
+        "rejecting": "Rejecting…",
+        "ownSubmission": "You submitted this registration, so another reviewer has to decide it.",
+        "conflict": "This registration changed or was already decided. Reload it and look again.",
+        "reload": "Reload",
+        "forbidden": "Fawtir refused this decision. Another reviewer may need to make it, or your account lacks access.",
+        "tooLarge": "The file is too large for the server to accept.",
+        "staleEvidence": "The company changed after this evidence was filed. Reload it and upload the evidence again.",
+        "verified": "Company verified. The registrant can now sign in.",
+        "rejected": "Registration rejected. The registrant has it back to correct."
+      }
+    },
+    "plans": {
+      "title": "Plans and rates",
+      "subtitle": "The plans companies subscribe to. A change applies straight away to every company on that plan.",
+      "add": "Add a plan",
+      "loading": "Loading plans…",
+      "empty": "There are no plans in the catalogue yet.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "edit": "Edit",
+      "editPlan": "Edit {{name}}",
+      "addTitle": "Add a plan",
+      "editNote": "Saving replaces this plan for every company subscribed to it, straight away.",
+      "addNote": "Companies can choose the new plan only while it is offered.",
+      "saved": "{{name}} saved.",
+      "save": "Save plan",
+      "saving": "Saving…",
+      "field": {
+        "code": "Code",
+        "codeHint": "Capital letters, digits and underscores, starting with a letter. It cannot be changed later.",
+        "name": "Name",
+        "monthlyPrice": "Monthly price (OMR)",
+        "invoicesPerMonth": "Invoices a month",
+        "peopleIncluded": "People included",
+        "extraPersonPrice": "Price per extra person (OMR)",
+        "extraPersonHint": "Leave empty to make the people count a hard limit.",
+        "branchesIncluded": "Branches included",
+        "branchesHint": "Leave empty for unlimited branches.",
+        "overagePrice": "Price per invoice over the quota (OMR)",
+        "overageHint": "Leave empty if overage is not offered.",
+        "sortOrder": "Position in the list",
+        "sortOrderHint": "Lower numbers come first.",
+        "apiAccess": "API and webhooks",
+        "prioritySupport": "Priority support",
+        "active": "Offered to companies"
+      },
+      "validation": {
+        "money": "Enter an amount in OMR with up to 3 decimals",
+        "whole": "Enter a whole number",
+        "atLeastOne": "Enter 1 or more",
+        "code": "Use 2–30 capital letters, digits or underscores, starting with a letter",
+        "codeTaken": "A plan with this code already exists",
+        "nameLength": "Use 80 characters or fewer",
+        "server": "Fawtir did not accept this value"
+      }
+    },
+    "operators": {
+      "title": "Operators",
+      "subtitle": "The Fawtir team and what each person may do on the platform.",
+      "loading": "Loading the team…",
+      "empty": "No one is on the platform team yet.",
+      "col": {
+        "person": "Person",
+        "email": "Email",
+        "status": "Status",
+        "roles": "Platform roles",
+        "actions": "Actions"
+      },
+      "you": "You",
+      "status": {
+        "active": "Active",
+        "off": "Sign-in off",
+        "locked": "Locked"
+      },
+      "noRoles": "No platform role",
+      "manage": "Roles",
+      "role": {
+        "PLATFORM_TENANT_ADMIN": "Tenant administration",
+        "PLATFORM_SUPPORT": "Support"
+      },
+      "roleNote": {
+        "PLATFORM_TENANT_ADMIN": "Decides company verification, changes plans, and gives or removes operators’ roles.",
+        "PLATFORM_SUPPORT": "Support work and Oman SMP administration."
+      },
+      "dialog": {
+        "title": "Roles for {{name}}",
+        "subtitle": "Each change applies at once and is recorded in the audit log."
+      },
+      "held": "Held",
+      "notHeld": "Not held",
+      "give": "Give",
+      "remove": "Remove",
+      "giveRole": "Give {{role}}",
+      "removeRole": "Remove {{role}}",
+      "selfGive": "Another operator must give you this role.",
+      "lastAdmin": "The platform must keep at least one person with tenant administration.",
+      "confirm": {
+        "giveTitle": "Give {{role}} to {{name}}?",
+        "removeTitle": "Remove {{role}} from {{name}}?",
+        "giveBody": "{{name}} can use it straight away.",
+        "removeBody": "{{name}} loses it straight away.",
+        "removeSelfBody": "You lose it straight away, and only another operator can give it back.",
+        "removeSelfAdminBody": "You will also lose access to this screen.",
+        "give": "Give role",
+        "giving": "Giving…",
+        "remove": "Remove role",
+        "removing": "Removing…"
+      },
+      "saved": "{{name}}’s roles were updated.",
+      "error": {
+        "refused": "Fawtir refused this change. Another operator may need to make it, it may leave the platform without tenant administration, or you may no longer have access.",
+        "gone": "This person is no longer on the platform team. Reload the page to see who is."
+      },
+      "invite": {
+        "open": "Invite an operator",
+        "title": "Invite an operator",
+        "subtitle": "They get an email with a link to set up their own account.",
+        "email": "Email",
+        "note": "They choose their own username and password from the link, which works for 7 days. They join with no platform role: give them one here once they have signed up.",
+        "send": "Send invitation",
+        "sending": "Sending…",
+        "sent": "Invitation sent to {{email}}.",
+        "error": {
+          "conflict": "This address already belongs to someone on the team or already has an open invitation. Resend or revoke that one below.",
+          "unavailable": "Invitations can’t be sent: this deployment has no acceptance page configured.",
+          "email": "Enter a valid email address."
+        }
+      },
+      "pending": {
+        "title": "Pending invitations",
+        "loading": "Loading invitations…",
+        "empty": "No open invitations.",
+        "col": {
+          "email": "Email",
+          "sent": "Sent",
+          "expires": "Expires"
+        },
+        "sentTimes_one": "Sent once",
+        "sentTimes_other": "Sent {{count}} times",
+        "expired": "Expired",
+        "resend": "Resend",
+        "resending": "Resending…",
+        "revoke": "Revoke",
+        "revoking": "Revoking…",
+        "resendFor": "Resend the invitation to {{email}}",
+        "revokeFor": "Revoke the invitation to {{email}}",
+        "resent": "Invitation to {{email}} sent again. The previous link no longer works.",
+        "revoked": "Invitation to {{email}} revoked.",
+        "error": {
+          "closed": "This invitation is no longer open: it was accepted or revoked. Reload to see the current list."
+        }
+      },
+      "lockedUntil": "Unlocks {{time}}",
+      "deactivated": {
+        "title": "Deactivated operators",
+        "intro": "People whose access was ended. Reactivating one lets them sign in again, with no platform role.",
+        "show": "Show deactivated operators",
+        "loading": "Loading deactivated operators…",
+        "empty": "No deactivated operators.",
+        "more": "Showing the {{shown}} most recently deactivated of {{total}}.",
+        "reactivate": "Reactivate",
+        "reactivateFor": "Reactivate {{name}}"
+      },
+      "reactivate": {
+        "title": "Reactivate {{name}}?",
+        "body": "{{name}} can sign in again with their existing username and password and their usual second factor. They come back with no platform role: give them one afterwards if they need it. They are told by email.",
+        "confirm": "Reactivate",
+        "confirming": "Reactivating…",
+        "done": "{{name}} can sign in again. They have no platform role yet: give them one if they need it.",
+        "error": {
+          "active": "This person is already active: someone else may have reactivated them. Reload the page to see them in the team.",
+          "gone": "This person is no longer a deactivated operator. Reload the page to see the current list."
+        }
+      },
+      "reason": {
+        "label": "Reason",
+        "hint": "Kept in the audit log. Up to {{max}} characters.",
+        "invalid": "Enter a reason of up to 280 characters."
+      },
+      "mfaReset": {
+        "open": "Reset two-step",
+        "title": "Reset two-step sign-in for {{name}}?",
+        "bodyApp": "This removes {{name}}’s authenticator app and recovery codes and signs them out everywhere. They sign in again with a code sent to their email. They are told by email.",
+        "bodyNoApp": "{{name}} has no authenticator app set up, so there is nothing to remove: this only signs them out everywhere. They sign in again with a code sent to their email. They are told by email.",
+        "confirm": "Reset two-step",
+        "confirming": "Resetting…",
+        "done_one": "{{name}}’s two-step sign-in was reset and their session was ended.",
+        "done_other": "{{name}}’s two-step sign-in was reset and {{count}} sessions were ended.",
+        "doneNoSessions": "{{name}}’s two-step sign-in was reset. They had no open sessions.",
+        "error": {
+          "refused": "Fawtir refused this reset. You can’t reset your own two-step sign-in, and you may no longer have access."
+        }
+      },
+      "actionsFor": "Actions for {{name}}",
+      "emailChange": {
+        "open": "Change sign-in email",
+        "title": "Change {{name}}’s sign-in email",
+        "body": "Nothing changes yet. A confirmation code goes to the new address, and {{name}}’s sign-in email moves only once they enter it, signed in to their own account, within 24 hours. Their current address is told.",
+        "bodySelf": "Nothing changes yet. A confirmation code goes to the new address, and your sign-in email moves once you enter it from “Confirm new sign-in email” in your menu, within 24 hours. Your current address is told.",
+        "current": "Current email",
+        "new": "New email",
+        "confirm": "Send confirmation",
+        "confirming": "Sending…",
+        "pending": "A confirmation code was sent to {{newEmail}}. {{name}}’s sign-in email changes once they confirm it from their own account, by {{expires}}. Until then it stays {{currentEmail}}, which has been told.",
+        "pendingSelf": "A confirmation code was sent to {{newEmail}}. Enter it from “Confirm new sign-in email” in your menu by {{expires}}. Until then you sign in with {{currentEmail}}.",
+        "already": "{{newEmail}} is already {{name}}’s sign-in email.",
+        "error": {
+          "same": "That is already their sign-in email.",
+          "conflict": "Fawtir refused this change: the new address may already belong to another operator, or this person’s email changed since the page loaded. Reload the page and check.",
+          "rejected": "Fawtir did not accept these details. Check the new address and the reason.",
+          "refused": "Fawtir refused this change. You may no longer have access."
+        }
+      },
+      "lifecycle": {
+        "lock": "Lock sign-in",
+        "unlock": "Unlock",
+        "deactivate": "Deactivate",
+        "lockTitle": "Lock {{name}}’s sign-in?",
+        "lockBody": "{{name}} is signed out everywhere straight away and can’t sign in until an administrator unlocks them. Their roles and details stay as they are.",
+        "lockConfirm": "Lock sign-in",
+        "lockSending": "Locking…",
+        "lockDone": "{{name}} is locked and was signed out everywhere.",
+        "unlockTitle": "Unlock {{name}}?",
+        "unlockBody": "{{name}} can sign in again with their usual details and second factor. A lockout after wrong passwords is lifted too.",
+        "unlockConfirm": "Unlock",
+        "unlockSending": "Unlocking…",
+        "unlockDone": "{{name}} can sign in again.",
+        "deactivateTitle": "Deactivate {{name}}?",
+        "deactivateBody": "{{name}} is signed out everywhere straight away and can no longer sign in. If they are reactivated later, they come back with no platform role.",
+        "deactivateConfirm": "Deactivate",
+        "deactivateSending": "Deactivating…",
+        "deactivateDone": "{{name}} was deactivated and signed out everywhere. They are now under Deactivated operators.",
+        "error": {
+          "refused": "Fawtir refused this change. You may no longer have access."
+        }
+      }
     }
   },
   "shell": {
@@ -9060,7 +9476,10 @@
       "profile": "Your profile",
       "settings": "Settings",
       "signingIn": "How you sign in",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "signingOut": "Signing out…",
+      "signOutFailed": "Couldn't sign out. Retry",
+      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again."
     }
   },
   "notes": {
@@ -9116,6 +9535,94 @@
       "title": "{{name}} signed in from a new device",
       "body": "An {{device}} in {{town}}. If that was not {{name}}, sign them out everywhere.",
       "notThem": "That was not {{name}}"
+    }
+  },
+  "onboarding": {
+    "sessionExpired": "Your signup session has ended. If you need help finishing your registration, contact Fawtir support.",
+    "conflict": "This step could not be saved. Review your answers and try again."
+  },
+  "signupReview": {
+    "title": "Review and submit",
+    "description": "Check your details before you submit. A member of our team then reviews your registration, and it can’t be changed while that review is under way.",
+    "sections": {
+      "business": "Your business",
+      "identity": "Business identity",
+      "address": "Address & contact"
+    },
+    "fields": {
+      "size": "Team size",
+      "invoicing": "Invoicing today",
+      "category": "Business type",
+      "trade": "Specialty"
+    },
+    "edit": "Edit",
+    "savedEarlier": "Saved earlier",
+    "submit": "Submit for review",
+    "submitting": "Submitting…",
+    "conflict": "This VATIN or CR number was registered by another business first. Edit your business identity and submit again."
+  },
+  "signupPending": {
+    "received": {
+      "badge": "Under review",
+      "title": "We’ve received your registration",
+      "description": "A member of the Fawtir team is reviewing your business details. We’ll email the decision to the address you registered with — you can close this page."
+    },
+    "approved": {
+      "badge": "Approved",
+      "title": "Your registration is approved",
+      "description": "You can now sign in with your username and password.",
+      "signIn": "Sign in"
+    },
+    "ended": {
+      "title": "Your signup session has ended",
+      "description": "If you submitted your registration, we’ll email the decision to the address you registered with. If you need help finishing it, contact Fawtir support."
+    }
+  },
+  "operatorInvitation": {
+    "title": "Join the Fawtir team",
+    "description": "Choose the username and password you will sign in with. The address this invitation was sent to stays your sign-in email.",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "submit": "Create my account",
+    "submitting": "Creating…",
+    "done": {
+      "title": "Your account is ready",
+      "body": "Sign in with your new username and password; we will email you a code to finish signing in. An administrator will give you access to the console.",
+      "signIn": "Sign in"
+    },
+    "missing": {
+      "title": "This link is incomplete",
+      "body": "Open the invitation link from your email again. For your security the link is read once and then removed from the address bar."
+    },
+    "spent": {
+      "title": "This invitation can’t be used",
+      "body": "The link is invalid, has expired, or was already used. Ask the person who invited you to send a new invitation."
+    },
+    "toSignIn": "Go to sign in",
+    "error": {
+      "usernameTaken": "This username is taken. Choose another one.",
+      "usernameRejected": "Fawtir did not accept this username.",
+      "passwordRejected": "Fawtir did not accept this password. Choose a stronger one.",
+      "nameRejected": "Use 100 characters or fewer.",
+      "nameTooLong": "Use 100 characters or fewer.",
+      "rejected": "Fawtir did not accept these details. Check them and try again."
+    }
+  },
+  "accountEmail": {
+    "title": "Confirm your new sign-in email",
+    "description": "Enter the confirmation code from the email sent to your new address. Your sign-in email changes as soon as it is confirmed, and you are then signed out everywhere, this browser too.",
+    "code": "Confirmation code",
+    "codeHint": "Paste the whole code from the email.",
+    "confirm": "Confirm new email",
+    "confirming": "Confirming…",
+    "done": {
+      "title": "Your sign-in email has changed",
+      "body": "It is now {{email}}. You have been signed out everywhere, this browser too. Sign in again: your sign-in codes now go to the new address.",
+      "signIn": "Sign in"
+    },
+    "error": {
+      "code": "This code isn’t valid. It may have expired, been used, been replaced by a newer request, or belong to another account.",
+      "notOperator": "Only Fawtir team accounts confirm an email change here."
     }
   }
 }

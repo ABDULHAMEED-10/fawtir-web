@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   BuildingIcon,
@@ -12,28 +12,35 @@ import {
   UserIcon,
   UsersIcon,
 } from '../../components/ui'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { recordBusinessProfile } from '../../lib/identity/onboarding'
 import {
-  shouldShowBusinessTypeScreen,
+  BUSINESS_SIZE_LABEL_KEYS,
+  INVOICING_METHOD_LABEL_KEYS,
+  onboardingStateFrom,
   type BusinessSize,
   type InvoicingMethod,
+  type OnboardingState,
 } from '../../lib/onboarding'
 
 export function AboutBusinessForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [businessSize, setBusinessSize] = useState<BusinessSize>('just-me')
-  const [invoicingMethod, setInvoicingMethod] = useState<InvoicingMethod>('paper')
+  const state = onboardingStateFrom(useLocation().state)
+  const [businessSize, setBusinessSize] = useState<BusinessSize>(state.businessSize ?? 'just-me')
+  const [invoicingMethod, setInvoicingMethod] = useState<InvoicingMethod>(
+    state.invoicingMethod ?? 'paper',
+  )
+  const { save, submitting, formError } = useOnboardingStep()
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const answers = { businessSize, invoicingMethod }
-
-    if (shouldShowBusinessTypeScreen(businessSize, invoicingMethod)) {
-      navigate('/business-type', { state: answers })
-      return
-    }
-
-    navigate('/business-identity', { state: answers })
+    const result = await save((token, signal) =>
+      recordBusinessProfile(token, businessSize, invoicingMethod, signal),
+    )
+    if (!result.saved) return
+    const next: OnboardingState = { ...state, businessSize, invoicingMethod }
+    navigate('/business-type', { state: next })
   }
 
   const sizeOptions: Array<{
@@ -44,25 +51,25 @@ export function AboutBusinessForm() {
   }> = [
     {
       value: 'just-me',
-      title: t('aboutBusiness.size.justMe'),
+      title: t(BUSINESS_SIZE_LABEL_KEYS['just-me']),
       description: t('aboutBusiness.size.justMeDesc'),
       icon: <UserIcon size={24} />,
     },
     {
       value: '2-10',
-      title: t('aboutBusiness.size.twoToTen'),
+      title: t(BUSINESS_SIZE_LABEL_KEYS['2-10']),
       description: t('aboutBusiness.size.twoToTenDesc'),
       icon: <UserIcon size={24} />,
     },
     {
       value: '11-50',
-      title: t('aboutBusiness.size.elevenToFifty'),
+      title: t(BUSINESS_SIZE_LABEL_KEYS['11-50']),
       description: t('aboutBusiness.size.elevenToFiftyDesc'),
       icon: <UsersIcon size={24} />,
     },
     {
       value: '50-plus',
-      title: t('aboutBusiness.size.fiftyPlus'),
+      title: t(BUSINESS_SIZE_LABEL_KEYS['50-plus']),
       description: t('aboutBusiness.size.fiftyPlusDesc'),
       icon: <BuildingIcon size={24} />,
     },
@@ -76,25 +83,25 @@ export function AboutBusinessForm() {
   }> = [
     {
       value: 'paper',
-      title: t('aboutBusiness.invoicing.paper'),
+      title: t(INVOICING_METHOD_LABEL_KEYS.paper),
       description: t('aboutBusiness.invoicing.paperDesc'),
       icon: <InvoiceIcon size={24} />,
     },
     {
       value: 'spreadsheets',
-      title: t('aboutBusiness.invoicing.spreadsheets'),
+      title: t(INVOICING_METHOD_LABEL_KEYS.spreadsheets),
       description: t('aboutBusiness.invoicing.spreadsheetsDesc'),
       icon: <SpreadsheetIcon size={24} />,
     },
     {
       value: 'accounting',
-      title: t('aboutBusiness.invoicing.accounting'),
+      title: t(INVOICING_METHOD_LABEL_KEYS.accounting),
       description: t('aboutBusiness.invoicing.accountingDesc'),
       icon: <SoftwareIcon size={24} />,
     },
     {
       value: 'erp',
-      title: t('aboutBusiness.invoicing.erp'),
+      title: t(INVOICING_METHOD_LABEL_KEYS.erp),
       description: t('aboutBusiness.invoicing.erpDesc'),
       icon: <BuildingIcon size={24} />,
     },
@@ -164,7 +171,13 @@ export function AboutBusinessForm() {
         </section>
       </div>
 
-      <Button type="submit" className="w-full max-w-[400px] gap-1.5">
+      {formError ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t(formError.key, formError.values)}
+        </p>
+      ) : null}
+
+      <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {t('aboutBusiness.submit')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>

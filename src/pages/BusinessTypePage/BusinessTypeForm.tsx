@@ -2,7 +2,10 @@ import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BusinessTypeChip, Button, ChevronRightIcon } from '../../components/ui'
-import type { AboutBusinessAnswers } from '../../lib/onboarding'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { backendCategoryFor, recordBusinessCategory } from '../../lib/identity/onboarding'
+import { CATEGORY_LABEL_KEYS, onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
+import type { BusinessTypeId } from '../../lib/subBusinessTypes'
 import foodBeverageIcon from '../../assets/business-types/food-beverage.svg'
 import automotiveIcon from '../../assets/business-types/automotive.svg'
 import retailIcon from '../../assets/business-types/retail.svg'
@@ -12,42 +15,42 @@ import hospitalityIcon from '../../assets/business-types/hospitality.svg'
 import educationIcon from '../../assets/business-types/education.svg'
 import professionalIcon from '../../assets/business-types/professional.svg'
 
-type BusinessTypeId =
-  | 'food-beverage'
-  | 'automotive'
-  | 'retail'
-  | 'beauty-wellness'
-  | 'healthcare'
-  | 'hospitality'
-  | 'education'
-  | 'professional'
-
-const OPTIONS: Array<{ id: BusinessTypeId; labelKey: string; icon: string }> = [
-  { id: 'food-beverage', labelKey: 'businessType.options.foodBeverage', icon: foodBeverageIcon },
-  { id: 'automotive', labelKey: 'businessType.options.automotive', icon: automotiveIcon },
-  { id: 'retail', labelKey: 'businessType.options.retail', icon: retailIcon },
-  { id: 'beauty-wellness', labelKey: 'businessType.options.beautyWellness', icon: beautyWellnessIcon },
-  { id: 'healthcare', labelKey: 'businessType.options.healthcare', icon: healthcareIcon },
-  { id: 'hospitality', labelKey: 'businessType.options.hospitality', icon: hospitalityIcon },
-  { id: 'education', labelKey: 'businessType.options.education', icon: educationIcon },
-  { id: 'professional', labelKey: 'businessType.options.professional', icon: professionalIcon },
+const OPTIONS: Array<{ id: BusinessTypeId; icon: string }> = [
+  { id: 'food-beverage', icon: foodBeverageIcon },
+  { id: 'automotive', icon: automotiveIcon },
+  { id: 'retail', icon: retailIcon },
+  { id: 'beauty-wellness', icon: beautyWellnessIcon },
+  { id: 'healthcare', icon: healthcareIcon },
+  { id: 'hospitality', icon: hospitalityIcon },
+  { id: 'education', icon: educationIcon },
+  { id: 'professional', icon: professionalIcon },
 ]
 
 export function BusinessTypeForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const location = useLocation()
-  const answers = (location.state as AboutBusinessAnswers | null) ?? null
-  const [selected, setSelected] = useState<BusinessTypeId>('food-beverage')
+  const state = onboardingStateFrom(useLocation().state)
+  const [selected, setSelected] = useState<BusinessTypeId>(state.businessType ?? 'food-beverage')
+  const { save, submitting, formError, setFormError } = useOnboardingStep()
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate('/sub-business-type', {
-      state: {
-        ...answers,
-        businessType: selected,
-      },
-    })
+    const category = backendCategoryFor(selected)
+    if (!category) {
+      setFormError({ key: 'businessType.unavailable' })
+      return
+    }
+    const result = await save((token, signal) => recordBusinessCategory(token, category, signal))
+    if (!result.saved) return
+    // A different category invalidates the trade chosen under the old one; the backend clears
+    // it in the same statement, so the form must not carry it forward either.
+    const { subBusinessType, ...rest } = state
+    const next: OnboardingState = {
+      ...rest,
+      businessType: selected,
+      ...(state.businessType === selected ? { subBusinessType } : {}),
+    }
+    navigate('/sub-business-type', { state: next })
   }
 
   return (
@@ -66,16 +69,25 @@ export function BusinessTypeForm() {
           {OPTIONS.map((option) => (
             <BusinessTypeChip
               key={option.id}
-              label={t(option.labelKey)}
+              label={t(CATEGORY_LABEL_KEYS[option.id])}
               iconSrc={option.icon}
               selected={selected === option.id}
-              onSelect={() => setSelected(option.id)}
+              onSelect={() => {
+                setSelected(option.id)
+                setFormError(null)
+              }}
             />
           ))}
         </div>
       </div>
 
-      <Button type="submit" fullWidth className="gap-1.5">
+      {formError ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t(formError.key, formError.values)}
+        </p>
+      ) : null}
+
+      <Button type="submit" fullWidth disabled={submitting} className="gap-1.5">
         {t('businessType.submit')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>

@@ -153,19 +153,7 @@ export const NEW_BRANCH = {
   numbering: 'own',
 }
 
-export const GOVERNORATES = [
-  'muscat',
-  'dhofar',
-  'musandam',
-  'buraimi',
-  'dakhiliyah',
-  'northBatinah',
-  'southBatinah',
-  'ashSharqiyahSouth',
-  'ashSharqiyahNorth',
-  'dhahirah',
-  'wusta',
-]
+export { GOVERNORATES } from './governorates'
 
 /** What a new branch takes from the company rather than setting for itself. */
 export const BRANCH_INHERITS = [

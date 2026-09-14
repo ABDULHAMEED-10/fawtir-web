@@ -15,143 +15,109 @@ import {
   PhoneInput,
   UserIcon,
 } from '../../components/ui'
-import type { InvoicePreviewData } from '../BusinessIdentityPage/BusinessIdentityHero'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { focusFirstInvalid } from '../../lib/forms'
+import { GOVERNORATES, isGovernorateId, type GovernorateId } from '../../lib/governorates'
 import {
-  email as validateEmail,
-  isClean,
-  omanPhone,
-  postalCode as validatePostal,
-  required,
-  type FieldError,
-} from '../../lib/validation'
-
-type LocationState = {
-  businessSize?: string
-  invoicingMethod?: string
-  businessType?: string
-  subBusinessType?: string
-  companyName?: string
-  crNumber?: string
-  vatin?: string
-  peppolId?: string
-  accentColor?: string
-  logoUrl?: string | null
-}
+  ADDRESS_CONTACT_FIELD_ORDER,
+  ADDRESS_CONTACT_SERVER_FIELDS,
+  REVIEW_ROUTE,
+  buildAddressContactRequest,
+  recordAddressContact,
+  validateAddressContact,
+  type AddressContactField,
+} from '../../lib/identity/onboarding'
+import {
+  INVOICE_ACCENTS,
+  accentColor,
+  initialsOf,
+  onboardingStateFrom,
+  type InvoicePreviewData,
+  type OnboardingState,
+} from '../../lib/onboarding'
+import { isClean, type FieldError } from '../../lib/validation'
 
 type AddressContactFormProps = {
   onPreviewChange: (preview: InvoicePreviewData) => void
 }
 
-const GOVERNORATES = [
-  'Muscat',
-  'Dhofar',
-  'Musandam',
-  'Al Batinah North',
-  'Al Batinah South',
-  'Ash Sharqiyah North',
-  'Ash Sharqiyah South',
-  'Ad Dakhiliyah',
-  'Al Wusta',
-  'Al Buraimi',
-  'Ad Dhahirah',
-] as const
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return 'AB'
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
-}
-
 export function AddressContactForm({ onPreviewChange }: AddressContactFormProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const location = useLocation()
-  const answers = (location.state as LocationState | null) ?? {}
+  const state = onboardingStateFrom(useLocation().state)
+  const identity = state.identity
+  const saved = state.address
   const governorateId = useId()
 
-  const companyName = answers.companyName ?? 'Al Bahja Coffee Roasters LLC'
-  const crNumber = answers.crNumber ?? '1234567'
-  const vatin = answers.vatin ?? 'OM1100112233'
-  const peppolId = answers.peppolId ?? (vatin ? `0248:${vatin}` : '')
-  const accentColor = answers.accentColor ?? '#2C4EB7'
-  const logoUrl = answers.logoUrl ?? null
+  // Empty unless coming back from review, not the prototype's sample business and person: a
+  // contact's phone and email are personal data, and pre-filled ones would be saved unedited.
+  // Muscat stays the default only because a native select always shows a value.
+  const [addressLine, setAddressLine] = useState(saved?.addressLine ?? '')
+  const [postalCode, setPostalCode] = useState(saved?.postalCode ?? '')
+  const [city, setCity] = useState(saved?.city ?? '')
+  const [governorate, setGovernorate] = useState<GovernorateId>(saved?.governorate ?? 'muscat')
+  const [contactName, setContactName] = useState(saved?.contactName ?? '')
+  const [role, setRole] = useState(saved?.role ?? '')
+  const [phone, setPhone] = useState(saved?.phone ?? '')
+  const [email, setEmail] = useState(saved?.email ?? '')
+  const [errors, setErrors] = useState<Partial<Record<AddressContactField, FieldError>>>({})
+  const { save, submitting, formError } = useOnboardingStep<AddressContactField>({
+    serverFields: ADDRESS_CONTACT_SERVER_FIELDS,
+  })
 
-  const [addressLine, setAddressLine] = useState('Building 22, Al Khuwair Street, Block 33')
-  const [postalCode, setPostalCode] = useState('133')
-  const [city, setCity] = useState('Muscat')
-  const [governorate, setGovernorate] = useState('Muscat')
-  const [contactName, setContactName] = useState('Hafidh Saif Al Balushi')
-  const [role, setRole] = useState('Owner')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('hafidh@albahja.om')
-  const [errors, setErrors] = useState<Record<string, FieldError>>({})
-
-  const clearError = (field: string) =>
+  const clearError = (field: AddressContactField) =>
     setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+
+  const peppolPending = t('businessIdentity.peppolPending')
+  const governorateLabel = t(`governorate.${governorate}`)
 
   const preview = useMemo<InvoicePreviewData>(
     () => ({
-      companyName,
-      crNumber,
-      vatin,
-      peppolId,
-      initials: getInitials(companyName),
-      accentColor,
-      logoUrl,
+      companyName: identity?.companyName ?? '',
+      crNumber: identity?.crNumber ?? '',
+      vatin: identity?.vatin ?? '',
+      peppolId: peppolPending,
+      initials: initialsOf(identity?.companyName ?? ''),
+      accentColor: accentColor(identity?.accent ?? INVOICE_ACCENTS[0].id),
+      logoUrl: identity?.logoUrl ?? null,
       addressLine,
       city,
-      governorate,
+      governorate: governorateLabel,
       postalCode,
     }),
-    [
-      accentColor,
-      logoUrl,
-      addressLine,
-      city,
-      companyName,
-      crNumber,
-      governorate,
-      peppolId,
-      postalCode,
-      vatin,
-    ],
+    [addressLine, city, governorateLabel, identity, peppolPending, postalCode],
   )
 
   useEffect(() => {
     onPreviewChange(preview)
   }, [onPreviewChange, preview])
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const next: Record<string, FieldError> = {
-      addressLine: required(addressLine),
-      postalCode: validatePostal(postalCode),
-      city: required(city),
-      contactName: required(contactName),
-      phone: omanPhone(phone),
-      email: validateEmail(email),
-    }
+    const form = event.currentTarget
+    const values = { addressLine, postalCode, city, governorate, contactName, role, phone, email }
+    const next = validateAddressContact(values)
     setErrors(next)
-    if (!isClean(next)) return
-    navigate('/plans', {
-      state: {
-        ...answers,
-        addressLine,
-        postalCode,
-        city,
-        governorate,
-        contactName,
-        role,
-        phone,
-        email,
-      },
-    })
+    if (!isClean(next)) {
+      focusFirstInvalid(form, ADDRESS_CONTACT_FIELD_ORDER, next)
+      return
+    }
+
+    const request = buildAddressContactRequest(values)
+    const result = await save((token, signal) => recordAddressContact(token, request, signal))
+    if (!result.saved) {
+      setErrors(result.fieldErrors)
+      focusFirstInvalid(form, ADDRESS_CONTACT_FIELD_ORDER, result.fieldErrors)
+      return
+    }
+    const nextState: OnboardingState = { ...state, address: values }
+    navigate(REVIEW_ROUTE, { state: nextState })
   }
 
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="flex w-full max-w-[700px] flex-col items-center gap-11"
     >
       <div className="flex w-full flex-col gap-6">
@@ -172,6 +138,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             <Input
               label={t('addressContact.addressLine')}
               requiredMark
+              name="addressLine"
+              autoComplete="address-line1"
               value={addressLine}
               onChange={(e) => {
                 setAddressLine(e.target.value)
@@ -194,6 +162,9 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             />
             <Input
               label={t('addressContact.postalCode')}
+              name="postalCode"
+              autoComplete="postal-code"
+              inputMode="numeric"
               value={postalCode}
               onChange={(e) => {
                 setPostalCode(e.target.value)
@@ -205,6 +176,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             <Input
               label={t('addressContact.city')}
               requiredMark
+              name="city"
+              autoComplete="address-level2"
               value={city}
               onChange={(e) => {
                 setCity(e.target.value)
@@ -227,13 +200,16 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
                 </span>
                 <select
                   id={governorateId}
+                  name="governorate"
                   value={governorate}
-                  onChange={(e) => setGovernorate(e.target.value)}
+                  onChange={(e) => {
+                    if (isGovernorateId(e.target.value)) setGovernorate(e.target.value)
+                  }}
                   className="h-full w-full appearance-none border-0 bg-transparent pe-8 ps-8 text-sm font-medium text-text-secondary outline-none"
                 >
-                  {GOVERNORATES.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
+                  {GOVERNORATES.map((id) => (
+                    <option key={id} value={id}>
+                      {t(`governorate.${id}`)}
                     </option>
                   ))}
                 </select>
@@ -253,6 +229,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             <Input
               label={t('addressContact.contactName')}
               requiredMark
+              name="contactName"
+              autoComplete="name"
               value={contactName}
               onChange={(e) => {
                 setContactName(e.target.value)
@@ -263,13 +241,21 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             />
             <Input
               label={t('addressContact.role')}
+              name="role"
+              autoComplete="organization-title"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => {
+                setRole(e.target.value)
+                clearError('role')
+              }}
+              error={errors.role ? t(errors.role) : undefined}
               leadingIcon={<IdCardIcon size={20} />}
             />
             <PhoneInput
               label={t('addressContact.phone')}
               requiredMark
+              name="phone"
+              autoComplete="tel-national"
               placeholder={t('signup.phonePlaceholder')}
               value={phone}
               onChange={(e) => {
@@ -282,6 +268,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
               label={t('addressContact.email')}
               requiredMark
               type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value)
@@ -294,7 +282,13 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
         </section>
       </div>
 
-      <Button type="submit" className="w-full max-w-[400px] gap-1.5">
+      {formError ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t(formError.key, formError.values)}
+        </p>
+      ) : null}
+
+      <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {t('addressContact.submit')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>

@@ -1,0 +1,152 @@
+import type { FormEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { Button, ChevronRightIcon, Input } from '../../components/ui'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { PENDING_ROUTE, submitForReview } from '../../lib/identity/onboarding'
+import { markOnboardingSubmitted } from '../../lib/identity/onboardingSession'
+import {
+  BUSINESS_SIZE_LABEL_KEYS,
+  CATEGORY_LABEL_KEYS,
+  INVOICING_METHOD_LABEL_KEYS,
+  onboardingStateFrom,
+} from '../../lib/onboarding'
+import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
+import { toOmanE164 } from '../../lib/validation'
+
+type Row = { label: string; value: string }
+
+function ReviewSection({ title, editTo, rows }: { title: string; editTo: string; rows: Row[] }) {
+  const { t } = useTranslation()
+  const location = useLocation()
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold uppercase leading-[1.2] text-text-muted">{title}</p>
+        <Link
+          to={editTo}
+          state={location.state}
+          className="text-xs font-semibold text-primary-700 hover:text-primary-800"
+        >
+          {t('signupReview.edit')}
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {rows.map((row) => (
+          <Input key={row.label} label={row.label} value={row.value} readOnly readOnlyAppearance />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * The last page before a human takes over. Shows the answers this tab saved — the backend has no
+ * endpoint that reads a draft back — each section with a way to change it, because editing closes
+ * once the draft is with a reviewer (backend signup guide §10a).
+ */
+export function SignupReviewForm() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const state = onboardingStateFrom(useLocation().state)
+  const { save, submitting, formError } = useOnboardingStep({ conflictKey: 'signupReview.conflict' })
+  // Opened without this tab's answers (a typed URL): the steps are saved on the server, but there
+  // is nothing honest to show for them, so each field says so instead of looking empty.
+  const saved = t('signupReview.savedEarlier')
+  const shown = (key: string | undefined) => (key ? t(key) : saved)
+  const optional = (value: string | undefined) => (address ? value || '—' : saved)
+
+  const trade = state.businessType
+    ? SUB_TYPES_BY_BUSINESS[state.businessType].find((option) => option.id === state.subBusinessType)
+    : undefined
+  const { identity, address } = state
+  const sizeKey = state.businessSize && BUSINESS_SIZE_LABEL_KEYS[state.businessSize]
+  const invoicingKey = state.invoicingMethod && INVOICING_METHOD_LABEL_KEYS[state.invoicingMethod]
+  const categoryKey = state.businessType && CATEGORY_LABEL_KEYS[state.businessType]
+  const accentKey = identity && `businessIdentity.accents.${identity.accent}`
+  const governorateKey = address && `governorate.${address.governorate}`
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const result = await save((token, signal) => submitForReview(token, signal))
+    if (!result.saved) return
+    markOnboardingSubmitted(true)
+    // Replace: the draft is now closed, so Back must not reopen a page that can only mislead.
+    navigate(PENDING_ROUTE, { replace: true, state: { submitted: true } })
+  }
+
+  const sections: Array<{ key: string; title: string; editTo: string; rows: Row[] }> = [
+    {
+      key: 'business',
+      title: t('signupReview.sections.business'),
+      editTo: '/about-business',
+      rows: [
+        { label: t('signupReview.fields.size'), value: shown(sizeKey) },
+        { label: t('signupReview.fields.invoicing'), value: shown(invoicingKey) },
+        { label: t('signupReview.fields.category'), value: shown(categoryKey) },
+        { label: t('signupReview.fields.trade'), value: shown(trade?.labelKey) },
+      ],
+    },
+    {
+      key: 'identity',
+      title: t('signupReview.sections.identity'),
+      editTo: '/business-identity',
+      rows: [
+        { label: t('businessIdentity.companyNameLabel'), value: identity?.companyName ?? saved },
+        { label: t('businessIdentity.crLabel'), value: identity?.crNumber ?? saved },
+        { label: t('businessIdentity.vatinLabel'), value: identity?.vatin ?? saved },
+        { label: t('businessIdentity.accentLabel'), value: shown(accentKey) },
+      ],
+    },
+    {
+      key: 'address',
+      title: t('signupReview.sections.address'),
+      editTo: '/address-contact',
+      rows: [
+        { label: t('addressContact.addressLine'), value: address?.addressLine ?? saved },
+        { label: t('addressContact.postalCode'), value: optional(address?.postalCode) },
+        { label: t('addressContact.city'), value: address?.city ?? saved },
+        { label: t('addressContact.governorate'), value: shown(governorateKey) },
+        { label: t('addressContact.contactName'), value: address?.contactName ?? saved },
+        { label: t('addressContact.role'), value: optional(address?.role) },
+        { label: t('addressContact.phone'), value: address ? toOmanE164(address.phone) : saved },
+        { label: t('addressContact.email'), value: address?.email ?? saved },
+      ],
+    },
+  ]
+
+  return (
+    // my-auto, not the layout's centring alone: this page is taller than most viewports, and a
+    // centred child taller than its scroll container starts above the scroll origin, cutting off
+    // the heading where no scroll can reach it (measured: 103px at 1440, 493px at 390).
+    <form
+      onSubmit={handleSubmit}
+      className="my-auto flex w-full max-w-[700px] flex-col items-center gap-11"
+    >
+      <div className="flex w-full flex-col gap-6">
+        <div className="flex flex-col gap-3">
+          <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('signupReview.title')}
+          </h2>
+          <p className="text-base font-medium leading-[1.2] text-text-quaternary">
+            {t('signupReview.description')}
+          </p>
+        </div>
+        {sections.map((section) => (
+          <ReviewSection key={section.key} title={section.title} editTo={section.editTo} rows={section.rows} />
+        ))}
+      </div>
+
+      {formError ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t(formError.key, formError.values)}
+        </p>
+      ) : null}
+
+      <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
+        {submitting ? t('signupReview.submitting') : t('signupReview.submit')}
+        <ChevronRightIcon size={18} className="rtl:rotate-180" />
+      </Button>
+    </form>
+  )
+}

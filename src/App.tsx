@@ -7,7 +7,11 @@ import { BusinessTypePage } from './pages/BusinessTypePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { LoginCodePage } from './pages/LoginCodePage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
+import { OperatorInvitationPage } from './pages/OperatorInvitationPage'
+import { AccountEmailConfirmPage } from './pages/AccountEmailConfirmPage'
+import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from './lib/identity/accountEmail'
 import { PlansPage } from './pages/PlansPage'
 import { PaymentPage } from './pages/PaymentPage'
 import { FawtaraStatusPage } from './pages/FawtaraStatusPage'
@@ -123,8 +127,18 @@ import { NewCustomerPage } from './pages/NewCustomerPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { NewSupplierPage } from './pages/NewSupplierPage'
 import { SignupPage } from './pages/SignupPage'
+import { SignupPendingPage } from './pages/SignupPendingPage'
+import { SignupReviewPage } from './pages/SignupReviewPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
-import { ConsoleSoonPage, OperationsPage, TenantsPage } from './pages/ConsolePage'
+import {
+  ConsolePlansPage,
+  ConsoleSoonPage,
+  OperationsPage,
+  OperatorsPage,
+  TenantsPage,
+  VerificationCompanyPage,
+  VerificationPage,
+} from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
 
 function App() {
@@ -137,15 +151,20 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/login/mfa" element={<LoginCodePage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify-code" element={<VerifyCodePage />} />
           <Route path="/new-password" element={<NewPasswordPage />} />
+          <Route path="/operator-invitation" element={<OperatorInvitationPage />} />
+          <Route path={ACCOUNT_EMAIL_CONFIRM_ROUTE} element={<AccountEmailConfirmPage />} />
           <Route path="/about-business" element={<AboutBusinessPage />} />
           <Route path="/business-type" element={<BusinessTypePage />} />
           <Route path="/sub-business-type" element={<SubBusinessTypePage />} />
           <Route path="/business-identity" element={<BusinessIdentityPage />} />
           <Route path="/address-contact" element={<AddressContactPage />} />
+          <Route path="/signup-review" element={<SignupReviewPage />} />
+          <Route path="/signup-pending" element={<SignupPendingPage />} />
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/payment" element={<PaymentPage />} />
           <Route path="/fawtara-status" element={<FawtaraStatusPage />} />
@@ -266,8 +285,10 @@ function App() {
           <Route path="/console/tenants" element={<TenantsPage />} />
           <Route path="/console/queue" element={<ConsoleSoonPage />} />
           <Route path="/console/incidents" element={<ConsoleSoonPage />} />
-          <Route path="/console/onboarding" element={<ConsoleSoonPage />} />
-          <Route path="/console/plans" element={<ConsoleSoonPage />} />
+          <Route path="/console/onboarding" element={<VerificationPage />} />
+          <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
+          <Route path="/console/plans" element={<ConsolePlansPage />} />
+          <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/audit" element={<ConsoleSoonPage />} />
           <Route path="/console/settings" element={<ConsoleSoonPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,42 +10,31 @@ import {
   Input,
   UserIcon,
 } from '../../components/ui'
-import type { AboutBusinessAnswers } from '../../lib/onboarding'
-import { isBusinessTypeId, type BusinessTypeId } from '../../lib/subBusinessTypes'
-import type { InvoicePreviewData } from './BusinessIdentityHero'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { focusFirstInvalid } from '../../lib/forms'
 import {
-  crNumber as validateCr,
-  isClean,
-  peppolIdFor,
-  required,
-  vatin as validateVatin,
-  type FieldError,
-} from '../../lib/validation'
+  BUSINESS_IDENTITY_FIELD_ORDER,
+  BUSINESS_IDENTITY_SERVER_FIELDS,
+  buildBusinessIdentityRequest,
+  recordBusinessIdentity,
+  registrableCategory,
+  validateBusinessIdentity,
+  type BusinessIdentityField,
+} from '../../lib/identity/onboarding'
+import {
+  CATEGORY_LABEL_KEYS,
+  INVOICE_ACCENTS,
+  accentColor,
+  initialsOf,
+  onboardingStateFrom,
+  type InvoiceAccent,
+  type InvoicePreviewData,
+  type OnboardingState,
+} from '../../lib/onboarding'
+import { isClean, type FieldError } from '../../lib/validation'
 
-const ACCENT_COLORS = ['#2C4EB7', '#007D58', '#D43400', '#8635F6', '#CA0005', '#0A1032'] as const
-
-const BUSINESS_TYPE_LABEL_KEYS: Record<BusinessTypeId, string> = {
-  'food-beverage': 'businessType.options.foodBeverage',
-  retail: 'businessType.options.retail',
-  'beauty-wellness': 'businessType.options.beautyWellness',
-  professional: 'businessType.options.professional',
-  healthcare: 'businessType.options.healthcare',
-  hospitality: 'businessType.options.hospitality',
-  education: 'businessType.options.education',
-  automotive: 'businessType.options.automotive',
-}
-
-type LocationState = AboutBusinessAnswers & {
-  businessType?: string
-  subBusinessType?: string
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return ''
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
-}
+const LOGO_TYPES = ['image/png', 'image/svg+xml']
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
 
 type BusinessIdentityFormProps = {
   onPreviewChange: (preview: InvoicePreviewData) => void
@@ -54,67 +43,76 @@ type BusinessIdentityFormProps = {
 export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const location = useLocation()
-  const answers = (location.state as LocationState | null) ?? null
+  const state = onboardingStateFrom(useLocation().state)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [companyName, setCompanyName] = useState('Al Bahja Coffee Roasters LLC')
-  const [crNumber, setCrNumber] = useState('1234567')
-  const [vatin, setVatin] = useState('OM1100112233')
-  const [accentColor, setAccentColor] = useState<string>(ACCENT_COLORS[0])
-  const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+  // Empty unless restored on Back. The prototype pre-filled a real-looking business, so pressing
+  // Continue unedited would have registered someone else's CR number and VATIN.
+  const [companyName, setCompanyName] = useState(state.identity?.companyName ?? '')
+  const [crNumber, setCrNumber] = useState(state.identity?.crNumber ?? '')
+  const [vatin, setVatin] = useState(state.identity?.vatin ?? '')
+  const [accent, setAccent] = useState<InvoiceAccent>(state.identity?.accent ?? INVOICE_ACCENTS[0].id)
+  const [logoPreview, setLogoPreview] = useState<string | null>(state.identity?.logoUrl ?? null)
+  const [errors, setErrors] = useState<Partial<Record<BusinessIdentityField | 'logo', FieldError>>>({})
+  const { save, submitting, formError } = useOnboardingStep<BusinessIdentityField>({
+    serverFields: BUSINESS_IDENTITY_SERVER_FIELDS,
+    conflictKey: 'businessIdentity.identifierTaken',
+  })
 
-  const clearError = (field: string) =>
+  const clearError = (field: BusinessIdentityField | 'logo') =>
     setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
-  const peppolId = peppolIdFor(vatin)
-  const initials = getInitials(companyName)
-
-  const businessTypeLabel = useMemo(() => {
-    if (isBusinessTypeId(answers?.businessType)) {
-      return t(BUSINESS_TYPE_LABEL_KEYS[answers.businessType])
-    }
-    return t('businessType.options.foodBeverage')
-  }, [answers?.businessType, t])
+  // Not derived from the VATIN: signup assigns no Participant ID, an OM12 group VATIN may not be
+  // one at all (Fawtara SP#6), and the platform treats the Oman PID rule as pending authority.
+  const peppolPending = t('businessIdentity.peppolPending')
+  const category = registrableCategory(state.businessType)
 
   const preview = useMemo<InvoicePreviewData>(
     () => ({
       companyName,
       crNumber,
       vatin,
-      peppolId,
-      initials,
-      accentColor,
+      peppolId: peppolPending,
+      initials: initialsOf(companyName),
+      accentColor: accentColor(accent),
       logoUrl: logoPreview,
     }),
-    [accentColor, companyName, crNumber, initials, logoPreview, peppolId, vatin],
+    [accent, companyName, crNumber, logoPreview, peppolPending, vatin],
   )
 
   useEffect(() => {
     onPreviewChange(preview)
   }, [onPreviewChange, preview])
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const next: Record<string, FieldError> = {
-      companyName: required(companyName),
-      crNumber: validateCr(crNumber),
-      vatin: validateVatin(vatin),
-    }
+    const form = event.currentTarget
+    const values = { companyName, crNumber, vatin, accent }
+    const next = validateBusinessIdentity(values)
     setErrors(next)
-    if (!isClean(next)) return
-    navigate('/address-contact', {
-      state: {
-        ...answers,
-        companyName,
-        crNumber,
-        vatin,
-        peppolId,
-        accentColor,
+    if (!isClean(next)) {
+      focusFirstInvalid(form, BUSINESS_IDENTITY_FIELD_ORDER, next)
+      return
+    }
+
+    const request = buildBusinessIdentityRequest(values)
+    const result = await save((token, signal) => recordBusinessIdentity(token, request, signal))
+    if (!result.saved) {
+      setErrors(result.fieldErrors)
+      focusFirstInvalid(form, BUSINESS_IDENTITY_FIELD_ORDER, result.fieldErrors)
+      return
+    }
+    const nextState: OnboardingState = {
+      ...state,
+      identity: {
+        companyName: request.legalCompanyName,
+        crNumber: request.commercialRegistrationNumber,
+        vatin: request.taxNumber,
+        accent,
         logoUrl: logoPreview,
       },
-    })
+    }
+    navigate('/address-contact', { state: nextState })
   }
 
   const handleLogoChange = (file: File | null) => {
@@ -123,18 +121,16 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
       setLogoPreview(null)
       return
     }
-    const ACCEPTED = ['image/png', 'image/svg+xml']
-    if (!ACCEPTED.includes(file.type)) {
+    if (!LOGO_TYPES.includes(file.type)) {
       setErrors((current) => ({ ...current, logo: 'validation.logoType' }))
       return
     }
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > LOGO_MAX_BYTES) {
       setErrors((current) => ({ ...current, logo: 'validation.logoSize' }))
       return
     }
-    // A data URL rather than an object URL: a blob URL dies with this screen, and the logo has
-    // to survive the step that follows, which renders the same preview. It is also already in
-    // the shape the upload will take.
+    // A data URL rather than an object URL: a blob URL dies with this screen, and the address
+    // step renders the same preview. It is never uploaded — see buildBusinessIdentityRequest.
     const reader = new FileReader()
     reader.onload = () => setLogoPreview(typeof reader.result === 'string' ? reader.result : null)
     reader.onerror = () => setErrors((current) => ({ ...current, logo: 'validation.logoType' }))
@@ -144,12 +140,13 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="flex w-full max-w-[700px] flex-col items-center gap-11"
     >
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
           <span className="inline-flex h-[29px] w-fit items-center justify-center rounded-sm border border-primary-150 px-2.5 text-base font-medium text-primary-700">
-            {businessTypeLabel}
+            {t(CATEGORY_LABEL_KEYS[category])}
           </span>
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('businessIdentity.title')}
@@ -214,6 +211,8 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
             <Input
               label={t('businessIdentity.companyNameLabel')}
               requiredMark
+              name="companyName"
+              autoComplete="organization"
               value={companyName}
               onChange={(e) => {
                 setCompanyName(e.target.value)
@@ -238,6 +237,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
             <Input
               label={t('businessIdentity.crLabel')}
               requiredMark
+              name="crNumber"
               value={crNumber}
               onChange={(e) => {
                 setCrNumber(e.target.value)
@@ -251,6 +251,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
             <Input
               label={t('businessIdentity.vatinLabel')}
               requiredMark
+              name="vatin"
               value={vatin}
               onChange={(e) => {
                 setVatin(e.target.value.toUpperCase())
@@ -263,7 +264,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
 
             <Input
               label={t('businessIdentity.peppolLabel')}
-              value={peppolId}
+              value={peppolPending}
               readOnly
               readOnlyAppearance
               hint={t('businessIdentity.peppolHint')}
@@ -275,14 +276,14 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               {t('businessIdentity.accentLabel')}
             </p>
             <div className="flex items-center gap-2">
-              {ACCENT_COLORS.map((color) => {
-                const selected = accentColor === color
+              {INVOICE_ACCENTS.map((option) => {
+                const selected = accent === option.id
                 return (
                   <button
-                    key={color}
+                    key={option.id}
                     type="button"
-                    onClick={() => setAccentColor(color)}
-                    aria-label={color}
+                    onClick={() => setAccent(option.id)}
+                    aria-label={t(`businessIdentity.accents.${option.id}`)}
                     aria-pressed={selected}
                     className={[
                       'flex items-center justify-center rounded-full',
@@ -291,7 +292,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
                   >
                     <span
                       className="flex size-[34px] items-center justify-center rounded-full"
-                      style={{ backgroundColor: color }}
+                      style={{ backgroundColor: option.color }}
                     >
                       {selected ? (
                         <svg
@@ -319,7 +320,13 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
         </div>
       </div>
 
-      <Button type="submit" className="w-full max-w-[400px] gap-1.5">
+      {formError ? (
+        <p className="text-xs font-medium text-text-danger" role="alert">
+          {t(formError.key, formError.values)}
+        </p>
+      ) : null}
+
+      <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {t('businessIdentity.submit')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>
