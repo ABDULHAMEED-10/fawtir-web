@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -14,61 +14,77 @@ import {
   PhoneInput,
   UserIcon,
 } from '../../components/ui'
+import { isClean } from '../../lib/validation'
+import { focusFirstInvalid } from '../../lib/forms'
+import type { FormMessage } from '../../lib/identity/errors'
 import {
-  confirmPassword as validateConfirm,
-  email as validateEmail,
-  isClean,
-  omanPhone,
-  password as validatePassword,
-  required,
-  type FieldError,
-} from '../../lib/validation'
+  INITIAL_SIGNUP_VALUES,
+  SIGNUP_FIELD_ORDER,
+  buildSignupRequest,
+  describeSignupFailure,
+  submitSignup,
+  toVerificationState,
+  validateSignupForm,
+  type SignupFieldErrors,
+  type SignupFormValues,
+} from '../../lib/identity/signup'
 
 export function SignupForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [values, setValues] = useState<SignupFormValues>(INITIAL_SIGNUP_VALUES)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [agreed, setAgreed] = useState(true)
-  const [errors, setErrors] = useState<Record<string, FieldError>>({})
+  const [errors, setErrors] = useState<SignupFieldErrors>({})
+  const [formError, setFormError] = useState<FormMessage | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // The disabled button alone cannot stop a second submit: a double click or a repeated Enter
+  // can dispatch again before the re-render lands, and each one would create an account.
+  const inFlight = useRef<AbortController | null>(null)
+  const consentErrorId = useId()
 
-  const clearError = (field: string) =>
+  // Leaving mid-request must not let the late response navigate away from wherever the user went.
+  useEffect(() => () => inFlight.current?.abort(), [])
+
+  const setField = <F extends keyof SignupFormValues>(field: F, value: SignupFormValues[F]) => {
+    setValues((current) => ({ ...current, [field]: value }))
     setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const next: Record<string, FieldError> = {
-      fullName: required(fullName),
-      email: validateEmail(email),
-      phone: omanPhone(phone),
-      password: validatePassword(password),
-      confirmPassword: validateConfirm(confirmPassword, password),
-      agreed: agreed ? undefined : 'validation.agreeRequired',
-    }
-    setErrors(next)
-    if (!isClean(next)) return
+    if (inFlight.current) return
+    // Kept before the await: React clears `currentTarget` once the handler yields.
+    const form = event.currentTarget
 
+    const next = validateSignupForm(values)
+    setErrors(next)
+    setFormError(null)
+    if (!isClean(next)) {
+      focusFirstInvalid(form, SIGNUP_FIELD_ORDER, next)
+      return
+    }
+
+    const controller = new AbortController()
+    inFlight.current = controller
     setSubmitting(true)
-    // Seam for the account call: POST /api/v1/auth/register → sends the OTP.
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    setSubmitting(false)
-    navigate('/verify-code', {
-      state: {
-        from: 'signup',
-        // The OTP goes to the phone, so that is the contact to echo on the next screen.
-        contact: `+968 ${phone}`,
-      },
-    })
+    try {
+      const response = await submitSignup(buildSignupRequest(values, i18n.language), controller.signal)
+      navigate('/verify-code', { state: toVerificationState(response) })
+    } catch (error) {
+      if (controller.signal.aborted) return
+      const failure = describeSignupFailure(error)
+      setErrors(failure.fieldErrors)
+      setFormError(failure.formError)
+      focusFirstInvalid(form, SIGNUP_FIELD_ORDER, failure.fieldErrors)
+    } finally {
+      inFlight.current = null
+      setSubmitting(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-[400px] flex-col gap-8">
+    <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-[400px] flex-col gap-8">
       <div className="flex flex-col gap-7">
         <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
           {t('signup.title')}
@@ -79,20 +95,18 @@ export function SignupForm() {
             <Input
               label={t('signup.fullNameLabel')}
               requiredMark
+              name="fullName"
               autoComplete="name"
               placeholder={t('signup.fullNamePlaceholder')}
-              value={fullName}
-              onChange={(e) => {
-                setFullName(e.target.value)
-                clearError('fullName')
-              }}
+              value={values.fullName}
+              onChange={(e) => setField('fullName', e.target.value)}
               error={errors.fullName ? t(errors.fullName) : undefined}
               leadingIcon={<UserIcon />}
               trailingIcon={
-                fullName ? (
+                values.fullName ? (
                   <button
                     type="button"
-                    onClick={() => setFullName('')}
+                    onClick={() => setField('fullName', '')}
                     className="inline-flex text-text-quaternary hover:text-text-secondary"
                     aria-label={t('common.clear')}
                   >
@@ -103,16 +117,28 @@ export function SignupForm() {
             />
 
             <Input
+              label={t('login.usernameLabel')}
+              requiredMark
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder={t('signup.usernamePlaceholder')}
+              value={values.username}
+              onChange={(e) => setField('username', e.target.value)}
+              error={errors.username ? t(errors.username) : undefined}
+              leadingIcon={<UserIcon />}
+            />
+
+            <Input
               label={t('signup.emailLabel')}
               requiredMark
               type="email"
+              name="email"
               autoComplete="email"
               placeholder={t('signup.emailPlaceholder')}
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                clearError('email')
-              }}
+              value={values.email}
+              onChange={(e) => setField('email', e.target.value)}
               error={errors.email ? t(errors.email) : undefined}
               leadingIcon={<MailIcon />}
             />
@@ -120,13 +146,11 @@ export function SignupForm() {
             <PhoneInput
               label={t('signup.phoneLabel')}
               requiredMark
+              name="phone"
               autoComplete="tel-national"
               placeholder={t('signup.phonePlaceholder')}
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value)
-                clearError('phone')
-              }}
+              value={values.phone}
+              onChange={(e) => setField('phone', e.target.value)}
               error={errors.phone ? t(errors.phone) : undefined}
             />
 
@@ -135,13 +159,11 @@ export function SignupForm() {
                 label={t('signup.passwordLabel')}
                 requiredMark
                 type={showPassword ? 'text' : 'password'}
+                name="password"
                 autoComplete="new-password"
                 placeholder={t('signup.passwordPlaceholder')}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value)
-                  clearError('password')
-                }}
+                value={values.password}
+                onChange={(e) => setField('password', e.target.value)}
                 error={errors.password ? t(errors.password) : undefined}
                 leadingIcon={<LockIcon />}
                 trailingIcon={
@@ -155,20 +177,18 @@ export function SignupForm() {
                   </button>
                 }
               />
-              <PasswordStrength password={password} />
+              <PasswordStrength password={values.password} />
             </div>
 
             <Input
               label={t('signup.confirmPasswordLabel')}
               requiredMark
               type={showConfirm ? 'text' : 'password'}
+              name="confirmPassword"
               autoComplete="new-password"
               placeholder={t('signup.confirmPasswordPlaceholder')}
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value)
-                clearError('confirmPassword')
-              }}
+              value={values.confirmPassword}
+              onChange={(e) => setField('confirmPassword', e.target.value)}
               error={errors.confirmPassword ? t(errors.confirmPassword) : undefined}
               leadingIcon={<LockIcon />}
               trailingIcon={
@@ -188,11 +208,11 @@ export function SignupForm() {
             <span className="relative inline-flex h-5 w-5 shrink-0">
               <input
                 type="checkbox"
-                checked={agreed}
-                onChange={(e) => {
-                  setAgreed(e.target.checked)
-                  clearError('agreed')
-                }}
+                name="consent"
+                aria-invalid={errors.consent ? true : undefined}
+                aria-describedby={errors.consent ? consentErrorId : undefined}
+                checked={values.consent}
+                onChange={(e) => setField('consent', e.target.checked)}
                 className="peer absolute inset-0 z-10 cursor-pointer opacity-0"
               />
               <span className="flex h-5 w-5 items-center justify-center rounded-sm border border-border-default bg-surface-card peer-checked:border-primary-700 peer-checked:bg-primary-700 peer-checked:[&_svg]:opacity-100">
@@ -219,9 +239,14 @@ export function SignupForm() {
               .
             </span>
           </label>
-          {errors.agreed ? (
+          {errors.consent ? (
+            <p id={consentErrorId} className="mt-1 text-xs font-medium text-text-danger" role="alert">
+              {t(errors.consent)}
+            </p>
+          ) : null}
+          {formError ? (
             <p className="mt-1 text-xs font-medium text-text-danger" role="alert">
-              {t(errors.agreed)}
+              {t(formError.key, formError.values)}
             </p>
           ) : null}
         </div>

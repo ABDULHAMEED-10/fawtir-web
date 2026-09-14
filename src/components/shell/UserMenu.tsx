@@ -1,7 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Popover } from '../ui'
+import { LOGIN_ROUTE } from '../../lib/identity/login'
+import { dropLoginChallenge } from '../../lib/identity/loginChallenge'
+import { signOut } from '../../lib/identity/logout'
 import { USER_MENU } from '../../lib/shell'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -11,21 +14,72 @@ import chevron from '../../assets/dashboard/chevron.svg'
  * Shared by both shells: the tenant app signs in a person at a business, the Fawtir console signs
  * in a Super Admin, and the menu is the same shape either way.
  */
+export type UserMenuEntry = { id: string; labelKey: string; to: string }
+
 export function UserMenu({
   name,
   roleKey,
   avatar,
+  extraItems = [],
 }: {
   name: string
   roleKey: string
   avatar: string
+  /** Entries only one shell offers, listed after the shared ones. */
+  extraItems?: readonly UserMenuEntry[]
 }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [signOutFailed, setSignOutFailed] = useState(false)
+  // A disabled look cannot stop a second click or Enter landing before the re-render; each would
+  // be another revocation request.
+  const inFlight = useRef(false)
+
+  // Deliberately never aborted, not even when this menu unmounts (every page mounts its own
+  // shell): the server may already be revoking the session, and a user who moved on must still
+  // end up on Login rather than inside an app whose session is gone.
+  const handleSignOut = async (event: MouseEvent<HTMLAnchorElement>) => {
+    // The element stays the design's link to /login, but following it before the server confirms
+    // would show a signed-out screen over a session that is still alive.
+    event.preventDefault()
+    if (inFlight.current) return
+    inFlight.current = true
+    setSigningOut(true)
+    setSignOutFailed(false)
+    let signedOut = false
+    try {
+      await signOut()
+      signedOut = true
+      dropLoginChallenge()
+      // Replace: Back must not return to a page of the session that just ended.
+      navigate(LOGIN_ROUTE, { replace: true })
+    } catch {
+      setSignOutFailed(true)
+    } finally {
+      inFlight.current = false
+      // Left on after success: navigations commit as transitions, and resetting it would first
+      // flash "Sign out" back as though nothing had happened.
+      if (!signedOut) setSigningOut(false)
+    }
+  }
+
+  const signOutLabel = signingOut
+    ? t('shell.user.signingOut')
+    : signOutFailed
+      ? t('shell.user.signOutFailed')
+      : t('shell.user.signOut')
 
   return (
     <>
+      {/* Outside the popover so it exists before the failure is written into it, and so it is
+          still heard when the menu is closed. Fuller than the item's label, which must stay one
+          line: the popover is placed once, and a taller item would grow it over the trigger. */}
+      <span role="status" className="sr-only">
+        {signOutFailed ? t('shell.user.signOutFailedStatus') : ''}
+      </span>
       <button
         ref={anchor}
         type="button"
@@ -50,7 +104,7 @@ export function UserMenu({
 
       <Popover open={open} anchorRef={anchor} onClose={() => setOpen(false)}>
         <ul role="menu" className="py-1">
-          {USER_MENU.map((entry) => (
+          {[...USER_MENU, ...extraItems].map((entry) => (
             <li key={entry.id} role="none">
               <Link
                 to={entry.to}
@@ -64,12 +118,13 @@ export function UserMenu({
           ))}
           <li role="none" className="mt-1 border-t border-border-subtle pt-1">
             <Link
-              to="/login"
+              to={LOGIN_ROUTE}
               role="menuitem"
-              onClick={() => setOpen(false)}
+              aria-disabled={signingOut || undefined}
+              onClick={handleSignOut}
               className="block px-4 py-2.5 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100"
             >
-              {t('shell.user.signOut')}
+              {signOutLabel}
             </Link>
           </li>
         </ul>

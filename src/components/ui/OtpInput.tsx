@@ -1,12 +1,16 @@
 import { useRef, type ClipboardEvent, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type OtpInputProps = {
   value: string[]
   onChange: (value: string[]) => void
   length?: number
+  /** Marks every digit invalid for assistive technology; the message itself is announced by the form. */
+  invalid?: boolean
 }
 
-export function OtpInput({ value, onChange, length = 6 }: OtpInputProps) {
+export function OtpInput({ value, onChange, length = 6, invalid = false }: OtpInputProps) {
+  const { t } = useTranslation()
   const inputsRef = useRef<Array<HTMLInputElement | null>>([])
 
   const updateAt = (index: number, digit: string) => {
@@ -65,7 +69,8 @@ export function OtpInput({ value, onChange, length = 6 }: OtpInputProps) {
             'focus:ring-1 focus:ring-border-brand',
             value[index] ? 'ring-1 ring-border-brand' : 'ring-1 ring-border-subtle',
           ].join(' ')}
-          aria-label={`Digit ${index + 1}`}
+          aria-label={t('common.digit', { number: index + 1 })}
+          aria-invalid={invalid ? true : undefined}
         />
       ))}
     </div>

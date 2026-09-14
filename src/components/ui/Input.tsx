@@ -31,10 +31,15 @@ export function Input({
   bordered = false,
   className = '',
   id,
+  'aria-describedby': describedBy,
   ...props
 }: InputProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
+  // The error replaces the hint, so one id serves whichever message is on screen and the input
+  // stays linked to the text a screen reader should read with it.
+  const messageId = `${inputId}-message`
+  const hasMessage = Boolean(error || hint)
 
   return (
     <div className="flex w-full flex-col gap-1">
@@ -72,16 +77,24 @@ export function Input({
               'h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium outline-none placeholder:text-text-placeholder',
               readOnlyAppearance ? 'text-primary-800' : 'text-text-primary',
             ].join(' ')}
+            aria-invalid={error ? true : undefined}
             {...props}
+            aria-describedby={[describedBy, hasMessage ? messageId : undefined].filter(Boolean).join(' ') || undefined}
           />
         </div>
         {trailingIcon ? (
           <span className="inline-flex shrink-0 text-text-quaternary">{trailingIcon}</span>
         ) : null}
       </div>
-      {error ? <p className="text-xs font-medium text-text-danger">{error}</p> : null}
+      {error ? (
+        <p id={messageId} className="text-xs font-medium text-text-danger">
+          {error}
+        </p>
+      ) : null}
       {!error && hint ? (
-        <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">{hint}</p>
+        <p id={messageId} className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
+          {hint}
+        </p>
       ) : null}
     </div>
   )

@@ -6,8 +6,15 @@ import { UserMenu } from '../../components/shell'
 import { NavSettingsIcon } from '../AppShell/navIcons'
 import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
-import { CONSOLE_NAV, CONSOLE_USER } from '../../lib/consoleNav'
+import { CONSOLE_NAV } from '../../lib/consoleNav'
+import { ACCOUNT_EMAIL_CONFIRM_ROUTE } from '../../lib/identity/accountEmail'
 import avatar from '../../assets/dashboard/avatar.png'
+
+// Console only: confirming an email change is for Fawtir operators, and the console's user menu
+// is the one every signed-in operator sees, role or no role (P8).
+const CONSOLE_USER_ITEMS = [
+  { id: 'confirmEmail', labelKey: 'console.user.confirmEmail', to: ACCOUNT_EMAIL_CONFIRM_ROUTE },
+] as const
 
 /** The console's routes are flat, so a match is exact or a child path of it. */
 function isActive(pathname: string, to: string) {
@@ -19,6 +26,8 @@ type ConsoleSidebarProps = {
   /** Only meaningful below `lg`, where the sidebar is a drawer rather than a column. */
   open?: boolean
   onClose?: () => void
+  /** The signed-in operator, from the backend; empty while it is still being asked. */
+  userName: string
 }
 
 /**
@@ -28,7 +37,7 @@ type ConsoleSidebarProps = {
  * behaves as a drawer below `lg` exactly as the tenant sidebar does, sharing `useDrawer` so the
  * keyboard behaviour of the two cannot drift apart.
  */
-export function ConsoleSidebar({ open = false, onClose = () => {} }: ConsoleSidebarProps) {
+export function ConsoleSidebar({ open = false, onClose = () => {}, userName }: ConsoleSidebarProps) {
   const { t } = useTranslation()
   const location = useLocation()
   const panelRef = useRef<HTMLElement>(null)
@@ -107,7 +116,9 @@ export function ConsoleSidebar({ open = false, onClose = () => {} }: ConsoleSide
           </span>
         </Link>
 
-        <UserMenu name={CONSOLE_USER.name} roleKey={CONSOLE_USER.roleKey} avatar={avatar} />
+        {/* No role title: the backend's role names are English-only, and ranking an operator's
+            several roles into one title would be a claim of our own. */}
+        <UserMenu name={userName} roleKey="console.user.team" avatar={avatar} extraItems={CONSOLE_USER_ITEMS} />
       </div>
     </aside>
   )

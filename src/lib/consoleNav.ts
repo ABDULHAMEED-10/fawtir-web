@@ -74,18 +74,17 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: NavCustomersIcon,
       },
       {
-        id: 'onboarding',
-        labelKey: 'console.nav.onboarding',
+        id: 'verification',
+        labelKey: 'console.nav.verification',
+        // The design's route, kept when the screen became company verification.
         to: '/console/onboarding',
         Icon: NavTddIcon,
-        soon: true,
       },
       {
         id: 'plans',
         labelKey: 'console.nav.plans',
         to: '/console/plans',
         Icon: ConsolePlansIcon,
-        soon: true,
       },
     ],
   },
@@ -93,6 +92,12 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
     id: 'platform',
     labelKey: 'console.nav.group.platform',
     items: [
+      {
+        id: 'operators',
+        labelKey: 'console.nav.operators',
+        to: '/console/operators',
+        Icon: NavCustomersIcon,
+      },
       {
         id: 'audit',
         labelKey: 'console.nav.audit',
@@ -113,9 +118,3 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
 
 /** Every console route, for the router and for the "not built yet" pages. */
 export const CONSOLE_ITEMS = CONSOLE_NAV.flatMap((group) => group.items)
-
-/** The person signed in to the console. */
-export const CONSOLE_USER = {
-  name: 'Nasser Al Habsi',
-  roleKey: 'console.user.role',
-}

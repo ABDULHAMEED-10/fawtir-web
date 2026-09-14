@@ -1,21 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { BrandLogo } from '../../components/BrandLogo'
 import glowLeft from '../../assets/auth/glow-left.png'
-
-export type InvoicePreviewData = {
-  companyName: string
-  crNumber: string
-  vatin: string
-  peppolId: string
-  initials: string
-  accentColor: string
-  /** Object URL for the logo the user just picked; falls back to initials when absent. */
-  logoUrl?: string | null
-  addressLine?: string
-  city?: string
-  governorate?: string
-  postalCode?: string
-}
+import type { InvoicePreviewData } from '../../lib/onboarding'
 
 type BusinessIdentityHeroProps = {
   preview: InvoicePreviewData

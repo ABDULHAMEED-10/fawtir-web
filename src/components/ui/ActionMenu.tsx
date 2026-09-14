@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import menuIcon from '../../assets/invoices/menu.svg'
@@ -45,6 +46,13 @@ type ActionMenuProps = {
   wide?: boolean
   /** `md` is the 272px Settings panel; `wide` stays the 296px described-item panel. */
   size?: 'sm' | 'md'
+  /**
+   * Renders the panel into `document.body` at fixed coordinates, flipping above the trigger when
+   * there is no room below. For rows of a short table: `RowsView` scrolls horizontally, and that
+   * container clips an absolutely positioned panel, so the last row's menu was cut off. Opt-in,
+   * because every other menu sits in a table long enough not to need it.
+   */
+  floating?: boolean
 }
 
 /**
@@ -58,20 +66,64 @@ export function ActionMenu({
   variant = 'row',
   wide = false,
   size = 'sm',
+  floating = false,
 }: ActionMenuProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null)
   const menuId = useId()
+
+  useLayoutEffect(() => {
+    if (!open || !floating) return
+    const position = () => {
+      const trigger = triggerRef.current
+      const panel = panelRef.current
+      if (!trigger || !panel) return
+      const rect = trigger.getBoundingClientRect()
+      const gap = 4
+      // `end` is the right edge in a left-to-right page and the left edge in Arabic.
+      const toRight = !alignStart !== (getComputedStyle(trigger).direction === 'rtl')
+      const left = toRight ? rect.right - panel.offsetWidth : rect.left
+      const below = window.innerHeight - rect.bottom - gap
+      const flip = below < panel.offsetHeight && rect.top - gap > below
+      setPlace({
+        top: flip ? Math.max(gap, rect.top - gap - panel.offsetHeight) : rect.bottom + gap,
+        left: Math.min(Math.max(gap, left), window.innerWidth - panel.offsetWidth - gap),
+      })
+    }
+    position()
+    // `true` catches scrolls inside any ancestor — the table itself scrolls sideways.
+    window.addEventListener('scroll', position, true)
+    window.addEventListener('resize', position)
+    return () => {
+      window.removeEventListener('scroll', position, true)
+      window.removeEventListener('resize', position)
+    }
+  }, [open, floating, alignStart])
+
+  // A panel in the body is no longer next to its trigger in the tab order, so focus is taken to
+  // it on opening, and handed back to the trigger when it closes from the keyboard.
+  useEffect(() => {
+    if (!open || !floating) return
+    // A frame later: until it has been placed the panel is hidden, and a hidden element takes no focus.
+    const frame = requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [open, floating])
 
   useEffect(() => {
     if (!open) return
 
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false)
+      const target = event.target as Node
+      if (!containerRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      if (floating) triggerRef.current?.focus()
     }
 
     document.addEventListener('mousedown', onPointerDown)
@@ -80,7 +132,15 @@ export function ActionMenu({
       document.removeEventListener('mousedown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [open])
+  }, [open, floating])
+
+  // Tabbing out of a floating panel returns to the trigger, whose own Tab then moves on as it
+  // would have: the panel is at the end of the body, not after the trigger.
+  const onPanelKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!floating || event.key !== 'Tab') return
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
 
   const itemClass = (danger?: boolean) =>
     [
@@ -92,6 +152,7 @@ export function ActionMenu({
   return (
     <div ref={containerRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -111,87 +172,101 @@ export function ActionMenu({
       </button>
 
       {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          className={[
-            'absolute z-30 mt-1 rounded-sm bg-surface-card p-2 shadow-elevated',
-            wide ? 'w-[296px]' : size === 'md' ? 'w-[272px]' : 'w-[172px]',
-            alignStart ? 'start-0' : 'end-0',
-          ].join(' ')}
-        >
-          {items.map((item, index) => {
-            const content = (
-              <>
-                <img
-                  src={item.icon}
-                  alt=""
-                  className={wide ? 'mt-0.5 size-[18px] shrink-0' : 'size-[18px] shrink-0'}
-                />
-                {item.descriptionKey ? (
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm leading-[1.3]">
-                      {t(item.labelKey, item.values)}
+        <FloatingOr floating={floating}>
+          <div
+            ref={panelRef}
+            id={menuId}
+            role="menu"
+            onKeyDown={onPanelKeyDown}
+            style={
+              floating
+                ? { position: 'fixed', top: place?.top ?? -9999, left: place?.left ?? -9999, visibility: place ? 'visible' : 'hidden' }
+                : undefined
+            }
+            className={[
+              'rounded-sm bg-surface-card p-2 shadow-elevated',
+              floating ? 'z-[60]' : ['absolute z-30 mt-1', alignStart ? 'start-0' : 'end-0'].join(' '),
+              wide ? 'w-[296px]' : size === 'md' ? 'w-[272px]' : 'w-[172px]',
+            ].join(' ')}
+          >
+            {items.map((item, index) => {
+              const content = (
+                <>
+                  <img
+                    src={item.icon}
+                    alt=""
+                    className={wide ? 'mt-0.5 size-[18px] shrink-0' : 'size-[18px] shrink-0'}
+                  />
+                  {item.descriptionKey ? (
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm leading-[1.3]">
+                        {t(item.labelKey, item.values)}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-medium leading-[1.4] text-text-quaternary">
+                        {t(item.descriptionKey, item.values)}
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {t(item.descriptionKey, item.values)}
+                  ) : (
+                    <span className="min-w-0 flex-1 text-start">{t(item.labelKey, item.values)}</span>
+                  )}
+                  {item.hint || item.hintKey ? (
+                    <span className="shrink-0 text-xs font-medium text-text-quaternary">
+                      {item.hint ?? t(item.hintKey as string, item.values)}
                     </span>
-                  </span>
-                ) : (
-                  <span className="min-w-0 flex-1 text-start">{t(item.labelKey, item.values)}</span>
-                )}
-                {item.hint || item.hintKey ? (
-                  <span className="shrink-0 text-xs font-medium text-text-quaternary">
-                    {item.hint ?? t(item.hintKey as string, item.values)}
-                  </span>
-                ) : null}
-              </>
-            )
+                  ) : null}
+                </>
+              )
 
-            return (
-              <div key={item.id} role="none">
-                {item.sectionKey ? (
-                  <>
-                    {index > 0 ? <div className="my-2 h-px bg-[#e3e4ea]" role="none" /> : null}
-                    <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
-                      {t(item.sectionKey)}
-                    </p>
-                  </>
-                ) : null}
-                {item.danger && !item.sectionKey ? (
-                  <div className="my-2 h-px bg-[#e3e4ea]" role="none" />
-                ) : null}
-                {item.to ? (
-                  <Link
-                    to={item.to}
-                    role="menuitem"
-                    className={itemClass(item.danger)}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      setOpen(false)
-                    }}
-                  >
-                    {content}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={itemClass(item.danger)}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      item.onSelect?.()
-                      setOpen(false)
-                    }}
-                  >
-                    {content}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
+              return (
+                <div key={item.id} role="none">
+                  {item.sectionKey ? (
+                    <>
+                      {index > 0 ? <div className="my-2 h-px bg-[#e3e4ea]" role="none" /> : null}
+                      <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
+                        {t(item.sectionKey)}
+                      </p>
+                    </>
+                  ) : null}
+                  {item.danger && !item.sectionKey ? (
+                    <div className="my-2 h-px bg-[#e3e4ea]" role="none" />
+                  ) : null}
+                  {item.to ? (
+                    <Link
+                      to={item.to}
+                      role="menuitem"
+                      className={itemClass(item.danger)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setOpen(false)
+                      }}
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={itemClass(item.danger)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        item.onSelect?.()
+                        setOpen(false)
+                      }}
+                    >
+                      {content}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </FloatingOr>
       ) : null}
     </div>
   )
+}
+
+/** The panel where it is drawn, or — for a floating menu — in the body, out of every clipping ancestor. */
+function FloatingOr({ floating, children }: { floating: boolean; children: ReactNode }) {
+  return floating ? createPortal(children, document.body) : <>{children}</>
 }

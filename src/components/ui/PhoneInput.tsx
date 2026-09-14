@@ -13,10 +13,12 @@ export function PhoneInput({
   error,
   id,
   className = '',
+  'aria-describedby': describedBy,
   ...props
 }: PhoneInputProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
+  const errorId = `${inputId}-error`
 
   return (
     <div className="flex w-full flex-col gap-1">
@@ -52,10 +54,16 @@ export function PhoneInput({
           type="tel"
           inputMode="tel"
           className="h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
+          aria-invalid={error ? true : undefined}
           {...props}
+          aria-describedby={[describedBy, error ? errorId : undefined].filter(Boolean).join(' ') || undefined}
         />
       </div>
-      {error ? <p className="text-xs font-medium text-text-danger">{error}</p> : null}
+      {error ? (
+        <p id={errorId} className="text-xs font-medium text-text-danger">
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }

@@ -4,10 +4,13 @@
  * Every rule returns an i18n key rather than a sentence, so the same check reads correctly in
  * English and Arabic. `undefined` means the value passed.
  *
+ * Rules that mirror a backend rule (username, full name, password) exist only to answer without a
+ * round trip; the backend stays authoritative and re-checks every one of them.
+ *
  * The formats here are Oman-specific and worth stating once:
  *  - Mobile numbers are 8 digits and start with 7 or 9; landlines start with 2. The +968 prefix
  *    is supplied by the field, so it is never part of the value.
- *  - A VAT identification number is `OM` followed by 10 digits.
+ *  - A VAT identification number is `OM`, a registrant class of `11` or `12`, then 8 digits.
  *  - Commercial registration numbers are 7 digits.
  *  - Postal codes are 3 digits.
  *  - The Peppol scheme id for Omani VAT numbers is 0248.
@@ -21,12 +24,48 @@ export function required(value: string): FieldError {
   return value.trim() ? undefined : 'validation.required'
 }
 
+/** Every backend request record bounds email at 255 (`@Size(max = 255)`). */
+const EMAIL_MAX_LENGTH = 255
+
 export function email(value: string): FieldError {
   const trimmed = value.trim()
   if (!trimmed) return 'validation.required'
+  if (trimmed.length > EMAIL_MAX_LENGTH) return 'validation.email'
   // Deliberately permissive: one @, a dot-bearing domain, no spaces. Anything stricter
   // rejects addresses that are actually deliverable.
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmed) ? undefined : 'validation.email'
+}
+
+/**
+ * The backend's username pattern (`SignupRequest.username`, migration V174), character for
+ * character. ASCII-only is not a style choice: the server hashes the lower-cased username in
+ * both SQL and Java, which case-fold differently outside ASCII.
+ */
+const USERNAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/
+
+export function username(value: string): FieldError {
+  const trimmed = value.trim()
+  if (!trimmed) return 'validation.required'
+  return USERNAME_PATTERN.test(trimmed) ? undefined : 'validation.usernameInvalid'
+}
+
+const FULL_NAME_MIN_LENGTH = 2
+const FULL_NAME_MAX_LENGTH = 200
+
+/**
+ * `SelfServiceSignupService.requireValidFullName`. Unicode-aware on purpose — `\p{Nd}` and
+ * `\p{L}` are Java's `Character.isDigit` and `isLetter`, so Arabic names pass and Arabic-Indic
+ * digits are refused exactly as the server refuses them.
+ */
+export function fullName(value: string): FieldError {
+  const trimmed = value.trim()
+  if (!trimmed) return 'validation.required'
+  if (trimmed.length < FULL_NAME_MIN_LENGTH || trimmed.length > FULL_NAME_MAX_LENGTH) {
+    return 'validation.fullNameLength'
+  }
+  if (/\p{Nd}/u.test(trimmed)) return 'validation.fullNameDigits'
+  if (/\p{Cc}/u.test(trimmed) || !/\p{L}/u.test(trimmed)) return 'validation.fullNameInvalid'
+  return undefined
 }
 
 /** Oman national number, without the +968 prefix. */
@@ -37,10 +76,23 @@ export function omanPhone(value: string): FieldError {
   return /^[279]/.test(digits) ? undefined : 'validation.phonePrefix'
 }
 
+/** The `+968XXXXXXXX` form the server stores. Only meaningful once {@link omanPhone} passes. */
+export function toOmanE164(value: string): string {
+  return `+968${value.replace(/\D/g, '')}`
+}
+
+/**
+ * The backend's `OmaniVatin` grammar, which is also the `ck_customer_vatin_oman` constraint
+ * (migration V075 narrowed V073's `OM` + 10 digits to the registrant class). Both sides move
+ * together: the backend notes the narrowing is pending an OTA answer (tracker 5.12), and a
+ * reversal there must be mirrored here.
+ */
+const VATIN_PATTERN = /^OM(?:11|12)\d{8}$/
+
 export function vatin(value: string): FieldError {
   const trimmed = value.trim().toUpperCase()
   if (!trimmed) return 'validation.required'
-  return /^OM\d{10}$/.test(trimmed) ? undefined : 'validation.vatin'
+  return VATIN_PATTERN.test(trimmed) ? undefined : 'validation.vatin'
 }
 
 export function crNumber(value: string): FieldError {
@@ -55,11 +107,32 @@ export function postalCode(value: string): FieldError {
   return DIGITS_ONLY.test(trimmed) && trimmed.length === 3 ? undefined : 'validation.postalCode'
 }
 
-/** Mirrors the strength meter: 8+ characters, with a letter and a digit. */
+const PASSWORD_MIN_LENGTH = 12
+const PASSWORD_MAX_LENGTH = 128
+
+/**
+ * The backend `PasswordPolicyService` rules, which signup and password reset share. The
+ * strength meter counts the same criteria, so a full meter and a passing password coincide.
+ *
+ * Its common-password list is deliberately not mirrored: none of those entries has a symbol or
+ * reaches 12 characters, so the composition rule already refuses every one of them.
+ */
+export function passwordCriteria(value: string) {
+  return {
+    length: value.length >= PASSWORD_MIN_LENGTH && value.length <= PASSWORD_MAX_LENGTH,
+    upperAndLower: /[A-Z]/.test(value) && /[a-z]/.test(value),
+    digit: /\d/.test(value),
+    symbol: /[^A-Za-z0-9]/.test(value),
+  }
+}
+
 export function password(value: string): FieldError {
   if (!value) return 'validation.required'
-  if (value.length < 8) return 'validation.passwordShort'
-  if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) return 'validation.passwordWeak'
+  const criteria = passwordCriteria(value)
+  if (!criteria.length) return 'validation.passwordLength'
+  if (!criteria.upperAndLower || !criteria.digit || !criteria.symbol) {
+    return 'validation.passwordComposition'
+  }
   return undefined
 }
 

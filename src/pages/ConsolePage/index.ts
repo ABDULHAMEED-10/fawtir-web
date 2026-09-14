@@ -1,3 +1,7 @@
 export { OperationsPage } from './OperationsPage'
 export { TenantsPage } from './TenantsPage'
 export { ConsoleSoonPage } from './ConsoleSoonPage'
+export { VerificationPage } from './VerificationPage'
+export { VerificationCompanyPage } from './VerificationCompanyPage'
+export { ConsolePlansPage } from './PlansPage'
+export { OperatorsPage } from './OperatorsPage'

@@ -1,0 +1,342 @@
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { ApiError } from '../../../api'
+import { Button, FileDropzone, Input, Modal, Select } from '../../../components/ui'
+import {
+  EVIDENCE_ACCEPT,
+  EVIDENCE_MAX_BYTES,
+  REJECTION_REASONS,
+  attestCompany,
+  attestationReferenceError,
+  describeDecisionFailure,
+  rejectCompany,
+  uploadEvidence,
+  type CompanyDetail,
+  type EvidenceUpload,
+  type RejectionReason,
+  type VerificationStatus,
+} from '../../../lib/console/companyVerification'
+import { localeFor } from '../../../lib/console/format'
+import { forgetEntitlements } from '../../../lib/identity/entitlements'
+import type { FormMessage } from '../../../lib/identity/errors'
+import { LOGIN_ROUTE } from '../../../lib/identity/login'
+import uploadIcon from '../../../assets/create-invoice/upload.svg'
+import { ReviewCard, ReviewLine } from './ReviewCard'
+
+type Dialog = 'verify' | 'reject' | null
+
+type DecisionPanelProps = {
+  company: CompanyDetail
+  /** The signed-in operator, from the entitlements; compared with the submitter for four-eyes. */
+  operatorId: string | null
+  /** Called once a decision is recorded, or when the reviewer asks to reload a moved case. */
+  onDecided: (outcome: VerificationStatus | null) => void
+}
+
+/**
+ * The reviewer's decision on a submitted registration: file the evidence, then verify or reject.
+ *
+ * Every decision goes through a confirming dialog first — both are irreversible from here and one
+ * of them lets a company start invoicing. The backend is the judge of everything that matters
+ * (the revision the decision quotes, the evidence digest, the four-eyes rule); what this panel
+ * checks locally only saves a request that would certainly be refused.
+ */
+export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelProps) {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const [evidence, setEvidence] = useState<EvidenceUpload | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<FormMessage | null>(null)
+  const [reference, setReference] = useState('')
+  const [referenceTouched, setReferenceTouched] = useState(false)
+  const [dialog, setDialog] = useState<Dialog>(null)
+  const [reason, setReason] = useState<RejectionReason | ''>('')
+  const [reasonTouched, setReasonTouched] = useState(false)
+  const [deciding, setDeciding] = useState(false)
+  const [decisionError, setDecisionError] = useState<FormMessage | null>(null)
+  // One request per action: a double drop, a double click on a dialog's button, or an upload
+  // racing a decision would each be another write the backend has to refuse or, worse, accept.
+  const inFlight = useRef(false)
+
+  // Four-eyes, as `CompanyVerificationService.requireIndependentReviewer` enforces it. Checked
+  // here only so the reviewer is told instead of being offered buttons that must fail.
+  if (operatorId !== null && company.submittedBy === operatorId) {
+    return (
+      <ReviewCard title={t('console.verification.decision.title')}>
+        <p className="py-2.5 text-sm font-medium leading-[1.6] text-text-tertiary">
+          {t('console.verification.decision.ownSubmission')}
+        </p>
+      </ReviewCard>
+    )
+  }
+
+  const referenceProblem = attestationReferenceError(reference)
+  // Evidence is bound to the revision it was filed against; once the profile moves on, the
+  // backend no longer accepts it, so neither does the button.
+  const evidenceStale = evidence !== null && evidence.profileRevision !== company.expectedRevision
+  const canVerify = evidence !== null && !evidenceStale && referenceProblem === null && !uploading
+
+  const leaveIfSignedOut = (error: unknown): boolean => {
+    if (error instanceof ApiError && error.status === 401) {
+      forgetEntitlements()
+      navigate(LOGIN_ROUTE, { replace: true })
+      return true
+    }
+    return false
+  }
+
+  const upload = async (file: File) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    setUploading(true)
+    setUploadError(null)
+    try {
+      setEvidence(await uploadEvidence(company.tenantId, file))
+    } catch (error) {
+      if (!leaveIfSignedOut(error)) setUploadError(describeDecisionFailure(error))
+    } finally {
+      inFlight.current = false
+      setUploading(false)
+    }
+  }
+
+  const decide = async () => {
+    if (inFlight.current) return
+    if (dialog === 'reject' && reason === '') {
+      setReasonTouched(true)
+      return
+    }
+    inFlight.current = true
+    setDeciding(true)
+    setDecisionError(null)
+    try {
+      const result =
+        dialog === 'verify' && evidence
+          ? await attestCompany(company.tenantId, {
+              expectedRevision: company.expectedRevision,
+              attestationReference: reference,
+              evidence,
+            })
+          : await rejectCompany(company.tenantId, {
+              expectedRevision: company.expectedRevision,
+              reason: reason as RejectionReason,
+            })
+      setDialog(null)
+      onDecided(result.verificationStatus)
+    } catch (error) {
+      if (!leaveIfSignedOut(error)) setDecisionError(describeDecisionFailure(error))
+    } finally {
+      inFlight.current = false
+      setDeciding(false)
+    }
+  }
+
+  const openDialog = (next: Exclude<Dialog, null>) => {
+    setDecisionError(null)
+    setReasonTouched(false)
+    setDialog(next)
+  }
+
+  const conflict = decisionError?.key === 'console.verification.decision.conflict'
+  const size = evidence
+    ? new Intl.NumberFormat(localeFor(i18n.language), {
+        style: 'unit',
+        unit: 'kilobyte',
+        maximumFractionDigits: 0,
+      }).format(Math.max(1, Math.round(evidence.sizeBytes / 1024)))
+    : ''
+
+  return (
+    <ReviewCard title={t('console.verification.decision.title')}>
+      <p className="pb-3 text-sm font-medium leading-[1.6] text-text-tertiary">
+        {t('console.verification.decision.intro')}
+      </p>
+
+      <FileDropzone
+        accept={EVIDENCE_ACCEPT}
+        maxBytes={EVIDENCE_MAX_BYTES}
+        onFiles={(files) => void upload(files[0])}
+        onReject={(problem) =>
+          setUploadError({
+            key:
+              problem === 'size'
+                ? 'console.verification.decision.tooLargeLocal'
+                : 'console.verification.decision.wrongType',
+          })
+        }
+      >
+        {({ dragging }) => (
+          <span
+            aria-busy={uploading || undefined}
+            className={[
+              'flex min-h-[129px] flex-col items-center justify-center gap-2 rounded-sm border border-dashed px-4 py-6 text-center transition-colors',
+              dragging ? 'border-primary-700 bg-primary-25' : 'border-primary-300 bg-surface-tab-bar',
+            ].join(' ')}
+          >
+            <img src={uploadIcon} alt="" className="size-6" />
+            <span className="text-sm font-semibold text-text-secondary">
+              {uploading
+                ? t('console.verification.decision.uploading')
+                : evidence
+                  ? t('console.verification.decision.replace')
+                  : t('console.verification.decision.upload')}
+            </span>
+            <span className="text-sm font-medium text-text-quaternary">
+              {t('console.verification.decision.uploadHint')}
+            </span>
+          </span>
+        )}
+      </FileDropzone>
+
+      {uploadError ? (
+        <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
+          {t(uploadError.key, uploadError.values)}
+        </p>
+      ) : null}
+
+      {evidence ? (
+        <div className="mt-2">
+          <ReviewLine
+            label={t('console.verification.decision.evidenceFile')}
+            value={evidence.filename ?? t('console.verification.detail.none')}
+          />
+          <ReviewLine label={t('console.verification.decision.evidenceSize')} value={size} />
+        </div>
+      ) : null}
+      {evidenceStale ? (
+        <p role="alert" className="mt-2 text-sm font-medium text-danger-700">
+          {t('console.verification.decision.staleEvidence')}
+        </p>
+      ) : null}
+
+      <div className="mt-4">
+        <Input
+          bordered
+          requiredMark
+          name="attestationReference"
+          label={t('console.verification.decision.reference')}
+          hint={t('console.verification.decision.referenceHint')}
+          value={reference}
+          maxLength={100}
+          autoComplete="off"
+          spellCheck={false}
+          onChange={(event) => setReference(event.target.value)}
+          onBlur={() => setReferenceTouched(true)}
+          error={
+            referenceTouched && referenceProblem
+              ? t(
+                  referenceProblem === 'required'
+                    ? 'console.verification.decision.referenceRequired'
+                    : 'console.verification.decision.referenceInvalid',
+                )
+              : undefined
+          }
+        />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2.5">
+        <Button type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
+          {t('console.verification.decision.verify')}
+        </Button>
+        <Button
+          type="button"
+          size="md"
+          variant="secondary"
+          fullWidth
+          disabled={uploading}
+          onClick={() => openDialog('reject')}
+        >
+          {t('console.verification.decision.reject')}
+        </Button>
+      </div>
+
+      <Modal
+        open={dialog !== null}
+        onClose={() => {
+          if (!deciding) setDialog(null)
+        }}
+        title={
+          dialog === 'verify'
+            ? t('console.verification.decision.verifyTitle', { name: company.tenantName })
+            : t('console.verification.decision.rejectTitle')
+        }
+        footer={
+          <div className="flex flex-wrap justify-end gap-2.5">
+            {conflict ? (
+              <Button type="button" size="md" variant="secondary" onClick={() => onDecided(null)}>
+                {t('console.verification.decision.reload')}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="md"
+                variant="secondary"
+                disabled={deciding}
+                onClick={() => setDialog(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+            )}
+            <Button type="button" size="md" disabled={deciding || conflict} onClick={() => void decide()}>
+              {dialog === 'verify'
+                ? deciding
+                  ? t('console.verification.decision.verifying')
+                  : t('console.verification.decision.verifyConfirm')
+                : deciding
+                  ? t('console.verification.decision.rejecting')
+                  : t('console.verification.decision.rejectConfirm')}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {dialog === 'verify' && evidence ? (
+            <div>
+              <ReviewLine
+                label={t('console.verification.decision.evidenceFile')}
+                value={evidence.filename ?? t('console.verification.detail.none')}
+              />
+              <ReviewLine label={t('console.verification.decision.reference')} value={reference.trim()} />
+            </div>
+          ) : null}
+          {dialog === 'reject' ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium text-text-secondary">
+                {t('console.verification.decision.reason')}
+              </span>
+              <Select
+                value={reason}
+                ariaLabel={t('console.verification.decision.reason')}
+                placeholder={t('console.verification.decision.reasonPlaceholder')}
+                onChange={(value) => {
+                  setReason(value as RejectionReason)
+                  setReasonTouched(false)
+                }}
+                options={REJECTION_REASONS.map((code) => ({
+                  value: code,
+                  label: t(`console.verification.detail.reason.${code}`),
+                }))}
+              />
+              {reasonTouched && reason === '' ? (
+                <p role="alert" className="text-sm font-medium text-danger-700">
+                  {t('console.verification.decision.reasonRequired')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
+            {dialog === 'verify'
+              ? t('console.verification.decision.verifyBody')
+              : t('console.verification.decision.rejectBody')}
+          </p>
+          {decisionError ? (
+            <p role="alert" className="text-sm font-medium text-danger-700">
+              {t(decisionError.key, decisionError.values)}
+            </p>
+          ) : null}
+        </div>
+      </Modal>
+    </ReviewCard>
+  )
+}
