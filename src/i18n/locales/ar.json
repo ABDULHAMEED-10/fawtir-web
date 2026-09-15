@@ -964,20 +964,37 @@
   },
   "customersPage": {
     "title": "العملاء",
-    "subtitle": "٨ عملاء · ٢١٧٫٤٩٠ ر.ع. مستحقة",
+    "subtitle_zero": "لا عملاء · {{amount}} ر.ع. مستحقة",
+    "subtitle_one": "عميل واحد · {{amount}} ر.ع. مستحقة",
+    "subtitle_two": "عميلان · {{amount}} ر.ع. مستحقة",
+    "subtitle_few": "{{customers}} عملاء · {{amount}} ر.ع. مستحقة",
+    "subtitle_many": "{{customers}} عميلًا · {{amount}} ر.ع. مستحقة",
+    "subtitle_other": "{{customers}} عميل · {{amount}} ر.ع. مستحقة",
     "bulkUpload": "رفع جماعي",
     "export": "تصدير",
+    "exporting": "جارٍ التصدير…",
+    "exportTruncated": "توقف الملف عند حد التصدير، لذا لا يضم كل العملاء. ضيّق القائمة حسب النوع أو البحث ثم صدّر مرة أخرى.",
     "newCustomer": "عميل جديد",
     "kpi": {
       "receivables": "الذمم المدينة",
-      "receivablesMeta": "مستحقة على ٤ عملاء",
+      "receivablesMeta_zero": "لا مستحقات",
+      "receivablesMeta_one": "مستحقة على عميل واحد",
+      "receivablesMeta_two": "مستحقة على عميلين",
+      "receivablesMeta_few": "مستحقة على {{customers}} عملاء",
+      "receivablesMeta_many": "مستحقة على {{customers}} عميلًا",
+      "receivablesMeta_other": "مستحقة على {{customers}} عميل",
       "overdue": "متأخرة",
-      "overdueMeta": "من عميل واحد",
+      "overdueMeta_zero": "لا متأخرات",
+      "overdueMeta_one": "من عميل واحد",
+      "overdueMeta_two": "من عميلين",
+      "overdueMeta_few": "من {{customers}} عملاء",
+      "overdueMeta_many": "من {{customers}} عميلًا",
+      "overdueMeta_other": "من {{customers}} عميل",
       "customers": "العملاء",
-      "customersMeta": "٦ شركات · جهة حكومية · مستهلك",
+      "customersMeta": "شركات: {{business}} · جهات حكومية: {{government}} · أفراد: {{consumer}}",
       "peppolReady": "جاهز على Peppol",
       "peppolMeta": "يمكن الوصول إليه للفوترة الإلكترونية",
-      "ofTwelve": "من ١٢"
+      "peppolOf": "من {{total}}"
     },
     "tabs": {
       "all": "الكل",
@@ -996,18 +1013,36 @@
       "qrReceipt": "إيصال QR"
     },
     "note": {
-      "daysOverdue": "متأخرة {{days}} يومًا",
+      "daysOverdue_zero": "مستحقة اليوم",
+      "daysOverdue_one": "متأخرة يومًا واحدًا",
+      "daysOverdue_two": "متأخرة يومين",
+      "daysOverdue_few": "متأخرة {{count}} أيام",
+      "daysOverdue_many": "متأخرة {{count}} يومًا",
+      "daysOverdue_other": "متأخرة {{count}} يوم",
       "partiallyPaid": "مدفوعة جزئيًا",
-      "awaitingSend": "بانتظار الإرسال",
       "settled": "مسددة"
     },
+    "invoiceCount_zero": "لا فواتير",
     "invoiceCount_one": "فاتورة واحدة",
     "invoiceCount_two": "فاتورتان",
     "invoiceCount_few": "{{count}} فواتير",
     "invoiceCount_many": "{{count}} فاتورة",
     "invoiceCount_other": "{{count}} فاتورة",
+    "line": {
+      "vat": "الرقم الضريبي {{number}}",
+      "intent": {
+        "b2b": "B2B",
+        "b2g": "B2G",
+        "b2c": "B2C"
+      },
+      "channel": {
+        "peppol": "عبر Peppol",
+        "emailPdf": "بالبريد الإلكتروني",
+        "qrReceipt": "إيصال QR"
+      }
+    },
+    "location": "{{city}}، {{country}}",
     "searchPlaceholder": "ابحث بالاسم أو الرقم الضريبي أو جهة الاتصال أو البريد...",
-    "filters": "عوامل التصفية",
     "sort": "ترتيب",
     "col": {
       "customer": "العميل",
@@ -1018,17 +1053,17 @@
       "receivable": "المستحق"
     },
     "rowMenu": "إجراءات الصف",
+    "empty": "لا يوجد عملاء يطابقون هذا البحث.",
+    "emptyDirectory": "لا يوجد عملاء بعد. أضف أول عميل لتبدأ الفوترة.",
     "showResult": "عرض النتائج:",
+    "pageSize": "عدد الصفوف في الصفحة",
+    "pages": "الصفحات",
     "prevPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
     "sortOptions": {
       "nameAsc": "الاسم أ–ي",
       "nameDesc": "الاسم ي–أ",
-      "receivableDesc": "المستحقات: من الأعلى للأقل",
-      "invoicesDesc": "الأكثر فواتير"
-    },
-    "peppolFilter": {
-      "all": "كل حالات Peppol"
+      "recent": "آخر تحديث"
     },
     "selectAll": "تحديد كل العملاء في هذه الصفحة",
     "selectRow": "تحديد {{name}}"

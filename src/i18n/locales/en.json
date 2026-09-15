@@ -965,20 +965,27 @@
   },
   "customersPage": {
     "title": "Customers",
-    "subtitle": "8 customers · OMR 217.490 receivable",
+    "subtitle_one": "{{customers}} customer · OMR {{amount}} receivable",
+    "subtitle_other": "{{customers}} customers · OMR {{amount}} receivable",
     "bulkUpload": "Bulk upload",
     "export": "Export",
+    "exporting": "Exporting…",
+    "exportTruncated": "The file stops at the export limit, so it does not hold every customer. Narrow the list by type or search and export again.",
     "newCustomer": "New customer",
     "kpi": {
       "receivables": "Receivables",
-      "receivablesMeta": "Owed by 4 customers",
+      "receivablesMeta_zero": "Nothing owed",
+      "receivablesMeta_one": "Owed by {{customers}} customer",
+      "receivablesMeta_other": "Owed by {{customers}} customers",
       "overdue": "Overdue",
-      "overdueMeta": "From 1 customer",
+      "overdueMeta_zero": "Nothing overdue",
+      "overdueMeta_one": "From {{customers}} customer",
+      "overdueMeta_other": "From {{customers}} customers",
       "customers": "Customers",
-      "customersMeta": "6 business · 1 government · 1 consumer",
+      "customersMeta": "{{business}} business · {{government}} government · {{consumer}} consumer",
       "peppolReady": "Peppol-ready",
       "peppolMeta": "Reachable for e-invoicing",
-      "ofTwelve": "of 12"
+      "peppolOf": "of {{total}}"
     },
     "tabs": {
       "all": "All",
@@ -997,15 +1004,28 @@
       "qrReceipt": "QR receipt"
     },
     "note": {
-      "daysOverdue": "{{days}} days overdue",
+      "daysOverdue_one": "{{count}} day overdue",
+      "daysOverdue_other": "{{count}} days overdue",
       "partiallyPaid": "partially paid",
-      "awaitingSend": "awaiting send",
       "settled": "Settled"
     },
     "invoiceCount_one": "{{count}} invoice",
     "invoiceCount_other": "{{count}} invoices",
+    "line": {
+      "vat": "VAT {{number}}",
+      "intent": {
+        "b2b": "B2B",
+        "b2g": "B2G",
+        "b2c": "B2C"
+      },
+      "channel": {
+        "peppol": "via Peppol",
+        "emailPdf": "by email",
+        "qrReceipt": "QR receipt"
+      }
+    },
+    "location": "{{city}}, {{country}}",
     "searchPlaceholder": "Search by name, VAT, contact, email...",
-    "filters": "Filters",
     "sort": "Sort",
     "col": {
       "customer": "Customer",
@@ -1016,17 +1036,17 @@
       "receivable": "Receivable"
     },
     "rowMenu": "Row actions",
+    "empty": "No customers match this search.",
+    "emptyDirectory": "No customers yet. Add your first customer to start invoicing.",
     "showResult": "Show result:",
+    "pageSize": "Rows per page",
+    "pages": "Pages",
     "prevPage": "Previous page",
     "nextPage": "Next page",
     "sortOptions": {
       "nameAsc": "Name A–Z",
       "nameDesc": "Name Z–A",
-      "receivableDesc": "Receivable: high to low",
-      "invoicesDesc": "Most invoices"
-    },
-    "peppolFilter": {
-      "all": "All Peppol states"
+      "recent": "Recently updated"
     },
     "selectAll": "Select all customers on this page",
     "selectRow": "Select {{name}}"
