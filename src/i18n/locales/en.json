@@ -66,8 +66,14 @@
   },
   "forgotPassword": {
     "title": "Forgot your password?",
-    "description": "No problem. Enter the email on your account and we'll send you a secure way back in.",
-    "submit": "Send reset code"
+    "description": "Enter the username you sign in with. We'll email a link to reset that account's password.",
+    "submit": "Send reset link",
+    "sending": "Sending…",
+    "sentTitle": "Check your email",
+    "sentBody": "If {{username}} is a Fawtir account, we've sent a link to reset its password to the email address on that account. The link works once and expires in {{minutes}} minutes.",
+    "backToLogin": "Back to sign in",
+    "resend": "Send another link",
+    "resendIn": "Send another link in {{time}}"
   },
   "verifyCode": {
     "title": "Enter your verification code",
@@ -86,7 +92,17 @@
     "passwordPlaceholder": "Enter a new password",
     "confirmPasswordLabel": "Confirm Password",
     "confirmPasswordPlaceholder": "Re-enter your password",
-    "submit": "Send reset code"
+    "submit": "Save new password",
+    "saving": "Saving…",
+    "missingTitle": "Open the link from your email",
+    "missingBody": "To choose a new password, open the reset link we emailed you. Links expire after {{minutes}} minutes.",
+    "linkInvalidTitle": "This link can't be used",
+    "linkInvalid": "This reset link has expired, has already been used, or was replaced by a newer one. Request a new link.",
+    "passwordRejected": "This password can't be used. Choose a strong password you haven't used recently.",
+    "requestNew": "Request a new link",
+    "doneTitle": "Password changed",
+    "doneBody": "Your new password is set, and you've been signed out on every other device.",
+    "signIn": "Sign in"
   },
   "aboutBusiness": {
     "title": "Tell us about your business",

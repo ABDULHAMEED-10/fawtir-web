@@ -140,6 +140,8 @@ FAWTIR_NOTIFICATION_FROM_ADDRESS=no-reply@fawtir.local
 FAWTIR_IDENTITY_PORTAL_ALLOWED_ORIGINS=http://localhost:5173
 FAWTIR_GATEWAY_ALLOWED_ORIGINS=http://localhost:5173
 FAWTIR_IDENTITY_OPERATOR_INVITATION_ACCEPTANCE_URL=http://localhost:5173/operator-invitation
+# The reset mail links here with the token in the fragment (needs the backend reset-link change)
+FAWTIR_IDENTITY_PASSWORD_RESET_URL=http://localhost:5173/new-password
 
 FAWTIR_IDENTITY_SIGNUP_TERMS_VERSION=local-terms-v1
 FAWTIR_IDENTITY_SIGNUP_PRIVACY_VERSION=local-privacy-v1
@@ -280,6 +282,10 @@ These passwords are synthetic and local only. Never use them anywhere else.
 
 `demo_viewer` is not created by the bootstrap. Create it once with `POST /api/v1/users` as
 `demo_admin` (it needs an `Idempotency-Key` header), using `"roleCodes": ["VIEWER"]`.
+
+**Forgot password:** enter the username (not the email) at `/forgot-password`. The mail in
+Mailpit names the account and links to `/new-password#token=…`. Open that link in the same
+browser, choose a new password, and sign in with it.
 
 ### Seed data for the screens
 
