@@ -1,0 +1,129 @@
+import { apiDownload, apiRequest, type ApiDownload } from '../client'
+import { fromSpringPage, type Page, type SpringPage } from '../page'
+import { withQuery } from '../query'
+
+/**
+ * The customer directory endpoints (`CustomerController`, `CustomerOverviewController`), in the
+ * shapes the API answers with. Screens use the mappers in `lib/customerList.ts`.
+ */
+export const CUSTOMERS_PATH = '/v1/customers'
+export const CUSTOMER_SUMMARY_PATH = `${CUSTOMERS_PATH}/summary`
+
+export type CustomerTypeDto = 'BUSINESS' | 'GOVERNMENT' | 'CONSUMER'
+export type CustomerStatusDto = 'ACTIVE' | 'ARCHIVED'
+export type CustomerSendingMethod = 'EMAIL_PDF' | 'PEPPOL' | 'QR_RECEIPT'
+/** Derived on the server from the sending method and Discovery's verification; never stored. */
+export type CustomerPeppolDelivery = 'NOT_APPLICABLE' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'REJECTED'
+export type CustomerListSort = 'RECENT' | 'NAME_ASC' | 'NAME_DESC'
+
+/** `Customer`, only the members the list reads. */
+export type CustomerDto = {
+  id: string
+  type: CustomerTypeDto
+  displayName: string
+  profile: {
+    details: { vatRegistrationNumber: string | null } | null
+    contact: { contactPerson: string | null; emailRecipients: string[] | null } | null
+    deliveryPreferences: { sendingMethod: CustomerSendingMethod | null } | null
+    invoiceAddress: { cityName: string | null; countryCode: string | null } | null
+  }
+  peppolDelivery: CustomerPeppolDelivery
+  status: CustomerStatusDto
+  updatedAt: string
+}
+
+/** `CustomerOverviewService.Summary`. */
+export type CustomerSummaryDto = {
+  currencyCode: string
+  asOf: string
+  /** Active customers; archived ones are counted apart, as the list shows active ones only. */
+  total: number
+  archived: number
+  byType: { business: number; government: number; consumer: number }
+  peppolReady: number
+  peppolEligible: number
+  receivables: {
+    outstanding: number
+    overdue: number
+    openInvoices: number
+    overdueInvoices: number
+    customersOwing: number
+    customersOverdue: number
+  }
+}
+
+/** `CustomerOverviewService.Receivable`. Absent for a customer with no issued invoice. */
+export type CustomerReceivableDto = {
+  customerId: string
+  outstanding: number
+  overdue: number
+  invoices: number
+  openInvoices: number
+  partlyPaidInvoices: number
+  oldestOverdueDueDate: string | null
+  daysOverdue: number | null
+}
+
+export type CustomerReceivablesDto = {
+  currencyCode: string
+  asOf: string
+  items: CustomerReceivableDto[]
+}
+
+export type CustomerListQuery = {
+  type: CustomerTypeDto | null
+  search: string
+  sort: CustomerListSort
+  /** Zero-based. */
+  page: number
+  size: number
+}
+
+/**
+ * The request for one page of the list. Also its identity: the same query is the same key.
+ *
+ * Always ACTIVE: the summary's tab counts are of active customers, and a list that mixed in
+ * archived ones would page past the counts it sits under.
+ */
+export function customerListPath(query: CustomerListQuery): string {
+  return withQuery(CUSTOMERS_PATH, {
+    status: 'ACTIVE',
+    type: query.type,
+    search: query.search.trim(),
+    sort: query.sort,
+    page: query.page,
+    size: query.size,
+  })
+}
+
+export async function loadCustomerPage(path: string): Promise<Page<CustomerDto>> {
+  return fromSpringPage(await apiRequest<SpringPage<CustomerDto>>(path))
+}
+
+export function loadCustomerSummary(): Promise<CustomerSummaryDto> {
+  return apiRequest<CustomerSummaryDto>(CUSTOMER_SUMMARY_PATH)
+}
+
+/** One `customer_id` per id, repeated, as the endpoint reads a list. */
+export function customerReceivablesPath(ids: string[]): string {
+  const query = new URLSearchParams()
+  for (const id of ids) query.append('customer_id', id)
+  return `${CUSTOMERS_PATH}/receivables?${query.toString()}`
+}
+
+export function loadCustomerReceivables(path: string): Promise<CustomerReceivablesDto> {
+  return apiRequest<CustomerReceivablesDto>(path)
+}
+
+export type CustomerExport = ApiDownload & {
+  /** The server stopped at its row cap; the file is not the whole directory. */
+  truncated: boolean
+}
+
+/** The CSV of the customers the list is showing: the same type, search and status. */
+export async function exportCustomers(query: Pick<CustomerListQuery, 'type' | 'search'>): Promise<CustomerExport> {
+  const file = await apiDownload(
+    withQuery(`${CUSTOMERS_PATH}/export`, { status: 'ACTIVE', type: query.type, search: query.search.trim() }),
+  )
+  return { ...file, truncated: file.headers.get('X-Fawtir-Export-Truncated') === 'true' }
+}
