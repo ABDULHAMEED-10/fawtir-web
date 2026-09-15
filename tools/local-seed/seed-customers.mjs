@@ -114,16 +114,16 @@ const CUSTOMERS = [
     invoices: [[70.4, -20, 0], [50, -5, 0], [80, -60, 80]] },
   { type: 'BUSINESS', name: 'Qurum Business Center', vat: 'OM1100337812', city: 'Muscat', contact: 'Salim Al Farsi', email: 'accounts@qurumbc.om', peppol: true, verified: true,
     invoices: [[26.2, 10, 0], [20, 25, 0], [30, -40, 30], [18, -70, 18]] },
-  { type: 'BUSINESS', name: 'Muscat Grand Hotel LLC', vat: 'OM1100447102', city: 'Muscat', contact: 'Dana Al Balushi', email: 'dana@muscatgrand.om', peppol: true, verified: true,
+  { type: 'BUSINESS', name: 'Muscat Grand Hotel LLC', vat: 'OM1100447188', city: 'Muscat', contact: 'Dana Al Balushi', email: 'dana@muscatgrand.om', peppol: true, verified: true,
     invoices: [[48.59, 14, 20], [35, -30, 35], [22, -90, 22]] },
   { type: 'BUSINESS', name: 'Bahla Fort Restaurant', vat: 'OM1100771290', city: 'Bahla', contact: 'Khalid Al Amri', email: 'khalid@bahlafort.om', peppol: false,
     invoices: [[22.3, 30, 0]] },
   { type: 'GOVERNMENT', name: 'Ministry of Tourism', vat: null, city: 'Muscat', contact: 'Procurement Office', email: 'procurement@mot.gov.om', peppol: true, verified: true,
     invoices: [[120, -45, 120], [95, -15, 95]] },
   { type: 'CONSUMER', first: 'Ahmed', last: 'Al Rawahi', city: 'Muscat', email: 'ahmed.r@example.om', invoices: [[12.5, -10, 12.5]] },
-  { type: 'BUSINESS', name: 'Sohar Port Logistics', vat: 'OM1100628391', city: 'Sohar', contact: 'Laila Al Harthy', email: 'ap@soharport.om', peppol: true, verified: false,
+  { type: 'BUSINESS', name: 'Sohar Port Logistics', vat: 'OM1100628355', city: 'Sohar', contact: 'Laila Al Harthy', email: 'ap@soharport.om', peppol: true, verified: false,
     invoices: [[410.75, -8, 100]] },
-  { type: 'BUSINESS', name: 'Nizwa Dates Company', vat: 'OM1100201477', city: 'Nizwa', contact: 'Hamed Al Kindi', email: 'hamed@nizwadates.om', peppol: false, invoices: [] },
+  { type: 'BUSINESS', name: 'Nizwa Dates Company', vat: 'OM1100201499', city: 'Nizwa', contact: 'Hamed Al Kindi', email: 'hamed@nizwadates.om', peppol: false, invoices: [] },
   { type: 'GOVERNMENT', name: 'Muscat Municipality', vat: null, city: 'Muscat', contact: 'Accounts Payable', email: 'ap@mm.gov.om', peppol: true, verified: true,
     invoices: [[640, -35, 0]] },
   { type: 'CONSUMER', first: 'Fatma', last: 'Al Busaidi', city: 'Seeb', email: 'fatma.b@example.om', invoices: [] },
@@ -146,9 +146,12 @@ const FILLER = [
   invoices: [],
 }))
 
+/** A stable number per name, for a participant id that no other seeded party holds. */
+const nameNumber = (name) => [...name].reduce((sum, ch) => (sum * 31 + ch.charCodeAt(0)) % 9_000_000, 7)
+
 function request(entry) {
   const address = { countryCode: 'OM', cityName: entry.city, countrySubentity: `${entry.city} Governorate`, streetName: 'Main Street', buildingNumber: '1', postalCode: '112' }
-  const participant = entry.peppol ? { scheme: '0248', value: entry.vat ?? `OM11${String(90_000_000 + entry.name.length * 101).padStart(8, '0')}` } : null
+  const participant = entry.peppol ? { scheme: '0248', value: entry.vat ?? `OM11${String(90_000_000 + nameNumber(entry.name)).padStart(8, '0')}` } : null
   const details =
     entry.type === 'CONSUMER'
       ? { firstName: entry.first, lastName: entry.last }
@@ -206,9 +209,17 @@ for (const entry of book) {
 }
 console.log(`Customers: ${created} created, ${book.length - created} already there.`)
 
+// Every invoice belongs to a branch, and a freshly bootstrapped tenant has none.
+const branches = await call('GET', '/v1/branches')
+if (!Array.isArray(branches) || branches.length === 0) {
+  await call('POST', '/v1/branches', {
+    json: { code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat', country: 'OM' },
+    idempotent: true,
+  })
+  console.log('Branch: created "Head office", which invoices need.')
+}
+
 let sql = `SELECT set_config('app.tenant_id', ${literal(tenantId)}, false);\n`
-sql += `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM tenant.branches WHERE tenant_id = ${literal(tenantId)}) THEN
-  RAISE EXCEPTION 'The tenant has no branch to put invoices under'; END IF; END $$;\n`
 let number = 0
 for (const entry of CUSTOMERS) {
   const customerId = known.get(displayName(entry))
