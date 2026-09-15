@@ -3,7 +3,7 @@ import { NewPasswordForm } from './NewPasswordForm'
 
 export function NewPasswordPage() {
   return (
-    <AuthLayout backTo="/verify-code" showLanguageSwitcher={false}>
+    <AuthLayout backTo="/login" showLanguageSwitcher={false}>
       <NewPasswordForm />
     </AuthLayout>
   )
