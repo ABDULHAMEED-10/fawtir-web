@@ -921,14 +921,21 @@ function build(): Ledger {
                 : 'overdue',
         paidOn: seed.paid?.on,
         method: seed.paid?.method,
+        // Only the extras that exist are named, so a bill with one extra branch does not read
+        // "0 extra people · 1 extra branches".
         coverKey:
-          seed.extras?.people || seed.extras?.branches
+          seed.extras?.people && seed.extras?.branches
             ? 'console.subscriptions.cover.planExtras'
-            : 'console.subscriptions.cover.plan',
+            : seed.extras?.people
+              ? 'console.subscriptions.cover.planPeople'
+              : seed.extras?.branches
+                ? 'console.subscriptions.cover.planBranches'
+                : 'console.subscriptions.cover.plan',
         coverValues: {
           plan: seed.plan,
           people: seed.extras?.people ?? 0,
           branches: seed.extras?.branches ?? 0,
+          count: seed.extras?.people || seed.extras?.branches || 0,
         },
       }
       if (

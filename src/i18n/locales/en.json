@@ -668,9 +668,9 @@
     "saveAnnual": "Save 2 months on annual",
     "billedMonthly": "Billed monthly",
     "billedAnnually": "Billed annually",
-    "invoicesPerMonth": "invoices / month",
+    "invoicesPerMonth": "documents / month",
     "usersIncluded": "users included",
-    "invoices": "invoices",
+    "invoices": "documents",
     "users": "users",
     "unlimited": "Unlimited",
     "getStarted": "Get started",
@@ -715,11 +715,13 @@
       "f1": "Change or cancel anytime",
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
-    }
+    },
+    "payNote": "Pay by card through a secure link, bank transfer or cash. Your account is activated by the Fawtir team once payment is confirmed.",
+    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own."
   },
   "payment": {
     "title": "Complete your subscription",
-    "description": "One last step to activate your account. You’re fully OTA-compliant the moment this is confirmed.",
+    "description": "One last step. Choose how you would like to pay — your account is activated by the Fawtir team the moment your payment is confirmed.",
     "card": {
       "title": "Card",
       "subtitle": "Debit or credit",
@@ -738,7 +740,13 @@
       "subtitle": "Proforma invoice",
       "notePrefix": "We’ll email a ",
       "noteHighlight": "proforma invoice",
-      "noteSuffix": " with our bank details. Your subscription activates automatically once the transfer is confirmed usually within 1 business day."
+      "noteSuffix": " with our bank details. Your subscription activates automatically once the transfer is confirmed usually within 1 business day.",
+      "detailsTitle": "Transfer to",
+      "accountName": "Account name",
+      "bank": "Bank",
+      "reference": "Reference",
+      "yourInvoice": "your invoice number",
+      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed — usually within one business day."
     },
     "summary": {
       "title": "Order summary",
@@ -756,7 +764,40 @@
       "renewSuffix": " — access continues to period end."
     },
     "payCta": "Pay {{amount}} & activate",
-    "bankCta": "Email me the proforma invoice"
+    "bankCta": "Email me the invoice with bank details",
+    "method": {
+      "cardLink": {
+        "title": "Card",
+        "subtitle": "Secure link · Thawani"
+      },
+      "bankTransfer": {
+        "title": "Bank transfer",
+        "subtitle": "To our account"
+      },
+      "cash": {
+        "title": "Cash",
+        "subtitle": "At our office"
+      }
+    },
+    "cardLink": {
+      "note": "Your card is entered on Thawani's secure checkout, never on Fawtir. Nothing about it is stored with us.",
+      "how": "How would you like the checkout?",
+      "via": {
+        "now": "Open it now",
+        "whatsapp": "Send me the link by WhatsApp",
+        "email": "Send me the link by email"
+      },
+      "viaNowNote": "You go to Thawani's checkout and come straight back.",
+      "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
+      "viaEmailNote": "To {{email}} · valid {{days}} days",
+      "yourPhone": "your phone",
+      "yourEmail": "your email"
+    },
+    "cash": {
+      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded — usually the same day."
+    },
+    "sendLinkCta": "Send me the payment link",
+    "cashCta": "I'll pay in cash"
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
@@ -771,7 +812,15 @@
     },
     "openPortal": "Open Fawtara portal",
     "footer": "This usually takes a few minutes. We’ll email {{email}} the moment it’s approved, you can safely close this page. Approval taking too long?",
-    "contactSupport": "Contact support"
+    "contactSupport": "Contact support",
+    "subscription": {
+      "title": "Your subscription",
+      "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
+      "cardLink": "Paid by card through Thawani — you'll be activated as soon as the payment is confirmed.",
+      "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
+      "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
+      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day."
+    }
   },
   "dashboard": {
     "searchPlaceholder": "Search invoices, customers. documents...",
@@ -961,6 +1010,16 @@
       "download": "Download the file",
       "hold": "Put on hold",
       "reject": "Reject"
+    },
+    "subscription": {
+      "open": "Open the tenant",
+      "recordPayment": "Record payment",
+      "sendLink": "Send payment link",
+      "activate": "Activate",
+      "resume": "Resume",
+      "changePlan": "Change plan",
+      "suspend": "Suspend",
+      "download": "Download"
     }
   },
   "customersPage": {
@@ -6960,9 +7019,9 @@
       "planPill": "Overage off",
       "planFoot": "Business plan · resets {{date}}",
       "billsTitle": "Bills and payment",
-      "billsBody": "Every invoice Fawtir has sent you, and the card it's charged to.",
+      "billsBody": "Every invoice Fawtir has sent you, and how you pay them.",
       "billsPill": "Paid up",
-      "billsFoot": "Visa ending {{last4}}",
+      "billsFoot": "{{method}}",
       "logTitle": "Activity log",
       "logBody": "Every change anyone made, including through the API.",
       "logPill": "Kept {{years}} years",
@@ -7578,7 +7637,7 @@
     "title": "Plan and usage",
     "subtitle": "What you're paying for, how much of it you've used, and what happens if you run out",
     "billsAndPayment": "Bills and payment",
-    "invoicesThisMonth": "Invoices this month",
+    "invoicesThisMonth": "Documents this month",
     "runOutHeadline": "You'll run out around {{date}}",
     "comfortableHeadline": "You have room to the end of the month",
     "runOutBody": "You're raising about <b>{{perDay}} a day</b> and there are <b>{{days}} days left</b> in the month. That's roughly <b>{{short}} more than you have</b>. Overage is switched off, so the invoices after {{allowance}} would be <b>refused rather than charged for</b>.",
@@ -7605,7 +7664,7 @@
     "fitsYouBetter": "Fits you better",
     "perMonth": "/ month",
     "feature": {
-      "invoices": "{{count}} invoices a month",
+      "invoices": "{{count}} documents a month",
       "people_one": "{{count}} person",
       "people_other": "{{count}} people",
       "peopleThen_one": "{{count}} person, then OMR {{amount}} each",
@@ -7637,25 +7696,29 @@
   },
   "bills": {
     "title": "Bills and payment",
-    "subtitle": "Every invoice Fawtir has sent you, and the card it's charged to",
+    "subtitle": "Every invoice Fawtir has sent you, and how you pay them",
     "planAndUsage": "Plan and usage",
     "downloadAll": "Download them all",
     "yourNextBill": "Your next bill",
     "inDays_one": "in {{count}} day",
     "inDays_other": "in {{count}} days",
-    "nothingExtra": "Nothing extra this month — you're within the plan on both invoices and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
+    "nothingExtra": "Nothing extra this month — you're within the plan on both documents and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
     "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on the {{day}}.",
     "line": {
       "plan": "{{plan}} plan",
-      "planNote": "{{invoices}} invoices · {{people}} people · {{branches}} branches",
+      "planNote": "{{invoices}} documents · {{people}} people · {{branches}} branches",
       "extraPeople": "Extra people",
       "extraPeopleNone": "None beyond the five included",
       "extraPeopleSome": "{{count}} beyond the five included",
-      "overage": "Invoices beyond the plan",
+      "overage": "Documents beyond the plan",
       "overageOff": "Overage is switched off, so nothing can accrue here",
-      "overageOn": "Charged at OMR {{rate}} each past the allowance"
+      "overageOn": "Charged at OMR {{rate}} each past the allowance",
+      "extraBranches": "Extra branches",
+      "extraBranchesNone": "None beyond the {{included}} included",
+      "extraBranchesSome_one": "{{count}} beyond the {{included}} included, at OMR {{each}} a month",
+      "extraBranchesSome_other": "{{count}} beyond the {{included}} included, at OMR {{each}} each a month"
     },
-    "chargedOn": "Charged on {{date}}",
+    "chargedOn": "Due on {{date}}",
     "default": "Default",
     "cardholder": "Cardholder",
     "expires": "Expires",
@@ -7682,9 +7745,9 @@
       "may": "May",
       "april": "April"
     },
-    "coveredPlanPeople": "Business plan · {{people}} people",
-    "coveredPlanPeopleExtra": "Business plan · {{people}} people · {{extra}} extra",
-    "coveredRetried": "Business plan · retried on {{date}}",
+    "coveredPlanPeople": "Business plan · {{people}} people · 1 extra branch",
+    "coveredPlanPeopleExtra": "Business plan · {{people}} people · {{extra}} extra person · 1 extra branch",
+    "coveredRetried": "Business plan · 1 extra branch · link expired, paid by transfer on {{date}}",
     "paid": "Paid",
     "paidLate": "Paid late",
     "downloadBill": "Download this bill",
@@ -7692,6 +7755,45 @@
       "view": "View it",
       "download": "Download the PDF",
       "receipt": "Email me a receipt"
+    },
+    "method": {
+      "cardLink": "Card by secure link",
+      "bankTransfer": "Bank transfer",
+      "cash": "Cash",
+      "cheque": "Cheque"
+    },
+    "methodHint": {
+      "cardLink": "Thawani checkout · nothing stored with us",
+      "bankTransfer": "Bank Muscat · quote the invoice number",
+      "cash": "At Fawtir's office or to your representative",
+      "cheque": "Made out to Insight Technology LLC"
+    },
+    "confirmedBy": {
+      "thawani": "Paid by link · confirmed by Thawani {{date}}",
+      "fawtir": "Confirmed by the Fawtir team {{date}}"
+    },
+    "pay": {
+      "title": "How you pay",
+      "intro": "Choose how you would usually like to settle each bill. The other ways stay open.",
+      "preferred": "Preferred way to pay",
+      "byWhatsApp": "WhatsApp on {{phone}}",
+      "byEmail": "{{email}}",
+      "linkArrives": "Your payment link arrives by {{to}} on {{date}}. Want it sooner?",
+      "linkSentNow": "Link sent by {{to}} — valid {{days}} days. Nothing is charged until you pay it.",
+      "payNow": "Send the link now",
+      "next": {
+        "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives — usually within a business day.",
+        "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded — usually the same day.",
+        "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
+      },
+      "linkTitle": "Card by secure link",
+      "linkNote": "A Thawani link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
+      "transferTitle": "Bank transfer",
+      "transferNote": "Reference: {{reference}}. Activated by the Fawtir team once the transfer is confirmed.",
+      "copyIban": "Copy the IBAN",
+      "copied": "Copied",
+      "cashTitle": "Cash or cheque",
+      "cashNote": "At Fawtir's office in Muscat or to your representative. Recorded by the Fawtir team, then activated."
     }
   },
   "activityLog": {
@@ -9471,7 +9573,11 @@
       },
       "cover": {
         "plan": "{{plan}} plan",
-        "planExtras": "{{plan}} plan · {{people}} extra people · {{branches}} extra branches"
+        "planExtras": "{{plan}} plan · {{people}} extra people · {{branches}} extra branches",
+        "planPeople_one": "{{plan}} plan · {{count}} extra person",
+        "planPeople_other": "{{plan}} plan · {{count}} extra people",
+        "planBranches_one": "{{plan}} plan · {{count}} extra branch",
+        "planBranches_other": "{{plan}} plan · {{count}} extra branches"
       },
       "event": {
         "paymentRecorded": "Payment recorded — {{method}}, OMR {{amount}}",
@@ -9486,6 +9592,714 @@
         "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}} — {{reason}}",
         "quotaGranted": "{{documents}} extra documents until {{expires}} — {{reason}}",
         "overageWaived": "Overage of OMR {{amount}} waived — {{reason}}"
+      },
+      "queue": {
+        "title": "Subscriptions",
+        "subtitle": "Every subscription on the platform · {{awaiting}} awaiting payment, {{grace}} in grace",
+        "invoicesLink": "Subscription invoices",
+        "settingsLink": "Console settings",
+        "kpi": {
+          "awaiting": "Awaiting payment",
+          "awaitingNote": "OMR {{amount}} due across the open invoices",
+          "grace": "In grace",
+          "graceNote": "Suspended after {{days}} days if nothing arrives",
+          "trials": "Trials ending",
+          "trialsOf": "of {{total}}",
+          "trialsNote": "In the next 7 days · an operator activates them, never the system",
+          "collected": "Collected this month",
+          "collectedNote_one": "{{count}} payment recorded in {{month}}",
+          "collectedNote_other": "{{count}} payments recorded in {{month}}"
+        },
+        "tab": {
+          "all": "All"
+        },
+        "searchPlaceholder": "Tenant name, VAT number or town…",
+        "filter": {
+          "plan": "Plan",
+          "planAll": "Any plan",
+          "method": "Method",
+          "methodAll": "Any method",
+          "term": "Term",
+          "termAll": "Any term"
+        },
+        "sort": {
+          "queue": "Needs a person first",
+          "periodEnd": "Period end, soonest",
+          "amountDue": "Amount due, largest",
+          "name": "Name A–Z"
+        },
+        "col": {
+          "tenant": "Tenant",
+          "plan": "Plan",
+          "state": "State",
+          "amountDue": "Amount due",
+          "method": "Method",
+          "lastPayment": "Last payment"
+        },
+        "vat": "VAT",
+        "detail": {
+          "due": "Due {{date}}",
+          "dueToday": "Due today",
+          "overdue_one": "Overdue {{count}} day",
+          "overdue_other": "Overdue {{count}} days",
+          "grace": "Day {{day}} of {{days}} · suspends {{date}}",
+          "trialEnds_one": "Ends in {{count}} day · {{used}} of {{allowance}} used",
+          "trialEnds_other": "Ends in {{count}} days · {{used}} of {{allowance}} used",
+          "trialEndsToday": "Ends today · {{used}} of {{allowance}} used",
+          "renews": "Renews {{date}}",
+          "moving": "Moving to {{plan}} on {{date}}",
+          "suspended": "Since {{date}} · read-only",
+          "cancelled": "Since {{date}} · runs to {{until}}"
+        },
+        "noPayment": "None yet",
+        "noResults": "No subscription matches that.",
+        "rowMenu": "More for this subscription",
+        "showing": "Showing {{shown}} of {{total}} {{tab}}",
+        "showingAll": "Showing {{shown}} of {{total}}",
+        "showingSome": "Showing the {{shown}} you might need to open · {{total}} {{tab}} in total",
+        "showingSomeAll": "Showing the {{shown}} you might need to open · {{total}} on the platform",
+        "allCount": "{{count}} on the platform in total"
+      },
+      "invoices": {
+        "title": "Subscription invoices",
+        "subtitle": "Every FWT invoice across tenants · {{unpaid}} unpaid, {{overdue}} overdue",
+        "kpi": {
+          "unpaid": "Unpaid",
+          "unpaidNote": "OMR {{amount}} not yet in",
+          "overdue": "Overdue",
+          "overdueNote": "OMR {{amount}} past due · fourteen days of grace run from the due date",
+          "paid": "Paid this month",
+          "paidNote_one": "{{count}} invoice settled in {{month}}",
+          "paidNote_other": "{{count}} invoices settled in {{month}}",
+          "waived": "Waived",
+          "waivedNote": "Written off, with the reason in the tenant's history"
+        },
+        "tab": {
+          "all": "All"
+        },
+        "searchPlaceholder": "Invoice number or tenant…",
+        "sort": {
+          "issued": "Issued, newest",
+          "due": "Due, soonest",
+          "total": "Total, largest"
+        },
+        "col": {
+          "invoice": "Invoice",
+          "tenant": "Tenant",
+          "period": "Period",
+          "amount": "Amount",
+          "total": "Total",
+          "status": "Status",
+          "paid": "Paid · due"
+        },
+        "exVat": "ex VAT",
+        "plusVat": "incl. OMR {{vat}} VAT",
+        "paidOn": "Paid {{date}}",
+        "due": "Due {{date}}",
+        "dueToday": "Due today",
+        "overdue_one": "Overdue {{count}} day",
+        "overdue_other": "Overdue {{count}} days",
+        "noResults": "No invoice matches that.",
+        "rowMenu": "More for this invoice",
+        "showing": "Showing {{shown}} of {{total}} {{tab}}",
+        "showingAll": "Showing {{shown}} of {{total}}",
+        "allCount": "{{count}} subscription invoices in total",
+        "issued": "Issued {{date}}"
+      }
+    },
+    "tenantDetail": {
+      "notFound": "No tenant with that id. It may have been closed, or the link is out of date.",
+      "notFoundBack": "Back to tenants",
+      "backTenants": "Tenants",
+      "backSubscriptions": "Subscriptions",
+      "planChip": "{{plan}} · {{term}}",
+      "since": "{{state}} since {{date}}",
+      "actions": {
+        "recordPayment": "Record payment",
+        "sendLink": "Send payment link",
+        "activate": "Activate",
+        "changePlan": "Change plan",
+        "suspend": "Suspend",
+        "resume": "Resume",
+        "cancel": "Cancel the subscription",
+        "grantQuota": "Grant temporary quota",
+        "waiveOverage": "Waive overage on a bill",
+        "more": "More actions"
+      },
+      "tabs": {
+        "subscription": "Subscription",
+        "filing": "Filing",
+        "erp": "ERP"
+      },
+      "filing": {
+        "noData": "No filing data yet — this tenant has not filed through the platform this week.",
+        "billed": "Billed this month"
+      },
+      "erp": {
+        "notBuilt": "ERP mapping for this tenant is not built yet."
+      },
+      "plan": {
+        "title": "Plan and terms",
+        "plan": "Plan",
+        "term": "Billing term",
+        "price": "Price for the period",
+        "priceValue": "OMR {{amount}} excl. VAT",
+        "documents": "Documents a month",
+        "people": "People included",
+        "branches": "Branches included",
+        "unlimited": "Unlimited",
+        "overageRate": "Overage per document",
+        "grandfathered": "Grandfathered since {{date}} — keeps this price until the plan changes",
+        "scheduled": "Moving to {{plan}}, {{term}} on {{date}}",
+        "contract": "Contract",
+        "contractValue": "{{from}} → {{to}}",
+        "sla": "SLA"
+      },
+      "period": {
+        "title": "This period",
+        "period": "Period",
+        "range": "{{from}} → {{to}}",
+        "renewsOn": "Renews on {{date}}",
+        "dueOn": "Due on {{date}}",
+        "overdueBy_one": "Due on {{date}} · {{count}} day overdue",
+        "overdueBy_other": "Due on {{date}} · {{count}} days overdue",
+        "trialEnds": "Trial ends on {{date}}",
+        "daysLeft_one": "{{count}} day left",
+        "daysLeft_other": "{{count}} days left",
+        "trialAllowance": "{{documents}} documents in the trial, no card",
+        "suspendedSince": "Suspended since {{date}} — read-only, the compliance record stays open",
+        "cancelledOn": "Cancelled on {{date}} · access ran to {{until}}",
+        "grace": "Day {{day}} of {{total}} of grace · suspends on {{date}}",
+        "amountDue": "Amount due",
+        "nothingDue": "Nothing due",
+        "usage": "Usage",
+        "documents": "Documents",
+        "people": "People",
+        "branches": "Branches",
+        "ofAllowance": "{{used}} of {{allowance}}",
+        "overageOn": "Overage on — documents past the allowance are billed at the plan's rate",
+        "overageOff": "Overage off — filing stops at the allowance",
+        "grant": "+{{documents}} granted until {{date}} — {{reason}}"
+      },
+      "invoices": {
+        "title": "Subscription invoices",
+        "col": {
+          "number": "Number",
+          "period": "Period",
+          "total": "Total",
+          "status": "Status",
+          "paid": "Paid on",
+          "download": ""
+        },
+        "paidVia": "{{date}} · {{method}}",
+        "notPaid": "—",
+        "download": "Download",
+        "empty": "No invoices yet — a trial has no invoice until it is activated."
+      },
+      "payments": {
+        "title": "Payments",
+        "col": {
+          "date": "Date",
+          "method": "Method",
+          "amount": "Amount",
+          "reference": "Reference",
+          "confirmedBy": "Confirmed by",
+          "note": "Note"
+        },
+        "empty": "No payment recorded yet."
+      },
+      "links": {
+        "title": "Payment links",
+        "sent": "Sent {{when}} by {{by}}",
+        "expires": "Expires {{date}}",
+        "resend": "Resend",
+        "send": "Send a link",
+        "empty": "No payment link has been sent for this period."
+      },
+      "pay": {
+        "title": "How they pay",
+        "preferred": "Preferred method",
+        "contact": "Contact",
+        "bank": {
+          "title": "Bank details they were given",
+          "accountName": "Account name",
+          "bank": "Bank",
+          "iban": "IBAN",
+          "reference": "Reference to quote"
+        }
+      },
+      "activity": {
+        "title": "Activity",
+        "empty": "Nothing has happened yet.",
+        "by": "{{by}} · {{when}}"
+      },
+      "done": {
+        "recorded": "Payment recorded — {{tenant}} is active until {{date}}",
+        "recordedOnly": "Payment recorded for {{tenant}} — the subscription was left as it was",
+        "linkSent": "Payment link sent by {{channel}} to {{contact}}",
+        "activated": "{{tenant}} is active until {{date}}",
+        "planChanged": "{{tenant}} is now on {{plan}}, {{term}}",
+        "planScheduled": "{{tenant}} moves to {{plan}}, {{term}} on {{date}}",
+        "suspended": "{{tenant}} is suspended — read-only until it is resumed",
+        "resumed": "{{tenant}} is active again",
+        "cancelled": "{{tenant}}'s subscription is cancelled — paid features run to {{date}}",
+        "quotaGranted": "{{documents}} extra documents granted to {{tenant}} until {{date}}",
+        "overageWaived": "OMR {{amount}} waived on {{invoice}}"
+      }
+    },
+    "subscriptionActions": {
+      "common": {
+        "invoice": "Invoice",
+        "invoiceHint": "{{period}} · OMR {{total}}",
+        "noOpenInvoice": "There is no unpaid invoice to act on — nothing is due for this period.",
+        "plan": "Plan",
+        "term": "Billing term",
+        "reason": "Reason",
+        "reasonPlaceholder": "Goes on the record with your name and the time",
+        "note": "Note",
+        "notePlaceholder": "Anything the next person should know",
+        "excludingVat": "excl. VAT",
+        "includingVat": "incl. VAT"
+      },
+      "error": {
+        "amount": "Enter an amount above zero",
+        "amountOver": "More than the invoice's amount before VAT",
+        "future": "This date is in the future",
+        "past": "Choose a date after today",
+        "samePlan": "Choose a different plan or term",
+        "documents": "Enter how many extra documents"
+      },
+      "recordPayment": {
+        "title": "Record a payment",
+        "subtitle": "{{tenant}} · confirmed by {{operator}}",
+        "method": "How it arrived",
+        "amount": "Amount received",
+        "receivedOn": "Received on",
+        "reference": {
+          "bankTransfer": "Transfer reference",
+          "cheque": "Cheque number and bank",
+          "cash": "Receipt number",
+          "cardLink": "Thawani transaction id"
+        },
+        "proof": "Proof",
+        "proofHint": "Optional — a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
+        "proofDrop": "Drop a file here, or click to choose one",
+        "proofRemove": "Remove",
+        "activate": "Activate the subscription for this period now",
+        "submit": "Record payment"
+      },
+      "sendLink": {
+        "title": "Send a payment link",
+        "subtitle": "A Thawani checkout for {{tenant}} — the console keeps the link and its status",
+        "channel": "Send it by",
+        "whatsapp": {
+          "title": "WhatsApp",
+          "description": "Opens a chat with {{phone}}, message filled in"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Opens a draft to {{email}}"
+        },
+        "copied": {
+          "title": "Copy the link",
+          "description": "To paste anywhere else"
+        },
+        "preview": "Message",
+        "previewLink": "the payment link",
+        "validDays_one": "Valid {{count}} day from sending",
+        "validDays_other": "Valid {{count}} days from sending",
+        "submit": {
+          "whatsapp": "Open WhatsApp",
+          "email": "Open email",
+          "copied": "Copy link"
+        },
+        "sentTitle": "Link sent",
+        "sentBody": "Shown as Not paid yet until Thawani confirms the card payment, or it expires on {{date}}.",
+        "copy": "Copy",
+        "copiedNow": "Copied",
+        "done": "Done",
+        "emailSubject": "Your Fawtir subscription — {{plan}}"
+      },
+      "activate": {
+        "title": "Activate without a payment",
+        "subtitle": "For a pilot, a plan that includes Fawtir, or a trial extension — the reason goes on the record.",
+        "startDate": "Start date",
+        "quick": {
+          "pilot": "Pilot",
+          "planIncluded": "Included in a plan",
+          "trialExtension": "Trial extension"
+        },
+        "periodEnd": "Active until",
+        "wouldBill": "Would normally bill",
+        "submit": "Activate"
+      },
+      "changePlan": {
+        "title": "Change plan",
+        "subtitle": "{{tenant}} is on {{plan}}, {{term}}",
+        "newPlan": "New plan",
+        "when": "When",
+        "now": {
+          "title": "Now, pro rata",
+          "description": "The difference is billed for the rest of this period"
+        },
+        "periodEnd": {
+          "title": "At the end of the period",
+          "description": "On {{date}} — nothing changes until then"
+        },
+        "enterpriseNote": "Enterprise terms — price, band, seats — are set on the Enterprise panel, not here.",
+        "newPrice": "New price for the period",
+        "submit": "Change plan"
+      },
+      "suspend": {
+        "title": "Suspend the subscription",
+        "body": "The account goes read-only at once: no new documents, but everything already filed stays open for compliance. Resume from this page when the matter is settled.",
+        "submit": "Suspend"
+      },
+      "resume": {
+        "title": "Resume the subscription",
+        "body": "The account comes back to Active for the rest of its period, with the same plan and terms.",
+        "submit": "Resume"
+      },
+      "cancel": {
+        "title": "Cancel the subscription",
+        "body": "Paid features run to the end of the period, then the account goes read-only. The compliance record stays open. This is not reversible from here.",
+        "submit": "Cancel the subscription"
+      },
+      "grantQuota": {
+        "title": "Grant temporary quota",
+        "subtitle": "Extra documents on top of the plan's allowance, until a date you choose",
+        "documents": "Extra documents",
+        "expires": "Expires",
+        "submit": "Grant"
+      },
+      "waiveOverage": {
+        "title": "Waive overage on a bill",
+        "subtitle": "Takes the amount off the invoice before VAT; the reason goes on the record",
+        "amount": "Amount to waive",
+        "onInvoice": "Invoice amount before VAT: OMR {{amount}}",
+        "submit": "Waive"
+      }
+    },
+    "settings": {
+      "title": "Console settings",
+      "subtitle": "Every value the platform runs on, changed here without a release. Prices live in Plans and rates.",
+      "plansLink": "Plans and rates",
+      "sectionsLabel": "Settings sections",
+      "unsaved": "Unsaved changes",
+      "save": "Save",
+      "reset": "Reset to defaults",
+      "savedBy": "Saved by {{by}} · {{when}}",
+      "nav": {
+        "billing": "Billing",
+        "counting": "Counting rules",
+        "overage": "Overage",
+        "lifecycle": "Trial and lifecycle",
+        "notices": "Notices",
+        "addons": "Add-ons",
+        "payments": "Payments",
+        "promotional": "Promotional",
+        "operations": "Operations",
+        "fixed": "Fixed by design"
+      },
+      "section": {
+        "billing": {
+          "title": "Billing",
+          "note": "How subscription invoices are raised: the tax on them, when the period starts and the series they are numbered in."
+        },
+        "counting": {
+          "title": "Counting rules",
+          "note": "Which documents draw on a plan's allowance, and when. A kind that does not count is still stored, sent and kept for the retention period."
+        },
+        "overage": {
+          "title": "Overage",
+          "note": "What happens when a tenant passes its allowance: whether extra documents may go through at a per-document rate, and how far."
+        },
+        "lifecycle": {
+          "title": "Trial and lifecycle",
+          "note": "The trial every new tenant starts on, and what happens at renewal, on a failed payment, at cancellation and on a change of plan."
+        },
+        "notices": {
+          "title": "Notices",
+          "note": "When a tenant is told it is nearing its allowance, who is told, and how."
+        },
+        "addons": {
+          "title": "Add-ons",
+          "note": "What is offered on top of a plan and what it costs. ERP field mapping is part of every plan; automatic extraction is the paid step."
+        },
+        "payments": {
+          "title": "Payments",
+          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Thawani; the other methods are settled by an operator."
+        },
+        "promotional": {
+          "title": "Promotional",
+          "note": "None at launch. The switches are here so the rules exist before the first campaign does."
+        },
+        "operations": {
+          "title": "Operations",
+          "note": "What an operator may do for one tenant from its detail page. Every action is recorded with a reason."
+        }
+      },
+      "error": {
+        "required": "Required",
+        "number": "Enter a number",
+        "integer": "Enter a whole number",
+        "percent": "Between 0 and 100",
+        "between": "Out of range",
+        "nonNegative": "0 or more",
+        "atLeastOne": "At least 1",
+        "wholeBetween": "A whole number from {{min}} to {{max}}",
+        "wholeFrom": "A whole number from {{min}}",
+        "duplicate": "Already in the list",
+        "noticeBeyondGrace": "A notice day is later than the grace period",
+        "noThreshold": "Add at least one threshold",
+        "noChannel": "Keep at least one channel on"
+      },
+      "dayList": {
+        "none": "None",
+        "remove": "Remove {{value}}",
+        "inputLabel": "Add to {{label}}",
+        "add": "Add",
+        "day": "day {{day}}",
+        "percent": "{{value}} %"
+      },
+      "billing": {
+        "currency": "Currency",
+        "currencyNote": "The platform bills in rial only; a second currency would need its own tax treatment and a release.",
+        "currencyValue": "Omani rial",
+        "vatRate": "VAT on subscription invoices",
+        "vatRateHint": "Applied to every subscription invoice the platform raises.",
+        "minimumTerm": "Minimum contract term (months)",
+        "minimumTermHint": "0 means no minimum on monthly billing.",
+        "billingAnchor": "Billing anchor",
+        "billingAnchorHint": "The day each billing period starts.",
+        "anchor": {
+          "signup": "Signup date",
+          "firstOfMonth": "First of the month"
+        },
+        "invoiceSeries": "Subscription invoice series prefix",
+        "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
+        "pricesExclusive": "Prices shown exclusive of VAT",
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
+      },
+      "counting": {
+        "kind": "Document kind",
+        "counts": "Counts",
+        "doesNotCount": "Does not count",
+        "rule": {
+          "issued": "Invoice, credit note or debit note issued",
+          "selfBilling": "Self-billing invoice or credit note",
+          "received": "Invoice or credit note received",
+          "tradeOverPeppol": "Trade document sent over Peppol",
+          "tradeHeld": "Trade document held in the platform",
+          "posSimplified": "Point of sale simplified invoice",
+          "receiptNoTax": "Receipt carrying no tax",
+          "draft": "Draft",
+          "voided": "Voided before transmission",
+          "failedValidation": "Failed the platform's own validation",
+          "rejectedByOta": "Rejected by the Tax Authority",
+          "resubmission": "Resubmission"
+        },
+        "ruleNote": {
+          "issued": "A tax document the tenant sends to a customer.",
+          "selfBilling": "Issued by the buyer on the seller's behalf.",
+          "received": "A tax document that arrives from a supplier.",
+          "tradeOverPeppol": "Orders, despatch advice and the like, transmitted.",
+          "tradeHeld": "The same, kept in the platform but never sent.",
+          "posSimplified": "A till receipt that is a tax document.",
+          "receiptNoTax": "A till receipt with no tax on it.",
+          "draft": "Not yet issued.",
+          "voided": "Cancelled before it was transmitted.",
+          "failedValidation": "Never left the platform.",
+          "rejectedByOta": "Transmitted and refused — the attempt still counts.",
+          "resubmission": "Counts again, as a fresh transmission."
+        },
+        "consumedAt": "Quota consumed at",
+        "consumedAtHint": "When a document is deducted from the allowance.",
+        "consumed": {
+          "transmission": "Successful transmission",
+          "creation": "Creation"
+        },
+        "pools": "Allowance pools across the period",
+        "poolsNote": "The whole period's allowance is available from day one, rather than a share of it each day or week."
+      },
+      "overage": {
+        "permitted": "Overage permitted",
+        "permittedNote": "Off, the platform stops at the allowance for every tenant.",
+        "enabledByDefault": "Enabled by default for new tenants",
+        "enabledByDefaultNote": "A new tenant starts with overage on; it can be turned off per tenant.",
+        "hardCeiling": "Hard ceiling (documents)",
+        "hardCeilingHint": "The most a tenant may go past its allowance in a period. Leave empty for no ceiling.",
+        "ratesNote": "The rate per document is set per plan in"
+      },
+      "lifecycle": {
+        "trialGroup": "Trial",
+        "defaultPlan": "Default plan for a new tenant",
+        "defaultPlanHint": "What a tenant is on the moment it signs up.",
+        "theTrial": "The trial",
+        "trialMirrors": "Trial mirrors",
+        "trialMirrorsHint": "The plan whose features the trial carries.",
+        "trialDays": "Trial length (days)",
+        "trialDocuments": "Trial allowance (documents)",
+        "trialDocumentsHint": "Documents the trial may transmit in total.",
+        "trialAutoConverts": "Trial auto-converts",
+        "trialAutoConvertsNote": "On, the trial becomes a paid subscription when it ends. Off, the tenant chooses a plan.",
+        "trialNeedsPaymentDetails": "Payment details required for the trial",
+        "trialNeedsPaymentDetailsNote": "Off, a tenant starts the trial with nothing but an account.",
+        "renewalGroup": "Renewal and cancellation",
+        "autoRenewal": "Auto-renewal",
+        "autoRenewalNote": "A subscription renews for another period unless it has been cancelled.",
+        "graceDays": "Grace after a failed payment (days)",
+        "graceDaysHint": "The account stays live this long after a payment fails.",
+        "graceNotices": "Notices within the grace period",
+        "graceNoticesHint": "The days on which the tenant is reminded, counted from the failed payment.",
+        "cancellationNotice": "Cancellation notice period (days)",
+        "cancellationNoticeHint": "0 means none: a cancellation takes effect at the end of the period.",
+        "refund": "Refund on mid-period cancellation",
+        "refundNote": "Off, the period runs to its end and nothing is returned.",
+        "changesGroup": "Changes of plan",
+        "upgrade": "Upgrade",
+        "upgradeOption": {
+          "immediateProRata": "Immediate, pro rata",
+          "periodEnd": "At the end of the period"
+        },
+        "downgrade": "Downgrade",
+        "downgradeOption": {
+          "periodEnd": "At the end of the period",
+          "immediate": "Immediate"
+        },
+        "whileSuspended": "While suspended",
+        "whileSuspendedHint": "The compliance record stays accessible either way.",
+        "suspendedOption": {
+          "readOnly": "Read-only: documents viewable and downloadable",
+          "locked": "Locked"
+        }
+      },
+      "notices": {
+        "thresholds": "Thresholds",
+        "thresholdsHint": "Share of the allowance used at which a notice goes out.",
+        "recipients": "Recipients",
+        "recipientOption": {
+          "ownerAndAdmins": "Account owner and administrators",
+          "ownerOnly": "Account owner only",
+          "everyone": "Everyone with a login"
+        },
+        "language": "Language",
+        "languageHint": "Which language the notice is written in.",
+        "languageOption": {
+          "customer": "The customer's chosen language",
+          "en": "English",
+          "ar": "Arabic"
+        },
+        "channels": "Channels",
+        "channel": {
+          "email": "Email",
+          "emailNote": "Sent to each recipient's address.",
+          "inApp": "In-app",
+          "inAppNote": "Shown in the notifications panel and on the plan page."
+        }
+      },
+      "addons": {
+        "erpMapping": "ERP field mapping",
+        "erpMappingNote": "Mapping the tenant's ERP fields to the platform's is part of onboarding, not an extra.",
+        "includedEveryPlan": "Included on every plan",
+        "extractionGroup": "Automatic ERP extraction",
+        "extractionPrice": "Price per month",
+        "extractionPriceHint": "Excluding VAT.",
+        "extractionDocuments": "Documents included per month",
+        "extractionDocumentsHint": "Extracted documents, not the plan allowance.",
+        "extractionOverage": "Overage per document",
+        "extractionOverageHint": "Charged past the included documents.",
+        "includedAt": "Included at",
+        "includedAtHint": "The plan level that gets extraction without the add-on price.",
+        "includedAtNone": "None — always an add-on",
+        "posGroup": "Point of sale",
+        "pos": "Point of sale",
+        "posNote": "No separate plan and no terminal charge — POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
+        "posValue": "No separate plan"
+      },
+      "payments": {
+        "provider": {
+          "thawani": "Thawani",
+          "publishableKey": "Publishable key",
+          "keysNote": "The keys are held by the backend; the console never sees the secret. Switching mode changes which key the backend uses.",
+          "modeLabel": "Provider mode"
+        },
+        "mode": {
+          "test": "Test",
+          "live": "Live"
+        },
+        "methodsGroup": "Methods accepted",
+        "method": {
+          "cardLink": "Card by payment link",
+          "bankTransfer": "Bank transfer",
+          "cash": "Cash",
+          "cheque": "Cheque"
+        },
+        "methodNote": {
+          "cardLink": "A Thawani link on the invoice and in the WhatsApp message.",
+          "bankTransfer": "The bank details below are printed on the invoice.",
+          "cash": "Settled by an operator, with a reference.",
+          "cheque": "Settled by an operator once the cheque clears."
+        },
+        "bankGroup": "Bank details shown to customers",
+        "bank": {
+          "accountName": "Account name",
+          "bank": "Bank",
+          "iban": "IBAN",
+          "referenceFormat": "Reference format",
+          "referenceFormatHint": "{invoice} is replaced by the invoice number."
+        },
+        "activationGroup": "Payment links and activation",
+        "linkExpiry": "Payment link expiry (days)",
+        "linkExpiryHint": "After this a fresh link has to be sent.",
+        "reminderDays": "Reminders for an unpaid subscription invoice",
+        "reminderDaysHint": "Days after the invoice date. The grace notices follow once a payment has failed.",
+        "autoActivate": "Auto-activate on online payment",
+        "autoActivateNote": "Off: a Thawani payment shows as paid and an operator activates the account. On: the account activates itself the moment Thawani confirms.",
+        "proofRequired": "Proof required for cash and cheque",
+        "proofRequiredNote": "Off, a reference is enough. On, an operator must attach the receipt or cheque image before the invoice is marked paid.",
+        "templatesGroup": "WhatsApp message templates",
+        "templatesNote": "Sent with the invoice. Click a placeholder to add it; the backend fills them in when the message goes out.",
+        "template": {
+          "en": "English",
+          "ar": "Arabic"
+        },
+        "insertPlaceholder": "Insert placeholder"
+      },
+      "promotional": {
+        "discountCodes": "Discount codes",
+        "discountCodesNote": "A code entered at checkout that takes a share off the first period or every period.",
+        "referralCommission": "Referral or partner commission",
+        "referralCommissionNote": "A share of a referred tenant's subscription paid to the referrer.",
+        "introductoryPricing": "Introductory pricing",
+        "introductoryPricingNote": "A lower price for the first periods of a new subscription.",
+        "noneAtLaunch": "None at launch. Turning one on has no effect until its rules are written."
+      },
+      "operations": {
+        "temporaryQuotaGrant": "Temporary quota grant by an operator",
+        "temporaryQuotaGrantNote": "Permitted and recorded. Extra documents for one period, with a reason and an expiry.",
+        "overageWaiver": "Overage waiver on a single bill",
+        "overageWaiverNote": "Permitted and recorded. The overage line on one subscription invoice is written off, with a reason.",
+        "grandfathering": "Grandfathering",
+        "grandfatheringNote": "Existing customers keep their price until they change plan.",
+        "recordedNote": "Each of these is done from the tenant's detail page, and every action lands on its record with the operator's name and reason."
+      },
+      "fixed": {
+        "title": "Fixed by design",
+        "note": "Four positions the platform takes that no setting can change.",
+        "item": {
+          "retention": "Document retention",
+          "complianceRecord": "Access to the compliance record",
+          "complianceFeatures": "Compliance features",
+          "livePlanChange": "Change to a live plan"
+        },
+        "position": {
+          "retention": "10 years; 15 where the records relate to real estate.",
+          "complianceRecord": "Always, including while the account is suspended.",
+          "complianceFeatures": "Never gated; on every plan.",
+          "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
+        },
+        "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate — so they are listed here, and nowhere else."
       }
     }
   },

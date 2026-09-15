@@ -8,7 +8,7 @@ import { BOOK, COMPANY, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } f
 import { PLATFORM_SETTINGS } from './platformSettings'
 import { MEMBERS, SEATS } from './settingsPeople'
 import { OPEN_BRANCHES } from './settingsCompany'
-import { CATALOGUE, type PlanId } from './plans'
+import { CATALOGUE, PLAN, type PlanId } from './plans'
 
 export type Plan = {
   id: PlanId
@@ -123,7 +123,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.september',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 28,
+    amount: 36,
     method: 'cardLink',
     paidOn: '1 Sep 2026',
     confirmedBy: 'thawani',
@@ -135,7 +135,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.august',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 28,
+    amount: 36,
     method: 'cardLink',
     paidOn: '1 Aug 2026',
     confirmedBy: 'thawani',
@@ -147,7 +147,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.july',
     coveredKey: 'bills.coveredPlanPeopleExtra',
     coveredValues: { people: 5, extra: 1 },
-    amount: 30.5,
+    amount: 38.5,
     method: 'cardLink',
     paidOn: '1 Jul 2026',
     confirmedBy: 'thawani',
@@ -159,7 +159,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.june',
     coveredKey: 'bills.coveredRetried',
     coveredValues: { date: '3 June' },
-    amount: 28,
+    amount: 36,
     method: 'bankTransfer',
     paidOn: '3 Jun 2026',
     confirmedBy: 'fawtir',
@@ -171,7 +171,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.may',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 28,
+    amount: 36,
     method: 'cash',
     paidOn: '2 May 2026',
     confirmedBy: 'fawtir',
@@ -183,7 +183,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.april',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 28,
+    amount: 36,
     method: 'bankTransfer',
     paidOn: '1 Apr 2026',
     confirmedBy: 'fawtir',
@@ -195,8 +195,15 @@ export const PAST_BILLS: PastBill[] = [
  * The next bill, built from the plan and the account rather than stated — so adding a sixth
  * person moves the total on this screen and the warning on the plan screen together.
  */
+/** Branches open beyond what the plan includes — Al Bahja runs three on a plan of two. */
+export const EXTRA_BRANCHES = Math.max(
+  0,
+  OPEN_BRANCHES.length - (CURRENT_PLAN.branches ?? Infinity),
+)
+
 export function nextBill(extraPeople = Math.max(0, MEMBERS.length - SEATS.included)) {
   const people = extraPeople * SEATS.extraMonthly
+  const branches = EXTRA_BRANCHES * (PLAN[CURRENT_PLAN.id].extraBranch ?? 0)
   /** Overage is off, so nothing can accrue here however many invoices are refused. */
   const overage = 0
   return {
@@ -204,10 +211,11 @@ export function nextBill(extraPeople = Math.max(0, MEMBERS.length - SEATS.includ
     inDays: daysFrom(RESETS_ON),
     plan: CURRENT_PLAN.monthly,
     people,
+    branches,
     overage,
-    total: CURRENT_PLAN.monthly + people + overage,
+    total: CURRENT_PLAN.monthly + people + branches + overage,
     /** What it would come to if one more person were added before the first. */
-    withOneMore: CURRENT_PLAN.monthly + (extraPeople + 1) * SEATS.extraMonthly,
+    withOneMore: CURRENT_PLAN.monthly + branches + (extraPeople + 1) * SEATS.extraMonthly,
   }
 }
 

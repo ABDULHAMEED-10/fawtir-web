@@ -10,10 +10,12 @@ import {
   HOW_YOU_PAY,
   PAST_BILLS,
   CURRENT_PLAN,
+  EXTRA_BRANCHES,
   formatOmr,
   OVERAGE_ON,
   type TenantPaymentMethod,
 } from '../../lib/settingsBilling'
+import { PLAN } from '../../lib/plans'
 import { MEMBERS, SEATS } from '../../lib/settingsPeople'
 import downloadIcon from '../../assets/settings/download-ink.svg'
 import copyIcon from '../../assets/settings/copy.svg'
@@ -164,6 +166,19 @@ export function BillingPage() {
                   : t('bills.line.extraPeopleSome', { count: extraPeople })
               }
               amount={formatOmr(bill.people)}
+            />
+            <BillLine
+              label={t('bills.line.extraBranches')}
+              note={
+                EXTRA_BRANCHES === 0
+                  ? t('bills.line.extraBranchesNone', { included: CURRENT_PLAN.branches ?? '∞' })
+                  : t('bills.line.extraBranchesSome', {
+                      count: EXTRA_BRANCHES,
+                      included: CURRENT_PLAN.branches ?? '∞',
+                      each: formatOmr(PLAN[CURRENT_PLAN.id].extraBranch ?? 0),
+                    })
+              }
+              amount={formatOmr(bill.branches)}
             />
             <BillLine
               label={t('bills.line.overage')}

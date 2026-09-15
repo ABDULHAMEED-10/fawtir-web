@@ -96,6 +96,15 @@
   "/console",
   "/console/tenants",
   "/console/queue",
+  "/console/subscriptions",
+  "/console/subscriptions/invoices",
+  "/console/tenants/al-noor",
+  "/console/tenants/al-bahja",
+  "/console/plans",
+  "/console/settings",
+  "/console/settings?section=payments",
+  "/console/onboarding",
+  "/console/operators",
   "/catalog/flat-white/sells",
   "/catalog/flat-white/used",
   "/catalog/flat-white/changes",
@@ -120,5 +129,6 @@
   "/compliance/activity/INV-2041",
   "/compliance/activity/call-log/c1",
   "/compliance/documents/INV-2038",
-  "/settings/branches/nizwa"
+  "/settings/branches/nizwa",
+  "/console/tenants/seeb-pharmacy"
 ]
