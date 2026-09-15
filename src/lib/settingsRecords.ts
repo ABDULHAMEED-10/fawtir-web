@@ -351,7 +351,7 @@ export const CLOSING_BLOCKERS: Blocker[] = [
     blocking: true,
     tone: 'money',
     actionKey: 'closing.settleItNow',
-    values: { amount: '49.000', date: longDate(nextBill().dueOn) },
+    values: { amount: nextBill().total.toFixed(3), date: longDate(nextBill().dueOn) },
   },
   {
     id: 'openQuotations',

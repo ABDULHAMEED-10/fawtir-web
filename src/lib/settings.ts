@@ -1,3 +1,4 @@
+import i18n from 'i18next'
 import { PLAN } from './plans'
 /**
  * Settings — the account's own facts (Figma section "Settings", 135:36090).
@@ -28,32 +29,24 @@ export const monthsBetween = (from: Date, to: Date) =>
   (to.getMonth() - from.getMonth()) +
   (to.getDate() >= from.getDate() ? 0 : -1)
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+/**
+ * Dates read in the reader's language: "26 September" in English, "٢٦ سبتمبر" in Arabic. They
+ * used to be English month names glued together, which left every Arabic settings screen with an
+ * English date in the middle of its sentence.
+ */
+const locale = () => (i18n.language?.startsWith('ar') ? 'ar' : 'en-GB')
+const format = (date: Date, options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat(locale(), options).format(date)
 
 /** "26 September" — the long form the screens use in prose. */
-export const longDate = (date: Date) => `${date.getDate()} ${MONTHS[date.getMonth()]}`
+export const longDate = (date: Date) => format(date, { day: 'numeric', month: 'long' })
 
 /** "28 Sep" — day and clipped month, for a pill that has to stay on one line. */
-export const shortMonth = (date: Date) => `${date.getDate()} ${MONTHS[date.getMonth()].slice(0, 3)}`
+export const shortMonth = (date: Date) => format(date, { day: 'numeric', month: 'short' })
 
 /** "26 Sep 2026" — the short form the side panels use. */
 export const shortDate = (date: Date) =>
-  `${date.getDate()} ${MONTHS[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`
+  format(date, { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** "2026-09-26" — the form the export folder is named after. */
 export const isoDate = (date: Date) =>
@@ -61,7 +54,7 @@ export const isoDate = (date: Date) =>
     date.getDate(),
   ).padStart(2, '0')}`
 
-export const weekdayOf = (date: Date) => WEEKDAYS[date.getDay()]
+export const weekdayOf = (date: Date) => format(date, { weekday: 'long' })
 
 /* ------------------------------------------------------------------ the company */
 
