@@ -697,34 +697,35 @@
       "description": "For a single shop, freelancer or service provider.",
       "features": {
         "f1": "PINT-OM validation & OTA reporting",
-        "f2": "B2C QR receipts + mobile POS",
-        "f3": "10-year documents archive",
-        "f4": "Email support"
+        "f2": "Send & receive over Peppol",
+        "f3": "Point of sale & thermal receipts",
+        "f4": "10-year documents archive",
+        "f5": "Email support"
       }
     },
     "premium": {
       "name": "Business",
-      "description": "For growing businesses running multiple branches.",
+      "description": "For growing businesses with a small finance team.",
       "features": {
         "f1": "Everything in Starter",
-        "f2": "Expenditure & approval workflows",
-        "f3": "Multi-branch + branch reports",
-        "f4": "REST API & webhooks",
-        "f5": "Advanced analytics & compliance reports",
-        "f6": "Priority support"
+        "f2": "2 branches, then 8.000 each",
+        "f3": "Roles & permissions",
+        "f4": "Recurring invoices & bills",
+        "f5": "REST API & sandbox",
+        "f6": "Email support"
       }
     },
     "enterprise": {
       "name": "Enterprise",
-      "description": "For high-volume & ERP-connected operations.",
+      "description": "For high volume, group structures and partners.",
       "price": "Custom",
       "billingNote": "Tailored to your volume",
       "features": {
-        "f1": "Everything in Business",
-        "f2": "Pre-built ERP connectors & SFTP",
+        "f1": "Everything in Business Plus",
+        "f2": "Automatic ERP extraction included",
         "f3": "Single sign-on (SAML / OIDC)",
-        "f4": "Dedicated account manager",
-        "f5": "Custom SLA & guided onboarding"
+        "f4": "Custom reports & white label",
+        "f5": "Account manager & service level agreement"
       }
     },
     "footer": {
@@ -733,7 +734,21 @@
       "f3": "No setup fees"
     },
     "payNote": "Pay by card through a secure link, bank transfer or cash. Your account is activated by the Fawtir team once payment is confirmed.",
-    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own."
+    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own.",
+    "businessPlus": {
+      "name": "Business Plus",
+      "description": "For established businesses and multi-branch operations.",
+      "features": {
+        "f1": "Everything in Business",
+        "f2": "5 branches, then 8.000 each",
+        "f3": "Approval workflow",
+        "f4": "Webhooks & file transfer",
+        "f5": "Email and chat support"
+      }
+    },
+    "branchesIncluded_one": "{{count}} branch",
+    "branchesIncluded_other": "{{count}} branches",
+    "perMonth": "/month"
   },
   "payment": {
     "title": "Complete your subscription",

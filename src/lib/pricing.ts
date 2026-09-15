@@ -1,12 +1,13 @@
 import { PLAN, SUBSCRIPTION_VAT, annualMonthly } from './plans'
 
 /** The sign-up flow's own ids: `premium` is the catalogue's Business plan. */
-export type PlanId = 'starter' | 'premium' | 'enterprise'
+export type PlanId = 'starter' | 'premium' | 'businessPlus' | 'enterprise'
 export type BillingCycle = 'monthly' | 'annual'
 
 const MONTHLY_RATES: Record<Exclude<PlanId, 'enterprise'>, Record<BillingCycle, number>> = {
   starter: { monthly: PLAN.starter.monthly, annual: annualMonthly(PLAN.starter) },
   premium: { monthly: PLAN.business.monthly, annual: annualMonthly(PLAN.business) },
+  businessPlus: { monthly: PLAN.businessPlus.monthly, annual: annualMonthly(PLAN.businessPlus) },
 }
 
 export type OrderSummary = {
