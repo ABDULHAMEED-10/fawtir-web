@@ -7,40 +7,35 @@
 import { BOOK, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } from './settings'
 import { MEMBERS, SEATS } from './settingsPeople'
 import { OPEN_BRANCHES } from './settingsCompany'
+import { CATALOGUE, type PlanId } from './plans'
 
 export type Plan = {
-  id: string
+  id: PlanId
   monthly: number
+  /** Documents a month, sent and received — the field is named for the screen that reads it. */
   invoices: number
   people: number
   /** Null means the plan does not cap branches. */
   branches: number | null
   extraPerson?: number
+  /** Per document past the allowance when overage is on. */
+  overage: number
   api: boolean
   prioritySupport?: boolean
 }
 
-export const PLANS: Plan[] = [
-  { id: 'starter', monthly: 19, invoices: 150, people: 2, branches: 1, api: false },
-  {
-    id: 'business',
-    monthly: 49,
-    invoices: 500,
-    people: 5,
-    branches: 5,
-    extraPerson: 3.5,
-    api: true,
-  },
-  {
-    id: 'businessPlus',
-    monthly: 89,
-    invoices: 1_500,
-    people: 15,
-    branches: null,
-    api: true,
-    prioritySupport: true,
-  },
-]
+/** The launch catalogue (`plans.ts`), in the shape this screen was drawn against. */
+export const PLANS: Plan[] = CATALOGUE.map((plan) => ({
+  id: plan.id,
+  monthly: plan.monthly,
+  invoices: plan.documents,
+  people: plan.people,
+  branches: plan.branches,
+  extraPerson: plan.extraPerson,
+  overage: plan.overage,
+  api: plan.api,
+  prioritySupport: plan.prioritySupport,
+}))
 
 export const CURRENT_PLAN = PLANS[1]
 
@@ -125,7 +120,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.september',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 49,
+    amount: 28,
     card: '4417',
     status: 'paid',
   },
@@ -135,7 +130,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.august',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 49,
+    amount: 28,
     card: '4417',
     status: 'paid',
   },
@@ -145,7 +140,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.july',
     coveredKey: 'bills.coveredPlanPeopleExtra',
     coveredValues: { people: 5, extra: 1 },
-    amount: 52.5,
+    amount: 30.5,
     card: '4417',
     status: 'paid',
   },
@@ -155,7 +150,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.june',
     coveredKey: 'bills.coveredRetried',
     coveredValues: { date: '3 June' },
-    amount: 49,
+    amount: 28,
     card: '4417',
     status: 'paidLate',
   },
@@ -165,7 +160,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.may',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 49,
+    amount: 28,
     card: '4417',
     status: 'paid',
   },
@@ -175,7 +170,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.april',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 49,
+    amount: 28,
     card: '8802',
     status: 'paid',
   },

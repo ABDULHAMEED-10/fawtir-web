@@ -8,11 +8,16 @@
  * One population is stated here and every figure on both screens is derived from it. The design
  * printed its counts separately and they disagreed — the cards and the Operations panel all
  * corroborate 284 live tenants, but the Tenants tab strip claimed 169 in total, 106 needing
- * attention and 44 gone quiet, against cards reading 284, 11 and 6. The cards win: 284 × the
- * stated OMR 50.020 average is the stated OMR 14,206.000 of revenue, 284 − 241 filing is the
- * stated 43 quiet, and 9 expiring certificates + 2 over quota is the stated 11 at risk. Three
- * independent sums, one answer. See `TAB_COUNTS` for what each tab now reads.
+ * attention and 44 gone quiet, against cards reading 284, 11 and 6. The cards win: 284 − 241
+ * filing is the stated 43 quiet, and 9 expiring certificates + 2 over quota is the stated 11 at
+ * risk. See `TAB_COUNTS` for what each tab now reads.
+ *
+ * Revenue is no longer the design's OMR 14,206.000: that figure was 284 tenants at an average of
+ * 50.020, which only the old 19/49/89 prices could produce. Since the catalogue moved to the
+ * pricing doc's 12/28/55 (15 Sep 2026) the revenue is derived from a stated plan mix instead.
  */
+
+import { CATALOGUE, PLAN, type PlanId } from './plans'
 
 /** The console's clock. Fixed so every figure on both screens tells the same story. */
 export const NOW = new Date(2026, 8, 4, 14, 26)
@@ -26,23 +31,25 @@ export type TenantState = 'live' | 'onboarding' | 'closed'
 export type Concern = 'certificateExpiring' | 'overQuota' | 'quiet' | 'refusals' | 'none'
 
 export type Plan = {
-  id: 'starter' | 'business' | 'businessPlus'
+  id: PlanId
   labelKey: string
   monthly: number
-  /** Invoices included before overage. */
+  /** Documents included before overage. */
   quota: number
 }
 
-export const PLANS: Record<Plan['id'], Plan> = {
-  starter: { id: 'starter', labelKey: 'console.plan.starter', monthly: 19, quota: 150 },
-  business: { id: 'business', labelKey: 'console.plan.business', monthly: 49, quota: 500 },
-  businessPlus: {
-    id: 'businessPlus',
-    labelKey: 'console.plan.businessPlus',
-    monthly: 89,
-    quota: 1500,
-  },
-}
+/** The launch catalogue (`plans.ts`) in the console's shape. */
+export const PLANS: Record<Plan['id'], Plan> = Object.fromEntries(
+  CATALOGUE.map((plan) => [
+    plan.id,
+    {
+      id: plan.id,
+      labelKey: `console.plan.${plan.id}`,
+      monthly: plan.monthly,
+      quota: plan.documents,
+    },
+  ]),
+) as Record<Plan['id'], Plan>
 
 /** A day of filing health: how the tenant's submissions went. */
 export type FilingDay = 'clear' | 'some' | 'bad' | 'none'
@@ -102,7 +109,7 @@ export const TENANTS: Tenant[] = [
     state: 'live',
     plan: 'starter',
     used: 51,
-    billed: 19,
+    billed: PLAN.starter.monthly,
     week: ['clear', 'clear', 'bad', 'clear', 'some', 'clear', 'clear'],
     healthKey: 'console.health.renewalNotStarted',
     healthTone: 'bad',
@@ -123,8 +130,8 @@ export const TENANTS: Tenant[] = [
     ageValues: { count: 18 },
     state: 'live',
     plan: 'business',
-    used: 441,
-    billed: 49,
+    used: 880,
+    billed: PLAN.business.monthly,
     week: ['clear', 'clear', 'clear', 'clear', 'some', 'clear', 'clear'],
     healthKey: 'console.health.overageOff',
     healthTone: 'watch',
@@ -149,7 +156,7 @@ export const TENANTS: Tenant[] = [
     state: 'live',
     plan: 'businessPlus',
     used: 934,
-    billed: 89,
+    billed: PLAN.businessPlus.monthly,
     week: ['clear', 'clear', 'clear', 'bad', 'some', 'bad', 'clear'],
     healthKey: 'console.health.sameCause',
     healthTone: 'watch',
@@ -171,7 +178,7 @@ export const TENANTS: Tenant[] = [
     state: 'live',
     plan: 'business',
     used: 56,
-    billed: 49,
+    billed: PLAN.business.monthly,
     week: ['clear', 'clear', 'clear', 'none', 'none', 'none', 'none'],
     healthKey: 'console.health.stoppedAfterKey',
     healthTone: 'watch',
@@ -214,7 +221,8 @@ export const TENANTS: Tenant[] = [
     state: 'live',
     plan: 'business',
     used: 221,
-    billed: 52.5,
+    /** The plan plus one person beyond the five included. */
+    billed: PLAN.business.monthly + PLAN.business.extraPerson,
     week: ['clear', 'clear', 'clear', 'clear', 'clear', 'clear', 'clear'],
     healthKey: 'console.health.nothingToReport',
     healthTone: 'calm',
@@ -233,7 +241,8 @@ export const TENANTS: Tenant[] = [
     state: 'live',
     plan: 'businessPlus',
     used: 1062,
-    billed: 96,
+    /** The plan plus two people beyond the ten included. */
+    billed: PLAN.businessPlus.monthly + 2 * PLAN.businessPlus.extraPerson,
     week: ['clear', 'clear', 'clear', 'clear', 'clear', 'some', 'clear'],
     healthKey: 'console.health.oneRefusal',
     healthTone: 'calm',
@@ -277,9 +286,21 @@ export const PLATFORM = {
   quiet: 6,
   /** Of those, the ones that look like a broken integration rather than a lost customer. */
   quietLooksBroken: 4,
-  /** Monthly recurring revenue, in OMR. */
-  revenue: 14206,
+  /**
+   * Who is on which plan. The three sum to `live`; revenue is derived from them below rather
+   * than typed, so a price change in the catalogue moves the console with it.
+   */
+  onPlan: { starter: 118, business: 131, businessPlus: 35 },
+  /** Extra people, extra branches and overage across everyone, a month. */
+  extrasRevenue: 640,
 } as const
+
+/** Monthly recurring revenue: the plan mix at catalogue prices, plus the extras. */
+export const REVENUE =
+  PLATFORM.onPlan.starter * PLAN.starter.monthly +
+  PLATFORM.onPlan.business * PLAN.business.monthly +
+  PLATFORM.onPlan.businessPlus * PLAN.businessPlus.monthly +
+  PLATFORM.extrasRevenue
 
 /** Everyone on the platform, whatever state they are in. */
 export const ALL_TENANTS = PLATFORM.live + PLATFORM.onboarding + PLATFORM.closed
@@ -288,7 +309,7 @@ export const ALL_TENANTS = PLATFORM.live + PLATFORM.onboarding + PLATFORM.closed
 export const QUIET_TODAY = PLATFORM.live - PLATFORM.filingToday
 
 /** What the average live tenant pays a month. */
-export const REVENUE_PER_TENANT = PLATFORM.revenue / PLATFORM.live
+export const REVENUE_PER_TENANT = REVENUE / PLATFORM.live
 
 /** Certificates about to lapse plus accounts that would be blocked — one list to work through. */
 export const NEEDS_ATTENTION = PLATFORM.certificatesExpiring + PLATFORM.overQuotaBlocked

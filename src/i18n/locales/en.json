@@ -687,7 +687,7 @@
       }
     },
     "premium": {
-      "name": "Premium",
+      "name": "Business",
       "description": "For growing businesses running multiple branches.",
       "features": {
         "f1": "Everything in Starter",
@@ -704,7 +704,7 @@
       "price": "Custom",
       "billingNote": "Tailored to your volume",
       "features": {
-        "f1": "Everything in Premium",
+        "f1": "Everything in Business",
         "f2": "Pre-built ERP connectors & SFTP",
         "f3": "Single sign-on (SAML / OIDC)",
         "f4": "Dedicated account manager",
@@ -7627,7 +7627,12 @@
     "planName": {
       "starter": "Starter",
       "business": "Business",
-      "businessPlus": "Business Plus"
+      "businessPlus": "Business Plus",
+      "enterprise": "Enterprise"
+    },
+    "support": {
+      "email": "Email support",
+      "emailAndChat": "Email and chat support"
     }
   },
   "bills": {
@@ -7648,7 +7653,7 @@
       "extraPeopleSome": "{{count}} beyond the five included",
       "overage": "Invoices beyond the plan",
       "overageOff": "Overage is switched off, so nothing can accrue here",
-      "overageOn": "Charged at OMR 0.100 each past the allowance"
+      "overageOn": "Charged at OMR {{rate}} each past the allowance"
     },
     "chargedOn": "Charged on {{date}}",
     "default": "Default",

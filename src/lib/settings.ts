@@ -1,3 +1,4 @@
+import { PLAN } from './plans'
 /**
  * Settings — the account's own facts (Figma section "Settings", 135:36090).
  *
@@ -103,14 +104,14 @@ export const COMPANY = {
  */
 export const BOOK = {
   /** This month, by branch. The three sum to the figure the plan screen bills against. */
-  byBranch: { nizwa: 268, muscat: 134, sohar: 39 },
+  byBranch: { nizwa: 536, muscat: 268, sohar: 76 },
   /** Today, by branch. */
   todayByBranch: { nizwa: 9, muscat: 4, sohar: 2 },
-  allowance: 500,
-  lastMonth: 468,
+  allowance: PLAN.business.documents,
+  lastMonth: 936,
   /** Reports sent again after the Authority refused the first attempt. */
   resubmissions: 12,
-  busiestDayCount: 22,
+  busiestDayCount: 44,
   busiestDay: new Date(2026, 8, 14),
   /** Everything ever sent, which is what the retention clock counts. */
   invoicesSent: 4_182,

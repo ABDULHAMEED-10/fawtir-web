@@ -14,6 +14,7 @@ import {
   NEEDS_ATTENTION,
   PLANS,
   PLATFORM,
+  REVENUE,
   REVENUE_PER_TENANT,
   TENANT_TABS,
   count,
@@ -156,7 +157,7 @@ export function TenantsPage() {
           <KpiCard
             icon={<NavReportsIcon className="size-[18px] text-success-700" />}
             title={t('console.tenants.kpi.revenue')}
-            value={`OMR ${omr(PLATFORM.revenue)}`}
+            value={`OMR ${omr(REVENUE)}`}
             note={t('console.tenants.kpi.revenueNote', { average: omr(REVENUE_PER_TENANT) })}
           />
         </div>

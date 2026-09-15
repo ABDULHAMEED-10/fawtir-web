@@ -15,6 +15,7 @@ import {
   OTA,
   PLATFORM,
   QUIET_TODAY,
+  REVENUE,
   REVENUE_PER_TENANT,
   WORTH_A_LOOK,
   count,
@@ -413,10 +414,7 @@ export function OperationsPage() {
                 value={t('console.across.within30', { count: PLATFORM.certificatesExpiring })}
                 tone="bad"
               />
-              <ConnectionLine
-                label={t('console.across.revenue')}
-                value={`OMR ${omr(PLATFORM.revenue)}`}
-              />
+              <ConnectionLine label={t('console.across.revenue')} value={`OMR ${omr(REVENUE)}`} />
               <ConnectionLine
                 label={t('console.across.left')}
                 value={String(PLATFORM.leftThisMonth)}

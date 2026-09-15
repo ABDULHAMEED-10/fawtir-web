@@ -124,7 +124,11 @@ export function BillingPage() {
             />
             <BillLine
               label={t('bills.line.overage')}
-              note={OVERAGE_ON ? t('bills.line.overageOn') : t('bills.line.overageOff')}
+              note={
+                OVERAGE_ON
+                  ? t('bills.line.overageOn', { rate: formatOmr(CURRENT_PLAN.overage) })
+                  : t('bills.line.overageOff')
+              }
               amount={formatOmr(bill.overage)}
             />
             <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-background/60 px-5 py-4">
