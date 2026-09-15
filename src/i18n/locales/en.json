@@ -4110,7 +4110,17 @@
       "payableMeta": "18 open bills · 2 overdue",
       "ready": "Ready to pay",
       "readyMeta": "7 approved bills",
-      "readyLink": "Start a payment run"
+      "readyLink": "Start a payment run",
+      "attentionBreakdown": "{{fresh}} new · {{mismatch}} mismatch · {{awaiting}} awaiting approval",
+      "attentionDrafts_one": "{{count}} upload to confirm",
+      "attentionDrafts_other": "{{count}} uploads to confirm",
+      "dueBills_one": "{{count}} bill",
+      "dueBills_other": "{{count}} bills",
+      "payableBills": "{{open}} open · {{overdue}} overdue",
+      "readyBills_one": "{{count}} approved bill",
+      "readyBills_other": "{{count}} approved bills",
+      "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",
+      "otherCurrencies_other": "{{count}} bills in other currencies are not in these {{currency}} totals."
     },
     "tabs": {
       "needsAttention": "Needs attention",
@@ -4135,7 +4145,9 @@
       "arrived29Jul": "arrived 29 Jul",
       "arrived28Jul": "arrived 28 Jul",
       "arrived18Jul": "arrived 18 Jul",
-      "pdfByYusuf": "PDF · by Yusuf"
+      "pdfByYusuf": "PDF · by Yusuf",
+      "recurring": "Recurring",
+      "selfBilled": "Self-billed"
     },
     "sourceFilter": {
       "all": "All sources"
@@ -4154,9 +4166,11 @@
       "reviewDifference": "Review the difference",
       "nudge": "Nudge the approver",
       "checkAndSave": "Check and save",
-      "viewDispute": "Two deliveries billed twice"
+      "viewDispute": "Two deliveries billed twice",
+      "approving": "Approving…"
     },
     "sortOptions": {
+      "newest": "Newest first",
       "dueAsc": "Due: soonest first",
       "dueDesc": "Due: latest first",
       "amountDesc": "Amount: high to low",
@@ -4185,8 +4199,41 @@
       "over84": "84.900 over",
       "overLimit": "over the 2,000 limit",
       "vatUnclear": "VAT unclear",
-      "queried22Jul": "Queried 22 Jul"
-    }
+      "queried22Jul": "Queried 22 Jul",
+      "issued": "Issued {{date}}",
+      "inDays_one": "in {{count}} day",
+      "inDays_other": "in {{count}} days",
+      "daysOverdue_one": "{{count}} day overdue",
+      "daysOverdue_other": "{{count}} days overdue",
+      "dueToday": "Due today",
+      "agreesWithOrder": "Order and receipt agree",
+      "differsFromOrder": "Differs from the order",
+      "theyQuoted": "Their order ref: {{ref}}",
+      "creditNote": "Credit note",
+      "leftToPay": "{{amount}} left to pay",
+      "inclVat": "incl. VAT {{amount}}",
+      "noNumber": "No bill number"
+    },
+    "state": {
+      "newNotReviewed": "New, not reviewed",
+      "mismatch": "Mismatch found",
+      "awaitingApproval": "Waiting on approval",
+      "awaitingApprovals": "Waiting on approval · {{given}} of {{required}}",
+      "draft": "Draft, confirm details",
+      "onHold": "On hold",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "inPaymentRun": "In a payment run",
+      "inPaymentRunRef": "In payment run {{run}}",
+      "paid": "Paid"
+    },
+    "notice": {
+      "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
+      "drafts_other": "{{count}} uploaded or scanned bills are waiting for their details. They appear here once confirmed.",
+      "truncated": "This tab looks at the newest {{window}} bills only, so older ones may be missing."
+    },
+    "emptyLedger": "No bills yet. Bills from suppliers on Peppol arrive here by themselves.",
+    "pages": "Pages"
   },
   "billDetail": {
     "breadcrumb": "Bills",
