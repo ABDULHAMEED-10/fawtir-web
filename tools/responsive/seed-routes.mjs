@@ -119,6 +119,14 @@ export const SEED_ROUTES = [
   '/settings/closing',
   '/settings/signing-in',
   '/settings/payment-reminders',
+  '/settings/erp-mapping',
+  '/settings/erp-mapping/fields',
+  '/settings/erp-mapping/preview',
+  '/settings/erp-mapping/certification',
+  '/settings/erp-mapping/advanced',
+  '/settings/erp-mapping/history',
+  '/settings/erp-mapping/samples',
+  '/settings/erp/connections',
 
   // The Fawtir console — a separate shell with its own navigation.
   '/console',
