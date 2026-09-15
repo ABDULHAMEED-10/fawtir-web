@@ -1335,7 +1335,8 @@
       "body": "Add the businesses that bill you and Fawtir can match their bills automatically.",
       "addFirst": "Add your first supplier",
       "importList": "Import a list from Excel"
-    }
+    },
+    "vatNumber": "VAT {{vat}}"
   },
   "newSupplier": {
     "title": "New supplier",

@@ -589,7 +589,7 @@ function SupplierTableRow({
               {!supplier.active
                 ? t('suppliersPage.record.switchedOff')
                 : supplier.vat
-                  ? t('suppliersPage.vatOf', { vat: supplier.vat })
+                  ? t('suppliersPage.vatNumber', { vat: supplier.vat })
                   : t('suppliersPage.noVatOnFile')}
             </p>
           </div>
