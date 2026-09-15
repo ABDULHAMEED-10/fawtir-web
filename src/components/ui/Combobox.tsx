@@ -20,6 +20,7 @@ export function Combobox({
   emptyText,
   footer,
   renderTrigger,
+  onSearch,
 }: {
   value: string
   onChange: (value: string) => void
@@ -28,9 +29,15 @@ export function Combobox({
   searchPlaceholder?: string
   ariaLabel?: string
   emptyText?: string
-  footer?: ReactNode
+  /** A function receives the typed text and a close, for an action such as "Create “…”". */
+  footer?: ReactNode | ((state: { query: string; close: () => void }) => ReactNode)
   /** Lets a caller keep a richer trigger (logo, badges) and reuse only the popup behaviour. */
   renderTrigger?: (state: { open: boolean; selected?: SelectOption }) => ReactNode
+  /**
+   * For lists the server searches: called with the typed text (and with "" on opening), and the
+   * options are then shown as given rather than filtered here, since they already are.
+   */
+  onSearch?: (query: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -41,19 +48,22 @@ export function Combobox({
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (!needle) return options
+    if (!needle || onSearch) return options
     return options.filter(
       (option) =>
         option.label.toLowerCase().includes(needle) ||
         (option.hint ?? '').toLowerCase().includes(needle),
     )
-  }, [options, query])
+  }, [options, query, onSearch])
 
   useEffect(() => {
     if (!open) return
     setQuery('')
+    onSearch?.('')
     const id = window.setTimeout(() => searchRef.current?.focus(), 0)
     return () => window.clearTimeout(id)
+    // Runs on opening only: a caller's inline `onSearch` is a new function every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   return (
@@ -110,7 +120,10 @@ export function Combobox({
           <input
             ref={searchRef}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              onSearch?.(event.target.value)
+            }}
             placeholder={searchPlaceholder}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
           />
@@ -162,7 +175,11 @@ export function Combobox({
             })
           )}
         </ul>
-        {footer ? <div className="border-t border-border-subtle">{footer}</div> : null}
+        {footer ? (
+          <div className="border-t border-border-subtle">
+            {typeof footer === 'function' ? footer({ query, close: () => setOpen(false) }) : footer}
+          </div>
+        ) : null}
       </Popover>
     </>
   )

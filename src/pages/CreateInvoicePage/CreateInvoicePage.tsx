@@ -5,7 +5,9 @@ import { AppShell } from '../../layouts/AppShell'
 import { AddCustomerModal, type SavedCustomer } from '../../components/AddCustomerModal'
 import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
 import { ScanToFillModal, type ScanResult } from '../../components/invoice/ScanToFillModal'
-import { DateField, FileDropzone, Select, withRial } from '../../components/ui'
+import { DateField, FileDropzone, Select, withRial, type SelectOption } from '../../components/ui'
+import { ProductPicker } from '../../components/invoice/ProductPicker'
+import { lineFromProduct } from '../../lib/productLine'
 import {
   BRANCH_OPTIONS,
   CURRENCY_OPTIONS,
@@ -54,9 +56,11 @@ type CustomerType = 'business' | 'consumer' | 'government'
 const INITIAL_LINES = [
   {
     id: '1',
+    productId: null as string | null,
     description: 'Cappuccino - Large',
     unitPrice: '1.8',
     vatRate: '5',
+    taxCode: 'S5' as string | null,
     quantity: '12',
     unit: 'EA',
     discountType: 'PERCENTAGE' as DiscountType,
@@ -64,15 +68,22 @@ const INITIAL_LINES = [
   },
   {
     id: '2',
+    productId: null as string | null,
     description: 'Coffee Beans 1kg - H Blend',
     unitPrice: '9.5',
     vatRate: '5',
+    taxCode: 'S5' as string | null,
     quantity: '4',
     unit: 'KGM',
     discountType: 'PERCENTAGE' as DiscountType,
     discountValue: '10',
   },
 ]
+
+/** A product's unit may be one the short list does not carry; it is shown rather than dropped. */
+function unitOptionsWith(code: string): SelectOption[] {
+  return UNIT_OPTIONS.some((option) => option.value === code) ? UNIT_OPTIONS : [...UNIT_OPTIONS, { value: code, label: code }]
+}
 
 function SectionTitle({ step, title }: { step: number; title: string }) {
   return (
@@ -314,9 +325,11 @@ export function CreateInvoicePage() {
       setLines(
         result.lines.map((line, index) => ({
           id: `S${index + 1}`,
+          productId: null,
           description: line.description,
           unitPrice: line.unitPrice,
           vatRate: '5',
+          taxCode: 'S5',
           quantity: line.quantity,
           unit: 'EA',
           discountType: 'PERCENTAGE' as DiscountType,
@@ -359,9 +372,11 @@ export function CreateInvoicePage() {
       ...current,
       {
         id: `L${Date.now()}`,
+        productId: null,
         description: '',
         unitPrice: '0',
         vatRate: '5',
+        taxCode: 'S5',
         quantity: '1',
         unit: 'EA',
         discountType: 'PERCENTAGE' as DiscountType,
@@ -862,17 +877,12 @@ export function CreateInvoicePage() {
                       key={row.id}
                       className="grid grid-cols-[1.5fr_0.5fr_0.6fr_0.5fr_0.5fr_0.85fr_0.7fr] items-start gap-2"
                     >
-                      {/* Free text, not a picker — a line may be ad-hoc (INV-PD-010). */}
-                      <FieldShell>
-                        <input
-                          value={row.description}
-                          onChange={(e) => updateLine(row.id, { description: e.target.value })}
-                          maxLength={1000}
-                          placeholder={t('createInvoice.items.descriptionPlaceholder')}
-                          aria-label={t('createInvoice.items.description')}
-                          className="w-full border-0 bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder"
-                        />
-                      </FieldShell>
+                      {/* A line names a catalogue product (decision D7, over INV-PD-010's free text). */}
+                      <ProductPicker
+                        productId={row.productId}
+                        label={row.description}
+                        onPick={(product) => updateLine(row.id, lineFromProduct(product, exclVat))}
+                      />
                       <FieldShell>
                         <input
                           value={row.unitPrice}
@@ -884,9 +894,10 @@ export function CreateInvoicePage() {
                       </FieldShell>
                       {/* Catalogue-resolved: the rate is never typed (INV-FR-161/162). */}
                       <Select
-                        value={TAX_CATEGORIES.find((c) => c.rate === row.vatRate)?.code ?? 'S5'}
+                        value={row.taxCode ?? TAX_CATEGORIES.find((c) => c.rate === row.vatRate)?.code ?? 'S5'}
                         onChange={(code) =>
                           updateLine(row.id, {
+                            taxCode: code,
                             vatRate: TAX_CATEGORIES.find((c) => c.code === code)?.rate ?? '5',
                           })
                         }
@@ -905,7 +916,7 @@ export function CreateInvoicePage() {
                       <Select
                         value={row.unit}
                         onChange={(unit) => updateLine(row.id, { unit })}
-                        options={UNIT_OPTIONS}
+                        options={unitOptionsWith(row.unit)}
                         ariaLabel={t('createInvoice.items.unit')}
                       />
                       <DiscountField

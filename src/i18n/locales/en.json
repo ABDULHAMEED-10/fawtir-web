@@ -9750,5 +9750,25 @@
       "previous": "Previous page",
       "next": "Next page"
     }
+  },
+  "productPicker": {
+    "placeholder": "Choose a product",
+    "search": "Search products by name or code",
+    "searching": "Searching…",
+    "none": "No products match",
+    "hint": "{{code}} · {{price}} / {{unit}} · {{tax}}",
+    "create": "New product",
+    "createNamed": "Create “{{name}}” as a product",
+    "newTitle": "New product",
+    "newSubtitle": "It goes on this line and into your catalogue.",
+    "name": "Name",
+    "code": "Code",
+    "codeHint": "Unique in your catalogue",
+    "codeTaken": "Another product already uses this code.",
+    "price": "Price excl. VAT (OMR)",
+    "unit": "Unit",
+    "tax": "Tax category",
+    "saving": "Saving…",
+    "saveAndUse": "Save and use"
   }
 }
