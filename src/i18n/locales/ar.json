@@ -1507,7 +1507,32 @@
       "awaiting": "بانتظار الدفع",
       "awaitingMeta": "فاتورتان تستحقان قريبًا",
       "overdue": "متأخر",
-      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا"
+      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا",
+      "outstandingLive_zero": "لا توجد فواتير غير مدفوعة",
+      "outstandingLive_one": "عبر فاتورة واحدة غير مدفوعة",
+      "outstandingLive_two": "عبر فاتورتين غير مدفوعتين",
+      "outstandingLive_few": "عبر {{invoices}} فواتير غير مدفوعة",
+      "outstandingLive_many": "عبر {{invoices}} فاتورة غير مدفوعة",
+      "outstandingLive_other": "عبر {{invoices}} فاتورة غير مدفوعة",
+      "paidLive_zero": "لا توجد فواتير مدفوعة بالكامل",
+      "paidLive_one": "فاتورة واحدة مدفوعة بالكامل",
+      "paidLive_two": "فاتورتان مدفوعتان بالكامل",
+      "paidLive_few": "{{invoices}} فواتير مدفوعة بالكامل",
+      "paidLive_many": "{{invoices}} فاتورة مدفوعة بالكامل",
+      "paidLive_other": "{{invoices}} فاتورة مدفوعة بالكامل",
+      "awaitingLive_zero": "لا شيء يستحق خلال {{days}} أيام",
+      "awaitingLive_one": "فاتورة واحدة تستحق خلال {{days}} أيام",
+      "awaitingLive_two": "فاتورتان تستحقان خلال {{days}} أيام",
+      "awaitingLive_few": "{{invoices}} فواتير تستحق خلال {{days}} أيام",
+      "awaitingLive_many": "{{invoices}} فاتورة تستحق خلال {{days}} أيام",
+      "awaitingLive_other": "{{invoices}} فاتورة تستحق خلال {{days}} أيام",
+      "overdueLive_zero": "لا فواتير متأخرة",
+      "overdueLive_one": "فاتورة واحدة · الأقدم منذ {{days}} يومًا",
+      "overdueLive_two": "فاتورتان · الأقدم منذ {{days}} يومًا",
+      "overdueLive_few": "{{invoices}} فواتير · الأقدم منذ {{days}} يومًا",
+      "overdueLive_many": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
+      "overdueLive_other": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
+      "overdueNone": "لا توجد متأخرات"
     },
     "tabs": {
       "all": "الكل",
@@ -1538,6 +1563,10 @@
         "all": "كل الفواتير",
         "standard": "قياسية (منشآت/حكومة)",
         "simplified": "مبسطة (أفراد)"
+      },
+      "documentType": "نوع المستند",
+      "docType": {
+        "all": "كل المستندات"
       }
     },
     "col": {
@@ -1583,6 +1612,65 @@
       "imported": "تم الاستيراد",
       "failed": "فشل",
       "summary": "تم استيراد {{imported}}، وفشل {{failed}}."
+    },
+    "subtitleLive": "الفواتير والإشعارات الدائنة والمدينة — المسودات والمستندات الصادرة في قائمة واحدة.",
+    "searchLive": "ابحث برقم المستند أو اسم العميل",
+    "exporting": "جارٍ التصدير…",
+    "exportTruncated": "يتوقف الملف عند 10,000 مستند. ضيّق عوامل التصفية لتصدير الباقي.",
+    "discardStale": "تغيّرت هذه المسودة بعد تحميل القائمة. تم تحديث القائمة؛ حاول مرة أخرى.",
+    "nothingYet": "لا توجد فواتير بعد. أنشئ فاتورتك الأولى وستظهر هنا.",
+    "draftNumber": "مسودة",
+    "resultTotal_zero": "لا توجد مستندات",
+    "resultTotal_one": "مستند واحد",
+    "resultTotal_two": "مستندان",
+    "resultTotal_few": "{{documents}} مستندات",
+    "resultTotal_many": "{{documents}} مستندًا",
+    "resultTotal_other": "{{documents}} مستند",
+    "pages": "الصفحات",
+    "authoring": {
+      "draft": "مسودة",
+      "issued": "صادرة",
+      "cancelled": "ملغاة",
+      "discarded": "متجاهلة"
+    },
+    "payment": {
+      "awaiting": "بانتظار الدفع",
+      "partial": "مدفوع جزئيًا",
+      "paid": "مدفوع",
+      "overdue_zero": "متأخر",
+      "overdue_one": "متأخر · يوم واحد",
+      "overdue_two": "متأخر · يومان",
+      "overdue_few": "متأخر · {{count}} أيام",
+      "overdue_many": "متأخر · {{count}} يومًا",
+      "overdue_other": "متأخر · {{count}} يوم"
+    },
+    "delivery": {
+      "sentManually": "أُرسلت يدويًا"
+    },
+    "amountNote": {
+      "estimate": "تقدير · يُسعَّر عند الإصدار",
+      "outstanding": "المتبقي {{amount}}",
+      "credited": "يشمل {{amount}} بإشعارات دائنة"
+    },
+    "rowAction": {
+      "edit": "تعديل المسودة",
+      "discard": "تجاهل المسودة"
+    },
+    "docType": {
+      "INVOICE": "فاتورة",
+      "CREDIT_NOTE": "إشعار دائن",
+      "DEBIT_NOTE": "إشعار مدين",
+      "SELF_BILLED_INVOICE": "فاتورة ذاتية الإصدار",
+      "SELF_BILLED_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار"
+    },
+    "sort": {
+      "updated": "آخر تحديث",
+      "issuedNewest": "الأحدث إصدارًا أولًا",
+      "issuedOldest": "الأقدم إصدارًا أولًا",
+      "dueSoonest": "الأقرب استحقاقًا",
+      "amountHighest": "المبلغ: من الأعلى إلى الأدنى",
+      "amountLowest": "المبلغ: من الأدنى إلى الأعلى",
+      "customer": "العميل أ–ي"
     }
   },
   "invoiceDetails": {

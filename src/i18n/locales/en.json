@@ -1490,7 +1490,16 @@
       "awaiting": "Awaiting payment",
       "awaitingMeta": "2 invoices due soon",
       "overdue": "Overdue",
-      "overdueMeta": "1 invoice · oldest 20 days"
+      "overdueMeta": "1 invoice · oldest 20 days",
+      "outstandingLive_one": "Across {{invoices}} unpaid invoice",
+      "outstandingLive_other": "Across {{invoices}} unpaid invoices",
+      "paidLive_one": "{{invoices}} invoice paid in full",
+      "paidLive_other": "{{invoices}} invoices paid in full",
+      "awaitingLive_one": "{{invoices}} invoice due within {{days}} days",
+      "awaitingLive_other": "{{invoices}} invoices due within {{days}} days",
+      "overdueLive_one": "{{invoices}} invoice · oldest {{days}} days",
+      "overdueLive_other": "{{invoices}} invoices · oldest {{days}} days",
+      "overdueNone": "Nothing overdue"
     },
     "tabs": {
       "all": "All",
@@ -1521,6 +1530,10 @@
         "all": "All invoices",
         "standard": "Standard (B2B/B2G)",
         "simplified": "Simplified (B2C)"
+      },
+      "documentType": "Document type",
+      "docType": {
+        "all": "All documents"
       }
     },
     "col": {
@@ -1566,6 +1579,57 @@
       "imported": "Imported",
       "failed": "Failed",
       "summary": "{{imported}} imported, {{failed}} failed."
+    },
+    "subtitleLive": "Invoices, credit notes and debit notes — drafts and issued documents in one list.",
+    "searchLive": "Search by number or customer",
+    "exporting": "Exporting…",
+    "exportTruncated": "The file stops at 10,000 documents. Narrow the filters to export the rest.",
+    "discardStale": "This draft changed after the list loaded. The list has been refreshed; try again.",
+    "nothingYet": "No invoices yet. Create your first invoice and it will appear here.",
+    "draftNumber": "Draft",
+    "resultTotal_one": "{{documents}} document",
+    "resultTotal_other": "{{documents}} documents",
+    "pages": "Pages",
+    "authoring": {
+      "draft": "Draft",
+      "issued": "Issued",
+      "cancelled": "Cancelled",
+      "discarded": "Discarded"
+    },
+    "payment": {
+      "awaiting": "Awaiting payment",
+      "partial": "Partially paid",
+      "paid": "Paid",
+      "overdue_one": "Overdue · {{count}} day",
+      "overdue_other": "Overdue · {{count}} days"
+    },
+    "delivery": {
+      "sentManually": "Sent manually"
+    },
+    "amountNote": {
+      "estimate": "Estimate · priced at issue",
+      "outstanding": "{{amount}} still owed",
+      "credited": "Includes {{amount}} credited"
+    },
+    "rowAction": {
+      "edit": "Edit draft",
+      "discard": "Discard draft"
+    },
+    "docType": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
+      "SELF_BILLED_INVOICE": "Self-billed invoice",
+      "SELF_BILLED_CREDIT_NOTE": "Self-billed credit note"
+    },
+    "sort": {
+      "updated": "Recently updated",
+      "issuedNewest": "Newest issued first",
+      "issuedOldest": "Oldest issued first",
+      "dueSoonest": "Due soonest",
+      "amountHighest": "Amount: high to low",
+      "amountLowest": "Amount: low to high",
+      "customer": "Customer A–Z"
     }
   },
   "invoiceDetails": {
