@@ -22,6 +22,8 @@ export type NavChild = {
   id: string
   labelKey: string
   to: string
+  /** The permission the destination's first read needs; the entry is hidden from anyone without it. */
+  requires?: string
 }
 
 export type NavItem = {
@@ -31,6 +33,8 @@ export type NavItem = {
   to: string
   badge?: number
   children?: NavChild[]
+  /** As on `NavChild`. A group whose every child is hidden is hidden too. */
+  requires?: string
 }
 
 export type NavGroup = {
@@ -82,6 +86,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
         Icon: NavInvoicesIcon,
         to: '/invoices',
         badge: 3,
+        requires: 'invoice.read',
         children: [
           { id: 'invoice', labelKey: 'dashboard.nav.incomeChildren.invoice', to: '/invoices' },
           {
@@ -116,6 +121,8 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.expenditure',
         Icon: NavExpenditureIcon,
         to: '/expenditure/bills',
+        // Bills, payments, recurring bills and reminders are all guarded by invoice.* codes.
+        requires: 'invoice.read',
         children: [
           {
             id: 'bills',
@@ -190,12 +197,14 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.customers',
         Icon: NavCustomersIcon,
         to: '/customers',
+        requires: 'customer.read',
       },
       {
         id: 'suppliers',
         labelKey: 'dashboard.nav.suppliers',
         Icon: NavSuppliersIcon,
         to: '/suppliers',
+        requires: 'supplier.read',
       },
     ],
   },
@@ -208,6 +217,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.catalog',
         Icon: NavCatalogIcon,
         to: '/catalog',
+        requires: 'product.read',
         children: [
           { id: 'allItems', labelKey: 'dashboard.nav.catalogChildren.allItems', to: '/catalog' },
           {

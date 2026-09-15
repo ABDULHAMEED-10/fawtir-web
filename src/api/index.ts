@@ -1,5 +1,18 @@
 export { apiRequest, type ApiRequestOptions } from './client'
 export { sharedRequest } from './inflight'
+export { withQuery, type QueryValue } from './query'
+export {
+  fromArray,
+  fromItemsPage,
+  fromSnakePage,
+  fromSpringPage,
+  mapPage,
+  pageCountOf,
+  type ItemsPage,
+  type Page,
+  type SnakePage,
+  type SpringPage,
+} from './page'
 export {
   ApiError,
   NetworkError,

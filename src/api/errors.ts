@@ -23,12 +23,21 @@ export class ApiError extends Error {
   readonly problemType: string | null
   readonly fieldErrors: readonly ProblemFieldError[]
   readonly retryAfterSeconds: number | null
+  /**
+   * The module's own refusal code, when it sends one. The invoice handler calls it `code`, the
+   * Expenditure and submission handlers `error`; this is whichever arrived.
+   */
+  readonly code: string | null
+  /** What support needs to find the request in the logs (`correlationId`, or Expenditure's `trace_id`). */
+  readonly correlationId: string | null
 
   constructor(init: {
     status: number
     problemType: string | null
     fieldErrors?: readonly ProblemFieldError[]
     retryAfterSeconds?: number | null
+    code?: string | null
+    correlationId?: string | null
   }) {
     super(`Request failed with status ${init.status}`)
     this.name = 'ApiError'
@@ -36,6 +45,8 @@ export class ApiError extends Error {
     this.problemType = init.problemType
     this.fieldErrors = init.fieldErrors ?? []
     this.retryAfterSeconds = init.retryAfterSeconds ?? null
+    this.code = init.code ?? null
+    this.correlationId = init.correlationId ?? null
   }
 }
 
@@ -71,6 +82,10 @@ function fieldErrorsOf(errors: unknown): ProblemFieldError[] {
   })
 }
 
+function stringOf(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null
+}
+
 function retryAfterOf(headers: Headers): number | null {
   const seconds = Number.parseInt(headers.get('Retry-After') ?? '', 10)
   return Number.isFinite(seconds) && seconds > 0 ? seconds : null
@@ -83,5 +98,7 @@ export function toApiError(response: Response, body: unknown): ApiError {
     problemType: problemTypeOf(problem.type),
     fieldErrors: fieldErrorsOf(problem.errors),
     retryAfterSeconds: retryAfterOf(response.headers),
+    code: stringOf(problem.code) ?? stringOf(problem.error),
+    correlationId: stringOf(problem.correlationId) ?? stringOf(problem.trace_id),
   })
 }
