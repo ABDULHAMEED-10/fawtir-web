@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
+import { PLAN, TRIAL, annualMonthly } from '../../lib/plans'
 import patternLeft from '../../assets/plans/pattern-left.png'
 import patternRight from '../../assets/plans/pattern-right.png'
 import checkIcon from '../../assets/plans/check.svg'
@@ -21,10 +22,9 @@ export function PlansPage() {
   const location = useLocation()
   const [billing, setBilling] = useState<BillingCycle>('monthly')
 
-  const starterPrice = billing === 'monthly' ? 12 : 10
-  const premiumPrice = billing === 'monthly' ? 35 : 29
-  const billingNote =
-    billing === 'monthly' ? t('plans.billedMonthly') : t('plans.billedAnnually')
+  const starterPrice = billing === 'monthly' ? PLAN.starter.monthly : annualMonthly(PLAN.starter)
+  const premiumPrice = billing === 'monthly' ? PLAN.business.monthly : annualMonthly(PLAN.business)
+  const billingNote = billing === 'monthly' ? t('plans.billedMonthly') : t('plans.billedAnnually')
 
   const selectPlan = (plan: 'starter' | 'premium' | 'enterprise') => {
     navigate('/payment', {
@@ -108,12 +108,12 @@ export function PlansPage() {
               checkIcon={checkIcon}
               stats={[
                 {
-                  value: '100',
+                  value: count(PLAN.starter.documents),
                   label: t('plans.invoicesPerMonth'),
                   icon: <img src={invoiceIcon} alt="" className="size-4" />,
                 },
                 {
-                  value: '2',
+                  value: count(PLAN.starter.people),
                   label: t('plans.usersIncluded'),
                   icon: <img src={usersIcon} alt="" className="size-4" />,
                 },
@@ -148,12 +148,12 @@ export function PlansPage() {
               checkIcon={checkWhiteIcon}
               stats={[
                 {
-                  value: '1,000',
+                  value: count(PLAN.business.documents),
                   label: t('plans.invoicesPerMonth'),
                   icon: <img src={invoiceWhiteIcon} alt="" className="size-[18px]" />,
                 },
                 {
-                  value: '10',
+                  value: count(PLAN.business.people),
                   label: t('plans.usersIncluded'),
                   icon: <img src={usersWhiteIcon} alt="" className="size-[18px]" />,
                 },
@@ -214,8 +214,15 @@ export function PlansPage() {
               </div>
             ))}
           </div>
+
+          <p className="mt-5 max-w-[640px] text-center text-[13px] font-medium leading-[1.6] text-text-quaternary">
+            {t('plans.trialNote', { days: TRIAL.days, documents: TRIAL.documents })}{' '}
+            {t('plans.payNote')}
+          </p>
         </div>
       </div>
     </div>
   )
 }
+
+const count = (value: number) => value.toLocaleString('en-US')

@@ -8,6 +8,7 @@ import removeIcon from '../../assets/settings/menu-remove.svg'
 import sparkleIcon from '../../assets/settings/menu-sparkle.svg'
 import mailIcon from '../../assets/settings/menu-mail.svg'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { useRefreshConsoleAccess } from '../../layouts/ConsoleShell/consoleAccessRefresh'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
@@ -89,19 +90,26 @@ function OperatorsList() {
   const expired = useConsoleRead<Invitation[]>(EXPIRED_INVITATIONS_PATH)
   const number = new Intl.NumberFormat(localeFor(i18n.language))
 
-  const goTo = (next: number) => setParams(next > 1 ? new URLSearchParams({ page: String(next) }) : new URLSearchParams())
+  const goTo = (next: number) =>
+    setParams(next > 1 ? new URLSearchParams({ page: String(next) }) : new URLSearchParams())
 
   const loaded = read.status === 'ready' ? read.data : null
-  const wholeTeam = loaded !== null && loaded.number === 0 && loaded.totalElements <= loaded.content.length
+  const wholeTeam =
+    loaded !== null && loaded.number === 0 && loaded.totalElements <= loaded.content.length
   const listed = loaded ? withReactivated(loaded.content, reactivated, wholeTeam) : []
-  const team = listed.filter((user) => statuses.get(user.id) !== 'deactivated').map((user) => changed.get(user.id) ?? user)
+  const team = listed
+    .filter((user) => statuses.get(user.id) !== 'deactivated')
+    .map((user) => changed.get(user.id) ?? user)
   // Someone reactivated while the team spans pages is not placed on this one, but their roles
   // can still be managed straight away.
-  const managed = team.find((user) => user.id === managingId) ?? reactivated.find((user) => user.id === managingId)
+  const managed =
+    team.find((user) => user.id === managingId) ??
+    reactivated.find((user) => user.id === managingId)
   const managing = managed ? (changed.get(managed.id) ?? managed) : null
   const resetting = team.find((user) => user.id === resettingId) ?? null
   const changing = lifecycle ? (team.find((user) => user.id === lifecycle.id) ?? null) : null
-  const setStatus = (id: string, status: LifecycleStatus) => setStatuses((current) => new Map(current).set(id, status))
+  const setStatus = (id: string, status: LifecycleStatus) =>
+    setStatuses((current) => new Map(current).set(id, status))
   const emailing = team.find((user) => user.id === emailingId) ?? null
 
   const invitationsRead =
@@ -114,7 +122,10 @@ function OperatorsList() {
           : ({ status: 'loading' } as const)
   const invitations =
     pending.read.status === 'ready' && expired.read.status === 'ready'
-      ? invitationChanges.reduce(withInvitation, openOperatorInvitations(pending.read.data, expired.read.data))
+      ? invitationChanges.reduce(
+          withInvitation,
+          openOperatorInvitations(pending.read.data, expired.read.data),
+        )
       : []
   const invitationChanged = (invitation: Invitation, message: FormMessage) => {
     setInvitationChanges((current) => [...current, invitation])
@@ -190,9 +201,12 @@ function OperatorsList() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operators' }]} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('console.operators.title')}</h1>
+          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('console.operators.title')}
+          </h1>
           <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
             {t('console.operators.subtitle')}
           </p>
@@ -210,7 +224,10 @@ function OperatorsList() {
       </div>
 
       {notice ? (
-        <p role="status" className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
+        <p
+          role="status"
+          className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
+        >
           {t(notice.key, notice.values)}
         </p>
       ) : null}
@@ -226,7 +243,10 @@ function OperatorsList() {
         }}
         onChanged={(invitation, action) =>
           invitationChanged(invitation, {
-            key: action === 'resend' ? 'console.operators.pending.resent' : 'console.operators.pending.revoked',
+            key:
+              action === 'resend'
+                ? 'console.operators.pending.resent'
+                : 'console.operators.pending.revoked',
             values: { email: invitation.email },
           })
         }
@@ -244,7 +264,10 @@ function OperatorsList() {
             return next
           })
           setReactivated((current) => [...current.filter((other) => other.id !== user.id), user])
-          setNotice({ key: 'console.operators.reactivate.done', values: { name: displayName(user) } })
+          setNotice({
+            key: 'console.operators.reactivate.done',
+            values: { name: displayName(user) },
+          })
           // They are back with no role at all; the next thing an administrator does is decide
           // which one, if any — through the Roles dialog, the only path platform roles travel.
           setManagingId(user.id)
@@ -256,7 +279,10 @@ function OperatorsList() {
           onClose={() => setInviting(false)}
           onInvited={(invitation) => {
             setInviting(false)
-            invitationChanged(invitation, { key: 'console.operators.invite.sent', values: { email: invitation.email } })
+            invitationChanged(invitation, {
+              key: 'console.operators.invite.sent',
+              values: { email: invitation.email },
+            })
           }}
         />
       ) : null}
@@ -273,11 +299,17 @@ function OperatorsList() {
             const after = afterLifecycle(changing, action)
             if (action === 'deactivate') {
               setStatus(changing.id, 'deactivated')
-              setDeactivatedHere((current) => [after, ...current.filter((other) => other.id !== changing.id)])
+              setDeactivatedHere((current) => [
+                after,
+                ...current.filter((other) => other.id !== changing.id),
+              ])
             } else {
               setChanged((current) => new Map(current).set(changing.id, after))
             }
-            setNotice({ key: `console.operators.lifecycle.${action}Done`, values: { name: displayName(changing) } })
+            setNotice({
+              key: `console.operators.lifecycle.${action}Done`,
+              values: { name: displayName(changing) },
+            })
           }}
         />
       ) : null}
@@ -299,7 +331,13 @@ function OperatorsList() {
             setNotice(
               answer.status === 'ALREADY_APPLIED'
                 ? { key: 'console.operators.emailChange.already', values }
-                : { key: emailing.id === selfId ? 'console.operators.emailChange.pendingSelf' : 'console.operators.emailChange.pending', values },
+                : {
+                    key:
+                      emailing.id === selfId
+                        ? 'console.operators.emailChange.pendingSelf'
+                        : 'console.operators.emailChange.pending',
+                    values,
+                  },
             )
           }}
         />
@@ -311,12 +349,17 @@ function OperatorsList() {
           onClose={() => setResettingId(null)}
           onReset={(answer) => {
             setResettingId(null)
-            setChanged((current) => new Map(current).set(resetting.id, { ...resetting, mfaEnabled: false }))
+            setChanged((current) =>
+              new Map(current).set(resetting.id, { ...resetting, mfaEnabled: false }),
+            )
             const name = displayName(resetting)
             setNotice(
               answer.revokedSessions === 0
                 ? { key: 'console.operators.mfaReset.doneNoSessions', values: { name } }
-                : { key: 'console.operators.mfaReset.done', values: { name, count: answer.revokedSessions } },
+                : {
+                    key: 'console.operators.mfaReset.done',
+                    values: { name, count: answer.revokedSessions },
+                  },
             )
           }}
         />
@@ -368,10 +411,18 @@ function TeamTable({
       <table className="w-full min-w-[760px] border-collapse text-start">
         <thead>
           <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
-            <th className="px-4 py-3 text-start font-semibold">{t('console.operators.col.person')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.operators.col.email')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.operators.col.status')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.operators.col.roles')}</th>
+            <th className="px-4 py-3 text-start font-semibold">
+              {t('console.operators.col.person')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.operators.col.email')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.operators.col.status')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.operators.col.roles')}
+            </th>
             <th className="px-4 py-3 text-end font-semibold">
               <span className="sr-only">{t('console.operators.col.actions')}</span>
             </th>
@@ -388,7 +439,9 @@ function TeamTable({
                   <span className="text-base font-medium leading-[1.2] text-text-primary">
                     {name}
                     {user.id === selfId ? (
-                      <span className="ms-2 text-xs font-semibold text-primary-800">{t('console.operators.you')}</span>
+                      <span className="ms-2 text-xs font-semibold text-primary-800">
+                        {t('console.operators.you')}
+                      </span>
                     ) : null}
                   </span>
                   {name !== user.username ? (
@@ -411,12 +464,17 @@ function TeamTable({
                       />
                       {user.lockedUntil ? (
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                          {t('console.operators.lockedUntil', { time: formatMoment(user.lockedUntil, i18n.language) })}
+                          {t('console.operators.lockedUntil', {
+                            time: formatMoment(user.lockedUntil, i18n.language),
+                          })}
                         </span>
                       ) : null}
                     </>
                   ) : (
-                    <ConsoleStatusPill tone="success" label={t('console.operators.status.active')} />
+                    <ConsoleStatusPill
+                      tone="success"
+                      label={t('console.operators.status.active')}
+                    />
                   )}
                 </td>
                 <td className="px-2 py-4 text-sm font-medium text-text-secondary">
@@ -442,7 +500,12 @@ function TeamTable({
                       floating
                       label={t('console.operators.actionsFor', { name })}
                       items={[
-                        { id: 'roles', labelKey: 'console.operators.manage', icon: editIcon, onSelect: () => onManage(user) },
+                        {
+                          id: 'roles',
+                          labelKey: 'console.operators.manage',
+                          icon: editIcon,
+                          onSelect: () => onManage(user),
+                        },
                         {
                           id: 'email',
                           labelKey: 'console.operators.emailChange.open',

@@ -1,15 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import {
-  Button,
-  Checkbox,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  Input,
-  OmAmount,
-  SelectionCard,
-} from '../../components/ui'
+import { Button, ChevronRightIcon, OmAmount, SelectionCard } from '../../components/ui'
 import {
   formatOmr,
   formatRenewalDate,
@@ -18,29 +10,31 @@ import {
   type BillingCycle,
   type PlanId,
 } from '../../lib/pricing'
-import {
-  cardNumber as validateCard,
-  cvc as validateCvc,
-  expiry as validateExpiry,
-  formatCardNumber,
-  formatExpiry,
-  isClean,
-  required,
-  type FieldError,
-} from '../../lib/validation'
+import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
 import emailIcon from '../../assets/payment/email.svg'
-import visaIcon from '../../assets/payment/visa.svg'
-import mastercardIcon from '../../assets/payment/mastercard.svg'
-import amexIcon from '../../assets/payment/amex.svg'
+import tickIcon from '../../assets/payment/tick-circle.svg'
 
-type PaymentMethod = 'card' | 'bank'
+/**
+ * How a new account pays its first bill (15 Sep 2026).
+ *
+ * Fawtir never takes card details: a card payment opens Thawani's own checkout, either straight
+ * from here or from a link sent to the customer's phone or inbox. Bank transfer and cash are the
+ * other two doors, and every one of them ends the same way — someone at Fawtir confirms the money
+ * arrived and activates the account. So the design's card form is gone; the three routes stand
+ * where it was, and the summary stays.
+ */
+export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
 
 type LocationState = {
   plan?: PlanId
   billing?: BillingCycle
+  phone?: string
+  email?: string
 }
+
+const METHODS: SignupPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash']
 
 export function PaymentForm() {
   const { t, i18n } = useTranslation()
@@ -52,43 +46,27 @@ export function PaymentForm() {
   const billing: BillingCycle = state.billing ?? 'annual'
   const summary = useMemo(() => getOrderSummary(plan, billing), [plan, billing])
 
-  const [method, setMethod] = useState<PaymentMethod>('card')
-  const [nameOnCard, setNameOnCard] = useState('Hafidh Saif Al Balushi')
-  const [cardNumber, setCardNumber] = useState('')
-  const [expiry, setExpiry] = useState('')
-  const [cvc, setCvc] = useState('')
-  const [billingCountry, setBillingCountry] = useState('Oman')
-  const [saveCard, setSaveCard] = useState(true)
-  const [errors, setErrors] = useState<Record<string, FieldError>>({})
-
-  const clearError = (field: string) =>
-    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
+  const [method, setMethod] = useState<SignupPaymentMethod>('cardLink')
+  const [linkVia, setLinkVia] = useState<'now' | 'whatsapp' | 'email'>('now')
 
   const planName = t(`plans.${plan}.name`)
   const totalLabel = summary ? formatOmr(summary.total) : t('plans.enterprise.price')
   const renewalDate = formatRenewalDate(getRenewalDate(billing), i18n.language)
+  const bank = PLATFORM_SETTINGS.payments.bank
+  const linkDays = PLATFORM_SETTINGS.payments.linkExpiryDays
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    // Bank transfer collects nothing here, so only the card branch has anything to check.
-    if (method === 'card') {
-      const next: Record<string, FieldError> = {
-        nameOnCard: required(nameOnCard),
-        cardNumber: validateCard(cardNumber),
-        expiry: validateExpiry(expiry),
-        cvc: validateCvc(cvc),
-      }
-      setErrors(next)
-      if (!isClean(next)) return
-    }
     navigate('/fawtara-status', {
       state: {
         ...state,
         paymentMethod: method,
-        ...(method === 'card' ? { nameOnCard, cardNumber, expiry, billingCountry, saveCard } : {}),
+        linkVia: method === 'cardLink' ? linkVia : undefined,
       },
     })
   }
+
+  const icon = { cardLink: cardIcon, bankTransfer: bankIcon, cash: tickIcon } as const
 
   return (
     <form
@@ -105,125 +83,92 @@ export function PaymentForm() {
           </p>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-[17px] sm:grid-cols-2">
-          <SelectionCard
-            title={t('payment.card.title')}
-            description={t('payment.card.subtitle')}
-            selected={method === 'card'}
-            onSelect={() => setMethod('card')}
-            icon={<img src={cardIcon} alt="" className="size-6" />}
-          />
-          <SelectionCard
-            title={t('payment.bank.title')}
-            description={t('payment.bank.subtitle')}
-            selected={method === 'bank'}
-            onSelect={() => setMethod('bank')}
-            icon={<img src={bankIcon} alt="" className="size-6" />}
-          />
+        <div className="grid w-full grid-cols-1 gap-[17px] sm:grid-cols-3">
+          {METHODS.map((id) => (
+            <SelectionCard
+              key={id}
+              title={t(`payment.method.${id}.title`)}
+              description={t(`payment.method.${id}.subtitle`)}
+              selected={method === id}
+              onSelect={() => setMethod(id)}
+              icon={<img src={icon[id]} alt="" className="size-6" />}
+            />
+          ))}
         </div>
 
         <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="w-full max-w-[351px] shrink-0">
-            {method === 'card' ? (
-              <div className="flex flex-col gap-4">
-                <Input
-                  label={t('payment.card.nameLabel')}
-                  requiredMark
-                  value={nameOnCard}
-                  onChange={(e) => {
-                    setNameOnCard(e.target.value)
-                    clearError('nameOnCard')
-                  }}
-                  error={errors.nameOnCard ? t(errors.nameOnCard) : undefined}
-                  autoComplete="cc-name"
-                  className="border border-primary-300"
-                />
-
-                <Input
-                  label={t('payment.card.numberLabel')}
-                  requiredMark
-                  placeholder={t('payment.card.numberPlaceholder')}
-                  value={cardNumber}
-                  onChange={(e) => {
-                    setCardNumber(formatCardNumber(e.target.value))
-                    clearError('cardNumber')
-                  }}
-                  error={errors.cardNumber ? t(errors.cardNumber) : undefined}
-                  inputMode="numeric"
-                  autoComplete="cc-number"
-                  labelEnd={
-                    <span className="inline-flex items-center gap-[3px]">
-                      <img src={visaIcon} alt="" className="h-[17px] w-[27px] object-contain" />
-                      <img
-                        src={mastercardIcon}
-                        alt=""
-                        className="h-[17px] w-[27px] object-contain"
+            {method === 'cardLink' ? (
+              <div className="flex flex-col gap-3">
+                <Note icon={cardIcon} text={t('payment.cardLink.note')} />
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-1 text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                    {t('payment.cardLink.how')}
+                  </legend>
+                  {(['now', 'whatsapp', 'email'] as const).map((option) => (
+                    <label
+                      key={option}
+                      className={[
+                        'flex cursor-pointer items-center gap-3 rounded-sm border px-3.5 py-3 transition-colors',
+                        linkVia === option
+                          ? 'border-primary-300 bg-primary-25'
+                          : 'border-border-subtle bg-surface-card hover:border-primary-300',
+                      ].join(' ')}
+                    >
+                      <input
+                        type="radio"
+                        name="linkVia"
+                        value={option}
+                        checked={linkVia === option}
+                        onChange={() => setLinkVia(option)}
+                        className="size-4 accent-primary-700"
                       />
-                      <span className="inline-flex h-[17px] w-[27px] items-center justify-center overflow-hidden rounded-[1.5px] bg-[#016fd0]">
-                        <img src={amexIcon} alt="" className="h-3 w-[22px] object-contain" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-text-primary">
+                          {t(`payment.cardLink.via.${option}`)}
+                        </span>
+                        <span className="block text-xs font-medium text-text-quaternary">
+                          {option === 'now'
+                            ? t('payment.cardLink.viaNowNote')
+                            : option === 'whatsapp'
+                              ? t('payment.cardLink.viaWhatsAppNote', {
+                                  phone: state.phone ?? t('payment.cardLink.yourPhone'),
+                                  days: linkDays,
+                                })
+                              : t('payment.cardLink.viaEmailNote', {
+                                  email: state.email ?? t('payment.cardLink.yourEmail'),
+                                  days: linkDays,
+                                })}
+                        </span>
                       </span>
-                    </span>
-                  }
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label={t('payment.card.expiryLabel')}
-                    requiredMark
-                    placeholder={t('payment.card.expiryPlaceholder')}
-                    value={expiry}
-                    onChange={(e) => {
-                      setExpiry(formatExpiry(e.target.value))
-                      clearError('expiry')
-                    }}
-                    error={errors.expiry ? t(errors.expiry) : undefined}
-                    inputMode="numeric"
-                    autoComplete="cc-exp"
-                  />
-                  <Input
-                    label={t('payment.card.cvcLabel')}
-                    requiredMark
-                    placeholder={t('payment.card.cvcPlaceholder')}
-                    value={cvc}
-                    onChange={(e) => {
-                      setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))
-                      clearError('cvc')
-                    }}
-                    error={errors.cvc ? t(errors.cvc) : undefined}
-                    inputMode="numeric"
-                    autoComplete="cc-csc"
-                    type="password"
-                  />
+                    </label>
+                  ))}
+                </fieldset>
+              </div>
+            ) : method === 'bankTransfer' ? (
+              <div className="flex flex-col gap-3">
+                <div className="rounded-sm border border-black/10 bg-surface-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                    {t('payment.bank.detailsTitle')}
+                  </p>
+                  <dl className="mt-2 flex flex-col gap-1.5 text-sm">
+                    <Row label={t('payment.bank.accountName')} value={bank.accountName} />
+                    <Row label={t('payment.bank.bank')} value={bank.bank} />
+                    <Row label="IBAN" value={bank.iban} mono />
+                    <Row
+                      label={t('payment.bank.reference')}
+                      value={bank.referenceFormat.replace(
+                        '{invoice}',
+                        t('payment.bank.yourInvoice'),
+                      )}
+                      mono
+                    />
+                  </dl>
                 </div>
-
-                <Input
-                  label={t('payment.card.countryLabel')}
-                  requiredMark
-                  value={billingCountry}
-                  onChange={(e) => setBillingCountry(e.target.value)}
-                  autoComplete="country-name"
-                  className="border border-primary-300"
-                  trailingIcon={<ChevronDownIcon className="text-text-quaternary" />}
-                />
-
-                <Checkbox
-                  label={t('payment.card.saveCard')}
-                  checked={saveCard}
-                  onChange={(e) => setSaveCard(e.target.checked)}
-                  className="gap-[9px] text-xs font-medium text-text-primary"
-                />
+                <Note icon={emailIcon} text={t('payment.bank.note')} />
               </div>
             ) : (
-              <div className="flex gap-2 rounded-sm border border-black/10 bg-surface-card p-4">
-                <img src={emailIcon} alt="" className="mt-0.5 size-5 shrink-0" />
-                <p className="text-sm font-medium leading-6 tracking-[0.14px] text-[rgba(58,58,58,0.8)]">
-                  {t('payment.bank.notePrefix')}
-                  <span className="font-semibold text-[#3a3a3a]">
-                    {t('payment.bank.noteHighlight')}
-                  </span>
-                  {t('payment.bank.noteSuffix')}
-                </p>
-              </div>
+              <Note icon={tickIcon} text={t('payment.cash.note')} />
             )}
           </div>
 
@@ -238,10 +183,44 @@ export function PaymentForm() {
       </div>
 
       <Button type="submit" className="w-full max-w-[400px] gap-1.5">
-        {method === 'card' ? t('payment.payCta', { amount: totalLabel }) : t('payment.bankCta')}
+        {method === 'cardLink'
+          ? linkVia === 'now'
+            ? t('payment.payCta', { amount: totalLabel })
+            : t('payment.sendLinkCta')
+          : method === 'bankTransfer'
+            ? t('payment.bankCta')
+            : t('payment.cashCta')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>
     </form>
+  )
+}
+
+function Note({ icon, text }: { icon: string; text: string }) {
+  return (
+    <div className="flex gap-2 rounded-sm border border-black/10 bg-surface-card p-4">
+      <img src={icon} alt="" className="mt-0.5 size-5 shrink-0" />
+      <p className="text-sm font-medium leading-6 tracking-[0.14px] text-[rgba(58,58,58,0.8)]">
+        {text}
+      </p>
+    </div>
+  )
+}
+
+function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="font-medium text-text-quaternary">{label}</dt>
+      <dd
+        dir={mono ? 'ltr' : undefined}
+        className={[
+          'text-end font-semibold text-text-primary',
+          mono ? 'font-mono text-xs' : '',
+        ].join(' ')}
+      >
+        {value}
+      </dd>
+    </div>
   )
 }
 
@@ -296,7 +275,7 @@ function OrderSummaryCard({
             {billing === 'annual' ? (
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span className="font-medium text-text-primary/50">
-                  {t('payment.summary.monthlyRate', { rate: summary.monthlyRate })}
+                  {t('payment.summary.monthlyRate', { rate: formatOmr(summary.monthlyRate) })}
                 </span>
                 <span className="font-semibold text-text-primary/60">
                   {t('payment.summary.months', { count: summary.months })}

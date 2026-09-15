@@ -52,6 +52,33 @@ export function ConsoleIncidentIcon({ className = '' }: IconProps) {
   )
 }
 
+/** A subscription: the bill and the money that settles it. */
+export function ConsoleSubscriptionIcon({ className = '' }: IconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        d="M5 3.5h10a1 1 0 0 1 1 1v12l-2.4-1.5L11.2 16.5 8.8 15 6.4 16.5 4 15V4.5a1 1 0 0 1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M7.2 7.5h5.6M7.2 10.5h3.6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 /** What a tenant pays, and on which plan. */
 export function ConsolePlansIcon({ className = '' }: IconProps) {
   return (

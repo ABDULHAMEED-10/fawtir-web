@@ -249,3 +249,108 @@ export function posSaleRowActions(invoiceId: string): ActionMenuItem[] {
     },
   ]
 }
+
+/* ------------------------------------------------------- console · subscriptions */
+
+/** The queue's states, spelt out here so this file stays free of the ledger module. */
+type SubscriptionRowState =
+  'trial' | 'awaitingPayment' | 'active' | 'grace' | 'suspended' | 'cancelled'
+
+/**
+ * The Subscriptions queue's row menu (docs/erp-and-console-plan.md §7.3). Every action is a deep
+ * link the tenant's page answers with the matching modal, so the queue never opens one itself.
+ * What makes no sense for the state is left out: nothing to record for a trial or a cancelled
+ * tenant, nothing to activate that is already live, and a suspended tenant is resumed, not
+ * suspended again.
+ */
+export function subscriptionRowActions(
+  tenantId: string,
+  state: SubscriptionRowState,
+): ActionMenuItem[] {
+  const tenant = `/console/tenants/${tenantId}?from=subscriptions`
+  const hasOpenInvoice = state === 'awaitingPayment' || state === 'grace' || state === 'suspended'
+  const items: ActionMenuItem[] = [
+    { id: 'open', labelKey: 'rowActions.subscription.open', icon: viewIcon, to: tenant },
+  ]
+  if (hasOpenInvoice) {
+    items.push(
+      {
+        id: 'recordPayment',
+        labelKey: 'rowActions.subscription.recordPayment',
+        icon: invoiceIcon,
+        to: `${tenant}&action=recordPayment`,
+      },
+      {
+        id: 'sendLink',
+        labelKey: 'rowActions.subscription.sendLink',
+        icon: sendIcon,
+        to: `${tenant}&action=sendLink`,
+      },
+    )
+  }
+  if (state === 'suspended') {
+    items.push({
+      id: 'resume',
+      labelKey: 'rowActions.subscription.resume',
+      icon: periodicIcon,
+      to: `${tenant}&action=resume`,
+    })
+  } else if (state !== 'active') {
+    items.push({
+      id: 'activate',
+      labelKey: 'rowActions.subscription.activate',
+      icon: periodicIcon,
+      to: `${tenant}&action=activate`,
+    })
+  }
+  if (state !== 'cancelled') {
+    items.push({
+      id: 'changePlan',
+      labelKey: 'rowActions.subscription.changePlan',
+      icon: editIcon,
+      to: `${tenant}&action=changePlan`,
+    })
+  }
+  if (state === 'active' || state === 'awaitingPayment' || state === 'grace') {
+    items.push({
+      id: 'suspend',
+      labelKey: 'rowActions.subscription.suspend',
+      icon: pauseIcon,
+      to: `${tenant}&action=suspend`,
+      danger: true,
+    })
+  }
+  return items
+}
+
+/**
+ * A subscription invoice's row menu. Recording a payment and sending a link only apply while the
+ * invoice is still open; `settled` hides them for a paid or waived one.
+ */
+export function subscriptionInvoiceRowActions(
+  tenantId: string,
+  invoiceId: string,
+  settled = false,
+): ActionMenuItem[] {
+  const tenant = `/console/tenants/${tenantId}?from=invoices`
+  return [
+    { id: 'open', labelKey: 'rowActions.subscription.open', icon: viewIcon, to: tenant },
+    ...(settled
+      ? []
+      : [
+          {
+            id: 'recordPayment',
+            labelKey: 'rowActions.subscription.recordPayment',
+            icon: invoiceIcon,
+            to: `${tenant}&action=recordPayment&invoice=${invoiceId}`,
+          },
+          {
+            id: 'sendLink',
+            labelKey: 'rowActions.subscription.sendLink',
+            icon: sendIcon,
+            to: `${tenant}&action=sendLink&invoice=${invoiceId}`,
+          },
+        ]),
+    { id: 'download', labelKey: 'rowActions.subscription.download', icon: statementIcon },
+  ]
+}

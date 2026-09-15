@@ -4,43 +4,39 @@
  * Figma 135:40605 (Plan and usage), 135:40971 (Bills and payment).
  */
 
-import { BOOK, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } from './settings'
+import { BOOK, COMPANY, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } from './settings'
+import { PLATFORM_SETTINGS } from './platformSettings'
 import { MEMBERS, SEATS } from './settingsPeople'
 import { OPEN_BRANCHES } from './settingsCompany'
+import { CATALOGUE, PLAN, type PlanId } from './plans'
 
 export type Plan = {
-  id: string
+  id: PlanId
   monthly: number
+  /** Documents a month, sent and received — the field is named for the screen that reads it. */
   invoices: number
   people: number
   /** Null means the plan does not cap branches. */
   branches: number | null
   extraPerson?: number
+  /** Per document past the allowance when overage is on. */
+  overage: number
   api: boolean
   prioritySupport?: boolean
 }
 
-export const PLANS: Plan[] = [
-  { id: 'starter', monthly: 19, invoices: 150, people: 2, branches: 1, api: false },
-  {
-    id: 'business',
-    monthly: 49,
-    invoices: 500,
-    people: 5,
-    branches: 5,
-    extraPerson: 3.5,
-    api: true,
-  },
-  {
-    id: 'businessPlus',
-    monthly: 89,
-    invoices: 1_500,
-    people: 15,
-    branches: null,
-    api: true,
-    prioritySupport: true,
-  },
-]
+/** The launch catalogue (`plans.ts`), in the shape this screen was drawn against. */
+export const PLANS: Plan[] = CATALOGUE.map((plan) => ({
+  id: plan.id,
+  monthly: plan.monthly,
+  invoices: plan.documents,
+  people: plan.people,
+  branches: plan.branches,
+  extraPerson: plan.extraPerson,
+  overage: plan.overage,
+  api: plan.api,
+  prioritySupport: plan.prioritySupport,
+}))
 
 export const CURRENT_PLAN = PLANS[1]
 
@@ -74,37 +70,35 @@ export const USAGE_STATS = {
 /** Overage is switched off, so invoices past the allowance are refused rather than charged. */
 export const OVERAGE_ON = false
 
-/* ------------------------------------------------------------- bills and cards */
+/* ------------------------------------------------------------ bills and paying */
 
-export type Card = {
-  id: string
-  brand: 'visa' | 'mastercard'
-  last4: string
-  holder: string
-  expires: string
-  default: boolean
-  noteKey?: string
+export type TenantPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash' | 'cheque'
+
+/**
+ * How the account pays Fawtir (15 Sep 2026). Nothing about a card is stored here or anywhere in
+ * Fawtir: a card payment opens Thawani's own checkout from a link, and the link is sent to the
+ * account a week before each bill falls due. Bank transfer and cash are always open as well; an
+ * operator at Fawtir records those and activates the period.
+ */
+export const HOW_YOU_PAY = {
+  method: 'cardLink' as TenantPaymentMethod,
+  channel: 'whatsapp' as 'whatsapp' | 'email',
+  phone: COMPANY.phone,
+  email: COMPANY.email,
+  /** Days before the due date the link is sent. */
+  linkLeadDays: 7,
+  linkValidDays: PLATFORM_SETTINGS.payments.linkExpiryDays,
+  /** Where a transfer goes and what to write on it. */
+  bank: PLATFORM_SETTINGS.payments.bank,
+  /** The last link: sent for the September bill and paid the same day. */
+  lastLink: { sentOn: new Date(2026, 8, 1), paidOn: new Date(2026, 8, 1) },
 }
 
-export const CARDS: Card[] = [
-  {
-    id: 'primary',
-    brand: 'visa',
-    last4: '4417',
-    holder: 'AL BAHJA COFFEE LLC',
-    expires: '08 / 28',
-    default: true,
-  },
-  {
-    id: 'backup',
-    brand: 'visa',
-    last4: '8802',
-    holder: 'AL BAHJA COFFEE LLC',
-    expires: '02 / 27',
-    default: false,
-    noteKey: 'bills.usedOnceInApril',
-  },
-]
+const DAY = 24 * 60 * 60 * 1000
+
+/** When the link for a bill goes out. */
+export const linkArrivesOn = (dueOn: Date) =>
+  new Date(dueOn.getTime() - HOW_YOU_PAY.linkLeadDays * DAY)
 
 export type PastBill = {
   reference: string
@@ -113,7 +107,11 @@ export type PastBill = {
   coveredKey: string
   coveredValues?: Record<string, string | number>
   amount: number
-  card: string
+  method: TenantPaymentMethod
+  /** The day the money was recorded. */
+  paidOn: string
+  /** Who confirmed it arrived: Thawani for a link, the Fawtir team for anything else. */
+  confirmedBy: 'thawani' | 'fawtir'
   status: 'paid' | 'paidLate'
   lateNoteKey?: string
 }
@@ -125,8 +123,10 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.september',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 49,
-    card: '4417',
+    amount: 36,
+    method: 'cardLink',
+    paidOn: '1 Sep 2026',
+    confirmedBy: 'thawani',
     status: 'paid',
   },
   {
@@ -135,8 +135,10 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.august',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 49,
-    card: '4417',
+    amount: 36,
+    method: 'cardLink',
+    paidOn: '1 Aug 2026',
+    confirmedBy: 'thawani',
     status: 'paid',
   },
   {
@@ -145,8 +147,10 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.july',
     coveredKey: 'bills.coveredPlanPeopleExtra',
     coveredValues: { people: 5, extra: 1 },
-    amount: 52.5,
-    card: '4417',
+    amount: 38.5,
+    method: 'cardLink',
+    paidOn: '1 Jul 2026',
+    confirmedBy: 'thawani',
     status: 'paid',
   },
   {
@@ -155,8 +159,10 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.june',
     coveredKey: 'bills.coveredRetried',
     coveredValues: { date: '3 June' },
-    amount: 49,
-    card: '4417',
+    amount: 36,
+    method: 'bankTransfer',
+    paidOn: '3 Jun 2026',
+    confirmedBy: 'fawtir',
     status: 'paidLate',
   },
   {
@@ -165,8 +171,10 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.may',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 49,
-    card: '4417',
+    amount: 36,
+    method: 'cash',
+    paidOn: '2 May 2026',
+    confirmedBy: 'fawtir',
     status: 'paid',
   },
   {
@@ -175,8 +183,10 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.april',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 49,
-    card: '8802',
+    amount: 36,
+    method: 'bankTransfer',
+    paidOn: '1 Apr 2026',
+    confirmedBy: 'fawtir',
     status: 'paid',
   },
 ]
@@ -185,8 +195,15 @@ export const PAST_BILLS: PastBill[] = [
  * The next bill, built from the plan and the account rather than stated — so adding a sixth
  * person moves the total on this screen and the warning on the plan screen together.
  */
+/** Branches open beyond what the plan includes — Al Bahja runs three on a plan of two. */
+export const EXTRA_BRANCHES = Math.max(
+  0,
+  OPEN_BRANCHES.length - (CURRENT_PLAN.branches ?? Infinity),
+)
+
 export function nextBill(extraPeople = Math.max(0, MEMBERS.length - SEATS.included)) {
   const people = extraPeople * SEATS.extraMonthly
+  const branches = EXTRA_BRANCHES * (PLAN[CURRENT_PLAN.id].extraBranch ?? 0)
   /** Overage is off, so nothing can accrue here however many invoices are refused. */
   const overage = 0
   return {
@@ -194,10 +211,11 @@ export function nextBill(extraPeople = Math.max(0, MEMBERS.length - SEATS.includ
     inDays: daysFrom(RESETS_ON),
     plan: CURRENT_PLAN.monthly,
     people,
+    branches,
     overage,
-    total: CURRENT_PLAN.monthly + people + overage,
+    total: CURRENT_PLAN.monthly + people + branches + overage,
     /** What it would come to if one more person were added before the first. */
-    withOneMore: CURRENT_PLAN.monthly + (extraPeople + 1) * SEATS.extraMonthly,
+    withOneMore: CURRENT_PLAN.monthly + branches + (extraPeople + 1) * SEATS.extraMonthly,
   }
 }
 
