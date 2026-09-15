@@ -84,19 +84,22 @@ export function toBillListItem(row: BillRowDto): BillListItem {
     dueDate: row.dueDate,
     paidOnTheSpot: row.paidOnTheSpot,
     paid: row.workflowState === 'PAID',
-    match: row.match
-      ? {
-          verdict: row.match.verdict === 'MISMATCH' ? 'warn' : 'ok',
-          order: row.match.purchaseOrderNumber,
-          note: {
-            key: row.match.byHand
-              ? 'billsPage.rows.matchedByHand'
-              : row.match.verdict === 'MISMATCH'
-                ? 'billsPage.rows.differsFromOrder'
-                : 'billsPage.rows.agreesWithOrder',
-          },
-        }
-      : { verdict: 'none', theirOrder: row.purchaseOrderReference },
+    // NO_ORDER is a verdict too: the matcher looked and found no order to hold the bill against.
+    match:
+      row.match && row.match.verdict !== 'NO_ORDER'
+        ? {
+            verdict: row.match.verdict === 'MISMATCH' ? 'warn' : 'ok',
+            order: row.match.purchaseOrderNumber,
+            note: {
+              key:
+                row.match.byHand || row.match.verdict === 'MATCHED_BY_HAND'
+                  ? 'billsPage.rows.matchedByHand'
+                  : row.match.verdict === 'MISMATCH'
+                    ? 'billsPage.rows.differsFromOrder'
+                    : 'billsPage.rows.agreesWithOrder',
+            },
+          }
+        : { verdict: 'none', theirOrder: row.purchaseOrderReference },
     status,
     statusValues:
       status === 'awaitingApproval' && row.readiness.required > 1

@@ -316,6 +316,17 @@ describe('bill list mapping', () => {
     })
   })
 
+  it('reads NO_ORDER as no order, not as an agreement', () => {
+    expect(toBillListItem(bill({ match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false }, purchaseOrderReference: 'THEIR-PO-5' })).match).toEqual({
+      verdict: 'none',
+      theirOrder: 'THEIR-PO-5',
+    })
+    expect(toBillListItem(bill({ match: { verdict: 'MATCHED_BY_HAND', purchaseOrderNumber: 'PO-1', byHand: false } })).match).toMatchObject({
+      verdict: 'ok',
+      note: { key: 'billsPage.rows.matchedByHand' },
+    })
+  })
+
   it('names the run a bill is in, and uses the plain label when there is nothing to add', () => {
     expect(statusLabelKey(toBillListItem(bill({ workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'RUN-7' })))).toBe(
       'billsPage.state.inPaymentRunRef',

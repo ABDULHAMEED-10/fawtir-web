@@ -46,7 +46,7 @@ export type BillRowDto = {
   workflowState: BillWorkflowState
   readiness: { state: 'PENDING' | 'READY' | 'REJECTED'; distinctApprovals: number; required: number; autoApproved: boolean }
   match: {
-    verdict: 'MATCHED' | 'MISMATCH' | string
+    verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
     purchaseOrderNumber: string | null
     byHand: boolean
   } | null
