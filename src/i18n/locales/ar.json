@@ -1242,7 +1242,8 @@
     "channel": {
       "peppol": "Peppol",
       "emailPdf": "PDF بالبريد",
-      "paper": "ورق"
+      "paper": "ورق",
+      "manual": "غير مسجّل"
     },
     "channelNote": {
       "selfBilled": "أنت تفوتر نيابة عنهم",
@@ -1257,14 +1258,17 @@
       "net30": "صافي ٣٠",
       "net10": "صافي ١٠",
       "onReceipt": "عند الاستلام",
-      "fifthOfMonth": "٥ من الشهر"
+      "fifthOfMonth": "٥ من الشهر",
+      "netDays": "صافي {{count}}",
+      "none": "لا توجد شروط مسجّلة"
     },
     "termsNote": {
       "earlySettlement": "٢٪ عند السداد خلال ٧ أيام",
       "rateCard": "بطاقة أسعار محفوظة",
       "agreementTo": "اتفاقية حتى ٣١ مارس ٢٠٢٧",
       "usuallyCash": "نقدًا عادةً",
-      "monthlyRecurring": "شهري، متكرر"
+      "monthlyRecurring": "شهري، متكرر",
+      "earlyDiscount": "خصم {{percent}}% عند الدفع خلال {{days}} أيام"
     },
     "owedNote": {
       "bothApproved": "{{count}} فاتورتان · كلتاهما معتمدة",
@@ -1273,7 +1277,9 @@
       "twoDaysLate": "متأخرة يومين",
       "notArrived": "لم تصل فاتورة يوليو",
       "settledInFull": "سُدّدت بالكامل",
-      "open": "{{count}} مفتوحة"
+      "open": "{{count}} مفتوحة",
+      "nothingOpen": "لا فواتير مفتوحة",
+      "openWithHold": "{{count}} مفتوحة · {{held}} معلّقة"
     },
     "record": {
       "complete": "مكتمل",
@@ -1281,7 +1287,8 @@
       "noBankDetails": "لا بيانات بنكية",
       "noVatNumber": "لا رقم ضريبي",
       "notOnPeppol": "ليسوا على Peppol",
-      "switchedOff": "موقوف"
+      "switchedOff": "موقوف",
+      "bankChangedUnconfirmed": "تغيّرت البيانات البنكية"
     },
     "recordNote": {
       "elevenOnTime": "١١ من ١١ سُددت في موعدها",
@@ -1289,7 +1296,8 @@
       "nineOfTen": "٩ من ١٠ سُددت في موعدها",
       "cantReclaim": "لا يمكن استرداد الضريبة بدونه",
       "askingWouldSave": "نسأل إن كان سيوفر الإدخال",
-      "stillSearchable": "٣١ فاتورة تبقى قابلة للبحث"
+      "stillSearchable": "٣١ فاتورة تبقى قابلة للبحث",
+      "paidOnTime": "دُفعت {{onTime}} من {{settled}} في موعدها"
     },
     "rowAction": {
       "newBill": "فاتورة جديدة",
@@ -1319,7 +1327,10 @@
       "copyToNew": "نسخ إلى مورد جديد",
       "copyToNewNote": "لفرع أو كيان ثانٍ",
       "switchOff": "إيقاف هذا المورد",
-      "switchOffNote": "يخفيهم من الفواتير الجديدة · {{count}} فاتورة تبقى قابلة للبحث"
+      "switchOffNote": "يخفيهم من الفواتير الجديدة · {{count}} فاتورة تبقى قابلة للبحث",
+      "switchOffNoteSearchable": "يُخفى من الفواتير الجديدة · تبقى فواتيره قابلة للبحث",
+      "switchOn": "إعادة تفعيل هذا المورّد",
+      "switchOnNote": "يمكن اختياره في الفواتير الجديدة مرة أخرى"
     },
     "emptyState": {
       "title": "لا يوجد موردون في القائمة بعد",
@@ -9670,5 +9681,12 @@
     "MOBILE_USER": "مستخدم الجوال",
     "INTEGRATION": "تكامل",
     "member": "عضو"
+  },
+  "appList": {
+    "pager": {
+      "label": "الصفحات",
+      "previous": "الصفحة السابقة",
+      "next": "الصفحة التالية"
+    }
   }
 }

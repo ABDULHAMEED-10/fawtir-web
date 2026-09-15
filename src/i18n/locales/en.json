@@ -1240,7 +1240,8 @@
     "channel": {
       "peppol": "Peppol",
       "emailPdf": "Email PDF",
-      "paper": "Paper"
+      "paper": "Paper",
+      "manual": "Not recorded"
     },
     "channelNote": {
       "selfBilled": "You invoice on their behalf",
@@ -1255,14 +1256,17 @@
       "net30": "Net 30",
       "net10": "Net 10",
       "onReceipt": "On receipt",
-      "fifthOfMonth": "5th of month"
+      "fifthOfMonth": "5th of month",
+      "netDays": "Net {{count}}",
+      "none": "No terms recorded"
     },
     "termsNote": {
       "earlySettlement": "2% if paid in 7 days",
       "rateCard": "Rate card on file",
       "agreementTo": "Agreement to 31 Mar 2027",
       "usuallyCash": "Usually cash",
-      "monthlyRecurring": "Monthly, recurring"
+      "monthlyRecurring": "Monthly, recurring",
+      "earlyDiscount": "{{percent}}% if paid in {{days}} days"
     },
     "owedNote": {
       "bothApproved": "{{count}} bills · both approved",
@@ -1271,7 +1275,9 @@
       "twoDaysLate": "2 days late",
       "notArrived": "July's bill hasn't arrived",
       "settledInFull": "Settled in full",
-      "open": "{{count}} open"
+      "open": "{{count}} open",
+      "nothingOpen": "Nothing open",
+      "openWithHold": "{{count}} open · {{held}} on hold"
     },
     "record": {
       "complete": "Complete",
@@ -1279,7 +1285,8 @@
       "noBankDetails": "No bank details",
       "noVatNumber": "No VAT number",
       "notOnPeppol": "Not on Peppol",
-      "switchedOff": "Switched off"
+      "switchedOff": "Switched off",
+      "bankChangedUnconfirmed": "Bank details changed"
     },
     "recordNote": {
       "elevenOnTime": "11 of 11 paid on time",
@@ -1287,7 +1294,8 @@
       "nineOfTen": "9 of 10 paid on time",
       "cantReclaim": "Can't reclaim VAT without it",
       "askingWouldSave": "Asking if would save typing",
-      "stillSearchable": "31 bills stay searchable"
+      "stillSearchable": "31 bills stay searchable",
+      "paidOnTime": "{{onTime}} of {{settled}} paid on time"
     },
     "rowAction": {
       "newBill": "New bill",
@@ -1317,7 +1325,10 @@
       "copyToNew": "Copy into a new supplier",
       "copyToNewNote": "For a second branch or entity",
       "switchOff": "Switch this supplier off",
-      "switchOffNote": "Hides them from new bills · {{count}} bills stay searchable"
+      "switchOffNote": "Hides them from new bills · {{count}} bills stay searchable",
+      "switchOffNoteSearchable": "Hides them from new bills · their bills stay searchable",
+      "switchOn": "Switch this supplier back on",
+      "switchOnNote": "They can be chosen on new bills again"
     },
     "emptyState": {
       "title": "No suppliers on the list yet",
@@ -9649,5 +9660,12 @@
     "MOBILE_USER": "Mobile user",
     "INTEGRATION": "Integration",
     "member": "Member"
+  },
+  "appList": {
+    "pager": {
+      "label": "Pages",
+      "previous": "Previous page",
+      "next": "Next page"
+    }
   }
 }
