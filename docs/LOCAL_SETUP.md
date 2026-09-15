@@ -146,6 +146,9 @@ FAWTIR_IDENTITY_SIGNUP_PRIVACY_VERSION=local-privacy-v1
 FAWTIR_IDENTITY_OPENAPI_PUBLIC=true
 FAWTIR_GATEWAY_API_DOCS_PUBLIC=true
 
+# Issuing an invoice is refused everywhere unless this is on (REFERENCE_CATALOGUE_NOT_AVAILABLE)
+FAWTIR_INVOICE_REFERENCE_CATALOGUE_ENABLED=true
+
 # Seed data: one-shot runners, no-ops once the tenants exist
 FAWTIR_BOOTSTRAP_RUNNER_ENABLED=true
 FAWTIR_BOOTSTRAP_RUNNER_ADMIN_USERNAME=demo_admin
@@ -203,6 +206,12 @@ mvn -pl gateway-service spring-boot:run -Dspring-boot.run.jvmArguments="-Xmx384m
 
 The gateway has no `dev` profile, and its default profile is the right one locally.
 
+**After the first successful boot, set `FAWTIR_BOOTSTRAP_RUNNER_ENABLED=false` and
+`FAWTIR_BOOTSTRAP_PLATFORM_ENABLED=false`.** The customer runner is supposed to skip when its tenant
+exists. On this stack it did not: the second boot died with `admin-username is already taken
+platform-wide`. (Seen 2026-09-15, runtime connecting as `fawtir_app`. The cause was not
+investigated.)
+
 The first core boot applies every migration (about 3 s) and logs two lines that show the seed
 accounts were created:
 
@@ -246,11 +255,12 @@ npm run dev -- --port 5173 --strictPort
 
 Open <http://localhost:5173/login>.
 
-**Front-end environment variables.** The front end has only two.
+**Front-end environment variables.** The front end has three.
 
 | Variable | Read by | Default | Meaning |
 |---|---|---|---|
 | `FAWTIR_API_ORIGIN` | `vite.config.ts` (dev and preview server only, never bundled) | `http://localhost:8080` | Where the dev server proxies `/api`. |
+| `VITE_REQUIRE_SESSION` | `src/lib/session/session.ts` (bundled) | on in `npm run dev`, off in `npm run build` | `true` makes the app send anyone without a session to sign in; `false` shows the screens without one (the Vercel prototype cannot reach the API yet). |
 | `VITE_API_BASE_URL` | `src/api/client.ts` (bundled) | `/api` | Prefix for every API call. **Leave it unset.** Setting it to an absolute URL makes the browser call that host cross-origin, which works only if that host's gateway and core both allow-list your origin. |
 
 Port 5173 matters: it is the origin the backend allow-lists above. If you change it, change both
@@ -264,8 +274,22 @@ Port 5173 matters: it is the origin the backend allow-lists above. If you change
 |---|---|---|---|---|
 | Customer admin (tenant DEMO, role ADMIN) | `demo_admin` | `Local-Demo-Admin-2026` | `/dashboard` | `demo.admin@fawtir.test` |
 | Platform operator | `operator` | `Local-Operator-2026` | `/console` | `operator@fawtir.test` |
+| Customer read-only (tenant DEMO, role VIEWER): for "no access" checks | `demo_viewer` | `Local-Demo-Viewer-2026` | `/dashboard` | `demo.viewer@fawtir.test` |
 
 These passwords are synthetic and local only. Never use them anywhere else.
+
+`demo_viewer` is not created by the bootstrap. Create it once with `POST /api/v1/users` as
+`demo_admin` (it needs an `Idempotency-Key` header), using `"roleCodes": ["VIEWER"]`.
+
+### Seed data for the screens
+
+```bash
+node tools/local-seed/seed-suppliers.mjs
+```
+
+The script signs in as `demo_admin`, reading the code from Mailpit. Through the public API it adds
+14 suppliers with bills, a hold, approvals and payments, so every state on the Suppliers list
+appears. It only runs against localhost. Re-running it adds only the suppliers that are missing.
 
 1. Go to `/login` and enter the username and password. There is **no tenant code**. The backend
    works out the tenant from the username and ignores a `tenantCode` if a client sends one
@@ -367,4 +391,6 @@ every checkout and worktree on the machine shares the same volumes, and `-v` del
 | 403 on login or any POST from the browser | `http://localhost:5173` is missing from one of the two allow-lists | Set both `FAWTIR_*_ALLOWED_ORIGINS` |
 | The code screen shows but no email arrives | Kafka is down, or the delivery flag or payload key is missing | Check `docker ps` shows `fawtir-kafka` as healthy, then check the three notification variables |
 | Core fails at boot when reminders are enabled | The reminder sweeps need an SMTP sender | Keep `FAWTIR_NOTIFICATION_DELIVERY_ENABLED=true` with Mailpit up. Setting it to false also stops the login codes. |
-| Bootstrap refuses to start: username "already taken platform-wide" | Usernames are globally unique, and the name exists in another tenant | Choose a different username, or use a fresh database |
+| Bootstrap refuses to start: username "already taken platform-wide" | Either the name exists in another tenant, or this is a second boot with the runner still on (see §3.5) | Turn the runners off after the first boot, or choose a different username |
+| Issuing an invoice answers 503 `REFERENCE_CATALOGUE_NOT_AVAILABLE` | The reference-catalogue flag is off, which is the default everywhere | `FAWTIR_INVOICE_REFERENCE_CATALOGUE_ENABLED=true` |
+| An app page redirects straight to `/login` | The app now requires a session in development (`VITE_REQUIRE_SESSION`, unset = on in dev, off in production builds) | Sign in; or set `VITE_REQUIRE_SESSION=false` in `.env.local` to look at the mock screens |
