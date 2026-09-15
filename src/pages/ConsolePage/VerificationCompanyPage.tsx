@@ -114,7 +114,9 @@ function CompanyView({
   return (
     <>
       <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{company.tenantName}</h1>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+          {company.tenantName}
+        </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2.5">
           <VerificationStatusPill status={company.verificationStatus} submitted={submitted} />
           <span className="text-sm font-medium text-text-quaternary">{company.tenantCode}</span>
@@ -143,9 +145,18 @@ function CompanyView({
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <ReviewCard title={t('console.verification.detail.section.company')}>
-            <ReviewLine label={t('console.verification.detail.field.legalName')} value={company.legalName ?? none} />
-            <ReviewLine label={t('console.verification.detail.field.code')} value={company.tenantCode} />
-            <ReviewLine label={t('console.verification.detail.field.taxNumber')} value={company.taxNumber ?? none} />
+            <ReviewLine
+              label={t('console.verification.detail.field.legalName')}
+              value={company.legalName ?? none}
+            />
+            <ReviewLine
+              label={t('console.verification.detail.field.code')}
+              value={company.tenantCode}
+            />
+            <ReviewLine
+              label={t('console.verification.detail.field.taxNumber')}
+              value={company.taxNumber ?? none}
+            />
             <ReviewLine
               label={t('console.verification.detail.field.crNumber')}
               value={company.commercialRegistrationNumber ?? none}
@@ -158,7 +169,10 @@ function CompanyView({
               label={t('console.verification.detail.field.address')}
               value={company.registeredAddress ?? none}
             />
-            <ReviewLine label={t('console.verification.detail.field.timezone')} value={company.timezone ?? none} />
+            <ReviewLine
+              label={t('console.verification.detail.field.timezone')}
+              value={company.timezone ?? none}
+            />
           </ReviewCard>
 
           <ReviewCard title={t('console.verification.detail.section.account')}>
@@ -214,7 +228,9 @@ function CompanyView({
           <ReviewCard title={t('console.verification.detail.section.verification')}>
             <ReviewLine
               label={t('console.verification.detail.field.status')}
-              value={<VerificationStatusPill status={company.verificationStatus} submitted={submitted} />}
+              value={
+                <VerificationStatusPill status={company.verificationStatus} submitted={submitted} />
+              }
             />
             <ReviewLine
               label={t('console.verification.detail.field.method')}
@@ -230,13 +246,22 @@ function CompanyView({
                 value={t(`console.verification.detail.reason.${company.rejectionReason}`)}
               />
             ) : null}
-            <ReviewLine label={t('console.verification.detail.field.submitted')} value={moment(company.submittedAt)} />
-            <ReviewLine label={t('console.verification.detail.field.decided')} value={moment(company.decidedAt)} />
+            <ReviewLine
+              label={t('console.verification.detail.field.submitted')}
+              value={moment(company.submittedAt)}
+            />
+            <ReviewLine
+              label={t('console.verification.detail.field.decided')}
+              value={moment(company.decidedAt)}
+            />
             <ReviewLine
               label={t('console.verification.detail.field.revision')}
               value={new Intl.NumberFormat(localeFor(language)).format(company.profileRevision)}
             />
-            <ReviewLine label={t('console.verification.detail.field.evidence')} value={yesNo(company.evidenceRecorded)} />
+            <ReviewLine
+              label={t('console.verification.detail.field.evidence')}
+              value={yesNo(company.evidenceRecorded)}
+            />
             <ReviewLine
               label={t('console.verification.detail.field.attestation')}
               value={company.attestationReference ?? none}
@@ -278,7 +303,9 @@ function History({ read, retry }: { read: ConsoleRead<HistoryEntry[]>; retry: ()
           </p>
           <p className="mt-1 text-xs font-medium text-text-quaternary">
             {formatMoment(entry.occurredAt, i18n.language)} ·{' '}
-            {t('console.verification.detail.revision', { revision: number.format(entry.profileRevision) })}
+            {t('console.verification.detail.revision', {
+              revision: number.format(entry.profileRevision),
+            })}
           </p>
           {entry.rejectionReason ? (
             <p className="mt-1 text-xs font-medium text-danger-700">

@@ -138,6 +138,10 @@ import {
   TenantsPage,
   VerificationCompanyPage,
   VerificationPage,
+  TenantDetailPage,
+  SubscriptionsPage,
+  SubscriptionInvoicesPage,
+  ConsoleSettingsPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
 
@@ -283,6 +287,9 @@ function App() {
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
           <Route path="/console" element={<OperationsPage />} />
           <Route path="/console/tenants" element={<TenantsPage />} />
+          <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="/console/subscriptions" element={<SubscriptionsPage />} />
+          <Route path="/console/subscriptions/invoices" element={<SubscriptionInvoicesPage />} />
           <Route path="/console/queue" element={<ConsoleSoonPage />} />
           <Route path="/console/incidents" element={<ConsoleSoonPage />} />
           <Route path="/console/onboarding" element={<VerificationPage />} />
@@ -290,7 +297,7 @@ function App() {
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
           <Route path="/console/audit" element={<ConsoleSoonPage />} />
-          <Route path="/console/settings" element={<ConsoleSoonPage />} />
+          <Route path="/console/settings" element={<ConsoleSettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

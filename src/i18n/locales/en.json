@@ -8898,7 +8898,8 @@
       "audit": "Audit log",
       "settings": "Console settings",
       "bottomSettings": "Settings",
-      "operators": "Operators"
+      "operators": "Operators",
+      "subscriptions": "Subscriptions"
     },
     "user": {
       "team": "Fawtir team",
@@ -9424,6 +9425,67 @@
         "error": {
           "refused": "Fawtir refused this change. You may no longer have access."
         }
+      }
+    },
+    "subscriptions": {
+      "state": {
+        "trial": "Trial",
+        "awaitingPayment": "Awaiting payment",
+        "active": "Active",
+        "grace": "In grace",
+        "suspended": "Suspended",
+        "cancelled": "Cancelled"
+      },
+      "invoiceStatus": {
+        "unpaid": "Unpaid",
+        "paid": "Paid",
+        "overdue": "Overdue",
+        "waived": "Waived"
+      },
+      "linkStatus": {
+        "unpaid": "Not paid yet",
+        "paid": "Paid",
+        "expired": "Expired"
+      },
+      "method": {
+        "cardLink": "Card by payment link",
+        "bankTransfer": "Bank transfer",
+        "cash": "Cash",
+        "cheque": "Cheque"
+      },
+      "methodShort": {
+        "cardLink": "Card link",
+        "bankTransfer": "Transfer",
+        "cash": "Cash",
+        "cheque": "Cheque"
+      },
+      "term": {
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "annual": "Annual"
+      },
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "copied": "Copied link"
+      },
+      "cover": {
+        "plan": "{{plan}} plan",
+        "planExtras": "{{plan}} plan · {{people}} extra people · {{branches}} extra branches"
+      },
+      "event": {
+        "paymentRecorded": "Payment recorded — {{method}}, OMR {{amount}}",
+        "activated": "Activated until {{until}}",
+        "activatedWithoutPayment": "Activated until {{until}} — {{reason}}",
+        "linkSent": "Payment link sent by {{via}}",
+        "suspended": "Suspended — {{reason}}",
+        "resumed": "Resumed — {{reason}}",
+        "cancelled": "Cancelled — {{reason}}; runs to {{until}}",
+        "trialStarted": "Trial started, {{days}} days",
+        "planChanged": "Moved to {{plan}}, {{term}} — {{reason}}",
+        "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}} — {{reason}}",
+        "quotaGranted": "{{documents}} extra documents until {{expires}} — {{reason}}",
+        "overageWaived": "Overage of OMR {{amount}} waived — {{reason}}"
       }
     }
   },

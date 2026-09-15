@@ -8909,7 +8909,8 @@
       "audit": "سجل التدقيق",
       "settings": "إعدادات اللوحة",
       "bottomSettings": "الإعدادات",
-      "operators": "المشغّلون"
+      "operators": "المشغّلون",
+      "subscriptions": "الاشتراكات"
     },
     "user": {
       "team": "فريق فوترة",
@@ -9441,6 +9442,67 @@
         "error": {
           "refused": "رفضت فوترة هذا التغيير. ربما لم تعد تملك الصلاحية."
         }
+      }
+    },
+    "subscriptions": {
+      "state": {
+        "trial": "تجريبي",
+        "awaitingPayment": "بانتظار الدفع",
+        "active": "نشط",
+        "grace": "فترة سماح",
+        "suspended": "موقوف",
+        "cancelled": "ملغى"
+      },
+      "invoiceStatus": {
+        "unpaid": "غير مدفوعة",
+        "paid": "مدفوعة",
+        "overdue": "متأخرة",
+        "waived": "معفاة"
+      },
+      "linkStatus": {
+        "unpaid": "لم يُدفع بعد",
+        "paid": "مدفوع",
+        "expired": "منتهي"
+      },
+      "method": {
+        "cardLink": "بطاقة عبر رابط الدفع",
+        "bankTransfer": "تحويل بنكي",
+        "cash": "نقدًا",
+        "cheque": "شيك"
+      },
+      "methodShort": {
+        "cardLink": "رابط دفع",
+        "bankTransfer": "تحويل",
+        "cash": "نقد",
+        "cheque": "شيك"
+      },
+      "term": {
+        "monthly": "شهري",
+        "quarterly": "ربع سنوي",
+        "annual": "سنوي"
+      },
+      "channel": {
+        "whatsapp": "واتساب",
+        "email": "بريد إلكتروني",
+        "copied": "رابط منسوخ"
+      },
+      "cover": {
+        "plan": "خطة {{plan}}",
+        "planExtras": "خطة {{plan}} · {{people}} أشخاص إضافيون · {{branches}} فروع إضافية"
+      },
+      "event": {
+        "paymentRecorded": "سُجّل دفع — {{method}}، {{amount}} ر.ع.",
+        "activated": "فُعّل حتى {{until}}",
+        "activatedWithoutPayment": "فُعّل حتى {{until}} — {{reason}}",
+        "linkSent": "أُرسل رابط الدفع عبر {{via}}",
+        "suspended": "أُوقف — {{reason}}",
+        "resumed": "أُعيد التفعيل — {{reason}}",
+        "cancelled": "أُلغي — {{reason}}؛ يستمر حتى {{until}}",
+        "trialStarted": "بدأت الفترة التجريبية، {{days}} يومًا",
+        "planChanged": "انتقل إلى {{plan}}، {{term}} — {{reason}}",
+        "planChangeScheduled": "سينتقل إلى {{plan}}، {{term}} في {{at}} — {{reason}}",
+        "quotaGranted": "{{documents}} مستندًا إضافيًا حتى {{expires}} — {{reason}}",
+        "overageWaived": "أُعفي تجاوز بقيمة {{amount}} ر.ع. — {{reason}}"
       }
     }
   },
