@@ -2,26 +2,37 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { ActionMenu, Rial, RialText, withRial } from '../../components/ui'
+import { ActionMenu, Rial, RialText, Select, withRial } from '../../components/ui'
 import { longDate, COMPANY } from '../../lib/settings'
 import {
   nextBill,
-  CARDS,
+  linkArrivesOn,
+  HOW_YOU_PAY,
   PAST_BILLS,
   CURRENT_PLAN,
   formatOmr,
   OVERAGE_ON,
+  type TenantPaymentMethod,
 } from '../../lib/settingsBilling'
 import { MEMBERS, SEATS } from '../../lib/settingsPeople'
 import downloadIcon from '../../assets/settings/download-ink.svg'
-import cardIcon from '../../assets/settings/tile-bills.svg'
-import plusIcon from '../../assets/settings/plus-brand.svg'
+import copyIcon from '../../assets/settings/copy.svg'
 import fileIcon from '../../assets/settings/menu-invoice.svg'
 import viewIcon from '../../assets/settings/menu-list.svg'
 import mailIcon from '../../assets/settings/menu-mail.svg'
+import cardIcon from '../../assets/payment/card.svg'
+import bankIcon from '../../assets/payment/bank.svg'
+
+const METHODS: TenantPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash', 'cheque']
 
 /**
- * Settings › Bills and payment (Figma 135:40971).
+ * Settings › Bills and payment (Figma 135:40971, redrawn 15 Sep 2026 for how Fawtir is actually
+ * paid).
+ *
+ * The design kept a card on file. Fawtir never holds one: a card payment opens Thawani's own
+ * checkout from a link sent a week before the bill falls due, and bank transfer and cash are
+ * always open — someone at Fawtir confirms those and activates the period. So the card panel is
+ * gone and "How you pay" stands where it was.
  *
  * The next bill is assembled from the plan and the account rather than stated, so the "if you
  * add the sixth person" figure and the plan screen's pressure are the same arithmetic.
@@ -29,14 +40,23 @@ import mailIcon from '../../assets/settings/menu-mail.svg'
 export function BillingPage() {
   const { t } = useTranslation()
   const bill = nextBill()
-  const [cards, setCards] = useState(CARDS)
   const extraPeople = Math.max(0, MEMBERS.length - SEATS.included)
+  const [method, setMethod] = useState<TenantPaymentMethod>(HOW_YOU_PAY.method)
+  /** "Pay now" asks for the link early; nothing is charged until the customer pays it. */
+  const [linkRequested, setLinkRequested] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
-  const makeDefault = (id: string) =>
-    setCards((current) => current.map((card) => ({ ...card, default: card.id === id })))
+  const linkOn = linkArrivesOn(bill.dueOn)
+  const destination =
+    HOW_YOU_PAY.channel === 'whatsapp'
+      ? t('bills.pay.byWhatsApp', { phone: HOW_YOU_PAY.phone })
+      : t('bills.pay.byEmail', { email: HOW_YOU_PAY.email })
 
-  const primary = cards.find((card) => card.default) ?? cards[0]
-  const others = cards.filter((card) => card.id !== primary.id)
+  const copy = (label: string, value: string) => {
+    navigator.clipboard?.writeText(value).catch(() => {})
+    setCopied(label)
+    window.setTimeout(() => setCopied(null), 1600)
+  }
 
   return (
     <SettingsShell group="billing">
@@ -101,13 +121,36 @@ export function BillingPage() {
                 components={{ b: <b className="font-semibold text-text-primary" /> }}
               />
             </p>
+
+            {/* How this one gets paid — the link's date, or the transfer and cash routes. */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background px-4 py-3">
+              <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+                {method === 'cardLink'
+                  ? linkRequested
+                    ? t('bills.pay.linkSentNow', {
+                        to: destination,
+                        days: HOW_YOU_PAY.linkValidDays,
+                      })
+                    : t('bills.pay.linkArrives', { date: longDate(linkOn), to: destination })
+                  : t(`bills.pay.next.${method}`)}
+              </p>
+              {method === 'cardLink' && !linkRequested ? (
+                <button
+                  type="button"
+                  onClick={() => setLinkRequested(true)}
+                  className="inline-flex h-9 shrink-0 items-center rounded-sm bg-primary-700 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                >
+                  {t('bills.pay.payNow')}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <dl className="border-t border-surface-background">
             <BillLine
               label={t('bills.line.plan', { plan: t(`plan.planName.${CURRENT_PLAN.id}`) })}
               note={t('bills.line.planNote', {
-                invoices: CURRENT_PLAN.invoices,
+                invoices: CURRENT_PLAN.invoices.toLocaleString('en-US'),
                 people: CURRENT_PLAN.people,
                 branches: CURRENT_PLAN.branches ?? '∞',
               })}
@@ -147,79 +190,94 @@ export function BillingPage() {
           </dl>
         </section>
 
-        {/* Card */}
+        {/* How you pay */}
         <aside className="flex w-full flex-col gap-4 xl:w-[360px] xl:shrink-0">
           <section className="rounded-md bg-surface-card p-5">
-            <div className="rounded-md bg-primary-700 p-4 text-white">
-              <p className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
-                  <img src={cardIcon} alt="" className="size-5 brightness-0 invert" />
-                  <span className="text-sm font-semibold uppercase tracking-[0.5px]">
-                    {primary.brand}
-                  </span>
-                </span>
-                <span className="inline-flex h-[20px] items-center rounded-[3px] bg-white/20 px-1.5 text-[9px] font-semibold uppercase tracking-[0.4px]">
-                  {t('bills.default')}
-                </span>
-              </p>
-              <p dir="ltr" className="mt-5 text-left font-mono text-lg tracking-[0.2em]">
-                ···· ···· ···· {primary.last4}
-              </p>
-              <p className="mt-4 flex items-end justify-between gap-3">
-                <span>
-                  <span className="block text-[9px] font-semibold uppercase tracking-[0.5px] text-white/60">
-                    {t('bills.cardholder')}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-semibold">{primary.holder}</span>
-                </span>
-                <span className="text-end">
-                  <span className="block text-[9px] font-semibold uppercase tracking-[0.5px] text-white/60">
-                    {t('bills.expires')}
-                  </span>
-                  <span className="mt-0.5 block text-xs font-semibold tabular-nums">
-                    {primary.expires}
-                  </span>
-                </span>
-              </p>
+            <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+              {t('bills.pay.title')}
+            </h3>
+            <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('bills.pay.intro')}
+            </p>
+
+            <div className="mt-4">
+              <Select
+                value={method}
+                onChange={(value) => setMethod(value as TenantPaymentMethod)}
+                ariaLabel={t('bills.pay.preferred')}
+                options={METHODS.map((id) => ({
+                  value: id,
+                  label: t(`bills.method.${id}`),
+                  hint: t(`bills.methodHint.${id}`),
+                }))}
+              />
             </div>
 
             <ul className="mt-4 flex flex-col">
-              {others.map((card) => (
-                <li
-                  key={card.id}
-                  className="flex items-center gap-3 border-b border-surface-background py-3"
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background">
-                    <img src={cardIcon} alt="" className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-text-primary">
-                      {t('bills.backupCard', { last4: card.last4 })}
-                    </span>
-                    <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                      {card.noteKey ? t(card.noteKey) : ''}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => makeDefault(card.id)}
-                    className="shrink-0 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-                  >
-                    {t('bills.makeDefault')}
-                  </button>
-                </li>
-              ))}
-
-              <li className="flex items-center gap-3 border-b border-surface-background py-3">
+              <li className="flex items-start gap-3 border-b border-surface-background py-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background">
-                  <img src={plusIcon} alt="" className="size-4" />
+                  <img src={cardIcon} alt="" className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-text-primary">
-                    {t('bills.addAnotherCard')}
+                    {t('bills.pay.linkTitle')}
                   </span>
-                  <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
-                    {t('bills.addAnotherCardNote')}
+                  <span className="mt-0.5 block text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {t('bills.pay.linkNote', { to: destination, days: HOW_YOU_PAY.linkValidDays })}
+                  </span>
+                </span>
+              </li>
+
+              <li className="flex items-start gap-3 border-b border-surface-background py-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background">
+                  <img src={bankIcon} alt="" className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-text-primary">
+                    {t('bills.pay.transferTitle')}
+                  </span>
+                  <span className="mt-1 block text-xs font-medium leading-[1.6] text-text-quaternary">
+                    {HOW_YOU_PAY.bank.accountName} · {HOW_YOU_PAY.bank.bank}
+                  </span>
+                  <span className="mt-1 flex items-center gap-1.5">
+                    <span dir="ltr" className="font-mono text-xs font-semibold text-text-secondary">
+                      {HOW_YOU_PAY.bank.iban}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copy('iban', HOW_YOU_PAY.bank.iban)}
+                      aria-label={t('bills.pay.copyIban')}
+                      className="inline-flex size-6 items-center justify-center rounded-sm transition-colors hover:bg-primary-25"
+                    >
+                      <img src={copyIcon} alt="" className="size-3.5" />
+                    </button>
+                    {copied === 'iban' ? (
+                      <span className="text-[11px] font-semibold text-success-700">
+                        {t('bills.pay.copied')}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-1 block text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {t('bills.pay.transferNote', {
+                      reference: HOW_YOU_PAY.bank.referenceFormat.replace(
+                        '{invoice}',
+                        'FWT-2026-1013',
+                      ),
+                    })}
+                  </span>
+                </span>
+              </li>
+
+              <li className="flex items-start gap-3 border-b border-surface-background py-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-background text-sm font-semibold text-text-tertiary">
+                  <Rial className="h-3.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-text-primary">
+                    {t('bills.pay.cashTitle')}
+                  </span>
+                  <span className="mt-0.5 block text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {t('bills.pay.cashNote')}
                   </span>
                 </span>
               </li>
@@ -311,7 +369,9 @@ export function BillingPage() {
                         {formatOmr(row.amount)}
                       </span>
                     </p>
-                    <p className="mt-1 text-xs font-medium text-text-quaternary">Visa {row.card}</p>
+                    <p className="mt-1 text-xs font-medium text-text-quaternary">
+                      {t(`bills.method.${row.method}`)}
+                    </p>
                   </td>
                   <td className="px-4 py-4 align-top">
                     <span
@@ -330,6 +390,9 @@ export function BillingPage() {
                       />
                       {row.status === 'paid' ? t('bills.paid') : t('bills.paidLate')}
                     </span>
+                    <p className="mt-1.5 text-xs font-medium text-text-quaternary">
+                      {t(`bills.confirmedBy.${row.confirmedBy}`, { date: row.paidOn })}
+                    </p>
                   </td>
                   <td className="px-4 py-4 align-top">
                     <span className="flex items-center justify-end gap-1">

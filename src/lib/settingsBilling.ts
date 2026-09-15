@@ -4,7 +4,8 @@
  * Figma 135:40605 (Plan and usage), 135:40971 (Bills and payment).
  */
 
-import { BOOK, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } from './settings'
+import { BOOK, COMPANY, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } from './settings'
+import { PLATFORM_SETTINGS } from './platformSettings'
 import { MEMBERS, SEATS } from './settingsPeople'
 import { OPEN_BRANCHES } from './settingsCompany'
 import { CATALOGUE, type PlanId } from './plans'
@@ -69,37 +70,35 @@ export const USAGE_STATS = {
 /** Overage is switched off, so invoices past the allowance are refused rather than charged. */
 export const OVERAGE_ON = false
 
-/* ------------------------------------------------------------- bills and cards */
+/* ------------------------------------------------------------ bills and paying */
 
-export type Card = {
-  id: string
-  brand: 'visa' | 'mastercard'
-  last4: string
-  holder: string
-  expires: string
-  default: boolean
-  noteKey?: string
+export type TenantPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash' | 'cheque'
+
+/**
+ * How the account pays Fawtir (15 Sep 2026). Nothing about a card is stored here or anywhere in
+ * Fawtir: a card payment opens Thawani's own checkout from a link, and the link is sent to the
+ * account a week before each bill falls due. Bank transfer and cash are always open as well; an
+ * operator at Fawtir records those and activates the period.
+ */
+export const HOW_YOU_PAY = {
+  method: 'cardLink' as TenantPaymentMethod,
+  channel: 'whatsapp' as 'whatsapp' | 'email',
+  phone: COMPANY.phone,
+  email: COMPANY.email,
+  /** Days before the due date the link is sent. */
+  linkLeadDays: 7,
+  linkValidDays: PLATFORM_SETTINGS.payments.linkExpiryDays,
+  /** Where a transfer goes and what to write on it. */
+  bank: PLATFORM_SETTINGS.payments.bank,
+  /** The last link: sent for the September bill and paid the same day. */
+  lastLink: { sentOn: new Date(2026, 8, 1), paidOn: new Date(2026, 8, 1) },
 }
 
-export const CARDS: Card[] = [
-  {
-    id: 'primary',
-    brand: 'visa',
-    last4: '4417',
-    holder: 'AL BAHJA COFFEE LLC',
-    expires: '08 / 28',
-    default: true,
-  },
-  {
-    id: 'backup',
-    brand: 'visa',
-    last4: '8802',
-    holder: 'AL BAHJA COFFEE LLC',
-    expires: '02 / 27',
-    default: false,
-    noteKey: 'bills.usedOnceInApril',
-  },
-]
+const DAY = 24 * 60 * 60 * 1000
+
+/** When the link for a bill goes out. */
+export const linkArrivesOn = (dueOn: Date) =>
+  new Date(dueOn.getTime() - HOW_YOU_PAY.linkLeadDays * DAY)
 
 export type PastBill = {
   reference: string
@@ -108,7 +107,11 @@ export type PastBill = {
   coveredKey: string
   coveredValues?: Record<string, string | number>
   amount: number
-  card: string
+  method: TenantPaymentMethod
+  /** The day the money was recorded. */
+  paidOn: string
+  /** Who confirmed it arrived: Thawani for a link, the Fawtir team for anything else. */
+  confirmedBy: 'thawani' | 'fawtir'
   status: 'paid' | 'paidLate'
   lateNoteKey?: string
 }
@@ -121,7 +124,9 @@ export const PAST_BILLS: PastBill[] = [
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
     amount: 28,
-    card: '4417',
+    method: 'cardLink',
+    paidOn: '1 Sep 2026',
+    confirmedBy: 'thawani',
     status: 'paid',
   },
   {
@@ -131,7 +136,9 @@ export const PAST_BILLS: PastBill[] = [
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
     amount: 28,
-    card: '4417',
+    method: 'cardLink',
+    paidOn: '1 Aug 2026',
+    confirmedBy: 'thawani',
     status: 'paid',
   },
   {
@@ -141,7 +148,9 @@ export const PAST_BILLS: PastBill[] = [
     coveredKey: 'bills.coveredPlanPeopleExtra',
     coveredValues: { people: 5, extra: 1 },
     amount: 30.5,
-    card: '4417',
+    method: 'cardLink',
+    paidOn: '1 Jul 2026',
+    confirmedBy: 'thawani',
     status: 'paid',
   },
   {
@@ -151,7 +160,9 @@ export const PAST_BILLS: PastBill[] = [
     coveredKey: 'bills.coveredRetried',
     coveredValues: { date: '3 June' },
     amount: 28,
-    card: '4417',
+    method: 'bankTransfer',
+    paidOn: '3 Jun 2026',
+    confirmedBy: 'fawtir',
     status: 'paidLate',
   },
   {
@@ -161,7 +172,9 @@ export const PAST_BILLS: PastBill[] = [
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
     amount: 28,
-    card: '4417',
+    method: 'cash',
+    paidOn: '2 May 2026',
+    confirmedBy: 'fawtir',
     status: 'paid',
   },
   {
@@ -171,7 +184,9 @@ export const PAST_BILLS: PastBill[] = [
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
     amount: 28,
-    card: '8802',
+    method: 'bankTransfer',
+    paidOn: '1 Apr 2026',
+    confirmedBy: 'fawtir',
     status: 'paid',
   },
 ]

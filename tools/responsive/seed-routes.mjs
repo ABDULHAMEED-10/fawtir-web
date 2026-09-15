@@ -124,6 +124,15 @@ export const SEED_ROUTES = [
   '/console',
   '/console/tenants',
   '/console/queue',
+  '/console/subscriptions',
+  '/console/subscriptions/invoices',
+  '/console/tenants/al-noor',
+  '/console/tenants/al-bahja',
+  '/console/plans',
+  '/console/settings',
+  '/console/settings?section=payments',
+  '/console/onboarding',
+  '/console/operators',
 
   // Sub-screens reached by a tab or an action rather than a plain link, so the crawl cannot find
   // them. The ids are real records from the sample data.

@@ -20,7 +20,7 @@ import {
   SIGNING_CERTIFICATE,
 } from '../../lib/settingsCompany'
 import { MEMBERS, withoutTwoStep, ROLES, SEATS } from '../../lib/settingsPeople'
-import { nextBill, CARDS } from '../../lib/settingsBilling'
+import { nextBill, HOW_YOU_PAY } from '../../lib/settingsBilling'
 import { LOG_BOOK, LAST_EXPORT_ON } from '../../lib/settingsRecords'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import peppolIcon from '../../assets/settings/tile-peppol.svg'
@@ -92,7 +92,6 @@ export function SettingsPage() {
 
   const forecast = usageForecast()
   const bill = nextBill()
-  const defaultCard = CARDS.find((card) => card.default)
 
   const cards = useMemo<Card[]>(
     () => [
@@ -194,7 +193,7 @@ export function SettingsPage() {
         pillKey: 'settings.card.billsPill',
         pillTone: 'success',
         footKey: 'settings.card.billsFoot',
-        footValues: { last4: defaultCard?.last4 ?? '' },
+        footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
       },
       {
         id: 'log',
@@ -230,7 +229,7 @@ export function SettingsPage() {
         footKey: 'settings.card.closingFoot',
       },
     ],
-    [forecast, bill, defaultCard],
+    [forecast, bill, t],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(

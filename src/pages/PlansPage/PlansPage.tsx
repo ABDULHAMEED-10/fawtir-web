@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
-import { PLAN, annualMonthly } from '../../lib/plans'
+import { PLAN, TRIAL, annualMonthly } from '../../lib/plans'
 import patternLeft from '../../assets/plans/pattern-left.png'
 import patternRight from '../../assets/plans/pattern-right.png'
 import checkIcon from '../../assets/plans/check.svg'
@@ -214,6 +214,11 @@ export function PlansPage() {
               </div>
             ))}
           </div>
+
+          <p className="mt-5 max-w-[640px] text-center text-[13px] font-medium leading-[1.6] text-text-quaternary">
+            {t('plans.trialNote', { days: TRIAL.days, documents: TRIAL.documents })}{' '}
+            {t('plans.payNote')}
+          </p>
         </div>
       </div>
     </div>

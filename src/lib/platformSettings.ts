@@ -196,7 +196,8 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
       accountName: 'Insight Technology LLC',
       bank: 'Bank Muscat',
       iban: 'OM55 0018 0000 4471 2290',
-      referenceFormat: 'FWT-{invoice}',
+      /** The subscription invoice number is the reference; it already carries the FWT- series. */
+      referenceFormat: '{invoice}',
     },
     linkExpiryDays: 7,
     autoActivateOnlinePayment: false,
