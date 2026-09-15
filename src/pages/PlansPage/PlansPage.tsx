@@ -1,9 +1,11 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
+import { ChevronDownIcon } from '../../components/ui/icons'
 import { CATALOGUE, TRIAL, annualMonthly, type CataloguePlan } from '../../lib/plans'
 import type { PlanId } from '../../lib/pricing'
+import { PlanComparison, PlanFaq } from './PlanComparison'
 import patternLeft from '../../assets/plans/pattern-left.png'
 import patternRight from '../../assets/plans/pattern-right.png'
 import checkIcon from '../../assets/plans/check.svg'
@@ -30,6 +32,8 @@ const CARDS: { id: PlanId; plan?: CataloguePlan; key: string; features: number; 
     { id: 'enterprise', key: 'enterprise', features: 5 },
   ]
 
+const COMPARE_ID = 'compare'
+
 const count = (value: number) => value.toLocaleString('en-US')
 
 export function PlansPage() {
@@ -37,6 +41,19 @@ export function PlansPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [billing, setBilling] = useState<BillingCycle>('monthly')
+  // `/plans#compare` opens the table straight away — a link a sales chat or an email can carry.
+  const [compare, setCompare] = useState(() => location.hash === '#compare')
+  const compareRef = useRef<HTMLElement>(null)
+
+  const toggleCompare = () => {
+    const next = !compare
+    setCompare(next)
+    if (next) {
+      requestAnimationFrame(() =>
+        compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      )
+    }
+  }
 
   const billingNote = billing === 'monthly' ? t('plans.billedMonthly') : t('plans.billedAnnually')
 
@@ -191,6 +208,45 @@ export function PlansPage() {
             {t('plans.trialNote', { days: TRIAL.days, documents: TRIAL.documents })}{' '}
             {t('plans.payNote')}
           </p>
+
+          {/* The detail behind the cards, opened on demand so the four cards stay the page. */}
+          <button
+            type="button"
+            aria-expanded={compare}
+            aria-controls={COMPARE_ID}
+            onClick={toggleCompare}
+            className="mt-6 inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-primary-700 hover:text-primary-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
+          >
+            {compare ? t('plans.compare.close') : t('plans.compare.open')}
+            <ChevronDownIcon
+              size={16}
+              className={['transition-transform', compare ? 'rotate-180' : ''].join(' ')}
+            />
+          </button>
+
+          <section
+            id={COMPARE_ID}
+            ref={compareRef}
+            hidden={!compare}
+            aria-labelledby={`${COMPARE_ID}-title`}
+            className="mt-10 flex w-full max-w-[1282px] scroll-mt-8 flex-col items-center"
+          >
+            <h2
+              id={`${COMPARE_ID}-title`}
+              className="text-center text-2xl font-semibold leading-[1.2] text-text-primary"
+            >
+              {t('plans.compare.title')}
+            </h2>
+            <p className="mt-2 max-w-[640px] text-center text-sm font-medium leading-[1.5] text-text-quaternary">
+              {t('plans.compare.subtitle')}
+            </p>
+            <div className="mt-6 w-full">
+              <PlanComparison billing={billing} />
+            </div>
+            <div className="mt-12 flex w-full justify-center">
+              <PlanFaq />
+            </div>
+          </section>
         </div>
       </div>
     </div>
