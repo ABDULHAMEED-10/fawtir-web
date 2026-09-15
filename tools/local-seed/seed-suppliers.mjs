@@ -167,6 +167,21 @@ async function addBills(supplierId, spec) {
   }
 }
 
+/**
+ * Seeds from before the script confirmed bank details left every account unconfirmed. Confirms
+ * those, except for the supplier whose change is meant to stay unconfirmed.
+ */
+async function confirmEarlierSeeds() {
+  const wanted = new Map(SUPPLIERS.filter((spec) => spec.bank && !spec.bankChanged).map((spec) => [spec.name, spec]))
+  const result = await call('GET', '/v1/suppliers?filter=NEEDS_FIX&page_size=200')
+  for (const row of result.items) {
+    if (wanted.has(row.displayName) && row.record.health.includes('BANK_CHANGED_UNCONFIRMED')) {
+      await call('POST', `/v1/suppliers/${row.id}/bank-details/confirm`)
+      console.log(`confirmed bank details: ${row.displayName}`)
+    }
+  }
+}
+
 async function main() {
   await signIn()
   const have = await existingNames()
@@ -193,6 +208,9 @@ async function main() {
     }
     const supplier = await call('POST', '/v1/suppliers', { json: body, idempotent: true })
     const id = supplier.profile?.id ?? supplier.id
+    // The first IBAN counts as a change that needs confirming (V149), as it should: nobody has
+    // called the supplier yet. A settled book has confirmed its suppliers' accounts, so confirm.
+    if (spec.bank) await call('POST', `/v1/suppliers/${id}/bank-details/confirm`)
     if (spec.bankChanged) {
       await call('PUT', `/v1/suppliers/${id}/bank-details`, {
         json: { beneficiaryName: spec.name, iban: omaniIban(spec.bankChanged), bic: 'NBOMOMRX', bankName: 'National Bank of Oman' },
@@ -203,6 +221,7 @@ async function main() {
     created++
     console.log(`${String(index + 1).padStart(2)}. ${spec.name}`)
   }
+  await confirmEarlierSeeds()
   const summary = await call('GET', '/v1/suppliers/summary')
   console.log(`Added ${created} supplier(s). Directory now: ${summary.total} suppliers, ${summary.owedTotal} OMR owed across ${summary.openBills} open bills.`)
 }

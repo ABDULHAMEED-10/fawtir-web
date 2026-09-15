@@ -1222,7 +1222,7 @@
       "owe": "المستحق عليك لهم",
       "oweNote": "عبر {{count}} فاتورة مفتوحة",
       "needsFix": "سجلات تحتاج إلى تصحيح",
-      "needsFixNote": "{{bank}} دون بيانات بنكية · {{vat}} دون رقم ضريبي · {{account}} غيّر حسابه"
+      "needsFixNote": "{{bank}} دون بيانات بنكية · {{vat}} دون رقم ضريبي · {{account}} بيانات بنكية تحتاج إلى تأكيد"
     },
     "tabs": {
       "all": "الكل",
@@ -1288,7 +1288,7 @@
       "noVatNumber": "لا رقم ضريبي",
       "notOnPeppol": "ليسوا على Peppol",
       "switchedOff": "موقوف",
-      "bankChangedUnconfirmed": "تغيّرت البيانات البنكية"
+      "bankChangedUnconfirmed": "بيانات بنكية تحتاج إلى تأكيد"
     },
     "recordNote": {
       "elevenOnTime": "١١ من ١١ سُددت في موعدها",

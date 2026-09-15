@@ -85,7 +85,7 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url === SUMMARY_URL) return summaryResponse()
-    if (url.endsWith('/switch-off') && init?.method === 'POST') return json(200, {})
+    if (/\/switch-(off|on)$/.test(url) && init?.method === 'POST') return json(200, {})
     if (url.startsWith('/api/v1/suppliers')) {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
@@ -220,6 +220,31 @@ describe('Suppliers list, wired to the API', () => {
       ),
     )
     expect(await screen.findAllByText('Switched off')).toBeTruthy()
+  })
+})
+
+describe('Switched-off suppliers', () => {
+  it('turns one back on from the row button instead of opening its record', async () => {
+    listResponses = [
+      () => json(200, { items: [row({ status: 'SWITCHED_OFF' })], page: 0, pageSize: 10, count: 1, total: 1 }),
+      () => json(200, { items: [row()], page: 0, pageSize: 10, count: 1, total: 1 }),
+    ]
+    renderSuppliers('/suppliers?tab=switchedOff')
+    fireEvent.click(await screen.findByRole('button', { name: 'Turn back on' }))
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/v1/suppliers/11111111-1111-1111-1111-111111111111/switch-on',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    )
+  })
+
+  it('does not offer it to someone who may not manage suppliers', async () => {
+    who = READ_ONLY
+    listResponses = [() => json(200, { items: [row({ status: 'SWITCHED_OFF' })], page: 0, pageSize: 10, count: 1, total: 1 })]
+    renderSuppliers('/suppliers?tab=switchedOff')
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.queryByRole('button', { name: 'Turn back on' })).toBeNull()
   })
 })
 

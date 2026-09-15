@@ -1220,7 +1220,7 @@
       "owe": "You owe them",
       "oweNote": "Across {{count}} open bills",
       "needsFix": "Records needing a fix",
-      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} changed account"
+      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} bank details to confirm"
     },
     "tabs": {
       "all": "All",
@@ -1286,7 +1286,7 @@
       "noVatNumber": "No VAT number",
       "notOnPeppol": "Not on Peppol",
       "switchedOff": "Switched off",
-      "bankChangedUnconfirmed": "Bank details changed"
+      "bankChangedUnconfirmed": "Bank details to confirm"
     },
     "recordNote": {
       "elevenOnTime": "11 of 11 paid on time",

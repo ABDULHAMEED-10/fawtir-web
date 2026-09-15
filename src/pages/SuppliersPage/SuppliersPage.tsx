@@ -75,6 +75,9 @@ const SCORE_TONE: Record<number, string> = {
   0: 'bg-border-default',
 }
 
+const ROW_ACTION_CLASS =
+  'inline-flex h-[34px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-primary-25'
+
 /** How long typing pauses before the search is sent, so each keystroke is not a request. */
 const SEARCH_DELAY_MS = 300
 
@@ -661,12 +664,19 @@ function SupplierTableRow({
       </td>
 
       <td className="px-4 py-4 align-top">
-        <Link
-          to={detail}
-          className="inline-flex h-[34px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-        >
-          {t(ROW_ACTION[supplier.issue])}
-        </Link>
+        {supplier.issue === 'switchedOff' ? (
+          // "Turn back on" does what it says rather than opening the record, and only for someone
+          // allowed to do it.
+          can(session, 'supplier.manage') ? (
+            <button type="button" onClick={onSwitch} className={ROW_ACTION_CLASS}>
+              {t(ROW_ACTION.switchedOff)}
+            </button>
+          ) : null
+        ) : (
+          <Link to={detail} className={ROW_ACTION_CLASS}>
+            {t(ROW_ACTION[supplier.issue])}
+          </Link>
+        )}
       </td>
 
       <td className="px-4 py-4 align-top text-end">
