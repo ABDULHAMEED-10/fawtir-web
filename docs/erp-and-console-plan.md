@@ -274,6 +274,29 @@ Modals (all record a reason/note and land in the audit trail):
 3. Auto-activate on Thawani payment: **off by default** (left to us).
 4. The card-on-file panel in Settings › Bills **is removed** (left to us).
 
+## 7.7 Built (15–16 Sep 2026)
+
+Phases 1 and 2 are built on mock data, verified by screenshot at 1440 / 390 in EN and AR, with zero
+overflow on the responsive sweep (132 routes) and `npm run build` green.
+
+| Screen | Route | Data |
+|---|---|---|
+| Subscriptions queue | `/console/subscriptions` | `src/lib/consoleSubscriptions.ts` (31 listed rows; platform counts 268 / 9 / 4 / 7 / 3 / 12) |
+| Subscription invoices | `/console/subscriptions/invoices` | same ledger |
+| Tenant page + Subscription tab, Filing tab, ERP placeholder | `/console/tenants/:id` (`?action=recordPayment|sendLink|activate|changePlan|suspend|resume|cancel|grantQuota|waiveOverage`) | same ledger; `subscriptionsStore.*` mutates it and appends audit events |
+| Record payment · Send link (WhatsApp / email / copy) · Activate · Change plan · Suspend / Resume / Cancel · Grant quota · Waive overage | modals in `src/pages/ConsolePage/subscriptions/` | |
+| Console settings, 9 sections + Fixed by design | `/console/settings?section=` | `src/lib/platformSettings.ts` (`DEFAULT_SETTINGS`, `settingsStore`) |
+| Plans and rates | `/console/plans` | already integrated with `GET/PUT /platform/plans` (feat/signup-integration); the doc's extra plan fields (annual, features, add-ons) are backend asks |
+| Tenant: Settings › Bills ("How you pay", no card on file), sign-up Payment step (link / transfer / cash), Plans page (trial + pay note), status page note | `/settings/bills`, `/payment`, `/plans`, `/fawtara-status` | `src/lib/settingsBilling.ts` `HOW_YOU_PAY`, `src/lib/plans.ts` |
+
+**Backend asks that fall out of it** (none of these endpoints exist yet — the discovery doc lists tenants, subscriptions and billing as BNA):
+- `GET /platform/subscriptions?state&plan&method&term&q&page` and `GET /platform/subscriptions/{tenantId}` with invoices, payments, links, events, grants.
+- `POST …/{tenantId}/payments` (method, amount, receivedOn, reference, note, proof, activate), `POST …/{tenantId}/payment-links` (invoiceId, channel) → Thawani checkout session URL + expiry; Thawani webhook marks the invoice paid and, when `autoActivateOnlinePayment` is on, activates.
+- `POST …/{tenantId}/activate | plan-change | suspend | resume | cancel | quota-grants | overage-waivers`, each with a reason, each audited.
+- `GET /platform/subscription-invoices`.
+- `GET/PUT /platform/settings/{section}` for the nine sections of `PlatformSettings`.
+- Tenant side: `GET /settings/billing` (next bill with extras, how-you-pay, past bills with method and confirmation), `POST /settings/billing/payment-link` ("Send the link now").
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |
