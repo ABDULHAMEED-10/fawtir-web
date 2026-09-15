@@ -194,7 +194,7 @@ export function SettingsPage() {
           ? 'settings.card.erpMappingFoot'
           : 'settings.card.erpMappingFootNone',
         footValues: {
-          system: mapping.sourceSystem,
+          system: t(`erp.sourceSystem.${mapping.sourceSystem}`),
           mapped: mappingReady.mappedRequired.length,
           required: mappingReady.requiredTargets.length,
         },
