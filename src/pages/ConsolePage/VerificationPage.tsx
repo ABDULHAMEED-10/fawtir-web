@@ -2,6 +2,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Pager, RowsView } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
 import {
@@ -85,6 +86,7 @@ function VerificationQueue() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.verification' }]} />
       <div>
         <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
           {t('console.verification.title')}

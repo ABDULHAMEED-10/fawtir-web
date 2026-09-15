@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Rial, withRial } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
@@ -66,6 +67,7 @@ function PlanCatalogue() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.plans' }]} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">

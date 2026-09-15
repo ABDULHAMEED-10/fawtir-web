@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ActionMenu, Rial, type ActionMenuItem } from '../../components/ui'
 import {
@@ -138,6 +139,9 @@ export function TenantDetailPage() {
     return (
       <ConsoleShell>
         <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+          <ConsoleBreadcrumbs
+            items={[{ labelKey: 'console.nav.tenants', to: '/console/tenants' }]}
+          />
           <ConsoleNotice
             body={t('console.tenantDetail.notFound')}
             action={{ to: '/console/tenants', label: t('console.tenantDetail.notFoundBack') }}
@@ -225,22 +229,14 @@ function TenantDetail({ tenantId }: { tenantId: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-medium text-text-quaternary">
-        <Link to="/console/tenants" className="hover:text-primary-800">
-          <span aria-hidden="true" className="me-1 inline-block rtl:rotate-180">
-            ‹
-          </span>
-          {t('console.tenantDetail.backTenants')}
-        </Link>
-        {fromQueue ? (
-          <Link to="/console/subscriptions" className="hover:text-primary-800">
-            <span aria-hidden="true" className="me-1 inline-block rtl:rotate-180">
-              ‹
-            </span>
-            {t('console.tenantDetail.backSubscriptions')}
-          </Link>
-        ) : null}
-      </div>
+      <ConsoleBreadcrumbs
+        items={[
+          fromQueue
+            ? { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' }
+            : { labelKey: 'console.nav.tenants', to: '/console/tenants' },
+          { label: identity.name },
+        ]}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">

@@ -8,6 +8,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import {
   SECTIONS,
   settingsStore,
@@ -89,6 +90,7 @@ function ConsoleSettings() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.settings' }]} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-[720px]">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">

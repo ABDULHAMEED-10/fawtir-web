@@ -8,6 +8,7 @@ import removeIcon from '../../assets/settings/menu-remove.svg'
 import sparkleIcon from '../../assets/settings/menu-sparkle.svg'
 import mailIcon from '../../assets/settings/menu-mail.svg'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { useRefreshConsoleAccess } from '../../layouts/ConsoleShell/consoleAccessRefresh'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
@@ -200,6 +201,7 @@ function OperatorsList() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operators' }]} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">

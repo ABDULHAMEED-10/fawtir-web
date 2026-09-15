@@ -2,8 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
-import { BackButton } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead, type ConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
 import {
@@ -78,9 +78,12 @@ function CompanyReview() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <div>
-        <BackButton to={backTo} />
-      </div>
+      <ConsoleBreadcrumbs
+        items={[
+          { labelKey: 'console.nav.verification', to: backTo },
+          ...(detail.read.status === 'ready' ? [{ label: detail.read.data.tenantName }] : []),
+        ]}
+      />
       {body}
     </div>
   )

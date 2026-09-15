@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import {
   ConsoleClockIcon,
   ConsoleIncidentIcon,
   ConsolePlansIcon,
   ConsoleTickIcon,
 } from '../../layouts/ConsoleShell/consoleIcons'
-import { ActionMenu, BackButton, Rial, RowsView, SortMenu, withRial } from '../../components/ui'
+import { ActionMenu, Rial, RowsView, SortMenu, withRial } from '../../components/ui'
 import { subscriptionInvoiceRowActions } from '../../lib/rowActions'
 import { count, omr } from '../../lib/superAdmin'
 import { formatDay, localeFor } from '../../lib/console/format'
@@ -113,9 +114,12 @@ export function SubscriptionInvoicesPage() {
   return (
     <ConsoleShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div>
-          <BackButton to="/console/subscriptions" />
-        </div>
+        <ConsoleBreadcrumbs
+          items={[
+            { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' },
+            { labelKey: 'console.subscriptions.invoices.title' },
+          ]}
+        />
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
