@@ -9624,5 +9624,30 @@
       "code": "This code isn’t valid. It may have expired, been used, been replaced by a newer request, or belong to another account.",
       "notOperator": "Only Fawtir team accounts confirm an email change here."
     }
+  },
+  "apiErrors": {
+    "forbidden": "Your account doesn't have permission to do this. Ask an administrator in your company if you need it.",
+    "notFound": "We couldn't find this record. It may have been removed, or the link may be wrong.",
+    "conflict": "Someone changed this while you were working on it. Reload to see the latest version, then try again.",
+    "csrf": "Your session needs refreshing. Reload the page and try again.",
+    "reference": "Reference: {{id}}"
+  },
+  "appAccess": {
+    "checking": "Checking your access…",
+    "loading": "Loading…",
+    "noAccess": "No access",
+    "missingPermission": "Your account doesn't have access to this part of Fawtir. Ask an administrator in your company if you need it.",
+    "notFound": "Not found",
+    "retry": "Try again"
+  },
+  "sessionRoles": {
+    "ADMIN": "Administrator",
+    "FINANCE_MANAGER": "Finance manager",
+    "ACCOUNTANT": "Accountant",
+    "APPROVER": "Approver",
+    "VIEWER": "Viewer",
+    "MOBILE_USER": "Mobile user",
+    "INTEGRATION": "Integration",
+    "member": "Member"
   }
 }

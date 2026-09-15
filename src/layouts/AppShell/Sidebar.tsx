@@ -3,7 +3,9 @@ import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CloseIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
-import { DASHBOARD_NAV, SETTINGS_NAV, USER, type NavChild, type NavItem } from '../../lib/dashboard'
+import { DASHBOARD_NAV, SETTINGS_NAV, USER, type NavChild, type NavGroup, type NavItem } from '../../lib/dashboard'
+import { can, useSession } from '../../lib/session/session'
+import type { Entitlements } from '../../lib/identity/entitlements'
 import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
 import avatar from '../../assets/dashboard/avatar.png'
@@ -55,6 +57,30 @@ function isPathActive(pathname: string, to: string) {
   if (to === '/dashboard') return pathname === '/dashboard' || pathname.startsWith('/dashboard/')
   if (to === '/invoices') return pathname === '/invoices' || pathname.startsWith('/invoices/')
   return pathname === to || pathname.startsWith(`${to}/`)
+}
+
+/**
+ * The navigation this reader may use: an entry whose destination needs a permission they lack is
+ * left out, and so is a group left with nothing in it. Without a session (the guard is off, as in
+ * the prototype build) everything shows, as it always has.
+ */
+function visibleNav(session: Entitlements | null): NavGroup[] {
+  return DASHBOARD_NAV.map((group) => ({
+    ...group,
+    items: group.items.flatMap((item) => {
+      if (!can(session, item.requires)) return []
+      if (!item.children) return [item]
+      const children = item.children.filter((child) => can(session, child.requires))
+      return children.length > 0 ? [{ ...item, children }] : []
+    }),
+  })).filter((group) => group.items.length > 0)
+}
+
+/** The first role the server assigned, by its code, as a translated label; anything else reads as a member. */
+const KNOWN_ROLES = ['ADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT', 'APPROVER', 'VIEWER', 'MOBILE_USER', 'INTEGRATION']
+function roleKeyOf(session: Entitlements): string {
+  const code = session.roles[0]?.code
+  return code && KNOWN_ROLES.includes(code) ? `sessionRoles.${code}` : 'sessionRoles.member'
 }
 
 /** A group is open when the route matches any of its own child paths. */
@@ -179,6 +205,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const location = useLocation()
   const navRef = useKeptScroll()
   const panelRef = useRef<HTMLElement>(null)
+  const session = useSession()
   useDrawer(open, onClose, panelRef)
 
   return (
@@ -215,7 +242,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
         ref={navRef}
         className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[21px] pb-4"
       >
-        {DASHBOARD_NAV.map((group) => (
+        {visibleNav(session).map((group) => (
           <div key={group.id} className="flex flex-col gap-[7px]">
             <p className="text-xs font-semibold uppercase tracking-[1.44px] text-text-quaternary">
               {t(group.labelKey)}
@@ -250,7 +277,11 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
           Icon={SETTINGS_NAV.Icon}
           label={t(SETTINGS_NAV.labelKey)}
         />
-        <UserMenu name={USER.name} roleKey={USER.roleKey} avatar={avatar} />
+        <UserMenu
+          name={session?.username ?? USER.name}
+          roleKey={session ? roleKeyOf(session) : USER.roleKey}
+          avatar={avatar}
+        />
       </div>
     </aside>
   )
