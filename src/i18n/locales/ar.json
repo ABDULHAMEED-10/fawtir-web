@@ -4174,7 +4174,31 @@
       "payableMeta": "١٨ فاتورة مفتوحة · ٢ متأخرة",
       "ready": "جاهزة للدفع",
       "readyMeta": "٧ فواتير معتمدة",
-      "readyLink": "بدء دفعة سداد"
+      "readyLink": "بدء دفعة سداد",
+      "attentionBreakdown": "{{fresh}} جديدة · {{mismatch}} غير مطابقة · {{awaiting}} بانتظار الاعتماد",
+      "attentionDrafts_one": "مرفوعة واحدة للتأكيد",
+      "attentionDrafts_two": "مرفوعتان للتأكيد",
+      "attentionDrafts_few": "{{count}} مرفوعات للتأكيد",
+      "attentionDrafts_many": "{{count}} مرفوعة للتأكيد",
+      "attentionDrafts_other": "{{count}} مرفوعة للتأكيد",
+      "dueBills_zero": "لا فواتير",
+      "dueBills_one": "فاتورة واحدة",
+      "dueBills_two": "فاتورتان",
+      "dueBills_few": "{{count}} فواتير",
+      "dueBills_many": "{{count}} فاتورة",
+      "dueBills_other": "{{count}} فاتورة",
+      "payableBills": "{{open}} مفتوحة · {{overdue}} متأخرة",
+      "readyBills_zero": "لا فواتير معتمدة",
+      "readyBills_one": "فاتورة معتمدة واحدة",
+      "readyBills_two": "فاتورتان معتمدتان",
+      "readyBills_few": "{{count}} فواتير معتمدة",
+      "readyBills_many": "{{count}} فاتورة معتمدة",
+      "readyBills_other": "{{count}} فاتورة معتمدة",
+      "otherCurrencies_one": "فاتورة واحدة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
+      "otherCurrencies_two": "فاتورتان بعملة أخرى غير مشمولتين في إجماليات {{currency}}.",
+      "otherCurrencies_few": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
+      "otherCurrencies_many": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
+      "otherCurrencies_other": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}."
     },
     "tabs": {
       "needsAttention": "تحتاج انتباهك",
@@ -4199,7 +4223,9 @@
       "arrived29Jul": "وصلت ٢٩ يوليو",
       "arrived28Jul": "وصلت ٢٨ يوليو",
       "arrived18Jul": "وصلت ١٨ يوليو",
-      "pdfByYusuf": "PDF · بواسطة يوسف"
+      "pdfByYusuf": "PDF · بواسطة يوسف",
+      "recurring": "متكررة",
+      "selfBilled": "فوترة ذاتية"
     },
     "sourceFilter": {
       "all": "كل المصادر"
@@ -4218,9 +4244,11 @@
       "reviewDifference": "مراجعة الفرق",
       "nudge": "تذكير المعتمِد",
       "checkAndSave": "تحقق واحفظ",
-      "viewDispute": "تسليمتان فُوترتا مرتين"
+      "viewDispute": "تسليمتان فُوترتا مرتين",
+      "approving": "جارٍ الاعتماد…"
     },
     "sortOptions": {
+      "newest": "الأحدث أولًا",
       "dueAsc": "الاستحقاق: الأقرب أولًا",
       "dueDesc": "الاستحقاق: الأبعد أولًا",
       "amountDesc": "المبلغ: من الأعلى للأقل",
@@ -4249,8 +4277,50 @@
       "over84": "زيادة ٨٤٫٩٠٠",
       "overLimit": "تجاوز حد ٢٬٠٠٠",
       "vatUnclear": "الضريبة غير واضحة",
-      "queried22Jul": "استُفسر عنها ٢٢ يوليو"
-    }
+      "queried22Jul": "استُفسر عنها ٢٢ يوليو",
+      "issued": "صدرت {{date}}",
+      "inDays_one": "خلال يوم واحد",
+      "inDays_two": "خلال يومين",
+      "inDays_few": "خلال {{count}} أيام",
+      "inDays_many": "خلال {{count}} يومًا",
+      "inDays_other": "خلال {{count}} يوم",
+      "daysOverdue_one": "متأخرة يومًا واحدًا",
+      "daysOverdue_two": "متأخرة يومين",
+      "daysOverdue_few": "متأخرة {{count}} أيام",
+      "daysOverdue_many": "متأخرة {{count}} يومًا",
+      "daysOverdue_other": "متأخرة {{count}} يوم",
+      "dueToday": "مستحقة اليوم",
+      "agreesWithOrder": "تتطابق مع أمر الشراء والاستلام",
+      "differsFromOrder": "تختلف عن أمر الشراء",
+      "theyQuoted": "مرجع أمرهم: {{ref}}",
+      "creditNote": "إشعار دائن",
+      "leftToPay": "متبقٍ للدفع {{amount}}",
+      "inclVat": "شاملة الضريبة {{amount}}",
+      "noNumber": "بلا رقم فاتورة"
+    },
+    "state": {
+      "newNotReviewed": "جديدة، لم تُراجع",
+      "mismatch": "يوجد اختلاف",
+      "awaitingApproval": "بانتظار الاعتماد",
+      "awaitingApprovals": "بانتظار الاعتماد · {{given}} من {{required}}",
+      "draft": "مسودة، أكمل التفاصيل",
+      "onHold": "معلّقة",
+      "approved": "معتمدة",
+      "rejected": "مرفوضة",
+      "inPaymentRun": "ضمن دفعة سداد",
+      "inPaymentRunRef": "ضمن دفعة السداد {{run}}",
+      "paid": "مدفوعة"
+    },
+    "notice": {
+      "drafts_one": "فاتورة واحدة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
+      "drafts_two": "فاتورتان مرفوعتان أو ممسوحتان بانتظار تفاصيلهما، وستظهران هنا بعد تأكيدهما.",
+      "drafts_few": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
+      "drafts_many": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
+      "drafts_other": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
+      "truncated": "يعرض هذا التبويب أحدث {{window}} فاتورة فقط، لذا قد لا تظهر الفواتير الأقدم."
+    },
+    "emptyLedger": "لا توجد فواتير بعد. تصل فواتير الموردين المسجلين على Peppol إلى هنا تلقائيًا.",
+    "pages": "الصفحات"
   },
   "billDetail": {
     "breadcrumb": "الفواتير الواردة",
