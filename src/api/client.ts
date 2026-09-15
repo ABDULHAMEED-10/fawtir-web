@@ -33,6 +33,8 @@ export type ApiRequestOptions = {
   signal?: AbortSignal
   timeoutMs?: number
   credentials?: RequestCredentials
+  /** Request headers the call needs beyond the defaults, such as `Idempotency-Key`. */
+  headers?: Record<string, string>
 }
 
 async function readBody(response: Response): Promise<unknown> {
@@ -53,7 +55,50 @@ async function readBody(response: Response): Promise<unknown> {
  * `response.status` or error messages themselves.
  */
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS, credentials } = options
+  return send(path, options, 'application/json, application/problem+json', async (response) => {
+    const payload = await readBody(response)
+    if (!response.ok) throw toApiError(response, payload)
+    return payload as T
+  })
+}
+
+export type ApiDownload = {
+  blob: Blob
+  /** From `Content-Disposition`, or `null` when the server named none or the header was not exposed. */
+  filename: string | null
+  headers: Headers
+}
+
+/**
+ * A GET for a file (an export, a PDF): resolves with its bytes and name. Failures reject exactly as
+ * {@link apiRequest} does, because a refused export answers with a problem document, not a file.
+ */
+export async function apiDownload(
+  path: string,
+  options: Pick<ApiRequestOptions, 'signal' | 'timeoutMs'> = {},
+): Promise<ApiDownload> {
+  return send(path, options, '*/*', async (response) => {
+    if (!response.ok) throw toApiError(response, await readBody(response))
+    return {
+      blob: await response.blob(),
+      filename: filenameOf(response.headers.get('Content-Disposition')),
+      headers: response.headers,
+    }
+  })
+}
+
+function filenameOf(disposition: string | null): string | null {
+  const match = disposition ? /filename="?([^";]+)"?/i.exec(disposition) : null
+  return match ? match[1] : null
+}
+
+async function send<T>(
+  path: string,
+  options: ApiRequestOptions,
+  accept: string,
+  read: (response: Response) => Promise<T>,
+): Promise<T> {
+  const { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS, credentials, headers: extra } = options
 
   // One controller carries both the caller's abort and the timeout, and the
   // `timedOut` flag — not the rejection's error name, which differs between
@@ -68,7 +113,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   if (signal?.aborted) forwardAbort()
   else signal?.addEventListener('abort', forwardAbort, { once: true })
 
-  const headers: Record<string, string> = { Accept: 'application/json, application/problem+json' }
+  const headers: Record<string, string> = { Accept: accept, ...extra }
   // A multipart body sets no Content-Type here: the browser must write it, because only the
   // browser knows the boundary it chose.
   const multipart = body instanceof FormData
@@ -88,9 +133,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       signal: controller.signal,
       credentials,
     })
-    const payload = await readBody(response)
-    if (!response.ok) throw toApiError(response, payload)
-    return payload as T
+    return await read(response)
   } catch (cause) {
     if (cause instanceof ApiError) throw cause
     if (timedOut) throw new NetworkError('timeout', { cause })

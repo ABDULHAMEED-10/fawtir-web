@@ -980,20 +980,37 @@
   },
   "customersPage": {
     "title": "العملاء",
-    "subtitle": "٨ عملاء · ٢١٧٫٤٩٠ ر.ع. مستحقة",
+    "subtitle_zero": "لا عملاء · {{amount}} ر.ع. مستحقة",
+    "subtitle_one": "عميل واحد · {{amount}} ر.ع. مستحقة",
+    "subtitle_two": "عميلان · {{amount}} ر.ع. مستحقة",
+    "subtitle_few": "{{customers}} عملاء · {{amount}} ر.ع. مستحقة",
+    "subtitle_many": "{{customers}} عميلًا · {{amount}} ر.ع. مستحقة",
+    "subtitle_other": "{{customers}} عميل · {{amount}} ر.ع. مستحقة",
     "bulkUpload": "رفع جماعي",
     "export": "تصدير",
+    "exporting": "جارٍ التصدير…",
+    "exportTruncated": "توقف الملف عند حد التصدير، لذا لا يضم كل العملاء. ضيّق القائمة حسب النوع أو البحث ثم صدّر مرة أخرى.",
     "newCustomer": "عميل جديد",
     "kpi": {
       "receivables": "الذمم المدينة",
-      "receivablesMeta": "مستحقة على ٤ عملاء",
+      "receivablesMeta_zero": "لا مستحقات",
+      "receivablesMeta_one": "مستحقة على عميل واحد",
+      "receivablesMeta_two": "مستحقة على عميلين",
+      "receivablesMeta_few": "مستحقة على {{customers}} عملاء",
+      "receivablesMeta_many": "مستحقة على {{customers}} عميلًا",
+      "receivablesMeta_other": "مستحقة على {{customers}} عميل",
       "overdue": "متأخرة",
-      "overdueMeta": "من عميل واحد",
+      "overdueMeta_zero": "لا متأخرات",
+      "overdueMeta_one": "من عميل واحد",
+      "overdueMeta_two": "من عميلين",
+      "overdueMeta_few": "من {{customers}} عملاء",
+      "overdueMeta_many": "من {{customers}} عميلًا",
+      "overdueMeta_other": "من {{customers}} عميل",
       "customers": "العملاء",
-      "customersMeta": "٦ شركات · جهة حكومية · مستهلك",
+      "customersMeta": "شركات: {{business}} · جهات حكومية: {{government}} · أفراد: {{consumer}}",
       "peppolReady": "جاهز على Peppol",
       "peppolMeta": "يمكن الوصول إليه للفوترة الإلكترونية",
-      "ofTwelve": "من ١٢"
+      "peppolOf": "من {{total}}"
     },
     "tabs": {
       "all": "الكل",
@@ -1012,18 +1029,36 @@
       "qrReceipt": "إيصال QR"
     },
     "note": {
-      "daysOverdue": "متأخرة {{days}} يومًا",
+      "daysOverdue_zero": "مستحقة اليوم",
+      "daysOverdue_one": "متأخرة يومًا واحدًا",
+      "daysOverdue_two": "متأخرة يومين",
+      "daysOverdue_few": "متأخرة {{count}} أيام",
+      "daysOverdue_many": "متأخرة {{count}} يومًا",
+      "daysOverdue_other": "متأخرة {{count}} يوم",
       "partiallyPaid": "مدفوعة جزئيًا",
-      "awaitingSend": "بانتظار الإرسال",
       "settled": "مسددة"
     },
+    "invoiceCount_zero": "لا فواتير",
     "invoiceCount_one": "فاتورة واحدة",
     "invoiceCount_two": "فاتورتان",
     "invoiceCount_few": "{{count}} فواتير",
     "invoiceCount_many": "{{count}} فاتورة",
     "invoiceCount_other": "{{count}} فاتورة",
+    "line": {
+      "vat": "الرقم الضريبي {{number}}",
+      "intent": {
+        "b2b": "B2B",
+        "b2g": "B2G",
+        "b2c": "B2C"
+      },
+      "channel": {
+        "peppol": "عبر Peppol",
+        "emailPdf": "بالبريد الإلكتروني",
+        "qrReceipt": "إيصال QR"
+      }
+    },
+    "location": "{{city}}، {{country}}",
     "searchPlaceholder": "ابحث بالاسم أو الرقم الضريبي أو جهة الاتصال أو البريد...",
-    "filters": "عوامل التصفية",
     "sort": "ترتيب",
     "col": {
       "customer": "العميل",
@@ -1034,17 +1069,16 @@
       "receivable": "المستحق"
     },
     "rowMenu": "إجراءات الصف",
+    "empty": "لا يوجد عملاء يطابقون هذا البحث.",
+    "emptyDirectory": "لا يوجد عملاء بعد. أضف أول عميل لتبدأ الفوترة.",
     "showResult": "عرض النتائج:",
+    "pages": "الصفحات",
     "prevPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
     "sortOptions": {
       "nameAsc": "الاسم أ–ي",
       "nameDesc": "الاسم ي–أ",
-      "receivableDesc": "المستحقات: من الأعلى للأقل",
-      "invoicesDesc": "الأكثر فواتير"
-    },
-    "peppolFilter": {
-      "all": "كل حالات Peppol"
+      "recent": "آخر تحديث"
     },
     "selectAll": "تحديد كل العملاء في هذه الصفحة",
     "selectRow": "تحديد {{name}}"
@@ -1238,7 +1272,7 @@
       "owe": "المستحق عليك لهم",
       "oweNote": "عبر {{count}} فاتورة مفتوحة",
       "needsFix": "سجلات تحتاج إلى تصحيح",
-      "needsFixNote": "{{bank}} دون بيانات بنكية · {{vat}} دون رقم ضريبي · {{account}} غيّر حسابه"
+      "needsFixNote": "{{bank}} دون بيانات بنكية · {{vat}} دون رقم ضريبي · {{account}} بيانات بنكية تحتاج إلى تأكيد"
     },
     "tabs": {
       "all": "الكل",
@@ -1258,7 +1292,8 @@
     "channel": {
       "peppol": "Peppol",
       "emailPdf": "PDF بالبريد",
-      "paper": "ورق"
+      "paper": "ورق",
+      "manual": "غير مسجّل"
     },
     "channelNote": {
       "selfBilled": "أنت تفوتر نيابة عنهم",
@@ -1273,14 +1308,17 @@
       "net30": "صافي ٣٠",
       "net10": "صافي ١٠",
       "onReceipt": "عند الاستلام",
-      "fifthOfMonth": "٥ من الشهر"
+      "fifthOfMonth": "٥ من الشهر",
+      "netDays": "صافي {{count}}",
+      "none": "لا توجد شروط مسجّلة"
     },
     "termsNote": {
       "earlySettlement": "٢٪ عند السداد خلال ٧ أيام",
       "rateCard": "بطاقة أسعار محفوظة",
       "agreementTo": "اتفاقية حتى ٣١ مارس ٢٠٢٧",
       "usuallyCash": "نقدًا عادةً",
-      "monthlyRecurring": "شهري، متكرر"
+      "monthlyRecurring": "شهري، متكرر",
+      "earlyDiscount": "خصم {{percent}}% عند الدفع خلال {{days}} أيام"
     },
     "owedNote": {
       "bothApproved": "{{count}} فاتورتان · كلتاهما معتمدة",
@@ -1289,7 +1327,9 @@
       "twoDaysLate": "متأخرة يومين",
       "notArrived": "لم تصل فاتورة يوليو",
       "settledInFull": "سُدّدت بالكامل",
-      "open": "{{count}} مفتوحة"
+      "open": "{{count}} مفتوحة",
+      "nothingOpen": "لا فواتير مفتوحة",
+      "openWithHold": "{{count}} مفتوحة · {{held}} معلّقة"
     },
     "record": {
       "complete": "مكتمل",
@@ -1297,7 +1337,8 @@
       "noBankDetails": "لا بيانات بنكية",
       "noVatNumber": "لا رقم ضريبي",
       "notOnPeppol": "ليسوا على Peppol",
-      "switchedOff": "موقوف"
+      "switchedOff": "موقوف",
+      "bankChangedUnconfirmed": "بيانات بنكية تحتاج إلى تأكيد"
     },
     "recordNote": {
       "elevenOnTime": "١١ من ١١ سُددت في موعدها",
@@ -1305,7 +1346,8 @@
       "nineOfTen": "٩ من ١٠ سُددت في موعدها",
       "cantReclaim": "لا يمكن استرداد الضريبة بدونه",
       "askingWouldSave": "نسأل إن كان سيوفر الإدخال",
-      "stillSearchable": "٣١ فاتورة تبقى قابلة للبحث"
+      "stillSearchable": "٣١ فاتورة تبقى قابلة للبحث",
+      "paidOnTime": "دُفعت {{onTime}} من {{settled}} في موعدها"
     },
     "rowAction": {
       "newBill": "فاتورة جديدة",
@@ -1335,14 +1377,18 @@
       "copyToNew": "نسخ إلى مورد جديد",
       "copyToNewNote": "لفرع أو كيان ثانٍ",
       "switchOff": "إيقاف هذا المورد",
-      "switchOffNote": "يخفيهم من الفواتير الجديدة · {{count}} فاتورة تبقى قابلة للبحث"
+      "switchOffNote": "يخفيهم من الفواتير الجديدة · {{count}} فاتورة تبقى قابلة للبحث",
+      "switchOffNoteSearchable": "يُخفى من الفواتير الجديدة · تبقى فواتيره قابلة للبحث",
+      "switchOn": "إعادة تفعيل هذا المورّد",
+      "switchOnNote": "يمكن اختياره في الفواتير الجديدة مرة أخرى"
     },
     "emptyState": {
       "title": "لا يوجد موردون في القائمة بعد",
       "body": "أضف الشركات التي تفوتر عليك ليطابق فوتر فواتيرهم تلقائيًا.",
       "addFirst": "أضف أول مورد",
       "importList": "استيراد قائمة من Excel"
-    }
+    },
+    "vatNumber": "الرقم الضريبي {{vat}}"
   },
   "newSupplier": {
     "title": "مورّد جديد",
@@ -1461,7 +1507,32 @@
       "awaiting": "بانتظار الدفع",
       "awaitingMeta": "فاتورتان تستحقان قريبًا",
       "overdue": "متأخر",
-      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا"
+      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا",
+      "outstandingLive_zero": "لا توجد فواتير غير مدفوعة",
+      "outstandingLive_one": "عبر فاتورة واحدة غير مدفوعة",
+      "outstandingLive_two": "عبر فاتورتين غير مدفوعتين",
+      "outstandingLive_few": "عبر {{invoices}} فواتير غير مدفوعة",
+      "outstandingLive_many": "عبر {{invoices}} فاتورة غير مدفوعة",
+      "outstandingLive_other": "عبر {{invoices}} فاتورة غير مدفوعة",
+      "paidLive_zero": "لا توجد فواتير مدفوعة بالكامل",
+      "paidLive_one": "فاتورة واحدة مدفوعة بالكامل",
+      "paidLive_two": "فاتورتان مدفوعتان بالكامل",
+      "paidLive_few": "{{invoices}} فواتير مدفوعة بالكامل",
+      "paidLive_many": "{{invoices}} فاتورة مدفوعة بالكامل",
+      "paidLive_other": "{{invoices}} فاتورة مدفوعة بالكامل",
+      "awaitingLive_zero": "لا شيء يستحق خلال {{days}} أيام",
+      "awaitingLive_one": "فاتورة واحدة تستحق خلال {{days}} أيام",
+      "awaitingLive_two": "فاتورتان تستحقان خلال {{days}} أيام",
+      "awaitingLive_few": "{{invoices}} فواتير تستحق خلال {{days}} أيام",
+      "awaitingLive_many": "{{invoices}} فاتورة تستحق خلال {{days}} أيام",
+      "awaitingLive_other": "{{invoices}} فاتورة تستحق خلال {{days}} أيام",
+      "overdueLive_zero": "لا فواتير متأخرة",
+      "overdueLive_one": "فاتورة واحدة · الأقدم منذ {{days}} يومًا",
+      "overdueLive_two": "فاتورتان · الأقدم منذ {{days}} يومًا",
+      "overdueLive_few": "{{invoices}} فواتير · الأقدم منذ {{days}} يومًا",
+      "overdueLive_many": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
+      "overdueLive_other": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
+      "overdueNone": "لا توجد متأخرات"
     },
     "tabs": {
       "all": "الكل",
@@ -1492,6 +1563,10 @@
         "all": "كل الفواتير",
         "standard": "قياسية (منشآت/حكومة)",
         "simplified": "مبسطة (أفراد)"
+      },
+      "documentType": "نوع المستند",
+      "docType": {
+        "all": "كل المستندات"
       }
     },
     "col": {
@@ -1537,6 +1612,65 @@
       "imported": "تم الاستيراد",
       "failed": "فشل",
       "summary": "تم استيراد {{imported}}، وفشل {{failed}}."
+    },
+    "subtitleLive": "الفواتير والإشعارات الدائنة والمدينة — المسودات والمستندات الصادرة في قائمة واحدة.",
+    "searchLive": "ابحث برقم المستند أو اسم العميل",
+    "exporting": "جارٍ التصدير…",
+    "exportTruncated": "يتوقف الملف عند 10,000 مستند. ضيّق عوامل التصفية لتصدير الباقي.",
+    "discardStale": "تغيّرت هذه المسودة بعد تحميل القائمة. تم تحديث القائمة؛ حاول مرة أخرى.",
+    "nothingYet": "لا توجد فواتير بعد. أنشئ فاتورتك الأولى وستظهر هنا.",
+    "draftNumber": "مسودة",
+    "resultTotal_zero": "لا توجد مستندات",
+    "resultTotal_one": "مستند واحد",
+    "resultTotal_two": "مستندان",
+    "resultTotal_few": "{{documents}} مستندات",
+    "resultTotal_many": "{{documents}} مستندًا",
+    "resultTotal_other": "{{documents}} مستند",
+    "pages": "الصفحات",
+    "authoring": {
+      "draft": "مسودة",
+      "issued": "صادرة",
+      "cancelled": "ملغاة",
+      "discarded": "متجاهلة"
+    },
+    "payment": {
+      "awaiting": "بانتظار الدفع",
+      "partial": "مدفوع جزئيًا",
+      "paid": "مدفوع",
+      "overdue_zero": "متأخر",
+      "overdue_one": "متأخر · يوم واحد",
+      "overdue_two": "متأخر · يومان",
+      "overdue_few": "متأخر · {{count}} أيام",
+      "overdue_many": "متأخر · {{count}} يومًا",
+      "overdue_other": "متأخر · {{count}} يوم"
+    },
+    "delivery": {
+      "sentManually": "أُرسلت يدويًا"
+    },
+    "amountNote": {
+      "estimate": "تقدير · يُسعَّر عند الإصدار",
+      "outstanding": "المتبقي {{amount}}",
+      "credited": "يشمل {{amount}} بإشعارات دائنة"
+    },
+    "rowAction": {
+      "edit": "تعديل المسودة",
+      "discard": "تجاهل المسودة"
+    },
+    "docType": {
+      "INVOICE": "فاتورة",
+      "CREDIT_NOTE": "إشعار دائن",
+      "DEBIT_NOTE": "إشعار مدين",
+      "SELF_BILLED_INVOICE": "فاتورة ذاتية الإصدار",
+      "SELF_BILLED_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار"
+    },
+    "sort": {
+      "updated": "آخر تحديث",
+      "issuedNewest": "الأحدث إصدارًا أولًا",
+      "issuedOldest": "الأقدم إصدارًا أولًا",
+      "dueSoonest": "الأقرب استحقاقًا",
+      "amountHighest": "المبلغ: من الأعلى إلى الأدنى",
+      "amountLowest": "المبلغ: من الأدنى إلى الأعلى",
+      "customer": "العميل أ–ي"
     }
   },
   "invoiceDetails": {
@@ -9756,5 +9890,90 @@
     "MOBILE_USER": "مستخدم الجوال",
     "INTEGRATION": "تكامل",
     "member": "عضو"
+  },
+  "appList": {
+    "pager": {
+      "label": "الصفحات",
+      "previous": "الصفحة السابقة",
+      "next": "الصفحة التالية"
+    }
+  },
+  "productPicker": {
+    "placeholder": "اختر منتجًا",
+    "search": "ابحث عن منتج بالاسم أو الرمز",
+    "searching": "جارٍ البحث…",
+    "none": "لا توجد منتجات مطابقة",
+    "hint": "{{code}} · {{price}} / {{unit}} · {{tax}}",
+    "create": "منتج جديد",
+    "createNamed": "إنشاء «{{name}}» كمنتج",
+    "newTitle": "منتج جديد",
+    "newSubtitle": "يُضاف إلى هذا البند وإلى الكتالوج.",
+    "name": "الاسم",
+    "code": "الرمز",
+    "codeHint": "فريد داخل الكتالوج",
+    "codeTaken": "هذا الرمز مستخدم لمنتج آخر.",
+    "price": "السعر دون الضريبة (ر.ع.)",
+    "unit": "الوحدة",
+    "tax": "الفئة الضريبية",
+    "saving": "جارٍ الحفظ…",
+    "saveAndUse": "حفظ واستخدام"
+  },
+  "invoiceDraft": {
+    "editTitle": "تعديل المسودة",
+    "meta": {
+      "new": "مسودة جديدة · لم تُحفظ بعد",
+      "saved": "مسودة · يُعطى الرقم عند الإصدار"
+    },
+    "saving": "جارٍ الحفظ…",
+    "saved": "حُفظت المسودة.",
+    "discard": "تجاهل المسودة",
+    "discardTitle": "تجاهل هذه المسودة؟",
+    "discardBody": "ستُزال من مسوداتك. لم تُصدر قط، لذا لم يُرسل أو يُبلّغ عن شيء.",
+    "discardConfirm": "تجاهل",
+    "stale": "حفظ شخص آخر هذه المسودة بعد أن فتحتها. أعد التحميل لرؤية نسخته قبل الحفظ.",
+    "reload": "إعادة التحميل",
+    "fixFirst": "بعض الحقول تحتاج إلى مراجعة قبل حفظ المسودة.",
+    "serverRefused": "لم يقبل الخادم المسودة.",
+    "problem": {
+      "customer": "اختر عميلًا.",
+      "branch": "اختر فرعًا.",
+      "product": "اختر منتجًا لهذا البند.",
+      "quantity": "يجب أن تكون الكمية أكبر من صفر.",
+      "unitPrice": "أدخل السعر.",
+      "exemptionReason": "اذكر سبب عدم احتساب ضريبة على هذا البند."
+    },
+    "lineError": "البند {{line}}: {{message}}",
+    "exemptionReason": "سبب عدم احتساب الضريبة",
+    "figures": {
+      "new": "تقديرية. احفظ المسودة لرؤية الأرقام التي ستحملها الفاتورة.",
+      "dirty": "تقديرية للتغييرات غير المحفوظة. احفظ لتحديث الأرقام المحفوظة.",
+      "saved": "أرقام المسودة المحفوظة.",
+      "failed": "تعذّر احتساب المسودة المحفوظة: {{reason}}."
+    },
+    "previewReason": {
+      "INVOICE_LINES_REQUIRED": "أضف بندًا واحدًا على الأقل",
+      "LINE_DISCOUNT_EXCEEDS_BASE": "خصم بند يتجاوز قيمة البند",
+      "HEADER_DISCOUNT_EXCEEDS_BASE": "خصم المستند يتجاوز الإجمالي",
+      "LINE_DISCOUNT_PERCENTAGE_INVALID": "خصم بند يتجاوز 100%",
+      "HEADER_DISCOUNT_PERCENTAGE_INVALID": "خصم المستند يتجاوز 100%",
+      "EXEMPTION_REASON_REQUIRED": "بند بلا ضريبة يحتاج إلى سبب",
+      "TAX_CATEGORY_METADATA_CONFLICT": "بندان بالنسبة نفسها بفئتين ضريبيتين مختلفتين"
+    },
+    "datesAtIssue": "يُحدد عند إصدار الفاتورة ولا يُحفظ في المسودة.",
+    "notEditable": "هذه الفاتورة {{state}}. لا يمكن تعديل إلا المسودات.",
+    "state": {
+      "DRAFT": "مسودة",
+      "ISSUED": "صادرة",
+      "CANCELLED": "ملغاة",
+      "DISCARDED": "متجاهلة"
+    },
+    "readOnly": "يمكنك عرض هذه المسودة دون حفظها.",
+    "notEligible": "لا يمكن إصدار فاتورة لهذا العميل بعد. ينقص: {{fields}}.",
+    "customerSearch": "ابحث عن عميل",
+    "noCustomers": "لا يوجد عملاء مطابقون",
+    "selectHint": "اختر أحد عملائك",
+    "vat": "الرقم الضريبي {{number}}",
+    "branchesFailed": "تعذّر تحميل الفروع",
+    "noteHidden": "قد تحتوي هذه المسودة على ملاحظة داخلية لا يمكنك رؤيتها، والحفظ يحتفظ بها."
   }
 }
