@@ -3,8 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
-import { forgetEntitlements, peekEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { CompanyDetail, CompanySummary, HistoryEntry } from '../../lib/console/companyVerification'
+import {
+  forgetEntitlements,
+  peekEntitlements,
+  type Entitlements,
+} from '../../lib/identity/entitlements'
+import type {
+  CompanyDetail,
+  CompanySummary,
+  HistoryEntry,
+} from '../../lib/console/companyVerification'
 import { VerificationCompanyPage } from './VerificationCompanyPage'
 import { VerificationPage } from './VerificationPage'
 
@@ -20,7 +28,12 @@ const OPERATOR: Entitlements = {
   username: 'ops.reviewer',
   tenantId: 't-platform',
   roles: [
-    { id: 'r-1', code: 'PLATFORM_TENANT_ADMIN', name: 'Platform tenant administrator', systemRole: true },
+    {
+      id: 'r-1',
+      code: 'PLATFORM_TENANT_ADMIN',
+      name: 'Platform tenant administrator',
+      systemRole: true,
+    },
     { id: 'r-2', code: 'PLATFORM_SUPPORT', name: 'Platform support', systemRole: true },
   ],
   permissions: ['platform.tenants.manage', 'platform.support', 'role.read'],
@@ -95,7 +108,10 @@ const HISTORY: HistoryEntry[] = [
   },
 ]
 
-const page = (items: CompanySummary[], extra: Partial<{ page: number; totalElements: number; totalPages: number }> = {}) => ({
+const page = (
+  items: CompanySummary[],
+  extra: Partial<{ page: number; totalElements: number; totalPages: number }> = {},
+) => ({
   items,
   page: 0,
   size: 25,
@@ -111,7 +127,10 @@ function json(status: number, body?: unknown) {
   })
 }
 const problem = (status: number, type: string) =>
-  json(status, { type: `https://api.fawtir.om/problems/${type}`, detail: 'Server prose that must not be shown.' })
+  json(status, {
+    type: `https://api.fawtir.om/problems/${type}`,
+    detail: 'Server prose that must not be shown.',
+  })
 
 type Handler = () => Response | Promise<Response>
 let fetchMock: ReturnType<typeof vi.fn>
@@ -119,7 +138,10 @@ let fetchMock: ReturnType<typeof vi.fn>
 /** Answers each URL from its own handler; an unexpected URL fails the request loudly. */
 function answer(handlers: Record<string, Handler | Handler[]>) {
   const queues = Object.fromEntries(
-    Object.entries(handlers).map(([url, handler]) => [url, Array.isArray(handler) ? [...handler] : handler]),
+    Object.entries(handlers).map(([url, handler]) => [
+      url,
+      Array.isArray(handler) ? [...handler] : handler,
+    ]),
   )
   fetchMock.mockImplementation(async (url: string) => {
     const entry = queues[url]
@@ -149,7 +171,10 @@ function renderAt(path: string, { strict = false }: { strict?: boolean } = {}) {
   return render(strict ? <StrictMode>{tree}</StrictMode> : tree)
 }
 
-const QUEUE_READY = { [ENTITLEMENTS_URL]: () => json(200, OPERATOR), [QUEUE_URL]: () => json(200, page([SUBMITTED, SHELL])) }
+const QUEUE_READY = {
+  [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+  [QUEUE_URL]: () => json(200, page([SUBMITTED, SHELL])),
+}
 const table = () => screen.getByRole('table')
 
 beforeEach(async () => {
@@ -180,7 +205,9 @@ describe('Console access', () => {
   })
 
   it('asks the queue only once access is known, and never asks it for a reader without the permission', async () => {
-    answer({ [ENTITLEMENTS_URL]: () => json(200, { ...OPERATOR, permissions: ['platform.support'] }) })
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, { ...OPERATOR, permissions: ['platform.support'] }),
+    })
     renderAt('/console/onboarding')
 
     expect(await screen.findByText(i18n.t('console.access.missingPermission'))).toBeTruthy()
@@ -190,7 +217,10 @@ describe('Console access', () => {
   })
 
   it('tells a customer account the console is not for it', async () => {
-    answer({ [ENTITLEMENTS_URL]: () => json(200, { ...OPERATOR, permissions: ['invoice.read', 'tenant.plan.read'] }) })
+    answer({
+      [ENTITLEMENTS_URL]: () =>
+        json(200, { ...OPERATOR, permissions: ['invoice.read', 'tenant.plan.read'] }),
+    })
     renderAt('/console/onboarding')
 
     expect(await screen.findByText(i18n.t('console.access.notOperator'))).toBeTruthy()
@@ -207,7 +237,10 @@ describe('Console access', () => {
 
   it('offers a retry when entitlements cannot be read, then asks once more', async () => {
     answer({
-      [ENTITLEMENTS_URL]: [() => Promise.reject(new TypeError('Failed to fetch')), () => json(200, OPERATOR)],
+      [ENTITLEMENTS_URL]: [
+        () => Promise.reject(new TypeError('Failed to fetch')),
+        () => json(200, OPERATOR),
+      ],
       [QUEUE_URL]: () => json(200, page([SUBMITTED])),
     })
     renderAt('/console/onboarding')
@@ -249,16 +282,24 @@ describe('Verification queue', () => {
     await screen.findByText('Unfinished Registration')
 
     const shellRow = screen.getByText('Unfinished Registration').closest('tr')!
-    expect(within(shellRow).getByText(i18n.t('console.verification.status.notSubmitted'))).toBeTruthy()
+    expect(
+      within(shellRow).getByText(i18n.t('console.verification.status.notSubmitted')),
+    ).toBeTruthy()
     expect(within(shellRow).getByText(i18n.t('console.verification.noLegalName'))).toBeTruthy()
-    expect(within(shellRow).queryByText(i18n.t('console.verification.status.PENDING_VERIFICATION'))).toBeNull()
+    expect(
+      within(shellRow).queryByText(i18n.t('console.verification.status.PENDING_VERIFICATION')),
+    ).toBeNull()
 
     const submittedRow = screen.getByText('Al Noor Bakery').closest('tr')!
-    expect(within(submittedRow).getByText(i18n.t('console.verification.status.PENDING_VERIFICATION'))).toBeTruthy()
+    expect(
+      within(submittedRow).getByText(i18n.t('console.verification.status.PENDING_VERIFICATION')),
+    ).toBeTruthy()
 
     // Read-only: no row carries any action, and nothing on the page offers a decision.
     expect(within(table()).queryAllByRole('button')).toHaveLength(0)
-    expect(screen.queryByRole('button', { name: /approve|verify company|upload|evidence/i })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /approve|verify company|upload|evidence/i }),
+    ).toBeNull()
   })
 
   it('keeps the backend totals exactly and pages on the server', async () => {
@@ -291,7 +332,9 @@ describe('Verification queue', () => {
     renderAt('/console/onboarding')
     await screen.findByText('Al Noor Bakery')
 
-    fireEvent.click(screen.getByRole('button', { name: i18n.t('console.verification.tab.verified') }))
+    fireEvent.click(
+      screen.getByRole('button', { name: i18n.t('console.verification.tab.verified') }),
+    )
     expect(await screen.findByText(i18n.t('console.verification.empty.verified'))).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: i18n.t('console.verification.tab.all') }))
@@ -299,14 +342,20 @@ describe('Verification queue', () => {
   })
 
   it('says the queue is empty only when the backend says so', async () => {
-    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR), [QUEUE_URL]: () => json(200, page([])) })
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [QUEUE_URL]: () => json(200, page([])),
+    })
     renderAt('/console/onboarding')
 
     expect(await screen.findByText(i18n.t('console.verification.empty.pending'))).toBeTruthy()
   })
 
   it('shows a refusal as no access — never as an empty queue', async () => {
-    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR), [QUEUE_URL]: () => problem(403, 'insufficient-permission') })
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [QUEUE_URL]: () => problem(403, 'insufficient-permission'),
+    })
     renderAt('/console/onboarding')
 
     expect(await screen.findByText(i18n.t('console.access.noAccess'))).toBeTruthy()
@@ -316,7 +365,11 @@ describe('Verification queue', () => {
   })
 
   it.each([
-    ['a network failure', () => Promise.reject(new TypeError('Failed to fetch')), 'identityErrors.network'],
+    [
+      'a network failure',
+      () => Promise.reject(new TypeError('Failed to fetch')),
+      'identityErrors.network',
+    ],
     ['a 5xx', () => problem(503, 'internal-error'), 'identityErrors.service'],
   ])('reports %s with a retry that asks exactly once more', async (_label, fail, key) => {
     answer({
@@ -334,7 +387,10 @@ describe('Verification queue', () => {
   })
 
   it('sends a session that died mid-visit to Login', async () => {
-    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR), [QUEUE_URL]: () => problem(401, 'unauthenticated') })
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [QUEUE_URL]: () => problem(401, 'unauthenticated'),
+    })
     renderAt('/console/onboarding')
 
     expect((await screen.findByTestId('location')).textContent).toBe('/login')
@@ -350,7 +406,9 @@ describe('Verification queue', () => {
     })
     renderAt('/console/onboarding?page=9')
 
-    fireEvent.click(await screen.findByRole('button', { name: i18n.t('console.verification.firstPage') }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: i18n.t('console.verification.firstPage') }),
+    )
     expect(await screen.findByText('Al Noor Bakery')).toBeTruthy()
   })
 })
@@ -373,22 +431,38 @@ describe('Company detail', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })).toBeTruthy()
     expect(screen.getByText('OM1100000001')).toBeTruthy()
-    expect(screen.getByText(i18n.t('console.verification.detail.event.PROFILE_SUBMITTED'))).toBeTruthy()
+    expect(
+      screen.getByText(i18n.t('console.verification.detail.event.PROFILE_SUBMITTED')),
+    ).toBeTruthy()
     expect(callsTo(ENTITLEMENTS_URL)).toHaveLength(1)
     expect(callsTo(DETAIL_URL)).toHaveLength(1)
     expect(callsTo(HISTORY_URL)).toHaveLength(1)
     // A submitted registration waiting for review offers the decision — and nothing is written
     // until the reviewer acts: opening the company is reads only.
-    const verify = screen.getByRole('button', { name: i18n.t('console.verification.decision.verify') })
+    const verify = screen.getByRole('button', {
+      name: i18n.t('console.verification.decision.verify'),
+    })
     expect((verify as HTMLButtonElement).disabled).toBe(true)
-    expect(fetchMock.mock.calls.every(([, init]) => !init || !(init as RequestInit).method || (init as RequestInit).method === 'GET')).toBe(true)
+    expect(
+      fetchMock.mock.calls.every(
+        ([, init]) =>
+          !init || !(init as RequestInit).method || (init as RequestInit).method === 'GET',
+      ),
+    ).toBe(true)
   })
 
   it('returns to the same queue page it came from', async () => {
     answer({
       [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
       '/api/v1/platform/companies?status=VERIFIED&page=1&size=25': () =>
-        json(200, page([{ ...SUBMITTED, verificationStatus: 'VERIFIED' }], { page: 1, totalElements: 30, totalPages: 2 })),
+        json(
+          200,
+          page([{ ...SUBMITTED, verificationStatus: 'VERIFIED' }], {
+            page: 1,
+            totalElements: 30,
+            totalPages: 2,
+          }),
+        ),
       [DETAIL_URL]: () => json(200, DETAIL),
       [HISTORY_URL]: () => json(200, HISTORY),
     })
@@ -396,24 +470,37 @@ describe('Company detail', () => {
     fireEvent.click(await screen.findByRole('link', { name: 'Al Noor Bakery' }))
     await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
 
-    expect(screen.getByRole('link', { name: i18n.t('common.back') }).getAttribute('href')).toBe(
-      '/console/onboarding?status=verified&page=2',
-    )
+    // The breadcrumb's Verification crumb is the way back, and it keeps the queue's place.
+    expect(
+      within(screen.getByRole('navigation', { name: i18n.t('console.crumb.label') }))
+        .getByRole('link', { name: i18n.t('console.nav.verification') })
+        .getAttribute('href'),
+    ).toBe('/console/onboarding?status=verified&page=2')
   })
 
   it('says an unfinished registration has nothing to decide', async () => {
     answer({
       [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
       [`/api/v1/platform/companies/${SHELL_ID}`]: () =>
-        json(200, { ...DETAIL, tenantId: SHELL_ID, submittedAt: null, legalName: null, taxNumber: null }),
+        json(200, {
+          ...DETAIL,
+          tenantId: SHELL_ID,
+          submittedAt: null,
+          legalName: null,
+          taxNumber: null,
+        }),
       [`/api/v1/platform/companies/${SHELL_ID}/verification-history`]: () => json(200, []),
     })
     renderAt(`/console/onboarding/${SHELL_ID}`)
 
     expect(await screen.findByText(i18n.t('console.verification.detail.notSubmitted'))).toBeTruthy()
-    expect(screen.getAllByText(i18n.t('console.verification.status.notSubmitted')).length).toBeGreaterThan(0)
+    expect(
+      screen.getAllByText(i18n.t('console.verification.status.notSubmitted')).length,
+    ).toBeGreaterThan(0)
     expect(screen.getByText(i18n.t('console.verification.detail.historyEmpty'))).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /approve|reject|verify|evidence|upload/i })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /approve|reject|verify|evidence|upload/i }),
+    ).toBeNull()
   })
 
   it('answers an unknown company as not found', async () => {
@@ -458,7 +545,9 @@ describe('Company detail', () => {
     expect(screen.getByText('OM1100000001')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: i18n.t('console.access.retry') }))
 
-    expect(await screen.findByText(i18n.t('console.verification.detail.event.PROFILE_SUBMITTED'))).toBeTruthy()
+    expect(
+      await screen.findByText(i18n.t('console.verification.detail.event.PROFILE_SUBMITTED')),
+    ).toBeTruthy()
     expect(callsTo(DETAIL_URL)).toHaveLength(1)
     expect(callsTo(HISTORY_URL)).toHaveLength(2)
   })
@@ -466,8 +555,14 @@ describe('Company detail', () => {
 
 describe('Privacy and language', () => {
   it('keeps company data out of storage and the console', async () => {
-    const consoleCalls = (['log', 'info', 'warn', 'error', 'debug'] as const).map((level) => vi.spyOn(console, level))
-    answer({ ...QUEUE_READY, [DETAIL_URL]: () => json(200, DETAIL), [HISTORY_URL]: () => json(200, HISTORY) })
+    const consoleCalls = (['log', 'info', 'warn', 'error', 'debug'] as const).map((level) =>
+      vi.spyOn(console, level),
+    )
+    answer({
+      ...QUEUE_READY,
+      [DETAIL_URL]: () => json(200, DETAIL),
+      [HISTORY_URL]: () => json(200, HISTORY),
+    })
     renderAt('/console/onboarding')
     fireEvent.click(await screen.findByRole('link', { name: 'Al Noor Bakery' }))
     await screen.findByText('OM1100000001')
@@ -482,7 +577,11 @@ describe('Privacy and language', () => {
 
   it('speaks Arabic, including the statuses and the country', async () => {
     await i18n.changeLanguage('ar')
-    answer({ ...QUEUE_READY, [DETAIL_URL]: () => json(200, DETAIL), [HISTORY_URL]: () => json(200, HISTORY) })
+    answer({
+      ...QUEUE_READY,
+      [DETAIL_URL]: () => json(200, DETAIL),
+      [HISTORY_URL]: () => json(200, HISTORY),
+    })
     renderAt('/console/onboarding')
     await screen.findByText('Al Noor Bakery')
 
@@ -493,6 +592,8 @@ describe('Privacy and language', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'Al Noor Bakery' }))
     expect(await screen.findByText('الشركة كما أُرسلت')).toBeTruthy()
-    expect(screen.getByText(new Intl.DisplayNames(['ar'], { type: 'region' }).of('OM')!)).toBeTruthy()
+    expect(
+      screen.getByText(new Intl.DisplayNames(['ar'], { type: 'region' }).of('OM')!),
+    ).toBeTruthy()
   })
 })
