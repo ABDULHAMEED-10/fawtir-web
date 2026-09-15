@@ -237,6 +237,7 @@ function App() {
           />
           <Route path="/expenditure/bills/:id" element={<BillDetailPage />} />
           <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
           <Route path="/pos" element={<PosPage />} />
           <Route path="/pos/payment" element={<PosPaymentPage />} />

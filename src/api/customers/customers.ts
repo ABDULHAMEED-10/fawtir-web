@@ -28,6 +28,9 @@ export type CustomerDto = {
     invoiceAddress: { cityName: string | null; countryCode: string | null } | null
   }
   peppolDelivery: CustomerPeppolDelivery
+  /** False while the record cannot fill a compliant buyer party; issue refuses it (SRS §15). */
+  invoiceEligible?: boolean
+  missingInvoiceFields?: string[]
   status: CustomerStatusDto
   updatedAt: string
 }

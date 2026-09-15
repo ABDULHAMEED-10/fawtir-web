@@ -33,6 +33,8 @@ export type ApiRequestOptions = {
   signal?: AbortSignal
   timeoutMs?: number
   credentials?: RequestCredentials
+  /** Request headers the call needs beyond the defaults, such as `Idempotency-Key`. */
+  headers?: Record<string, string>
 }
 
 async function readBody(response: Response): Promise<unknown> {
@@ -96,7 +98,7 @@ async function send<T>(
   accept: string,
   read: (response: Response) => Promise<T>,
 ): Promise<T> {
-  const { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS, credentials } = options
+  const { method = 'GET', body, signal, timeoutMs = DEFAULT_TIMEOUT_MS, credentials, headers: extra } = options
 
   // One controller carries both the caller's abort and the timeout, and the
   // `timedOut` flag — not the rejection's error name, which differs between
@@ -111,7 +113,7 @@ async function send<T>(
   if (signal?.aborted) forwardAbort()
   else signal?.addEventListener('abort', forwardAbort, { once: true })
 
-  const headers: Record<string, string> = { Accept: accept }
+  const headers: Record<string, string> = { Accept: accept, ...extra }
   // A multipart body sets no Content-Type here: the browser must write it, because only the
   // browser knows the boundary it chose.
   const multipart = body instanceof FormData

@@ -27,6 +27,8 @@ export function taxCategoryOf(category: string, rate: number | null): TaxCategor
 
 export type ProductLinePatch = {
   productId: string
+  /** The draft carries the code too; issue refuses a line whose code no longer matches the product. */
+  productCode: string
   description: string
   unitPrice: string
   unit: string
@@ -47,6 +49,7 @@ export function lineFromProduct(product: ProductDto, exclVat: boolean): ProductL
   const unitPrice = exclVat || rate === 0n ? price : (price * (hundred + rate)) / hundred
   return {
     productId: product.id,
+    productCode: product.code,
     description: product.name,
     unitPrice: formatAmount(unitPrice, 3).replace(/,/g, ''),
     unit: product.defaultUnitCode,

@@ -9723,5 +9723,63 @@
     "tax": "Tax category",
     "saving": "Saving…",
     "saveAndUse": "Save and use"
+  },
+  "invoiceDraft": {
+    "editTitle": "Edit draft",
+    "meta": {
+      "new": "New draft · not saved yet",
+      "saved": "Draft · numbered when issued"
+    },
+    "saving": "Saving…",
+    "saved": "Draft saved.",
+    "discard": "Discard draft",
+    "discardTitle": "Discard this draft?",
+    "discardBody": "It leaves your drafts. It was never issued, so nothing was sent or reported.",
+    "discardConfirm": "Discard",
+    "stale": "Someone else saved this draft after you opened it. Reload to see their version before saving.",
+    "reload": "Reload",
+    "fixFirst": "Some fields need attention before the draft can be saved.",
+    "serverRefused": "The server did not accept the draft.",
+    "problem": {
+      "customer": "Choose a customer.",
+      "branch": "Choose a branch.",
+      "product": "Choose a product for this line.",
+      "quantity": "Quantity must be more than zero.",
+      "unitPrice": "Enter a price.",
+      "exemptionReason": "Say why no VAT is charged on this line."
+    },
+    "lineError": "Line {{line}}: {{message}}",
+    "exemptionReason": "Reason no VAT is charged",
+    "figures": {
+      "new": "Estimate. Save the draft to see the figures the invoice will carry.",
+      "dirty": "Estimate of unsaved changes. Save to update the saved figures.",
+      "saved": "Figures from the saved draft.",
+      "failed": "The saved draft could not be priced: {{reason}}."
+    },
+    "previewReason": {
+      "INVOICE_LINES_REQUIRED": "add at least one line",
+      "LINE_DISCOUNT_EXCEEDS_BASE": "a line discount is more than the line",
+      "HEADER_DISCOUNT_EXCEEDS_BASE": "the document discount is more than the total",
+      "LINE_DISCOUNT_PERCENTAGE_INVALID": "a line discount is over 100%",
+      "HEADER_DISCOUNT_PERCENTAGE_INVALID": "the document discount is over 100%",
+      "EXEMPTION_REASON_REQUIRED": "a line with no VAT needs a reason",
+      "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories"
+    },
+    "datesAtIssue": "Set when the invoice is issued; not stored on the draft.",
+    "notEditable": "This invoice is {{state}}. Only drafts can be edited.",
+    "state": {
+      "DRAFT": "a draft",
+      "ISSUED": "issued",
+      "CANCELLED": "cancelled",
+      "DISCARDED": "discarded"
+    },
+    "readOnly": "You can see this draft but not save it.",
+    "notEligible": "This customer can't be invoiced yet. Missing: {{fields}}.",
+    "customerSearch": "Search customers",
+    "noCustomers": "No customers match",
+    "selectHint": "Choose one of your customers",
+    "vat": "VAT {{number}}",
+    "branchesFailed": "Branches could not be loaded",
+    "noteHidden": "This draft may have an internal note you can't see. Saving keeps it."
   }
 }
