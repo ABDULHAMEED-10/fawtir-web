@@ -1,4 +1,4 @@
-export { apiRequest, type ApiRequestOptions } from './client'
+export { apiDownload, apiRequest, type ApiDownload, type ApiRequestOptions } from './client'
 export { sharedRequest } from './inflight'
 export { withQuery, type QueryValue } from './query'
 export {

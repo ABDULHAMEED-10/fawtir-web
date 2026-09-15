@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiRequest } from './client'
+import { apiDownload, apiRequest } from './client'
 import { ApiError, NetworkError } from './errors'
 
 function problem(status: number, body: object, headers: Record<string, string> = {}) {
@@ -158,5 +158,46 @@ describe('apiRequest', () => {
     const error = await pending
     expect(error).not.toBeInstanceOf(NetworkError)
     expect(error).toMatchObject({ name: 'AbortError' })
+  })
+})
+
+describe('apiDownload', () => {
+  it('resolves with the bytes and the name the server gave the file', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response('Type,Name\nBUSINESS,Qalhat\n', {
+          status: 200,
+          headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="fawtir-customers.csv"' },
+        }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const file = await apiDownload('/v1/customers/export')
+
+    expect(file.filename).toBe('fawtir-customers.csv')
+    expect(await file.blob.text()).toBe('Type,Name\nBUSINESS,Qalhat\n')
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/v1/customers/export')
+    expect((init.headers as Record<string, string>).Accept).toBe('*/*')
+  })
+
+  it('rejects a refused download as the same ApiError a JSON request gets', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => problem(403, { type: 'https://api.fawtir.om/problems/insufficient-permission', status: 403 })),
+    )
+    const error = await apiDownload('/v1/customers/export').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 403 })
+  })
+})
+
+describe('request headers', () => {
+  it('sends the extra headers a call asks for, beside the defaults', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiRequest('/v1/invoice-drafts', { method: 'POST', body: {}, headers: { 'Idempotency-Key': 'draft-123' } })
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.headers).toMatchObject({ 'Idempotency-Key': 'draft-123', 'Content-Type': 'application/json' })
   })
 })
