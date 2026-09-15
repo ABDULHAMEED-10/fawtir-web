@@ -297,6 +297,30 @@ overflow on the responsive sweep (132 routes) and `npm run build` green.
 - `GET/PUT /platform/settings/{section}` for the nine sections of `PlatformSettings`.
 - Tenant side: `GET /settings/billing` (next bill with extras, how-you-pay, past bills with method and confirmation), `POST /settings/billing/payment-link` ("Send the link now").
 
+## 7.8 ERP mapping built (16 Sep 2026)
+
+Phase 3 is built on a mock engine that mirrors the backend's contracts, verified by screenshot at
+1440 / 390 in EN and AR, zero overflow on the responsive sweep (140 routes), `npm run build` green.
+
+| Piece | Where |
+|---|---|
+| Field catalogue — 75 PINT-OM terms with section, requirement, condition, origin, canonical + UBL path, code list, rule id, helper copy | `src/lib/erpCatalogue.ts` (stands in for `GET /peppol/mapping-targets`) |
+| The 16 code lists (excerpts of the long ones; the backend serves them whole) | `src/lib/erpCodeLists.ts` |
+| Engine: validator (14 error codes), `flattenKeys`, dry-run over a sample → canonical invoice or refusals by canonical path, deterministic compile + content hash, certification with route rules, the tenant's story (Odoo, Invoice certified, Debit failed) and a store for save / import / restore / samples / hand-written / certify | `src/lib/erpMapping.ts` |
+| Shared frame: Integration tab, status pill, 7-screen sub-nav, coverage banner | `src/pages/ErpPage/ErpShell.tsx` |
+| Overview · Fields · Preview · Certify · Advanced · History · Samples · Connected systems | `src/pages/ErpPage/*` (+ `fields/`, `overview/`, `shared/`) |
+| Settings hub: Integration group with ERP mapping and Connected systems cards | `src/pages/SettingsPage/SettingsPage.tsx` |
+
+Answers to the backend's questions (spec §16.2) are in §2: F-1 long page, F-2 client-side path
+picker, F-3 no value maps on free text, F-4 default BTOM-001 by route, F-5 samples not exported,
+F-6 the Integration tab, F-7 Arabic names from the catalogue client-side (`nameAr`).
+
+**When the endpoints arrive** the screens keep their shape: replace the store's functions with
+the calls in Appendix A (validate → `POST …/guided/validate`, save → `PUT …/guided`, dry-run,
+certification, samples, revisions, import/export, code lists) and the catalogue with
+`GET /peppol/mapping-targets`. Two things the mock cannot do and the UI already says so: run a
+non-preset JSONata transform (deferred to the server) and the 429 pause banner.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |
