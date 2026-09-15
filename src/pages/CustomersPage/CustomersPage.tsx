@@ -339,9 +339,7 @@ function CustomersScreen() {
         {page && page.items.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
             <label className="flex items-center gap-4">
-              <span className="text-sm font-medium text-text-muted">
-                {t('customersPage.showResult')} {count(page.total ?? page.items.length)}
-              </span>
+              <span className="text-sm font-medium text-text-muted">{t('customersPage.showResult')}</span>
               <select
                 value={size}
                 onChange={(event) =>
@@ -350,7 +348,6 @@ function CustomersScreen() {
                     page: null,
                   })
                 }
-                aria-label={t('customersPage.pageSize')}
                 className="h-9 rounded-sm border border-border-subtle bg-white px-2 text-sm font-semibold text-text-secondary"
               >
                 {CUSTOMER_PAGE_SIZES.map((option) => (

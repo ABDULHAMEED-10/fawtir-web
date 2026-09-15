@@ -195,7 +195,7 @@ describe('Customers list, wired to the API', () => {
       ),
     )
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Rows per page' }), { target: { value: '25' } })
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Show result:' }), { target: { value: '25' } })
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe(
         '/api/v1/customers?status=ACTIVE&type=BUSINESS&search=sohar&sort=RECENT&page=0&size=25',
@@ -210,7 +210,6 @@ describe('Customers list, wired to the API', () => {
     ]
     renderCustomers()
     await screen.findByText('Sohar Port Logistics')
-    expect(screen.getByText('Show result: 27', { exact: false })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '3' }))
     expect(await screen.findByText('Nizwa Dates Co')).toBeTruthy()
     expect(listCalls().at(-1)).toBe('/api/v1/customers?status=ACTIVE&sort=NAME_ASC&page=2&size=10')
