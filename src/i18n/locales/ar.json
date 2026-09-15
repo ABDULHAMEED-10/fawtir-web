@@ -6984,13 +6984,15 @@
       "company": "الشركة",
       "people": "الأشخاص",
       "billing": "الفوترة",
-      "records": "السجلات"
+      "records": "السجلات",
+      "integration": "التكامل"
     },
     "group": {
       "company": "الشركة",
       "people": "الأشخاص",
       "billing": "الفوترة",
-      "records": "السجلات"
+      "records": "السجلات",
+      "integration": "التكامل"
     },
     "card": {
       "peppolTitle": "Peppol والضريبة",
@@ -7035,7 +7037,23 @@
       "closingTitle": "إغلاق الحساب",
       "closingBody": "ماذا يحدث لفواتيرك، وإلى متى تبقى في المتناول.",
       "closingPill": "اقرأ أولًا",
-      "closingFoot": "الاحتفاظ يظل ساريًا"
+      "closingFoot": "الاحتفاظ يظل ساريًا",
+      "erpMappingTitle": "ربط نظام ERP",
+      "erpMappingBody": "كيف تُقرأ فواتير نظامك وتُفحص وتُبلَّغ.",
+      "erpMappingPill": {
+        "NOT_SET_UP": "غير مُعدّ",
+        "DRAFT": "مسودة",
+        "READY_UNCERTIFIED": "جاهز، غير معتمد",
+        "PARTIALLY_CERTIFIED": "معتمد جزئيًا",
+        "CERTIFIED": "معتمد",
+        "STALE": "يحتاج إعادة اعتماد"
+      },
+      "erpMappingFoot": "موجّه · {{system}} · {{mapped}} من {{required}} حقلًا مطلوبًا",
+      "erpMappingFootNone": "ابدأ بفاتورة نموذجية من نظامك",
+      "connectionsTitle": "الأنظمة المتصلة",
+      "connectionsBody": "يجمع فوتر الفواتير من نظامك وفق جدول ويعيد النتيجة.",
+      "connectionsPill": "إضافة",
+      "connectionsFoot": "الاستخراج التلقائي · غير مفعّل"
     }
   },
   "peppolTax": {
@@ -10577,6 +10595,175 @@
     "error": {
       "code": "هذا الرمز غير صالح. ربما انتهت صلاحيته، أو استُخدم، أو استُبدل بطلب أحدث، أو يخص حسابًا آخر.",
       "notOperator": "تأكيد تغيير البريد هنا لحسابات فريق فوترة فقط."
+    }
+  },
+  "erp": {
+    "soon": {
+      "title": "لم يُبنَ بعد",
+      "body": "هذا الجزء من شاشات التكامل هو التالي."
+    },
+    "subnav": {
+      "overview": "نظرة عامة",
+      "fields": "الحقول",
+      "preview": "معاينة",
+      "certification": "الاعتماد",
+      "advanced": "متقدم",
+      "history": "السجل",
+      "samples": "النماذج",
+      "label": "شاشات ربط ERP"
+    },
+    "status": {
+      "NOT_SET_UP": "غير مُعدّ",
+      "DRAFT": "مسودة",
+      "READY_UNCERTIFIED": "جاهز، غير معتمد",
+      "PARTIALLY_CERTIFIED": "معتمد جزئيًا",
+      "CERTIFIED": "معتمد",
+      "STALE": "يحتاج إعادة اعتماد"
+    },
+    "route": {
+      "GUIDED": "ربط موجّه",
+      "HAND_WRITTEN": "ملف مكتوب يدويًا",
+      "NONE": "لا شيء يعمل بعد"
+    },
+    "routeState": {
+      "CERTIFIED": "معتمد",
+      "FAILED": "فشل",
+      "NOT_CERTIFIED": "غير معتمد",
+      "STALE": "قديم"
+    },
+    "certRoute": {
+      "INVOICE": "فاتورة",
+      "CREDIT_NOTE": "إشعار دائن",
+      "DEBIT_NOTE": "إشعار مدين",
+      "SELF_BILLING": "فوترة ذاتية"
+    },
+    "sourceSystem": {
+      "ODOO": "Odoo",
+      "ERPNEXT": "ERPNext",
+      "SAP": "SAP",
+      "ORACLE": "Oracle",
+      "MICROSOFT_DYNAMICS": "Microsoft Dynamics",
+      "CUSTOM": "مخصص"
+    },
+    "section": {
+      "document": "المستند",
+      "seller": "البائع",
+      "buyer": "المشتري",
+      "tax": "الضريبة",
+      "lines": "السطور",
+      "payment": "الدفع",
+      "totals": "الإجماليات"
+    },
+    "requirement": {
+      "MANDATORY": "مطلوب",
+      "CONDITIONAL": "مشروط",
+      "OPTIONAL": "اختياري"
+    },
+    "origin": {
+      "PLATFORM_SUPPLIED": "يوفّره فوتر",
+      "DERIVED": "يحسبه فوتر"
+    },
+    "condition": {
+      "creditOrDebit": "عندما يكون إشعارًا دائنًا أو مدينًا",
+      "specialTransactions": "للاستيراد والاحتساب العكسي وهامش الربح والمناطق الخاصة",
+      "buyerIdOrVatin": "هذا أو الرقم الضريبي للمشتري",
+      "withBuyerId": "عند وجود معرّف للمشتري",
+      "notSimplified": "ما لم تكن فاتورة مبسطة",
+      "rateSZ": "للفئتين S (5) وZ (0)؛ ولا يُذكر لـE أو O",
+      "exemptOrZero": "عندما تكون الفئة E أو Z",
+      "withPaymentMeans": "عند ذكر تعليمات الدفع",
+      "withAllowances": "عند وجود خصومات على مستوى المستند",
+      "withCharges": "عند وجود رسوم على مستوى المستند"
+    },
+    "help": {
+      "invoiceNumber": "رقمك الخاص. لا تفرض القواعد صيغة معينة.",
+      "date": "بصيغة YYYY-MM-DD، وليس في المستقبل (بتوقيت مسقط).",
+      "transactionType": "يُختار عند كل إرسال، ولا يُربط.",
+      "currency": "أي عملة غير الريال تحتاج المسار اليدوي.",
+      "vatin": "OM متبوعًا بعشرة أرقام بالضبط.",
+      "sellerPhone": "مطلوب في كل فاتورة — معظم الأنظمة لا تحفظه، فالقيمة الثابتة مناسبة.",
+      "buyerEndpoint": "عنوان Peppol للمشتري؛ للمستهلكين يستخدم فوتر العنوان البديل لجهاز الضرائب.",
+      "vatCategory": "S تحتاج النسبة 5، وZ النسبة 0؛ وE وO دون نسبة.",
+      "rate": "من 0.00 إلى 100.00، بمنزلتين عشريتين على الأكثر.",
+      "exemptionReason": "VATEX-OM-… للفئة E، وVATZR-OM-… للفئة Z.",
+      "positive": "صفر أو موجب، حتى في الإشعار الدائن.",
+      "threeDecimals": "ثلاث منازل عشرية على الأكثر.",
+      "twoDecimals": "منزلتان عشريتان على الأكثر.",
+      "isic": "ستة أرقام.",
+      "prepaid": "إن وُجد، يجب الإشارة إلى فاتورة الدفعة المقدمة أيضًا."
+    },
+    "coverage": {
+      "GOODS_CLASSIFICATION": "سلع تحتاج رمز HS",
+      "FOREIGN_CURRENCY": "فواتير بعملة غير الريال",
+      "INVOICING_PERIOD": "فواتير ملخّصة أو لفترة",
+      "banner": "لا يستطيع الربط الموجّه التعبير عن هذه؛ فهي تحتاج المسار اليدوي."
+    },
+    "error": {
+      "UNKNOWN_BUSINESS_TERM": "هذا المصطلح ليس في الفهرس",
+      "TARGET_NOT_MAPPABLE": "يوفّر فوتر هذا الحقل؛ لا يمكن ربطه",
+      "UNSUPPORTED_TARGET": "لا يستطيع المسار الموجّه التعبير عن هذا الحقل",
+      "MISSING_SOURCE": "أعطِ مسار مصدر أو قيمة افتراضية",
+      "MALFORMED_SOURCE_PATH": "حروف وأرقام وشرطات سفلية ونقاط و[] فقط — دون عوامل",
+      "MALFORMED_TRANSFORM": "التحويل لا يُحلَّل",
+      "DUPLICATE_SINGLETON_TARGET": "هذا الحقل مربوط مرتين",
+      "REPEATED_TARGET_NOT_SUPPORTED": "مصطلح السطر يُربط مرة واحدة فقط",
+      "CONFLICTING_TARGET_PATH": "لا يمكن للخصم والرسم مشاركة الخانة نفسها",
+      "INVALID_CODE_VALUE": "\"{{value}}\" ليس في قائمة {{list}}",
+      "VALUE_MAP_TOO_LARGE": "200 زوج على الأكثر بطول 128 حرفًا",
+      "MALFORMED_VALUE_MAP": "رمز في اليسار فارغ",
+      "VALUE_MAP_NOT_ALLOWED": "خرائط القيم لحقول الرموز فقط",
+      "VALUE_MAP_DEFAULT_REQUIRED": "\"استخدم الافتراضي\" يحتاج رمزًا افتراضيًا"
+    },
+    "warning": {
+      "transformAfterMap": "{{term}}: يعمل التحويل بعد خريطة القيم"
+    },
+    "dryRun": {
+      "valueUnmapped": "\"{{value}}\" ليس في خريطة القيم لـ{{term}}، والرموز غير المربوطة تُفشل الفاتورة",
+      "transformDeferred": "تحويل {{term}} ليس من الإعدادات الجاهزة؛ يعمل على الخادم فقط",
+      "missing": "{{term}} خرج فارغًا",
+      "vatinShape": "\"{{value}}\" ليس OM متبوعًا بعشرة أرقام",
+      "dateShape": "\"{{value}}\" ليس بصيغة YYYY-MM-DD",
+      "rateOnExempt": "نسبة على الفئة {{category}}؛ E وO لا تحملان نسبة",
+      "standardRate": "الفئة S يجب أن تحمل النسبة 5، لا {{rate}}"
+    },
+    "finding": {
+      "sellerAddress": "عنوان البائع يحتاج السطور الثلاثة والمدينة والرمز البريدي",
+      "sellerPhone": "هاتف البائع مفقود",
+      "creditType": "الإشعار الدائن يجب أن يحمل النوع 381، لا {{type}}",
+      "debitType": "الإشعار المدين يجب أن يحمل النوع 383، لا {{type}}",
+      "selfBillingType": "الفوترة الذاتية تأخذ 389 أو 261، لا {{type}}",
+      "precedingInvoice": "يجب ذكر رقم الفاتورة السابقة وتاريخها ومعرّفها",
+      "noteReason": "الإشعار الدائن أو المدين يحتاج رمز سبب",
+      "hsCode": "السطر {{line}} سلعة ويحتاج رمز HS من 12 رقمًا — المسار اليدوي",
+      "lineNet": "السطر {{line}}: الصافي {{actual}} لا يساوي الكمية × السعر {{expected}}",
+      "totals": "الإجمالي شاملًا الضريبة {{actual}} لا يساوي الإجمالي دونها زائد الضريبة {{expected}}"
+    },
+    "event": {
+      "guidedSaved": "حُفظ الربط — المراجعة {{revision}}، {{entries}} حقلًا",
+      "guidedRestored": "استُعيدت المراجعة {{from}} بوصفها المراجعة {{to}}",
+      "guidedImported": "استُورد الربط — {{entries}} حقلًا",
+      "guidedArchived": "أُرشف الربط الموجّه",
+      "profileActivated": "فُعّل الملف v{{version}} · {{hash}}",
+      "profileDeactivated": "أُلغي تفعيل الملف v{{version}} — يتوقف الإرسال",
+      "certificationPassed": "اعتُمد {{route}}",
+      "certificationFailed": "فشل اعتماد {{route}} — {{findings}} ملاحظات",
+      "sampleUploaded": "رُفع نموذج — {{label}}",
+      "sampleDeleted": "أُزيل نموذج — {{label}}"
+    },
+    "preset": {
+      "dateDmy": "تاريخ من DD/MM/YYYY",
+      "dateEpoch": "تاريخ من ميلي ثانية epoch",
+      "trimUpper": "إزالة الفراغات وأحرف كبيرة",
+      "digitsOnly": "الأرقام فقط",
+      "round3": "تقريب إلى 3 منازل",
+      "round2": "تقريب إلى منزلتين",
+      "abs": "القيمة المطلقة",
+      "percentFromFraction": "نسبة مئوية من كسر"
+    },
+    "onUnmapped": {
+      "FAIL": "أفشل الفاتورة",
+      "USE_DEFAULT": "استخدم رمزًا افتراضيًا",
+      "PASS_THROUGH": "مرّر القيمة كما هي"
     }
   }
 }

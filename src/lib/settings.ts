@@ -162,6 +162,7 @@ export const SETTINGS_TABS = [
   { id: 'all', labelKey: 'settings.tab.all' },
   { id: 'company', labelKey: 'settings.tab.company' },
   { id: 'people', labelKey: 'settings.tab.people' },
+  { id: 'integration', labelKey: 'settings.tab.integration' },
   { id: 'billing', labelKey: 'settings.tab.billing' },
   { id: 'records', labelKey: 'settings.tab.records' },
 ] as const

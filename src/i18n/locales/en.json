@@ -6982,13 +6982,15 @@
       "company": "Company",
       "people": "People",
       "billing": "Billing",
-      "records": "Records"
+      "records": "Records",
+      "integration": "Integration"
     },
     "group": {
       "company": "Company",
       "people": "People",
       "billing": "Billing",
-      "records": "Records"
+      "records": "Records",
+      "integration": "Integration"
     },
     "card": {
       "peppolTitle": "Peppol and tax",
@@ -7033,7 +7035,23 @@
       "closingTitle": "Closing the account",
       "closingBody": "What happens to your invoices, and how long they stay reachable.",
       "closingPill": "Read first",
-      "closingFoot": "Retention still applies"
+      "closingFoot": "Retention still applies",
+      "erpMappingTitle": "ERP mapping",
+      "erpMappingBody": "How invoices from your ERP are read, checked and reported.",
+      "erpMappingPill": {
+        "NOT_SET_UP": "Not set up",
+        "DRAFT": "Draft",
+        "READY_UNCERTIFIED": "Ready, not certified",
+        "PARTIALLY_CERTIFIED": "Partly certified",
+        "CERTIFIED": "Certified",
+        "STALE": "Re-certify"
+      },
+      "erpMappingFoot": "Guided · {{system}} · {{mapped}} of {{required}} required fields",
+      "erpMappingFootNone": "Start with your ERP's sample invoice",
+      "connectionsTitle": "Connected systems",
+      "connectionsBody": "Fawtir collects invoices from your ERP on a schedule and reports back.",
+      "connectionsPill": "Add-on",
+      "connectionsFoot": "Automatic ERP extraction · not active"
     }
   },
   "peppolTax": {
@@ -10508,6 +10526,175 @@
     "error": {
       "code": "This code isn’t valid. It may have expired, been used, been replaced by a newer request, or belong to another account.",
       "notOperator": "Only Fawtir team accounts confirm an email change here."
+    }
+  },
+  "erp": {
+    "soon": {
+      "title": "Not built yet",
+      "body": "This part of the integration screens is next."
+    },
+    "subnav": {
+      "overview": "Overview",
+      "fields": "Fields",
+      "preview": "Preview",
+      "certification": "Certify",
+      "advanced": "Advanced",
+      "history": "History",
+      "samples": "Samples",
+      "label": "ERP mapping screens"
+    },
+    "status": {
+      "NOT_SET_UP": "Not set up",
+      "DRAFT": "Draft",
+      "READY_UNCERTIFIED": "Ready, not certified",
+      "PARTIALLY_CERTIFIED": "Partly certified",
+      "CERTIFIED": "Certified",
+      "STALE": "Re-certify"
+    },
+    "route": {
+      "GUIDED": "Guided mapping",
+      "HAND_WRITTEN": "Hand-written profile",
+      "NONE": "Nothing runs yet"
+    },
+    "routeState": {
+      "CERTIFIED": "Certified",
+      "FAILED": "Failed",
+      "NOT_CERTIFIED": "Not certified",
+      "STALE": "Stale"
+    },
+    "certRoute": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
+      "SELF_BILLING": "Self-billing"
+    },
+    "sourceSystem": {
+      "ODOO": "Odoo",
+      "ERPNEXT": "ERPNext",
+      "SAP": "SAP",
+      "ORACLE": "Oracle",
+      "MICROSOFT_DYNAMICS": "Microsoft Dynamics",
+      "CUSTOM": "Custom"
+    },
+    "section": {
+      "document": "Document",
+      "seller": "Seller",
+      "buyer": "Buyer",
+      "tax": "Tax",
+      "lines": "Lines",
+      "payment": "Payment",
+      "totals": "Totals"
+    },
+    "requirement": {
+      "MANDATORY": "Required",
+      "CONDITIONAL": "Conditional",
+      "OPTIONAL": "Optional"
+    },
+    "origin": {
+      "PLATFORM_SUPPLIED": "Fawtir supplies this",
+      "DERIVED": "Worked out by Fawtir"
+    },
+    "condition": {
+      "creditOrDebit": "when it is a credit or debit note",
+      "specialTransactions": "for imports, reverse charge, profit margin and special zones",
+      "buyerIdOrVatin": "either this or the buyer's VATIN",
+      "withBuyerId": "when a buyer identifier is given",
+      "notSimplified": "unless it is a simplified invoice",
+      "rateSZ": "for S (5) and Z (0); never for E or O",
+      "exemptOrZero": "when the category is E or Z",
+      "withPaymentMeans": "when payment instructions are given",
+      "withAllowances": "when there are document-level allowances",
+      "withCharges": "when there are document-level charges"
+    },
+    "help": {
+      "invoiceNumber": "Your own number. No format is imposed by the rules.",
+      "date": "YYYY-MM-DD, and never in the future (Muscat time).",
+      "transactionType": "Chosen per submission, not mapped.",
+      "currency": "Anything but OMR needs the hand-written route.",
+      "vatin": "OM followed by exactly ten digits.",
+      "sellerPhone": "Required on every invoice — most ERPs do not hold it, so a constant is fine.",
+      "buyerEndpoint": "The buyer's Peppol address; for consumers, Fawtir uses the Tax Authority's placeholder.",
+      "vatCategory": "S needs rate 5, Z rate 0; E and O carry no rate.",
+      "rate": "0.00 to 100.00, two decimals at most.",
+      "exemptionReason": "VATEX-OM-… for E, VATZR-OM-… for Z.",
+      "positive": "Zero or positive, even on a credit note.",
+      "threeDecimals": "Three decimals at most.",
+      "twoDecimals": "Two decimals at most.",
+      "isic": "Six digits.",
+      "prepaid": "If present, the prepayment invoice must be referenced too."
+    },
+    "coverage": {
+      "GOODS_CLASSIFICATION": "Goods that need an HS code",
+      "FOREIGN_CURRENCY": "Invoices in a currency other than rial",
+      "INVOICING_PERIOD": "Summary or period-based invoices",
+      "banner": "The guided mapping cannot express these; they need the hand-written route."
+    },
+    "error": {
+      "UNKNOWN_BUSINESS_TERM": "This term is not in the catalogue",
+      "TARGET_NOT_MAPPABLE": "Fawtir supplies this field; it cannot be mapped",
+      "UNSUPPORTED_TARGET": "The guided path cannot express this field",
+      "MISSING_SOURCE": "Give a source path or a default",
+      "MALFORMED_SOURCE_PATH": "Only letters, digits, underscores, dots and [] — no operators",
+      "MALFORMED_TRANSFORM": "The transform does not parse",
+      "DUPLICATE_SINGLETON_TARGET": "This field is mapped twice",
+      "REPEATED_TARGET_NOT_SUPPORTED": "One line term can only be mapped once",
+      "CONFLICTING_TARGET_PATH": "Allowance and charge cannot share a slot",
+      "INVALID_CODE_VALUE": "\"{{value}}\" is not in the {{list}} list",
+      "VALUE_MAP_TOO_LARGE": "At most 200 pairs of 128 characters",
+      "MALFORMED_VALUE_MAP": "A code on the left is empty",
+      "VALUE_MAP_NOT_ALLOWED": "Value maps are for code fields only",
+      "VALUE_MAP_DEFAULT_REQUIRED": "\"Use default\" needs a default code"
+    },
+    "warning": {
+      "transformAfterMap": "{{term}}: the transform runs after the value map"
+    },
+    "dryRun": {
+      "valueUnmapped": "\"{{value}}\" is not in the value map for {{term}}, and unmapped codes fail the invoice",
+      "transformDeferred": "{{term}}'s transform is not a preset; it runs on the server only",
+      "missing": "{{term}} came out empty",
+      "vatinShape": "\"{{value}}\" is not OM followed by ten digits",
+      "dateShape": "\"{{value}}\" is not YYYY-MM-DD",
+      "rateOnExempt": "A rate on category {{category}}; E and O carry none",
+      "standardRate": "Category S must carry rate 5, not {{rate}}"
+    },
+    "finding": {
+      "sellerAddress": "Seller address needs all three lines, city and postcode",
+      "sellerPhone": "Seller contact telephone is missing",
+      "creditType": "A credit note must carry type 381, not {{type}}",
+      "debitType": "A debit note must carry type 383, not {{type}}",
+      "selfBillingType": "Self-billing takes 389 or 261, not {{type}}",
+      "precedingInvoice": "Preceding invoice number, date and UUID must be present",
+      "noteReason": "A credit or debit note needs a reason code",
+      "hsCode": "Line {{line}} is goods and needs a 12-digit HS code — the hand-written route",
+      "lineNet": "Line {{line}}: net {{actual}} does not equal quantity × price {{expected}}",
+      "totals": "Total with VAT {{actual}} is not total without VAT plus VAT {{expected}}"
+    },
+    "event": {
+      "guidedSaved": "Mapping saved — revision {{revision}}, {{entries}} fields",
+      "guidedRestored": "Revision {{from}} restored as revision {{to}}",
+      "guidedImported": "Mapping imported — {{entries}} fields",
+      "guidedArchived": "Guided mapping archived",
+      "profileActivated": "Profile v{{version}} activated · {{hash}}",
+      "profileDeactivated": "Profile v{{version}} deactivated — submissions stop",
+      "certificationPassed": "{{route}} certified",
+      "certificationFailed": "{{route}} certification failed — {{findings}} findings",
+      "sampleUploaded": "Sample uploaded — {{label}}",
+      "sampleDeleted": "Sample removed — {{label}}"
+    },
+    "preset": {
+      "dateDmy": "Date from DD/MM/YYYY",
+      "dateEpoch": "Date from epoch milliseconds",
+      "trimUpper": "Trim and upper-case",
+      "digitsOnly": "Keep digits only",
+      "round3": "Round to 3 decimals",
+      "round2": "Round to 2 decimals",
+      "abs": "Absolute value",
+      "percentFromFraction": "Percent from a fraction"
+    },
+    "onUnmapped": {
+      "FAIL": "Fail the invoice",
+      "USE_DEFAULT": "Use a default code",
+      "PASS_THROUGH": "Pass the value through"
     }
   }
 }

@@ -107,6 +107,16 @@ import { QuotationDetailPage } from './pages/QuotationDetailPage'
 import { OrderFormsPage } from './pages/OrderFormsPage'
 import { NewOrderFormPage } from './pages/NewOrderFormPage'
 import { NewDeliveryNotePage } from './pages/NewDeliveryNotePage'
+import {
+  ErpOverviewPage,
+  ErpFieldsPage,
+  ErpPreviewPage,
+  ErpCertificationPage,
+  ErpAdvancedPage,
+  ErpHistoryPage,
+  ErpSamplesPage,
+  ErpConnectionsPage,
+} from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { RemindersPage } from './pages/RemindersPage'
 import { OrderFormDetailPage } from './pages/OrderFormDetailPage'
@@ -266,6 +276,14 @@ function App() {
           <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
           <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
           <Route path="/settings/payment-reminders" element={<PaymentRemindersPage />} />
+          <Route path="/settings/erp-mapping" element={<ErpOverviewPage />} />
+          <Route path="/settings/erp-mapping/fields" element={<ErpFieldsPage />} />
+          <Route path="/settings/erp-mapping/preview" element={<ErpPreviewPage />} />
+          <Route path="/settings/erp-mapping/certification" element={<ErpCertificationPage />} />
+          <Route path="/settings/erp-mapping/advanced" element={<ErpAdvancedPage />} />
+          <Route path="/settings/erp-mapping/history" element={<ErpHistoryPage />} />
+          <Route path="/settings/erp-mapping/samples" element={<ErpSamplesPage />} />
+          <Route path="/settings/erp/connections" element={<ErpConnectionsPage />} />
           <Route path="/income/reminders" element={<RemindersPage />} />
           <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
           <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />

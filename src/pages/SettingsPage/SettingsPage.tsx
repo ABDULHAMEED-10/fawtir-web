@@ -34,6 +34,9 @@ import billsIcon from '../../assets/settings/tile-bills.svg'
 import logIcon from '../../assets/settings/tile-log.svg'
 import exportIcon from '../../assets/settings/tile-export.svg'
 import closingIcon from '../../assets/settings/tile-closing.svg'
+import integrationIcon from '../../assets/settings/tile-integration.svg'
+import connectIcon from '../../assets/settings/tile-connect.svg'
+import { overviewStatus, readiness as mappingReadiness, useErpMapping } from '../../lib/erpMapping'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
 
@@ -92,6 +95,9 @@ export function SettingsPage() {
 
   const forecast = usageForecast()
   const bill = nextBill()
+  const mapping = useErpMapping()
+  const mappingStatus = overviewStatus(mapping)
+  const mappingReady = mappingReadiness(mapping)
 
   const cards = useMemo<Card[]>(
     () => [
@@ -167,6 +173,43 @@ export function SettingsPage() {
         pillTone: 'pending',
       },
       {
+        id: 'erpMapping',
+        group: 'integration',
+        icon: integrationIcon,
+        iconTint:
+          mappingStatus === 'STALE' || mappingStatus === 'DRAFT'
+            ? 'bg-pending-100'
+            : 'bg-primary-50',
+        to: '/settings/erp-mapping',
+        pillKey: `settings.card.erpMappingPill.${mappingStatus}`,
+        pillTone:
+          mappingStatus === 'CERTIFIED'
+            ? 'success'
+            : mappingStatus === 'NOT_SET_UP'
+              ? 'neutral'
+              : mappingStatus === 'STALE' || mappingStatus === 'DRAFT'
+                ? 'pending'
+                : 'neutral',
+        footKey: mapping.guided
+          ? 'settings.card.erpMappingFoot'
+          : 'settings.card.erpMappingFootNone',
+        footValues: {
+          system: mapping.sourceSystem,
+          mapped: mappingReady.mappedRequired.length,
+          required: mappingReady.requiredTargets.length,
+        },
+      },
+      {
+        id: 'connections',
+        group: 'integration',
+        icon: connectIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/connections',
+        pillKey: 'settings.card.connectionsPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.connectionsFoot',
+      },
+      {
         id: 'plan',
         group: 'billing',
         icon: planIcon,
@@ -229,7 +272,7 @@ export function SettingsPage() {
         footKey: 'settings.card.closingFoot',
       },
     ],
-    [forecast, bill, t],
+    [forecast, bill, t, mapping, mappingStatus, mappingReady],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(
