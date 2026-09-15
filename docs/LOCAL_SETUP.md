@@ -291,6 +291,17 @@ The script signs in as `demo_admin`, reading the code from Mailpit. Through the 
 14 suppliers with bills, a hold, approvals and payments, so every state on the Suppliers list
 appears. It only runs against localhost. Re-running it adds only the suppliers that are missing.
 
+```bash
+node tools/local-seed/seed-customers.mjs
+```
+
+This one adds 28 customers through the API, more than one page, with every Peppol state. Issuing
+real invoices belongs to the invoice slices, so what they owe is written straight into the local
+database through `docker exec fawtir-postgres psql`: bare ISSUED invoice and payment rows, numbered
+`SEED-INV-…`, that carry only what the receivable figures read. They have no lines, signature or QR,
+and nothing sends them. The same script marks the Peppol customers' capability as verified, because
+Discovery owns that field. Re-running it skips what is already there.
+
 1. Go to `/login` and enter the username and password. There is **no tenant code**. The backend
    works out the tenant from the username and ignores a `tenantCode` if a client sends one
    (`RecordLoginRequest`).
