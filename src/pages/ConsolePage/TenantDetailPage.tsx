@@ -186,7 +186,21 @@ function TenantDetail({ tenantId }: { tenantId: string }) {
       setRequest({ action: wantedAction, invoiceId: wantedInvoice ?? undefined })
   }, [wantedAction, wantedInvoice])
 
-  const fromQueue = (location.state as { from?: string } | null)?.from === 'subscriptions'
+  // Where the reader came from — the queue, the invoices list, or the tenants list — is what the
+  // breadcrumb leads back to. It rides in the URL so a deep link from a row menu keeps it too.
+  const from = searchParams.get('from') ?? (location.state as { from?: string } | null)?.from
+  const parentCrumbs =
+    from === 'subscriptions'
+      ? [{ labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' }]
+      : from === 'invoices'
+        ? [
+            { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' },
+            {
+              labelKey: 'console.subscriptions.invoices.title',
+              to: '/console/subscriptions/invoices',
+            },
+          ]
+        : [{ labelKey: 'console.nav.tenants', to: '/console/tenants' }]
 
   const open = (action: SubscriptionAction, invoiceId?: string) => {
     setDone(null)
@@ -229,14 +243,7 @@ function TenantDetail({ tenantId }: { tenantId: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <ConsoleBreadcrumbs
-        items={[
-          fromQueue
-            ? { labelKey: 'console.nav.subscriptions', to: '/console/subscriptions' }
-            : { labelKey: 'console.nav.tenants', to: '/console/tenants' },
-          { label: identity.name },
-        ]}
-      />
+      <ConsoleBreadcrumbs items={[...parentCrumbs, { label: identity.name }]} />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">

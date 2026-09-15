@@ -260,7 +260,7 @@ export function SubscriptionInvoicesPage() {
                       </td>
                       <td className="px-2 py-4">
                         <Link
-                          to={`/console/tenants/${tenant.id}`}
+                          to={`/console/tenants/${tenant.id}?from=invoices`}
                           className="text-sm font-medium text-text-primary transition-colors hover:text-primary-700"
                         >
                           {tenant.name}

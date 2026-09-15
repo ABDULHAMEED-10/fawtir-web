@@ -379,7 +379,7 @@ export function SubscriptionsPage() {
                           </span>
                           <span className="min-w-0">
                             <Link
-                              to={`/console/tenants/${tenant.id}`}
+                              to={`/console/tenants/${tenant.id}?from=subscriptions`}
                               className="text-base font-medium leading-[1.2] text-text-primary transition-colors hover:text-primary-700"
                             >
                               {tenant.name}

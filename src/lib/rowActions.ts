@@ -267,7 +267,7 @@ export function subscriptionRowActions(
   tenantId: string,
   state: SubscriptionRowState,
 ): ActionMenuItem[] {
-  const tenant = `/console/tenants/${tenantId}`
+  const tenant = `/console/tenants/${tenantId}?from=subscriptions`
   const hasOpenInvoice = state === 'awaitingPayment' || state === 'grace' || state === 'suspended'
   const items: ActionMenuItem[] = [
     { id: 'open', labelKey: 'rowActions.subscription.open', icon: viewIcon, to: tenant },
@@ -278,13 +278,13 @@ export function subscriptionRowActions(
         id: 'recordPayment',
         labelKey: 'rowActions.subscription.recordPayment',
         icon: invoiceIcon,
-        to: `${tenant}?action=recordPayment`,
+        to: `${tenant}&action=recordPayment`,
       },
       {
         id: 'sendLink',
         labelKey: 'rowActions.subscription.sendLink',
         icon: sendIcon,
-        to: `${tenant}?action=sendLink`,
+        to: `${tenant}&action=sendLink`,
       },
     )
   }
@@ -293,14 +293,14 @@ export function subscriptionRowActions(
       id: 'resume',
       labelKey: 'rowActions.subscription.resume',
       icon: periodicIcon,
-      to: `${tenant}?action=resume`,
+      to: `${tenant}&action=resume`,
     })
   } else if (state !== 'active') {
     items.push({
       id: 'activate',
       labelKey: 'rowActions.subscription.activate',
       icon: periodicIcon,
-      to: `${tenant}?action=activate`,
+      to: `${tenant}&action=activate`,
     })
   }
   if (state !== 'cancelled') {
@@ -308,7 +308,7 @@ export function subscriptionRowActions(
       id: 'changePlan',
       labelKey: 'rowActions.subscription.changePlan',
       icon: editIcon,
-      to: `${tenant}?action=changePlan`,
+      to: `${tenant}&action=changePlan`,
     })
   }
   if (state === 'active' || state === 'awaitingPayment' || state === 'grace') {
@@ -316,7 +316,7 @@ export function subscriptionRowActions(
       id: 'suspend',
       labelKey: 'rowActions.subscription.suspend',
       icon: pauseIcon,
-      to: `${tenant}?action=suspend`,
+      to: `${tenant}&action=suspend`,
       danger: true,
     })
   }
@@ -332,7 +332,7 @@ export function subscriptionInvoiceRowActions(
   invoiceId: string,
   settled = false,
 ): ActionMenuItem[] {
-  const tenant = `/console/tenants/${tenantId}`
+  const tenant = `/console/tenants/${tenantId}?from=invoices`
   return [
     { id: 'open', labelKey: 'rowActions.subscription.open', icon: viewIcon, to: tenant },
     ...(settled
@@ -342,13 +342,13 @@ export function subscriptionInvoiceRowActions(
             id: 'recordPayment',
             labelKey: 'rowActions.subscription.recordPayment',
             icon: invoiceIcon,
-            to: `${tenant}?action=recordPayment&invoice=${invoiceId}`,
+            to: `${tenant}&action=recordPayment&invoice=${invoiceId}`,
           },
           {
             id: 'sendLink',
             labelKey: 'rowActions.subscription.sendLink',
             icon: sendIcon,
-            to: `${tenant}?action=sendLink&invoice=${invoiceId}`,
+            to: `${tenant}&action=sendLink&invoice=${invoiceId}`,
           },
         ]),
     { id: 'download', labelKey: 'rowActions.subscription.download', icon: statementIcon },
