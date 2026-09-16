@@ -1794,22 +1794,13 @@
     "outstanding": "Outstanding",
     "billTo": "Bill to",
     "viewCustomer": "View customer",
-    "onPeppol": "On Peppol",
-    "pdfTitle": "Invoice PDF",
-    "pdfAlt": "Preview of invoice {{id}}",
-    "zoomOut": "Zoom out",
-    "zoomIn": "Zoom in",
     "download": "Download",
-    "print": "Print",
-    "fullscreen": "Fullscreen",
     "delete": "Delete",
     "items": "Items",
     "actions": {
       "creditNote": "Credit Note",
-      "periodic": "Periodic invoice",
-      "duplicate": "Duplicate",
-      "more": "More actions",
-      "sendReminder": "Send reminder"
+      "edit": "Edit draft",
+      "cancel": "Cancel invoice"
     },
     "fields": {
       "issueDate": "Issue date",
@@ -1817,9 +1808,7 @@
       "deliveryDate": "Delivery date",
       "paymentTerms": "Payment terms",
       "currency": "Currency",
-      "vatRate": "VAT rate",
       "branch": "Branch",
-      "project": "Project",
       "poReference": "PO reference",
       "subject": "Subject",
       "paymentMethod": "Payment method"
@@ -1836,9 +1825,10 @@
     "totals": {
       "subtotal": "Subtotal (excl. VAT)",
       "discount": "Discount",
-      "net": "Net amount",
-      "vat": "VAT · Standard 5%",
-      "total": "Total amount"
+      "total": "Total amount",
+      "taxable": "Taxable amount",
+      "vatOnly": "VAT",
+      "atIssue": "A draft is priced when it is issued."
     },
     "notes": {
       "title": "Notes",
@@ -1849,47 +1839,76 @@
     },
     "attachments": {
       "title": "Attachments",
-      "drop": "Drop files or click to upload",
-      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
-      "note": "Kept with the invoice record for audit and disputes. Files added after issuing are not part of the cleared document sent over Peppol.",
-      "justAdded": "{{size}} · Added just now · not yet saved",
-      "serverFile": "Stored on the server",
-      "remove": "Remove {{name}}",
-      "tooLarge": "{{name}} is larger than 10 MB.",
-      "wrongType": "{{name}} is not a supported format."
+      "none": "No files are kept with this invoice.",
+      "draftNote": "Files can be added or removed while this is a draft.",
+      "issuedNote": "Files can only be added or removed while an invoice is a draft."
     },
     "payments": {
       "title": "Payments",
-      "add": "Add payment",
-      "paidPrefix": "Paid",
-      "of": "of"
+      "none": "No payment has been recorded against this invoice.",
+      "reversed": "Reversed"
     },
     "timeline": {
-      "title": "Activity"
+      "title": "Activity",
+      "truncated_one": "Only the most recent {{count}} event is shown.",
+      "truncated_other": "Only the most recent {{count}} events are shown."
     },
-    "preview": {
-      "kind": "Tax invoice",
-      "from": "From",
-      "billTo": "Bill to",
-      "issueDate": "Issue date",
-      "dueDate": "Due date",
-      "poRef": "PO ref",
-      "terms": "Terms",
-      "description": "Description",
-      "price": "Price",
-      "qty": "Qty",
-      "vat": "VAT",
-      "total": "Total",
-      "subtotal": "Subtotal",
-      "discount": "Discount",
-      "net": "Net amount",
-      "totalDue": "Total due",
-      "amountPaid": "Amount paid",
-      "balanceDue": "Balance due",
-      "payTo": "Pay to",
-      "peppol": "Peppol",
-      "qrAlt": "QR code carrying the invoice summary for tax verification"
-    }
+    "draftTitle": "Draft invoice",
+    "draftNotice": "This is a draft. It has no number and no figures until it is issued, and nothing has been sent or reported.",
+    "customerUnknown": "Customer not shown",
+    "noVat": "No VAT number on record",
+    "sentManually": "Sent by hand",
+    "credited": "Credited",
+    "byYou": "by you",
+    "due": {
+      "today": "Due today",
+      "in_one": "Due in {{count}} day",
+      "in_other": "Due in {{count}} days",
+      "late_one": "{{count}} day overdue",
+      "late_other": "{{count}} days overdue"
+    },
+    "event": {
+      "DRAFT_CREATED": "Draft created",
+      "DRAFT_UPDATED": "Draft updated",
+      "DRAFT_DISCARDED": "Draft discarded",
+      "INVOICE_ISSUED": "Issued",
+      "INVOICE_CANCELLED": "Cancelled",
+      "PAYMENT_RECORDED": "Payment recorded",
+      "PAYMENT_REVERSED": "Payment reversed",
+      "INTERNAL_NOTE_VIEWED": "Internal note read",
+      "ATTACHMENT_ADDED": "File attached",
+      "ATTACHMENT_REMOVED": "File removed",
+      "MANUAL_DELIVERY_RECORDED": "Recorded as sent by hand",
+      "LEGAL_HOLD_SET": "Put under legal hold",
+      "LEGAL_HOLD_RELEASED": "Legal hold released",
+      "other": "Recorded"
+    },
+    "cancel": {
+      "title": "Cancel this invoice?",
+      "body": "Cancelling records the reason against the invoice. It does not tell the customer, and an invoice that was already delivered has to be corrected with a credit note instead.",
+      "reason": "Reason",
+      "confirm": "Cancel the invoice"
+    },
+    "refused": {
+      "stale": "This invoice changed after the page loaded. It has been refreshed — try again.",
+      "notCancellable": "Only an issued invoice can be cancelled.",
+      "delivered": "This invoice was already delivered, so it cannot be cancelled. Issue a credit note instead."
+    },
+    "done": {
+      "cancelled": "The invoice is cancelled."
+    },
+    "category": {
+      "E": "Exempt",
+      "Z": "Zero-rated",
+      "O": "Out of scope",
+      "AE": "Reverse charge",
+      "G": "Export",
+      "S": "Standard"
+    },
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "print": "Print",
+    "fullscreen": "Fullscreen"
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
