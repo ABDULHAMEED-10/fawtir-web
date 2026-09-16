@@ -1,4 +1,4 @@
-import { apiRequest } from '../client'
+import { apiDownload, apiRequest, type ApiDownload } from '../client'
 import { fromItemsPage, type ItemsPage, type Page } from '../page'
 import { withQuery } from '../query'
 
@@ -108,7 +108,167 @@ export function loadBillSummary(): Promise<BillSummaryDto> {
   return apiRequest<BillSummaryDto>(BILL_SUMMARY_PATH)
 }
 
+const billPath = (billId: string) => `${BILLS_PATH}/${encodeURIComponent(billId)}`
+
 /** Records this user's approval. With a multi-approver policy the bill may still be awaiting others. */
 export function approveBill(billId: string): Promise<unknown> {
-  return apiRequest(`${BILLS_PATH}/${encodeURIComponent(billId)}/approval/approve`, { method: 'POST', body: {} })
+  return apiRequest(`${billPath(billId)}/approval/approve`, { method: 'POST', body: {} })
+}
+
+/** A rejection in this company's books, with its reason. Nothing is sent to the supplier. */
+export function rejectBill(billId: string, reason: string): Promise<unknown> {
+  return apiRequest(`${billPath(billId)}/approval/reject`, { method: 'POST', body: { reason } })
+}
+
+export function holdBill(billId: string, reason: string): Promise<unknown> {
+  return apiRequest(`${billPath(billId)}/hold`, { method: 'POST', body: { reason } })
+}
+
+export function releaseBill(billId: string): Promise<unknown> {
+  return apiRequest(`${billPath(billId)}/release`, { method: 'POST' })
+}
+
+export type BillMatchVerdict = 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
+
+export type BillHoldDto = {
+  id: string
+  reason: string | null
+  openedBy: string | null
+  openedAt: string
+  releasedBy: string | null
+  releasedAt: string | null
+}
+
+/** `BillController.BillDetail`: the bill as the list shows it, and everything recorded against it. */
+export type BillDetailDto = {
+  bill: BillRowDto & {
+    inboundDeliveryId: string | null
+    networkVerified: boolean
+    amountDue: number | null
+    creditedAmount: number
+    complianceObligation: 'REPORTED_BY_SENDER' | 'PENDING_COMPLIANCE_INPUT' | 'NOT_APPLICABLE'
+    match: (BillRowDto['match'] & {
+      purchaseOrderId: string | null
+      goodsReceiptId: string | null
+      goodsReceiptNumber: string | null
+      summary: string | null
+      matchedAt: string | null
+    }) | null
+  }
+  lines: {
+    lineNo: number
+    description: string | null
+    quantity: number | null
+    unit: string | null
+    unitPrice: number | null
+    vatRate: number | null
+    lineNet: number | null
+    purchaseOrderLineId: string | null
+    goodsReceiptId: string | null
+  }[]
+  readiness: BillRowDto['readiness']
+  approvals: { id: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; decidedBy: string; decidedAt: string }[]
+  hold: BillHoldDto | null
+  holdHistory: BillHoldDto[]
+  settlement: {
+    billTotal: number | null
+    paidAmount: number
+    creditedAmount: number
+    outstandingAmount: number
+    currency: string
+    paymentState: string
+    overdue: boolean
+    dueDate: string | null
+  }
+  payments: {
+    id: string
+    entryType: 'PAYMENT' | 'REVERSAL'
+    amount: number
+    currency: string
+    methodCode: string | null
+    paymentReference: string | null
+    paymentDate: string | null
+    occurredAt: string
+  }[]
+  paymentRunReference: string | null
+  intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
+  compliance: { source: BillSourceDto; networkVerified: boolean; obligation: BillDetailDto['bill']['complianceObligation'] }
+  activity: {
+    at: string | null
+    kind: 'ARRIVED' | 'CONFIRMED' | 'MATCHED' | 'APPROVED' | 'REJECTED' | 'HELD' | 'RELEASED' | 'PAID' | 'REVERSED'
+    detail: string | null
+    actor: string | null
+  }[]
+}
+
+export function loadBill(billId: string): Promise<BillDetailDto> {
+  return apiRequest<BillDetailDto>(billPath(billId))
+}
+
+/** `BillMatchController.MatchResponse`: what was ordered, received and billed, per line. */
+export type BillMatchDto = {
+  billId: string
+  verdict: BillMatchVerdict | null
+  purchaseOrderId: string | null
+  purchaseOrderNumber: string | null
+  goodsReceiptId: string | null
+  goodsReceiptNumber: string | null
+  summary: string | null
+  byHand: boolean
+  matchedAt: string | null
+  comparison: {
+    description: string | null
+    orderedQuantity: number | null
+    receivedQuantity: number | null
+    billedQuantity: number | null
+    unit: string | null
+    orderedUnitPrice: number | null
+    billedUnitPrice: number | null
+  }[]
+}
+
+export const billMatchPath = (billId: string) => `${billPath(billId)}/match`
+
+export function loadBillMatch(billId: string): Promise<BillMatchDto> {
+  return apiRequest<BillMatchDto>(billMatchPath(billId))
+}
+
+/** A match made by hand; the server compares the lines again against the order chosen. */
+export function matchBill(billId: string, purchaseOrderId: string): Promise<BillMatchDto> {
+  return apiRequest<BillMatchDto>(billMatchPath(billId), { method: 'PUT', body: { purchaseOrderId } })
+}
+
+export function unmatchBill(billId: string): Promise<unknown> {
+  return apiRequest(billMatchPath(billId), { method: 'DELETE' })
+}
+
+export type PurchaseOrderOptionDto = {
+  id: string
+  number: string | null
+  state: string
+  orderDate: string | null
+  currency: string
+  totalGross: number | null
+}
+
+/** The supplier's orders, to match a bill to by hand. */
+export async function loadSupplierOrders(supplierId: string): Promise<PurchaseOrderOptionDto[]> {
+  const page = await apiRequest<{ items: PurchaseOrderOptionDto[] }>(
+    withQuery('/v1/purchase-orders', { supplierId, page_size: 100 }),
+  )
+  return page.items.filter((order) => order.state !== 'DRAFT' && order.state !== 'CANCELLED')
+}
+
+/**
+ * The document as it came in: the archived Peppol XML, or the file someone uploaded or scanned.
+ * Null when the bill has neither (a recurring bill).
+ */
+export function billOriginalPath(detail: Pick<BillDetailDto, 'intake'> & { bill: { inboundDeliveryId: string | null } }): string | null {
+  if (detail.intake) return `${BILLS_PATH}/intake/${encodeURIComponent(detail.intake.id)}/file`
+  if (detail.bill.inboundDeliveryId) return `/v1/inbound-invoices/${encodeURIComponent(detail.bill.inboundDeliveryId)}/document`
+  return null
+}
+
+export function downloadBillOriginal(path: string): Promise<ApiDownload> {
+  return apiDownload(path)
 }
