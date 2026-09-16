@@ -116,6 +116,13 @@ import {
   ErpHistoryPage,
   ErpSamplesPage,
   ErpConnectionsPage,
+  ErpConnectPage,
+  ConnectionOverviewPage,
+  ConnectionMappingPage,
+  ConnectionRunsPage,
+  ConnectionRecordsPage,
+  ConnectionWriteBackPage,
+  ConnectionSettingsPage,
 } from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { RemindersPage } from './pages/RemindersPage'
@@ -285,6 +292,15 @@ function App() {
           <Route path="/settings/erp-mapping/history" element={<ErpHistoryPage />} />
           <Route path="/settings/erp-mapping/samples" element={<ErpSamplesPage />} />
           <Route path="/settings/erp/connections" element={<ErpConnectionsPage />} />
+          <Route path="/settings/erp/connections/new" element={<ErpConnectPage />} />
+          <Route path="/settings/erp/connections/:id" element={<ConnectionOverviewPage />} />
+          <Route path="/settings/erp/connections/:id/mapping" element={<ConnectionMappingPage />} />
+          <Route path="/settings/erp/connections/:id/runs" element={<ConnectionRunsPage />} />
+          <Route path="/settings/erp/connections/:id/runs/:runId" element={<ConnectionRunsPage />} />
+          <Route path="/settings/erp/connections/:id/records" element={<ConnectionRecordsPage />} />
+          <Route path="/settings/erp/connections/:id/records/:recordId" element={<ConnectionRecordsPage />} />
+          <Route path="/settings/erp/connections/:id/write-back" element={<ConnectionWriteBackPage />} />
+          <Route path="/settings/erp/connections/:id/settings" element={<ConnectionSettingsPage />} />
           <Route path="/income/reminders" element={<RemindersPage />} />
           <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
           <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />

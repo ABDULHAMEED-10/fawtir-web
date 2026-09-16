@@ -321,15 +321,42 @@ certification, samples, revisions, import/export, code lists) and the catalogue 
 `GET /peppol/mapping-targets`. Two things the mock cannot do and the UI already says so: run a
 non-preset JSONata transform (deferred to the server) and the 429 pause banner.
 
+## 7.9 ERP connector built (16 Sep 2026)
+
+Phase 5 is built on a mock store that mirrors the connector spec's states and refusals, verified by
+screenshot at 1440 / 390 in EN and AR, zero overflow on the responsive sweep, `npm run build` green.
+
+| Piece | Where |
+|---|---|
+| Model, story and store: products, auth kinds, scopes, schedules; connection / run / record / outbox / add-on states; templates; `connectorStore` (create, discover, pause, resume, remove, update, rotateCredentials, test, collectNow with the 409 / 422 refusals, retryRecord, requeueWriteBack, resetToTemplate, requestAddon); readers (usage, watermark age, mapping status derived from `erpMapping.ts` for the head office) | `src/lib/erpConnector.ts` |
+| Shared frame: label + product + state and mapping pills, six tabs with a rejection mark on Records, not-found state | `src/pages/ErpPage/connections/ConnectionShell.tsx` |
+| Connections list + add-on panel (active: usage bars, price, error banner, table with row actions; inactive: the add-on card with Ask to activate → pending) | `src/pages/ErpPage/ErpConnectionsPage.tsx` (`?addon=INACTIVE` for the harness) |
+| Connect flow — System · Credentials · Test · Discover, hand-off to the connection's mapping | `src/pages/ErpPage/ErpConnectPage.tsx` |
+| Detail tabs — Overview (Collect now, Pause / Resume, banners, figures, set-up, last runs, activity, delete) · Mapping (provenance, routes, Reset to template) · Runs (+ run detail) · Records (+ record detail with payload tree, Retry, Re-queue) · Write-back (switch, fields, outbox) · Settings (form, credentials rotation, danger zone) | `src/pages/ErpPage/connections/*.tsx` |
+| Bell: credential error on a connection; a record superseded in the ERP | `src/lib/notifications.ts` |
+| Settings hub: Connected systems card shows connected count / needs-attention and this month's collection | `src/pages/SettingsPage/SettingsPage.tsx` |
+
+Story: add-on ACTIVE (purchased 1 Aug, 3 of 5 systems, 412 of 1,000 documents); head office Odoo 17
+CONNECTED with write-back, Salalah ERPNext in ERROR after three UNAUTHORIZED runs, Sohar Odoo 16
+PAUSED with a twelve-day-old watermark. Records include two REJECTED (BR-OM-06, BR-OM-10), one
+WRITEBACK_FAILED (409 record locked) and one SUPERSEDED.
+
+**When the endpoints arrive** (Appendix B): the store's functions become the calls one for one —
+`POST /connections` + `/test` + `/discover`, `GET/PATCH/DELETE …/{id}`, pause / resume,
+`PUT …/credentials`, `POST …/collect`, runs, records, retry, writeback, `GET/PUT /settings/erp/addon`.
+Two things the mock cannot do: a RUNNING run (collect-now completes at once) and the OAuth redirect
+(the wizard fakes the sign-in). Per-connection mapping edits open the tenant wizard with
+`?connection=<id>`; the backend scopes the mapping by connection, the front end already passes the id.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |
 |---|---|
 | **1 — Subscriptions, console** | Subscriptions queue · tenant detail with Subscription tab · Record payment / Send link / Activate / Change plan / Suspend modals · Subscription invoices · Plans and rates · Console settings (Billing, Counting rules, Overage, Trial and lifecycle, Notices, Add-ons, Promotional, **Payments**, Fixed by design) |
 | **2 — Subscriptions, tenant side** | sign-up Plans and Payment steps · Awaiting activation · Settings › Plan · Settings › Bills · notifications |
-| 3 — ERP mapping | §2 (Overview, Fields, Preview, Certification, then Advanced, History, Samples) |
+| 3 — ERP mapping | §2 — **built, §7.8** |
 | 4 — Console, rest | ERP templates, audit log, onboarding queue |
-| 5 — ERP connector | §3 |
+| 5 — ERP connector | §3 — **built, §7.9** |
 
 Each phase: mock data in `src/lib` (one modelled population, figures derived), EN + AR, responsive with `max-md:` only, `npm run build`, sweep + desktop gate, screenshots.
 

@@ -37,6 +37,7 @@ import closingIcon from '../../assets/settings/tile-closing.svg'
 import integrationIcon from '../../assets/settings/tile-integration.svg'
 import connectIcon from '../../assets/settings/tile-connect.svg'
 import { overviewStatus, readiness as mappingReadiness, useErpMapping } from '../../lib/erpMapping'
+import { addonUsage, liveConnections, useConnector } from '../../lib/erpConnector'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
 
@@ -98,6 +99,11 @@ export function SettingsPage() {
   const mapping = useErpMapping()
   const mappingStatus = overviewStatus(mapping)
   const mappingReady = mappingReadiness(mapping)
+  const connector = useConnector()
+  const connections = liveConnections(connector)
+  const connectionsInError = connections.filter((c) => c.state === 'ERROR').length
+  const connectorUsage = addonUsage(connector)
+  const addonActive = connector.addon.state === 'ACTIVE'
 
   const cards = useMemo<Card[]>(
     () => [
@@ -203,11 +209,26 @@ export function SettingsPage() {
         id: 'connections',
         group: 'integration',
         icon: connectIcon,
-        iconTint: 'bg-surface-background',
+        iconTint: addonActive
+          ? connectionsInError
+            ? 'bg-danger-100'
+            : 'bg-success-100'
+          : 'bg-surface-background',
         to: '/settings/erp/connections',
-        pillKey: 'settings.card.connectionsPill',
-        pillTone: 'neutral',
-        footKey: 'settings.card.connectionsFoot',
+        pillKey: !addonActive
+          ? 'settings.card.connectionsPill'
+          : connectionsInError
+            ? 'settings.card.connectionsPillError'
+            : 'settings.card.connectionsPillActive',
+        pillValues: { count: connectionsInError || connections.length },
+        pillTone: !addonActive ? 'neutral' : connectionsInError ? 'danger' : 'success',
+        footKey: addonActive
+          ? 'settings.card.connectionsFootActive'
+          : 'settings.card.connectionsFoot',
+        footValues: {
+          collected: connectorUsage.collected.toLocaleString('en-US'),
+          limit: connectorUsage.collectedLimit.toLocaleString('en-US'),
+        },
       },
       {
         id: 'plan',

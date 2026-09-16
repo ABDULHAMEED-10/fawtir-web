@@ -127,6 +127,15 @@ export const SEED_ROUTES = [
   '/settings/erp-mapping/history',
   '/settings/erp-mapping/samples',
   '/settings/erp/connections',
+  '/settings/erp/connections/new',
+  '/settings/erp/connections/cx-odoo-ho',
+  '/settings/erp/connections/cx-odoo-ho/mapping',
+  '/settings/erp/connections/cx-odoo-ho/runs',
+  '/settings/erp/connections/cx-odoo-ho/runs/run-ho-9',
+  '/settings/erp/connections/cx-odoo-ho/records',
+  '/settings/erp/connections/cx-odoo-ho/records/rec-381',
+  '/settings/erp/connections/cx-odoo-ho/write-back',
+  '/settings/erp/connections/cx-erpnext-salalah/settings',
 
   // The Fawtir console — a separate shell with its own navigation.
   '/console',

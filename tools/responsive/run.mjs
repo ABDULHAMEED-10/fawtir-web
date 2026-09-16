@@ -142,7 +142,7 @@ async function sweep() {
       '--virtual-time-budget=900000',
       '--dump-dom',
       `${BASE}/__audit.html`,
-    ])
+    ], { timeout: 900_000 }) // 160+ routes × 6 widths outgrew the 3-minute default
 
     // Only the output element — the page's own script source contains these sentinels too.
     const pre = dom.match(/<pre id="out">([\s\S]*?)<\/pre>/)

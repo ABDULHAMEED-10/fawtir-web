@@ -7300,7 +7300,12 @@
       "connectionsTitle": "Connected systems",
       "connectionsBody": "Fawtir collects invoices from your ERP on a schedule and reports back.",
       "connectionsPill": "Add-on",
-      "connectionsFoot": "Automatic ERP extraction · not active"
+      "connectionsFoot": "Automatic ERP extraction · not active",
+      "connectionsPillActive_one": "{{count}} connected",
+      "connectionsPillActive_other": "{{count}} connected",
+      "connectionsPillError_one": "{{count}} needs attention",
+      "connectionsPillError_other": "{{count}} need attention",
+      "connectionsFootActive": "Automatic extraction · {{collected}} of {{limit}} this month"
     }
   },
   "peppolTax": {
@@ -10687,6 +10692,16 @@
       "title": "{{name}} signed in from a new device",
       "body": "An {{device}} in {{town}}. If that was not {{name}}, sign them out everywhere.",
       "notThem": "That was not {{name}}"
+    },
+    "connectorCredentials": {
+      "title": "{{label}} stopped collecting",
+      "body": "The ERP refused its credentials {{failures}} runs in a row. Replace them and collection resumes on the next run.",
+      "fix": "Replace credentials"
+    },
+    "connectorSuperseded": {
+      "title": "{{erpNumber}} changed in the ERP after it was submitted",
+      "body": "A submitted invoice cannot be changed ({{note}}). Issue a credit note in {{product}} and the connector will collect it.",
+      "open": "Open the record"
     }
   },
   "onboarding": {
@@ -11491,6 +11506,761 @@
       "confirmTitle": "Deactivate the profile?",
       "confirmBody": "Nothing will run in its place. Every submission from your ERP fails closed until a profile is active again.",
       "confirmSubmit": "Deactivate"
+    },
+    "connector": {
+      "backToList": "Connected systems",
+      "shell": {
+        "subtitle": "{{product}} {{version}} · {{url}}"
+      },
+      "notFound": {
+        "title": "That connection is not here",
+        "subtitle": "It may have been removed, or the link is out of date."
+      },
+      "tabs": {
+        "label": "Connection screens",
+        "overview": "Overview",
+        "mapping": "Mapping",
+        "runs": "Runs",
+        "records": "Records",
+        "writeBack": "Write-back",
+        "settings": "Settings"
+      },
+      "state": {
+        "DRAFT": "Draft",
+        "CONNECTED": "Connected",
+        "PAUSED": "Paused",
+        "ERROR": "Error",
+        "DISCONNECTED": "Disconnected"
+      },
+      "mappingStatus": {
+        "UNMAPPED": "Unmapped",
+        "DRAFT": "Draft",
+        "READY": "Ready",
+        "CERTIFIED": "Certified",
+        "STALE": "Stale"
+      },
+      "runState": {
+        "RUNNING": "Running",
+        "SUCCEEDED": "Succeeded",
+        "PARTIAL": "Partial",
+        "FAILED": "Failed",
+        "SKIPPED_QUOTA": "Skipped · quota",
+        "SKIPPED_LEASE": "Skipped · overlap"
+      },
+      "runTrigger": {
+        "SCHEDULE": "Schedule",
+        "MANUAL": "Manual",
+        "RETRY": "Retry"
+      },
+      "recordState": {
+        "COLLECTED": "Collected",
+        "MAPPED": "Mapped",
+        "SUBMITTED": "Submitted",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "WRITTEN_BACK": "Written back",
+        "WRITEBACK_FAILED": "Write-back failed",
+        "SUPERSEDED": "Superseded"
+      },
+      "outboxState": {
+        "PENDING": "Pending",
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "ABANDONED": "Abandoned"
+      },
+      "product": {
+        "ODOO": "Odoo",
+        "ERPNEXT": "ERPNext",
+        "DYNAMICS_365": "Microsoft Dynamics 365",
+        "SAP_S4": "SAP S/4HANA",
+        "ORACLE_FUSION": "Oracle Fusion",
+        "ZOHO_BOOKS": "Zoho Books"
+      },
+      "authKind": {
+        "API_KEY": "API key",
+        "BASIC": "Username and password",
+        "OAUTH2_CLIENT": "OAuth 2.0 · client credentials",
+        "OAUTH2_AUTHCODE": "OAuth 2.0 · sign in with the ERP"
+      },
+      "scope": {
+        "READ": "Read",
+        "WRITE": "Write"
+      },
+      "schedule": {
+        "15": "Every 15 minutes",
+        "30": "Every 30 minutes",
+        "60": "Every hour",
+        "240": "Every 4 hours",
+        "1440": "Once a day"
+      },
+      "testError": {
+        "UNAUTHORIZED": "The ERP refused the credentials.",
+        "UNREACHABLE": "The address could not be reached from Fawtir.",
+        "TLS": "The address must use https.",
+        "FORBIDDEN_SCOPE": "The account cannot write to invoices.",
+        "TIMEOUT": "The ERP did not answer in time."
+      },
+      "event": {
+        "created": "Connection created",
+        "tested": "Connection tested · {{latency}} ms",
+        "testFailed": "Test failed · {{code}}",
+        "discovered": "Fields discovered · {{fields}} fields from {{samples}} samples",
+        "templateApplied": "Template applied · {{template}}",
+        "mappingEdited": "Mapping edited · {{entries}} fields",
+        "writeBackEnabled": "Write-back switched on",
+        "writeBackDisabled": "Write-back switched off",
+        "scopesChanged": "Scopes changed · {{scopes}}",
+        "scheduleChanged": "Schedule changed · every {{minutes}} minutes",
+        "renamed": "Renamed · {{label}}",
+        "baseUrlChanged": "Address changed · {{url}}",
+        "paused": "Paused · {{reason}}",
+        "resumed": "Resumed",
+        "deleted": "Deleted · credentials destroyed, records kept",
+        "credentialsRotated": "Credentials replaced · tested in {{latency}} ms",
+        "credentialsRotationFailed": "New credentials refused · {{code}}",
+        "runSucceeded": "Run succeeded · {{fetched}} fetched, {{created}} new",
+        "runFailed": "Run failed · {{code}}",
+        "wentToError": "Connection in error after {{failures}} failed runs",
+        "collectedNow": "Collected now · {{fetched}} fetched",
+        "pausedNoReason": "Paused"
+      },
+      "list": {
+        "title": "Connected systems",
+        "subtitle": "The ERPs Fawtir collects invoices from, how each one is doing, and what the add-on has left this month.",
+        "connect": "Connect a system",
+        "connectLimit": "All {{count}} connections are in use — remove one to connect another.",
+        "errorBanner": {
+          "credentials": "{{label}} stopped: the ERP refused its credentials. Replace them in Settings.",
+          "unreachable": "{{label}} stopped: the ERP could not be reached. Check its address in Settings.",
+          "threeFailures": "{{label}} stopped after three failed runs in a row. Look at its runs before resuming.",
+          "link": "Open settings"
+        },
+        "pendingPayment": "Requested — waiting for billing to confirm.",
+        "suspended": "The add-on is suspended: the last add-on bill was not paid. Connections keep their settings, but nothing is collected until billing clears it.",
+        "cancelled": "The add-on was cancelled. Connections and their records are kept read-only; ask to activate again to resume collecting.",
+        "table": {
+          "title": "Connections",
+          "note_one": "{{count}} of {{limit}} connected",
+          "note_other": "{{count}} of {{limit}} connected",
+          "label": "System",
+          "state": "State",
+          "mapping": "Mapping",
+          "lastRun": "Last run",
+          "nextRun": "Next run",
+          "rejections": "Rejections",
+          "never": "Never",
+          "none": "—"
+        },
+        "empty": {
+          "title": "No system is connected yet",
+          "body": "Connect your first ERP — the test and the field discovery take about a minute."
+        },
+        "menu": {
+          "label": "Connection actions",
+          "open": "Open",
+          "pause": "Pause",
+          "resume": "Resume",
+          "collectNow": "Collect now",
+          "delete": "Delete"
+        },
+        "collected": "Collecting now from {{label}} · run {{run}} started.",
+        "refusal": {
+          "IN_PROGRESS": "A run is already in progress for {{label}} — wait for it to finish.",
+          "QUOTA": "This month's allowance is used up; collection resumes on {{date}}.",
+          "NOT_CERTIFIED": "The mapping for {{label}} is not certified yet — certify it before collecting.",
+          "PAUSED": "{{label}} is paused — resume it first.",
+          "CREDENTIALS": "The ERP refused the credentials for {{label}} — replace them in Settings."
+        },
+        "delete": {
+          "title": "Delete {{label}}?",
+          "body": "Its credentials are destroyed at once. Runs and records are kept for the audit, and the ERP itself is not touched.",
+          "confirm": "Delete connection"
+        }
+      },
+      "addon": {
+        "title": "Automatic extraction add-on",
+        "state": {
+          "INACTIVE": "Not active",
+          "PENDING_PAYMENT": "Pending payment",
+          "ACTIVE": "Active",
+          "SUSPENDED": "Suspended",
+          "CANCELLED": "Cancelled"
+        },
+        "source": {
+          "PURCHASED": "Purchased since {{date}}",
+          "PLAN_INCLUDED": "Included in your plan",
+          "TRIAL": "Trial"
+        },
+        "price": "OMR {{amount}} a month",
+        "priceNote": "{{documents}} documents included",
+        "usage": {
+          "connections": "Connected systems",
+          "collected": "Collected this month",
+          "of": "{{used}} of {{limit}}",
+          "resets": "resets {{date}}"
+        },
+        "overage": "Past the allowance, every extra document is charged at OMR {{amount}}."
+      },
+      "connect": {
+        "title": "Connect a system",
+        "subtitle": "Four steps: pick the ERP, give Fawtir a way in, test it, then let it discover the fields.",
+        "steps": {
+          "system": "System",
+          "credentials": "Credentials",
+          "test": "Test",
+          "discover": "Discover"
+        },
+        "cancel": "Cancel",
+        "back": "Back",
+        "continue": "Continue",
+        "finish": "Finish and open mapping",
+        "system": {
+          "heading": "Which system?",
+          "coming": "Coming",
+          "label": "Label",
+          "labelPlaceholder": "Head office — Odoo 17",
+          "labelHint": "How this connection appears in lists and notices.",
+          "baseUrl": "Base URL",
+          "baseUrlHint": "The address Fawtir calls. It must use https."
+        },
+        "productHint": {
+          "ODOO": "Odoo 16 and 17 · account.move over JSON-RPC",
+          "ERPNEXT": "ERPNext 14 and 15 · Sales Invoice over the REST API",
+          "DYNAMICS_365": "Business Central and Finance · OData",
+          "SAP_S4": "S/4HANA Cloud · Billing Document API",
+          "ORACLE_FUSION": "Fusion Cloud ERP · Receivables invoices",
+          "ZOHO_BOOKS": "Zoho Books · invoices over OAuth"
+        },
+        "credentials": {
+          "heading": "How does Fawtir sign in?",
+          "authKind": "Sign-in method",
+          "field": {
+            "apiKey": "API key",
+            "apiSecret": "API secret",
+            "username": "Username",
+            "password": "Password",
+            "clientId": "Client ID",
+            "clientSecret": "Client secret",
+            "tenantId": "Tenant ID",
+            "database": "Database"
+          },
+          "secretsNote": "Secrets are stored encrypted and never shown again.",
+          "oauth": {
+            "button": "Sign in with {{product}}",
+            "signingIn": "Opening {{product}}…",
+            "done": "Signed in — {{product}} granted Fawtir access.",
+            "note": "You will be sent to {{product}} to approve access; nothing is typed here."
+          },
+          "scopes": "Access",
+          "readHelper": "Always on — collects invoices.",
+          "writeHelper": "Needed for write-back.",
+          "schedule": "Schedule",
+          "writeBack": "Write back the result",
+          "writeBackHelper": "The Fawtir number, status and QR are written into the ERP record after each submission.",
+          "writeBackNeedsWrite": "Tick Write to enable write-back."
+        },
+        "errors": {
+          "product": "Pick an available system.",
+          "label": "Give the connection a name.",
+          "url": "Enter the ERP's address, starting with https://.",
+          "required": "Required.",
+          "oauth": "Sign in with the ERP first."
+        },
+        "test": {
+          "heading": "Test the connection",
+          "body": "Fawtir calls {{url}} with the credentials you gave and reports what came back.",
+          "button": "Test connection",
+          "testing": "Testing…",
+          "passed": "Connection works",
+          "erpVersion": "ERP version",
+          "company": "Company",
+          "scopes": "Granted scopes",
+          "latency": "Latency",
+          "latencyValue": "{{ms}} ms",
+          "failed": "The test failed",
+          "backToCredentials": "Back to credentials",
+          "retry": "Test again",
+          "hint": "Continue once the test passes."
+        },
+        "discover": {
+          "heading": "Discover fields",
+          "body": "Fawtir reads a few recent invoices from {{product}} to learn which fields it holds, then applies the platform template for that version when there is one.",
+          "button": "Discover fields",
+          "discovering": "Discovering…",
+          "found": "{{fields}} fields found from {{samples}} sample invoices",
+          "template": "Template applied: {{template}}",
+          "premapped_one": "{{count}} field pre-mapped",
+          "premapped_other": "{{count}} fields pre-mapped",
+          "noTemplate": "No template for this system yet; you will map fields by hand.",
+          "hint": "Finish creates the connection and opens its mapping."
+        }
+      },
+      "runs": {
+        "title": "Runs",
+        "note": "Every collection, newest first — the scheduler's every {{minutes}} minutes and the ones started by hand.",
+        "collectNow": "Collect now",
+        "collected": "Collected now — run {{id}} finished with {{fetched}} fetched.",
+        "collectedLink": "Open the run",
+        "refused": {
+          "IN_PROGRESS": "A run is already in progress. Wait for it to finish before starting another.",
+          "QUOTA": "This month's allowance is used up. Collection resumes on {{date}}.",
+          "NOT_CERTIFIED": "The mapping is not certified, so nothing can be collected yet.",
+          "PAUSED": "The connection is paused, so nothing is collected.",
+          "CREDENTIALS": "The ERP refused the credentials, so nothing can be collected."
+        },
+        "refusedLink": {
+          "NOT_CERTIFIED": "Open the mapping",
+          "CREDENTIALS": "Replace the credentials",
+          "PAUSED": "Resume it from Overview"
+        },
+        "strip": {
+          "today": "runs today",
+          "succeeded": "succeeded",
+          "problems": "partial or failed"
+        },
+        "filterLabel": "Filter runs by state",
+        "filter": {
+          "all": "All",
+          "SUCCEEDED": "Succeeded",
+          "PARTIAL": "Partial",
+          "FAILED": "Failed",
+          "skipped": "Skipped"
+        },
+        "col": {
+          "started": "Started",
+          "trigger": "Trigger",
+          "state": "State",
+          "fetched": "Fetched",
+          "new": "New",
+          "duplicates": "Duplicates",
+          "errors": "Errors",
+          "duration": "Duration",
+          "watermark": "Watermark",
+          "open": ""
+        },
+        "open": "Open",
+        "empty": "No runs yet — the first one starts on schedule, or with Collect now.",
+        "emptyFiltered": "No runs in this filter.",
+        "showing": "{{from}}–{{to}} of {{total}}",
+        "skip": {
+          "SKIPPED_LEASE": "Overlapped run {{runId}}",
+          "SKIPPED_QUOTA": "Monthly allowance used up"
+        },
+        "duration": {
+          "running": "Running",
+          "seconds": "{{count}} s",
+          "minutes": "{{count}} min"
+        },
+        "back": "All runs",
+        "detail": {
+          "title": "Run {{id}}",
+          "note": "{{trigger}} · started {{when}}",
+          "trigger": "Trigger",
+          "started": "Started",
+          "finished": "Finished",
+          "duration": "Duration",
+          "watermarkBefore": "Watermark before",
+          "watermarkAfter": "Watermark after",
+          "unchanged": "unchanged",
+          "errors": "Errors",
+          "errorsNote": "Each code once, with how many records it stopped.",
+          "col": {
+            "code": "Code",
+            "meaning": "What it means",
+            "count": "Records",
+            "erpNumber": "ERP number",
+            "customer": "Customer",
+            "total": "Total",
+            "state": "State",
+            "fawtir": "Fawtir invoice"
+          },
+          "noErrors": "No errors in this run.",
+          "records": "Records in this run",
+          "recordsNote_one": "{{count}} record was created by this run.",
+          "recordsNote_other": "{{count}} records were created by this run.",
+          "noRecords": "This run created no records."
+        },
+        "errorMeaning": {
+          "buyerVatin": "Buyer VATIN missing",
+          "sellerIsic": "Seller ISIC code missing",
+          "unauthorized": "The ERP refused the credentials"
+        },
+        "notFound": {
+          "title": "That run is not here",
+          "body": "It may belong to another connection, or the link is out of date."
+        }
+      },
+      "records": {
+        "title": "Records",
+        "note": {
+          "list_one": "{{count}} ERP invoice collected by this connection, newest first.",
+          "list_other": "{{count}} ERP invoices collected by this connection, newest first.",
+          "SUPERSEDED": "Changed in the ERP after submission"
+        },
+        "search": {
+          "label": "Search",
+          "placeholder": "ERP number, customer or Fawtir number"
+        },
+        "date": {
+          "7": "Last 7 days",
+          "30": "Last 30 days",
+          "label": "Collected",
+          "today": "Today",
+          "all": "All time"
+        },
+        "filterLabel": "Filter records by state",
+        "filter": {
+          "all": "All"
+        },
+        "col": {
+          "erpNumber": "ERP number",
+          "collected": "Collected",
+          "customer": "Customer",
+          "total": "Total",
+          "state": "State",
+          "fawtir": "Fawtir invoice",
+          "note": "Note",
+          "actions": ""
+        },
+        "rowActions": "Record actions",
+        "menu": {
+          "open": "Open",
+          "retry": "Retry",
+          "requeue": "Re-queue write-back"
+        },
+        "empty": "Nothing collected yet.",
+        "emptyFiltered": "No records match these filters.",
+        "showing": "{{from}}–{{to}} of {{total}}",
+        "back": "All records",
+        "detail": {
+          "subtitle": "ERP record {{id}}",
+          "customer": "Customer",
+          "total": "Total",
+          "collected": "Collected",
+          "run": "Run",
+          "fawtirInvoice": "Fawtir invoice",
+          "uuid": "UUID",
+          "noInvoice": "Not submitted yet"
+        },
+        "rejected": {
+          "title": "Why it was rejected",
+          "note": "Fix the data in the ERP first, then retry — the record goes back through mapping and submission.",
+          "retry": "Retry",
+          "retried": "Retried — the record is back in mapping and will be submitted on the next run.",
+          "col": {
+            "rule": "Rule",
+            "path": "Field",
+            "message": "What went wrong"
+          }
+        },
+        "writeBack": {
+          "title": "Write-back",
+          "failedNote": "The outbox could not update the ERP record. It tries again on its own until the attempts run out.",
+          "attempts": "Attempts",
+          "attemptsValue": "{{done}} of {{max}}",
+          "lastAttempt": "Last attempt",
+          "nextAttempt": "Next attempt",
+          "lastError": "Last error",
+          "fields": "Fields to be written",
+          "requeue": "Re-queue write-back",
+          "requeued": "Re-queued — the connector tries again at {{time}}.",
+          "field": {
+            "fawtirStatus": "Fawtir status",
+            "invoiceNumber": "Invoice number",
+            "uuid": "UUID",
+            "submittedAt": "Submitted at",
+            "rejectionReason": "Rejection reason",
+            "qr": "QR code"
+          }
+        },
+        "superseded": {
+          "banner": "The ERP record changed after it was submitted ({{note}}, {{time}}). A submitted invoice cannot be changed — issue a credit note in the ERP and let the connector collect it."
+        },
+        "success": {
+          "writtenBack": "Written back to the ERP at {{time}} — status {{status}}, invoice {{invoice}}, UUID {{uuid}}.",
+          "queued": "Accepted as {{invoice}} — write-back queued, next attempt at {{time}}.",
+          "accepted": "Accepted by the Tax Authority as {{invoice}} · UUID {{uuid}}."
+        },
+        "payload": {
+          "title": "ERP payload",
+          "note": "The record exactly as the connector fetched it from the ERP."
+        },
+        "notFound": {
+          "title": "That record is not here",
+          "body": "It may belong to another connection, or the link is out of date."
+        }
+      },
+      "overview": {
+        "actions": {
+          "collectNow": "Collect now",
+          "pause": "Pause",
+          "resume": "Resume"
+        },
+        "collect": {
+          "done_one": "Collected now · {{count}} new invoice",
+          "done_other": "Collected now · {{count}} new invoices",
+          "refused": {
+            "IN_PROGRESS": "A run is already in progress — wait for it to finish.",
+            "QUOTA": "This month's allowance is used up — nothing more is collected until it resets.",
+            "NOT_CERTIFIED": "Certify the mapping first — nothing is collected until every route it runs passes.",
+            "PAUSED": "The connection is paused — resume it first.",
+            "CREDENTIALS": "The ERP refuses the credentials — replace them first."
+          },
+          "openMapping": "Open the mapping",
+          "openSettings": "Open settings"
+        },
+        "banner": {
+          "error": {
+            "credentials": "Stopped after {{count}} failed runs — the ERP refused the credentials. Replace them.",
+            "unreachable": "Stopped after {{count}} failed runs — the address could not be reached. Check it.",
+            "threeFailures": "Stopped after {{count}} failed runs. Check the ERP and try again."
+          },
+          "replaceCredentials": "Replace credentials",
+          "paused": "Paused since {{date}}{{reason}} — nothing is collected until you resume.",
+          "disconnected": "This connection was deleted. Its credentials are destroyed; the runs and records below stay for your audit.",
+          "stale_one": "Nothing new for {{count}} day — the newest invoice collected is {{erpNumber}} from {{date}}. Check the ERP is still issuing, or the filter.",
+          "stale_other": "Nothing new for {{count}} days — the newest invoice collected is {{erpNumber}} from {{date}}. Check the ERP is still issuing, or the filter."
+        },
+        "kpi": {
+          "watermark": "Newest invoice collected",
+          "watermarkNote": "Issued {{date}} — the next run starts after it",
+          "watermarkNone": "Nothing collected yet",
+          "lastRun": "Last run",
+          "lastRunNote": "{{date}} · {{fetched}} fetched, {{created}} new",
+          "lastRunNone": "No run yet",
+          "nextRun": "Next run",
+          "nextRunNote": "{{date}} · {{schedule}}",
+          "nextRunPaused": "Nothing runs while the connection is paused",
+          "nextRunNone": "Nothing is scheduled",
+          "collected": "Collected this month",
+          "ofAllowance": "of {{limit}}",
+          "collectedNote": "{{percent}}% of the add-on's allowance · resets {{date}}"
+        },
+        "setup": {
+          "title": "How this connection is set up",
+          "note": "What the connector uses on every run.",
+          "change": "Change in Settings",
+          "row": {
+            "product": "Product & version",
+            "address": "Address",
+            "auth": "Signs in with",
+            "database": "Database",
+            "scopes": "Scopes",
+            "schedule": "Schedule",
+            "writeBack": "Write-back",
+            "mapping": "Mapping",
+            "created": "Created"
+          },
+          "on": "On",
+          "off": "Off",
+          "mappingTenant": "Runs your company's ERP mapping",
+          "mappingByHand": "Mapped by hand — no template for this system",
+          "mappingEdited": "From template {{template}}, edited {{date}}",
+          "mappingUnedited": "Template applied {{date}}, unedited",
+          "createdValue": "{{date}} by {{by}}"
+        },
+        "runs": {
+          "title": "Last 5 runs",
+          "note": "Newest first.",
+          "seeAll": "See all runs",
+          "empty": "No runs yet.",
+          "col": {
+            "time": "Time",
+            "trigger": "Trigger",
+            "state": "State",
+            "fetched": "Fetched",
+            "new": "New",
+            "errors": "Errors"
+          }
+        },
+        "activity": {
+          "title": "Recent activity",
+          "note": "The last eight things that happened here.",
+          "by": "{{when}} · {{who}}"
+        },
+        "pause": {
+          "title": "Pause this connection?",
+          "subtitle": "Nothing is collected or written back until you resume. The credentials are kept.",
+          "reason": "Reason (optional)",
+          "reasonPlaceholder": "e.g. Stock-take until 30 September",
+          "reasonHint": "Written into the activity log so the team knows why.",
+          "confirm": "Pause"
+        },
+        "danger": {
+          "title": "Danger zone",
+          "body": "Deleting destroys the credentials at once. The runs and records stay for your audit.",
+          "delete": "Delete connection",
+          "confirmTitle": "Delete {{label}}?",
+          "confirmBody": "The credentials are destroyed at once. Runs and records stay for your audit. This cannot be undone.",
+          "confirm": "Delete connection"
+        }
+      },
+      "mappingTab": {
+        "title": "Mapping",
+        "provenance": {
+          "tenant": "This connection runs your company's ERP mapping.",
+          "none": "No template for this system — the fields are mapped by hand.",
+          "unedited": "Template {{template}} applied {{date}}, unedited.",
+          "edited": "From template {{template}}, edited {{date}}."
+        },
+        "figure": {
+          "fields": "Fields mapped",
+          "fieldsTenant": "From the company's guided mapping",
+          "fieldsTemplate": "The template carries {{count}}",
+          "fieldsByHand": "Mapped by hand",
+          "certified": "Certified routes",
+          "ofRoutes": "{{count}} of {{total}}",
+          "certifiedNote": "Invoice · Credit note · Debit note · Self-billing",
+          "template": "Template",
+          "templateNote": "Published {{date}} · {{count}} fields",
+          "templateNone": "None for this system yet"
+        },
+        "tenant": {
+          "body": "This connection runs your company's ERP mapping — the same one every Odoo invoice goes through. Edit it in the mapping wizard; certification there counts here.",
+          "routesTitle": "Certification by route",
+          "routesNote": "Read from the company's mapping. A route that is not certified is not collected.",
+          "col": {
+            "route": "Route",
+            "state": "State",
+            "last": "Last attempt"
+          },
+          "notTried": "Not tried yet"
+        },
+        "readiness": {
+          "draft": "{{count}} fields mapped from the template, edited on {{date}} — not yet certified. Nothing is collected until it is.",
+          "ready": "Template applied, nothing edited — run the certification and the connection can start collecting.",
+          "certified": "Certified — every invoice this connection collects goes through this mapping.",
+          "stale": "The mapping changed since it was certified — certify again before collecting.",
+          "unmapped": "No template for this system yet — map the fields by hand in the wizard, then certify."
+        },
+        "openWizard": "Open the mapping wizard",
+        "certify": "Certify",
+        "reset": {
+          "button": "Reset to template",
+          "title": "Reset to the template?",
+          "body": "Your edits are replaced by the {{template}} template ({{count}} fields). Certification is lost, so certify again before collecting.",
+          "confirm": "Reset to template",
+          "done": "Reset to template — certify again before collecting."
+        },
+        "discovery": {
+          "title": "What the template covers",
+          "note_one": "Fields discovered on {{date}} from {{count}} sample invoice.",
+          "note_other": "Fields discovered on {{date}} from {{count}} sample invoices."
+        }
+      },
+      "writeBackTab": {
+        "title": "Write-back",
+        "note": "After Fawtir hears back from the Tax Authority, the outcome is written into the ERP record.",
+        "on": "On",
+        "off": "Off",
+        "switch": "Write-back",
+        "needsWrite": "Needs the Write scope — change it in Settings.",
+        "openSettings": "Open settings",
+        "fields": {
+          "title": "What is written · {{product}} fields",
+          "status": {
+            "label": "Fawtir status",
+            "body": "Accepted, rejected, or superseded"
+          },
+          "invoiceNumber": {
+            "label": "Invoice number",
+            "body": "The number Fawtir issued"
+          },
+          "uuid": {
+            "label": "UUID",
+            "body": "The document's identifier at the Tax Authority"
+          },
+          "submittedAt": {
+            "label": "Submitted at",
+            "body": "When it reached the Tax Authority"
+          },
+          "rejectionReason": {
+            "label": "Rejection reason",
+            "body": "The rule that failed, when one did"
+          },
+          "qr": {
+            "label": "QR",
+            "body": "The code the printed invoice must carry"
+          }
+        },
+        "outbox": {
+          "title": "Outbox",
+          "note": "Every write-back queued for this connection. The connector gives up after {{max}} attempts.",
+          "all": "All",
+          "col": {
+            "erpNumber": "ERP number",
+            "invoice": "Fawtir invoice",
+            "state": "State",
+            "attempts": "Attempts",
+            "lastAttempt": "Last attempt",
+            "nextAttempt": "Next attempt",
+            "lastError": "Last error",
+            "action": ""
+          },
+          "attemptsOf": "{{count}} of {{max}}",
+          "requeue": "Re-queue",
+          "empty": "Nothing here.",
+          "emptyOff": "Write-back is off — nothing is queued."
+        }
+      },
+      "settingsTab": {
+        "form": {
+          "title": "Connection",
+          "note": "The name, the address and how often the connector runs.",
+          "label": "Label",
+          "labelRequired": "Give the connection a name.",
+          "url": "Address",
+          "urlHint": "The ERP's base address. It must use https.",
+          "urlHttps": "The address must start with https://",
+          "schedule": "Schedule",
+          "scheduleHint": "How often invoices are collected. A change takes effect from the next run.",
+          "scopes": "Scopes",
+          "scopeRead": "Read",
+          "scopeWrite": "Write",
+          "scopesHint": "Read is always on. Write lets the connector write the outcome back.",
+          "writeBack": "Write-back",
+          "writeBackHint": "Write the Fawtir outcome into each ERP record.",
+          "writeBackNeedsWrite": "Needs the Write scope.",
+          "save": "Save",
+          "saveNote": "Every change is written to the activity log.",
+          "saved": "Saved."
+        },
+        "credentials": {
+          "title": "Credentials",
+          "note": "The secret is never shown — only what it signs in as and whether it still works.",
+          "testNow": "Test now",
+          "replace": "Replace credentials",
+          "signsInWith": "Signs in with",
+          "lastTest": "Last test",
+          "granted": "Granted scopes",
+          "company": "Company seen",
+          "ok": "OK",
+          "error": "Error",
+          "neverTested": "Never tested",
+          "testOk": "{{date}} · {{latency}} ms · {{version}}",
+          "testFailed": "{{date}} ·",
+          "rotated": "Credentials replaced and tested in {{latency}} ms — the connection is back.",
+          "rotationFailed": "The new credentials were refused — {{reason}} The old ones are gone; enter working ones."
+        },
+        "replace": {
+          "title": "Replace credentials",
+          "subtitle": "The old secret is destroyed when you save; the new one is tested at once.",
+          "kind": "Sign in with",
+          "confirm": "Replace and test",
+          "required": "Required",
+          "note": "Fawtir keeps the login and the key's last four characters, never the secret.",
+          "field": {
+            "apiKey": "API key",
+            "apiSecret": "API secret",
+            "username": "Username",
+            "password": "Password",
+            "database": "Database",
+            "tenantId": "Tenant ID",
+            "clientId": "Client ID",
+            "clientSecret": "Client secret"
+          }
+        }
+      }
     }
   },
   "apiErrors": {
