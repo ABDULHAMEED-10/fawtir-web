@@ -1,9 +1,12 @@
+import { PLAN, SUBSCRIPTION_VAT, annualMonthly } from './plans'
+
+/** The sign-up flow's own ids: `premium` is the catalogue's Business plan. */
 export type PlanId = 'starter' | 'premium' | 'enterprise'
 export type BillingCycle = 'monthly' | 'annual'
 
 const MONTHLY_RATES: Record<Exclude<PlanId, 'enterprise'>, Record<BillingCycle, number>> = {
-  starter: { monthly: 12, annual: 10 },
-  premium: { monthly: 35, annual: 29 },
+  starter: { monthly: PLAN.starter.monthly, annual: annualMonthly(PLAN.starter) },
+  premium: { monthly: PLAN.business.monthly, annual: annualMonthly(PLAN.business) },
 }
 
 export type OrderSummary = {
@@ -20,15 +23,12 @@ export function formatOmr(amount: number) {
   return amount.toFixed(3)
 }
 
-export function getOrderSummary(
-  plan: PlanId,
-  billing: BillingCycle,
-): OrderSummary | null {
+export function getOrderSummary(plan: PlanId, billing: BillingCycle): OrderSummary | null {
   if (plan === 'enterprise') return null
   const monthlyRate = MONTHLY_RATES[plan][billing]
   const months = billing === 'annual' ? 12 : 1
   const subtotal = +(monthlyRate * months).toFixed(3)
-  const vat = +(subtotal * 0.05).toFixed(3)
+  const vat = +(subtotal * SUBSCRIPTION_VAT).toFixed(3)
   const total = +(subtotal + vat).toFixed(3)
   return { plan, billing, monthlyRate, months, subtotal, vat, total }
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { withRial } from '../../components/ui'
 import {
   ConsoleBuildingIcon,
@@ -15,6 +16,7 @@ import {
   OTA,
   PLATFORM,
   QUIET_TODAY,
+  REVENUE,
   REVENUE_PER_TENANT,
   WORTH_A_LOOK,
   count,
@@ -185,6 +187,7 @@ export function OperationsPage() {
   return (
     <ConsoleShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+        <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operations' }]} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -413,10 +416,7 @@ export function OperationsPage() {
                 value={t('console.across.within30', { count: PLATFORM.certificatesExpiring })}
                 tone="bad"
               />
-              <ConnectionLine
-                label={t('console.across.revenue')}
-                value={`OMR ${omr(PLATFORM.revenue)}`}
-              />
+              <ConnectionLine label={t('console.across.revenue')} value={`OMR ${omr(REVENUE)}`} />
               <ConnectionLine
                 label={t('console.across.left')}
                 value={String(PLATFORM.leftThisMonth)}

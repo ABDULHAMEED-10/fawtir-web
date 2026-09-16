@@ -683,9 +683,9 @@
     "saveAnnual": "وفّر شهرين على السنوي",
     "billedMonthly": "يُفوتر شهريًا",
     "billedAnnually": "يُفوتر سنويًا",
-    "invoicesPerMonth": "فاتورة / شهر",
+    "invoicesPerMonth": "مستند / شهر",
     "usersIncluded": "مستخدمون مشمولون",
-    "invoices": "فواتير",
+    "invoices": "مستندات",
     "users": "مستخدمون",
     "unlimited": "غير محدود",
     "getStarted": "ابدأ الآن",
@@ -702,7 +702,7 @@
       }
     },
     "premium": {
-      "name": "المميزة",
+      "name": "الأعمال",
       "description": "للأعمال النامية ذات الفروع المتعددة.",
       "features": {
         "f1": "كل ما في المبتدئة",
@@ -719,7 +719,7 @@
       "price": "مخصص",
       "billingNote": "مخصص حسب حجمك",
       "features": {
-        "f1": "كل ما في المميزة",
+        "f1": "كل ما في الأعمال",
         "f2": "موصلات ERP جاهزة و SFTP",
         "f3": "تسجيل دخول موحّد (SAML / OIDC)",
         "f4": "مدير حساب مخصص",
@@ -730,11 +730,13 @@
       "f1": "غيّر أو ألغِ في أي وقت",
       "f2": "الترقيات فورية، التخفيضات في الدورة التالية",
       "f3": "بدون رسوم إعداد"
-    }
+    },
+    "payNote": "ادفع بالبطاقة عبر رابط آمن، أو بالتحويل البنكي، أو نقدًا. يفعّل فريق فوتر حسابك فور تأكيد الدفع.",
+    "trialNote": "تبدأ كل خطة بفترة تجريبية مجانية {{days}} يومًا و{{documents}} مستندًا — دون بطاقة، ولا تتحول إلى فاتورة من تلقاء نفسها."
   },
   "payment": {
     "title": "أكمل اشتراكك",
-    "description": "خطوة أخيرة لتفعيل حسابك. ستكون ممتثلًا بالكامل لجهاز الضرائب فور التأكيد.",
+    "description": "خطوة أخيرة. اختر طريقة الدفع — يفعّل فريق فوتر حسابك فور تأكيد الدفع.",
     "card": {
       "title": "بطاقة",
       "subtitle": "خصم أو ائتمان",
@@ -753,7 +755,13 @@
       "subtitle": "فاتورة مبدئية",
       "notePrefix": "سنرسل إليك عبر البريد ",
       "noteHighlight": "فاتورة مبدئية",
-      "noteSuffix": " تتضمن بياناتنا البنكية. يُفعَّل اشتراكك تلقائيًا بعد تأكيد التحويل عادةً خلال يوم عمل واحد."
+      "noteSuffix": " تتضمن بياناتنا البنكية. يُفعَّل اشتراكك تلقائيًا بعد تأكيد التحويل عادةً خلال يوم عمل واحد.",
+      "detailsTitle": "حوّل إلى",
+      "accountName": "اسم الحساب",
+      "bank": "البنك",
+      "reference": "المرجع",
+      "yourInvoice": "رقم فاتورتك",
+      "note": "نرسل لك الفاتورة بهذه البيانات عبر البريد. يفعّل فريق فوتر حسابك بعد تأكيد التحويل — عادةً خلال يوم عمل."
     },
     "summary": {
       "title": "ملخص الطلب",
@@ -771,7 +779,40 @@
       "renewSuffix": " — يستمر الوصول حتى نهاية الفترة."
     },
     "payCta": "ادفع {{amount}} وفعّل",
-    "bankCta": "أرسل لي الفاتورة المبدئية"
+    "bankCta": "أرسل لي الفاتورة مع البيانات البنكية",
+    "method": {
+      "cardLink": {
+        "title": "بطاقة",
+        "subtitle": "رابط آمن · ثواني"
+      },
+      "bankTransfer": {
+        "title": "تحويل بنكي",
+        "subtitle": "إلى حسابنا"
+      },
+      "cash": {
+        "title": "نقدًا",
+        "subtitle": "في مكتبنا"
+      }
+    },
+    "cardLink": {
+      "note": "تُدخل بطاقتك في بوابة ثواني الآمنة، لا في فوتر. لا نحتفظ بأي شيء عنها.",
+      "how": "كيف تريد الدفع؟",
+      "via": {
+        "now": "افتح البوابة الآن",
+        "whatsapp": "أرسل لي الرابط عبر واتساب",
+        "email": "أرسل لي الرابط عبر البريد"
+      },
+      "viaNowNote": "تنتقل إلى بوابة ثواني وتعود مباشرة.",
+      "viaWhatsAppNote": "إلى {{phone}} · صالح {{days}} أيام",
+      "viaEmailNote": "إلى {{email}} · صالح {{days}} أيام",
+      "yourPhone": "هاتفك",
+      "yourEmail": "بريدك"
+    },
+    "cash": {
+      "note": "ادفع في مكتب فوتر بمسقط أو لدى مندوب فوتر. تحصل على إيصال، ويفعّل فريق فوتر حسابك فور تسجيله — عادةً في اليوم نفسه."
+    },
+    "sendLinkCta": "أرسل لي رابط الدفع",
+    "cashCta": "سأدفع نقدًا"
   },
   "fawtaraStatus": {
     "heroTitle": "الامتثال للفوترة الإلكترونية، ننجزه نيابةً عنك.",
@@ -786,7 +827,15 @@
     },
     "openPortal": "فتح بوابة فوترة",
     "footer": "تستغرق هذه الخطوة بضع دقائق عادةً. سنرسل رسالة إلى {{email}} فور اعتماد الطلب، ويمكنك إغلاق هذه الصفحة بأمان. هل تأخّرت الموافقة؟",
-    "contactSupport": "تواصل مع الدعم"
+    "contactSupport": "تواصل مع الدعم",
+    "subscription": {
+      "title": "اشتراكك",
+      "awaiting": "{{plan}} · بانتظار التفعيل من فريق فوتر",
+      "cardLink": "دُفع بالبطاقة عبر ثواني — يُفعَّل حسابك فور تأكيد الدفع.",
+      "cardLinkSent": "رابط الدفع في طريقه إليك عبر {{via}}. يُفعَّل حسابك بعد سداده.",
+      "bankTransfer": "بانتظار تحويلك البنكي. يُفعَّل حسابك فور وصوله، عادةً خلال يوم عمل.",
+      "cash": "بانتظار دفعك النقدي. يُفعَّل حسابك فور تسجيله، عادةً في اليوم نفسه."
+    }
   },
   "dashboard": {
     "searchPlaceholder": "ابحث في الفواتير، العملاء، المستندات...",
@@ -976,6 +1025,16 @@
       "download": "تنزيل الملف",
       "hold": "تعليق",
       "reject": "رفض"
+    },
+    "subscription": {
+      "open": "افتح المشترك",
+      "recordPayment": "سجّل دفعة",
+      "sendLink": "أرسل رابط الدفع",
+      "activate": "فعّل",
+      "resume": "أعد التفعيل",
+      "changePlan": "غيّر الخطة",
+      "suspend": "أوقف",
+      "download": "نزّل"
     }
   },
   "customersPage": {
@@ -1507,7 +1566,32 @@
       "awaiting": "بانتظار الدفع",
       "awaitingMeta": "فاتورتان تستحقان قريبًا",
       "overdue": "متأخر",
-      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا"
+      "overdueMeta": "فاتورة واحدة · الأقدم 20 يومًا",
+      "outstandingLive_zero": "لا توجد فواتير غير مدفوعة",
+      "outstandingLive_one": "عبر فاتورة واحدة غير مدفوعة",
+      "outstandingLive_two": "عبر فاتورتين غير مدفوعتين",
+      "outstandingLive_few": "عبر {{invoices}} فواتير غير مدفوعة",
+      "outstandingLive_many": "عبر {{invoices}} فاتورة غير مدفوعة",
+      "outstandingLive_other": "عبر {{invoices}} فاتورة غير مدفوعة",
+      "paidLive_zero": "لا توجد فواتير مدفوعة بالكامل",
+      "paidLive_one": "فاتورة واحدة مدفوعة بالكامل",
+      "paidLive_two": "فاتورتان مدفوعتان بالكامل",
+      "paidLive_few": "{{invoices}} فواتير مدفوعة بالكامل",
+      "paidLive_many": "{{invoices}} فاتورة مدفوعة بالكامل",
+      "paidLive_other": "{{invoices}} فاتورة مدفوعة بالكامل",
+      "awaitingLive_zero": "لا شيء يستحق خلال {{days}} أيام",
+      "awaitingLive_one": "فاتورة واحدة تستحق خلال {{days}} أيام",
+      "awaitingLive_two": "فاتورتان تستحقان خلال {{days}} أيام",
+      "awaitingLive_few": "{{invoices}} فواتير تستحق خلال {{days}} أيام",
+      "awaitingLive_many": "{{invoices}} فاتورة تستحق خلال {{days}} أيام",
+      "awaitingLive_other": "{{invoices}} فاتورة تستحق خلال {{days}} أيام",
+      "overdueLive_zero": "لا فواتير متأخرة",
+      "overdueLive_one": "فاتورة واحدة · الأقدم منذ {{days}} يومًا",
+      "overdueLive_two": "فاتورتان · الأقدم منذ {{days}} يومًا",
+      "overdueLive_few": "{{invoices}} فواتير · الأقدم منذ {{days}} يومًا",
+      "overdueLive_many": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
+      "overdueLive_other": "{{invoices}} فاتورة · الأقدم منذ {{days}} يومًا",
+      "overdueNone": "لا توجد متأخرات"
     },
     "tabs": {
       "all": "الكل",
@@ -1538,6 +1622,10 @@
         "all": "كل الفواتير",
         "standard": "قياسية (منشآت/حكومة)",
         "simplified": "مبسطة (أفراد)"
+      },
+      "documentType": "نوع المستند",
+      "docType": {
+        "all": "كل المستندات"
       }
     },
     "col": {
@@ -1583,6 +1671,65 @@
       "imported": "تم الاستيراد",
       "failed": "فشل",
       "summary": "تم استيراد {{imported}}، وفشل {{failed}}."
+    },
+    "subtitleLive": "الفواتير والإشعارات الدائنة والمدينة — المسودات والمستندات الصادرة في قائمة واحدة.",
+    "searchLive": "ابحث برقم المستند أو اسم العميل",
+    "exporting": "جارٍ التصدير…",
+    "exportTruncated": "يتوقف الملف عند 10,000 مستند. ضيّق عوامل التصفية لتصدير الباقي.",
+    "discardStale": "تغيّرت هذه المسودة بعد تحميل القائمة. تم تحديث القائمة؛ حاول مرة أخرى.",
+    "nothingYet": "لا توجد فواتير بعد. أنشئ فاتورتك الأولى وستظهر هنا.",
+    "draftNumber": "مسودة",
+    "resultTotal_zero": "لا توجد مستندات",
+    "resultTotal_one": "مستند واحد",
+    "resultTotal_two": "مستندان",
+    "resultTotal_few": "{{documents}} مستندات",
+    "resultTotal_many": "{{documents}} مستندًا",
+    "resultTotal_other": "{{documents}} مستند",
+    "pages": "الصفحات",
+    "authoring": {
+      "draft": "مسودة",
+      "issued": "صادرة",
+      "cancelled": "ملغاة",
+      "discarded": "متجاهلة"
+    },
+    "payment": {
+      "awaiting": "بانتظار الدفع",
+      "partial": "مدفوع جزئيًا",
+      "paid": "مدفوع",
+      "overdue_zero": "متأخر",
+      "overdue_one": "متأخر · يوم واحد",
+      "overdue_two": "متأخر · يومان",
+      "overdue_few": "متأخر · {{count}} أيام",
+      "overdue_many": "متأخر · {{count}} يومًا",
+      "overdue_other": "متأخر · {{count}} يوم"
+    },
+    "delivery": {
+      "sentManually": "أُرسلت يدويًا"
+    },
+    "amountNote": {
+      "estimate": "تقدير · يُسعَّر عند الإصدار",
+      "outstanding": "المتبقي {{amount}}",
+      "credited": "يشمل {{amount}} بإشعارات دائنة"
+    },
+    "rowAction": {
+      "edit": "تعديل المسودة",
+      "discard": "تجاهل المسودة"
+    },
+    "docType": {
+      "INVOICE": "فاتورة",
+      "CREDIT_NOTE": "إشعار دائن",
+      "DEBIT_NOTE": "إشعار مدين",
+      "SELF_BILLED_INVOICE": "فاتورة ذاتية الإصدار",
+      "SELF_BILLED_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار"
+    },
+    "sort": {
+      "updated": "آخر تحديث",
+      "issuedNewest": "الأحدث إصدارًا أولًا",
+      "issuedOldest": "الأقدم إصدارًا أولًا",
+      "dueSoonest": "الأقرب استحقاقًا",
+      "amountHighest": "المبلغ: من الأعلى إلى الأدنى",
+      "amountLowest": "المبلغ: من الأدنى إلى الأعلى",
+      "customer": "العميل أ–ي"
     }
   },
   "invoiceDetails": {
@@ -4248,12 +4395,12 @@
       "approving": "جارٍ الاعتماد…"
     },
     "sortOptions": {
-      "newest": "الأحدث أولًا",
       "dueAsc": "الاستحقاق: الأقرب أولًا",
       "dueDesc": "الاستحقاق: الأبعد أولًا",
       "amountDesc": "المبلغ: من الأعلى للأقل",
       "amountAsc": "المبلغ: من الأقل للأعلى",
-      "supplierAsc": "المورد أ–ي"
+      "supplierAsc": "المورد أ–ي",
+      "newest": "الأحدث أولًا"
     },
     "rows": {
       "issued29Jul": "صدرت ٢٩ يوليو",
@@ -7131,13 +7278,15 @@
       "company": "الشركة",
       "people": "الأشخاص",
       "billing": "الفوترة",
-      "records": "السجلات"
+      "records": "السجلات",
+      "integration": "التكامل"
     },
     "group": {
       "company": "الشركة",
       "people": "الأشخاص",
       "billing": "الفوترة",
-      "records": "السجلات"
+      "records": "السجلات",
+      "integration": "التكامل"
     },
     "card": {
       "peppolTitle": "Peppol والضريبة",
@@ -7168,9 +7317,9 @@
       "planPill": "التجاوز مغلق",
       "planFoot": "خطة الأعمال · تتجدد {{date}}",
       "billsTitle": "الفواتير والدفع",
-      "billsBody": "كل فاتورة أرسلها لك فوتر، والبطاقة التي تُخصم منها.",
+      "billsBody": "كل فاتورة أرسلها لك فوتر، وطريقة سدادها.",
       "billsPill": "مسدَّدة",
-      "billsFoot": "فيزا تنتهي بـ{{last4}}",
+      "billsFoot": "{{method}}",
       "logTitle": "سجل النشاط",
       "logBody": "كل تغيير أجراه أي شخص، بما في ذلك عبر الواجهة البرمجية.",
       "logPill": "يُحفظ {{years}} سنوات",
@@ -7182,7 +7331,23 @@
       "closingTitle": "إغلاق الحساب",
       "closingBody": "ماذا يحدث لفواتيرك، وإلى متى تبقى في المتناول.",
       "closingPill": "اقرأ أولًا",
-      "closingFoot": "الاحتفاظ يظل ساريًا"
+      "closingFoot": "الاحتفاظ يظل ساريًا",
+      "erpMappingTitle": "ربط نظام ERP",
+      "erpMappingBody": "كيف تُقرأ فواتير نظامك وتُفحص وتُبلَّغ.",
+      "erpMappingPill": {
+        "NOT_SET_UP": "غير مُعدّ",
+        "DRAFT": "مسودة",
+        "READY_UNCERTIFIED": "جاهز، غير معتمد",
+        "PARTIALLY_CERTIFIED": "معتمد جزئيًا",
+        "CERTIFIED": "معتمد",
+        "STALE": "يحتاج إعادة اعتماد"
+      },
+      "erpMappingFoot": "موجّه · {{system}} · {{mapped}} من {{required}} حقلًا مطلوبًا",
+      "erpMappingFootNone": "ابدأ بفاتورة نموذجية من نظامك",
+      "connectionsTitle": "الأنظمة المتصلة",
+      "connectionsBody": "يجمع فوتر الفواتير من نظامك وفق جدول ويعيد النتيجة.",
+      "connectionsPill": "إضافة",
+      "connectionsFoot": "الاستخراج التلقائي · غير مفعّل"
     }
   },
   "peppolTax": {
@@ -7786,7 +7951,7 @@
     "title": "الخطة والاستهلاك",
     "subtitle": "ما تدفع مقابله، وكم استهلكت منه، وماذا يحدث إن نفد",
     "billsAndPayment": "الفواتير والدفع",
-    "invoicesThisMonth": "فواتير هذا الشهر",
+    "invoicesThisMonth": "مستندات هذا الشهر",
     "runOutHeadline": "سينفد رصيدك نحو {{date}}",
     "comfortableHeadline": "لديك متسع حتى نهاية الشهر",
     "runOutBody": "أنت تصدر نحو <b>{{perDay}} يوميًا</b> وبقي <b>{{days}} أيام</b> في الشهر. هذا يعني تقريبًا <b>{{short}} أكثر مما لديك</b>. التجاوز مغلق، لذا ستُرفض الفواتير بعد {{allowance}} <b>بدل أن تُحتسب عليك</b>.",
@@ -7813,7 +7978,7 @@
     "fitsYouBetter": "تناسبك أكثر",
     "perMonth": "/ شهر",
     "feature": {
-      "invoices": "{{count}} فاتورة شهريًا",
+      "invoices": "{{count}} مستند شهريًا",
       "people_one": "شخص واحد",
       "people_two": "شخصان",
       "people_few": "{{count}} أشخاص",
@@ -7844,30 +8009,43 @@
     "planName": {
       "starter": "المبتدئة",
       "business": "الأعمال",
-      "businessPlus": "الأعمال بلس"
+      "businessPlus": "الأعمال بلس",
+      "enterprise": "المؤسسات"
+    },
+    "support": {
+      "email": "دعم عبر البريد الإلكتروني",
+      "emailAndChat": "دعم عبر البريد والدردشة"
     }
   },
   "bills": {
     "title": "الفواتير والدفع",
-    "subtitle": "كل فاتورة أرسلها لك فوتر، والبطاقة التي تُخصم منها",
+    "subtitle": "كل فاتورة أرسلها لك فوتر، وطريقة سدادها",
     "planAndUsage": "الخطة والاستهلاك",
     "downloadAll": "نزّلها كلها",
     "yourNextBill": "فاتورتك القادمة",
     "inDays_one": "خلال يوم",
-    "inDays_other": "خلال {{count}} أيام",
-    "nothingExtra": "لا شيء إضافي هذا الشهر — أنت ضمن الخطة في الفواتير والأشخاص. <b>إن أضفت الشخص السادس</b> قبل {{day}}، ستصبح {{amount}} ر.ع.",
+    "inDays_other": "خلال {{count}} يوم",
+    "nothingExtra": "لا شيء إضافي هذا الشهر — أنت ضمن الخطة في المستندات والأشخاص. <b>إن أضفت الشخص السادس</b> قبل {{day}}، ستصبح {{amount}} ر.ع.",
     "extraThisMonth": "{{count}} أشخاص فوق الخمسة المشمولين، بـ{{each}} ر.ع. لكل منهم. تُحتسب مع الخطة في {{day}}.",
     "line": {
       "plan": "خطة {{plan}}",
-      "planNote": "{{invoices}} فاتورة · {{people}} أشخاص · {{branches}} فروع",
+      "planNote": "{{invoices}} مستند · {{people}} أشخاص · {{branches}} فروع",
       "extraPeople": "أشخاص إضافيون",
       "extraPeopleNone": "لا أحد فوق الخمسة المشمولين",
       "extraPeopleSome": "{{count}} فوق الخمسة المشمولين",
-      "overage": "فواتير تتجاوز الخطة",
+      "overage": "مستندات تتجاوز الخطة",
       "overageOff": "التجاوز مغلق، فلا يمكن أن يتراكم شيء هنا",
-      "overageOn": "تُحتسب بـ٠٫١٠٠ ر.ع. لكل فاتورة بعد الحد"
+      "overageOn": "تُحتسب بـ{{rate}} ر.ع. لكل مستند بعد الحد",
+      "extraBranches": "فروع إضافية",
+      "extraBranchesNone": "لا شيء فوق {{included}} المشمولة",
+      "extraBranchesSome_zero": "لا شيء فوق {{included}} المشمولة",
+      "extraBranchesSome_one": "فرع واحد فوق {{included}} المشمولة، بـ{{each}} ر.ع. شهريًا",
+      "extraBranchesSome_two": "فرعان فوق {{included}} المشمولة، بـ{{each}} ر.ع. لكل منهما شهريًا",
+      "extraBranchesSome_few": "{{count}} فروع فوق {{included}} المشمولة، بـ{{each}} ر.ع. لكل منها شهريًا",
+      "extraBranchesSome_many": "{{count}} فرعًا فوق {{included}} المشمولة، بـ{{each}} ر.ع. لكل منها شهريًا",
+      "extraBranchesSome_other": "{{count}} فرع فوق {{included}} المشمولة، بـ{{each}} ر.ع. لكل منها شهريًا"
     },
-    "chargedOn": "تُخصم في {{date}}",
+    "chargedOn": "تستحق في {{date}}",
     "default": "افتراضية",
     "cardholder": "حامل البطاقة",
     "expires": "تنتهي",
@@ -7894,9 +8072,9 @@
       "may": "مايو",
       "april": "أبريل"
     },
-    "coveredPlanPeople": "خطة الأعمال · {{people}} أشخاص",
-    "coveredPlanPeopleExtra": "خطة الأعمال · {{people}} أشخاص · {{extra}} إضافي",
-    "coveredRetried": "خطة الأعمال · أُعيدت المحاولة في {{date}}",
+    "coveredPlanPeople": "خطة الأعمال · {{people}} أشخاص · فرع إضافي",
+    "coveredPlanPeopleExtra": "خطة الأعمال · {{people}} أشخاص · {{extra}} إضافي · فرع إضافي",
+    "coveredRetried": "خطة الأعمال · فرع إضافي · انتهى الرابط، سُدّدت بالتحويل في {{date}}",
     "paid": "مدفوعة",
     "paidLate": "مدفوعة متأخرة",
     "downloadBill": "نزّل هذه الفاتورة",
@@ -7904,7 +8082,50 @@
       "view": "اعرضها",
       "download": "نزّل ملف PDF",
       "receipt": "أرسل لي إيصالًا"
-    }
+    },
+    "method": {
+      "cardLink": "بطاقة عبر رابط آمن",
+      "bankTransfer": "تحويل بنكي",
+      "cash": "نقدًا",
+      "cheque": "شيك"
+    },
+    "methodHint": {
+      "cardLink": "بوابة ثواني · لا نحتفظ بشيء",
+      "bankTransfer": "بنك مسقط · اذكر رقم الفاتورة",
+      "cash": "في مكتب فوتر أو لدى مندوبك",
+      "cheque": "باسم Insight Technology LLC"
+    },
+    "confirmedBy": {
+      "thawani": "سُدّدت عبر الرابط · أكّدتها ثواني {{date}}",
+      "fawtir": "أكّدها فريق فوتر {{date}}"
+    },
+    "pay": {
+      "title": "كيف تدفع",
+      "intro": "اختر الطريقة التي تفضّلها عادةً لسداد كل فاتورة. الطرق الأخرى تبقى متاحة.",
+      "preferred": "طريقة الدفع المفضلة",
+      "byWhatsApp": "واتساب على {{phone}}",
+      "byEmail": "{{email}}",
+      "linkArrives": "يصلك رابط الدفع عبر {{to}} في {{date}}. تريده الآن؟",
+      "linkSentNow": "أُرسل الرابط عبر {{to}} — صالح {{days}} أيام. لا يُخصم شيء حتى تدفعه.",
+      "payNow": "أرسل الرابط الآن",
+      "next": {
+        "bankTransfer": "حوّل المبلغ إلى الحساب المبيّن مع ذكر رقم الفاتورة. يفعّل فريق فوتر الفترة القادمة فور وصوله — عادةً خلال يوم عمل.",
+        "cash": "ادفع في مكتب فوتر أو لدى مندوبك. تحصل على إيصال، ويفعّل فريق فوتر الفترة القادمة فور تسجيله — عادةً في اليوم نفسه.",
+        "cheque": "سلّم شيكًا باسم Insight Technology LLC إلى مندوبك. تُفعَّل الفترة بعد تحصيله."
+      },
+      "linkTitle": "بطاقة عبر رابط آمن",
+      "linkNote": "يصلك رابط ثواني عبر {{to}} قبل كل فاتورة بأسبوع، صالح {{days}} أيام. فوتر لا يرى بطاقتك ولا يحفظها.",
+      "transferTitle": "تحويل بنكي",
+      "transferNote": "المرجع: {{reference}}. يفعّله فريق فوتر بعد تأكيد التحويل.",
+      "copyIban": "انسخ رقم الآيبان",
+      "copied": "نُسخ",
+      "cashTitle": "نقدًا أو بشيك",
+      "cashNote": "في مكتب فوتر بمسقط أو لدى مندوبك. يسجّله فريق فوتر ثم يفعّل."
+    },
+    "inDays_zero": "اليوم",
+    "inDays_two": "خلال يومين",
+    "inDays_few": "خلال {{count}} أيام",
+    "inDays_many": "خلال {{count}} يومًا"
   },
   "activityLog": {
     "title": "سجل النشاط",
@@ -9110,7 +9331,8 @@
       "audit": "سجل التدقيق",
       "settings": "إعدادات اللوحة",
       "bottomSettings": "الإعدادات",
-      "operators": "المشغّلون"
+      "operators": "المشغّلون",
+      "subscriptions": "الاشتراكات"
     },
     "user": {
       "team": "فريق فوترة",
@@ -9643,6 +9865,823 @@
           "refused": "رفضت فوترة هذا التغيير. ربما لم تعد تملك الصلاحية."
         }
       }
+    },
+    "subscriptions": {
+      "state": {
+        "trial": "تجريبي",
+        "awaitingPayment": "بانتظار الدفع",
+        "active": "نشط",
+        "grace": "فترة سماح",
+        "suspended": "موقوف",
+        "cancelled": "ملغى"
+      },
+      "invoiceStatus": {
+        "unpaid": "غير مدفوعة",
+        "paid": "مدفوعة",
+        "overdue": "متأخرة",
+        "waived": "معفاة"
+      },
+      "linkStatus": {
+        "unpaid": "لم يُدفع بعد",
+        "paid": "مدفوع",
+        "expired": "منتهي"
+      },
+      "method": {
+        "cardLink": "بطاقة عبر رابط الدفع",
+        "bankTransfer": "تحويل بنكي",
+        "cash": "نقدًا",
+        "cheque": "شيك"
+      },
+      "methodShort": {
+        "cardLink": "رابط دفع",
+        "bankTransfer": "تحويل",
+        "cash": "نقد",
+        "cheque": "شيك"
+      },
+      "term": {
+        "monthly": "شهري",
+        "quarterly": "ربع سنوي",
+        "annual": "سنوي"
+      },
+      "channel": {
+        "whatsapp": "واتساب",
+        "email": "بريد إلكتروني",
+        "copied": "رابط منسوخ"
+      },
+      "cover": {
+        "plan": "خطة {{plan}}",
+        "planExtras": "خطة {{plan}} · {{people}} أشخاص إضافيون · {{branches}} فروع إضافية",
+        "planPeople_zero": "خطة {{plan}}",
+        "planPeople_one": "خطة {{plan}} · شخص إضافي",
+        "planPeople_two": "خطة {{plan}} · شخصان إضافيان",
+        "planPeople_few": "خطة {{plan}} · {{count}} أشخاص إضافيين",
+        "planPeople_many": "خطة {{plan}} · {{count}} شخصًا إضافيًا",
+        "planPeople_other": "خطة {{plan}} · {{count}} شخص إضافي",
+        "planBranches_zero": "خطة {{plan}}",
+        "planBranches_one": "خطة {{plan}} · فرع إضافي",
+        "planBranches_two": "خطة {{plan}} · فرعان إضافيان",
+        "planBranches_few": "خطة {{plan}} · {{count}} فروع إضافية",
+        "planBranches_many": "خطة {{plan}} · {{count}} فرعًا إضافيًا",
+        "planBranches_other": "خطة {{plan}} · {{count}} فرع إضافي"
+      },
+      "event": {
+        "paymentRecorded": "سُجّل دفع — {{method}}، {{amount}} ر.ع.",
+        "activated": "فُعّل حتى {{until}}",
+        "activatedWithoutPayment": "فُعّل حتى {{until}} — {{reason}}",
+        "linkSent": "أُرسل رابط الدفع عبر {{via}}",
+        "suspended": "أُوقف — {{reason}}",
+        "resumed": "أُعيد التفعيل — {{reason}}",
+        "cancelled": "أُلغي — {{reason}}؛ يستمر حتى {{until}}",
+        "trialStarted": "بدأت الفترة التجريبية، {{days}} يومًا",
+        "planChanged": "انتقل إلى {{plan}}، {{term}} — {{reason}}",
+        "planChangeScheduled": "سينتقل إلى {{plan}}، {{term}} في {{at}} — {{reason}}",
+        "quotaGranted": "{{documents}} مستندًا إضافيًا حتى {{expires}} — {{reason}}",
+        "overageWaived": "أُعفي تجاوز بقيمة {{amount}} ر.ع. — {{reason}}"
+      },
+      "queue": {
+        "title": "الاشتراكات",
+        "subtitle": "كل اشتراك على المنصة · {{awaiting}} بانتظار الدفع، {{grace}} في فترة السماح",
+        "invoicesLink": "فواتير الاشتراكات",
+        "settingsLink": "إعدادات وحدة التحكم",
+        "kpi": {
+          "awaiting": "بانتظار الدفع",
+          "awaitingNote": "{{amount}} ر.ع. مستحقة على الفواتير المفتوحة",
+          "grace": "في فترة السماح",
+          "graceNote": "يُوقف بعد {{days}} يومًا إن لم يصل شيء",
+          "trials": "تجارب تنتهي",
+          "trialsOf": "من {{total}}",
+          "trialsNote": "خلال 7 أيام · يفعّلها مشغّل، لا النظام",
+          "collected": "المحصّل هذا الشهر",
+          "collectedNote_zero": "لم تُسجّل دفعات في {{month}}",
+          "collectedNote_one": "دفعة واحدة سُجّلت في {{month}}",
+          "collectedNote_two": "دفعتان سُجّلتا في {{month}}",
+          "collectedNote_few": "{{count}} دفعات سُجّلت في {{month}}",
+          "collectedNote_many": "{{count}} دفعة سُجّلت في {{month}}",
+          "collectedNote_other": "{{count}} دفعة سُجّلت في {{month}}"
+        },
+        "tab": {
+          "all": "الكل"
+        },
+        "searchPlaceholder": "اسم المشترك أو الرقم الضريبي أو المدينة…",
+        "filter": {
+          "plan": "الخطة",
+          "planAll": "أي خطة",
+          "method": "طريقة الدفع",
+          "methodAll": "أي طريقة",
+          "term": "المدة",
+          "termAll": "أي مدة"
+        },
+        "sort": {
+          "queue": "ما يحتاج شخصًا أولًا",
+          "periodEnd": "نهاية الفترة، الأقرب",
+          "amountDue": "المبلغ المستحق، الأكبر",
+          "name": "الاسم أ–ي"
+        },
+        "col": {
+          "tenant": "المشترك",
+          "plan": "الخطة",
+          "state": "الحالة",
+          "amountDue": "المستحق",
+          "method": "طريقة الدفع",
+          "lastPayment": "آخر دفعة"
+        },
+        "vat": "الرقم الضريبي",
+        "detail": {
+          "due": "يستحق {{date}}",
+          "dueToday": "يستحق اليوم",
+          "overdue_zero": "متأخر منذ اليوم",
+          "overdue_one": "متأخر يومًا واحدًا",
+          "overdue_two": "متأخر يومين",
+          "overdue_few": "متأخر {{count}} أيام",
+          "overdue_many": "متأخر {{count}} يومًا",
+          "overdue_other": "متأخر {{count}} يوم",
+          "grace": "اليوم {{day}} من {{days}} · يُوقف في {{date}}",
+          "trialEnds_zero": "تنتهي اليوم · استُخدم {{used}} من {{allowance}}",
+          "trialEnds_one": "تنتهي خلال يوم · استُخدم {{used}} من {{allowance}}",
+          "trialEnds_two": "تنتهي خلال يومين · استُخدم {{used}} من {{allowance}}",
+          "trialEnds_few": "تنتهي خلال {{count}} أيام · استُخدم {{used}} من {{allowance}}",
+          "trialEnds_many": "تنتهي خلال {{count}} يومًا · استُخدم {{used}} من {{allowance}}",
+          "trialEnds_other": "تنتهي خلال {{count}} يوم · استُخدم {{used}} من {{allowance}}",
+          "trialEndsToday": "تنتهي اليوم · استُخدم {{used}} من {{allowance}}",
+          "renews": "يتجدد {{date}}",
+          "moving": "ينتقل إلى {{plan}} في {{date}}",
+          "suspended": "منذ {{date}} · للقراءة فقط",
+          "cancelled": "منذ {{date}} · يستمر حتى {{until}}"
+        },
+        "noPayment": "لا شيء بعد",
+        "noResults": "لا يوجد اشتراك مطابق.",
+        "rowMenu": "المزيد لهذا الاشتراك",
+        "showing": "عرض {{shown}} من {{total}} {{tab}}",
+        "showingAll": "عرض {{shown}} من {{total}}",
+        "showingSome": "عرض {{shown}} قد تحتاج فتحها · {{total}} {{tab}} إجمالًا",
+        "showingSomeAll": "عرض {{shown}} قد تحتاج فتحها · {{total}} على المنصة",
+        "allCount": "{{count}} على المنصة إجمالًا"
+      },
+      "invoices": {
+        "title": "فواتير الاشتراكات",
+        "subtitle": "كل فاتورة FWT عبر المشتركين · {{unpaid}} غير مدفوعة، {{overdue}} متأخرة",
+        "kpi": {
+          "unpaid": "غير مدفوعة",
+          "unpaidNote": "{{amount}} ر.ع. لم تصل بعد",
+          "overdue": "متأخرة",
+          "overdueNote": "{{amount}} ر.ع. تجاوزت الاستحقاق · تبدأ فترة سماح 14 يومًا من تاريخه",
+          "paid": "المدفوع هذا الشهر",
+          "paidNote_zero": "لم تُسدّد فواتير في {{month}}",
+          "paidNote_one": "فاتورة واحدة سُدّدت في {{month}}",
+          "paidNote_two": "فاتورتان سُدّدتا في {{month}}",
+          "paidNote_few": "{{count}} فواتير سُدّدت في {{month}}",
+          "paidNote_many": "{{count}} فاتورة سُدّدت في {{month}}",
+          "paidNote_other": "{{count}} فاتورة سُدّدت في {{month}}",
+          "waived": "معفاة",
+          "waivedNote": "شُطبت، والسبب في سجل المشترك"
+        },
+        "tab": {
+          "all": "الكل"
+        },
+        "searchPlaceholder": "رقم الفاتورة أو المشترك…",
+        "sort": {
+          "issued": "الإصدار، الأحدث",
+          "due": "الاستحقاق، الأقرب",
+          "total": "الإجمالي، الأكبر"
+        },
+        "col": {
+          "invoice": "الفاتورة",
+          "tenant": "المشترك",
+          "period": "الفترة",
+          "amount": "المبلغ",
+          "total": "الإجمالي",
+          "status": "الحالة",
+          "paid": "الدفع · الاستحقاق"
+        },
+        "exVat": "بدون ضريبة",
+        "plusVat": "شاملًا {{vat}} ر.ع. ضريبة",
+        "paidOn": "دُفعت {{date}}",
+        "due": "تستحق {{date}}",
+        "dueToday": "تستحق اليوم",
+        "overdue_zero": "متأخرة منذ اليوم",
+        "overdue_one": "متأخرة يومًا واحدًا",
+        "overdue_two": "متأخرة يومين",
+        "overdue_few": "متأخرة {{count}} أيام",
+        "overdue_many": "متأخرة {{count}} يومًا",
+        "overdue_other": "متأخرة {{count}} يوم",
+        "noResults": "لا توجد فاتورة مطابقة.",
+        "rowMenu": "المزيد لهذه الفاتورة",
+        "showing": "عرض {{shown}} من {{total}} {{tab}}",
+        "showingAll": "عرض {{shown}} من {{total}}",
+        "allCount": "{{count}} فاتورة اشتراك إجمالًا",
+        "issued": "صدرت {{date}}"
+      }
+    },
+    "tenantDetail": {
+      "notFound": "لا يوجد مستأجر بهذا المعرّف. ربما أُغلق الحساب أو أن الرابط قديم.",
+      "notFoundBack": "العودة إلى المشتركين",
+      "backTenants": "المشتركون",
+      "backSubscriptions": "الاشتراكات",
+      "planChip": "{{plan}} · {{term}}",
+      "since": "{{state}} منذ {{date}}",
+      "actions": {
+        "recordPayment": "تسجيل دفعة",
+        "sendLink": "إرسال رابط دفع",
+        "activate": "تفعيل",
+        "changePlan": "تغيير الخطة",
+        "suspend": "إيقاف",
+        "resume": "استئناف",
+        "cancel": "إلغاء الاشتراك",
+        "grantQuota": "منح حصة مؤقتة",
+        "waiveOverage": "إعفاء تجاوز على فاتورة",
+        "more": "إجراءات أخرى"
+      },
+      "tabs": {
+        "subscription": "الاشتراك",
+        "filing": "الإرسال",
+        "erp": "ERP"
+      },
+      "filing": {
+        "noData": "لا بيانات إرسال بعد — لم يرسل هذا المشترك عبر المنصة هذا الأسبوع.",
+        "billed": "المفوتر هذا الشهر"
+      },
+      "erp": {
+        "notBuilt": "ربط ERP لهذا المشترك لم يُبنَ بعد."
+      },
+      "plan": {
+        "title": "الخطة والشروط",
+        "plan": "الخطة",
+        "term": "دورة الفوترة",
+        "price": "سعر الفترة",
+        "priceValue": "{{amount}} ر.ع. دون الضريبة",
+        "documents": "المستندات شهريًا",
+        "people": "الأشخاص المشمولون",
+        "branches": "الفروع المشمولة",
+        "unlimited": "غير محدود",
+        "overageRate": "التجاوز لكل مستند",
+        "grandfathered": "سعر محفوظ منذ {{date}} — يبقى حتى تغيير الخطة",
+        "scheduled": "الانتقال إلى {{plan}}، {{term}} في {{date}}",
+        "contract": "العقد",
+        "contractValue": "{{from}} ← {{to}}",
+        "sla": "اتفاقية مستوى الخدمة"
+      },
+      "period": {
+        "title": "هذه الفترة",
+        "period": "الفترة",
+        "range": "{{from}} ← {{to}}",
+        "renewsOn": "يتجدد في {{date}}",
+        "dueOn": "مستحق في {{date}}",
+        "overdueBy_zero": "مستحق في {{date}} · متأخر {{count}} يوم",
+        "overdueBy_one": "مستحق في {{date}} · متأخر يومًا واحدًا",
+        "overdueBy_two": "مستحق في {{date}} · متأخر يومين",
+        "overdueBy_few": "مستحق في {{date}} · متأخر {{count}} أيام",
+        "overdueBy_many": "مستحق في {{date}} · متأخر {{count}} يومًا",
+        "overdueBy_other": "مستحق في {{date}} · متأخر {{count}} يوم",
+        "trialEnds": "تنتهي التجربة في {{date}}",
+        "daysLeft_zero": "لم يتبقَّ أيام",
+        "daysLeft_one": "بقي يوم واحد",
+        "daysLeft_two": "بقي يومان",
+        "daysLeft_few": "بقيت {{count}} أيام",
+        "daysLeft_many": "بقي {{count}} يومًا",
+        "daysLeft_other": "بقي {{count}} يوم",
+        "trialAllowance": "{{documents}} مستندًا في التجربة، دون بطاقة",
+        "suspendedSince": "موقوف منذ {{date}} — للقراءة فقط، وسجل الامتثال يبقى مفتوحًا",
+        "cancelledOn": "أُلغي في {{date}} · استمر الوصول حتى {{until}}",
+        "grace": "اليوم {{day}} من {{total}} من فترة السماح · يُوقف في {{date}}",
+        "amountDue": "المبلغ المستحق",
+        "nothingDue": "لا شيء مستحق",
+        "usage": "الاستخدام",
+        "documents": "المستندات",
+        "people": "الأشخاص",
+        "branches": "الفروع",
+        "ofAllowance": "{{used}} من {{allowance}}",
+        "overageOn": "التجاوز مفعّل — المستندات بعد الحد تُفوتر بسعر الخطة",
+        "overageOff": "التجاوز معطّل — يتوقف الإرسال عند الحد",
+        "grant": "+{{documents}} ممنوحة حتى {{date}} — {{reason}}"
+      },
+      "invoices": {
+        "title": "فواتير الاشتراك",
+        "col": {
+          "number": "الرقم",
+          "period": "الفترة",
+          "total": "الإجمالي",
+          "status": "الحالة",
+          "paid": "تاريخ الدفع",
+          "download": ""
+        },
+        "paidVia": "{{date}} · {{method}}",
+        "notPaid": "—",
+        "download": "تنزيل",
+        "empty": "لا فواتير بعد — لا فاتورة للتجربة حتى تُفعّل."
+      },
+      "payments": {
+        "title": "الدفعات",
+        "col": {
+          "date": "التاريخ",
+          "method": "الطريقة",
+          "amount": "المبلغ",
+          "reference": "المرجع",
+          "confirmedBy": "أكّده",
+          "note": "ملاحظة"
+        },
+        "empty": "لم تُسجَّل دفعة بعد."
+      },
+      "links": {
+        "title": "روابط الدفع",
+        "sent": "أُرسل {{when}} بواسطة {{by}}",
+        "expires": "ينتهي في {{date}}",
+        "resend": "إعادة الإرسال",
+        "send": "إرسال رابط",
+        "empty": "لم يُرسل رابط دفع لهذه الفترة."
+      },
+      "pay": {
+        "title": "كيف يدفعون",
+        "preferred": "الطريقة المفضّلة",
+        "contact": "جهة الاتصال",
+        "bank": {
+          "title": "البيانات البنكية المعطاة لهم",
+          "accountName": "اسم الحساب",
+          "bank": "البنك",
+          "iban": "IBAN",
+          "reference": "المرجع المطلوب ذكره"
+        }
+      },
+      "activity": {
+        "title": "النشاط",
+        "empty": "لم يحدث شيء بعد.",
+        "by": "{{by}} · {{when}}"
+      },
+      "done": {
+        "recorded": "سُجّلت الدفعة — {{tenant}} نشط حتى {{date}}",
+        "recordedOnly": "سُجّلت دفعة لـ {{tenant}} — وبقي الاشتراك كما هو",
+        "linkSent": "أُرسل رابط الدفع عبر {{channel}} إلى {{contact}}",
+        "activated": "{{tenant}} نشط حتى {{date}}",
+        "planChanged": "{{tenant}} الآن على خطة {{plan}}، {{term}}",
+        "planScheduled": "{{tenant}} ينتقل إلى {{plan}}، {{term}} في {{date}}",
+        "suspended": "{{tenant}} موقوف — للقراءة فقط حتى يُستأنف",
+        "resumed": "{{tenant}} نشط من جديد",
+        "cancelled": "أُلغي اشتراك {{tenant}} — تستمر الميزات المدفوعة حتى {{date}}",
+        "quotaGranted": "مُنح {{tenant}} {{documents}} مستندًا إضافيًا حتى {{date}}",
+        "overageWaived": "أُعفي {{amount}} ر.ع. من {{invoice}}"
+      }
+    },
+    "subscriptionActions": {
+      "common": {
+        "invoice": "الفاتورة",
+        "invoiceHint": "{{period}} · {{total}} ر.ع.",
+        "noOpenInvoice": "لا فاتورة غير مدفوعة للتعامل معها — لا شيء مستحق لهذه الفترة.",
+        "plan": "الخطة",
+        "term": "دورة الفوترة",
+        "reason": "السبب",
+        "reasonPlaceholder": "يُسجَّل مع اسمك والوقت",
+        "note": "ملاحظة",
+        "notePlaceholder": "أي شيء ينبغي أن يعرفه من يأتي بعدك",
+        "excludingVat": "دون الضريبة",
+        "includingVat": "شاملًا الضريبة"
+      },
+      "error": {
+        "amount": "أدخل مبلغًا أكبر من صفر",
+        "amountOver": "أكبر من مبلغ الفاتورة قبل الضريبة",
+        "future": "هذا التاريخ في المستقبل",
+        "past": "اختر تاريخًا بعد اليوم",
+        "samePlan": "اختر خطة أو دورة مختلفة",
+        "documents": "أدخل عدد المستندات الإضافية"
+      },
+      "recordPayment": {
+        "title": "تسجيل دفعة",
+        "subtitle": "{{tenant}} · يؤكّدها {{operator}}",
+        "method": "كيف وصلت",
+        "amount": "المبلغ المستلم",
+        "receivedOn": "تاريخ الاستلام",
+        "reference": {
+          "bankTransfer": "مرجع التحويل",
+          "cheque": "رقم الشيك والبنك",
+          "cash": "رقم الإيصال",
+          "cardLink": "معرّف معاملة ثواني"
+        },
+        "proof": "الإثبات",
+        "proofHint": "اختياري — إشعار تحويل أو إيصال أو صورة الشيك. لا يُرفع شيء بعد.",
+        "proofDrop": "أسقط ملفًا هنا أو انقر للاختيار",
+        "proofRemove": "إزالة",
+        "activate": "تفعيل الاشتراك لهذه الفترة الآن",
+        "submit": "تسجيل الدفعة"
+      },
+      "sendLink": {
+        "title": "إرسال رابط دفع",
+        "subtitle": "صفحة دفع ثواني لـ {{tenant}} — تحتفظ اللوحة بالرابط وحالته",
+        "channel": "أرسله عبر",
+        "whatsapp": {
+          "title": "واتساب",
+          "description": "يفتح محادثة مع {{phone}} والرسالة جاهزة"
+        },
+        "email": {
+          "title": "البريد الإلكتروني",
+          "description": "يفتح مسودة إلى {{email}}"
+        },
+        "copied": {
+          "title": "نسخ الرابط",
+          "description": "للصقه في أي مكان آخر"
+        },
+        "preview": "الرسالة",
+        "previewLink": "رابط الدفع",
+        "validDays_zero": "صالح {{count}} يوم من الإرسال",
+        "validDays_one": "صالح يومًا واحدًا من الإرسال",
+        "validDays_two": "صالح يومين من الإرسال",
+        "validDays_few": "صالح {{count}} أيام من الإرسال",
+        "validDays_many": "صالح {{count}} يومًا من الإرسال",
+        "validDays_other": "صالح {{count}} يوم من الإرسال",
+        "submit": {
+          "whatsapp": "فتح واتساب",
+          "email": "فتح البريد",
+          "copied": "نسخ الرابط"
+        },
+        "sentTitle": "أُرسل الرابط",
+        "sentBody": "يظهر «لم يُدفع بعد» حتى تؤكد ثواني دفع البطاقة، أو ينتهي في {{date}}.",
+        "copy": "نسخ",
+        "copiedNow": "نُسخ",
+        "done": "تم",
+        "emailSubject": "اشتراككم في فوتر — {{plan}}"
+      },
+      "activate": {
+        "title": "تفعيل دون دفعة",
+        "subtitle": "لمشروع تجريبي، أو خطة تشمل فوتر، أو تمديد التجربة — يُسجَّل السبب.",
+        "startDate": "تاريخ البدء",
+        "quick": {
+          "pilot": "مشروع تجريبي",
+          "planIncluded": "مشمول في خطة",
+          "trialExtension": "تمديد التجربة"
+        },
+        "periodEnd": "نشط حتى",
+        "wouldBill": "كان سيُفوتر عادةً",
+        "submit": "تفعيل"
+      },
+      "changePlan": {
+        "title": "تغيير الخطة",
+        "subtitle": "{{tenant}} على خطة {{plan}}، {{term}}",
+        "newPlan": "الخطة الجديدة",
+        "when": "متى",
+        "now": {
+          "title": "الآن، بالتناسب",
+          "description": "يُفوتر الفرق لما تبقى من هذه الفترة"
+        },
+        "periodEnd": {
+          "title": "في نهاية الفترة",
+          "description": "في {{date}} — لا يتغير شيء قبل ذلك"
+        },
+        "enterpriseNote": "شروط المؤسسات — السعر والنطاق والمقاعد — تُضبط في لوحة المؤسسات، لا هنا.",
+        "newPrice": "السعر الجديد للفترة",
+        "submit": "تغيير الخطة"
+      },
+      "suspend": {
+        "title": "إيقاف الاشتراك",
+        "body": "يصبح الحساب للقراءة فقط فورًا: لا مستندات جديدة، لكن كل ما أُرسل يبقى مفتوحًا للامتثال. استأنفه من هذه الصفحة عند تسوية الأمر.",
+        "submit": "إيقاف"
+      },
+      "resume": {
+        "title": "استئناف الاشتراك",
+        "body": "يعود الحساب نشطًا لبقية فترته بالخطة والشروط نفسها.",
+        "submit": "استئناف"
+      },
+      "cancel": {
+        "title": "إلغاء الاشتراك",
+        "body": "تستمر الميزات المدفوعة حتى نهاية الفترة ثم يصبح الحساب للقراءة فقط. يبقى سجل الامتثال مفتوحًا. لا يمكن التراجع من هنا.",
+        "submit": "إلغاء الاشتراك"
+      },
+      "grantQuota": {
+        "title": "منح حصة مؤقتة",
+        "subtitle": "مستندات إضافية فوق حد الخطة حتى تاريخ تختاره",
+        "documents": "المستندات الإضافية",
+        "expires": "ينتهي في",
+        "submit": "منح"
+      },
+      "waiveOverage": {
+        "title": "إعفاء تجاوز على فاتورة",
+        "subtitle": "يُخصم المبلغ من الفاتورة قبل الضريبة، ويُسجَّل السبب",
+        "amount": "المبلغ المُعفى",
+        "onInvoice": "مبلغ الفاتورة قبل الضريبة: {{amount}} ر.ع.",
+        "submit": "إعفاء"
+      }
+    },
+    "settings": {
+      "title": "إعدادات اللوحة",
+      "subtitle": "كل قيمة تعمل بها المنصة، تُغيَّر من هنا دون إصدار جديد. الأسعار في «الخطط والأسعار».",
+      "plansLink": "الخطط والأسعار",
+      "sectionsLabel": "أقسام الإعدادات",
+      "unsaved": "تغييرات غير محفوظة",
+      "save": "حفظ",
+      "reset": "إعادة الافتراضيات",
+      "savedBy": "حفظها {{by}} · {{when}}",
+      "nav": {
+        "billing": "الفوترة",
+        "counting": "قواعد الاحتساب",
+        "overage": "التجاوز",
+        "lifecycle": "التجربة ودورة الاشتراك",
+        "notices": "التنبيهات",
+        "addons": "الإضافات",
+        "payments": "المدفوعات",
+        "promotional": "العروض",
+        "operations": "العمليات",
+        "fixed": "ثابت بالتصميم"
+      },
+      "section": {
+        "billing": {
+          "title": "الفوترة",
+          "note": "كيف تُصدر فواتير الاشتراك: الضريبة عليها، ومتى تبدأ الفترة، والتسلسل الذي تُرقَّم فيه."
+        },
+        "counting": {
+          "title": "قواعد الاحتساب",
+          "note": "أي المستندات تُخصم من حصة الخطة ومتى. النوع الذي لا يُحتسب يُحفظ ويُرسل ويُحتفظ به طوال مدة الاحتفاظ."
+        },
+        "overage": {
+          "title": "التجاوز",
+          "note": "ما يحدث حين يتجاوز المشترك حصته: هل تمرّ المستندات الإضافية بسعر لكل مستند، وإلى أي حد."
+        },
+        "lifecycle": {
+          "title": "التجربة ودورة الاشتراك",
+          "note": "التجربة التي يبدأ بها كل مشترك جديد، وما يحدث عند التجديد، وعند فشل الدفع، وعند الإلغاء، وعند تغيير الخطة."
+        },
+        "notices": {
+          "title": "التنبيهات",
+          "note": "متى يُخبَر المشترك باقترابه من حصته، ومن يُخبَر، وكيف."
+        },
+        "addons": {
+          "title": "الإضافات",
+          "note": "ما يُعرض فوق الخطة وبكم. ربط حقول نظام الموارد جزء من كل خطة؛ الاستخراج التلقائي هو الخطوة المدفوعة."
+        },
+        "payments": {
+          "title": "المدفوعات",
+          "note": "كيف تُدفع فاتورة الاشتراك ومتى يُفعَّل الحساب. كل دفع إلكتروني يمرّ عبر ثواني؛ والطرق الأخرى يسوّيها مشغّل."
+        },
+        "promotional": {
+          "title": "العروض",
+          "note": "لا شيء عند الإطلاق. المفاتيح هنا لتكون القواعد موجودة قبل أول حملة."
+        },
+        "operations": {
+          "title": "العمليات",
+          "note": "ما يجوز للمشغّل فعله لمشترك واحد من صفحة تفاصيله. كل إجراء يُسجَّل مع سببه."
+        }
+      },
+      "error": {
+        "required": "مطلوب",
+        "number": "أدخل رقمًا",
+        "integer": "أدخل عددًا صحيحًا",
+        "percent": "بين 0 و100",
+        "between": "خارج النطاق",
+        "nonNegative": "0 أو أكثر",
+        "atLeastOne": "1 على الأقل",
+        "wholeBetween": "عدد صحيح من {{min}} إلى {{max}}",
+        "wholeFrom": "عدد صحيح من {{min}} فأكثر",
+        "duplicate": "موجود في القائمة",
+        "noticeBeyondGrace": "أحد أيام التنبيه بعد انتهاء مهلة السماح",
+        "noThreshold": "أضف حدًا واحدًا على الأقل",
+        "noChannel": "أبقِ قناة واحدة على الأقل مفعّلة"
+      },
+      "dayList": {
+        "none": "لا شيء",
+        "remove": "إزالة {{value}}",
+        "inputLabel": "إضافة إلى {{label}}",
+        "add": "إضافة",
+        "day": "اليوم {{day}}",
+        "percent": "{{value}} ٪"
+      },
+      "billing": {
+        "currency": "العملة",
+        "currencyNote": "تفوتر المنصة بالريال فقط؛ أي عملة ثانية تحتاج معالجة ضريبية خاصة وإصدارًا جديدًا.",
+        "currencyValue": "الريال العماني",
+        "vatRate": "ضريبة القيمة المضافة على فواتير الاشتراك",
+        "vatRateHint": "تُطبَّق على كل فاتورة اشتراك تصدرها المنصة.",
+        "minimumTerm": "الحد الأدنى لمدة العقد (بالأشهر)",
+        "minimumTermHint": "0 يعني لا حد أدنى على الفوترة الشهرية.",
+        "billingAnchor": "بداية فترة الفوترة",
+        "billingAnchorHint": "اليوم الذي تبدأ فيه كل فترة فوترة.",
+        "anchor": {
+          "signup": "تاريخ التسجيل",
+          "firstOfMonth": "أول الشهر"
+        },
+        "invoiceSeries": "بادئة تسلسل فواتير الاشتراك",
+        "invoiceSeriesHint": "تسلسل مستقل عن مستندات المشتركين: {{prefix}}-000123.",
+        "pricesExclusive": "الأسعار معروضة دون الضريبة",
+        "pricesExclusiveNote": "تُعرض أسعار الخطط دون ضريبة القيمة المضافة؛ وتُضاف الضريبة على فاتورة الاشتراك."
+      },
+      "counting": {
+        "kind": "نوع المستند",
+        "counts": "يُحتسب",
+        "doesNotCount": "لا يُحتسب",
+        "rule": {
+          "issued": "فاتورة أو إشعار دائن أو مدين صادر",
+          "selfBilling": "فاتورة أو إشعار دائن بالفوترة الذاتية",
+          "received": "فاتورة أو إشعار دائن وارد",
+          "tradeOverPeppol": "مستند تجاري مرسل عبر بيبول",
+          "tradeHeld": "مستند تجاري محفوظ في المنصة",
+          "posSimplified": "فاتورة مبسطة من نقطة البيع",
+          "receiptNoTax": "إيصال بلا ضريبة",
+          "draft": "مسودة",
+          "voided": "ملغى قبل الإرسال",
+          "failedValidation": "أخفق في تحقق المنصة",
+          "rejectedByOta": "مرفوض من جهاز الضرائب",
+          "resubmission": "إعادة إرسال"
+        },
+        "ruleNote": {
+          "issued": "مستند ضريبي يرسله المشترك إلى عميل.",
+          "selfBilling": "يصدره المشتري نيابةً عن البائع.",
+          "received": "مستند ضريبي يصل من مورّد.",
+          "tradeOverPeppol": "أوامر الشراء وإشعارات الشحن وأمثالها، مُرسلة.",
+          "tradeHeld": "الشيء نفسه، محفوظ في المنصة ولم يُرسل.",
+          "posSimplified": "إيصال نقطة بيع يُعدّ مستندًا ضريبيًا.",
+          "receiptNoTax": "إيصال نقطة بيع بلا ضريبة عليه.",
+          "draft": "لم يُصدر بعد.",
+          "voided": "أُلغي قبل إرساله.",
+          "failedValidation": "لم يغادر المنصة.",
+          "rejectedByOta": "أُرسل ورُفض — والمحاولة تُحتسب.",
+          "resubmission": "يُحتسب مجددًا كإرسال جديد."
+        },
+        "consumedAt": "تُخصم الحصة عند",
+        "consumedAtHint": "متى يُخصم المستند من الحصة.",
+        "consumed": {
+          "transmission": "الإرسال الناجح",
+          "creation": "الإنشاء"
+        },
+        "pools": "الحصة متاحة كاملة طوال الفترة",
+        "poolsNote": "حصة الفترة كلها متاحة من اليوم الأول، لا جزء منها كل يوم أو أسبوع."
+      },
+      "overage": {
+        "permitted": "التجاوز مسموح",
+        "permittedNote": "عند الإيقاف تتوقف المنصة عند الحصة لكل المشتركين.",
+        "enabledByDefault": "مفعّل افتراضيًا للمشتركين الجدد",
+        "enabledByDefaultNote": "يبدأ المشترك الجديد والتجاوز مفعّل؛ ويمكن إيقافه لكل مشترك على حدة.",
+        "hardCeiling": "الحد الأقصى (مستندات)",
+        "hardCeilingHint": "أقصى ما يجوز للمشترك تجاوز حصته به في الفترة. اتركه فارغًا لعدم وضع حد.",
+        "ratesNote": "يُحدَّد سعر المستند الواحد لكل خطة في"
+      },
+      "lifecycle": {
+        "trialGroup": "التجربة",
+        "defaultPlan": "الخطة الافتراضية للمشترك الجديد",
+        "defaultPlanHint": "ما يكون عليه المشترك لحظة تسجيله.",
+        "theTrial": "التجربة",
+        "trialMirrors": "التجربة تحاكي",
+        "trialMirrorsHint": "الخطة التي تحمل التجربة ميزاتها.",
+        "trialDays": "مدة التجربة (أيام)",
+        "trialDocuments": "حصة التجربة (مستندات)",
+        "trialDocumentsHint": "إجمالي ما يجوز للتجربة إرساله من مستندات.",
+        "trialAutoConverts": "تتحول التجربة تلقائيًا",
+        "trialAutoConvertsNote": "عند التفعيل تصبح التجربة اشتراكًا مدفوعًا عند انتهائها. عند الإيقاف يختار المشترك خطة.",
+        "trialNeedsPaymentDetails": "بيانات الدفع مطلوبة للتجربة",
+        "trialNeedsPaymentDetailsNote": "عند الإيقاف يبدأ المشترك التجربة بحساب فقط.",
+        "renewalGroup": "التجديد والإلغاء",
+        "autoRenewal": "التجديد التلقائي",
+        "autoRenewalNote": "يتجدد الاشتراك لفترة أخرى ما لم يُلغَ.",
+        "graceDays": "مهلة السماح بعد فشل الدفع (أيام)",
+        "graceDaysHint": "يبقى الحساب فعّالًا هذه المدة بعد فشل الدفع.",
+        "graceNotices": "التنبيهات خلال مهلة السماح",
+        "graceNoticesHint": "الأيام التي يُذكَّر فيها المشترك، محسوبة من فشل الدفع.",
+        "cancellationNotice": "مهلة الإشعار بالإلغاء (أيام)",
+        "cancellationNoticeHint": "0 يعني لا مهلة: يسري الإلغاء في نهاية الفترة.",
+        "refund": "استرداد عند الإلغاء في منتصف الفترة",
+        "refundNote": "عند الإيقاف تستمر الفترة إلى نهايتها ولا يُردّ شيء.",
+        "changesGroup": "تغيير الخطة",
+        "upgrade": "الترقية",
+        "upgradeOption": {
+          "immediateProRata": "فورًا، بحساب نسبي",
+          "periodEnd": "في نهاية الفترة"
+        },
+        "downgrade": "التخفيض",
+        "downgradeOption": {
+          "periodEnd": "في نهاية الفترة",
+          "immediate": "فورًا"
+        },
+        "whileSuspended": "أثناء الإيقاف",
+        "whileSuspendedHint": "يبقى سجل الامتثال متاحًا في الحالتين.",
+        "suspendedOption": {
+          "readOnly": "للقراءة فقط: المستندات تُعرض وتُنزَّل",
+          "locked": "مقفل"
+        }
+      },
+      "notices": {
+        "thresholds": "الحدود",
+        "thresholdsHint": "نسبة الحصة المستهلكة التي يُرسل عندها تنبيه.",
+        "recipients": "المستلمون",
+        "recipientOption": {
+          "ownerAndAdmins": "مالك الحساب والمديرون",
+          "ownerOnly": "مالك الحساب فقط",
+          "everyone": "كل من له حساب دخول"
+        },
+        "language": "اللغة",
+        "languageHint": "اللغة التي يُكتب بها التنبيه.",
+        "languageOption": {
+          "customer": "اللغة التي اختارها العميل",
+          "en": "الإنجليزية",
+          "ar": "العربية"
+        },
+        "channels": "القنوات",
+        "channel": {
+          "email": "البريد الإلكتروني",
+          "emailNote": "يُرسل إلى عنوان كل مستلم.",
+          "inApp": "داخل التطبيق",
+          "inAppNote": "يظهر في لوحة الإشعارات وفي صفحة الخطة."
+        }
+      },
+      "addons": {
+        "erpMapping": "ربط حقول نظام الموارد",
+        "erpMappingNote": "ربط حقول نظام موارد المشترك بحقول المنصة جزء من التهيئة، لا إضافة.",
+        "includedEveryPlan": "مشمول في كل خطة",
+        "extractionGroup": "الاستخراج التلقائي من نظام الموارد",
+        "extractionPrice": "السعر شهريًا",
+        "extractionPriceHint": "دون ضريبة القيمة المضافة.",
+        "extractionDocuments": "المستندات المشمولة شهريًا",
+        "extractionDocumentsHint": "المستندات المستخرجة، لا حصة الخطة.",
+        "extractionOverage": "التجاوز لكل مستند",
+        "extractionOverageHint": "يُحتسب بعد المستندات المشمولة.",
+        "includedAt": "مشمول في",
+        "includedAtHint": "مستوى الخطة الذي يحصل على الاستخراج دون سعر الإضافة.",
+        "includedAtNone": "لا شيء — إضافة دائمًا",
+        "posGroup": "نقطة البيع",
+        "pos": "نقطة البيع",
+        "posNote": "لا خطة مستقلة ولا رسم على الجهاز — فواتير نقطة البيع المبسطة تُحتسب من حصة الخطة (تقرر في 15 سبتمبر 2026).",
+        "posValue": "لا خطة مستقلة"
+      },
+      "payments": {
+        "provider": {
+          "thawani": "ثواني",
+          "publishableKey": "المفتاح العام",
+          "keysNote": "المفاتيح محفوظة في الخادم؛ ولا ترى اللوحة المفتاح السري أبدًا. تبديل الوضع يغيّر المفتاح الذي يستخدمه الخادم.",
+          "modeLabel": "وضع المزوّد"
+        },
+        "mode": {
+          "test": "تجريبي",
+          "live": "فعلي"
+        },
+        "methodsGroup": "طرق الدفع المقبولة",
+        "method": {
+          "cardLink": "بطاقة عبر رابط دفع",
+          "bankTransfer": "تحويل بنكي",
+          "cash": "نقدًا",
+          "cheque": "شيك"
+        },
+        "methodNote": {
+          "cardLink": "رابط ثواني على الفاتورة وفي رسالة واتساب.",
+          "bankTransfer": "تُطبع البيانات البنكية أدناه على الفاتورة.",
+          "cash": "يسوّيه مشغّل مع مرجع.",
+          "cheque": "يسوّيه مشغّل بعد صرف الشيك."
+        },
+        "bankGroup": "البيانات البنكية المعروضة للعملاء",
+        "bank": {
+          "accountName": "اسم الحساب",
+          "bank": "البنك",
+          "iban": "رقم الآيبان",
+          "referenceFormat": "صيغة المرجع",
+          "referenceFormatHint": "يُستبدل {invoice} برقم الفاتورة."
+        },
+        "activationGroup": "روابط الدفع والتفعيل",
+        "linkExpiry": "صلاحية رابط الدفع (أيام)",
+        "linkExpiryHint": "بعدها يلزم إرسال رابط جديد.",
+        "reminderDays": "تذكيرات فاتورة الاشتراك غير المدفوعة",
+        "reminderDaysHint": "أيام بعد تاريخ الفاتورة. وتتبعها تنبيهات مهلة السماح بعد فشل الدفع.",
+        "autoActivate": "تفعيل تلقائي عند الدفع الإلكتروني",
+        "autoActivateNote": "إيقاف: يظهر دفع ثواني مدفوعًا ويفعّل المشغّل الحساب. تفعيل: يفعّل الحساب نفسه لحظة تأكيد ثواني.",
+        "proofRequired": "إثبات مطلوب للنقد والشيك",
+        "proofRequiredNote": "عند الإيقاف يكفي مرجع. عند التفعيل يجب على المشغّل إرفاق الإيصال أو صورة الشيك قبل وسم الفاتورة مدفوعة.",
+        "templatesGroup": "قوالب رسائل واتساب",
+        "templatesNote": "تُرسل مع الفاتورة. انقر عنصرًا نائبًا لإضافته؛ ويملؤه الخادم عند إرسال الرسالة.",
+        "template": {
+          "en": "الإنجليزية",
+          "ar": "العربية"
+        },
+        "insertPlaceholder": "إدراج العنصر النائب"
+      },
+      "promotional": {
+        "discountCodes": "رموز الخصم",
+        "discountCodesNote": "رمز يُدخل عند الدفع فيخصم نسبة من الفترة الأولى أو كل الفترات.",
+        "referralCommission": "عمولة الإحالة أو الشريك",
+        "referralCommissionNote": "نسبة من اشتراك المشترك المُحال تُدفع لمن أحاله.",
+        "introductoryPricing": "سعر تعريفي",
+        "introductoryPricingNote": "سعر أقل للفترات الأولى من الاشتراك الجديد.",
+        "noneAtLaunch": "لا شيء عند الإطلاق. تفعيل أي منها لا أثر له حتى تُكتب قواعده."
+      },
+      "operations": {
+        "temporaryQuotaGrant": "منح حصة مؤقتة من مشغّل",
+        "temporaryQuotaGrantNote": "مسموح ومسجَّل. مستندات إضافية لفترة واحدة، مع سبب وتاريخ انتهاء.",
+        "overageWaiver": "إعفاء من التجاوز على فاتورة واحدة",
+        "overageWaiverNote": "مسموح ومسجَّل. يُشطب بند التجاوز من فاتورة اشتراك واحدة، مع سبب.",
+        "grandfathering": "الإبقاء على السعر القديم",
+        "grandfatheringNote": "يحتفظ العملاء الحاليون بسعرهم حتى يغيّروا الخطة.",
+        "recordedNote": "كل هذه تُنفَّذ من صفحة تفاصيل المشترك، ويُسجَّل كل إجراء في سجله باسم المشغّل وسببه."
+      },
+      "fixed": {
+        "title": "ثابت بالتصميم",
+        "note": "أربعة مواقف تلتزم بها المنصة ولا يغيّرها أي إعداد.",
+        "item": {
+          "retention": "الاحتفاظ بالمستندات",
+          "complianceRecord": "الوصول إلى سجل الامتثال",
+          "complianceFeatures": "ميزات الامتثال",
+          "livePlanChange": "تغيير خطة سارية"
+        },
+        "position": {
+          "retention": "10 سنوات؛ و15 حيث تتعلق السجلات بالعقارات.",
+          "complianceRecord": "دائمًا، بما في ذلك أثناء إيقاف الحساب.",
+          "complianceFeatures": "لا تُحجب أبدًا؛ في كل خطة.",
+          "livePlanChange": "يسري على الاشتراكات الجديدة فقط. ومن كان على الشروط القديمة يبقى عليها."
+        },
+        "why": "هذه التزامات قانونية لا خيارات. لو كانت إعدادًا لأمكن بيع خطة لا تفي بالتفويض — لذا تُذكر هنا ولا في مكان آخر."
+      }
+    },
+    "crumb": {
+      "root": "وحدة التحكم",
+      "label": "موقعك"
     }
   },
   "shell": {
@@ -9852,6 +10891,826 @@
       "notOperator": "تأكيد تغيير البريد هنا لحسابات فريق فوترة فقط."
     }
   },
+  "erp": {
+    "soon": {
+      "title": "لم يُبنَ بعد",
+      "body": "هذا الجزء من شاشات التكامل هو التالي."
+    },
+    "subnav": {
+      "overview": "نظرة عامة",
+      "fields": "الحقول",
+      "preview": "معاينة",
+      "certification": "الاعتماد",
+      "advanced": "متقدم",
+      "history": "السجل",
+      "samples": "النماذج",
+      "label": "شاشات ربط ERP"
+    },
+    "status": {
+      "NOT_SET_UP": "غير مُعدّ",
+      "DRAFT": "مسودة",
+      "READY_UNCERTIFIED": "جاهز، غير معتمد",
+      "PARTIALLY_CERTIFIED": "معتمد جزئيًا",
+      "CERTIFIED": "معتمد",
+      "STALE": "يحتاج إعادة اعتماد"
+    },
+    "route": {
+      "GUIDED": "ربط موجّه",
+      "HAND_WRITTEN": "ملف مكتوب يدويًا",
+      "NONE": "لا شيء يعمل بعد"
+    },
+    "routeState": {
+      "CERTIFIED": "معتمد",
+      "FAILED": "فشل",
+      "NOT_CERTIFIED": "غير معتمد",
+      "STALE": "قديم"
+    },
+    "certRoute": {
+      "INVOICE": "فاتورة",
+      "CREDIT_NOTE": "إشعار دائن",
+      "DEBIT_NOTE": "إشعار مدين",
+      "SELF_BILLING": "فوترة ذاتية"
+    },
+    "sourceSystem": {
+      "ODOO": "Odoo",
+      "ERPNEXT": "ERPNext",
+      "SAP": "SAP",
+      "ORACLE": "Oracle",
+      "MICROSOFT_DYNAMICS": "Microsoft Dynamics",
+      "CUSTOM": "مخصص"
+    },
+    "section": {
+      "document": "المستند",
+      "seller": "البائع",
+      "buyer": "المشتري",
+      "tax": "الضريبة",
+      "lines": "السطور",
+      "payment": "الدفع",
+      "totals": "الإجماليات"
+    },
+    "requirement": {
+      "MANDATORY": "مطلوب",
+      "CONDITIONAL": "مشروط",
+      "OPTIONAL": "اختياري"
+    },
+    "origin": {
+      "PLATFORM_SUPPLIED": "يوفّره فوتر",
+      "DERIVED": "يحسبه فوتر"
+    },
+    "condition": {
+      "creditOrDebit": "عندما يكون إشعارًا دائنًا أو مدينًا",
+      "specialTransactions": "للاستيراد والاحتساب العكسي وهامش الربح والمناطق الخاصة",
+      "buyerIdOrVatin": "هذا أو الرقم الضريبي للمشتري",
+      "withBuyerId": "عند وجود معرّف للمشتري",
+      "notSimplified": "ما لم تكن فاتورة مبسطة",
+      "rateSZ": "للفئتين S (5) وZ (0)؛ ولا يُذكر لـE أو O",
+      "exemptOrZero": "عندما تكون الفئة E أو Z",
+      "withPaymentMeans": "عند ذكر تعليمات الدفع",
+      "withAllowances": "عند وجود خصومات على مستوى المستند",
+      "withCharges": "عند وجود رسوم على مستوى المستند"
+    },
+    "help": {
+      "invoiceNumber": "رقمك الخاص. لا تفرض القواعد صيغة معينة.",
+      "date": "بصيغة YYYY-MM-DD، وليس في المستقبل (بتوقيت مسقط).",
+      "transactionType": "يُختار عند كل إرسال، ولا يُربط.",
+      "currency": "أي عملة غير الريال تحتاج المسار اليدوي.",
+      "vatin": "OM متبوعًا بعشرة أرقام بالضبط.",
+      "sellerPhone": "مطلوب في كل فاتورة — معظم الأنظمة لا تحفظه، فالقيمة الثابتة مناسبة.",
+      "buyerEndpoint": "عنوان Peppol للمشتري؛ للمستهلكين يستخدم فوتر العنوان البديل لجهاز الضرائب.",
+      "vatCategory": "S تحتاج النسبة 5، وZ النسبة 0؛ وE وO دون نسبة.",
+      "rate": "من 0.00 إلى 100.00، بمنزلتين عشريتين على الأكثر.",
+      "exemptionReason": "VATEX-OM-… للفئة E، وVATZR-OM-… للفئة Z.",
+      "positive": "صفر أو موجب، حتى في الإشعار الدائن.",
+      "threeDecimals": "ثلاث منازل عشرية على الأكثر.",
+      "twoDecimals": "منزلتان عشريتان على الأكثر.",
+      "isic": "ستة أرقام.",
+      "prepaid": "إن وُجد، يجب الإشارة إلى فاتورة الدفعة المقدمة أيضًا."
+    },
+    "coverage": {
+      "GOODS_CLASSIFICATION": "سلع تحتاج رمز HS",
+      "FOREIGN_CURRENCY": "فواتير بعملة غير الريال",
+      "INVOICING_PERIOD": "فواتير ملخّصة أو لفترة",
+      "banner": "لا يستطيع الربط الموجّه التعبير عن هذه؛ فهي تحتاج المسار اليدوي."
+    },
+    "error": {
+      "UNKNOWN_BUSINESS_TERM": "هذا المصطلح ليس في الفهرس",
+      "TARGET_NOT_MAPPABLE": "يوفّر فوتر هذا الحقل؛ لا يمكن ربطه",
+      "UNSUPPORTED_TARGET": "لا يستطيع المسار الموجّه التعبير عن هذا الحقل",
+      "MISSING_SOURCE": "أعطِ مسار مصدر أو قيمة افتراضية",
+      "MALFORMED_SOURCE_PATH": "حروف وأرقام وشرطات سفلية ونقاط و[] فقط — دون عوامل",
+      "MALFORMED_TRANSFORM": "التحويل لا يُحلَّل",
+      "DUPLICATE_SINGLETON_TARGET": "هذا الحقل مربوط مرتين",
+      "REPEATED_TARGET_NOT_SUPPORTED": "مصطلح السطر يُربط مرة واحدة فقط",
+      "CONFLICTING_TARGET_PATH": "لا يمكن للخصم والرسم مشاركة الخانة نفسها",
+      "INVALID_CODE_VALUE": "\"{{value}}\" ليس في قائمة {{list}}",
+      "VALUE_MAP_TOO_LARGE": "200 زوج على الأكثر بطول 128 حرفًا",
+      "MALFORMED_VALUE_MAP": "رمز في اليسار فارغ",
+      "VALUE_MAP_NOT_ALLOWED": "خرائط القيم لحقول الرموز فقط",
+      "VALUE_MAP_DEFAULT_REQUIRED": "\"استخدم الافتراضي\" يحتاج رمزًا افتراضيًا"
+    },
+    "warning": {
+      "transformAfterMap": "{{term}}: يعمل التحويل بعد خريطة القيم"
+    },
+    "dryRun": {
+      "valueUnmapped": "\"{{value}}\" ليس في خريطة القيم لـ{{term}}، والرموز غير المربوطة تُفشل الفاتورة",
+      "transformDeferred": "تحويل {{term}} ليس من الإعدادات الجاهزة؛ يعمل على الخادم فقط",
+      "missing": "{{term}} خرج فارغًا",
+      "vatinShape": "\"{{value}}\" ليس OM متبوعًا بعشرة أرقام",
+      "dateShape": "\"{{value}}\" ليس بصيغة YYYY-MM-DD",
+      "rateOnExempt": "نسبة على الفئة {{category}}؛ E وO لا تحملان نسبة",
+      "standardRate": "الفئة S يجب أن تحمل النسبة 5، لا {{rate}}"
+    },
+    "finding": {
+      "sellerAddress": "عنوان البائع يحتاج السطور الثلاثة والمدينة والرمز البريدي",
+      "sellerPhone": "هاتف البائع مفقود",
+      "creditType": "الإشعار الدائن يجب أن يحمل النوع 381، لا {{type}}",
+      "debitType": "الإشعار المدين يجب أن يحمل النوع 383، لا {{type}}",
+      "selfBillingType": "الفوترة الذاتية تأخذ 389 أو 261، لا {{type}}",
+      "precedingInvoice": "يجب ذكر رقم الفاتورة السابقة وتاريخها ومعرّفها",
+      "noteReason": "الإشعار الدائن أو المدين يحتاج رمز سبب",
+      "hsCode": "السطر {{line}} سلعة ويحتاج رمز HS من 12 رقمًا — المسار اليدوي",
+      "lineNet": "السطر {{line}}: الصافي {{actual}} لا يساوي الكمية × السعر {{expected}}",
+      "totals": "الإجمالي شاملًا الضريبة {{actual}} لا يساوي الإجمالي دونها زائد الضريبة {{expected}}"
+    },
+    "event": {
+      "guidedSaved": "حُفظ الربط — المراجعة {{revision}}، {{entries}} حقلًا",
+      "guidedRestored": "استُعيدت المراجعة {{from}} بوصفها المراجعة {{to}}",
+      "guidedImported": "استُورد الربط — {{entries}} حقلًا",
+      "guidedArchived": "أُرشف الربط الموجّه",
+      "profileActivated": "فُعّل الملف v{{version}} · {{hash}}",
+      "profileDeactivated": "أُلغي تفعيل الملف v{{version}} — يتوقف الإرسال",
+      "certificationPassed": "اعتُمد {{route}}",
+      "certificationFailed": "فشل اعتماد {{route}} — {{findings}} ملاحظات",
+      "sampleUploaded": "رُفع نموذج — {{label}}",
+      "sampleDeleted": "أُزيل نموذج — {{label}}"
+    },
+    "preset": {
+      "dateDmy": "تاريخ من DD/MM/YYYY",
+      "dateEpoch": "تاريخ من ميلي ثانية epoch",
+      "trimUpper": "إزالة الفراغات وأحرف كبيرة",
+      "digitsOnly": "الأرقام فقط",
+      "round3": "تقريب إلى 3 منازل",
+      "round2": "تقريب إلى منزلتين",
+      "abs": "القيمة المطلقة",
+      "percentFromFraction": "نسبة مئوية من كسر"
+    },
+    "onUnmapped": {
+      "FAIL": "أفشل الفاتورة",
+      "USE_DEFAULT": "استخدم رمزًا افتراضيًا",
+      "PASS_THROUGH": "مرّر القيمة كما هي"
+    },
+    "fields": {
+      "title": "ربط الحقول",
+      "subtitle": "اربط كل مصطلح تجاري بحقل في مخرجات نظامك. المطلوبة أولًا؛ ويوفّر فوتر الباقي.",
+      "sourceSystem": "النظام المصدر",
+      "sourceSystemNote": "لسجلاتك فقط؛ لا يغيّر الربط",
+      "sample": "النموذج لمنتقي المسارات",
+      "sampleNote": "المسارات والأمثلة تأتي منه",
+      "sampleHint_zero": "لا مسارات",
+      "sampleHint_one": "مسار واحد",
+      "sampleHint_two": "مساران",
+      "sampleHint_few": "{{count}} مسارات",
+      "sampleHint_many": "{{count}} مسارًا",
+      "sampleHint_other": "{{count}} مسار",
+      "noSample": "لم يُرفع نموذج بعد — يحتاجه المنتقي.",
+      "uploadSample": "ارفع نموذجًا",
+      "sections": "الأقسام",
+      "requiredMapped": "{{mapped}} من {{total}} مطلوبة مربوطة",
+      "noRequired": "لا شيء مطلوب هنا",
+      "eitherOf": "أحد هذين",
+      "eitherOfNote": "أحدهما يكفي لاستيفاء القاعدة. اربط ما يحتفظ به نظامك؛ وكلاهما مقبول.",
+      "sourcePath": "مسار المصدر",
+      "sourcePathPlaceholder": "مثل erp.partner.name",
+      "pickPath": "اختر مسارًا من النموذج",
+      "searchPaths": "ابحث في المسارات والقيم…",
+      "noPaths": "لا شيء في النموذج يطابق",
+      "pickerNeedsSample": "ارفع نموذجًا لاختيار المسارات منه.",
+      "type": {
+        "string": "نص",
+        "number": "رقم",
+        "boolean": "نعم/لا",
+        "null": "فارغ",
+        "object": "كائن",
+        "array": "قائمة"
+      },
+      "default": "القيمة الافتراضية",
+      "defaultConstant": "ثابت — يُرسل كما هو",
+      "defaultFallback": "تُستخدم عندما يكون المصدر فارغًا",
+      "valueMap": "خريطة القيم",
+      "valueMapCount": "خريطة القيم ({{count}})",
+      "advanced": "متقدم",
+      "advancedOn": "متقدم · {{preset}}",
+      "customTransform": "تحويل مخصص",
+      "preset": "إعداد جاهز",
+      "choosePreset": "اختر إعدادًا جاهزًا…",
+      "transform": "التحويل",
+      "transformPlaceholder": "$uppercase($trim($src))",
+      "runsOnSrc": "يعمل على $src — القيمة بعد خريطة القيم وقبل الافتراضي.",
+      "clearTransform": "إزالة",
+      "checklist": "الجاهزية",
+      "version": "الإصدار {{version}}",
+      "checking": "جارٍ التحقق…",
+      "requiredFields": "الحقول المطلوبة المربوطة",
+      "missingLead": "لم تُربط بعد",
+      "invalid": "صفوف غير صالحة",
+      "invalidNone": "لا شيء غير صالح",
+      "warnings": "تنبيهات",
+      "save": "حفظ",
+      "unsaved": "تغييرات غير محفوظة",
+      "saveRefused_zero": "لا صفوف غير صالحة",
+      "saveRefused_one": "أصلح الصف غير الصالح أولًا",
+      "saveRefused_two": "أصلح الصفين غير الصالحين أولًا",
+      "saveRefused_few": "أصلح {{count}} صفوف غير صالحة أولًا",
+      "saveRefused_many": "أصلح {{count}} صفًا غير صالح أولًا",
+      "saveRefused_other": "أصلح {{count}} صف غير صالح أولًا",
+      "saveDraft_zero": "حُفظ مسودة — لا حقول مطلوبة متبقية",
+      "saveDraft_one": "حُفظ مسودة — بقي حقل مطلوب واحد",
+      "saveDraft_two": "حُفظ مسودة — بقي حقلان مطلوبان",
+      "saveDraft_few": "حُفظ مسودة — بقيت {{count}} حقول مطلوبة",
+      "saveDraft_many": "حُفظ مسودة — بقي {{count}} حقلًا مطلوبًا",
+      "saveDraft_other": "حُفظ مسودة — بقي {{count}} حقل مطلوب",
+      "saveActivated": "جُمّع وفُعّل — الاعتماد هو التالي.",
+      "certifyNext": "انتقل إلى الاعتماد",
+      "staleTitle": "حفظ شخص آخر هذا الربط",
+      "staleBody": "الربط الآن في الإصدار {{version}}، وقد حُفظ منذ فتحت هذه الصفحة. أعد التحميل للعمل من النسخة المحفوظة؛ ستُفقد تعديلاتك غير المحفوظة.",
+      "reload": "إعادة التحميل",
+      "modal": {
+        "title": "خريطة القيم — {{term}}",
+        "subtitle": "طابق الرموز التي يرسلها نظامك مع قائمة {{list}}.",
+        "fromErp": "الرمز من نظامك",
+        "becomes": "يصبح",
+        "sourceIs": "المصدر:",
+        "noPath": "أعطِ الصف مسار مصدر أولًا حتى تُجمع رموز النموذج.",
+        "seenInSample": "ظهر في النموذج",
+        "empty": "لا رموز بعد — أضف ما يرسله نظامك.",
+        "addCode": "أضف رمزًا",
+        "addPlaceholder": "رمز كما يرسله نظامك",
+        "add": "إضافة",
+        "remove": "أزل هذا الزوج",
+        "chooseCode": "اختر رمزًا…",
+        "searchCodes": "ابحث في الرموز…",
+        "noCodes": "لا رمز يطابق",
+        "lookupHS": "12 رقمًا",
+        "lookupISIC": "6 أرقام",
+        "lookupBad": "يجب أن يكون {{digits}} رقمًا بالضبط",
+        "groupE": "للفئة E — أسباب الإعفاء",
+        "groupZ": "للفئة Z — أسباب النسبة الصفرية",
+        "onUnmapped": "إذا لم يكن الرمز مدرجًا",
+        "onUnmappedNote": {
+          "FAIL": "تُرفض الفاتورة قبل إرسالها.",
+          "USE_DEFAULT": "يُرسل الرمز الافتراضي أدناه بدلًا منه.",
+          "PASS_THROUGH": "يُرسل رمز النظام كما هو."
+        },
+        "defaultCode": "الرمز الافتراضي",
+        "pairs_zero": "لا أزواج",
+        "pairs_one": "زوج واحد",
+        "pairs_two": "زوجان",
+        "pairs_few": "{{count}} أزواج",
+        "pairs_many": "{{count}} زوجًا",
+        "pairs_other": "{{count}} زوج",
+        "unmappedRows_zero": "لا رموز دون مطابق",
+        "unmappedRows_one": "رمز واحد دون مطابق يُستبعد",
+        "unmappedRows_two": "رمزان دون مطابق يُستبعدان",
+        "unmappedRows_few": "{{count}} رموز دون مطابق تُستبعد",
+        "unmappedRows_many": "{{count}} رمزًا دون مطابق تُستبعد",
+        "unmappedRows_other": "{{count}} رمز دون مطابق يُستبعد",
+        "limit": "200 زوج على الأكثر بطول 128 حرفًا.",
+        "listSize": "يُعرض هنا {{shown}} من {{size}} رمزًا؛ القائمة الكاملة تأتي من الخادم.",
+        "save": "احفظ الخريطة"
+      }
+    },
+    "overview": {
+      "title": "ربط نظام ERP",
+      "subtitle": "حيث تتحول فواتير نظامك إلى فواتير فوتر — وهل ستقبلها هيئة الضرائب.",
+      "kpi": {
+        "route": "المسار",
+        "routeValue": {
+          "GUIDED": "موجّه",
+          "HAND_WRITTEN": "يدوي",
+          "NONE": "لا شيء"
+        },
+        "fields": "الحقول المطلوبة",
+        "ofRequired": "من {{count}}",
+        "fieldsComplete": "كل الحقول المطلوبة مربوطة",
+        "fieldsMissing_zero": "لا ينقص شيء",
+        "fieldsMissing_one": "ينقص حقل واحد: {{names}}",
+        "fieldsMissing_two": "ينقص حقلان: {{names}}",
+        "fieldsMissing_few": "تنقص {{count}} حقول: {{names}}",
+        "fieldsMissing_many": "ينقص {{count}} حقلًا: {{names}}",
+        "fieldsMissing_other": "ينقص {{count}} حقل: {{names}}",
+        "invalid_zero": "لا مدخلات تحتاج إصلاحًا",
+        "invalid_one": "مدخل واحد يحتاج إصلاحًا قبل أن يعمل أي شيء",
+        "invalid_two": "مدخلان يحتاجان إصلاحًا قبل أن يعمل أي شيء",
+        "invalid_few": "{{count}} مدخلات تحتاج إصلاحًا قبل أن يعمل أي شيء",
+        "invalid_many": "{{count}} مدخلًا يحتاج إصلاحًا قبل أن يعمل أي شيء",
+        "invalid_other": "{{count}} مدخل يحتاج إصلاحًا قبل أن يعمل أي شيء",
+        "certified": "المسارات المعتمدة",
+        "ofRoutes": "من {{count}}",
+        "certifiedNone": "لم يُختبر أي مسار بعد",
+        "certifiedClean": "كل مسار جرّبته نجح",
+        "failedCount_zero": "لم يفشل أي مسار",
+        "failedCount_one": "فشل مسار واحد",
+        "failedCount_two": "فشل مساران",
+        "failedCount_few": "فشلت {{count}} مسارات",
+        "failedCount_many": "فشل {{count}} مسارًا",
+        "failedCount_other": "فشل {{count}} مسار",
+        "staleCount_zero": "لا مسار قديمًا",
+        "staleCount_one": "مسار واحد قديم",
+        "staleCount_two": "مساران قديمان",
+        "staleCount_few": "{{count}} مسارات قديمة",
+        "staleCount_many": "{{count}} مسارًا قديمًا",
+        "staleCount_other": "{{count}} مسار قديم",
+        "samples": "النماذج",
+        "ofSamples": "من {{count}}",
+        "samplesNone": "ارفع نموذجًا للمعاينة والاعتماد",
+        "samplesAtLimit": "بلغت الحد — أزل نموذجًا لتضيف آخر",
+        "samplesRoom_zero": "لا مجال لمزيد",
+        "samplesRoom_one": "متسع لنموذج واحد آخر",
+        "samplesRoom_two": "متسع لنموذجين آخرين",
+        "samplesRoom_few": "متسع لـ {{count}} نماذج أخرى",
+        "samplesRoom_many": "متسع لـ {{count}} نموذجًا آخر",
+        "samplesRoom_other": "متسع لـ {{count}} نموذج آخر",
+        "profileNote": "{{system}} · الملف v{{version}} · {{hash}}"
+      },
+      "actions": {
+        "restoreExample": "استعادة المثال",
+        "startOver": "البدء من جديد"
+      },
+      "handWritten": {
+        "title": "ما يعمل الآن هو ملف مكتوب يدويًا",
+        "body": "ربطك الموجّه ليس ما يعمل؛ حفظه مجددًا سيحل محل الملف المكتوب يدويًا.",
+        "open": "فتح الملف"
+      },
+      "startOver": {
+        "title": "البدء من جديد؟",
+        "body": "سيمسح هذا الربط الموجّه وكل مراجعة وكل ملف وكل نموذج وكل اعتماد. تتوقف فواتير نظامك حتى يُفعّل ملف من جديد.",
+        "confirm": "مسح كل شيء"
+      },
+      "cta": {
+        "start": "ابدأ الربط الموجّه",
+        "upload": "ارفع ملفًا مكتوبًا يدويًا",
+        "finish_zero": "أكمل الحقول الناقصة",
+        "finish_one": "أكمل الحقل الناقص",
+        "finish_two": "أكمل الحقلين الناقصين",
+        "finish_few": "أكمل الحقول الناقصة ({{count}})",
+        "finish_many": "أكمل الحقول الناقصة ({{count}})",
+        "finish_other": "أكمل الحقول الناقصة ({{count}})",
+        "finishFixing": "أصلح المدخلات غير الصالحة",
+        "certify": "اعتماد",
+        "recertify": "إعادة الاعتماد"
+      },
+      "empty": {
+        "title": "ما تحتاجه هيئة الضرائب من نظامك",
+        "body": "قبل أن تغادر أي فاتورة فوتر، على الربط أن يوفّر كل هذه. معظم الأنظمة لا تحتفظ بها جميعًا — قيمة ثابتة تكفي حيث لا يحتفظ نظامك بها.",
+        "field": {
+          "sellerPhone": "هاتف البائع",
+          "address": "ثلاثة أسطر لعنوان البائع والمدينة والرمز البريدي",
+          "issueTime": "وقت الإصدار، لا التاريخ فقط",
+          "vatin": "الرقم الضريبي للبائع — OM وعشرة أرقام",
+          "goodsServices": "علامة سلعة أو خدمة في كل سطر",
+          "isic": "رمز النشاط ISIC",
+          "lineVat": "مبلغ الضريبة في كل سطر",
+          "lineTotal": "إجمالي السطر شاملًا الضريبة"
+        },
+        "guided": "موجّه: اختر حقل النظام لكل مصطلح مع فحوصات أثناء العمل. معظم المنشآت تنتهي في جلسة واحدة.",
+        "hand": "يدوي: ارفع ملف JSONata من عندك للفواتير التي لا يستطيع المسار الموجّه التعبير عنها."
+      },
+      "cert": {
+        "title": "الاعتماد",
+        "note": "اختبار واحد لكل مسار. الدليل مرتبط بالملف الذي يعمل — غيّره وتصبح المسارات قديمة.",
+        "col": {
+          "route": "المسار",
+          "state": "الحالة",
+          "detail": "آخر نتيجة",
+          "action": ""
+        },
+        "certifiedOn": "اعتُمد في {{date}}",
+        "staleNote": "نجح على ملف سابق — شغّله من جديد",
+        "failedOn": "فشل في {{date}}",
+        "findings_zero": "لا ملاحظات",
+        "findings_one": "ملاحظة واحدة",
+        "findings_two": "ملاحظتان",
+        "findings_few": "{{count}} ملاحظات",
+        "findings_many": "{{count}} ملاحظة",
+        "findings_other": "{{count}} ملاحظة",
+        "notTried": "لم يُجرَّب بعد",
+        "run": "تشغيل الاختبار",
+        "rerun": "تشغيل من جديد"
+      },
+      "activity": {
+        "title": "النشاط الأخير",
+        "note": "آخر خمسة تغييرات على الربط",
+        "empty": "لم يحدث شيء بعد",
+        "by": "{{who}} · {{date}}",
+        "seeAll": "اعرض الكل في سجل النشاط"
+      }
+    },
+    "samples": {
+      "title": "النماذج والملفات",
+      "subtitle": "فواتير النظام التي تعمل عليها المعاينة والاعتماد، والربط الموجّه بوصفه ملفًا.",
+      "upload": {
+        "open": "رفع نموذج",
+        "title": "رفع نموذج",
+        "subtitle": "فاتورة واحدة من النظام بصيغة JSON، تمامًا كما يسلّمها نظامك لفوتر.",
+        "confirm": "رفع",
+        "drop": "أسقط ملف .json هنا، أو انقر لاختيار واحد",
+        "dropNote": "ملف واحد، حتى 256 كيبيبايت",
+        "chosen": "{{size}} ك.ب — قُرئ وحُلّل",
+        "read": "ما قرأه فوتر",
+        "label": "التسمية",
+        "labelHint": "{{count}} من {{max}} حرفًا. يجب أن تكون التسميات فريدة.",
+        "personalData": "النماذج مرئية لكل المسؤولين — أزل البيانات الشخصية قبل الرفع.",
+        "error": {
+          "read": "تعذّرت قراءة الملف.",
+          "parse": "هذا ليس JSON صالحًا — تحقق من فاصلة زائدة أو قوس ناقص.",
+          "size": "الملف أكبر من 256 كيبيبايت. قلّص الفاتورة إلى سطورها وحاول مجددًا.",
+          "type": "يمكن رفع ملفات .json فقط.",
+          "labelRequired": "أعطِ النموذج تسمية.",
+          "labelExists": "يوجد نموذج بهذه التسمية بالفعل.",
+          "limit": "الحد هو {{count}} نماذج. أزل نموذجًا لم تعد تحتاجه ثم حاول مجددًا."
+        }
+      },
+      "list": {
+        "title": "النماذج",
+        "note": "{{count}} من {{limit}} — النموذج هو ما تعمل عليه المعاينة والاعتماد.",
+        "empty": "لا نماذج بعد. ارفع فاتورة واحدة من النظام بصيغة JSON للبدء."
+      },
+      "col": {
+        "label": "النموذج",
+        "size": "الحجم",
+        "by": "رفعه",
+        "when": "تاريخ الرفع",
+        "hash": "SHA-256",
+        "actions": ""
+      },
+      "kb": "{{size}} ك.ب",
+      "usedInLast": "استُخدم في آخر اعتماد",
+      "usedEarlier": "استُخدم في اعتماد",
+      "preview": {
+        "title": "ما قرأه فوتر من “{{label}}”",
+        "note": "أول {{count}} مسارًا، كما سيعرضها منتقي الحقول",
+        "noKeys": "لم يُعثر على مسارات في هذا النموذج",
+        "more_zero": "ولا مسارات أخرى",
+        "more_one": "ومسار واحد آخر",
+        "more_two": "ومساران آخران",
+        "more_few": "و{{count}} مسارات أخرى",
+        "more_many": "و{{count}} مسارًا آخر",
+        "more_other": "و{{count}} مسار آخر"
+      },
+      "previewing": "قيد المعاينة",
+      "delete": "حذف",
+      "remove": {
+        "title": "حذف هذا النموذج؟",
+        "body": "سيختفي \"{{label}}\" من المعاينة والاعتماد. أدلة الاعتماد المسجّلة تبقى.",
+        "confirm": "حذف"
+      },
+      "file": {
+        "title": "الاستيراد والتصدير",
+        "note": "الربط الموجّه بوصفه ملفًا قابلًا للنقل — لنسخة احتياطية أو شركة أخرى أو تعديل يدوي.",
+        "exportTitle": "تصدير",
+        "exportBody": "ينزّل الربط الموجّه بمخطط fawtir.guided-mapping/1 مع نظام المصدر وإصدار الفهرس.",
+        "exportButton": "تصدير الربط الموجّه",
+        "nothingToExport": "لا شيء للتصدير بعد",
+        "exported": "حُفظ باسم",
+        "importTitle": "استيراد",
+        "importBody": "يستبدل الربط الموجّه بمدخلات الملف ويحفظه مراجعةً جديدة. يجب أن يكون كل مصطلح في الفهرس.",
+        "importDrop": "أسقط ملفًا مصدَّرًا هنا، أو انقر لاختيار واحد",
+        "importNote": ".json، بحد أقصى 500 مدخل"
+      },
+      "import": {
+        "activated": "استُورد بوصفه المراجعة {{revision}} وفُعّل.",
+        "draft_zero": "استُورد بوصفه المراجعة {{revision}} وحُفظ مسودة.",
+        "draft_one": "استُورد بوصفه المراجعة {{revision}} وحُفظ مسودة — ما زال ينقص حقل مطلوب واحد.",
+        "draft_two": "استُورد بوصفه المراجعة {{revision}} وحُفظ مسودة — ما زال ينقص حقلان مطلوبان.",
+        "draft_few": "استُورد بوصفه المراجعة {{revision}} وحُفظ مسودة — ما زالت تنقص {{count}} حقول مطلوبة.",
+        "draft_many": "استُورد بوصفه المراجعة {{revision}} وحُفظ مسودة — ما زال ينقص {{count}} حقلًا مطلوبًا.",
+        "draft_other": "استُورد بوصفه المراجعة {{revision}} وحُفظ مسودة — ما زال ينقص {{count}} حقل مطلوب.",
+        "refused_zero": "لم يُستورد — لا مدخلات صالحة.",
+        "refused_one": "لم يُستورد — مدخل واحد غير صالح. أصلح الملف وحاول مجددًا.",
+        "refused_two": "لم يُستورد — مدخلان غير صالحين. أصلح الملف وحاول مجددًا.",
+        "refused_few": "لم يُستورد — {{count}} مدخلات غير صالحة. أصلح الملف وحاول مجددًا.",
+        "refused_many": "لم يُستورد — {{count}} مدخلًا غير صالح. أصلح الملف وحاول مجددًا.",
+        "refused_other": "لم يُستورد — {{count}} مدخل غير صالح. أصلح الملف وحاول مجددًا.",
+        "malformed": "هذا ليس ملف ربط موجّه من فوتر: يحتاج مخطط fawtir.guided-mapping/1 وقائمة مدخلات.",
+        "unreadable": "تعذّرت قراءة الملف بوصفه JSON.",
+        "stale": "تغيّر الربط منذ فتح هذه الصفحة. أعد التحميل ثم استورد مجددًا.",
+        "unknownTerms_zero": "لم يُستورد — لا مصطلحات مجهولة.",
+        "unknownTerms_one": "لم يُستورد — مصطلح واحد ليس في الفهرس: {{terms}}",
+        "unknownTerms_two": "لم يُستورد — مصطلحان ليسا في الفهرس: {{terms}}",
+        "unknownTerms_few": "لم يُستورد — {{count}} مصطلحات ليست في الفهرس: {{terms}}",
+        "unknownTerms_many": "لم يُستورد — {{count}} مصطلحًا ليس في الفهرس: {{terms}}",
+        "unknownTerms_other": "لم يُستورد — {{count}} مصطلح ليس في الفهرس: {{terms}}"
+      },
+      "previewButton": "معاينة"
+    },
+    "history": {
+      "title": "السجل",
+      "subtitle": "كل مراجعة للربط الموجّه، وكل ملف عمل، وكل محاولة اعتماد.",
+      "tab": {
+        "revisions": "المراجعات",
+        "profiles": "الملفات",
+        "certifications": "الاعتمادات"
+      },
+      "revisions": {
+        "col": {
+          "revision": "المراجعة",
+          "fields": "الحقول",
+          "compiled": "الملف المُجمَّع",
+          "ready": "الجاهزية",
+          "by": "حفظها",
+          "at": "تاريخ الحفظ",
+          "action": ""
+        },
+        "empty": "لا مراجعات بعد — أول حفظ للربط الموجّه يبدأ السجل.",
+        "number": "المراجعة {{count}}",
+        "origin": {
+          "EDIT": "حُفظت من المعالج",
+          "IMPORT": "استُوردت من ملف",
+          "RESTORE": "مستعادة",
+          "RESTORE_FROM": "مستعادة من المراجعة {{count}}"
+        },
+        "notCompiled": "غير مُجمَّعة",
+        "ready": "جاهزة",
+        "notReady": "غير مكتملة",
+        "current": "الحالية",
+        "restore": "استعادة"
+      },
+      "restore": {
+        "title": "استعادة المراجعة {{count}}؟",
+        "body_zero": "تعود مدخلاتها كما حُفظت في {{date}} لتصبح الربط الموجّه من جديد — مراجعةً جديدة، فلا يضيع شيء. إن جُمّعت إلى ملف سبق أن نجح في الاعتماد، تعود المسارات معتمدة.",
+        "body_one": "يعود حقلها الواحد كما حُفظ في {{date}} ليصبح الربط الموجّه من جديد — مراجعةً جديدة، فلا يضيع شيء. إن جُمّع إلى ملف سبق أن نجح في الاعتماد، تعود المسارات معتمدة.",
+        "body_two": "يعود حقلاها كما حُفظا في {{date}} ليصبحا الربط الموجّه من جديد — مراجعةً جديدة، فلا يضيع شيء. إن جُمّعا إلى ملف سبق أن نجح في الاعتماد، تعود المسارات معتمدة.",
+        "body_few": "تعود حقولها الـ {{count}} كما حُفظت في {{date}} لتصبح الربط الموجّه من جديد — مراجعةً جديدة، فلا يضيع شيء. إن جُمّعت إلى ملف سبق أن نجح في الاعتماد، تعود المسارات معتمدة.",
+        "body_many": "يعود حقلها الـ {{count}} كما حُفظت في {{date}} لتصبح الربط الموجّه من جديد — مراجعةً جديدة، فلا يضيع شيء. إن جُمّعت إلى ملف سبق أن نجح في الاعتماد، تعود المسارات معتمدة.",
+        "body_other": "تعود حقولها الـ {{count}} كما حُفظت في {{date}} لتصبح الربط الموجّه من جديد — مراجعةً جديدة، فلا يضيع شيء. إن جُمّعت إلى ملف سبق أن نجح في الاعتماد، تعود المسارات معتمدة.",
+        "confirm": "استعادة",
+        "done": "استُعيدت المراجعة {{from}} بوصفها المراجعة {{revision}}",
+        "reacquired": "استُعيد الاعتماد",
+        "activated": "جُمّعت وفُعّلت",
+        "draft_zero": "حُفظت مسودة",
+        "draft_one": "حُفظت مسودة، ما زال ينقص حقل مطلوب واحد",
+        "draft_two": "حُفظت مسودة، ما زال ينقص حقلان مطلوبان",
+        "draft_few": "حُفظت مسودة، ما زالت تنقص {{count}} حقول مطلوبة",
+        "draft_many": "حُفظت مسودة، ما زال ينقص {{count}} حقلًا مطلوبًا",
+        "draft_other": "حُفظت مسودة، ما زال ينقص {{count}} حقل مطلوب",
+        "refused_zero": "لم تُستعد.",
+        "refused_one": "لم تُستعد — مدخل واحد لم يعد يجتاز التحقق.",
+        "refused_two": "لم تُستعد — مدخلان لم يعودا يجتازان التحقق.",
+        "refused_few": "لم تُستعد — {{count}} مدخلات لم تعد تجتاز التحقق.",
+        "refused_many": "لم تُستعد — {{count}} مدخلًا لم يعد يجتاز التحقق.",
+        "refused_other": "لم تُستعد — {{count}} مدخل لم يعد يجتاز التحقق.",
+        "stale": "تغيّر الربط منذ فتح هذه الصفحة. أعد التحميل ثم استعد مجددًا.",
+        "notFound": "لم تعد هذه المراجعة موجودة."
+      },
+      "profiles": {
+        "col": {
+          "version": "الإصدار",
+          "origin": "المصدر",
+          "hash": "بصمة المحتوى",
+          "erpKey": "مفتاح النظام",
+          "created": "تاريخ الإنشاء",
+          "action": ""
+        },
+        "empty": "لا ملف بعد — ربط موجّه مكتمل يُجمَّع إلى ملف، أو ارفع ملفًا مكتوبًا يدويًا.",
+        "active": "فعّال",
+        "view": "عرض",
+        "viewTitle": "الملف v{{count}}"
+      },
+      "cert": {
+        "col": {
+          "route": "المسار",
+          "result": "النتيجة",
+          "profile": "الملف",
+          "sample": "النموذج",
+          "transactionType": "نوع المعاملة",
+          "at": "التاريخ",
+          "by": "بواسطة",
+          "findings": "الملاحظات"
+        },
+        "empty": "لم يُشغَّل أي اعتماد بعد.",
+        "passed": "نجح",
+        "failed": "فشل",
+        "sampleGone": "نموذج محذوف"
+      }
+    },
+    "connections": {
+      "title": "الأنظمة المتصلة",
+      "subtitle": "دع فوتر يجمع الفواتير من نظامك بنفسه، بدلًا من أن يدفعها نظامك إليه.",
+      "card": {
+        "title": "الاستخراج التلقائي",
+        "body": "يتصل فوتر بنظامك، ويجمع الفواتير الجديدة وفق جدول، ويمررها عبر ربط الحقول الخاص بك، ويرسلها، ثم يكتب النتيجة — رقم فوتر والحالة ورمز QR — في سجل النظام."
+      },
+      "steps": {
+        "collect": {
+          "title": "الجمع",
+          "body": "كل بضع دقائق يسأل فوتر نظامك عن الفواتير التي لم يرها بعد."
+        },
+        "map": {
+          "title": "الربط والإرسال",
+          "body": "ربط الحقول نفسه الذي اعتمدته يحوّل كل فاتورة إلى فاتورة فوتر."
+        },
+        "writeBack": {
+          "title": "الكتابة العكسية",
+          "body": "يصل رقم فوتر والحالة ورمز QR إلى سجل النظام."
+        }
+      },
+      "price": {
+        "title": "الإضافة",
+        "perMonth": "شهريًا",
+        "documents_zero": "لا مستندات",
+        "documents_one": "مستند واحد يُجمع كل شهر",
+        "documents_two": "مستندان يُجمعان كل شهر",
+        "documents_few": "{{formatted}} مستندات تُجمع كل شهر",
+        "documents_many": "{{formatted}} مستندًا تُجمع كل شهر",
+        "documents_other": "{{formatted}} مستند يُجمع كل شهر",
+        "overage": "ثم {{amount}} ر.ع. لكل مستند إضافي",
+        "enterprise": "مشمولة في خطط المؤسسات"
+      },
+      "activate": {
+        "button": "اطلب تفعيل الإضافة",
+        "note": "لا يُحصَّل شيء الآن؛ فريق فوتر يؤكد أولًا.",
+        "requested": "طُلب — سيؤكد فريق فوتر ويفعّل الإضافة لك."
+      },
+      "systems": {
+        "title": "الأنظمة المدعومة",
+        "available": "متاح",
+        "coming": "قريبًا"
+      },
+      "mapping": {
+        "note": "ربط حقول النظام نفسه مشمول في كل خطة — الموصّل يؤتمت الجمع فقط.",
+        "link": "افتح ربط النظام"
+      }
+    },
+    "shared": {
+      "copyJson": "نسخ JSON",
+      "copied": "تم النسخ",
+      "items_zero": "لا عناصر",
+      "items_one": "عنصر واحد",
+      "items_two": "عنصران",
+      "items_few": "{{count}} عناصر",
+      "items_many": "{{count}} عنصرًا",
+      "items_other": "{{count}} عنصر",
+      "keys_zero": "لا مفاتيح",
+      "keys_one": "مفتاح واحد",
+      "keys_two": "مفتاحان",
+      "keys_few": "{{count}} مفاتيح",
+      "keys_many": "{{count}} مفتاحًا",
+      "keys_other": "{{count}} مفتاح",
+      "goToField": "الانتقال إلى الحقل",
+      "rule": "القاعدة",
+      "message": "ما الخطأ",
+      "field": "الحقل",
+      "noFindings": "لا ملاحظات.",
+      "sample": "النموذج",
+      "chooseSample": "اختر نموذجًا",
+      "noSamples": "لا نماذج بعد.",
+      "uploadSample": "ارفع نموذجًا أولًا",
+      "kb": "{{size}} ك.ب",
+      "findingsCount_zero": "لا ملاحظات",
+      "findingsCount_one": "ملاحظة واحدة",
+      "findingsCount_two": "ملاحظتان",
+      "findingsCount_few": "{{count}} ملاحظات",
+      "findingsCount_many": "{{count}} ملاحظة",
+      "findingsCount_other": "{{count}} ملاحظة"
+    },
+    "preview": {
+      "title": "معاينة",
+      "subtitle": "شغّل نموذجًا عبر الربط وشاهد الفاتورة التي ستقدّمها فوتر.",
+      "level": "L3 · dry-run, no Schematron",
+      "levelNote": "الربط والنموذج القياسي فقط؛ قواعد الهيئة تعمل عند الاعتماد.",
+      "run": "تشغيل المعاينة",
+      "runAgain": "تشغيل مرة أخرى",
+      "sentTag": "المُرسَل",
+      "sent": "ما أرسله نظام ERP",
+      "filedTag": "المُقدَّم",
+      "filed": "ما ستقدّمه فوتر",
+      "notRun": "اختر نموذجًا وشغّل المعاينة.",
+      "noSample": "لا نموذج لعرضه.",
+      "passedNote": "كل الحقول مربوطة والنموذج القياسي قبِلها.",
+      "errorsHeadline_zero": "لا شيء يوقف هذه الفاتورة",
+      "errorsHeadline_one": "أمر واحد يوقف هذه الفاتورة",
+      "errorsHeadline_two": "أمران يوقفان هذه الفاتورة",
+      "errorsHeadline_few": "{{count}} أمور توقف هذه الفاتورة",
+      "errorsHeadline_many": "{{count}} أمرًا يوقف هذه الفاتورة",
+      "errorsHeadline_other": "{{count}} أمر يوقف هذه الفاتورة",
+      "showPartial": "عرض ما مرّ بنجاح",
+      "hidePartial": "إخفاء ما مرّ بنجاح",
+      "notes": "متروك للخادم",
+      "handWritten": "الملف النشط مكتوب يدويًا. المعاينة تشغّله على الخادم فقط ولا يمكن محاكاتها هنا.",
+      "handWrittenShort": "الملف المكتوب يدويًا يعمل على الخادم فقط.",
+      "handWrittenHash": "الملف {{hash}}",
+      "openAdvanced": "فتح الملف",
+      "none": "لا شيء للمعاينة بعد — أكمل ربط الحقول أولًا.",
+      "goToFields": "الانتقال إلى الحقول"
+    },
+    "certification": {
+      "title": "الاعتماد",
+      "subtitle": "أثبت كل مسار على نموذج حقيقي قبل إرسال فواتير من نوعه.",
+      "staleBanner": "تغيّر الربط؛ كل مسار يحتاج إعادة اعتماد قبل إرسال الفواتير.",
+      "noProfile": "لا شيء يعمل بعد، فلا شيء لاعتماده. أكمل ربط الحقول أولًا.",
+      "goToFields": "الانتقال إلى الحقول",
+      "activeHash": "النشط",
+      "passHash": "معتمد عند",
+      "stalePassHash": "نجح عند (ملف أقدم)",
+      "lastHash": "آخر محاولة عند",
+      "certifiedOn": "اعتُمد في {{date}} بواسطة {{who}}",
+      "lastAttempt": "آخر محاولة {{date}} · {{findings}}",
+      "neverTried": "لم يُجرَّب بعد",
+      "run": "تشغيل فاتورة اختبار",
+      "history": "السجل",
+      "historyNote": "كل المحاولات، الأحدث أولًا.",
+      "noHistory": "لا محاولات بعد.",
+      "col": {
+        "route": "المسار",
+        "result": "النتيجة",
+        "hash": "البصمة",
+        "sample": "النموذج",
+        "type": "نوع المعاملة",
+        "when": "متى",
+        "by": "بواسطة",
+        "findings": "الملاحظات"
+      },
+      "passedPill": "نجح",
+      "failedPill": "فشل",
+      "show": "عرض",
+      "hide": "إخفاء",
+      "modalTitle": "تشغيل فاتورة اختبار · {{route}}",
+      "modalSubtitle": "نموذج حقيقي عبر الملف النشط وقواعد المسار نفسه.",
+      "runNow": "تشغيل",
+      "runAgain": "تشغيل مرة أخرى",
+      "transactionType": "نوع المعاملة (BTOM-001)",
+      "custom": "مخصص",
+      "composed": "قيمة BTOM-001 الناتجة",
+      "advanced": "متقدم · اختيار البتات",
+      "hideAdvanced": "إخفاء البتات",
+      "bitsNote": "البتات 16–20 محجوزة وتبقى 0.",
+      "bits": {
+        "fullTax": "فاتورة ضريبية كاملة",
+        "simplified": "فاتورة مبسّطة",
+        "selfBilled": "فوترة ذاتية",
+        "thirdParty": "طرف ثالث",
+        "summary": "فاتورة مجمّعة",
+        "continuous": "توريد مستمر",
+        "export": "تصدير",
+        "deemed": "توريد اعتباري",
+        "importOfServices": "استيراد خدمات",
+        "profitMargin": "هامش ربح",
+        "profitMarginSelf": "هامش ربح، فوترة ذاتية",
+        "eCommerce": "تجارة إلكترونية",
+        "importOfGoods": "استيراد سلع",
+        "specialZone": "منطقة خاصة",
+        "prepayment": "دفعة مقدّمة"
+      },
+      "running": "جارٍ تشغيل المسار…",
+      "runningNote": "الربط، ثم النموذج القياسي، ثم قواعد المسار. يستغرق هذا بضع ثوانٍ.",
+      "passed": "نجح",
+      "passedBody": "هذا الربط معتمد لمسار {{route}} عند البصمة {{hash}}.",
+      "failed": "فشل",
+      "failedBody_zero": "لا ملاحظات · يبقى المسار غير معتمد حتى ينجح.",
+      "failedBody_one": "ملاحظة واحدة · يبقى المسار غير معتمد حتى ينجح.",
+      "failedBody_two": "ملاحظتان · يبقى المسار غير معتمد حتى ينجح.",
+      "failedBody_few": "{{count}} ملاحظات · يبقى المسار غير معتمد حتى ينجح.",
+      "failedBody_many": "{{count}} ملاحظة · يبقى المسار غير معتمد حتى ينجح.",
+      "failedBody_other": "{{count}} ملاحظة · يبقى المسار غير معتمد حتى ينجح.",
+      "noSampleResult": "هذا النموذج لم يعد موجودًا. اختر نموذجًا آخر."
+    },
+    "advanced": {
+      "title": "ملف مكتوب يدويًا",
+      "subtitle": "اكتب JSONata بنفسك عندما يعجز الربط الموجّه عن التعبير عن فواتيرك.",
+      "banner": "الحفظ هنا يحلّ محل الربط الموجّه فيما يعمل؛ وحفظ الربط الموجّه مرة أخرى سيحلّ محل هذا.",
+      "editor": "الملف",
+      "editorHint": "JSONata فوق حمولة ERP؛ يجب أن تكون النتيجة فاتورة قياسية.",
+      "runsNow": "يعمل الآن",
+      "activeLine": "v{{version}} · {{hash}}",
+      "nothingActive": "لا شيء نشط — الإرسالات تفشل بإغلاق.",
+      "erpKey": "مفتاح ERP",
+      "erpKeyHint": "يسمّي النظام الذي يقرأه هذا الملف، مثل odoo-17.",
+      "profileText": "نص الملف",
+      "sizeNote": "{{size}} ك.ب · بحد أقصى 256 ك.ب",
+      "empty": "لا شيء هنا بعد — الصق أو اكتب JSONata.",
+      "dryRun": "تشغيل تجريبي بهذا النص",
+      "download": "تنزيل",
+      "save": "حفظ وتفعيل",
+      "deactivate": "إلغاء التفعيل",
+      "dryRunTitle": "تشغيل تجريبي",
+      "dryRunHash": "سيحصل هذا النص على البصمة",
+      "identical": "مطابق للربط الموجّه.",
+      "differs_zero": "لا سطور تختلف عن الربط الموجّه.",
+      "differs_one": "سطر واحد يختلف عن الربط الموجّه.",
+      "differs_two": "سطران يختلفان عن الربط الموجّه.",
+      "differs_few": "{{count}} سطور تختلف عن الربط الموجّه.",
+      "differs_many": "{{count}} سطرًا يختلف عن الربط الموجّه.",
+      "differs_other": "{{count}} سطر يختلف عن الربط الموجّه.",
+      "noGuided": "لا ربط موجّه للمقارنة معه.",
+      "serverNote": "لا يمكن تشغيل JSONata في المتصفح؛ التشغيل التجريبي الحقيقي يعمل على الخادم.",
+      "saved": "حُفظ وفُعّل بوصفه الإصدار {{version}}",
+      "invalid": "الملف لا يُفسَّر.",
+      "deactivated": "أُلغي التفعيل. لا شيء يعمل الآن والإرسالات تفشل بإغلاق.",
+      "confirmTitle": "إلغاء تفعيل الملف؟",
+      "confirmBody": "لن يعمل شيء مكانه. كل إرسال من نظام ERP يفشل بإغلاق حتى يُفعَّل ملف من جديد.",
+      "confirmSubmit": "إلغاء التفعيل"
+    }
+  },
   "apiErrors": {
     "forbidden": "حسابك لا يملك صلاحية تنفيذ هذا الإجراء. اطلبها من أحد المسؤولين في شركتك إن احتجت إليها.",
     "notFound": "تعذّر العثور على هذا السجل. ربما حُذف أو أن الرابط غير صحيح.",
@@ -9903,5 +11762,63 @@
     "tax": "الفئة الضريبية",
     "saving": "جارٍ الحفظ…",
     "saveAndUse": "حفظ واستخدام"
+  },
+  "invoiceDraft": {
+    "editTitle": "تعديل المسودة",
+    "meta": {
+      "new": "مسودة جديدة · لم تُحفظ بعد",
+      "saved": "مسودة · يُعطى الرقم عند الإصدار"
+    },
+    "saving": "جارٍ الحفظ…",
+    "saved": "حُفظت المسودة.",
+    "discard": "تجاهل المسودة",
+    "discardTitle": "تجاهل هذه المسودة؟",
+    "discardBody": "ستُزال من مسوداتك. لم تُصدر قط، لذا لم يُرسل أو يُبلّغ عن شيء.",
+    "discardConfirm": "تجاهل",
+    "stale": "حفظ شخص آخر هذه المسودة بعد أن فتحتها. أعد التحميل لرؤية نسخته قبل الحفظ.",
+    "reload": "إعادة التحميل",
+    "fixFirst": "بعض الحقول تحتاج إلى مراجعة قبل حفظ المسودة.",
+    "serverRefused": "لم يقبل الخادم المسودة.",
+    "problem": {
+      "customer": "اختر عميلًا.",
+      "branch": "اختر فرعًا.",
+      "product": "اختر منتجًا لهذا البند.",
+      "quantity": "يجب أن تكون الكمية أكبر من صفر.",
+      "unitPrice": "أدخل السعر.",
+      "exemptionReason": "اذكر سبب عدم احتساب ضريبة على هذا البند."
+    },
+    "lineError": "البند {{line}}: {{message}}",
+    "exemptionReason": "سبب عدم احتساب الضريبة",
+    "figures": {
+      "new": "تقديرية. احفظ المسودة لرؤية الأرقام التي ستحملها الفاتورة.",
+      "dirty": "تقديرية للتغييرات غير المحفوظة. احفظ لتحديث الأرقام المحفوظة.",
+      "saved": "أرقام المسودة المحفوظة.",
+      "failed": "تعذّر احتساب المسودة المحفوظة: {{reason}}."
+    },
+    "previewReason": {
+      "INVOICE_LINES_REQUIRED": "أضف بندًا واحدًا على الأقل",
+      "LINE_DISCOUNT_EXCEEDS_BASE": "خصم بند يتجاوز قيمة البند",
+      "HEADER_DISCOUNT_EXCEEDS_BASE": "خصم المستند يتجاوز الإجمالي",
+      "LINE_DISCOUNT_PERCENTAGE_INVALID": "خصم بند يتجاوز 100%",
+      "HEADER_DISCOUNT_PERCENTAGE_INVALID": "خصم المستند يتجاوز 100%",
+      "EXEMPTION_REASON_REQUIRED": "بند بلا ضريبة يحتاج إلى سبب",
+      "TAX_CATEGORY_METADATA_CONFLICT": "بندان بالنسبة نفسها بفئتين ضريبيتين مختلفتين"
+    },
+    "datesAtIssue": "يُحدد عند إصدار الفاتورة ولا يُحفظ في المسودة.",
+    "notEditable": "هذه الفاتورة {{state}}. لا يمكن تعديل إلا المسودات.",
+    "state": {
+      "DRAFT": "مسودة",
+      "ISSUED": "صادرة",
+      "CANCELLED": "ملغاة",
+      "DISCARDED": "متجاهلة"
+    },
+    "readOnly": "يمكنك عرض هذه المسودة دون حفظها.",
+    "notEligible": "لا يمكن إصدار فاتورة لهذا العميل بعد. ينقص: {{fields}}.",
+    "customerSearch": "ابحث عن عميل",
+    "noCustomers": "لا يوجد عملاء مطابقون",
+    "selectHint": "اختر أحد عملائك",
+    "vat": "الرقم الضريبي {{number}}",
+    "branchesFailed": "تعذّر تحميل الفروع",
+    "noteHidden": "قد تحتوي هذه المسودة على ملاحظة داخلية لا يمكنك رؤيتها، والحفظ يحتفظ بها."
   }
 }

@@ -1,13 +1,14 @@
 import { useTranslation } from 'react-i18next'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { CONSOLE_ITEMS } from '../../lib/consoleNav'
 
 /**
  * A console screen the design has not reached yet.
  *
- * It says so plainly and offers the way back, rather than dropping the reader on the home page
- * the way an unbuilt route otherwise would.
+ * It says so plainly; the breadcrumb above it is the way back, one step up rather than a jump to
+ * the console's home.
  */
 export function ConsoleSoonPage() {
   const { t } = useTranslation()
@@ -17,6 +18,7 @@ export function ConsoleSoonPage() {
   return (
     <ConsoleShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+        <ConsoleBreadcrumbs items={[{ labelKey: item ? item.labelKey : 'console.soon.title' }]} />
         <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
           {item ? t(item.labelKey) : t('console.soon.title')}
         </h1>
@@ -27,12 +29,6 @@ export function ConsoleSoonPage() {
           <p className="max-w-[560px] text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('console.soon.body')}
           </p>
-          <Link
-            to="/console"
-            className="mt-1 inline-flex h-11 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            {t('console.soon.back')}
-          </Link>
         </section>
       </div>
     </ConsoleShell>

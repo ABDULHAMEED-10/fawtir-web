@@ -2,10 +2,15 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Rial, withRial } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { ConsoleStatusPill } from '../../layouts/ConsoleShell/ConsoleStatusPill'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
-import { PLANS_PATH, PLAN_CATALOGUE_PERMISSION, withSavedPlans } from '../../lib/console/planCatalogue'
+import {
+  PLANS_PATH,
+  PLAN_CATALOGUE_PERMISSION,
+  withSavedPlans,
+} from '../../lib/console/planCatalogue'
 import { formatOmr, planFeatures, type SubscriptionPlan } from '../../lib/subscriptionPlans'
 import { PlanEditor } from './plans/PlanEditor'
 import tickIcon from '../../assets/settings/check-ink.svg'
@@ -62,9 +67,12 @@ function PlanCatalogue() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.plans' }]} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('console.plans.title')}</h1>
+          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('console.plans.title')}
+          </h1>
           <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
             {t('console.plans.subtitle')}
           </p>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import {
   ConsoleBuildingIcon,
   ConsoleClockIcon,
@@ -14,6 +15,7 @@ import {
   NEEDS_ATTENTION,
   PLANS,
   PLATFORM,
+  REVENUE,
   REVENUE_PER_TENANT,
   TENANT_TABS,
   count,
@@ -99,6 +101,7 @@ export function TenantsPage() {
   return (
     <ConsoleShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+        <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants' }]} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
@@ -156,7 +159,7 @@ export function TenantsPage() {
           <KpiCard
             icon={<NavReportsIcon className="size-[18px] text-success-700" />}
             title={t('console.tenants.kpi.revenue')}
-            value={`OMR ${omr(PLATFORM.revenue)}`}
+            value={`OMR ${omr(REVENUE)}`}
             note={t('console.tenants.kpi.revenueNote', { average: omr(REVENUE_PER_TENANT) })}
           />
         </div>

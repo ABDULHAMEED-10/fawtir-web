@@ -119,11 +119,28 @@ export const SEED_ROUTES = [
   '/settings/closing',
   '/settings/signing-in',
   '/settings/payment-reminders',
+  '/settings/erp-mapping',
+  '/settings/erp-mapping/fields',
+  '/settings/erp-mapping/preview',
+  '/settings/erp-mapping/certification',
+  '/settings/erp-mapping/advanced',
+  '/settings/erp-mapping/history',
+  '/settings/erp-mapping/samples',
+  '/settings/erp/connections',
 
   // The Fawtir console — a separate shell with its own navigation.
   '/console',
   '/console/tenants',
   '/console/queue',
+  '/console/subscriptions',
+  '/console/subscriptions/invoices',
+  '/console/tenants/al-noor',
+  '/console/tenants/al-bahja',
+  '/console/plans',
+  '/console/settings',
+  '/console/settings?section=payments',
+  '/console/onboarding',
+  '/console/operators',
 
   // Sub-screens reached by a tab or an action rather than a plain link, so the crawl cannot find
   // them. The ids are real records from the sample data.

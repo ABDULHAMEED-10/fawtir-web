@@ -9,6 +9,7 @@
  * neutrally here — otherwise half the team is addressed wrongly.
  */
 
+import { PLAN } from './plans'
 import { TODAY, daysFrom } from './settings'
 
 /* -------------------------------------------------------------- team members */
@@ -161,7 +162,7 @@ export const TEAM_SORTS = [
 ]
 
 /** Included seats, and what the next person costs. */
-export const SEATS = { included: 5, extraMonthly: 3.5 }
+export const SEATS = { included: PLAN.business.people, extraMonthly: PLAN.business.extraPerson }
 
 export const EXTRA_PEOPLE_COST = Math.max(0, MEMBERS.length - SEATS.included) * SEATS.extraMonthly
 

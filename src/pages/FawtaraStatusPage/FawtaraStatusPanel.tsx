@@ -1,5 +1,7 @@
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CheckCircleIcon, ExternalLinkIcon } from '../../components/ui'
+import type { SignupPaymentMethod } from '../PaymentPage/PaymentForm'
 import {
   FAWTARA_NOTIFY_EMAIL,
   FAWTARA_PORTAL_URL,
@@ -29,11 +31,45 @@ function StepMarker({ step }: { step: FawtaraStep }) {
   )
 }
 
+type PaymentState = {
+  plan?: string
+  paymentMethod?: SignupPaymentMethod
+  linkVia?: 'now' | 'whatsapp' | 'email'
+}
+
+/** How the new account chose to pay, carried from the payment step; absent on a direct visit. */
+function SubscriptionNote() {
+  const { t } = useTranslation()
+  const state = (useLocation().state as PaymentState | null) ?? {}
+  if (!state.paymentMethod) return null
+  const planName = t(`plans.${state.plan ?? 'premium'}.name`)
+  const body =
+    state.paymentMethod === 'cardLink'
+      ? state.linkVia && state.linkVia !== 'now'
+        ? t('fawtaraStatus.subscription.cardLinkSent', {
+            via: t(`payment.cardLink.via.${state.linkVia}`).toLowerCase(),
+          })
+        : t('fawtaraStatus.subscription.cardLink')
+      : t(`fawtaraStatus.subscription.${state.paymentMethod}`)
+  return (
+    <div className="rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 py-3.5">
+      <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+        {t('fawtaraStatus.subscription.title')}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-text-primary">
+        {t('fawtaraStatus.subscription.awaiting', { plan: planName })}
+      </p>
+      <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">{body}</p>
+    </div>
+  )
+}
+
 export function FawtaraStatusPanel() {
   const { t } = useTranslation()
 
   return (
     <div className="flex w-full max-w-[528px] flex-col gap-7">
+      <SubscriptionNote />
       <div className="flex flex-col gap-3">
         <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
           {t('fawtaraStatus.title')}
@@ -54,7 +90,11 @@ export function FawtaraStatusPanel() {
         {FAWTARA_STEPS.map((step, index) => {
           const isLast = index === FAWTARA_STEPS.length - 1
           return (
-            <li key={step.id} className="flex" aria-current={step.state === 'current' ? 'step' : undefined}>
+            <li
+              key={step.id}
+              className="flex"
+              aria-current={step.state === 'current' ? 'step' : undefined}
+            >
               <div className="flex w-[52px] shrink-0 flex-col items-center">
                 <span className="flex h-8 items-center justify-center">
                   <StepMarker step={step} />
@@ -89,7 +129,10 @@ export function FawtaraStatusPanel() {
 
       <p className="text-xs font-medium leading-[1.2] text-text-quaternary">
         {t('fawtaraStatus.footer', { email: FAWTARA_NOTIFY_EMAIL })}{' '}
-        <a href="mailto:support@fawtir.om" className="font-semibold text-text-brand hover:underline">
+        <a
+          href="mailto:support@fawtir.om"
+          className="font-semibold text-text-brand hover:underline"
+        >
           {t('fawtaraStatus.contactSupport')}
         </a>
       </p>

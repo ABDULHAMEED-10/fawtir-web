@@ -10,6 +10,7 @@ import {
   ConsoleIncidentIcon,
   ConsolePlansIcon,
   ConsoleQueueIcon,
+  ConsoleSubscriptionIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -81,6 +82,12 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         Icon: NavTddIcon,
       },
       {
+        id: 'subscriptions',
+        labelKey: 'console.nav.subscriptions',
+        to: '/console/subscriptions',
+        Icon: ConsoleSubscriptionIcon,
+      },
+      {
         id: 'plans',
         labelKey: 'console.nav.plans',
         to: '/console/plans',
@@ -110,7 +117,6 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.settings',
         to: '/console/settings',
         Icon: NavSettingsIcon,
-        soon: true,
       },
     ],
   },

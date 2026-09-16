@@ -191,3 +191,13 @@ describe('apiDownload', () => {
     expect(error).toMatchObject({ status: 403 })
   })
 })
+
+describe('request headers', () => {
+  it('sends the extra headers a call asks for, beside the defaults', async () => {
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiRequest('/v1/invoice-drafts', { method: 'POST', body: {}, headers: { 'Idempotency-Key': 'draft-123' } })
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(init.headers).toMatchObject({ 'Idempotency-Key': 'draft-123', 'Content-Type': 'application/json' })
+  })
+})

@@ -684,9 +684,9 @@
     "saveAnnual": "Save 2 months on annual",
     "billedMonthly": "Billed monthly",
     "billedAnnually": "Billed annually",
-    "invoicesPerMonth": "invoices / month",
+    "invoicesPerMonth": "documents / month",
     "usersIncluded": "users included",
-    "invoices": "invoices",
+    "invoices": "documents",
     "users": "users",
     "unlimited": "Unlimited",
     "getStarted": "Get started",
@@ -703,7 +703,7 @@
       }
     },
     "premium": {
-      "name": "Premium",
+      "name": "Business",
       "description": "For growing businesses running multiple branches.",
       "features": {
         "f1": "Everything in Starter",
@@ -720,7 +720,7 @@
       "price": "Custom",
       "billingNote": "Tailored to your volume",
       "features": {
-        "f1": "Everything in Premium",
+        "f1": "Everything in Business",
         "f2": "Pre-built ERP connectors & SFTP",
         "f3": "Single sign-on (SAML / OIDC)",
         "f4": "Dedicated account manager",
@@ -731,11 +731,13 @@
       "f1": "Change or cancel anytime",
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
-    }
+    },
+    "payNote": "Pay by card through a secure link, bank transfer or cash. Your account is activated by the Fawtir team once payment is confirmed.",
+    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own."
   },
   "payment": {
     "title": "Complete your subscription",
-    "description": "One last step to activate your account. You’re fully OTA-compliant the moment this is confirmed.",
+    "description": "One last step. Choose how you would like to pay — your account is activated by the Fawtir team the moment your payment is confirmed.",
     "card": {
       "title": "Card",
       "subtitle": "Debit or credit",
@@ -754,7 +756,13 @@
       "subtitle": "Proforma invoice",
       "notePrefix": "We’ll email a ",
       "noteHighlight": "proforma invoice",
-      "noteSuffix": " with our bank details. Your subscription activates automatically once the transfer is confirmed usually within 1 business day."
+      "noteSuffix": " with our bank details. Your subscription activates automatically once the transfer is confirmed usually within 1 business day.",
+      "detailsTitle": "Transfer to",
+      "accountName": "Account name",
+      "bank": "Bank",
+      "reference": "Reference",
+      "yourInvoice": "your invoice number",
+      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed — usually within one business day."
     },
     "summary": {
       "title": "Order summary",
@@ -772,7 +780,40 @@
       "renewSuffix": " — access continues to period end."
     },
     "payCta": "Pay {{amount}} & activate",
-    "bankCta": "Email me the proforma invoice"
+    "bankCta": "Email me the invoice with bank details",
+    "method": {
+      "cardLink": {
+        "title": "Card",
+        "subtitle": "Secure link · Thawani"
+      },
+      "bankTransfer": {
+        "title": "Bank transfer",
+        "subtitle": "To our account"
+      },
+      "cash": {
+        "title": "Cash",
+        "subtitle": "At our office"
+      }
+    },
+    "cardLink": {
+      "note": "Your card is entered on Thawani's secure checkout, never on Fawtir. Nothing about it is stored with us.",
+      "how": "How would you like the checkout?",
+      "via": {
+        "now": "Open it now",
+        "whatsapp": "Send me the link by WhatsApp",
+        "email": "Send me the link by email"
+      },
+      "viaNowNote": "You go to Thawani's checkout and come straight back.",
+      "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
+      "viaEmailNote": "To {{email}} · valid {{days}} days",
+      "yourPhone": "your phone",
+      "yourEmail": "your email"
+    },
+    "cash": {
+      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded — usually the same day."
+    },
+    "sendLinkCta": "Send me the payment link",
+    "cashCta": "I'll pay in cash"
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
@@ -787,7 +828,15 @@
     },
     "openPortal": "Open Fawtara portal",
     "footer": "This usually takes a few minutes. We’ll email {{email}} the moment it’s approved, you can safely close this page. Approval taking too long?",
-    "contactSupport": "Contact support"
+    "contactSupport": "Contact support",
+    "subscription": {
+      "title": "Your subscription",
+      "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
+      "cardLink": "Paid by card through Thawani — you'll be activated as soon as the payment is confirmed.",
+      "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
+      "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
+      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day."
+    }
   },
   "dashboard": {
     "searchPlaceholder": "Search invoices, customers. documents...",
@@ -977,6 +1026,16 @@
       "download": "Download the file",
       "hold": "Put on hold",
       "reject": "Reject"
+    },
+    "subscription": {
+      "open": "Open the tenant",
+      "recordPayment": "Record payment",
+      "sendLink": "Send payment link",
+      "activate": "Activate",
+      "resume": "Resume",
+      "changePlan": "Change plan",
+      "suspend": "Suspend",
+      "download": "Download"
     }
   },
   "customersPage": {
@@ -1490,7 +1549,16 @@
       "awaiting": "Awaiting payment",
       "awaitingMeta": "2 invoices due soon",
       "overdue": "Overdue",
-      "overdueMeta": "1 invoice · oldest 20 days"
+      "overdueMeta": "1 invoice · oldest 20 days",
+      "outstandingLive_one": "Across {{invoices}} unpaid invoice",
+      "outstandingLive_other": "Across {{invoices}} unpaid invoices",
+      "paidLive_one": "{{invoices}} invoice paid in full",
+      "paidLive_other": "{{invoices}} invoices paid in full",
+      "awaitingLive_one": "{{invoices}} invoice due within {{days}} days",
+      "awaitingLive_other": "{{invoices}} invoices due within {{days}} days",
+      "overdueLive_one": "{{invoices}} invoice · oldest {{days}} days",
+      "overdueLive_other": "{{invoices}} invoices · oldest {{days}} days",
+      "overdueNone": "Nothing overdue"
     },
     "tabs": {
       "all": "All",
@@ -1521,6 +1589,10 @@
         "all": "All invoices",
         "standard": "Standard (B2B/B2G)",
         "simplified": "Simplified (B2C)"
+      },
+      "documentType": "Document type",
+      "docType": {
+        "all": "All documents"
       }
     },
     "col": {
@@ -1566,6 +1638,57 @@
       "imported": "Imported",
       "failed": "Failed",
       "summary": "{{imported}} imported, {{failed}} failed."
+    },
+    "subtitleLive": "Invoices, credit notes and debit notes — drafts and issued documents in one list.",
+    "searchLive": "Search by number or customer",
+    "exporting": "Exporting…",
+    "exportTruncated": "The file stops at 10,000 documents. Narrow the filters to export the rest.",
+    "discardStale": "This draft changed after the list loaded. The list has been refreshed; try again.",
+    "nothingYet": "No invoices yet. Create your first invoice and it will appear here.",
+    "draftNumber": "Draft",
+    "resultTotal_one": "{{documents}} document",
+    "resultTotal_other": "{{documents}} documents",
+    "pages": "Pages",
+    "authoring": {
+      "draft": "Draft",
+      "issued": "Issued",
+      "cancelled": "Cancelled",
+      "discarded": "Discarded"
+    },
+    "payment": {
+      "awaiting": "Awaiting payment",
+      "partial": "Partially paid",
+      "paid": "Paid",
+      "overdue_one": "Overdue · {{count}} day",
+      "overdue_other": "Overdue · {{count}} days"
+    },
+    "delivery": {
+      "sentManually": "Sent manually"
+    },
+    "amountNote": {
+      "estimate": "Estimate · priced at issue",
+      "outstanding": "{{amount}} still owed",
+      "credited": "Includes {{amount}} credited"
+    },
+    "rowAction": {
+      "edit": "Edit draft",
+      "discard": "Discard draft"
+    },
+    "docType": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
+      "SELF_BILLED_INVOICE": "Self-billed invoice",
+      "SELF_BILLED_CREDIT_NOTE": "Self-billed credit note"
+    },
+    "sort": {
+      "updated": "Recently updated",
+      "issuedNewest": "Newest issued first",
+      "issuedOldest": "Oldest issued first",
+      "dueSoonest": "Due soonest",
+      "amountHighest": "Amount: high to low",
+      "amountLowest": "Amount: low to high",
+      "customer": "Customer A–Z"
     }
   },
   "invoiceDetails": {
@@ -4217,12 +4340,12 @@
       "approving": "Approving…"
     },
     "sortOptions": {
-      "newest": "Newest first",
       "dueAsc": "Due: soonest first",
       "dueDesc": "Due: latest first",
       "amountDesc": "Amount: high to low",
       "amountAsc": "Amount: low to high",
-      "supplierAsc": "Supplier A–Z"
+      "supplierAsc": "Supplier A–Z",
+      "newest": "Newest first"
     },
     "rows": {
       "issued29Jul": "Issued 29 Jul",
@@ -7091,13 +7214,15 @@
       "company": "Company",
       "people": "People",
       "billing": "Billing",
-      "records": "Records"
+      "records": "Records",
+      "integration": "Integration"
     },
     "group": {
       "company": "Company",
       "people": "People",
       "billing": "Billing",
-      "records": "Records"
+      "records": "Records",
+      "integration": "Integration"
     },
     "card": {
       "peppolTitle": "Peppol and tax",
@@ -7128,9 +7253,9 @@
       "planPill": "Overage off",
       "planFoot": "Business plan · resets {{date}}",
       "billsTitle": "Bills and payment",
-      "billsBody": "Every invoice Fawtir has sent you, and the card it's charged to.",
+      "billsBody": "Every invoice Fawtir has sent you, and how you pay them.",
       "billsPill": "Paid up",
-      "billsFoot": "Visa ending {{last4}}",
+      "billsFoot": "{{method}}",
       "logTitle": "Activity log",
       "logBody": "Every change anyone made, including through the API.",
       "logPill": "Kept {{years}} years",
@@ -7142,7 +7267,23 @@
       "closingTitle": "Closing the account",
       "closingBody": "What happens to your invoices, and how long they stay reachable.",
       "closingPill": "Read first",
-      "closingFoot": "Retention still applies"
+      "closingFoot": "Retention still applies",
+      "erpMappingTitle": "ERP mapping",
+      "erpMappingBody": "How invoices from your ERP are read, checked and reported.",
+      "erpMappingPill": {
+        "NOT_SET_UP": "Not set up",
+        "DRAFT": "Draft",
+        "READY_UNCERTIFIED": "Ready, not certified",
+        "PARTIALLY_CERTIFIED": "Partly certified",
+        "CERTIFIED": "Certified",
+        "STALE": "Re-certify"
+      },
+      "erpMappingFoot": "Guided · {{system}} · {{mapped}} of {{required}} required fields",
+      "erpMappingFootNone": "Start with your ERP's sample invoice",
+      "connectionsTitle": "Connected systems",
+      "connectionsBody": "Fawtir collects invoices from your ERP on a schedule and reports back.",
+      "connectionsPill": "Add-on",
+      "connectionsFoot": "Automatic ERP extraction · not active"
     }
   },
   "peppolTax": {
@@ -7746,7 +7887,7 @@
     "title": "Plan and usage",
     "subtitle": "What you're paying for, how much of it you've used, and what happens if you run out",
     "billsAndPayment": "Bills and payment",
-    "invoicesThisMonth": "Invoices this month",
+    "invoicesThisMonth": "Documents this month",
     "runOutHeadline": "You'll run out around {{date}}",
     "comfortableHeadline": "You have room to the end of the month",
     "runOutBody": "You're raising about <b>{{perDay}} a day</b> and there are <b>{{days}} days left</b> in the month. That's roughly <b>{{short}} more than you have</b>. Overage is switched off, so the invoices after {{allowance}} would be <b>refused rather than charged for</b>.",
@@ -7773,7 +7914,7 @@
     "fitsYouBetter": "Fits you better",
     "perMonth": "/ month",
     "feature": {
-      "invoices": "{{count}} invoices a month",
+      "invoices": "{{count}} documents a month",
       "people_one": "{{count}} person",
       "people_other": "{{count}} people",
       "peopleThen_one": "{{count}} person, then OMR {{amount}} each",
@@ -7795,30 +7936,39 @@
     "planName": {
       "starter": "Starter",
       "business": "Business",
-      "businessPlus": "Business Plus"
+      "businessPlus": "Business Plus",
+      "enterprise": "Enterprise"
+    },
+    "support": {
+      "email": "Email support",
+      "emailAndChat": "Email and chat support"
     }
   },
   "bills": {
     "title": "Bills and payment",
-    "subtitle": "Every invoice Fawtir has sent you, and the card it's charged to",
+    "subtitle": "Every invoice Fawtir has sent you, and how you pay them",
     "planAndUsage": "Plan and usage",
     "downloadAll": "Download them all",
     "yourNextBill": "Your next bill",
     "inDays_one": "in {{count}} day",
     "inDays_other": "in {{count}} days",
-    "nothingExtra": "Nothing extra this month — you're within the plan on both invoices and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
+    "nothingExtra": "Nothing extra this month — you're within the plan on both documents and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
     "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on the {{day}}.",
     "line": {
       "plan": "{{plan}} plan",
-      "planNote": "{{invoices}} invoices · {{people}} people · {{branches}} branches",
+      "planNote": "{{invoices}} documents · {{people}} people · {{branches}} branches",
       "extraPeople": "Extra people",
       "extraPeopleNone": "None beyond the five included",
       "extraPeopleSome": "{{count}} beyond the five included",
-      "overage": "Invoices beyond the plan",
+      "overage": "Documents beyond the plan",
       "overageOff": "Overage is switched off, so nothing can accrue here",
-      "overageOn": "Charged at OMR 0.100 each past the allowance"
+      "overageOn": "Charged at OMR {{rate}} each past the allowance",
+      "extraBranches": "Extra branches",
+      "extraBranchesNone": "None beyond the {{included}} included",
+      "extraBranchesSome_one": "{{count}} beyond the {{included}} included, at OMR {{each}} a month",
+      "extraBranchesSome_other": "{{count}} beyond the {{included}} included, at OMR {{each}} each a month"
     },
-    "chargedOn": "Charged on {{date}}",
+    "chargedOn": "Due on {{date}}",
     "default": "Default",
     "cardholder": "Cardholder",
     "expires": "Expires",
@@ -7845,9 +7995,9 @@
       "may": "May",
       "april": "April"
     },
-    "coveredPlanPeople": "Business plan · {{people}} people",
-    "coveredPlanPeopleExtra": "Business plan · {{people}} people · {{extra}} extra",
-    "coveredRetried": "Business plan · retried on {{date}}",
+    "coveredPlanPeople": "Business plan · {{people}} people · 1 extra branch",
+    "coveredPlanPeopleExtra": "Business plan · {{people}} people · {{extra}} extra person · 1 extra branch",
+    "coveredRetried": "Business plan · 1 extra branch · link expired, paid by transfer on {{date}}",
     "paid": "Paid",
     "paidLate": "Paid late",
     "downloadBill": "Download this bill",
@@ -7855,6 +8005,45 @@
       "view": "View it",
       "download": "Download the PDF",
       "receipt": "Email me a receipt"
+    },
+    "method": {
+      "cardLink": "Card by secure link",
+      "bankTransfer": "Bank transfer",
+      "cash": "Cash",
+      "cheque": "Cheque"
+    },
+    "methodHint": {
+      "cardLink": "Thawani checkout · nothing stored with us",
+      "bankTransfer": "Bank Muscat · quote the invoice number",
+      "cash": "At Fawtir's office or to your representative",
+      "cheque": "Made out to Insight Technology LLC"
+    },
+    "confirmedBy": {
+      "thawani": "Paid by link · confirmed by Thawani {{date}}",
+      "fawtir": "Confirmed by the Fawtir team {{date}}"
+    },
+    "pay": {
+      "title": "How you pay",
+      "intro": "Choose how you would usually like to settle each bill. The other ways stay open.",
+      "preferred": "Preferred way to pay",
+      "byWhatsApp": "WhatsApp on {{phone}}",
+      "byEmail": "{{email}}",
+      "linkArrives": "Your payment link arrives by {{to}} on {{date}}. Want it sooner?",
+      "linkSentNow": "Link sent by {{to}} — valid {{days}} days. Nothing is charged until you pay it.",
+      "payNow": "Send the link now",
+      "next": {
+        "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives — usually within a business day.",
+        "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded — usually the same day.",
+        "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
+      },
+      "linkTitle": "Card by secure link",
+      "linkNote": "A Thawani link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
+      "transferTitle": "Bank transfer",
+      "transferNote": "Reference: {{reference}}. Activated by the Fawtir team once the transfer is confirmed.",
+      "copyIban": "Copy the IBAN",
+      "copied": "Copied",
+      "cashTitle": "Cash or cheque",
+      "cashNote": "At Fawtir's office in Muscat or to your representative. Recorded by the Fawtir team, then activated."
     }
   },
   "activityLog": {
@@ -9061,7 +9250,8 @@
       "audit": "Audit log",
       "settings": "Console settings",
       "bottomSettings": "Settings",
-      "operators": "Operators"
+      "operators": "Operators",
+      "subscriptions": "Subscriptions"
     },
     "user": {
       "team": "Fawtir team",
@@ -9588,6 +9778,783 @@
           "refused": "Fawtir refused this change. You may no longer have access."
         }
       }
+    },
+    "subscriptions": {
+      "state": {
+        "trial": "Trial",
+        "awaitingPayment": "Awaiting payment",
+        "active": "Active",
+        "grace": "In grace",
+        "suspended": "Suspended",
+        "cancelled": "Cancelled"
+      },
+      "invoiceStatus": {
+        "unpaid": "Unpaid",
+        "paid": "Paid",
+        "overdue": "Overdue",
+        "waived": "Waived"
+      },
+      "linkStatus": {
+        "unpaid": "Not paid yet",
+        "paid": "Paid",
+        "expired": "Expired"
+      },
+      "method": {
+        "cardLink": "Card by payment link",
+        "bankTransfer": "Bank transfer",
+        "cash": "Cash",
+        "cheque": "Cheque"
+      },
+      "methodShort": {
+        "cardLink": "Card link",
+        "bankTransfer": "Transfer",
+        "cash": "Cash",
+        "cheque": "Cheque"
+      },
+      "term": {
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "annual": "Annual"
+      },
+      "channel": {
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "copied": "Copied link"
+      },
+      "cover": {
+        "plan": "{{plan}} plan",
+        "planExtras": "{{plan}} plan · {{people}} extra people · {{branches}} extra branches",
+        "planPeople_one": "{{plan}} plan · {{count}} extra person",
+        "planPeople_other": "{{plan}} plan · {{count}} extra people",
+        "planBranches_one": "{{plan}} plan · {{count}} extra branch",
+        "planBranches_other": "{{plan}} plan · {{count}} extra branches"
+      },
+      "event": {
+        "paymentRecorded": "Payment recorded — {{method}}, OMR {{amount}}",
+        "activated": "Activated until {{until}}",
+        "activatedWithoutPayment": "Activated until {{until}} — {{reason}}",
+        "linkSent": "Payment link sent by {{via}}",
+        "suspended": "Suspended — {{reason}}",
+        "resumed": "Resumed — {{reason}}",
+        "cancelled": "Cancelled — {{reason}}; runs to {{until}}",
+        "trialStarted": "Trial started, {{days}} days",
+        "planChanged": "Moved to {{plan}}, {{term}} — {{reason}}",
+        "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}} — {{reason}}",
+        "quotaGranted": "{{documents}} extra documents until {{expires}} — {{reason}}",
+        "overageWaived": "Overage of OMR {{amount}} waived — {{reason}}"
+      },
+      "queue": {
+        "title": "Subscriptions",
+        "subtitle": "Every subscription on the platform · {{awaiting}} awaiting payment, {{grace}} in grace",
+        "invoicesLink": "Subscription invoices",
+        "settingsLink": "Console settings",
+        "kpi": {
+          "awaiting": "Awaiting payment",
+          "awaitingNote": "OMR {{amount}} due across the open invoices",
+          "grace": "In grace",
+          "graceNote": "Suspended after {{days}} days if nothing arrives",
+          "trials": "Trials ending",
+          "trialsOf": "of {{total}}",
+          "trialsNote": "In the next 7 days · an operator activates them, never the system",
+          "collected": "Collected this month",
+          "collectedNote_one": "{{count}} payment recorded in {{month}}",
+          "collectedNote_other": "{{count}} payments recorded in {{month}}"
+        },
+        "tab": {
+          "all": "All"
+        },
+        "searchPlaceholder": "Tenant name, VAT number or town…",
+        "filter": {
+          "plan": "Plan",
+          "planAll": "Any plan",
+          "method": "Method",
+          "methodAll": "Any method",
+          "term": "Term",
+          "termAll": "Any term"
+        },
+        "sort": {
+          "queue": "Needs a person first",
+          "periodEnd": "Period end, soonest",
+          "amountDue": "Amount due, largest",
+          "name": "Name A–Z"
+        },
+        "col": {
+          "tenant": "Tenant",
+          "plan": "Plan",
+          "state": "State",
+          "amountDue": "Amount due",
+          "method": "Method",
+          "lastPayment": "Last payment"
+        },
+        "vat": "VAT",
+        "detail": {
+          "due": "Due {{date}}",
+          "dueToday": "Due today",
+          "overdue_one": "Overdue {{count}} day",
+          "overdue_other": "Overdue {{count}} days",
+          "grace": "Day {{day}} of {{days}} · suspends {{date}}",
+          "trialEnds_one": "Ends in {{count}} day · {{used}} of {{allowance}} used",
+          "trialEnds_other": "Ends in {{count}} days · {{used}} of {{allowance}} used",
+          "trialEndsToday": "Ends today · {{used}} of {{allowance}} used",
+          "renews": "Renews {{date}}",
+          "moving": "Moving to {{plan}} on {{date}}",
+          "suspended": "Since {{date}} · read-only",
+          "cancelled": "Since {{date}} · runs to {{until}}"
+        },
+        "noPayment": "None yet",
+        "noResults": "No subscription matches that.",
+        "rowMenu": "More for this subscription",
+        "showing": "Showing {{shown}} of {{total}} {{tab}}",
+        "showingAll": "Showing {{shown}} of {{total}}",
+        "showingSome": "Showing the {{shown}} you might need to open · {{total}} {{tab}} in total",
+        "showingSomeAll": "Showing the {{shown}} you might need to open · {{total}} on the platform",
+        "allCount": "{{count}} on the platform in total"
+      },
+      "invoices": {
+        "title": "Subscription invoices",
+        "subtitle": "Every FWT invoice across tenants · {{unpaid}} unpaid, {{overdue}} overdue",
+        "kpi": {
+          "unpaid": "Unpaid",
+          "unpaidNote": "OMR {{amount}} not yet in",
+          "overdue": "Overdue",
+          "overdueNote": "OMR {{amount}} past due · fourteen days of grace run from the due date",
+          "paid": "Paid this month",
+          "paidNote_one": "{{count}} invoice settled in {{month}}",
+          "paidNote_other": "{{count}} invoices settled in {{month}}",
+          "waived": "Waived",
+          "waivedNote": "Written off, with the reason in the tenant's history"
+        },
+        "tab": {
+          "all": "All"
+        },
+        "searchPlaceholder": "Invoice number or tenant…",
+        "sort": {
+          "issued": "Issued, newest",
+          "due": "Due, soonest",
+          "total": "Total, largest"
+        },
+        "col": {
+          "invoice": "Invoice",
+          "tenant": "Tenant",
+          "period": "Period",
+          "amount": "Amount",
+          "total": "Total",
+          "status": "Status",
+          "paid": "Paid · due"
+        },
+        "exVat": "ex VAT",
+        "plusVat": "incl. OMR {{vat}} VAT",
+        "paidOn": "Paid {{date}}",
+        "due": "Due {{date}}",
+        "dueToday": "Due today",
+        "overdue_one": "Overdue {{count}} day",
+        "overdue_other": "Overdue {{count}} days",
+        "noResults": "No invoice matches that.",
+        "rowMenu": "More for this invoice",
+        "showing": "Showing {{shown}} of {{total}} {{tab}}",
+        "showingAll": "Showing {{shown}} of {{total}}",
+        "allCount": "{{count}} subscription invoices in total",
+        "issued": "Issued {{date}}"
+      }
+    },
+    "tenantDetail": {
+      "notFound": "No tenant with that id. It may have been closed, or the link is out of date.",
+      "notFoundBack": "Back to tenants",
+      "backTenants": "Tenants",
+      "backSubscriptions": "Subscriptions",
+      "planChip": "{{plan}} · {{term}}",
+      "since": "{{state}} since {{date}}",
+      "actions": {
+        "recordPayment": "Record payment",
+        "sendLink": "Send payment link",
+        "activate": "Activate",
+        "changePlan": "Change plan",
+        "suspend": "Suspend",
+        "resume": "Resume",
+        "cancel": "Cancel the subscription",
+        "grantQuota": "Grant temporary quota",
+        "waiveOverage": "Waive overage on a bill",
+        "more": "More actions"
+      },
+      "tabs": {
+        "subscription": "Subscription",
+        "filing": "Filing",
+        "erp": "ERP"
+      },
+      "filing": {
+        "noData": "No filing data yet — this tenant has not filed through the platform this week.",
+        "billed": "Billed this month"
+      },
+      "erp": {
+        "notBuilt": "ERP mapping for this tenant is not built yet."
+      },
+      "plan": {
+        "title": "Plan and terms",
+        "plan": "Plan",
+        "term": "Billing term",
+        "price": "Price for the period",
+        "priceValue": "OMR {{amount}} excl. VAT",
+        "documents": "Documents a month",
+        "people": "People included",
+        "branches": "Branches included",
+        "unlimited": "Unlimited",
+        "overageRate": "Overage per document",
+        "grandfathered": "Grandfathered since {{date}} — keeps this price until the plan changes",
+        "scheduled": "Moving to {{plan}}, {{term}} on {{date}}",
+        "contract": "Contract",
+        "contractValue": "{{from}} → {{to}}",
+        "sla": "SLA"
+      },
+      "period": {
+        "title": "This period",
+        "period": "Period",
+        "range": "{{from}} → {{to}}",
+        "renewsOn": "Renews on {{date}}",
+        "dueOn": "Due on {{date}}",
+        "overdueBy_one": "Due on {{date}} · {{count}} day overdue",
+        "overdueBy_other": "Due on {{date}} · {{count}} days overdue",
+        "trialEnds": "Trial ends on {{date}}",
+        "daysLeft_one": "{{count}} day left",
+        "daysLeft_other": "{{count}} days left",
+        "trialAllowance": "{{documents}} documents in the trial, no card",
+        "suspendedSince": "Suspended since {{date}} — read-only, the compliance record stays open",
+        "cancelledOn": "Cancelled on {{date}} · access ran to {{until}}",
+        "grace": "Day {{day}} of {{total}} of grace · suspends on {{date}}",
+        "amountDue": "Amount due",
+        "nothingDue": "Nothing due",
+        "usage": "Usage",
+        "documents": "Documents",
+        "people": "People",
+        "branches": "Branches",
+        "ofAllowance": "{{used}} of {{allowance}}",
+        "overageOn": "Overage on — documents past the allowance are billed at the plan's rate",
+        "overageOff": "Overage off — filing stops at the allowance",
+        "grant": "+{{documents}} granted until {{date}} — {{reason}}"
+      },
+      "invoices": {
+        "title": "Subscription invoices",
+        "col": {
+          "number": "Number",
+          "period": "Period",
+          "total": "Total",
+          "status": "Status",
+          "paid": "Paid on",
+          "download": ""
+        },
+        "paidVia": "{{date}} · {{method}}",
+        "notPaid": "—",
+        "download": "Download",
+        "empty": "No invoices yet — a trial has no invoice until it is activated."
+      },
+      "payments": {
+        "title": "Payments",
+        "col": {
+          "date": "Date",
+          "method": "Method",
+          "amount": "Amount",
+          "reference": "Reference",
+          "confirmedBy": "Confirmed by",
+          "note": "Note"
+        },
+        "empty": "No payment recorded yet."
+      },
+      "links": {
+        "title": "Payment links",
+        "sent": "Sent {{when}} by {{by}}",
+        "expires": "Expires {{date}}",
+        "resend": "Resend",
+        "send": "Send a link",
+        "empty": "No payment link has been sent for this period."
+      },
+      "pay": {
+        "title": "How they pay",
+        "preferred": "Preferred method",
+        "contact": "Contact",
+        "bank": {
+          "title": "Bank details they were given",
+          "accountName": "Account name",
+          "bank": "Bank",
+          "iban": "IBAN",
+          "reference": "Reference to quote"
+        }
+      },
+      "activity": {
+        "title": "Activity",
+        "empty": "Nothing has happened yet.",
+        "by": "{{by}} · {{when}}"
+      },
+      "done": {
+        "recorded": "Payment recorded — {{tenant}} is active until {{date}}",
+        "recordedOnly": "Payment recorded for {{tenant}} — the subscription was left as it was",
+        "linkSent": "Payment link sent by {{channel}} to {{contact}}",
+        "activated": "{{tenant}} is active until {{date}}",
+        "planChanged": "{{tenant}} is now on {{plan}}, {{term}}",
+        "planScheduled": "{{tenant}} moves to {{plan}}, {{term}} on {{date}}",
+        "suspended": "{{tenant}} is suspended — read-only until it is resumed",
+        "resumed": "{{tenant}} is active again",
+        "cancelled": "{{tenant}}'s subscription is cancelled — paid features run to {{date}}",
+        "quotaGranted": "{{documents}} extra documents granted to {{tenant}} until {{date}}",
+        "overageWaived": "OMR {{amount}} waived on {{invoice}}"
+      }
+    },
+    "subscriptionActions": {
+      "common": {
+        "invoice": "Invoice",
+        "invoiceHint": "{{period}} · OMR {{total}}",
+        "noOpenInvoice": "There is no unpaid invoice to act on — nothing is due for this period.",
+        "plan": "Plan",
+        "term": "Billing term",
+        "reason": "Reason",
+        "reasonPlaceholder": "Goes on the record with your name and the time",
+        "note": "Note",
+        "notePlaceholder": "Anything the next person should know",
+        "excludingVat": "excl. VAT",
+        "includingVat": "incl. VAT"
+      },
+      "error": {
+        "amount": "Enter an amount above zero",
+        "amountOver": "More than the invoice's amount before VAT",
+        "future": "This date is in the future",
+        "past": "Choose a date after today",
+        "samePlan": "Choose a different plan or term",
+        "documents": "Enter how many extra documents"
+      },
+      "recordPayment": {
+        "title": "Record a payment",
+        "subtitle": "{{tenant}} · confirmed by {{operator}}",
+        "method": "How it arrived",
+        "amount": "Amount received",
+        "receivedOn": "Received on",
+        "reference": {
+          "bankTransfer": "Transfer reference",
+          "cheque": "Cheque number and bank",
+          "cash": "Receipt number",
+          "cardLink": "Thawani transaction id"
+        },
+        "proof": "Proof",
+        "proofHint": "Optional — a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
+        "proofDrop": "Drop a file here, or click to choose one",
+        "proofRemove": "Remove",
+        "activate": "Activate the subscription for this period now",
+        "submit": "Record payment"
+      },
+      "sendLink": {
+        "title": "Send a payment link",
+        "subtitle": "A Thawani checkout for {{tenant}} — the console keeps the link and its status",
+        "channel": "Send it by",
+        "whatsapp": {
+          "title": "WhatsApp",
+          "description": "Opens a chat with {{phone}}, message filled in"
+        },
+        "email": {
+          "title": "Email",
+          "description": "Opens a draft to {{email}}"
+        },
+        "copied": {
+          "title": "Copy the link",
+          "description": "To paste anywhere else"
+        },
+        "preview": "Message",
+        "previewLink": "the payment link",
+        "validDays_one": "Valid {{count}} day from sending",
+        "validDays_other": "Valid {{count}} days from sending",
+        "submit": {
+          "whatsapp": "Open WhatsApp",
+          "email": "Open email",
+          "copied": "Copy link"
+        },
+        "sentTitle": "Link sent",
+        "sentBody": "Shown as Not paid yet until Thawani confirms the card payment, or it expires on {{date}}.",
+        "copy": "Copy",
+        "copiedNow": "Copied",
+        "done": "Done",
+        "emailSubject": "Your Fawtir subscription — {{plan}}"
+      },
+      "activate": {
+        "title": "Activate without a payment",
+        "subtitle": "For a pilot, a plan that includes Fawtir, or a trial extension — the reason goes on the record.",
+        "startDate": "Start date",
+        "quick": {
+          "pilot": "Pilot",
+          "planIncluded": "Included in a plan",
+          "trialExtension": "Trial extension"
+        },
+        "periodEnd": "Active until",
+        "wouldBill": "Would normally bill",
+        "submit": "Activate"
+      },
+      "changePlan": {
+        "title": "Change plan",
+        "subtitle": "{{tenant}} is on {{plan}}, {{term}}",
+        "newPlan": "New plan",
+        "when": "When",
+        "now": {
+          "title": "Now, pro rata",
+          "description": "The difference is billed for the rest of this period"
+        },
+        "periodEnd": {
+          "title": "At the end of the period",
+          "description": "On {{date}} — nothing changes until then"
+        },
+        "enterpriseNote": "Enterprise terms — price, band, seats — are set on the Enterprise panel, not here.",
+        "newPrice": "New price for the period",
+        "submit": "Change plan"
+      },
+      "suspend": {
+        "title": "Suspend the subscription",
+        "body": "The account goes read-only at once: no new documents, but everything already filed stays open for compliance. Resume from this page when the matter is settled.",
+        "submit": "Suspend"
+      },
+      "resume": {
+        "title": "Resume the subscription",
+        "body": "The account comes back to Active for the rest of its period, with the same plan and terms.",
+        "submit": "Resume"
+      },
+      "cancel": {
+        "title": "Cancel the subscription",
+        "body": "Paid features run to the end of the period, then the account goes read-only. The compliance record stays open. This is not reversible from here.",
+        "submit": "Cancel the subscription"
+      },
+      "grantQuota": {
+        "title": "Grant temporary quota",
+        "subtitle": "Extra documents on top of the plan's allowance, until a date you choose",
+        "documents": "Extra documents",
+        "expires": "Expires",
+        "submit": "Grant"
+      },
+      "waiveOverage": {
+        "title": "Waive overage on a bill",
+        "subtitle": "Takes the amount off the invoice before VAT; the reason goes on the record",
+        "amount": "Amount to waive",
+        "onInvoice": "Invoice amount before VAT: OMR {{amount}}",
+        "submit": "Waive"
+      }
+    },
+    "settings": {
+      "title": "Console settings",
+      "subtitle": "Every value the platform runs on, changed here without a release. Prices live in Plans and rates.",
+      "plansLink": "Plans and rates",
+      "sectionsLabel": "Settings sections",
+      "unsaved": "Unsaved changes",
+      "save": "Save",
+      "reset": "Reset to defaults",
+      "savedBy": "Saved by {{by}} · {{when}}",
+      "nav": {
+        "billing": "Billing",
+        "counting": "Counting rules",
+        "overage": "Overage",
+        "lifecycle": "Trial and lifecycle",
+        "notices": "Notices",
+        "addons": "Add-ons",
+        "payments": "Payments",
+        "promotional": "Promotional",
+        "operations": "Operations",
+        "fixed": "Fixed by design"
+      },
+      "section": {
+        "billing": {
+          "title": "Billing",
+          "note": "How subscription invoices are raised: the tax on them, when the period starts and the series they are numbered in."
+        },
+        "counting": {
+          "title": "Counting rules",
+          "note": "Which documents draw on a plan's allowance, and when. A kind that does not count is still stored, sent and kept for the retention period."
+        },
+        "overage": {
+          "title": "Overage",
+          "note": "What happens when a tenant passes its allowance: whether extra documents may go through at a per-document rate, and how far."
+        },
+        "lifecycle": {
+          "title": "Trial and lifecycle",
+          "note": "The trial every new tenant starts on, and what happens at renewal, on a failed payment, at cancellation and on a change of plan."
+        },
+        "notices": {
+          "title": "Notices",
+          "note": "When a tenant is told it is nearing its allowance, who is told, and how."
+        },
+        "addons": {
+          "title": "Add-ons",
+          "note": "What is offered on top of a plan and what it costs. ERP field mapping is part of every plan; automatic extraction is the paid step."
+        },
+        "payments": {
+          "title": "Payments",
+          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Thawani; the other methods are settled by an operator."
+        },
+        "promotional": {
+          "title": "Promotional",
+          "note": "None at launch. The switches are here so the rules exist before the first campaign does."
+        },
+        "operations": {
+          "title": "Operations",
+          "note": "What an operator may do for one tenant from its detail page. Every action is recorded with a reason."
+        }
+      },
+      "error": {
+        "required": "Required",
+        "number": "Enter a number",
+        "integer": "Enter a whole number",
+        "percent": "Between 0 and 100",
+        "between": "Out of range",
+        "nonNegative": "0 or more",
+        "atLeastOne": "At least 1",
+        "wholeBetween": "A whole number from {{min}} to {{max}}",
+        "wholeFrom": "A whole number from {{min}}",
+        "duplicate": "Already in the list",
+        "noticeBeyondGrace": "A notice day is later than the grace period",
+        "noThreshold": "Add at least one threshold",
+        "noChannel": "Keep at least one channel on"
+      },
+      "dayList": {
+        "none": "None",
+        "remove": "Remove {{value}}",
+        "inputLabel": "Add to {{label}}",
+        "add": "Add",
+        "day": "day {{day}}",
+        "percent": "{{value}} %"
+      },
+      "billing": {
+        "currency": "Currency",
+        "currencyNote": "The platform bills in rial only; a second currency would need its own tax treatment and a release.",
+        "currencyValue": "Omani rial",
+        "vatRate": "VAT on subscription invoices",
+        "vatRateHint": "Applied to every subscription invoice the platform raises.",
+        "minimumTerm": "Minimum contract term (months)",
+        "minimumTermHint": "0 means no minimum on monthly billing.",
+        "billingAnchor": "Billing anchor",
+        "billingAnchorHint": "The day each billing period starts.",
+        "anchor": {
+          "signup": "Signup date",
+          "firstOfMonth": "First of the month"
+        },
+        "invoiceSeries": "Subscription invoice series prefix",
+        "invoiceSeriesHint": "Its own series, separate from tenant documents: {{prefix}}-000123.",
+        "pricesExclusive": "Prices shown exclusive of VAT",
+        "pricesExclusiveNote": "Plan prices are shown without VAT; the tax is added on the subscription invoice."
+      },
+      "counting": {
+        "kind": "Document kind",
+        "counts": "Counts",
+        "doesNotCount": "Does not count",
+        "rule": {
+          "issued": "Invoice, credit note or debit note issued",
+          "selfBilling": "Self-billing invoice or credit note",
+          "received": "Invoice or credit note received",
+          "tradeOverPeppol": "Trade document sent over Peppol",
+          "tradeHeld": "Trade document held in the platform",
+          "posSimplified": "Point of sale simplified invoice",
+          "receiptNoTax": "Receipt carrying no tax",
+          "draft": "Draft",
+          "voided": "Voided before transmission",
+          "failedValidation": "Failed the platform's own validation",
+          "rejectedByOta": "Rejected by the Tax Authority",
+          "resubmission": "Resubmission"
+        },
+        "ruleNote": {
+          "issued": "A tax document the tenant sends to a customer.",
+          "selfBilling": "Issued by the buyer on the seller's behalf.",
+          "received": "A tax document that arrives from a supplier.",
+          "tradeOverPeppol": "Orders, despatch advice and the like, transmitted.",
+          "tradeHeld": "The same, kept in the platform but never sent.",
+          "posSimplified": "A till receipt that is a tax document.",
+          "receiptNoTax": "A till receipt with no tax on it.",
+          "draft": "Not yet issued.",
+          "voided": "Cancelled before it was transmitted.",
+          "failedValidation": "Never left the platform.",
+          "rejectedByOta": "Transmitted and refused — the attempt still counts.",
+          "resubmission": "Counts again, as a fresh transmission."
+        },
+        "consumedAt": "Quota consumed at",
+        "consumedAtHint": "When a document is deducted from the allowance.",
+        "consumed": {
+          "transmission": "Successful transmission",
+          "creation": "Creation"
+        },
+        "pools": "Allowance pools across the period",
+        "poolsNote": "The whole period's allowance is available from day one, rather than a share of it each day or week."
+      },
+      "overage": {
+        "permitted": "Overage permitted",
+        "permittedNote": "Off, the platform stops at the allowance for every tenant.",
+        "enabledByDefault": "Enabled by default for new tenants",
+        "enabledByDefaultNote": "A new tenant starts with overage on; it can be turned off per tenant.",
+        "hardCeiling": "Hard ceiling (documents)",
+        "hardCeilingHint": "The most a tenant may go past its allowance in a period. Leave empty for no ceiling.",
+        "ratesNote": "The rate per document is set per plan in"
+      },
+      "lifecycle": {
+        "trialGroup": "Trial",
+        "defaultPlan": "Default plan for a new tenant",
+        "defaultPlanHint": "What a tenant is on the moment it signs up.",
+        "theTrial": "The trial",
+        "trialMirrors": "Trial mirrors",
+        "trialMirrorsHint": "The plan whose features the trial carries.",
+        "trialDays": "Trial length (days)",
+        "trialDocuments": "Trial allowance (documents)",
+        "trialDocumentsHint": "Documents the trial may transmit in total.",
+        "trialAutoConverts": "Trial auto-converts",
+        "trialAutoConvertsNote": "On, the trial becomes a paid subscription when it ends. Off, the tenant chooses a plan.",
+        "trialNeedsPaymentDetails": "Payment details required for the trial",
+        "trialNeedsPaymentDetailsNote": "Off, a tenant starts the trial with nothing but an account.",
+        "renewalGroup": "Renewal and cancellation",
+        "autoRenewal": "Auto-renewal",
+        "autoRenewalNote": "A subscription renews for another period unless it has been cancelled.",
+        "graceDays": "Grace after a failed payment (days)",
+        "graceDaysHint": "The account stays live this long after a payment fails.",
+        "graceNotices": "Notices within the grace period",
+        "graceNoticesHint": "The days on which the tenant is reminded, counted from the failed payment.",
+        "cancellationNotice": "Cancellation notice period (days)",
+        "cancellationNoticeHint": "0 means none: a cancellation takes effect at the end of the period.",
+        "refund": "Refund on mid-period cancellation",
+        "refundNote": "Off, the period runs to its end and nothing is returned.",
+        "changesGroup": "Changes of plan",
+        "upgrade": "Upgrade",
+        "upgradeOption": {
+          "immediateProRata": "Immediate, pro rata",
+          "periodEnd": "At the end of the period"
+        },
+        "downgrade": "Downgrade",
+        "downgradeOption": {
+          "periodEnd": "At the end of the period",
+          "immediate": "Immediate"
+        },
+        "whileSuspended": "While suspended",
+        "whileSuspendedHint": "The compliance record stays accessible either way.",
+        "suspendedOption": {
+          "readOnly": "Read-only: documents viewable and downloadable",
+          "locked": "Locked"
+        }
+      },
+      "notices": {
+        "thresholds": "Thresholds",
+        "thresholdsHint": "Share of the allowance used at which a notice goes out.",
+        "recipients": "Recipients",
+        "recipientOption": {
+          "ownerAndAdmins": "Account owner and administrators",
+          "ownerOnly": "Account owner only",
+          "everyone": "Everyone with a login"
+        },
+        "language": "Language",
+        "languageHint": "Which language the notice is written in.",
+        "languageOption": {
+          "customer": "The customer's chosen language",
+          "en": "English",
+          "ar": "Arabic"
+        },
+        "channels": "Channels",
+        "channel": {
+          "email": "Email",
+          "emailNote": "Sent to each recipient's address.",
+          "inApp": "In-app",
+          "inAppNote": "Shown in the notifications panel and on the plan page."
+        }
+      },
+      "addons": {
+        "erpMapping": "ERP field mapping",
+        "erpMappingNote": "Mapping the tenant's ERP fields to the platform's is part of onboarding, not an extra.",
+        "includedEveryPlan": "Included on every plan",
+        "extractionGroup": "Automatic ERP extraction",
+        "extractionPrice": "Price per month",
+        "extractionPriceHint": "Excluding VAT.",
+        "extractionDocuments": "Documents included per month",
+        "extractionDocumentsHint": "Extracted documents, not the plan allowance.",
+        "extractionOverage": "Overage per document",
+        "extractionOverageHint": "Charged past the included documents.",
+        "includedAt": "Included at",
+        "includedAtHint": "The plan level that gets extraction without the add-on price.",
+        "includedAtNone": "None — always an add-on",
+        "posGroup": "Point of sale",
+        "pos": "Point of sale",
+        "posNote": "No separate plan and no terminal charge — POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
+        "posValue": "No separate plan"
+      },
+      "payments": {
+        "provider": {
+          "thawani": "Thawani",
+          "publishableKey": "Publishable key",
+          "keysNote": "The keys are held by the backend; the console never sees the secret. Switching mode changes which key the backend uses.",
+          "modeLabel": "Provider mode"
+        },
+        "mode": {
+          "test": "Test",
+          "live": "Live"
+        },
+        "methodsGroup": "Methods accepted",
+        "method": {
+          "cardLink": "Card by payment link",
+          "bankTransfer": "Bank transfer",
+          "cash": "Cash",
+          "cheque": "Cheque"
+        },
+        "methodNote": {
+          "cardLink": "A Thawani link on the invoice and in the WhatsApp message.",
+          "bankTransfer": "The bank details below are printed on the invoice.",
+          "cash": "Settled by an operator, with a reference.",
+          "cheque": "Settled by an operator once the cheque clears."
+        },
+        "bankGroup": "Bank details shown to customers",
+        "bank": {
+          "accountName": "Account name",
+          "bank": "Bank",
+          "iban": "IBAN",
+          "referenceFormat": "Reference format",
+          "referenceFormatHint": "{invoice} is replaced by the invoice number."
+        },
+        "activationGroup": "Payment links and activation",
+        "linkExpiry": "Payment link expiry (days)",
+        "linkExpiryHint": "After this a fresh link has to be sent.",
+        "reminderDays": "Reminders for an unpaid subscription invoice",
+        "reminderDaysHint": "Days after the invoice date. The grace notices follow once a payment has failed.",
+        "autoActivate": "Auto-activate on online payment",
+        "autoActivateNote": "Off: a Thawani payment shows as paid and an operator activates the account. On: the account activates itself the moment Thawani confirms.",
+        "proofRequired": "Proof required for cash and cheque",
+        "proofRequiredNote": "Off, a reference is enough. On, an operator must attach the receipt or cheque image before the invoice is marked paid.",
+        "templatesGroup": "WhatsApp message templates",
+        "templatesNote": "Sent with the invoice. Click a placeholder to add it; the backend fills them in when the message goes out.",
+        "template": {
+          "en": "English",
+          "ar": "Arabic"
+        },
+        "insertPlaceholder": "Insert placeholder"
+      },
+      "promotional": {
+        "discountCodes": "Discount codes",
+        "discountCodesNote": "A code entered at checkout that takes a share off the first period or every period.",
+        "referralCommission": "Referral or partner commission",
+        "referralCommissionNote": "A share of a referred tenant's subscription paid to the referrer.",
+        "introductoryPricing": "Introductory pricing",
+        "introductoryPricingNote": "A lower price for the first periods of a new subscription.",
+        "noneAtLaunch": "None at launch. Turning one on has no effect until its rules are written."
+      },
+      "operations": {
+        "temporaryQuotaGrant": "Temporary quota grant by an operator",
+        "temporaryQuotaGrantNote": "Permitted and recorded. Extra documents for one period, with a reason and an expiry.",
+        "overageWaiver": "Overage waiver on a single bill",
+        "overageWaiverNote": "Permitted and recorded. The overage line on one subscription invoice is written off, with a reason.",
+        "grandfathering": "Grandfathering",
+        "grandfatheringNote": "Existing customers keep their price until they change plan.",
+        "recordedNote": "Each of these is done from the tenant's detail page, and every action lands on its record with the operator's name and reason."
+      },
+      "fixed": {
+        "title": "Fixed by design",
+        "note": "Four positions the platform takes that no setting can change.",
+        "item": {
+          "retention": "Document retention",
+          "complianceRecord": "Access to the compliance record",
+          "complianceFeatures": "Compliance features",
+          "livePlanChange": "Change to a live plan"
+        },
+        "position": {
+          "retention": "10 years; 15 where the records relate to real estate.",
+          "complianceRecord": "Always, including while the account is suspended.",
+          "complianceFeatures": "Never gated; on every plan.",
+          "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
+        },
+        "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate — so they are listed here, and nowhere else."
+      }
+    },
+    "crumb": {
+      "root": "Console",
+      "label": "Where you are"
     }
   },
   "shell": {
@@ -9793,6 +10760,722 @@
       "notOperator": "Only Fawtir team accounts confirm an email change here."
     }
   },
+  "erp": {
+    "soon": {
+      "title": "Not built yet",
+      "body": "This part of the integration screens is next."
+    },
+    "subnav": {
+      "overview": "Overview",
+      "fields": "Fields",
+      "preview": "Preview",
+      "certification": "Certify",
+      "advanced": "Advanced",
+      "history": "History",
+      "samples": "Samples",
+      "label": "ERP mapping screens"
+    },
+    "status": {
+      "NOT_SET_UP": "Not set up",
+      "DRAFT": "Draft",
+      "READY_UNCERTIFIED": "Ready, not certified",
+      "PARTIALLY_CERTIFIED": "Partly certified",
+      "CERTIFIED": "Certified",
+      "STALE": "Re-certify"
+    },
+    "route": {
+      "GUIDED": "Guided mapping",
+      "HAND_WRITTEN": "Hand-written profile",
+      "NONE": "Nothing runs yet"
+    },
+    "routeState": {
+      "CERTIFIED": "Certified",
+      "FAILED": "Failed",
+      "NOT_CERTIFIED": "Not certified",
+      "STALE": "Stale"
+    },
+    "certRoute": {
+      "INVOICE": "Invoice",
+      "CREDIT_NOTE": "Credit note",
+      "DEBIT_NOTE": "Debit note",
+      "SELF_BILLING": "Self-billing"
+    },
+    "sourceSystem": {
+      "ODOO": "Odoo",
+      "ERPNEXT": "ERPNext",
+      "SAP": "SAP",
+      "ORACLE": "Oracle",
+      "MICROSOFT_DYNAMICS": "Microsoft Dynamics",
+      "CUSTOM": "Custom"
+    },
+    "section": {
+      "document": "Document",
+      "seller": "Seller",
+      "buyer": "Buyer",
+      "tax": "Tax",
+      "lines": "Lines",
+      "payment": "Payment",
+      "totals": "Totals"
+    },
+    "requirement": {
+      "MANDATORY": "Required",
+      "CONDITIONAL": "Conditional",
+      "OPTIONAL": "Optional"
+    },
+    "origin": {
+      "PLATFORM_SUPPLIED": "Fawtir supplies this",
+      "DERIVED": "Worked out by Fawtir"
+    },
+    "condition": {
+      "creditOrDebit": "when it is a credit or debit note",
+      "specialTransactions": "for imports, reverse charge, profit margin and special zones",
+      "buyerIdOrVatin": "either this or the buyer's VATIN",
+      "withBuyerId": "when a buyer identifier is given",
+      "notSimplified": "unless it is a simplified invoice",
+      "rateSZ": "for S (5) and Z (0); never for E or O",
+      "exemptOrZero": "when the category is E or Z",
+      "withPaymentMeans": "when payment instructions are given",
+      "withAllowances": "when there are document-level allowances",
+      "withCharges": "when there are document-level charges"
+    },
+    "help": {
+      "invoiceNumber": "Your own number. No format is imposed by the rules.",
+      "date": "YYYY-MM-DD, and never in the future (Muscat time).",
+      "transactionType": "Chosen per submission, not mapped.",
+      "currency": "Anything but OMR needs the hand-written route.",
+      "vatin": "OM followed by exactly ten digits.",
+      "sellerPhone": "Required on every invoice — most ERPs do not hold it, so a constant is fine.",
+      "buyerEndpoint": "The buyer's Peppol address; for consumers, Fawtir uses the Tax Authority's placeholder.",
+      "vatCategory": "S needs rate 5, Z rate 0; E and O carry no rate.",
+      "rate": "0.00 to 100.00, two decimals at most.",
+      "exemptionReason": "VATEX-OM-… for E, VATZR-OM-… for Z.",
+      "positive": "Zero or positive, even on a credit note.",
+      "threeDecimals": "Three decimals at most.",
+      "twoDecimals": "Two decimals at most.",
+      "isic": "Six digits.",
+      "prepaid": "If present, the prepayment invoice must be referenced too."
+    },
+    "coverage": {
+      "GOODS_CLASSIFICATION": "Goods that need an HS code",
+      "FOREIGN_CURRENCY": "Invoices in a currency other than rial",
+      "INVOICING_PERIOD": "Summary or period-based invoices",
+      "banner": "The guided mapping cannot express these; they need the hand-written route."
+    },
+    "error": {
+      "UNKNOWN_BUSINESS_TERM": "This term is not in the catalogue",
+      "TARGET_NOT_MAPPABLE": "Fawtir supplies this field; it cannot be mapped",
+      "UNSUPPORTED_TARGET": "The guided path cannot express this field",
+      "MISSING_SOURCE": "Give a source path or a default",
+      "MALFORMED_SOURCE_PATH": "Only letters, digits, underscores, dots and [] — no operators",
+      "MALFORMED_TRANSFORM": "The transform does not parse",
+      "DUPLICATE_SINGLETON_TARGET": "This field is mapped twice",
+      "REPEATED_TARGET_NOT_SUPPORTED": "One line term can only be mapped once",
+      "CONFLICTING_TARGET_PATH": "Allowance and charge cannot share a slot",
+      "INVALID_CODE_VALUE": "\"{{value}}\" is not in the {{list}} list",
+      "VALUE_MAP_TOO_LARGE": "At most 200 pairs of 128 characters",
+      "MALFORMED_VALUE_MAP": "A code on the left is empty",
+      "VALUE_MAP_NOT_ALLOWED": "Value maps are for code fields only",
+      "VALUE_MAP_DEFAULT_REQUIRED": "\"Use default\" needs a default code"
+    },
+    "warning": {
+      "transformAfterMap": "{{term}}: the transform runs after the value map"
+    },
+    "dryRun": {
+      "valueUnmapped": "\"{{value}}\" is not in the value map for {{term}}, and unmapped codes fail the invoice",
+      "transformDeferred": "{{term}}'s transform is not a preset; it runs on the server only",
+      "missing": "{{term}} came out empty",
+      "vatinShape": "\"{{value}}\" is not OM followed by ten digits",
+      "dateShape": "\"{{value}}\" is not YYYY-MM-DD",
+      "rateOnExempt": "A rate on category {{category}}; E and O carry none",
+      "standardRate": "Category S must carry rate 5, not {{rate}}"
+    },
+    "finding": {
+      "sellerAddress": "Seller address needs all three lines, city and postcode",
+      "sellerPhone": "Seller contact telephone is missing",
+      "creditType": "A credit note must carry type 381, not {{type}}",
+      "debitType": "A debit note must carry type 383, not {{type}}",
+      "selfBillingType": "Self-billing takes 389 or 261, not {{type}}",
+      "precedingInvoice": "Preceding invoice number, date and UUID must be present",
+      "noteReason": "A credit or debit note needs a reason code",
+      "hsCode": "Line {{line}} is goods and needs a 12-digit HS code — the hand-written route",
+      "lineNet": "Line {{line}}: net {{actual}} does not equal quantity × price {{expected}}",
+      "totals": "Total with VAT {{actual}} is not total without VAT plus VAT {{expected}}"
+    },
+    "event": {
+      "guidedSaved": "Mapping saved — revision {{revision}}, {{entries}} fields",
+      "guidedRestored": "Revision {{from}} restored as revision {{to}}",
+      "guidedImported": "Mapping imported — {{entries}} fields",
+      "guidedArchived": "Guided mapping archived",
+      "profileActivated": "Profile v{{version}} activated · {{hash}}",
+      "profileDeactivated": "Profile v{{version}} deactivated — submissions stop",
+      "certificationPassed": "{{route}} certified",
+      "certificationFailed": "{{route}} certification failed — {{findings}} findings",
+      "sampleUploaded": "Sample uploaded — {{label}}",
+      "sampleDeleted": "Sample removed — {{label}}"
+    },
+    "preset": {
+      "dateDmy": "Date from DD/MM/YYYY",
+      "dateEpoch": "Date from epoch milliseconds",
+      "trimUpper": "Trim and upper-case",
+      "digitsOnly": "Keep digits only",
+      "round3": "Round to 3 decimals",
+      "round2": "Round to 2 decimals",
+      "abs": "Absolute value",
+      "percentFromFraction": "Percent from a fraction"
+    },
+    "onUnmapped": {
+      "FAIL": "Fail the invoice",
+      "USE_DEFAULT": "Use a default code",
+      "PASS_THROUGH": "Pass the value through"
+    },
+    "fields": {
+      "title": "Field mapping",
+      "subtitle": "Map each business term to a field in your ERP's export. Required ones first; Fawtir supplies the rest.",
+      "sourceSystem": "Source system",
+      "sourceSystemNote": "for your records; it does not change the mapping",
+      "sample": "Sample for the path picker",
+      "sampleNote": "paths and example values come from it",
+      "sampleHint_one": "{{count}} path",
+      "sampleHint_other": "{{count}} paths",
+      "noSample": "No sample uploaded yet — the picker needs one.",
+      "uploadSample": "Upload a sample",
+      "sections": "Sections",
+      "requiredMapped": "{{mapped}} of {{total}} required mapped",
+      "noRequired": "Nothing required here",
+      "eitherOf": "Either of these",
+      "eitherOfNote": "One of the two satisfies the rule. Map whichever your ERP holds; both is fine.",
+      "sourcePath": "Source path",
+      "sourcePathPlaceholder": "e.g. erp.partner.name",
+      "pickPath": "Pick a path from the sample",
+      "searchPaths": "Search paths and values…",
+      "noPaths": "Nothing in the sample matches",
+      "pickerNeedsSample": "Upload a sample to pick paths from it.",
+      "type": {
+        "string": "text",
+        "number": "number",
+        "boolean": "yes/no",
+        "null": "empty",
+        "object": "object",
+        "array": "list"
+      },
+      "default": "Default",
+      "defaultConstant": "Constant — sent as the value itself",
+      "defaultFallback": "Used when the source is empty",
+      "valueMap": "Value map",
+      "valueMapCount": "Value map ({{count}})",
+      "advanced": "Advanced",
+      "advancedOn": "Advanced · {{preset}}",
+      "customTransform": "custom transform",
+      "preset": "Preset",
+      "choosePreset": "Choose a preset…",
+      "transform": "Transform",
+      "transformPlaceholder": "$uppercase($trim($src))",
+      "runsOnSrc": "Runs on $src — the value after the value map, before the default.",
+      "clearTransform": "Remove",
+      "checklist": "Readiness",
+      "version": "Version {{version}}",
+      "checking": "Checking…",
+      "requiredFields": "Required fields mapped",
+      "missingLead": "Still to map",
+      "invalid": "Invalid rows",
+      "invalidNone": "Nothing invalid",
+      "warnings": "Warnings",
+      "save": "Save",
+      "unsaved": "Unsaved changes",
+      "saveRefused_one": "Fix the {{count}} invalid row first",
+      "saveRefused_other": "Fix the {{count}} invalid rows first",
+      "saveDraft_one": "Saved as a draft — {{count}} required field still to map",
+      "saveDraft_other": "Saved as a draft — {{count}} required fields still to map",
+      "saveActivated": "Compiled and activated — certify next.",
+      "certifyNext": "Go to certification",
+      "staleTitle": "Someone else saved this mapping",
+      "staleBody": "The mapping is now at version {{version}}, saved since you opened this page. Reload to work from the saved version; your unsaved edits will be dropped.",
+      "reload": "Reload",
+      "modal": {
+        "title": "Value map — {{term}}",
+        "subtitle": "Match the codes your ERP sends to the {{list}} list.",
+        "fromErp": "Code from your ERP",
+        "becomes": "Becomes",
+        "sourceIs": "Source:",
+        "noPath": "Give the row a source path first, so the sample's codes can be collected.",
+        "seenInSample": "Seen in the sample",
+        "empty": "No codes yet — add the ones your ERP sends.",
+        "addCode": "Add a code",
+        "addPlaceholder": "A code as your ERP sends it",
+        "add": "Add",
+        "remove": "Remove this pair",
+        "chooseCode": "Choose a code…",
+        "searchCodes": "Search codes…",
+        "noCodes": "No code matches",
+        "lookupHS": "12 digits",
+        "lookupISIC": "6 digits",
+        "lookupBad": "Must be exactly {{digits}} digits",
+        "groupE": "For category E — exemption reasons",
+        "groupZ": "For category Z — zero-rating reasons",
+        "onUnmapped": "If a code is not listed",
+        "onUnmappedNote": {
+          "FAIL": "The invoice is refused before it is sent.",
+          "USE_DEFAULT": "The default code below is sent instead.",
+          "PASS_THROUGH": "The ERP's code is sent as it is."
+        },
+        "defaultCode": "Default code",
+        "pairs_one": "{{count}} pair",
+        "pairs_other": "{{count}} pairs",
+        "unmappedRows_one": "{{count}} code without a match is left out",
+        "unmappedRows_other": "{{count}} codes without a match are left out",
+        "limit": "At most 200 pairs of 128 characters.",
+        "listSize": "{{shown}} of {{size}} codes shown here; the full list comes from the server.",
+        "save": "Save the map"
+      }
+    },
+    "overview": {
+      "title": "ERP mapping",
+      "subtitle": "Where your ERP's invoices become Fawtir's — and whether the Tax Authority would accept them.",
+      "kpi": {
+        "route": "Route",
+        "routeValue": {
+          "GUIDED": "Guided",
+          "HAND_WRITTEN": "Hand-written",
+          "NONE": "None"
+        },
+        "fields": "Required fields",
+        "ofRequired": "of {{count}}",
+        "fieldsComplete": "Every required field is mapped",
+        "fieldsMissing_one": "{{count}} still missing: {{names}}",
+        "fieldsMissing_other": "{{count}} still missing: {{names}}",
+        "invalid_one": "{{count}} entry needs fixing before anything runs",
+        "invalid_other": "{{count}} entries need fixing before anything runs",
+        "certified": "Certified routes",
+        "ofRoutes": "of {{count}}",
+        "certifiedNone": "No route has been tested yet",
+        "certifiedClean": "Every route you tried passed",
+        "failedCount_one": "{{count}} failed",
+        "failedCount_other": "{{count}} failed",
+        "staleCount_one": "{{count}} stale",
+        "staleCount_other": "{{count}} stale",
+        "samples": "Samples",
+        "ofSamples": "of {{count}}",
+        "samplesNone": "Upload one to preview and certify",
+        "samplesAtLimit": "At the limit — remove one to add another",
+        "samplesRoom_one": "Room for {{count}} more",
+        "samplesRoom_other": "Room for {{count}} more",
+        "profileNote": "{{system}} · profile v{{version}} · {{hash}}"
+      },
+      "actions": {
+        "restoreExample": "Restore the example",
+        "startOver": "Start over"
+      },
+      "handWritten": {
+        "title": "A hand-written profile is what runs",
+        "body": "Your guided mapping is not what runs; saving it again will replace the hand-written profile.",
+        "open": "Open the profile"
+      },
+      "startOver": {
+        "title": "Start over?",
+        "body": "This clears the guided mapping, every revision, every profile, every sample and every certification. Invoices from your ERP stop until a profile is active again.",
+        "confirm": "Clear everything"
+      },
+      "cta": {
+        "start": "Start guided mapping",
+        "upload": "Upload a hand-written profile",
+        "finish_one": "Finish the {{count}} missing field",
+        "finish_other": "Finish the {{count}} missing fields",
+        "finishFixing": "Fix the invalid entries",
+        "certify": "Certify",
+        "recertify": "Re-certify"
+      },
+      "empty": {
+        "title": "What the Tax Authority needs from your ERP",
+        "body": "Before an invoice can leave Fawtir, the mapping has to supply all of these. Most ERPs do not hold every one — a fixed value is fine where yours does not.",
+        "field": {
+          "sellerPhone": "Seller telephone",
+          "address": "Three seller address lines, city and postcode",
+          "issueTime": "Issue time, not only the date",
+          "vatin": "Seller VATIN — OM and ten digits",
+          "goodsServices": "Goods-or-services flag on every line",
+          "isic": "ISIC activity code",
+          "lineVat": "VAT amount on every line",
+          "lineTotal": "Line total including VAT"
+        },
+        "guided": "Guided: pick the ERP field for each term, with checks as you go. Most tenants finish in an afternoon.",
+        "hand": "Hand-written: upload a JSONata profile of your own for the invoices the guided path cannot express."
+      },
+      "cert": {
+        "title": "Certification",
+        "note": "One test per route. The evidence is tied to the profile that runs — change it, and the routes go stale.",
+        "col": {
+          "route": "Route",
+          "state": "State",
+          "detail": "Last result",
+          "action": ""
+        },
+        "certifiedOn": "Certified {{date}}",
+        "staleNote": "Passed on an earlier profile — run it again",
+        "failedOn": "Failed {{date}}",
+        "findings_one": "{{count}} finding",
+        "findings_other": "{{count}} findings",
+        "notTried": "Not tried yet",
+        "run": "Run test",
+        "rerun": "Run again"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "note": "The last five changes to the mapping",
+        "empty": "Nothing has happened yet",
+        "by": "{{who}} · {{date}}",
+        "seeAll": "See all in the activity log"
+      }
+    },
+    "samples": {
+      "title": "Samples and files",
+      "subtitle": "The ERP invoices the preview and the certification run against, and the guided mapping as a file.",
+      "upload": {
+        "open": "Upload a sample",
+        "title": "Upload a sample",
+        "subtitle": "One ERP invoice as JSON, exactly as your ERP hands it to Fawtir.",
+        "confirm": "Upload",
+        "drop": "Drop a .json file here, or click to choose one",
+        "dropNote": "One file, up to 256 KiB",
+        "chosen": "{{size}} KB — read and parsed",
+        "read": "What Fawtir read",
+        "label": "Label",
+        "labelHint": "{{count}} of {{max}} characters. Labels must be unique.",
+        "personalData": "Samples are visible to all administrators — remove personal data before uploading.",
+        "error": {
+          "read": "The file could not be read.",
+          "parse": "That is not valid JSON — check for a trailing comma or a missing bracket.",
+          "size": "The file is larger than 256 KiB. Trim the invoice to its lines and try again.",
+          "type": "Only .json files can be uploaded.",
+          "labelRequired": "Give the sample a label.",
+          "labelExists": "A sample with this label already exists.",
+          "limit": "{{count}} samples is the limit. Remove one you no longer need, then try again."
+        }
+      },
+      "list": {
+        "title": "Samples",
+        "note": "{{count}} of {{limit}} — a sample is what the preview and the certification run against.",
+        "empty": "No samples yet. Upload one ERP invoice as JSON to start."
+      },
+      "col": {
+        "label": "Sample",
+        "size": "Size",
+        "by": "Uploaded by",
+        "when": "Uploaded",
+        "hash": "SHA-256",
+        "actions": ""
+      },
+      "kb": "{{size}} KB",
+      "usedInLast": "Used in the last certification",
+      "usedEarlier": "Used in certification",
+      "preview": {
+        "title": "What Fawtir read from “{{label}}”",
+        "note": "The first {{count}} paths, as the field picker will offer them",
+        "noKeys": "No paths were found in this sample",
+        "more_one": "and {{count}} more path",
+        "more_other": "and {{count}} more paths"
+      },
+      "previewing": "Previewing",
+      "delete": "Delete",
+      "remove": {
+        "title": "Delete this sample?",
+        "body": "\"{{label}}\" will be gone from the preview and the certification. Certification evidence already recorded stays.",
+        "confirm": "Delete"
+      },
+      "file": {
+        "title": "Import and export",
+        "note": "The guided mapping as a portable file — for a backup, another company, or a hand edit.",
+        "exportTitle": "Export",
+        "exportBody": "Downloads the guided mapping in the fawtir.guided-mapping/1 schema, with its source system and catalogue version.",
+        "exportButton": "Export the guided mapping",
+        "nothingToExport": "Nothing to export yet",
+        "exported": "Saved as",
+        "importTitle": "Import",
+        "importBody": "Replaces the guided mapping with the file's entries and saves it as a new revision. Every term must be in the catalogue.",
+        "importDrop": "Drop an exported file here, or click to choose one",
+        "importNote": ".json, at most 500 entries"
+      },
+      "import": {
+        "activated": "Imported as revision {{revision}} and activated.",
+        "draft_one": "Imported as revision {{revision}} and saved as a draft — {{count}} required field is still missing.",
+        "draft_other": "Imported as revision {{revision}} and saved as a draft — {{count}} required fields are still missing.",
+        "refused_one": "Not imported — {{count}} entry is invalid. Fix the file and try again.",
+        "refused_other": "Not imported — {{count}} entries are invalid. Fix the file and try again.",
+        "malformed": "This is not a Fawtir guided-mapping file: it needs the fawtir.guided-mapping/1 schema and a list of entries.",
+        "unreadable": "The file could not be read as JSON.",
+        "stale": "The mapping changed since this page was opened. Reload, then import again.",
+        "unknownTerms_one": "Not imported — {{count}} term is not in the catalogue: {{terms}}",
+        "unknownTerms_other": "Not imported — {{count}} terms are not in the catalogue: {{terms}}"
+      },
+      "previewButton": "Preview"
+    },
+    "history": {
+      "title": "History",
+      "subtitle": "Every revision of the guided mapping, every profile that ran, and every certification attempt.",
+      "tab": {
+        "revisions": "Revisions",
+        "profiles": "Profiles",
+        "certifications": "Certifications"
+      },
+      "revisions": {
+        "col": {
+          "revision": "Revision",
+          "fields": "Fields",
+          "compiled": "Compiled profile",
+          "ready": "Ready",
+          "by": "Saved by",
+          "at": "Saved",
+          "action": ""
+        },
+        "empty": "No revisions yet — the first save of the guided mapping starts the ledger.",
+        "number": "Revision {{count}}",
+        "origin": {
+          "EDIT": "Saved from the wizard",
+          "IMPORT": "Imported from a file",
+          "RESTORE": "Restored",
+          "RESTORE_FROM": "Restored from revision {{count}}"
+        },
+        "notCompiled": "Not compiled",
+        "ready": "Ready",
+        "notReady": "Incomplete",
+        "current": "Current",
+        "restore": "Restore"
+      },
+      "restore": {
+        "title": "Restore revision {{count}}?",
+        "body_one": "Its {{count}} field, as saved on {{date}}, becomes the guided mapping again — as a new revision, so nothing is lost. If it compiles to a profile that already passed certification, the routes come back certified.",
+        "body_other": "Its {{count}} fields, as saved on {{date}}, become the guided mapping again — as a new revision, so nothing is lost. If it compiles to a profile that already passed certification, the routes come back certified.",
+        "confirm": "Restore",
+        "done": "Revision {{from}} restored as revision {{revision}}",
+        "reacquired": "certification reacquired",
+        "activated": "compiled and activated",
+        "draft_one": "saved as a draft, {{count}} required field still missing",
+        "draft_other": "saved as a draft, {{count}} required fields still missing",
+        "refused_one": "Not restored — {{count}} entry no longer passes the validator.",
+        "refused_other": "Not restored — {{count}} entries no longer pass the validator.",
+        "stale": "The mapping changed since this page was opened. Reload, then restore again.",
+        "notFound": "That revision no longer exists."
+      },
+      "profiles": {
+        "col": {
+          "version": "Version",
+          "origin": "Origin",
+          "hash": "Content hash",
+          "erpKey": "ERP key",
+          "created": "Created",
+          "action": ""
+        },
+        "empty": "No profile yet — a complete guided mapping compiles into one, or upload a hand-written profile.",
+        "active": "Active",
+        "view": "View",
+        "viewTitle": "Profile v{{count}}"
+      },
+      "cert": {
+        "col": {
+          "route": "Route",
+          "result": "Result",
+          "profile": "Profile",
+          "sample": "Sample",
+          "transactionType": "Transaction type",
+          "at": "When",
+          "by": "By",
+          "findings": "Findings"
+        },
+        "empty": "No certification has been run yet.",
+        "passed": "Passed",
+        "failed": "Failed",
+        "sampleGone": "Sample removed"
+      }
+    },
+    "connections": {
+      "title": "Connected systems",
+      "subtitle": "Let Fawtir collect invoices from your ERP by itself, instead of your ERP pushing them.",
+      "card": {
+        "title": "Automatic extraction",
+        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping, submits them, and writes the result — Fawtir number, status, QR — back into the ERP record."
+      },
+      "steps": {
+        "collect": {
+          "title": "Collect",
+          "body": "Every few minutes Fawtir asks your ERP for invoices it has not seen."
+        },
+        "map": {
+          "title": "Map and submit",
+          "body": "The same field mapping you certified turns each one into a Fawtir invoice."
+        },
+        "writeBack": {
+          "title": "Write back",
+          "body": "The Fawtir number, the status and the QR land in the ERP record."
+        }
+      },
+      "price": {
+        "title": "Add-on",
+        "perMonth": "a month",
+        "documents_one": "{{formatted}} document collected each month",
+        "documents_other": "{{formatted}} documents collected each month",
+        "overage": "Then OMR {{amount}} for every extra document",
+        "enterprise": "Included on Enterprise plans"
+      },
+      "activate": {
+        "button": "Ask to activate the add-on",
+        "note": "Nothing is charged now; the Fawtir team confirms first.",
+        "requested": "Requested — the Fawtir team will confirm and switch the add-on on for you."
+      },
+      "systems": {
+        "title": "Supported systems",
+        "available": "Available",
+        "coming": "Coming"
+      },
+      "mapping": {
+        "note": "ERP field mapping itself is included on every plan — the connector only automates the collecting.",
+        "link": "Open ERP mapping"
+      }
+    },
+    "shared": {
+      "copyJson": "Copy JSON",
+      "copied": "Copied",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "keys_one": "{{count}} key",
+      "keys_other": "{{count}} keys",
+      "goToField": "Go to field",
+      "rule": "Rule",
+      "message": "What went wrong",
+      "field": "Field",
+      "noFindings": "No findings.",
+      "sample": "Sample",
+      "chooseSample": "Choose a sample",
+      "noSamples": "No samples yet.",
+      "uploadSample": "Upload one first",
+      "kb": "{{size}} KB",
+      "findingsCount_one": "{{count}} finding",
+      "findingsCount_other": "{{count}} findings"
+    },
+    "preview": {
+      "title": "Preview",
+      "subtitle": "Run a sample through the mapping and see the invoice Fawtir would file.",
+      "level": "L3 · dry-run, no Schematron",
+      "levelNote": "The mapping and the canonical model only; the Authority's rules run at certification.",
+      "run": "Run preview",
+      "runAgain": "Run again",
+      "sentTag": "Sent",
+      "sent": "What your ERP sent",
+      "filedTag": "Filed",
+      "filed": "What Fawtir would file",
+      "notRun": "Choose a sample and run the preview.",
+      "noSample": "No sample to show.",
+      "passedNote": "Every field mapped and the canonical model accepted it.",
+      "errorsHeadline_one": "{{count}} thing stops this invoice",
+      "errorsHeadline_other": "{{count}} things stop this invoice",
+      "showPartial": "Show what did get through",
+      "hidePartial": "Hide what did get through",
+      "notes": "Left to the server",
+      "handWritten": "The active profile is hand-written. A preview runs it on the server only and cannot be simulated here.",
+      "handWrittenShort": "The hand-written profile runs on the server only.",
+      "handWrittenHash": "Profile {{hash}}",
+      "openAdvanced": "Open the profile",
+      "none": "Nothing to preview yet — finish the field mapping first.",
+      "goToFields": "Go to Fields"
+    },
+    "certification": {
+      "title": "Certification",
+      "subtitle": "Prove each route against a real sample before invoices of that kind can be sent.",
+      "staleBanner": "Your mapping changed; every route needs re-certifying before invoices can be sent.",
+      "noProfile": "Nothing runs yet, so there is nothing to certify. Finish the field mapping first.",
+      "goToFields": "Go to Fields",
+      "activeHash": "Active",
+      "passHash": "Certified at",
+      "stalePassHash": "Passed at (earlier profile)",
+      "lastHash": "Last tried at",
+      "certifiedOn": "Certified on {{date}} by {{who}}",
+      "lastAttempt": "Last attempt {{date}} · {{findings}}",
+      "neverTried": "Never tried",
+      "run": "Run test invoice",
+      "history": "History",
+      "historyNote": "Every attempt, newest first.",
+      "noHistory": "No attempts yet.",
+      "col": {
+        "route": "Route",
+        "result": "Result",
+        "hash": "Hash",
+        "sample": "Sample",
+        "type": "Transaction type",
+        "when": "When",
+        "by": "By",
+        "findings": "Findings"
+      },
+      "passedPill": "Passed",
+      "failedPill": "Failed",
+      "show": "show",
+      "hide": "hide",
+      "modalTitle": "Run test invoice · {{route}}",
+      "modalSubtitle": "A real sample through the active profile and the route's own rules.",
+      "runNow": "Run",
+      "runAgain": "Run again",
+      "transactionType": "Transaction type (BTOM-001)",
+      "custom": "Custom",
+      "composed": "Resulting BTOM-001",
+      "advanced": "Advanced · choose bits",
+      "hideAdvanced": "Hide bits",
+      "bitsNote": "Bits 16–20 are reserved and stay 0.",
+      "bits": {
+        "fullTax": "Full tax invoice",
+        "simplified": "Simplified invoice",
+        "selfBilled": "Self-billed",
+        "thirdParty": "Third-party",
+        "summary": "Summary invoice",
+        "continuous": "Continuous supply",
+        "export": "Export",
+        "deemed": "Deemed supply",
+        "importOfServices": "Import of services",
+        "profitMargin": "Profit margin",
+        "profitMarginSelf": "Profit margin, self-billed",
+        "eCommerce": "E-commerce",
+        "importOfGoods": "Import of goods",
+        "specialZone": "Special zone",
+        "prepayment": "Prepayment"
+      },
+      "running": "Running the pipeline…",
+      "runningNote": "Mapping, canonical model, then the route's rules. This takes a few seconds.",
+      "passed": "Passed",
+      "passedBody": "This mapping is certified for {{route}} at hash {{hash}}.",
+      "failed": "Failed",
+      "failedBody_one": "{{count}} finding · the route stays uncertified until it passes.",
+      "failedBody_other": "{{count}} findings · the route stays uncertified until it passes.",
+      "noSampleResult": "That sample is gone. Choose another."
+    },
+    "advanced": {
+      "title": "Hand-written profile",
+      "subtitle": "Write the JSONata yourself when the guided mapping cannot express your invoices.",
+      "banner": "Saving here replaces the guided mapping as what runs; saving the guided mapping again will replace this.",
+      "editor": "Profile",
+      "editorHint": "JSONata over the ERP payload; the result must be a canonical invoice.",
+      "runsNow": "Runs now",
+      "activeLine": "v{{version}} · {{hash}}",
+      "nothingActive": "Nothing active — submissions fail closed.",
+      "erpKey": "ERP key",
+      "erpKeyHint": "Names the system this profile reads, e.g. odoo-17.",
+      "profileText": "Profile text",
+      "sizeNote": "{{size}} KB · at most 256 KB",
+      "empty": "Nothing here yet — paste or write your JSONata.",
+      "dryRun": "Dry-run with this text",
+      "download": "Download",
+      "save": "Save and activate",
+      "deactivate": "Deactivate",
+      "dryRunTitle": "Dry-run",
+      "dryRunHash": "This text would get hash",
+      "identical": "Identical to the guided mapping.",
+      "differs_one": "{{count}} line differs from the guided mapping.",
+      "differs_other": "{{count}} lines differ from the guided mapping.",
+      "noGuided": "There is no guided mapping to compare with.",
+      "serverNote": "JSONata cannot run in the browser; the real dry-run runs on the server.",
+      "saved": "Saved and activated as version {{version}}",
+      "invalid": "The profile does not parse.",
+      "deactivated": "Deactivated. Nothing runs now and submissions fail closed.",
+      "confirmTitle": "Deactivate the profile?",
+      "confirmBody": "Nothing will run in its place. Every submission from your ERP fails closed until a profile is active again.",
+      "confirmSubmit": "Deactivate"
+    }
+  },
   "apiErrors": {
     "forbidden": "Your account doesn't have permission to do this. Ask an administrator in your company if you need it.",
     "notFound": "We couldn't find this record. It may have been removed, or the link may be wrong.",
@@ -9844,5 +11527,63 @@
     "tax": "Tax category",
     "saving": "Saving…",
     "saveAndUse": "Save and use"
+  },
+  "invoiceDraft": {
+    "editTitle": "Edit draft",
+    "meta": {
+      "new": "New draft · not saved yet",
+      "saved": "Draft · numbered when issued"
+    },
+    "saving": "Saving…",
+    "saved": "Draft saved.",
+    "discard": "Discard draft",
+    "discardTitle": "Discard this draft?",
+    "discardBody": "It leaves your drafts. It was never issued, so nothing was sent or reported.",
+    "discardConfirm": "Discard",
+    "stale": "Someone else saved this draft after you opened it. Reload to see their version before saving.",
+    "reload": "Reload",
+    "fixFirst": "Some fields need attention before the draft can be saved.",
+    "serverRefused": "The server did not accept the draft.",
+    "problem": {
+      "customer": "Choose a customer.",
+      "branch": "Choose a branch.",
+      "product": "Choose a product for this line.",
+      "quantity": "Quantity must be more than zero.",
+      "unitPrice": "Enter a price.",
+      "exemptionReason": "Say why no VAT is charged on this line."
+    },
+    "lineError": "Line {{line}}: {{message}}",
+    "exemptionReason": "Reason no VAT is charged",
+    "figures": {
+      "new": "Estimate. Save the draft to see the figures the invoice will carry.",
+      "dirty": "Estimate of unsaved changes. Save to update the saved figures.",
+      "saved": "Figures from the saved draft.",
+      "failed": "The saved draft could not be priced: {{reason}}."
+    },
+    "previewReason": {
+      "INVOICE_LINES_REQUIRED": "add at least one line",
+      "LINE_DISCOUNT_EXCEEDS_BASE": "a line discount is more than the line",
+      "HEADER_DISCOUNT_EXCEEDS_BASE": "the document discount is more than the total",
+      "LINE_DISCOUNT_PERCENTAGE_INVALID": "a line discount is over 100%",
+      "HEADER_DISCOUNT_PERCENTAGE_INVALID": "the document discount is over 100%",
+      "EXEMPTION_REASON_REQUIRED": "a line with no VAT needs a reason",
+      "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories"
+    },
+    "datesAtIssue": "Set when the invoice is issued; not stored on the draft.",
+    "notEditable": "This invoice is {{state}}. Only drafts can be edited.",
+    "state": {
+      "DRAFT": "a draft",
+      "ISSUED": "issued",
+      "CANCELLED": "cancelled",
+      "DISCARDED": "discarded"
+    },
+    "readOnly": "You can see this draft but not save it.",
+    "notEligible": "This customer can't be invoiced yet. Missing: {{fields}}.",
+    "customerSearch": "Search customers",
+    "noCustomers": "No customers match",
+    "selectHint": "Choose one of your customers",
+    "vat": "VAT {{number}}",
+    "branchesFailed": "Branches could not be loaded",
+    "noteHidden": "This draft may have an internal note you can't see. Saving keeps it."
   }
 }

@@ -4,6 +4,7 @@
  * Figma 135:37541 (Branches), 135:37971 (Add a branch), 135:36580 (Peppol and tax).
  */
 
+import { PLAN } from './plans'
 import { BOOK, COMPANY, TODAY, daysFrom, INVOICES_THIS_MONTH } from './settings'
 import { MEMBERS } from './settingsPeople'
 
@@ -135,7 +136,10 @@ export const BUSIEST_BRANCH = (() => {
   }
 })()
 
-export const BRANCH_PLAN = { included: 5, extraMonthly: '8.000' }
+export const BRANCH_PLAN = {
+  included: PLAN.business.branches ?? Infinity,
+  extraMonthly: (PLAN.business.extraBranch ?? 0).toFixed(3),
+}
 
 export const BRANCHES_EVER = BRANCHES.length
 

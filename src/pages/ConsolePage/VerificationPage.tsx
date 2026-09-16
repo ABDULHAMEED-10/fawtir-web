@@ -2,6 +2,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Pager, RowsView } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
+import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
 import {
@@ -85,6 +86,7 @@ function VerificationQueue() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.verification' }]} />
       <div>
         <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
           {t('console.verification.title')}
@@ -159,11 +161,21 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
       <table className="w-full min-w-[760px] border-collapse text-start">
         <thead>
           <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
-            <th className="px-4 py-3 text-start font-semibold">{t('console.verification.col.company')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.verification.col.code')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.verification.col.submitted')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.verification.col.status')}</th>
-            <th className="px-2 py-3 text-start font-semibold">{t('console.verification.col.decided')}</th>
+            <th className="px-4 py-3 text-start font-semibold">
+              {t('console.verification.col.company')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.verification.col.code')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.verification.col.submitted')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.verification.col.status')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.verification.col.decided')}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -184,12 +196,17 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
                     {company.country ? ` · ${countryName(company.country, i18n.language)}` : ''}
                   </span>
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">{company.tenantCode}</td>
+                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                  {company.tenantCode}
+                </td>
                 <td className="px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.submittedAt ? formatDay(company.submittedAt, i18n.language) : none}
                 </td>
                 <td className="px-2 py-4">
-                  <VerificationStatusPill status={company.verificationStatus} submitted={submitted} />
+                  <VerificationStatusPill
+                    status={company.verificationStatus}
+                    submitted={submitted}
+                  />
                 </td>
                 <td className="px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.decidedAt ? formatDay(company.decidedAt, i18n.language) : none}
