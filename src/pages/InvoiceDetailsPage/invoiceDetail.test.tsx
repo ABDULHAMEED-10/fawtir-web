@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { InvoiceDetailDto, InvoiceHistoryDto, InvoicePaymentDto, InvoiceReceivableDto } from '../../api/invoices/detail'
-import { paymentRows, statusOf, timelineOf } from '../../lib/invoiceDetail'
+import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/invoiceDetail'
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -16,7 +16,15 @@ const ADMIN: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['invoice.read', 'invoice.draft', 'invoice.cancel', 'invoice.internal-note.read', 'customer.read', 'creditnote.create'],
+  permissions: [
+    'invoice.read',
+    'invoice.draft',
+    'invoice.cancel',
+    'invoice.internal-note.read',
+    'invoice.payment.manage',
+    'customer.read',
+    'creditnote.create',
+  ],
   scopes: [],
   featureFlags: {},
 }
@@ -106,7 +114,7 @@ const PAYMENTS: InvoicePaymentDto[] = [
 const HISTORY: InvoiceHistoryDto = {
   entries: [
     { id: 'h-1', eventType: 'PAYMENT_RECORDED', outcome: 'SUCCESS', invoiceVersion: 4, changedFieldsHash: 'abc', actorId: 'u-1', occurredAt: '2026-08-10T09:00:00Z' },
-    { id: 'h-2', eventType: 'INVOICE_ISSUED', outcome: 'SUCCESS', invoiceVersion: 3, changedFieldsHash: 'def', actorId: 'u-2', occurredAt: '2026-08-01T07:00:00Z' },
+    { id: 'h-2', eventType: 'ISSUED', outcome: 'SUCCESS', invoiceVersion: 3, changedFieldsHash: 'def', actorId: 'u-2', occurredAt: '2026-08-01T07:00:00Z' },
   ],
   truncated: false,
   limit: 200,
@@ -120,6 +128,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 let invoiceResponse: () => Response
 let receivableResponse: () => Response
 let cancelResponse: () => Response
+let payResponse: () => Response
 let who: Entitlements
 
 const calls = () => fetchMock.mock.calls.map(([url, init]) => `${(init as RequestInit)?.method ?? 'GET'} ${String(url)}`)
@@ -131,11 +140,13 @@ beforeEach(async () => {
   invoiceResponse = () => json(200, invoice())
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
+  payResponse = () => json(200, PAYMENTS[0])
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url === `${URL_BASE}/receivable`) return receivableResponse()
-    if (url === `${URL_BASE}/payments`) return json(200, PAYMENTS)
+    if (url === `${URL_BASE}/payments`) return method === 'POST' ? payResponse() : json(200, PAYMENTS)
+    if (url.startsWith(`${URL_BASE}/payments/`)) return payResponse()
     if (url === `${URL_BASE}/attachments`) return json(200, [{ id: 'f-1', filename: 'delivery-note.pdf', contentType: 'application/pdf', byteSize: 2048, sha256: 'x', attachedAt: '2026-08-01T08:00:00Z' }])
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === `${URL_BASE}/internal-note`) return json(200, { internalNote: 'Chase Hamed in September.' })
@@ -294,6 +305,82 @@ describe('An invoice, wired to the API', () => {
   })
 })
 
+describe('Recording and reversing payments', () => {
+  const body = (suffix: string) =>
+    JSON.parse(String(fetchMock.mock.calls.find(([url, init]) => url === `${URL_BASE}${suffix}` && (init as RequestInit)?.method === 'POST')?.[1]?.body))
+  const headers = (suffix: string) =>
+    (fetchMock.mock.calls.find(([url, init]) => String(url).startsWith(`${URL_BASE}${suffix}`) && (init as RequestInit)?.method === 'POST')?.[1] as RequestInit)
+      ?.headers as Record<string, string> | Headers
+
+  const key = (h: Record<string, string> | Headers) => (h instanceof Headers ? h.get('Idempotency-Key') : h['Idempotency-Key'])
+
+  it('records a payment for what is still owed, with its own idempotency key, and refreshes what it changes', async () => {
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'Record payment' }))
+    const amount = (await screen.findByRole('textbox', { name: /Amount received/ })) as HTMLInputElement
+    expect(amount.value).toBe('36.700')
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Reference/ }), { target: { value: '  TRX-42 ' } })
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+
+    await waitFor(() => expect(calls()).toContain(`POST ${URL_BASE}/payments`))
+    expect(body('/payments')).toMatchObject({ amount: 36.7, methodCode: '30', paymentReference: 'TRX-42' })
+    expect(key(headers('/payments'))).toMatch(/^payment-[0-9a-f-]{36}$/)
+    expect(await screen.findByText('Payment recorded.')).toBeTruthy()
+    await waitFor(() => expect(calls().filter((call) => call === `GET ${URL_BASE}/receivable`)).toHaveLength(2))
+  })
+
+  it('refuses more than is owed before asking, and puts a server refusal on its field', async () => {
+    payResponse = () => json(400, { type: 'https://api.fawtir.om/problems/invalid', code: 'PAYMENT_DATE_BEFORE_ISSUE_DATE', detail: 'no' })
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'Record payment' }))
+    fireEvent.change(await screen.findByRole('textbox', { name: /Amount received/ }), { target: { value: '99.000' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }))
+    expect(await screen.findByText('That is more than is still owed on this invoice.')).toBeTruthy()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/payments`)
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Amount received/ }), { target: { value: '10.1234' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }))
+    expect(await screen.findByText('Use no more than 3 decimals.')).toBeTruthy()
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Amount received/ }), { target: { value: '10' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }))
+    expect(await screen.findByText('A payment cannot be dated before the invoice was issued.')).toBeTruthy()
+  })
+
+  it('reverses a payment after confirming, and offers no reversal of one already reversed', async () => {
+    renderInvoice()
+    await screen.findByText('Reversed')
+    // pay-2 is reversed already; only pay-1 offers the action.
+    const reverseButtons = await screen.findAllByRole('button', { name: 'Reverse' })
+    expect(reverseButtons).toHaveLength(1)
+
+    fireEvent.click(reverseButtons[0])
+    expect(await screen.findByText(/stays on the record, with a reversal dated today/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse the payment' }))
+    await waitFor(() => expect(calls()).toContain(`POST ${URL_BASE}/payments/pay-1/reverse`))
+    expect(key(headers('/payments/pay-1/reverse'))).toMatch(/^payment-/)
+    expect(await screen.findByText('Payment reversed.')).toBeTruthy()
+  })
+
+  it('offers neither to someone who may not manage payments, nor on a paid invoice', async () => {
+    who = { ...ADMIN, permissions: ADMIN.permissions.filter((code) => code !== 'invoice.payment.manage') }
+    const { unmount } = renderInvoice()
+    await screen.findByText('Reversed')
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reverse' })).toBeNull()
+    unmount()
+
+    who = ADMIN
+    receivableResponse = () => json(200, { ...RECEIVABLE, outstandingAmount: 0, paidAmount: 56.7, paymentState: 'PAID' })
+    renderInvoice()
+    // "Paid" is both the status pill and the balance card's column label; wait for the balance.
+    await waitFor(() => expect(screen.getAllByText('Paid').length).toBeGreaterThan(1))
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+  })
+})
+
 describe('invoice detail mapping', () => {
   it('reads the status from the state, and from what is owed once issued', () => {
     expect(statusOf(invoice({ authoringState: 'DRAFT' }), null).tone).toBe('draft')
@@ -302,6 +389,18 @@ describe('invoice detail mapping', () => {
     expect(statusOf(invoice(), { ...RECEIVABLE, overdue: true }).tone).toBe('overdue')
     // Nothing is owed on a credit note, so it reads as issued rather than as unpaid.
     expect(statusOf(invoice({ type: 'CREDIT_NOTE' }), { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE' }).tone).toBe('issued')
+  })
+
+  it('says what a payment would be refused for before it is sent', () => {
+    const context = { outstanding: 36.7, currency: 'OMR', issueDate: '2026-08-01', today: '2026-09-16' }
+    const form = { amount: '10.000', methodCode: '30', reference: '', paymentDate: '2026-09-01' }
+    expect(paymentProblems(form, context)).toEqual({})
+    expect(paymentProblems({ ...form, amount: '' }, context)).toEqual({ amount: 'invoiceDetails.pay.error.amountRequired' })
+    expect(paymentProblems({ ...form, amount: '0' }, context)).toEqual({ amount: 'invoiceDetails.pay.error.amountPositive' })
+    expect(paymentProblems({ ...form, amount: '1.0001' }, context)).toEqual({ amount: 'invoiceDetails.pay.error.amountScale' })
+    expect(paymentProblems({ ...form, amount: '36.701' }, context)).toEqual({ amount: 'invoiceDetails.pay.error.amountTooMuch' })
+    expect(paymentProblems({ ...form, paymentDate: '2026-09-17' }, context)).toEqual({ paymentDate: 'invoiceDetails.pay.error.dateFuture' })
+    expect(paymentProblems({ ...form, paymentDate: '2026-07-31' }, context)).toEqual({ paymentDate: 'invoiceDetails.pay.error.dateBeforeIssue' })
   })
 
   it('folds a reversal into the payment it undoes', () => {
