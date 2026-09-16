@@ -1,5 +1,6 @@
 import { apiRequest } from '../client'
 import { withQuery } from '../query'
+import type { InvoiceDetailDto } from './detail'
 
 /**
  * Invoice drafts (`InvoiceAuthoringController`) and the branch list the draft names.
@@ -148,4 +149,26 @@ export function loadBranches(): Promise<BranchDto[]> {
 /** A fresh key per attempt: the server refuses a reused key with a different body. */
 export function newIdempotencyKey(): string {
   return `draft-${crypto.randomUUID()}`
+}
+
+export type IssueDraftRequest = {
+  /** The draft's `version` as last read or saved. */
+  expectedVersion: number
+  /** The Muscat day it is issued on: not in the future, and in the current calendar year. */
+  issueDate: string
+  /** On or after the issue date. The server does not derive it from the terms; the client does. */
+  dueDate: string
+}
+
+/**
+ * Numbers, prices and freezes a draft. It sends nothing: the issued invoice's `deliveryState` stays
+ * `NOT_SUBMITTED`. The key is the confirmation's, so a second click, or a retry after a lost
+ * response, issues once.
+ */
+export function issueDraft(id: string, idempotencyKey: string, request: IssueDraftRequest): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`${draftPath(id)}/issue`, {
+    method: 'POST',
+    body: request,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
 }

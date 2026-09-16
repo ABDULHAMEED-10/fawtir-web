@@ -11749,5 +11749,43 @@
         "street": "street"
       }
     }
+  },
+  "invoiceIssue": {
+    "action": "Issue invoice",
+    "title": "Issue this invoice?",
+    "subtitle": "Check the dates and the total before it takes its number.",
+    "total": "Total",
+    "totalLoading": "Working out…",
+    "body": "Issuing gives the invoice its number and fixes its figures. After that it can't be edited, only cancelled or corrected with a credit note.",
+    "notSent": "Nothing is sent to the customer or the Tax Authority yet.",
+    "submit": "Issue invoice",
+    "issuing": "Issuing…",
+    "done": "Issued as {{number}}. It hasn't been sent to the customer or the Tax Authority yet.",
+    "error": {
+      "issueDateRequired": "Choose the issue date.",
+      "issueDateFuture": "An invoice can't be dated in the future.",
+      "issueDateYear": "The issue date must be in this calendar year.",
+      "periodClosed": "That date is in a closed accounting period. Reopen the period or choose another date.",
+      "dueDateRequired": "Choose the due date.",
+      "dueDateBeforeIssue": "The due date can't be before the issue date."
+    },
+    "refused": {
+      "companyPending": "Your company is still being verified, so it can't issue invoices yet.",
+      "companyRejected": "Your company's verification was declined, so it can't issue invoices. Contact support.",
+      "tenantInactive": "Your account isn't active, so it can't issue invoices.",
+      "notReady": "Your account can't issue invoices right now ({{reason}}).",
+      "quota": "You've used this month's invoice allowance on your plan.",
+      "timezone": "Your company's time zone isn't set, so the issue date can't be checked. Set it in company settings.",
+      "sellerParticipant": "Your company's Peppol registration isn't verified yet, so it can't issue invoices.",
+      "customerIncomplete": "This customer is missing details an invoice needs. Complete the customer, then issue.",
+      "customerNotSelectable": "This customer can't be invoiced.",
+      "termsRequired": "Choose payment terms on the draft before issuing.",
+      "branchInactive": "The branch on this invoice is no longer active.",
+      "productMissing": "A product on this invoice no longer matches your catalogue. Edit the line, then issue.",
+      "productArchived": "A product on this invoice has been archived. Edit the line, then issue.",
+      "stale": "Someone changed this draft after you opened it. Reload, then issue.",
+      "notDraft": "This invoice is no longer a draft.",
+      "unavailable": "Issuing isn't available on this server yet."
+    }
   }
 }

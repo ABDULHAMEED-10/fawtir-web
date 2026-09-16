@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { Modal, OmAmount, RowsView } from '../../components/ui'
@@ -27,6 +27,8 @@ import {
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { RecordPaymentModal } from './RecordPaymentModal'
+import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
+import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
   dueNote,
@@ -113,6 +115,7 @@ function InvoiceScreen() {
   const language = i18n.language
   const session = useSession()
   const navigate = useNavigate()
+  const location = useLocation()
   const { id = '' } = useParams()
 
   const invoice = useApiRead<InvoiceDetailDto>(invoicePath(id), () => loadInvoice(id))
@@ -154,7 +157,18 @@ function InvoiceScreen() {
   )
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
 
-  const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
+  // Arriving from the composer's issue: the number it was given, said once.
+  const issuedNumber = (location.state as { issuedNumber?: string | null } | null)?.issuedNumber
+  const [notice, setNotice] = useState<{ key: string; values?: Record<string, string> } | { body: string } | null>(
+    issuedNumber ? { key: 'invoiceIssue.done', values: { number: issuedNumber } } : null,
+  )
+  const [issuing, setIssuing] = useState(false)
+  // Said once: a reload of this page is not another issue.
+  useEffect(() => {
+    if (issuedNumber) navigate(location.pathname, { replace: true, state: null })
+    // Only on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [paying, setPaying] = useState(false)
   // The payment being reversed, and the key minted when its confirmation opened: confirming twice
   // is one reversal, not two refusals.
@@ -278,6 +292,15 @@ function InvoiceScreen() {
                 {t('invoiceDetails.actions.edit')}
               </Link>
             ) : null}
+            {draft && can(session, 'invoice.issue') ? (
+              <button
+                type="button"
+                onClick={() => setIssuing(true)}
+                className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+              >
+                {t('invoiceIssue.action')}
+              </button>
+            ) : null}
             {!draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED' && can(session, 'creditnote.create') ? (
               <button type="button" onClick={() => navigate(`/income/credit-notes/new?invoice=${data.id}`)} className={GHOST_BUTTON}>
                 <img src={creditNoteIcon} alt="" className="size-5" />
@@ -318,7 +341,7 @@ function InvoiceScreen() {
       </div>
 
       {notice ? (
-        <Notice body={'key' in notice ? t(notice.key) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} />
+        <Notice body={'key' in notice ? t(notice.key, notice.values) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} />
       ) : null}
 
       {draft ? (
@@ -623,6 +646,24 @@ function InvoiceScreen() {
           <p className="text-sm font-medium text-text-quaternary">…</p>
         )}
       </SectionCard>
+
+      {issuing ? (
+        <IssueInvoiceModal
+          invoiceId={data.id}
+          version={data.version}
+          initialIssueDate={muscatToday()}
+          initialDueDate={dueDateFor(muscatToday(), data.details?.paymentTerms?.code)}
+          onClose={() => setIssuing(false)}
+          onIssued={(issued) => {
+            setIssuing(false)
+            setNotice({ key: 'invoiceIssue.done', values: { number: issued.invoiceNumber ?? '' } })
+            // Payments load on their own once the reread says the invoice is issued.
+            invoice.retry()
+            receivable.retry()
+            history.retry()
+          }}
+        />
+      ) : null}
 
       {paying && owed ? (
         <RecordPaymentModal

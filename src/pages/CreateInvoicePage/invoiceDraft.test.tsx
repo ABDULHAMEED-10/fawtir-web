@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { DraftResponse } from '../../api/invoices/drafts'
 import { CreateInvoicePage } from './CreateInvoicePage'
+import { muscatToday, plusDays } from '../../lib/invoiceIssue'
 
 const WRITER: Entitlements = {
   userId: 'u-1',
@@ -110,6 +111,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let putResponse: () => Response
 let loaded: DraftResponse
+let issueResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -123,6 +125,7 @@ beforeEach(async () => {
   who = WRITER
   loaded = draft()
   putResponse = () => json(200, draft({ version: 4 }))
+  issueResponse = () => json(200, { ...draft({ version: 5, authoringState: 'ISSUED' }), invoiceNumber: 'INV-2026-000003' })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -135,6 +138,7 @@ beforeEach(async () => {
     if (url === '/api/v1/invoice-drafts/d-1' && method === 'PUT') return putResponse()
     if (url.startsWith('/api/v1/invoice-drafts/d-1?expected_version=') && method === 'DELETE') return json(200, draft({ authoringState: 'DISCARDED' }))
     if (url === '/api/v1/invoice-drafts/d-1/preview') return json(200, PREVIEW)
+    if (url === '/api/v1/invoice-drafts/d-1/issue' && method === 'POST') return issueResponse()
     if (url === '/api/v1/authored-invoices/d-1/internal-note') return json(200, { internalNote: 'Call first' })
     throw new Error(`unexpected ${method} ${url}`)
   })
@@ -145,6 +149,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+function IssuedLanding() {
+  const state = useLocation().state as { issuedNumber?: string } | null
+  return <p>invoice page for {state?.issuedNumber}</p>
+}
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -152,6 +161,7 @@ function renderAt(path: string) {
         <Route path="/invoices/new" element={<CreateInvoicePage />} />
         <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
         <Route path="/invoices" element={<p>invoices list</p>} />
+        <Route path="/invoices/:id" element={<IssuedLanding />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -274,5 +284,86 @@ describe('an existing draft', () => {
     expect(await screen.findByText('This invoice is issued. Only drafts can be edited.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull()
     expect(calls('POST', '/api/v1/invoice-drafts/d-1/preview')).toHaveLength(0)
+  })
+})
+
+describe('issuing from the composer', () => {
+  const ISSUER: Entitlements = { ...WRITER, permissions: [...WRITER.permissions, 'invoice.issue'] }
+  const issueCalls = () => calls('POST', '/api/v1/invoice-drafts/d-1/issue')
+
+  it('is not offered without the issue permission', async () => {
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Create invoice' })).toBeNull()
+  })
+
+  it('confirms a saved draft with its dates and server total, issues it once and lands on the invoice', async () => {
+    who = ISSUER
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    expect(await within(dialog).findByText('20.160')).toBeTruthy()
+    expect(within(dialog).getByText('Nothing is sent to the customer or the Tax Authority yet.')).toBeTruthy()
+    // Nothing changed on screen, so nothing is saved first.
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
+
+    // Two submits in one tick, before the disabled button can render, are one request.
+    const form = dialog.querySelector('form')!
+    act(() => {
+      fireEvent.submit(form)
+      fireEvent.submit(form)
+    })
+
+    expect(await screen.findByText('invoice page for INV-2026-000003')).toBeTruthy()
+    expect(issueCalls()).toHaveLength(1)
+    const [call] = issueCalls()
+    expect((call[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': expect.stringMatching(/^draft-.{16,}/) })
+    const today = muscatToday()
+    expect(bodyOf(call)).toEqual({ expectedVersion: 3, issueDate: today, dueDate: plusDays(today, 30) })
+  })
+
+  it('saves unsaved changes first and issues the version that save returned', async () => {
+    who = ISSUER
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Subject / about' }), { target: { value: 'October supply' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    await waitFor(() => expect(issueCalls()).toHaveLength(1))
+    expect(bodyOf(issueCalls()[0]).expectedVersion).toBe(4)
+  })
+
+  it('says why a company that may not issue yet was refused, and keeps the confirmation open', async () => {
+    who = ISSUER
+    issueResponse = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409, code: 'COMPANY_VERIFICATION_PENDING' })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    expect(await within(dialog).findByText("Your company is still being verified, so it can't issue invoices yet.")).toBeTruthy()
+    expect(screen.queryByText(/invoice page for/)).toBeNull()
+  })
+
+  it('puts a closed-period refusal on the issue date', async () => {
+    who = ISSUER
+    issueResponse = () => json(409, { type: 'https://api.fawtir.om/problems/period-closed', status: 409, code: 'PERIOD_CLOSED' })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(alert.textContent).toBe('That date is in a closed accounting period. Reopen the period or choose another date.')
+    expect(alert.closest('[data-field]')?.getAttribute('data-field')).toBe('issueDate')
   })
 })

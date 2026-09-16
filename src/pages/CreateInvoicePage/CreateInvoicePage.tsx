@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Combobox, DateField, Modal, Select, withRial, type SelectOption } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { ProductPicker } from '../../components/invoice/ProductPicker'
+import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { useApiRead } from '../../hooks'
 import { apiRequest, type Page } from '../../api'
 import { ApiError } from '../../api/errors'
@@ -61,6 +62,7 @@ import peppolIcon from '../../assets/create-invoice/peppol.svg'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
 import omrIcon from '../../assets/create-invoice/omr.svg'
 import saveDraftIcon from '../../assets/create-invoice/save-draft.svg'
+import arrowIcon from '../../assets/create-invoice/arrow.svg'
 import qrBadgeIcon from '../../assets/create-invoice/qr-badge.svg'
 import receiptQrIcon from '../../assets/create-invoice/receipt-qr.svg'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
@@ -248,8 +250,8 @@ type PreviewState =
  * The invoice composer, for a new draft (`/invoices/new`) or a saved one (`/invoices/:id/edit`).
  *
  * What a draft holds is saved; what the design shows beyond it waits for its own slice: the
- * payment at creation and "mark as sent" (issue and payments), linked documents (order forms),
- * the project (no backend field), attachments (a draft must exist first), and issuing itself.
+ * payment at creation and "mark as sent" (payments), linked documents (order forms), the project
+ * (no backend field) and attachments (a draft must exist first). Issuing saves first, then confirms.
  */
 function InvoiceComposer() {
   const { id } = useParams()
@@ -258,6 +260,7 @@ function InvoiceComposer() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const canSave = can(session, 'invoice.draft')
+  const canIssue = canSave && can(session, 'invoice.issue')
   const canReadNote = can(session, 'invoice.internal-note.read')
 
   const [form, setForm] = useState<DraftForm>(blankDraftForm)
@@ -277,6 +280,8 @@ function InvoiceComposer() {
   const [dueDateTouched, setDueDateTouched] = useState(false)
   const [defaultTax, setDefaultTax] = useState('S5')
   const [discardOpen, setDiscardOpen] = useState(false)
+  /** The saved draft being confirmed for issue. */
+  const [issuing, setIssuing] = useState<DraftMeta | null>(null)
   /** The draft this screen just created; landing on its edit URL must not reload it over the form. */
   const justCreated = useRef<string | null>(null)
 
@@ -430,27 +435,29 @@ function InvoiceComposer() {
 
   const editable = canSave && (!meta || meta.state === 'DRAFT')
 
-  const save = async () => {
+  /** Saves the form as the draft and answers the saved draft, or null when it was refused. */
+  const persist = async (): Promise<DraftMeta | null> => {
     const found = problemsBeforeSave(form)
     setProblems(found)
     setServerLineErrors({})
     if (found.length > 0) {
       setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
-      return
+      return null
     }
     setSaving(true)
     setNotice(null)
     const body = toDraftRequest(form, exclVat)
     try {
       const result = meta ? await saveDraft(meta.id, meta.version, body) : await createDraft(newIdempotencyKey(), body)
-      setMeta({ id: result.id, version: result.version, state: result.authoringState })
+      const saved: DraftMeta = { id: result.id, version: result.version, state: result.authoringState }
+      setMeta(saved)
       setDirty(false)
-      setNotice({ tone: 'success', body: t('invoiceDraft.saved') })
       if (!meta) {
         justCreated.current = result.id
         navigate(`/invoices/${result.id}/edit`, { replace: true })
       }
       void runPreview(result.id)
+      return saved
     } catch (error) {
       if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION') {
         setNotice({ tone: 'error', body: t('invoiceDraft.stale'), stale: true })
@@ -461,9 +468,20 @@ function InvoiceComposer() {
       } else {
         setNotice({ tone: 'error', body: failureText(t, error) })
       }
+      return null
     } finally {
       setSaving(false)
     }
+  }
+
+  const save = async () => {
+    if (await persist()) setNotice({ tone: 'success', body: t('invoiceDraft.saved') })
+  }
+
+  // Issuing is of the draft as stored, so what is on screen is saved first when it differs.
+  const issue = async () => {
+    const saved = meta && !dirty ? meta : await persist()
+    if (saved) setIssuing(saved)
   }
 
   const discard = async () => {
@@ -997,13 +1015,39 @@ function InvoiceComposer() {
               type="button"
               onClick={save}
               disabled={saving}
-              className="inline-flex h-[54px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+              className={
+                canIssue
+                  ? 'inline-flex h-[54px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-60'
+                  : 'inline-flex h-[54px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60'
+              }
             >
-              <img src={saveDraftIcon} alt="" className="size-6 rotate-180 brightness-0 invert" />
+              <img src={saveDraftIcon} alt="" className={canIssue ? 'size-6 rotate-180' : 'size-6 rotate-180 brightness-0 invert'} />
               {saving ? t('invoiceDraft.saving') : t('createInvoice.actions.saveDraft')}
             </button>
+            {canIssue ? (
+              <button
+                type="button"
+                onClick={issue}
+                disabled={saving}
+                className="inline-flex h-[54px] w-[255px] max-w-full items-center justify-center gap-1.5 rounded-sm bg-primary-700 text-base font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+              >
+                {t('createInvoice.actions.submit')}
+                <img src={arrowIcon} alt="" className="size-[18px] rtl:-scale-x-100" />
+              </button>
+            ) : null}
           </div>
         </div>
+      ) : null}
+
+      {issuing ? (
+        <IssueInvoiceModal
+          invoiceId={issuing.id}
+          version={issuing.version}
+          initialIssueDate={issueDate}
+          initialDueDate={dueDate}
+          onClose={() => setIssuing(null)}
+          onIssued={(issued) => navigate(`/invoices/${issued.id}`, { state: { issuedNumber: issued.invoiceNumber } })}
+        />
       ) : null}
 
       <Modal
