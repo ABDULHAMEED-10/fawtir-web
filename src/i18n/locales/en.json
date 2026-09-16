@@ -4503,8 +4503,6 @@
     "issuedOn": "issued {{date}}",
     "dueOn": "due {{date}}",
     "against": "against",
-    "stepperNote": "The bill arrived electronically and matched PO-0031 on its own.",
-    "stepperNoteBold": "Nothing else happens until someone approves it.",
     "actions": {
       "download": "Download",
       "reject": "Reject",
@@ -4516,16 +4514,41 @@
       "approved": "Approved",
       "scheduled": "Scheduled",
       "paid": "Paid",
-      "automatically": "Automatically",
-      "waitingOnYou": "Waiting on you",
-      "due28Aug": "Due 28 Aug"
+      "arrivedOn": "{{date}}",
+      "via": {
+        "PEPPOL": "Over Peppol",
+        "UPLOADED": "Uploaded",
+        "SCANNED": "Scanned",
+        "RECURRING": "Recurring",
+        "SELF_BILLED": "Self-billed"
+      },
+      "byHand": "Matched by hand",
+      "differs": "Differs from the order",
+      "noOrder": "No order to match",
+      "approvedDone": "Approved",
+      "notNeeded": "No approval needed",
+      "rejected": "Rejected",
+      "waiting": "Waiting for approval",
+      "progress": "{{given}} of {{required}} approvals",
+      "inRun": "In run {{run}}",
+      "paidOn": "Paid {{date}}",
+      "dueOn": "Due {{date}}",
+      "automatically": "Automatically"
     },
     "match": {
-      "title": "Order, delivery and bill all agree",
-      "note": "What you ordered is what arrived, and what they've billed. Nothing to check before approving.",
-      "ordered": "You ordered",
-      "received": "You received",
-      "billed": "They billed"
+      "ordered": "Ordered",
+      "received": "Received",
+      "billed": "Billed",
+      "agree": "Order, delivery and bill all agree",
+      "agreeByHand": "Matched to an order by hand",
+      "differs": "This bill differs from the order",
+      "noOrder": "Not matched to an order",
+      "agreeNote": "What was ordered is what arrived, and what they have billed.",
+      "noOrderNote": "No purchase order is linked to this bill. Match it to one to compare quantities and prices.",
+      "theirRefOnly": "The supplier wrote order {{reference}} on the bill, but it is not linked to one of yours.",
+      "against": "Matched to {{order}}",
+      "receipt": "receipt {{receipt}}",
+      "price": "Billed price"
     },
     "lines": {
       "title": "What they're charging for",
@@ -4537,7 +4560,9 @@
       "lineTotal": "Line total",
       "net": "Net",
       "vatRate": "VAT · {{rate}}",
-      "theyreCharging": "They're charging"
+      "theyreCharging": "They're charging",
+      "none": "The supplier sent no lines with this bill.",
+      "vatOnly": "VAT"
     },
     "linked": {
       "title": "Linked documents",
@@ -4545,54 +4570,104 @@
       "purchaseOrder": "purchase order",
       "purchaseReceipt": "purchase receipt",
       "originalFile": "original file",
-      "originalFileDetail": "The original file as the supplier sent it"
+      "matchIt": "Match to an order",
+      "removeMatch": "Remove the match"
     },
     "activity": {
       "title": "Activity",
-      "waiting": "Waiting for approval",
-      "waitingDetail": "Over the OMR 2,000 limit, so it needs Hafidh Saif",
-      "matched": "Matched automatically to PO-0031",
-      "matchedDetail": "Quantities and prices agree with the order and GRN-0087 · 29 Jul",
-      "reported": "Reported to the Tax Authority",
-      "reportedDetail": "Receiver-side Tax Data Document filed and accepted · 29 Jul",
-      "acknowledged": "Receipt acknowledged to the supplier",
-      "acknowledgedDetail": "Sent back over Peppol automatically · 29 Jul, 08:12",
-      "arrived": "Arrived over Peppol",
-      "arrivedDetail": "Validated against PINT-OM · no errors · 29 Jul, 08:11"
+      "byYou": "by you",
+      "none": "Nothing has been recorded against this bill yet.",
+      "kind": {
+        "ARRIVED": "Arrived",
+        "CONFIRMED": "Details confirmed",
+        "MATCHED": "Matched to an order",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "HELD": "Put on hold",
+        "RELEASED": "Released from hold",
+        "PAID": "Payment recorded",
+        "REVERSED": "Payment reversed",
+        "NO_ORDER": "Looked for an order"
+      }
     },
     "decision": {
       "title": "Your decision",
-      "note": "Everything matches and the goods are in the store. Approving makes it available to pay — it does not move any money.",
       "approveForPayment": "Approve for payment",
-      "queryIt": "Query it",
       "putOnHold": "Put on hold",
-      "approvedNotice": "Approved for payment. It will join the next payment run.",
-      "queriedNotice": "Queried with the supplier. Nothing will be paid until it is resolved.",
-      "heldNotice": "On hold. It stays out of every payment run until you release it.",
-      "undo": "Undo"
-    },
-    "terms": {
-      "title": "Payment terms",
-      "due": "Due",
-      "terms": "Terms",
-      "earlyPayment": "Early payment",
-      "payTo": "Pay to",
-      "saving": "Paying by 5 Aug saves OMR 47.090."
+      "pending": "Approving makes it available to pay. It does not move any money, and nothing is sent to the supplier.",
+      "needsMore": "{{given}} of {{required}} approvals. It cannot be paid until {{required}} different people have approved it.",
+      "approved": "Approved for payment. It is not scheduled until someone puts it in a payment run.",
+      "belowLimit": "Below your approval limit, so no approval is needed. It can be paid.",
+      "rejected": "Rejected in your books: “{{reason}}”. Nothing was sent to the supplier.",
+      "held": "On hold: “{{reason}}”. It stays out of every payment run until it is released.",
+      "paid": "Paid in full.",
+      "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
+      "release": "Release"
     },
     "compliance": {
       "title": "Compliance",
-      "validTaxInvoice": "Valid tax invoice — VAT is reclaimable",
-      "pintOm": "Passed PINT-OM validation",
-      "tddFiled": "TDD filed with the OTA",
-      "archived": "Archived for the retention period"
+      "overPeppol": "Delivered over the Peppol network and verified",
+      "reportedBySupplier": "Reported to the Tax Authority by the supplier's provider — nothing to file from your side",
+      "reportedBySender": "Reported by the sender — nothing to file from your side",
+      "pendingInput": "No tax report from the supplier yet — compliance input pending",
+      "notApplicable": "Outside tax reporting"
     },
     "supplier": {
       "title": "Supplier",
       "name": "Name",
-      "vat": "VAT number",
       "theirRef": "Their bill ref",
-      "openBills": "Open bills",
-      "paidOnTime": "Paid on time"
+      "vat": "VAT number"
+    },
+    "breadcrumbBill": "Bill",
+    "supplierUnknown": "Supplier not named",
+    "theirOrderRef": "their order ref",
+    "matchModal": {
+      "title": "Match this bill to an order",
+      "body": "Pick one of this supplier's orders. The server compares the quantities and prices again and records the match as made by hand.",
+      "none": "This supplier has no orders to match against.",
+      "state": {
+        "AWAITING_APPROVAL": "Awaiting approval",
+        "APPROVED": "Approved",
+        "SENT": "Sent",
+        "PARTIALLY_RECEIVED": "Partly received",
+        "RECEIVED": "Received",
+        "CLOSED": "Closed"
+      }
+    },
+    "reject": {
+      "title": "Reject this bill",
+      "body": "The rejection is recorded in your books with its reason. Nothing is sent to the supplier — tell them yourself.",
+      "reason": "Reason",
+      "confirm": "Reject the bill"
+    },
+    "hold": {
+      "title": "Put this bill on hold",
+      "body": "It stays out of every payment run until someone releases it.",
+      "confirm": "Put on hold"
+    },
+    "payment": {
+      "title": "Payment",
+      "due": "Due",
+      "paid": "Paid",
+      "credited": "Credited",
+      "outstanding": "Outstanding",
+      "run": "Payment run"
+    },
+    "refused": {
+      "alreadyApproved": "You have already approved this bill. It needs a different approver.",
+      "changed": "This bill changed after the page loaded. It has been refreshed — try again.",
+      "reasonRequired": "A rejection needs a reason.",
+      "paidCannotHold": "A bill that is paid cannot be put on hold.",
+      "notPayable": "Nothing is owed on this bill, so it cannot be put on hold.",
+      "wrongReceipt": "That receipt belongs to a different order."
+    },
+    "done": {
+      "approved": "Approved.",
+      "rejected": "Rejected, and the reason recorded.",
+      "held": "On hold.",
+      "released": "Released from hold.",
+      "matched": "Matched to the order.",
+      "unmatched": "The match was removed."
     }
   },
   "uploadBill": {
@@ -11601,6 +11676,18 @@
     "selectHint": "Choose one of your customers",
     "vat": "VAT {{number}}",
     "branchesFailed": "Branches could not be loaded",
-    "noteHidden": "This draft may have an internal note you can't see. Saving keeps it."
+    "noteHidden": "This draft may have an internal note you can't see. Saving keeps it.",
+    "missing": {
+      "invoiceAddress": "the invoice address ({{parts}})",
+      "deliveryAddress": "the delivery address ({{parts}})",
+      "vatNumber": "the VAT number",
+      "peppolId": "the Peppol ID",
+      "unknown": "{{path}}",
+      "part": {
+        "country": "country",
+        "city": "city",
+        "street": "street"
+      }
+    }
   }
 }

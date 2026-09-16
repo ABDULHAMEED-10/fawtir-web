@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { FilterMenu, Popover, RowsView, TableCheckbox } from '../../components/ui'
+import { BillStatusChip } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { pageCountOf, type Page } from '../../api'
@@ -28,12 +29,10 @@ import {
   isBillSort,
   isBillSource,
   isBillTab,
-  statusLabelKey,
   toBillListItem,
   type BillListItem,
   type BillSortKey,
   type BillSourceBadge,
-  type BillStatusChip,
   type BillTabId,
   type Note,
 } from '../../lib/billList'
@@ -66,17 +65,6 @@ const SOURCE_STYLES: Record<BillSourceBadge, { bg: string; fg: string; labelKey:
   selfBilled: { bg: 'bg-primary-50', fg: 'text-primary-800', labelKey: 'billsPage.source.selfBilled' },
 }
 
-const STATUS_STYLES: Record<BillStatusChip, { bg: string; fg: string; dot: string }> = {
-  newNotReviewed: { bg: 'bg-primary-50', fg: 'text-primary-900', dot: 'bg-primary-900' },
-  mismatch: { bg: 'bg-pending-100', fg: 'text-pending-700', dot: 'bg-pending-700' },
-  awaitingApproval: { bg: 'bg-pending-100', fg: 'text-pending-700', dot: 'bg-pending-700' },
-  draft: { bg: 'bg-[#e3e4ea]', fg: 'text-[#474a5e]', dot: 'bg-[#474a5e]' },
-  onHold: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
-  approved: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
-  rejected: { bg: 'bg-danger-100', fg: 'text-[#7a1009]', dot: 'bg-[#7a1009]' },
-  inPaymentRun: { bg: 'bg-primary-50', fg: 'text-primary-900', dot: 'bg-primary-900' },
-  paid: { bg: 'bg-success-100', fg: 'text-success-700', dot: 'bg-success-700' },
-}
 
 /** Figma column widths, so the columns line up with the design at 1144. */
 const COLUMNS = [
@@ -614,7 +602,6 @@ function BillTableRow({
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const source = SOURCE_STYLES[row.source]
-  const status = STATUS_STYLES[row.status]
   const dueNote = dueNoteOf(row)
 
   return (
@@ -637,7 +624,9 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <p className="text-sm font-semibold leading-[1.2] text-primary-900">{row.number ?? t('billsPage.rows.noNumber')}</p>
+        <Link to={`/expenditure/bills/${row.id}`} className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline">
+          {row.number ?? t('billsPage.rows.noNumber')}
+        </Link>
         {row.issueDate ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
             {t('billsPage.rows.issued', { date: formatDate(row.issueDate, language) })}
@@ -692,12 +681,7 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <span
-          className={['inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]', status.bg, status.fg].join(' ')}
-        >
-          <span className={['size-1.5 rounded-full', status.dot].join(' ')} />
-          {t(statusLabelKey(row), row.statusValues)}
-        </span>
+        <BillStatusChip item={row} />
         {row.holdReason ? (
           <p className="mt-1.5 max-w-[220px] truncate text-xs font-medium leading-[1.2] text-text-tertiary" title={row.holdReason}>
             {row.holdReason}
