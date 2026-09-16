@@ -6,6 +6,8 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { InvoiceDetailDto, InvoiceHistoryDto, InvoicePaymentDto, InvoiceReceivableDto } from '../../api/invoices/detail'
 import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/invoiceDetail'
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
+import { ApiError } from '../../api'
+import { dueDateFor, issueProblems, issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const ID = '11111111-1111-1111-1111-111111111111'
@@ -129,6 +131,7 @@ let invoiceResponse: () => Response
 let receivableResponse: () => Response
 let cancelResponse: () => Response
 let payResponse: () => Response
+let issueResponse: () => Response
 let who: Entitlements
 
 const calls = () => fetchMock.mock.calls.map(([url, init]) => `${(init as RequestInit)?.method ?? 'GET'} ${String(url)}`)
@@ -141,6 +144,7 @@ beforeEach(async () => {
   receivableResponse = () => json(200, RECEIVABLE)
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
   payResponse = () => json(200, PAYMENTS[0])
+  issueResponse = () => json(200, invoice({ version: 5 }))
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -151,6 +155,8 @@ beforeEach(async () => {
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === `${URL_BASE}/internal-note`) return json(200, { internalNote: 'Chase Hamed in September.' })
     if (url === `${URL_BASE}/cancel`) return cancelResponse()
+    if (url === `/api/v1/invoice-drafts/${ID}/preview`) return json(200, { currency: 'OMR', lines: [], totals: { subtotal: 54, itemLevelDiscount: 0, headerDiscount: 0, totalDiscount: 0, taxableAmount: 54, vatAmount: 2.7, totalAmount: 56.7 } })
+    if (url === `/api/v1/invoice-drafts/${ID}/issue`) return issueResponse()
     if (url.startsWith('/api/v1/customers/')) return json(200, { id: 'c-1', type: 'BUSINESS', displayName: 'Sohar Port Logistics', profile: { details: { vatRegistrationNumber: 'OM1100999001' }, contact: null, deliveryPreferences: null, invoiceAddress: null }, peppolDelivery: 'ACTIVE', status: 'ACTIVE', updatedAt: '2026-08-01T00:00:00Z' })
     if (url === '/api/v1/branches') return json(200, [{ id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' }])
     if (url === URL_BASE) return invoiceResponse()
@@ -234,6 +240,46 @@ describe('An invoice, wired to the API', () => {
     await screen.findByRole('heading', { level: 1, name: 'INV-2026-0042' })
     expect(await screen.findByText('Reversed')).toBeTruthy()
     expect(screen.getByText('15.000').className).toContain('line-through')
+  })
+
+  it('issues a draft from its own page with the due date its terms give, then shows it issued and unsent', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue'] }
+    const DRAFT = invoice({ authoringState: 'DRAFT', version: 2, invoiceNumber: null, issueDate: null, dueDate: null, issuedAt: null, totals: null })
+    invoiceResponse = () => json(200, DRAFT)
+    receivableResponse = () => json(200, { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE', documentTotal: null, outstandingAmount: null, paidAmount: 0 })
+    renderInvoice()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Issue invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    expect(await within(dialog).findByText('56.700')).toBeTruthy()
+
+    // The reread after issue answers the issued document.
+    invoiceResponse = () => json(200, invoice({ version: 3 }))
+    receivableResponse = () => json(200, RECEIVABLE)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    expect(await screen.findByText("Issued as INV-2026-0042. It hasn't been sent to the customer or the Tax Authority yet.")).toBeTruthy()
+    expect(await screen.findByRole('heading', { level: 1, name: 'INV-2026-0042' })).toBeTruthy()
+    const issue = fetchMock.mock.calls.filter(([url]) => String(url) === `/api/v1/invoice-drafts/${ID}/issue`)
+    expect(issue).toHaveLength(1)
+    const today = muscatToday()
+    expect(JSON.parse((issue[0][1] as RequestInit).body as string)).toEqual({ expectedVersion: 2, issueDate: today, dueDate: dueDateFor(today, 'NET30') })
+    expect(screen.queryByRole('button', { name: 'Issue invoice' })).toBeNull()
+  })
+
+  it('offers no issue without the permission, or on an issued invoice', async () => {
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null, totals: null }))
+    const view = renderInvoice()
+    expect(await screen.findByRole('link', { name: /Edit draft/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Issue invoice' })).toBeNull()
+    view.unmount()
+
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue'] }
+    forgetEntitlements()
+    invoiceResponse = () => json(200, invoice())
+    renderInvoice()
+    expect(await screen.findByRole('heading', { level: 1, name: 'INV-2026-0042' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Issue invoice' })).toBeNull()
   })
 
   it('opens a draft in the editor and shows no figures for it', async () => {
@@ -401,6 +447,25 @@ describe('invoice detail mapping', () => {
     expect(paymentProblems({ ...form, amount: '36.701' }, context)).toEqual({ amount: 'invoiceDetails.pay.error.amountTooMuch' })
     expect(paymentProblems({ ...form, paymentDate: '2026-09-17' }, context)).toEqual({ paymentDate: 'invoiceDetails.pay.error.dateFuture' })
     expect(paymentProblems({ ...form, paymentDate: '2026-07-31' }, context)).toEqual({ paymentDate: 'invoiceDetails.pay.error.dateBeforeIssue' })
+  })
+
+  it('says what issuing would be refused for, and dates the due day from the terms', () => {
+    expect(issueProblems({ issueDate: '2026-09-16', dueDate: '2026-10-16' }, '2026-09-16')).toEqual({})
+    expect(issueProblems({ issueDate: '2026-09-17', dueDate: '2026-10-16' }, '2026-09-16')).toEqual({ issueDate: 'invoiceIssue.error.issueDateFuture' })
+    expect(issueProblems({ issueDate: '2025-12-31', dueDate: '2026-01-30' }, '2026-09-16')).toEqual({ issueDate: 'invoiceIssue.error.issueDateYear' })
+    expect(issueProblems({ issueDate: '2026-09-16', dueDate: '2026-09-15' }, '2026-09-16')).toEqual({ dueDate: 'invoiceIssue.error.dueDateBeforeIssue' })
+    // The same day is allowed.
+    expect(issueProblems({ issueDate: '2026-09-16', dueDate: '2026-09-16' }, '2026-09-16')).toEqual({})
+    expect(dueDateFor('2026-12-20', 'NET30')).toBe('2027-01-19')
+    // Terms this build has no day count for leave the due date on the issue date, for the reader to set.
+    expect(dueDateFor('2026-09-16', 'EOM')).toBe('2026-09-16')
+  })
+
+  it('names a readiness reason it has no sentence for rather than hiding it', () => {
+    const refusal = issueRefusalOf(new ApiError({ status: 409, problemType: 'resource-conflict', code: 'IDENTITY_NOT_READY' }))
+    expect(refusal).toEqual({ field: null, key: 'invoiceIssue.refused.notReady', values: { reason: 'IDENTITY_NOT_READY' } })
+    // A 409 with no code is not a readiness refusal; the general failure text answers it.
+    expect(issueRefusalOf(new ApiError({ status: 409, problemType: 'resource-conflict' }))).toBeNull()
   })
 
   it('folds a reversal into the payment it undoes', () => {
