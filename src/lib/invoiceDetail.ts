@@ -130,13 +130,16 @@ const KNOWN_EVENTS = new Set([
   'LEGAL_HOLD_RELEASED',
 ])
 
+const SILENT_OUTCOMES = new Set(['SUCCEEDED', 'SUCCESS'])
+
 export function timelineOf(history: InvoiceHistoryDto, userId: string | null): TimelineEntry[] {
   return history.entries.map((entry) => ({
     key: KNOWN_EVENTS.has(entry.eventType) ? `invoiceDetails.event.${entry.eventType}` : 'invoiceDetails.event.other',
     at: entry.occurredAt,
     byYou: userId !== null && entry.actorId === userId,
-    // Only a refusal is worth saying out loud; a success is the entry itself.
-    outcome: entry.outcome && entry.outcome !== 'SUCCESS' ? entry.outcome : null,
+    // Only a refusal is worth saying out loud; a success is the entry itself. The server writes
+    // SUCCEEDED; SUCCESS is kept too, so a rename there does not print the word on every line.
+    outcome: entry.outcome && !SILENT_OUTCOMES.has(entry.outcome) ? entry.outcome : null,
   }))
 }
 

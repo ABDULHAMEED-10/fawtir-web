@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -129,11 +129,21 @@ function InvoiceScreen() {
     () => loadAttachments(id),
   )
   const history = useApiRead<InvoiceHistoryDto>(document ? `${invoicePath(id)}/history` : null, () => loadHistory(id))
-  // Reading the internal note is itself audited, so it is asked for only where it will be shown.
+  // Reading the internal note writes an audit event on the server. Loading it with the page made
+  // every visit a "note read" — the trail filled with reads nobody made — so it is fetched only
+  // when someone asks to see it.
+  const [noteWanted, setNoteWanted] = useState(false)
   const internalNote = useApiRead<{ internalNote: string | null }>(
-    document && can(session, 'invoice.internal-note.read') ? `${invoicePath(id)}/internal-note` : null,
+    document && noteWanted && can(session, 'invoice.internal-note.read') ? `${invoicePath(id)}/internal-note` : null,
     () => loadInternalNote(id),
   )
+  // The read is the audit event, so the timeline is refreshed once it has happened, not before.
+  const noteRead = internalNote.read.status === 'ready'
+  useEffect(() => {
+    if (noteRead) history.retry()
+    // Armed by the read landing only: `retry` is a new function each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteRead])
   const customer = useApiRead<CustomerDto>(
     document && can(session, 'customer.read') ? `/v1/customers/${document.customerId}` : null,
     () => loadCustomer(document!.customerId),
@@ -441,9 +451,22 @@ function InvoiceScreen() {
               <p className="mb-2 text-sm font-medium text-text-primary">
                 {t('invoiceDetails.notes.internal')} <span className="text-text-quaternary">{t('invoiceDetails.notes.private')}</span>
               </p>
-              <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
-                {internalNote.read.status === 'ready' ? (internalNote.read.data.internalNote ?? '—') : '…'}
-              </p>
+              {noteWanted ? (
+                <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
+                  {internalNote.read.status === 'ready' ? (internalNote.read.data.internalNote ?? '—') : '…'}
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setNoteWanted(true)}
+                  className="text-sm font-semibold text-primary-800 hover:text-primary-700"
+                >
+                  {t('invoiceDetails.notes.show')}
+                </button>
+              )}
+              {!noteWanted ? (
+                <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">{t('invoiceDetails.notes.showHint')}</p>
+              ) : null}
             </div>
           ) : null}
         </div>

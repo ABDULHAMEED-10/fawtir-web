@@ -186,7 +186,19 @@ describe('An invoice, wired to the API', () => {
     expect(screen.getAllByText('54.000').length).toBeGreaterThan(0)
     expect(screen.getByText('Green beans')).toBeTruthy()
     expect(screen.getByText('Thank you for your business.')).toBeTruthy()
-    expect(screen.getByText('Chase Hamed in September.')).toBeTruthy()
+  })
+
+  it('reads the internal note only when asked, because reading it is audited', async () => {
+    renderInvoice()
+    await screen.findByRole('heading', { level: 1, name: 'INV-2026-0042' })
+    expect(calls().some((call) => call.endsWith('/internal-note'))).toBe(false)
+    expect(screen.queryByText('Chase Hamed in September.')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show the internal note' }))
+    expect(await screen.findByText('Chase Hamed in September.')).toBeTruthy()
+    expect(calls().filter((call) => call.endsWith('/internal-note'))).toHaveLength(1)
+    // The read is the audit event, so the timeline is fetched again once it has happened.
+    await waitFor(() => expect(calls().filter((call) => call.endsWith('/history'))).toHaveLength(2))
   })
 
   it('never claims a Peppol delivery or offers a PDF', async () => {

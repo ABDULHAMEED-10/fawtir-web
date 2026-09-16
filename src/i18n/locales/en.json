@@ -1835,7 +1835,9 @@
       "customer": "Note to customer",
       "onInvoice": "on invoice",
       "internal": "Internal note",
-      "private": "private"
+      "private": "private",
+      "show": "Show the internal note",
+      "showHint": "Reading it is recorded in the activity."
     },
     "attachments": {
       "title": "Attachments",
