@@ -321,17 +321,119 @@ certification, samples, revisions, import/export, code lists) and the catalogue 
 `GET /peppol/mapping-targets`. Two things the mock cannot do and the UI already says so: run a
 non-preset JSONata transform (deferred to the server) and the 429 pause banner.
 
+## 7.9 ERP connector built (16 Sep 2026)
+
+Phase 5 is built on a mock store that mirrors the connector spec's states and refusals, verified by
+screenshot at 1440 / 390 in EN and AR, zero overflow on the responsive sweep, `npm run build` green.
+
+| Piece | Where |
+|---|---|
+| Model, story and store: products, auth kinds, scopes, schedules; connection / run / record / outbox / add-on states; templates; `connectorStore` (create, discover, pause, resume, remove, update, rotateCredentials, test, collectNow with the 409 / 422 refusals, retryRecord, requeueWriteBack, resetToTemplate, requestAddon); readers (usage, watermark age, mapping status derived from `erpMapping.ts` for the head office) | `src/lib/erpConnector.ts` |
+| Shared frame: label + product + state and mapping pills, six tabs with a rejection mark on Records, not-found state | `src/pages/ErpPage/connections/ConnectionShell.tsx` |
+| Connections list + add-on panel (active: usage bars, price, error banner, table with row actions; inactive: the add-on card with Ask to activate → pending) | `src/pages/ErpPage/ErpConnectionsPage.tsx` (`?addon=INACTIVE` for the harness) |
+| Connect flow — System · Credentials · Test · Discover, hand-off to the connection's mapping | `src/pages/ErpPage/ErpConnectPage.tsx` |
+| Detail tabs — Overview (Collect now, Pause / Resume, banners, figures, set-up, last runs, activity, delete) · Mapping (provenance, routes, Reset to template) · Runs (+ run detail) · Records (+ record detail with payload tree, Retry, Re-queue) · Write-back (switch, fields, outbox) · Settings (form, credentials rotation, danger zone) | `src/pages/ErpPage/connections/*.tsx` |
+| Bell: credential error on a connection; a record superseded in the ERP | `src/lib/notifications.ts` |
+| Settings hub: Connected systems card shows connected count / needs-attention and this month's collection | `src/pages/SettingsPage/SettingsPage.tsx` |
+
+Story: add-on ACTIVE (purchased 1 Aug, 3 of 5 systems, 412 of 1,000 documents); head office Odoo 17
+CONNECTED with write-back, Salalah ERPNext in ERROR after three UNAUTHORIZED runs, Sohar Odoo 16
+PAUSED with a twelve-day-old watermark. Records include two REJECTED (BR-OM-06, BR-OM-10), one
+WRITEBACK_FAILED (409 record locked) and one SUPERSEDED.
+
+**When the endpoints arrive** (Appendix B): the store's functions become the calls one for one —
+`POST /connections` + `/test` + `/discover`, `GET/PATCH/DELETE …/{id}`, pause / resume,
+`PUT …/credentials`, `POST …/collect`, runs, records, retry, writeback, `GET/PUT /settings/erp/addon`.
+Two things the mock cannot do: a RUNNING run (collect-now completes at once) and the OAuth redirect
+(the wizard fakes the sign-in). Per-connection mapping edits open the tenant wizard with
+`?connection=<id>`; the backend scopes the mapping by connection, the front end already passes the id.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |
 |---|---|
 | **1 — Subscriptions, console** | Subscriptions queue · tenant detail with Subscription tab · Record payment / Send link / Activate / Change plan / Suspend modals · Subscription invoices · Plans and rates · Console settings (Billing, Counting rules, Overage, Trial and lifecycle, Notices, Add-ons, Promotional, **Payments**, Fixed by design) |
 | **2 — Subscriptions, tenant side** | sign-up Plans and Payment steps · Awaiting activation · Settings › Plan · Settings › Bills · notifications |
-| 3 — ERP mapping | §2 (Overview, Fields, Preview, Certification, then Advanced, History, Samples) |
-| 4 — Console, rest | ERP templates, audit log, onboarding queue |
-| 5 — ERP connector | §3 |
+| 3 — ERP mapping | §2 — **built, §7.8** |
+| 4 — Console, rest | **§9** — ERP group (connections, templates, add-on requests), tenant ERP tab, submission queue, incidents, audit log, onboard a business |
+| 5 — ERP connector | §3 — **built, §7.9** |
 
 Each phase: mock data in `src/lib` (one modelled population, figures derived), EN + AR, responsive with `max-md:` only, `npm run build`, sweep + desktop gate, screenshots.
+
+---
+
+## 9. Console completion (added 16 Sep 2026)
+
+The client's ruling: the super admin console must be complete as UI, on mock data where the backend
+has nothing yet; ERP gets its **own sidebar group** so connectors, templates and add-on requests are
+handled in one place; anything that is a platform-wide rule stays in Console settings.
+
+### 9.1 What the console has (16 Sep 2026)
+
+| Area | Route | State |
+|---|---|---|
+| Operations home | `/console` | mock (Figma) |
+| Tenants directory | `/console/tenants` | mock (Figma); "Onboard a business" button does nothing yet |
+| Tenant page: Subscription · Filing · ERP | `/console/tenants/:id` | Subscription built (§7.7), Filing partial, ERP placeholder |
+| Verification queue + company page | `/console/onboarding`, `/:companyId` | **integrated** (backend) — keep |
+| Subscriptions queue · invoices · 8 action modals | `/console/subscriptions`, `/invoices` | mock (§7.7) |
+| Plans and rates | `/console/plans` | **integrated** — keep |
+| Operators | `/console/operators` | **integrated** — keep |
+| Console settings, 9 sections + Fixed by design | `/console/settings` | mock (§7.7) |
+| Submission queue · Incidents · Audit log | `/console/queue`, `/incidents`, `/audit` | "not built yet" stubs |
+
+A customer who picks **cash** (or transfer, or a link) at sign-up lands in the Subscriptions queue as
+*Awaiting payment*; the operator records the payment and activates — that path is already built.
+What is missing is the operator-led start: a business that never signs up online.
+
+### 9.2 Sidebar after completion
+
+| Group | Items |
+|---|---|
+| Running | Operations · Submission queue · Incidents |
+| Customers | Tenants · Verification · Subscriptions · Plans and rates |
+| **ERP** (new) | Connections · Mapping templates · Add-on requests |
+| The platform | Operators · Audit log · Console settings |
+
+The tenant page keeps its ERP tab as the per-tenant view; the ERP group is the cross-tenant view.
+
+### 9.3 Screens to build (phase 4, the last)
+
+| Screen | Route | What it does | Data |
+|---|---|---|---|
+| **ERP · Connections** | `/console/erp` | KPIs (tenants on the add-on, connections, in error, stale, documents collected this month, add-on revenue); table of every connection across tenants — tenant, label, product, state, mapping, last run, rejections; filters by state / product / tenant; rows open the connection | `src/lib/consoleErp.ts` |
+| **ERP · Connection** (read-only) | `/console/erp/connections/:id` | what support sees: figures, set-up, recent runs, rejections, template version in use, the tenant's add-on usage; actions limited to what an operator may do — grant extraction quota, message the tenant; never credentials | same |
+| **ERP · Mapping templates** | `/console/erp/templates`, `/:id` | list per product and ERP version with published version, fields, tenants on it; editor with the mapping entries (target · source path · transform · value map), validation via `erpMapping.validate`, dry-run via `dryRun` on a bundled sample, **Save draft** and **Publish** (new version; tenants keep theirs until they reset) | same |
+| **ERP · Add-on requests** | `/console/erp/add-on-requests` | queue of "Ask to activate" requests: tenant, plan, source, requested when; **Approve** (activates, adds the add-on line to the next invoice), **Approve on trial**, **Decline** with reason; history tab | same |
+| **Tenant page · ERP tab** | `/console/tenants/:id?tab=erp` | the tenant's add-on state and usage, connections with state and last run, links into `/console/erp/connections/:id`; grant quota | same |
+| **Submission queue** | `/console/queue` | cross-tenant OTA / Peppol submissions: waiting by stage, refused today, stuck; row actions Redrive (stuck) and Notify tenant (refused); the Operations home's "Open the queue" lands here | `src/lib/consoleOps.ts` |
+| **Incidents** | `/console/incidents`, `/:id` | platform incidents (OTA slow, access point, signing, platform): state investigating → identified → monitoring → resolved, severity, component, affected tenants, timeline of updates, **Post a notice** to tenants (EN + AR), **Open an incident** | same |
+| **Audit log** | `/console/audit` | every operator action in one list — subscriptions, verification, operators, settings, plans, ERP, incidents, queue — filter by area, operator, tenant, date; export | `src/lib/consoleAudit.ts` (seeded + live events from the other stores) |
+| **Onboard a business** | `/console/tenants/new` | operator-led onboarding for a walk-in customer: Company (name, CR, VATIN, town) · Owner (name, phone, email → invitation) · Plan, term, payment method, optional payment recorded now · Review → creates the tenant in the ledger as *Awaiting payment* or *Active*, lands on its page | `consoleSubscriptions.onboard()` |
+| **Operations home** | `/console` | one more card: "Integrations needing attention" (connections in error or stale) → `/console/erp` | `consoleErp.ts` |
+
+Not built on purpose: any console-side entry of a tenant's ERP credentials, and impersonation.
+
+### 9.4 Beyond this phase — the console backlog, in priority order
+
+What a complete platform console still lacks after §9.3, each with why and where it would sit.
+None is started; each is a decision for the client when the backend can carry it.
+
+| # | Screen | Why | Where | Backend |
+|---|---|---|---|---|
+| 1 | **Tenant page · Support tab** | one place per tenant for the things support keeps looking up: people and roles, branches, certificate state, Peppol id and access point, last sign-ins, open notices; with "Send a reset link", "Resend invitation" | Tenants › tenant | tenant read APIs behind `platform.support` |
+| 2 | **Announcements** | platform-wide notices that are not incidents (new feature, OTA deadline, planned maintenance), scheduled, EN + AR, targeted by plan or town; today only incidents post a notice | The platform › Announcements | notices API |
+| 3 | **Revenue and usage reports** | MRR by plan, churn, overage billed, add-on take-up, documents per tenant per month, exportable; the Tenants KPIs hint at it | Insights › Reports (new group) | reporting API |
+| 4 | **Peppol operations** | SMP problem summary, access point health, test tenants and certification fixtures (discovery doc §3a lists the endpoints that exist) | Running › Peppol | partly exists |
+| 5 | **Operator roles and permissions matrix** | Operators shows roles; a matrix of what each platform role may do (support · billing · platform admin) with the audit of changes | The platform › Operators › Roles | permission model (discovery §2) |
+| 6 | **Tenant closure and data export** | close a tenant properly: final invoice, read-only period, 10-year record retention, export on request | Tenants › tenant › Danger zone | closure API |
+| 7 | **Feature flags per tenant** | switch a beta on for one tenant (approvals workflow, webhooks) before the plan carries it | Tenants › tenant › Subscription › Features | flags API |
+| 8 | **API keys and webhooks monitor** | tenants' API keys (count, last used, revoke on request) and webhook delivery failures across tenants | ERP › API and webhooks | API |
+| 9 | **Refunds and credit notes on subscriptions** | a refund is "not mid-period" by default (Fixed by design), but Enterprise contracts and mistakes need a credit note on a subscription invoice | Subscriptions › invoice | billing API |
+| 10 | **Console search** | one box: tenant, VATIN, invoice number, operator, incident | topbar | search API |
+
+Not planned on purpose: impersonation ("log in as tenant") and any console entry of tenant secrets.
+Support sees the tenant's state read-only and sends the tenant to the right screen.
 
 ---
 

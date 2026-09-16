@@ -946,6 +946,8 @@ export function certifyWith(entries: Entry[], payload: unknown, route: CertRoute
 /* ------------------------------------------------------------- the story */
 
 const ENTRIES = withOrdinals(ODOO_ENTRIES)
+/** The Odoo story mapping, complete — the console's templates start from it. */
+export const STORY_ENTRIES: Entry[] = ENTRIES
 const COMPILED = compile(ENTRIES)
 const ACTIVE_HASH = contentHash(COMPILED)
 

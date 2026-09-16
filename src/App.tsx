@@ -116,6 +116,13 @@ import {
   ErpHistoryPage,
   ErpSamplesPage,
   ErpConnectionsPage,
+  ErpConnectPage,
+  ConnectionOverviewPage,
+  ConnectionMappingPage,
+  ConnectionRunsPage,
+  ConnectionRecordsPage,
+  ConnectionWriteBackPage,
+  ConnectionSettingsPage,
 } from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { RemindersPage } from './pages/RemindersPage'
@@ -142,7 +149,15 @@ import { SignupReviewPage } from './pages/SignupReviewPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
 import {
   ConsolePlansPage,
-  ConsoleSoonPage,
+  ConsoleQueuePage,
+  ConsoleIncidentsPage,
+  ConsoleAuditPage,
+  ConsoleErpPage,
+  ConsoleErpConnectionPage,
+  ConsoleTemplatesPage,
+  ConsoleTemplatePage,
+  ConsoleAddonRequestsPage,
+  ConsoleOnboardPage,
   OperationsPage,
   OperatorsPage,
   TenantsPage,
@@ -285,6 +300,27 @@ function App() {
           <Route path="/settings/erp-mapping/history" element={<ErpHistoryPage />} />
           <Route path="/settings/erp-mapping/samples" element={<ErpSamplesPage />} />
           <Route path="/settings/erp/connections" element={<ErpConnectionsPage />} />
+          <Route path="/settings/erp/connections/new" element={<ErpConnectPage />} />
+          <Route path="/settings/erp/connections/:id" element={<ConnectionOverviewPage />} />
+          <Route path="/settings/erp/connections/:id/mapping" element={<ConnectionMappingPage />} />
+          <Route path="/settings/erp/connections/:id/runs" element={<ConnectionRunsPage />} />
+          <Route
+            path="/settings/erp/connections/:id/runs/:runId"
+            element={<ConnectionRunsPage />}
+          />
+          <Route path="/settings/erp/connections/:id/records" element={<ConnectionRecordsPage />} />
+          <Route
+            path="/settings/erp/connections/:id/records/:recordId"
+            element={<ConnectionRecordsPage />}
+          />
+          <Route
+            path="/settings/erp/connections/:id/write-back"
+            element={<ConnectionWriteBackPage />}
+          />
+          <Route
+            path="/settings/erp/connections/:id/settings"
+            element={<ConnectionSettingsPage />}
+          />
           <Route path="/income/reminders" element={<RemindersPage />} />
           <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
           <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />
@@ -309,13 +345,20 @@ function App() {
           <Route path="/console/tenants/:id" element={<TenantDetailPage />} />
           <Route path="/console/subscriptions" element={<SubscriptionsPage />} />
           <Route path="/console/subscriptions/invoices" element={<SubscriptionInvoicesPage />} />
-          <Route path="/console/queue" element={<ConsoleSoonPage />} />
-          <Route path="/console/incidents" element={<ConsoleSoonPage />} />
+          <Route path="/console/queue" element={<ConsoleQueuePage />} />
+          <Route path="/console/incidents" element={<ConsoleIncidentsPage />} />
+          <Route path="/console/incidents/:id" element={<ConsoleIncidentsPage />} />
           <Route path="/console/onboarding" element={<VerificationPage />} />
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
-          <Route path="/console/audit" element={<ConsoleSoonPage />} />
+          <Route path="/console/audit" element={<ConsoleAuditPage />} />
+          <Route path="/console/erp" element={<ConsoleErpPage />} />
+          <Route path="/console/erp/connections/:id" element={<ConsoleErpConnectionPage />} />
+          <Route path="/console/erp/templates" element={<ConsoleTemplatesPage />} />
+          <Route path="/console/erp/templates/:id" element={<ConsoleTemplatePage />} />
+          <Route path="/console/erp/add-on-requests" element={<ConsoleAddonRequestsPage />} />
+          <Route path="/console/tenants/new" element={<ConsoleOnboardPage />} />
           <Route path="/console/settings" element={<ConsoleSettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

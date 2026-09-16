@@ -7515,7 +7515,20 @@
       "connectionsTitle": "الأنظمة المتصلة",
       "connectionsBody": "يجمع فوتر الفواتير من نظامك وفق جدول ويعيد النتيجة.",
       "connectionsPill": "إضافة",
-      "connectionsFoot": "الاستخراج التلقائي · غير مفعّل"
+      "connectionsFoot": "الاستخراج التلقائي · غير مفعّل",
+      "connectionsPillActive_zero": "لا اتصالات",
+      "connectionsPillActive_one": "اتصال واحد",
+      "connectionsPillActive_two": "اتصالان",
+      "connectionsPillActive_few": "{{count}} اتصالات",
+      "connectionsPillActive_many": "{{count}} اتصالًا",
+      "connectionsPillActive_other": "{{count}} اتصال",
+      "connectionsPillError_zero": "لا شيء يحتاج انتباهًا",
+      "connectionsPillError_one": "واحد يحتاج انتباهًا",
+      "connectionsPillError_two": "اثنان يحتاجان انتباهًا",
+      "connectionsPillError_few": "{{count}} تحتاج انتباهًا",
+      "connectionsPillError_many": "{{count}} تحتاج انتباهًا",
+      "connectionsPillError_other": "{{count}} تحتاج انتباهًا",
+      "connectionsFootActive": "الاستخراج التلقائي · {{collected}} من {{limit}} هذا الشهر"
     }
   },
   "peppolTax": {
@@ -9488,7 +9501,8 @@
       "group": {
         "running": "التشغيل",
         "customers": "العملاء",
-        "platform": "المنصة"
+        "platform": "المنصة",
+        "erp": "أنظمة ERP"
       },
       "operations": "العمليات",
       "queue": "قائمة الإرسال",
@@ -9500,7 +9514,10 @@
       "settings": "إعدادات اللوحة",
       "bottomSettings": "الإعدادات",
       "operators": "المشغّلون",
-      "subscriptions": "الاشتراكات"
+      "subscriptions": "الاشتراكات",
+      "erpConnections": "الاتصالات",
+      "erpTemplates": "قوالب الربط",
+      "erpRequests": "طلبات الإضافة"
     },
     "user": {
       "team": "فريق فوترة",
@@ -9551,7 +9568,22 @@
       "byHourStory": "يطابق الأسبوع الماضي تمامًا حتى {{time}}، ثم يتراجع مع تراكم القائمة. العمل لم يضِع — إنه ينتظر.",
       "slowedAt": "تباطأ الجهاز عند {{time}}",
       "now": "الآن",
-      "connection": "الاتصال بالجهاز"
+      "connection": "الاتصال بالجهاز",
+      "integrations": {
+        "title": "تكاملات بحاجة إلى انتباه",
+        "subtitle": "اتصالات ERP لدى كل المستأجرين",
+        "open": "افتح اتصالات ERP",
+        "inError": "اتصالات في حالة خطأ",
+        "stale": "اتصالات راكدة",
+        "requests": "طلبات إضافة بانتظار القرار",
+        "allClear": "كل اتصالات ERP سليمة.",
+        "more_zero": "لا مزيد",
+        "more_one": "واحد آخر في شاشة اتصالات ERP",
+        "more_two": "اثنان آخران في شاشة اتصالات ERP",
+        "more_few": "{{count}} أخرى في شاشة اتصالات ERP",
+        "more_many": "{{count}} أخرى في شاشة اتصالات ERP",
+        "more_other": "{{count}} أخرى في شاشة اتصالات ERP"
+      }
     },
     "ota": {
       "healthy": "سليم",
@@ -10104,7 +10136,8 @@
         "planChanged": "انتقل إلى {{plan}}، {{term}} — {{reason}}",
         "planChangeScheduled": "سينتقل إلى {{plan}}، {{term}} في {{at}} — {{reason}}",
         "quotaGranted": "{{documents}} مستندًا إضافيًا حتى {{expires}} — {{reason}}",
-        "overageWaived": "أُعفي تجاوز بقيمة {{amount}} ر.ع. — {{reason}}"
+        "overageWaived": "أُعفي تجاوز بقيمة {{amount}} ر.ع. — {{reason}}",
+        "tenantOnboarded": "سُجّلت المنشأة من المكتب — {{plan}}، {{term}}، تدفع عبر {{method}}؛ المالك {{owner}}"
       },
       "queue": {
         "title": "الاشتراكات",
@@ -10850,6 +10883,866 @@
     "crumb": {
       "root": "وحدة التحكم",
       "label": "موقعك"
+    },
+    "erp": {
+      "event": {
+        "requestApproved": "تمت الموافقة على الإضافة",
+        "requestApprovedTrial": "تمت الموافقة على الإضافة بتجربة {{days}} يومًا",
+        "requestDeclined": "رُفض طلب الإضافة",
+        "quotaGranted": "مُنحت حصة استخراج · {{documents}} مستند",
+        "addonSuspended": "أُوقفت الإضافة",
+        "addonResumed": "استُؤنفت الإضافة",
+        "templateDraftSaved": "حُفظت مسودة القالب · {{template}} الإصدار {{version}}",
+        "templatePublished": "نُشر القالب · {{template}} الإصدار {{version}}",
+        "templateDraftDiscarded": "أُلغيت مسودة القالب · {{template}} الإصدار {{version}}"
+      },
+      "templates": {
+        "title": "قوالب الربط",
+        "subtitle": "الربط الأولي الذي يطبّقه معالج الاتصال لكل منتج وإصدار من نظام ERP. النشر لا يغيّر ربط أي منشأة؛ يسري على الاتصالات الجديدة وعلى من يعيد الضبط إلى القالب.",
+        "version": "الإصدار {{version}}",
+        "published": "منشور",
+        "publishedLine": "v{{version}} · المخطط {{schema}} · نُشر {{date}} بواسطة {{by}}",
+        "fields_zero": "لا حقول",
+        "fields_one": "حقل واحد",
+        "fields_two": "حقلان",
+        "fields_few": "{{count}} حقول",
+        "fields_many": "{{count}} حقلًا",
+        "fields_other": "{{count}} حقل",
+        "draft": "مسودة",
+        "draftLine": "v{{version}} · حُفظت {{date}} بواسطة {{by}}",
+        "noDraft": "لا مسودة قيد العمل",
+        "versions_zero": "لا إصدارات",
+        "versions_one": "إصدار واحد",
+        "versions_two": "إصداران",
+        "versions_few": "{{count}} إصدارات",
+        "versions_many": "{{count}} إصدارًا",
+        "versions_other": "{{count}} إصدار",
+        "connections_zero": "لا اتصالات على هذا القالب",
+        "connections_one": "اتصال واحد على هذا القالب",
+        "connections_two": "اتصالان على هذا القالب",
+        "connections_few": "{{count}} اتصالات على هذا القالب",
+        "connections_many": "{{count}} اتصالًا على هذا القالب",
+        "connections_other": "{{count}} اتصال على هذا القالب",
+        "older_zero": "لا شيء على إصدار أقدم",
+        "older_one": "واحد على إصدار أقدم",
+        "older_two": "اثنان على إصدار أقدم",
+        "older_few": "{{count}} على إصدار أقدم",
+        "older_many": "{{count}} على إصدار أقدم",
+        "older_other": "{{count}} على إصدار أقدم",
+        "noConnections": "لا اتصالات على هذا القالب بعد",
+        "open": "فتح",
+        "coming": "قريبًا",
+        "comingNote": "منتجات يعرضها معالج الاتصال ولا قالب لها بعد. المنشآت عليها تربط يدويًا.",
+        "noTemplate": "لا قالب بعد"
+      },
+      "template": {
+        "notHere": "غير موجود",
+        "notHereBody": "لا يوجد قالب ربط بهذا المعرّف. ربما أُعيدت تسميته أو أن الرابط قديم.",
+        "backToList": "العودة إلى قوالب الربط",
+        "productLine": "{{product}} {{erpVersion}} · المخطط {{schema}}",
+        "versions": "الإصدارات",
+        "state": {
+          "draft": "مسودة",
+          "published": "منشور",
+          "retired": "متقاعد"
+        },
+        "readOnly": "v{{version}} {{state}} وللقراءة فقط. كل تعديل يذهب إلى المسودة.",
+        "readOnlyNoDraft": "v{{version}} {{state}} وللقراءة فقط. ابدأ إصدارًا جديدًا لتغييره.",
+        "savedLine": "حُفظ {{date}} بواسطة {{by}}",
+        "publishedLine": "نُشر {{date}} بواسطة {{by}}",
+        "startNew": "بدء إصدار جديد",
+        "saveDraft": "حفظ المسودة",
+        "publish": "نشر",
+        "discard": "تجاهل المسودة",
+        "unsaved": "تغييرات غير محفوظة",
+        "note": "ملاحظة التغيير",
+        "notePlaceholder": "ما الذي يغيّره هذا الإصدار",
+        "entries": "الحقول",
+        "entriesCount_zero": "لا مدخلات",
+        "entriesCount_one": "مدخل واحد",
+        "entriesCount_two": "مدخلان",
+        "entriesCount_few": "{{count}} مدخلات",
+        "entriesCount_many": "{{count}} مدخلًا",
+        "entriesCount_other": "{{count}} مدخل",
+        "col": {
+          "target": "الهدف",
+          "source": "مسار المصدر",
+          "transform": "التحويل",
+          "valueMap": "خريطة القيم",
+          "onUnmapped": "عند عدم الربط",
+          "default": "الافتراضي",
+          "sourceDefault": "مسار المصدر · الافتراضي",
+          "transformMap": "التحويل · خريطة القيم"
+        },
+        "required": "إلزامي",
+        "none": "بلا",
+        "custom": "تحويل مخصص",
+        "pairs_zero": "لا أزواج",
+        "pairs_one": "زوج واحد",
+        "pairs_two": "زوجان",
+        "pairs_few": "{{count}} أزواج",
+        "pairs_many": "{{count}} زوجًا",
+        "pairs_other": "{{count}} زوج",
+        "edit": "تعديل",
+        "remove": "إزالة {{term}}",
+        "sourcePlaceholder": "erp.field.path",
+        "defaultPlaceholder": "—",
+        "addField": "إضافة حقل",
+        "addFieldPick": "اختر مصطلحًا…",
+        "add": "إضافة",
+        "allMapped": "كل المصطلحات القابلة للربط موجودة في القالب.",
+        "readiness": {
+          "title": "الجاهزية",
+          "ready": "جاهز",
+          "notReady": "غير جاهز",
+          "required": "الإلزامي المغطّى",
+          "missing": "ناقص",
+          "invalid": "مدخلات غير صالحة",
+          "allGood": "كل مصطلح إلزامي مربوط وكل مدخل صالح."
+        },
+        "dryRun": {
+          "title": "تجربة جافة",
+          "run": "تشغيل على عيّنة {{product}}",
+          "rerun": "تشغيل مرة أخرى",
+          "hint": "يشغّل الربط على فاتورة {{product}} مرفقة كما يفعل المحوّل، ويعرض ما ينتج عنه.",
+          "output": "الفاتورة القياسية",
+          "refusals": "الرفض",
+          "col": {
+            "field": "الحقل",
+            "problem": "ما الخطأ"
+          },
+          "notes": "ملاحظات"
+        },
+        "tenants": {
+          "title": "المنشآت على هذا الإصدار",
+          "none": "لا اتصال يستخدم هذا الإصدار.",
+          "count_zero": "لا اتصالات",
+          "count_one": "اتصال واحد",
+          "count_two": "اتصالان",
+          "count_few": "{{count}} اتصالات",
+          "count_many": "{{count}} اتصالًا",
+          "count_other": "{{count}} اتصال"
+        },
+        "publishModal": {
+          "title": "نشر v{{version}}؟",
+          "body": "يصبح v{{version}} قالب {{name}} المنشور. الاتصالات ({{count}}) على v{{current}} تحتفظ بربطها حتى تعيد الضبط.",
+          "bodyFirst": "يصبح v{{version}} قالب {{name}} المنشور. الاتصالات الجديدة تبدأ منه.",
+          "notValid": "المسودة ليست صالحة بعد — أصلح المدخلات الحمراء أولًا.",
+          "confirm": "نشر"
+        },
+        "discardModal": {
+          "title": "تجاهل المسودة v{{version}}؟",
+          "body": "تُفقد مدخلات المسودة وملاحظتها. يبقى v{{current}} منشورًا ولا يتغيّر شيء للمنشآت.",
+          "confirm": "تجاهل"
+        },
+        "valueMap": {
+          "title": "خريطة القيم — {{term}}",
+          "subtitle": "ما يرسله نظام ERP على اليسار، ورمز PINT-OM الذي يصبحه على اليمين.",
+          "from": "قيمة ERP",
+          "to": "تصبح",
+          "empty": "لا أزواج بعد.",
+          "addPair": "إضافة زوج",
+          "removePair": "إزالة هذا الزوج",
+          "default": "الرمز الافتراضي",
+          "defaultHint": "يُستخدم عندما يكون «عند عدم الربط» مضبوطًا على استخدام الافتراضي.",
+          "save": "حفظ"
+        },
+        "done": {
+          "created": "بدأت المسودة v{{version}} من v{{from}}.",
+          "saved": "حُفظت المسودة v{{version}}.",
+          "published": "v{{version}} هو الآن قالب {{name}} المنشور.",
+          "discarded": "تم تجاهل المسودة v{{version}}."
+        },
+        "presetShort": {
+          "dateDmy": "DD/MM/YYYY ← تاريخ",
+          "dateEpoch": "Epoch ← تاريخ",
+          "trimUpper": "قصّ + كبيرة",
+          "digitsOnly": "أرقام فقط",
+          "round3": "تقريب 3",
+          "round2": "تقريب 2",
+          "abs": "مطلق",
+          "percentFromFraction": "% من كسر"
+        },
+        "onUnmappedShort": {
+          "FAIL": "إفشال",
+          "USE_DEFAULT": "الافتراضي",
+          "PASS_THROUGH": "تمرير"
+        },
+        "defaultLabel": "الافتراضي"
+      },
+      "requests": {
+        "title": "طلبات الإضافة",
+        "subtitle": "منشآت تطلب تفعيل استخراج ERP. الموافقة تفعّل الإضافة الآن وتضع بندها على فاتورة المنشأة التالية.",
+        "tab": {
+          "pending": "قيد الانتظار",
+          "history": "السجل"
+        },
+        "kpi": {
+          "pending": "قيد الانتظار",
+          "pendingNote": "بانتظار قرار",
+          "pendingOldest": "أقدم طلب {{date}}",
+          "approved": "موافَق عليه في {{month}}",
+          "approvedNote": "بما فيها التجارب",
+          "declined": "مرفوض في {{month}}",
+          "declinedNote": "لكل منها سبب مسجّل",
+          "onAddon": "منشآت على الإضافة",
+          "onAddonNote": "{{paying}} تدفع · {{monthly}} شهريًا لكل منها"
+        },
+        "col": {
+          "tenant": "المنشأة",
+          "plan": "الخطة",
+          "requested": "تاريخ الطلب",
+          "source": "المصدر",
+          "subscription": "الاشتراك",
+          "decided": "تاريخ القرار",
+          "outcome": "النتيجة",
+          "note": "ملاحظة"
+        },
+        "by": "بواسطة {{by}}",
+        "source": {
+          "PURCHASED": "مشتراة",
+          "PLAN_INCLUDED": "ضمن الخطة",
+          "TRIAL": "تجربة"
+        },
+        "price": {
+          "monthly": "{{amount}} شهريًا",
+          "included": "بلا رسوم إضافية",
+          "trial": "مجانًا خلال التجربة"
+        },
+        "subscription": {
+          "grace": "الاشتراك في فترة السماح — سدّد أولًا",
+          "suspended": "الاشتراك موقوف — استأنفه أولًا",
+          "awaitingPayment": "بانتظار الدفعة الأولى",
+          "trial": "الخطة تجريبية",
+          "ok": "نشط"
+        },
+        "approve": "موافقة",
+        "approveTrial": "موافقة على تجربة",
+        "decline": "رفض",
+        "rowMenu": "إجراءات الطلب",
+        "approveModal": {
+          "title": "الموافقة لـ {{tenant}}",
+          "subtitle": "تُفعَّل الإضافة الآن.",
+          "tenant": "المنشأة",
+          "plan": "الخطة",
+          "price": "السعر الشهري",
+          "allowance": "الحصة",
+          "allowanceValue": "{{connections}} اتصالات · {{documents}} مستند شهريًا",
+          "billing": "الفوترة",
+          "billingValue": "ينضم بند الإضافة إلى الفاتورة التالية",
+          "billingIncluded": "ضمن خطة Enterprise — لا شيء يُفوتر",
+          "note": "ملاحظة (اختياري)",
+          "notePlaceholder": "أي شيء يجب أن يذكره السجل",
+          "confirm": "موافقة"
+        },
+        "trialModal": {
+          "title": "الموافقة على تجربة لـ {{tenant}}",
+          "subtitle": "اتصال واحد، مجانًا، حتى تنتهي التجربة. لا يُفوتر شيء.",
+          "days": "مدة التجربة",
+          "daysChip_zero": "لا أيام",
+          "daysChip_one": "يوم واحد",
+          "daysChip_two": "يومان",
+          "daysChip_few": "{{count}} أيام",
+          "daysChip_many": "{{count}} يومًا",
+          "daysChip_other": "{{count}} يوم",
+          "documents": "المستندات في التجربة",
+          "documentsChip": "{{count}} مستند",
+          "endsOn": "تنتهي {{date}}",
+          "confirm": "بدء التجربة"
+        },
+        "declineModal": {
+          "title": "رفض طلب {{tenant}}",
+          "subtitle": "تقرأ المنشأة السبب في صفحة ERP لديها.",
+          "reason": "السبب",
+          "reasonPlaceholder": "لماذا لم تُفعَّل الإضافة",
+          "quick": {
+            "grace": "الاشتراك في فترة السماح — سدّد الفاتورة المفتوحة أولًا",
+            "plan": "غير متاحة على الخطة الحالية",
+            "verify": "التحقق ما زال مفتوحًا"
+          },
+          "confirm": "رفض"
+        },
+        "done": {
+          "badge": "تم",
+          "approved": "تمت الموافقة لـ {{tenant}} — نشطة الآن.",
+          "trial": "تمت الموافقة على تجربة {{days}} يومًا لـ {{tenant}} — نشطة الآن.",
+          "declined": "رُفض طلب {{tenant}}. السبب مسجّل.",
+          "link": "فتح تبويب ERP للمنشأة"
+        },
+        "outcome": {
+          "approved": "موافَق عليه",
+          "declined": "مرفوض"
+        },
+        "empty": {
+          "pending": "لا طلبات بانتظار.",
+          "history": "لا قرارات بعد."
+        },
+        "noNote": "—"
+      },
+      "connections": {
+        "title": "اتصالات ERP",
+        "subtitle": "{{connections}} اتصالًا لدى {{tenants}} مستأجرًا · {{attention}} بحاجة إلى انتباه",
+        "kpi": {
+          "tenants": "مستأجرون على الإضافة",
+          "tenantsNote": "{{paying}} يدفعون · {{included}} مشمولة أو تجريبية",
+          "connections": "الاتصالات",
+          "connectionsNote": "{{paused}} متوقفة مؤقتًا · {{rejections}} رفضًا معلّقًا",
+          "inError": "في حالة خطأ",
+          "inErrorNote": "بيانات اعتماد مرفوضة أو ERP لا يمكن الوصول إليه — على المستأجر التصرّف",
+          "stale": "راكدة",
+          "staleNote": "متصلة، لكن لا جديد منذ {{days}} أيام أو أكثر",
+          "collected": "المجموعة هذا الشهر",
+          "collectedNote": "{{amount}} ر.ع. شهريًا من {{paying}} إضافات مشتراة",
+          "requests": "طلبات الإضافة",
+          "requestsNote": "بانتظار قرار — افتح الطابور",
+          "requestsOpen": "افتح طلبات الإضافة"
+        },
+        "attention": {
+          "title": "بحاجة إلى انتباه",
+          "subtitle": "الأخطاء أولًا، ثم الاتصالات التي توقّف جديدها",
+          "none": "كل الاتصالات سليمة — لا شيء في حالة خطأ أو راكد."
+        },
+        "reason": {
+          "credentials": "رفض ERP بيانات الاعتماد",
+          "unreachable": "تعذّر الوصول إلى ERP",
+          "threeFailures": "فشلت ثلاث عمليات متتالية",
+          "stale_zero": "لا فاتورة جديدة اليوم",
+          "stale_one": "لا فاتورة جديدة منذ يوم",
+          "stale_two": "لا فاتورة جديدة منذ يومين",
+          "stale_few": "لا فاتورة جديدة منذ {{count}} أيام",
+          "stale_many": "لا فاتورة جديدة منذ {{count}} يومًا",
+          "stale_other": "لا فاتورة جديدة منذ {{count}} يوم"
+        },
+        "lastRunShort": "آخر تشغيل {{when}}",
+        "searchPlaceholder": "ابحث باسم المستأجر أو الاتصال",
+        "filter": {
+          "state": "الحالة",
+          "stateAll": "كل الحالات",
+          "product": "المنتج",
+          "productAll": "كل المنتجات"
+        },
+        "sort": {
+          "lastRun": "آخر تشغيل، الأحدث أولًا",
+          "tenant": "المستأجر، أبجديًا"
+        },
+        "col": {
+          "tenant": "المستأجر",
+          "connection": "الاتصال",
+          "state": "الحالة",
+          "mapping": "الربط",
+          "template": "القالب",
+          "lastRun": "آخر تشغيل",
+          "nextRun": "التشغيل التالي",
+          "collected": "المجموعة",
+          "rejections": "الرفض"
+        },
+        "template": {
+          "version": "{{name}} الإصدار {{version}}",
+          "handWritten": "مكتوب يدويًا"
+        },
+        "notScheduled": "غير مجدول",
+        "rowMenu": "إجراءات الصف",
+        "row": {
+          "open": "افتح الاتصال",
+          "openTenant": "افتح المستأجر"
+        },
+        "noResults": "لا يوجد اتصال يطابق هذه المرشّحات.",
+        "showing": "عرض {{shown}} من {{total}} اتصالًا"
+      },
+      "connection": {
+        "notFound": "لا يوجد اتصال بهذا المعرّف — ربما حذفه المستأجر.",
+        "notFoundBack": "العودة إلى الاتصالات",
+        "meta": "{{product}} {{version}} · {{schedule}}",
+        "readOnly": "عرض للدعم — للقراءة فقط. لا تُعرض بيانات الاعتماد ولا تُدخل هنا أبدًا.",
+        "banner": {
+          "credentials": "رفض ERP بيانات اعتماد هذا الاتصال — فشلت {{failures}} عمليات متتالية. المستأجر وحده يستطيع استبدال بيانات الاعتماد: وجّهه إلى الإعدادات › التكامل › الأنظمة المتصلة.",
+          "unreachable": "تعذّر الوصول إلى ERP — فشلت {{failures}} عمليات متتالية. المستأجر وحده يستطيع تغيير العنوان أو بيانات الاعتماد: وجّهه إلى الإعدادات › التكامل › الأنظمة المتصلة.",
+          "threeFailures": "فشلت ثلاث عمليات متتالية فتوقّف الاتصال. المستأجر وحده يستطيع إعادة تشغيله من الإعدادات › التكامل › الأنظمة المتصلة.",
+          "stale_zero": "متصل ويعمل، وأحدث فاتورة مجموعة من اليوم.",
+          "stale_one": "متصل ويعمل، لكن أحدث فاتورة مجموعة عمرها يوم. اسأل المستأجر إن كان نظامه ما زال يصدر فواتير.",
+          "stale_two": "متصل ويعمل، لكن أحدث فاتورة مجموعة عمرها يومان. اسأل المستأجر إن كان نظامه ما زال يصدر فواتير.",
+          "stale_few": "متصل ويعمل، لكن أحدث فاتورة مجموعة عمرها {{count}} أيام. اسأل المستأجر إن كان نظامه ما زال يصدر فواتير.",
+          "stale_many": "متصل ويعمل، لكن أحدث فاتورة مجموعة عمرها {{count}} يومًا. اسأل المستأجر إن كان نظامه ما زال يصدر فواتير.",
+          "stale_other": "متصل ويعمل، لكن أحدث فاتورة مجموعة عمرها {{count}} يوم. اسأل المستأجر إن كان نظامه ما زال يصدر فواتير."
+        },
+        "figure": {
+          "watermark": "أحدث فاتورة مجموعة",
+          "today": "اليوم",
+          "daysOld_zero": "أيام",
+          "daysOld_one": "يوم",
+          "daysOld_two": "يومان",
+          "daysOld_few": "أيام",
+          "daysOld_many": "يومًا",
+          "daysOld_other": "يوم",
+          "watermarkNote": "صدرت في {{moment}}",
+          "nothingYet": "لم يُجمع شيء بعد",
+          "lastRun": "آخر تشغيل",
+          "never": "لم يحدث",
+          "lastRunNote": "{{state}} · {{fetched}} مجلوبة، {{created}} منشأة، {{errors}} أخطاء",
+          "nextRun": "التشغيل التالي",
+          "nextRunError": "غير مجدول — الاتصال في حالة خطأ",
+          "nextRunPaused": "غير مجدول — الاتصال متوقف مؤقتًا",
+          "collected": "المجموعة هذا الشهر",
+          "collectedOf": "من {{allowance}}",
+          "collectedNote": "{{used}} عبر اتصالات المستأجر · {{percent}} من الرصيد",
+          "collectedNoAddon": "ليس لدى المستأجر إضافة مفعّلة"
+        },
+        "setup": {
+          "title": "كيف أُعدّ",
+          "product": "المنتج",
+          "schedule": "الجدول",
+          "writeBack": "الكتابة العكسية",
+          "writeBackOn": "مفعّلة — تُكتب الحالة والرقم ورمز QR إلى ERP",
+          "writeBackOff": "معطّلة",
+          "template": "قالب الربط",
+          "templateVersion": "{{name}} الإصدار {{version}} · نُشر في {{date}}",
+          "handWritten": "كتبه المستأجر يدويًا",
+          "mapping": "الربط",
+          "created": "تاريخ الاتصال",
+          "id": "معرّف الاتصال"
+        },
+        "runs": {
+          "title": "آخر عمليات التشغيل",
+          "none": "لا عمليات تشغيل بعد",
+          "col": {
+            "when": "الوقت",
+            "state": "الحالة",
+            "fetched": "مجلوبة",
+            "created": "منشأة",
+            "errors": "أخطاء"
+          }
+        },
+        "addon": {
+          "title": "إضافة الاستخراج التلقائي",
+          "none": "لا إضافة — لم يطلب المستأجر الاستخراج التلقائي.",
+          "pendingRequest": "لديه طلب بانتظار القرار — افتح طلبات الإضافة.",
+          "source": "المصدر",
+          "sourceValue": {
+            "PURCHASED": "مشتراة",
+            "PLAN_INCLUDED": "مشمولة في الخطة",
+            "TRIAL": "تجريبية"
+          },
+          "since": "منذ",
+          "trialEnds": "تنتهي التجربة في",
+          "suspendedFor": "سبب الإيقاف",
+          "pendingPayment": "تبدأ بعد سداد بند الإضافة في الفاتورة التالية.",
+          "limits": "الحدود",
+          "limitsValue": "{{connections}} اتصالات · {{documents}} مستند شهريًا",
+          "connectionsUsed": "الأنظمة المتصلة",
+          "of": "{{used}} من {{allowance}}",
+          "collected": "المجموعة هذا الشهر",
+          "grants": "منح الحصة",
+          "noGrants": "لا شيء — الرصيد هو رصيد الخطة نفسه.",
+          "grantLine": "+{{documents}} مستند حتى {{date}} · {{by}}",
+          "grant": "منح حصة استخراج",
+          "suspend": "إيقاف الإضافة",
+          "resume": "استئناف الإضافة"
+        },
+        "grant": {
+          "title": "منح حصة استخراج",
+          "subtitle": "مستندات إضافية لـ {{tenant}} فوق رصيد الإضافة، حتى تاريخ تختاره",
+          "documents": "المستندات الإضافية",
+          "expires": "ينتهي في",
+          "submit": "منح",
+          "done": "مُنح {{documents}} مستند استخراج إضافي لـ {{tenant}} حتى {{date}}"
+        },
+        "suspend": {
+          "title": "إيقاف الإضافة",
+          "subtitle": "تتوقف عمليات التشغيل المجدولة لـ {{tenant}} حتى الاستئناف؛ تبقى الاتصالات والربط",
+          "submit": "إيقاف",
+          "done": "أُوقفت إضافة {{tenant}} — تتوقف عمليات التشغيل حتى الاستئناف"
+        },
+        "resume": {
+          "title": "استئناف الإضافة",
+          "subtitle": "تعود عمليات تشغيل {{tenant}} مع الموعد المجدول التالي",
+          "body": "سبب الإيقاف: {{reason}}",
+          "submit": "استئناف",
+          "done": "عادت إضافة {{tenant}} إلى العمل"
+        }
+      },
+      "tenantTab": {
+        "connections": {
+          "title": "اتصالات ERP",
+          "all": "كل المستأجرين",
+          "empty": "لم يُربط أي ERP بعد."
+        },
+        "col": {
+          "connection": "الاتصال",
+          "state": "الحالة",
+          "mapping": "الربط",
+          "lastRun": "آخر تشغيل",
+          "collected": "المجموعة",
+          "rejections": "الرفض"
+        }
+      }
+    },
+    "ops": {
+      "event": {
+        "redriven": "أُعيد دفع الإرسال · {{document}}",
+        "tenantNotified": "أُبلغ المشترك بالرفض · {{document}}",
+        "incidentOpened": "فُتحت حادثة · {{incident}}",
+        "incidentUpdated": "حُدّثت الحادثة · {{incident}} ← {{state}}",
+        "incidentResolved": "حُلّت الحادثة · {{incident}}",
+        "noticePosted": "نُشر إشعار للمشتركين · {{incident}}"
+      }
+    },
+    "audit": {
+      "seeded": {
+        "verificationApproved": "تمت الموافقة على التحقق من الشركة",
+        "verificationReturned": "أُعيد التحقق من الشركة · {{reason}}",
+        "verificationRejected": "رُفض التحقق من الشركة · {{reason}}",
+        "operatorInvited": "دُعي مشغّل · {{email}} بدور {{role}}",
+        "operatorRoleChanged": "تغيّر دور المشغّل · {{name}} ← {{role}}",
+        "operatorTwoStepReset": "أُعيد ضبط التحقق بخطوتين · {{name}}",
+        "operatorDeactivated": "عُطّل المشغّل · {{name}}",
+        "planEdited": "عُدّلت الخطة · {{plan}} {{field}} ← {{value}}",
+        "planPublished": "نُشرت الخطة · {{plan}}",
+        "settingsSaved": "حُفظت إعدادات وحدة التحكم · {{section}}"
+      },
+      "title": "سجل التدقيق",
+      "subtitle": "كل إجراء اتخذه مشغّل على المنصة، الأحدث أولًا. نشاط المنشآت يبقى في سجل كل منشأة.",
+      "export": "تصدير CSV",
+      "kpi": {
+        "today": "إجراءات اليوم",
+        "todayNote_zero": "لا إجراءات في الأيام السبعة الأخيرة",
+        "todayNote_one": "إجراء واحد في الأيام السبعة الأخيرة",
+        "todayNote_two": "إجراءان في الأيام السبعة الأخيرة",
+        "todayNote_few": "{{count}} إجراءات في الأيام السبعة الأخيرة",
+        "todayNote_many": "{{count}} إجراءً في الأيام السبعة الأخيرة",
+        "todayNote_other": "{{count}} إجراء في الأيام السبعة الأخيرة",
+        "operators": "مشغّلون نشطون اليوم",
+        "operatorsNote": "{{names}}",
+        "operatorsNone": "لم يتصرف أحد بعد اليوم",
+        "areas": "مجالات مُسّت",
+        "areasOf": "من {{total}}",
+        "areasNote": "الأكثر نشاطًا: {{area}} · {{count}} إدخالًا"
+      },
+      "filter": {
+        "area": "المجال",
+        "areaAll": "كل المجالات",
+        "operator": "المشغّل",
+        "operatorAll": "الجميع",
+        "range": "الفترة"
+      },
+      "range": {
+        "today": "اليوم",
+        "week": "آخر 7 أيام",
+        "month": "آخر 30 يومًا",
+        "all": "كل الوقت"
+      },
+      "searchPlaceholder": "اسم المنشأة أو معرّفها…",
+      "area": {
+        "subscriptions": "الاشتراكات",
+        "erp": "أنظمة ERP",
+        "incidents": "الحوادث",
+        "queue": "طابور الإرسال",
+        "settings": "إعدادات وحدة التحكم",
+        "verification": "التحقق",
+        "operators": "المشغّلون",
+        "plans": "الخطط والأسعار"
+      },
+      "col": {
+        "when": "متى",
+        "operator": "المشغّل",
+        "area": "المجال",
+        "what": "ماذا حدث",
+        "tenant": "المنشأة",
+        "open": "أين"
+      },
+      "open": "فتح",
+      "noTenant": "—",
+      "day": {
+        "today": "اليوم",
+        "yesterday": "أمس"
+      },
+      "noResults": "لا شيء يطابق هذه المرشّحات.",
+      "showing": "عرض {{from}}–{{to}} من {{total}} إدخالًا",
+      "showingNone": "لا إدخالات",
+      "pager": {
+        "label": "صفحات سجل التدقيق",
+        "previous": "الصفحة السابقة",
+        "next": "الصفحة التالية"
+      }
+    },
+    "onboard": {
+      "title": "تسجيل منشأة",
+      "subtitle": "لعميل لم يسجّل عبر الإنترنت: الشركة، ومالكها، وما يدفعه — ثم تُنشأ المنشأة في السجل.",
+      "steps": {
+        "company": "الشركة",
+        "owner": "المالك",
+        "plan": "الخطة والدفع",
+        "review": "المراجعة"
+      },
+      "cancel": "إلغاء",
+      "back": "رجوع",
+      "continue": "متابعة",
+      "create": "إنشاء المنشأة",
+      "company": {
+        "heading": "الشركة",
+        "note": "كما تظهر في السجل التجاري. الاسم التجاري هو ما تعرضه وحدة التحكم وشاشات العميل.",
+        "legalName": "الاسم القانوني",
+        "tradingName": "الاسم التجاري",
+        "cr": "رقم السجل التجاري",
+        "crHint": "7 أرقام كما في الشهادة",
+        "vat": "رقم التسجيل الضريبي",
+        "vatHint": "OM متبوعًا بعشرة أرقام",
+        "town": "المدينة",
+        "townPlaceholder": "اختر مدينة",
+        "businessType": "نوع النشاط",
+        "businessTypePlaceholder": "اختر نوعًا"
+      },
+      "owner": {
+        "heading": "المالك",
+        "note": "يصله دعوة لتعيين كلمة المرور؛ وتمر الشركة بالتحقق كالمعتاد.",
+        "name": "الاسم الكامل",
+        "phone": "الجوال",
+        "email": "البريد الإلكتروني"
+      },
+      "plan": {
+        "heading": "الخطة والدفع",
+        "note": "تبدأ الفترة الأولى اليوم. الأسعار لا تشمل الضريبة؛ تضيفها الفاتورة.",
+        "plan": "الخطة",
+        "term": "دورة الفوترة",
+        "method": "طريقة الدفع",
+        "enterpriseNote": "شروط المؤسسات — السعر والشريحة والمقاعد — تُضبط من صفحة المنشأة بعد الإنشاء؛ أدخل المبلغ المتفق عليه.",
+        "periodEnd": "تنتهي الفترة الأولى في",
+        "firstInvoice": "الفاتورة الأولى",
+        "paidNow": "تم استلام الدفع الآن",
+        "paidNowHint": "فعّله عندما يكون المال في اليد — نقدًا في المكتب، أو تحويل وصل، أو شيك مُستلم.",
+        "amount": "المبلغ المستلم",
+        "receivedOn": "تاريخ الاستلام",
+        "activateNow": "تفعيل الاشتراك الآن",
+        "activateHint": "إن تُرك مطفأً، تُنشأ المنشأة بحالة «بانتظار الدفع» مع فاتورة مدفوعة، وتفعّلها من صفحتها."
+      },
+      "review": {
+        "heading": "المراجعة",
+        "note": "راجع التفاصيل؛ تُنشأ المنشأة في السجل عند التأكيد.",
+        "company": "الشركة",
+        "owner": "المالك",
+        "plan": "الخطة والدفع",
+        "result": "ماذا يحدث بعد ذلك",
+        "resultActive": "تُنشأ {{name}} بحالة «نشط» حتى {{date}}، والفاتورة الأولى مدفوعة.",
+        "resultPaid": "تُنشأ {{name}} بحالة «بانتظار الدفع» وفاتورتها الأولى مدفوعة؛ فعّلها من صفحتها.",
+        "resultAwaiting": "تُنشأ {{name}} بحالة «بانتظار الدفع» مع فاتورة مفتوحة بقيمة {{amount}} ر.ع. تستحق اليوم. سجّل الدفع من صفحتها.",
+        "invitation": "يصل إلى {{email}} دعوة لتعيين كلمة المرور؛ ثم تمر الشركة بالتحقق.",
+        "paidLine": "{{amount}} · {{method}} · {{date}}",
+        "notPaid": "ليس بعد — تبقى الفاتورة مفتوحة",
+        "edit": "تعديل"
+      }
+    },
+    "queue": {
+      "title": "قائمة الإرسال",
+      "subtitle": "{{waiting}} بانتظار الإرسال لدى كل المشتركين · {{stuck}} متعثّرة · {{refused}} مرفوضة اليوم",
+      "incidentsLink": "الحوادث",
+      "operationsLink": "التشغيل",
+      "kpi": {
+        "waiting": "بالانتظار الآن",
+        "waitingNote": "الأقدم {{oldest}} د · المعتاد {{normal}} ث",
+        "stuck": "متعثّرة",
+        "stuckNote": "إرسالات فشلت ويمكن للمشغّل دفعها من جديد",
+        "refused": "مرفوضة اليوم",
+        "refusedNote": "{{share}} من إرسالات اليوم · يصحّحها المشترك ويعيد إرسالها",
+        "accepted": "مقبولة اليوم",
+        "acceptedNote": "{{share}} قُبلت من المرة الأولى"
+      },
+      "stage": {
+        "queued": "في الطابور",
+        "validating": "قيد التحقق",
+        "signing": "قيد التوقيع",
+        "sending": "قيد الإرسال",
+        "awaitingOta": "بانتظار جهاز الضرائب",
+        "stuck": "متعثّرة",
+        "refused": "مرفوضة",
+        "accepted": "مقبولة"
+      },
+      "lane": {
+        "waiting": "بالانتظار",
+        "stuck": "متعثّرة",
+        "refused": "مرفوضة",
+        "done": "منجزة (آخر ساعة)"
+      },
+      "kind": {
+        "invoice": "فاتورة",
+        "creditNote": "إشعار دائن",
+        "debitNote": "إشعار مدين",
+        "selfBilling": "فاتورة ذاتية",
+        "posReceipt": "إيصال نقطة بيع"
+      },
+      "filter": {
+        "kind": "النوع",
+        "kindAll": "كل الأنواع"
+      },
+      "searchPlaceholder": "رقم المستند أو المشترك",
+      "col": {
+        "tenant": "المشترك",
+        "document": "المستند",
+        "stage": "المرحلة",
+        "waiting": "الانتظار",
+        "accepted": "قُبلت في",
+        "attempts": "المحاولات",
+        "amount": "المبلغ",
+        "error": "الخطأ"
+      },
+      "wait": {
+        "seconds_zero": "{{count}} ث",
+        "seconds_one": "{{count}} ث",
+        "seconds_two": "{{count}} ث",
+        "seconds_few": "{{count}} ث",
+        "seconds_many": "{{count}} ث",
+        "seconds_other": "{{count}} ث",
+        "minutes_zero": "{{count}} د",
+        "minutes_one": "{{count}} د",
+        "minutes_two": "{{count}} د",
+        "minutes_few": "{{count}} د",
+        "minutes_many": "{{count}} د",
+        "minutes_other": "{{count}} د",
+        "hours": "{{hours}} س {{minutes}} د"
+      },
+      "issuedAt": "صدرت {{time}}",
+      "action": {
+        "redrive": "إعادة الدفع",
+        "notify": "إبلاغ المشترك",
+        "told": "أُبلغ في {{time}}"
+      },
+      "done": {
+        "badge": "تم",
+        "redriven": "عاد {{document}} إلى الطابور بمحاولة إضافية.",
+        "notified": "أُبلغ {{tenant}} برفض {{document}} — الإشعار في جرسه.",
+        "dismiss": "إغلاق"
+      },
+      "noResults": "لا شيء في هذا المسار يطابق البحث.",
+      "showing": "عرض {{from}}–{{to}} من {{total}} {{lane}}",
+      "showingNone": "لا شيء للعرض",
+      "sampleNote": "عيّنة من الطابور؛ المنصة تحمل {{waiting}} بالانتظار والأعداد الحية تأتي منها.",
+      "pager": {
+        "label": "صفحات الطابور",
+        "previous": "الصفحة السابقة",
+        "next": "الصفحة التالية"
+      }
+    },
+    "incidents": {
+      "title": "الحوادث",
+      "subtitle_zero": "لا حوادث مفتوحة · أجراس المشتركين هادئة",
+      "subtitle_one": "حادثة واحدة مفتوحة · ما الخلل في المنصة وما أُبلغ به المشتركون",
+      "subtitle_two": "حادثتان مفتوحتان · ما الخلل في المنصة وما أُبلغ به المشتركون",
+      "subtitle_few": "{{count}} حوادث مفتوحة · ما الخلل في المنصة وما أُبلغ به المشتركون",
+      "subtitle_many": "{{count}} حادثة مفتوحة · ما الخلل في المنصة وما أُبلغ به المشتركون",
+      "subtitle_other": "{{count}} حادثة مفتوحة · ما الخلل في المنصة وما أُبلغ به المشتركون",
+      "queueLink": "قائمة الإرسال",
+      "openButton": "فتح حادثة",
+      "kpi": {
+        "open": "الحوادث المفتوحة",
+        "openNote_zero": "لا كبيرة ولا حرجة",
+        "openNote_one": "واحدة كبيرة أو حرجة",
+        "openNote_two": "اثنتان كبيرتان أو حرجتان",
+        "openNote_few": "{{count}} كبيرة أو حرجة",
+        "openNote_many": "{{count}} كبيرة أو حرجة",
+        "openNote_other": "{{count}} كبيرة أو حرجة",
+        "affected": "المشتركون المتأثرون",
+        "affectedNote": "عبر الحوادث المفتوحة",
+        "resolved": "حُلّت هذا الشهر",
+        "resolvedNote": "أُغلقت في {{month}}"
+      },
+      "tab": {
+        "open": "مفتوحة",
+        "resolved": "محلولة"
+      },
+      "col": {
+        "incident": "الحادثة",
+        "state": "الحالة",
+        "severity": "الخطورة",
+        "component": "المكوّن",
+        "started": "بدأت",
+        "duration": "المدة",
+        "affected": "المشتركون المتأثرون",
+        "notice": "الإشعار"
+      },
+      "state": {
+        "investigating": "قيد التحقيق",
+        "identified": "حُدّد السبب",
+        "monitoring": "قيد المراقبة",
+        "resolved": "حُلّت"
+      },
+      "severity": {
+        "minor": "بسيطة",
+        "major": "كبيرة",
+        "critical": "حرجة"
+      },
+      "component": {
+        "ota": "جهاز الضرائب",
+        "peppol": "نقطة وصول Peppol",
+        "signing": "التوقيع",
+        "platform": "المنصة",
+        "connector": "موصّل ERP"
+      },
+      "duration": {
+        "minutes_zero": "{{count}} د",
+        "minutes_one": "{{count}} د",
+        "minutes_two": "{{count}} د",
+        "minutes_few": "{{count}} د",
+        "minutes_many": "{{count}} د",
+        "minutes_other": "{{count}} د",
+        "hours": "{{hours}} س {{minutes}} د"
+      },
+      "stillOpen": "وما زالت مستمرة",
+      "noticePosted": "نُشر",
+      "empty": {
+        "open": "لا حوادث مفتوحة. المنصة تعمل كما ينبغي.",
+        "resolved": "لا حوادث محلولة بعد."
+      },
+      "open": {
+        "title": "فتح حادثة",
+        "subtitle": "تبدأ قيد التحقيق؛ انشر التحديثات كلما عرفت المزيد.",
+        "name": "العنوان",
+        "namePlaceholder": "ما الخلل، في سطر واحد",
+        "pick": "اختر",
+        "firstUpdate": "التحديث الأول",
+        "firstUpdatePlaceholder": "ما تعرفه حتى الآن",
+        "affected": "المشتركون المتأثرون",
+        "affectedHint": "اتركه فارغًا إن لم تعرف بعد",
+        "error": {
+          "affected": "أدخل عددًا صحيحًا"
+        },
+        "submit": "فتح الحادثة"
+      },
+      "detail": {
+        "running": "مستمرة منذ",
+        "ran": "استمرت"
+      },
+      "update": {
+        "title": "نشر تحديث",
+        "hint": "ينقل الحادثة إلى الحالة التي تختارها ويضيف إلى الخط الزمني.",
+        "resolvedHint": "حُلّت — أعد فتحها بنشر تحديث.",
+        "nextState": "الحالة التالية",
+        "text": "التحديث",
+        "textPlaceholder": "ما الذي تغيّر وما الذي يتوقعه المشتركون",
+        "submit": "نشر التحديث",
+        "posted": "نُشر — الحادثة الآن {{state}}."
+      },
+      "notice": {
+        "title": "إشعار للمشتركين",
+        "hint": "يظهر في جرس كل مشترك باللغة التي اختارها. النسختان مطلوبتان.",
+        "english": "بالإنجليزية",
+        "arabic": "بالعربية",
+        "englishPlaceholder": "What tenants should know and whether they need to do anything",
+        "arabicPlaceholder": "ما يجب أن يعرفه المشتركون وهل عليهم فعل شيء",
+        "submit": "نشر الإشعار",
+        "postedBy": "نُشر {{when}} بواسطة {{by}}"
+      },
+      "timeline": {
+        "title": "الخط الزمني",
+        "hint_zero": "لا تحديثات بعد",
+        "hint_one": "تحديث واحد، الأحدث أولًا",
+        "hint_two": "تحديثان، الأحدث أولًا",
+        "hint_few": "{{count}} تحديثات، الأحدث أولًا",
+        "hint_many": "{{count}} تحديثًا، الأحدث أولًا",
+        "hint_other": "{{count}} تحديث، الأحدث أولًا"
+      },
+      "notHere": {
+        "badge": "غير موجودة",
+        "body": "لا توجد حادثة {{id}}. ربما فُتحت على وحدة تحكم أخرى أو أن الرابط خاطئ.",
+        "back": "العودة إلى الحوادث"
+      }
     }
   },
   "shell": {
@@ -10969,6 +11862,16 @@
       "title": "سجّل {{name}} الدخول من جهاز جديد",
       "body": "جهاز {{device}} في {{town}}. إن لم يكن {{name}}، سجّل خروجه من كل مكان.",
       "notThem": "لم يكن {{name}}"
+    },
+    "connectorCredentials": {
+      "title": "توقف {{label}} عن الجمع",
+      "body": "رفض النظام بيانات اعتماده {{failures}} تشغيلات متتالية. استبدلها ويُستأنف الجمع في التشغيل التالي.",
+      "fix": "استبدال بيانات الاعتماد"
+    },
+    "connectorSuperseded": {
+      "title": "تغيّر {{erpNumber}} في النظام بعد إرساله",
+      "body": "لا يمكن تغيير فاتورة مُرسلة ({{note}}). أصدر إشعار دائن في {{product}} وسيجمعه الموصّل.",
+      "open": "افتح السجل"
     }
   },
   "onboarding": {
@@ -11877,6 +12780,789 @@
       "confirmTitle": "إلغاء تفعيل الملف؟",
       "confirmBody": "لن يعمل شيء مكانه. كل إرسال من نظام ERP يفشل بإغلاق حتى يُفعَّل ملف من جديد.",
       "confirmSubmit": "إلغاء التفعيل"
+    },
+    "connector": {
+      "backToList": "الأنظمة المتصلة",
+      "shell": {
+        "subtitle": "{{product}} {{version}} · {{url}}"
+      },
+      "notFound": {
+        "title": "هذا الاتصال غير موجود هنا",
+        "subtitle": "ربما أُزيل، أو أن الرابط قديم."
+      },
+      "tabs": {
+        "label": "شاشات الاتصال",
+        "overview": "نظرة عامة",
+        "mapping": "الربط",
+        "runs": "التشغيلات",
+        "records": "السجلات",
+        "writeBack": "الكتابة العكسية",
+        "settings": "الإعدادات"
+      },
+      "state": {
+        "DRAFT": "مسودة",
+        "CONNECTED": "متصل",
+        "PAUSED": "متوقف مؤقتًا",
+        "ERROR": "خطأ",
+        "DISCONNECTED": "مفصول"
+      },
+      "mappingStatus": {
+        "UNMAPPED": "غير مربوط",
+        "DRAFT": "مسودة",
+        "READY": "جاهز",
+        "CERTIFIED": "معتمد",
+        "STALE": "قديم"
+      },
+      "runState": {
+        "RUNNING": "قيد التشغيل",
+        "SUCCEEDED": "نجح",
+        "PARTIAL": "جزئي",
+        "FAILED": "فشل",
+        "SKIPPED_QUOTA": "تخطّي · الحصة",
+        "SKIPPED_LEASE": "تخطّي · تداخل"
+      },
+      "runTrigger": {
+        "SCHEDULE": "مجدول",
+        "MANUAL": "يدوي",
+        "RETRY": "إعادة"
+      },
+      "recordState": {
+        "COLLECTED": "مجموع",
+        "MAPPED": "مربوط",
+        "SUBMITTED": "مُرسل",
+        "ACCEPTED": "مقبول",
+        "REJECTED": "مرفوض",
+        "WRITTEN_BACK": "كُتب عكسيًا",
+        "WRITEBACK_FAILED": "فشلت الكتابة العكسية",
+        "SUPERSEDED": "مُستبدل"
+      },
+      "outboxState": {
+        "PENDING": "قيد الانتظار",
+        "SENT": "أُرسل",
+        "FAILED": "فشل",
+        "ABANDONED": "متروك"
+      },
+      "product": {
+        "ODOO": "Odoo",
+        "ERPNEXT": "ERPNext",
+        "DYNAMICS_365": "Microsoft Dynamics 365",
+        "SAP_S4": "SAP S/4HANA",
+        "ORACLE_FUSION": "Oracle Fusion",
+        "ZOHO_BOOKS": "Zoho Books"
+      },
+      "authKind": {
+        "API_KEY": "مفتاح API",
+        "BASIC": "اسم مستخدم وكلمة مرور",
+        "OAUTH2_CLIENT": "OAuth 2.0 · بيانات العميل",
+        "OAUTH2_AUTHCODE": "OAuth 2.0 · تسجيل الدخول عبر النظام"
+      },
+      "scope": {
+        "READ": "قراءة",
+        "WRITE": "كتابة"
+      },
+      "schedule": {
+        "15": "كل 15 دقيقة",
+        "30": "كل 30 دقيقة",
+        "60": "كل ساعة",
+        "240": "كل 4 ساعات",
+        "1440": "مرة يوميًا"
+      },
+      "testError": {
+        "UNAUTHORIZED": "رفض النظام بيانات الاعتماد.",
+        "UNREACHABLE": "تعذّر الوصول إلى العنوان من فوتر.",
+        "TLS": "يجب أن يستخدم العنوان https.",
+        "FORBIDDEN_SCOPE": "لا يمكن للحساب الكتابة على الفواتير.",
+        "TIMEOUT": "لم يستجب النظام في الوقت المحدد."
+      },
+      "event": {
+        "created": "أُنشئ الاتصال",
+        "tested": "اُختبر الاتصال · {{latency}} م.ث",
+        "testFailed": "فشل الاختبار · {{code}}",
+        "discovered": "اُكتشفت الحقول · {{fields}} حقلًا من {{samples}} عينات",
+        "templateApplied": "طُبّق القالب · {{template}}",
+        "mappingEdited": "عُدّل الربط · {{entries}} حقلًا",
+        "writeBackEnabled": "فُعّلت الكتابة العكسية",
+        "writeBackDisabled": "أُلغيت الكتابة العكسية",
+        "scopesChanged": "تغيّرت الصلاحيات · {{scopes}}",
+        "scheduleChanged": "تغيّر الجدول · كل {{minutes}} دقيقة",
+        "renamed": "أُعيدت التسمية · {{label}}",
+        "baseUrlChanged": "تغيّر العنوان · {{url}}",
+        "paused": "أُوقف مؤقتًا · {{reason}}",
+        "resumed": "استُؤنف",
+        "deleted": "حُذف · دُمّرت بيانات الاعتماد وبقيت السجلات",
+        "credentialsRotated": "استُبدلت بيانات الاعتماد · اُختبرت في {{latency}} م.ث",
+        "credentialsRotationFailed": "رُفضت بيانات الاعتماد الجديدة · {{code}}",
+        "runSucceeded": "نجح التشغيل · {{fetched}} مجلوبة، {{created}} جديدة",
+        "runFailed": "فشل التشغيل · {{code}}",
+        "wentToError": "الاتصال في حالة خطأ بعد {{failures}} تشغيلات فاشلة",
+        "collectedNow": "جُمع الآن · {{fetched}} مجلوبة",
+        "pausedNoReason": "أُوقف مؤقتًا"
+      },
+      "list": {
+        "title": "الأنظمة المتصلة",
+        "subtitle": "الأنظمة التي يجمع فوتر الفواتير منها، وحال كل منها، وما تبقّى من الإضافة هذا الشهر.",
+        "connect": "اربط نظامًا",
+        "connectLimit": "كل الاتصالات ({{count}}) مستخدمة — احذف واحدًا لربط نظام آخر.",
+        "errorBanner": {
+          "credentials": "توقف {{label}}: رفض النظام بيانات الاعتماد. استبدلها في الإعدادات.",
+          "unreachable": "توقف {{label}}: تعذّر الوصول إلى النظام. تحقق من عنوانه في الإعدادات.",
+          "threeFailures": "توقف {{label}} بعد ثلاث عمليات فاشلة متتالية. راجع عملياته قبل الاستئناف.",
+          "link": "افتح الإعدادات"
+        },
+        "pendingPayment": "طُلب — بانتظار تأكيد الفوترة.",
+        "suspended": "الإضافة موقوفة: لم تُسدَّد فاتورة الإضافة الأخيرة. تحتفظ الاتصالات بإعداداتها، لكن لا يُجمع شيء حتى تسوّي الفوترة الأمر.",
+        "cancelled": "أُلغيت الإضافة. تُحفظ الاتصالات وسجلاتها للقراءة فقط؛ اطلب التفعيل مجددًا لاستئناف الجمع.",
+        "table": {
+          "title": "الاتصالات",
+          "note_zero": "لا اتصالات من {{limit}}",
+          "note_one": "اتصال واحد من {{limit}}",
+          "note_two": "اتصالان من {{limit}}",
+          "note_few": "{{count}} اتصالات من {{limit}}",
+          "note_many": "{{count}} اتصالًا من {{limit}}",
+          "note_other": "{{count}} اتصال من {{limit}}",
+          "label": "النظام",
+          "state": "الحالة",
+          "mapping": "الربط",
+          "lastRun": "آخر عملية",
+          "nextRun": "العملية التالية",
+          "rejections": "المرفوضة",
+          "never": "لم تحدث",
+          "none": "—"
+        },
+        "empty": {
+          "title": "لم يُربط أي نظام بعد",
+          "body": "اربط نظامك الأول — يستغرق الاختبار واكتشاف الحقول نحو دقيقة."
+        },
+        "menu": {
+          "label": "إجراءات الاتصال",
+          "open": "افتح",
+          "pause": "أوقف مؤقتًا",
+          "resume": "استأنف",
+          "collectNow": "اجمع الآن",
+          "delete": "احذف"
+        },
+        "collected": "بدأ الجمع الآن من {{label}} · العملية {{run}}.",
+        "refusal": {
+          "IN_PROGRESS": "هناك عملية جارية بالفعل لـ {{label}} — انتظر انتهاءها.",
+          "QUOTA": "استُهلك رصيد هذا الشهر؛ يُستأنف الجمع في {{date}}.",
+          "NOT_CERTIFIED": "ربط {{label}} غير معتمد بعد — اعتمده قبل الجمع.",
+          "PAUSED": "{{label}} متوقف مؤقتًا — استأنفه أولًا.",
+          "CREDENTIALS": "رفض النظام بيانات اعتماد {{label}} — استبدلها في الإعدادات."
+        },
+        "delete": {
+          "title": "حذف {{label}}؟",
+          "body": "تُدمَّر بيانات الاعتماد فورًا. تُحفظ العمليات والسجلات للتدقيق، ولا يُمَس النظام نفسه.",
+          "confirm": "احذف الاتصال"
+        }
+      },
+      "addon": {
+        "title": "إضافة الاستخراج التلقائي",
+        "state": {
+          "INACTIVE": "غير مفعّلة",
+          "PENDING_PAYMENT": "بانتظار الدفع",
+          "ACTIVE": "مفعّلة",
+          "SUSPENDED": "موقوفة",
+          "CANCELLED": "ملغاة"
+        },
+        "source": {
+          "PURCHASED": "مشتراة منذ {{date}}",
+          "PLAN_INCLUDED": "مشمولة في خطتك",
+          "TRIAL": "تجريبية"
+        },
+        "price": "{{amount}} ر.ع. شهريًا",
+        "priceNote": "{{documents}} مستند مشمول",
+        "usage": {
+          "connections": "الأنظمة المتصلة",
+          "collected": "المجموعة هذا الشهر",
+          "of": "{{used}} من {{limit}}",
+          "resets": "يتجدد في {{date}}"
+        },
+        "overage": "بعد تجاوز الرصيد، يُحتسب كل مستند إضافي بـ {{amount}} ر.ع."
+      },
+      "connect": {
+        "title": "اربط نظامًا",
+        "subtitle": "أربع خطوات: اختر النظام، وأعطِ فوتر طريقة للدخول، واختبرها، ثم دعه يكتشف الحقول.",
+        "steps": {
+          "system": "النظام",
+          "credentials": "بيانات الاعتماد",
+          "test": "الاختبار",
+          "discover": "الاكتشاف"
+        },
+        "cancel": "إلغاء",
+        "back": "رجوع",
+        "continue": "متابعة",
+        "finish": "إنهاء وفتح الربط",
+        "system": {
+          "heading": "أي نظام؟",
+          "coming": "قريبًا",
+          "label": "التسمية",
+          "labelPlaceholder": "المكتب الرئيسي — Odoo 17",
+          "labelHint": "كيف يظهر هذا الاتصال في القوائم والإشعارات.",
+          "baseUrl": "العنوان الأساسي",
+          "baseUrlHint": "العنوان الذي يستدعيه فوتر. يجب أن يستخدم https."
+        },
+        "productHint": {
+          "ODOO": "Odoo 16 و17 · account.move عبر JSON-RPC",
+          "ERPNEXT": "ERPNext 14 و15 · Sales Invoice عبر REST API",
+          "DYNAMICS_365": "Business Central وFinance · OData",
+          "SAP_S4": "S/4HANA Cloud · واجهة Billing Document",
+          "ORACLE_FUSION": "Fusion Cloud ERP · فواتير Receivables",
+          "ZOHO_BOOKS": "Zoho Books · الفواتير عبر OAuth"
+        },
+        "credentials": {
+          "heading": "كيف يسجّل فوتر الدخول؟",
+          "authKind": "طريقة تسجيل الدخول",
+          "field": {
+            "apiKey": "مفتاح API",
+            "apiSecret": "سر API",
+            "username": "اسم المستخدم",
+            "password": "كلمة المرور",
+            "clientId": "معرّف العميل",
+            "clientSecret": "سر العميل",
+            "tenantId": "معرّف المستأجر",
+            "database": "قاعدة البيانات"
+          },
+          "secretsNote": "تُخزَّن الأسرار مشفّرة ولا تُعرض مرة أخرى.",
+          "oauth": {
+            "button": "سجّل الدخول عبر {{product}}",
+            "signingIn": "جارٍ فتح {{product}}…",
+            "done": "تم تسجيل الدخول — منح {{product}} فوتر حق الوصول.",
+            "note": "ستُحال إلى {{product}} للموافقة على الوصول؛ لا يُكتب شيء هنا."
+          },
+          "scopes": "الصلاحيات",
+          "readHelper": "مفعّلة دائمًا — تجمع الفواتير.",
+          "writeHelper": "مطلوبة للكتابة العكسية.",
+          "schedule": "الجدول",
+          "writeBack": "اكتب النتيجة في النظام",
+          "writeBackHelper": "يُكتب رقم فوتر والحالة ورمز QR في سجل النظام بعد كل إرسال.",
+          "writeBackNeedsWrite": "فعّل صلاحية الكتابة لتمكين الكتابة العكسية."
+        },
+        "errors": {
+          "product": "اختر نظامًا متاحًا.",
+          "label": "أعطِ الاتصال اسمًا.",
+          "url": "أدخل عنوان النظام مبدوءًا بـ https://.",
+          "required": "مطلوب.",
+          "oauth": "سجّل الدخول عبر النظام أولًا."
+        },
+        "test": {
+          "heading": "اختبر الاتصال",
+          "body": "يستدعي فوتر {{url}} ببيانات الاعتماد التي أعطيتها ويعرض ما عاد به.",
+          "button": "اختبر الاتصال",
+          "testing": "جارٍ الاختبار…",
+          "passed": "الاتصال يعمل",
+          "erpVersion": "إصدار النظام",
+          "company": "الشركة",
+          "scopes": "الصلاحيات الممنوحة",
+          "latency": "زمن الاستجابة",
+          "latencyValue": "{{ms}} مللي ثانية",
+          "failed": "فشل الاختبار",
+          "backToCredentials": "عُد إلى بيانات الاعتماد",
+          "retry": "أعد الاختبار",
+          "hint": "تابع بعد نجاح الاختبار."
+        },
+        "discover": {
+          "heading": "اكتشف الحقول",
+          "body": "يقرأ فوتر بضع فواتير حديثة من {{product}} ليعرف الحقول التي يحملها، ثم يطبّق قالب المنصة لذلك الإصدار إن وُجد.",
+          "button": "اكتشف الحقول",
+          "discovering": "جارٍ الاكتشاف…",
+          "found": "وُجد {{fields}} حقلًا من {{samples}} فواتير نموذجية",
+          "template": "القالب المطبَّق: {{template}}",
+          "premapped_zero": "لا حقول مربوطة مسبقًا",
+          "premapped_one": "حقل واحد مربوط مسبقًا",
+          "premapped_two": "حقلان مربوطان مسبقًا",
+          "premapped_few": "{{count}} حقول مربوطة مسبقًا",
+          "premapped_many": "{{count}} حقلًا مربوطًا مسبقًا",
+          "premapped_other": "{{count}} حقل مربوط مسبقًا",
+          "noTemplate": "لا قالب لهذا النظام بعد؛ ستربط الحقول يدويًا.",
+          "hint": "الإنهاء ينشئ الاتصال ويفتح ربطه."
+        }
+      },
+      "runs": {
+        "title": "عمليات التشغيل",
+        "note": "كل عملية تجميع، الأحدث أولاً — ما يشغّله المجدوِل كل {{minutes}} دقيقة وما يُبدأ يدوياً.",
+        "collectNow": "جمّع الآن",
+        "collected": "تم التجميع الآن — انتهت العملية {{id}} بجلب {{fetched}}.",
+        "collectedLink": "افتح العملية",
+        "refused": {
+          "IN_PROGRESS": "هناك عملية جارية بالفعل. انتظر انتهاءها قبل بدء أخرى.",
+          "QUOTA": "استُهلك مخصص هذا الشهر. يُستأنف التجميع في {{date}}.",
+          "NOT_CERTIFIED": "الربط غير معتمَد، فلا يمكن تجميع شيء بعد.",
+          "PAUSED": "الاتصال متوقف مؤقتاً، فلا يُجمَّع شيء.",
+          "CREDENTIALS": "رفض نظام ERP بيانات الاعتماد، فلا يمكن تجميع شيء."
+        },
+        "refusedLink": {
+          "NOT_CERTIFIED": "افتح الربط",
+          "CREDENTIALS": "استبدل بيانات الاعتماد",
+          "PAUSED": "استأنفه من النظرة العامة"
+        },
+        "strip": {
+          "today": "عمليات اليوم",
+          "succeeded": "ناجحة",
+          "problems": "جزئية أو فاشلة"
+        },
+        "filterLabel": "تصفية العمليات حسب الحالة",
+        "filter": {
+          "all": "الكل",
+          "SUCCEEDED": "ناجحة",
+          "PARTIAL": "جزئية",
+          "FAILED": "فاشلة",
+          "skipped": "متجاوَزة"
+        },
+        "col": {
+          "started": "البدء",
+          "trigger": "المُطلِق",
+          "state": "الحالة",
+          "fetched": "المجلوبة",
+          "new": "الجديدة",
+          "duplicates": "المكررة",
+          "errors": "الأخطاء",
+          "duration": "المدة",
+          "watermark": "العلامة المائية",
+          "open": ""
+        },
+        "open": "افتح",
+        "empty": "لا عمليات بعد — تبدأ الأولى حسب الجدول أو بالضغط على «جمّع الآن».",
+        "emptyFiltered": "لا عمليات في هذه التصفية.",
+        "showing": "{{from}}–{{to}} من {{total}}",
+        "skip": {
+          "SKIPPED_LEASE": "تداخلت مع العملية {{runId}}",
+          "SKIPPED_QUOTA": "استُهلك المخصص الشهري"
+        },
+        "duration": {
+          "running": "جارية",
+          "seconds": "{{count}} ث",
+          "minutes": "{{count}} د"
+        },
+        "back": "كل العمليات",
+        "detail": {
+          "title": "العملية {{id}}",
+          "note": "{{trigger}} · بدأت {{when}}",
+          "trigger": "المُطلِق",
+          "started": "البدء",
+          "finished": "الانتهاء",
+          "duration": "المدة",
+          "watermarkBefore": "العلامة المائية قبل",
+          "watermarkAfter": "العلامة المائية بعد",
+          "unchanged": "بلا تغيير",
+          "errors": "الأخطاء",
+          "errorsNote": "كل رمز مرة واحدة، مع عدد السجلات التي أوقفها.",
+          "col": {
+            "code": "الرمز",
+            "meaning": "معناه",
+            "count": "السجلات",
+            "erpNumber": "رقم ERP",
+            "customer": "العميل",
+            "total": "الإجمالي",
+            "state": "الحالة",
+            "fawtir": "فاتورة فوتر"
+          },
+          "noErrors": "لا أخطاء في هذه العملية.",
+          "records": "سجلات هذه العملية",
+          "recordsNote_zero": "لم تُنشئ هذه العملية أي سجل.",
+          "recordsNote_one": "أنشأت هذه العملية سجلاً واحداً.",
+          "recordsNote_two": "أنشأت هذه العملية سجلَين.",
+          "recordsNote_few": "أنشأت هذه العملية {{count}} سجلات.",
+          "recordsNote_many": "أنشأت هذه العملية {{count}} سجلاً.",
+          "recordsNote_other": "أنشأت هذه العملية {{count}} سجل.",
+          "noRecords": "لم تُنشئ هذه العملية أي سجل."
+        },
+        "errorMeaning": {
+          "buyerVatin": "رقم التعريف الضريبي للمشتري مفقود",
+          "sellerIsic": "رمز النشاط ISIC للبائع مفقود",
+          "unauthorized": "رفض نظام ERP بيانات الاعتماد"
+        },
+        "notFound": {
+          "title": "هذه العملية ليست هنا",
+          "body": "قد تكون لاتصال آخر، أو أن الرابط قديم."
+        }
+      },
+      "records": {
+        "title": "السجلات",
+        "note": {
+          "list_zero": "لم تُجمَّع فواتير ERP من هذا الاتصال بعد.",
+          "list_one": "فاتورة ERP واحدة جُمِّعت من هذا الاتصال، الأحدث أولاً.",
+          "list_two": "فاتورتا ERP جُمِّعتا من هذا الاتصال، الأحدث أولاً.",
+          "list_few": "{{count}} فواتير ERP جُمِّعت من هذا الاتصال، الأحدث أولاً.",
+          "list_many": "{{count}} فاتورة ERP جُمِّعت من هذا الاتصال، الأحدث أولاً.",
+          "list_other": "{{count}} فاتورة ERP جُمِّعت من هذا الاتصال، الأحدث أولاً.",
+          "SUPERSEDED": "تغيّر في نظام ERP بعد الإرسال"
+        },
+        "search": {
+          "label": "بحث",
+          "placeholder": "رقم ERP أو العميل أو رقم فوتر"
+        },
+        "date": {
+          "7": "آخر 7 أيام",
+          "30": "آخر 30 يوماً",
+          "label": "تاريخ التجميع",
+          "today": "اليوم",
+          "all": "كل الوقت"
+        },
+        "filterLabel": "تصفية السجلات حسب الحالة",
+        "filter": {
+          "all": "الكل"
+        },
+        "col": {
+          "erpNumber": "رقم ERP",
+          "collected": "التجميع",
+          "customer": "العميل",
+          "total": "الإجمالي",
+          "state": "الحالة",
+          "fawtir": "فاتورة فوتر",
+          "note": "ملاحظة",
+          "actions": ""
+        },
+        "rowActions": "إجراءات السجل",
+        "menu": {
+          "open": "افتح",
+          "retry": "أعد المحاولة",
+          "requeue": "أعد إدراج الكتابة الراجعة"
+        },
+        "empty": "لم يُجمَّع شيء بعد.",
+        "emptyFiltered": "لا سجلات تطابق هذه التصفية.",
+        "showing": "{{from}}–{{to}} من {{total}}",
+        "back": "كل السجلات",
+        "detail": {
+          "subtitle": "سجل ERP {{id}}",
+          "customer": "العميل",
+          "total": "الإجمالي",
+          "collected": "التجميع",
+          "run": "العملية",
+          "fawtirInvoice": "فاتورة فوتر",
+          "uuid": "المعرّف UUID",
+          "noInvoice": "لم تُرسل بعد"
+        },
+        "rejected": {
+          "title": "سبب الرفض",
+          "note": "صحّح البيانات في نظام ERP أولاً ثم أعد المحاولة — يعود السجل عبر الربط والإرسال من جديد.",
+          "retry": "أعد المحاولة",
+          "retried": "أُعيدت المحاولة — عاد السجل إلى الربط وسيُرسَل في العملية التالية.",
+          "col": {
+            "rule": "القاعدة",
+            "path": "الحقل",
+            "message": "ما الخطأ"
+          }
+        },
+        "writeBack": {
+          "title": "الكتابة الراجعة",
+          "failedNote": "لم يستطع صندوق الإرسال تحديث سجل ERP. يعيد المحاولة بنفسه حتى تنفد المحاولات.",
+          "attempts": "المحاولات",
+          "attemptsValue": "{{done}} من {{max}}",
+          "lastAttempt": "آخر محاولة",
+          "nextAttempt": "المحاولة التالية",
+          "lastError": "آخر خطأ",
+          "fields": "الحقول التي ستُكتب",
+          "requeue": "أعد إدراج الكتابة الراجعة",
+          "requeued": "أُعيد الإدراج — يعيد الموصّل المحاولة في {{time}}.",
+          "field": {
+            "fawtirStatus": "حالة فوتر",
+            "invoiceNumber": "رقم الفاتورة",
+            "uuid": "المعرّف UUID",
+            "submittedAt": "وقت الإرسال",
+            "rejectionReason": "سبب الرفض",
+            "qr": "رمز QR"
+          }
+        },
+        "superseded": {
+          "banner": "تغيّر سجل ERP بعد إرساله ({{note}}، {{time}}). لا يمكن تغيير فاتورة مُرسَلة — أصدر إشعار دائن في نظام ERP ودع الموصّل يجمّعه."
+        },
+        "success": {
+          "writtenBack": "كُتب إلى نظام ERP في {{time}} — الحالة {{status}}، الفاتورة {{invoice}}، المعرّف {{uuid}}.",
+          "queued": "قُبلت بالرقم {{invoice}} — الكتابة الراجعة في الانتظار، المحاولة التالية في {{time}}.",
+          "accepted": "قبلتها هيئة الضرائب بالرقم {{invoice}} · المعرّف {{uuid}}."
+        },
+        "payload": {
+          "title": "حمولة ERP",
+          "note": "السجل تماماً كما جلبه الموصّل من نظام ERP."
+        },
+        "notFound": {
+          "title": "هذا السجل ليس هنا",
+          "body": "قد يكون لاتصال آخر، أو أن الرابط قديم."
+        }
+      },
+      "overview": {
+        "actions": {
+          "collectNow": "اجمع الآن",
+          "pause": "إيقاف مؤقت",
+          "resume": "استئناف"
+        },
+        "collect": {
+          "done_zero": "جُمع الآن · لا فواتير جديدة",
+          "done_one": "جُمع الآن · فاتورة جديدة واحدة",
+          "done_two": "جُمع الآن · فاتورتان جديدتان",
+          "done_few": "جُمع الآن · {{count}} فواتير جديدة",
+          "done_many": "جُمع الآن · {{count}} فاتورة جديدة",
+          "done_other": "جُمع الآن · {{count}} فاتورة جديدة",
+          "refused": {
+            "IN_PROGRESS": "هناك تشغيل جارٍ بالفعل — انتظر حتى ينتهي.",
+            "QUOTA": "استُهلك رصيد هذا الشهر — لا يُجمع شيء حتى يتجدد.",
+            "NOT_CERTIFIED": "اعتمد الربط أولًا — لا يُجمع شيء حتى تنجح كل المسارات.",
+            "PAUSED": "الاتصال متوقف مؤقتًا — استأنفه أولًا.",
+            "CREDENTIALS": "يرفض النظام بيانات الاعتماد — استبدلها أولًا."
+          },
+          "openMapping": "افتح الربط",
+          "openSettings": "افتح الإعدادات"
+        },
+        "banner": {
+          "error": {
+            "credentials": "توقف بعد {{count}} تشغيلات فاشلة — رفض النظام بيانات الاعتماد. استبدلها.",
+            "unreachable": "توقف بعد {{count}} تشغيلات فاشلة — تعذّر الوصول إلى العنوان. تحقق منه.",
+            "threeFailures": "توقف بعد {{count}} تشغيلات فاشلة. تحقق من النظام وحاول مجددًا."
+          },
+          "replaceCredentials": "استبدل بيانات الاعتماد",
+          "paused": "متوقف منذ {{date}}{{reason}} — لا يُجمع شيء حتى تستأنف.",
+          "disconnected": "حُذف هذا الاتصال. دُمّرت بيانات اعتماده؛ تبقى التشغيلات والسجلات أدناه للتدقيق.",
+          "stale_zero": "لا جديد اليوم — أحدث فاتورة مجموعة هي {{erpNumber}} بتاريخ {{date}}. تحقق أن النظام ما زال يُصدر، أو من المرشّح.",
+          "stale_one": "لا جديد منذ يوم — أحدث فاتورة مجموعة هي {{erpNumber}} بتاريخ {{date}}. تحقق أن النظام ما زال يُصدر، أو من المرشّح.",
+          "stale_two": "لا جديد منذ يومين — أحدث فاتورة مجموعة هي {{erpNumber}} بتاريخ {{date}}. تحقق أن النظام ما زال يُصدر، أو من المرشّح.",
+          "stale_few": "لا جديد منذ {{count}} أيام — أحدث فاتورة مجموعة هي {{erpNumber}} بتاريخ {{date}}. تحقق أن النظام ما زال يُصدر، أو من المرشّح.",
+          "stale_many": "لا جديد منذ {{count}} يومًا — أحدث فاتورة مجموعة هي {{erpNumber}} بتاريخ {{date}}. تحقق أن النظام ما زال يُصدر، أو من المرشّح.",
+          "stale_other": "لا جديد منذ {{count}} يومًا — أحدث فاتورة مجموعة هي {{erpNumber}} بتاريخ {{date}}. تحقق أن النظام ما زال يُصدر، أو من المرشّح."
+        },
+        "kpi": {
+          "watermark": "أحدث فاتورة مجموعة",
+          "watermarkNote": "صدرت {{date}} — يبدأ التشغيل التالي بعدها",
+          "watermarkNone": "لم يُجمع شيء بعد",
+          "lastRun": "آخر تشغيل",
+          "lastRunNote": "{{date}} · {{fetched}} مجلوبة، {{created}} جديدة",
+          "lastRunNone": "لا تشغيل بعد",
+          "nextRun": "التشغيل التالي",
+          "nextRunNote": "{{date}} · {{schedule}}",
+          "nextRunPaused": "لا يعمل شيء أثناء الإيقاف المؤقت",
+          "nextRunNone": "لا شيء مجدول",
+          "collected": "المجموع هذا الشهر",
+          "ofAllowance": "من {{limit}}",
+          "collectedNote": "{{percent}}% من رصيد الإضافة · يتجدد {{date}}"
+        },
+        "setup": {
+          "title": "كيف أُعدّ هذا الاتصال",
+          "note": "ما يستخدمه الموصّل في كل تشغيل.",
+          "change": "غيّر في الإعدادات",
+          "row": {
+            "product": "المنتج والإصدار",
+            "address": "العنوان",
+            "auth": "يسجّل الدخول بـ",
+            "database": "قاعدة البيانات",
+            "scopes": "الصلاحيات",
+            "schedule": "الجدول",
+            "writeBack": "الكتابة العكسية",
+            "mapping": "الربط",
+            "created": "أُنشئ"
+          },
+          "on": "مفعّلة",
+          "off": "معطّلة",
+          "mappingTenant": "يعمل بربط شركتك",
+          "mappingByHand": "رُبط يدويًا — لا قالب لهذا النظام",
+          "mappingEdited": "من القالب {{template}}، عُدّل {{date}}",
+          "mappingUnedited": "طُبّق القالب {{date}}، بلا تعديل",
+          "createdValue": "{{date}} بواسطة {{by}}"
+        },
+        "runs": {
+          "title": "آخر 5 تشغيلات",
+          "note": "الأحدث أولًا.",
+          "seeAll": "كل التشغيلات",
+          "empty": "لا تشغيلات بعد.",
+          "col": {
+            "time": "الوقت",
+            "trigger": "المُشغّل",
+            "state": "الحالة",
+            "fetched": "مجلوبة",
+            "new": "جديدة",
+            "errors": "أخطاء"
+          }
+        },
+        "activity": {
+          "title": "النشاط الأخير",
+          "note": "آخر ثمانية أحداث هنا.",
+          "by": "{{when}} · {{who}}"
+        },
+        "pause": {
+          "title": "إيقاف هذا الاتصال مؤقتًا؟",
+          "subtitle": "لا يُجمع شيء ولا يُكتب عكسيًا حتى تستأنف. تُحفظ بيانات الاعتماد.",
+          "reason": "السبب (اختياري)",
+          "reasonPlaceholder": "مثلًا: جرد المخزون حتى 30 سبتمبر",
+          "reasonHint": "يُكتب في سجل النشاط ليعرف الفريق السبب.",
+          "confirm": "إيقاف مؤقت"
+        },
+        "danger": {
+          "title": "منطقة الخطر",
+          "body": "الحذف يدمّر بيانات الاعتماد فورًا. تبقى التشغيلات والسجلات للتدقيق.",
+          "delete": "حذف الاتصال",
+          "confirmTitle": "حذف {{label}}؟",
+          "confirmBody": "تُدمّر بيانات الاعتماد فورًا. تبقى التشغيلات والسجلات للتدقيق. لا يمكن التراجع.",
+          "confirm": "حذف الاتصال"
+        }
+      },
+      "mappingTab": {
+        "title": "الربط",
+        "provenance": {
+          "tenant": "يعمل هذا الاتصال بربط شركتك.",
+          "none": "لا قالب لهذا النظام — تُربط الحقول يدويًا.",
+          "unedited": "طُبّق القالب {{template}} في {{date}}، بلا تعديل.",
+          "edited": "من القالب {{template}}، عُدّل {{date}}."
+        },
+        "figure": {
+          "fields": "حقول مربوطة",
+          "fieldsTenant": "من الربط الموجّه للشركة",
+          "fieldsTemplate": "يحمل القالب {{count}}",
+          "fieldsByHand": "رُبطت يدويًا",
+          "certified": "مسارات معتمدة",
+          "ofRoutes": "{{count}} من {{total}}",
+          "certifiedNote": "فاتورة · إشعار دائن · إشعار مدين · فوترة ذاتية",
+          "template": "القالب",
+          "templateNote": "نُشر {{date}} · {{count}} حقلًا",
+          "templateNone": "لا قالب لهذا النظام بعد"
+        },
+        "tenant": {
+          "body": "يعمل هذا الاتصال بربط شركتك — الربط نفسه الذي تمرّ به كل فاتورة Odoo. عدّله في معالج الربط؛ الاعتماد هناك يُحتسب هنا.",
+          "routesTitle": "الاعتماد حسب المسار",
+          "routesNote": "يُقرأ من ربط الشركة. المسار غير المعتمد لا يُجمع.",
+          "col": {
+            "route": "المسار",
+            "state": "الحالة",
+            "last": "آخر محاولة"
+          },
+          "notTried": "لم يُجرَّب بعد"
+        },
+        "readiness": {
+          "draft": "{{count}} حقلًا مربوطًا من القالب، عُدّلت في {{date}} — لم يُعتمد بعد. لا يُجمع شيء حتى يُعتمد.",
+          "ready": "طُبّق القالب بلا تعديل — شغّل الاعتماد ليبدأ الاتصال بالجمع.",
+          "certified": "معتمد — كل فاتورة يجمعها هذا الاتصال تمرّ بهذا الربط.",
+          "stale": "تغيّر الربط منذ اعتماده — اعتمده مجددًا قبل الجمع.",
+          "unmapped": "لا قالب لهذا النظام بعد — اربط الحقول يدويًا في المعالج ثم اعتمد."
+        },
+        "openWizard": "افتح معالج الربط",
+        "certify": "اعتمد",
+        "reset": {
+          "button": "إعادة إلى القالب",
+          "title": "إعادة الربط إلى القالب؟",
+          "body": "تُستبدل تعديلاتك بقالب {{template}} ({{count}} حقلًا). يُفقد الاعتماد، فاعتمد مجددًا قبل الجمع.",
+          "confirm": "إعادة إلى القالب",
+          "done": "أُعيد إلى القالب — اعتمد مجددًا قبل الجمع."
+        },
+        "discovery": {
+          "title": "ما يغطيه القالب",
+          "note_zero": "حقول اُكتشفت في {{date}} بلا عينات.",
+          "note_one": "حقول اُكتشفت في {{date}} من فاتورة عينة واحدة.",
+          "note_two": "حقول اُكتشفت في {{date}} من فاتورتَي عينة.",
+          "note_few": "حقول اُكتشفت في {{date}} من {{count}} فواتير عينة.",
+          "note_many": "حقول اُكتشفت في {{date}} من {{count}} فاتورة عينة.",
+          "note_other": "حقول اُكتشفت في {{date}} من {{count}} فاتورة عينة."
+        }
+      },
+      "writeBackTab": {
+        "title": "الكتابة العكسية",
+        "note": "بعد أن يصل ردّ هيئة الضرائب إلى فوتر، تُكتب النتيجة في سجل النظام.",
+        "on": "مفعّلة",
+        "off": "معطّلة",
+        "switch": "الكتابة العكسية",
+        "needsWrite": "تحتاج صلاحية الكتابة — غيّرها في الإعدادات.",
+        "openSettings": "افتح الإعدادات",
+        "fields": {
+          "title": "ما يُكتب · حقول {{product}}",
+          "status": {
+            "label": "حالة فوتر",
+            "body": "مقبولة أو مرفوضة أو مستبدلة"
+          },
+          "invoiceNumber": {
+            "label": "رقم الفاتورة",
+            "body": "الرقم الذي أصدرته فوتر"
+          },
+          "uuid": {
+            "label": "المعرّف UUID",
+            "body": "معرّف المستند لدى هيئة الضرائب"
+          },
+          "submittedAt": {
+            "label": "وقت الإرسال",
+            "body": "متى وصلت إلى هيئة الضرائب"
+          },
+          "rejectionReason": {
+            "label": "سبب الرفض",
+            "body": "القاعدة التي فشلت، إن وُجدت"
+          },
+          "qr": {
+            "label": "رمز QR",
+            "body": "الرمز الذي يجب أن تحمله الفاتورة المطبوعة"
+          }
+        },
+        "outbox": {
+          "title": "صندوق الصادر",
+          "note": "كل كتابة عكسية مصفوفة لهذا الاتصال. يتوقف الموصّل بعد {{max}} محاولات.",
+          "all": "الكل",
+          "col": {
+            "erpNumber": "رقم النظام",
+            "invoice": "فاتورة فوتر",
+            "state": "الحالة",
+            "attempts": "المحاولات",
+            "lastAttempt": "آخر محاولة",
+            "nextAttempt": "المحاولة التالية",
+            "lastError": "آخر خطأ",
+            "action": ""
+          },
+          "attemptsOf": "{{count}} من {{max}}",
+          "requeue": "إعادة الصف",
+          "empty": "لا شيء هنا.",
+          "emptyOff": "الكتابة العكسية معطّلة — لا شيء في الصف."
+        }
+      },
+      "settingsTab": {
+        "form": {
+          "title": "الاتصال",
+          "note": "الاسم والعنوان وعدد مرات تشغيل الموصّل.",
+          "label": "الاسم",
+          "labelRequired": "أعطِ الاتصال اسمًا.",
+          "url": "العنوان",
+          "urlHint": "العنوان الأساسي للنظام. يجب أن يستخدم https.",
+          "urlHttps": "يجب أن يبدأ العنوان بـ https://",
+          "schedule": "الجدول",
+          "scheduleHint": "كم مرة تُجمع الفواتير. يسري التغيير من التشغيل التالي.",
+          "scopes": "الصلاحيات",
+          "scopeRead": "قراءة",
+          "scopeWrite": "كتابة",
+          "scopesHint": "القراءة مفعّلة دائمًا. الكتابة تتيح للموصّل كتابة النتيجة عكسيًا.",
+          "writeBack": "الكتابة العكسية",
+          "writeBackHint": "اكتب نتيجة فوتر في كل سجل من سجلات النظام.",
+          "writeBackNeedsWrite": "تحتاج صلاحية الكتابة.",
+          "save": "حفظ",
+          "saveNote": "يُكتب كل تغيير في سجل النشاط.",
+          "saved": "حُفظ."
+        },
+        "credentials": {
+          "title": "بيانات الاعتماد",
+          "note": "لا يُعرض السر أبدًا — فقط ما يسجّل الدخول به وهل ما زال يعمل.",
+          "testNow": "اختبر الآن",
+          "replace": "استبدل بيانات الاعتماد",
+          "signsInWith": "يسجّل الدخول بـ",
+          "lastTest": "آخر اختبار",
+          "granted": "الصلاحيات الممنوحة",
+          "company": "الشركة المرئية",
+          "ok": "سليم",
+          "error": "خطأ",
+          "neverTested": "لم يُختبر بعد",
+          "testOk": "{{date}} · {{latency}} م.ث · {{version}}",
+          "testFailed": "{{date}} ·",
+          "rotated": "استُبدلت بيانات الاعتماد واُختبرت في {{latency}} م.ث — عاد الاتصال.",
+          "rotationFailed": "رُفضت بيانات الاعتماد الجديدة — {{reason}} زالت القديمة؛ أدخل بيانات تعمل."
+        },
+        "replace": {
+          "title": "استبدال بيانات الاعتماد",
+          "subtitle": "يُدمّر السر القديم عند الحفظ؛ يُختبر الجديد فورًا.",
+          "kind": "تسجيل الدخول بـ",
+          "confirm": "استبدل واختبر",
+          "required": "مطلوب",
+          "note": "تحفظ فوتر اسم الدخول وآخر أربعة أحرف من المفتاح، لا السر أبدًا.",
+          "field": {
+            "apiKey": "مفتاح API",
+            "apiSecret": "سر API",
+            "username": "اسم المستخدم",
+            "password": "كلمة المرور",
+            "database": "قاعدة البيانات",
+            "tenantId": "معرّف المستأجر",
+            "clientId": "معرّف العميل",
+            "clientSecret": "سر العميل"
+          }
+        }
+      }
     }
   },
   "apiErrors": {

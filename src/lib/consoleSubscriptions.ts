@@ -434,6 +434,24 @@ export function tenantIdentity(id: string): TenantIdentity {
   return found
 }
 
+/** "Al Noor Trading LLC" → `al-noor-trading-llc`, made unique against the tenants already known. */
+function slugOf(name: string) {
+  const base =
+    name
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'tenant'
+  let slug = base
+  for (let n = 2; TENANT_IDENTITIES[slug]; n += 1) slug = `${base}-${n}`
+  return slug
+}
+
+/** A tenant an operator onboarded at the desk: known to `tenantIdentity` from now on. */
+function registerTenant(identity: TenantIdentity) {
+  TENANT_IDENTITIES[identity.id] = identity
+}
+
 /* ------------------------------------------------------------ the population */
 
 type Seed = {
@@ -1089,6 +1107,43 @@ export type ChangePlanInput = {
   reason: string
 }
 
+export type OnboardInput = {
+  legalName: string
+  tradingName: string
+  /** Commercial registration number. */
+  cr: string
+  vat: string
+  town: string
+  businessType: string
+  owner: { name: string; phone: string; email: string }
+  plan: SubscriptionPlanId
+  term: Term
+  method: PaymentMethod
+  /** Money already in hand — the first invoice is marked paid on creation. */
+  payment?: {
+    amount: number
+    receivedOn: Date
+    reference?: string
+    note?: string
+    /** Bring the account live at once, rather than leaving it Awaiting payment. */
+    activate: boolean
+  }
+}
+
+/**
+ * The platform totals are stated, not summed (`SUBSCRIPTIONS_PLATFORM`), so a tenant created here
+ * has to be counted by hand or the queue's tab would claim "10 of 9". `as const` is type-only;
+ * the objects are plain and the queue reads them at render time.
+ */
+function countOnboarded(state: SubscriptionState) {
+  const platform = SUBSCRIPTIONS_PLATFORM as unknown as Record<SubscriptionState, number>
+  platform[state] += 1
+  const tabs = SUBSCRIPTION_TABS as unknown as { id: string; count: number }[]
+  tabs.forEach((tab) => {
+    if (tab.id === 'all' || tab.id === state) tab.count += 1
+  })
+}
+
 /**
  * What an operator does about a subscription. Kept outside React so a payment recorded in the
  * queue is already there when the tenant's page opens; every action leaves an event behind.
@@ -1327,6 +1382,109 @@ export const subscriptionsStore = {
         ...state.events,
       ],
     })
+  },
+
+  /**
+   * A business that never signed up online (§9.3 "Onboard a business"). The identity is
+   * registered so every screen can name it, the first period's invoice is issued today, and the
+   * account is Awaiting payment — or Active at once when the money is already in hand and the
+   * operator asked for it. Every step leaves the same events the queue's own actions would.
+   */
+  onboard(input: OnboardInput): { tenantId: string } {
+    const now = NOW
+    const tenantId = slugOf(input.tradingName)
+    registerTenant({
+      id: tenantId,
+      name: input.tradingName.trim(),
+      initials: input.tradingName
+        .trim()
+        .split(/\s+/)
+        .filter((word) => /^[A-Za-z]/.test(word))
+        .slice(0, 2)
+        .map((word) => word[0].toUpperCase())
+        .join(''),
+      town: input.town,
+      vat: input.vat,
+      contact: { name: input.owner.name, phone: input.owner.phone, email: input.owner.email },
+    })
+
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const periodEnd = addMonths(periodStart, MONTHS_OF[input.term])
+    const base = periodAmount(input.plan, input.term)
+    const paid = input.payment
+    const activate = Boolean(paid?.activate)
+    const invoice: SubscriptionInvoice = {
+      id: nextId('inv'),
+      tenantId,
+      number: invoiceNumber(now),
+      periodStart,
+      periodEnd,
+      issued: now,
+      due: periodStart,
+      amount: base,
+      vat: vatOn(base),
+      total: withVat(base),
+      status: paid ? 'paid' : 'unpaid',
+      paidOn: paid?.receivedOn,
+      method: paid ? input.method : undefined,
+      coverKey: 'console.subscriptions.cover.plan',
+      coverValues: { plan: input.plan, people: 0, branches: 0, count: 0 },
+    }
+    const subscription: Subscription = {
+      tenantId,
+      plan: input.plan,
+      term: input.term,
+      state: activate ? 'active' : 'awaitingPayment',
+      periodStart,
+      periodEnd,
+      amountDue: paid ? 0 : invoice.total,
+      preferredMethod: input.method,
+      lastPayment: paid
+        ? { at: paid.receivedOn, method: input.method, amount: paid.amount }
+        : undefined,
+      usage: { documents: 0, people: 1, branches: 1 },
+      overageOn: PLATFORM_SETTINGS.overage.enabledByDefault,
+    }
+    const events: SubscriptionEvent[] = [
+      event(tenantId, now, OPERATOR, 'tenantOnboarded', {
+        plan: input.plan,
+        term: input.term,
+        method: input.method,
+        owner: input.owner.name,
+      }),
+    ]
+    const payments: Payment[] = []
+    if (paid) {
+      payments.push({
+        id: nextId('pay'),
+        tenantId,
+        invoiceId: invoice.id,
+        method: input.method,
+        amount: paid.amount,
+        receivedOn: paid.receivedOn,
+        reference: paid.reference,
+        note: paid.note,
+        confirmedBy: OPERATOR,
+        recordedAt: now,
+      })
+      events.unshift(
+        event(tenantId, now, OPERATOR, 'paymentRecorded', {
+          method: input.method,
+          amount: paid.amount,
+        }),
+      )
+      if (activate)
+        events.unshift(event(tenantId, now, OPERATOR, 'activated', { until: periodEnd.getTime() }))
+    }
+    countOnboarded(subscription.state)
+    set({
+      ...state,
+      subscriptions: [...state.subscriptions, subscription],
+      invoices: [invoice, ...state.invoices],
+      payments: [...payments, ...state.payments],
+      events: [...events, ...state.events],
+    })
+    return { tenantId }
   },
 }
 

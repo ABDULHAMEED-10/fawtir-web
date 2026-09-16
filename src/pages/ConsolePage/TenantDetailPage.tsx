@@ -28,6 +28,7 @@ import {
   WaiveOverageModal,
   type SubscriptionAction,
 } from './subscriptions'
+import { TenantErpTab } from './erp/TenantErpTab'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -401,9 +402,7 @@ function TenantDetail({ tenantId }: { tenantId: string }) {
           </p>
         )
       ) : (
-        <p className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
-          {t('console.tenantDetail.erp.notBuilt')}
-        </p>
+        <TenantErpTab tenantId={tenantId} />
       )}
 
       {request?.action === 'recordPayment' ? <RecordPaymentModal {...modalProps} /> : null}

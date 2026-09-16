@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import {
@@ -121,12 +122,12 @@ export function TenantsPage() {
             >
               {t('console.tenants.export')}
             </button>
-            <button
-              type="button"
+            <Link
+              to="/console/tenants/new"
               className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
               {t('console.tenants.onboard')}
-            </button>
+            </Link>
           </div>
         </div>
 
