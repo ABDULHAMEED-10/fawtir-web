@@ -4,6 +4,7 @@ import {
   NavDocumentsIcon,
   NavReportsIcon,
   NavSettingsIcon,
+  NavStockIcon,
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
 import {
@@ -11,6 +12,7 @@ import {
   ConsolePlansIcon,
   ConsoleQueueIcon,
   ConsoleSubscriptionIcon,
+  ConsoleTickIcon,
 } from '../layouts/ConsoleShell/consoleIcons'
 
 type IconProps = { className?: string; active?: boolean }
@@ -53,14 +55,12 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.queue',
         to: '/console/queue',
         Icon: ConsoleQueueIcon,
-        soon: true,
       },
       {
         id: 'incidents',
         labelKey: 'console.nav.incidents',
         to: '/console/incidents',
         Icon: ConsoleIncidentIcon,
-        soon: true,
       },
     ],
   },
@@ -96,6 +96,30 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
     ],
   },
   {
+    id: 'erp',
+    labelKey: 'console.nav.group.erp',
+    items: [
+      {
+        id: 'erpConnections',
+        labelKey: 'console.nav.erpConnections',
+        to: '/console/erp',
+        Icon: NavStockIcon,
+      },
+      {
+        id: 'erpTemplates',
+        labelKey: 'console.nav.erpTemplates',
+        to: '/console/erp/templates',
+        Icon: NavDocumentsIcon,
+      },
+      {
+        id: 'erpRequests',
+        labelKey: 'console.nav.erpRequests',
+        to: '/console/erp/add-on-requests',
+        Icon: ConsoleTickIcon,
+      },
+    ],
+  },
+  {
     id: 'platform',
     labelKey: 'console.nav.group.platform',
     items: [
@@ -110,7 +134,6 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.audit',
         to: '/console/audit',
         Icon: NavDocumentsIcon,
-        soon: true,
       },
       {
         id: 'consoleSettings',

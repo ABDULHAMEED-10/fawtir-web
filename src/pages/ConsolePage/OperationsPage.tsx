@@ -24,6 +24,13 @@ import {
   percent,
   tenantById,
 } from '../../lib/superAdmin'
+import {
+  connectionsNeedingAttention,
+  platformErpKpis,
+  tenantName,
+  useConsoleErp,
+} from '../../lib/consoleErp'
+import { attentionReason } from './erp/erpShared'
 
 const TONE = {
   bad: 'text-danger-700',
@@ -175,6 +182,92 @@ function ConnectionLine({ label, value, tone }: { label: string; value: string; 
   )
 }
 
+/**
+ * The ERP connections that need a person today — in error or stale — and the add-on requests
+ * waiting, with the three most urgent named; the ERP screens hold the rest.
+ */
+function IntegrationsCard() {
+  const { t } = useTranslation()
+  const erp = useConsoleErp()
+  const kpis = platformErpKpis(erp)
+  const attention = connectionsNeedingAttention(erp)
+  const listed = [...attention]
+    .sort((a, b) => (a.state === 'ERROR' ? 0 : 1) - (b.state === 'ERROR' ? 0 : 1))
+    .slice(0, 3)
+  const key = (name: string) => `console.operations.integrations.${name}`
+
+  return (
+    <section className="flex flex-col rounded-md bg-surface-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
+        <div>
+          <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+            {t(key('title'))}
+          </h2>
+          <p className="mt-1 text-xs font-medium text-text-quaternary">{t(key('subtitle'))}</p>
+        </div>
+        <Link
+          to="/console/erp"
+          className="text-sm font-semibold text-primary-700 hover:text-primary-800"
+        >
+          {t(key('open'))}
+        </Link>
+      </div>
+      <div className="grid grid-cols-[340px_minmax(0,1fr)] max-lg:grid-cols-1">
+        <div className="border-e border-border-subtle px-5 py-2 max-lg:border-b max-lg:border-e-0">
+          <ConnectionLine
+            label={t(key('inError'))}
+            value={count(kpis.inError)}
+            tone={kpis.inError > 0 ? 'bad' : undefined}
+          />
+          <ConnectionLine label={t(key('stale'))} value={count(kpis.stale)} />
+          <ConnectionLine label={t(key('requests'))} value={count(kpis.pendingRequests)} />
+        </div>
+        {listed.length === 0 ? (
+          <p className="px-5 py-4 text-sm font-medium leading-[1.5] text-text-tertiary">
+            {t(key('allClear'))}
+          </p>
+        ) : (
+          <ul>
+            {listed.map((c) => {
+              const bad = c.state === 'ERROR'
+              return (
+                <li key={c.id} className="border-b border-border-subtle last:border-b-0">
+                  <Link
+                    to={`/console/erp/connections/${c.id}`}
+                    className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-primary-25"
+                  >
+                    <span
+                      className={`size-2 shrink-0 rounded-full ${bad ? 'bg-danger-700' : 'bg-pending-500'}`}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-base font-medium leading-[1.2] text-text-primary">
+                        {tenantName(c.tenantId)}
+                      </span>
+                      <span className="mt-1 block text-xs font-medium text-text-quaternary">
+                        {c.label}
+                      </span>
+                    </span>
+                    <span
+                      className={`text-end text-sm font-semibold ${TONE[bad ? 'bad' : 'watch']}`}
+                    >
+                      {attentionReason(t, c)}
+                    </span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+      {attention.length > listed.length ? (
+        <p className="border-t border-border-subtle px-5 py-3 text-xs font-medium text-text-quaternary">
+          {t(key('more'), { count: attention.length - listed.length })}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
 export function OperationsPage() {
   const { t, i18n } = useTranslation()
   const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
@@ -321,6 +414,8 @@ export function OperationsPage() {
             </button>
           </section>
         </div>
+
+        <IntegrationsCard />
 
         <div className="flex flex-wrap items-start gap-4">
           <section className="flex min-w-[320px] flex-1 flex-col rounded-md bg-surface-card">

@@ -266,6 +266,8 @@ export function usePlatformSettings() {
   const current = useSyncExternalStore(subscribe, () => state)
   return {
     settings: current.settings,
+    /** Every section saved this session, newest first — the audit log reads it. */
+    saved: current.saved,
     savedMark: (section: Section) => current.saved.find((mark) => mark.section === section),
     isDefault: (section: Section) =>
       JSON.stringify(current.settings[section]) === JSON.stringify(DEFAULT_SETTINGS[section]),
