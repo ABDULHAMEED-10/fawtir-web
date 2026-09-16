@@ -110,24 +110,26 @@ export function paymentRows(payments: readonly InvoicePaymentDto[]): PaymentRow[
 export type TimelineEntry = { key: string; at: string; byYou: boolean; outcome: string | null }
 
 /**
- * The audit trail as a timeline. Every entry is an event the server recorded; a type this build
- * does not know is shown by its own name rather than dropped, because an unexplained gap in an
- * audit trail is worse than an unfamiliar word.
+ * The audit trail as a timeline. Every entry is an event the server recorded. The names are the
+ * values the events table's CHECK constraint allows; a type this build does not know is still
+ * listed, as "Recorded", rather than dropped, because an unexplained gap in an audit trail is
+ * worse than a vague word.
  */
 const KNOWN_EVENTS = new Set([
   'DRAFT_CREATED',
   'DRAFT_UPDATED',
   'DRAFT_DISCARDED',
-  'INVOICE_ISSUED',
-  'INVOICE_CANCELLED',
+  'ISSUED',
+  'CREDIT_NOTE_ISSUED',
+  'DEBIT_NOTE_ISSUED',
+  'CANCELLED',
   'PAYMENT_RECORDED',
   'PAYMENT_REVERSED',
   'INTERNAL_NOTE_VIEWED',
   'ATTACHMENT_ADDED',
+  'ATTACHMENT_REJECTED',
   'ATTACHMENT_REMOVED',
-  'MANUAL_DELIVERY_RECORDED',
-  'LEGAL_HOLD_SET',
-  'LEGAL_HOLD_RELEASED',
+  'MARKED_SENT_MANUALLY',
 ])
 
 const SILENT_OUTCOMES = new Set(['SUCCEEDED', 'SUCCESS'])

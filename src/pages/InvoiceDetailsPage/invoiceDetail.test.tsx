@@ -114,7 +114,7 @@ const PAYMENTS: InvoicePaymentDto[] = [
 const HISTORY: InvoiceHistoryDto = {
   entries: [
     { id: 'h-1', eventType: 'PAYMENT_RECORDED', outcome: 'SUCCESS', invoiceVersion: 4, changedFieldsHash: 'abc', actorId: 'u-1', occurredAt: '2026-08-10T09:00:00Z' },
-    { id: 'h-2', eventType: 'INVOICE_ISSUED', outcome: 'SUCCESS', invoiceVersion: 3, changedFieldsHash: 'def', actorId: 'u-2', occurredAt: '2026-08-01T07:00:00Z' },
+    { id: 'h-2', eventType: 'ISSUED', outcome: 'SUCCESS', invoiceVersion: 3, changedFieldsHash: 'def', actorId: 'u-2', occurredAt: '2026-08-01T07:00:00Z' },
   ],
   truncated: false,
   limit: 200,
