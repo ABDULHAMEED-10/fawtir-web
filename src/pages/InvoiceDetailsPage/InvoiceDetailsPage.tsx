@@ -9,6 +9,8 @@ import { ApiError } from '../../api'
 import {
   cancelInvoice,
   downloadAttachment,
+  newPaymentKey,
+  reversePayment,
   invoicePath,
   loadAttachments,
   loadHistory,
@@ -24,7 +26,9 @@ import {
 } from '../../api/invoices/detail'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
+import { RecordPaymentModal } from './RecordPaymentModal'
 import {
+  PAYMENT_REFUSALS,
   dueNote,
   isDraft,
   lineTotals,
@@ -151,6 +155,10 @@ function InvoiceScreen() {
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
 
   const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
+  const [paying, setPaying] = useState(false)
+  // The payment being reversed, and the key minted when its confirmation opened: confirming twice
+  // is one reversal, not two refusals.
+  const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -194,6 +202,38 @@ function InvoiceScreen() {
       setBusy(false)
     }
   }
+
+  // What a payment changes: the ledger, what is owed, and the trail.
+  const afterPayment = () => {
+    payments.retry()
+    receivable.retry()
+    history.retry()
+  }
+
+  const reverse = async () => {
+    if (!reversing) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await reversePayment(id, reversing.id, reversing.key)
+      setReversing(null)
+      setNotice({ key: 'invoiceDetails.done.reversed' })
+      afterPayment()
+    } catch (error) {
+      setReversing(null)
+      const refusal = error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+      setNotice(refusal ? { key: refusal.key } : { body: refusalText(t, error) })
+      afterPayment()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const canPay =
+    data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.payment.manage') &&
+    (owed?.paymentState === 'UNPAID' || owed?.paymentState === 'PARTIALLY_PAID')
+  const canReverse = data.authoringState === 'ISSUED' && can(session, 'invoice.payment.manage')
 
   const download = async (file: InvoiceAttachmentDto) => {
     setNotice(null)
@@ -499,7 +539,20 @@ function InvoiceScreen() {
       </SectionCard>
 
       {!draft ? (
-        <SectionCard title={t('invoiceDetails.payments.title')}>
+        <SectionCard
+          title={t('invoiceDetails.payments.title')}
+          action={
+            canPay ? (
+              <button
+                type="button"
+                onClick={() => setPaying(true)}
+                className="inline-flex items-center gap-2 text-base font-semibold text-primary-800 hover:text-primary-700"
+              >
+                {t('invoiceDetails.pay.open')}
+              </button>
+            ) : undefined
+          }
+        >
           {payments.read.status === 'ready' && paymentRows(payments.read.data).length > 0 ? (
             <ul className="flex flex-col gap-3">
               {paymentRows(payments.read.data).map((row) => (
@@ -509,13 +562,27 @@ function InvoiceScreen() {
                       {money(row.amount)}
                     </p>
                     <p className="truncate text-sm font-medium text-text-quaternary">
-                      {[day(row.paymentDate), row.methodCode, row.reference].filter(Boolean).join(' · ')}
+                      {[
+                        day(row.paymentDate),
+                        row.methodCode ? t(`invoiceDetails.pay.means.${row.methodCode}`, { defaultValue: row.methodCode }) : null,
+                        row.reference,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   </div>
                   {row.reversed ? (
                     <span className="shrink-0 rounded-full bg-neutral-25 px-3 py-1 text-xs font-semibold text-text-quaternary">
                       {t('invoiceDetails.payments.reversed')}
                     </span>
+                  ) : canReverse ? (
+                    <button
+                      type="button"
+                      onClick={() => setReversing({ id: row.id, amount: row.amount, key: newPaymentKey() })}
+                      className="shrink-0 text-sm font-semibold text-text-quaternary hover:text-danger-700"
+                    >
+                      {t('invoiceDetails.pay.reverse')}
+                    </button>
                   ) : null}
                 </li>
               ))}
@@ -556,6 +623,48 @@ function InvoiceScreen() {
           <p className="text-sm font-medium text-text-quaternary">…</p>
         )}
       </SectionCard>
+
+      {paying && owed ? (
+        <RecordPaymentModal
+          invoiceId={data.id}
+          invoiceNumber={data.invoiceNumber}
+          currency={data.currency}
+          outstanding={owed.outstandingAmount}
+          issueDate={data.issueDate}
+          today={today}
+          onClose={() => setPaying(false)}
+          onRecorded={() => {
+            setPaying(false)
+            setNotice({ key: 'invoiceDetails.done.recorded' })
+            afterPayment()
+          }}
+        />
+      ) : null}
+
+      <Modal
+        open={reversing !== null}
+        onClose={() => setReversing(null)}
+        title={t('invoiceDetails.pay.reverseTitle')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setReversing(null)} className={GHOST_BUTTON}>
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={reverse}
+              disabled={busy}
+              className="inline-flex h-[46px] items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {t('invoiceDetails.pay.reverseConfirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {t('invoiceDetails.pay.reverseBody', { amount: reversing ? money(reversing.amount) : '' })}
+        </p>
+      </Modal>
 
       <Modal
         open={cancelling}
