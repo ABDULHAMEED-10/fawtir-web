@@ -11584,6 +11584,18 @@
     "selectHint": "Choose one of your customers",
     "vat": "VAT {{number}}",
     "branchesFailed": "Branches could not be loaded",
-    "noteHidden": "This draft may have an internal note you can't see. Saving keeps it."
+    "noteHidden": "This draft may have an internal note you can't see. Saving keeps it.",
+    "missing": {
+      "invoiceAddress": "the invoice address ({{parts}})",
+      "deliveryAddress": "the delivery address ({{parts}})",
+      "vatNumber": "the VAT number",
+      "peppolId": "the Peppol ID",
+      "unknown": "{{path}}",
+      "part": {
+        "country": "country",
+        "city": "city",
+        "street": "street"
+      }
+    }
   }
 }

@@ -39,6 +39,7 @@ import {
 } from '../../lib/invoiceDraft'
 import { lineFromProduct } from '../../lib/productLine'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import {
@@ -1030,6 +1031,12 @@ function InvoiceComposer() {
   )
 }
 
+/** The server's field paths as a sentence; see `lib/customerEligibility.ts`. */
+function missingFieldsText(paths: readonly string[], t: Translate, language: string): string {
+  const join = (items: string[]) => new Intl.ListFormat(language, { type: 'conjunction' }).format(items)
+  return join(missingCustomerFields(paths, (key) => t(key), join).map((phrase) => t(phrase.key, phrase.values)))
+}
+
 function previewReason(t: Translate, error: unknown): string {
   if (error instanceof ApiError && error.code && PREVIEW_REASONS.has(error.code)) {
     return t(`invoiceDraft.previewReason.${error.code}`)
@@ -1043,7 +1050,8 @@ function previewReason(t: Translate, error: unknown): string {
  * consumer names a consumer record too (the API requires one; walk-in quick-add comes with I-02).
  */
 function CustomerCard({ kind, customer, onPick }: { kind: CustomerKind; customer: CustomerDto | null; onPick: (customer: CustomerDto) => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
   const [typed, setTyped] = useState<string | null>(null)
   const [query, setQuery] = useState<string | null>(null)
   useEffect(() => {
@@ -1108,7 +1116,7 @@ function CustomerCard({ kind, customer, onPick }: { kind: CustomerKind; customer
       </div>
       {customer && customer.invoiceEligible === false ? (
         <p className="text-xs font-medium leading-[1.3] text-pending-700">
-          {t('invoiceDraft.notEligible', { fields: (customer.missingInvoiceFields ?? []).join(', ') })}
+          {t('invoiceDraft.notEligible', { fields: missingFieldsText(customer.missingInvoiceFields ?? [], t, language) })}
         </p>
       ) : null}
     </div>
