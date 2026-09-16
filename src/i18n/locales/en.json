@@ -1513,7 +1513,9 @@
       "switchOffNote": "Hides them from new bills · {{count}} bills stay searchable",
       "switchOffNoteSearchable": "Hides them from new bills · their bills stay searchable",
       "switchOn": "Switch this supplier back on",
-      "switchOnNote": "They can be chosen on new bills again"
+      "switchOnNote": "They can be chosen on new bills again",
+      "edit": "Edit supplier",
+      "editNote": "Details, bank account, contact and addresses"
     },
     "emptyState": {
       "title": "No suppliers on the list yet",
@@ -11786,6 +11788,66 @@
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet."
+    }
+  },
+  "supplierForm": {
+    "fixFirst": "Some fields need attention before the supplier can be saved.",
+    "serverRefused": "The server did not accept the supplier.",
+    "saving": "Saving…",
+    "reload": "Reload",
+    "duplicate": "Another supplier or customer already uses this VAT number or Peppol ID.",
+    "conflictEdit": "This supplier couldn't be saved. Someone may have changed it since you opened it, or its VAT number or Peppol ID is already used by another record. Reload to see the current version.",
+    "readOnly": "You can see this supplier but not change it.",
+    "switchedOff": "This supplier is switched off. It can't be chosen for new bills until it is switched back on.",
+    "bankUnconfirmed": "The bank details changed and nobody has confirmed them with the supplier yet. Check the account with them before paying.",
+    "confirmBank": "Confirm bank details",
+    "category": "Category",
+    "categoryPlaceholder": "e.g. Raw materials",
+    "notVatRegistered": "Not registered for VAT, so no VAT number is kept.",
+    "notSet": "Not set",
+    "ibanChangeHint": "Changing the account asks someone to confirm it before the next payment.",
+    "earlyPercent": "Early payment discount (%)",
+    "earlyDays": "If paid within (days)",
+    "selfBillingActive": "A self-billing agreement is in place with this supplier.",
+    "language": {
+      "ar": "Arabic (AR)",
+      "en": "English (EN)"
+    },
+    "channel": {
+      "PEPPOL": "Peppol (e-invoice)",
+      "EMAIL_PDF": "Email PDF",
+      "PAPER": "Paper",
+      "MANUAL": "Manual entry"
+    },
+    "country": {
+      "OM": "Oman",
+      "AE": "United Arab Emirates",
+      "SA": "Saudi Arabia",
+      "QA": "Qatar",
+      "KW": "Kuwait",
+      "BH": "Bahrain"
+    },
+    "done": {
+      "created": "{{name}} was added.",
+      "saved": "Changes saved.",
+      "bankConfirmed": "Bank details confirmed.",
+      "switchedOff": "Supplier switched off.",
+      "switchedOn": "Supplier switched back on."
+    },
+    "error": {
+      "peppolShape": "Use the scheme and ID together, for example 0248:OM1100000000 or 0242:…",
+      "peppolVat": "A 0248 ID is the supplier's VAT number: OM11 followed by 8 digits.",
+      "vatGroup": "A VAT group number (OM12…) can't be used as a Peppol ID.",
+      "duplicateEmail": "This email address is listed twice.",
+      "tooManyEmails": "Use at most 10 email addresses.",
+      "phone": "Enter the number in international form, for example +96824000000.",
+      "iban": "Enter a valid IBAN, for example OM81 0180 0000 1234 5678 901.",
+      "ibanKeep": "Bank details can't be removed here. Enter the account to keep.",
+      "bic": "A BIC is 8 or 11 letters and digits.",
+      "discountPair": "Enter both the discount and the number of days, or neither.",
+      "discountPercent": "Use a percentage from 0 to 100, with up to 2 decimals.",
+      "discountDays": "Enter a whole number of days.",
+      "pickupRequired": "Enter the pickup address, or turn on \"Same as billing address\"."
     }
   }
 }
