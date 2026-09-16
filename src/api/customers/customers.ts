@@ -103,6 +103,11 @@ export async function loadCustomerPage(path: string): Promise<Page<CustomerDto>>
   return fromSpringPage(await apiRequest<SpringPage<CustomerDto>>(path))
 }
 
+/** One customer, for a screen that holds only their id (the invoice detail's "Bill to"). */
+export function loadCustomer(customerId: string): Promise<CustomerDto> {
+  return apiRequest<CustomerDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`)
+}
+
 export function loadCustomerSummary(): Promise<CustomerSummaryDto> {
   return apiRequest<CustomerSummaryDto>(CUSTOMER_SUMMARY_PATH)
 }
