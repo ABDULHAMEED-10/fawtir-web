@@ -171,3 +171,42 @@ export type AttachmentRow = InvoiceAttachmentDto & { sizeLabel: string }
 export function attachmentRows(files: readonly InvoiceAttachmentDto[], size: (bytes: number) => string): AttachmentRow[] {
   return files.map((file) => ({ ...file, sizeLabel: size(file.byteSize) }))
 }
+
+export type PaymentForm = { amount: string; methodCode: string; reference: string; paymentDate: string }
+export type PaymentField = 'amount' | 'methodCode' | 'reference' | 'paymentDate'
+
+/**
+ * What the API would refuse, said before the request goes: an amount of nothing or more than is
+ * owed, finer than the currency's minor units, a date in the future or before the invoice was
+ * issued. The server still decides — a closed period, for one, is only known there.
+ */
+export function paymentProblems(
+  form: PaymentForm,
+  context: { outstanding: number | null; currency: string; issueDate: string | null; today: string },
+): Partial<Record<PaymentField, string>> {
+  const problems: Partial<Record<PaymentField, string>> = {}
+  const text = form.amount.trim().replace(/,/g, '')
+  const scale = minorUnitsOf(context.currency)
+  if (text === '') problems.amount = 'invoiceDetails.pay.error.amountRequired'
+  else if (!/^\d+(\.\d+)?$/.test(text) || Number(text) <= 0) problems.amount = 'invoiceDetails.pay.error.amountPositive'
+  else if ((text.split('.')[1] ?? '').length > scale) problems.amount = 'invoiceDetails.pay.error.amountScale'
+  else if (context.outstanding !== null && Number(text) > context.outstanding) problems.amount = 'invoiceDetails.pay.error.amountTooMuch'
+  if (!form.methodCode) problems.methodCode = 'invoiceDetails.pay.error.methodRequired'
+  if (!form.paymentDate) problems.paymentDate = 'invoiceDetails.pay.error.dateRequired'
+  else if (form.paymentDate > context.today) problems.paymentDate = 'invoiceDetails.pay.error.dateFuture'
+  else if (context.issueDate && form.paymentDate < context.issueDate) problems.paymentDate = 'invoiceDetails.pay.error.dateBeforeIssue'
+  return problems
+}
+
+/** Server refusals of a payment that belong to one field of the form, and the sentence for each. */
+export const PAYMENT_REFUSALS: Record<string, { field: PaymentField | null; key: string }> = {
+  PAYMENT_EXCEEDS_OUTSTANDING: { field: 'amount', key: 'invoiceDetails.pay.error.amountTooMuch' },
+  PAYMENT_AMOUNT_SCALE_INVALID: { field: 'amount', key: 'invoiceDetails.pay.error.amountScale' },
+  PAYMENT_DATE_IN_FUTURE: { field: 'paymentDate', key: 'invoiceDetails.pay.error.dateFuture' },
+  PAYMENT_DATE_BEFORE_ISSUE_DATE: { field: 'paymentDate', key: 'invoiceDetails.pay.error.dateBeforeIssue' },
+  PAYMENT_METHOD_INVALID: { field: 'methodCode', key: 'invoiceDetails.pay.error.methodRequired' },
+  PERIOD_CLOSED: { field: 'paymentDate', key: 'invoiceDetails.pay.error.periodClosed' },
+  PAYMENT_REQUIRES_ISSUED_INVOICE: { field: null, key: 'invoiceDetails.pay.error.notIssued' },
+  PAYMENT_ALREADY_REVERSED: { field: null, key: 'invoiceDetails.pay.error.alreadyReversed' },
+  PAYMENT_NOT_FOUND: { field: null, key: 'invoiceDetails.pay.error.paymentGone' },
+}

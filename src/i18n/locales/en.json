@@ -1897,7 +1897,9 @@
       "delivered": "This invoice was already delivered, so it cannot be cancelled. Issue a credit note instead."
     },
     "done": {
-      "cancelled": "The invoice is cancelled."
+      "cancelled": "The invoice is cancelled.",
+      "recorded": "Payment recorded.",
+      "reversed": "Payment reversed."
     },
     "category": {
       "E": "Exempt",
@@ -1910,7 +1912,43 @@
     "zoomOut": "Zoom out",
     "zoomIn": "Zoom in",
     "print": "Print",
-    "fullscreen": "Fullscreen"
+    "fullscreen": "Fullscreen",
+    "pay": {
+      "open": "Record payment",
+      "title": "Record a payment",
+      "subtitle": "Against {{number}} · {{amount}} still owed",
+      "amount": "Amount received",
+      "amountHint": "Up to what is still owed, to 3 decimals",
+      "method": "Paid by",
+      "date": "Received on",
+      "reference": "Reference",
+      "submit": "Record payment",
+      "reverse": "Reverse",
+      "reverseTitle": "Reverse this payment?",
+      "reverseBody": "The payment of {{amount}} stays on the record, with a reversal dated today beside it. The amount is owed again.",
+      "reverseConfirm": "Reverse the payment",
+      "means": {
+        "30": "Bank transfer",
+        "10": "Cash",
+        "20": "Cheque",
+        "48": "Card payment",
+        "68": "Online payment"
+      },
+      "error": {
+        "amountRequired": "Enter the amount received.",
+        "amountPositive": "Enter an amount above zero.",
+        "amountScale": "Use no more than 3 decimals.",
+        "amountTooMuch": "That is more than is still owed on this invoice.",
+        "methodRequired": "Choose how it was paid.",
+        "dateRequired": "Choose the date it was received.",
+        "dateFuture": "A payment cannot be dated in the future.",
+        "dateBeforeIssue": "A payment cannot be dated before the invoice was issued.",
+        "periodClosed": "That date falls in a closed accounting period.",
+        "notIssued": "Payments can only be recorded against an issued invoice.",
+        "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
+        "paymentGone": "That payment could not be found. The list has been refreshed."
+      }
+    }
   },
   "createInvoice": {
     "breadcrumb": "Invoices",

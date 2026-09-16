@@ -162,3 +162,37 @@ export function cancelInvoice(invoiceId: string, expectedVersion: number, reason
     body: { expectedVersion, reason },
   })
 }
+
+export type RecordPaymentRequest = {
+  /** In the invoice's currency, at no finer scale than its minor units (OMR: 3). */
+  amount: number
+  /** UNCL4461 payment means code, as the rest of the invoice records it. */
+  methodCode: string
+  paymentReference: string | null
+  paymentDate: string
+}
+
+/**
+ * A payment against an issued invoice. The Idempotency-Key is the modal's, minted once when it
+ * opens: a double click or a retry after a lost response records the payment once, not twice.
+ */
+export function recordPayment(invoiceId: string, idempotencyKey: string, payment: RecordPaymentRequest): Promise<InvoicePaymentDto> {
+  return apiRequest<InvoicePaymentDto>(`${path(invoiceId)}/payments`, {
+    method: 'POST',
+    body: payment,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** Nothing is deleted: a reversal is a new, dated row that cancels the payment it names. */
+export function reversePayment(invoiceId: string, paymentId: string, idempotencyKey: string): Promise<InvoicePaymentDto> {
+  return apiRequest<InvoicePaymentDto>(`${path(invoiceId)}/payments/${encodeURIComponent(paymentId)}/reverse`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
+export function newPaymentKey(): string {
+  return `payment-${crypto.randomUUID()}`
+}
