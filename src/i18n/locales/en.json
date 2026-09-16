@@ -697,34 +697,35 @@
       "description": "For a single shop, freelancer or service provider.",
       "features": {
         "f1": "PINT-OM validation & OTA reporting",
-        "f2": "B2C QR receipts + mobile POS",
-        "f3": "10-year documents archive",
-        "f4": "Email support"
+        "f2": "Send & receive over Peppol",
+        "f3": "Point of sale & thermal receipts",
+        "f4": "10-year documents archive",
+        "f5": "Email support"
       }
     },
     "premium": {
       "name": "Business",
-      "description": "For growing businesses running multiple branches.",
+      "description": "For growing businesses with a small finance team.",
       "features": {
         "f1": "Everything in Starter",
-        "f2": "Expenditure & approval workflows",
-        "f3": "Multi-branch + branch reports",
-        "f4": "REST API & webhooks",
-        "f5": "Advanced analytics & compliance reports",
-        "f6": "Priority support"
+        "f2": "2 branches, then 8.000 each",
+        "f3": "Roles & permissions",
+        "f4": "Recurring invoices & bills",
+        "f5": "REST API & sandbox",
+        "f6": "Email support"
       }
     },
     "enterprise": {
       "name": "Enterprise",
-      "description": "For high-volume & ERP-connected operations.",
+      "description": "For high volume, group structures and partners.",
       "price": "Custom",
       "billingNote": "Tailored to your volume",
       "features": {
-        "f1": "Everything in Business",
-        "f2": "Pre-built ERP connectors & SFTP",
+        "f1": "Everything in Business Plus",
+        "f2": "Automatic ERP extraction included",
         "f3": "Single sign-on (SAML / OIDC)",
-        "f4": "Dedicated account manager",
-        "f5": "Custom SLA & guided onboarding"
+        "f4": "Custom reports & white label",
+        "f5": "Account manager & service level agreement"
       }
     },
     "footer": {
@@ -732,8 +733,98 @@
       "f2": "Upgrades apply instantly, downgrades next cycle",
       "f3": "No setup fees"
     },
-    "payNote": "Pay by card through a secure link, bank transfer or cash. Your account is activated by the Fawtir team once payment is confirmed.",
-    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own."
+    "payNote": "You choose how to pay on the next step.",
+    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own.",
+    "businessPlus": {
+      "name": "Business Plus",
+      "description": "For established businesses and multi-branch operations.",
+      "features": {
+        "f1": "Everything in Business",
+        "f2": "5 branches, then 8.000 each",
+        "f3": "Approval workflow",
+        "f4": "Webhooks & file transfer",
+        "f5": "Email and chat support"
+      }
+    },
+    "branchesIncluded_one": "{{count}} branch",
+    "branchesIncluded_other": "{{count}} branches",
+    "perMonth": "/month",
+    "compare": {
+      "open": "Compare all features",
+      "close": "Hide the full comparison",
+      "title": "Everything in each plan",
+      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol and reports to the OTA. The plans differ in volume, people and workflow.",
+      "columnFeature": "What you get",
+      "included": "Included",
+      "notIncluded": "Not included",
+      "group": {
+        "documents": "Documents",
+        "people": "People & branches",
+        "features": "Features",
+        "support": "Support & billing"
+      },
+      "row": {
+        "documents": "Tax documents a month",
+        "overage": "Each document past the allowance",
+        "peppol": "Send & receive over Peppol",
+        "validation": "PINT-OM validation & OTA reporting",
+        "pos": "Point of sale & thermal receipts",
+        "archive": "10-year documents archive",
+        "people": "People included",
+        "extraPerson": "Extra person, a month",
+        "branches": "Branches included",
+        "extraBranch": "Extra branch, a month",
+        "accountants": "Accountant & auditor seats",
+        "rbac": "Roles & permissions",
+        "recurring": "Recurring invoices & bills",
+        "approvals": "Approval workflow",
+        "api": "REST API & sandbox",
+        "webhooks": "Webhooks & file transfer",
+        "erpMapping": "ERP field mapping",
+        "erpExtraction": "Automatic ERP extraction",
+        "sso": "Single sign-on (SAML / OIDC)",
+        "reports": "Custom reports",
+        "whiteLabel": "White label",
+        "support": "Support",
+        "sla": "Service level agreement",
+        "annual": "Annual billing",
+        "vat": "VAT"
+      },
+      "value": {
+        "count": "{{count}}",
+        "onRequest": "On request",
+        "negotiated": "Negotiated",
+        "unlimited": "Unlimited",
+        "upgrade": "Upgrade to Business",
+        "free": "Free",
+        "addon": "Add-on",
+        "included": "Included",
+        "email": "Email",
+        "emailChat": "Email and chat",
+        "accountManager": "Account manager",
+        "twoMonthsFree": "2 months free",
+        "vatExcl": "Excluded, {{rate}}% on the invoice"
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "q1": "Do I need a card to start?",
+      "a1": "No. Every plan starts with a {{days}}-day free trial of {{documents}} documents on the Business plan's features. Nothing is charged, and the trial never turns into a paid plan by itself.",
+      "q2": "How do I pay?",
+      "a2": "After you pick a plan you choose how to pay: by card through a secure payment link we send you on WhatsApp or email, by bank transfer, or in cash. The Fawtir team activates your account as soon as the payment is confirmed.",
+      "q3": "What counts as a document?",
+      "a3": "Every tax document you issue or receive: invoices, credit and debit notes, self-billed invoices, documents traded over Peppol and simplified invoices from the point of sale. Drafts, voided documents and documents that fail validation are not counted.",
+      "q4": "What happens when I pass my allowance?",
+      "a4": "We tell you at {{thresholds}} percent of the allowance. Past it, each document costs the plan's overage rate, or you can move up a plan, which applies at once and is charged pro rata for the rest of the period.",
+      "q5": "Can I change or cancel my plan?",
+      "a5": "Any time. Upgrades apply immediately, downgrades take effect at the end of the current period. There are no setup fees and no minimum term. If a payment is missed you keep {{grace}} days of grace before the account goes read-only, and your records stay readable and exportable for the 10 years the law requires.",
+      "q6": "Is point of sale extra?",
+      "a6": "No. Point of sale and thermal receipts are on every plan with no terminal charge. A POS receipt counts as one document against your allowance.",
+      "q7": "Do prices include VAT?",
+      "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added on your subscription invoice.",
+      "q8": "What is different about Enterprise?",
+      "a8": "Everything is set for your contract: volume, price, people, branches and features such as single sign-on, custom reports, white label, automatic ERP extraction and an account manager with a service level agreement. Talk to our team and we will put a proposal together."
+    }
   },
   "payment": {
     "title": "Complete your subscription",
