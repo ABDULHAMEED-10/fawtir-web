@@ -257,7 +257,7 @@ describe('A bill, wired to the API', () => {
         hold: { id: 'h-1', reason: 'Disputed with the supplier', openedBy: 'u-2', openedAt: '2026-09-04T07:00:00Z', releasedBy: null, releasedAt: null },
       })
     renderBill()
-    expect(await screen.findByText(/On hold: Disputed with the supplier/)).toBeTruthy()
+    expect(await screen.findByText(/On hold: “Disputed with the supplier”\./)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Put on hold' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Release' }))
     await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/release`))

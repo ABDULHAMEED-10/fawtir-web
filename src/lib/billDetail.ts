@@ -169,8 +169,12 @@ export type ActivityEntry = { key: string; at: string | null; detail: string | n
  * "MISMATCH — …"), so those two read from the structured fields instead.
  */
 export function activityOf(detail: BillDetailDto, userId: string | null): ActivityEntry[] {
+  const lookedAndFoundNothing = detail.bill.match?.verdict === 'NO_ORDER'
   return detail.activity.map((entry) => ({
-    key: `billDetail.activity.kind.${entry.kind}`,
+    key:
+      entry.kind === 'MATCHED' && lookedAndFoundNothing
+        ? 'billDetail.activity.kind.NO_ORDER'
+        : `billDetail.activity.kind.${entry.kind}`,
     at: entry.at,
     detail:
       entry.kind === 'ARRIVED'

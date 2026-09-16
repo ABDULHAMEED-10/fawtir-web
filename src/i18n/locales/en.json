@@ -4495,7 +4495,8 @@
         "HELD": "Put on hold",
         "RELEASED": "Released from hold",
         "PAID": "Payment recorded",
-        "REVERSED": "Payment reversed"
+        "REVERSED": "Payment reversed",
+        "NO_ORDER": "Looked for an order"
       }
     },
     "decision": {
@@ -4506,8 +4507,8 @@
       "needsMore": "{{given}} of {{required}} approvals. It cannot be paid until {{required}} different people have approved it.",
       "approved": "Approved for payment. It is not scheduled until someone puts it in a payment run.",
       "belowLimit": "Below your approval limit, so no approval is needed. It can be paid.",
-      "rejected": "Rejected in your books: {{reason}} Nothing was sent to the supplier.",
-      "held": "On hold: {{reason}} It stays out of every payment run until it is released.",
+      "rejected": "Rejected in your books: “{{reason}}”. Nothing was sent to the supplier.",
+      "held": "On hold: “{{reason}}”. It stays out of every payment run until it is released.",
       "paid": "Paid in full.",
       "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
       "release": "Release"

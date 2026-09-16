@@ -122,7 +122,9 @@ function BillScreen() {
   const matchPath = canApproveBills ? billMatchPath(id) : null
   const match = useApiRead<BillMatchDto>(matchPath, () => loadBillMatch(id))
 
-  const [notice, setNotice] = useState<{ tone: 'success' | 'error'; body: string } | null>(null)
+  // A success is held as its key, not its text: the notice stays on screen across a language
+  // switch, and a sentence translated when it was raised would stay in the old language.
+  const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [asking, setAsking] = useState<'reject' | 'hold' | null>(null)
   const [reason, setReason] = useState('')
@@ -133,12 +135,12 @@ function BillScreen() {
     setNotice(null)
     try {
       await run()
-      setNotice({ tone: 'success', body: t(done) })
+      setNotice({ key: done })
       bill.retry()
       if (matchPath) match.retry()
       return true
     } catch (error) {
-      setNotice({ tone: 'error', body: refusalText(t, error) })
+      setNotice({ body: refusalText(t, error) })
       bill.retry()
       return false
     } finally {
@@ -176,7 +178,7 @@ function BillScreen() {
       link.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      setNotice({ tone: 'error', body: refusalText(t, error) })
+      setNotice({ body: refusalText(t, error) })
     }
   }
 
@@ -266,7 +268,10 @@ function BillScreen() {
       </div>
 
       {notice ? (
-        <Notice body={notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} />
+        <Notice
+          body={'key' in notice ? t(notice.key) : notice.body}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
       ) : null}
 
       <div className="rounded-md bg-surface-card px-6 py-5 shadow-card">
@@ -631,6 +636,9 @@ function MatchSection({
   const match = detail.bill.match
   const verdict = match?.verdict ?? null
   const agrees = verdict === 'MATCHED' || verdict === 'MATCHED_BY_HAND'
+  // NO_ORDER is a verdict, not a match: the matcher looked and found no order to hold the bill
+  // against. There is nothing to name and nothing to remove.
+  const order = match && verdict !== 'NO_ORDER' ? match : null
   const number = (value: number | null) => (value === null ? '—' : formatAmount(value, detail.bill.currencyCode, language))
 
   return (
@@ -671,9 +679,9 @@ function MatchSection({
         {canMatch ? (
           <div className="flex items-center gap-3">
             <button type="button" onClick={onOpenMatch} disabled={busy} className="text-sm font-semibold text-primary-700 hover:text-primary-800 disabled:opacity-60">
-              {t(match ? 'billDetail.linked.changeMatch' : 'billDetail.linked.matchIt')}
+              {t(order ? 'billDetail.linked.changeMatch' : 'billDetail.linked.matchIt')}
             </button>
-            {match ? (
+            {order ? (
               <button type="button" onClick={onRemoveMatch} disabled={busy} className="text-sm font-semibold text-text-quaternary hover:text-danger-700 disabled:opacity-60">
                 {t('billDetail.linked.removeMatch')}
               </button>
@@ -682,10 +690,10 @@ function MatchSection({
         ) : null}
       </div>
 
-      {match ? (
+      {order ? (
         <p className="mt-3 text-sm font-medium text-text-tertiary">
-          {t('billDetail.match.against', { order: match.purchaseOrderNumber ?? '—' })}
-          {match.goodsReceiptNumber ? ` · ${t('billDetail.match.receipt', { receipt: match.goodsReceiptNumber })}` : ''}
+          {t('billDetail.match.against', { order: order.purchaseOrderNumber ?? '—' })}
+          {order.goodsReceiptNumber ? ` · ${t('billDetail.match.receipt', { receipt: order.goodsReceiptNumber })}` : ''}
         </p>
       ) : null}
 
