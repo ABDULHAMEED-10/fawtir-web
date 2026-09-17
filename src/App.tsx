@@ -140,7 +140,7 @@ import { NewCreditNotePage } from './pages/NewCreditNotePage'
 import { CreditNotesPage } from './pages/CreditNotesPage'
 import { CreditNoteDetailsPage } from './pages/CreditNoteDetailsPage'
 import { CustomersPage } from './pages/CustomersPage'
-import { NewCustomerPage } from './pages/NewCustomerPage'
+import { EditCustomerPage, NewCustomerPage } from './pages/NewCustomerPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { NewSupplierPage } from './pages/NewSupplierPage'
 import { SignupPage } from './pages/SignupPage'
@@ -332,6 +332,7 @@ function App() {
           <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/new" element={<NewCustomerPage />} />
+          <Route path="/customers/:id/edit" element={<EditCustomerPage />} />
           <Route path="/suppliers" element={<SuppliersPage />} />
           <Route path="/suppliers/new" element={<NewSupplierPage />} />
           <Route path="/suppliers/import" element={<ImportSuppliersPage />} />

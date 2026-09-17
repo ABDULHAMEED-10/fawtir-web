@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Combobox, DateField, Modal, Select, withRial, type SelectOption } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { ProductPicker } from '../../components/invoice/ProductPicker'
+import { AddCustomerModal } from '../../components/AddCustomerModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { useApiRead } from '../../hooks'
 import { apiRequest, type Page } from '../../api'
@@ -1095,6 +1096,11 @@ function previewReason(t: Translate, error: unknown): string {
  */
 function CustomerCard({ kind, customer, onPick }: { kind: CustomerKind; customer: CustomerDto | null; onPick: (customer: CustomerDto) => void }) {
   const { t, i18n } = useTranslation()
+  const session = useSession()
+  // Quick add covers a company or a private person; a government customer needs the full form's
+  // procurement references.
+  const canAdd = kind !== 'government' && can(session, 'customer.manage')
+  const [adding, setAdding] = useState(false)
   const language = i18n.language
   const [typed, setTyped] = useState<string | null>(null)
   const [query, setQuery] = useState<string | null>(null)
@@ -1156,8 +1162,25 @@ function CustomerCard({ kind, customer, onPick }: { kind: CustomerKind; customer
               )}
             />
           </div>
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="inline-flex items-center gap-1 rounded-sm border border-border-subtle bg-white px-3 py-1.5 text-sm font-semibold text-primary-800 hover:bg-primary-25"
+            >
+              {t('customerForm.quickAdd')}
+            </button>
+          ) : null}
         </div>
       </div>
+      {canAdd ? (
+        <AddCustomerModal
+          open={adding}
+          kind={kind === 'consumer' ? 'private' : 'company'}
+          onClose={() => setAdding(false)}
+          onCreated={(created) => onPick(created)}
+        />
+      ) : null}
       {customer && customer.invoiceEligible === false ? (
         <p className="text-xs font-medium leading-[1.3] text-pending-700">
           {t('invoiceDraft.notEligible', { fields: missingFieldsText(customer.missingInvoiceFields ?? [], t, language) })}

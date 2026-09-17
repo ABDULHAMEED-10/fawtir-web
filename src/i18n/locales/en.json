@@ -2379,7 +2379,9 @@
       "building": "Building No.",
       "poBox": "PO Box",
       "note": "Note to customer",
-      "notePlaceholder": "Add optional internal instructions or billing details..."
+      "notePlaceholder": "Add optional internal instructions or billing details...",
+      "onPeppol": "Registered on Peppol",
+      "onPeppolHint": "Invoices go to them over Peppol at 0248 and their VAT number."
     }
   },
   "home": {
@@ -13425,6 +13427,28 @@
       "discountPercent": "Use a percentage from 0 to 100, with up to 2 decimals.",
       "discountDays": "Enter a whole number of days.",
       "pickupRequired": "Enter the pickup address, or turn on \"Same as billing address\"."
+    }
+  },
+  "customerForm": {
+    "editTitle": "Edit {{name}}",
+    "menuEdit": "Edit customer",
+    "quickAdd": "+ New customer",
+    "fixFirst": "Some fields need attention before the customer can be saved.",
+    "serverRefused": "The server did not accept the customer.",
+    "duplicate": "Another customer already uses this VAT number or Peppol ID.",
+    "conflictEdit": "This customer couldn't be saved. Someone may have changed it since you opened it, or its VAT number or Peppol ID is already used by another customer. Reload to see the current version.",
+    "readOnly": "You can see this customer but not change it.",
+    "notEligible": "This customer can't be invoiced yet: it needs a country, city and street on its invoicing address.",
+    "notePlaceholder": "Printed on this customer's invoices, e.g. delivery or payment instructions…",
+    "done": {
+      "created": "{{name}} was added.",
+      "saved": "Changes saved."
+    },
+    "error": {
+      "consumerPeppol": "A private customer can't be sent invoices over Peppol.",
+      "peppolNotRegistered": "Turn on \"Registered on Peppol\" and enter their Peppol ID to send over Peppol.",
+      "emailNeeded": "Enter at least one email address to send PDFs or reminders.",
+      "deliveryRequired": "Enter the delivery address, or turn on \"Same as invoicing address\"."
     }
   }
 }

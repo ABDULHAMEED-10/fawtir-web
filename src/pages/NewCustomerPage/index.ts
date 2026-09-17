@@ -1,1 +1,1 @@
-export { NewCustomerPage } from './NewCustomerPage'
+export { EditCustomerPage, NewCustomerPage } from './NewCustomerPage'

@@ -84,7 +84,7 @@ const NOTHING_KEPT: AddressValues['kept'] = {
   countrySubentityCode: null,
 }
 
-const blankAddress = (): AddressValues => ({
+export const blankAddress = (): AddressValues => ({
   attention: '',
   countryCode: 'OM',
   cityName: '',
@@ -130,12 +130,12 @@ export function blankSupplierForm(): SupplierFormValues {
 const text = (value: string | null | undefined) => value ?? ''
 
 /** The +968 the phone field draws is not part of its value. */
-function nationalPhone(value: string | null): string {
+export function nationalPhone(value: string | null): string {
   if (!value) return ''
   return value.startsWith('+968') ? value.slice(4) : value
 }
 
-function addressValues(address: SupplierAddressDto | null): AddressValues {
+export function addressValues(address: SupplierAddressDto | null): AddressValues {
   if (!address) return blankAddress()
   return {
     attention: text(address.attention),
@@ -194,13 +194,13 @@ export function fromSupplierDetail(detail: SupplierDetailDto): { values: Supplie
 
 const orNull = (value: string) => (value.trim() === '' ? null : value.trim())
 
-function e164(value: string): string | null {
+export function e164(value: string): string | null {
   const trimmed = value.trim()
   if (!trimmed) return null
   return trimmed.startsWith('+') ? trimmed.replace(/[\s().-]/g, '') : validate.toOmanE164(trimmed)
 }
 
-function addressRequest(address: AddressValues): SupplierAddressDto | null {
+export function addressRequest(address: AddressValues): SupplierAddressDto | null {
   const request: SupplierAddressDto = {
     ...address.kept,
     attention: orNull(address.attention),
