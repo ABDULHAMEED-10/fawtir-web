@@ -166,7 +166,7 @@ describe('payment runs', () => {
     renderAt('/expenditure/payments')
     const row = (await screen.findByRole('link', { name: 'PR-0001' })).closest('tr') as HTMLElement
     expect(within(row).getByText('Scheduled')).toBeTruthy()
-    expect(within(row).getByText('980.000')).toBeTruthy()
+    expect(within(row).getByText('980.000 OMR')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'New payment run' }).getAttribute('href')).toBe('/expenditure/payments/new')
   })
 

@@ -13710,6 +13710,7 @@
       "newRun": "Start a new run",
       "total": "Paying {{amount}}",
       "submit": "Add to the run"
-    }
+    },
+    "totals": "Totals"
   }
 }

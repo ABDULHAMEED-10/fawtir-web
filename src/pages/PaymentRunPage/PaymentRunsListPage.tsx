@@ -97,7 +97,8 @@ function PaymentRunsList() {
                   </td>
                   <td className="px-3 py-3.5 text-sm font-medium text-text-secondary">{run.runReference ?? '—'}</td>
                   <td className="px-5 py-3.5 text-end text-sm font-semibold text-text-primary tabular-nums">
-                    {formatAmount(run.netTotal, run.currency, i18n.language)}
+                    {/* A cancelled run sends nothing, whatever its bills added up to. */}
+                    {run.state === 'CANCELLED' ? '—' : `${formatAmount(run.netTotal, run.currency, i18n.language)} ${run.currency}`}
                   </td>
                 </tr>
               ))}

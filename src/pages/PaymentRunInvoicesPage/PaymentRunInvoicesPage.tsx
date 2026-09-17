@@ -112,7 +112,7 @@ function RunBills({ runId }: { runId: string }) {
             <tfoot>
               <tr className="border-t border-border-subtle text-sm font-semibold text-text-primary">
                 <td className="px-5 py-3.5" colSpan={3}>
-                  {t('paymentsPage.leavingYourAccount')}
+                  {t('paymentRuns.totals')}
                 </td>
                 <td className="px-3 py-3.5 text-end tabular-nums">{money(run.billsTotal)}</td>
                 <td className="px-3 py-3.5 text-end tabular-nums">{money(run.discountTotal)}</td>

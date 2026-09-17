@@ -592,7 +592,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
       {confirming && runId && run ? (
         <ConfirmModal
           title={confirming === 'paid' ? t('paymentRuns.confirmPaid.title', { reference: run.reference }) : t('paymentRuns.confirmCancel.title', { reference: run.reference })}
-          body={confirming === 'paid' ? t('paymentRuns.confirmPaid.body', { amount: money(run.netTotal) }) : t('paymentRuns.confirmCancel.body')}
+          body={confirming === 'paid' ? t('paymentRuns.confirmPaid.body', { amount: `${money(run.netTotal)} ${currency}` }) : t('paymentRuns.confirmCancel.body')}
           confirm={confirming === 'paid' ? t('paymentRuns.markPaid') : t('paymentRuns.cancel')}
           onClose={() => setConfirming(null)}
           onConfirm={async () => {
