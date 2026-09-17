@@ -160,6 +160,8 @@ beforeEach(async () => {
     if (url.startsWith('/api/v1/customers/')) return json(200, { id: 'c-1', type: 'BUSINESS', displayName: 'Sohar Port Logistics', profile: { details: { vatRegistrationNumber: 'OM1100999001' }, contact: null, deliveryPreferences: null, invoiceAddress: null }, peppolDelivery: 'ACTIVE', status: 'ACTIVE', updatedAt: '2026-08-01T00:00:00Z' })
     if (url === '/api/v1/branches') return json(200, [{ id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' }])
     if (url === URL_BASE) return invoiceResponse()
+    // The notes that correct the invoice; none in these fixtures.
+    if (url.startsWith('/api/v1/authored-invoices?')) return json(200, { content: [], page: 0, size: 50, totalElements: 0 })
     throw new Error(`unexpected request to ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)

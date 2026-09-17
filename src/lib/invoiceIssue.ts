@@ -71,6 +71,11 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   STALE_INVOICE_VERSION: { field: null, key: 'invoiceIssue.refused.stale' },
   INVOICE_NOT_ISSUABLE: { field: null, key: 'invoiceIssue.refused.notDraft' },
   REFERENCE_CATALOGUE_NOT_AVAILABLE: { field: null, key: 'invoiceIssue.refused.unavailable' },
+
+  CORRECTION_REASON_CODE_REQUIRED: { field: null, key: 'salesNote.error.reason' },
+  CORRECTED_INVOICE_NOT_ISSUED: { field: null, key: 'salesNote.refused.invoiceNotIssued' },
+  CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT: { field: null, key: 'salesNote.refused.exceeds' },
+  CREDIT_NOTE_NOTHING_CORRECTABLE: { field: null, key: 'salesNote.refused.nothingLeft' },
 }
 
 /** A readiness 409 whose reason this build has no sentence for still says what kind of refusal it is. */

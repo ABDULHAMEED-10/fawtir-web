@@ -13811,5 +13811,112 @@
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",
       "owingNote": "It is recorded as a bill to pay later."
     }
+  },
+  "salesNote": {
+    "credit": {
+      "list": "Credit notes",
+      "listNote": "Credit notes reduce what a customer owes on an issued invoice. Start one from the invoice.",
+      "new": "New credit note",
+      "title": "Credit note",
+      "against": "Crediting",
+      "issue": "Issue the credit note",
+      "linesTitle": "What to credit",
+      "linesNote": "Every line of the invoice is ticked. Untick what you are not crediting, or lower its quantity or price.",
+      "summary": "This credit note",
+      "total": "Credit total",
+      "corrects": "Credits",
+      "none": "No credit notes here yet.",
+      "owedNow": "Owed on the invoice now",
+      "owedAfter": "Owed after this credit",
+      "refundOutside": "The customer has already paid more than this leaves owed. {{amount}} is a refund due to them, which Fawtir does not record yet: pay it outside Fawtir."
+    },
+    "debit": {
+      "list": "Debit notes",
+      "listNote": "Debit notes charge a customer more on an issued invoice, and are paid on their own. Start one from the invoice.",
+      "new": "New debit note",
+      "title": "Debit note",
+      "against": "Charging more on",
+      "issue": "Issue the debit note",
+      "linesTitle": "What to charge",
+      "linesNote": "Tick the invoice lines you are charging more for, and enter the extra quantity or price.",
+      "summary": "This debit note",
+      "total": "Debit total",
+      "corrects": "Charges on",
+      "none": "No debit notes here yet.",
+      "action": "Debit note",
+      "ownReceivable": "A debit note is a separate amount due from the customer, with its own due date and payments. The invoice's balance does not change."
+    },
+    "draft": "Draft",
+    "saveDraft": "Save draft",
+    "fixFirst": "Some things need attention before the note can be saved.",
+    "pickInvoice": "A note starts from an issued invoice. Open the invoice and choose Credit note or Debit note.",
+    "why": "Why",
+    "reason": "Reason",
+    "chooseReason": "Choose a reason",
+    "noteToCustomer": "Note to the customer",
+    "reasons": {
+      "CAN": "Cancellation",
+      "VAT": "VAT correction",
+      "VAL": "Value or price correction",
+      "QTY": "Quantity correction",
+      "OTH": "Other"
+    },
+    "includeLine": "Include {{item}}",
+    "net": "Net",
+    "vat": "VAT",
+    "col": {
+      "item": "Item",
+      "onInvoice": "On the invoice",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price",
+      "vat": "VAT",
+      "number": "Number",
+      "customer": "Customer",
+      "issued": "Issued",
+      "state": "State",
+      "amount": "Amount"
+    },
+    "error": {
+      "reason": "Choose why the note is issued.",
+      "noLines": "Tick at least one line.",
+      "creditAmounts": "Each ticked line needs a quantity above zero and a price, no more than on the invoice.",
+      "debitAmounts": "Each ticked line needs a quantity above zero and a price."
+    },
+    "refused": {
+      "invoiceNotIssued": "This invoice is not issued (or was cancelled), so it cannot be corrected.",
+      "exceeds": "This credit is more than is left to credit on the invoice.",
+      "nothingLeft": "Nothing is left to credit on this invoice."
+    },
+    "onInvoice": {
+      "title": "Credit and debit notes"
+    },
+    "state": {
+      "DRAFT": "Draft",
+      "ISSUED": "Issued",
+      "CANCELLED": "Cancelled",
+      "DISCARDED": "Discarded"
+    },
+    "payment": {
+      "UNPAID": "Unpaid",
+      "PARTIALLY_PAID": "Partly paid",
+      "PAID": "Paid",
+      "OVERDUE": "Overdue"
+    },
+    "tabs": {
+      "all": "All",
+      "drafts": "Drafts",
+      "issued": "Issued",
+      "cancelled": "Cancelled",
+      "awaiting": "Awaiting payment",
+      "overdue": "Overdue",
+      "paid": "Paid"
+    },
+    "search": "Search by number or customer",
+    "startFromInvoice": "Start from an invoice",
+    "pager": {
+      "nav": "Pages",
+      "previous": "Previous page",
+      "next": "Next page"
+    }
   }
 }

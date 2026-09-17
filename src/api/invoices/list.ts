@@ -66,6 +66,9 @@ export type InvoiceRowDto = {
   totals: { totalAmount: number } | null
   customerName: string | null
   payment: InvoicePaymentDto | null
+  /** A credit or debit note: the invoice it corrects, and that invoice's number. */
+  correctionOfInvoiceId?: string | null
+  correctionOfInvoiceNumber?: string | null
 }
 
 /** `InvoiceListSummary`. Tab counts cover every currency; the card figures cover `currencyCode`. */
@@ -100,6 +103,8 @@ export type InvoiceListFilter = {
   from: string | null
   to: string | null
   search: string
+  /** The notes of one invoice. */
+  correctionOf?: string | null
 }
 
 export type InvoiceListQuery = InvoiceListFilter & {
@@ -117,6 +122,7 @@ function filterParams(filter: InvoiceListFilter) {
     from: filter.from,
     to: filter.to,
     q: filter.search.trim(),
+    correction_of_invoice_id: filter.correctionOf ?? undefined,
   }
 }
 

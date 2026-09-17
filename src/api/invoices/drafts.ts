@@ -45,6 +45,8 @@ export type DraftRequest = {
     internalNote?: string
     paymentTerms: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
+    /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. Invoices send none. */
+    correctionReasonCode?: string | null
   }
 }
 
@@ -64,7 +66,10 @@ export type DraftResponse = {
     customerVisibleNote: string | null
     paymentTerms: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
+    correctionReasonCode?: string | null
   }
+  type?: 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
+  correctionOfInvoiceId?: string | null
   headerDiscount: DiscountDto
   lines: {
     lineNumber: number
@@ -114,6 +119,21 @@ export function createDraft(idempotencyKey: string, draft: DraftRequest): Promis
   return apiRequest<DraftResponse>(INVOICE_DRAFTS_PATH, {
     method: 'POST',
     body: { type: 'INVOICE', draft },
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export type NoteKind = 'CREDIT_NOTE' | 'DEBIT_NOTE'
+
+/**
+ * A credit or debit note draft against an issued invoice (`creditnote.create` / `debitnote.create`).
+ * The body is the ordinary draft content: the server copies nothing from the invoice.
+ */
+export function createNote(kind: NoteKind, invoiceId: string, idempotencyKey: string, draft: DraftRequest): Promise<DraftResponse> {
+  const route = kind === 'CREDIT_NOTE' ? 'credit-notes' : 'debit-notes'
+  return apiRequest<DraftResponse>(`/v1/authored-invoices/${encodeURIComponent(invoiceId)}/${route}`, {
+    method: 'POST',
+    body: draft,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
 }
