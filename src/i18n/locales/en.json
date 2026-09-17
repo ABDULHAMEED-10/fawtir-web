@@ -13450,5 +13450,150 @@
       "emailNeeded": "Enter at least one email address to send PDFs or reminders.",
       "deliveryRequired": "Enter the delivery address, or turn on \"Same as invoicing address\"."
     }
+  },
+  "supplierRecord": {
+    "band": {
+      "notDue": "Not due yet",
+      "dueSoon": "Due within 7 days",
+      "late": "Already late",
+      "onHold": "On hold"
+    },
+    "bandNote_one": "{{count}} bill · next due {{date}}",
+    "bandNote_other": "{{count}} bills · next due {{date}}",
+    "bandCount_one": "{{count}} bill",
+    "bandCount_other": "{{count}} bills",
+    "bandEmpty": "None",
+    "nothingOwed": "You owe them nothing right now.",
+    "bankUnconfirmed": "The bank details changed and nobody has confirmed them with the supplier yet.",
+    "channel": {
+      "PEPPOL": "Bills you over Peppol",
+      "EMAIL_PDF": "Emails PDF bills",
+      "PAPER": "Sends paper bills",
+      "MANUAL": "Bills entered by hand"
+    },
+    "col": {
+      "method": "Method",
+      "order": "Order",
+      "ordered": "Ordered",
+      "outstanding": "Still owed",
+      "paidOn": "Paid on",
+      "reference": "Reference",
+      "state": "State",
+      "wantedBy": "Wanted by"
+    },
+    "contacts": {
+      "add": "Add contact",
+      "channelRequired": "Add an email, a telephone or a mobile number, so they can be reached.",
+      "edit": "Edit",
+      "email": "Email",
+      "empty": "No contacts on file yet.",
+      "makeMain": "Make main",
+      "manage": "Manage",
+      "name": "Full name",
+      "none": "No other contacts. The record's own contact is {{name}}.",
+      "notes": "Notes",
+      "purpose": "Purpose",
+      "remove": "Remove",
+      "save": "Save contact",
+      "stale": "Someone changed these contacts since you opened them. Close and open again to see the current list.",
+      "subtitle": "Who to speak to about bills, deliveries and payments. One contact is the main one.",
+      "title": "Contacts"
+    },
+    "documents": {
+      "date": "Document date",
+      "dated": "Dated {{date}}",
+      "download": "Download",
+      "file": "File",
+      "fileRequired": "Choose the file to attach.",
+      "fileTooLarge": "The file is larger than 10 MB.",
+      "kindLabel": "Kind",
+      "legalHold": "On legal hold",
+      "note": "Note",
+      "retire": "Remove",
+      "retireBody": "It leaves this supplier's papers. A document inside its retention period cannot be removed, and the server will say so.",
+      "retireTitle": "Remove {{title}}?",
+      "series": "Series",
+      "seriesHint": "Give versions of the same paper one series, e.g. \"Supply agreement\": the newest supersedes the rest.",
+      "title": "Title",
+      "uploadSubtitle": "Contracts, certificates, price lists and letters. Up to 10 MB.",
+      "uploadTitle": "Attach a document",
+      "uploaded": "Uploaded {{date}}",
+      "uploadedDone": "Document attached."
+    },
+    "early": {
+      "none": "None",
+      "offer_one": "{{percent}}% if paid within {{count}} day",
+      "offer_other": "{{percent}}% if paid within {{count}} days"
+    },
+    "everLate": "Some of their bills have been paid late before.",
+    "neverLate": "No bill from them has been paid late.",
+    "issued": "Issued {{date}}",
+    "kind": {
+      "AGREEMENT": "Agreement",
+      "CERTIFICATE": "Certificate",
+      "PRICE_LIST": "Price list",
+      "CORRESPONDENCE": "Correspondence",
+      "OTHER": "Other"
+    },
+    "matchedNote": "Bills that named an order, and how many agreed with it",
+    "needsFix_one": "{{count}} thing to fix",
+    "needsFix_other": "{{count}} things to fix",
+    "next": "Next",
+    "previous": "Previous",
+    "pageNumber": "Page {{page}}",
+    "pages": "Pages",
+    "noBills": "No bills from this supplier yet.",
+    "noDocuments": "No papers on file yet.",
+    "noOrders": "No purchase orders to this supplier yet.",
+    "noPayments": "No payments to this supplier yet.",
+    "noPurchases": "Nothing bought from them in the last twelve months.",
+    "noVat": "No VAT number",
+    "notOnPeppol": "Not on Peppol",
+    "on": "On",
+    "openBill": "Open bill",
+    "orderState": {
+      "DRAFT": "Draft",
+      "AWAITING_APPROVAL": "Awaiting approval",
+      "APPROVED": "Approved",
+      "SENT": "Sent",
+      "PARTIALLY_RECEIVED": "Partly received",
+      "RECEIVED": "Received",
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled"
+    },
+    "purpose": {
+      "MAIN": "Main",
+      "BILLING": "Billing",
+      "DELIVERY": "Delivery",
+      "OTHER": "Other"
+    },
+    "recentBills": "Latest bills",
+    "reversed": "Reversed",
+    "seeAllBills": "See all",
+    "since": "supplier since {{date}}",
+    "standing": {
+      "CURRENT": "Current",
+      "SUPERSEDED": "Superseded",
+      "ON_FILE": "On file"
+    },
+    "statement": {
+      "pdf": "Statement as PDF",
+      "xlsx": "Statement as Excel",
+      "csv": "Statement as CSV",
+      "note": "This year so far: every bill, credit and payment"
+    },
+    "switchOffBody": "They move to the switched-off suppliers in the list. Their bills, payments and papers stay exactly as they are, and you can switch them back on at any time.",
+    "switchOn": "Switch back on",
+    "switchOnBody": "They return to the active suppliers in the list.",
+    "switchOnTitle": "Switch {{name}} back on",
+    "switchedOff": "Switched off",
+    "terms": {
+      "net_one": "Net {{count}} day",
+      "net_other": "Net {{count}} days",
+      "onReceipt": "Due on receipt",
+      "raw": "Terms {{code}}"
+    },
+    "unnumbered": "No number",
+    "vat": "VAT {{vat}}"
   }
 }
