@@ -333,7 +333,7 @@ describe('An invoice, wired to the API', () => {
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'INV-2026-0042' })
     expect(screen.queryByRole('button', { name: 'Cancel invoice' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Credit Note/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Credit note/i })).toBeNull()
     expect(calls().some((call) => call.endsWith('/internal-note'))).toBe(false)
     expect(calls().some((call) => call.includes('/customers/'))).toBe(false)
     expect(screen.getByText(/Customer not shown/)).toBeTruthy()
@@ -350,6 +350,67 @@ describe('An invoice, wired to the API', () => {
     renderInvoice()
     expect(await screen.findByText('الرصيد المستحق')).toBeTruthy()
     expect(screen.getByText('سُجّل دفع')).toBeTruthy()
+  })
+})
+
+describe('A credit or debit note on the same page', () => {
+  const NOTE_RECEIVABLE = { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE', documentTotal: null, outstandingAmount: null, paidAmount: 0 }
+
+  it('shows a credit note as a note: no due date, no payments, and its own words to cancel it', async () => {
+    invoiceResponse = () => json(200, invoice({ type: 'CREDIT_NOTE', correctionOfInvoiceId: 'inv-0', invoiceNumber: 'CRN-2026-0001', dueDate: '2026-08-01' }))
+    receivableResponse = () => json(200, NOTE_RECEIVABLE)
+    cancelResponse = () => json(200, invoice({ type: 'CREDIT_NOTE', authoringState: 'CANCELLED', version: 5 }))
+    renderInvoice()
+
+    await screen.findByRole('heading', { level: 1, name: 'CRN-2026-0001' })
+    expect(screen.queryByText('Due date')).toBeNull()
+    expect(screen.queryByText('Payments')).toBeNull()
+    expect(screen.getByText('on the note')).toBeTruthy()
+    expect(screen.getByText('Files can only be added or removed while a note is a draft.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel credit note' }))
+    expect(await screen.findByRole('dialog', { name: 'Cancel this credit note?' })).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Raised twice' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel the credit note' }))
+    expect(await screen.findByText('The credit note is cancelled.')).toBeTruthy()
+  })
+
+  it('asks to issue a debit note in its own words, with a due date, in English and Arabic', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue'] }
+    const DRAFT = invoice({ type: 'DEBIT_NOTE', correctionOfInvoiceId: 'inv-0', authoringState: 'DRAFT', version: 2, invoiceNumber: null, issueDate: null, dueDate: null, issuedAt: null, totals: null })
+    invoiceResponse = () => json(200, DRAFT)
+    receivableResponse = () => json(200, NOTE_RECEIVABLE)
+    const view = renderInvoice()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Issue debit note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this debit note?' })
+    expect(within(dialog).getByRole('button', { name: 'Issue debit note' })).toBeTruthy()
+    expect(within(dialog).getByText('Due date')).toBeTruthy()
+    view.unmount()
+
+    await i18n.changeLanguage('ar')
+    renderInvoice()
+    fireEvent.click(await screen.findByRole('button', { name: 'إصدار الإشعار المدين' }))
+    const arabic = await screen.findByRole('dialog', { name: 'إصدار هذا الإشعار المدين؟' })
+    expect(within(arabic).getByRole('button', { name: 'إصدار الإشعار المدين' })).toBeTruthy()
+  })
+
+  it('issues a credit note without asking for a due date, sending the issue date as it', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue'] }
+    invoiceResponse = () =>
+      json(200, invoice({ type: 'CREDIT_NOTE', correctionOfInvoiceId: 'inv-0', authoringState: 'DRAFT', version: 2, invoiceNumber: null, issueDate: null, dueDate: null, issuedAt: null, totals: null }))
+    receivableResponse = () => json(200, NOTE_RECEIVABLE)
+    renderInvoice()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Issue credit note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this credit note?' })
+    expect(within(dialog).queryByText('Due date')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue credit note' }))
+    await waitFor(() => expect(calls()).toContain(`POST /api/v1/invoice-drafts/${ID}/issue`))
+    const issue = fetchMock.mock.calls.find(([url]) => String(url) === `/api/v1/invoice-drafts/${ID}/issue`)
+    const today = muscatToday()
+    expect(JSON.parse((issue?.[1] as RequestInit).body as string)).toEqual({ expectedVersion: 2, issueDate: today, dueDate: today })
   })
 })
 

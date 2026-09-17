@@ -309,7 +309,7 @@ function NoteEditor({ kind, invoice, receivable, draft }: { kind: NoteKind } & L
           version={saved.version}
           initialIssueDate={today}
           initialDueDate={dueDateFor(today, invoice.details?.paymentTerms?.code)}
-          noDueDate={kind === 'CREDIT_NOTE'}
+          kind={kind}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => navigate(`${base}/${issued.id}`, { replace: true })}
         />

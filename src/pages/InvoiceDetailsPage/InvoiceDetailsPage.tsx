@@ -198,6 +198,7 @@ function InvoiceScreen() {
 
   const data = invoice.read.data
   const draft = isDraft(data)
+  const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
   const owed = receivable.read.status === 'ready' ? receivable.read.data : null
   const status = statusOf(data, owed)
   const totals = lineTotals(data)
@@ -217,7 +218,7 @@ function InvoiceScreen() {
       await cancelInvoice(id, data.version, text)
       setCancelling(false)
       setReason('')
-      setNotice({ key: 'invoiceDetails.done.cancelled' })
+      setNotice({ key: noteType ? `salesNote.detail.cancelled.${noteType}` : 'invoiceDetails.done.cancelled' })
       invoice.retry()
       history.retry()
     } catch (error) {
@@ -311,7 +312,7 @@ function InvoiceScreen() {
                 onClick={() => setIssuing(true)}
                 className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
               >
-                {t('invoiceIssue.action')}
+                {t(noteType === 'CREDIT_NOTE' ? 'invoiceIssue.creditNote.submit' : noteType === 'DEBIT_NOTE' ? 'invoiceIssue.debitNote.submit' : 'invoiceIssue.action')}
               </button>
             ) : null}
             {!draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED' && can(session, 'creditnote.create') ? (
@@ -331,7 +332,7 @@ function InvoiceScreen() {
                 onClick={() => setCancelling(true)}
                 className="inline-flex h-[46px] items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100"
               >
-                {t('invoiceDetails.actions.cancel')}
+                {noteType ? t(`salesNote.detail.cancelAction.${noteType}`) : t('invoiceDetails.actions.cancel')}
               </button>
             ) : null}
           </div>
@@ -397,7 +398,9 @@ function InvoiceScreen() {
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <p className="text-sm font-medium text-[#727579]">{t('invoiceDetails.invoiceTotal')}</p>
+              <p className="text-sm font-medium text-[#727579]">
+                {noteType ? t(`salesNote.detail.documentTotal.${noteType}`) : t('invoiceDetails.invoiceTotal')}
+              </p>
               <OmAmount size="sm" amount={money(owed.documentTotal)} className="mt-1" amountClassName="text-xl font-semibold text-text-primary" />
             </div>
             <div>
@@ -442,7 +445,8 @@ function InvoiceScreen() {
         <div className="flex flex-col gap-6">
           <div className="flex flex-wrap gap-6 lg:gap-20">
             <MetaField label={t('invoiceDetails.fields.issueDate')} value={day(data.issueDate)} />
-            <MetaField label={t('invoiceDetails.fields.dueDate')} value={day(data.dueDate)} />
+            {/* A credit note is not collected: its due date is only the issue date the API requires. */}
+            {data.type === 'CREDIT_NOTE' ? null : <MetaField label={t('invoiceDetails.fields.dueDate')} value={day(data.dueDate)} />}
             <MetaField label={t('invoiceDetails.fields.deliveryDate')} value={day(data.details?.deliveryDate ?? null)} />
           </div>
           <div className="flex flex-wrap gap-6 lg:gap-20">
@@ -523,7 +527,7 @@ function InvoiceScreen() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-sm font-medium text-text-primary">
-              {t('invoiceDetails.notes.customer')} <span className="text-text-quaternary">{t('invoiceDetails.notes.onInvoice')}</span>
+              {t('invoiceDetails.notes.customer')} <span className="text-text-quaternary">{noteType ? t('salesNote.detail.onNote') : t('invoiceDetails.notes.onInvoice')}</span>
             </p>
             <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{data.details?.customerVisibleNote ?? '—'}</p>
           </div>
@@ -572,14 +576,17 @@ function InvoiceScreen() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm font-medium text-text-quaternary">{t('invoiceDetails.attachments.none')}</p>
+          <p className="text-sm font-medium text-text-quaternary">
+            {noteType ? t('salesNote.detail.attachmentsNone') : t('invoiceDetails.attachments.none')}
+          </p>
         )}
         <p className="mt-3 text-xs font-medium leading-[1.4] text-text-quaternary">
-          {t(draft ? 'invoiceDetails.attachments.draftNote' : 'invoiceDetails.attachments.issuedNote')}
+          {t(draft ? 'invoiceDetails.attachments.draftNote' : noteType ? 'salesNote.detail.attachmentsIssued' : 'invoiceDetails.attachments.issuedNote')}
         </p>
       </SectionCard>
 
-      {!draft ? (
+      {/* Nothing is paid on a credit note; it lowers the invoice's balance instead. */}
+      {!draft && data.type !== 'CREDIT_NOTE' ? (
         <SectionCard
           title={t('invoiceDetails.payments.title')}
           action={
@@ -696,7 +703,7 @@ function InvoiceScreen() {
           version={data.version}
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(muscatToday(), data.details?.paymentTerms?.code)}
-          noDueDate={data.type === 'CREDIT_NOTE'}
+          kind={noteType ?? 'INVOICE'}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)
@@ -757,7 +764,7 @@ function InvoiceScreen() {
           setCancelling(false)
           setReason('')
         }}
-        title={t('invoiceDetails.cancel.title')}
+        title={noteType ? t(`salesNote.detail.cancelTitle.${noteType}`) : t('invoiceDetails.cancel.title')}
         footer={
           <div className="flex justify-end gap-3">
             <button
@@ -776,12 +783,12 @@ function InvoiceScreen() {
               disabled={busy || reason.trim() === ''}
               className="inline-flex h-[46px] items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {t('invoiceDetails.cancel.confirm')}
+              {noteType ? t(`salesNote.detail.cancelConfirm.${noteType}`) : t('invoiceDetails.cancel.confirm')}
             </button>
           </div>
         }
       >
-        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t('invoiceDetails.cancel.body')}</p>
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{noteType ? t(`salesNote.detail.cancelBody.${noteType}`) : t('invoiceDetails.cancel.body')}</p>
         <label className="mt-4 block">
           <span className="text-sm font-semibold text-text-secondary">{t('invoiceDetails.cancel.reason')}</span>
           <textarea
