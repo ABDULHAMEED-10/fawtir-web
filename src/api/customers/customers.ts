@@ -135,3 +135,101 @@ export async function exportCustomers(query: Pick<CustomerListQuery, 'type' | 's
   )
   return { ...file, truncated: file.headers.get('X-Fawtir-Export-Truncated') === 'true' }
 }
+
+export type CustomerAddressDto = {
+  attention: string | null
+  countryCode: string | null
+  cityName: string | null
+  countrySubentity: string | null
+  streetName: string | null
+  buildingNumber: string | null
+  additionalStreetName: string | null
+  poBox: string | null
+  postalCode: string | null
+  addressLine3?: string | null
+  countrySubentityCode?: string | null
+}
+
+export type CustomerLogoDto = { objectReference: string; contentType: string; byteSize: number; sha256: string }
+
+export type CustomerDetailsDto = {
+  firstName: string | null
+  lastName: string | null
+  legalRegisteredName: string | null
+  entityMinistryName: string | null
+  vatRegistrationNumber: string | null
+  registeredForVat: boolean | null
+  entityMinistryCode: string | null
+  defaultBuyerReference: string | null
+  defaultPurchaseOrderNumber: string | null
+  defaultContractTenderReference: string | null
+  peppolParticipantId: { scheme: string; value: string } | null
+  registeredOnPeppol: boolean | null
+  specialZoneLicenceNumber?: string | null
+}
+
+export type CustomerContactDto = {
+  contactPerson: string | null
+  roleTitle: string | null
+  emailRecipients: string[]
+  telephone: string | null
+  mobilePhone: string | null
+  preferredLanguage: 'en' | 'ar' | null
+}
+
+export type CustomerBillingDefaultsDto = {
+  defaultCurrency: string | null
+  defaultTaxCategory: string | null
+  paymentTerms: string | null
+  defaultPaymentMethod: string | null
+}
+
+export type CustomerDeliveryPreferencesDto = {
+  sendingMethod: CustomerSendingMethod
+  emailPdfCopy: boolean
+  automaticPaymentReminders: boolean
+}
+
+/** `CustomerProfile`, whole: what an edit reads and must send back. */
+export type CustomerProfileDto = {
+  logo: CustomerLogoDto | null
+  details: CustomerDetailsDto
+  contact: CustomerContactDto
+  billingDefaults: CustomerBillingDefaultsDto
+  deliveryPreferences: CustomerDeliveryPreferencesDto
+  invoiceAddress: CustomerAddressDto | null
+  sameAsInvoicingAddress: boolean
+  deliveryAddress: CustomerAddressDto | null
+  customerVisibleNote: string | null
+}
+
+/** `Customer` with its whole profile, as `GET /customers/{id}` and the writes answer. */
+export type CustomerRecordDto = Omit<CustomerDto, 'profile'> & { profile: CustomerProfileDto; version: number }
+
+/**
+ * `CreateCustomerRequest` / `UpdateCustomerRequest`. The request is flat — no `profile` wrapper —
+ * and an update replaces the record, so it carries the logo and anything the form does not draw.
+ */
+export type CustomerRequestDto = Omit<CustomerProfileDto, never> & { type: CustomerTypeDto; expectedVersion?: number }
+
+/** `customer.manage`. The key is the form's, so a second click or a retry adds one customer. */
+export function createCustomer(idempotencyKey: string, body: CustomerRequestDto): Promise<CustomerRecordDto> {
+  return apiRequest<CustomerRecordDto>(CUSTOMERS_PATH, {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+export function loadCustomerRecord(customerId: string): Promise<CustomerRecordDto> {
+  return apiRequest<CustomerRecordDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`)
+}
+
+/** `customer.manage`. `expectedVersion` is the one the form was loaded at; a newer one is a 409. */
+export function updateCustomer(customerId: string, body: CustomerRequestDto & { expectedVersion: number }): Promise<CustomerRecordDto> {
+  return apiRequest<CustomerRecordDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`, { method: 'PUT', body })
+}
+
+export function newCustomerKey(): string {
+  return `customer-${crypto.randomUUID()}`
+}
