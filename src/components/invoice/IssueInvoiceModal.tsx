@@ -24,7 +24,7 @@ export function IssueInvoiceModal({
   version,
   initialIssueDate,
   initialDueDate,
-  noDueDate = false,
+  kind = 'INVOICE',
   onClose,
   onIssued,
 }: {
@@ -33,15 +33,18 @@ export function IssueInvoiceModal({
   initialIssueDate: string
   initialDueDate: string
   /**
-   * A credit note is not collected, so it asks for no due date. The API still requires one (SRS
-   * v1.1 Ch15 lists IBT-009 as mandatory; Zain, 2026-09-17), so the issue date is sent as it.
+   * What is being issued. A credit note is not collected, so it asks for no due date. The API still
+   * requires one (SRS v1.1 Ch15 lists IBT-009 as mandatory; Zain, 2026-09-17), so the issue date is
+   * sent as it.
    */
-  noDueDate?: boolean
+  kind?: 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE'
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
   const { t, i18n } = useTranslation()
   const today = muscatToday()
+  const noDueDate = kind === 'CREDIT_NOTE'
+  const copy = kind === 'CREDIT_NOTE' ? 'invoiceIssue.creditNote' : kind === 'DEBIT_NOTE' ? 'invoiceIssue.debitNote' : 'invoiceIssue'
   const [form, setForm] = useState<IssueForm>({ issueDate: initialIssueDate, dueDate: initialDueDate })
   const [key, setKey] = useState(newIdempotencyKey)
   const [errors, setErrors] = useState<Partial<Record<IssueField, string>>>({})
@@ -117,9 +120,9 @@ export function IssueInvoiceModal({
       open
       width={560}
       onClose={onClose}
-      title={t('invoiceIssue.title')}
-      subtitle={t('invoiceIssue.subtitle')}
-      footer={<ModalFooter formId={FORM_ID} onCancel={onClose} submitLabel={busy ? t('invoiceIssue.issuing') : t('invoiceIssue.submit')} disabled={busy} />}
+      title={t(`${copy}.title`)}
+      subtitle={t(`${copy}.subtitle`)}
+      footer={<ModalFooter formId={FORM_ID} onCancel={onClose} submitLabel={busy ? t('invoiceIssue.issuing') : t(`${copy}.submit`)} disabled={busy} />}
     >
       <form id={FORM_ID} noValidate onSubmit={submit} className="flex flex-col gap-4">
         {failure ? <Notice body={failure} /> : null}
@@ -155,7 +158,7 @@ export function IssueInvoiceModal({
           )}
         </div>
 
-        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t('invoiceIssue.body')}</p>
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t(`${copy}.body`)}</p>
         <p className="text-sm font-semibold leading-[1.5] text-text-primary">{t('invoiceIssue.notSent')}</p>
       </form>
     </Modal>

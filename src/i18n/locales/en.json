@@ -1800,7 +1800,7 @@
     "delete": "Delete",
     "items": "Items",
     "actions": {
-      "creditNote": "Credit Note",
+      "creditNote": "Credit note",
       "edit": "Edit draft",
       "cancel": "Cancel invoice"
     },
@@ -13367,6 +13367,18 @@
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
       "unavailable": "Issuing isn't available on this server yet."
+    },
+    "creditNote": {
+      "title": "Issue this credit note?",
+      "subtitle": "Check the date and the total before it takes its number.",
+      "body": "Issuing gives the credit note its number and fixes its figures, and lowers what the invoice is owed. After that it can't be edited.",
+      "submit": "Issue credit note"
+    },
+    "debitNote": {
+      "title": "Issue this debit note?",
+      "subtitle": "Check the dates and the total before it takes its number.",
+      "body": "Issuing gives the debit note its number and fixes its figures. The customer then owes it by its own due date. After that it can't be edited.",
+      "submit": "Issue debit note"
     }
   },
   "supplierForm": {
@@ -13917,6 +13929,35 @@
       "nav": "Pages",
       "previous": "Previous page",
       "next": "Next page"
+    },
+    "detail": {
+      "cancelAction": {
+        "CREDIT_NOTE": "Cancel credit note",
+        "DEBIT_NOTE": "Cancel debit note"
+      },
+      "cancelTitle": {
+        "CREDIT_NOTE": "Cancel this credit note?",
+        "DEBIT_NOTE": "Cancel this debit note?"
+      },
+      "cancelBody": {
+        "CREDIT_NOTE": "Cancelling records the reason against the credit note. It does not tell the customer, and a note that was already delivered can't be cancelled.",
+        "DEBIT_NOTE": "Cancelling records the reason against the debit note. It does not tell the customer, and a note that was already delivered can't be cancelled."
+      },
+      "cancelConfirm": {
+        "CREDIT_NOTE": "Cancel the credit note",
+        "DEBIT_NOTE": "Cancel the debit note"
+      },
+      "documentTotal": {
+        "CREDIT_NOTE": "Credit note total",
+        "DEBIT_NOTE": "Debit note total"
+      },
+      "onNote": "on the note",
+      "attachmentsNone": "No files are kept with this note.",
+      "attachmentsIssued": "Files can only be added or removed while a note is a draft.",
+      "cancelled": {
+        "CREDIT_NOTE": "The credit note is cancelled.",
+        "DEBIT_NOTE": "The debit note is cancelled."
+      }
     }
   }
 }
