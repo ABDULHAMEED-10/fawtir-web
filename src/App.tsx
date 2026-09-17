@@ -288,6 +288,7 @@ function App() {
           <Route path="/trade-documents/delivery-notes/new" element={<NewDeliveryNotePage />} />
           <Route path="/trade-documents/delivery-notes/:id" element={<DeliveryNoteDetailPage />} />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
+          <Route path="/income/debit-notes/:id/edit" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
           <Route path="/income/self-billing" element={<SelfBillingPage />} />
           <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
@@ -331,6 +332,7 @@ function App() {
           <Route path="/income/periodic/:id/edit" element={<PeriodicInvoicePage mode="edit" />} />
           <Route path="/income/credit-notes" element={<CreditNotesPage />} />
           <Route path="/income/credit-notes/new" element={<NewCreditNotePage />} />
+          <Route path="/income/credit-notes/:id/edit" element={<NewCreditNotePage />} />
           <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/new" element={<NewCustomerPage />} />

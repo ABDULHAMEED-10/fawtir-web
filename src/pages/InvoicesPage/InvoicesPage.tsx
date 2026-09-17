@@ -46,6 +46,7 @@ import {
   type PaymentChip,
   type PeriodId,
 } from '../../lib/invoiceList'
+import { NOTE_ROUTES } from '../../lib/salesNote'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
@@ -554,7 +555,13 @@ function InvoiceTable({
   const menuFor = (row: InvoiceListItem): ActionMenuItem[] =>
     row.isDraft && canDraft
       ? [
-          { id: 'edit', labelKey: 'invoicesPage.rowAction.edit', icon: editIcon, to: `/invoices/${row.id}/edit` },
+          {
+            id: 'edit',
+            labelKey: 'invoicesPage.rowAction.edit',
+            icon: editIcon,
+            // A note draft carries a reason code the invoice composer does not edit; saving it there would drop it.
+            to: row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE' ? `${NOTE_ROUTES[row.type]}/${row.id}/edit` : `/invoices/${row.id}/edit`,
+          },
           {
             id: 'discard',
             labelKey: 'invoicesPage.rowAction.discard',

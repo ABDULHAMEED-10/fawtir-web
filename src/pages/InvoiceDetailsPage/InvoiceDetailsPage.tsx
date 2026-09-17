@@ -25,6 +25,9 @@ import {
   type InvoiceReceivableDto,
 } from '../../api/invoices/detail'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
+import type { Page } from '../../api'
+import { NOTE_ROUTES } from '../../lib/salesNote'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { RecordPaymentModal } from './RecordPaymentModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
@@ -156,6 +159,13 @@ function InvoiceScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? '/v1/branches' : null, loadBranches)
+  // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
+  // reader sees why its balance moved and can open each note.
+  const notesPath =
+    document && document.type === 'INVOICE' && document.authoringState !== 'DRAFT' && document.authoringState !== 'DISCARDED'
+      ? invoiceListPath({ state: null, payment: null, type: null, from: null, to: null, search: '', correctionOf: id, sort: 'ISSUED_NEWEST', page: 0, size: 50 })
+      : null
+  const notes = useApiRead<Page<InvoiceRowDto>>(notesPath, () => loadInvoicePage(notesPath!))
 
   // Arriving from the composer's issue: the number it was given, said once.
   const issuedNumber = (location.state as { issuedNumber?: string | null } | null)?.issuedNumber
@@ -266,7 +276,7 @@ function InvoiceScreen() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <Breadcrumb />
+      <Breadcrumb type={data.type} />
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
@@ -287,7 +297,10 @@ function InvoiceScreen() {
 
           <div className="ms-auto flex flex-wrap items-center gap-3">
             {draft && can(session, 'invoice.draft') ? (
-              <Link to={`/invoices/${data.id}/edit`} className={GHOST_BUTTON}>
+              <Link
+                to={data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? `${NOTE_ROUTES[data.type]}/${data.id}/edit` : `/invoices/${data.id}/edit`}
+                className={GHOST_BUTTON}
+              >
                 <img src={editIcon} alt="" className="size-5" />
                 {t('invoiceDetails.actions.edit')}
               </Link>
@@ -305,6 +318,11 @@ function InvoiceScreen() {
               <button type="button" onClick={() => navigate(`/income/credit-notes/new?invoice=${data.id}`)} className={GHOST_BUTTON}>
                 <img src={creditNoteIcon} alt="" className="size-5" />
                 {t('invoiceDetails.actions.creditNote')}
+              </button>
+            ) : null}
+            {!draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED' && can(session, 'debitnote.create') ? (
+              <button type="button" onClick={() => navigate(`/income/debit-notes/new?invoice=${data.id}`)} className={GHOST_BUTTON}>
+                {t('salesNote.debit.action')}
               </button>
             ) : null}
             {data.authoringState === 'ISSUED' && can(session, 'invoice.cancel') ? (
@@ -616,6 +634,31 @@ function InvoiceScreen() {
         </SectionCard>
       ) : null}
 
+      {notes.read.status === 'ready' && notes.read.data.items.length > 0 ? (
+        <SectionCard title={t('salesNote.onInvoice.title')}>
+          <ul className="flex flex-col">
+            {notes.read.data.items.map((note) => (
+              <li key={note.id} className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3 last:border-0">
+                <Link
+                  to={`${NOTE_ROUTES[note.type === 'DEBIT_NOTE' ? 'DEBIT_NOTE' : 'CREDIT_NOTE']}/${note.id}`}
+                  className="text-sm font-semibold text-primary-700 hover:underline"
+                >
+                  {note.invoiceNumber ?? t('invoiceDetails.draftTitle')}
+                </Link>
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t(`invoicesPage.docType.${note.type}`)}
+                  {note.issueDate ? ` · ${formatDate(note.issueDate, language)}` : ''}
+                  {note.authoringState !== 'ISSUED' ? ` · ${t(`salesNote.state.${note.authoringState}`)}` : ''}
+                </span>
+                <span className="ms-auto text-sm font-semibold text-text-primary tabular-nums">
+                  {note.totals ? `${formatAmount(note.totals.totalAmount, note.currency, language)} ${note.currency}` : '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title={t('invoiceDetails.timeline.title')}>
         {history.read.status === 'ready' ? (
           <ol className="flex flex-col">
@@ -653,6 +696,7 @@ function InvoiceScreen() {
           version={data.version}
           initialIssueDate={muscatToday()}
           initialDueDate={dueDateFor(muscatToday(), data.details?.paymentTerms?.code)}
+          noDueDate={data.type === 'CREDIT_NOTE'}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
             setIssuing(false)
@@ -753,16 +797,17 @@ function InvoiceScreen() {
   )
 }
 
-function Breadcrumb() {
+function Breadcrumb({ type }: { type?: InvoiceDetailDto['type'] }) {
   const { t } = useTranslation()
+  const note = type === 'CREDIT_NOTE' || type === 'DEBIT_NOTE' ? type : null
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Link to="/invoices" className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary">
         {t('invoiceDetails.breadcrumbIncome')}
         <img src={backIcon} alt="" className="size-6 rotate-180" />
       </Link>
-      <Link to="/invoices" className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary">
-        {t('invoiceDetails.breadcrumbInvoices')}
+      <Link to={note ? NOTE_ROUTES[note] : '/invoices'} className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary">
+        {note ? t(note === 'CREDIT_NOTE' ? 'salesNote.credit.list' : 'salesNote.debit.list') : t('invoiceDetails.breadcrumbInvoices')}
       </Link>
     </div>
   )
