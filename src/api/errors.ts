@@ -6,6 +6,8 @@
 export type ProblemFieldError = {
   field: string
   message: string
+  /** The rule a customer or supplier field broke (`REQUIRED`, `INVALID_FORMAT`, …), when the server names one. */
+  code?: string
 }
 
 /**
@@ -77,8 +79,9 @@ function fieldErrorsOf(errors: unknown): ProblemFieldError[] {
   if (!Array.isArray(errors)) return []
   return errors.flatMap((entry: unknown) => {
     if (typeof entry !== 'object' || entry === null) return []
-    const { field, message } = entry as Record<string, unknown>
-    return typeof field === 'string' && typeof message === 'string' ? [{ field, message }] : []
+    const { field, message, code } = entry as Record<string, unknown>
+    if (typeof field !== 'string' || typeof message !== 'string') return []
+    return typeof code === 'string' ? [{ field, message, code }] : [{ field, message }]
   })
 }
 

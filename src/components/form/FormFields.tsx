@@ -71,6 +71,10 @@ export function TextField({
   hint,
   defaultValue,
   error,
+  value,
+  onChange,
+  inputMode,
+  maxLength,
 }: {
   id: string
   name: string
@@ -82,7 +86,13 @@ export function TextField({
   defaultValue?: string
   /** Already-translated message; replaces the hint while it is present. */
   error?: string
+  /** Controlled use: pass both. */
+  value?: string
+  onChange?: (next: string) => void
+  inputMode?: 'text' | 'decimal' | 'numeric' | 'email'
+  maxLength?: number
 }) {
+  const filled = value !== undefined ? value !== '' : Boolean(defaultValue)
   return (
     <div className="flex flex-col gap-1">
       <FieldLabel label={label} required={required} htmlFor={id} />
@@ -92,11 +102,13 @@ export function TextField({
         type={type}
         required={required}
         placeholder={placeholder}
-        defaultValue={defaultValue}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })}
         aria-invalid={error ? true : undefined}
         className={[
           FIELD_BASE,
-          defaultValue ? FIELD_FILLED : FIELD_EMPTY,
+          filled ? FIELD_FILLED : FIELD_EMPTY,
           error ? 'ring-1 ring-border-danger' : '',
         ]
           .filter(Boolean)
@@ -121,6 +133,10 @@ export function TextAreaField({
   rows = 3,
   /** Tailwind min-height class — Figma draws the email box at 85px. */
   minHeightClass = 'min-h-[85px]',
+  value,
+  onChange,
+  error,
+  maxLength,
 }: {
   id: string
   name: string
@@ -128,6 +144,12 @@ export function TextAreaField({
   placeholder?: string
   rows?: number
   minHeightClass?: string
+  /** Controlled use: pass both. */
+  value?: string
+  onChange?: (next: string) => void
+  /** Already-translated message. */
+  error?: string
+  maxLength?: number
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -137,11 +159,20 @@ export function TextAreaField({
         name={name}
         rows={rows}
         placeholder={placeholder}
+        maxLength={maxLength}
+        {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : {})}
+        aria-invalid={error ? true : undefined}
         className={[
-          'w-full resize-y rounded-sm border border-border-default bg-surface-tab-bar p-4 text-sm font-medium text-text-secondary outline-none transition-colors placeholder:text-text-placeholder focus:border-primary-700',
+          'w-full resize-y rounded-sm border bg-surface-tab-bar p-4 text-sm font-medium text-text-secondary outline-none transition-colors placeholder:text-text-placeholder focus:border-primary-700',
+          error ? 'border-border-danger' : 'border-border-default',
           minHeightClass,
         ].join(' ')}
       />
+      {error ? (
+        <p className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -154,14 +185,24 @@ export function SelectField({
   options,
   required,
   hint,
+  value,
+  onChange,
+  error,
 }: {
   id: string
   name: string
   label: string
-  options: string[]
+  /** Plain strings are their own value; pairs carry a code behind a label. */
+  options: string[] | { value: string; label: string }[]
   required?: boolean
   hint?: string
+  /** Controlled use: pass both. */
+  value?: string
+  onChange?: (next: string) => void
+  /** Already-translated message. */
+  error?: string
 }) {
+  const pairs = options.map((option) => (typeof option === 'string' ? { value: option, label: option } : option))
   return (
     <div className="flex flex-col gap-1">
       <FieldLabel label={label} required={required} htmlFor={id} />
@@ -170,11 +211,13 @@ export function SelectField({
           id={id}
           name={name}
           required={required}
-          className={[FIELD_BASE, FIELD_FILLED, 'appearance-none pe-12'].join(' ')}
+          {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : {})}
+          aria-invalid={error ? true : undefined}
+          className={[FIELD_BASE, FIELD_FILLED, 'appearance-none pe-12', error ? 'ring-1 ring-border-danger' : ''].join(' ')}
         >
-          {options.map((option) => (
-            <option key={option} value={option}>
-              {option}
+          {pairs.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
             </option>
           ))}
         </select>
@@ -185,7 +228,11 @@ export function SelectField({
           className="pointer-events-none absolute end-4 top-1/2 size-6 -translate-y-1/2 rotate-90 opacity-70"
         />
       </div>
-      {hint ? (
+      {error ? (
+        <p className="text-xs font-medium leading-[1.2] text-text-danger" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
         <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{hint}</p>
       ) : null}
     </div>
@@ -199,6 +246,8 @@ export function PhoneField({
   label,
   placeholder = '9XXX XXXX',
   error,
+  value,
+  onChange,
 }: {
   id: string
   name: string
@@ -206,6 +255,9 @@ export function PhoneField({
   placeholder?: string
   /** Already-translated message. */
   error?: string
+  /** Controlled use: pass both. The +968 the field draws is not part of the value. */
+  value?: string
+  onChange?: (next: string) => void
 }) {
   return (
     <div className="flex flex-col gap-1">
@@ -229,6 +281,7 @@ export function PhoneField({
           type="tel"
           inputMode="tel"
           placeholder={placeholder}
+          {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : {})}
           aria-invalid={error ? true : undefined}
           className="h-full w-full min-w-0 border-0 bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder"
         />
