@@ -83,10 +83,21 @@ export function documentMeta(entry: SupplierDocumentDto): Note {
 }
 
 export function fileSize(bytes: number, language: string): string {
-  const format = (value: number) => new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(value)
-  if (bytes < 1024) return `${format(bytes)} B`
-  if (bytes < 1024 * 1024) return `${format(bytes / 1024)} KB`
-  return `${format(bytes / (1024 * 1024))} MB`
+  const format = (value: number, unit: 'byte' | 'kilobyte' | 'megabyte') =>
+    new Intl.NumberFormat(language, { style: 'unit', unit, unitDisplay: 'short', maximumFractionDigits: 1 }).format(value)
+  if (bytes < 1024) return format(bytes, 'byte')
+  if (bytes < 1024 * 1024) return format(bytes / 1024, 'kilobyte')
+  return format(bytes / (1024 * 1024), 'megabyte')
+}
+
+/**
+ * Whether the server would let the paper go: not frozen, and past its Art. 70 retention date
+ * (`RetentionPolicy.assertRemovable` refuses on or before `retainUntil`).
+ */
+export function documentRemovable(entry: SupplierDocumentDto, today: string): boolean {
+  const d = entry.document
+  if (d.legalHold.held) return false
+  return d.retainUntil === null || d.retainUntil < today
 }
 
 /** The current calendar year to date, the window a statement defaults to. */
