@@ -21,7 +21,7 @@ import { BillsPage } from './pages/BillsPage'
 import { BillDetailPage } from './pages/BillDetailPage'
 import { UploadBillPage } from './pages/UploadBillPage'
 import { ScanReceiptsPage } from './pages/ScanReceiptsPage'
-import { PaymentRunPage } from './pages/PaymentRunPage'
+import { PaymentRunPage, PaymentRunsListPage } from './pages/PaymentRunPage'
 import { RecurringBillsPage } from './pages/RecurringBillsPage'
 import { NewRecurringBillPage } from './pages/NewRecurringBillPage'
 import { RecurringBillDetailPage } from './pages/RecurringBillDetailPage'
@@ -202,7 +202,9 @@ function App() {
           <Route path="/expenditure/bills" element={<BillsPage />} />
           <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
-          <Route path="/expenditure/payments" element={<PaymentRunPage />} />
+          <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
+          <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
+          <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
           <Route path="/expenditure/recurring-bills" element={<RecurringBillsPage />} />
           <Route path="/expenditure/recurring-bills/new" element={<NewRecurringBillPage />} />
           <Route path="/expenditure/recurring-bills/:id" element={<RecurringBillDetailPage />} />

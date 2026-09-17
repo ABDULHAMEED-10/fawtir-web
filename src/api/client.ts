@@ -70,12 +70,13 @@ export type ApiDownload = {
 }
 
 /**
- * A GET for a file (an export, a PDF): resolves with its bytes and name. Failures reject exactly as
+ * A file (an export, a PDF): resolves with its bytes and name. Usually a GET; a POST when making
+ * the file changes state, as a payment run's bank file does. Failures reject exactly as
  * {@link apiRequest} does, because a refused export answers with a problem document, not a file.
  */
 export async function apiDownload(
   path: string,
-  options: Pick<ApiRequestOptions, 'signal' | 'timeoutMs'> = {},
+  options: Pick<ApiRequestOptions, 'signal' | 'timeoutMs' | 'method'> = {},
 ): Promise<ApiDownload> {
   return send(path, options, '*/*', async (response) => {
     if (!response.ok) throw toApiError(response, await readBody(response))
