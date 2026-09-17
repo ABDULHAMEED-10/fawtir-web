@@ -201,7 +201,7 @@ describe('a supplier, opened', () => {
     expect(screen.getByText('The bank details changed and nobody has confirmed them with the supplier yet.')).toBeTruthy()
     // Tab counts come from the overview.
     expect(screen.getByRole('tab', { name: /Bills\s*23/ })).toBeTruthy()
-    // Nothing unbacked: no payment run, no "added by".
+    // Nothing unbacked: no "pay them" shortcut, no "added by". Adding to a run needs invoice.payment.manage.
     expect(screen.queryByText('Add to a payment run')).toBeNull()
     expect(screen.queryByText('Pay them')).toBeNull()
     expect(screen.queryByText('Added by')).toBeNull()

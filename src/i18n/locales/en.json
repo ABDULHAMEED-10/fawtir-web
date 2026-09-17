@@ -13595,5 +13595,121 @@
     },
     "unnumbered": "No number",
     "vat": "VAT {{vat}}"
+  },
+  "paymentRuns": {
+    "title": "Payments",
+    "subtitle": "Payment runs group approved bills into one bank file per run.",
+    "newRun": "New payment run",
+    "all": "All",
+    "none": "No payment runs yet.",
+    "noneInState": "No runs in this state.",
+    "state": {
+      "DRAFT": "Draft",
+      "SCHEDULED": "Scheduled",
+      "EXPORTED": "Sent to bank",
+      "PAID": "Paid",
+      "CANCELLED": "Cancelled"
+    },
+    "col": {
+      "run": "Run",
+      "state": "State",
+      "supplier": "Supplier",
+      "bill": "Bill",
+      "due": "Due",
+      "owed": "Owed",
+      "paying": "Paying"
+    },
+    "runTitle": "Payment run {{reference}}",
+    "newNote": "Tick the bills to pay. The run is saved as a draft as soon as the first bill is ticked.",
+    "stateNote": {
+      "DRAFT": "A draft. Give it a payment date to schedule it.",
+      "SCHEDULED": "Scheduled for {{date}}. Make the bank file when the run is ready.",
+      "EXPORTED": "The bank file was made. Mark the run paid once the bank has paid it.",
+      "PAID": "Paid on {{date}}. Each bill's payment is recorded.",
+      "CANCELLED": "Cancelled. Its bills are free for another run."
+    },
+    "reviewBills": "Review the bills",
+    "cancel": "Cancel the run",
+    "makeFile": "Make the bank file",
+    "downloadAgain": "Download the file again",
+    "markPaid": "Mark as paid",
+    "readyOnly": "approved bills that can be paid",
+    "allSuppliers": "All suppliers",
+    "noSupplier": "Supplier not on your list",
+    "unnumbered": "No bill number",
+    "tickDueBy": "Tick everything due by",
+    "tickNote": "are in this run. Ticking a bill adds it to the run straight away; unticking takes it out.",
+    "nothingToPay": "No approved bills are waiting to be paid.",
+    "discountNote": "{{amount}} {{currency}} early-payment discount",
+    "due": {
+      "none": "No due date",
+      "today": "Due today",
+      "inDays_one": "Due in {{count}} day",
+      "inDays_other": "Due in {{count}} days",
+      "late_one": "{{count}} day late",
+      "late_other": "{{count}} days late"
+    },
+    "blocked": {
+      "count_one": "{{count}} bill can't be paid yet",
+      "count_other": "{{count}} bills can't be paid yet",
+      "onHold": "On hold",
+      "mismatch": "Doesn't match its order",
+      "rejected": "Rejected",
+      "awaiting": "{{given}} of {{required}} approvals",
+      "open": "Open the bill"
+    },
+    "dateNote": "Changing the date re-works any early-payment discount.",
+    "noAccount": "Not chosen",
+    "painNeedsAccount": "An ISO 20022 file needs the account you pay from.",
+    "account": {
+      "add": "+ Add a bank account",
+      "askAdmin": "An administrator adds the accounts you pay from.",
+      "title": "Add a bank account",
+      "subtitle": "The account payments leave from. It is named in the bank file.",
+      "name": "Account name",
+      "iban": "IBAN",
+      "bic": "BIC / SWIFT",
+      "save": "Add the account",
+      "ibanInvalid": "That IBAN isn't valid. Check it for a typo.",
+      "bicInvalid": "A BIC is 8 or 11 letters and digits.",
+      "nameInvalid": "Give the account a name of up to 140 characters."
+    },
+    "confirmPaid": {
+      "title": "Mark {{reference}} as paid?",
+      "body": "This records {{amount}} as paid against each bill in the run. Do it once the bank has made the transfers."
+    },
+    "confirmCancel": {
+      "title": "Cancel {{reference}}?",
+      "body": "The run is cancelled and its bills can go into another run."
+    },
+    "billsInRun": "Bills in this run",
+    "takeOut": "Take out",
+    "refused": {
+      "notReady": "That bill hasn't cleared approval yet.",
+      "onHold": "That bill is on hold. Release it before paying.",
+      "mismatched": "That bill doesn't match its order.",
+      "currency": "That bill is in another currency than the run.",
+      "settled": "Nothing is owed on that bill any more.",
+      "notPayable": "A credit note reduces what is owed; it isn't paid itself.",
+      "alreadyScheduled": "That bill is already in another payment run.",
+      "bankDetailsMissing": "A supplier in this run has no IBAN. Add their bank details, or choose the printed list.",
+      "notEditable": "This run can no longer be changed.",
+      "transition": "The run can't do that in its current state.",
+      "concurrent": "Someone else changed this run. Reload it and try again.",
+      "dateRequired": "Set a payment date first.",
+      "formatRequired": "Choose how to send it to the bank first.",
+      "empty": "Tick at least one bill first.",
+      "payerRequired": "Choose the account you pay from first.",
+      "payerInactive": "That account is switched off. Choose another."
+    },
+    "addModal": {
+      "open": "Add to a payment run",
+      "none": "No approved bills from this supplier are waiting to be paid.",
+      "due": "Due {{date}}",
+      "existing": "{{reference}} · {{state}}",
+      "newRun": "Start a new run",
+      "total": "Paying {{amount}}",
+      "submit": "Add to the run"
+    }
   }
 }

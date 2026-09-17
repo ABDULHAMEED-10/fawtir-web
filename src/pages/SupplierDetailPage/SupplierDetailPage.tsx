@@ -44,6 +44,7 @@ import {
   type DetailTabId,
   type Note,
 } from '../../lib/supplierRecord'
+import { AddToPaymentRunModal } from './AddToPaymentRunModal'
 import { BillsTab, DocumentsTab, OrdersTab, PaymentsTab, SupplierContactsModal, SwitchSupplierModal, UploadDocumentModal } from './SupplierRecordParts'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import editIcon from '../../assets/actions/edit.svg'
@@ -87,6 +88,7 @@ function SupplierRecord({ id }: { id: string }) {
   const [switching, setSwitching] = useState(false)
   const [managingContacts, setManagingContacts] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [paying, setPaying] = useState(false)
 
   const supplier = useApiRead<SupplierDetailDto>(supplierPath(id), () => loadSupplier(id))
   const overview = useApiRead<SupplierOverviewDto>(supplierOverviewPath(id), () => loadSupplierOverview(id))
@@ -155,6 +157,15 @@ function SupplierRecord({ id }: { id: string }) {
               <img src={editIcon} alt="" className="size-5" />
               {t('supplierDetail.editSupplier')}
             </Link>
+          ) : null}
+          {can(session, 'invoice.payment.manage') ? (
+            <button
+              type="button"
+              onClick={() => setPaying(true)}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('paymentRuns.addModal.open')}
+            </button>
           ) : null}
           <Link
             to={`/suppliers/${id}/purchase-order`}
@@ -545,6 +556,9 @@ function SupplierRecord({ id }: { id: string }) {
       ) : null}
       {managingContacts ? (
         <SupplierContactsModal supplierId={id} contacts={contacts.read.status === 'ready' ? contacts.read.data : []} onClose={() => setManagingContacts(false)} onChanged={contacts.retry} />
+      ) : null}
+      {paying ? (
+        <AddToPaymentRunModal supplierId={id} supplierName={profile.displayName} currency={profile.defaultCurrency ?? 'OMR'} onClose={() => setPaying(false)} />
       ) : null}
       {uploading ? (
         <UploadDocumentModal
