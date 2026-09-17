@@ -200,6 +200,61 @@ export function downloadSupplierStatement(id: string, format: StatementFormat, f
   return apiDownload(withQuery(`${supplierPath(id)}/statement.${format}`, { from, to }))
 }
 
+export type StatementEntryKind = 'BILL' | 'CREDIT_NOTE' | 'PAYMENT' | 'REVERSAL'
+
+/** `SupplierStatement.Issuer`: the tenant's registered company; any part may be missing. */
+export type StatementIssuerDto = {
+  legalName: string | null
+  legalNameAr: string | null
+  vatNumber: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  addressLine3: string | null
+  city: string | null
+  postalCode: string | null
+  countrySubdivision: string | null
+  country: string | null
+}
+
+/**
+ * `SupplierStatement`. Entry amounts are positive and the kind gives the direction (a bill and a
+ * reversal add, a credit note and a payment take away); `closing` is `opening` plus the entries.
+ * Rejected bills are not on it. `ageing` is what is open today, whatever the period.
+ */
+export type SupplierStatementDto = {
+  supplierId: string
+  currencyCode: string
+  from: string
+  to: string
+  opening: number
+  bills: number
+  credits: number
+  payments: number
+  closing: number
+  entries: { date: string; kind: StatementEntryKind; documentId: string; reference: string | null; amount: number; runningBalance: number }[]
+  ageing: { NOT_DUE: number; DUE_WITHIN_30: number; LATE_30: number; LATE_60_PLUS: number }
+  issuer: StatementIssuerDto | null
+}
+
+export function supplierStatementPath(id: string, from: string, to: string) {
+  return withQuery(`${supplierPath(id)}/statement`, { from, to })
+}
+
+export function loadSupplierStatement(path: string): Promise<SupplierStatementDto> {
+  return apiRequest<SupplierStatementDto>(path)
+}
+
+/**
+ * `supplier.manage`. Mails the statement's PDF to an address already on the supplier's record; the
+ * server refuses any other, a switched-off supplier, and a deployment without e-mail delivery.
+ */
+export function emailSupplierStatement(id: string, from: string, to: string, recipient: string): Promise<{ recipient: string }> {
+  return apiRequest<{ recipient: string }>(withQuery(`${supplierPath(id)}/statement/email`, { from, to }), {
+    method: 'POST',
+    body: { recipient },
+  })
+}
+
 export type PurchaseOrderRowDto = {
   id: string
   number: string | null

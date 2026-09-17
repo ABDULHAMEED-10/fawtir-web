@@ -232,13 +232,22 @@ function SupplierRecord({ id }: { id: string }) {
           wide
           variant="bordered"
           label={t('supplierDetail.statement')}
-          items={(['pdf', 'xlsx', 'csv'] as const).map((format) => ({
-            id: format,
-            labelKey: `supplierRecord.statement.${format}`,
-            descriptionKey: 'supplierRecord.statement.note',
-            icon: menuStatementIcon,
-            onSelect: () => void exportStatement(format),
-          }))}
+          items={[
+            {
+              id: 'open',
+              labelKey: 'supplierRecord.statement.open',
+              descriptionKey: 'supplierRecord.statement.openNote',
+              icon: menuStatementIcon,
+              to: `/suppliers/${id}/statement`,
+            },
+            ...(['pdf', 'xlsx', 'csv'] as const).map((format) => ({
+              id: format,
+              labelKey: `supplierRecord.statement.${format}`,
+              descriptionKey: 'supplierRecord.statement.note',
+              icon: menuStatementIcon,
+              onSelect: () => void exportStatement(format),
+            })),
+          ]}
         />
       </section>
 
