@@ -384,7 +384,7 @@ export function BillIntakeForm({
               {t('billIntake.duplicate.body', {
                 number: duplicate.supplierBillNumber,
                 date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '—',
-                total: duplicate.total === null ? '—' : money(duplicate.total, duplicate.currencyCode ?? form.currency),
+                total: duplicate.total === null ? '—' : `${money(duplicate.total, duplicate.currencyCode ?? form.currency)} ${duplicate.currencyCode ?? form.currency}`,
                 source: t(`billIntake.duplicate.source.${duplicate.source}`),
               })}
             </p>

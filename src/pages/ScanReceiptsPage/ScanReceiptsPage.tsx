@@ -568,7 +568,7 @@ function ReceiptEditor({
               {t('billIntake.duplicate.body', {
                 number: duplicate.supplierBillNumber,
                 date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '—',
-                total: duplicate.total === null ? '—' : formatAmount(duplicate.total, duplicate.currencyCode ?? form.currency, i18n.language),
+                total: duplicate.total === null ? '—' : `${formatAmount(duplicate.total, duplicate.currencyCode ?? form.currency, i18n.language)} ${duplicate.currencyCode ?? form.currency}`,
                 source: t(`billIntake.duplicate.source.${duplicate.source}`),
               })}
             </p>

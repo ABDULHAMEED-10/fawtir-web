@@ -202,7 +202,7 @@ describe('upload a bill', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
     const warning = await screen.findByRole('alert', { name: '' })
     expect(within(warning).getByText(/A bill MR-INV-8821 from this supplier is already recorded/)).toBeTruthy()
-    expect(within(warning).getByText(/received over Peppol/)).toBeTruthy()
+    expect(within(warning).getByText(/105.000 OMR, received over Peppol/)).toBeTruthy()
     expect(within(warning).getByRole('link', { name: 'Open that bill' }).getAttribute('href')).toBe(`/expenditure/bills/${ON_FILE}`)
 
     fireEvent.click(within(warning).getByRole('button', { name: /different bill/ }))
