@@ -13508,6 +13508,7 @@
       "fileTooLarge": "The file is larger than 10 MB.",
       "kindLabel": "Kind",
       "legalHold": "On legal hold",
+      "keptUntil": "Kept until {{date}}",
       "note": "Note",
       "retire": "Remove",
       "retireBody": "It leaves this supplier's papers. A document inside its retention period cannot be removed, and the server will say so.",
