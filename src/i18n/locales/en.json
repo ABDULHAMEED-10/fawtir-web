@@ -6708,9 +6708,26 @@
     "title": "Statement",
     "subtitle": "Everything that has passed between you and this supplier over the period, in the order it happened.",
     "print": "Print",
+    "period": {
+      "year": "This year",
+      "quarter": "This quarter",
+      "month": "This month",
+      "last90": "Last 90 days",
+      "custom": "Custom dates"
+    },
+    "customFrom": "From",
+    "customTo": "To",
+    "apply": "Show the statement",
+    "error": {
+      "datesRequired": "Choose both dates.",
+      "fromAfterTo": "The first date can't be after the second.",
+      "future": "A statement can't run past today."
+    },
     "statementFor": "Statement for",
     "issuedBy": "Issued by",
+    "vat": "VAT {{number}}",
     "prepared": "Prepared {{when}}",
+    "owedBefore": "Owed before {{date}}",
     "owedOn": "Owed on {{date}}",
     "theyBilledYou": "They billed you",
     "youPaid": "You paid",
@@ -6724,37 +6741,46 @@
       "owedAfter": "Owed after"
     },
     "kind": {
-      "bill": "Bill",
-      "credit": "Credit",
-      "payment": "Payment"
+      "BILL": "Bill",
+      "CREDIT_NOTE": "Credit",
+      "PAYMENT": "Payment",
+      "REVERSAL": "Reversal"
     },
-    "entry": {
-      "broughtForward": "Brought forward",
-      "broughtForwardNote": "Owed at the start of the year",
-      "againstMatched": "Against {{po}} · matched in full",
-      "shortDelivery": "Short delivery on {{po}} · 25 KG never arrived",
-      "settled": "Bank transfer · ref {{ref}} · settled {{bill}}",
-      "clearedBroughtForward": "Bank transfer · cleared the brought-forward balance",
-      "againstDue": "Against {{po}} · due {{due}} · in draft run {{run}}"
-    },
+    "broughtForward": "Brought forward",
+    "broughtForwardNote": "Owed before this period began",
+    "noReference": "No reference",
+    "noEntries": "Nothing passed between you in this period.",
     "overThePeriod": "Over the period",
+    "ageingTitle": "What is open today",
+    "ageingNote": "Open bills as they stand today, whatever period you are reading. The supplier's page groups the same bills its own way: due within 7 days, late, and on hold.",
     "ageing": {
-      "notDueYet": "Not due yet",
-      "dueWithin7": "Due within 30 days",
-      "alreadyLate": "Late by 30 days",
-      "onHold": "Late by 60 or more"
+      "NOT_DUE": "Not due yet",
+      "DUE_WITHIN_30": "Due within 30 days",
+      "LATE_30": "Late by up to 59 days",
+      "LATE_60_PLUS": "Late by 60 days or more"
     },
-    "ageingNote": {
-      "notDueYet": "—",
-      "dueWithin7": "—",
-      "alreadyLate": "Never been late with them",
-      "onHold": "—"
-    },
+    "creditNote": "A rejected bill is not on this statement. A credit note that hasn't been applied to a bill lowers the balance here but not the bills above.",
     "nothing": "Nothing",
-    "footer": "owed · {{entries}} entries · {{credits}} credit note still unused",
-    "downloadPdf": "Download PDF",
-    "downloadExcel": "Download Excel",
-    "emailIt": "Email it to them"
+    "footer_one": "owed · {{count}} entry",
+    "footer_other": "owed · {{count}} entries",
+    "download": {
+      "pdf": "Download PDF",
+      "xlsx": "Download Excel",
+      "csv": "Download CSV"
+    },
+    "emailIt": "Email it to them",
+    "email": {
+      "title": "Email this statement",
+      "subtitle": "The PDF for {{from}} – {{to}}, as an attachment.",
+      "to": "Send it to",
+      "send": "Send it",
+      "sending": "Sending…",
+      "sent": "Sent to {{recipient}}.",
+      "note": "Only an address already on the supplier's record can be used. Add another on the supplier's page.",
+      "switchedOff": "This supplier is switched off, so nothing is sent to them.",
+      "noAddress": "This supplier has no email address on file. Add one on their page.",
+      "unavailable": "Email isn't switched on for this deployment. Download the statement and send it yourself."
+    }
   },
   "activity": {
     "title": "Activity",
@@ -13593,7 +13619,9 @@
       "pdf": "Statement as PDF",
       "xlsx": "Statement as Excel",
       "csv": "Statement as CSV",
-      "note": "This year so far: every bill, credit and payment"
+      "note": "This year so far: every bill, credit and payment",
+      "open": "Open the statement",
+      "openNote": "The page, with its own period"
     },
     "switchOffBody": "They move to the switched-off suppliers in the list. Their bills, payments and papers stay exactly as they are, and you can switch them back on at any time.",
     "switchOn": "Switch back on",
