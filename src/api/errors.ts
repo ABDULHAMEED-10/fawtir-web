@@ -32,6 +32,8 @@ export class ApiError extends Error {
   readonly code: string | null
   /** What support needs to find the request in the logs (`correlationId`, or Expenditure's `trace_id`). */
   readonly correlationId: string | null
+  /** The problem document as it arrived, for the few refusals that carry more than a code (a bill's `duplicateOf`). */
+  readonly problem: Readonly<Record<string, unknown>>
 
   constructor(init: {
     status: number
@@ -40,6 +42,7 @@ export class ApiError extends Error {
     retryAfterSeconds?: number | null
     code?: string | null
     correlationId?: string | null
+    problem?: Record<string, unknown>
   }) {
     super(`Request failed with status ${init.status}`)
     this.name = 'ApiError'
@@ -49,6 +52,7 @@ export class ApiError extends Error {
     this.retryAfterSeconds = init.retryAfterSeconds ?? null
     this.code = init.code ?? null
     this.correlationId = init.correlationId ?? null
+    this.problem = init.problem ?? {}
   }
 }
 
@@ -103,5 +107,6 @@ export function toApiError(response: Response, body: unknown): ApiError {
     retryAfterSeconds: retryAfterOf(response.headers),
     code: stringOf(problem.code) ?? stringOf(problem.error),
     correlationId: stringOf(problem.correlationId) ?? stringOf(problem.trace_id),
+    problem,
   })
 }

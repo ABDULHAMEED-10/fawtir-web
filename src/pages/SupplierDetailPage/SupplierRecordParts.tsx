@@ -34,7 +34,8 @@ import {
 import { dueNoteOf, toBillListItem } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
-import { blankContact, contactProblems, documentMeta, fileSize, paymentLines, saveDownload, type ContactForm } from '../../lib/supplierRecord'
+import { blankContact, contactProblems, documentMeta, documentRemovable, fileSize, paymentLines, saveDownload, type ContactForm } from '../../lib/supplierRecord'
+import { muscatToday } from '../../lib/invoiceIssue'
 import { e164, nationalPhone } from '../../lib/supplierForm'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
 
@@ -280,6 +281,8 @@ export function DocumentsTab({
     }
   }
 
+  const today = muscatToday()
+
   const retire = async () => {
     if (!retiring) return
     setBusy(true)
@@ -327,7 +330,10 @@ export function DocumentsTab({
                       t(`supplierRecord.kind.${entry.document.kind}`),
                       t(meta.key, { date: formatDate(String(meta.values?.date ?? ''), i18n.language) }),
                       fileSize(entry.document.byteSize, i18n.language),
-                      entry.document.legalHold ? t('supplierRecord.documents.legalHold') : null,
+                      entry.document.legalHold.held ? t('supplierRecord.documents.legalHold') : null,
+                      entry.document.retainUntil && entry.document.retainUntil >= today
+                        ? t('supplierRecord.documents.keptUntil', { date: formatDate(entry.document.retainUntil, i18n.language) })
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
@@ -337,7 +343,7 @@ export function DocumentsTab({
                 <button type="button" onClick={() => void download(entry)} className="text-sm font-semibold text-primary-700 hover:underline">
                   {t('supplierRecord.documents.download')}
                 </button>
-                {canManage && !entry.document.legalHold ? (
+                {canManage && documentRemovable(entry, today) ? (
                   <button type="button" onClick={() => setRetiring(entry)} className="text-sm font-semibold text-text-tertiary hover:text-danger-700">
                     {t('supplierRecord.documents.retire')}
                   </button>
@@ -698,7 +704,14 @@ export function SupplierContactsModal({
                   {contact.roleTitle ? <span className="font-medium text-text-quaternary"> · {contact.roleTitle}</span> : null}
                 </p>
                 <p className="mt-0.5 truncate text-xs font-medium text-text-quaternary">
-                  {[contact.email, contact.telephone, contact.mobilePhone].filter(Boolean).join(' · ')}
+                  {[contact.email, contact.telephone, contact.mobilePhone]
+                    .filter(Boolean)
+                    .map((reach, index) => (
+                      <span key={index}>
+                        {index > 0 ? ' · ' : null}
+                        <bdi dir="ltr">{reach}</bdi>
+                      </span>
+                    ))}
                 </p>
               </div>
               <span className="rounded-sm bg-primary-50 px-2 py-1 text-[11px] font-semibold text-primary-800">{t(`supplierRecord.purpose.${contact.purpose}`)}</span>

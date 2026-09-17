@@ -1,0 +1,248 @@
+import type { ConfirmIntakeDto, IntakeDto } from '../api/expenditure/billIntake'
+import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
+
+/**
+ * The bill form behind Upload a bill, Record a bill and Scan receipts (E-10).
+ *
+ * Nothing here pretends the file was read: a PDF or photo arrives with every field empty and the
+ * person types the bill beside it (decision 1). Only a UBL XML file carries values, and those
+ * fill the fields as plain starting text, with no "read" or "unsure" marking.
+ */
+
+export type BillLine = {
+  id: string
+  description: string
+  quantity: string
+  unitPrice: string
+  vatRate: string
+}
+
+export type BillForm = {
+  /** A supplier record, when one is chosen. */
+  supplierId: string | null
+  /** The chosen record's name, or the name as written on the bill when there is no record. */
+  supplierName: string
+  billNumber: string
+  issueDate: string
+  dueDate: string
+  currency: string
+  lines: BillLine[]
+  vat: string
+  total: string
+  /** An open order of the chosen supplier, matched by hand; empty lets the matcher look. */
+  purchaseOrderId: string
+}
+
+export type BillField = 'supplier' | 'billNumber' | 'issueDate' | 'dueDate' | 'currency' | 'vat' | 'total' | 'lines'
+
+export type BillProblems = Partial<Record<BillField, string>>
+
+export const CURRENCIES = ['OMR', 'USD', 'EUR', 'AED', 'SAR'] as const
+
+let lineSeed = 0
+export function blankLine(): BillLine {
+  lineSeed += 1
+  return { id: `line-${lineSeed}`, description: '', quantity: '1', unitPrice: '', vatRate: '5' }
+}
+
+export function blankBillForm(): BillForm {
+  return {
+    supplierId: null,
+    supplierName: '',
+    billNumber: '',
+    issueDate: '',
+    dueDate: '',
+    currency: 'OMR',
+    lines: [],
+    vat: '',
+    total: '',
+    purchaseOrderId: '',
+  }
+}
+
+const text = (value: string | null | undefined) => (value ?? '').trim()
+const amount = (value: number | null | undefined) => (value === null || value === undefined ? '' : String(value))
+
+/** What an XML bill carried, as starting values. A PDF or photo has nothing, so the form stays blank. */
+export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()): BillForm {
+  const read = intake.extracted
+  if (intake.extractionStatus !== 'EXTRACTED' || !read) return base
+  return {
+    ...base,
+    supplierName: base.supplierId ? base.supplierName : text(read.supplierName) || base.supplierName,
+    billNumber: text(read.billNumber) || base.billNumber,
+    issueDate: read.issueDate ?? base.issueDate,
+    dueDate: read.dueDate ?? base.dueDate,
+    currency: read.currency ?? base.currency,
+    vat: amount(read.vat) || base.vat,
+    total: amount(read.total) || base.total,
+    lines: read.lines.map((line) => ({
+      ...blankLine(),
+      description: text(line.description),
+      quantity: amount(line.quantity) || '1',
+      unitPrice: amount(line.unitPrice),
+      vatRate: amount(line.vatRate) || '0',
+    })),
+  }
+}
+
+/** Plain `123.450` for the API; the engine's own string groups thousands for display. */
+const plain = (value: bigint) => formatAtScale(value).replace(/,/g, '')
+
+/**
+ * The lines' net, VAT and total through the invoice engine, so a bill's arithmetic is the same
+ * audited arithmetic as an invoice's. Null when there are no lines to add up.
+ */
+export function linesTotals(lines: BillLine[]): { net: string; vat: string; total: string; lineNets: string[] } | null {
+  if (lines.length === 0) return null
+  const projected = projectInvoice(
+    calculateInvoice(
+      lines.map((line, index) => ({
+        id: line.id,
+        lineNumber: index + 1,
+        quantity: line.quantity.trim() || '0',
+        unitPrice: line.unitPrice.trim() || '0',
+        vatRate: line.vatRate.trim() || '0',
+        discountType: 'PERCENTAGE' as const,
+        discountValue: '0',
+      })),
+      'PERCENTAGE',
+      '0',
+    ),
+  )
+  return {
+    net: plain(projected.taxable),
+    vat: plain(projected.vat),
+    total: plain(projected.total),
+    lineNets: projected.lines.map((line) => plain(line.taxable)),
+  }
+}
+
+const MONEY = /^\d{1,15}(\.\d{1,3})?$/
+const QUANTITY = /^\d{1,12}(\.\d{1,6})?$/
+const RATE = /^\d{1,3}(\.\d{1,2})?$/
+
+/** Whether the typed total differs from what the lines add up to. */
+export function totalDisagrees(form: BillForm): boolean {
+  const totals = linesTotals(form.lines)
+  if (!totals || !MONEY.test(form.total.trim())) return false
+  return Number(totals.total) !== Number(form.total.trim())
+}
+
+/**
+ * What the server would refuse, said before sending. `needsNumber` is the bill pages' rule: a
+ * supplier's bill always carries a number, and the duplicate check needs it. A receipt may not.
+ */
+export function billProblems(form: BillForm, { needsNumber }: { needsNumber: boolean }): BillProblems {
+  const problems: BillProblems = {}
+  if (!form.supplierId && !form.supplierName.trim()) problems.supplier = 'billIntake.error.supplier'
+  if (needsNumber && !form.billNumber.trim()) problems.billNumber = 'validation.required'
+  if (!form.issueDate) problems.issueDate = 'validation.required'
+  if (form.issueDate && form.dueDate && form.dueDate < form.issueDate) problems.dueDate = 'billIntake.error.dueBeforeIssue'
+  if (!form.currency) problems.currency = 'validation.required'
+  const total = form.total.trim()
+  if (!total) problems.total = 'validation.required'
+  else if (!MONEY.test(total)) problems.total = 'billIntake.error.amount'
+  const vat = form.vat.trim()
+  if (vat && !MONEY.test(vat)) problems.vat = 'billIntake.error.amount'
+  else if (vat && MONEY.test(total) && Number(vat) > Number(total)) problems.vat = 'billIntake.error.vatOverTotal'
+  const badLine = form.lines.some(
+    (line) =>
+      !line.description.trim() ||
+      !QUANTITY.test(line.quantity.trim()) ||
+      Number(line.quantity) <= 0 ||
+      !MONEY.test(line.unitPrice.trim()) ||
+      !RATE.test(line.vatRate.trim()) ||
+      Number(line.vatRate) > 100,
+  )
+  if (badLine) problems.lines = 'billIntake.error.lines'
+  return problems
+}
+
+export type ConfirmExtras = {
+  category?: string | null
+  paidOnTheSpot?: ConfirmIntakeDto['paidOnTheSpot']
+  notDuplicateOf?: string | null
+}
+
+export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): ConfirmIntakeDto {
+  const totals = linesTotals(form.lines)
+  const orNull = (value: string) => (value.trim() ? value.trim() : null)
+  return {
+    supplierId: form.supplierId,
+    supplierName: orNull(form.supplierName),
+    documentTypeCode: '380',
+    billNumber: orNull(form.billNumber),
+    issueDate: form.issueDate,
+    dueDate: form.dueDate || null,
+    currency: form.currency,
+    vat: form.vat.trim() ? Number(form.vat.trim()) : null,
+    total: Number(form.total.trim()),
+    lines: form.lines.map((line, index) => ({
+      description: line.description.trim(),
+      quantity: Number(line.quantity.trim()),
+      unit: null,
+      unitPrice: Number(line.unitPrice.trim()),
+      vatRate: Number(line.vatRate.trim()),
+      lineNet: Number(totals!.lineNets[index]),
+    })),
+    purchaseOrderId: form.purchaseOrderId || null,
+    goodsReceiptId: null,
+    purchaseOrderReference: null,
+    category: extras.category ?? null,
+    paidOnTheSpot: extras.paidOnTheSpot ?? null,
+    notDuplicateOf: extras.notDuplicateOf ?? null,
+  }
+}
+
+/** The confirm refusals a person can fix on the form, by the field they belong to. */
+export const CONFIRM_REFUSALS: Record<string, { field: BillField | null; key: string }> = {
+  BILL_INTAKE_SUPPLIER_REQUIRED: { field: 'supplier', key: 'billIntake.error.supplier' },
+  BILL_INTAKE_SUPPLIER_UNKNOWN: { field: 'supplier', key: 'billIntake.error.supplierUnknown' },
+  BILL_INTAKE_ISSUE_DATE_REQUIRED: { field: 'issueDate', key: 'validation.required' },
+  BILL_INTAKE_TOTAL_INVALID: { field: 'total', key: 'billIntake.error.amount' },
+  BILL_INTAKE_VAT_INVALID: { field: 'vat', key: 'billIntake.error.amount' },
+  BILL_INTAKE_CURRENCY_REQUIRED: { field: 'currency', key: 'validation.required' },
+  BILL_INTAKE_ALREADY_CONFIRMED: { field: null, key: 'billIntake.error.alreadyConfirmed' },
+  BILL_INTAKE_NOT_FOUND: { field: null, key: 'billIntake.error.intakeGone' },
+}
+
+/** Why an upload was refused, by the server's code. */
+export const UPLOAD_REFUSALS: Record<string, string> = {
+  BILL_INTAKE_TOO_LARGE: 'billIntake.upload.tooLarge',
+  BILL_INTAKE_TYPE_UNSUPPORTED: 'billIntake.upload.wrongType',
+  BILL_INTAKE_EMPTY: 'billIntake.upload.empty',
+}
+
+/** The picker's `accept`, and what the server takes. */
+export const BILL_FILE_TYPES = '.pdf,.jpg,.jpeg,.png,.xml'
+export const RECEIPT_FILE_TYPES = '.jpg,.jpeg,.png,.pdf'
+
+export type FileKind = 'pdf' | 'image' | 'xml'
+
+export function fileKindOf(file: { type: string; name: string }): FileKind {
+  const type = file.type.toLowerCase()
+  const name = file.name.toLowerCase()
+  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
+  if (type.includes('xml') || name.endsWith('.xml')) return 'xml'
+  return 'image'
+}
+
+/** Stored as the English name the rest of the module already uses; shown through `billIntake.category.*`. */
+export const EXPENSE_CATEGORIES = [
+  { value: 'Repairs & maintenance', key: 'repairs' },
+  { value: 'Kitchen supplies', key: 'kitchen' },
+  { value: 'Office supplies', key: 'office' },
+  { value: 'Vehicle & fuel', key: 'vehicle' },
+  { value: 'Travel', key: 'travel' },
+  { value: 'Utilities', key: 'utilities' },
+  { value: 'Marketing', key: 'marketing' },
+  { value: 'Professional fees', key: 'professional' },
+] as const
+
+/** A receipt's VAT at a rate that is included in its total: `total × rate / (100 + rate)`, to 3 dp. */
+export function vatIncluded(total: string, rate: '5' | '0' | 'exempt'): string {
+  if (rate !== '5' || !MONEY.test(total.trim())) return rate === '5' ? '' : '0'
+  const minor = Math.round((Number(total.trim()) * 1000 * 5) / 105)
+  return (minor / 1000).toFixed(3)
+}

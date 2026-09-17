@@ -13508,6 +13508,7 @@
       "fileTooLarge": "The file is larger than 10 MB.",
       "kindLabel": "Kind",
       "legalHold": "On legal hold",
+      "keptUntil": "Kept until {{date}}",
       "note": "Note",
       "retire": "Remove",
       "retireBody": "It leaves this supplier's papers. A document inside its retention period cannot be removed, and the server will say so.",
@@ -13712,5 +13713,103 @@
       "submit": "Add to the run"
     },
     "totals": "Totals"
+  },
+  "billIntake": {
+    "supplier": "Supplier",
+    "supplierVat": "VAT {{vat}}",
+    "searching": "Searching…",
+    "noSupplierFound": "No supplier on your list matches.",
+    "searchSupplier": "Search your suppliers",
+    "chooseSupplier": "Choose a supplier",
+    "asWritten": "{{name}} (as written, not on your list)",
+    "useAsWritten": "Use “{{name}}” as written on the bill",
+    "xmlFilled": "This is an e-invoice file, so there is no picture to show. Its fields are filled in on the right; check them against what the supplier sent.",
+    "xmlNotRead": "This XML file could not be read as an e-invoice. Type the bill in on the right.",
+    "upload": {
+      "subtitle": "Add the supplier's file, then type the bill in beside it. An e-invoice (XML) file fills its fields in for you; a PDF or photo is not read.",
+      "choose": "Choose the supplier's bill",
+      "hint": "PDF, JPG, PNG or an e-invoice XML file, up to 10 MB. Drop it here or click to choose.",
+      "sending": "Uploading…",
+      "tooLarge": "That file is larger than 10 MB.",
+      "wrongType": "Use a PDF, JPG, PNG or XML file.",
+      "empty": "That file is empty."
+    },
+    "record": {
+      "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
+      "choose": "Choose the bill they sent"
+    },
+    "checkFilled": "Filled in from the e-invoice file. Check each field before you save.",
+    "typeItIn": "Nothing is read out of a PDF or photo. Type the bill in from the file on the left.",
+    "fixFirst": "Some fields need attention before the bill can be saved.",
+    "vatOnFile": "The file gives the supplier's VAT number as {{vat}}.",
+    "currency": "Currency",
+    "dueHint": "Leave empty if the bill gives no due date.",
+    "linesOptional": "Lines are optional. Add them to check the bill adds up.",
+    "vatPercent": "VAT %",
+    "lineField": {
+      "quantity": "Quantity",
+      "unitPrice": "Rate",
+      "vatRate": "VAT %"
+    },
+    "vatAmount": "VAT on the bill",
+    "totalOnBill": "Total on the bill",
+    "addsUp": "The lines add up to the total you typed.",
+    "linesComeTo": "The lines come to {{lines}}, including {{vat}} VAT.",
+    "linesDisagree": "The lines come to {{lines}} (VAT {{vat}}), not the total you typed.",
+    "useLines": "Use the lines' figures",
+    "order": "Order",
+    "letItMatch": "No order chosen — Fawtir looks for a matching one",
+    "orderOption": "{{number}} · {{date}} · {{total}}",
+    "matchedByHand": "The bill is matched to this order when you save.",
+    "matcherLooks": "When you save, Fawtir looks for an open order from this supplier that matches the bill.",
+    "orderNeedsSupplier": "Choose a supplier from your list to match the bill to one of their orders.",
+    "duplicate": {
+      "title": "This may be a bill you already have",
+      "body": "A bill {{number}} from this supplier is already recorded: dated {{date}}, {{total}}, {{source}}.",
+      "source": {
+        "PEPPOL": "received over Peppol",
+        "UPLOADED": "uploaded",
+        "SCANNED": "scanned"
+      },
+      "open": "Open that bill",
+      "different": "It's a different bill — save it"
+    },
+    "discard": "Discard",
+    "saving": "Saving…",
+    "error": {
+      "supplier": "Choose a supplier, or use the name as written on the bill.",
+      "supplierUnknown": "That supplier is not on your list any more. Choose another.",
+      "dueBeforeIssue": "The due date can't be before the bill date.",
+      "amount": "Enter an amount of zero or more, with up to 3 decimals.",
+      "vatOverTotal": "The VAT can't be more than the total.",
+      "lines": "Each line needs a description, a quantity above zero, a rate and a VAT % from 0 to 100.",
+      "alreadyConfirmed": "This file was already saved as a bill.",
+      "intakeGone": "This upload is no longer there. Upload the file again.",
+      "refused": "The server refused this value."
+    },
+    "category": {
+      "none": "Not set",
+      "repairs": "Repairs & maintenance",
+      "kitchen": "Kitchen supplies",
+      "office": "Office supplies",
+      "vehicle": "Vehicle & fuel",
+      "travel": "Travel",
+      "utilities": "Utilities",
+      "marketing": "Marketing",
+      "professional": "Professional fees"
+    },
+    "scan": {
+      "subtitleEmpty": "Add photos of your receipts, then confirm them one at a time.",
+      "subtitle_one": "{{count}} receipt added. Confirm each one from its photo.",
+      "subtitle_other": "{{count}} receipts added. Confirm each one from its photo.",
+      "progress": "{{saved}} saved · {{left}} still to check · {{total}} confirmed so far",
+      "finishLater": "Finish later",
+      "choose": "Choose receipt photos",
+      "hint": "JPG, PNG or PDF, up to 10 MB each. You can choose several at once.",
+      "saved": "Saved as a bill.",
+      "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
+      "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",
+      "owingNote": "It is recorded as a bill to pay later."
+    }
   }
 }

@@ -104,7 +104,7 @@ const BILL = {
 
 const CONTACTS: SupplierContactDto[] = [
   { id: 'c-1', fullName: 'Hamed Al Kindi', roleTitle: 'Owner', purpose: 'MAIN', email: 'hamed@qalhat.om', telephone: null, mobilePhone: null, notes: null, version: 2 },
-  { id: 'c-2', fullName: 'Laila Al Harthy', roleTitle: null, purpose: 'BILLING', email: 'ap@qalhat.om', telephone: null, mobilePhone: null, notes: null, version: 5 },
+  { id: 'c-2', fullName: 'Laila Al Harthy', roleTitle: null, purpose: 'BILLING', email: 'ap@qalhat.om', telephone: '+96824123456', mobilePhone: null, notes: null, version: 5 },
 ]
 
 function json(status: number, body?: unknown) {
@@ -132,10 +132,9 @@ beforeEach(async () => {
     if (url.startsWith(`${ONE}/contacts/c-2/make-main`)) return json(200, [{ ...CONTACTS[1], purpose: 'MAIN', version: 6 }, { ...CONTACTS[0], purpose: 'BILLING', version: 3 }])
     if (url === `${ONE}/documents`)
       return json(200, [
-        {
-          document: { id: 'd-1', title: 'Supply agreement', kind: 'AGREEMENT', series: 'Supply agreement', version: 2, documentDate: '2026-01-14', provenance: 'SIGNED', note: null, contentType: 'application/pdf', byteSize: 20480, uploadedAt: '2026-01-15T08:00:00Z', legalHold: false, retainUntil: null },
-          standing: 'CURRENT',
-        },
+        { document: paper('d-1', 'Supply agreement', { documentDate: '2026-01-14', retainUntil: '2037-12-31' }), standing: 'CURRENT' },
+        { document: paper('d-2', 'Old price list', { kind: 'PRICE_LIST', series: null, retainUntil: '2025-12-31' }), standing: 'CURRENT' },
+        { document: paper('d-3', 'Insurance certificate', { kind: 'CERTIFICATE', series: null, retainUntil: '2025-12-31', legalHold: { held: true, reason: 'Dispute', setBy: 'u-1', setAt: '2026-09-01T08:00:00Z' } }), standing: 'CURRENT' },
       ])
     if (url.startsWith(`${ONE}/bills?`)) {
       const size = Number(new URL(url, 'http://x').searchParams.get('page_size'))
@@ -168,6 +167,29 @@ beforeEach(async () => {
 afterEach(() => {
   vi.unstubAllGlobals()
 })
+
+/** The shape `GET /suppliers/{id}/documents` returns, legal hold included. */
+function paper(id: string, title: string, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    customerId: ID,
+    title,
+    kind: 'AGREEMENT',
+    series: title,
+    version: 1,
+    documentDate: null,
+    provenance: 'UPLOADED',
+    note: null,
+    contentType: 'application/pdf',
+    byteSize: 20480,
+    uploadedBy: 'u-1',
+    uploadedAt: '2026-01-15T08:00:00Z',
+    retentionClass: 'STANDARD',
+    legalHold: { held: false, reason: null, setBy: null, setAt: null },
+    retainUntil: null,
+    ...overrides,
+  }
+}
 
 function renderSupplier() {
   return render(
@@ -267,6 +289,33 @@ describe('a supplier, opened', () => {
     await waitFor(() => expect(calls('GET', `${ONE}/statement.pdf`)).toHaveLength(1))
     const url = String(calls('GET', `${ONE}/statement.pdf`)[0][0])
     expect(url).toMatch(/from=\d{4}-01-01/)
+  })
+
+  it('offers to remove only a paper past its retention date and not on hold', async () => {
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    const row = async (title: string) => within((await screen.findByText(title)).closest('li') as HTMLElement)
+
+    const kept = await row('Supply agreement')
+    expect(kept.getByText(/Kept until .*2037/)).toBeTruthy()
+    expect(kept.queryByText(/On legal hold/)).toBeNull()
+    expect(kept.queryByRole('button', { name: 'Remove' })).toBeNull()
+
+    const held = await row('Insurance certificate')
+    expect(held.getByText(/On legal hold/)).toBeTruthy()
+    expect(held.queryByRole('button', { name: 'Remove' })).toBeNull()
+
+    const expired = await row('Old price list')
+    expect(expired.queryByText(/On legal hold|Kept until/)).toBeNull()
+    expect(expired.getByText(/20 kB/)).toBeTruthy()
+    expect(expired.getByRole('button', { name: 'Remove' })).toBeTruthy()
+  })
+
+  it('keeps a phone number left-to-right inside Arabic text', async () => {
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('button', { name: 'Manage' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Contacts' })
+    expect(within(dialog).getByText('+96824123456').closest('bdi')?.getAttribute('dir')).toBe('ltr')
   })
 
   it('offers nothing to change to someone who may only read suppliers', async () => {

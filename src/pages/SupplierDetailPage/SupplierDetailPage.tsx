@@ -506,7 +506,7 @@ function SupplierRecord({ id }: { id: string }) {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold leading-[1.3] text-text-primary">{contact.fullName}</p>
-                        <p className="mt-0.5 truncate text-xs font-medium text-text-quaternary">{contact.email ?? contact.telephone ?? contact.mobilePhone ?? ''}</p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-text-quaternary"><bdi dir="ltr">{contact.email ?? contact.telephone ?? contact.mobilePhone ?? ''}</bdi></p>
                       </div>
                       <span className="shrink-0 rounded-sm bg-primary-50 px-2 py-1 text-[11px] font-semibold text-primary-800">
                         {t(`supplierRecord.purpose.${contact.purpose}`)}

@@ -101,7 +101,10 @@ export type SupplierDocumentDto = {
     contentType: string
     byteSize: number
     uploadedAt: string
-    legalHold: boolean
+    retentionClass: string | null
+    /** An administrator's freeze (decision 17): the paper stays whatever its retention date says. */
+    legalHold: { held: boolean; reason: string | null; setBy: string | null; setAt: string | null }
+    /** VAT Law Art. 70: the paper cannot be removed on or before this day. */
     retainUntil: string | null
   }
   standing: DocumentStanding
