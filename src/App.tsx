@@ -293,7 +293,9 @@ function App() {
           <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
           <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
           <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
-          <Route path="/settings/payment-reminders" element={<PaymentRemindersPage />} />
+          {/* One settings page, one address. It lived at both paths, so the Settings one now
+              points at the Income one rather than rendering a second copy of it. */}
+          <Route path="/settings/payment-reminders" element={<Navigate to="/income/reminders/settings" replace />} />
           <Route path="/settings/erp-mapping" element={<ErpOverviewPage />} />
           <Route path="/settings/erp-mapping/fields" element={<ErpFieldsPage />} />
           <Route path="/settings/erp-mapping/preview" element={<ErpPreviewPage />} />

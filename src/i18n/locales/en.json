@@ -11,7 +11,10 @@
     "sort": "Sort",
     "yes": "Yes",
     "no": "No",
-    "digit": "Digit {{number}}"
+    "digit": "Digit {{number}}",
+    "saving": "Saving…",
+    "previous": "Previous",
+    "next": "Next"
   },
   "language": {
     "label": "Language",
@@ -13806,5 +13809,105 @@
     "doneStale_one": "{{count}} row could not be created after all — something changed since the check. Download the file and check it again.",
     "doneStale_other": "{{count}} rows could not be created after all — something changed since the check. Download the file and check it again.",
     "another": "Import another file"
+  },
+  "paymentReminders": {
+    "backToHistory": "← Reminders sent",
+    "history": {
+      "title": "Reminders sent",
+      "subtitle": "Every payment reminder that went out, or was tried. Fawtir keeps no queue of reminders still to come — what would go out today is shown on the invoice itself.",
+      "settings": "When reminders go out",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear",
+      "empty": "No reminders have gone out yet.",
+      "emptyPage": "Nothing on this page. Go back a page.",
+      "noTotal": "Fawtir reads this a page at a time; the API sends no total, so there is no page count.",
+      "sweepNote": "Reminders are sent by a daily job, and it runs only where this installation has it switched on. Sending one by hand works either way."
+    },
+    "settings": {
+      "title": "When reminders go out",
+      "subtitle": "A reminder goes out on each rung you set, counted from the invoice’s due date.",
+      "switchTitle": "Send reminders automatically",
+      "switchNote": "When this is off, nothing goes out on its own. You can still send a reminder from an invoice yourself.",
+      "on": "On",
+      "off": "Off",
+      "ladderTitle": "The rungs",
+      "ladderNote": "A negative number is before the due date, 0 is the due date itself, and a positive number is after it. Fawtir sorts them and drops repeats when it saves.",
+      "noRungs": "No rungs yet, so nothing would go out.",
+      "useSuggested": "Use 3 days before, the due date, then 7 and 14 days after",
+      "rungLabel": "Rung {{index}}, days from the due date",
+      "removeRung": "Remove",
+      "addRung": "Add a rung",
+      "rungLimit": "Up to {{count}} rungs.",
+      "save": "Save",
+      "sweepNote": "The daily job sends these at 08:00 Muscat time where it is switched on. The hour is set for the whole installation, not per account."
+    },
+    "rung": {
+      "onDueDate": "On the due date",
+      "before": "{{count}} day before due",
+      "before_other": "{{count}} days before due",
+      "after": "{{count}} day after due",
+      "after_other": "{{count}} days after due"
+    },
+    "tab": {
+      "ALL": "All",
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped"
+    },
+    "col": {
+      "invoice": "Invoice",
+      "rung": "Rung",
+      "firedOn": "Date",
+      "recipient": "Sent to",
+      "outcome": "What happened"
+    },
+    "log": {
+      "sent": "Sent",
+      "failed": "Could not be sent",
+      "failedWithReason": "Could not be sent: {{reason}}",
+      "skipped": "Skipped. Fawtir records that the rung was used, not why it was skipped."
+    },
+    "verdict": {
+      "send": "This would go out now.",
+      "tenantDisabled": "Automatic reminders are switched off, so nothing goes out on its own.",
+      "customerOptedOut": "This customer is set not to receive reminders.",
+      "notIssued": "The invoice has not been issued.",
+      "settled": "The invoice is settled, so there is nothing to chase.",
+      "noRungToday": "No rung falls today.",
+      "alreadySent": "This rung has already been used.",
+      "noRecipient": "The customer has no e-mail address on file."
+    },
+    "error": {
+      "range": "The first date must come before the second.",
+      "rung": {
+        "notWhole": "Give a whole number of days.",
+        "outOfRange": "Keep within {{max}} days of the due date.",
+        "duplicate": "This rung is already in the list."
+      },
+      "schedule": {
+        "tooMany": "Up to {{max}} rungs.",
+        "emptyWhileOn": "Add a rung, or switch automatic reminders off."
+      },
+      "notSendable": "This reminder cannot be sent for this invoice.",
+      "alreadySent": "That rung has already been used for this invoice.",
+      "deliveryUnavailable": "E-mail sending is not switched on for this installation, so nothing was sent.",
+      "sendFailed": "The e-mail was refused, and the rung has been used up. It cannot be tried again."
+    },
+    "done": {
+      "saved": "Saved.",
+      "savedAndSorted": "Saved. Fawtir sorted the rungs and dropped any repeats."
+    },
+    "invoice": {
+      "title": "Payment reminders",
+      "sendNow": "Send one now",
+      "sending": "Sending…",
+      "sent": "Sent to {{recipient}}.",
+      "rung": "Rung: {{rung}}",
+      "showMessage": "Show the message that would be sent",
+      "hideMessage": "Hide the message",
+      "historyTitle": "Already sent",
+      "noHistory": "No reminder has gone out for this invoice."
+    }
   }
 }
