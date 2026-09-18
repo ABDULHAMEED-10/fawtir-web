@@ -1,5 +1,4 @@
 import { CUSTOMER_ROWS } from './customers'
-import { DOC_RECORDS } from './documents'
 import { INVOICE_ROWS } from './invoices'
 import { SUPPLIERS } from './suppliers'
 import { POS_ITEMS } from './pos'
@@ -51,13 +50,6 @@ export const SEARCH_INDEX: Hit[] = [
     title: row.name,
     subtitle: row.vat ? `VAT ${row.vat}` : '',
     to: `/suppliers/${row.slug}`,
-  })),
-  ...DOC_RECORDS.map((row) => ({
-    id: row.id,
-    kind: 'document' as const,
-    title: row.title,
-    subtitle: row.party,
-    to: `/compliance/documents/${row.id}`,
   })),
   ...POS_ITEMS.map((item) => ({
     id: item.id,
