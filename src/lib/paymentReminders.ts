@@ -114,6 +114,32 @@ export const VERDICT_NOTE: Record<ReminderVerdict, string> = {
   NO_RECIPIENT: 'paymentReminders.verdict.noRecipient',
 }
 
+/**
+ * Sending by hand bypasses the two **schedule** verdicts — a person is deciding, so "the ladder is
+ * off" and "no rung falls today" are not refusals for them. The invoice's own verdicts stand:
+ * a settled, unissued or opted-out invoice, a customer with no address, and a rung already spent
+ * are all refused by the server whoever asks.
+ */
+export function canSendByHand(verdict: ReminderVerdict): boolean {
+  return verdict === 'SEND' || verdict === 'NO_RUNG_TODAY' || verdict === 'TENANT_DISABLED'
+}
+
+/**
+ * The rung a manual send would spend: today's distance from the due date, which is what the server
+ * works out for itself when the caller names none. Passing it to **preview** is what makes the real
+ * subject and body readable on a day when no rung falls — otherwise the message can never be seen.
+ */
+export function rungToday(today: string, dueDate: string | null): number | null {
+  if (!dueDate) return null
+  const days = daysBetween(dueDate, today)
+  return Math.max(-MAX_OFFSET_DAYS, Math.min(MAX_OFFSET_DAYS, days))
+}
+
+/** Days between two plain dates, ignoring time. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
 /** The server's refusals when sending by hand, in the page's words. */
 export const REMINDER_REFUSALS: Record<string, string> = {
   REMINDER_NOT_SENDABLE: 'paymentReminders.error.notSendable',

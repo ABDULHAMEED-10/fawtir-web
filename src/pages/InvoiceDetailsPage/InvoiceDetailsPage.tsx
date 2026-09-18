@@ -644,7 +644,7 @@ function InvoiceScreen() {
 
       {/* Reminders chase an issued, unsettled invoice; a draft has nothing to chase and a credit
           note is not owed to us. */}
-      {!draft && data.type !== 'CREDIT_NOTE' ? <InvoiceRemindersCard invoiceId={id} /> : null}
+      {!draft && data.type !== 'CREDIT_NOTE' ? <InvoiceRemindersCard invoiceId={id} dueDate={data.dueDate} /> : null}
 
       {notes.read.status === 'ready' && notes.read.data.items.length > 0 ? (
         <SectionCard title={t('salesNote.onInvoice.title')}>
