@@ -101,6 +101,7 @@ beforeEach(async () => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.startsWith('/api/v1/customers?')) return json(200, CUSTOMERS)
+    if (url === '/api/v1/customers/cus-1') return json(200, CUSTOMERS.content[0])
     if (url.startsWith('/api/v1/authored-invoices?')) return json(200, INVOICES)
     if (url.endsWith('/pause')) return json(200, { ...MONTHLY, active: false })
     if (url.endsWith('/resume')) return json(200, { ...PAUSED, active: true, nextRunDate: TODAY })
@@ -180,12 +181,13 @@ describe('Periodic invoices, wired to the API', () => {
     expect(await screen.findByText(/The next draft is due/)).toBeTruthy()
   })
 
-  it('opens a schedule, naming the invoice it copies and what it has done', async () => {
+  it('opens a schedule, naming the customer, the invoice it copies and what it has done', async () => {
     renderAt('/income/periodic/sch-1')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Periodic invoice' })).toBeTruthy()
+    // The customer's name is what anyone recognises the schedule by, so it is the heading.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Muscat Grand Hotel' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open the invoice' }).getAttribute('href')).toBe('/invoices/inv-1')
-    expect(screen.getByRole('link', { name: 'Open the customer' }).getAttribute('href')).toBe('/customers/cus-1')
+    expect(screen.getByRole('link', { name: 'Muscat Grand Hotel' }).getAttribute('href')).toBe('/customers/cus-1')
     expect(screen.getByText('Summary invoice')).toBeTruthy()
     expect(screen.getByText('1 draft raised')).toBeTruthy()
     expect(screen.getByText('Draft raised')).toBeTruthy()

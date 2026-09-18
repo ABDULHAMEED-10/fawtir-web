@@ -18,7 +18,7 @@ import {
   type PeriodicScheduleDto,
   type RecurrenceInterval,
 } from '../../api/invoices/periodic'
-import { customerListPath, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
+import { CUSTOMERS_PATH, customerListPath, loadCustomer, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
@@ -36,6 +36,9 @@ import {
   type PeriodicForm,
 } from '../../lib/periodicInvoice'
 import chevronIcon from '../../assets/invoices/chevron.svg'
+
+/** The customers list refuses a page over 100, so names are read a hundred at a time. */
+const CUSTOMER_PAGE_SIZE = 100
 
 const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
@@ -81,6 +84,11 @@ function ScheduleView({ id }: { id: string }) {
   const read = useApiRead<PeriodicScheduleDto>(periodicSchedulePath(id), () => loadPeriodicSchedule(id))
   const runsPath = periodicRunsPath(id)
   const runs = useApiRead<PeriodicRunDto[]>(runsPath, () => loadPeriodicRuns(runsPath))
+  // The schedule carries a customer id and nothing else, so the name — which is how anyone
+  // recognises the schedule — is read once the id is in hand.
+  const customerId = read.read.status === 'ready' ? read.read.data.customerId : null
+  const customer = useApiRead<CustomerDto>(customerId ? `${CUSTOMERS_PATH}/${customerId}` : null, () => loadCustomer(customerId ?? ''))
+  const customerName = customer.read.status === 'ready' ? customer.read.data.displayName : null
 
   if (read.read.status !== 'ready') {
     return (
@@ -116,10 +124,10 @@ function ScheduleView({ id }: { id: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <Breadcrumb title={t('periodicInvoice.title')} />
+      <Breadcrumb title={customerName ?? t('periodicInvoice.title')} />
 
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('periodicInvoice.title')}</h1>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{customerName ?? t('periodicInvoice.title')}</h1>
         <span
           className={[
             'inline-flex h-[31px] items-center rounded-full border px-3 text-sm font-semibold',
@@ -154,7 +162,14 @@ function ScheduleView({ id }: { id: string }) {
         <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('periodicInvoice.whatItDoes')}</h2>
         <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">{t('periodicInvoice.whatItDoesNote')}</p>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <Fact label={t('periodicInvoice.fields.customer')} value={<Link to={`/customers/${schedule.customerId}`} className="font-semibold text-primary-700 hover:underline">{t('periodicInvoice.openCustomer')}</Link>} />
+          <Fact
+            label={t('periodicInvoice.fields.customer')}
+            value={
+              <Link to={`/customers/${schedule.customerId}`} className="font-semibold text-primary-700 hover:underline">
+                {customerName ?? t('periodicInvoice.openCustomer')}
+              </Link>
+            }
+          />
           <Fact
             label={t('periodicInvoice.fields.template')}
             value={
@@ -249,7 +264,7 @@ function ScheduleForm({ id }: { id: string | null }) {
   const [busy, setBusy] = useState(false)
 
   const existing = useApiRead<PeriodicScheduleDto>(id ? periodicSchedulePath(id) : null, id ? () => loadPeriodicSchedule(id) : undefined)
-  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: 200 })
+  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: CUSTOMER_PAGE_SIZE })
   const customers = useApiRead<Page<CustomerDto>>(customersPath, () => loadCustomerPage(customersPath))
   // The template is one of this customer's own invoices: its lines, currency and terms are what
   // every run copies, so there is nothing to choose until a customer is.
