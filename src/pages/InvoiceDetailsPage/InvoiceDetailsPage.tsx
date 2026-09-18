@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Modal, OmAmount, RowsView } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
+import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
 import { ApiError } from '../../api'
 import {
   cancelInvoice,
@@ -640,6 +641,10 @@ function InvoiceScreen() {
           )}
         </SectionCard>
       ) : null}
+
+      {/* Reminders chase an issued, unsettled invoice; a draft has nothing to chase and a credit
+          note is not owed to us. */}
+      {!draft && data.type !== 'CREDIT_NOTE' ? <InvoiceRemindersCard invoiceId={id} /> : null}
 
       {notes.read.status === 'ready' && notes.read.data.items.length > 0 ? (
         <SectionCard title={t('salesNote.onInvoice.title')}>
