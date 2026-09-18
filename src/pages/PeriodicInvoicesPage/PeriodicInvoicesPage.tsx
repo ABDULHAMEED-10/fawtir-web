@@ -26,6 +26,9 @@ const TONE: Record<'warn' | 'ok' | 'muted', string> = {
   muted: 'text-text-quaternary',
 }
 
+/** The customers list refuses a page over 100, so names are read a hundred at a time. */
+const CUSTOMER_PAGE_SIZE = 100
+
 const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
 /**
@@ -48,7 +51,7 @@ export function PeriodicInvoicesPage() {
 
   const schedules = useApiRead<PeriodicScheduleDto[]>(PERIODIC_SCHEDULES_PATH, loadPeriodicSchedules)
   // The schedule carries a customer id and nothing else, so the names come from the customers list.
-  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: 200 })
+  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: CUSTOMER_PAGE_SIZE })
   const customers = useApiRead<Page<CustomerDto>>(customersPath, () => loadCustomerPage(customersPath))
 
   const rows = schedules.read.status === 'ready' ? schedules.read.data : []
