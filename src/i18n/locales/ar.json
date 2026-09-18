@@ -1140,7 +1140,7 @@
     "subtitle_few": "{{customers}} عملاء · {{amount}} ر.ع. مستحقة",
     "subtitle_many": "{{customers}} عميلًا · {{amount}} ر.ع. مستحقة",
     "subtitle_other": "{{customers}} عميل · {{amount}} ر.ع. مستحقة",
-    "bulkUpload": "رفع جماعي",
+    "bulkUpload": "استيراد من ملف",
     "export": "تصدير",
     "exporting": "جارٍ التصدير…",
     "exportTruncated": "توقف الملف عند حد التصدير، لذا لا يضم كل العملاء. ضيّق القائمة حسب النوع أو البحث ثم صدّر مرة أخرى.",
@@ -1403,7 +1403,7 @@
   "suppliersPage": {
     "title": "الموردون",
     "subtitle": "كل من يفوتر عليك. شروطهم وبياناتهم البنكية وحالتهم على Peppol تحدد كيف تصل الفواتير وكيف تُسدَّد.",
-    "importFromExcel": "استيراد من Excel",
+    "importFromExcel": "استيراد من ملف",
     "newSupplier": "مورد جديد",
     "searchPlaceholder": "ابحث هنا...",
     "filters": "عوامل التصفية",
@@ -6719,70 +6719,6 @@
       "orderClosesNote": "الطلب والاستلام والفوترة كلها مكتملة"
     },
     "plainWords": "تسجيل {{amount}} من {{supplier}} مقابل {{order}}، تُسدَّد {{payable}}. كل شيء متطابق."
-  },
-  "importSuppliers": {
-    "breadcrumb": "استيراد من Excel",
-    "title": "تحقق قبل الاستيراد",
-    "subtitle": "لم يُحفظ شيء بعد. قرأ فوتر كل صف وفحصه بالطريقة نفسها التي يفحص بها النموذج — صحّح ما هو خاطئ هنا.",
-    "startOver": "ابدأ من جديد",
-    "step": {
-      "uploaded": "رُفع الملف",
-      "check": "راجع الصفوف",
-      "bring": "أدخلهم"
-    },
-    "card": {
-      "ready": "جاهز للإدخال",
-      "readyNote": "كل شيء سليم. {{peppol}} منهم على Peppol.",
-      "warning": "يستحق النظر",
-      "warningNote": "سيُستورد، لكن هناك نقصًا أو تكرارًا.",
-      "blocked": "لا يمكن استيراده",
-      "blockedNote": "صحّحها هنا، أو اتركها وأضفها لاحقًا."
-    },
-    "tab": {
-      "blocked": "لا يمكن استيراده",
-      "warning": "يستحق النظر",
-      "ready": "جاهز",
-      "all": "كل الصفوف"
-    },
-    "col": {
-      "row": "الصف",
-      "supplier": "المورد",
-      "problemField": "الحقل الخاطئ",
-      "whatsWrong": "ما الخطأ"
-    },
-    "blank": "(فارغ)",
-    "typeAName": "اكتب اسمًا",
-    "empty": "فارغ",
-    "nothingHere": "لا شيء في هذه القائمة.",
-    "field": {
-      "vatNumber": "الرقم الضريبي",
-      "peppolId": "معرّف Peppol",
-      "legalName": "الاسم القانوني",
-      "paymentTerms": "شروط السداد",
-      "alreadyOnList": "موجود لديك بالفعل",
-      "iban": "الآيبان"
-    },
-    "problem": {
-      "vatTooShort": "عشرة أرقام - والرقم الضريبي العماني اثنا عشر. يبدو أن رقمين حُذفا.",
-      "noScheme": "لا يوجد مخطط أمامه. يجب أن يبدأ بـ 0248: ثم الرقم الضريبي.",
-      "noName": "لا يوجد اسم إطلاقًا. ولا يمكن حفظ مورد بدونه.",
-      "unknownTerms": "ليست من الشروط التي يعرفها فوتر. هل تقصد صافي ٣٠؟",
-      "duplicateVat": "الرقم الضريبي نفسه لمورد لديك. إدخاله مجددًا سيعطيك اثنين.",
-      "noIban": "سيُستورد، لكن لا يمكن إدراجهم في دفعة سداد حتى يُضاف حساب.",
-      "resolved": "صُحّح - سيدخل هذا الصف."
-    },
-    "action": {
-      "leaveOut": "اتركه",
-      "fixAllLikeThis": "صحّح الثلاثة جميعًا",
-      "yesNet30": "نعم، صافي ٣٠",
-      "updateInstead": "حدّث بدلًا من ذلك",
-      "bringInAnyway": "أدخله على أي حال"
-    },
-    "wouldComeIn": "{{coming}} من {{total}} سيدخلون",
-    "leftOut": "· {{count}} سيُستبعدون ما لم تصحّحهم",
-    "cancel": "إلغاء",
-    "downloadFailed": "تنزيل {{count}} فشلوا",
-    "bringIn": "أدخل {{count}} موردًا"
   },
   "supplierStatement": {
     "title": "كشف الحساب",
@@ -14387,5 +14323,146 @@
         "DEBIT_NOTE": "أُلغي الإشعار المدين."
       }
     }
+  },
+  "stagedImport": {
+    "breadcrumb": "استيراد من ملف",
+    "startOver": "ابدأ من جديد",
+    "target": {
+      "SUPPLIER": {
+        "list": "الموردون",
+        "title": "استيراد الموردين من ملف",
+        "subtitle": "ارفع قائمتك، وانظر ما وجده فوتر في كل صف، ثم أدخل ما تبقيه.",
+        "done_zero": "لم يدخل أي مورّد",
+        "done_one": "أُدخل مورّد واحد",
+        "done_two": "أُدخل مورّدان",
+        "done_few": "أُدخل {{count}} موردين",
+        "done_many": "أُدخل {{count}} مورّدًا",
+        "done_other": "أُدخل {{count}} مورّد",
+        "seeThem": "اعرض الموردين"
+      },
+      "CUSTOMER": {
+        "list": "العملاء",
+        "title": "استيراد العملاء من ملف",
+        "subtitle": "ارفع قائمتك، وانظر ما وجده فوتر في كل صف، ثم أدخل ما تبقيه.",
+        "done_zero": "لم يدخل أي عميل",
+        "done_one": "أُدخل عميل واحد",
+        "done_two": "أُدخل عميلان",
+        "done_few": "أُدخل {{count}} عملاء",
+        "done_many": "أُدخل {{count}} عميلًا",
+        "done_other": "أُدخل {{count}} عميل",
+        "seeThem": "اعرض العملاء"
+      }
+    },
+    "step": {
+      "upload": "ارفع الملف",
+      "check": "افحص الصفوف",
+      "bring": "أدخلها"
+    },
+    "dropHere": "أفلت ملفك هنا، أو اختر ملفًا",
+    "checking": "جارٍ قراءة الملف…",
+    "fileRules": "ملف CSV بقالب فوتر، حتى ٢ ميغابايت. لا يُحفظ شيء حتى تُدخل الصفوف.",
+    "downloadTemplate": "نزّل القالب",
+    "templateNote": "املأه في جدول بيانات واحفظه بصيغة CSV.",
+    "reject": {
+      "type": "{{name}} ليس ملف CSV. احفظ الجدول بصيغة CSV وحاول مجددًا.",
+      "size": "{{name}} أكبر من ٢ ميغابايت. قسّمه واستورد أجزاءه."
+    },
+    "reviewTitle": "راجع قبل الاستيراد",
+    "reviewSubtitle": "لم يُحفظ شيء بعد. قُرئ كل صف وفُحص كما يفحص النموذج الواحد. أزل التحديد عمّا لا تريده.",
+    "fileLine_zero": "{{name}} · لا صفوف",
+    "fileLine_one": "{{name}} · صف واحد",
+    "fileLine_two": "{{name}} · صفان",
+    "fileLine_few": "{{name}} · {{count}} صفوف",
+    "fileLine_many": "{{name}} · {{count}} صفًا",
+    "fileLine_other": "{{name}} · {{count}} صف",
+    "unnamedFile": "ملفك",
+    "expires": "تُحفظ هذه المراجعة حتى {{when}}",
+    "card": {
+      "ready": "جاهزة للإدخال",
+      "readyNote": "لا شيء يستدعي السؤال في هذه الصفوف.",
+      "needsALook": "تستحق نظرة",
+      "needsALookNote": "ستدخل، لكن قد تكون لديك أصلًا.",
+      "cannotImport": "لا يمكن استيرادها",
+      "cannotImportNote": "نزّلها، وصحّحها في الملف، ثم افحصه مجددًا."
+    },
+    "tab": {
+      "cannotImport": "لا يمكن استيرادها",
+      "needsALook": "تستحق نظرة",
+      "ready": "جاهزة",
+      "all": "كل الصفوف"
+    },
+    "col": {
+      "bringIn": "إدخال",
+      "row": "الصف",
+      "name": "الاسم",
+      "verdict": "الحكم",
+      "whatsWrong": "ما وجده فوتر"
+    },
+    "severity": {
+      "READY": "جاهز",
+      "NEEDS_A_LOOK": "يستحق نظرة",
+      "CANNOT_IMPORT": "لا يمكن استيراده"
+    },
+    "bringInRow": "أدخل الصف {{row}}",
+    "leftOutRow": "مستبعد",
+    "blank": "(بلا اسم)",
+    "noProblem": "لا شيء يستدعي السؤال.",
+    "nothingHere": "لا شيء في هذه القائمة.",
+    "problem": {
+      "duplicateVat": "لديك طرف بالرقم الضريبي نفسه. إدخاله ثانية يعطيك نسختين.",
+      "duplicatePeppol": "لديك طرف بمعرّف Peppol نفسه. إدخاله ثانية يعطيك نسختين."
+    },
+    "field": {
+      "customerType": "النوع",
+      "legalName": "الاسم القانوني",
+      "entityName": "اسم الجهة",
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "vatNumber": "الرقم الضريبي",
+      "registeredForVat": "مسجّل ضريبيًا",
+      "peppolId": "معرّف Peppol",
+      "email": "البريد الإلكتروني",
+      "telephone": "الهاتف",
+      "mobile": "الجوال",
+      "paymentTerms": "شروط الدفع",
+      "currency": "العملة",
+      "taxCategory": "الفئة الضريبية",
+      "country": "الدولة",
+      "city": "المدينة",
+      "street": "الشارع"
+    },
+    "wouldComeIn": "{{coming}} من {{total}} ستدخل",
+    "leftOut_zero": "· لا شيء مستبعد",
+    "leftOut_one": "· صف واحد مستبعد",
+    "leftOut_two": "· صفان مستبعدان",
+    "leftOut_few": "· {{count}} صفوف مستبعدة",
+    "leftOut_many": "· {{count}} صفًا مستبعدًا",
+    "leftOut_other": "· {{count}} صف مستبعد",
+    "downloadFailed_zero": "نزّل المتعذّرة",
+    "downloadFailed_one": "نزّل الصف المتعذّر",
+    "downloadFailed_two": "نزّل الصفين المتعذّرين",
+    "downloadFailed_few": "نزّل {{count}} صفوف متعذّرة",
+    "downloadFailed_many": "نزّل {{count}} صفًا متعذّرًا",
+    "downloadFailed_other": "نزّل {{count}} صف متعذّر",
+    "bringIn_zero": "لا شيء لإدخاله",
+    "bringIn_one": "أدخل صفًا واحدًا",
+    "bringIn_two": "أدخل صفين",
+    "bringIn_few": "أدخل {{count}} صفوف",
+    "bringIn_many": "أدخل {{count}} صفًا",
+    "bringIn_other": "أدخل {{count}} صف",
+    "bringingIn": "جارٍ الإدخال…",
+    "blocked": {
+      "expired": "أُخذت هذه المراجعة قبل أكثر من ٢٤ ساعة فانتهت صلاحيتها. ارفع الملف مرة أخرى لفحصه من جديد.",
+      "committed": "استُورد هذا الملف بالفعل. لا ترفعه ثانية إلا إن قصدت استيراده مرتين.",
+      "cancelled": "أُلغيت هذه المراجعة. ارفع الملف مرة أخرى لفحصه من جديد."
+    },
+    "doneNote": "اختير {{selected}}، واستُبعد {{skipped}}.",
+    "doneStale_zero": "لم يتعذّر شيء.",
+    "doneStale_one": "تعذّر إنشاء صف واحد في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_two": "تعذّر إنشاء صفين في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_few": "تعذّر إنشاء {{count}} صفوف في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_many": "تعذّر إنشاء {{count}} صفًا في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_other": "تعذّر إنشاء {{count}} صف في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "another": "استورد ملفًا آخر"
   }
 }
