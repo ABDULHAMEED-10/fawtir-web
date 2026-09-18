@@ -13907,7 +13907,8 @@
       "showMessage": "Show the message that would be sent",
       "hideMessage": "Hide the message",
       "historyTitle": "Already sent",
-      "noHistory": "No reminder has gone out for this invoice."
+      "noHistory": "No reminder has gone out for this invoice.",
+      "stillSendable": "You can still send one yourself."
     }
   }
 }

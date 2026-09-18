@@ -13,7 +13,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
-import { OUTCOME_TONE, REMINDER_REFUSALS, VERDICT_NOTE, outcomeNote, rungNote } from '../../lib/paymentReminders'
+import { OUTCOME_TONE, REMINDER_REFUSALS, VERDICT_NOTE, canSendByHand, outcomeNote, rungNote, rungToday } from '../../lib/paymentReminders'
 import { ApiError } from '../../api'
 
 const TONE: Record<'ok' | 'warn' | 'muted', string> = {
@@ -32,13 +32,19 @@ const TONE: Record<'ok' | 'warn' | 'muted', string> = {
  * A rung is spent once for ever: a failed send still consumes it and there is no retry, so sending
  * by hand is offered plainly and its refusals are named rather than swallowed.
  */
-export function InvoiceRemindersCard({ invoiceId }: { invoiceId: string }) {
+const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+
+export function InvoiceRemindersCard({ invoiceId, dueDate }: { invoiceId: string; dueDate: string | null }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
   const canSend = can(session, 'invoice.payment.manage')
 
-  const previewPath = reminderPreviewPath(invoiceId)
+  // Preview at today's distance from the due date rather than bare. Bare, the server answers with
+  // no rung and no message on every day but a rung day — so the message a reminder would carry
+  // would be unreadable for almost every invoice, which is the one thing this card is for.
+  const rung = rungToday(muscatToday(), dueDate)
+  const previewPath = reminderPreviewPath(invoiceId, rung)
   const preview = useApiRead<ReminderPreviewDto>(previewPath, () => loadReminderPreview(previewPath))
   const historyPath = invoiceRemindersPath(invoiceId)
   const history = useApiRead<ReminderLogDto[]>(historyPath, () => loadInvoiceReminders(historyPath))
@@ -54,7 +60,7 @@ export function InvoiceRemindersCard({ invoiceId }: { invoiceId: string }) {
     setSending(true)
     setNotice(null)
     try {
-      const sent = await sendReminderNow(invoiceId, shown?.rung ?? null)
+      const sent = await sendReminderNow(invoiceId, shown?.rung ?? rung)
       preview.retry()
       history.retry()
       setNotice(t('paymentReminders.invoice.sent', { recipient: sent.recipient ?? '' }))
@@ -81,7 +87,7 @@ export function InvoiceRemindersCard({ invoiceId }: { invoiceId: string }) {
     <section className="rounded-sm bg-surface-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 className="text-lg font-semibold text-text-primary">{t('paymentReminders.invoice.title')}</h2>
-        {canSend && shown?.verdict === 'SEND' ? (
+        {canSend && shown && canSendByHand(shown.verdict) ? (
           <button
             type="button"
             disabled={sending}
@@ -97,7 +103,10 @@ export function InvoiceRemindersCard({ invoiceId }: { invoiceId: string }) {
 
       {shown ? (
         <>
-          <p className="mt-2 text-sm font-medium text-text-tertiary">{t(VERDICT_NOTE[shown.verdict])}</p>
+          <p className="mt-2 text-sm font-medium text-text-tertiary">
+            {t(VERDICT_NOTE[shown.verdict])}
+            {canSendByHand(shown.verdict) && shown.verdict !== 'SEND' ? ` ${t('paymentReminders.invoice.stillSendable')}` : ''}
+          </p>
           {shown.rung !== null ? (
             <p className="mt-1 text-sm font-medium text-text-quaternary">
               {t('paymentReminders.invoice.rung', { rung: t(rungNote(shown.rung).key, rungNote(shown.rung).values) })}

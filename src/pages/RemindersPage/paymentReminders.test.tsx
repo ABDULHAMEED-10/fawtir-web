@@ -50,6 +50,10 @@ const LOG: ReminderLogDto[] = [
   row({ invoiceId: 'inv-3', invoiceNumber: 'INV-2026-000003', daysFromDue: 0, outcome: 'SKIPPED' }),
 ]
 
+// Far enough from the due date that no rung of any sane ladder falls today — the ordinary case,
+// and the one where the message was previously unreachable.
+const DUE_DATE = '2026-10-16'
+
 const PREVIEW: ReminderPreviewDto = {
   invoiceId: 'inv-1',
   invoiceNumber: 'INV-2026-000001',
@@ -221,7 +225,7 @@ describe('Reminders on one invoice', () => {
     render(
       <MemoryRouter initialEntries={['/invoices/inv-1']}>
         <Routes>
-          <Route path="/invoices/:id" element={<InvoiceRemindersCard invoiceId="inv-1" />} />
+          <Route path="/invoices/:id" element={<InvoiceRemindersCard invoiceId="inv-1" dueDate={DUE_DATE} />} />
         </Routes>
       </MemoryRouter>,
     )
@@ -235,6 +239,21 @@ describe('Reminders on one invoice', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Show the message that would be sent' }))
     expect(await screen.findByText('Invoice INV-2026-000001 is overdue')).toBeTruthy()
     expect(screen.getByText(/OMR 120.000 was due on 10 September 2026/)).toBeTruthy()
+  })
+
+  it('reads the message on a day when no rung falls, and still offers a manual send', async () => {
+    preview = { ...PREVIEW, verdict: 'NO_RUNG_TODAY', rung: -28 }
+    renderCard()
+
+    // Previewing at today's distance from the due date is what makes the message readable at all.
+    await waitFor(() => expect(calls('GET', '/api/v1/authored-invoices/inv-1/reminders/preview').some((call) =>
+      String(call[0]).includes('days_from_due=-28'))).toBe(true))
+
+    expect(await screen.findByText(/No rung falls today\./)).toBeTruthy()
+    expect(screen.getByText(/You can still send one yourself\./)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send one now' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Show the message that would be sent' }))
+    expect(await screen.findByText('Invoice INV-2026-000001 is overdue')).toBeTruthy()
   })
 
   it('names the verdict when nothing would go out, and offers no send', async () => {
