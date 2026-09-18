@@ -22,10 +22,17 @@ export function tabCount(tab: DetailTabId, overview: SupplierOverviewDto | null)
   return overview.tabs[tab]
 }
 
-/** "Net 30 days" from `NET30`, "On receipt" from `NET0`; a code this build does not know is shown as it is. */
+/**
+ * "Net 30 days" from `NET30` or `NET_30`, "Due on receipt" from `NET0` or `DUE_ON_RECEIPT`; a code
+ * this build does not know is shown as it is.
+ *
+ * Both spellings are real: the seeded suppliers carry `NET_10` and `DUE_ON_RECEIPT`, which read as
+ * "Terms NET_10" until the underscore was allowed for (E-05 browser check).
+ */
 export function termsNote(code: string | null): Note | null {
-  if (!code) return null
-  const net = /^NET(\d+)$/.exec(code)
+  if (!code || !code.trim()) return null
+  if (code === 'DUE_ON_RECEIPT') return { key: 'supplierRecord.terms.onReceipt' }
+  const net = /^NET_?(\d+)$/.exec(code)
   if (!net) return { key: 'supplierRecord.terms.raw', values: { code } }
   const days = Number(net[1])
   return days === 0 ? { key: 'supplierRecord.terms.onReceipt' } : { key: 'supplierRecord.terms.net', values: { count: days } }
