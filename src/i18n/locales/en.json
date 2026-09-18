@@ -1133,7 +1133,7 @@
     "title": "Customers",
     "subtitle_one": "{{customers}} customer · OMR {{amount}} receivable",
     "subtitle_other": "{{customers}} customers · OMR {{amount}} receivable",
-    "bulkUpload": "Bulk upload",
+    "bulkUpload": "Import from a file",
     "export": "Export",
     "exporting": "Exporting…",
     "exportTruncated": "The file stops at the export limit, so it does not hold every customer. Narrow the list by type or search and export again.",
@@ -1382,7 +1382,7 @@
   "suppliersPage": {
     "title": "Suppliers",
     "subtitle": "Everyone who bills you. Their terms, bank details and Peppol status decide how bills arrive and how they get paid.",
-    "importFromExcel": "Import from Excel",
+    "importFromExcel": "Import from a file",
     "newSupplier": "New supplier",
     "searchPlaceholder": "Search here...",
     "filters": "Filters",
@@ -6639,70 +6639,6 @@
       "orderClosesNote": "Ordered, received and billed all complete"
     },
     "plainWords": "Recording {{amount}} from {{supplier}} against {{order}}, payable {{payable}}. Everything matches."
-  },
-  "importSuppliers": {
-    "breadcrumb": "Import from Excel",
-    "title": "Check before importing",
-    "subtitle": "Nothing has been saved yet. Fawtir has read every row and checked it the same way the form does — fix what's wrong here.",
-    "startOver": "Start over",
-    "step": {
-      "uploaded": "File uploaded",
-      "check": "Check the rows",
-      "bring": "Bring them in"
-    },
-    "card": {
-      "ready": "Ready to bring in",
-      "readyNote": "Everything checks out. {{peppol}} of them are on Peppol.",
-      "warning": "Worth a look",
-      "warningNote": "Will import, but something's missing or already exists.",
-      "blocked": "Can't import",
-      "blockedNote": "Fix them here, or leave them out and add them later."
-    },
-    "tab": {
-      "blocked": "Can't import",
-      "warning": "Worth a look",
-      "ready": "Ready",
-      "all": "All rows"
-    },
-    "col": {
-      "row": "Row",
-      "supplier": "Supplier",
-      "problemField": "The problem field",
-      "whatsWrong": "What's wrong"
-    },
-    "blank": "(blank)",
-    "typeAName": "Type a name",
-    "empty": "Empty",
-    "nothingHere": "Nothing in this list.",
-    "field": {
-      "vatNumber": "VAT number",
-      "peppolId": "Peppol ID",
-      "legalName": "Legal name",
-      "paymentTerms": "Payment terms",
-      "alreadyOnList": "Already on your list",
-      "iban": "IBAN"
-    },
-    "problem": {
-      "vatTooShort": "Ten digits - an Oman VATIN has twelve. Two look to have been cut off.",
-      "noScheme": "No scheme in front of it. Should read 0248: then the VAT number.",
-      "noName": "No name at all. A supplier can't be saved without one.",
-      "unknownTerms": "Not one of the terms Fawtir knows. Did you mean Net 30?",
-      "duplicateVat": "Same VAT number as a supplier you already have. Bringing it in again would give you two.",
-      "noIban": "Will import, but they can't go in a payment run until an account is added.",
-      "resolved": "Fixed - this row will come in."
-    },
-    "action": {
-      "leaveOut": "Leave it out",
-      "fixAllLikeThis": "Fix all 3 like this",
-      "yesNet30": "Yes, Net 30",
-      "updateInstead": "Update instead",
-      "bringInAnyway": "Bring in anyway"
-    },
-    "wouldComeIn": "{{coming}} of {{total}} would come in",
-    "leftOut": "· {{count}} left out unless you fix them",
-    "cancel": "Cancel",
-    "downloadFailed": "Download {{count}} that failed",
-    "bringIn": "Bring in {{count}} suppliers"
   },
   "supplierStatement": {
     "title": "Statement",
@@ -13987,5 +13923,118 @@
         "DEBIT_NOTE": "The debit note is cancelled."
       }
     }
+  },
+  "stagedImport": {
+    "breadcrumb": "Import from a file",
+    "startOver": "Start over",
+    "target": {
+      "SUPPLIER": {
+        "list": "Suppliers",
+        "title": "Import suppliers from a file",
+        "subtitle": "Upload your list, see what Fawtir makes of every row, then bring in the ones you keep.",
+        "done_one": "{{count}} supplier brought in",
+        "done_other": "{{count}} suppliers brought in",
+        "seeThem": "See your suppliers"
+      },
+      "CUSTOMER": {
+        "list": "Customers",
+        "title": "Import customers from a file",
+        "subtitle": "Upload your list, see what Fawtir makes of every row, then bring in the ones you keep.",
+        "done_one": "{{count}} customer brought in",
+        "done_other": "{{count}} customers brought in",
+        "seeThem": "See your customers"
+      }
+    },
+    "step": {
+      "upload": "Upload the file",
+      "check": "Check the rows",
+      "bring": "Bring them in"
+    },
+    "dropHere": "Drop your file here, or choose one",
+    "checking": "Reading the file…",
+    "fileRules": "A CSV file in Fawtir's template, up to 2 MB. Nothing is saved until you bring the rows in.",
+    "downloadTemplate": "Download the template",
+    "templateNote": "Fill it in a spreadsheet and save it as CSV.",
+    "reject": {
+      "type": "{{name}} isn't a CSV file. Save your spreadsheet as CSV and try again.",
+      "size": "{{name}} is larger than 2 MB. Split it and import the parts."
+    },
+    "reviewTitle": "Check before importing",
+    "reviewSubtitle": "Nothing has been saved yet. Every row was read and checked the way the form checks one. Untick anything you don't want.",
+    "fileLine_one": "{{name}} · {{count}} row",
+    "fileLine_other": "{{name}} · {{count}} rows",
+    "unnamedFile": "Your file",
+    "expires": "this review is kept until {{when}}",
+    "card": {
+      "ready": "Ready to bring in",
+      "readyNote": "Nothing to question in these rows.",
+      "needsALook": "Worth a look",
+      "needsALookNote": "They will come in, but you may already have them.",
+      "cannotImport": "Can't import",
+      "cannotImportNote": "Download them, fix them in the file, and check it again."
+    },
+    "tab": {
+      "cannotImport": "Can't import",
+      "needsALook": "Worth a look",
+      "ready": "Ready",
+      "all": "All rows"
+    },
+    "col": {
+      "bringIn": "Bring in",
+      "row": "Row",
+      "name": "Name",
+      "verdict": "Verdict",
+      "whatsWrong": "What Fawtir found"
+    },
+    "severity": {
+      "READY": "Ready",
+      "NEEDS_A_LOOK": "Worth a look",
+      "CANNOT_IMPORT": "Can't import"
+    },
+    "bringInRow": "Bring in row {{row}}",
+    "leftOutRow": "Left out",
+    "blank": "(no name)",
+    "noProblem": "Nothing to question.",
+    "nothingHere": "Nothing in this list.",
+    "problem": {
+      "duplicateVat": "You already have a counterparty with this VAT number. Bringing it in again would give you two.",
+      "duplicatePeppol": "You already have a counterparty with this Peppol identifier. Bringing it in again would give you two."
+    },
+    "field": {
+      "customerType": "Kind",
+      "legalName": "Legal name",
+      "entityName": "Entity name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "vatNumber": "VAT number",
+      "registeredForVat": "Registered for VAT",
+      "peppolId": "Peppol ID",
+      "email": "Email",
+      "telephone": "Telephone",
+      "mobile": "Mobile",
+      "paymentTerms": "Payment terms",
+      "currency": "Currency",
+      "taxCategory": "Tax category",
+      "country": "Country",
+      "city": "City",
+      "street": "Street"
+    },
+    "wouldComeIn": "{{coming}} of {{total}} coming in",
+    "leftOut_one": "· {{count}} left out",
+    "leftOut_other": "· {{count}} left out",
+    "downloadFailed_one": "Download the {{count}} that failed",
+    "downloadFailed_other": "Download the {{count}} that failed",
+    "bringIn_one": "Bring in {{count}}",
+    "bringIn_other": "Bring in {{count}}",
+    "bringingIn": "Bringing them in…",
+    "blocked": {
+      "expired": "This review was taken more than 24 hours ago, so it has expired. Upload the file again to check it afresh.",
+      "committed": "This file has already been imported. Upload it again only if you meant to import it twice.",
+      "cancelled": "This review was cancelled. Upload the file again to check it afresh."
+    },
+    "doneNote": "{{selected}} chosen, {{skipped}} left out.",
+    "doneStale_one": "{{count}} row could not be created after all — something changed since the check. Download the file and check it again.",
+    "doneStale_other": "{{count}} rows could not be created after all — something changed since the check. Download the file and check it again.",
+    "another": "Import another file"
   }
 }

@@ -216,10 +216,10 @@ function CustomersScreen() {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {can(session, 'customer.import') ? (
-          <button type="button" className={OUTLINE_BUTTON}>
+          <Link to="/customers/import" className={OUTLINE_BUTTON}>
             <img src={bulkUploadIcon} alt="" className="size-6" />
             {t('customersPage.bulkUpload')}
-          </button>
+          </Link>
         ) : null}
         {can(session, 'customer.export') ? (
           <button type="button" onClick={onExport} disabled={exporting} className={OUTLINE_BUTTON}>
