@@ -143,27 +143,6 @@ export function selfBillRowActions(documentId: string): ActionMenuItem[] {
   ]
 }
 
-export function scheduleRowActions(): ActionMenuItem[] {
-  return [
-    {
-      id: 'view',
-      labelKey: 'rowActions.schedule.view',
-      icon: viewIcon,
-      to: '/income/periodic/monthly-coffee-supply',
-    },
-    {
-      id: 'edit',
-      labelKey: 'rowActions.schedule.edit',
-      icon: editIcon,
-      to: '/income/periodic/monthly-coffee-supply/edit',
-    },
-    { id: 'generate', labelKey: 'rowActions.schedule.generate', icon: invoiceIcon },
-    { id: 'pause', labelKey: 'rowActions.schedule.pause', icon: pauseIcon },
-    { id: 'duplicate', labelKey: 'rowActions.schedule.duplicate', icon: duplicateIcon },
-    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
-  ]
-}
-
 export function quotationRowActions(documentId: string): ActionMenuItem[] {
   return [
     {
