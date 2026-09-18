@@ -105,6 +105,8 @@ export type InvoiceListFilter = {
   search: string
   /** The notes of one invoice. */
   correctionOf?: string | null
+  /** One customer's invoices — the periodic schedule's template picker asks for these. */
+  customerId?: string | null
 }
 
 export type InvoiceListQuery = InvoiceListFilter & {
@@ -123,6 +125,7 @@ function filterParams(filter: InvoiceListFilter) {
     to: filter.to,
     q: filter.search.trim(),
     correction_of_invoice_id: filter.correctionOf ?? undefined,
+    customer_id: filter.customerId ?? undefined,
   }
 }
 
