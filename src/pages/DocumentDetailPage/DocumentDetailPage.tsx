@@ -110,7 +110,11 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
           <Fact label={t('documents.detail.keptUntil')} value={item.retention.retain_until ? formatDate(item.retention.retain_until, language) : '—'} />
           <Fact label={t('documents.detail.canBeRemoved')} value={t(item.retention.frozen ? 'documents.detail.no' : 'documents.detail.yes')} />
         </div>
-        {frozen ? <p className="mt-4 text-sm font-medium leading-[1.5] text-text-tertiary">{t(frozen.key, frozen.values)}</p> : null}
+        {frozen ? (
+          <p className="mt-4 text-sm font-medium leading-[1.5] text-text-tertiary">
+            {t(frozen.key, frozen.values ? { date: formatDate(frozen.values.date, language) } : undefined)}
+          </p>
+        ) : null}
         {hold.held ? (
           <div className="mt-4 rounded-sm border border-warning-700/40 bg-warning-100/40 p-4">
             <p className="text-sm font-semibold text-warning-700">{t('documents.detail.holdReason')}</p>

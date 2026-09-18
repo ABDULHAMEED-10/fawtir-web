@@ -5833,11 +5833,10 @@
       "kept": "يُحفظ حتى"
     },
     "kind": {
-      "INVOICE": "فاتورة",
+      "STANDARD_INVOICE": "فاتورة",
       "CREDIT_NOTE": "إشعار دائن",
-      "DEBIT_NOTE": "إشعار مدين",
-      "SELF_BILLED_INVOICE": "فاتورة ذاتية الإصدار",
-      "SELF_BILLED_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار"
+      "SELF_BILLING_INVOICE": "فاتورة ذاتية الإصدار",
+      "SELF_BILLING_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار"
     },
     "direction": {
       "ISSUED": "مُرسل",
@@ -5845,11 +5844,15 @@
     },
     "tdd": {
       "none": "لم يُبلَّغ عنه",
-      "PENDING": "في الانتظار",
+      "PENDING": "في انتظار الإرسال",
       "SUBMITTED": "أُرسل",
+      "GENERATION_FAILED": "تعذّر تجهيزه",
       "ACCEPTED": "مقبول",
+      "DELIVERED_UNCONFIRMED": "سُلّم دون إقرار بعد",
       "REJECTED": "مرفوض",
-      "FAILED": "فشل"
+      "TO_DISREGARD": "سيُسحب",
+      "DISREGARD_SUBMITTED": "أُرسل السحب",
+      "DEAD_LETTERED": "تُرك"
     },
     "artefact": {
       "xml": "XML موقّع",

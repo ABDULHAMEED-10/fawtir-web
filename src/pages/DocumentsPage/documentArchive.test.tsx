@@ -24,7 +24,7 @@ const artefact = (available: boolean, href: string | null = null) => ({ availabl
 const ISSUED: ArchiveItemDto = {
   invoice_uuid: '11111111-1111-1111-1111-111111111111',
   direction: 'ISSUED',
-  document_kind: 'INVOICE',
+  document_kind: 'STANDARD_INVOICE',
   invoice_number: 'INV-2026-000004',
   counterparty: '0248:OM1100628391',
   occurred_at: '2026-09-01T07:00:00Z',
@@ -54,7 +54,7 @@ const RECEIVED: ArchiveItemDto = {
   ...ISSUED,
   invoice_uuid: '22222222-2222-2222-2222-222222222222',
   direction: 'RECEIVED',
-  document_kind: 'INVOICE',
+  document_kind: 'STANDARD_INVOICE',
   invoice_number: 'SOHAR-1002',
   tdd: { status: null, ack: 'NONE' },
   artefacts: { ...ISSUED.artefacts, pdf: artefact(false), qr: artefact(false), tdd: artefact(true, null), mls_count: 0 },
@@ -172,7 +172,8 @@ describe('The compliance archive, wired to the API', () => {
     expect(screen.getByText('Tax year')).toBeTruthy()
     expect(screen.getByText(ISSUED.invoice_uuid)).toBeTruthy()
     expect(screen.getByText('Not yet')).toBeTruthy()
-    expect(screen.getByText(/must be kept until/)).toBeTruthy()
+    // The date reads as a date, not as the API's ISO string.
+    expect(screen.getByText('This document must be kept until 31 Dec 2037, so it cannot be removed before then.')).toBeTruthy()
 
     // The transport receipt exists with nothing serving it: named, not offered.
     const receipt = screen.getByText('Transport receipt').closest('li') as HTMLElement

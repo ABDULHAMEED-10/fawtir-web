@@ -5753,11 +5753,10 @@
       "kept": "Kept until"
     },
     "kind": {
-      "INVOICE": "Invoice",
+      "STANDARD_INVOICE": "Invoice",
       "CREDIT_NOTE": "Credit note",
-      "DEBIT_NOTE": "Debit note",
-      "SELF_BILLED_INVOICE": "Self-billed invoice",
-      "SELF_BILLED_CREDIT_NOTE": "Self-billed credit note"
+      "SELF_BILLING_INVOICE": "Self-billed invoice",
+      "SELF_BILLING_CREDIT_NOTE": "Self-billed credit note"
     },
     "direction": {
       "ISSUED": "Sent",
@@ -5765,11 +5764,15 @@
     },
     "tdd": {
       "none": "Not reported",
-      "PENDING": "Waiting",
+      "PENDING": "Waiting to be sent",
       "SUBMITTED": "Sent",
+      "GENERATION_FAILED": "Could not be prepared",
       "ACCEPTED": "Accepted",
+      "DELIVERED_UNCONFIRMED": "Delivered, not yet acknowledged",
       "REJECTED": "Rejected",
-      "FAILED": "Failed"
+      "TO_DISREGARD": "To be withdrawn",
+      "DISREGARD_SUBMITTED": "Withdrawal sent",
+      "DEAD_LETTERED": "Given up on"
     },
     "artefact": {
       "xml": "Signed XML",

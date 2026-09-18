@@ -70,10 +70,24 @@ export function visibleItems(items: ArchiveItemDto[], tab: ArchiveTabId): Archiv
   return tab === 'legalHold' ? items.filter((item) => item.retention.legal_hold.held) : items
 }
 
-/** The kinds the archive answers with, as PINT-OM names them. */
-export const DOCUMENT_KINDS = ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'SELF_BILLED_INVOICE', 'SELF_BILLED_CREDIT_NOTE'] as const
+/**
+ * `PintOmDocumentKind`, the four the archive answers with. A debit note is a STANDARD_INVOICE
+ * under the billing profile, which is why there is no kind of its own.
+ */
+export const DOCUMENT_KINDS = ['STANDARD_INVOICE', 'CREDIT_NOTE', 'SELF_BILLING_INVOICE', 'SELF_BILLING_CREDIT_NOTE'] as const
 
-export const TDD_STATUSES = ['PENDING', 'SUBMITTED', 'ACCEPTED', 'REJECTED', 'FAILED'] as const
+/** `TddSubmissionStatus`, every value the obligation can hold. */
+export const TDD_STATUSES = [
+  'PENDING',
+  'SUBMITTED',
+  'GENERATION_FAILED',
+  'ACCEPTED',
+  'DELIVERED_UNCONFIRMED',
+  'REJECTED',
+  'TO_DISREGARD',
+  'DISREGARD_SUBMITTED',
+  'DEAD_LETTERED',
+] as const
 
 /** Tax years worth offering: this one and the nine before it, which is the retention horizon. */
 export function taxYears(today: string): number[] {
