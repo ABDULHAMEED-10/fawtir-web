@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import type { SupplierStatementDto } from '../../api/expenditure/supplierRecord'
+import { termsNote } from '../../lib/supplierRecord'
 import { columnsOf, customRangeProblem, emailBlocker, entryLink, periodRange, periodTotals } from '../../lib/supplierStatement'
 import { SupplierStatementPage } from './SupplierStatementPage'
 
@@ -281,6 +282,15 @@ describe('statement helpers', () => {
     expect(entryLink('BILL', 'b-1')).toBe('/expenditure/bills/b-1')
     expect(entryLink('PAYMENT', 'p-1')).toBeNull()
     expect(periodTotals({ ...STATEMENT, bills: 1200.5, credits: 100.25 }).billedNet).toBe(1100.25)
+  })
+
+  it('reads payment terms in either spelling the records carry', () => {
+    expect(termsNote('NET30')).toEqual({ key: 'supplierRecord.terms.net', values: { count: 30 } })
+    expect(termsNote('NET_10')).toEqual({ key: 'supplierRecord.terms.net', values: { count: 10 } })
+    expect(termsNote('DUE_ON_RECEIPT')).toEqual({ key: 'supplierRecord.terms.onReceipt' })
+    expect(termsNote('NET0')).toEqual({ key: 'supplierRecord.terms.onReceipt' })
+    expect(termsNote('MONTHLY')).toEqual({ key: 'supplierRecord.terms.raw', values: { code: 'MONTHLY' } })
+    expect(termsNote('  ')).toBeNull()
   })
 
   it('says why the statement cannot be emailed before the server is asked', () => {
