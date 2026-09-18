@@ -207,6 +207,7 @@ function App() {
           <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
           <Route path="/expenditure/recurring-bills" element={<RecurringBillsPage />} />
           <Route path="/expenditure/recurring-bills/new" element={<NewRecurringBillPage />} />
+          <Route path="/expenditure/recurring-bills/:id/edit" element={<NewRecurringBillPage />} />
           <Route path="/expenditure/recurring-bills/:id" element={<RecurringBillDetailPage />} />
           <Route path="/expenditure/credit-notes" element={<SupplierCreditNotesPage />} />
           <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />

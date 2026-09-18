@@ -1,512 +1,287 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Rial, Select, withRial } from '../../components/ui'
+import { DateField } from '../../components/ui'
+import { SupplierPicker } from '../../components/bills'
+import { ApiReadFailure, LoadingNotice, Notice, PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { ApiError } from '../../api'
 import {
-  CADENCES,
-  CATEGORY_OPTIONS,
-  CHASE_AFTER_OPTIONS,
-  DAY_OPTIONS,
-  NOTIFY_OPTIONS,
-  PAYMENT_DUE_OPTIONS,
-  PREPARED_BY_OPTIONS,
-  RECURRING_BILLS,
-  toNumber,
-  toOmr,
-  VAT_TREATMENT_OPTIONS,
-  type Cadence,
+  createRecurringBill,
+  loadRecurringBill,
+  recurringBillPath,
+  updateRecurringBill,
+  type RecurringBillDto,
+} from '../../api/expenditure/recurringBills'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { can, useSession } from '../../lib/session/session'
+import {
+  INTERVALS,
+  MODES,
+  RECURRING_REFUSALS,
+  blankRecurringForm,
+  formOf,
+  plainWords,
+  recurringProblems,
+  toRecurringRequest,
+  type RecurringField,
+  type RecurringForm,
 } from '../../lib/recurringBills'
 import chevronIcon from '../../assets/invoices/chevron.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
 
-function SectionTitle({ step, title }: { step: number; title: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="inline-flex size-6 items-center justify-center rounded-[5px] bg-surface-background text-[13px] font-extrabold leading-[1.2] text-primary-800">
-        {step}
-      </span>
-      <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{title}</h2>
-    </div>
-  )
-}
+const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
-function FieldLabel({ label, required }: { label: string; required?: boolean }) {
-  return (
-    <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary">
-      {label}
-      {required ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
-    </span>
-  )
-}
+const FIELD = 'h-[46px] w-full rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
 
-function Toggle({
-  on,
-  onChange,
-  label,
-}: {
-  on: boolean
-  onChange: (next: boolean) => void
-  label: string
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => onChange(!on)}
-      className={[
-        'relative inline-flex h-7 w-[52px] shrink-0 items-center rounded-full transition-colors',
-        on ? 'bg-primary-700' : 'bg-[#d0d2d5]',
-      ].join(' ')}
-    >
-      <span
-        className={[
-          'absolute size-[22px] rounded-full bg-white transition-all',
-          on ? 'start-[26px]' : 'start-[3px]',
-        ].join(' ')}
-      />
-    </button>
-  )
-}
-
-/** A row in "When to tell you": a label, an explanation, and one control on the right. */
-function RuleRow({
-  title,
-  note,
-  control,
-  divider = true,
-}: {
-  title: string
-  note: string
-  control: React.ReactNode
-  divider?: boolean
-}) {
-  return (
-    <div
-      className={[
-        'flex flex-wrap items-center justify-between gap-4 py-4',
-        divider ? 'border-b border-border-subtle' : '',
-      ].join(' ')}
-    >
-      <div className="min-w-[240px] flex-1">
-        <p className="text-base font-medium leading-[1.2] text-text-primary">{title}</p>
-        <p className="mt-1 text-sm font-medium leading-[1.35] text-text-quaternary">{note}</p>
-      </div>
-      <div className="shrink-0">{control}</div>
-    </div>
-  )
-}
-
+/**
+ * Setting up a recurring bill, and editing one (E-12).
+ *
+ * The mode decides the rest of the form: a watch that expects the supplier's bill asks when it
+ * usually arrives and how far the amount may move, while one that raises the bill itself asks only
+ * when to start. The fields the chosen mode does not use are not sent, because the server refuses
+ * an arrival day on a raising watch and requires one on a watching one.
+ */
 export function NewRecurringBillPage() {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-
-  const [preparedBy, setPreparedBy] = useState(PREPARED_BY_OPTIONS[0].value)
-  const [category, setCategory] = useState(CATEGORY_OPTIONS[0].value)
-  const [name, setName] = useState('Shop rent Nizwa branch')
-  const [reference, setReference] = useState('03215879464817')
-  const [cadence, setCadence] = useState<Cadence>('monthly')
-  const [arrivesAround, setArrivesAround] = useState('28th')
-  const [paymentDue, setPaymentDue] = useState(PAYMENT_DUE_OPTIONS[1].value)
-  const [watchingFrom, setWatchingFrom] = useState('Aug 2026')
-  const [amount, setAmount] = useState('1,200.000')
-  const [vatTreatment, setVatTreatment] = useState(VAT_TREATMENT_OPTIONS[0].value)
-  const [tolerance, setTolerance] = useState(10)
-  const [chaseAfter, setChaseAfter] = useState(CHASE_AFTER_OPTIONS[1].value)
-  const [flagOutside, setFlagOutside] = useState(true)
-  const [autoApprove, setAutoApprove] = useState(false)
-  const [notify, setNotify] = useState(NOTIFY_OPTIONS[0].value)
-
-  /** The tolerance band, recomputed as the amount or the percentage moves. */
-  const band = useMemo(() => {
-    const value = toNumber(amount)
-    const spread = (value * tolerance) / 100
-    return { low: toOmr(value - spread), high: toOmr(value + spread) }
-  }, [amount, tolerance])
-
-  /**
-   * Past bills from the chosen supplier.
-   *
-   * Figma lists Muscat Roastery, Sohar Packaging and Nizwa Hardware here regardless of who is
-   * selected — pasted from the payment run. Filtering by the supplier is the only version of
-   * this panel that means anything.
-   */
-  const pastBills = useMemo(
-    () => RECURRING_BILLS.filter((bill) => bill.supplier === preparedBy),
-    [preparedBy],
-  )
-
+  const { id } = useParams()
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/expenditure/recurring-bills"
-            className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary"
-          >
-            {t('recurringBills.title')}
-          </Link>
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-          <span className="text-2xl font-medium leading-[1.2] text-text-primary">
-            {t('recurringBills.form.new')}
-          </span>
-        </div>
-
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('recurringBills.form.title')}
-          </h1>
-          <p className="mt-1 text-base font-medium leading-[1.3] text-text-quaternary">
-            {t('recurringBills.form.subtitle')}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-4 xl:flex-row">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            {/* 1 */}
-            <section className="rounded-md bg-surface-card p-5">
-              <SectionTitle step={1} title={t('recurringBills.form.whatIsIt')} />
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.preparedBy')} required />
-                  <Select
-                    value={preparedBy}
-                    onChange={setPreparedBy}
-                    options={PREPARED_BY_OPTIONS}
-                    ariaLabel={t('recurringBills.form.preparedBy')}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.category')} required />
-                  <Select
-                    value={category}
-                    onChange={setCategory}
-                    options={CATEGORY_OPTIONS}
-                    ariaLabel={t('recurringBills.form.category')}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.whatToCallIt')} required />
-                  <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    className="h-[50px] rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-sm font-medium text-text-secondary outline-none"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.theirReference')} />
-                  <input
-                    value={reference}
-                    onChange={(event) => setReference(event.target.value)}
-                    className="h-[50px] rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-sm font-medium text-text-secondary outline-none"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* 2 */}
-            <section className="rounded-md bg-surface-card p-5">
-              <SectionTitle step={2} title={t('recurringBills.form.whenItArrives')} />
-
-              <div
-                role="group"
-                aria-label={t('recurringBills.form.whenItArrives')}
-                className="mt-4 grid grid-cols-2 gap-1 rounded-sm border border-border-subtle bg-white p-1 md:grid-cols-4"
-              >
-                {CADENCES.map((option) => {
-                  const active = option.id === cadence
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setCadence(option.id)}
-                      aria-pressed={active}
-                      className={[
-                        'inline-flex h-[46px] items-center justify-center rounded-sm text-base transition-colors',
-                        active
-                          ? 'bg-primary-25 font-semibold text-primary-800'
-                          : 'font-medium text-text-tertiary hover:text-text-secondary',
-                      ].join(' ')}
-                    >
-                      {t(option.labelKey)}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-3">
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.arrivesAround')} required />
-                  <Select
-                    value={arrivesAround}
-                    onChange={setArrivesAround}
-                    options={DAY_OPTIONS}
-                    ariaLabel={t('recurringBills.form.arrivesAround')}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.paymentDue')} />
-                  <Select
-                    value={paymentDue}
-                    onChange={setPaymentDue}
-                    options={PAYMENT_DUE_OPTIONS}
-                    ariaLabel={t('recurringBills.form.paymentDue')}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.watchingFrom')} />
-                  <input
-                    value={watchingFrom}
-                    onChange={(event) => setWatchingFrom(event.target.value)}
-                    className="h-[50px] rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-sm font-medium text-text-secondary outline-none"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* 3 */}
-            <section className="rounded-md bg-surface-card p-5">
-              <SectionTitle step={3} title={t('recurringBills.form.whatItCosts')} />
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.usualAmount')} required />
-                  <div className="flex h-[50px] items-center gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
-                    <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
-                    <input
-                      value={amount}
-                      inputMode="decimal"
-                      onChange={(event) => setAmount(event.target.value)}
-                      aria-label={t('recurringBills.form.usualAmount')}
-                      className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-secondary outline-none"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <FieldLabel label={t('recurringBills.form.vatTreatment')} />
-                  <Select
-                    value={vatTreatment}
-                    onChange={setVatTreatment}
-                    options={VAT_TREATMENT_OPTIONS}
-                    ariaLabel={t('recurringBills.form.vatTreatment')}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-sm border border-border-subtle p-4">
-                <div className="min-w-[260px] flex-1">
-                  <p className="text-base font-medium leading-[1.2] text-text-primary">
-                    {t('recurringBills.form.tellMeIfItMoves')}
-                  </p>
-                  <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">
-                    {withRial(
-                      t('recurringBills.form.toleranceNote', { low: band.low, high: band.high }),
-                    )}
-                  </p>
-                </div>
-                <div className="inline-flex shrink-0 items-center rounded-sm border border-border-subtle bg-white">
-                  <button
-                    type="button"
-                    onClick={() => setTolerance((value) => Math.max(0, value - 1))}
-                    aria-label={t('recurringBills.form.decreaseTolerance')}
-                    className="inline-flex size-11 items-center justify-center text-lg font-semibold text-text-tertiary transition-colors hover:bg-primary-25"
-                  >
-                    −
-                  </button>
-                  <span className="w-14 text-center text-base font-semibold text-text-primary tabular-nums">
-                    {tolerance}%
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setTolerance((value) => Math.min(100, value + 1))}
-                    aria-label={t('recurringBills.form.increaseTolerance')}
-                    className="inline-flex size-11 items-center justify-center text-lg font-semibold text-text-tertiary transition-colors hover:bg-primary-25"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            {/* 4 */}
-            <section className="rounded-md bg-surface-card p-5">
-              <SectionTitle step={4} title={t('recurringBills.form.whenToTellYou')} />
-              <div className="mt-2">
-                <RuleRow
-                  title={t('recurringBills.form.ifNotArrived')}
-                  note={t('recurringBills.form.ifNotArrivedNote')}
-                  control={
-                    <div className="w-[190px]">
-                      <Select
-                        value={chaseAfter}
-                        onChange={setChaseAfter}
-                        options={CHASE_AFTER_OPTIONS}
-                        ariaLabel={t('recurringBills.form.ifNotArrived')}
-                        compact
-                      />
-                    </div>
-                  }
-                />
-                <RuleRow
-                  title={t('recurringBills.form.ifOutsideRange')}
-                  note={t('recurringBills.form.ifOutsideRangeNote')}
-                  control={
-                    <Toggle
-                      on={flagOutside}
-                      onChange={setFlagOutside}
-                      label={t('recurringBills.form.ifOutsideRange')}
-                    />
-                  }
-                />
-                <RuleRow
-                  title={t('recurringBills.form.autoApprove')}
-                  note={t('recurringBills.form.autoApproveNote')}
-                  control={
-                    <Toggle
-                      on={autoApprove}
-                      onChange={setAutoApprove}
-                      label={t('recurringBills.form.autoApprove')}
-                    />
-                  }
-                />
-                <RuleRow
-                  divider={false}
-                  title={t('recurringBills.form.whoGetsTold')}
-                  note={t('recurringBills.form.whoGetsToldNote')}
-                  control={
-                    <div className="w-[190px]">
-                      <Select
-                        value={notify}
-                        onChange={setNotify}
-                        options={NOTIFY_OPTIONS}
-                        ariaLabel={t('recurringBills.form.whoGetsTold')}
-                        compact
-                      />
-                    </div>
-                  }
-                />
-              </div>
-            </section>
-
-            <div className="flex flex-wrap justify-end gap-3">
-              <Link
-                to="/expenditure/recurring-bills"
-                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                {t('recurringBills.form.cancel')}
-              </Link>
-              <button
-                type="button"
-                onClick={() => navigate('/expenditure/recurring-bills')}
-                className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-              >
-                {t('recurringBills.form.startWatching')}
-              </button>
-            </div>
-          </div>
-
-          {/* What it adds up to */}
-          <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[340px]">
-            <section className="rounded-md bg-surface-card p-5">
-              <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('recurringBills.form.whatYoureSettingUp')}
-              </h2>
-
-              <div className="mt-4 rounded-sm border border-primary-300 bg-primary-25 p-4">
-                <p className="text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.8px] text-primary-800">
-                  {t('recurringBills.form.inPlainWords')}
-                </p>
-                <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-                  {t('recurringBills.form.plainWordsPrefix')}{' '}
-                  <span className="font-semibold text-text-primary">
-                    <Rial /> {amount}
-                  </span>{' '}
-                  {t('recurringBills.form.plainWordsFrom')}{' '}
-                  <span className="font-semibold text-text-primary">{preparedBy}</span>,{' '}
-                  {t('recurringBills.form.plainWordsExpected')}{' '}
-                  <span className="font-semibold text-text-primary">
-                    {t(`recurringBills.form.when.${cadence}`, { day: arrivesAround })}
-                  </span>
-                  . {t('recurringBills.form.plainWordsNotify', { who: notify, day: '30th' })}{' '}
-                  {t('recurringBills.form.plainWordsTolerance', { percent: tolerance })}
-                </p>
-              </div>
-
-              <ol className="mt-5 flex flex-col">
-                {[
-                  {
-                    day: arrivesAround.replace(/\D/g, ''),
-                    title: t('recurringBills.form.timeline.expected', { day: arrivesAround }),
-                    note: t('recurringBills.form.timeline.expectedNote'),
-                  },
-                  {
-                    day: '30',
-                    title: t('recurringBills.form.timeline.flagged'),
-                    note: t('recurringBills.form.timeline.flaggedNote', { who: notify }),
-                  },
-                  {
-                    day: '5',
-                    title: t('recurringBills.form.timeline.due'),
-                    note: t('recurringBills.form.timeline.dueNote'),
-                  },
-                ].map((step, index, all) => (
-                  <li key={step.title} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-background text-[11px] font-semibold text-text-tertiary">
-                        {step.day}
-                      </span>
-                      {index < all.length - 1 ? (
-                        <span className="w-px flex-1 bg-border-subtle" />
-                      ) : null}
-                    </div>
-                    <div className="pb-4">
-                      <p className="text-sm font-semibold leading-[1.2] text-text-primary">
-                        {step.title}
-                      </p>
-                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                        {step.note}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-
-            <section className="rounded-md bg-surface-card p-5">
-              <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('recurringBills.form.pastBills')}
-              </h2>
-              {pastBills.length === 0 ? (
-                <p className="mt-4 text-sm font-medium leading-[1.4] text-text-tertiary">
-                  {t('recurringBills.form.noPastBills', { supplier: preparedBy })}
-                </p>
-              ) : (
-                <ul className="mt-4 flex flex-col gap-4">
-                  {pastBills.map((bill) => (
-                    <li key={bill.id} className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold leading-[1.2] text-text-primary">
-                          {bill.title}
-                        </p>
-                        <p className="mt-0.5 text-xs font-medium leading-[1.2] text-text-muted">
-                          {t(bill.cadenceKey)}
-                        </p>
-                      </div>
-                      <span className="inline-flex items-center gap-1">
-                        <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
-                        <span className="text-sm font-semibold text-text-secondary">
-                          {bill.amount}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </aside>
-        </div>
-      </div>
+      <RecurringBillForm key={id ?? 'new'} id={id ?? null} />
     </AppShell>
+  )
+}
+
+function RecurringBillForm({ id }: { id: string | null }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const session = useSession()
+  const today = muscatToday()
+  const [form, setForm] = useState<RecurringForm>(() => blankRecurringForm(today))
+  const [seeded, setSeeded] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<RecurringField, string>>>({})
+  const [failure, setFailure] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const existing = useApiRead<RecurringBillDto>(id ? recurringBillPath(id) : null, id ? () => loadRecurringBill(id) : undefined)
+
+  if (!can(session, 'invoice.payment.manage')) {
+    return (
+      <div className="mx-auto w-full max-w-[860px]">
+        <PermissionDeniedNotice />
+      </div>
+    )
+  }
+
+  if (id && existing.read.status !== 'ready') {
+    return (
+      <div className="mx-auto flex w-full max-w-[860px] flex-col gap-4">
+        {existing.read.status === 'loading' ? <LoadingNotice /> : <ApiReadFailure error={existing.read.error} retry={existing.retry} />}
+      </div>
+    )
+  }
+
+  if (id && existing.read.status === 'ready' && !seeded) {
+    setSeeded(true)
+    setForm(formOf(existing.read.data, today))
+  }
+
+  const set = (changes: Partial<RecurringForm>) => {
+    setForm((current) => ({ ...current, ...changes }))
+    setErrors((current) => {
+      const next = { ...current }
+      for (const key of Object.keys(changes) as RecurringField[]) delete next[key]
+      return next
+    })
+  }
+
+  const expecting = form.mode === 'EXPECT'
+  const words = plainWords(form)
+
+  const save = async () => {
+    const problems = recurringProblems(form)
+    setErrors(problems)
+    setFailure(null)
+    if (Object.keys(problems).length > 0 || busy) return
+    setBusy(true)
+    try {
+      const request = toRecurringRequest(form)
+      const saved = id ? await updateRecurringBill(id, request) : await createRecurringBill(request)
+      navigate(`/expenditure/recurring-bills/${saved.id}`, { replace: true })
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : null
+      if (code && RECURRING_REFUSALS[code]) {
+        setFailure(t(RECURRING_REFUSALS[code]))
+      } else {
+        const message = describeApiFailure(error)
+        const body = t(message.key, message.values)
+        setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // The refusal sits outside the label on purpose: inside it, it becomes part of the field's name
+  // and a reader hears "What to call it This field is required" as the label itself.
+  const field = (name: RecurringField, label: string, input: React.ReactNode) => (
+    <div className="block">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-semibold text-text-secondary">{label}</span>
+        {input}
+      </label>
+      {errors[name] ? (
+        <p role="alert" className="mt-1 text-xs font-medium text-danger-700">
+          {t(errors[name]!)}
+        </p>
+      ) : null}
+    </div>
+  )
+
+  return (
+    <div className="mx-auto flex w-full max-w-[860px] flex-col gap-4 pb-10">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link to="/expenditure/recurring-bills" className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700">
+          {t('recurringBills.title')}
+        </Link>
+        <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
+        <span className="text-2xl font-medium leading-[1.2] text-text-primary">{t(id ? 'recurringBills.form.editTitle' : 'recurringBills.form.newTitle')}</span>
+      </div>
+
+      <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t(id ? 'recurringBills.form.editTitle' : 'recurringBills.form.newTitle')}</h1>
+
+      {failure ? <Notice body={failure} /> : null}
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('recurringBills.form.whatIsIt')}</h2>
+        <div className="mt-4 flex flex-col gap-4">
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1.5 text-sm font-semibold text-text-secondary">{t('recurringBills.form.mode')}</legend>
+            {MODES.map((mode) => (
+              <label key={mode} className="flex items-start gap-2 rounded-sm border border-border-subtle px-3 py-2.5">
+                <input type="radio" name="mode" value={mode} checked={form.mode === mode} onChange={() => set({ mode })} className="mt-1 accent-primary-700" />
+                <span>
+                  <span className="block text-sm font-semibold text-text-primary">{t(`recurringBills.mode.${mode}`)}</span>
+                  <span className="block text-xs font-medium text-text-quaternary">{t(`recurringBills.modeNote.${mode}`)}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+
+          <SupplierPicker
+            value={{ id: form.supplierId, name: form.supplierName, vatNumber: null }}
+            onPick={(supplier) => set({ supplierId: supplier.id, supplierName: supplier.name })}
+            error={errors.supplierName ? t(errors.supplierName) : undefined}
+          />
+
+          {field('description', t('recurringBills.form.whatToCallIt'), (
+            <input value={form.description} onChange={(event) => set({ description: event.target.value })} className={FIELD} maxLength={200} />
+          ))}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {field('category', t('recurringBills.form.category'), (
+              <input value={form.category} onChange={(event) => set({ category: event.target.value })} className={FIELD} maxLength={60} />
+            ))}
+            {field('theirReference', t('recurringBills.form.theirReference'), (
+              <input value={form.theirReference} onChange={(event) => set({ theirReference: event.target.value })} className={FIELD} maxLength={100} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('recurringBills.form.whenItArrives')}</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {field('interval', t('recurringBills.form.howOften'), (
+            <select value={form.interval} onChange={(event) => set({ interval: event.target.value as RecurringForm['interval'] })} className={FIELD}>
+              {INTERVALS.map((interval) => (
+                <option key={interval} value={interval}>
+                  {t(`recurringBills.interval.${interval}`)}
+                </option>
+              ))}
+            </select>
+          ))}
+          {expecting
+            ? field('arrivesAroundDay', t(form.interval === 'WEEKLY' ? 'recurringBills.form.arrivesAroundWeekday' : 'recurringBills.form.arrivesAround'), (
+                <input value={form.arrivesAroundDay} onChange={(event) => set({ arrivesAroundDay: event.target.value })} inputMode="numeric" className={FIELD} />
+              ))
+            : field('startDate', t('recurringBills.form.startsOn'), (
+                <DateField value={form.startDate} min={today} ariaLabel={t('recurringBills.form.startsOn')} onChange={(startDate) => set({ startDate })} />
+              ))}
+          {expecting
+            ? field('watchingFrom', t('recurringBills.form.watchingFrom'), (
+                <DateField value={form.watchingFrom} ariaLabel={t('recurringBills.form.watchingFrom')} onChange={(watchingFrom) => set({ watchingFrom })} />
+              ))
+            : null}
+          {field('paymentTermsDays', t('recurringBills.form.paymentTerms'), (
+            <input value={form.paymentTermsDays} onChange={(event) => set({ paymentTermsDays: event.target.value })} inputMode="numeric" className={FIELD} />
+          ))}
+          {field('paymentDueDay', t('recurringBills.form.paymentDueDay'), (
+            <input value={form.paymentDueDay} onChange={(event) => set({ paymentDueDay: event.target.value })} inputMode="numeric" className={FIELD} placeholder={t('recurringBills.form.optional')} />
+          ))}
+          {field('endDate', t('recurringBills.form.endsOn'), (
+            <DateField value={form.endDate} ariaLabel={t('recurringBills.form.endsOn')} onChange={(endDate) => set({ endDate })} />
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('recurringBills.form.whatItCosts')}</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {field('totalIncludingVat', t('recurringBills.form.usualAmount'), (
+            <input value={form.totalIncludingVat} onChange={(event) => set({ totalIncludingVat: event.target.value })} inputMode="decimal" className={FIELD} />
+          ))}
+          {field('vatAmount', t('recurringBills.form.vatAmount'), (
+            <input value={form.vatAmount} onChange={(event) => set({ vatAmount: event.target.value })} inputMode="decimal" className={FIELD} placeholder={t('recurringBills.form.optional')} />
+          ))}
+        </div>
+      </section>
+
+      {expecting ? (
+        <section className="rounded-md bg-surface-card p-6">
+          <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('recurringBills.form.whenToTellYou')}</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {field('tolerancePercent', t('recurringBills.form.tolerance'), (
+              <input value={form.tolerancePercent} onChange={(event) => set({ tolerancePercent: event.target.value })} inputMode="decimal" className={FIELD} />
+            ))}
+            {field('lateAfterDays', t('recurringBills.form.lateAfter'), (
+              <input value={form.lateAfterDays} onChange={(event) => set({ lateAfterDays: event.target.value })} inputMode="numeric" className={FIELD} />
+            ))}
+          </div>
+          <label className="mt-4 flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={form.autoApproveWithinRange}
+              onChange={(event) => set({ autoApproveWithinRange: event.target.checked })}
+              className="mt-1 size-4 accent-primary-700"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-text-primary">{t('recurringBills.form.autoApprove')}</span>
+              <span className="block text-xs font-medium text-text-quaternary">{t('recurringBills.form.autoApproveNote')}</span>
+            </span>
+          </label>
+        </section>
+      ) : null}
+
+      <section className="rounded-sm border border-primary-300 bg-primary-25 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.6px] text-text-quaternary">{t('recurringBills.form.inPlainWords')}</p>
+        <p className="mt-1.5 text-sm font-medium leading-[1.5] text-text-secondary">{t(words.key, words.values)}</p>
+      </section>
+
+      <div className="flex flex-wrap justify-end gap-3">
+        <Link
+          to="/expenditure/recurring-bills"
+          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+        >
+          {t('common.cancel')}
+        </Link>
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={busy}
+          className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {busy ? t('recurringBills.form.saving') : t(id ? 'recurringBills.form.save' : 'recurringBills.form.start')}
+        </button>
+      </div>
+    </div>
   )
 }
