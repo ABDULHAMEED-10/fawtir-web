@@ -724,7 +724,7 @@
         "f1": "Everything in Business Plus",
         "f2": "Automatic ERP extraction included",
         "f3": "Single sign-on (SAML / OIDC)",
-        "f4": "Custom reports & white label",
+        "f4": "Custom reports",
         "f5": "Account manager & service level agreement"
       }
     },
@@ -784,7 +784,6 @@
         "erpExtraction": "Automatic ERP extraction",
         "sso": "Single sign-on (SAML / OIDC)",
         "reports": "Custom reports",
-        "whiteLabel": "White label",
         "support": "Support",
         "sla": "Service level agreement",
         "annual": "Annual billing",
@@ -823,7 +822,7 @@
       "q7": "Do prices include VAT?",
       "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added on your subscription invoice.",
       "q8": "What is different about Enterprise?",
-      "a8": "Everything is set for your contract: volume, price, people, branches and features such as single sign-on, custom reports, white label, automatic ERP extraction and an account manager with a service level agreement. Talk to our team and we will put a proposal together."
+      "a8": "Everything is set for your contract: volume, price, people, branches and features such as single sign-on, custom reports, automatic ERP extraction and an account manager with a service level agreement. Talk to our team and we will put a proposal together."
     }
   },
   "payment": {
@@ -1929,9 +1928,9 @@
       "reverseBody": "The payment of {{amount}} stays on the record, with a reversal dated today beside it. The amount is owed again.",
       "reverseConfirm": "Reverse the payment",
       "means": {
-        "30": "Bank transfer",
         "10": "Cash",
         "20": "Cheque",
+        "30": "Bank transfer",
         "48": "Card payment",
         "68": "Online payment"
       },
