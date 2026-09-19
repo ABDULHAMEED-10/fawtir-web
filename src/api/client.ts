@@ -1,6 +1,5 @@
+import { API_BASE_URL } from '../config/api'
 import { ApiError, NetworkError, toApiError } from './errors'
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
 
 /**
  * Without a ceiling a stalled connection leaves a form in its submitting state
