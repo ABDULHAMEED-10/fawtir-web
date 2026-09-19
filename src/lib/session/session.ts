@@ -4,9 +4,11 @@ import { hasPermission, type Entitlements } from '../identity/entitlements'
 /**
  * Whether the customer app insists on a signed-in session.
  *
- * On in development, off in a production build unless `VITE_REQUIRE_SESSION=true`. The public
- * prototype on Vercel cannot reach the API yet (its `/api` is rewritten to `index.html`), so a
- * guard there would show nothing but the sign-in page. Set the variable once that is fixed.
+ * On in development, off in a production build unless `VITE_REQUIRE_SESSION=true`. It defaults
+ * off because the deployed build was a prototype whose `/api` was rewritten to `index.html` and
+ * so never reached a backend, leaving a guard with nothing to show but the sign-in page. That
+ * rewrite is fixed, so the reason has expired: set the variable once the deployed build is meant
+ * to require a session.
  */
 export const REQUIRE_SESSION: boolean =
   import.meta.env.VITE_REQUIRE_SESSION === undefined

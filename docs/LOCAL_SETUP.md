@@ -245,9 +245,13 @@ Run these from `fawtir-web/`:
 npm ci
 ```
 
+`.env.development` is committed and already points at the TEST backend, so `npm run dev` needs no
+setup. To run against the **local** gateway instead, override it:
+
 ```bash
 cat > .env.local <<'EOF'
 FAWTIR_API_ORIGIN=http://localhost:8080
+FAWTIR_API_PROXY_ORIGIN=
 EOF
 ```
 
@@ -257,13 +261,18 @@ npm run dev -- --port 5173 --strictPort
 
 Open <http://localhost:5173/login>.
 
-**Front-end environment variables.** The front end has three.
+**Front-end configuration.** `src/config/api.ts` is the authoritative source: it owns
+`API_BASE_PATH` (`/api`) and the fallback proxy target, and is imported by both `src/api/client.ts`
+and `vite.config.ts`, so the path the browser calls and the path the dev server proxies cannot
+drift. `.env.development` holds the committed defaults and `.env.local` (gitignored) overrides it.
+Feature modules pass relative paths such as `/v1/branches` and know no host.
 
 | Variable | Read by | Default | Meaning |
 |---|---|---|---|
-| `FAWTIR_API_ORIGIN` | `vite.config.ts` (dev and preview server only, never bundled) | `http://localhost:8080` | Where the dev server proxies `/api`. |
-| `VITE_REQUIRE_SESSION` | `src/lib/session/session.ts` (bundled) | on in `npm run dev`, off in `npm run build` | `true` makes the app send anyone without a session to sign in; `false` shows the screens without one (the Vercel prototype cannot reach the API yet). |
-| `VITE_API_BASE_URL` | `src/api/client.ts` (bundled) | `/api` | Prefix for every API call. **Leave it unset.** Setting it to an absolute URL makes the browser call that host cross-origin, which works only if that host's gateway and core both allow-list your origin. |
+| `FAWTIR_API_ORIGIN` | `vite.config.ts` (dev and preview server only, never bundled) | `https://api.fawtir.om` (`.env.development`) | Where the dev server proxies `/api`. |
+| `FAWTIR_API_PROXY_ORIGIN` | `vite.config.ts` (dev and preview server only, never bundled) | `https://www.fawtir.om` (`.env.development`) | The `Origin` the proxy presents upstream. Needed for a **deployed** backend, whose allow-list cannot name the dev server — `deploy-contabo.sh` refuses a `localhost` origin. Set it **empty** for a local gateway, which allow-lists the dev server directly. |
+| `VITE_REQUIRE_SESSION` | `src/lib/session/session.ts` (bundled) | on in `npm run dev`, off in `npm run build` | `true` makes the app send anyone without a session to sign in; `false` shows the screens without one. |
+| `VITE_API_BASE_URL` | `src/config/api.ts` (bundled) | `/api` | Prefix for every API call. **Leave it unset.** Setting it to an absolute URL makes the browser call that host cross-origin, which works only if that host allow-lists your origin *and* the host-only session/CSRF cookie contract is revisited. |
 
 Port 5173 matters: it is the origin the backend allow-lists above. If you change it, change both
 `*_ALLOWED_ORIGINS` values and the invitation URL to match.
