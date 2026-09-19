@@ -5,7 +5,7 @@ import { commonFailureMessage, type FormMessage } from '../../lib/identity/error
 import {
   LOGIN_CODE_RESEND_DELAY_MS,
   LOGIN_ROUTE,
-  SIGNED_IN_ROUTE,
+  landingRoute,
   isChallengeSpent,
   requestLoginCode,
   verifyLoginCode,
@@ -26,7 +26,9 @@ export function LoginCodeForm({ challenge }: { challenge: LoginChallenge }) {
   const [verifying, setVerifying] = useState(false)
   const [resending, setResending] = useState(false)
   // Starts counting before the first code is confirmed sent; a failed first send opens Resend.
-  const [resendAvailableAt, setResendAvailableAt] = useState(() => Date.now() + LOGIN_CODE_RESEND_DELAY_MS)
+  const [resendAvailableAt, setResendAvailableAt] = useState(
+    () => Date.now() + LOGIN_CODE_RESEND_DELAY_MS,
+  )
   const [now, setNow] = useState(() => Date.now())
   // Verify and resend share one guard: a resend landing mid-verify would replace the code being
   // checked, and every verification attempt spends the challenge whatever its outcome.
@@ -35,7 +37,10 @@ export function LoginCodeForm({ challenge }: { challenge: LoginChallenge }) {
   const signInAgain = useCallback(() => {
     dropLoginChallenge()
     // Replace: this screen can only fail from here, so Back must not return to it.
-    navigate(LOGIN_ROUTE, { replace: true, state: { signInAgain: true } satisfies SignInAgainState })
+    navigate(LOGIN_ROUTE, {
+      replace: true,
+      state: { signInAgain: true } satisfies SignInAgainState,
+    })
   }, [navigate])
 
   useEffect(() => {
@@ -101,7 +106,7 @@ export function LoginCodeForm({ challenge }: { challenge: LoginChallenge }) {
       signedIn = true
       dropLoginChallenge()
       // Replace: the challenge is spent, so Back must not return to a screen that can only fail.
-      navigate(SIGNED_IN_ROUTE, { replace: true })
+      navigate(await landingRoute(), { replace: true })
     } catch (failure) {
       if (controller.signal.aborted) return
       if (isChallengeSpent(failure)) {

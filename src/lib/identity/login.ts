@@ -1,6 +1,6 @@
 import { ApiError, apiRequest } from '../../api'
 import { required, type FieldError } from '../validation'
-import { forgetEntitlements } from './entitlements'
+import { forgetEntitlements, isPlatformOperator, loadEntitlements } from './entitlements'
 import { commonFailureMessage, type FormMessage } from './errors'
 
 export const LOGIN_PATH = '/v1/auth/login'
@@ -8,8 +8,25 @@ export const LOGIN_CODE_PATH = '/v1/auth/mfa/otp/request'
 export const LOGIN_VERIFY_PATH = '/v1/auth/mfa/verify'
 export const LOGIN_ROUTE = '/login'
 export const LOGIN_CODE_ROUTE = '/login/mfa'
-/** One fixed landing: nothing in the backend yet says which home a given principal belongs on. */
+/** Where a tenant user lands after signing in. */
 export const SIGNED_IN_ROUTE = '/dashboard'
+/** Where a Fawtir operator lands: the console, not a tenant's dashboard. */
+export const CONSOLE_ROUTE = '/console'
+
+/**
+ * The home a signed-in principal belongs on. The backend does not say, but the entitlements do:
+ * a `platform.*` permission marks a Fawtir operator (`isPlatformOperator`), and the console is
+ * theirs. When the entitlements cannot be read the tenant dashboard is the safe landing — its own
+ * shell asks again and sends the user to sign in if the session is not there.
+ */
+export async function landingRoute(): Promise<string> {
+  try {
+    const entitlements = await loadEntitlements()
+    return isPlatformOperator(entitlements) ? CONSOLE_ROUTE : SIGNED_IN_ROUTE
+  } catch {
+    return SIGNED_IN_ROUTE
+  }
+}
 
 /**
  * `RecordLoginRequest` bounds. The username stays at 255 rather than signup's 64 because accounts
@@ -60,7 +77,9 @@ export type LoginOutcome = { kind: 'code'; challenge: LoginChallenge } | { kind:
 export function validateLoginForm(values: LoginFormValues): LoginFieldErrors {
   const username = values.username.trim()
   return {
-    username: required(username) ?? (username.length > USERNAME_MAX_LENGTH ? 'validation.tooLong' : undefined),
+    username:
+      required(username) ??
+      (username.length > USERNAME_MAX_LENGTH ? 'validation.tooLong' : undefined),
     password:
       required(values.password) ??
       (values.password.length > PASSWORD_MAX_LENGTH ? 'validation.tooLong' : undefined),
@@ -80,17 +99,29 @@ export function buildLoginRequest(values: LoginFormValues): LoginRequest {
  * The expiry is taken from the relative `mfaChallengeExpiresIn`, not the absolute
  * `mfaChallengeExpiresAt`, so a skewed client clock cannot make a live challenge look dead.
  */
-export function toLoginOutcome(response: LoginResponse | undefined, receivedAt: number): LoginOutcome {
+export function toLoginOutcome(
+  response: LoginResponse | undefined,
+  receivedAt: number,
+): LoginOutcome {
   if (response?.mfaRequired === false) return { kind: 'signedIn' }
   const token = response?.mfaChallengeToken
   const expiresIn = response?.mfaChallengeExpiresIn
-  if (response?.mfaRequired && typeof token === 'string' && token && typeof expiresIn === 'number' && expiresIn > 0) {
+  if (
+    response?.mfaRequired &&
+    typeof token === 'string' &&
+    token &&
+    typeof expiresIn === 'number' &&
+    expiresIn > 0
+  ) {
     return { kind: 'code', challenge: { token, expiresAt: receivedAt + expiresIn * 1000 } }
   }
   throw new Error('Unrecognised login response')
 }
 
-export async function submitLogin(values: LoginFormValues, signal?: AbortSignal): Promise<LoginOutcome> {
+export async function submitLogin(
+  values: LoginFormValues,
+  signal?: AbortSignal,
+): Promise<LoginOutcome> {
   const response = await apiRequest<LoginResponse | undefined>(LOGIN_PATH, {
     method: 'POST',
     body: buildLoginRequest(values),
@@ -119,7 +150,11 @@ export function requestLoginCode(challenge: LoginChallenge, signal?: AbortSignal
  * Establishes the session: the server answers with HttpOnly cookies and a body without tokens,
  * so there is nothing in the response to keep.
  */
-export async function verifyLoginCode(challenge: LoginChallenge, code: string, signal?: AbortSignal): Promise<void> {
+export async function verifyLoginCode(
+  challenge: LoginChallenge,
+  code: string,
+  signal?: AbortSignal,
+): Promise<void> {
   await apiRequest<LoginResponse | undefined>(LOGIN_VERIFY_PATH, {
     method: 'POST',
     body: { challengeToken: challenge.token, factor: LOGIN_FACTOR, code, portalCookie: true },
@@ -153,5 +188,9 @@ export function isChallengeSpent(error: unknown): boolean {
 export type SignInAgainState = { signInAgain: true }
 
 export function isSignInAgainState(value: unknown): value is SignInAgainState {
-  return typeof value === 'object' && value !== null && (value as Record<string, unknown>).signInAgain === true
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<string, unknown>).signInAgain === true
+  )
 }
