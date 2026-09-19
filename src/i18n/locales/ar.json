@@ -9449,6 +9449,10 @@
         "closed": "مغلقون"
       },
       "col": {
+        "code": "الرمز",
+        "status": "الحالة",
+        "registered": "تاريخ التقديم",
+        "action": "الإجراء",
         "business": "المنشأة",
         "plan": "الخطة",
         "quota": "حصة هذا الشهر",
@@ -9461,7 +9465,28 @@
         "suspend": "أوقف الإرسال"
       },
       "showingAll": "عرض {{shown}} من {{total}}",
-      "rowMenu": "المزيد لهذا المشترك"
+      "rowMenu": "المزيد لهذا المشترك",
+      "loading": "جارٍ تحميل المشتركين…",
+      "empty": "لا يوجد مشتركون على المنصة بعد.",
+      "pastEnd": "هذه الصفحة تتجاوز نهاية السجل.",
+      "firstPage": "الانتقال إلى الصفحة الأولى",
+      "none": "—",
+      "noLegalName": "لم يُقدَّم الاسم القانوني بعد",
+      "review": "مراجعة",
+      "subtitlePlain": "كل منشأة تحتفظ المنصة بسجل لها",
+      "registered": "{{total}} على المنصة",
+      "showingRange": "عرض {{from}}–{{to}} من {{total}}",
+      "pager": {
+        "label": "صفحات المشتركين",
+        "previous": "الصفحة السابقة",
+        "next": "الصفحة التالية"
+      },
+      "status": {
+        "ACTIVE": "نشط",
+        "PENDING": "قيد الانتظار",
+        "SUSPENDED": "موقوف",
+        "CLOSED": "مغلق"
+      }
     },
     "soon": {
       "title": "لم يُبنَ بعد",
@@ -10059,6 +10084,33 @@
     "tenantDetail": {
       "notFound": "لا يوجد مستأجر بهذا المعرّف. ربما أُغلق الحساب أو أن الرابط قديم.",
       "notFoundBack": "العودة إلى المشتركين",
+      "loading": "جارٍ تحميل بيانات المشترك…",
+      "noCompanyDetails": "لم تُقدَّم بيانات المنشأة بعد",
+      "planDefault": "الافتراضي للمنصة",
+      "planPrice": "{{amount}} ريال عُماني شهريًا، سعر الباقة",
+      "planAllowance": "{{count}} فاتورة شهريًا ضمن الباقة",
+      "readiness": {
+        "ready": "جاهز للإرسال",
+        "notReady": "غير جاهز للإرسال"
+      },
+      "identityStatus": {
+        "PENDING": "قيد الانتظار",
+        "READY": "جاهز"
+      },
+      "field": {
+        "code": "رمز المشترك",
+        "legalName": "الاسم القانوني",
+        "tradingName": "الاسم التجاري",
+        "cr": "السجل التجاري",
+        "address": "العنوان المسجل",
+        "timezone": "المنطقة الزمنية",
+        "identityStatus": "حالة الهوية",
+        "contactEmail": "البريد الإلكتروني للتواصل",
+        "verification": "توثيق المنشأة",
+        "revision": "مراجعة الملف",
+        "plan": "الباقة",
+        "readiness": "إرسال الفواتير"
+      },
       "backTenants": "المشتركون",
       "backSubscriptions": "الاشتراكات",
       "planChip": "{{plan}} · {{term}}",

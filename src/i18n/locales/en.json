@@ -9296,6 +9296,10 @@
         "closed": "Closed"
       },
       "col": {
+        "code": "Code",
+        "status": "Status",
+        "registered": "Submitted",
+        "action": "Action",
         "business": "Business",
         "plan": "Plan",
         "quota": "Quota this month",
@@ -9308,7 +9312,28 @@
         "suspend": "Suspend filing"
       },
       "showingAll": "Showing {{shown}} of {{total}}",
-      "rowMenu": "More for this tenant"
+      "rowMenu": "More for this tenant",
+      "loading": "Loading tenants…",
+      "empty": "No tenants on the platform yet.",
+      "pastEnd": "That page is past the end of the register.",
+      "firstPage": "Go to the first page",
+      "none": "—",
+      "noLegalName": "Legal name not provided yet",
+      "review": "Review",
+      "subtitlePlain": "Every business the platform holds a record for",
+      "registered": "{{total}} on the platform",
+      "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+      "pager": {
+        "label": "Tenant pages",
+        "previous": "Previous page",
+        "next": "Next page"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "PENDING": "Pending",
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed"
+      }
     },
     "soon": {
       "title": "Not built yet",
@@ -9872,6 +9897,33 @@
     "tenantDetail": {
       "notFound": "No tenant with that id. It may have been closed, or the link is out of date.",
       "notFoundBack": "Back to tenants",
+      "loading": "Loading this tenant…",
+      "noCompanyDetails": "No company details submitted yet",
+      "planDefault": "platform default",
+      "planPrice": "OMR {{amount}} a month, plan price",
+      "planAllowance": "{{count}} invoices a month included",
+      "readiness": {
+        "ready": "Ready to submit",
+        "notReady": "Not ready to submit"
+      },
+      "identityStatus": {
+        "PENDING": "Pending",
+        "READY": "Ready"
+      },
+      "field": {
+        "code": "Tenant code",
+        "legalName": "Legal name",
+        "tradingName": "Trading name",
+        "cr": "Commercial registration",
+        "address": "Registered address",
+        "timezone": "Time zone",
+        "identityStatus": "Identity status",
+        "contactEmail": "Contact email",
+        "verification": "Company verification",
+        "revision": "Profile revision",
+        "plan": "Plan",
+        "readiness": "Invoice submission"
+      },
       "backTenants": "Tenants",
       "backSubscriptions": "Subscriptions",
       "planChip": "{{plan}} · {{term}}",
