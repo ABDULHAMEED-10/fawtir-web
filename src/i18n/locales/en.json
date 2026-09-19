@@ -7865,7 +7865,7 @@
       "recurringInvoices": "Recurring invoices",
       "selfBilling": "Self-billing",
       "tradeDocuments": "Quotations, order forms and delivery notes",
-      "billTracking": "Bill tracking and uploading: received over Peppol, scanned or uploaded",
+      "billTracking": "Bill tracking and uploading",
       "supplierNotes": "Supplier credit and debit notes",
       "recurringBills": "Recurring bills",
       "approvals": "Approval workflow",
