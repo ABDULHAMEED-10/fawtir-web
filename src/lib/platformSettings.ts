@@ -1,5 +1,11 @@
 import { useSyncExternalStore } from 'react'
-import { TRIAL, type PlanId } from './plans'
+import {
+  EXTRACTION_AVAILABILITY_DEFAULT,
+  TRIAL,
+  type AnyPlanId,
+  type ExtractionAvailability,
+  type PlanId,
+} from './plans'
 
 /**
  * Everything the platform lets an operator configure without a release — Super Admin › Console
@@ -78,7 +84,10 @@ export type PlatformSettings = {
     defaultForNewTenant: 'trial' | PlanId
     trialDays: number
     trialDocuments: number
-    trialMirrors: PlanId
+    /** 'chosen': the trial carries the plan the tenant picked; a plan id pins every trial to it. */
+    trialPlan: 'chosen' | PlanId
+    /** Enterprise starts from a contract, never a trial. */
+    trialOfferedOn: PlanId[]
     trialAutoConverts: boolean
     trialNeedsPaymentDetails: boolean
     autoRenewal: boolean
@@ -97,12 +106,14 @@ export type PlatformSettings = {
     channels: { email: boolean; inApp: boolean }
   }
   addons: {
-    erpMapping: 'included'
+    /** Mapping follows the plan's feature switch (Business Plus and Enterprise at launch). */
+    erpMapping: 'perPlan'
     erpExtraction: {
       monthly: number
       documents: number
       overage: number
-      includedAt: 'enterprise' | 'none'
+      /** Per plan: not offered · offered at the price · included free. */
+      availability: Record<AnyPlanId, ExtractionAvailability>
     }
     /** Settled 15 Sep 2026: no separate POS plan and no terminal charge. */
     pos: 'noSeparatePlan'
@@ -164,7 +175,8 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     defaultForNewTenant: 'trial',
     trialDays: TRIAL.days,
     trialDocuments: TRIAL.documents,
-    trialMirrors: TRIAL.mirrors,
+    trialPlan: 'chosen',
+    trialOfferedOn: [...TRIAL.offeredOn],
     trialAutoConverts: TRIAL.autoConverts,
     trialNeedsPaymentDetails: TRIAL.paymentDetailsRequired,
     autoRenewal: true,
@@ -183,8 +195,13 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     channels: { email: true, inApp: true },
   },
   addons: {
-    erpMapping: 'included',
-    erpExtraction: { monthly: 20, documents: 1_000, overage: 0.02, includedAt: 'enterprise' },
+    erpMapping: 'perPlan',
+    erpExtraction: {
+      monthly: 20,
+      documents: 1_000,
+      overage: 0.02,
+      availability: { ...EXTRACTION_AVAILABILITY_DEFAULT },
+    },
     pos: 'noSeparatePlan',
   },
   payments: {

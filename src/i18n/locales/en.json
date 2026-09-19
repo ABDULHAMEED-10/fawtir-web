@@ -699,11 +699,12 @@
       "name": "Starter",
       "description": "For a single shop, freelancer or service provider.",
       "features": {
-        "f1": "PINT-OM validation & OTA reporting",
-        "f2": "Send & receive over Peppol",
-        "f3": "Point of sale & thermal receipts",
-        "f4": "10-year documents archive",
-        "f5": "Email support"
+        "f1": "Tax invoices, credit notes and debit notes",
+        "f2": "Bulk upload of invoices",
+        "f3": "Payment reminders",
+        "f4": "Point of sale and thermal receipts",
+        "f5": "Catalogue and stock",
+        "f6": "Bill tracking with reminders"
       }
     },
     "premium": {
@@ -711,10 +712,10 @@
       "description": "For growing businesses with a small finance team.",
       "features": {
         "f1": "Everything in Starter",
-        "f2": "2 branches, then 8.000 each",
-        "f3": "Roles & permissions",
-        "f4": "Recurring invoices & bills",
-        "f5": "REST API & sandbox",
+        "f2": "Recurring invoices and self-billing",
+        "f3": "Quotations, order forms and delivery notes",
+        "f4": "Supplier notes, recurring bills and approvals",
+        "f5": "More people, roles and branches",
         "f6": "Email support"
       }
     },
@@ -725,11 +726,12 @@
       "billingNote": "Tailored to your volume",
       "features": {
         "f1": "Everything in Business Plus",
-        "f2": "Automatic ERP extraction included",
-        "f3": "Single sign-on (SAML / OIDC)",
-        "f4": "Custom reports & white label",
+        "f2": "Documents, people and branches agreed on a call",
+        "f3": "Automatic ERP extraction included",
+        "f4": "Custom reports",
         "f5": "Account manager & service level agreement"
-      }
+      },
+      "limits": "Agreed on a call"
     },
     "footer": {
       "f1": "Change or cancel anytime",
@@ -737,16 +739,16 @@
       "f3": "No setup fees"
     },
     "payNote": "You choose how to pay on the next step.",
-    "trialNote": "Every plan starts with a {{days}}-day free trial of {{documents}} documents — no card needed, and it never turns into a bill on its own.",
+    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick — {{documents}} documents, no card needed, and it never turns into a bill on its own.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
       "features": {
         "f1": "Everything in Business",
-        "f2": "5 branches, then 8.000 each",
-        "f3": "Approval workflow",
-        "f4": "Webhooks & file transfer",
-        "f5": "Email and chat support"
+        "f2": "REST API and sandbox",
+        "f3": "Webhooks and file transfer",
+        "f4": "ERP field mapping",
+        "f5": "Automatic ERP extraction as an add-on"
       }
     },
     "branchesIncluded_one": "{{count}} branch",
@@ -756,7 +758,7 @@
       "open": "Compare all features",
       "close": "Hide the full comparison",
       "title": "Everything in each plan",
-      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol and reports to the OTA. The plans differ in volume, people and workflow.",
+      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol and reports to the OTA — compliance is never gated. The plans differ in volume, people and features.",
       "columnFeature": "What you get",
       "included": "Included",
       "notIncluded": "Not included",
@@ -768,7 +770,7 @@
       },
       "row": {
         "documents": "Tax documents a month",
-        "overage": "Each document past the allowance",
+        "overage": "Extra per invoice, past the allowance",
         "peppol": "Send & receive over Peppol",
         "validation": "PINT-OM validation & OTA reporting",
         "pos": "Point of sale & thermal receipts",
@@ -787,7 +789,6 @@
         "erpExtraction": "Automatic ERP extraction",
         "sso": "Single sign-on (SAML / OIDC)",
         "reports": "Custom reports",
-        "whiteLabel": "White label",
         "support": "Support",
         "sla": "Service level agreement",
         "annual": "Annual billing",
@@ -806,13 +807,14 @@
         "emailChat": "Email and chat",
         "accountManager": "Account manager",
         "twoMonthsFree": "2 months free",
-        "vatExcl": "Excluded, {{rate}}% on the invoice"
+        "vatExcl": "Excluded, {{rate}}% on the invoice",
+        "agreed": "Agreed on a call"
       }
     },
     "faq": {
       "title": "Frequently asked questions",
       "q1": "Do I need a card to start?",
-      "a1": "No. Every plan starts with a {{days}}-day free trial of {{documents}} documents on the Business plan's features. Nothing is charged, and the trial never turns into a paid plan by itself.",
+      "a1": "No. Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick, with {{documents}} documents. Nothing is charged, and the trial never turns into a paid plan by itself.",
       "q2": "How do I pay?",
       "a2": "After you pick a plan you choose how to pay: by card through a secure payment link we send you on WhatsApp or email, by bank transfer, or in cash. The Fawtir team activates your account as soon as the payment is confirmed.",
       "q3": "What counts as a document?",
@@ -826,7 +828,9 @@
       "q7": "Do prices include VAT?",
       "a7": "No. Prices are shown exclusive of {{rate}}% VAT, which is added on your subscription invoice.",
       "q8": "What is different about Enterprise?",
-      "a8": "Everything is set for your contract: volume, price, people, branches and features such as single sign-on, custom reports, white label, automatic ERP extraction and an account manager with a service level agreement. Talk to our team and we will put a proposal together."
+      "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
+      "q9": "Which plan can connect my ERP?",
+      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction — Fawtir reading the documents out of your ERP for you — is a priced add-on on Business Plus and included on Enterprise."
     }
   },
   "payment": {
@@ -993,7 +997,8 @@
         "allItems": "All Items",
         "bundles": "Bundles",
         "priceRules": "Price Rules"
-      }
+      },
+      "lockedOn": "Available on {{plan}}"
     },
     "account": {
       "premiumPlan": "Premium plan",
@@ -1949,9 +1954,9 @@
       "reverseBody": "The payment of {{amount}} stays on the record, with a reversal dated today beside it. The amount is owed again.",
       "reverseConfirm": "Reverse the payment",
       "means": {
-        "30": "Bank transfer",
         "10": "Cash",
         "20": "Cheque",
+        "30": "Bank transfer",
         "48": "Card payment",
         "68": "Online payment"
       },
@@ -7179,7 +7184,8 @@
       "connectionsPillActive_other": "{{count}} connected",
       "connectionsPillError_one": "{{count}} needs attention",
       "connectionsPillError_other": "{{count}} need attention",
-      "connectionsFootActive": "Automatic extraction · {{collected}} of {{limit}} this month"
+      "connectionsFootActive": "Automatic extraction · {{collected}} of {{limit}} this month",
+      "lockedPill": "Available on {{plan}}"
     }
   },
   "peppolTax": {
@@ -7823,7 +7829,9 @@
       "api": "API and webhooks",
       "prioritySupport": "Priority support",
       "overage": "OMR {{amount}} per invoice over the quota",
-      "noOverage": "Invoicing stops at the quota"
+      "noOverage": "Invoicing stops at the quota",
+      "everythingIn": "Everything in {{plan}}, plus",
+      "extraction": "{{name}}: {{availability}}"
     },
     "tooSmall": "Too small for you",
     "atTheCeiling": "You're at the ceiling on invoices and on people.",
@@ -7838,6 +7846,105 @@
     "support": {
       "email": "Email support",
       "emailAndChat": "Email and chat support"
+    },
+    "featureGroup": {
+      "income": "Income",
+      "expenditure": "Expenditure",
+      "operations": "Selling, contacts and stock",
+      "people": "People and branches",
+      "integration": "Connecting another system",
+      "compliance": "Compliance and delivery",
+      "reports": "Reports and records"
+    },
+    "featureName": {
+      "invoices": "Tax invoices",
+      "creditNotes": "Credit notes",
+      "debitNotes": "Debit notes",
+      "bulkUpload": "Bulk upload of invoices",
+      "incomeReminders": "Payment reminders",
+      "recurringInvoices": "Recurring invoices",
+      "selfBilling": "Self-billing",
+      "tradeDocuments": "Quotations, order forms and delivery notes",
+      "billTracking": "Bill tracking and uploading — received over Peppol, scanned or uploaded",
+      "supplierNotes": "Supplier credit and debit notes",
+      "recurringBills": "Recurring bills",
+      "approvals": "Approval workflow",
+      "pos": "Point of sale and thermal receipts",
+      "catalogue": "Catalogue and price rules",
+      "stock": "Stock",
+      "reports": "Income, expenditure, cash-flow and VAT reports",
+      "rolesAndPermissions": "Roles and permissions",
+      "multiBranch": "Branches",
+      "api": "REST API and sandbox",
+      "webhooks": "Webhooks and file transfer",
+      "erpMapping": "ERP field mapping",
+      "billReminders": "Bill reminders",
+      "peppol": "Send and receive over the Peppol network",
+      "validation": "PINT-OM validation before anything is sent",
+      "otaReporting": "Tax Authority (OTA) reporting and TDD",
+      "signingQr": "Digital signing and QR codes on every invoice",
+      "bilingual": "Bilingual invoices, English and Arabic",
+      "archive": "Ten-year document archive",
+      "complianceLog": "Compliance activity log — refusals, resubmission, OTA call log",
+      "customers": "Customer records and statements",
+      "suppliers": "Supplier records, import and statements",
+      "complianceReports": "Compliance and list reports",
+      "exports": "Exports to CSV and PDF",
+      "periodClosing": "Period closing",
+      "activityLog": "Company activity log",
+      "notices": "Email and in-app notices — quota, certificate, refusals",
+      "twoStep": "Two-step sign-in"
+    },
+    "featureShort": {
+      "invoices": "Tax invoices",
+      "creditNotes": "Credit notes",
+      "debitNotes": "Debit notes",
+      "bulkUpload": "Bulk upload",
+      "incomeReminders": "Payment reminders",
+      "recurringInvoices": "Recurring invoices",
+      "selfBilling": "Self-billing",
+      "tradeDocuments": "Trade documents",
+      "billTracking": "Bill tracking",
+      "supplierNotes": "Supplier notes",
+      "recurringBills": "Recurring bills",
+      "approvals": "Approvals",
+      "pos": "Point of sale",
+      "catalogue": "Catalogue",
+      "stock": "Stock",
+      "reports": "Reports",
+      "rolesAndPermissions": "Roles",
+      "multiBranch": "Branches",
+      "api": "API",
+      "webhooks": "Webhooks",
+      "erpMapping": "ERP mapping",
+      "billReminders": "Bill reminders",
+      "peppol": "Peppol",
+      "validation": "PINT-OM validation",
+      "otaReporting": "OTA reporting",
+      "signingQr": "Signing and QR",
+      "bilingual": "Bilingual invoices",
+      "archive": "10-year archive",
+      "complianceLog": "Compliance log",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "complianceReports": "Compliance reports",
+      "exports": "Exports",
+      "periodClosing": "Period closing",
+      "activityLog": "Activity log",
+      "notices": "Notices",
+      "twoStep": "Two-step sign-in"
+    },
+    "extraction": {
+      "notOffered": "Not supported",
+      "priced": "Add-on",
+      "included": "Included",
+      "name": "Automatic ERP extraction"
+    },
+    "audience": {
+      "starter": "For a shop or service with no system of its own",
+      "business": "Every Fawtir feature, for a business run in Fawtir",
+      "businessPlus": "Everything, plus the ways in for your own system",
+      "enterprise": "Business Plus with limits agreed on a call"
     }
   },
   "bills": {
@@ -7862,7 +7969,9 @@
       "extraBranches": "Extra branches",
       "extraBranchesNone": "None beyond the {{included}} included",
       "extraBranchesSome_one": "{{count}} beyond the {{included}} included, at OMR {{each}} a month",
-      "extraBranchesSome_other": "{{count}} beyond the {{included}} included, at OMR {{each}} each a month"
+      "extraBranchesSome_other": "{{count}} beyond the {{included}} included, at OMR {{each}} each a month",
+      "vat": "VAT {{rate}}%",
+      "vatNote": "On OMR {{amount}} of plan and extras"
     },
     "chargedOn": "Due on {{date}}",
     "default": "Default",
@@ -10238,7 +10347,7 @@
         },
         "addons": {
           "title": "Add-ons",
-          "note": "What is offered on top of a plan and what it costs. ERP field mapping is part of every plan; automatic extraction is the paid step."
+          "note": "What is offered on top of a plan and what it costs. ERP field mapping follows the plan; automatic extraction is the paid step, and each plan may buy it, get it free or not see it at all."
         },
         "payments": {
           "title": "Payments",
@@ -10266,7 +10375,8 @@
         "duplicate": "Already in the list",
         "noticeBeyondGrace": "A notice day is later than the grace period",
         "noThreshold": "Add at least one threshold",
-        "noChannel": "Keep at least one channel on"
+        "noChannel": "Keep at least one channel on",
+        "noTrialPlan": "Pick at least one plan, or the trial cannot be offered"
       },
       "dayList": {
         "none": "None",
@@ -10386,7 +10496,12 @@
         "suspendedOption": {
           "readOnly": "Read-only: documents viewable and downloadable",
           "locked": "Locked"
-        }
+        },
+        "trialPlan": "Trial plan",
+        "trialPlanHint": "Whose features the trial carries: the plan the tenant picks at sign-up, or one fixed plan for everyone.",
+        "trialPlanChosen": "The plan the tenant picks",
+        "trialOfferedOn": "Trial offered on",
+        "trialOfferedOnHint": "The plans a new tenant may start on trial. Enterprise starts from a contract, never a trial."
       },
       "notices": {
         "thresholds": "Thresholds",
@@ -10414,7 +10529,7 @@
       },
       "addons": {
         "erpMapping": "ERP field mapping",
-        "erpMappingNote": "Mapping the tenant's ERP fields to the platform's is part of onboarding, not an extra.",
+        "erpMappingNote": "Business Plus and Enterprise at launch. Which plans carry mapping is a feature switch in Plans and rates, not a setting here; on those plans it is part of onboarding, not an extra.",
         "includedEveryPlan": "Included on every plan",
         "extractionGroup": "Automatic ERP extraction",
         "extractionPrice": "Price per month",
@@ -10429,7 +10544,11 @@
         "posGroup": "Point of sale",
         "pos": "Point of sale",
         "posNote": "No separate plan and no terminal charge — POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
-        "posValue": "No separate plan"
+        "posValue": "No separate plan",
+        "erpMappingValue": "Follows the plan's feature switch",
+        "availabilityGroup": "Availability per plan",
+        "availabilityNote": "Not supported hides the add-on from that plan's Connected systems screen. Included switches it on without the add-on price when the tenant asks.",
+        "availabilityLabel": "Automatic extraction on {{plan}}"
       },
       "payments": {
         "provider": {
@@ -10510,7 +10629,7 @@
         "position": {
           "retention": "10 years; 15 where the records relate to real estate.",
           "complianceRecord": "Always, including while the account is suspended.",
-          "complianceFeatures": "Never gated; on every plan.",
+          "complianceFeatures": "Never gated. Invoices, credit notes, debit notes and Peppol send and receive are on every plan and never a plan switch.",
           "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
         },
         "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate — so they are listed here, and nowhere else."
@@ -10739,10 +10858,11 @@
           "allowanceValue": "{{connections}} connections · {{documents}} documents a month",
           "billing": "Billing",
           "billingValue": "The add-on line joins the next invoice",
-          "billingIncluded": "Included in the Enterprise plan — nothing to bill",
+          "billingIncluded": "Included in the {{plan}} plan — nothing to bill",
           "note": "Note (optional)",
           "notePlaceholder": "Anything the record should say",
-          "confirm": "Approve"
+          "confirm": "Approve",
+          "priceIncluded": "Included in the plan — no charge"
         },
         "trialModal": {
           "title": "Approve on trial for {{tenant}}",
@@ -10782,7 +10902,9 @@
           "pending": "No requests waiting.",
           "history": "No decisions yet."
         },
-        "noNote": "—"
+        "noNote": "—",
+        "notOffered": "Not supported on {{plan}} — upgrade first",
+        "notOfferedHint": "The add-on is not supported on the {{plan}} plan. The tenant moves up a plan first, or the plan's availability changes in Console settings › Add-ons."
       },
       "connections": {
         "title": "ERP connections",
@@ -11360,7 +11482,8 @@
       "planNote": "All branches are on the {{plan}}."
     },
     "plan": {
-      "premium": "Premium plan"
+      "premium": "Premium plan",
+      "named": "{{plan}} plan"
     },
     "user": {
       "profile": "Your profile",
@@ -12078,12 +12201,17 @@
         "documents_one": "{{formatted}} document collected each month",
         "documents_other": "{{formatted}} documents collected each month",
         "overage": "Then OMR {{amount}} for every extra document",
-        "enterprise": "Included on Enterprise plans"
+        "enterprise": "Included on Enterprise plans",
+        "includedOn": "Included on {{plans}}"
       },
       "activate": {
         "button": "Ask to activate the add-on",
         "note": "Nothing is charged now; the Fawtir team confirms first.",
-        "requested": "Requested — the Fawtir team will confirm and switch the add-on on for you."
+        "requested": "Requested — the Fawtir team will confirm and switch the add-on on for you.",
+        "notOffered": "Automatic extraction is not supported on the {{plan}} plan — available on {{available}}.",
+        "seePlans": "See plans",
+        "included": "Switch on — included in your plan",
+        "includedNote": "Part of your plan: nothing is charged and it is on straight away."
       },
       "systems": {
         "title": "Supported systems",
@@ -12091,7 +12219,7 @@
         "coming": "Coming"
       },
       "mapping": {
-        "note": "ERP field mapping itself is included on every plan — the connector only automates the collecting.",
+        "note": "ERP field mapping is part of the Business Plus and Enterprise plans — the connector only automates the collecting.",
         "link": "Open ERP mapping"
       }
     },
@@ -13961,6 +14089,25 @@
       "historyTitle": "Already sent",
       "noHistory": "No reminder has gone out for this invoice.",
       "stillSendable": "You can still send one yourself."
+    }
+  },
+  "planGate": {
+    "title": "{{feature}} is on the {{plan}} plan",
+    "alsoAdds": "{{plan}} also adds",
+    "perMonth": "a month, before VAT",
+    "enterprisePrice": "Price and limits agreed on a call",
+    "seePlans": "See plans and upgrade",
+    "back": "Back",
+    "about": {
+      "recurringInvoices": "Set an invoice up once and Fawtir raises it on the schedule you choose.",
+      "selfBilling": "Raise invoices on a supplier's behalf under a signed self-billing agreement.",
+      "tradeDocuments": "Quotations, order forms and delivery notes, in both directions, before an invoice exists.",
+      "supplierNotes": "Credit and debit notes your suppliers send you, matched to their bills.",
+      "recurringBills": "Bills that arrive on a schedule, expected before they land and chased when they don't.",
+      "approvals": "Bills wait for the sign-offs you set before anything is paid.",
+      "erpMapping": "Map the fields of your ERP's invoices so Fawtir reads, checks and reports them.",
+      "api": "Your own system talks to Fawtir directly.",
+      "webhooks": "Fawtir tells your systems the moment something changes."
     }
   }
 }

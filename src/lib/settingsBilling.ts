@@ -8,7 +8,15 @@ import { BOOK, COMPANY, RESETS_ON, TODAY, daysFrom, usageForecast, weekdayOf } f
 import { PLATFORM_SETTINGS } from './platformSettings'
 import { MEMBERS, SEATS } from './settingsPeople'
 import { OPEN_BRANCHES } from './settingsCompany'
-import { CATALOGUE, PLAN, type PlanId } from './plans'
+import {
+  CATALOGUE,
+  FEATURES,
+  PLAN,
+  SUBSCRIPTION_VAT,
+  type ExtractionAvailability,
+  type Feature,
+  type PlanId,
+} from './plans'
 
 export type Plan = {
   id: PlanId
@@ -39,6 +47,47 @@ export const PLANS: Plan[] = CATALOGUE.map((plan) => ({
 }))
 
 export const CURRENT_PLAN = PLANS[1]
+
+/**
+ * What each plan card lists under its limits: a few short lines, each a run of features from the
+ * catalogue's own switches. Every line is filtered through `FEATURES`, so a card can never name a
+ * feature its plan lacks; `plus` names the plan the card builds on. Extraction is the console's
+ * add-on setting, per plan.
+ */
+export type PlanHighlights = {
+  plus?: PlanId
+  lines: Feature[][]
+  extraction: ExtractionAvailability
+}
+
+const HIGHLIGHT_LINES: Record<PlanId, { plus?: PlanId; lines: Feature[][] }> = {
+  starter: {
+    lines: [
+      ['invoices', 'creditNotes', 'debitNotes'],
+      ['bulkUpload', 'incomeReminders', 'billTracking'],
+      ['pos', 'catalogue', 'stock', 'reports'],
+    ],
+  },
+  business: {
+    plus: 'starter',
+    lines: [
+      ['recurringInvoices', 'selfBilling', 'tradeDocuments'],
+      ['supplierNotes', 'recurringBills', 'approvals'],
+    ],
+  },
+  businessPlus: {
+    plus: 'business',
+    lines: [['api', 'webhooks', 'erpMapping']],
+  },
+}
+
+export const planHighlights = (id: PlanId): PlanHighlights => ({
+  plus: HIGHLIGHT_LINES[id].plus,
+  lines: HIGHLIGHT_LINES[id].lines
+    .map((line) => line.filter((feature) => FEATURES[id][feature]))
+    .filter((line) => line.length > 0),
+  extraction: PLATFORM_SETTINGS.addons.erpExtraction.availability[id],
+})
 
 export const planById = (id: string) => PLANS.find((plan) => plan.id === id) ?? CURRENT_PLAN
 
@@ -116,6 +165,24 @@ export type PastBill = {
   lateNoteKey?: string
 }
 
+/** Rial to three places, the way a bill prints. */
+const round3 = (value: number) => Math.round(value * 1000) / 1000
+
+/** VAT on top of a bill's lines — Fawtir's subscription invoices carry it. */
+export const billVat = (subtotal: number) => round3(subtotal * SUBSCRIPTION_VAT)
+export const billTotal = (subtotal: number) => round3(subtotal + billVat(subtotal))
+
+/**
+ * What a past month came to: the Business plan, the one branch Al Bahja runs beyond the two
+ * included, any extra person that month, and VAT — 150.000 + 8.000 = 158.000, billed 165.900.
+ */
+const pastBill = (extraPeople = 0, extraBranches = 1) =>
+  billTotal(
+    PLAN.business.monthly +
+      extraBranches * (PLAN.business.extraBranch ?? 0) +
+      extraPeople * PLAN.business.extraPerson,
+  )
+
 export const PAST_BILLS: PastBill[] = [
   {
     reference: 'FWT-2026-0912',
@@ -123,7 +190,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.september',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 36,
+    amount: pastBill(),
     method: 'cardLink',
     paidOn: '1 Sep 2026',
     confirmedBy: 'thawani',
@@ -135,7 +202,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.august',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 5 },
-    amount: 36,
+    amount: pastBill(),
     method: 'cardLink',
     paidOn: '1 Aug 2026',
     confirmedBy: 'thawani',
@@ -147,7 +214,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.july',
     coveredKey: 'bills.coveredPlanPeopleExtra',
     coveredValues: { people: 5, extra: 1 },
-    amount: 38.5,
+    amount: pastBill(1),
     method: 'cardLink',
     paidOn: '1 Jul 2026',
     confirmedBy: 'thawani',
@@ -159,7 +226,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.june',
     coveredKey: 'bills.coveredRetried',
     coveredValues: { date: '3 June' },
-    amount: 36,
+    amount: pastBill(),
     method: 'bankTransfer',
     paidOn: '3 Jun 2026',
     confirmedBy: 'fawtir',
@@ -171,7 +238,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.may',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 36,
+    amount: pastBill(),
     method: 'cash',
     paidOn: '2 May 2026',
     confirmedBy: 'fawtir',
@@ -183,7 +250,7 @@ export const PAST_BILLS: PastBill[] = [
     monthKey: 'bills.month.april',
     coveredKey: 'bills.coveredPlanPeople',
     coveredValues: { people: 4 },
-    amount: 36,
+    amount: pastBill(),
     method: 'bankTransfer',
     paidOn: '1 Apr 2026',
     confirmedBy: 'fawtir',
@@ -206,6 +273,7 @@ export function nextBill(extraPeople = Math.max(0, MEMBERS.length - SEATS.includ
   const branches = EXTRA_BRANCHES * (PLAN[CURRENT_PLAN.id].extraBranch ?? 0)
   /** Overage is off, so nothing can accrue here however many invoices are refused. */
   const overage = 0
+  const subtotal = CURRENT_PLAN.monthly + people + branches + overage
   return {
     dueOn: RESETS_ON,
     inDays: daysFrom(RESETS_ON),
@@ -213,9 +281,15 @@ export function nextBill(extraPeople = Math.max(0, MEMBERS.length - SEATS.includ
     people,
     branches,
     overage,
-    total: CURRENT_PLAN.monthly + people + branches + overage,
-    /** What it would come to if one more person were added before the first. */
-    withOneMore: CURRENT_PLAN.monthly + branches + (extraPeople + 1) * SEATS.extraMonthly,
+    /** The lines before VAT. */
+    subtotal,
+    vat: billVat(subtotal),
+    /** What is charged: the lines plus VAT, the same arithmetic as every past bill. */
+    total: billTotal(subtotal),
+    /** What it would come to, VAT included, if one more person were added before the first. */
+    withOneMore: billTotal(
+      CURRENT_PLAN.monthly + branches + (extraPeople + 1) * SEATS.extraMonthly,
+    ),
   }
 }
 

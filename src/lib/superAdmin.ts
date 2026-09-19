@@ -131,7 +131,8 @@ export const TENANTS: Tenant[] = [
     state: 'live',
     plan: 'business',
     used: 880,
-    billed: PLAN.business.monthly,
+    // Three branches on a plan of two: the plan plus one extra branch, as Subscriptions bills it.
+    billed: PLAN.business.monthly + (PLAN.business.extraBranch ?? 0),
     week: ['clear', 'clear', 'clear', 'clear', 'some', 'clear', 'clear'],
     healthKey: 'console.health.overageOff',
     healthTone: 'watch',

@@ -1,7 +1,16 @@
 import { useTranslation } from 'react-i18next'
-import { CATALOGUE } from '../../../lib/plans'
+import { Checkbox } from '../../../components/ui'
+import { CATALOGUE, type PlanId } from '../../../lib/plans'
 import type { Forms, SectionProps } from './draft'
-import { DayListField, FieldGrid, GroupLabel, NumberField, SelectField, SwitchRow } from './shared'
+import {
+  DayListField,
+  FieldGrid,
+  GroupLabel,
+  NumberField,
+  OptionGroup,
+  SelectField,
+  SwitchRow,
+} from './shared'
 
 const K = 'console.settings.lifecycle.'
 
@@ -17,6 +26,14 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
     (field: 'trialAutoConverts' | 'trialNeedsPaymentDetails' | 'autoRenewal' | 'refundMidPeriod') =>
     (checked: boolean) =>
       set((current) => ({ ...current, [field]: checked }))
+  /** Kept in catalogue order so the saved list reads Starter · Business · Business Plus. */
+  const offerOn = (plan: PlanId, checked: boolean) =>
+    set((current) => ({
+      ...current,
+      trialOfferedOn: CATALOGUE.map((entry) => entry.id).filter((id) =>
+        id === plan ? checked : current.trialOfferedOn.includes(id),
+      ),
+    }))
 
   return (
     <>
@@ -35,17 +52,39 @@ export function LifecycleSection({ form, set, errors }: SectionProps<'lifecycle'
           options={[{ value: 'trial', label: t(`${K}theTrial`) }, ...planOptions]}
         />
         <SelectField
-          label={t(`${K}trialMirrors`)}
-          hint={t(`${K}trialMirrorsHint`)}
-          value={form.trialMirrors}
+          label={t(`${K}trialPlan`)}
+          hint={t(`${K}trialPlanHint`)}
+          value={form.trialPlan}
           onChange={(value) =>
             set((current) => ({
               ...current,
-              trialMirrors: value as Forms['lifecycle']['trialMirrors'],
+              trialPlan: value as Forms['lifecycle']['trialPlan'],
             }))
           }
-          options={planOptions}
+          options={[{ value: 'chosen', label: t(`${K}trialPlanChosen`) }, ...planOptions]}
         />
+        <OptionGroup
+          label={t(`${K}trialOfferedOn`)}
+          hint={t(`${K}trialOfferedOnHint`)}
+          error={err('trialOfferedOn')}
+        >
+          {CATALOGUE.map((plan) => (
+            <Checkbox
+              key={plan.id}
+              label={t(plan.labelKey)}
+              checked={form.trialOfferedOn.includes(plan.id)}
+              onChange={(event) => offerOn(plan.id, event.target.checked)}
+            />
+          ))}
+          {/* Enterprise starts from a contract: shown so the row is complete, never switchable. */}
+          <Checkbox
+            label={t('plan.planName.enterprise')}
+            checked={false}
+            disabled
+            readOnly
+            className="cursor-not-allowed opacity-50"
+          />
+        </OptionGroup>
         <NumberField
           name="trialDays"
           label={t(`${K}trialDays`)}
