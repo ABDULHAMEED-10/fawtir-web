@@ -1,11 +1,4 @@
-/**
- * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6,
- * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026
- * (docs/erp-and-console-plan.md §9.5).
- *
- * Every figure here is a launch default, not a commitment: the backend holds the live catalogue
- * (`GET /platform/plans`, edited in the console's Plans and rates) and the tenant's own plan
- * screen will read it from there. Until those screens are integrated, every mock that prints a
+/** * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6, * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026 * (docs/erp-and-console-plan.md §9.5). * * Every figure here is a launch default, not a commitment: the backend holds the live catalogue * (`GET /platform/plans`, edited in the console's Plans and rates) and the tenant's own plan * screen will read it from there. Until those screens are integrated, every mock that prints a
  * price — Settings › Plan and Bills, the sign-up plans, the console's tenants — reads this one
  * file, so the app cannot show three different price lists again.
  *
@@ -51,17 +44,10 @@ export type Feature =
   | 'pos'
   | 'catalogue'
   | 'stock'
-  | 'customers'
-  | 'suppliers'
   | 'reports'
-  | 'complianceReports'
-  | 'exports'
-  | 'periodClosing'
-  | 'activityLog'
   | 'notices'
   | 'rolesAndPermissions'
   | 'multiBranch'
-  | 'twoStep'
   | 'api'
   | 'webhooks'
   | 'erpMapping'
@@ -97,19 +83,12 @@ export const FEATURE_GROUPS: { id: string; features: Feature[] }[] = [
     id: 'expenditure',
     features: ['billTracking', 'billReminders', 'supplierNotes', 'recurringBills', 'approvals'],
   },
-  { id: 'operations', features: ['pos', 'catalogue', 'stock', 'customers', 'suppliers'] },
+  { id: 'operations', features: ['pos', 'catalogue', 'stock'] },
   {
     id: 'reports',
-    features: [
-      'reports',
-      'complianceReports',
-      'exports',
-      'periodClosing',
-      'activityLog',
-      'notices',
-    ],
+    features: ['reports', 'notices'],
   },
-  { id: 'people', features: ['rolesAndPermissions', 'multiBranch', 'twoStep'] },
+  { id: 'people', features: ['rolesAndPermissions', 'multiBranch'] },
   { id: 'integration', features: ['api', 'webhooks', 'erpMapping'] },
 ]
 export const FEATURE_LIST: Feature[] = FEATURE_GROUPS.flatMap((g) => g.features)
@@ -139,17 +118,10 @@ const STARTER_FEATURES: Feature[] = [
   'pos',
   'catalogue',
   'stock',
-  'customers',
-  'suppliers',
   'reports',
-  'complianceReports',
-  'exports',
-  'periodClosing',
-  'activityLog',
   'notices',
   'rolesAndPermissions',
   'multiBranch',
-  'twoStep',
 ]
 const INTEGRATION_FEATURES: Feature[] = ['api', 'webhooks', 'erpMapping']
 
@@ -236,7 +208,7 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     id: 'starter',
     code: 'STARTER',
     labelKey: 'plan.planName.starter',
-    monthly: 50,
+    monthly: 35,
     documents: 200,
     people: 2,
     branches: 1,
@@ -250,13 +222,13 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     id: 'business',
     code: 'BUSINESS',
     labelKey: 'plan.planName.business',
-    monthly: 150,
+    monthly: 80,
     documents: 1_000,
     people: 5,
     branches: 2,
     extraPerson: 2.5,
     extraBranch: 8,
-    overage: 0.1,
+    overage: 0.06,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
   }),
@@ -264,13 +236,13 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     id: 'businessPlus',
     code: 'BUSINESS_PLUS',
     labelKey: 'plan.planName.businessPlus',
-    monthly: 300,
+    monthly: 150,
     documents: 3_000,
     people: 10,
     branches: 5,
     extraPerson: 2.5,
     extraBranch: 8,
-    overage: 0.075,
+    overage: 0.04,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
   }),
@@ -284,7 +256,7 @@ export const PLAN = Object.fromEntries(CATALOGUE.map((p) => [p.id, p])) as Recor
 /** Annual billing gives two months free — twelve months for the price of ten. */
 export const ANNUAL_FREE_MONTHS = 2
 
-/** The monthly-equivalent rate when billed annually: 50.000 → 41.667, 150.000 → 125.000. */
+/** The monthly-equivalent rate when billed annually: 35.000 → 29.167, 80.000 → 66.667. */
 export const annualMonthly = (p: CataloguePlan) =>
   Math.round(((p.monthly * (12 - ANNUAL_FREE_MONTHS)) / 12) * 1000) / 1000
 
