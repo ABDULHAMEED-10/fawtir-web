@@ -91,7 +91,6 @@ const GROUPS: Group[] = [
       { key: 'erpExtraction', cell: (p) => (p ? text('addon') : text('included')) },
       { key: 'sso', cell: (p) => flag(!p) },
       { key: 'reports', cell: (p) => flag(!p) },
-      { key: 'whiteLabel', cell: (p) => flag(!p) },
     ],
   },
   {
