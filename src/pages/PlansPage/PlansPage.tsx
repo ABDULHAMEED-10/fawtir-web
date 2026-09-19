@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
@@ -69,17 +69,9 @@ export function PlansPage() {
   const [billing, setBilling] = useState<BillingCycle>('monthly')
   // `/plans#compare` opens the table straight away — a link a sales chat or an email can carry.
   const [compare, setCompare] = useState(() => location.hash === '#compare')
-  const compareRef = useRef<HTMLElement>(null)
 
-  const toggleCompare = () => {
-    const next = !compare
-    setCompare(next)
-    if (next) {
-      requestAnimationFrame(() =>
-        compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-      )
-    }
-  }
+  // Opens in place under the button; no scrolling, so the cards stay where the reader left them.
+  const toggleCompare = () => setCompare((open) => !open)
 
   const billingNote = billing === 'monthly' ? t('plans.billedMonthly') : t('plans.billedAnnually')
 
@@ -253,7 +245,6 @@ export function PlansPage() {
 
           <section
             id={COMPARE_ID}
-            ref={compareRef}
             hidden={!compare}
             aria-labelledby={`${COMPARE_ID}-title`}
             className="mt-10 flex w-full max-w-[1282px] scroll-mt-8 flex-col items-center"
