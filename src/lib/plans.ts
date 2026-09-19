@@ -132,7 +132,7 @@ export type CataloguePlan = {
   branches: number | null
   /** What one more person costs a month. */
   extraPerson: number
-  /** What one more branch costs a month; null means "move up a plan" instead. */
+  /** What one more branch costs a month — on every plan since 20 Sep 2026; null would mean "move up a plan". */
   extraBranch: number | null
   /** Per document past the allowance when overage is on. */
   overage: number
@@ -175,7 +175,7 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     people: 2,
     branches: 1,
     extraPerson: 3,
-    extraBranch: null,
+    extraBranch: 8,
     overage: 0.09,
     prioritySupport: false,
     supportKey: 'plan.support.email',

@@ -641,7 +641,7 @@ Every row is a control on `/console/plans` or `/console/settings`. Default = lau
 | Users included | 2 · 5 · 10 · unlimited | number / unlimited |
 | Extra user per month | 3.000 · 2.500 · 2.500 · negotiated | money |
 | Branches included | 1 · 2 · 5 · unlimited | number / unlimited |
-| Extra branch per month | upgrade required · 8.000 · 8.000 · negotiated | money / upgrade |
+| Extra branch per month | 8.000 · 8.000 · 8.000 · negotiated (on every plan since 20 Sep 2026) | money |
 | Overage rate per document | 0.090 · 0.040 · 0.026 · n/a | money |
 | Features | the §9.5 matrix: compliance documents on every plan (locked); Starter also bulk upload, payment reminders, bill tracking, POS, catalogue, stock, reports, roles, branches; Business adds recurring invoices and bills, self-billing, trade documents, supplier notes, approvals; Business Plus and Enterprise add API, webhooks, ERP mapping; support Email · Email · Email and chat · Account manager | switches, per feature per plan |
 | ERP field mapping | per plan: Business Plus and Enterprise (a feature switch, not an add-on) | switch |
