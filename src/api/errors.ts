@@ -6,6 +6,8 @@
 export type ProblemFieldError = {
   field: string
   message: string
+  /** The rule a customer or supplier field broke (`REQUIRED`, `INVALID_FORMAT`, …), when the server names one. */
+  code?: string
 }
 
 /**
@@ -30,6 +32,8 @@ export class ApiError extends Error {
   readonly code: string | null
   /** What support needs to find the request in the logs (`correlationId`, or Expenditure's `trace_id`). */
   readonly correlationId: string | null
+  /** The problem document as it arrived, for the few refusals that carry more than a code (a bill's `duplicateOf`). */
+  readonly problem: Readonly<Record<string, unknown>>
 
   constructor(init: {
     status: number
@@ -38,6 +42,7 @@ export class ApiError extends Error {
     retryAfterSeconds?: number | null
     code?: string | null
     correlationId?: string | null
+    problem?: Record<string, unknown>
   }) {
     super(`Request failed with status ${init.status}`)
     this.name = 'ApiError'
@@ -47,6 +52,7 @@ export class ApiError extends Error {
     this.retryAfterSeconds = init.retryAfterSeconds ?? null
     this.code = init.code ?? null
     this.correlationId = init.correlationId ?? null
+    this.problem = init.problem ?? {}
   }
 }
 
@@ -77,8 +83,9 @@ function fieldErrorsOf(errors: unknown): ProblemFieldError[] {
   if (!Array.isArray(errors)) return []
   return errors.flatMap((entry: unknown) => {
     if (typeof entry !== 'object' || entry === null) return []
-    const { field, message } = entry as Record<string, unknown>
-    return typeof field === 'string' && typeof message === 'string' ? [{ field, message }] : []
+    const { field, message, code } = entry as Record<string, unknown>
+    if (typeof field !== 'string' || typeof message !== 'string') return []
+    return typeof code === 'string' ? [{ field, message, code }] : [{ field, message }]
   })
 }
 
@@ -100,5 +107,6 @@ export function toApiError(response: Response, body: unknown): ApiError {
     retryAfterSeconds: retryAfterOf(response.headers),
     code: stringOf(problem.code) ?? stringOf(problem.error),
     correlationId: stringOf(problem.correlationId) ?? stringOf(problem.trace_id),
+    problem,
   })
 }

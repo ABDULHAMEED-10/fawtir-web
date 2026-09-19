@@ -24,6 +24,7 @@ export function IssueInvoiceModal({
   version,
   initialIssueDate,
   initialDueDate,
+  kind = 'INVOICE',
   onClose,
   onIssued,
 }: {
@@ -31,11 +32,19 @@ export function IssueInvoiceModal({
   version: number
   initialIssueDate: string
   initialDueDate: string
+  /**
+   * What is being issued. A credit note is not collected, so it asks for no due date. The API still
+   * requires one (SRS v1.1 Ch15 lists IBT-009 as mandatory; Zain, 2026-09-17), so the issue date is
+   * sent as it.
+   */
+  kind?: 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE'
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
   const { t, i18n } = useTranslation()
   const today = muscatToday()
+  const noDueDate = kind === 'CREDIT_NOTE'
+  const copy = kind === 'CREDIT_NOTE' ? 'invoiceIssue.creditNote' : kind === 'DEBIT_NOTE' ? 'invoiceIssue.debitNote' : 'invoiceIssue'
   const [form, setForm] = useState<IssueForm>({ issueDate: initialIssueDate, dueDate: initialDueDate })
   const [key, setKey] = useState(newIdempotencyKey)
   const [errors, setErrors] = useState<Partial<Record<IssueField, string>>>({})
@@ -68,7 +77,8 @@ export function IssueInvoiceModal({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const target = event.currentTarget
-    const problems = issueProblems(form, today)
+    const sent = noDueDate ? { ...form, dueDate: form.issueDate } : form
+    const problems = issueProblems(sent, today)
     setErrors(problems)
     setFailure(null)
     if (Object.values(problems).some(Boolean)) {
@@ -79,7 +89,7 @@ export function IssueInvoiceModal({
     inFlight.current = true
     setBusy(true)
     try {
-      const issued = await issueDraft(invoiceId, key, { expectedVersion: version, ...form })
+      const issued = await issueDraft(invoiceId, key, { expectedVersion: version, ...sent })
       onIssued(issued)
     } catch (error) {
       const refusal = issueRefusalOf(error)
@@ -110,9 +120,9 @@ export function IssueInvoiceModal({
       open
       width={560}
       onClose={onClose}
-      title={t('invoiceIssue.title')}
-      subtitle={t('invoiceIssue.subtitle')}
-      footer={<ModalFooter formId={FORM_ID} onCancel={onClose} submitLabel={busy ? t('invoiceIssue.issuing') : t('invoiceIssue.submit')} disabled={busy} />}
+      title={t(`${copy}.title`)}
+      subtitle={t(`${copy}.subtitle`)}
+      footer={<ModalFooter formId={FORM_ID} onCancel={onClose} submitLabel={busy ? t('invoiceIssue.issuing') : t(`${copy}.submit`)} disabled={busy} />}
     >
       <form id={FORM_ID} noValidate onSubmit={submit} className="flex flex-col gap-4">
         {failure ? <Notice body={failure} /> : null}
@@ -131,22 +141,24 @@ export function IssueInvoiceModal({
           >
             <DateField value={form.issueDate} onChange={(value) => change('issueDate', value)} max={today} ariaLabel={t('createInvoice.fields.issueDate')} />
           </Field>
-          <Field
-            name="dueDate"
-            label={t('createInvoice.fields.dueDate')}
-            required
-            error={errors.dueDate ? t(errors.dueDate) : undefined}
-          >
-            <DateField
-              value={form.dueDate}
-              onChange={(value) => change('dueDate', value)}
-              min={form.issueDate || undefined}
-              ariaLabel={t('createInvoice.fields.dueDate')}
-            />
-          </Field>
+          {noDueDate ? null : (
+            <Field
+              name="dueDate"
+              label={t('createInvoice.fields.dueDate')}
+              required
+              error={errors.dueDate ? t(errors.dueDate) : undefined}
+            >
+              <DateField
+                value={form.dueDate}
+                onChange={(value) => change('dueDate', value)}
+                min={form.issueDate || undefined}
+                ariaLabel={t('createInvoice.fields.dueDate')}
+              />
+            </Field>
+          )}
         </div>
 
-        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t('invoiceIssue.body')}</p>
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t(`${copy}.body`)}</p>
         <p className="text-sm font-semibold leading-[1.5] text-text-primary">{t('invoiceIssue.notSent')}</p>
       </form>
     </Modal>

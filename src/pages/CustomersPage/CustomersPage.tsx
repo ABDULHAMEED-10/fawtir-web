@@ -58,6 +58,7 @@ import searchIcon from '../../assets/invoices/search.svg'
 import sortIcon from '../../assets/invoices/sort.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import invoiceIcon from '../../assets/actions/invoice.svg'
+import editIcon from '../../assets/actions/edit.svg'
 
 /** 34px rounded square, tinted by customer kind. */
 const AVATAR_STYLES: Record<CustomerKind, string> = {
@@ -215,10 +216,10 @@ function CustomersScreen() {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {can(session, 'customer.import') ? (
-          <button type="button" className={OUTLINE_BUTTON}>
+          <Link to="/customers/import" className={OUTLINE_BUTTON}>
             <img src={bulkUploadIcon} alt="" className="size-6" />
             {t('customersPage.bulkUpload')}
-          </button>
+          </Link>
         ) : null}
         {can(session, 'customer.export') ? (
           <button type="button" onClick={onExport} disabled={exporting} className={OUTLINE_BUTTON}>
@@ -516,11 +517,16 @@ function CustomerTable({
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
 
-  // Only what works today. The design's View, Statement, Edit and Delete need the customer
-  // detail and edit screens, which are later slices; an entry that goes nowhere is worse than none.
-  const menu: ActionMenuItem[] = can(session, 'invoice.draft')
-    ? [{ id: 'newInvoice', labelKey: 'rowActions.customer.newInvoice', icon: invoiceIcon, to: '/invoices/new' }]
-    : []
+  // Only what works today. The design's View, Statement and Delete need the customer detail
+  // screen, which is not designed yet; an entry that goes nowhere is worse than none.
+  const menuFor = (id: string): ActionMenuItem[] => [
+    ...(can(session, 'invoice.draft')
+      ? [{ id: 'newInvoice', labelKey: 'rowActions.customer.newInvoice', icon: invoiceIcon, to: '/invoices/new' }]
+      : []),
+    ...(can(session, 'customer.manage')
+      ? [{ id: 'edit', labelKey: 'customerForm.menuEdit', icon: editIcon, to: `/customers/${id}/edit` }]
+      : []),
+  ]
 
   const message = (key: string) => (
     <tr>
@@ -583,7 +589,7 @@ function CustomerTable({
                 </td>
                 <CustomerRowCells row={row} receivable={owed.get(row.id)} owedReady={owedReady} currency={currency} />
                 <td className="px-2 py-2.5">
-                  {menu.length > 0 ? <ActionMenu items={menu} label={t('customersPage.rowMenu')} /> : null}
+                  {menuFor(row.id).length > 0 ? <ActionMenu items={menuFor(row.id)} label={t('customersPage.rowMenu')} /> : null}
                 </td>
               </tr>
             ))

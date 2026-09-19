@@ -1,399 +1,254 @@
+import type {
+  ExpectationState,
+  RecurrenceInterval,
+  RecurringBillDto,
+  RecurringBillRequestDto,
+  RecurringListState,
+  RecurringMode,
+} from '../api/expenditure/recurringBills'
+
 /**
- * Recurring bills — Expenditure › Recurring bills (Figma 86:17024, 86:9580, 86:9939).
+ * Recurring bills (E-12, decisions of 2026-09-18).
  *
- * A recurring bill is a *watch*, not a document. Fawtir never creates one: it knows roughly when
- * a bill should turn up and for roughly how much, then tells you when nothing came or when the
- * amount moved. Everything on these screens follows from that one idea.
+ * A recurring bill is a standing instruction, not a document. In `EXPECT` mode Fawtir watches for
+ * the supplier's own bill and matches it to the period; in `RAISE` mode Fawtir writes the bill
+ * itself. Both are offered, and the words follow the mode.
+ *
+ * The design's "why the jump?", "mark received" and "stop watching" have nothing behind them — a
+ * watch is paused or edited, and arrivals are matched by the sweep — so they are not drawn.
  */
 
-/** What the watch is currently saying about this bill. */
-export type WatchState = 'late' | 'asExpected' | 'dueToArrive' | 'paused' | 'stopped'
+export const RECURRING_TABS: RecurringListState[] = ['ACTIVE', 'LATE', 'PAUSED', 'ALL']
 
-/** Left tile glyph, picked from what the bill is for. */
-export type BillCategory = 'premises' | 'power' | 'internet' | 'software' | 'delivery'
+export const INTERVALS: RecurrenceInterval[] = ['WEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY']
 
-/** The middle column changes its heading with the state. */
-export type TimingKind = 'expected' | 'lastArrived' | 'paused'
+export const MODES: RecurringMode[] = ['EXPECT', 'RAISE']
 
-/** The one action the row offers, when it offers one. */
-export type WatchAction = 'chase' | 'whyTheJump' | 'resume'
-
-export type RecurringBill = {
-  id: string
-  title: string
-  supplier: string
-  cadenceKey: string
-  category: BillCategory
-  state: WatchState
-  timingKind: TimingKind
-  /** Already formatted; the heading above it says what the date means. */
-  timingDate: string
-  timingNoteKey: string
-  /** Tone of that note — amber when something is wrong. */
-  timingTone: 'warn' | 'ok' | 'muted'
-  amount: string
-  amountNoteKey: string
-  /** Amber when the amount has moved outside its tolerance. */
-  amountTone: 'warn' | 'muted'
-  action?: WatchAction
+/** The colour a state is read in: amber when something wants attention. */
+export const EXPECTATION_TONE: Record<ExpectationState, 'warn' | 'ok' | 'muted'> = {
+  LATE: 'warn',
+  ARRIVED_OUT_OF_RANGE: 'warn',
+  ARRIVED: 'ok',
+  DUE_TO_ARRIVE: 'muted',
 }
 
-export type RecurringTabId = 'active' | 'late' | 'paused' | 'all'
+export type StateNote = { key: string; values?: Record<string, string | number> }
 
-export const RECURRING_TABS: { id: RecurringTabId; labelKey: string }[] = [
-  { id: 'active', labelKey: 'recurringBills.tabs.active' },
-  { id: 'late', labelKey: 'recurringBills.tabs.late' },
-  { id: 'paused', labelKey: 'recurringBills.tabs.paused' },
-  { id: 'all', labelKey: 'recurringBills.tabs.all' },
-]
-
-/** Which watch states each tab covers; `all` takes everything. */
-export const RECURRING_TAB_STATES: Record<RecurringTabId, WatchState[]> = {
-  active: ['late', 'asExpected', 'dueToArrive', 'paused'],
-  late: ['late'],
-  paused: ['paused'],
-  all: [],
+/**
+ * What the row says about the watch. A paused watch says so before anything else — its expectation
+ * is whatever it was when watching stopped. A RAISE watch has no expectation at all: it says when
+ * it will next write a bill.
+ */
+export function stateNote(bill: RecurringBillDto): StateNote {
+  if (!bill.active) return { key: 'recurringBills.state.paused' }
+  if (bill.mode === 'RAISE') {
+    return bill.nextRunDate ? { key: 'recurringBills.state.willRaise', values: { date: bill.nextRunDate } } : { key: 'recurringBills.state.noNextRun' }
+  }
+  const expectation = bill.expectation
+  if (!expectation) return { key: 'recurringBills.state.watching' }
+  switch (expectation.state) {
+    case 'LATE':
+      return { key: 'recurringBills.state.late', values: { count: expectation.lateDays ?? 0 } }
+    case 'ARRIVED':
+      return { key: 'recurringBills.state.arrived' }
+    case 'ARRIVED_OUT_OF_RANGE':
+      return { key: 'recurringBills.state.outOfRange', values: { percent: formatVariance(expectation.variancePercent) } }
+    case 'DUE_TO_ARRIVE':
+      return expectation.expectedOn ? { key: 'recurringBills.state.dueOn', values: { date: expectation.expectedOn } } : { key: 'recurringBills.state.watching' }
+  }
 }
 
-export const RECURRING_BILLS: RecurringBill[] = [
-  {
-    id: 'shop-rent-nizwa',
-    title: 'Shop rent — Nizwa branch',
-    supplier: 'Al Bahja Properties',
-    cadenceKey: 'recurringBills.cadence.monthly28',
-    category: 'premises',
-    state: 'late',
-    timingKind: 'expected',
-    timingDate: '28 Aug 2026',
-    timingNoteKey: 'recurringBills.rows.nothingArrived',
-    timingTone: 'warn',
-    amount: '1,200.000',
-    amountNoteKey: 'recurringBills.rows.sameFor11Months',
-    amountTone: 'muted',
-    action: 'chase',
-  },
-  {
-    id: 'electricity',
-    title: 'Electricity',
-    supplier: 'Mazoon Electricity',
-    cadenceKey: 'recurringBills.cadence.monthly12',
-    category: 'power',
-    state: 'asExpected',
-    timingKind: 'lastArrived',
-    timingDate: '12 Jul 2026',
-    timingNoteKey: 'recurringBills.rows.matchedAndPaid',
-    timingTone: 'ok',
-    amount: '318.400',
-    amountNoteKey: 'recurringBills.rows.up22',
-    amountTone: 'warn',
-    action: 'whyTheJump',
-  },
-  {
-    id: 'internet-phone',
-    title: 'Internet & phone',
-    supplier: 'Omantel',
-    cadenceKey: 'recurringBills.cadence.monthly1st',
-    category: 'internet',
-    state: 'dueToArrive',
-    timingKind: 'expected',
-    timingDate: '1 Aug 2026',
-    timingNoteKey: 'recurringBills.rows.inTwoDays',
-    timingTone: 'muted',
-    amount: '84.200',
-    amountNoteKey: 'recurringBills.rows.sameEachMonth',
-    amountTone: 'muted',
-  },
-  {
-    id: 'accounting-software',
-    title: 'Accounting software',
-    supplier: 'Sahl Cloud LLC',
-    cadenceKey: 'recurringBills.cadence.yearlyMarch',
-    category: 'software',
-    state: 'asExpected',
-    timingKind: 'lastArrived',
-    timingDate: '3 Mar 2026',
-    timingNoteKey: 'recurringBills.rows.matchedAndPaid',
-    timingTone: 'ok',
-    amount: '540.000',
-    amountNoteKey: 'recurringBills.rows.nextDueMar2027',
-    amountTone: 'muted',
-  },
-  {
-    id: 'weekly-cold-delivery',
-    title: 'Weekly cold delivery',
-    supplier: 'Gulf Cold Logistics',
-    cadenceKey: 'recurringBills.cadence.weeklySundays',
-    category: 'delivery',
-    state: 'paused',
-    timingKind: 'paused',
-    timingDate: 'recurringBills.rows.since22Jul',
-    timingNoteKey: 'recurringBills.rows.disputeOpen',
-    timingTone: 'muted',
-    amount: '96.000',
-    amountNoteKey: 'recurringBills.rows.perWeek',
-    amountTone: 'muted',
-    action: 'resume',
-  },
-  {
-    id: 'window-cleaning',
-    title: 'Window cleaning',
-    supplier: 'Bright Facilities LLC',
-    cadenceKey: 'recurringBills.cadence.monthly1st',
-    category: 'premises',
-    state: 'stopped',
-    timingKind: 'paused',
-    timingDate: 'recurringBills.rows.stoppedApr',
-    timingNoteKey: 'recurringBills.rows.contractEnded',
-    timingTone: 'muted',
-    amount: '45.000',
-    amountNoteKey: 'recurringBills.rows.perMonth',
-    amountTone: 'muted',
-  },
-]
-
-/* ------------------------------------------------------------- the new form */
-
-export const PREPARED_BY_OPTIONS = [
-  { value: 'Al Bahja Properties', label: 'Al Bahja Properties', hint: 'VAT OM1100201477' },
-  { value: 'Mazoon Electricity', label: 'Mazoon Electricity', hint: 'VAT OM1100901220' },
-  { value: 'Omantel', label: 'Omantel', hint: 'VAT OM1100112040' },
-  { value: 'Sahl Cloud LLC', label: 'Sahl Cloud LLC', hint: 'VAT OM1100664220' },
-  { value: 'Gulf Cold Logistics', label: 'Gulf Cold Logistics', hint: 'VAT OM1100582341' },
-]
-
-export const CATEGORY_OPTIONS = [
-  { value: 'Rent & premises', label: 'Rent & premises' },
-  { value: 'Utilities', label: 'Utilities' },
-  { value: 'Telecoms', label: 'Telecoms' },
-  { value: 'Software & subscriptions', label: 'Software & subscriptions' },
-  { value: 'Logistics', label: 'Logistics' },
-  { value: 'Professional fees', label: 'Professional fees' },
-]
-
-export type Cadence = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-
-export const CADENCES: { id: Cadence; labelKey: string }[] = [
-  { id: 'weekly', labelKey: 'recurringBills.form.weekly' },
-  { id: 'monthly', labelKey: 'recurringBills.form.monthly' },
-  { id: 'quarterly', labelKey: 'recurringBills.form.quarterly' },
-  { id: 'yearly', labelKey: 'recurringBills.form.yearly' },
-]
-
-/** Day-of-month choices for a monthly watch. */
-export const DAY_OPTIONS = Array.from({ length: 28 }, (_, index) => {
-  const day = index + 1
-  const suffix = day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'
-  return { value: `${day}${suffix}`, label: `${day}${suffix}` }
-})
-
-export const PAYMENT_DUE_OPTIONS = [
-  { value: 'On arrival', label: 'On arrival' },
-  { value: '5th of the next month', label: '5th of the next month' },
-  { value: '10th of the next month', label: '10th of the next month' },
-  { value: '30 days after it arrives', label: '30 days after it arrives' },
-]
-
-export const VAT_TREATMENT_OPTIONS = [
-  { value: 'Standard rate · 5%', label: 'Standard rate · 5%' },
-  { value: 'Zero rated · 0%', label: 'Zero rated · 0%' },
-  { value: 'Exempt', label: 'Exempt' },
-  { value: 'Out of scope', label: 'Out of scope' },
-]
-
-export const CHASE_AFTER_OPTIONS = [
-  { value: 'Straight away', label: 'Straight away' },
-  { value: 'After 2 days', label: 'After 2 days' },
-  { value: 'After 5 days', label: 'After 5 days' },
-  { value: 'After a week', label: 'After a week' },
-]
-
-export const NOTIFY_OPTIONS = [
-  { value: 'Yusuf Al Balushi', label: 'Yusuf Al Balushi', hint: 'Accounts' },
-  { value: 'Hafidh Saif', label: 'Hafidh Saif', hint: 'Owner' },
-  { value: 'Mariam Al Hinai', label: 'Mariam Al Hinai', hint: 'Operations' },
-]
-
-/* ---------------------------------------------------------------- the detail */
-
-export type MonthRow = {
-  id: string
-  month: string
-  expected: string
-  /** Absent while nothing has arrived for that month. */
-  bill?: string
-  arrivedKey: string
-  arrivedTone: 'ok' | 'warn' | 'muted'
-  amount: string
-  amountNoteKey: string
-  paidKey: string
-  paidTone: 'ok' | 'muted'
+export function toneOf(bill: RecurringBillDto): 'warn' | 'ok' | 'muted' {
+  if (!bill.active) return 'muted'
+  return bill.expectation ? EXPECTATION_TONE[bill.expectation.state] : 'muted'
 }
 
-/** One bar of the twelve-month chart. */
-export type CostBar = {
-  month: string
-  /** Relative height, 0–1. */
-  height: number
-  tone: 'paid' | 'recent' | 'expected'
+/** A signed percentage as a person reads it: "up 22%" is 22, "down 5%" is −5. */
+export function formatVariance(percent: number | null): string {
+  if (percent === null) return '—'
+  const rounded = percent.toFixed(1).replace(/\.0$/, '')
+  return `${percent > 0 ? '+' : ''}${rounded}%`
 }
 
-export const RECURRING_DETAIL = {
-  id: 'shop-rent-nizwa',
-  title: 'Shop rent Nizwa branch',
-  supplier: 'Al Bahja Properties',
-  usual: '1,200.000',
-  watchedSince: 'Sep 2025',
-  cadenceChipKey: 'recurringBills.detail.monthlyAround28',
-
-  alert: {
-    titleKey: 'recurringBills.detail.alertTitle',
-    bodyKey: 'recurringBills.detail.alertBody',
-  },
-
-  chart: {
-    noteKey: 'recurringBills.detail.flatFor11',
-    bars: [
-      { month: 'Aug', height: 1, tone: 'paid' },
-      { month: 'Sep', height: 1, tone: 'paid' },
-      { month: 'Oct', height: 1, tone: 'paid' },
-      { month: 'Nov', height: 1, tone: 'paid' },
-      { month: 'Dec', height: 1, tone: 'paid' },
-      { month: 'Jan', height: 1, tone: 'paid' },
-      { month: 'Feb', height: 1, tone: 'paid' },
-      { month: 'Mar', height: 1, tone: 'paid' },
-      { month: 'Apr', height: 1, tone: 'paid' },
-      { month: 'May', height: 1, tone: 'paid' },
-      { month: 'Jun', height: 1, tone: 'recent' },
-      { month: 'Jul ?', height: 1, tone: 'expected' },
-    ] satisfies CostBar[],
-  },
-
-  months: [
-    {
-      id: 'jul',
-      month: 'July 2026',
-      expected: 'Expected 28 Jul',
-      arrivedKey: 'recurringBills.detail.twoDaysLate',
-      arrivedTone: 'warn',
-      amount: '1,200.000',
-      amountNoteKey: 'recurringBills.detail.expectedAmount',
-      paidKey: 'recurringBills.detail.due5Aug',
-      paidTone: 'muted',
-    },
-    {
-      id: 'jun',
-      month: 'June 2026',
-      expected: 'Expected 28 Jun',
-      bill: 'ABP-INV-0331',
-      arrivedKey: 'recurringBills.detail.onThe27th',
-      arrivedTone: 'ok',
-      amount: '1,200.000',
-      amountNoteKey: 'recurringBills.detail.sameAsUsual',
-      paidKey: 'recurringBills.detail.paid4Jul',
-      paidTone: 'ok',
-    },
-    {
-      id: 'may',
-      month: 'May 2026',
-      expected: 'Expected 28 May',
-      bill: 'ABP-INV-0318',
-      arrivedKey: 'recurringBills.detail.onThe28th',
-      arrivedTone: 'ok',
-      amount: '1,200.000',
-      amountNoteKey: 'recurringBills.detail.sameAsUsual',
-      paidKey: 'recurringBills.detail.paid3Jun',
-      paidTone: 'ok',
-    },
-    {
-      id: 'apr',
-      month: 'April 2026',
-      expected: 'Expected 28 Apr',
-      bill: 'ABP-INV-0302',
-      arrivedKey: 'recurringBills.detail.fourDaysLate',
-      arrivedTone: 'warn',
-      amount: '1,200.000',
-      amountNoteKey: 'recurringBills.detail.sameAsUsual',
-      paidKey: 'recurringBills.detail.paid6May',
-      paidTone: 'ok',
-    },
-    {
-      id: 'mar',
-      month: 'March 2026',
-      expected: 'Expected 28 Mar',
-      bill: 'ABP-INV-0288',
-      arrivedKey: 'recurringBills.detail.onThe26th',
-      arrivedTone: 'ok',
-      amount: '1,200.000',
-      amountNoteKey: 'recurringBills.detail.sameAsUsual',
-      paidKey: 'recurringBills.detail.paid2Apr',
-      paidTone: 'ok',
-    },
-  ] satisfies MonthRow[],
-  monthsTotal: 11,
-
-  expects: {
-    howOften: 'recurringBills.form.monthly',
-    arrivesAround: 'recurringBills.detail.the28th',
-    paymentDue: 'recurringBills.detail.fifthOfNext',
-    usualAmount: '1,200.000',
-    flagOutside: '1,080 – 1,320',
-    noteKey: 'recurringBills.detail.doesNotCreate',
-  },
-
-  tellsYou: {
-    ifNothing: 'recurringBills.detail.after2Days',
-    ifAmountOff: 'recurringBills.detail.on',
-    approveAutomatically: 'recurringBills.detail.off',
-    whoGetsTold: 'Yusuf Al Balushi',
-  },
-
-  trackRecord: {
-    matched: '11 of 11',
-    onTime: '10 of 11',
-    everChanged: 'recurringBills.detail.never',
-    paidThisYear: '8,400.000',
-    costPerYear: '14,400.000',
-  },
-
-  supplierCard: {
-    name: 'Al Bahja Properties',
-    vat: 'OM1100201477',
-    sendsBy: 'recurringBills.detail.emailPdf',
-    contact: 'rent@albahjaprop.om',
-    noteKey: 'recurringBills.detail.notOnPeppol',
-  },
-
-  activity: [
-    {
-      id: 'a1',
-      titleKey: 'recurringBills.detail.activity.flagged',
-      detailKey: 'recurringBills.detail.activity.flaggedDetail',
-      tone: 'current' as const,
-    },
-    {
-      id: 'a2',
-      titleKey: 'recurringBills.detail.activity.junePaid',
-      detailKey: 'recurringBills.detail.activity.junePaidDetail',
-      tone: 'done' as const,
-    },
-    {
-      id: 'a3',
-      titleKey: 'recurringBills.detail.activity.tolerance',
-      detailKey: 'recurringBills.detail.activity.toleranceDetail',
-      tone: 'done' as const,
-    },
-    {
-      id: 'a4',
-      titleKey: 'recurringBills.detail.activity.started',
-      detailKey: 'recurringBills.detail.activity.startedDetail',
-      tone: 'done' as const,
-    },
-  ],
+/** Chase is refused on a RAISE watch and on a paused one; the page knows both before asking. */
+export function chaseBlocker(bill: RecurringBillDto): string | null {
+  if (bill.mode !== 'EXPECT') return 'recurringBills.chase.notExpecting'
+  if (!bill.active) return 'recurringBills.chase.paused'
+  return null
 }
 
-/** `1,200.000` → 1200. */
-export const toNumber = (amount: string) => Number(amount.replace(/,/g, '')) || 0
+/** The server's own refusals, in the page's words. */
+export const RECURRING_REFUSALS: Record<string, string> = {
+  RECURRING_BILL_ARRIVAL_DAY_REQUIRED: 'recurringBills.error.arrivalDayRequired',
+  RECURRING_BILL_ARRIVAL_DAY_INVALID: 'recurringBills.error.arrivalDayInvalid',
+  RECURRING_BILL_DUE_DAY_INVALID: 'recurringBills.error.dueDayInvalid',
+  RECURRING_BILL_TOLERANCE_INVALID: 'recurringBills.error.toleranceInvalid',
+  RECURRING_BILL_LATE_AFTER_INVALID: 'recurringBills.error.lateAfterInvalid',
+  RECURRING_BILL_START_IN_PAST: 'recurringBills.error.startInPast',
+  RECURRING_BILL_AMOUNT_INVALID: 'recurringBills.error.amountInvalid',
+  RECURRING_BILL_VAT_EXCEEDS_TOTAL: 'recurringBills.error.vatExceedsTotal',
+  RECURRING_BILL_NOT_EXPECTING: 'recurringBills.chase.notExpecting',
+  RECURRING_BILL_PAUSED: 'recurringBills.chase.paused',
+}
 
-/** Back to the display form at OMR's three decimals. */
-export const toOmr = (value: number) =>
-  value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+export type RecurringForm = {
+  mode: RecurringMode
+  supplierId: string | null
+  supplierName: string
+  description: string
+  category: string
+  theirReference: string
+  interval: RecurrenceInterval
+  arrivesAroundDay: string
+  paymentDueDay: string
+  paymentTermsDays: string
+  startDate: string
+  watchingFrom: string
+  endDate: string
+  totalIncludingVat: string
+  vatAmount: string
+  tolerancePercent: string
+  lateAfterDays: string
+  autoApproveWithinRange: boolean
+}
+
+export function blankRecurringForm(today: string): RecurringForm {
+  return {
+    mode: 'EXPECT',
+    supplierId: null,
+    supplierName: '',
+    description: '',
+    category: '',
+    theirReference: '',
+    interval: 'MONTHLY',
+    arrivesAroundDay: '1',
+    paymentDueDay: '',
+    paymentTermsDays: '30',
+    startDate: today,
+    watchingFrom: today,
+    endDate: '',
+    totalIncludingVat: '',
+    vatAmount: '',
+    tolerancePercent: '10',
+    lateAfterDays: '5',
+    autoApproveWithinRange: false,
+  }
+}
+
+export function formOf(bill: RecurringBillDto, today: string): RecurringForm {
+  return {
+    ...blankRecurringForm(today),
+    mode: bill.mode,
+    supplierId: bill.supplierId,
+    supplierName: bill.supplierName,
+    description: bill.description,
+    category: bill.category ?? '',
+    theirReference: bill.theirReference ?? '',
+    interval: bill.interval,
+    arrivesAroundDay: bill.arrivesAroundDay === null ? '' : String(bill.arrivesAroundDay),
+    paymentDueDay: bill.paymentDueDay === null ? '' : String(bill.paymentDueDay),
+    paymentTermsDays: String(bill.paymentTermsDays),
+    startDate: bill.nextRunDate ?? today,
+    watchingFrom: bill.watchingFrom ?? today,
+    endDate: bill.endDate ?? '',
+    totalIncludingVat: String(bill.totalIncludingVat),
+    vatAmount: bill.vatAmount === null ? '' : String(bill.vatAmount),
+    tolerancePercent: bill.tolerancePercent === null ? '' : String(bill.tolerancePercent),
+    lateAfterDays: bill.lateAfterDays === null ? '' : String(bill.lateAfterDays),
+    autoApproveWithinRange: bill.autoApproveWithinRange,
+  }
+}
+
+export type RecurringField = keyof RecurringForm
+
+const AMOUNT = /^\d{1,15}(\.\d{1,3})?$/
+
+/** What the server would refuse, said before it is asked. */
+export function recurringProblems(form: RecurringForm): Partial<Record<RecurringField, string>> {
+  const problems: Partial<Record<RecurringField, string>> = {}
+  if (!form.supplierName.trim()) problems.supplierName = 'validation.required'
+  if (!form.description.trim()) problems.description = 'validation.required'
+  if (!AMOUNT.test(form.totalIncludingVat.trim()) || Number(form.totalIncludingVat) <= 0) problems.totalIncludingVat = 'recurringBills.error.amountInvalid'
+  if (form.vatAmount.trim()) {
+    if (!AMOUNT.test(form.vatAmount.trim())) problems.vatAmount = 'recurringBills.error.amountInvalid'
+    else if (Number(form.vatAmount) > Number(form.totalIncludingVat)) problems.vatAmount = 'recurringBills.error.vatExceedsTotal'
+  }
+  const maxDay = form.interval === 'WEEKLY' ? 7 : 31
+  if (form.mode === 'EXPECT') {
+    const day = Number(form.arrivesAroundDay)
+    if (!form.arrivesAroundDay.trim()) problems.arrivesAroundDay = 'recurringBills.error.arrivalDayRequired'
+    else if (!Number.isInteger(day) || day < 1 || day > maxDay) problems.arrivesAroundDay = 'recurringBills.error.arrivalDayInvalid'
+    const tolerance = Number(form.tolerancePercent)
+    if (form.tolerancePercent.trim() && (!(tolerance >= 0) || tolerance > 100)) problems.tolerancePercent = 'recurringBills.error.toleranceInvalid'
+    const late = Number(form.lateAfterDays)
+    if (form.lateAfterDays.trim() && (!Number.isInteger(late) || late < 0 || late > 60)) problems.lateAfterDays = 'recurringBills.error.lateAfterInvalid'
+  }
+  if (form.paymentDueDay.trim()) {
+    const due = Number(form.paymentDueDay)
+    if (!Number.isInteger(due) || due < 1 || due > 31) problems.paymentDueDay = 'recurringBills.error.dueDayInvalid'
+  }
+  return problems
+}
+
+const digitsOrNull = (value: string): number | null => (value.trim() ? Number(value) : null)
+
+export function toRecurringRequest(form: RecurringForm, currency = 'OMR'): RecurringBillRequestDto {
+  const expecting = form.mode === 'EXPECT'
+  return {
+    supplierId: form.supplierId,
+    supplierName: form.supplierName.trim(),
+    description: form.description.trim(),
+    currencyCode: currency,
+    totalIncludingVat: Number(form.totalIncludingVat),
+    vatAmount: digitsOrNull(form.vatAmount),
+    paymentTermsDays: digitsOrNull(form.paymentTermsDays),
+    interval: form.interval,
+    // A RAISE watch starts on its start date; an EXPECT watch is told when to start watching, and
+    // the server works out the first expected day from the arrival day.
+    startDate: expecting ? null : form.startDate || null,
+    endDate: form.endDate || null,
+    occurrences: null,
+    mode: form.mode,
+    category: form.category.trim() || null,
+    theirReference: form.theirReference.trim() || null,
+    arrivesAroundDay: expecting ? digitsOrNull(form.arrivesAroundDay) : null,
+    paymentDueDay: digitsOrNull(form.paymentDueDay),
+    tolerancePercent: expecting ? digitsOrNull(form.tolerancePercent) : null,
+    lateAfterDays: expecting ? digitsOrNull(form.lateAfterDays) : null,
+    autoApproveWithinRange: expecting ? form.autoApproveWithinRange : null,
+    notifyUserId: null,
+    watchingFrom: expecting ? form.watchingFrom || null : null,
+  }
+}
+
+/** The whole instruction in one sentence, so it can be read back before it is saved. */
+export function plainWords(form: RecurringForm): StateNote {
+  const values = {
+    supplier: form.supplierName.trim() || '…',
+    description: form.description.trim() || '…',
+    amount: form.totalIncludingVat.trim() || '…',
+    day: form.arrivesAroundDay || '…',
+    tolerance: form.tolerancePercent || '0',
+    count: Number(form.lateAfterDays || 0),
+  }
+  return { key: form.mode === 'EXPECT' ? 'recurringBills.plain.expect' : 'recurringBills.plain.raise', values }
+}
+
+/** The category and the search box narrow the page in hand: the API filters by state only. */
+export function narrow(items: RecurringBillDto[], search: string, category: string): RecurringBillDto[] {
+  const text = search.trim().toLowerCase()
+  return items.filter((bill) => {
+    if (category && (bill.category ?? '') !== category) return false
+    if (!text) return true
+    return [bill.description, bill.supplierName, bill.theirReference ?? ''].some((field) => field.toLowerCase().includes(text))
+  })
+}
+
+export function categoriesOf(items: RecurringBillDto[]): string[] {
+  return [...new Set(items.map((bill) => bill.category).filter((category): category is string => Boolean(category)))].sort()
+}
+
+/** A full page may have more behind it; the API answers no total. */
+export function hasMore(page: { count: number; pageSize: number }): boolean {
+  return page.count === page.pageSize
+}

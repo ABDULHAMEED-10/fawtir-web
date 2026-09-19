@@ -21,7 +21,7 @@ import { BillsPage } from './pages/BillsPage'
 import { BillDetailPage } from './pages/BillDetailPage'
 import { UploadBillPage } from './pages/UploadBillPage'
 import { ScanReceiptsPage } from './pages/ScanReceiptsPage'
-import { PaymentRunPage } from './pages/PaymentRunPage'
+import { PaymentRunPage, PaymentRunsListPage } from './pages/PaymentRunPage'
 import { RecurringBillsPage } from './pages/RecurringBillsPage'
 import { NewRecurringBillPage } from './pages/NewRecurringBillPage'
 import { RecurringBillDetailPage } from './pages/RecurringBillDetailPage'
@@ -33,7 +33,7 @@ import { SupplierDetailPage } from './pages/SupplierDetailPage'
 import { EditSupplierPage } from './pages/EditSupplierPage'
 import { NewPurchaseOrderPage } from './pages/NewPurchaseOrderPage'
 import { RecordSupplierBillPage } from './pages/RecordSupplierBillPage'
-import { ImportSuppliersPage } from './pages/ImportSuppliersPage'
+import { ImportCustomersPage, ImportSuppliersPage } from './pages/StagedImportPage'
 import { SupplierStatementPage } from './pages/SupplierStatementPage'
 import { ReportsIncomePage } from './pages/ReportsIncomePage'
 import { ReportsExpenditurePage } from './pages/ReportsExpenditurePage'
@@ -86,7 +86,6 @@ import {
   MakeRolePage,
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
-import { UploadDocumentPage } from './pages/UploadDocumentPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
@@ -140,7 +139,7 @@ import { NewCreditNotePage } from './pages/NewCreditNotePage'
 import { CreditNotesPage } from './pages/CreditNotesPage'
 import { CreditNoteDetailsPage } from './pages/CreditNoteDetailsPage'
 import { CustomersPage } from './pages/CustomersPage'
-import { NewCustomerPage } from './pages/NewCustomerPage'
+import { EditCustomerPage, NewCustomerPage } from './pages/NewCustomerPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { NewSupplierPage } from './pages/NewSupplierPage'
 import { SignupPage } from './pages/SignupPage'
@@ -202,9 +201,12 @@ function App() {
           <Route path="/expenditure/bills" element={<BillsPage />} />
           <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
-          <Route path="/expenditure/payments" element={<PaymentRunPage />} />
+          <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
+          <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
+          <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
           <Route path="/expenditure/recurring-bills" element={<RecurringBillsPage />} />
           <Route path="/expenditure/recurring-bills/new" element={<NewRecurringBillPage />} />
+          <Route path="/expenditure/recurring-bills/:id/edit" element={<NewRecurringBillPage />} />
           <Route path="/expenditure/recurring-bills/:id" element={<RecurringBillDetailPage />} />
           <Route path="/expenditure/credit-notes" element={<SupplierCreditNotesPage />} />
           <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
@@ -258,7 +260,6 @@ function App() {
           <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
           <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
           <Route path="/compliance/documents" element={<DocumentsPage />} />
-          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
           <Route path="/compliance/documents/:id" element={<DocumentDetailPage />} />
           <Route
             path="/expenditure/payments/:runId/invoices"
@@ -286,12 +287,15 @@ function App() {
           <Route path="/trade-documents/delivery-notes/new" element={<NewDeliveryNotePage />} />
           <Route path="/trade-documents/delivery-notes/:id" element={<DeliveryNoteDetailPage />} />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
+          <Route path="/income/debit-notes/:id/edit" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
           <Route path="/income/self-billing" element={<SelfBillingPage />} />
           <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
           <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
           <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
-          <Route path="/settings/payment-reminders" element={<PaymentRemindersPage />} />
+          {/* One settings page, one address. It lived at both paths, so the Settings one now
+              points at the Income one rather than rendering a second copy of it. */}
+          <Route path="/settings/payment-reminders" element={<Navigate to="/income/reminders/settings" replace />} />
           <Route path="/settings/erp-mapping" element={<ErpOverviewPage />} />
           <Route path="/settings/erp-mapping/fields" element={<ErpFieldsPage />} />
           <Route path="/settings/erp-mapping/preview" element={<ErpPreviewPage />} />
@@ -329,12 +333,15 @@ function App() {
           <Route path="/income/periodic/:id/edit" element={<PeriodicInvoicePage mode="edit" />} />
           <Route path="/income/credit-notes" element={<CreditNotesPage />} />
           <Route path="/income/credit-notes/new" element={<NewCreditNotePage />} />
+          <Route path="/income/credit-notes/:id/edit" element={<NewCreditNotePage />} />
           <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/customers/new" element={<NewCustomerPage />} />
+          <Route path="/customers/:id/edit" element={<EditCustomerPage />} />
           <Route path="/suppliers" element={<SuppliersPage />} />
           <Route path="/suppliers/new" element={<NewSupplierPage />} />
           <Route path="/suppliers/import" element={<ImportSuppliersPage />} />
+          <Route path="/customers/import" element={<ImportCustomersPage />} />
           <Route path="/suppliers/:slug/edit" element={<EditSupplierPage />} />
           <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />

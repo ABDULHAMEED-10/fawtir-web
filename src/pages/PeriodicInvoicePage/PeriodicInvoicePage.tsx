@@ -1,609 +1,476 @@
-import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
-import { formatAtScale } from '../../lib/invoiceMath'
-import { ActionMenu, OmAmount, withRial } from '../../components/ui'
+import { Combobox, DateField, RowsView, type SelectOption } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice, Notice, PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { ApiError, type Page } from '../../api'
 import {
-  EMPTY_PERIODIC_SERIES,
-  PERIODIC_SERIES,
-  type PeriodicFrequency,
+  createPeriodicSchedule,
+  loadPeriodicRuns,
+  loadPeriodicSchedule,
+  periodicRunsPath,
+  periodicSchedulePath,
+  setPeriodicActive,
+  updatePeriodicSchedule,
+  type PeriodicRunDto,
+  type PeriodicScheduleDto,
+  type RecurrenceInterval,
+} from '../../api/invoices/periodic'
+import { CUSTOMERS_PATH, customerListPath, loadCustomer, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
+import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { formatAmount, formatDate } from '../../lib/format'
+import { can, useSession } from '../../lib/session/session'
+import {
+  PERIODIC_INTERVALS,
+  PERIODIC_REFUSALS,
+  blankPeriodicForm,
+  draftedCount,
+  formOfSchedule,
+  periodicProblems,
+  toCreateRequest,
+  toUpdateRequest,
+  type PeriodicField,
+  type PeriodicForm,
 } from '../../lib/periodicInvoice'
-import { scheduleRowActions } from '../../lib/rowActions'
-import backIcon from '../../assets/invoice-details/back.svg'
-import saveIcon from '../../assets/customers/save.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
-import calendarIcon from '../../assets/create-invoice/calendar.svg'
-import customerLogo from '../../assets/periodic/customer-logo.svg'
-import peppolIcon from '../../assets/periodic/peppol.svg'
-import pauseIcon from '../../assets/periodic/pause.svg'
-import clockIcon from '../../assets/periodic/clock.svg'
-import toggleOnIcon from '../../assets/periodic/toggle-on.svg'
-import infoIcon from '../../assets/periodic/info.svg'
-import invoiceTileIcon from '../../assets/periodic/invoice-tile.svg'
 
-function FieldLabel({ label }: { label: string }) {
-  return <p className="mb-1 text-sm font-medium text-text-primary">{label}</p>
-}
+/** The customers list refuses a page over 100, so names are read a hundred at a time. */
+const CUSTOMER_PAGE_SIZE = 100
 
-/** Column track widths taken from the Figma row: 306 / 104 / 173 / 103 / 105 / 90 / total / delete. */
-/** The lines from the design, costed by the same engine the invoice uses. */
-const INITIAL_LINES: LineItem[] = [
-  {
-    id: '1',
-    description: 'Cappuccino - Large',
-    unitPrice: '1.8',
-    vatRate: '5',
-    quantity: '12',
-    unit: 'EA',
-    discountType: 'PERCENTAGE',
-    discountValue: '0',
-  },
-  {
-    id: '2',
-    description: 'Coffee Beans 1kg - H Blend',
-    unitPrice: '9.5',
-    vatRate: '5',
-    quantity: '4',
-    unit: 'KGM',
-    discountType: 'PERCENTAGE',
-    discountValue: '10',
-  },
-]
+const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
-function NoteLabel({ label, badge }: { label: string; badge: string }) {
-  return (
-    <p className="mb-1 flex flex-wrap items-baseline gap-2">
-      <span className="text-sm font-medium text-text-primary">{label}</span>
-      <span className="text-xs font-medium text-text-quaternary">{badge}</span>
-    </p>
-  )
-}
-
-function FieldShell({ children, suffix }: { children: ReactNode; suffix?: ReactNode }) {
-  return (
-    <div className="flex h-[50px] w-full items-center justify-between rounded-sm border border-primary-300 bg-surface-tab-bar px-4">
-      <div className="min-w-0 flex-1 text-sm font-medium text-text-secondary">{children}</div>
-      {suffix}
-    </div>
-  )
-}
-
-function Toggle({ on, label, hint }: { on: boolean; label: string; hint: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div>
-        <p className="text-sm font-semibold text-text-primary">{label}</p>
-        <p className="mt-0.5 text-xs font-medium text-text-quaternary">{hint}</p>
-      </div>
-      {on ? (
-        <img src={toggleOnIcon} alt="" className="h-6 w-11 shrink-0" />
-      ) : (
-        <span className="inline-flex h-6 w-11 shrink-0 rounded-full bg-neutral-100 p-0.5">
-          <span className="size-5 rounded-full bg-white shadow-sm" />
-        </span>
-      )}
-    </div>
-  )
-}
+const FIELD = 'h-[46px] w-full rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
 
 /**
- * One layout, three modes:
- *  - `create` blank series, reached from "New recurring invoice"
- *  - `edit`   filled series, reached from the row menu's Edit action
- *  - `view`   read-only, reached by clicking a row in the list
+ * One periodic schedule (I-13): reading it, setting one up, and editing it.
+ *
+ * A schedule carries no lines of its own — it names an invoice whose content each run copies — so
+ * setting one up is choosing a customer and one of their invoices, not composing a document. The
+ * customer and the template are fixed afterwards, as the API has them.
  */
-export type PeriodicMode = 'create' | 'edit' | 'view'
-
-export function PeriodicInvoicePage({ mode = 'edit' }: { mode?: PeriodicMode }) {
-  const { t } = useTranslation()
-  const isCreate = mode === 'create'
-  const isView = mode === 'view'
-  const series = isCreate ? EMPTY_PERIODIC_SERIES : PERIODIC_SERIES
-  const [frequency, setFrequency] = useState<PeriodicFrequency>(series.schedule.frequency)
-  const [exclVat, setExclVat] = useState(true)
-  const [lines, setLines] = useState<LineItem[]>(INITIAL_LINES)
-  const totals = useLineTotals(lines, exclVat)
-
+export function PeriodicInvoicePage({ mode }: { mode: 'view' | 'create' | 'edit' }) {
+  const { id } = useParams()
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Link
-                to="/invoices"
-                className="inline-flex items-center gap-1 text-2xl font-medium text-text-quaternary"
-              >
-                {t('periodicInvoice.breadcrumbIncome')}
-                <img src={backIcon} alt="" className="size-6 rotate-180" />
-              </Link>
-              <Link
-                to="/income/periodic"
-                className="text-2xl font-medium text-text-quaternary transition-colors hover:text-text-secondary"
-              >
-                {t('periodicInvoice.breadcrumb')}
-              </Link>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-                {isCreate ? t('periodicInvoice.newTitle') : series.title}
-              </h1>
-              {isCreate ? null : (
-                <span className="inline-flex h-[31px] items-center gap-2 rounded-full border border-[#b7c4bd] bg-success-100 px-3 text-sm font-medium text-success-700">
-                  <span className="size-1.5 rounded-full bg-success-700" />
-                  {t('periodicInvoice.active')}
-                </span>
-              )}
-            </div>
-            {isCreate ? (
-              <p className="mt-1 text-base text-text-quaternary">
-                {t('periodicInvoice.newSubtitle')}
-              </p>
-            ) : (
-              <p className="mt-1 flex flex-wrap items-center gap-1.5 text-base text-text-quaternary">
-                <span>{t('periodicInvoice.recurring')}</span>
-                <span className="size-1 rounded-full bg-text-quaternary" />
-                <span>{series.cadence}</span>
-                <span className="size-1 rounded-full bg-text-quaternary" />
-                <span>
-                  {t('periodicInvoice.next')}{' '}
-                  <span className="font-semibold text-text-primary">{series.nextRun}</span>
-                </span>
-              </p>
-            )}
-          </div>
-          {/* Figma order, left to right: more · Pause Series · Save changes. */}
-          <div className="flex flex-wrap items-center gap-3">
-            {isCreate ? (
-              <>
-                <Link
-                  to="/income/periodic"
-                  className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-white"
-                >
-                  {t('periodicInvoice.cancel')}
-                </Link>
-                <button
-                  type="button"
-                  className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                >
-                  <img src={saveIcon} alt="" className="size-6 brightness-0 invert" />
-                  {t('periodicInvoice.createSeries')}
-                </button>
-              </>
-            ) : (
-              <>
-                <ActionMenu
-                  items={scheduleRowActions()}
-                  label={t('periodicInvoice.more')}
-                  variant="bordered"
-                />
-                <button
-                  type="button"
-                  className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-white"
-                >
-                  <img src={pauseIcon} alt="" className="size-6" />
-                  {t('periodicInvoice.pauseSeries')}
-                </button>
-                {isView ? (
-                  <Link
-                    to="/income/periodic/monthly-coffee-supply/edit"
-                    className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                  >
-                    {t('periodicInvoice.editSeries')}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-                  >
-                    <img src={saveIcon} alt="" className="size-6 brightness-0 invert" />
-                    {t('periodicInvoice.saveChanges')}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">
-                {t('periodicInvoice.invoiceDetails')}
-              </h2>
-              <div className="my-3 h-px bg-border-subtle" />
-
-              <p className="mb-2 text-sm font-medium text-text-primary">
-                {t('periodicInvoice.customer')}
-              </p>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-primary-75 bg-primary-25 px-3 py-4">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-text-primary">
-                      {series.customer.name}
-                    </p>
-                    <p className="truncate text-xs font-medium text-text-quaternary">
-                      {series.customer.vat}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <span className="inline-flex items-center gap-1 rounded-full border border-primary-75 bg-white/70 py-1.5 ps-1.5 pe-3 text-xs font-semibold text-primary-800">
-                    <img src={peppolIcon} alt="" className="size-4" />
-                    {t('periodicInvoice.onPeppol')}
-                  </span>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-0.5 rounded-sm border border-border-subtle bg-white py-1.5 ps-3.5 pe-2.5 text-sm font-semibold text-primary-800"
-                  >
-                    {t('periodicInvoice.change')}
-                    <img src={chevronIcon} alt="" className="size-5 rotate-90" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <div>
-                  <FieldLabel label={t('periodicInvoice.fields.subject')} />
-                  <FieldShell>{series.subject}</FieldShell>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <FieldLabel label={t('periodicInvoice.fields.po')} />
-                    <FieldShell>{series.poReference}</FieldShell>
-                  </div>
-                  <div>
-                    <FieldLabel label={t('periodicInvoice.fields.terms')} />
-                    <FieldShell
-                      suffix={
-                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                      }
-                    >
-                      {series.paymentTerms}
-                    </FieldShell>
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <FieldLabel label={t('periodicInvoice.fields.currency')} />
-                    <FieldShell
-                      suffix={
-                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                      }
-                    >
-                      {series.currency}
-                    </FieldShell>
-                  </div>
-                  <div>
-                    <FieldLabel label={t('periodicInvoice.fields.tax')} />
-                    <FieldShell
-                      suffix={
-                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                      }
-                    >
-                      {series.taxCategory}
-                    </FieldShell>
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <FieldLabel label={t('periodicInvoice.fields.branch')} />
-                    <FieldShell
-                      suffix={
-                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                      }
-                    >
-                      {series.branch}
-                    </FieldShell>
-                  </div>
-                  <div>
-                    <FieldLabel label={t('periodicInvoice.fields.project')} />
-                    <FieldShell
-                      suffix={
-                        <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                      }
-                    >
-                      {series.project}
-                    </FieldShell>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">
-                {t('periodicInvoice.notesTitle')}
-              </h2>
-              <div className="my-3 h-px bg-border-subtle" />
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div>
-                  <NoteLabel
-                    label={t('periodicInvoice.noteCustomer')}
-                    badge={t('periodicInvoice.noteOnInvoice')}
-                  />
-                  <div className="min-h-[71px] rounded-sm border border-primary-300 bg-surface-tab-bar px-4 py-3 text-sm font-medium text-text-secondary">
-                    {series.noteCustomer}
-                  </div>
-                </div>
-                <div>
-                  <NoteLabel
-                    label={t('periodicInvoice.noteInternal')}
-                    badge={t('periodicInvoice.notePrivate')}
-                  />
-                  <div className="min-h-[71px] rounded-sm border border-primary-300 bg-surface-tab-bar px-4 py-3 text-sm font-medium text-text-secondary">
-                    {series.noteInternal}
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[332px]">
-            <section className="rounded-sm bg-surface-card p-4">
-              <h2 className="text-xl font-medium text-text-secondary">
-                {t('periodicInvoice.schedule')}
-              </h2>
-              <div className="my-3 h-px bg-border-subtle" />
-              {/* The "Billing cadence" caption sits inside the tinted card, in brand blue. */}
-              <div className="mb-4 rounded-sm border border-primary-75 bg-primary-25 p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">
-                  {t('periodicInvoice.billingCadence')}
-                </p>
-                <p className="mt-1.5 text-sm font-medium text-text-primary">
-                  {series.schedule.summary}
-                </p>
-                <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-text-tertiary">
-                  <img src={clockIcon} alt="" className="size-[17px] shrink-0" />
-                  {series.schedule.nextIn}
-                </p>
-              </div>
-              <FieldLabel label={t('periodicInvoice.frequency')} />
-              {/* Segmented control: #fafafa track on #eaedf8, active pill #f4f6fb on #d5dcf1. */}
-              <div className="mb-4 grid grid-cols-4 gap-3 rounded-[3px] border border-border-brand-subtle bg-surface-tab-bar p-[3px]">
-                {(
-                  [
-                    ['weekly', 'periodicInvoice.weekly'],
-                    ['monthly', 'periodicInvoice.monthly'],
-                    ['quarterly', 'periodicInvoice.quarterly'],
-                    ['yearly', 'periodicInvoice.yearly'],
-                  ] as const
-                ).map(([value, labelKey]) => {
-                  const active = frequency === value
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFrequency(value)}
-                      className={[
-                        'h-11 rounded-[3px] px-1 text-xs font-medium transition-colors',
-                        active
-                          ? 'border border-primary-75 bg-primary-25 text-primary-800'
-                          : 'bg-white text-text-tertiary hover:bg-neutral-25',
-                      ].join(' ')}
-                    >
-                      {t(labelKey)}
-                    </button>
-                  )
-                })}
-              </div>
-              {/* Repeats on / Starts / Ends are each their own full-width row in Figma. */}
-              <div className="flex flex-col gap-3">
-                <div>
-                  <FieldLabel label={t('periodicInvoice.repeatsOn')} />
-                  <FieldShell
-                    suffix={
-                      <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                    }
-                  >
-                    {series.schedule.repeatsOn}
-                  </FieldShell>
-                </div>
-                <div>
-                  <FieldLabel label={t('periodicInvoice.starts')} />
-                  <FieldShell
-                    suffix={<img src={calendarIcon} alt="" className="size-5 opacity-60" />}
-                  >
-                    {series.schedule.starts}
-                  </FieldShell>
-                </div>
-                <div>
-                  <FieldLabel label={t('periodicInvoice.ends')} />
-                  <FieldShell
-                    suffix={
-                      <img src={chevronIcon} alt="" className="size-5 rotate-90 opacity-60" />
-                    }
-                  >
-                    {series.schedule.ends}
-                  </FieldShell>
-                </div>
-                <Toggle
-                  on={series.schedule.sendAutomatically}
-                  label={t('periodicInvoice.sendAuto')}
-                  hint={t('periodicInvoice.sendAutoHint')}
-                />
-                <Toggle
-                  on={series.schedule.notifyOnRun}
-                  label={t('periodicInvoice.notify')}
-                  hint={t('periodicInvoice.notifyHint')}
-                />
-              </div>
-            </section>
-          </aside>
-        </div>
-
-        {/* Items spans the full 1144px width in Figma, below the two-column band. */}
-        <LineItemsTable
-          lines={lines}
-          onChange={setLines}
-          exclVat={exclVat}
-          onExclVatChange={setExclVat}
-          totals={totals}
-          titleSlot={
-            <h2 className="text-xl font-medium text-text-secondary">
-              {t('periodicInvoice.items')}
-            </h2>
-          }
-          footer={
-            <>
-              <div className="ms-auto flex w-full max-w-[280px] flex-col gap-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-tertiary">{t('periodicInvoice.totalExcl')}</span>
-                  <OmAmount
-                    size="xs"
-                    amount={formatAtScale(totals.taxable)}
-                    amountClassName="text-sm font-semibold"
-                  />
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-tertiary">{t('periodicInvoice.vat')}</span>
-                  <OmAmount
-                    size="xs"
-                    amount={formatAtScale(totals.vat)}
-                    amountClassName="text-sm font-semibold"
-                  />
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium text-text-primary">
-                    {t('periodicInvoice.totalAmount')}
-                  </span>
-                  <OmAmount
-                    size="sm"
-                    amount={formatAtScale(totals.total)}
-                    amountClassName="text-base font-semibold"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex items-start gap-2 rounded-sm border border-primary-50 bg-primary-25 p-3">
-                <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-                <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
-                  {withRial(
-                    t('periodicInvoice.itemsBanner', {
-                      amount: formatAtScale(totals.total),
-                      cadence: t(`periodicInvoice.cadence.${frequency}`),
-                      customer: series.customer.name,
-                    }),
-                  )}
-                </p>
-              </div>
-            </>
-          }
-        />
-
-        {isCreate ? null : (
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-            <div className="flex min-w-0 flex-1 flex-col gap-4">
-              <section className="rounded-sm bg-surface-card p-4">
-                <h2 className="text-xl font-medium text-text-secondary">
-                  {t('periodicInvoice.generated')}
-                </h2>
-                <div className="my-3 h-px bg-border-subtle" />
-                {/* Tinted row: #f4f6fb on #eaedf8 with a 54px icon tile, per Figma. */}
-                {series.generated.map((inv) => (
-                  <Link
-                    key={inv.id}
-                    to={`/invoices/${inv.id}`}
-                    className="flex items-center gap-3 rounded-sm border border-border-brand-subtle bg-primary-25 p-2.5 transition-colors hover:bg-primary-50 max-md:flex-wrap"
-                  >
-                    <span className="flex size-[54px] shrink-0 items-center justify-center rounded-sm bg-primary-25">
-                      <img src={invoiceTileIcon} alt="" className="size-9" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-base font-medium leading-[1.2] text-text-primary">
-                        {inv.id}
-                      </p>
-                      <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-tertiary">
-                        {inv.meta}
-                      </p>
-                    </div>
-                    <span className="inline-flex h-[31px] shrink-0 items-center gap-2 rounded-full border border-[#e7e3da] bg-pending-100 px-3 text-sm font-medium text-pending-700">
-                      <span className="size-1.5 rounded-full bg-pending-700" />
-                      {t('invoicesPage.status.partial')}
-                    </span>
-                    <OmAmount
-                      size="sm"
-                      amount={inv.amount}
-                      amountClassName="text-2xl font-medium text-text-primary"
-                    />
-                    <img
-                      src={chevronIcon}
-                      alt=""
-                      className="size-5 shrink-0 opacity-60 rtl:rotate-180"
-                    />
-                  </Link>
-                ))}
-                <div className="mt-3 flex items-center gap-2 rounded-sm border border-border-brand-subtle bg-primary-25 px-2 py-2.5">
-                  <img src={clockIcon} alt="" className="size-5 shrink-0" />
-                  <p className="text-sm font-medium text-text-tertiary">
-                    {t('periodicInvoice.nextBanner', { date: series.nextRun })}
-                  </p>
-                </div>
-              </section>
-            </div>
-
-            <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[332px]">
-              <section className="rounded-sm bg-surface-card p-4">
-                <h2 className="text-xl font-medium text-text-secondary">
-                  {t('periodicInvoice.upcoming')}
-                </h2>
-                <div className="my-3 h-px bg-border-subtle" />
-                {/* First run carries a blue ring marker; later ones a plain grey dot. */}
-                <div className="flex flex-col gap-3">
-                  {series.upcoming.map((row, index) => {
-                    const isNext = index === 0
-                    return (
-                      <div key={row.date} className="flex items-center gap-3 text-sm">
-                        {isNext ? (
-                          <span className="flex size-2.5 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                            <span className="size-2 rounded-full bg-primary-700" />
-                          </span>
-                        ) : (
-                          <span className="ms-0.5 size-2 shrink-0 rounded-full bg-neutral-100" />
-                        )}
-                        <span
-                          className={[
-                            'flex-1 font-medium',
-                            isNext ? 'text-text-primary' : 'text-text-tertiary',
-                          ].join(' ')}
-                        >
-                          {row.date}
-                        </span>
-                        <OmAmount
-                          size="xs"
-                          amount={row.amount}
-                          amountClassName="text-sm font-medium"
-                        />
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="my-3 h-px bg-border-subtle" />
-                {/* Started / Issued / Each sit in three columns, label above value. */}
-                <div className="grid grid-cols-3 gap-3 text-sm font-medium text-text-secondary">
-                  <span className="flex flex-col gap-1.5">
-                    {t('periodicInvoice.started')}
-                    <span className="text-base">{series.started}</span>
-                  </span>
-                  <span className="flex flex-col gap-1.5">
-                    {t('periodicInvoice.issued')}
-                    <span className="text-base">{series.issuedCount}</span>
-                  </span>
-                  <span className="flex flex-col gap-1.5">
-                    {t('periodicInvoice.each')}
-                    <OmAmount
-                      size="xs"
-                      amount={series.totals.total}
-                      amountClassName="text-base font-medium text-text-secondary"
-                    />
-                  </span>
-                </div>
-              </section>
-            </aside>
-          </div>
-        )}
-      </div>
+      {mode === 'view' && id ? <ScheduleView key={id} id={id} /> : <ScheduleForm key={id ?? 'new'} id={mode === 'edit' ? (id ?? null) : null} />}
     </AppShell>
+  )
+}
+
+function Breadcrumb({ title }: { title: string }) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Link to="/income/periodic" className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700">
+        {t('periodicList.title')}
+      </Link>
+      <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
+      <span className="text-2xl font-medium leading-[1.2] text-text-primary">{title}</span>
+    </div>
+  )
+}
+
+function ScheduleView({ id }: { id: string }) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const session = useSession()
+  const canManage = can(session, 'invoice.draft')
+  const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const read = useApiRead<PeriodicScheduleDto>(periodicSchedulePath(id), () => loadPeriodicSchedule(id))
+  const runsPath = periodicRunsPath(id)
+  const runs = useApiRead<PeriodicRunDto[]>(runsPath, () => loadPeriodicRuns(runsPath))
+  // The schedule carries a customer id and nothing else, so the name — which is how anyone
+  // recognises the schedule — is read once the id is in hand.
+  const customerId = read.read.status === 'ready' ? read.read.data.customerId : null
+  const customer = useApiRead<CustomerDto>(customerId ? `${CUSTOMERS_PATH}/${customerId}` : null, () => loadCustomer(customerId ?? ''))
+  const customerName = customer.read.status === 'ready' ? customer.read.data.displayName : null
+
+  if (read.read.status !== 'ready') {
+    return (
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+        {read.read.status === 'loading' ? <LoadingNotice /> : <ApiReadFailure error={read.read.error} retry={read.retry} />}
+      </div>
+    )
+  }
+
+  const schedule = read.read.data
+  const day = (value: string | null) => (value ? formatDate(value, language) : '—')
+
+  const toggle = async () => {
+    if (busy) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const saved = await setPeriodicActive(id, !schedule.active)
+      read.retry()
+      setNotice(
+        schedule.active
+          ? { key: 'periodicList.done.paused' }
+          : { body: t('periodicList.done.resumed', { date: formatDate(saved.nextRunDate, language) }) },
+      )
+    } catch (error) {
+      const message = describeApiFailure(error)
+      const body = t(message.key, message.values)
+      setNotice({ body: message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <Breadcrumb title={customerName ?? t('periodicInvoice.title')} />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{customerName ?? t('periodicInvoice.title')}</h1>
+        <span
+          className={[
+            'inline-flex h-[31px] items-center rounded-full border px-3 text-sm font-semibold',
+            schedule.active ? 'border-success-700 text-success-700' : 'border-border-subtle text-text-tertiary',
+          ].join(' ')}
+        >
+          {t(schedule.active ? 'periodicList.state.active' : 'periodicList.state.paused')}
+        </span>
+        {canManage ? (
+          <div className="ms-auto flex flex-wrap items-center gap-3">
+            <Link
+              to={`/income/periodic/${id}/edit`}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+            >
+              {t('periodicInvoice.edit')}
+            </Link>
+            <button
+              type="button"
+              onClick={() => void toggle()}
+              disabled={busy}
+              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-50"
+            >
+              {t(schedule.active ? 'periodicList.menu.pause' : 'periodicList.menu.resume')}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {notice ? <Notice body={'key' in notice ? t(notice.key) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('periodicInvoice.whatItDoes')}</h2>
+        <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">{t('periodicInvoice.whatItDoesNote')}</p>
+        <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Fact
+            label={t('periodicInvoice.fields.customer')}
+            value={
+              <Link to={`/customers/${schedule.customerId}`} className="font-semibold text-primary-700 hover:underline">
+                {customerName ?? t('periodicInvoice.openCustomer')}
+              </Link>
+            }
+          />
+          <Fact
+            label={t('periodicInvoice.fields.template')}
+            value={
+              schedule.templateInvoiceId ? (
+                <Link to={`/invoices/${schedule.templateInvoiceId}`} className="font-semibold text-primary-700 hover:underline">
+                  {t('periodicInvoice.openTemplate')}
+                </Link>
+              ) : (
+                <span className="text-text-quaternary">{t('periodicInvoice.noTemplate')}</span>
+              )
+            }
+          />
+          <Fact label={t('periodicInvoice.fields.howOften')} value={t(`periodicList.interval.${schedule.interval}`)} />
+          <Fact label={t('periodicInvoice.fields.nextDraft')} value={day(schedule.nextRunDate)} />
+          <Fact label={t('periodicInvoice.fields.endsOn')} value={day(schedule.endDate)} />
+          <Fact
+            label={t('periodicInvoice.fields.left')}
+            value={schedule.remainingOccurrences === null ? t('periodicList.noLimit') : t('periodicList.leftCount', { count: schedule.remainingOccurrences })}
+          />
+          <Fact label={t('periodicInvoice.fields.subtype')} value={t(`periodicList.subtype.${schedule.transactionSubtype}`)} note={t('periodicInvoice.fields.subtypeNote')} />
+        </div>
+      </section>
+
+      <section className="rounded-md bg-surface-card">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-surface-background px-5 py-4">
+          <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('periodicInvoice.runs')}</h2>
+          {runs.read.status === 'ready' ? (
+            <p className="text-xs font-medium text-text-quaternary">{t('periodicInvoice.draftedCount', { count: draftedCount(runs.read.data) })}</p>
+          ) : null}
+        </div>
+        {runs.read.status === 'loading' ? <LoadingNotice /> : null}
+        {runs.read.status === 'failed' ? <ApiReadFailure error={runs.read.error} retry={runs.retry} /> : null}
+        {runs.read.status === 'ready' ? (
+          runs.read.data.length === 0 ? (
+            <p className="px-6 py-12 text-center text-sm font-medium text-text-quaternary">{t('periodicInvoice.noRuns')}</p>
+          ) : (
+            <RowsView>
+              <table className="w-full min-w-[720px] border-collapse">
+                <thead>
+                  <tr className="border-b border-surface-background text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
+                    {(['ran', 'period', 'outcome', 'draft'] as const).map((key) => (
+                      <th key={key} className="px-5 py-3 text-start font-semibold">
+                        {t(`periodicInvoice.runCol.${key}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.read.data.map((run) => (
+                    <tr key={`${run.runDate}-${run.createdAt}`} className="border-b border-surface-background last:border-0">
+                      <td className="px-5 py-4 align-top text-sm font-medium text-text-secondary">{day(run.runDate)}</td>
+                      <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">
+                        {run.periodStart && run.periodEnd ? `${day(run.periodStart)} – ${day(run.periodEnd)}` : '—'}
+                      </td>
+                      <td className="px-5 py-4 align-top text-sm font-medium text-text-secondary">
+                        {t(`periodicInvoice.outcome.${run.outcome}`)}
+                        {run.failureReason ? <span className="mt-1 block text-xs font-medium text-warning-700">{run.failureReason}</span> : null}
+                      </td>
+                      <td className="px-5 py-4 align-top text-sm font-medium">
+                        {run.draftInvoiceId ? (
+                          <Link to={`/invoices/${run.draftInvoiceId}`} className="font-semibold text-primary-700 hover:underline">
+                            {t('periodicInvoice.openDraft')}
+                          </Link>
+                        ) : (
+                          <span className="text-text-quaternary">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </RowsView>
+          )
+        ) : null}
+      </section>
+
+      <p className="text-xs font-medium leading-[1.5] text-text-quaternary">{t('periodicList.sweepNote')}</p>
+    </div>
+  )
+}
+
+function ScheduleForm({ id }: { id: string | null }) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const navigate = useNavigate()
+  const session = useSession()
+  const today = muscatToday()
+  const [form, setForm] = useState<PeriodicForm>(() => blankPeriodicForm(today))
+  const [seeded, setSeeded] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<PeriodicField, string>>>({})
+  const [failure, setFailure] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const existing = useApiRead<PeriodicScheduleDto>(id ? periodicSchedulePath(id) : null, id ? () => loadPeriodicSchedule(id) : undefined)
+  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: CUSTOMER_PAGE_SIZE })
+  const customers = useApiRead<Page<CustomerDto>>(customersPath, () => loadCustomerPage(customersPath))
+  // The template is one of this customer's own invoices: its lines, currency and terms are what
+  // every run copies, so there is nothing to choose until a customer is.
+  const invoicesPath = form.customerId
+    ? invoiceListPath({
+        customerId: form.customerId,
+        state: 'DRAFT,ISSUED',
+        payment: null,
+        type: 'INVOICE',
+        from: null,
+        to: null,
+        search: '',
+        sort: 'ISSUED_NEWEST',
+        page: 0,
+        size: 50,
+      })
+    : null
+  const invoices = useApiRead<Page<InvoiceRowDto>>(invoicesPath, invoicesPath ? () => loadInvoicePage(invoicesPath) : undefined)
+
+  if (!can(session, 'invoice.draft')) {
+    return (
+      <div className="mx-auto w-full max-w-[860px]">
+        <PermissionDeniedNotice />
+      </div>
+    )
+  }
+
+  if (id && existing.read.status !== 'ready') {
+    return (
+      <div className="mx-auto flex w-full max-w-[860px] flex-col gap-4">
+        {existing.read.status === 'loading' ? <LoadingNotice /> : <ApiReadFailure error={existing.read.error} retry={existing.retry} />}
+      </div>
+    )
+  }
+
+  if (id && existing.read.status === 'ready' && !seeded) {
+    setSeeded(true)
+    setForm(formOfSchedule(existing.read.data, '', ''))
+  }
+
+  const set = (changes: Partial<PeriodicForm>) => {
+    setForm((current) => ({ ...current, ...changes }))
+    setErrors((current) => {
+      const next = { ...current }
+      for (const key of Object.keys(changes) as PeriodicField[]) delete next[key]
+      return next
+    })
+  }
+
+  const customerOptions: SelectOption[] = (customers.read.status === 'ready' ? customers.read.data.items : []).map((customer) => ({
+    value: customer.id,
+    label: customer.displayName,
+  }))
+
+  const invoiceOptions: SelectOption[] = (invoices.read.status === 'ready' ? invoices.read.data.items : []).map((invoice) => ({
+    value: invoice.id,
+    label: invoice.invoiceNumber ?? t('periodicInvoice.draftInvoice'),
+    hint: invoice.totals ? formatAmount(invoice.totals.totalAmount, invoice.currency, language) : undefined,
+  }))
+
+  const save = async () => {
+    const problems = periodicProblems(form, today, Boolean(id))
+    setErrors(problems)
+    setFailure(null)
+    if (Object.keys(problems).length > 0 || busy) return
+    setBusy(true)
+    try {
+      const saved = id ? await updatePeriodicSchedule(id, toUpdateRequest(form)) : await createPeriodicSchedule(toCreateRequest(form))
+      navigate(`/income/periodic/${saved.id}`, { replace: true })
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : null
+      if (code && PERIODIC_REFUSALS[code]) {
+        setFailure(t(PERIODIC_REFUSALS[code]))
+      } else {
+        const message = describeApiFailure(error)
+        const body = t(message.key, message.values)
+        setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const field = (name: PeriodicField, label: string, input: React.ReactNode, note?: string) => (
+    <div>
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-semibold text-text-secondary">{label}</span>
+        {input}
+      </label>
+      {note ? <p className="mt-1 text-xs font-medium text-text-quaternary">{note}</p> : null}
+      {errors[name] ? (
+        <p role="alert" className="mt-1 text-xs font-medium text-danger-700">
+          {t(errors[name]!)}
+        </p>
+      ) : null}
+    </div>
+  )
+
+  return (
+    <div className="mx-auto flex w-full max-w-[860px] flex-col gap-4 pb-10">
+      <Breadcrumb title={t(id ? 'periodicInvoice.editTitle' : 'periodicInvoice.newTitle')} />
+      <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t(id ? 'periodicInvoice.editTitle' : 'periodicInvoice.newTitle')}</h1>
+
+      {failure ? <Notice body={failure} /> : null}
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('periodicInvoice.whatToSend')}</h2>
+        <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">{t('periodicInvoice.whatToSendNote')}</p>
+        <div className="mt-4 flex flex-col gap-4">
+          {id ? (
+            <p className="rounded-sm border border-border-subtle bg-surface-background/50 p-3 text-sm font-medium text-text-tertiary">
+              {t('periodicInvoice.fixedAfterCreation')}
+            </p>
+          ) : (
+            <>
+              {field(
+                'customerId',
+                t('periodicInvoice.fields.customer'),
+                <Combobox
+                  options={customerOptions}
+                  value={form.customerId}
+                  onChange={(value) => set({ customerId: value, templateInvoiceId: '' })}
+                  ariaLabel={t('periodicInvoice.fields.customer')}
+                  placeholder={t('periodicInvoice.chooseCustomer')}
+                  searchPlaceholder={t('periodicInvoice.searchCustomers')}
+                />,
+              )}
+              {field(
+                'templateInvoiceId',
+                t('periodicInvoice.fields.template'),
+                <Combobox
+                  options={invoiceOptions}
+                  value={form.templateInvoiceId}
+                  onChange={(value) => set({ templateInvoiceId: value })}
+                  ariaLabel={t('periodicInvoice.fields.template')}
+                  placeholder={t(form.customerId ? 'periodicInvoice.chooseTemplate' : 'periodicInvoice.chooseCustomerFirst')}
+                  searchPlaceholder={t('periodicInvoice.searchInvoices')}
+                  emptyText={t(form.customerId ? 'periodicInvoice.noInvoices' : 'periodicInvoice.chooseCustomerFirst')}
+                />,
+                t('periodicInvoice.templateNote'),
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('periodicInvoice.whenToSend')}</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {field(
+            'interval',
+            t('periodicInvoice.fields.howOften'),
+            <select value={form.interval} onChange={(event) => set({ interval: event.target.value as RecurrenceInterval })} className={FIELD}>
+              {PERIODIC_INTERVALS.map((interval) => (
+                <option key={interval} value={interval}>
+                  {t(`periodicList.interval.${interval}`)}
+                </option>
+              ))}
+            </select>,
+            t('periodicInvoice.fields.subtypeNote'),
+          )}
+          {field(
+            'firstRunDate',
+            t(id ? 'periodicInvoice.fields.nextDraft' : 'periodicInvoice.fields.firstDraft'),
+            <DateField value={form.firstRunDate} min={today} ariaLabel={t('periodicInvoice.fields.firstDraft')} onChange={(firstRunDate) => set({ firstRunDate })} />,
+          )}
+          {field(
+            'endDate',
+            t('periodicInvoice.fields.endsOn'),
+            <DateField value={form.endDate} min={form.firstRunDate || today} ariaLabel={t('periodicInvoice.fields.endsOn')} onChange={(endDate) => set({ endDate })} />,
+            t('periodicInvoice.fields.endsOnNote'),
+          )}
+          {field(
+            'occurrences',
+            t('periodicInvoice.fields.left'),
+            <input value={form.occurrences} onChange={(event) => set({ occurrences: event.target.value })} inputMode="numeric" className={FIELD} placeholder={t('periodicInvoice.fields.noLimit')} />,
+          )}
+        </div>
+      </section>
+
+      <div className="flex flex-wrap justify-end gap-3">
+        <Link
+          to={id ? `/income/periodic/${id}` : '/income/periodic'}
+          className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+        >
+          {t('common.cancel')}
+        </Link>
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={busy}
+          className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {busy ? t('periodicInvoice.saving') : t(id ? 'periodicInvoice.save' : 'periodicInvoice.start')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Fact({ label, value, note }: { label: string; value: React.ReactNode; note?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-[0.6px] text-text-quaternary">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold text-text-primary">{value}</p>
+      {note ? <p className="mt-1 text-xs font-medium text-text-quaternary">{note}</p> : null}
+    </div>
   )
 }

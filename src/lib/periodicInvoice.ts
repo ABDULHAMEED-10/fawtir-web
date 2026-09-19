@@ -1,306 +1,163 @@
-export type PeriodicFrequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-
-export const PERIODIC_SERIES = {
-  title: 'Monthly coffee supply, Muscat Grand Hotel',
-  status: 'active' as const,
-  cadence: 'Every month on the 18th',
-  nextRun: '18 Aug 2026',
-  customer: {
-    name: 'Muscat Grand Hotel LLC',
-    vat: 'VAT OM1100447102 · 0248:OM1100447102',
-  },
-  subject: 'Monthly coffee supply & barista training',
-  poReference: 'PO-88213',
-  paymentTerms: 'Net 30 days',
-  currency: 'OMR - Omani Rial',
-  taxCategory: 'Standard rate · 5%',
-  branch: 'Al Bahja Coffee (Main)',
-  project: 'Ramadan 2026 supply',
-  noteCustomer:
-    'Thank you for your continued business. This invoice is issued automatically under our supply agreement.',
-  noteInternal: 'Auto-generated from REC series. Confirm stock before each run.',
-  items: [
-    {
-      id: '1',
-      description: 'Cappuccino - Large',
-      excl: '1.800',
-      vat: '5%',
-      qty: '12',
-      unit: 'EA',
-      discount: '0',
-      total: '21.600',
-    },
-    {
-      id: '2',
-      description: 'Coffee Beans 1kg - House Blend',
-      excl: '9.500',
-      vat: '5%',
-      qty: '4',
-      unit: 'KG',
-      discount: '10%',
-      total: '34.200',
-    },
-  ],
-  totals: {
-    excluding: '55.800',
-    vat: '2.790',
-    total: '58.590',
-  },
-  generated: [
-    {
-      id: 'INV-2044',
-      meta: 'Issued 18 Jul 2026 · sent via Peppol',
-      status: 'partial' as const,
-      amount: '58.590',
-    },
-  ],
-  schedule: {
-    summary: 'Every month on the 18th, until you stop it.',
-    nextIn: 'Next in 23 days',
-    frequency: 'monthly' as PeriodicFrequency,
-    repeatsOn: 'Day 18 of each month',
-    starts: '18 Jul 2026',
-    ends: 'Never',
-    sendAutomatically: true,
-    notifyOnRun: true,
-  },
-  upcoming: [
-    { date: '18 Aug 2026', amount: '58.590' },
-    { date: '18 Sep 2026', amount: '58.590' },
-    { date: '18 Oct 2026', amount: '58.590' },
-    { date: '18 Nov 2026', amount: '58.590' },
-  ],
-  started: '18 Jul 2026',
-  issuedCount: 1,
-}
-
-export type PeriodicSeries = typeof PERIODIC_SERIES
+import type { PeriodicRunDto, PeriodicScheduleDto, RecurrenceInterval } from '../api/invoices/periodic'
 
 /**
- * Blank series for the creation screen. Same shape as PERIODIC_SERIES so the page can
- * render one layout in three modes (create / edit / view) instead of triplicating it.
+ * Periodic invoices (I-13, decisions of 2026-09-18).
+ *
+ * A schedule is a standing instruction that copies **one existing invoice** — its lines, currency
+ * and terms all live on that invoice, not on the schedule. So the screens name the template and
+ * link to it rather than composing an invoice of their own, which is what the design drew.
+ *
+ * The API answers bare arrays: no paging, no totals, no filters, no summary. Every figure here is
+ * counted from the list in hand, and the page says so instead of implying a server-side view.
  */
-export const EMPTY_PERIODIC_SERIES: PeriodicSeries = {
-  title: '',
-  status: 'active',
-  cadence: '',
-  nextRun: '',
-  customer: {
-    name: 'Sohar Grand Mall',
-    vat: 'VAT OM1100908455 · 0248:OM1100908455',
-  },
-  subject: 'Quarterly kiosk restock — beans & consumables',
-  poReference: 'PO-90417',
-  paymentTerms: 'Net 30 days',
-  currency: 'OMR - Omani Rial',
-  taxCategory: 'Standard rate · 5%',
-  branch: 'Al Bahja Coffee (Sohar)',
-  project: 'Mall kiosk supply',
-  noteCustomer:
-    'Issued automatically each quarter under our kiosk supply agreement. Please settle within 30 days.',
-  noteInternal: 'New series — confirm the first delivery window with the mall operations team.',
-  items: [
-    {
-      id: '1',
-      description: 'Coffee Beans 1kg - House Blend',
-      excl: '9.500',
-      vat: '5%',
-      qty: '20',
-      unit: 'KG',
-      discount: '5%',
-      total: '180.500',
-    },
-    {
-      id: '2',
-      description: 'Paper Cups 12oz (sleeve of 50)',
-      excl: '2.400',
-      vat: '5%',
-      qty: '30',
-      unit: 'EA',
-      discount: '0',
-      total: '72.000',
-    },
-  ],
-  totals: { excluding: '252.500', vat: '12.625', total: '265.125' },
-  // A series that does not exist yet has no history — both bands stay hidden in create mode.
-  generated: [],
-  schedule: {
-    summary: 'Every quarter on the 1st, until you stop it.',
-    nextIn: 'First run in 68 days',
-    frequency: 'quarterly',
-    repeatsOn: '1st day of each quarter',
-    starts: '01 Oct 2026',
-    ends: 'Never',
-    sendAutomatically: true,
-    notifyOnRun: true,
-  },
-  upcoming: [],
-  started: '',
-  issuedCount: 0,
+
+export const PERIODIC_INTERVALS: RecurrenceInterval[] = ['WEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY']
+
+export type PeriodicTabId = 'active' | 'paused' | 'all'
+
+export const PERIODIC_TABS: PeriodicTabId[] = ['active', 'paused', 'all']
+
+export function inTab(schedule: PeriodicScheduleDto, tab: PeriodicTabId): boolean {
+  if (tab === 'all') return true
+  return tab === 'active' ? schedule.active : !schedule.active
 }
 
-/* ── Periodic invoices list (Figma 13:39172) ─────────────────────────────── */
-
-export type ScheduleStatus = 'active' | 'onRequest' | 'paused' | 'draft'
-
-export type ScheduleTabId = 'all' | ScheduleStatus
-
-export type ScheduleRow = {
-  id: string
-  name: string
-  /** Second line under the schedule name. */
-  reference: string
-  customer: string
-  frequency: string
-  /** Second line under the frequency, e.g. "on the 18th". */
-  cadence: string
-  /** Em dash when the series has no scheduled run. */
-  nextInvoice: string
-  nextInvoiceNote?: string
-  perInvoice: string
-  generated: string
-  generatedNote?: string
-  status: ScheduleStatus
+/** Days between two ISO dates, ignoring time: both are plain dates in the tenant's own day. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 }
 
-export const SCHEDULE_KPI = [
-  {
-    id: 'revenue',
-    titleKey: 'periodicList.kpi.revenue',
-    icon: 'revenue',
-    amount: '105.760',
-    withCurrency: true,
-    suffixKey: 'periodicList.kpi.perMonth',
-    metaKey: 'periodicList.kpi.revenueMeta',
-  },
-  {
-    id: 'due',
-    titleKey: 'periodicList.kpi.due',
-    icon: 'due',
-    amount: '84.190',
-    withCurrency: true,
-    metaKey: 'periodicList.kpi.dueMeta',
-  },
-  {
-    id: 'generated',
-    titleKey: 'periodicList.kpi.generated',
-    icon: 'generated',
-    amount: '84.590',
-    withCurrency: true,
-    metaKey: 'periodicList.kpi.generatedMeta',
-  },
-  {
-    id: 'attention',
-    titleKey: 'periodicList.kpi.attention',
-    icon: 'attention',
-    amount: '2',
-    withCurrency: false,
-    metaKey: 'periodicList.kpi.attentionMeta',
-  },
-] as const
+/** The three figures the page can count honestly: everything else would need amounts it has not got. */
+export function periodicCounts(schedules: PeriodicScheduleDto[], today: string) {
+  const active = schedules.filter((schedule) => schedule.active)
+  return {
+    total: schedules.length,
+    active: active.length,
+    paused: schedules.length - active.length,
+    // A run whose date has already passed is still owed — the sweep fires it on the next pass —
+    // so it belongs in "due in 30 days" rather than vanishing from every count on the page.
+    dueSoon: active.filter((schedule) => daysBetween(today, schedule.nextRunDate) <= 30).length,
+  }
+}
 
-export const SCHEDULE_TABS: { id: ScheduleTabId; labelKey: string; count: number }[] = [
-  { id: 'all', labelKey: 'periodicList.tabs.all', count: 6 },
-  { id: 'active', labelKey: 'periodicList.tabs.active', count: 3 },
-  { id: 'onRequest', labelKey: 'periodicList.tabs.onRequest', count: 1 },
-  { id: 'paused', labelKey: 'periodicList.tabs.paused', count: 1 },
-  { id: 'draft', labelKey: 'periodicList.tabs.draft', count: 1 },
-]
+export type ScheduleNote = { key: string; values?: Record<string, string | number> }
 
-export const SCHEDULE_ROWS: ScheduleRow[] = [
-  {
-    id: 'monthly-coffee-supply',
-    name: 'Monthly coffee supply',
-    reference: 'Barista training · PO-88213',
-    customer: 'Muscat Grand Hotel LLC',
-    frequency: 'Monthly',
-    cadence: 'on the 18th',
-    nextInvoice: '18 Aug 2026',
-    nextInvoiceNote: 'in 24 days',
-    perInvoice: '58.590',
-    generated: '1 issued',
-    generatedNote: 'last 18 Jul',
-    status: 'active',
-  },
-  {
-    id: 'weekly-espresso-beans',
-    name: 'Weekly espresso beans',
-    reference: 'Kitchen restock',
-    customer: 'Bahla Fort Restaurant',
-    frequency: 'Weekly',
-    cadence: 'Saturdays',
-    nextInvoice: '01 Aug 2026',
-    nextInvoiceNote: 'in 6 days',
-    perInvoice: '6.400',
-    generated: '8 issued',
-    generatedNote: 'last 25 Jul',
-    status: 'active',
-  },
-  {
-    id: 'quarterly-kiosk-restock',
-    name: 'Quarterly kiosk restock',
-    reference: 'Mall kiosk supply',
-    customer: 'Sohar Grand Mall',
-    frequency: 'Quarterly',
-    cadence: '1st of quarter',
-    nextInvoice: '01 Oct 2026',
-    nextInvoiceNote: 'in 68 days',
-    perInvoice: '58.300',
-    generated: '3 issued',
-    generatedNote: 'last 01 Jul',
-    status: 'active',
-  },
-  {
-    id: 'office-catering',
-    name: 'Office catering',
-    reference: 'Ad-hoc events',
-    customer: 'Qurum Business Center',
-    frequency: 'On request',
-    cadence: 'generate manually',
-    nextInvoice: '—',
-    perInvoice: '46.200',
-    generated: '5 issued',
-    generatedNote: 'last 30 Jun',
-    status: 'onRequest',
-  },
-  {
-    id: 'ramadan-popup-supply',
-    name: 'Ramadan pop-up supply',
-    reference: 'Seasonal · resumes Feb',
-    customer: 'Nizwa Souq Café',
-    frequency: 'Monthly',
-    cadence: 'on the 20th',
-    nextInvoice: 'Paused',
-    perInvoice: '34.100',
-    generated: '4 issued',
-    generatedNote: 'last 20 Mar',
-    status: 'paused',
-  },
-  {
-    id: 'grand-opening-series',
-    name: 'Grand opening series',
-    reference: 'Not activated yet',
-    customer: 'Al Mouj Marina Café',
-    frequency: 'Not scheduled',
-    cadence: 'set a frequency',
-    nextInvoice: '—',
-    perInvoice: '15.750',
-    generated: 'Not issued',
-    status: 'draft',
-  },
-]
+/** What the row says: paused first, then a finished series, then when the next draft is due. */
+export function scheduleNote(schedule: PeriodicScheduleDto, today: string): ScheduleNote {
+  if (!schedule.active) return { key: 'periodicList.state.paused' }
+  if (schedule.remainingOccurrences === 0) return { key: 'periodicList.state.finished' }
+  const days = daysBetween(today, schedule.nextRunDate)
+  if (days < 0) return { key: 'periodicList.state.overdue', values: { date: schedule.nextRunDate } }
+  if (days === 0) return { key: 'periodicList.state.today' }
+  return { key: 'periodicList.state.dueIn', values: { count: days } }
+}
 
-export const SCHEDULE_PAGE_NUMBERS = [1, 2, 3, 4, '...', 20] as const
+export function scheduleTone(schedule: PeriodicScheduleDto, today: string): 'warn' | 'ok' | 'muted' {
+  if (!schedule.active || schedule.remainingOccurrences === 0) return 'muted'
+  return daysBetween(today, schedule.nextRunDate) < 0 ? 'warn' : 'ok'
+}
 
-export const matchesScheduleTab = (row: ScheduleRow, tab: ScheduleTabId) =>
-  tab === 'all' || row.status === tab
+/** How many drafts a series has actually raised, counted from its runs. */
+export function draftedCount(runs: PeriodicRunDto[]): number {
+  return runs.filter((run) => run.outcome === 'DRAFTED').length
+}
 
-/** Counts come off the rows, so a tab cannot promise more than it shows. */
-export const countScheduleTab = (tab: ScheduleTabId) =>
-  SCHEDULE_ROWS.filter((row) => matchesScheduleTab(row, tab)).length
+export function narrowSchedules(
+  schedules: PeriodicScheduleDto[],
+  tab: PeriodicTabId,
+  search: string,
+  nameOf: (customerId: string) => string | undefined,
+): PeriodicScheduleDto[] {
+  const text = search.trim().toLowerCase()
+  return schedules.filter((schedule) => {
+    if (!inTab(schedule, tab)) return false
+    if (!text) return true
+    return (nameOf(schedule.customerId) ?? schedule.customerId).toLowerCase().includes(text)
+  })
+}
 
-export const matchesScheduleQuery = (row: ScheduleRow, query: string) => {
-  const needle = query.trim().toLowerCase()
-  if (needle === '') return true
-  return row.id.toLowerCase().includes(needle) || row.customer.toLowerCase().includes(needle)
+export type PeriodicForm = {
+  customerId: string
+  customerName: string
+  templateInvoiceId: string
+  templateLabel: string
+  interval: RecurrenceInterval
+  firstRunDate: string
+  endDate: string
+  occurrences: string
+}
+
+export function blankPeriodicForm(today: string): PeriodicForm {
+  return {
+    customerId: '',
+    customerName: '',
+    templateInvoiceId: '',
+    templateLabel: '',
+    interval: 'MONTHLY',
+    firstRunDate: today,
+    endDate: '',
+    occurrences: '',
+  }
+}
+
+export function formOfSchedule(schedule: PeriodicScheduleDto, customerName: string, templateLabel: string): PeriodicForm {
+  return {
+    customerId: schedule.customerId,
+    customerName,
+    templateInvoiceId: schedule.templateInvoiceId ?? '',
+    templateLabel,
+    interval: schedule.interval,
+    firstRunDate: schedule.nextRunDate,
+    endDate: schedule.endDate ?? '',
+    occurrences: schedule.remainingOccurrences === null ? '' : String(schedule.remainingOccurrences),
+  }
+}
+
+export type PeriodicField = keyof PeriodicForm
+
+/**
+ * What the server would refuse, said first. `firstRunDate` is `@FutureOrPresent` on both routes, so
+ * a date already past is refused — which matters most when editing a schedule whose run has lapsed.
+ */
+export function periodicProblems(form: PeriodicForm, today: string, editing: boolean): Partial<Record<PeriodicField, string>> {
+  const problems: Partial<Record<PeriodicField, string>> = {}
+  if (!editing && !form.customerId) problems.customerId = 'periodicInvoice.error.customerRequired'
+  if (!editing && !form.templateInvoiceId) problems.templateInvoiceId = 'periodicInvoice.error.templateRequired'
+  if (!form.firstRunDate) problems.firstRunDate = 'periodicInvoice.error.dateRequired'
+  else if (form.firstRunDate < today) problems.firstRunDate = 'periodicInvoice.error.datePast'
+  if (form.endDate && form.firstRunDate && form.endDate < form.firstRunDate) problems.endDate = 'periodicInvoice.error.endBeforeStart'
+  if (form.occurrences.trim()) {
+    const count = Number(form.occurrences)
+    if (!Number.isInteger(count) || count < (editing ? 0 : 1)) problems.occurrences = 'periodicInvoice.error.occurrences'
+  }
+  return problems
+}
+
+export function toCreateRequest(form: PeriodicForm) {
+  return {
+    customerId: form.customerId,
+    templateInvoiceId: form.templateInvoiceId,
+    interval: form.interval,
+    firstRunDate: form.firstRunDate,
+    endDate: form.endDate || null,
+    occurrences: form.occurrences.trim() ? Number(form.occurrences) : null,
+  }
+}
+
+export function toUpdateRequest(form: PeriodicForm) {
+  return {
+    interval: form.interval,
+    nextRunDate: form.firstRunDate,
+    endDate: form.endDate || null,
+    occurrences: form.occurrences.trim() ? Number(form.occurrences) : null,
+  }
+}
+
+/** The server's refusals, in the page's words. */
+export const PERIODIC_REFUSALS: Record<string, string> = {
+  PERIODIC_INTERVAL_REQUIRED: 'periodicInvoice.error.intervalRequired',
+  PERIODIC_NEXT_RUN_REQUIRED: 'periodicInvoice.error.dateRequired',
+  PERIODIC_END_BEFORE_START: 'periodicInvoice.error.endBeforeStart',
+  PERIODIC_OCCURRENCES_NEGATIVE: 'periodicInvoice.error.occurrences',
+  PERIODIC_SCHEDULE_NOT_FOUND: 'periodicInvoice.error.notFound',
 }

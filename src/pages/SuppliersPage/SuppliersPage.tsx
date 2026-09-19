@@ -48,6 +48,7 @@ import menuPayIcon from '../../assets/suppliers/menu-pay.svg'
 import menuAttachIcon from '../../assets/suppliers/menu-attach.svg'
 import menuStatementIcon from '../../assets/suppliers/menu-statement.svg'
 import menuCopyIcon from '../../assets/suppliers/menu-copy.svg'
+import editIcon from '../../assets/actions/edit.svg'
 import menuOffIcon from '../../assets/suppliers/menu-off.svg'
 import importIcon from '../../assets/bills/upload.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
@@ -529,8 +530,16 @@ function SupplierTableRow({
       requires: 'invoice.payment.manage',
     },
     {
-      id: 'attachDocument',
+      id: 'edit',
       sectionKey: 'suppliersPage.menu.theirRecord',
+      labelKey: 'suppliersPage.menu.edit',
+      descriptionKey: 'suppliersPage.menu.editNote',
+      icon: editIcon,
+      to: `${detail}/edit`,
+      requires: 'supplier.manage',
+    },
+    {
+      id: 'attachDocument',
       labelKey: 'suppliersPage.menu.attachDocument',
       descriptionKey: 'suppliersPage.menu.attachDocumentNote',
       icon: menuAttachIcon,
