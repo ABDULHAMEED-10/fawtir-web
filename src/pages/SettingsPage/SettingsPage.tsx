@@ -38,6 +38,9 @@ import integrationIcon from '../../assets/settings/tile-integration.svg'
 import connectIcon from '../../assets/settings/tile-connect.svg'
 import { overviewStatus, readiness as mappingReadiness, useErpMapping } from '../../lib/erpMapping'
 import { addonUsage, liveConnections, useConnector } from '../../lib/erpConnector'
+import { useFeature } from '../../lib/planAccess'
+import type { Feature } from '../../lib/plans'
+import { LockIcon } from '../../components/ui/icons'
 
 type Tone = 'danger' | 'success' | 'neutral' | 'pending'
 
@@ -59,6 +62,8 @@ type Card = {
   footValues?: Record<string, string | number | undefined>
   bodyValues?: Record<string, string | number | undefined>
   wide?: boolean
+  /** The plan feature behind the card; on a plan without it the card greys and wears a lock pill. */
+  feature?: Feature
 }
 
 const PILL_TONE: Record<Tone, string> = {
@@ -181,6 +186,7 @@ export function SettingsPage() {
       {
         id: 'erpMapping',
         group: 'integration',
+        feature: 'erpMapping',
         icon: integrationIcon,
         iconTint:
           mappingStatus === 'STALE' || mappingStatus === 'DRAFT'
@@ -208,6 +214,7 @@ export function SettingsPage() {
       {
         id: 'connections',
         group: 'integration',
+        feature: 'erpMapping',
         icon: connectIcon,
         iconTint: addonActive
           ? connectionsInError
@@ -334,12 +341,16 @@ export function SettingsPage() {
 
 function HubCard({ card }: { card: Card }) {
   const { t } = useTranslation()
+  // A card with no feature is on every plan; the hook still runs so the hook count is constant.
+  const access = useFeature(card.feature ?? 'invoices')
+  const locked = card.feature ? !access.available : false
 
   return (
     <Link
       to={card.to}
       className={[
-        'group flex flex-col rounded-md bg-surface-card p-5 transition-shadow hover:shadow-card',
+        'group flex flex-col rounded-md p-5 transition-shadow hover:shadow-card',
+        locked ? 'bg-surface-card/60' : 'bg-surface-card',
         card.wide ? 'md:col-span-2' : '',
       ].join(' ')}
     >
@@ -347,12 +358,21 @@ function HubCard({ card }: { card: Card }) {
         <span
           className={[
             'flex size-9 shrink-0 items-center justify-center rounded-md',
-            card.iconTint,
+            locked ? 'bg-surface-background' : card.iconTint,
           ].join(' ')}
         >
-          <img src={card.icon} alt="" className="size-[18px]" />
+          <img
+            src={card.icon}
+            alt=""
+            className={['size-[18px]', locked ? 'opacity-40' : ''].join(' ')}
+          />
         </span>
-        <h3 className="flex-1 text-base font-semibold leading-[1.2] text-text-primary">
+        <h3
+          className={[
+            'flex-1 text-base font-semibold leading-[1.2]',
+            locked ? 'text-text-quaternary' : 'text-text-primary',
+          ].join(' ')}
+        >
           {t(`settings.card.${card.id}Title`)}
         </h3>
         <img
@@ -407,22 +427,34 @@ function HubCard({ card }: { card: Card }) {
       ) : null}
 
       {!card.faces && !card.figure ? (
-        <p className="mt-3 text-sm font-medium leading-[1.5] text-text-tertiary">
+        <p
+          className={[
+            'mt-3 text-sm font-medium leading-[1.5]',
+            locked ? 'text-text-quaternary/80' : 'text-text-tertiary',
+          ].join(' ')}
+        >
           {t(`settings.card.${card.id}Body`, card.bodyValues)}
         </p>
       ) : null}
 
       <span className="mt-auto flex flex-wrap items-center gap-2.5 pt-4">
-        <span
-          className={[
-            'inline-flex h-[24px] items-center gap-1.5 rounded-[3px] px-2 text-[10px] font-semibold uppercase tracking-[0.4px]',
-            PILL_TONE[card.pillTone],
-          ].join(' ')}
-        >
-          <span className={['size-1.5 rounded-full', DOT_TONE[card.pillTone]].join(' ')} />
-          {t(card.pillKey, card.pillValues)}
-        </span>
-        {card.footKey ? (
+        {locked ? (
+          <span className="inline-flex h-[24px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
+            <LockIcon size={12} />
+            {t('settings.card.lockedPill', { plan: t(`plan.planName.${access.neededPlan}`) })}
+          </span>
+        ) : (
+          <span
+            className={[
+              'inline-flex h-[24px] items-center gap-1.5 rounded-[3px] px-2 text-[10px] font-semibold uppercase tracking-[0.4px]',
+              PILL_TONE[card.pillTone],
+            ].join(' ')}
+          >
+            <span className={['size-1.5 rounded-full', DOT_TONE[card.pillTone]].join(' ')} />
+            {t(card.pillKey, card.pillValues)}
+          </span>
+        )}
+        {card.footKey && !locked ? (
           <span className="text-xs font-medium text-text-quaternary">
             {withRial(t(card.footKey, card.footValues))}
           </span>

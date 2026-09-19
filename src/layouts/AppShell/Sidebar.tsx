@@ -1,11 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CloseIcon } from '../../components/ui/icons'
+import { CloseIcon, LockIcon } from '../../components/ui/icons'
 import { useDrawer } from '../../hooks/useDrawer'
-import { DASHBOARD_NAV, SETTINGS_NAV, USER, type NavChild, type NavGroup, type NavItem } from '../../lib/dashboard'
+import {
+  DASHBOARD_NAV,
+  SETTINGS_NAV,
+  USER,
+  type NavChild,
+  type NavGroup,
+  type NavItem,
+} from '../../lib/dashboard'
 import { can, useSession } from '../../lib/session/session'
 import type { Entitlements } from '../../lib/identity/entitlements'
+import type { AnyPlanId, Feature } from '../../lib/plans'
+import { featureAccess, useTenantPlan } from '../../lib/planAccess'
 import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
 import avatar from '../../assets/dashboard/avatar.png'
@@ -18,37 +27,73 @@ type SidebarNavItemProps = {
   badge?: number
   active?: boolean
   onClick?: () => void
+  /** Set when the plan lacks the destination: greyed, never lit, a lock at the end. */
+  locked?: Lock
 }
 
-function SidebarNavItem({ to, Icon, label, badge, active, onClick }: SidebarNavItemProps) {
+/** The plan a locked entry would need, for the tooltip and the glyph's label. */
+type Lock = { plan: AnyPlanId }
+
+/**
+ * Whether the plan the tenant is on carries a nav entry's feature. A group's feature covers its
+ * children; an entry with no feature is on every plan. Locked entries still navigate — the route
+ * shows the upgrade nudge — so the reader can always see what a plan would give them.
+ */
+function lockFor(plan: AnyPlanId, feature: Feature | undefined): Lock | undefined {
+  if (!feature) return undefined
+  const access = featureAccess(plan, feature)
+  return access.available ? undefined : { plan: access.neededPlan }
+}
+
+function lockTitle(t: (key: string, values?: Record<string, string>) => string, lock: Lock) {
+  return t('dashboard.nav.lockedOn', { plan: t(`plan.planName.${lock.plan}`) })
+}
+
+function LockGlyph({ lock }: { lock: Lock }) {
+  const { t } = useTranslation()
+  return (
+    <span className="inline-flex shrink-0 items-center text-text-quaternary/70">
+      <LockIcon size={14} />
+      <span className="sr-only">{lockTitle(t, lock)}</span>
+    </span>
+  )
+}
+
+function SidebarNavItem({ to, Icon, label, badge, active, onClick, locked }: SidebarNavItemProps) {
+  const { t } = useTranslation()
+  const lit = active && !locked
   return (
     <Link
       to={to}
       onClick={onClick}
-      aria-current={active ? 'page' : undefined}
+      aria-current={lit ? 'page' : undefined}
+      title={locked ? lockTitle(t, locked) : undefined}
       className={[
         'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
-        active
+        lit
           ? 'bg-primary-50 text-primary-900'
-          : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+          : locked
+            ? 'text-text-quaternary/60 hover:bg-primary-25'
+            : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
       ].join(' ')}
     >
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        <Icon active={active} className="size-5 shrink-0" />
+        <Icon active={lit} className="size-5 shrink-0" />
         <span
           className={[
             'truncate text-base leading-[1.2]',
-            active ? 'font-semibold text-primary-900' : 'font-medium',
+            lit ? 'font-semibold text-primary-900' : 'font-medium',
           ].join(' ')}
         >
           {label}
         </span>
       </span>
-      {badge != null ? (
+      {badge != null && !locked ? (
         <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white">
           {badge}
         </span>
       ) : null}
+      {locked ? <LockGlyph lock={locked} /> : null}
     </Link>
   )
 }
@@ -77,7 +122,15 @@ function visibleNav(session: Entitlements | null): NavGroup[] {
 }
 
 /** The first role the server assigned, by its code, as a translated label; anything else reads as a member. */
-const KNOWN_ROLES = ['ADMIN', 'FINANCE_MANAGER', 'ACCOUNTANT', 'APPROVER', 'VIEWER', 'MOBILE_USER', 'INTEGRATION']
+const KNOWN_ROLES = [
+  'ADMIN',
+  'FINANCE_MANAGER',
+  'ACCOUNTANT',
+  'APPROVER',
+  'VIEWER',
+  'MOBILE_USER',
+  'INTEGRATION',
+]
 function roleKeyOf(session: Entitlements): string {
   const code = session.roles[0]?.code
   return code && KNOWN_ROLES.includes(code) ? `sessionRoles.${code}` : 'sessionRoles.member'
@@ -88,10 +141,11 @@ function isGroupActive(pathname: string, item: NavItem) {
   return (item.children ?? []).some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))
 }
 
-function ExpandableNavItem({ item }: { item: NavItem }) {
+function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
   const { t } = useTranslation()
   const location = useLocation()
-  const groupActive = isGroupActive(location.pathname, item)
+  const groupLock = lockFor(plan, item.feature)
+  const groupActive = isGroupActive(location.pathname, item) && !groupLock
   const [open, setOpen] = useState(groupActive)
 
   useEffect(() => {
@@ -103,11 +157,14 @@ function ExpandableNavItem({ item }: { item: NavItem }) {
       <button
         type="button"
         onClick={() => setOpen((v: boolean) => !v)}
+        title={groupLock ? lockTitle(t, groupLock) : undefined}
         className={[
           'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
           groupActive
             ? 'text-primary-900'
-            : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+            : groupLock
+              ? 'text-text-quaternary/60 hover:bg-primary-25'
+              : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
         ].join(' ')}
         aria-expanded={open}
       >
@@ -123,35 +180,48 @@ function ExpandableNavItem({ item }: { item: NavItem }) {
             {t(item.labelKey)}
           </span>
         </span>
-        {item.badge != null ? (
+        {item.badge != null && !groupLock ? (
           <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white">
             {item.badge}
           </span>
         ) : null}
-        <img
-          src={chevron}
-          alt=""
-          className={['size-4 opacity-60 transition-transform', open ? 'rotate-90' : ''].join(' ')}
-        />
+        {/* The lock takes the chevron's slot: a parent label is never clipped, and the row still
+            opens on click so the reader can see what the group holds. */}
+        {groupLock ? (
+          <LockGlyph lock={groupLock} />
+        ) : (
+          <img
+            src={chevron}
+            alt=""
+            className={['size-4 opacity-60 transition-transform', open ? 'rotate-90' : ''].join(
+              ' ',
+            )}
+          />
+        )}
       </button>
 
       {open && item.children ? (
         <div className="ms-6 flex flex-col py-2">
           {item.children.map((child: NavChild) => {
-            const childActive = isPathActive(location.pathname, child.to)
+            const lock = groupLock ?? lockFor(plan, child.feature)
+            const childActive = isPathActive(location.pathname, child.to) && !lock
             return (
               <Link
                 key={child.id}
                 to={child.to}
                 aria-current={childActive ? 'page' : undefined}
+                title={lock ? lockTitle(t, lock) : undefined}
                 className={[
-                  'flex w-[168px] items-center rounded-md px-3 py-2 text-base leading-[1.2] transition-colors',
+                  'flex w-[168px] items-center gap-1.5 rounded-md px-3 py-2 text-base leading-[1.2] transition-colors',
                   childActive
                     ? 'bg-primary-50 font-medium text-primary-900'
-                    : 'font-medium text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
+                    : lock
+                      ? 'font-medium text-text-quaternary/60 hover:bg-primary-25'
+                      : 'font-medium text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
                 ].join(' ')}
               >
-                {t(child.labelKey)}
+                <span className="min-w-0 flex-1 truncate">{t(child.labelKey)}</span>
+                {lock ? <LockGlyph lock={lock} /> : null}
               </Link>
             )
           })}
@@ -206,6 +276,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
   const navRef = useKeptScroll()
   const panelRef = useRef<HTMLElement>(null)
   const session = useSession()
+  const plan = useTenantPlan()
   useDrawer(open, onClose, panelRef)
 
   return (
@@ -250,7 +321,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
             <div className="flex flex-col">
               {group.items.map((item) =>
                 item.children ? (
-                  <ExpandableNavItem key={item.id} item={item} />
+                  <ExpandableNavItem key={item.id} item={item} plan={plan} />
                 ) : (
                   <SidebarNavItem
                     key={item.id}
@@ -258,6 +329,7 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
                     Icon={item.Icon}
                     label={t(item.labelKey)}
                     badge={item.badge}
+                    locked={lockFor(plan, item.feature)}
                     active={
                       item.to === '/dashboard'
                         ? item.id === 'dashboard' && location.pathname.startsWith('/dashboard')

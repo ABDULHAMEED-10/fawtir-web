@@ -11,6 +11,7 @@ import {
   UPGRADE,
   OVERAGE_ON,
   planFit,
+  planHighlights,
   type Plan,
 } from '../../lib/settingsBilling'
 import { OPEN_BRANCHES } from '../../lib/settingsCompany'
@@ -218,6 +219,7 @@ function PlanCard({ plan }: { plan: Plan }) {
   const better = plan.monthly > CURRENT_PLAN.monthly
   const smaller = plan.monthly < CURRENT_PLAN.monthly
   const fit = planFit(plan)
+  const highlights = planHighlights(plan.id)
 
   const features = [
     t('plan.feature.invoices', { count: plan.invoices.toLocaleString('en-US') }),
@@ -229,8 +231,18 @@ function PlanCard({ plan }: { plan: Plan }) {
     plan.branches === null
       ? t('plan.feature.unlimitedBranches')
       : t('plan.feature.branches', { count: plan.branches }),
-    plan.api ? t('plan.feature.api') : t('plan.feature.noApi'),
-    ...(plan.prioritySupport ? [t('plan.feature.prioritySupport')] : []),
+    // What the plan switches on, from the catalogue's own feature matrix: the plan it builds on,
+    // a few runs of features, and whether automatic ERP extraction can be bought or comes free.
+    ...(highlights.plus
+      ? [t('plan.feature.everythingIn', { plan: t(`plan.planName.${highlights.plus}`) })]
+      : []),
+    ...highlights.lines.map((line) =>
+      line.map((feature) => t(`plan.featureShort.${feature}`)).join(' · '),
+    ),
+    t('plan.feature.extraction', {
+      name: t('plan.extraction.name'),
+      availability: t(`plan.extraction.${highlights.extraction}`),
+    }),
   ]
 
   return (

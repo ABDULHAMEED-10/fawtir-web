@@ -28,7 +28,7 @@ import {
   useSubscriptions,
   type SubscriptionState,
 } from '../../../lib/consoleSubscriptions'
-import { DEFAULT_SETTINGS } from '../../../lib/platformSettings'
+import { usePlatformSettings } from '../../../lib/platformSettings'
 import { count, omr } from '../../../lib/superAdmin'
 import {
   ModalFooter,
@@ -46,13 +46,12 @@ type Tab = 'pending' | 'history'
 type Action = 'approve' | 'trial' | 'decline'
 type Request = { action: Action; id: string }
 
-const ADDON = DEFAULT_SETTINGS.addons.erpExtraction
 const TRIAL_DAYS = [7, 14, 30]
 const TRIAL_DOCUMENTS = [100, 200, 500]
 const DAY = 24 * 60 * 60 * 1000
 
 const PRIMARY_BUTTON =
-  'inline-flex h-10 items-center whitespace-nowrap rounded-sm bg-primary-700 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800'
+  'inline-flex h-10 items-center whitespace-nowrap rounded-sm bg-primary-700 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-700/40 disabled:hover:bg-primary-700/40'
 
 /** The subscription states that should give an operator pause before switching a paid add-on on. */
 const SUBSCRIPTION_WARNING: Partial<Record<SubscriptionState, 'danger' | 'pending'>> = {
@@ -73,6 +72,10 @@ export function ConsoleAddonRequestsPage() {
   const { t, i18n } = useTranslation()
   const state = useConsoleErp()
   const ledger = useSubscriptions()
+  // The add-on's price and which plans may have it — the console's own Add-ons settings.
+  const { settings } = usePlatformSettings()
+  const ADDON = settings.addons.erpExtraction
+  const availability = ADDON.availability
   const [tab, setTab] = useState<Tab>('pending')
   const [request, setRequest] = useState<Request | null>(null)
   const [done, setDone] = useState<{ message: string; tenantId: string } | null>(null)
@@ -104,7 +107,7 @@ export function ConsoleAddonRequestsPage() {
   }
 
   const priceOf = (r: AddonRequest) =>
-    r.source === 'PLAN_INCLUDED' || r.plan === 'enterprise' ? (
+    r.source === 'PLAN_INCLUDED' || availability[r.plan] === 'included' ? (
       <span className="text-xs font-medium text-text-quaternary">
         {t('console.erp.requests.price.included')}
       </span>
@@ -242,10 +245,10 @@ export function ConsoleAddonRequestsPage() {
               <table className="w-full min-w-[980px] border-collapse text-start">
                 <thead>
                   <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
-                    <th className="px-4 py-3 text-start font-semibold">
+                    <th className="w-[260px] px-4 py-3 text-start font-semibold">
                       {t('console.erp.requests.col.tenant')}
                     </th>
-                    <th className="px-2 py-3 text-start font-semibold">
+                    <th className="w-[210px] px-2 py-3 text-start font-semibold">
                       {t('console.erp.requests.col.plan')}
                     </th>
                     <th className="px-2 py-3 text-start font-semibold">
@@ -266,6 +269,9 @@ export function ConsoleAddonRequestsPage() {
                     const warning = subscription
                       ? SUBSCRIPTION_WARNING[subscription.state]
                       : undefined
+                    // The plan does not carry the add-on: the tenant moves up first.
+                    const notOffered = availability[r.plan] === 'notOffered'
+                    const planName = t(planLabelKey(r.plan))
                     const menu: ActionMenuItem[] = [
                       {
                         id: 'trial',
@@ -286,11 +292,26 @@ export function ConsoleAddonRequestsPage() {
                         <td className="px-4 py-4">{tenantCell(r.tenantId)}</td>
                         <td className="px-2 py-4">
                           <span className="block text-sm font-medium text-text-primary">
-                            {t(planLabelKey(r.plan))}
+                            {planName}
                           </span>
                           {subscription ? (
                             <span className="mt-1 block text-xs font-medium text-text-quaternary">
                               {t(`console.subscriptions.term.${subscription.term}`)}
+                            </span>
+                          ) : null}
+                          {notOffered ? (
+                            // Wraps, unlike the status pill: the cell is narrow and the plan name
+                            // is in the sentence.
+                            <span
+                              role="note"
+                              title={t('console.erp.requests.notOfferedHint', { plan: planName })}
+                              className="mt-2 inline-flex max-w-[220px] items-start gap-1.5 rounded-md bg-pending-100 px-2.5 py-1.5 text-xs font-semibold leading-[1.4] text-pending-700"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="mt-[5px] size-1.5 shrink-0 rounded-full bg-current"
+                              />
+                              {t('console.erp.requests.notOffered', { plan: planName })}
                             </span>
                           ) : null}
                         </td>
@@ -334,6 +355,12 @@ export function ConsoleAddonRequestsPage() {
                             <button
                               type="button"
                               onClick={() => open('approve', r.id)}
+                              disabled={notOffered}
+                              title={
+                                notOffered
+                                  ? t('console.erp.requests.notOfferedHint', { plan: planName })
+                                  : undefined
+                              }
                               className={PRIMARY_BUTTON}
                             >
                               {t('console.erp.requests.approve')}
@@ -461,7 +488,10 @@ function ApproveModal({ request, onClose, onDone }: ModalProps) {
   const { t } = useTranslation()
   const tenant = tenantIdentity(request.tenantId)
   const [note, setNote] = useState('')
-  const included = request.plan === 'enterprise' || request.source === 'PLAN_INCLUDED'
+  const ADDON = usePlatformSettings().settings.addons.erpExtraction
+  const included =
+    ADDON.availability[request.plan] === 'included' || request.source === 'PLAN_INCLUDED'
+  const planName = t(planLabelKey(request.plan))
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -487,15 +517,12 @@ function ApproveModal({ request, onClose, onDone }: ModalProps) {
       <form id="approve-request" noValidate onSubmit={submit} className="flex flex-col gap-4">
         <div className="rounded-sm bg-surface-background px-4">
           <SummaryLine label={t('console.erp.requests.approveModal.tenant')} value={tenant.name} />
-          <SummaryLine
-            label={t('console.erp.requests.approveModal.plan')}
-            value={t(planLabelKey(request.plan))}
-          />
+          <SummaryLine label={t('console.erp.requests.approveModal.plan')} value={planName} />
           <SummaryLine
             label={t('console.erp.requests.approveModal.price')}
             value={
               included ? (
-                t('console.erp.requests.price.included')
+                t('console.erp.requests.approveModal.priceIncluded')
               ) : (
                 <span className="whitespace-nowrap">
                   <span className="me-1">
@@ -519,6 +546,7 @@ function ApproveModal({ request, onClose, onDone }: ModalProps) {
               included
                 ? 'console.erp.requests.approveModal.billingIncluded'
                 : 'console.erp.requests.approveModal.billingValue',
+              { plan: planName },
             )}
           />
         </div>

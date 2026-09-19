@@ -15,7 +15,7 @@ import {
   OVERAGE_ON,
   type TenantPaymentMethod,
 } from '../../lib/settingsBilling'
-import { PLAN } from '../../lib/plans'
+import { PLAN, SUBSCRIPTION_VAT } from '../../lib/plans'
 import { MEMBERS, SEATS } from '../../lib/settingsPeople'
 import downloadIcon from '../../assets/settings/download-ink.svg'
 import copyIcon from '../../assets/settings/copy.svg'
@@ -188,6 +188,11 @@ export function BillingPage() {
                   : t('bills.line.overageOff')
               }
               amount={formatOmr(bill.overage)}
+            />
+            <BillLine
+              label={t('bills.line.vat', { rate: SUBSCRIPTION_VAT * 100 })}
+              note={t('bills.line.vatNote', { amount: formatOmr(bill.subtotal) })}
+              amount={formatOmr(bill.vat)}
             />
             <div className="flex flex-wrap items-center justify-between gap-3 bg-surface-background/60 px-5 py-4">
               <dt className="text-base font-semibold text-text-primary">

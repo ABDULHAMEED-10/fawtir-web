@@ -4,18 +4,23 @@ import { OmAmount } from '../../components/ui'
 import { ChevronDownIcon } from '../../components/ui/icons'
 import {
   CATALOGUE,
+  FEATURES,
+  FEATURE_GROUPS,
   SUBSCRIPTION_VAT,
   TRIAL,
   annualMonthly,
+  type AnyPlanId,
   type CataloguePlan,
 } from '../../lib/plans'
-import { DEFAULT_SETTINGS } from '../../lib/platformSettings'
+import { DEFAULT_SETTINGS, PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import checkIcon from '../../assets/plans/check.svg'
 
 /*
- * The full comparison behind the four cards — every row of `Fawtir_Pricing_Model` §6 and the
- * subscription defaults, so a buyer who wants the detail can read it without leaving sign-up.
- * A `null` plan is Enterprise: nothing is priced publicly, so its cells say so.
+ * The full comparison behind the four cards — the limits from `Fawtir_Pricing_Model` §6 and the
+ * subscription defaults, then every feature switch in the catalogue (`plans.ts`), grouped the way
+ * the console's plan editor groups them, so a buyer who wants the detail can read it without
+ * leaving sign-up. A `null` plan is Enterprise: Business Plus with limits agreed on a call, so its
+ * feature cells match Business Plus and its limit cells say so.
  */
 
 type Cell =
@@ -24,8 +29,8 @@ type Cell =
   | { kind: 'text'; key: string; params?: Record<string, unknown> }
   | { kind: 'money'; amount: number }
 
-type Row = { key: string; cell: (plan: CataloguePlan | null) => Cell }
-type Group = { key: string; rows: Row[] }
+type Row = { key: string; labelKey: string; cell: (plan: CataloguePlan | null) => Cell }
+type Group = { key: string; labelKey: string; rows: Row[] }
 
 const count = (value: number) => value.toLocaleString('en-US')
 const check: Cell = { kind: 'check' }
@@ -35,77 +40,97 @@ const text = (key: string, params?: Record<string, unknown>): Cell => ({
   key,
   params,
 })
+/** A cell from the table's own vocabulary (`plans.compare.value.*`). */
+const value = (key: string, params?: Record<string, unknown>) =>
+  text(`plans.compare.value.${key}`, params)
 const money = (amount: number): Cell => ({ kind: 'money', amount })
 const flag = (on: boolean): Cell => (on ? check : dash)
 /** Enterprise negotiates every figure. */
-const negotiated = text('negotiated')
+const negotiated = value('negotiated')
+const agreed = value('agreed')
 
-const GROUPS: Group[] = [
+const planId = (plan: CataloguePlan | null): AnyPlanId => plan?.id ?? 'enterprise'
+
+const limitRow = (key: string, cell: Row['cell']): Row => ({
+  key,
+  labelKey: `plans.compare.row.${key}`,
+  cell,
+})
+
+/** The limits first: how much of everything a plan allows, and what more costs. */
+const LIMIT_GROUPS: Group[] = [
   {
     key: 'documents',
+    labelKey: 'plans.compare.group.documents',
     rows: [
-      {
-        key: 'documents',
-        cell: (p) => (p ? text('count', { count: count(p.documents) }) : text('onRequest')),
-      },
-      { key: 'overage', cell: (p) => (p ? money(p.overage) : negotiated) },
-      { key: 'peppol', cell: () => check },
-      { key: 'validation', cell: () => check },
-      { key: 'pos', cell: () => check },
-      { key: 'archive', cell: () => check },
+      limitRow('documents', (p) => (p ? value('count', { count: count(p.documents) }) : agreed)),
+      limitRow('overage', (p) => (p ? money(p.overage) : negotiated)),
     ],
   },
   {
     key: 'people',
+    labelKey: 'plans.compare.group.people',
     rows: [
-      {
-        key: 'people',
-        cell: (p) => (p ? text('count', { count: count(p.people) }) : text('unlimited')),
-      },
-      { key: 'extraPerson', cell: (p) => (p ? money(p.extraPerson) : negotiated) },
-      {
-        key: 'branches',
-        cell: (p) =>
-          p
-            ? p.branches
-              ? text('count', { count: count(p.branches) })
-              : text('unlimited')
-            : text('unlimited'),
-      },
-      {
-        key: 'extraBranch',
-        cell: (p) => (p ? (p.extraBranch ? money(p.extraBranch) : text('upgrade')) : negotiated),
-      },
-      { key: 'accountants', cell: () => text('free') },
-    ],
-  },
-  {
-    key: 'features',
-    rows: [
-      { key: 'rbac', cell: (p) => flag(!p || p.roleBasedAccess) },
-      { key: 'recurring', cell: (p) => flag(!p || p.recurring) },
-      { key: 'approvals', cell: (p) => flag(!p || p.approvals) },
-      { key: 'api', cell: (p) => flag(!p || p.api) },
-      { key: 'webhooks', cell: (p) => flag(!p || p.webhooks) },
-      { key: 'erpMapping', cell: () => check },
-      { key: 'erpExtraction', cell: (p) => (p ? text('addon') : text('included')) },
-      { key: 'sso', cell: (p) => flag(!p) },
-      { key: 'reports', cell: (p) => flag(!p) },
-    ],
-  },
-  {
-    key: 'support',
-    rows: [
-      {
-        key: 'support',
-        cell: (p) => (p ? text(p.prioritySupport ? 'emailChat' : 'email') : text('accountManager')),
-      },
-      { key: 'sla', cell: (p) => flag(!p) },
-      { key: 'annual', cell: (p) => (p ? text('twoMonthsFree') : negotiated) },
-      { key: 'vat', cell: () => text('vatExcl', { rate: SUBSCRIPTION_VAT * 100 }) },
+      limitRow('people', (p) => (p ? value('count', { count: count(p.people) }) : agreed)),
+      limitRow('extraPerson', (p) => (p ? money(p.extraPerson) : negotiated)),
+      limitRow('branches', (p) =>
+        p
+          ? p.branches
+            ? value('count', { count: count(p.branches) })
+            : value('unlimited')
+          : agreed,
+      ),
+      limitRow('extraBranch', (p) =>
+        p ? (p.extraBranch ? money(p.extraBranch) : value('upgrade')) : negotiated,
+      ),
+      limitRow('accountants', () => value('free')),
     ],
   },
 ]
+
+/**
+ * Then every feature, straight from the catalogue's matrix — a check where the plan has it. The
+ * extraction add-on sits with the other ways in for another system, and reads the console's
+ * per-plan availability rather than a flag.
+ */
+const FEATURE_TABLE: Group[] = FEATURE_GROUPS.map((group) => ({
+  key: group.id,
+  labelKey: `plan.featureGroup.${group.id}`,
+  rows: [
+    ...group.features.map((feature): Row => ({
+      key: feature,
+      labelKey: `plan.featureName.${feature}`,
+      cell: (p) => flag(FEATURES[planId(p)][feature]),
+    })),
+    ...(group.id === 'integration'
+      ? [
+          {
+            key: 'erpExtraction',
+            labelKey: 'plan.extraction.name',
+            cell: (p) =>
+              text(
+                `plan.extraction.${PLATFORM_SETTINGS.addons.erpExtraction.availability[planId(p)]}`,
+              ),
+          } satisfies Row,
+        ]
+      : []),
+  ],
+}))
+
+const SUPPORT_GROUP: Group = {
+  key: 'support',
+  labelKey: 'plans.compare.group.support',
+  rows: [
+    limitRow('support', (p) =>
+      // Enterprise differs from Business Plus by limits alone, support included.
+      p ? value(p.prioritySupport ? 'emailChat' : 'email') : value('emailChat'),
+    ),
+    limitRow('annual', (p) => (p ? value('twoMonthsFree') : negotiated)),
+    limitRow('vat', () => value('vatExcl', { rate: SUBSCRIPTION_VAT * 100 })),
+  ],
+}
+
+const GROUPS: Group[] = [...LIMIT_GROUPS, ...FEATURE_TABLE, SUPPORT_GROUP]
 
 /** Rial figures on the table read to three places, the way the bill will print them. */
 const rial = (amount: number) => amount.toFixed(3)
@@ -137,7 +162,7 @@ export function PlanComparison({ billing }: { billing: 'monthly' | 'annual' }) {
           />
         )
       case 'text':
-        return t(`plans.compare.value.${cell.key}`, cell.params)
+        return t(cell.key, cell.params)
     }
   }
 
@@ -194,13 +219,13 @@ export function PlanComparison({ billing }: { billing: 'monthly' | 'annual' }) {
                   colSpan={COLUMNS.length + 1}
                   className="px-5 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-text-tertiary"
                 >
-                  {t(`plans.compare.group.${group.key}`)}
+                  {t(group.labelKey)}
                 </th>
               </tr>
               {group.rows.map((row) => (
                 <tr key={row.key} className="border-b border-primary-25 last:border-b-0">
                   <th scope="row" className="px-5 py-3 text-start font-medium text-text-primary">
-                    {t(`plans.compare.row.${row.key}`)}
+                    {t(row.labelKey)}
                   </th>
                   {COLUMNS.map((plan) => (
                     <td
@@ -223,7 +248,7 @@ export function PlanComparison({ billing }: { billing: 'monthly' | 'annual' }) {
   )
 }
 
-const FAQ_COUNT = 8
+const FAQ_COUNT = 9
 
 export function PlanFaq() {
   const { t } = useTranslation()

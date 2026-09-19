@@ -22,6 +22,8 @@ import {
   connectionPath,
 } from './connections/ConnectionShell'
 import { usePlatformSettings } from '../../lib/platformSettings'
+import { ANY_PLAN_IDS } from '../../lib/plans'
+import { useTenantPlan } from '../../lib/planAccess'
 import { SOURCE_SYSTEMS, useErpMapping, type SourceSystem } from '../../lib/erpMapping'
 import {
   NOW,
@@ -63,10 +65,11 @@ const ADDON_STATES: AddonState[] = [
  *
  * The screen follows the add-on's state. Not active — the add-on card alone: what automatic
  * extraction does, what it costs (from the console's platform settings, never typed here), which
- * systems it speaks to, and one button that asks the Fawtir team to switch it on. Active — the
- * add-on panel with its two usage bars, then the connections themselves with their state, mapping
- * status, runs and pending rejections. Field mapping itself is part of every plan and lives one
- * screen over.
+ * systems it speaks to, and what the tenant's plan lets it do about it: ask the Fawtir team to
+ * switch it on (priced), switch it on itself (included), or see which plan carries it (not
+ * offered). Active — the add-on panel with its two usage bars, then the connections themselves
+ * with their state, mapping status, runs and pending rejections. Field mapping itself is a plan
+ * feature (Business Plus and Enterprise) and lives one screen over.
  */
 export function ErpConnectionsPage() {
   const state = useConnector()
@@ -90,10 +93,21 @@ export function ErpConnectionsPage() {
 /* ------------------------------------------------------------ not active */
 
 function InactiveCard({ addonState }: { addonState: AddonState }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { settings } = usePlatformSettings()
   const addon = settings.addons.erpExtraction
   const pending = addonState === 'PENDING_PAYMENT'
+  // What the tenant's own plan allows — the console's per-plan availability setting. The plan
+  // comes through `planAccess`, so the harness's `?plan=` override shows every state.
+  const plan = useTenantPlan()
+  const availability = addon.availability[plan]
+  const planName = t(`plan.planName.${plan}`)
+  const lowestOffered = ANY_PLAN_IDS.find((id) => addon.availability[id] !== 'notOffered')
+  const includedOn = ANY_PLAN_IDS.filter((id) => addon.availability[id] === 'included')
+  const listOf = (ids: string[]) =>
+    new Intl.ListFormat(i18n.language.startsWith('ar') ? 'ar' : 'en', {
+      type: 'conjunction',
+    }).format(ids.map((id) => t(`plan.planName.${id}`)))
   const bannerKey =
     addonState === 'SUSPENDED'
       ? 'erp.connector.list.suspended'
@@ -189,10 +203,12 @@ function InactiveCard({ addonState }: { addonState: AddonState }) {
                   )}
                 </span>
               </li>
-              {addon.includedAt === 'enterprise' ? (
+              {includedOn.length > 0 ? (
                 <li className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
                   <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-                  <span>{t('erp.connections.price.enterprise')}</span>
+                  <span>
+                    {t('erp.connections.price.includedOn', { plans: listOf(includedOn) })}
+                  </span>
                 </li>
               ) : null}
             </ul>
@@ -203,6 +219,34 @@ function InactiveCard({ addonState }: { addonState: AddonState }) {
                   <img src={clockIcon} alt="" className="mt-0.5 size-4 shrink-0" />
                   <span>{t('erp.connector.list.pendingPayment')}</span>
                 </p>
+              ) : availability === 'notOffered' ? (
+                // The plan does not carry the add-on: no button, just where it is carried.
+                <div className="flex flex-wrap items-center gap-3 rounded-sm bg-surface-background px-3 py-2.5">
+                  <img src={infoIcon} alt="" className="size-4 shrink-0 max-md:hidden" />
+                  <p className="min-w-0 flex-1 text-sm max-md:basis-full font-medium leading-[1.6] text-text-secondary">
+                    {t('erp.connections.activate.notOffered', {
+                      plan: planName,
+                      available: lowestOffered ? t(`plan.planName.${lowestOffered}`) : '—',
+                    })}
+                  </p>
+                  <Link to="/settings/plan" className={TEXT_BUTTON}>
+                    {t('erp.connections.activate.seePlans')}
+                  </Link>
+                </div>
+              ) : availability === 'included' ? (
+                // Part of the plan: switching on is the tenant's own act, nothing to confirm.
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => connectorStore.requestAddon('PLAN_INCLUDED')}
+                    className={PRIMARY_BUTTON}
+                  >
+                    {t('erp.connections.activate.included')}
+                  </button>
+                  <span className="text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {t('erp.connections.activate.includedNote')}
+                  </span>
+                </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-3">
                   <button
@@ -270,7 +314,7 @@ function InactiveCard({ addonState }: { addonState: AddonState }) {
   )
 }
 
-/** Mapping is included on every plan — the strip that closes both versions of the screen. */
+/** Mapping is a plan feature, not the add-on — the strip that closes both versions of the screen. */
 function MappingIncludedStrip({ standalone = false }: { standalone?: boolean }) {
   const { t } = useTranslation()
   return (
