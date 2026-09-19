@@ -28,6 +28,13 @@ export const ANY_PLAN_IDS: AnyPlanId[] = ['starter', 'business', 'businessPlus',
  * show them, but they are on for every plan and the console cannot switch them off.
  */
 export type Feature =
+  | 'peppol'
+  | 'validation'
+  | 'otaReporting'
+  | 'signingQr'
+  | 'bilingual'
+  | 'archive'
+  | 'complianceLog'
   | 'invoices'
   | 'creditNotes'
   | 'debitNotes'
@@ -37,21 +44,42 @@ export type Feature =
   | 'selfBilling'
   | 'tradeDocuments'
   | 'billTracking'
+  | 'billReminders'
   | 'supplierNotes'
   | 'recurringBills'
   | 'approvals'
   | 'pos'
   | 'catalogue'
   | 'stock'
+  | 'customers'
+  | 'suppliers'
   | 'reports'
+  | 'complianceReports'
+  | 'exports'
+  | 'periodClosing'
+  | 'activityLog'
+  | 'notices'
   | 'rolesAndPermissions'
   | 'multiBranch'
+  | 'twoStep'
   | 'api'
   | 'webhooks'
   | 'erpMapping'
 
 /** The order the compare table and the plan editor list features in, grouped by area. */
 export const FEATURE_GROUPS: { id: string; features: Feature[] }[] = [
+  {
+    id: 'compliance',
+    features: [
+      'peppol',
+      'validation',
+      'otaReporting',
+      'signingQr',
+      'bilingual',
+      'archive',
+      'complianceLog',
+    ],
+  },
   {
     id: 'income',
     features: [
@@ -65,29 +93,63 @@ export const FEATURE_GROUPS: { id: string; features: Feature[] }[] = [
       'tradeDocuments',
     ],
   },
-  { id: 'expenditure', features: ['billTracking', 'supplierNotes', 'recurringBills', 'approvals'] },
-  { id: 'operations', features: ['pos', 'catalogue', 'stock', 'reports'] },
-  { id: 'people', features: ['rolesAndPermissions', 'multiBranch'] },
+  {
+    id: 'expenditure',
+    features: ['billTracking', 'billReminders', 'supplierNotes', 'recurringBills', 'approvals'],
+  },
+  { id: 'operations', features: ['pos', 'catalogue', 'stock', 'customers', 'suppliers'] },
+  {
+    id: 'reports',
+    features: [
+      'reports',
+      'complianceReports',
+      'exports',
+      'periodClosing',
+      'activityLog',
+      'notices',
+    ],
+  },
+  { id: 'people', features: ['rolesAndPermissions', 'multiBranch', 'twoStep'] },
   { id: 'integration', features: ['api', 'webhooks', 'erpMapping'] },
 ]
 export const FEATURE_LIST: Feature[] = FEATURE_GROUPS.flatMap((g) => g.features)
 
 /** Compliance never gated: on for every plan, locked in the console. */
-export const COMPLIANCE_FEATURES: Feature[] = ['invoices', 'creditNotes', 'debitNotes']
+export const COMPLIANCE_FEATURES: Feature[] = [
+  'peppol',
+  'validation',
+  'otaReporting',
+  'signingQr',
+  'bilingual',
+  'archive',
+  'complianceLog',
+  'invoices',
+  'creditNotes',
+  'debitNotes',
+]
 
 const STARTER_FEATURES: Feature[] = [
-  'invoices',
+  ...COMPLIANCE_FEATURES,
   'creditNotes',
   'debitNotes',
   'bulkUpload',
   'incomeReminders',
   'billTracking',
+  'billReminders',
   'pos',
   'catalogue',
   'stock',
+  'customers',
+  'suppliers',
   'reports',
+  'complianceReports',
+  'exports',
+  'periodClosing',
+  'activityLog',
+  'notices',
   'rolesAndPermissions',
   'multiBranch',
+  'twoStep',
 ]
 const INTEGRATION_FEATURES: Feature[] = ['api', 'webhooks', 'erpMapping']
 
@@ -132,9 +194,13 @@ export type CataloguePlan = {
   branches: number | null
   /** What one more person costs a month. */
   extraPerson: number
-  /** What one more branch costs a month; null means "move up a plan" instead. */
+  /** What one more branch costs a month — on every plan since 20 Sep 2026; null would mean "move up a plan". */
   extraBranch: number | null
-  /** Per document past the allowance when overage is on. */
+  /**
+   * Per extra invoice past the allowance when overage is on — quoted per invoice the way Omani
+   * ASPs do, set a little above the market because the platform is more than an ASP, and always
+   * below the plan's own average price per document so moving up a plan stays the better deal.
+   */
   overage: number
   features: Record<Feature, boolean>
   /** Kept for the screens drawn against the earlier shape; each mirrors `features`. */
@@ -175,10 +241,10 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     people: 2,
     branches: 1,
     extraPerson: 3,
-    extraBranch: null,
-    overage: 0.09,
-    prioritySupport: false,
-    supportKey: 'plan.support.email',
+    extraBranch: 8,
+    overage: 0.15,
+    prioritySupport: true,
+    supportKey: 'plan.support.emailAndChat',
   }),
   plan({
     id: 'business',
@@ -190,9 +256,9 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     branches: 2,
     extraPerson: 2.5,
     extraBranch: 8,
-    overage: 0.04,
-    prioritySupport: false,
-    supportKey: 'plan.support.email',
+    overage: 0.1,
+    prioritySupport: true,
+    supportKey: 'plan.support.emailAndChat',
   }),
   plan({
     id: 'businessPlus',
@@ -204,7 +270,7 @@ export const CATALOGUE: readonly CataloguePlan[] = [
     branches: 5,
     extraPerson: 2.5,
     extraBranch: 8,
-    overage: 0.026,
+    overage: 0.075,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
   }),

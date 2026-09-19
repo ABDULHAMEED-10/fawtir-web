@@ -770,7 +770,7 @@
       },
       "row": {
         "documents": "Tax documents a month",
-        "overage": "Each document past the allowance",
+        "overage": "Extra per invoice, past the allowance",
         "peppol": "Send & receive over Peppol",
         "validation": "PINT-OM validation & OTA reporting",
         "pos": "Point of sale & thermal receipts",
@@ -7850,9 +7850,11 @@
     "featureGroup": {
       "income": "Income",
       "expenditure": "Expenditure",
-      "operations": "Selling and stock",
+      "operations": "Selling, contacts and stock",
       "people": "People and branches",
-      "integration": "Connecting another system"
+      "integration": "Connecting another system",
+      "compliance": "Compliance and delivery",
+      "reports": "Reports and records"
     },
     "featureName": {
       "invoices": "Tax invoices",
@@ -7863,19 +7865,35 @@
       "recurringInvoices": "Recurring invoices",
       "selfBilling": "Self-billing",
       "tradeDocuments": "Quotations, order forms and delivery notes",
-      "billTracking": "Bill tracking — received over Peppol, scanned or uploaded, with reminders",
+      "billTracking": "Bill tracking and uploading — received over Peppol, scanned or uploaded",
       "supplierNotes": "Supplier credit and debit notes",
       "recurringBills": "Recurring bills",
       "approvals": "Approval workflow",
       "pos": "Point of sale and thermal receipts",
       "catalogue": "Catalogue and price rules",
       "stock": "Stock",
-      "reports": "Reports",
+      "reports": "Income, expenditure, cash-flow and VAT reports",
       "rolesAndPermissions": "Roles and permissions",
       "multiBranch": "Branches",
       "api": "REST API and sandbox",
       "webhooks": "Webhooks and file transfer",
-      "erpMapping": "ERP field mapping"
+      "erpMapping": "ERP field mapping",
+      "billReminders": "Bill reminders",
+      "peppol": "Send and receive over the Peppol network",
+      "validation": "PINT-OM validation before anything is sent",
+      "otaReporting": "Tax Authority (OTA) reporting and TDD",
+      "signingQr": "Digital signing and QR codes on every invoice",
+      "bilingual": "Bilingual invoices, English and Arabic",
+      "archive": "Ten-year document archive",
+      "complianceLog": "Compliance activity log — refusals, resubmission, OTA call log",
+      "customers": "Customer records and statements",
+      "suppliers": "Supplier records, import and statements",
+      "complianceReports": "Compliance and list reports",
+      "exports": "Exports to CSV and PDF",
+      "periodClosing": "Period closing",
+      "activityLog": "Company activity log",
+      "notices": "Email and in-app notices — quota, certificate, refusals",
+      "twoStep": "Two-step sign-in"
     },
     "featureShort": {
       "invoices": "Tax invoices",
@@ -7898,10 +7916,26 @@
       "multiBranch": "Branches",
       "api": "API",
       "webhooks": "Webhooks",
-      "erpMapping": "ERP mapping"
+      "erpMapping": "ERP mapping",
+      "billReminders": "Bill reminders",
+      "peppol": "Peppol",
+      "validation": "PINT-OM validation",
+      "otaReporting": "OTA reporting",
+      "signingQr": "Signing and QR",
+      "bilingual": "Bilingual invoices",
+      "archive": "10-year archive",
+      "complianceLog": "Compliance log",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "complianceReports": "Compliance reports",
+      "exports": "Exports",
+      "periodClosing": "Period closing",
+      "activityLog": "Activity log",
+      "notices": "Notices",
+      "twoStep": "Two-step sign-in"
     },
     "extraction": {
-      "notOffered": "Not offered",
+      "notOffered": "Not supported",
       "priced": "Add-on",
       "included": "Included",
       "name": "Automatic ERP extraction"
@@ -10461,7 +10495,7 @@
         "posValue": "No separate plan",
         "erpMappingValue": "Follows the plan's feature switch",
         "availabilityGroup": "Availability per plan",
-        "availabilityNote": "Not offered hides the add-on from that plan's Connected systems screen. Included switches it on without the add-on price when the tenant asks.",
+        "availabilityNote": "Not supported hides the add-on from that plan's Connected systems screen. Included switches it on without the add-on price when the tenant asks.",
         "availabilityLabel": "Automatic extraction on {{plan}}"
       },
       "payments": {
@@ -10817,8 +10851,8 @@
           "history": "No decisions yet."
         },
         "noNote": "—",
-        "notOffered": "Not offered on {{plan}} — upgrade first",
-        "notOfferedHint": "The add-on is not offered on the {{plan}} plan. The tenant moves up a plan first, or the plan's availability changes in Console settings › Add-ons."
+        "notOffered": "Not supported on {{plan}} — upgrade first",
+        "notOfferedHint": "The add-on is not supported on the {{plan}} plan. The tenant moves up a plan first, or the plan's availability changes in Console settings › Add-ons."
       },
       "connections": {
         "title": "ERP connections",
@@ -12122,7 +12156,7 @@
         "button": "Ask to activate the add-on",
         "note": "Nothing is charged now; the Fawtir team confirms first.",
         "requested": "Requested — the Fawtir team will confirm and switch the add-on on for you.",
-        "notOffered": "Automatic extraction is not offered on the {{plan}} plan — available on {{available}}.",
+        "notOffered": "Automatic extraction is not supported on the {{plan}} plan — available on {{available}}.",
         "seePlans": "See plans",
         "included": "Switch on — included in your plan",
         "includedNote": "Part of your plan: nothing is charged and it is on straight away."
