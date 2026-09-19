@@ -1,11 +1,4 @@
-/**
- * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6,
- * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026
- * (docs/erp-and-console-plan.md §9.5).
- *
- * Every figure here is a launch default, not a commitment: the backend holds the live catalogue
- * (`GET /platform/plans`, edited in the console's Plans and rates) and the tenant's own plan
- * screen will read it from there. Until those screens are integrated, every mock that prints a
+/** * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6, * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026 * (docs/erp-and-console-plan.md §9.5). * * Every figure here is a launch default, not a commitment: the backend holds the live catalogue * (`GET /platform/plans`, edited in the console's Plans and rates) and the tenant's own plan * screen will read it from there. Until those screens are integrated, every mock that prints a
  * price — Settings › Plan and Bills, the sign-up plans, the console's tenants — reads this one
  * file, so the app cannot show three different price lists again.
  *
@@ -51,17 +44,10 @@ export type Feature =
   | 'pos'
   | 'catalogue'
   | 'stock'
-  | 'customers'
-  | 'suppliers'
   | 'reports'
-  | 'complianceReports'
-  | 'exports'
-  | 'periodClosing'
-  | 'activityLog'
   | 'notices'
   | 'rolesAndPermissions'
   | 'multiBranch'
-  | 'twoStep'
   | 'api'
   | 'webhooks'
   | 'erpMapping'
@@ -97,19 +83,12 @@ export const FEATURE_GROUPS: { id: string; features: Feature[] }[] = [
     id: 'expenditure',
     features: ['billTracking', 'billReminders', 'supplierNotes', 'recurringBills', 'approvals'],
   },
-  { id: 'operations', features: ['pos', 'catalogue', 'stock', 'customers', 'suppliers'] },
+  { id: 'operations', features: ['pos', 'catalogue', 'stock'] },
   {
     id: 'reports',
-    features: [
-      'reports',
-      'complianceReports',
-      'exports',
-      'periodClosing',
-      'activityLog',
-      'notices',
-    ],
+    features: ['reports', 'notices'],
   },
-  { id: 'people', features: ['rolesAndPermissions', 'multiBranch', 'twoStep'] },
+  { id: 'people', features: ['rolesAndPermissions', 'multiBranch'] },
   { id: 'integration', features: ['api', 'webhooks', 'erpMapping'] },
 ]
 export const FEATURE_LIST: Feature[] = FEATURE_GROUPS.flatMap((g) => g.features)
@@ -139,17 +118,10 @@ const STARTER_FEATURES: Feature[] = [
   'pos',
   'catalogue',
   'stock',
-  'customers',
-  'suppliers',
   'reports',
-  'complianceReports',
-  'exports',
-  'periodClosing',
-  'activityLog',
   'notices',
   'rolesAndPermissions',
   'multiBranch',
-  'twoStep',
 ]
 const INTEGRATION_FEATURES: Feature[] = ['api', 'webhooks', 'erpMapping']
 

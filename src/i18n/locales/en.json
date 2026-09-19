@@ -7850,11 +7850,11 @@
     "featureGroup": {
       "income": "Income",
       "expenditure": "Expenditure",
-      "operations": "Selling, contacts and stock",
+      "operations": "Selling and stock",
       "people": "People and branches",
       "integration": "Connecting another system",
       "compliance": "Compliance and delivery",
-      "reports": "Reports and records"
+      "reports": "Reports and notices"
     },
     "featureName": {
       "invoices": "Tax invoices",
@@ -7872,7 +7872,7 @@
       "pos": "Point of sale and thermal receipts",
       "catalogue": "Catalogue and price rules",
       "stock": "Stock",
-      "reports": "Income, expenditure, cash-flow and VAT reports",
+      "reports": "Income, expenditure, cash-flow, VAT and compliance reports",
       "rolesAndPermissions": "Roles and permissions",
       "multiBranch": "Branches",
       "api": "REST API and sandbox",

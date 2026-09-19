@@ -439,9 +439,10 @@ Support sees the tenant's state read-only and sends the tenant to the right scre
 
 *Added later on 20 Sep:* the compare table also lists the platform features every plan carries —
 compliance and delivery (Peppol, PINT-OM validation, OTA reporting and TDD, signing and QR,
-bilingual invoices, ten-year archive, compliance log), contacts, reports and records (reports,
-exports, period closing, activity log, notices) and two-step sign-in — so a buyer sees the whole
-product, not only what differs. Bill tracking was split from bill reminders. Overage is quoted as
+bilingual invoices, ten-year archive, compliance log), one reports row naming the report kinds,
+and the notices, so a buyer sees the whole product, not only what differs. Rows any accounting
+tool has (customer and supplier records, activity log, exports, period closing, two-step sign-in)
+were tried and cut the same day as too general to sell a plan. Bill tracking was split from bill reminders. Overage is quoted as
 "extra per invoice" at 0.150 · 0.100 · 0.075. Support is email and chat on every plan. An extra
 branch is 8.000 on every plan, Starter included.
 
