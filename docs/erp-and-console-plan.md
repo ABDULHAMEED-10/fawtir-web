@@ -442,7 +442,10 @@ compliance and delivery (Peppol, PINT-OM validation, OTA reporting and TDD, sign
 bilingual invoices, ten-year archive, compliance log), one reports row naming the report kinds,
 and the notices, so a buyer sees the whole product, not only what differs. Rows any accounting
 tool has (customer and supplier records, activity log, exports, period closing, two-step sign-in)
-were tried and cut the same day as too general to sell a plan. Bill tracking was split from bill reminders. Overage is quoted as
+were tried and cut the same day as too general to sell a plan. The add-on is
+offered on the sign-up Payment step (a tick on Business Plus that adds the line to the first
+invoice and rides the same activation) and managed from an Add-ons section on Settings › Plan; the
+plans page gets no fifth card, because the add-on is not a plan. Bill tracking was split from bill reminders. Overage is quoted as
 "extra per invoice" at 0.150 · 0.060 · 0.040. Support is email and chat on every plan. An extra
 branch is 8.000 on every plan, Starter included.
 

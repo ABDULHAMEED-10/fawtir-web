@@ -875,7 +875,8 @@
       "totalDue": "Total due today",
       "renewPrefix": "Renews on {{date}} at {{amount}}. We’ll remind you before. ",
       "cancelAnytime": "Cancel anytime",
-      "renewSuffix": " — access continues to period end."
+      "renewSuffix": " — access continues to period end.",
+      "addonLine": "Automatic ERP extraction ({{cycle}})"
     },
     "payCta": "Pay {{amount}} & activate",
     "bankCta": "Email me the invoice with bank details",
@@ -911,7 +912,14 @@
       "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded — usually the same day."
     },
     "sendLinkCta": "Send me the payment link",
-    "cashCta": "I'll pay in cash"
+    "cashCta": "I'll pay in cash",
+    "addon": {
+      "title": "Add-on",
+      "label": "Add automatic ERP extraction",
+      "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, and writes the result back. Activated with your subscription.",
+      "perMonth": "a month",
+      "perMonthTimes": "a month, for {{count}} months"
+    }
   },
   "fawtaraStatus": {
     "heroTitle": "E-invoicing compliance, handled for you.",
@@ -933,7 +941,8 @@
       "cardLink": "Paid by card through Thawani — you'll be activated as soon as the payment is confirmed.",
       "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
       "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
-      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day."
+      "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
+      "addon": "Automatic ERP extraction is on the same request; the Fawtir team switches it on with your subscription."
     }
   },
   "dashboard": {
@@ -7945,6 +7954,30 @@
       "business": "Every Fawtir feature, for a business run in Fawtir",
       "businessPlus": "Everything, plus the ways in for your own system",
       "enterprise": "Business Plus with limits agreed on a call"
+    },
+    "addons": {
+      "title": "Add-ons",
+      "subtitle": "What you pay for on top of the plan.",
+      "extraction": {
+        "name": "Automatic ERP extraction",
+        "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, submits them, and writes the result back into the ERP record.",
+        "price": "{{amount}} a month · {{documents}} documents collected · then {{overage}} each",
+        "includedPrice": "Included in your plan · {{documents}} documents collected a month",
+        "usage": "{{used}} of {{allowance}} collected this month · resets {{resets}}"
+      },
+      "state": {
+        "active": "Active",
+        "includedActive": "Active · included",
+        "pending": "Requested",
+        "off": "Not active",
+        "includedOff": "Included · off",
+        "notSupported": "Not supported on your plan"
+      },
+      "ask": "Ask to activate",
+      "switchOn": "Switch on",
+      "openConnections": "Open Connected systems",
+      "pendingNote": "Requested. The Fawtir team confirms and switches it on.",
+      "notSupportedNote": "Available on {{plan}}. Move up a plan to add it."
     }
   },
   "bills": {

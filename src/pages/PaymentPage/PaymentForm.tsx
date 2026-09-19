@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, ChevronRightIcon, OmAmount, SelectionCard } from '../../components/ui'
+import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox } from '../../components/ui'
 import {
   formatOmr,
   formatRenewalDate,
@@ -9,6 +9,8 @@ import {
   getRenewalDate,
   type BillingCycle,
   type PlanId,
+  extractionOffer,
+  extractionMonthly,
 } from '../../lib/pricing'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import cardIcon from '../../assets/payment/card.svg'
@@ -30,6 +32,8 @@ export type SignupPaymentMethod = 'cardLink' | 'bankTransfer' | 'cash'
 type LocationState = {
   plan?: PlanId
   billing?: BillingCycle
+  /** The extraction add-on, ticked on the payment step. */
+  addon?: boolean
   phone?: string
   email?: string
 }
@@ -44,7 +48,13 @@ export function PaymentForm() {
 
   const plan: PlanId = state.plan ?? 'premium'
   const billing: BillingCycle = state.billing ?? 'annual'
-  const summary = useMemo(() => getOrderSummary(plan, billing), [plan, billing])
+  // Automatic ERP extraction: offered as a priced add-on only where the console says so.
+  const offer = extractionOffer(plan)
+  const [addon, setAddon] = useState(Boolean(state.addon))
+  const summary = useMemo(
+    () => getOrderSummary(plan, billing, { addon: addon && offer === 'priced' }),
+    [plan, billing, addon, offer],
+  )
 
   const [method, setMethod] = useState<SignupPaymentMethod>('cardLink')
   const [linkVia, setLinkVia] = useState<'now' | 'whatsapp' | 'email'>('now')
@@ -59,6 +69,7 @@ export function PaymentForm() {
     event.preventDefault()
     navigate('/fawtara-status', {
       state: {
+        addon: addon && offer === 'priced',
         ...state,
         paymentMethod: method,
         linkVia: method === 'cardLink' ? linkVia : undefined,
@@ -172,13 +183,18 @@ export function PaymentForm() {
             )}
           </div>
 
-          <OrderSummaryCard
-            planName={planName}
-            billing={billing}
-            summary={summary}
-            totalLabel={totalLabel}
-            renewalDate={renewalDate}
-          />
+          <div className="flex w-full max-w-[332px] flex-col gap-4 lg:shrink-0">
+            {offer === 'priced' ? (
+              <AddonOffer checked={addon} onChange={setAddon} months={summary?.months ?? 1} />
+            ) : null}
+            <OrderSummaryCard
+              planName={planName}
+              billing={billing}
+              summary={summary}
+              totalLabel={totalLabel}
+              renewalDate={renewalDate}
+            />
+          </div>
         </div>
       </div>
 
@@ -193,6 +209,48 @@ export function PaymentForm() {
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>
     </form>
+  )
+}
+
+/**
+ * The add-on offer beside the order: one tick adds automatic ERP extraction to the first invoice
+ * and the request reaches the console with the subscription, so the operator activates both.
+ */
+function AddonOffer({
+  checked,
+  onChange,
+  months,
+}: {
+  checked: boolean
+  onChange: (next: boolean) => void
+  months: number
+}) {
+  const { t } = useTranslation()
+  const monthly = extractionMonthly()
+  return (
+    <div className="w-full rounded-sm border border-[#f3f3f3] bg-surface-card px-[18px] py-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+        {t('payment.addon.title')}
+      </p>
+      <div className="mt-2">
+        <Checkbox
+          label={t('payment.addon.label')}
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+      </div>
+      <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+        {t('payment.addon.body')}
+      </p>
+      <p className="mt-2 flex items-baseline gap-1 text-sm font-semibold text-text-primary">
+        <OmAmount size="xs" amount={formatOmr(monthly)} amountClassName="font-semibold" />
+        <span className="text-xs font-medium text-text-quaternary">
+          {months > 1
+            ? t('payment.addon.perMonthTimes', { count: months })
+            : t('payment.addon.perMonth')}
+        </span>
+      </p>
+    </div>
   )
 }
 
@@ -268,7 +326,7 @@ function OrderSummaryCard({
               </span>
               <OmAmount
                 size="xs"
-                amount={formatOmr(summary.subtotal)}
+                amount={formatOmr(summary.planSubtotal)}
                 amountClassName="font-semibold text-text-primary/80"
               />
             </div>
@@ -280,6 +338,20 @@ function OrderSummaryCard({
                 <span className="font-semibold text-text-primary/60">
                   {t('payment.summary.months', { count: summary.months })}
                 </span>
+              </div>
+            ) : null}
+            {summary.addonSubtotal > 0 ? (
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium text-text-primary/70">
+                  {t('payment.summary.addonLine', {
+                    cycle: t(`payment.summary.${billing}`),
+                  })}
+                </span>
+                <OmAmount
+                  size="xs"
+                  amount={formatOmr(summary.addonSubtotal)}
+                  amountClassName="font-semibold text-text-primary/80"
+                />
               </div>
             ) : null}
             <div className="flex items-center justify-between gap-2 text-sm">
