@@ -168,6 +168,7 @@ import {
   ConsoleSettingsPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
+import { PlanFromQuery, PlanGated } from './components/plan'
 
 function App() {
   const { i18n } = useTranslation()
@@ -176,6 +177,8 @@ function App() {
   return (
     <div dir={isRtl ? 'rtl' : 'ltr'} className="min-h-dvh font-sans text-text-primary">
       <BrowserRouter>
+        {/* Lets any screen be opened as another plan sees it: `?plan=starter`. */}
+        <PlanFromQuery />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -204,14 +207,70 @@ function App() {
           <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
           <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
           <Route path="/expenditure/payments/:runId" element={<PaymentRunPage />} />
-          <Route path="/expenditure/recurring-bills" element={<RecurringBillsPage />} />
-          <Route path="/expenditure/recurring-bills/new" element={<NewRecurringBillPage />} />
-          <Route path="/expenditure/recurring-bills/:id/edit" element={<NewRecurringBillPage />} />
-          <Route path="/expenditure/recurring-bills/:id" element={<RecurringBillDetailPage />} />
-          <Route path="/expenditure/credit-notes" element={<SupplierCreditNotesPage />} />
-          <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
-          <Route path="/expenditure/credit-notes/:id" element={<SupplierCreditNoteDetailPage />} />
-          <Route path="/expenditure/debit-notes" element={<SupplierDebitNotesPage />} />
+          <Route
+            path="/expenditure/recurring-bills"
+            element={
+              <PlanGated feature="recurringBills">
+                <RecurringBillsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/recurring-bills/new"
+            element={
+              <PlanGated feature="recurringBills">
+                <NewRecurringBillPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/recurring-bills/:id/edit"
+            element={
+              <PlanGated feature="recurringBills">
+                <NewRecurringBillPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/recurring-bills/:id"
+            element={
+              <PlanGated feature="recurringBills">
+                <RecurringBillDetailPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/credit-notes"
+            element={
+              <PlanGated feature="supplierNotes">
+                <SupplierCreditNotesPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/credit-notes/upload"
+            element={
+              <PlanGated feature="supplierNotes">
+                <UploadCreditNotePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/credit-notes/:id"
+            element={
+              <PlanGated feature="supplierNotes">
+                <SupplierCreditNoteDetailPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/debit-notes"
+            element={
+              <PlanGated feature="supplierNotes">
+                <SupplierDebitNotesPage />
+              </PlanGated>
+            }
+          />
           <Route path="/reports" element={<Navigate to="/reports/income" replace />} />
           <Route path="/reports/income" element={<ReportsIncomePage />} />
           <Route path="/reports/expenditure" element={<ReportsExpenditurePage />} />
@@ -219,8 +278,22 @@ function App() {
           <Route path="/reports/vat-tax" element={<ReportsVatPage />} />
           <Route path="/reports/compliance" element={<ReportsCompliancePage />} />
           <Route path="/reports/lists" element={<ReportsListsPage />} />
-          <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
-          <Route path="/expenditure/debit-notes/:id" element={<SupplierDebitNoteDetailPage />} />
+          <Route
+            path="/expenditure/debit-notes/upload"
+            element={
+              <PlanGated feature="supplierNotes">
+                <UploadDebitNotePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/expenditure/debit-notes/:id"
+            element={
+              <PlanGated feature="supplierNotes">
+                <SupplierDebitNoteDetailPage />
+              </PlanGated>
+            }
+          />
           <Route path="/expenditure/reminders" element={<ExpenditureRemindersPage />} />
           <Route path="/stock" element={<StockPage />} />
           <Route path="/stock/:id" element={<StockDetailPage />} />
@@ -277,60 +350,289 @@ function App() {
           <Route path="/pos/close" element={<PosClosePage />} />
           <Route path="/pos/refund" element={<PosRefundPage />} />
           <Route path="/income/debit-notes" element={<DebitNotesPage />} />
-          <Route path="/trade-documents/quotations" element={<QuotationsPage />} />
-          <Route path="/trade-documents/quotations/new" element={<NewQuotationPage />} />
-          <Route path="/trade-documents/quotations/:id" element={<QuotationDetailPage />} />
-          <Route path="/trade-documents/order-forms" element={<OrderFormsPage />} />
-          <Route path="/trade-documents/order-forms/new" element={<NewOrderFormPage />} />
-          <Route path="/trade-documents/order-forms/:id" element={<OrderFormDetailPage />} />
-          <Route path="/trade-documents/delivery-notes" element={<DeliveryNotesPage />} />
-          <Route path="/trade-documents/delivery-notes/new" element={<NewDeliveryNotePage />} />
-          <Route path="/trade-documents/delivery-notes/:id" element={<DeliveryNoteDetailPage />} />
+          <Route
+            path="/trade-documents/quotations"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <QuotationsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/quotations/new"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <NewQuotationPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/quotations/:id"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <QuotationDetailPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/order-forms"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <OrderFormsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/order-forms/new"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <NewOrderFormPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/order-forms/:id"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <OrderFormDetailPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/delivery-notes"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <DeliveryNotesPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/delivery-notes/new"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <NewDeliveryNotePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/trade-documents/delivery-notes/:id"
+            element={
+              <PlanGated feature="tradeDocuments">
+                <DeliveryNoteDetailPage />
+              </PlanGated>
+            }
+          />
           <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id/edit" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
-          <Route path="/income/self-billing" element={<SelfBillingPage />} />
-          <Route path="/income/self-billing/agreements" element={<AgreementsPage />} />
-          <Route path="/income/self-billing/new" element={<NewSelfBillPage />} />
-          <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
+          <Route
+            path="/income/self-billing"
+            element={
+              <PlanGated feature="selfBilling">
+                <SelfBillingPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/self-billing/agreements"
+            element={
+              <PlanGated feature="selfBilling">
+                <AgreementsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/self-billing/new"
+            element={
+              <PlanGated feature="selfBilling">
+                <NewSelfBillPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/self-billing/:id"
+            element={
+              <PlanGated feature="selfBilling">
+                <SelfBillDetailPage />
+              </PlanGated>
+            }
+          />
           {/* One settings page, one address. It lived at both paths, so the Settings one now
               points at the Income one rather than rendering a second copy of it. */}
-          <Route path="/settings/payment-reminders" element={<Navigate to="/income/reminders/settings" replace />} />
-          <Route path="/settings/erp-mapping" element={<ErpOverviewPage />} />
-          <Route path="/settings/erp-mapping/fields" element={<ErpFieldsPage />} />
-          <Route path="/settings/erp-mapping/preview" element={<ErpPreviewPage />} />
-          <Route path="/settings/erp-mapping/certification" element={<ErpCertificationPage />} />
-          <Route path="/settings/erp-mapping/advanced" element={<ErpAdvancedPage />} />
-          <Route path="/settings/erp-mapping/history" element={<ErpHistoryPage />} />
-          <Route path="/settings/erp-mapping/samples" element={<ErpSamplesPage />} />
-          <Route path="/settings/erp/connections" element={<ErpConnectionsPage />} />
-          <Route path="/settings/erp/connections/new" element={<ErpConnectPage />} />
-          <Route path="/settings/erp/connections/:id" element={<ConnectionOverviewPage />} />
-          <Route path="/settings/erp/connections/:id/mapping" element={<ConnectionMappingPage />} />
-          <Route path="/settings/erp/connections/:id/runs" element={<ConnectionRunsPage />} />
+          <Route
+            path="/settings/payment-reminders"
+            element={<Navigate to="/income/reminders/settings" replace />}
+          />
+          <Route
+            path="/settings/erp-mapping"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpOverviewPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp-mapping/fields"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpFieldsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp-mapping/preview"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpPreviewPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp-mapping/certification"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpCertificationPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp-mapping/advanced"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpAdvancedPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp-mapping/history"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpHistoryPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp-mapping/samples"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpSamplesPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/connections"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpConnectionsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/connections/new"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpConnectPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/connections/:id"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionOverviewPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/connections/:id/mapping"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionMappingPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/connections/:id/runs"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionRunsPage />
+              </PlanGated>
+            }
+          />
           <Route
             path="/settings/erp/connections/:id/runs/:runId"
-            element={<ConnectionRunsPage />}
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionRunsPage />
+              </PlanGated>
+            }
           />
-          <Route path="/settings/erp/connections/:id/records" element={<ConnectionRecordsPage />} />
+          <Route
+            path="/settings/erp/connections/:id/records"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionRecordsPage />
+              </PlanGated>
+            }
+          />
           <Route
             path="/settings/erp/connections/:id/records/:recordId"
-            element={<ConnectionRecordsPage />}
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionRecordsPage />
+              </PlanGated>
+            }
           />
           <Route
             path="/settings/erp/connections/:id/write-back"
-            element={<ConnectionWriteBackPage />}
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionWriteBackPage />
+              </PlanGated>
+            }
           />
           <Route
             path="/settings/erp/connections/:id/settings"
-            element={<ConnectionSettingsPage />}
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionSettingsPage />
+              </PlanGated>
+            }
           />
           <Route path="/income/reminders" element={<RemindersPage />} />
           <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
-          <Route path="/income/periodic" element={<PeriodicInvoicesPage />} />
-          <Route path="/income/periodic/new" element={<PeriodicInvoicePage mode="create" />} />
-          <Route path="/income/periodic/:id" element={<PeriodicInvoicePage mode="view" />} />
-          <Route path="/income/periodic/:id/edit" element={<PeriodicInvoicePage mode="edit" />} />
+          <Route
+            path="/income/periodic"
+            element={
+              <PlanGated feature="recurringInvoices">
+                <PeriodicInvoicesPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/periodic/new"
+            element={
+              <PlanGated feature="recurringInvoices">
+                <PeriodicInvoicePage mode="create" />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/periodic/:id"
+            element={
+              <PlanGated feature="recurringInvoices">
+                <PeriodicInvoicePage mode="view" />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/periodic/:id/edit"
+            element={
+              <PlanGated feature="recurringInvoices">
+                <PeriodicInvoicePage mode="edit" />
+              </PlanGated>
+            }
+          />
           <Route path="/income/credit-notes" element={<CreditNotesPage />} />
           <Route path="/income/credit-notes/new" element={<NewCreditNotePage />} />
           <Route path="/income/credit-notes/:id/edit" element={<NewCreditNotePage />} />

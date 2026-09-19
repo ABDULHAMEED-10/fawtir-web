@@ -435,6 +435,95 @@ None is started; each is a decision for the client when the backend can carry it
 Not planned on purpose: impersonation ("log in as tenant") and any console entry of tenant secrets.
 Support sees the tenant's state read-only and sends the tenant to the right screen.
 
+### 9.5 Plan model (settled 20 Sep 2026)
+
+The client's ruling, final: plans differ by **features** and by **limits**, both set from the
+console. `src/lib/plans.ts` is the one file that holds it (`FEATURES`, `FEATURE_GROUPS`,
+`hasFeature`, `lowestPlanWith`, `EXTRACTION_AVAILABILITY_DEFAULT`, `TRIAL`); every screen that
+prints a plan reads it from there.
+
+**Who each plan is for.** Starter — a shop or service with no system of its own. Business —
+every Fawtir feature, for a business run in Fawtir. Business Plus — everything, plus the ways in
+for a system of your own. Enterprise — Business Plus with limits agreed on a call; nothing else
+differs.
+
+| Feature (`Feature` id) | Starter | Business | Business Plus | Enterprise |
+|---|---|---|---|---|
+| *Income* | | | | |
+| Tax invoices (`invoices`) † | ✓ | ✓ | ✓ | ✓ |
+| Credit notes (`creditNotes`) † | ✓ | ✓ | ✓ | ✓ |
+| Debit notes (`debitNotes`) † | ✓ | ✓ | ✓ | ✓ |
+| Bulk upload (`bulkUpload`) | ✓ | ✓ | ✓ | ✓ |
+| Payment reminders (`incomeReminders`) | ✓ | ✓ | ✓ | ✓ |
+| Recurring invoices (`recurringInvoices`) | — | ✓ | ✓ | ✓ |
+| Self-billing (`selfBilling`) | — | ✓ | ✓ | ✓ |
+| Trade documents (`tradeDocuments`) | — | ✓ | ✓ | ✓ |
+| *Expenditure* | | | | |
+| Bill tracking — received over Peppol, scanned or uploaded, with reminders (`billTracking`) | ✓ | ✓ | ✓ | ✓ |
+| Supplier credit and debit notes (`supplierNotes`) | — | ✓ | ✓ | ✓ |
+| Recurring bills (`recurringBills`) | — | ✓ | ✓ | ✓ |
+| Approval workflow (`approvals`) | — | ✓ | ✓ | ✓ |
+| *Operations* | | | | |
+| Point of sale (`pos`) | ✓ | ✓ | ✓ | ✓ |
+| Catalogue (`catalogue`) | ✓ | ✓ | ✓ | ✓ |
+| Stock (`stock`) | ✓ | ✓ | ✓ | ✓ |
+| Reports (`reports`) | ✓ | ✓ | ✓ | ✓ |
+| *People* | | | | |
+| Roles and permissions (`rolesAndPermissions`) | ✓ | ✓ | ✓ | ✓ |
+| Branches (`multiBranch`) — limits differ | ✓ | ✓ | ✓ | ✓ |
+| *Integration* | | | | |
+| API (`api`) | — | — | ✓ | ✓ |
+| Webhooks (`webhooks`) | — | — | ✓ | ✓ |
+| ERP field mapping (`erpMapping`) | — | — | ✓ | ✓ |
+| **Automatic ERP extraction** (add-on, availability per plan) | not offered | not offered | add-on, priced | included |
+| **Monthly price** (placeholder; the console changes it) | 50.000 | 150.000 | 300.000 | negotiated |
+
+† Compliance, never gated: every plan issues tax invoices, credit notes and debit notes, and
+sends and receives over Peppol. The console lists these as **Fixed by design** and cannot switch
+them off; the compare table shows them so a buyer sees they are there.
+
+Rules that follow from the table:
+
+- **Prices** are 50 / 150 / 300 rial a month, annual = ten months (41.667 / 125.000 / 250.000
+  a month equivalent). Placeholders until the console's Plans and rates sets the live ones; shown
+  everywhere, hidden nowhere.
+- **Extraction add-on availability** is a console setting per plan (`notOffered` · `priced` ·
+  `included`), Console settings › Add-ons. Defaults: Starter and Business not offered, Business
+  Plus priced (20.000 a month, 1,000 documents, 0.020 overage), Enterprise included. *Not
+  offered* hides the add-on from that plan's Connected systems screen and blocks Approve on the
+  console's Add-on requests queue; *included* switches it on without the add-on price the moment
+  the tenant asks. ERP field mapping is not the add-on: it follows the plan's feature switch.
+- **Trial**: 14 days of the plan the tenant chose (`lifecycle.trialPlan = 'chosen'`; the console
+  may pin one plan instead), offered on Starter, Business and Business Plus and never on
+  Enterprise, which starts from a contract (`lifecycle.trialOfferedOn`). 25 documents, no card,
+  never converts by itself.
+- **Compliance is never gated** — see †. No plan, trial or suspension state removes invoices,
+  credit notes, debit notes or Peppol.
+- **Tenant-side gating**: a module the plan lacks is shown **greyed with an upgrade nudge** — **built but switched off for now** (client, 20 Sep 2026: "not needed yet, later"; `PLAN_GATING_ENABLED = false` in `src/lib/planAccess.ts` turns it on)
+  ("Available on Business — see plans", from `lowestPlanWith`), never hidden. The nudge links to
+  Settings › Plan.
+
+What changed in the UI (20 Sep 2026):
+
+- Sign-up plans page and the compare table: the four plans with the feature matrix above, the
+  new prices, extraction as its own row, the trial line per plan.
+- Settings › Plan: the current plan's features, the same matrix, the upgrade path.
+- Console settings › Trial and lifecycle: *Trial mirrors* became **Trial plan** ("the plan the
+  tenant picks" or a fixed plan) plus **Trial offered on** (Starter · Business · Business Plus;
+  Enterprise shown locked off). Trial length defaults to 14 days.
+- Console settings › Add-ons: *Included at* became an **Availability per plan** table (not
+  offered · add-on · included, one row per plan); the ERP mapping line is read-only "Follows the
+  plan's feature switch — Business Plus and Enterprise at launch".
+- Console › Add-on requests: a request from a plan that does not offer the add-on carries a
+  "Not offered on {plan} — upgrade first" chip and Approve is disabled; an included plan's
+  Approve summary says "Included in the plan — no charge".
+- Tenant gating: greyed modules with the nudge, per the rule above.
+- Settings › Integration › Connected systems, add-on not active: the card follows the tenant's
+  plan — not offered (which plan carries it, link to plans, no button), included ("Switch on —
+  included in your plan", active at once), priced (unchanged). The mapping strip now reads "ERP
+  field mapping is part of the Business Plus and Enterprise plans — the connector only automates
+  the collecting."
+
 ---
 
 ## Appendix A — ERP mapping: element inventory (spec 1, `ERP_MAPPING_SPEC-2026-09-11.md`)
@@ -546,20 +635,20 @@ Every row is a control on `/console/plans` or `/console/settings`. Default = lau
 | Setting | Default (Starter · Business · Business Plus · Enterprise) | Control |
 |---|---|---|
 | Band, documents/month | 200 · 1,000 · 3,000 · on request | number |
-| Monthly price | 12.000 · 28.000 · 55.000 · negotiated | money, rial sign |
-| Annual | two months free → 10.000 · 23.333 · 45.833 shown derived | rule |
+| Monthly price | 50.000 · 150.000 · 300.000 · negotiated (placeholders, 20 Sep 2026) | money, rial sign |
+| Annual | two months free → 41.667 · 125.000 · 250.000 shown derived | rule |
 | Quarterly | monthly rate, no discount | rule |
 | Users included | 2 · 5 · 10 · unlimited | number / unlimited |
 | Extra user per month | 3.000 · 2.500 · 2.500 · negotiated | money |
 | Branches included | 1 · 2 · 5 · unlimited | number / unlimited |
 | Extra branch per month | upgrade required · 8.000 · 8.000 · negotiated | money / upgrade |
 | Overage rate per document | 0.090 · 0.040 · 0.026 · n/a | money |
-| Features | RBAC (— ✓ ✓ ✓), recurring invoices and bills (— ✓ ✓ ✓), approval workflow (— — ✓ ✓), REST API + sandbox (— ✓ ✓ ✓), webhooks + file transfer (— — ✓ ✓), SSO (Ent), custom reports (Ent), white label (Ent), support Email · Email · Email and chat · Account manager, SLA (Ent) | switches |
-| ERP field mapping | included on every plan | locked switch |
-| Automatic ERP extraction | add-on on every plan, included at Enterprise | add-on / included |
+| Features | the §9.5 matrix: compliance documents on every plan (locked); Starter also bulk upload, payment reminders, bill tracking, POS, catalogue, stock, reports, roles, branches; Business adds recurring invoices and bills, self-billing, trade documents, supplier notes, approvals; Business Plus and Enterprise add API, webhooks, ERP mapping; support Email · Email · Email and chat · Account manager | switches, per feature per plan |
+| ERP field mapping | per plan: Business Plus and Enterprise (a feature switch, not an add-on) | switch |
+| Automatic ERP extraction | availability per plan: not offered · not offered · add-on · included | not offered / add-on / included |
 | Maximum API keys | set per plan | number |
 | Accountant and auditor seats | free on every plan, read and export | locked rule |
-| Trial mirrors | Business | plan picker |
+| Trial | 14 days of the chosen plan, not on Enterprise | plan picker ("the plan the tenant picks" or a fixed plan) + offered-on checkboxes |
 | Point of sale | no separate plan, no terminal charge; POS simplified invoices count against the plan allowance (settled 15 Sep) | locked rule |
 | Publish model | live vs draft; a change applies to new subscriptions only; grandfathered count shown | publish + date |
 | Enterprise | configured per tenant, never public — on tenant detail | — |
@@ -609,9 +698,9 @@ Every row is a control on `/console/plans` or `/console/settings`. Default = lau
 | Setting | Default |
 |---|---|
 | Default plan for a new tenant | the trial |
-| Trial length | 15 days |
+| Trial length | 14 days (20 Sep 2026; was 15) |
 | Trial allowance | 25 documents |
-| Trial mirrors | Business |
+| Trial plan | the plan the tenant picked; offered on Starter, Business, Business Plus — never Enterprise |
 | Trial auto-converts | No |
 | Payment details required for trial | No |
 | Auto-renewal | On |

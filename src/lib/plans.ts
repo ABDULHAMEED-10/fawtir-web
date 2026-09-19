@@ -1,20 +1,122 @@
 /**
- * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6 and
- * `Fawtir_Subscription_Defaults` (Sep 2026).
+ * The plan catalogue as launched — `Fawtir_Pricing_Model.pdf` §2, §4, §6,
+ * `Fawtir_Subscription_Defaults` (Sep 2026) and the client's plan ruling of 19–20 Sep 2026
+ * (docs/erp-and-console-plan.md §9.5).
  *
  * Every figure here is a launch default, not a commitment: the backend holds the live catalogue
  * (`GET /platform/plans`, edited in the console's Plans and rates) and the tenant's own plan
  * screen will read it from there. Until those screens are integrated, every mock that prints a
  * price — Settings › Plan and Bills, the sign-up plans, the console's tenants — reads this one
- * file, so the app cannot show three different price lists again (it did: 19/49/89 in Settings
- * and the console, 12/35 at sign-up, against the pricing doc's 12/28/55).
+ * file, so the app cannot show three different price lists again.
  *
- * The client's ruling of 15 Sep 2026: align to the pricing doc now, the console makes it
- * configurable later. Point of sale has no separate plan and no terminal charge; a POS simplified
- * invoice counts against the plan allowance like any other document.
+ * The model (20 Sep 2026): plans differ by **features** and by **limits**; both are set from the
+ * console. Starter is for a shop with no system of its own — invoices, notes, POS, bill tracking.
+ * Business is every Fawtir feature except the ways in for another system (API, webhooks, ERP).
+ * Business Plus is everything. Enterprise is Business Plus with limits agreed on a call. Every
+ * plan can issue every compliance document (invoice, credit note, debit note) and send and
+ * receive over Peppol — compliance is never gated. Automatic ERP extraction stays a separate
+ * add-on; which plans may buy it, and which get it free, is a console setting.
  */
 
 export type PlanId = 'starter' | 'business' | 'businessPlus'
+/** A plan the sign-up flow and the compare table can name, Enterprise included. */
+export type AnyPlanId = PlanId | 'enterprise'
+export const ANY_PLAN_IDS: AnyPlanId[] = ['starter', 'business', 'businessPlus', 'enterprise']
+
+/**
+ * Everything a plan can switch on or off. Compliance documents are here so the compare table can
+ * show them, but they are on for every plan and the console cannot switch them off.
+ */
+export type Feature =
+  | 'invoices'
+  | 'creditNotes'
+  | 'debitNotes'
+  | 'bulkUpload'
+  | 'incomeReminders'
+  | 'recurringInvoices'
+  | 'selfBilling'
+  | 'tradeDocuments'
+  | 'billTracking'
+  | 'supplierNotes'
+  | 'recurringBills'
+  | 'approvals'
+  | 'pos'
+  | 'catalogue'
+  | 'stock'
+  | 'reports'
+  | 'rolesAndPermissions'
+  | 'multiBranch'
+  | 'api'
+  | 'webhooks'
+  | 'erpMapping'
+
+/** The order the compare table and the plan editor list features in, grouped by area. */
+export const FEATURE_GROUPS: { id: string; features: Feature[] }[] = [
+  {
+    id: 'income',
+    features: [
+      'invoices',
+      'creditNotes',
+      'debitNotes',
+      'bulkUpload',
+      'incomeReminders',
+      'recurringInvoices',
+      'selfBilling',
+      'tradeDocuments',
+    ],
+  },
+  { id: 'expenditure', features: ['billTracking', 'supplierNotes', 'recurringBills', 'approvals'] },
+  { id: 'operations', features: ['pos', 'catalogue', 'stock', 'reports'] },
+  { id: 'people', features: ['rolesAndPermissions', 'multiBranch'] },
+  { id: 'integration', features: ['api', 'webhooks', 'erpMapping'] },
+]
+export const FEATURE_LIST: Feature[] = FEATURE_GROUPS.flatMap((g) => g.features)
+
+/** Compliance never gated: on for every plan, locked in the console. */
+export const COMPLIANCE_FEATURES: Feature[] = ['invoices', 'creditNotes', 'debitNotes']
+
+const STARTER_FEATURES: Feature[] = [
+  'invoices',
+  'creditNotes',
+  'debitNotes',
+  'bulkUpload',
+  'incomeReminders',
+  'billTracking',
+  'pos',
+  'catalogue',
+  'stock',
+  'reports',
+  'rolesAndPermissions',
+  'multiBranch',
+]
+const INTEGRATION_FEATURES: Feature[] = ['api', 'webhooks', 'erpMapping']
+
+const matrix = (on: Feature[]): Record<Feature, boolean> =>
+  Object.fromEntries(FEATURE_LIST.map((f) => [f, on.includes(f)])) as Record<Feature, boolean>
+
+/** Which plan has which feature. Enterprise is Business Plus. */
+export const FEATURES: Record<AnyPlanId, Record<Feature, boolean>> = {
+  starter: matrix(STARTER_FEATURES),
+  business: matrix(FEATURE_LIST.filter((f) => !INTEGRATION_FEATURES.includes(f))),
+  businessPlus: matrix(FEATURE_LIST),
+  enterprise: matrix(FEATURE_LIST),
+}
+
+export const hasFeature = (plan: AnyPlanId, feature: Feature) => FEATURES[plan][feature]
+
+/** The lowest plan that carries a feature — what an upgrade nudge names. */
+export function lowestPlanWith(feature: Feature): AnyPlanId {
+  return ANY_PLAN_IDS.find((id) => FEATURES[id][feature]) ?? 'enterprise'
+}
+
+/** How a plan may have automatic ERP extraction — the console's Add-ons setting, per plan. */
+export type ExtractionAvailability = 'notOffered' | 'priced' | 'included'
+export const EXTRACTION_AVAILABILITY_DEFAULT: Record<AnyPlanId, ExtractionAvailability> = {
+  starter: 'notOffered',
+  business: 'notOffered',
+  businessPlus: 'priced',
+  enterprise: 'included',
+}
 
 export type CataloguePlan = {
   id: PlanId
@@ -34,6 +136,8 @@ export type CataloguePlan = {
   extraBranch: number | null
   /** Per document past the allowance when overage is on. */
   overage: number
+  features: Record<Feature, boolean>
+  /** Kept for the screens drawn against the earlier shape; each mirrors `features`. */
   api: boolean
   webhooks: boolean
   approvals: boolean
@@ -43,67 +147,70 @@ export type CataloguePlan = {
   supportKey: string
 }
 
+const plan = (
+  base: Omit<
+    CataloguePlan,
+    'features' | 'api' | 'webhooks' | 'approvals' | 'recurring' | 'roleBasedAccess'
+  >,
+): CataloguePlan => {
+  const features = FEATURES[base.id]
+  return {
+    ...base,
+    features,
+    api: features.api,
+    webhooks: features.webhooks,
+    approvals: features.approvals,
+    recurring: features.recurringInvoices,
+    roleBasedAccess: features.rolesAndPermissions,
+  }
+}
+
 export const CATALOGUE: readonly CataloguePlan[] = [
-  {
+  plan({
     id: 'starter',
     code: 'STARTER',
     labelKey: 'plan.planName.starter',
-    monthly: 12,
+    monthly: 50,
     documents: 200,
     people: 2,
     branches: 1,
     extraPerson: 3,
     extraBranch: null,
     overage: 0.09,
-    api: false,
-    webhooks: false,
-    approvals: false,
-    recurring: false,
-    roleBasedAccess: false,
     prioritySupport: false,
     supportKey: 'plan.support.email',
-  },
-  {
+  }),
+  plan({
     id: 'business',
     code: 'BUSINESS',
     labelKey: 'plan.planName.business',
-    monthly: 28,
+    monthly: 150,
     documents: 1_000,
     people: 5,
     branches: 2,
     extraPerson: 2.5,
     extraBranch: 8,
     overage: 0.04,
-    api: true,
-    webhooks: false,
-    approvals: false,
-    recurring: true,
-    roleBasedAccess: true,
     prioritySupport: false,
     supportKey: 'plan.support.email',
-  },
-  {
+  }),
+  plan({
     id: 'businessPlus',
     code: 'BUSINESS_PLUS',
     labelKey: 'plan.planName.businessPlus',
-    monthly: 55,
+    monthly: 300,
     documents: 3_000,
     people: 10,
     branches: 5,
     extraPerson: 2.5,
     extraBranch: 8,
     overage: 0.026,
-    api: true,
-    webhooks: true,
-    approvals: true,
-    recurring: true,
-    roleBasedAccess: true,
     prioritySupport: true,
     supportKey: 'plan.support.emailAndChat',
-  },
+  }),
 ]
 
-export const PLAN = Object.fromEntries(CATALOGUE.map((plan) => [plan.id, plan])) as Record<
+export const PLAN = Object.fromEntries(CATALOGUE.map((p) => [p.id, p])) as Record<
   PlanId,
   CataloguePlan
 >
@@ -111,28 +218,38 @@ export const PLAN = Object.fromEntries(CATALOGUE.map((plan) => [plan.id, plan]))
 /** Annual billing gives two months free — twelve months for the price of ten. */
 export const ANNUAL_FREE_MONTHS = 2
 
-/** The monthly-equivalent rate when billed annually: 12.000 → 10.000, 28.000 → 23.333. */
-export const annualMonthly = (plan: CataloguePlan) =>
-  Math.round(((plan.monthly * (12 - ANNUAL_FREE_MONTHS)) / 12) * 1000) / 1000
+/** The monthly-equivalent rate when billed annually: 50.000 → 41.667, 150.000 → 125.000. */
+export const annualMonthly = (p: CataloguePlan) =>
+  Math.round(((p.monthly * (12 - ANNUAL_FREE_MONTHS)) / 12) * 1000) / 1000
 
 /** The whole year, paid at once. */
-export const annualTotal = (plan: CataloguePlan) => plan.monthly * (12 - ANNUAL_FREE_MONTHS)
+export const annualTotal = (p: CataloguePlan) => p.monthly * (12 - ANNUAL_FREE_MONTHS)
 
 /** VAT on Fawtir's own subscription invoices; prices are shown exclusive. */
 export const SUBSCRIPTION_VAT = 0.05
 
 /**
- * Enterprise is configured per customer after a contract is signed — price, band, seats,
- * features and terms all set for that tenant alone. It is never priced publicly.
+ * Enterprise is Business Plus with limits agreed on a call — documents, people, branches, price
+ * are set per tenant after a contract is signed and never priced publicly. Same features.
  */
-export const ENTERPRISE = { labelKey: 'plan.planName.enterprise' } as const
+export const ENTERPRISE = {
+  labelKey: 'plan.planName.enterprise',
+  features: FEATURES.enterprise,
+} as const
 
-/** The trial every new tenant starts on. */
+/**
+ * The trial every new tenant starts on: 14 days of the plan they chose, on every plan except
+ * Enterprise (which starts from a contract). Nothing is charged and it never converts by itself.
+ */
 export const TRIAL = {
-  days: 15,
+  days: 14,
   documents: 25,
-  /** The plan whose features the trial carries. */
-  mirrors: 'business' as PlanId,
+  /** The trial carries the chosen plan's own features, not a fixed plan's. */
+  ofChosenPlan: true,
+  /** Plans that offer a trial. */
+  offeredOn: ['starter', 'business', 'businessPlus'] as PlanId[],
   autoConverts: false,
   paymentDetailsRequired: false,
 } as const
+
+export const trialOffered = (id: AnyPlanId) => id !== 'enterprise'

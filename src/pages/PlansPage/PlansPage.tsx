@@ -3,7 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BackButton, OmAmount, PricingCard, SegmentedControl } from '../../components/ui'
 import { ChevronDownIcon } from '../../components/ui/icons'
-import { CATALOGUE, TRIAL, annualMonthly, type CataloguePlan } from '../../lib/plans'
+import {
+  CATALOGUE,
+  TRIAL,
+  annualMonthly,
+  type AnyPlanId,
+  type CataloguePlan,
+} from '../../lib/plans'
 import type { PlanId } from '../../lib/pricing'
 import { PlanComparison, PlanFaq } from './PlanComparison'
 import patternLeft from '../../assets/plans/pattern-left.png'
@@ -15,22 +21,42 @@ import invoiceIcon from '../../assets/plans/invoice.svg'
 import invoiceWhiteIcon from '../../assets/plans/invoice-white.svg'
 import usersIcon from '../../assets/plans/users.svg'
 import usersWhiteIcon from '../../assets/plans/users-white.svg'
-import unlimitedIcon from '../../assets/plans/unlimited.svg'
 
 type BillingCycle = 'monthly' | 'annual'
 
 /**
- * The sign-up flow's four plans, drawn from the launch catalogue (`Fawtir_Pricing_Model` §2, §6):
- * Starter, Business, Business Plus and Enterprise. The design drew three; the pricing doc has
- * four, so Business Plus takes the same card. `premium` is the flow's own id for Business.
+ * The sign-up flow's four plans, drawn from the launch catalogue (`Fawtir_Pricing_Model` §2, §6
+ * and the plan ruling of 20 Sep 2026): Starter, Business, Business Plus and Enterprise. The
+ * design drew three; the pricing doc has four, so Business Plus takes the same card. `premium` is
+ * the flow's own id for Business; `audience` is the catalogue's id, which names who the plan is
+ * for. Enterprise is Business Plus with limits agreed on a call, so it has no figure to print.
  */
-const CARDS: { id: PlanId; plan?: CataloguePlan; key: string; features: number; dark?: boolean }[] =
-  [
-    { id: 'starter', plan: CATALOGUE[0], key: 'starter', features: 5 },
-    { id: 'premium', plan: CATALOGUE[1], key: 'premium', features: 6, dark: true },
-    { id: 'businessPlus', plan: CATALOGUE[2], key: 'businessPlus', features: 5 },
-    { id: 'enterprise', key: 'enterprise', features: 5 },
-  ]
+const CARDS: {
+  id: PlanId
+  plan?: CataloguePlan
+  key: string
+  audience: AnyPlanId
+  features: number
+  dark?: boolean
+}[] = [
+  { id: 'starter', plan: CATALOGUE[0], key: 'starter', audience: 'starter', features: 6 },
+  {
+    id: 'premium',
+    plan: CATALOGUE[1],
+    key: 'premium',
+    audience: 'business',
+    features: 5,
+    dark: true,
+  },
+  {
+    id: 'businessPlus',
+    plan: CATALOGUE[2],
+    key: 'businessPlus',
+    audience: 'businessPlus',
+    features: 5,
+  },
+  { id: 'enterprise', key: 'enterprise', audience: 'enterprise', features: 3 },
+]
 
 const COMPARE_ID = 'compare'
 
@@ -117,7 +143,8 @@ export function PlansPage() {
         />
 
         <div className="flex flex-1 flex-col items-center">
-          <h1 className="pt-2.5 text-center text-[32px] font-semibold leading-[1.2] text-text-primary lg:whitespace-nowrap">
+          {/* On a phone the title wraps under the Back button's row, so it steps down past it. */}
+          <h1 className="pt-2.5 text-center text-[32px] font-semibold leading-[1.2] text-text-primary max-md:mt-12 lg:whitespace-nowrap">
             {t('plans.title')}
           </h1>
           <p className="mt-[7px] max-w-[479px] text-center text-base font-medium leading-[1.2] text-text-quaternary">
@@ -142,7 +169,7 @@ export function PlansPage() {
 
           {/* Four cards in a row where they fit, wrapping to two rows on narrower desktops. */}
           <div className="mt-[51px] flex w-full flex-col items-center justify-center gap-8 lg:flex-row lg:flex-wrap lg:items-end lg:gap-[34px]">
-            {CARDS.map(({ id, plan, key, features, dark = false }) => {
+            {CARDS.map(({ id, plan, key, audience, features, dark = false }) => {
               const check = dark ? checkWhiteIcon : checkIcon
               const iconSize = dark ? 'size-[18px]' : 'size-4'
               return (
@@ -151,7 +178,7 @@ export function PlansPage() {
                   variant={dark ? 'dark' : 'light'}
                   badge={dark ? t('plans.mostPopular') : undefined}
                   name={t(`plans.${key}.name`)}
-                  description={t(`plans.${key}.description`)}
+                  description={t(`plan.audience.${audience}`)}
                   priceLabel={
                     plan ? (
                       price(plan, dark)
@@ -165,18 +192,18 @@ export function PlansPage() {
                   checkIcon={check}
                   stats={[
                     {
-                      value: plan ? count(plan.documents) : t('plans.unlimited'),
+                      value: plan ? count(plan.documents) : t('plans.enterprise.limits'),
                       label: plan ? t('plans.invoicesPerMonth') : t('plans.invoices'),
                       icon: (
                         <img
-                          src={plan ? (dark ? invoiceWhiteIcon : invoiceIcon) : unlimitedIcon}
+                          src={dark ? invoiceWhiteIcon : invoiceIcon}
                           alt=""
                           className={iconSize}
                         />
                       ),
                     },
                     {
-                      value: plan ? count(plan.people) : t('plans.unlimited'),
+                      value: plan ? count(plan.people) : t('plans.enterprise.limits'),
                       label: plan ? t('plans.usersIncluded') : t('plans.users'),
                       icon: (
                         <img src={dark ? usersWhiteIcon : usersIcon} alt="" className={iconSize} />

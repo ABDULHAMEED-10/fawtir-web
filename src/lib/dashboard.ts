@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react'
+import type { Feature } from './plans'
 import { ATTENTION_COUNT } from './activity'
 import salesIcon from '../assets/dashboard/kpi-sales.svg'
 import receivablesIcon from '../assets/dashboard/kpi-receivables.svg'
@@ -24,6 +25,11 @@ export type NavChild = {
   to: string
   /** The permission the destination's first read needs; the entry is hidden from anyone without it. */
   requires?: string
+  /**
+   * The plan feature the destination is part of. Unlike `requires`, a plan that lacks it does
+   * not hide the entry: it shows greyed with a lock and leads to the upgrade nudge.
+   */
+  feature?: Feature
 }
 
 export type NavItem = {
@@ -35,6 +41,8 @@ export type NavItem = {
   children?: NavChild[]
   /** As on `NavChild`. A group whose every child is hidden is hidden too. */
   requires?: string
+  /** As on `NavChild`; a group's feature locks each of its children. */
+  feature?: Feature
 }
 
 export type NavGroup = {
@@ -93,6 +101,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'selfBilling',
             labelKey: 'dashboard.nav.incomeChildren.selfBilling',
             to: '/income/self-billing',
+            feature: 'selfBilling',
           },
           {
             id: 'reminders',
@@ -103,6 +112,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'periodic',
             labelKey: 'dashboard.nav.incomeChildren.periodic',
             to: '/income/periodic',
+            feature: 'recurringInvoices',
           },
           {
             id: 'creditNotes',
@@ -138,16 +148,19 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'recurringBills',
             labelKey: 'dashboard.nav.expenditureChildren.recurringBills',
             to: '/expenditure/recurring-bills',
+            feature: 'recurringBills',
           },
           {
             id: 'creditNotes',
             labelKey: 'dashboard.nav.expenditureChildren.creditNotes',
             to: '/expenditure/credit-notes',
+            feature: 'supplierNotes',
           },
           {
             id: 'debitNotes',
             labelKey: 'dashboard.nav.expenditureChildren.debitNotes',
             to: '/expenditure/debit-notes',
+            feature: 'supplierNotes',
           },
           {
             id: 'reminders',
@@ -163,6 +176,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
         labelKey: 'dashboard.nav.tradeDocuments',
         Icon: NavDocumentsIcon,
         to: '/trade-documents/quotations',
+        feature: 'tradeDocuments',
         children: [
           {
             id: 'quotations',

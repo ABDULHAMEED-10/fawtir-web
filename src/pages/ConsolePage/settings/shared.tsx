@@ -179,6 +179,39 @@ export function SelectField({
   )
 }
 
+/**
+ * A labelled row of checkboxes — which plans offer the trial. Takes the whole width of the
+ * `FieldGrid` it sits in, so the options read as one line under one label.
+ */
+export function OptionGroup({
+  label,
+  hint,
+  error,
+  children,
+}: {
+  label: string
+  hint?: string
+  /** The message to show, already translated. */
+  error?: string
+  children: ReactNode
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="flex w-full min-w-0 flex-col gap-1 sm:col-span-2"
+    >
+      <span className="text-sm font-medium text-text-primary">{label}</span>
+      <div className="flex min-h-11 flex-wrap items-center gap-x-6 gap-y-2.5 py-1">{children}</div>
+      {error ? (
+        <p className="text-xs font-medium text-text-danger">{error}</p>
+      ) : hint ? (
+        <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">{hint}</p>
+      ) : null}
+    </div>
+  )
+}
+
 /** A number typed as text, validated on Save — the plan editor's idiom. */
 export function NumberField({
   name,

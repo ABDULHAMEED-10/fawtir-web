@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Popover } from '../ui'
 import { ACCOUNTS, type Branch } from '../../lib/shell'
+import { useTenantPlan } from '../../lib/planAccess'
 import bahjaLogo from '../../assets/dashboard/bahja-logo.svg'
 import chevron from '../../assets/dashboard/chevron.svg'
 
@@ -14,6 +15,8 @@ import chevron from '../../assets/dashboard/chevron.svg'
  */
 export function AccountSwitcher() {
   const { t } = useTranslation()
+  // The plan is the account's, read from the plan store so a switched plan shows here too.
+  const planLabel = t('shell.plan.named', { plan: t(`plan.planName.${useTenantPlan()}`) })
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState<Branch>(ACCOUNTS[0])
@@ -35,7 +38,7 @@ export function AccountSwitcher() {
               {current.name}
             </span>
             <span className="block truncate text-xs font-medium leading-[1.2] text-text-quaternary">
-              {t(current.planKey)}
+              {planLabel}
             </span>
           </span>
         </span>
@@ -81,7 +84,7 @@ export function AccountSwitcher() {
           })}
         </ul>
         <p className="border-t border-border-subtle px-3 py-2.5 text-xs font-medium text-text-quaternary">
-          {t('shell.account.planNote', { plan: t(current.planKey) })}
+          {t('shell.account.planNote', { plan: planLabel })}
         </p>
       </Popover>
     </>
