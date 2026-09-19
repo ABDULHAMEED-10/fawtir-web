@@ -443,7 +443,7 @@ bilingual invoices, ten-year archive, compliance log), one reports row naming th
 and the notices, so a buyer sees the whole product, not only what differs. Rows any accounting
 tool has (customer and supplier records, activity log, exports, period closing, two-step sign-in)
 were tried and cut the same day as too general to sell a plan. Bill tracking was split from bill reminders. Overage is quoted as
-"extra per invoice" at 0.150 · 0.100 · 0.075. Support is email and chat on every plan. An extra
+"extra per invoice" at 0.150 · 0.060 · 0.040. Support is email and chat on every plan. An extra
 branch is 8.000 on every plan, Starter included.
 
 The client's ruling, final: plans differ by **features** and by **limits**, both set from the
@@ -486,7 +486,7 @@ differs.
 | Webhooks (`webhooks`) | — | — | ✓ | ✓ |
 | ERP field mapping (`erpMapping`) | — | — | ✓ | ✓ |
 | **Automatic ERP extraction** (add-on, availability per plan) | not supported | not supported | add-on, priced | included |
-| **Monthly price** (placeholder; the console changes it) | 50.000 | 150.000 | 300.000 | negotiated |
+| **Monthly price** (placeholder; the console changes it) | 35.000 | 80.000 | 150.000 | negotiated |
 
 † Compliance, never gated: every plan issues tax invoices, credit notes and debit notes, and
 sends and receives over Peppol. The console lists these as **Fixed by design** and cannot switch
@@ -494,7 +494,7 @@ them off; the compare table shows them so a buyer sees they are there.
 
 Rules that follow from the table:
 
-- **Prices** are 50 / 150 / 300 rial a month, annual = ten months (41.667 / 125.000 / 250.000
+- **Prices** are 35 / 80 / 150 rial a month, annual = ten months (29.167 / 66.667 / 125.000
   a month equivalent). Placeholders until the console's Plans and rates sets the live ones; shown
   everywhere, hidden nowhere.
 - **Extraction add-on availability** is a console setting per plan (`notOffered` · `priced` ·
@@ -645,14 +645,14 @@ Every row is a control on `/console/plans` or `/console/settings`. Default = lau
 | Setting | Default (Starter · Business · Business Plus · Enterprise) | Control |
 |---|---|---|
 | Band, documents/month | 200 · 1,000 · 3,000 · on request | number |
-| Monthly price | 50.000 · 150.000 · 300.000 · negotiated (placeholders, 20 Sep 2026) | money, rial sign |
-| Annual | two months free → 41.667 · 125.000 · 250.000 shown derived | rule |
+| Monthly price | 35.000 · 80.000 · 150.000 · negotiated (placeholders, 20 Sep 2026) | money, rial sign |
+| Annual | two months free → 29.167 · 66.667 · 125.000 shown derived | rule |
 | Quarterly | monthly rate, no discount | rule |
 | Users included | 2 · 5 · 10 · unlimited | number / unlimited |
 | Extra user per month | 3.000 · 2.500 · 2.500 · negotiated | money |
 | Branches included | 1 · 2 · 5 · unlimited | number / unlimited |
 | Extra branch per month | 8.000 · 8.000 · 8.000 · negotiated (on every plan since 20 Sep 2026) | money |
-| Extra per invoice (overage) | 0.150 · 0.100 · 0.075 · n/a — quoted per invoice the way Omani ASPs do, a little above the market because Fawtir is the whole platform, always below the plan's own price per document (20 Sep 2026) | money |
+| Extra per invoice (overage) | 0.150 · 0.060 · 0.040 · n/a — quoted per invoice the way Omani ASPs do, a little above the market because Fawtir is the whole platform, always below the plan's own price per document (20 Sep 2026) | money |
 | Features | the §9.5 matrix: compliance documents on every plan (locked); Starter also bulk upload, payment reminders, bill tracking, POS, catalogue, stock, reports, roles, branches; Business adds recurring invoices and bills, self-billing, trade documents, supplier notes, approvals; Business Plus and Enterprise add API, webhooks, ERP mapping; support Email · Email · Email and chat · Account manager | switches, per feature per plan |
 | ERP field mapping | per plan: Business Plus and Enterprise (a feature switch, not an add-on) | switch |
 | Automatic ERP extraction | availability per plan: not supported · not supported · add-on · included | not supported / add-on / included |
