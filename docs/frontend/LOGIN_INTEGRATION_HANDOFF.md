@@ -27,6 +27,9 @@ logout, the reviewer console.
    emailed automatically.
 2. **After sign-in: `/dashboard`**, one fixed target. Nothing in the backend yet says which home a
    given principal (tenant user or platform operator) belongs on, so there is no role-based redirect.
+   **Superseded 19 Sep 2026 (UI):** after sign-in the app reads `GET /me/entitlements` once; a
+   principal holding any `platform.*` permission lands on `/console`, everyone else on `/dashboard`
+   (`landingRoute()` in `lib/identity/login.ts`). If the read fails the dashboard is the fallback.
 3. **No route guard and no session probe yet.** The app makes no "who am I" request; guards and
    `GET /me/entitlements` belong to the dashboard/app-shell integration.
 4. **Remember me stays visible and does nothing.** The backend has no remember-me; the portal

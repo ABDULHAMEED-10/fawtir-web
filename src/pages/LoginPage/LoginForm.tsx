@@ -16,7 +16,7 @@ import {
   INITIAL_LOGIN_VALUES,
   LOGIN_CODE_ROUTE,
   LOGIN_FIELD_ORDER,
-  SIGNED_IN_ROUTE,
+  landingRoute,
   describeLoginFailure,
   isSignInAgainState,
   submitLogin,
@@ -50,7 +50,8 @@ export function LoginForm() {
   // The notice explains one moment — the code step giving up — not this history entry; left in
   // place, a reload would tell someone who has done nothing wrong to sign in again.
   useEffect(() => {
-    if (isSignInAgainState(location.state)) navigate(location.pathname, { replace: true, state: null })
+    if (isSignInAgainState(location.state))
+      navigate(location.pathname, { replace: true, state: null })
   }, [location, navigate])
 
   const setField = (field: keyof LoginFormValues, value: string) => {
@@ -79,7 +80,7 @@ export function LoginForm() {
     try {
       const outcome = await submitLogin(values, controller.signal)
       if (outcome.kind === 'signedIn') {
-        navigate(SIGNED_IN_ROUTE, { replace: true })
+        navigate(await landingRoute(), { replace: true })
         return
       }
       holdLoginChallenge(outcome.challenge)
