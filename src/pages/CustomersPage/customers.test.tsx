@@ -175,7 +175,9 @@ describe('Customers list, wired to the API', () => {
     renderCustomers()
     await screen.findByText('Sohar Port Logistics')
 
-    fireEvent.click(screen.getByRole('button', { name: /Business/ }))
+    // Anchored: the account switcher now carries the plan, so its accessible name ends
+    // "… Business plan" and an unanchored /Business/ matches it as well as the tab.
+    fireEvent.click(screen.getByRole('button', { name: /^Business/ }))
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe('/api/v1/customers?status=ACTIVE&type=BUSINESS&sort=NAME_ASC&page=0&size=10'),
     )

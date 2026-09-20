@@ -27,7 +27,11 @@ const BATCH: ImportBatchDto = {
   filename: 'suppliers.csv',
   fileSha256: 'a'.repeat(64),
   totalRows: 4,
-  expiresAt: '2026-09-19T08:00:00Z',
+  // Relative, not a fixed date: a review that has not expired is the premise of almost every
+  // case below, and batchBlocker() disables the commit once expiresAt passes. Written down as a
+  // literal it silently turned every one of those cases into "expired" on the day it arrived.
+  // The expiry cases set their own dates explicitly.
+  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   committedAt: null,
   rows: [
     { rowNumber: 2, displayName: 'Rustaq Timber Trading', severity: 'CANNOT_IMPORT', field: 'vatRegistrationNumber', message: 'Ten digits — an Oman VATIN has twelve', cells: [], outcome: null, outcomeMessage: null },
