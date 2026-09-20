@@ -22,6 +22,26 @@
     "arabic": "العربية"
   },
   "login": {
+    "totp": {
+      "title": "Two-step verification",
+      "instruction": "Enter the 6-digit code from your authenticator app.",
+      "label": "Authenticator code",
+      "verify": "Verify",
+      "verifying": "Verifying…",
+      "startOver": "Start again"
+    },
+    "totpSetup": {
+      "title": "Set up your authenticator",
+      "instruction": "Add this key to your authenticator app, then enter the 6-digit code it shows.",
+      "manualKey": "Setup key",
+      "preparing": "Preparing your setup key…",
+      "label": "Authenticator code",
+      "confirm": "Confirm",
+      "confirming": "Confirming…",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryHint": "Each code signs you in once if you lose your authenticator. They are shown only now.",
+      "recoverySaved": "I have saved them"
+    },
     "title": "Hey, Login Now!",
     "usernameLabel": "Username",
     "usernamePlaceholder": "Enter your username",

@@ -63,7 +63,50 @@ describe('toLoginOutcome', () => {
       { mfaRequired: true, mfaChallengeToken: 'mfa.token', mfaChallengeExpiresIn: 300 },
       1_000,
     )
-    expect(outcome).toEqual({ kind: 'code', challenge: { token: 'mfa.token', expiresAt: 301_000 } })
+    // No factor named by the server, so the email code stands in — the customer case.
+    expect(outcome).toEqual({
+      kind: 'code',
+      challenge: { token: 'mfa.token', expiresAt: 301_000, factor: 'EMAIL_OTP', state: null },
+    })
+  })
+
+  it('carries the factor and state the server decided on', () => {
+    const outcome = toLoginOutcome(
+      {
+        mfaRequired: true,
+        mfaChallengeToken: 'mfa.token',
+        mfaChallengeExpiresIn: 300,
+        mfaRequiredFactor: 'TOTP',
+        mfaState: 'ENROLLMENT_REQUIRED',
+      },
+      1_000,
+    )
+    expect(outcome).toEqual({
+      kind: 'code',
+      challenge: {
+        token: 'mfa.token',
+        expiresAt: 301_000,
+        factor: 'TOTP',
+        state: 'ENROLLMENT_REQUIRED',
+      },
+    })
+  })
+
+  it('falls back to the email code for a factor this build cannot drive', () => {
+    // Drawing a screen for something unrecognised would be worse than asking for the one factor
+    // every policy allows. The backend refuses a wrong factor either way, so this only decides
+    // which screen the reader sees, never what is accepted.
+    const outcome = toLoginOutcome(
+      {
+        mfaRequired: true,
+        mfaChallengeToken: 'mfa.token',
+        mfaChallengeExpiresIn: 300,
+        mfaRequiredFactor: 'WEBAUTHN',
+        mfaState: 'VERIFICATION_REQUIRED',
+      },
+      1_000,
+    )
+    expect(outcome).toMatchObject({ challenge: { factor: 'EMAIL_OTP' } })
   })
 
   it('treats a password-only session as signed in', () => {
