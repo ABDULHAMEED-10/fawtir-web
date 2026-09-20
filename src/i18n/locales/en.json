@@ -4412,7 +4412,9 @@
     "logoType": "Use a PNG or SVG image",
     "logoSize": "Keep the logo under 2 MB",
     "tooLong": "This is longer than allowed",
-    "addressTooLong": "Use 140 characters or fewer"
+    "addressTooLong": "Use 140 characters or fewer",
+    "tenantCode": "Use uppercase letters, digits, dashes or underscores, starting with a letter",
+    "country": "Use a two-letter country code, such as OM"
   },
   "identityErrors": {
     "validation": "Some details were not accepted. Check the form and try again.",
@@ -11220,7 +11222,10 @@
         "town": "Town",
         "townPlaceholder": "Choose a town",
         "businessType": "Business type",
-        "businessTypePlaceholder": "Choose a type"
+        "businessTypePlaceholder": "Choose a type",
+        "tenantCode": "Tenant code",
+        "country": "Country",
+        "registeredAddress": "Registered address"
       },
       "owner": {
         "heading": "The owner",
@@ -11259,6 +11264,13 @@
         "paidLine": "{{amount}} · {{method}} · {{date}}",
         "notPaid": "Not yet — the invoice stays open",
         "edit": "Edit"
+      },
+      "creating": "Creating…",
+      "error": {
+        "conflict": "A business already uses this tenant code or tax number. Change the details and try again.",
+        "forbidden": "You do not have permission to onboard a business.",
+        "validation": "Some details were refused. Check the company fields and try again.",
+        "unexpected": "The business could not be created. Try again, or contact support if it continues."
       }
     },
     "queue": {
