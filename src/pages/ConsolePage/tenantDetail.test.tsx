@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { TenantOverview } from '../../lib/console/tenantOverview'
 import { TenantDetailPage } from './TenantDetailPage'
+import { subscriptionsStore } from '../../lib/consoleSubscriptions'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const TENANT_ID = '11111111-1111-4111-8111-111111111111'
@@ -313,5 +314,28 @@ describe('Tenant detail — deep-link regression', () => {
     renderAt('/console/tenants/no-such-slug')
 
     expect(await screen.findByRole('alert')).toBeTruthy()
+  })
+
+  // The desk onboards a tenant and navigates straight to it. The prototype ids are read from the
+  // registry per render for this reason: a map built when the module loaded cannot contain a
+  // tenant created after it, and answered "no tenant with that id" for the one just created.
+  it('a tenant onboarded at the desk renders, rather than reporting itself missing', async () => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    const { tenantId } = subscriptionsStore.onboard({
+      tradingName: 'Wadi Shab Provisions',
+      cr: '1234567',
+      vat: 'OM1100000000',
+      town: 'Muscat',
+      businessType: 'trading',
+      owner: { name: 'Probe', phone: '+968 9000 0000', email: 'probe@example.test' },
+      plan: 'business',
+      term: 'monthly',
+      method: 'card',
+    } as never)
+
+    renderAt(`/console/tenants/${tenantId}`)
+
+    expect(await screen.findByRole('heading', { name: /Wadi Shab Provisions/i })).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

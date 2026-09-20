@@ -151,7 +151,7 @@ export function TenantDetailPage() {
   const { id } = useParams()
   // Compatibility only, and never a fallback: a UUID never reaches this lookup, so a tenant the
   // backend refuses can never be answered from sample data.
-  const prototype = id && !isCompanyId(id) ? PROTOTYPE_OVERVIEWS[id] : undefined
+  const prototype = id && !isCompanyId(id) ? prototypeOverview(id) : undefined
 
   return (
     <ConsoleShell requires={TENANT_OVERVIEW_PERMISSION}>
@@ -687,60 +687,63 @@ function Fact({ label, value }: { label: string; value: string }) {
  * It must NEVER serve a UUID: a real tenant is always read from the backend, and one the backend
  * refuses is not found. Do not add tenants here. Delete it when the subscriptions, invoices and
  * ERP screens move onto real tenant identifiers.
+ *
+ * Read from the registry per call, not captured once: onboarding registers a tenant at runtime
+ * and then navigates straight to it, so a snapshot taken when this module loaded would answer
+ * "no such tenant" for the tenant the operator had just created.
  */
-const PROTOTYPE_OVERVIEWS: Record<string, TenantOverview> = Object.fromEntries(
-  Object.entries(TENANT_IDENTITIES).map(([id, identity]) => [
-    id,
-    {
-      identity: {
-        tenantId: id,
-        tenantCode: id.toUpperCase(),
-        tenantName: identity.name,
-        tenantStatus: null,
-        identityStatus: null,
-      },
-      company: {
-        legalName: identity.name,
-        legalNameAr: null,
-        tradingName: null,
-        commercialRegistrationNumber: null,
-        taxNumber: identity.vat,
-        country: null,
-        registeredAddressLine1: identity.town,
-        registeredAddressLine2: null,
-        registeredAddressLine3: null,
-        registeredCity: null,
-        registeredPostalCode: null,
-        registeredCountrySubdivision: null,
-        registeredPoBox: null,
-        timezone: null,
-        contactPersonName: identity.contact.name,
-        contactPhone: identity.contact.phone,
-        contactEmail: null,
-      },
-      verification: {
-        status: 'VERIFIED',
-        method: null,
-        rejectionReason: null,
-        attestationReference: null,
-        evidenceRecorded: false,
-        profileRevision: 0,
-        submittedAt: null,
-        submittedBy: null,
-        decidedAt: null,
-        decidedBy: null,
-      },
-      subscription: {
-        planCode: null,
-        planName: null,
-        monthlyPrice: null,
-        invoicesPerMonth: 0,
-        overageEnabled: false,
-        implicitDefault: false,
-        startedOn: null,
-        changedAt: null,
-      },
-      operational: { ready: false, reasonCode: null },
+function prototypeOverview(id: string): TenantOverview | undefined {
+  const identity = TENANT_IDENTITIES[id]
+  if (!identity) return undefined
+  return {
+    identity: {
+      tenantId: id,
+      tenantCode: id.toUpperCase(),
+      tenantName: identity.name,
+      tenantStatus: null,
+      identityStatus: null,
     },
-  ]),
-)
+    company: {
+      legalName: identity.name,
+      legalNameAr: null,
+      tradingName: null,
+      commercialRegistrationNumber: null,
+      taxNumber: identity.vat,
+      country: null,
+      registeredAddressLine1: identity.town,
+      registeredAddressLine2: null,
+      registeredAddressLine3: null,
+      registeredCity: null,
+      registeredPostalCode: null,
+      registeredCountrySubdivision: null,
+      registeredPoBox: null,
+      timezone: null,
+      contactPersonName: identity.contact.name,
+      contactPhone: identity.contact.phone,
+      contactEmail: null,
+    },
+    verification: {
+      status: 'VERIFIED',
+      method: null,
+      rejectionReason: null,
+      attestationReference: null,
+      evidenceRecorded: false,
+      profileRevision: 0,
+      submittedAt: null,
+      submittedBy: null,
+      decidedAt: null,
+      decidedBy: null,
+    },
+    subscription: {
+      planCode: null,
+      planName: null,
+      monthlyPrice: null,
+      invoicesPerMonth: 0,
+      overageEnabled: false,
+      implicitDefault: false,
+      startedOn: null,
+      changedAt: null,
+    },
+    operational: { ready: false, reasonCode: null },
+  }
+}
