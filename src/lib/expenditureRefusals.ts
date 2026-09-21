@@ -69,6 +69,8 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
+  // Reachable from Settings > Bill approvals since E-17.
+  APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
 }
 
 /** A refusal the Expenditure module made by name, as opposed to a validation or transport failure. */

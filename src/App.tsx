@@ -82,6 +82,7 @@ import {
   ExportPage,
   ClosingPage,
   SigningInPage,
+  ApprovalPolicyPage,
   AddBranchPage,
   InvitePage,
   MakeRolePage,
@@ -327,6 +328,7 @@ function App() {
           <Route path="/settings/export" element={<ExportPage />} />
           <Route path="/settings/closing" element={<ClosingPage />} />
           <Route path="/settings/signing-in" element={<SigningInPage />} />
+          <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
           <Route path="/compliance/activity/call-log" element={<OtaCallLogPage />} />
           <Route path="/compliance/activity/call-log/:id" element={<OtaCallDetailPage />} />

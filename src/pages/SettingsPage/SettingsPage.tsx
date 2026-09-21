@@ -290,6 +290,19 @@ export function SettingsPage() {
         footValues: { date: longDate(LAST_EXPORT_ON) },
       },
       {
+        // The tile grid is otherwise mock-fed; this card carries no figure on purpose, so the most
+        // visited Settings screen gains no network read that could fail on it. The live policy is
+        // on the page itself.
+        id: 'approvals',
+        group: 'company',
+        icon: rolesIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/approvals',
+        pillKey: 'settings.card.approvalsPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.approvalsFoot',
+      },
+      {
         id: 'closing',
         group: 'records',
         icon: closingIcon,

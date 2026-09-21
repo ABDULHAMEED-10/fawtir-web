@@ -7512,7 +7512,11 @@
       "connectionsPillError_one": "{{count}} needs attention",
       "connectionsPillError_other": "{{count}} need attention",
       "connectionsFootActive": "Automatic extraction · {{collected}} of {{limit}} this month",
-      "lockedPill": "Available on {{plan}}"
+      "lockedPill": "Available on {{plan}}",
+      "approvalsTitle": "Bill approvals",
+      "approvalsBody": "How many people must approve a supplier's bill before it can be paid, and the amount below which none need to.",
+      "approvalsPill": "Approval rule",
+      "approvalsFoot": "Applies to every bill"
     }
   },
   "peppolTax": {
@@ -13503,7 +13507,8 @@
       "paymentAlreadyReversed": "That payment has already been reversed.",
       "approvalAlreadyGiven": "You have already approved this bill.",
       "approvalReasonRequired": "A rejection has to say why.",
-      "applyAmountInvalid": "An applied amount has to be above zero."
+      "applyAmountInvalid": "An applied amount has to be above zero.",
+      "approvalPolicyInvalid": "An approval rule has to require at least one approver."
     }
   },
   "appAccess": {
@@ -14538,5 +14543,38 @@
     },
     "appliedDone": "The credit was used against that bill.",
     "refundedDone": "The refund was recorded."
+  },
+  "approvalPolicy": {
+    "title": "Bill approvals",
+    "subtitle": "Who must sign off a supplier's bill before it can be paid. This is the rule the Bills screen enforces — a bill that has not met it cannot be added to a payment run.",
+    "saved": "The approval rule was saved.",
+    "notSaved": "NOT SAVED",
+    "save": "Save the rule",
+    "saving": "Saving…",
+    "discard": "Discard changes",
+    "readOnly": "You can see this rule but not change it. Changing it needs the settings permission, which is deliberately not the same as being able to approve a bill.",
+    "approvers": {
+      "title": "How many approvals",
+      "note": "How many different people must approve a bill. The same person approving twice counts once.",
+      "label": "People who must approve",
+      "floor": "One is the minimum. Approval always gates payment, so there is no setting for none."
+    },
+    "threshold": {
+      "title": "Small bills",
+      "note": "You can let bills under a certain amount through without approval.",
+      "EVERY_BILL": "Every bill needs approval, whatever the amount",
+      "BELOW_AMOUNT": "Bills under a set amount need no approval",
+      "label": "Amount",
+      "boundary": "A bill of exactly {{amount}} still needs approval — only bills below it are let through.",
+      "removing": "This removes the {{amount}} threshold. Bills that needed no approval before will need one from now on."
+    },
+    "problem": {
+      "approversRequired": "Say how many approvals a bill needs.",
+      "approversRange": "Between 1 and 10.",
+      "thresholdRequired": "Enter the amount, or choose that every bill needs approval.",
+      "thresholdPositive": "The amount has to be above zero.",
+      "thresholdDecimals": "Up to three decimal places.",
+      "thresholdTooLarge": "That amount is too large."
+    }
   }
 }
