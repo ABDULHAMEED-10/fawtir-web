@@ -13,6 +13,31 @@ const SUMMARY_URL = '/api/v1/credit-notes/summary'
 const NOTE_ID = '70000000-0000-0000-0000-000000000001'
 const BILL_ID = '70000000-0000-0000-0000-000000000002'
 const OTHER_BILL_ID = '70000000-0000-0000-0000-000000000003'
+const SETTLED_BILL_ID = '70000000-0000-0000-0000-000000000004'
+const DEBIT_BILL_ID = '70000000-0000-0000-0000-000000000005'
+
+/** A row of our own supplier's, to vary one field at a time. */
+const OURS = {
+  source: 'UPLOADED' as const,
+  supplierId: 's-1',
+  supplierName: 'Qalhat Marine Supplies',
+  documentTypeCode: '380',
+  issueDate: '2026-09-01',
+  dueDate: '2026-10-01',
+  overdue: false,
+  currencyCode: 'OMR',
+  totalIncludingVat: 300,
+  vatAmount: 15,
+  paidAmount: 0,
+  outstandingAmount: 300,
+  purchaseOrderReference: null,
+  workflowState: 'APPROVED' as const,
+  readiness: { state: 'READY' as const, distinctApprovals: 1, required: 1, autoApproved: false },
+  match: null,
+  hold: null,
+  paymentRunReference: null,
+  paidOnTheSpot: false,
+}
 
 const ADMIN: Entitlements = {
   userId: 'u-1',
@@ -73,6 +98,7 @@ let who: Entitlements
 let notes: CreditNoteRowDto[]
 let settlements: unknown[]
 let applyBody: unknown
+let applyRefusal: Record<string, unknown> | null
 let refundBody: unknown
 
 const calls = (prefix: string) =>
@@ -85,6 +111,7 @@ beforeEach(async () => {
   notes = [note()]
   settlements = []
   applyBody = null
+  applyRefusal = null
   refundBody = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -94,6 +121,12 @@ beforeEach(async () => {
     if (url.includes(`/credit-notes/${NOTE_ID}/settlements`)) return json(200, settlements)
     if (url.includes(`/credit-notes/${NOTE_ID}/apply`)) {
       applyBody = JSON.parse(String(init?.body))
+      if (applyRefusal !== null) {
+        return new Response(
+          JSON.stringify({ ...applyRefusal, status: 400, type: 'https://api.fawtir.om/problems/expenditure-refused' }),
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        )
+      }
       return json(200, { settlement: {}, status: 'APPLIED', balance: { applied: 200, refunded: 0, remaining: 0 } })
     }
     if (url.includes(`/credit-notes/${NOTE_ID}/refund`)) {
@@ -156,11 +189,23 @@ beforeEach(async () => {
             paymentRunReference: null,
             paidOnTheSpot: false,
           },
+          // Our supplier, but nothing is owed ON a credit note, so it is not a target.
+          {
+            ...OURS,
+            id: NOTE_ID,
+            documentTypeCode: '381',
+            supplierBillNumber: 'QMS-CN-1',
+            outstandingAmount: 0,
+          },
+          // Our supplier, already settled: the server would compute nothing to apply.
+          { ...OURS, id: SETTLED_BILL_ID, supplierBillNumber: 'QMS-PAID', paidAmount: 300, outstandingAmount: 0 },
+          // Our supplier's DEBIT note: it ADDS to what is owed, so a credit may reduce it.
+          { ...OURS, id: DEBIT_BILL_ID, documentTypeCode: '383', supplierBillNumber: 'QMS-DN-9', outstandingAmount: 60 },
         ],
         page: 0,
         pageSize: 25,
-        count: 2,
-        total: 2,
+        count: 5,
+        total: 5,
       })
     }
     return json(404)
@@ -233,6 +278,44 @@ describe('Credit notes list, wired to the API', () => {
 })
 
 describe('One credit note', () => {
+  it('offers no target the guard would refuse: not itself, not a credit note, not a settled bill', async () => {
+    renderDetail()
+    await screen.findByText('QMS-CN-1')
+
+    fireEvent.change(screen.getByLabelText('Which bill'), { target: { value: 'test' } })
+    expect(await screen.findByRole('button', { name: /QMS-7781/ })).toBeTruthy()
+
+    // Nothing is owed ON a credit note, and a settled bill would compute an amount of zero.
+    expect(screen.queryByRole('button', { name: /QMS-CN-1/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /QMS-PAID/ })).toBeNull()
+
+    // But a DEBIT note is a legitimate target — it adds to what is owed, and the server allows it.
+    // The constraint and the capability, or a picker that offered nothing would pass this too.
+    expect(screen.getByRole('button', { name: /QMS-DN-9/ })).toBeTruthy()
+  })
+
+  it('asks the server to narrow to this supplier rather than filtering a page it was handed', async () => {
+    renderDetail()
+    await screen.findByText('QMS-CN-1')
+
+    fireEvent.change(screen.getByLabelText('Which bill'), { target: { value: 'test' } })
+    await waitFor(() => expect(calls('/api/v1/bills').at(-1)).toContain('supplier_id=s-1'))
+  })
+
+  it('shows the server refusal by name when one gets through, never "try again"', async () => {
+    applyRefusal = { error: 'CREDIT_NOTE_SUPPLIER_MISMATCH', trace_id: 'trace-9' }
+    renderDetail()
+    await screen.findByText('QMS-CN-1')
+
+    fireEvent.change(screen.getByLabelText('Which bill'), { target: { value: 'test' } })
+    fireEvent.click(await screen.findByRole('button', { name: /QMS-7781/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use it' }))
+
+    expect(await screen.findByText(/A credit can only reduce a bill from the supplier who issued it/))
+      .toBeTruthy()
+    expect(screen.queryByText(/Please try again/i)).toBeNull()
+  })
+
   it('offers only this supplier\'s bills, because the server refuses any other outright', async () => {
     renderDetail()
     await screen.findByText('QMS-CN-1')

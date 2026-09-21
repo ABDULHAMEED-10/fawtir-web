@@ -83,6 +83,12 @@ export type BillListQuery = {
   q: string
   source: BillSourceDto | null
   sort: BillSort
+  /**
+   * Only this supplier's bills, or every supplier when null. Narrowed by the server, not by the
+   * caller over a returned page: a page filtered here would silently drop matches that fell past
+   * its boundary.
+   */
+  supplierId?: string | null
   /** Zero-based. */
   page: number
   pageSize: number
@@ -95,6 +101,7 @@ export function billListPath(query: BillListQuery): string {
     q: query.q.trim(),
     source: query.source,
     sort: query.sort === 'NEWEST' ? undefined : query.sort,
+    supplier_id: query.supplierId ?? null,
     page: query.page,
     page_size: query.pageSize,
   })

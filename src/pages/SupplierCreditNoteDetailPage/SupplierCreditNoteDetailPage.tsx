@@ -284,28 +284,54 @@ function Dispositions({
   // a person to copy a UUID is how the wrong bill gets credited.
   const [search, setSearch] = useState('')
   const [chosen, setChosen] = useState<{ id: string; label: string } | null>(null)
-  const billsPath = billListPath({ filter: 'ALL', q: search.trim(), source: null, sort: 'NEWEST', page: 0, pageSize: 25 })
+  /*
+   * Only this supplier's bills are offerable. `CreditNoteApplyGuard.requireSameSupplier` refuses
+   * any other outright, so an option from a second supplier is a click that can only ever fail.
+   *
+   * The server narrows, via `supplier_id`. Filtering the returned page here instead would drop
+   * matches that fell past the page boundary and show "nothing found" for a bill that exists.
+   */
+  const billsPath = billListPath({
+    filter: 'ALL',
+    q: search.trim(),
+    source: null,
+    sort: 'NEWEST',
+    supplierId,
+    page: 0,
+    pageSize: 10,
+  })
   const bills = useApiRead<Page<BillRowDto>>(search.trim().length >= 2 ? billsPath : null, () => loadBillPage(billsPath))
 
   /*
-   * Only this supplier's bills are offerable. `CreditNoteApplyGuard.requireSameSupplier` refuses
-   * any other outright, so an option from a second supplier is a click that can only ever fail —
-   * and it fails as an opaque 400, which reads to the person as the app being broken rather than
-   * as the rule it is.
-   *
-   * Matched on id, then participant-less name, the same order the server's guard uses. The filter
-   * is applied to the page the server returned, because the bill list takes no supplier parameter
-   * yet; a larger page size keeps a match from falling off the end of a common search. A server
-   * -side filter is the real fix and is a backend change.
+   * And again over what came back, on id then name, the same order the server's guard uses. Not
+   * redundant: a note whose own supplier was never resolved to a record has no id to narrow by,
+   * and this is what fails closed for it, exactly as the guard does.
    */
   const ownBill = (bill: BillRowDto) => {
     if (supplierId !== null && bill.supplierId !== null) return bill.supplierId === supplierId
     if (supplierName !== null && bill.supplierName !== null) {
       return bill.supplierName.trim().toLowerCase() === supplierName.trim().toLowerCase()
     }
-    // Neither side identifiable: fail closed, exactly as the guard does.
     return false
   }
+
+  /*
+   * The rest of what the guard refuses as a target, so the list offers nothing that cannot work:
+   *
+   * - a credit note, itself included — nothing is owed ON one, so there is nothing to reduce
+   *   (`CREDIT_NOTE_TARGET_NOT_PAYABLE`);
+   * - a bill already settled — the amount would come out at zero
+   *   (`CREDIT_NOTE_APPLY_EXCEEDS_BILL`, "nothing to apply").
+   *
+   * A supplier's DEBIT note is deliberately still offered. It is the one type in IBR-023-OM's trio
+   * that adds to what is owed, so a credit legitimately reduces it, and the server allows it.
+   */
+  const CREDIT_NOTE_CODES = ['381', '261']
+  const creditable = (bill: BillRowDto) =>
+    ownBill(bill) &&
+    bill.id !== noteId &&
+    !CREDIT_NOTE_CODES.includes(bill.documentTypeCode ?? '') &&
+    bill.outstandingAmount > 0
 
   const [applyAmount, setApplyAmount] = useState('')
   const [refundAmount, setRefundAmount] = useState('')
@@ -366,7 +392,7 @@ function Dispositions({
             </button>
           </p>
         ) : bills.read.status === 'ready' ? (
-          bills.read.data.items.filter(ownBill).length === 0 ? (
+          bills.read.data.items.filter(creditable).length === 0 ? (
             <p className="mt-2 text-sm font-medium text-text-quaternary">
               {/* Says whose bills were looked through, so "nothing" does not read as a broken search. */}
               {supplierName === null
@@ -375,7 +401,7 @@ function Dispositions({
             </p>
           ) : (
             <ul className="mt-2 flex flex-col gap-1">
-              {bills.read.data.items.filter(ownBill).map((bill) => (
+              {bills.read.data.items.filter(creditable).map((bill) => (
                 <li key={bill.id}>
                   <button
                     type="button"

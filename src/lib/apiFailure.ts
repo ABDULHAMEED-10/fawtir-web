@@ -1,5 +1,6 @@
 import { ApiError } from '../api'
 import { commonFailureMessage, type FormMessage } from './identity/errors'
+import { refusalMessageKey } from './expenditureRefusals'
 
 /**
  * The localized sentence for a failed customer-app request, and the reference support needs.
@@ -11,6 +12,10 @@ import { commonFailureMessage, type FormMessage } from './identity/errors'
 export function describeApiFailure(error: unknown): FormMessage & { reference: string | null } {
   const reference = error instanceof ApiError ? error.correlationId : null
   if (error instanceof ApiError) {
+    // Before any status branch: a refusal is a decision the server made by name, and saying
+    // "try again" about one is wrong advice, not merely a vague message.
+    const refusal = refusalMessageKey(error)
+    if (refusal !== null) return { key: refusal, reference }
     if (error.status === 403) {
       return { key: error.problemType === 'csrf-rejected' ? 'apiErrors.csrf' : 'apiErrors.forbidden', reference }
     }
