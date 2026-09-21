@@ -2425,54 +2425,34 @@
     "footerNote": "This home page is for testing and navigation only."
   },
   "selfBilling": {
-    "title": "Self-billed invoices",
-    "subtitle": "Fawtir sends your supplier invoices via Peppol and reports them to Oman Tax Authority.",
+    "title": "Self-billing",
+    "subtitle": "Invoices you write on a seller's behalf, under a signed agreement with them.",
     "agreements": "Agreements",
-    "export": "Export",
-    "create": "Create self-billing invoice",
-    "kpi": {
-      "raised": "Raised this month",
-      "raisedMeta": "Across 9 documents",
-      "inputVat": "Input VAT claimed",
-      "inputVatMeta": "Recoverable on this quarter's return",
-      "awaiting": "Awaiting supplier",
-      "awaitingMeta": "Oldest raised 6 days ago",
-      "expiring": "Agreements expiring",
-      "expiringMeta": "Al Noor Dates expires in 9 days"
+    "explainer": "On these documents you are the buyer: you write the invoice for the seller, and it records what you owe them — not what you are owed.",
+    "usableAgreements_one": "{{count}} seller can be self-billed today.",
+    "usableAgreements_other": "{{count}} sellers can be self-billed today.",
+    "usableAgreements_zero": "No seller can be self-billed today — check your agreements.",
+    "kindLabel": "Document type",
+    "kind": {
+      "invoices": "Invoices",
+      "creditNotes": "Credit notes"
     },
-    "tabs": {
-      "all": "All",
-      "drafts": "Drafts",
-      "toSend": "To send",
-      "awaiting": "Awaiting confirmation",
-      "disputed": "Disputed",
-      "confirmed": "Confirmed",
-      "paid": "Paid"
-    },
-    "status": {
-      "draft": "Draft",
-      "toBeSent": "To be sent",
-      "awaitingConfirmation": "Awaiting confirmation",
-      "disputed": "Disputed by supplier",
-      "confirmed": "Confirmed",
-      "paid": "Paid"
-    },
-    "searchPlaceholder": "Search by document, supplier or VAT number",
-    "filters": "Filters",
-    "sort": "Sort",
+    "searchPlaceholder": "Search by number or seller",
+    "unnumbered": "Not numbered yet",
+    "unknownSeller": "Seller not named",
+    "estimated": "est.",
+    "pageOf": "Page {{page}}",
     "col": {
-      "document": "Document",
-      "supplier": "Supplier",
+      "number": "Number",
+      "seller": "Seller",
       "issued": "Issued",
-      "due": "Due",
-      "amount": "Amount",
-      "status": "Status",
-      "transmission": "Transmission"
+      "owed": "You owe",
+      "state": "State"
     },
-    "rowMenu": "Row actions",
-    "showResult": "Show result:",
-    "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "empty": {
+      "invoices": "No self-billed invoices here.",
+      "creditNotes": "No self-billed credit notes here."
+    }
   },
   "agreements": {
     "breadcrumbSelfBilled": "Self-billing",

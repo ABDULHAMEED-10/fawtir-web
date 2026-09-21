@@ -2498,54 +2498,37 @@
     "footerNote": "هذه الصفحة الرئيسية للاختبار والتنقّل فقط."
   },
   "selfBilling": {
-    "title": "الفواتير ذاتية الإصدار",
-    "subtitle": "يرسل فوتر فواتير مورّديك عبر Peppol ويبلغ عنها جهاز الضرائب في سلطنة عمان.",
+    "title": "الفوترة الذاتية",
+    "subtitle": "فواتير تحرّرها نيابة عن البائع بموجب اتفاقية موقّعة معه.",
     "agreements": "الاتفاقيات",
-    "export": "تصدير",
-    "create": "إنشاء فاتورة ذاتية",
-    "kpi": {
-      "raised": "الصادر هذا الشهر",
-      "raisedMeta": "عبر ٩ مستندات",
-      "inputVat": "ضريبة المدخلات المطالب بها",
-      "inputVatMeta": "قابلة للاسترداد في إقرار هذا الربع",
-      "awaiting": "بانتظار المورّد",
-      "awaitingMeta": "أقدمها صدر قبل ٦ أيام",
-      "expiring": "اتفاقيات تنتهي قريبًا",
-      "expiringMeta": "تنتهي اتفاقية Al Noor Dates خلال ٩ أيام"
+    "explainer": "أنت المشتري في هذه المستندات: تحرّر الفاتورة عن البائع، وهي تسجّل ما تدين به له — لا ما هو مستحق لك.",
+    "usableAgreements_zero": "لا يوجد بائع يمكن فوترته ذاتيًا اليوم — راجع اتفاقياتك.",
+    "usableAgreements_one": "بائع واحد يمكن فوترته ذاتيًا اليوم.",
+    "usableAgreements_two": "بائعان يمكن فوترتهما ذاتيًا اليوم.",
+    "usableAgreements_few": "{{count}} بائعين يمكن فوترتهم ذاتيًا اليوم.",
+    "usableAgreements_many": "{{count}} بائعًا يمكن فوترتهم ذاتيًا اليوم.",
+    "usableAgreements_other": "{{count}} بائع يمكن فوترتهم ذاتيًا اليوم.",
+    "kindLabel": "نوع المستند",
+    "kind": {
+      "invoices": "الفواتير",
+      "creditNotes": "إشعارات الدائن"
     },
-    "tabs": {
-      "all": "الكل",
-      "drafts": "المسودات",
-      "toSend": "للإرسال",
-      "awaiting": "بانتظار التأكيد",
-      "disputed": "محل نزاع",
-      "confirmed": "مؤكدة",
-      "paid": "مدفوعة"
-    },
-    "status": {
-      "draft": "مسودة",
-      "toBeSent": "للإرسال",
-      "awaitingConfirmation": "بانتظار التأكيد",
-      "disputed": "محل نزاع من المورّد",
-      "confirmed": "مؤكدة",
-      "paid": "مدفوعة"
-    },
-    "searchPlaceholder": "ابحث بالمستند أو المورّد أو الرقم الضريبي",
-    "filters": "عوامل التصفية",
-    "sort": "ترتيب",
+    "searchPlaceholder": "ابحث بالرقم أو البائع",
+    "unnumbered": "لم يُرقّم بعد",
+    "unknownSeller": "البائع غير مسمّى",
+    "estimated": "تقديري",
+    "pageOf": "صفحة {{page}}",
     "col": {
-      "document": "المستند",
-      "supplier": "المورّد",
-      "issued": "الإصدار",
-      "due": "الاستحقاق",
-      "amount": "المبلغ",
-      "status": "الحالة",
-      "transmission": "حالة الإرسال"
+      "number": "الرقم",
+      "seller": "البائع",
+      "issued": "تاريخ الإصدار",
+      "owed": "تدين بـ",
+      "state": "الحالة"
     },
-    "rowMenu": "إجراءات الصف",
-    "showResult": "عرض النتائج:",
-    "prevPage": "الصفحة السابقة",
-    "nextPage": "الصفحة التالية"
+    "empty": {
+      "invoices": "لا توجد فواتير ذاتية هنا.",
+      "creditNotes": "لا توجد إشعارات دائن ذاتية هنا."
+    }
   },
   "agreements": {
     "breadcrumbSelfBilled": "الفوترة الذاتية",
