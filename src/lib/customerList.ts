@@ -1,5 +1,6 @@
 import type {
   CustomerDto,
+  CustomerPageSize,
   CustomerListSort,
   CustomerReceivableDto,
   CustomerSummaryDto,
@@ -137,9 +138,12 @@ export function isCustomerSort(value: string | null): value is CustomerSortKey {
 }
 
 export const CUSTOMER_PAGE_SIZES = [10, 25, 50] as const
-export const DEFAULT_CUSTOMER_PAGE_SIZE = 10
+export const DEFAULT_CUSTOMER_PAGE_SIZE: CustomerPageSize = 10
 
-export function customerPageSizeOf(value: string | null): number {
+/** Narrowed, not just validated: the server refuses any other size with a 400. */
+export function customerPageSizeOf(value: string | null): CustomerPageSize {
   const size = Number(value)
-  return (CUSTOMER_PAGE_SIZES as readonly number[]).includes(size) ? size : DEFAULT_CUSTOMER_PAGE_SIZE
+  return (CUSTOMER_PAGE_SIZES as readonly number[]).includes(size)
+    ? (size as CustomerPageSize)
+    : DEFAULT_CUSTOMER_PAGE_SIZE
 }

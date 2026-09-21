@@ -47,6 +47,14 @@ export type DraftRequest = {
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
     /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. Invoices send none. */
     correctionReasonCode?: string | null
+    /**
+     * IBT-010 and IBT-012 — the TENANT's own references as buyer, and **self-billed documents
+     * only**. On every other path the buyer is the customer and both come from the customer
+     * record, so a value here is refused with `BUYER_REFERENCES_NOT_SELF_BILLED` rather than
+     * stored and silently dropped. Left out entirely unless the document is self-billed.
+     */
+    buyerReference?: string | null
+    contractReference?: string | null
   }
 }
 
@@ -67,6 +75,9 @@ export type DraftResponse = {
     paymentTerms: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
     correctionReasonCode?: string | null
+    /** Null on every document but a self-billed one. Read back so an edit can send them again. */
+    buyerReference?: string | null
+    contractReference?: string | null
   }
   type?: 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
   correctionOfInvoiceId?: string | null
@@ -119,6 +130,23 @@ export function createDraft(idempotencyKey: string, draft: DraftRequest): Promis
   return apiRequest<DraftResponse>(INVOICE_DRAFTS_PATH, {
     method: 'POST',
     body: { type: 'INVOICE', draft },
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
+/**
+ * A self-billed invoice draft (389), on its own route and its own permission
+ * (`selfbilling.create`).
+ *
+ * The body is the ordinary draft content — the server takes the same `InvoiceDraftRequest` — but
+ * it is NOT wrapped in `{type, draft}` the way `/invoice-drafts` is, and the type comes from the
+ * route rather than the body. Editing afterwards goes through the shared draft routes: there is
+ * one draft store, and a second edit path would eventually disagree with the first.
+ */
+export function createSelfBilledDraft(idempotencyKey: string, draft: DraftRequest): Promise<DraftResponse> {
+  return apiRequest<DraftResponse>('/v1/self-billed-invoice-drafts', {
+    method: 'POST',
+    body: draft,
     headers: { 'Idempotency-Key': idempotencyKey },
   })
 }

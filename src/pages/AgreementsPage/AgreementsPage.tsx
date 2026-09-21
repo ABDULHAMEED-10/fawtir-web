@@ -93,7 +93,7 @@ function Agreements() {
 
   // The agreement carries a seller id and no name, so the names are joined here. One page of
   // customers covers the realistic case; an id with no match still renders, as its id.
-  const customersPath = customerListPath({ type: null, status: 'ACTIVE', search: '', page: 0, pageSize: 200 })
+  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: 100 })
   const customers = useApiRead<Page<CustomerDto>>(canManage ? customersPath : null, () => loadCustomerPage(customersPath))
   const nameOf = useMemo(() => {
     const byId = new Map<string, string>()

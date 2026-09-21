@@ -2454,7 +2454,8 @@
       "invoices": "No self-billed invoices here.",
       "creditNotes": "No self-billed credit notes here.",
       "all": "No self-billed documents here."
-    }
+    },
+    "create": "New self-billed invoice"
   },
   "agreements": {
     "breadcrumbSelfBilled": "Self-billing",
@@ -14590,6 +14591,21 @@
       "thresholdPositive": "The amount has to be above zero.",
       "thresholdDecimals": "Up to three decimal places.",
       "thresholdTooLarge": "That amount is too large."
+    }
+  },
+  "selfBilledComposer": {
+    "breadcrumb": "Self-billing",
+    "title": "New self-billed invoice",
+    "editTitle": "Edit self-billed invoice",
+    "explainer": "You are writing this invoice on the seller's behalf. When you issue it, it records what you owe them — and it is refused unless an agreement with that seller is in force and Fawtir has verified their identity.",
+    "sections": {
+      "seller": "Seller"
+    },
+    "fields": {
+      "buyerReference": "Your reference",
+      "buyerReferenceHint": "Your own reference as the buyer (IBT-010). Only a self-billed document carries this.",
+      "contractReference": "Contract reference",
+      "contractReferenceHint": "The contract this invoice falls under (IBT-012)."
     }
   }
 }

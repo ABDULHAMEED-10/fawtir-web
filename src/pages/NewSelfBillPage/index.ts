@@ -1,1 +1,0 @@
-export { NewSelfBillPage } from './NewSelfBillPage'

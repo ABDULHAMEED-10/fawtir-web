@@ -55,9 +55,10 @@ const CHIP: Record<string, string> = {
  * document type, so any figure drawn from it would be the whole ledger's, not self-billing's. An
  * absent count beats a wrong one.
  *
- * **No "new self-bill" button.** The composer is still the prototype's; drafting a self-billed
- * invoice is its own slice (contract-check decision 5). Linking a wired page to a mock is how a
- * screen starts claiming something it cannot do.
+ * **Drafting needs `selfbilling.create`**, which is a different right from drafting your own
+ * invoice, so the button appears only for someone who holds it. What it cannot tell you is
+ * whether the draft will ever ISSUE — the agreement decides that, and the banner says how many
+ * sellers are currently issuable.
  */
 export function SelfBillingPage() {
   return (
@@ -134,13 +135,23 @@ function SelfBilled() {
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('selfBilling.title')}</h1>
           <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('selfBilling.subtitle')}</p>
         </div>
-        <Link
-          to="/income/self-billing/agreements"
-          className="inline-flex h-[46px] items-center gap-1 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-        >
-          {t('selfBilling.agreements')}
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/income/self-billing/agreements"
+            className="inline-flex h-[46px] items-center gap-1 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+          >
+            {t('selfBilling.agreements')}
+            <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
+          </Link>
+          {can(session, 'selfbilling.create') ? (
+            <Link
+              to="/income/self-billing/new"
+              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              {t('selfBilling.create')}
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {/*

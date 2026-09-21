@@ -1,1 +1,1 @@
-export { CreateInvoicePage } from './CreateInvoicePage'
+export { CreateInvoicePage, SelfBilledComposerPage } from './CreateInvoicePage'

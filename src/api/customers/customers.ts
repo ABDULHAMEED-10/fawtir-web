@@ -73,13 +73,20 @@ export type CustomerReceivablesDto = {
   items: CustomerReceivableDto[]
 }
 
+/**
+ * The only page sizes the server accepts (`CustomerSearchQuery`: "Page size must be one of 10, 25,
+ * 50 or 100"). A union rather than a number, because anything else is a 400 the caller only finds
+ * out about at runtime — and a picker that 400s looks exactly like a customer who does not exist.
+ */
+export type CustomerPageSize = 10 | 25 | 50 | 100
+
 export type CustomerListQuery = {
   type: CustomerTypeDto | null
   search: string
   sort: CustomerListSort
   /** Zero-based. */
   page: number
-  size: number
+  size: CustomerPageSize
 }
 
 /**

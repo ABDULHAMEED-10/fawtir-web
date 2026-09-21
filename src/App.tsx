@@ -89,7 +89,7 @@ import {
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
-import { CreateInvoicePage } from './pages/CreateInvoicePage'
+import { CreateInvoicePage, SelfBilledComposerPage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
@@ -133,7 +133,6 @@ import { DeliveryNoteDetailPage } from './pages/DeliveryNoteDetailPage'
 import { NewDebitNotePage } from './pages/NewDebitNotePage'
 import { DebitNoteDetailPage } from './pages/DebitNoteDetailPage'
 import { AgreementsPage } from './pages/AgreementsPage'
-import { NewSelfBillPage } from './pages/NewSelfBillPage'
 import { SelfBillDetailPage } from './pages/SelfBillDetailPage'
 import { PeriodicInvoicesPage } from './pages/PeriodicInvoicesPage'
 import { PeriodicInvoicePage } from './pages/PeriodicInvoicePage'
@@ -444,11 +443,20 @@ function App() {
               </PlanGated>
             }
           />
+          {/* The composer, in self-billed mode — not a second editor. */}
           <Route
             path="/income/self-billing/new"
             element={
               <PlanGated feature="selfBilling">
-                <NewSelfBillPage />
+                <SelfBilledComposerPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/self-billing/:id/edit"
+            element={
+              <PlanGated feature="selfBilling">
+                <SelfBilledComposerPage />
               </PlanGated>
             }
           />
