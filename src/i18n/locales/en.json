@@ -6149,7 +6149,15 @@
         "rejections": "Rejections",
         "rejectionsNote": "fewer than last year",
         "delivered": "Delivered inside the window",
-        "deliveredNote": "{{late}} late out of {{sent}}"
+        "deliveredNote": "{{late}} late out of {{sent}}",
+        "documents": "Documents",
+        "documentsNote": "In this window",
+        "reported": "Acknowledged",
+        "reportedNote": "{{count}} of them",
+        "onTime": "Reported in time",
+        "onTimeNote": "{{missed}} missed · {{pending}} still inside the window",
+        "median": "Median to acknowledgement",
+        "medianNote": "From validation to the acknowledgement arriving"
       },
       "acceptedFirstTime": "Accepted first time",
       "whyRejected": "Why things get rejected",
@@ -6171,7 +6179,17 @@
         "totals": "Totals do not add up",
         "buyerVat": "Buyer VAT number",
         "everythingElse": "Everything else"
-      }
+      },
+      "ledgerSubtitle": "Was each document reported, and was it reported in time.",
+      "openLedger": "Open the ledger",
+      "empty": "Nothing in this window.",
+      "documents": "Documents",
+      "minutes": "{{count}} min",
+      "tddAcks": "Tax Authority endpoint",
+      "invoiceAcks": "Buyer's Access Point",
+      "acksNote": "Acknowledgements of the tax document. No acknowledgement yet is not a failure.",
+      "invoiceAcksNote": "Acknowledgements of the invoice by the receiving Access Point.",
+      "deadLettered": "{{count}} gave up after retries and need looking at."
     },
     "lists": {
       "title": "Lists",
@@ -6769,14 +6787,20 @@
     "rowActions": "Row actions",
     "showing": "Showing {{shown}} of {{total}} submissions",
     "kpi": {
-      "accepted": "Accepted by the OTA",
-      "acceptedBreakdown": "{{accepted}} accepted · {{rejected}} rejected · {{waiting}} still waiting",
       "waitingOnYou": "Waiting on you",
       "waitingOnYouNote": "Rejected and not yet corrected. Until they're fixed, those sales aren't reported.",
       "timeToAcceptance": "Time to acceptance",
       "timeToAcceptanceNote": "Average this month, down from {{previous}}. Well inside the 24-hour rule.",
       "acknowledged": "Customer acknowledged",
-      "acknowledgedNote": "MLS came back in time on {{good}} of {{total}}"
+      "acknowledgedNote": "MLS came back in time on {{good}} of {{total}}",
+      "documents": "Documents",
+      "documentsNote": "In the ledger",
+      "reported": "Acknowledged by the Tax Authority endpoint",
+      "reportedNote": "{{share}}% of documents",
+      "waiting": "Awaiting acknowledgement",
+      "waitingNote": "Nothing has gone wrong. A document stays here until the other side speaks.",
+      "onTime": "Reported in time",
+      "onTimeNote": "{{missed}} missed · {{pending}} still inside the window"
     },
     "tabs": {
       "all": "All",
@@ -6788,10 +6812,8 @@
     },
     "col": {
       "invoice": "Invoice",
-      "reference": "TDD and Fawtara reference",
       "flow": "Which flow",
       "sent": "Sent",
-      "otaSaid": "What the OTA said",
       "customer": "Customer"
     },
     "flow": {
@@ -6827,7 +6849,11 @@
     "ack": {
       "received": "Received it",
       "notOnPeppol": "Not on Peppol",
-      "noCustomer": "No customer"
+      "noCustomer": "No customer",
+      "AP": "Delivered",
+      "AB": "Delivered, unconfirmed",
+      "RE": "Rejected or failed",
+      "NONE": "No acknowledgement yet"
     },
     "today": "Today",
     "sortOptions": {
@@ -6861,6 +6887,47 @@
       "peppolNote": "{{id}} · others can find and reach you",
       "fawtara": "Fawtara connection open",
       "fawtaraNote": "Answering in {{latency}} · certificate valid to {{until}}"
+    },
+    "ledgerSubtitle": "What happened to each document on its way to the buyer and to the Tax Authority.",
+    "unnumbered": "No number",
+    "b2c": "Consumer",
+    "noTdd": "No tax document owed",
+    "searchByNumber": "Search by invoice number",
+    "resubmit": "Resubmit",
+    "resubmitted": "Sent again. The ledger will show the new attempt once it is acknowledged.",
+    "showingPage": "Page {{page}} · up to {{size}} a page",
+    "notATaxVerdict": "These are transport acknowledgements, not tax decisions. The Tax Authority validates a tax document against the Schematron and not for tax compliance, and sends no verdict back to a service provider.",
+    "ledgerTabs": {
+      "all": "All",
+      "attention": "Needs attention",
+      "rejected": "Rejected or failed",
+      "waiting": "No acknowledgement yet",
+      "issued": "Issued",
+      "received": "Received"
+    },
+    "ledgerCol": {
+      "document": "Document",
+      "counterparty": "Counterparty",
+      "when": "When",
+      "toBuyer": "Buyer's Access Point",
+      "toAuthority": "Tax Authority endpoint",
+      "deadline": "Deadline"
+    },
+    "ackMeaning": {
+      "delivered": "Delivered with confirmation",
+      "delivered-unconfirmed": "Delivered without confirmation",
+      "rejected": "Rejected, or delivery failed",
+      "silent": "Nothing has been received yet. This is not a failure."
+    },
+    "direction": {
+      "ISSUED": "Issued",
+      "RECEIVED": "Received"
+    },
+    "sla": {
+      "met": "Met",
+      "missed": "Missed",
+      "pending": "Within the window",
+      "none": "—"
     }
   },
   "activityEvent": {

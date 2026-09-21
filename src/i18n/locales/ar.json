@@ -6281,7 +6281,15 @@
         "rejections": "حالات الرفض",
         "rejectionsNote": "أقل من العام الماضي",
         "delivered": "سُلّمت داخل النافذة",
-        "deliveredNote": "{{late}} متأخرة من {{sent}}"
+        "deliveredNote": "{{late}} متأخرة من {{sent}}",
+        "documents": "المستندات",
+        "documentsNote": "في هذه النافذة",
+        "reported": "أُقرّ باستلامه",
+        "reportedNote": "{{count}} منها",
+        "onTime": "أُبلغ في الوقت",
+        "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ضمن النافذة",
+        "median": "وسيط زمن الإقرار",
+        "medianNote": "من التحقق حتى وصول الإقرار"
       },
       "acceptedFirstTime": "القبول من أول مرة",
       "whyRejected": "لماذا تُرفض",
@@ -6303,7 +6311,17 @@
         "totals": "المجاميع لا تتطابق",
         "buyerVat": "الرقم الضريبي للمشتري",
         "everythingElse": "كل ما عدا ذلك"
-      }
+      },
+      "ledgerSubtitle": "هل أُبلغ عن كل مستند، وهل أُبلغ في الوقت.",
+      "openLedger": "افتح السجل",
+      "empty": "لا شيء في هذه النافذة.",
+      "documents": "المستندات",
+      "minutes": "{{count}} دقيقة",
+      "tddAcks": "نقطة هيئة الضرائب",
+      "invoiceAcks": "نقطة وصول المشتري",
+      "acksNote": "إقرارات استلام المستند الضريبي. وغياب الإقرار ليس فشلًا.",
+      "invoiceAcksNote": "إقرارات نقطة الوصول المستقبِلة باستلام الفاتورة.",
+      "deadLettered": "توقفت {{count}} بعد المحاولات وتحتاج مراجعة."
     },
     "lists": {
       "title": "الجداول",
@@ -6905,14 +6923,20 @@
     "rowActions": "إجراءات الصف",
     "showing": "عرض {{shown}} من {{total}} إرسالًا",
     "kpi": {
-      "accepted": "مقبولة لدى الهيئة",
-      "acceptedBreakdown": "{{accepted}} مقبولة · {{rejected}} مرفوضة · {{waiting}} بالانتظار",
       "waitingOnYou": "بانتظارك",
       "waitingOnYouNote": "مرفوضة ولم تُصحَّح بعد. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.",
       "timeToAcceptance": "زمن القبول",
       "timeToAcceptanceNote": "المتوسط هذا الشهر، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
       "acknowledged": "أقرّ العميل بالاستلام",
-      "acknowledgedNote": "عاد الإشعار في الوقت المحدد في {{good}} من {{total}}"
+      "acknowledgedNote": "عاد الإشعار في الوقت المحدد في {{good}} من {{total}}",
+      "documents": "المستندات",
+      "documentsNote": "في السجل",
+      "reported": "أقرّت نقطة هيئة الضرائب باستلامه",
+      "reportedNote": "{{share}}% من المستندات",
+      "waiting": "بانتظار الإقرار",
+      "waitingNote": "لم يحدث خطأ. يبقى المستند هنا حتى يتحدث الطرف الآخر.",
+      "onTime": "أُبلغ في الوقت",
+      "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ما زالت ضمن النافذة"
     },
     "tabs": {
       "all": "الكل",
@@ -6924,10 +6948,8 @@
     },
     "col": {
       "invoice": "الفاتورة",
-      "reference": "مرجع المستند وفوترة",
       "flow": "المسار",
       "sent": "أُرسلت",
-      "otaSaid": "ما قالته الهيئة",
       "customer": "العميل"
     },
     "flow": {
@@ -6963,7 +6985,11 @@
     "ack": {
       "received": "استلمها",
       "notOnPeppol": "ليس على Peppol",
-      "noCustomer": "لا يوجد عميل"
+      "noCustomer": "لا يوجد عميل",
+      "AP": "سُلّم",
+      "AB": "سُلّم دون تأكيد",
+      "RE": "مرفوض أو فشل",
+      "NONE": "بلا إقرار بعد"
     },
     "today": "اليوم",
     "sortOptions": {
@@ -6997,6 +7023,47 @@
       "peppolNote": "{{id}} · يمكن للآخرين إيجادك والوصول إليك",
       "fawtara": "اتصال فوترة مفتوح",
       "fawtaraNote": "يستجيب خلال {{latency}} · الشهادة سارية حتى {{until}}"
+    },
+    "ledgerSubtitle": "ما جرى لكل مستند في طريقه إلى المشتري وإلى هيئة الضرائب.",
+    "unnumbered": "بلا رقم",
+    "b2c": "مستهلك",
+    "noTdd": "لا مستند ضريبي مستحق",
+    "searchByNumber": "ابحث برقم الفاتورة",
+    "resubmit": "إعادة الإرسال",
+    "resubmitted": "أُعيد الإرسال. وسيظهر في السجل عند الإقرار باستلامه.",
+    "showingPage": "صفحة {{page}} · حتى {{size}} في الصفحة",
+    "notATaxVerdict": "هذه إقرارات نقل وليست قرارات ضريبية. تتحقق هيئة الضرائب من المستند الضريبي مقابل قواعد التحقق لا للامتثال الضريبي، ولا ترسل حكمًا إلى مزوّد الخدمة.",
+    "ledgerTabs": {
+      "all": "الكل",
+      "attention": "يحتاج انتباهًا",
+      "rejected": "مرفوض أو فشل",
+      "waiting": "بلا إقرار بعد",
+      "issued": "صادر",
+      "received": "وارد"
+    },
+    "ledgerCol": {
+      "document": "المستند",
+      "counterparty": "الطرف الآخر",
+      "when": "الوقت",
+      "toBuyer": "نقطة وصول المشتري",
+      "toAuthority": "نقطة هيئة الضرائب",
+      "deadline": "المهلة"
+    },
+    "ackMeaning": {
+      "delivered": "سُلّم مع تأكيد",
+      "delivered-unconfirmed": "سُلّم دون تأكيد",
+      "rejected": "مرفوض أو فشل التسليم",
+      "silent": "لم يصل شيء بعد. وهذا ليس فشلًا."
+    },
+    "direction": {
+      "ISSUED": "صادر",
+      "RECEIVED": "وارد"
+    },
+    "sla": {
+      "met": "ضمن المهلة",
+      "missed": "تجاوزت المهلة",
+      "pending": "ضمن النافذة",
+      "none": "—"
     }
   },
   "activityEvent": {
