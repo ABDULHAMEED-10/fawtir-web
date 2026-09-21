@@ -191,7 +191,11 @@ describe('Platform company onboarding', () => {
   it(
     'a second press while the first request is in flight does not send a second create',
     async () => {
-      let release: (() => void) | null = null
+      // Annotated on the initialiser, not just the declaration: the assignment below happens
+      // inside the promise callback, so TypeScript narrows this to null at the call site and
+      // release?.() fails to compile as a call on never. Tests still ran, because vitest
+      // transpiles without typechecking — only tsc saw it.
+      let release: (() => void) | null = null as (() => void) | null
       const held = new Promise<void>((resolve) => {
         release = resolve
       })
