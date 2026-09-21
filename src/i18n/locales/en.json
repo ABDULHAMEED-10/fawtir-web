@@ -5394,15 +5394,17 @@
       "needsCheckingNote_one": "{{count}} charge nobody has accepted yet",
       "needsCheckingNote_other": "{{count}} charges nobody has accepted yet",
       "added": "Added this quarter",
-      "addedNote": "{{total}} notes · {{accepted}} accepted, {{open}} open",
       "rejected": "Rejected this year",
-      "rejectedNote_one": "{{count}} charge refused and withdrawn",
-      "rejectedNote_other": "{{count}} charges refused and withdrawn"
+      "rejectedNote_one": "{{count}} charge refused",
+      "rejectedNote_other": "{{count}} charges refused",
+      "acceptedNote": "{{count}} accepted · {{open}} still open"
     },
     "tabs": {
       "all": "All",
       "accepted": "Accepted",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "unchecked": "Needs checking",
+      "refused": "Refused"
     },
     "searchPlaceholder": "Search supplier, bill number...",
     "col": {
@@ -5420,7 +5422,10 @@
     "rows": {
       "arrived": "Arrived {{date}}",
       "stillUnpaid": "Still unpaid",
-      "alreadyPaid": "Already paid"
+      "alreadyPaid": "Already paid",
+      "outstanding": "{{amount}} outstanding",
+      "overdue": "{{amount}} outstanding, late",
+      "disputed": "Refused — not treated as owed"
     },
     "why": {
       "outOfHours": "Out-of-hours delivery surcharge",
@@ -5570,13 +5575,9 @@
       "vatRow": "VAT · 5%",
       "totalCharged": "Total charged",
       "yourDecision": "Your decision",
-      "decisionNote": "Accepting adds it to {{bill}} and it joins the next payment run. Refusing sends the supplier your reason over Peppol.",
       "refuseAndTell": "Refuse and tell them",
       "accept": "Accept it",
       "hold": "Put on hold",
-      "acceptDone": "Accepted. {{bill}} now shows OMR {{total}}.",
-      "refuseDone": "Refused. The supplier has been told over Peppol.",
-      "holdDone": "On hold. Nothing has been added or sent.",
       "undo": "Undo",
       "pickReason": "Why are you refusing?",
       "send": "Send the refusal",
@@ -5623,7 +5624,34 @@
         "arrived": "Debit note arrived over Peppol",
         "arrivedDetail": "Matched to GCL-2301 automatically · 26 Jul, 11:05"
       }
-    }
+    },
+    "status": {
+      "UNCHECKED": "Not checked yet",
+      "ACCEPTED": "Accepted",
+      "REFUSED": "Refused"
+    },
+    "fact": {
+      "charged": "What they charged",
+      "vat": "VAT",
+      "outstanding": "Outstanding",
+      "due": "Due",
+      "issued": "Issued",
+      "source": "How it reached us",
+      "why": "Why they charged it",
+      "against": "Against",
+      "late": "late"
+    },
+    "decided": {
+      "accepted": "Accepted. The decision is recorded.",
+      "refused": "Refused. Your reason is recorded against the note."
+    },
+    "backToList": "Back to debit notes",
+    "chargeTitle": "The charge",
+    "decisionTitle": "Your decision",
+    "decisionNote": "Accepting or refusing records your decision against this note. It is not sent to the supplier from here.",
+    "reverseOnly": "Already {{status}}. Only the opposite decision can be recorded.",
+    "historyTitle": "Decision history",
+    "noHistory": "Nobody has decided on this charge yet."
   },
   "expenditureReminders": {
     "title": "Reminders",

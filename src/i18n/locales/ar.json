@@ -5510,15 +5510,20 @@
       "needsCheckingNote_one": "رسم واحد لم يقبله أحد بعد",
       "needsCheckingNote_other": "{{count}} رسوم لم يقبلها أحد بعد",
       "added": "أُضيفت هذا الربع",
-      "addedNote": "{{total}} إشعارات · {{accepted}} مقبولة، {{open}} مفتوح",
       "rejected": "مرفوضة هذا العام",
-      "rejectedNote_one": "رسم واحد رُفض وسُحب",
-      "rejectedNote_other": "{{count}} رسوم رُفضت وسُحبت"
+      "rejectedNote_one": "رُفض رسم واحد",
+      "rejectedNote_other": "رُفض {{count}} رسم",
+      "acceptedNote": "{{count}} مقبولة · {{open}} ما زالت مفتوحة",
+      "rejectedNote_two": "رُفض رسمان",
+      "rejectedNote_few": "رُفضت {{count}} رسوم",
+      "rejectedNote_many": "رُفض {{count}} رسمًا"
     },
     "tabs": {
       "all": "الكل",
       "accepted": "مقبولة",
-      "rejected": "مرفوضة"
+      "rejected": "مرفوضة",
+      "unchecked": "بحاجة لمراجعة",
+      "refused": "مرفوضة"
     },
     "searchPlaceholder": "ابحث عن مورد أو رقم فاتورة...",
     "col": {
@@ -5536,7 +5541,10 @@
     "rows": {
       "arrived": "وصل {{date}}",
       "stillUnpaid": "غير مدفوعة بعد",
-      "alreadyPaid": "مدفوعة"
+      "alreadyPaid": "مدفوعة",
+      "outstanding": "{{amount}} مستحقة",
+      "overdue": "{{amount}} مستحقة ومتأخرة",
+      "disputed": "مرفوضة — لا تُعامل كمستحقة"
     },
     "why": {
       "outOfHours": "رسم تسليم خارج ساعات العمل",
@@ -5686,13 +5694,9 @@
       "vatRow": "ض.ق.م · ٥٪",
       "totalCharged": "إجمالي الرسم",
       "yourDecision": "قرارك",
-      "decisionNote": "القبول يضيفه إلى {{bill}} وينضم إلى دفعة السداد القادمة. والرفض يرسل سببك إلى المورد عبر Peppol.",
       "refuseAndTell": "ارفض وأبلغهم",
       "accept": "اقبله",
       "hold": "علّقه",
-      "acceptDone": "قُبل. {{bill}} تظهر الآن {{total}} ريال.",
-      "refuseDone": "رُفض. أُبلغ المورد عبر Peppol.",
-      "holdDone": "معلّق. لم يُضف شيء ولم يُرسل شيء.",
       "undo": "تراجع",
       "pickReason": "لماذا ترفضه؟",
       "send": "إرسال الرفض",
@@ -5739,7 +5743,34 @@
         "arrived": "وصل الإشعار المدين عبر Peppol",
         "arrivedDetail": "طوبق مع GCL-2301 تلقائيًا · ٢٦ يوليو، ١١:٠٥"
       }
-    }
+    },
+    "status": {
+      "UNCHECKED": "لم تُراجع بعد",
+      "ACCEPTED": "مقبولة",
+      "REFUSED": "مرفوضة"
+    },
+    "fact": {
+      "charged": "ما طالبوا به",
+      "vat": "ضريبة القيمة المضافة",
+      "outstanding": "المستحق",
+      "due": "تاريخ الاستحقاق",
+      "issued": "تاريخ الإصدار",
+      "source": "طريقة الوصول",
+      "why": "سبب المطالبة",
+      "against": "مقابل",
+      "late": "متأخرة"
+    },
+    "decided": {
+      "accepted": "تم القبول. سُجّل القرار.",
+      "refused": "تم الرفض. سُجّل سببك على الإشعار."
+    },
+    "backToList": "العودة إلى إشعارات المدين",
+    "chargeTitle": "الرسم",
+    "decisionTitle": "قرارك",
+    "decisionNote": "القبول أو الرفض يسجّل قرارك على هذا الإشعار. ولا يُرسل إلى المورّد من هنا.",
+    "reverseOnly": "الحالة {{status}} بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
+    "historyTitle": "سجل القرارات",
+    "noHistory": "لم يبتّ أحد في هذا الرسم بعد."
   },
   "expenditureReminders": {
     "title": "التذكيرات",
