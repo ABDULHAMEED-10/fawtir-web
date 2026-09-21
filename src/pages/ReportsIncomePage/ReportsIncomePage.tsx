@@ -1,133 +1,191 @@
-import { Trans, useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ChartCard,
   ChartGrid,
-  GroupedBars,
   HorizontalBars,
   KpiCard,
   KpiRow,
-  LineChart,
-  OmrNote,
+  PlainBars,
+  ReportControls,
   ReportShell,
   SERIES,
-  StackedBars,
 } from '../../components/reports'
-import { FISCAL_MONTHS, INCOME, formatCount, formatOmr, formatPercent } from '../../lib/reports'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import {
+  loadVolumeReport,
+  reportExportPath,
+  volumePath,
+  type ReportGranularity,
+  type VolumeGroupBy,
+  type VolumeReportDto,
+} from '../../api/reports/reports'
+import { GROUPINGS, byGroup, byPeriodTotal, periodsOfVolume } from '../../lib/volumeReport'
+import { formatAmount, formatCount } from '../../lib/format'
 
+/**
+ * Reports › Income (position 7).
+ *
+ * Issued documents only. The adapter reads `FROM invoice.invoices`, so this is the sell side —
+ * there is no received-document equivalent, which is why the Expenditure report has no endpoint
+ * behind it.
+ *
+ * **Amounts are signed.** A credit note subtracts, so a period's total is net of corrections
+ * while `documents` counts every issued document whatever its sign. Cancelled documents are
+ * counted separately and contribute to no amount, so they are shown as a count rather than
+ * folded into a total that would then not reconcile.
+ */
 export function ReportsIncomePage() {
-  const { t } = useTranslation()
-  const months = FISCAL_MONTHS.map((month) => t(`reports.months.${month}`))
-  const best = INCOME.monthly[INCOME.bestMonthIndex]
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const [params, setParams] = useSearchParams()
 
-  const topTotal = INCOME.topCustomers.reduce((total, customer) => total + customer.value, 0)
+  const from = params.get('from') ?? ''
+  const to = params.get('to') ?? ''
+  const granularity = (params.get('granularity') as ReportGranularity | null) ?? 'MONTH'
+  const groupBy = (params.get('group_by') as VolumeGroupBy | null) ?? 'NONE'
+
+  const change = (next: Record<string, string | undefined>) =>
+    setParams(
+      (current) => {
+        const updated = new URLSearchParams(current)
+        for (const [key, value] of Object.entries(next)) {
+          if (!value) updated.delete(key)
+          else updated.set(key, value)
+        }
+        return updated
+      },
+      { replace: true },
+    )
+
+  const range = { from: from || null, to: to || null, granularity }
+  const path = volumePath(range, groupBy)
+  const report = useApiRead<VolumeReportDto>(path, () => loadVolumeReport(path))
+  const data = report.read.status === 'ready' ? report.read.data : null
 
   return (
     <ReportShell titleKey="reports.income.title" subtitleKey="reports.income.subtitle">
+      <ReportControls
+        from={from}
+        to={to}
+        granularity={granularity}
+        onChange={change}
+        exports={{
+          csv: reportExportPath('volume', 'csv', range, groupBy),
+          xlsx: reportExportPath('volume', 'xlsx', range, groupBy),
+          name: 'income-report',
+        }}
+        extra={
+          <label className="flex flex-col gap-1 text-xs font-semibold text-text-quaternary">
+            {t('reports.income.groupBy')}
+            <select
+              value={groupBy}
+              onChange={(event) => change({ group_by: event.target.value })}
+              className="h-[40px] rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500"
+            >
+              {GROUPINGS.map((option) => (
+                <option key={option} value={option}>
+                  {t(`reports.income.grouping.${option}`)}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
+
+      {report.read.status === 'loading' ? <LoadingNotice /> : null}
+      {report.read.status === 'failed' ? <ApiReadFailure error={report.read.error} retry={report.retry} /> : null}
+
+      {data ? <VolumeBody report={data} groupBy={groupBy} language={language} t={t} /> : null}
+    </ReportShell>
+  )
+}
+
+function VolumeBody({
+  report,
+  groupBy,
+  language,
+  t,
+}: {
+  report: VolumeReportDto
+  groupBy: VolumeGroupBy
+  language: string
+  t: (key: string, values?: Record<string, unknown>) => string
+}) {
+  const totals = report.totals
+  const primary = totals[0]
+  const money = (value: number, currency = primary?.currency ?? 'OMR') => formatAmount(value, currency, language)
+  const periods = periodsOfVolume(report.rows)
+  const series = byPeriodTotal(report.rows, periods)
+  const cancelled = report.rows.reduce((sum, row) => sum + row.cancelled, 0)
+  const groups = byGroup(report.rows)
+
+  if (report.rows.length === 0) {
+    return (
+      <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
+        {t('reports.income.empty')}
+      </p>
+    )
+  }
+
+  return (
+    <>
+      {totals.length > 1 ? (
+        <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+          {t('reports.vat.mixedCurrency', { currencies: totals.map((entry) => entry.currency).join(', ') })}
+        </p>
+      ) : null}
+
       <KpiRow>
         <KpiCard
           label={t('reports.income.kpi.invoiced')}
-          value={formatOmr(INCOME.net)}
+          value={money(primary?.totalAmount ?? 0)}
           currency
-          change={{ text: `${INCOME.growth}%`, direction: 'up' }}
           note={t('reports.income.kpi.invoicedNote')}
         />
         <KpiCard
-          label={t('reports.income.kpi.vat')}
-          value={formatOmr(INCOME.vat)}
+          label={t('reports.income.kpi.taxable')}
+          value={money(primary?.taxableAmount ?? 0)}
           currency
-          change={{ text: `${INCOME.growth}%`, direction: 'up' }}
-          note={t('reports.income.kpi.vatNote')}
+          note={t('reports.income.kpi.taxableNote')}
         />
         <KpiCard
-          label={t('reports.income.kpi.sent')}
-          value={formatCount(INCOME.invoicesSent)}
-          change={{ text: formatCount(INCOME.invoicesMore), direction: 'up' }}
-          note={t('reports.income.kpi.sentNote')}
-        />
-        <KpiCard
-          label={t('reports.income.kpi.average')}
-          value={formatOmr(INCOME.averageInvoice)}
-          currency
-          change={{ text: t('reports.income.kpi.steady'), direction: 'flat' }}
-          note={t('reports.income.kpi.averageNote')}
+          label={t('reports.income.kpi.documents')}
+          value={formatCount(primary?.documents ?? 0, language)}
+          note={t(cancelled > 0 ? 'reports.income.kpi.documentsWithCancelled' : 'reports.income.kpi.documentsNote', {
+            count: cancelled,
+          })}
         />
       </KpiRow>
 
       <ChartGrid>
         <ChartCard
-          title={t('reports.income.monthly')}
-          legend={[
-            { label: t('reports.income.netInvoiced'), color: SERIES.strong },
-            { label: t('reports.income.vatCharged'), color: SERIES.grey },
-          ]}
-          note={
-            <Trans
-              i18nKey="reports.income.bestMonth"
-              values={{
-                month: t(`reports.monthsLong.${best.month}`),
-                value: formatCount(best.net),
-              }}
-              components={{ amount: <OmrNote /> }}
+          title={t('reports.income.byPeriod')}
+          legend={[{ label: t('reports.income.invoiced'), color: SERIES.strong }]}
+          note={t('reports.income.byPeriodNote')}
+        >
+          <PlainBars values={series} labels={periods} labelWidth={56} />
+        </ChartCard>
+
+        {groupBy !== 'NONE' ? (
+          <ChartCard
+            title={t(`reports.income.by.${groupBy}`)}
+            legend={[{ label: t('reports.income.invoiced'), color: SERIES.strong }]}
+            note={t('reports.income.byGroupNote')}
+          >
+            <HorizontalBars
+              rows={groups.map((group) => ({
+                // The server's own label, falling back to the key: a grouping it can produce but
+                // this page has never heard of still reads as something rather than as blank.
+                label: group.label ?? group.key ?? t('reports.income.ungrouped'),
+                value: group.total,
+                display: money(group.total),
+              }))}
             />
-          }
-        >
-          <StackedBars
-            data={INCOME.monthly.map((entry) => ({ base: entry.net, top: entry.vat }))}
-            labels={months}
-            highlight={INCOME.bestMonthIndex}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('reports.income.quarterly')}
-          legend={[
-            { label: t('reports.income.thisYear'), color: SERIES.strong },
-            { label: t('reports.income.lastYear'), color: SERIES.soft },
-          ]}
-          note={t('reports.income.quarterlyNote')}
-        >
-          <GroupedBars
-            data={INCOME.quarterly.map((value, index) => ({
-              a: INCOME.quarterlyLastYear[index],
-              b: value,
-            }))}
-            labels={['Q1', 'Q2', 'Q3', 'Q4']}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('reports.income.annually')}
-          legend={[{ label: t('reports.income.kpi.invoiced'), color: SERIES.strong }]}
-          note={
-            <Trans
-              i18nKey="reports.income.onTrack"
-              values={{ value: formatCount(INCOME.onTrackFor) }}
-              components={{ amount: <OmrNote /> }}
-            />
-          }
-        >
-          <LineChart
-            values={INCOME.annual.map((entry) => entry.value)}
-            labels={INCOME.annual.map((entry) => entry.year)}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('reports.income.topCustomers')}
-          legend={[{ label: t('reports.income.invoicedThisYear'), color: SERIES.strong }]}
-          note={t('reports.income.topShare', {
-            percent: formatPercent(topTotal, INCOME.net),
-          })}
-        >
-          <HorizontalBars
-            rows={INCOME.topCustomers.map((customer) => ({
-              label: customer.name,
-              value: customer.value,
-              display: formatCount(customer.value),
-            }))}
-          />
-        </ChartCard>
+          </ChartCard>
+        ) : null}
       </ChartGrid>
-    </ReportShell>
+    </>
   )
 }
