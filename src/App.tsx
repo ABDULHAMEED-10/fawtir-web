@@ -32,6 +32,7 @@ import { SupplierDebitNotesPage } from './pages/SupplierDebitNotesPage'
 import { SupplierDetailPage } from './pages/SupplierDetailPage'
 import { EditSupplierPage } from './pages/EditSupplierPage'
 import { NewPurchaseOrderPage } from './pages/NewPurchaseOrderPage'
+import { PurchaseOrderDetailPage } from './pages/PurchaseOrderDetailPage'
 import { RecordSupplierBillPage } from './pages/RecordSupplierBillPage'
 import { ImportCustomersPage, ImportSuppliersPage } from './pages/StagedImportPage'
 import { SupplierStatementPage } from './pages/SupplierStatementPage'
@@ -646,6 +647,7 @@ function App() {
           <Route path="/customers/import" element={<ImportCustomersPage />} />
           <Route path="/suppliers/:slug/edit" element={<EditSupplierPage />} />
           <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route path="/expenditure/purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />
