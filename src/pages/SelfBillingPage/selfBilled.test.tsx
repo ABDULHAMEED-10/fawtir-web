@@ -85,8 +85,8 @@ beforeEach(async () => {
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
     if (url.startsWith('/api/v1/self-billing-agreements')) return json(200, agreements)
     if (url.startsWith(LIST_URL)) {
-      const type = new URL(url, 'http://x').searchParams.get('type')
-      const matching = rows.filter((entry) => entry.type === type)
+      const asked = (new URL(url, 'http://x').searchParams.get('type') ?? '').split(',').filter(Boolean)
+      const matching = asked.length === 0 ? rows : rows.filter((entry) => asked.includes(entry.type))
       return json(200, { content: matching, page: 0, size: 25, totalElements: matching.length })
     }
     return json(404)
@@ -107,10 +107,21 @@ function renderPage(path = '/income/self-billing') {
 }
 
 describe('the self-billed documents list', () => {
-  it('asks the server for one self-billed type, never for everything', async () => {
+  it('asks for both self-billed types in one request, never for everything', async () => {
     renderPage()
     await screen.findByText('SB-0001')
-    expect(listCalls().at(-1)).toContain('type=SELF_BILLED_INVOICE')
+    // One request the server pages, not two stitched together: stitching drops rows at a page
+    // boundary. And the type is always pinned, so no ordinary invoice can reach this page.
+    const asked = decodeURIComponent(listCalls().at(-1) ?? '')
+    expect(asked).toContain('type=SELF_BILLED_INVOICE,SELF_BILLED_CREDIT_NOTE')
+    expect(listCalls()).toHaveLength(1)
+  })
+
+  it('shows both types together on All', async () => {
+    rows = [row(), row({ id: 'i-2', type: 'SELF_BILLED_CREDIT_NOTE', invoiceNumber: 'SBCN-1' })]
+    renderPage()
+    expect(await screen.findByText('SB-0001')).toBeTruthy()
+    expect(screen.getByText('SBCN-1')).toBeTruthy()
   })
 
   it('says the tenant is the buyer, because the row looks exactly like a receivable otherwise', async () => {
@@ -127,7 +138,9 @@ describe('the self-billed documents list', () => {
     await screen.findByText('SB-0001')
 
     fireEvent.click(screen.getByRole('tab', { name: 'Credit notes' }))
-    await waitFor(() => expect(listCalls().at(-1)).toContain('type=SELF_BILLED_CREDIT_NOTE'))
+    await waitFor(() =>
+      expect(decodeURIComponent(listCalls().at(-1) ?? '')).toContain('type=SELF_BILLED_CREDIT_NOTE&'),
+    )
     expect(await screen.findByText('SBCN-1')).toBeTruthy()
     expect(screen.queryByText('SB-0001')).toBeNull()
   })
@@ -179,6 +192,6 @@ describe('the self-billed documents list', () => {
   it('shows an empty state per type rather than one that could mislead', async () => {
     rows = []
     renderPage()
-    expect(await screen.findByText('No self-billed invoices here.')).toBeTruthy()
+    expect(await screen.findByText('No self-billed documents here.')).toBeTruthy()
   })
 })

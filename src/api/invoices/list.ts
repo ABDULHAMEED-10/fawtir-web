@@ -99,7 +99,12 @@ export type InvoiceListFilter = {
   /** Comma-separated states, as both routes read them. */
   state: string | null
   payment: InvoiceListPayment | null
-  type: InvoiceTypeDto | null
+  /**
+   * One type, or several. Comma-separated on the wire, exactly as `state` is: the server binds it
+   * as a `Set<InvoiceType>`, so a screen showing self-billing's two document types (389 and 261)
+   * asks for both in one page rather than merging two independently paged responses.
+   */
+  type: InvoiceTypeDto | InvoiceTypeDto[] | null
   from: string | null
   to: string | null
   search: string
@@ -120,7 +125,7 @@ function filterParams(filter: InvoiceListFilter) {
   return {
     state: filter.state,
     payment: filter.payment,
-    type: filter.type,
+    type: Array.isArray(filter.type) ? (filter.type.length === 0 ? null : filter.type.join(',')) : filter.type,
     from: filter.from,
     to: filter.to,
     q: filter.search.trim(),

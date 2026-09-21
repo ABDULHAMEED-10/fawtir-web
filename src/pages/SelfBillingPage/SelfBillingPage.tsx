@@ -19,10 +19,17 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 
 const PAGE_SIZE = 25
 
-/** The two document types self-billing produces: 389 and 261. */
-const KINDS: { id: 'invoices' | 'creditNotes'; type: InvoiceTypeDto }[] = [
-  { id: 'invoices', type: 'SELF_BILLED_INVOICE' },
-  { id: 'creditNotes', type: 'SELF_BILLED_CREDIT_NOTE' },
+/**
+ * The two document types self-billing produces — 389 and 261 — and both together.
+ *
+ * "Both" is one request, not two merged: the list binds `type` as a `Set<InvoiceType>`, so the
+ * server pages the combined result. Merging two independently paged responses here would drop rows
+ * at every page boundary.
+ */
+const KINDS: { id: 'all' | 'invoices' | 'creditNotes'; types: InvoiceTypeDto[] }[] = [
+  { id: 'all', types: ['SELF_BILLED_INVOICE', 'SELF_BILLED_CREDIT_NOTE'] },
+  { id: 'invoices', types: ['SELF_BILLED_INVOICE'] },
+  { id: 'creditNotes', types: ['SELF_BILLED_CREDIT_NOTE'] },
 ]
 
 const CHIP: Record<string, string> = {
@@ -39,11 +46,10 @@ const CHIP: Record<string, string> = {
  * records what the tenant *owes*. The list therefore says "seller" where the invoices list says
  * customer, and labels the amount as owed rather than due in.
  *
- * **Two types, two requests.** `GET /authored-invoices` binds `type` as a single `InvoiceType`,
- * not a set, so 389 and 261 cannot be asked for together and there is no honest "all" tab: merging
- * two independently paged responses is how rows go missing. They are separate tabs instead, each
- * paged by the server — which is also how the rest of Income is arranged, with credit notes and
- * debit notes on pages of their own.
+ * **Both types in one page.** `GET /authored-invoices` binds `type` as a `Set<InvoiceType>`, so
+ * "All" is a single request the server pages, not two responses stitched together — stitching is
+ * how rows go missing at a page boundary. The two types are still separately reachable, because a
+ * self-billed credit note is a different document from the invoice it corrects.
  *
  * **No per-tab counts.** `/authored-invoices/summary` takes only a currency and counts every
  * document type, so any figure drawn from it would be the whole ledger's, not self-billing's. An
@@ -90,7 +96,7 @@ function SelfBilled() {
   const listPath = invoiceListPath({
     state,
     payment,
-    type: kind.type,
+    type: kind.types,
     from: null,
     to: null,
     search,
@@ -155,7 +161,7 @@ function SelfBilled() {
                 type="button"
                 role="tab"
                 aria-selected={entry.id === kind.id}
-                onClick={() => update({ kind: entry.id === 'invoices' ? null : entry.id, page: null })}
+                onClick={() => update({ kind: entry.id === 'all' ? null : entry.id, page: null })}
                 className={[
                   'h-[38px] rounded-sm px-4 text-sm font-semibold transition-colors',
                   entry.id === kind.id
