@@ -2475,68 +2475,87 @@
     "nextPage": "Next page"
   },
   "agreements": {
-    "breadcrumbIncome": "Income",
-    "breadcrumbSelfBilled": "Self -billed",
-    "title": "Agreements",
-    "subtitle": "Your permission to invoice on each supplier's behalf. A supplier must have an active agreement here before you can raise a self-billed invoice for them.",
-    "export": "Export",
-    "newAgreement": "New agreement",
-    "alert": {
-      "title": "Nizwa Dairy Farms' agreement expired on 12 July 2026",
-      "body": "1 draft self-billed invoice for OMR 318.900 is blocked until the agreement is renewed. Existing documents stay valid and reportable.",
-      "action": "Renew agreement"
-    },
-    "kpi": {
-      "active": "Active",
-      "activeMeta": "Suppliers you can self-bill today",
-      "expiringSoon": "Expiring soon",
-      "expiringSoonMeta": "Al Noor Dates in 9 days",
-      "awaiting": "Awaiting supplier",
-      "awaitingMeta": "Sent for acceptance, not yet signed",
-      "expired": "Expired",
-      "expiredMeta": "Blocking 1 draft invoice"
-    },
-    "tabs": {
+    "breadcrumbSelfBilled": "Self-billing",
+    "title": "Self-billing agreements",
+    "subtitle": "The written agreement that lets you invoice a seller on their behalf. Without one in force, issuing a self-billed invoice is refused.",
+    "open": "Open an agreement",
+    "notDone": "NOT DONE",
+    "empty": "No agreements here.",
+    "unknownSeller": "Seller no longer on your list",
+    "reference": "Ref {{reference}}",
+    "fromTo": "{{from}} to {{to}}",
+    "fromOpenEnded": "From {{from}}, open-ended",
+    "lapsed": "LAPSED",
+    "canIssue": "You can issue self-billed invoices to this seller.",
+    "verifiedAs": "Verified as {{participant}} — this is the identity a self-billed document carries as its seller.",
+    "withdrawnBecause": "Withdrawn: {{reason}}",
+    "footnote": "You are the buyer on a self-billed invoice: you write it, and it records what you owe the seller. Documents are not linked to a specific agreement — they are matched to the seller.",
+    "tab": {
       "all": "All",
-      "active": "Active",
-      "awaiting": "Awaiting acceptance",
-      "expiringSoon": "Expiring soon",
-      "expired": "Expired",
-      "terminated": "Terminated"
+      "active": "Ready to use",
+      "waiting": "Waiting",
+      "ended": "Ended"
     },
     "status": {
-      "active": "Active",
-      "expiringSoon": "Expiring soon",
-      "awaitingAcceptance": "Awaiting acceptance",
-      "expired": "Expired",
-      "terminated": "Terminated"
+      "PENDING_ACTIVATION": "Not active yet",
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended",
+      "WITHDRAWN": "Withdrawn"
     },
-    "kind": {
-      "agreed": "Agreed",
-      "statutory": "Statutory"
+    "blocked": {
+      "pendingActivation": "Activate this agreement before you can issue against it.",
+      "suspended": "Suspended, so issuing is refused. Activating it again lifts that.",
+      "withdrawn": "Withdrawn. This cannot be undone — open a new agreement to self-bill this seller again.",
+      "notYetStarted": "Starts on {{from}}. Issuing before then is refused.",
+      "lapsed": "Ended on {{to}}, so issuing is now refused. Open a new agreement to continue.",
+      "unverified": "Waiting on Fawtir to verify this seller's network identity. Nothing for you to do — issuing stays refused until it is done."
     },
-    "signature": {
-      "onFile": "Signed copy on file",
-      "notRequired": "No signature required",
-      "sentResend": "Sent 3 days ago · resend",
-      "blocking": "Blocking 1 draft"
+    "kpi": {
+      "issuable": "Ready to use",
+      "issuableNote": "Sellers you can self-bill today",
+      "awaitingFawtir": "Waiting on Fawtir",
+      "awaitingFawtirNote": "We have to verify the seller's identity",
+      "lapsed": "Lapsed",
+      "lapsedNote": "Past their end date and no longer usable"
     },
-    "onPeppol": "On Peppol",
-    "searchPlaceholder": "Search by document, supplier or VAT number",
-    "filters": "Filters",
-    "sort": "Sort",
-    "col": {
-      "supplier": "Supplier",
-      "kind": "Kind",
-      "coverage": "Coverage",
-      "valid": "Valid",
-      "documents": "Documents issued",
-      "status": "Status"
+    "action": {
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "withdraw": "Withdraw"
     },
-    "rowMenu": "Row actions",
-    "showResult": "Show result:",
-    "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "done": {
+      "opened": "The agreement was opened.",
+      "activated": "The agreement is active.",
+      "suspended": "The agreement is suspended.",
+      "withdrawn": "The agreement was withdrawn."
+    },
+    "problem": {
+      "referenceRequired": "Give the agreement a reference.",
+      "referenceTooLong": "That reference is too long.",
+      "fromRequired": "Say when the agreement starts.",
+      "rangeInvalid": "The end date is before the start date."
+    },
+    "openDialog": {
+      "title": "Open a self-billing agreement",
+      "note": "Record the agreement you already have with this seller. One live agreement per seller.",
+      "seller": "Seller",
+      "chooseSeller": "Choose a seller",
+      "reference": "Your reference for the agreement",
+      "from": "In force from",
+      "to": "Until",
+      "openEnded": "Leave the end date empty for an open-ended agreement.",
+      "fixed": "The reference and the dates cannot be changed afterwards. To alter them you withdraw this agreement and open another.",
+      "confirm": "Open the agreement",
+      "opening": "Opening…"
+    },
+    "withdrawDialog": {
+      "title": "Withdraw this agreement",
+      "body": "Withdraw the agreement with {{seller}} ({{reference}}).",
+      "terminal": "This cannot be undone. Self-billed invoices to this seller will be refused until you open a new agreement.",
+      "reason": "Reason (optional)",
+      "confirm": "Withdraw it",
+      "withdrawing": "Withdrawing…"
+    }
   },
   "newSelfBill": {
     "breadcrumb": "Self-billed",
@@ -13509,6 +13528,20 @@
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
       "approvalPolicyInvalid": "An approval rule has to require at least one approver."
+    },
+    "selfBilling": {
+      "generic": "The server refused this because of the self-billing agreement with this seller. Check the agreement before trying again.",
+      "missing": "There is no self-billing agreement with this seller. Open one before issuing on their behalf.",
+      "notActive": "The agreement with this seller is not active. Activate it, then issue.",
+      "notInForce": "The agreement with this seller is not in force on this date — it has not started, or it has ended.",
+      "sellerNotVerified": "Fawtir has not yet verified this seller's network identity. Issuing stays refused until that is done, and there is nothing you can do to speed it up.",
+      "alreadyExists": "There is already a live agreement with this seller. Withdraw it before opening another.",
+      "alreadyInState": "The agreement is already in that state.",
+      "withdrawn": "This agreement was withdrawn, and a withdrawal cannot be undone. Open a new agreement instead.",
+      "notFound": "That agreement is not on this account.",
+      "rangeInvalid": "The end date is before the start date.",
+      "referenceRequired": "The agreement needs a reference.",
+      "referenceTooLong": "That reference is too long."
     }
   },
   "appAccess": {
