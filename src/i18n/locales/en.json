@@ -4494,7 +4494,8 @@
       "due": "Due",
       "matched": "Matched against",
       "status": "Status",
-      "amount": "Amount"
+      "amount": "Amount",
+      "outstanding": "Outstanding"
     },
     "source": {
       "peppol": "Peppol",
@@ -4570,7 +4571,9 @@
       "creditNote": "Credit note",
       "leftToPay": "{{amount}} left to pay",
       "inclVat": "incl. VAT {{amount}}",
-      "noNumber": "No bill number"
+      "noNumber": "No bill number",
+      "overdue": "Overdue",
+      "nothingOwed": "Nothing owed"
     },
     "state": {
       "newNotReviewed": "New, not reviewed",

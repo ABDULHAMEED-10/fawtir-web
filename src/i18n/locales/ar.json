@@ -4581,7 +4581,8 @@
       "due": "الاستحقاق",
       "matched": "مطابَقة مع",
       "status": "الحالة",
-      "amount": "المبلغ"
+      "amount": "المبلغ",
+      "outstanding": "المتبقي"
     },
     "source": {
       "peppol": "Peppol",
@@ -4663,7 +4664,9 @@
       "creditNote": "إشعار دائن",
       "leftToPay": "متبقٍ للدفع {{amount}}",
       "inclVat": "شاملة الضريبة {{amount}}",
-      "noNumber": "بلا رقم فاتورة"
+      "noNumber": "بلا رقم فاتورة",
+      "overdue": "متأخرة",
+      "nothingOwed": "لا شيء مستحق"
     },
     "state": {
       "newNotReviewed": "جديدة، لم تُراجع",
