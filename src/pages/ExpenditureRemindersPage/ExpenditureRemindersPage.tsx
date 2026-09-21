@@ -1,597 +1,709 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Popover, Switch, withRial } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice, Notice, PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
 import {
-  CANDIDATES,
-  DIGEST_TIME,
-  PEOPLE,
-  ROLES,
-  RULES,
-  type EmailMode,
-  type Rule,
-  type RuleId,
-} from '../../lib/expenditureReminders'
-import clockIcon from '../../assets/expenditure-reminders/clock.svg'
-import alertIcon from '../../assets/expenditure-reminders/alert.svg'
-import discountIcon from '../../assets/expenditure-reminders/discount.svg'
-import approvalIcon from '../../assets/expenditure-reminders/approval.svg'
-import eyeIcon from '../../assets/expenditure-reminders/eye.svg'
-import cameraIcon from '../../assets/expenditure-reminders/camera.svg'
-import calendarIcon from '../../assets/expenditure-reminders/calendar.svg'
-import bellIcon from '../../assets/expenditure-reminders/bell.svg'
-import mailIcon from '../../assets/expenditure-reminders/mail.svg'
-import mobileIcon from '../../assets/expenditure-reminders/mobile.svg'
-import personAnyIcon from '../../assets/expenditure-reminders/person-any.svg'
-import infoIcon from '../../assets/expenditure-reminders/info.svg'
-import avatarImg from '../../assets/dashboard/avatar.png'
-import chevronIcon from '../../assets/create-invoice/chevron.svg'
+  BILL_REMINDER_PREVIEW_PATH,
+  BILL_REMINDER_RULES_PATH,
+  BILL_REMINDER_SETTINGS_PATH,
+  CONFIGURABLE_RULE_TYPES,
+  MAX_OFFSETS,
+  MAX_OFFSET_DAYS,
+  MAX_RECIPIENTS,
+  POSSIBLE_RECIPIENTS_PATH,
+  RECIPIENTS_REQUIRED_TO_ENABLE,
+  acknowledgeReminder,
+  loadPossibleRecipients,
+  loadReminderInbox,
+  loadReminderPreview,
+  loadReminderRules,
+  loadReminderSettings,
+  reminderInboxPath,
+  saveReminderRules,
+  saveReminderSettings,
+  type ConfigurableRuleType,
+  type ReminderDeliveryDto,
+  type ReminderInboxItemDto,
+  type ReminderPreviewDto,
+  type ReminderRecipientDto,
+  type ReminderRuleDto,
+  type ReminderRulesDto,
+  type ReminderSettingsDto,
+} from '../../api/expenditure/billReminders'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { RULE_LABEL_KEY, offsetsProblem, ruleChanged, type OffsetProblem } from '../../lib/billReminders'
+import { formatAmount, formatCount, formatDate, formatInstant } from '../../lib/format'
+import { can, useSession } from '../../lib/session/session'
 
-const RULE_ICON = {
-  clock: clockIcon,
-  alert: alertIcon,
-  discount: discountIcon,
-  approval: approvalIcon,
-  eye: eyeIcon,
-  camera: cameraIcon,
-  calendar: calendarIcon,
-}
+const FIELD =
+  'h-[46px] rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
 
-const RULE_TILE = {
-  blue: 'bg-primary-50',
-  red: 'bg-warning-100',
-  green: 'bg-success-100',
-  grey: 'bg-surface-background',
-  sand: 'bg-pending-100',
-}
+const DELIVERY: { value: ReminderDeliveryDto; titleKey: string; noteKey: string }[] = [
+  { value: 'IN_APP', titleKey: 'expenditureReminders.channels.inFawtir', noteKey: 'expenditureReminders.channels.inFawtirNote' },
+  { value: 'DAILY_DIGEST', titleKey: 'expenditureReminders.channels.daily', noteKey: 'expenditureReminders.channels.dailyNote' },
+  { value: 'IMMEDIATE_EMAIL', titleKey: 'expenditureReminders.channels.each', noteKey: 'expenditureReminders.channels.eachNote' },
+]
 
-/** One rule's live settings. */
-type RuleState = {
-  on: boolean
-  options: string[]
-  second?: string
-  recipients: string[]
-}
-
-type ChipProps = { active: boolean; onClick: () => void; children: React.ReactNode }
-
-function Chip({ active, onClick, children }: ChipProps) {
+/**
+ * Expenditure › Reminders (E-14).
+ *
+ * Six rules a tenant can configure, how the reminders are delivered, what today's sweep would
+ * send, and the reader's own inbox.
+ *
+ * **A seventh reminder exists and is deliberately not here.** "A recurring bill that has not
+ * arrived" is configured per recurring instruction, so it has no rule row and the server refuses
+ * one. The page says where it lives instead of pretending it is missing.
+ *
+ * Three constraints are the server's and are enforced here so a save is not spent learning them:
+ * a repeat belongs to the late rule alone, an escalation to the stale-approval rule alone, and a
+ * rule whose recipients are not derived cannot be switched on with nobody to tell.
+ */
+export function ExpenditureRemindersPage() {
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={[
-        'inline-flex h-[38px] items-center rounded-sm border px-3.5 text-sm font-medium transition-colors',
-        active
-          ? 'border-primary-700 bg-primary-25 text-primary-700'
-          : 'border-border-subtle bg-white text-text-tertiary hover:border-primary-300',
-      ].join(' ')}
-    >
-      {children}
-    </button>
+    <AppShell>
+      <RemindersScreen />
+    </AppShell>
   )
 }
 
-/** The avatar-plus-name control that picks who a rule tells. */
-function RecipientPicker({
-  rule,
-  value,
-  onChange,
-}: {
-  rule: Rule
-  value: string[]
-  onChange: (ids: string[]) => void
-}) {
+function RemindersScreen() {
   const { t } = useTranslation()
-  const [openFor, setOpenFor] = useState<string | null>(null)
-  const refs = useRef(new Map<string, HTMLButtonElement | null>())
-  const pool = rule.roleOnly ? ROLES : PEOPLE
+  const session = useSession()
+  const canRead = can(session, 'invoice.read')
+  const canManage = can(session, 'invoice.payment.manage')
+
+  const rules = useApiRead<ReminderRulesDto>(canRead ? BILL_REMINDER_RULES_PATH : null, loadReminderRules)
+  const settings = useApiRead<ReminderSettingsDto>(canRead ? BILL_REMINDER_SETTINGS_PATH : null, loadReminderSettings)
+
+  if (!canRead) {
+    return (
+      <div className="mx-auto w-full max-w-[880px]">
+        <PermissionDeniedNotice />
+      </div>
+    )
+  }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {value.map((id) => {
-        const person = pool.find((candidate) => candidate.id === id)
-        if (!person) return null
-        return (
-          <div key={id}>
-            <button
-              ref={(node) => {
-                refs.current.set(id, node)
-              }}
-              type="button"
-              onClick={() => setOpenFor((current) => (current === id ? null : id))}
-              className="inline-flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white ps-1.5 pe-2.5 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300"
-            >
-              <img
-                src={person.role ? personAnyIcon : avatarImg}
-                alt=""
-                className="size-7 shrink-0 rounded-full object-cover"
-              />
-              {person.name}
-              <img
-                src={chevronIcon}
-                alt=""
-                aria-hidden="true"
-                className={[
-                  'size-4 shrink-0 opacity-60 transition-transform',
-                  openFor === id ? '-rotate-90' : 'rotate-90',
-                ].join(' ')}
-              />
-            </button>
-            <Popover
-              anchorRef={{ current: refs.current.get(id) ?? null }}
-              open={openFor === id}
-              onClose={() => setOpenFor(null)}
-            >
-              <ul className="w-[240px] py-1.5">
-                {pool.map((option) => (
-                  <li key={option.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onChange(
-                          value.includes(option.id)
-                            ? value.map((current) => (current === id ? option.id : current))
-                            : value.map((current) => (current === id ? option.id : current)),
-                        )
-                        setOpenFor(null)
-                      }}
-                      className={[
-                        'flex w-full items-center gap-2 px-3 py-2.5 text-start text-sm font-medium transition-colors hover:bg-primary-25',
-                        option.id === id ? 'text-primary-700' : 'text-text-secondary',
-                      ].join(' ')}
-                    >
-                      <img
-                        src={option.role ? personAnyIcon : avatarImg}
-                        alt=""
-                        className="size-6 rounded-full object-cover"
-                      />
-                      {option.name}
-                    </button>
-                  </li>
-                ))}
-                {value.length > 1 ? (
-                  <li className="mt-1 border-t border-surface-background pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onChange(value.filter((current) => current !== id))
-                        setOpenFor(null)
-                      }}
-                      className="flex w-full px-3 py-2.5 text-start text-sm font-medium text-warning-700 transition-colors hover:bg-warning-100/40"
-                    >
-                      {t('expenditureReminders.removePerson')}
-                    </button>
-                  </li>
-                ) : null}
-              </ul>
-            </Popover>
-          </div>
-        )
-      })}
+    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-4 pb-10">
+      <div>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('expenditureReminders.title')}</h1>
+        <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('expenditureReminders.subtitle')}</p>
+      </div>
 
-      {/* Only real people can be stacked; a role already resolves to one person per document. */}
-      {!rule.roleOnly && value.length < PEOPLE.length ? (
-        <button
-          type="button"
-          onClick={() => {
-            const next = PEOPLE.find((person) => !value.includes(person.id))
-            if (next) onChange([...value, next.id])
-          }}
-          className="inline-flex size-[42px] items-center justify-center rounded-sm border border-dashed border-border-default bg-white text-lg font-medium text-text-quaternary transition-colors hover:border-primary-300 hover:text-primary-700"
-          aria-label={t('expenditureReminders.addPerson')}
-        >
-          +
-        </button>
+      {rules.read.status === 'loading' || settings.read.status === 'loading' ? <LoadingNotice /> : null}
+      {rules.read.status === 'failed' ? <ApiReadFailure error={rules.read.error} retry={rules.retry} /> : null}
+      {settings.read.status === 'failed' ? <ApiReadFailure error={settings.read.error} retry={settings.retry} /> : null}
+
+      {rules.read.status === 'ready' ? (
+        <Rules saved={rules.read.data.rules} canManage={canManage} onSaved={() => rules.retry()} />
       ) : null}
+
+      {settings.read.status === 'ready' ? (
+        <Settings saved={settings.read.data} canManage={canManage} onSaved={() => settings.retry()} />
+      ) : null}
+
+      <Preview />
+      <Inbox />
+
+      <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+        {t('expenditureReminders.notSupplier')}{' '}
+        <Link to="/income/reminders" className="font-semibold text-primary-700 hover:underline">
+          {t('expenditureReminders.underIncome')}
+        </Link>
+        .
+      </p>
     </div>
   )
 }
 
-function SectionCard({
-  step,
-  title,
-  children,
+function Rules({
+  saved,
+  canManage,
+  onSaved,
 }: {
-  step: number
-  title: string
-  children: React.ReactNode
+  saved: ReminderRuleDto[]
+  canManage: boolean
+  onSaved: () => void
 }) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState<ReminderRuleDto[]>(saved)
+  const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
+
+  useEffect(() => setDraft(saved), [saved])
+
+  // The picker needs admin.users.manage, which someone who may edit these rules does not
+  // necessarily hold. A refusal is expected, not an error: the rules stay editable and the
+  // people already on them travel back untouched.
+  const people = useApiRead<ReminderRecipientDto[]>(canManage ? POSSIBLE_RECIPIENTS_PATH : null, loadPossibleRecipients)
+  const roster = people.read.status === 'ready' ? people.read.data : null
+
+  const editable = CONFIGURABLE_RULE_TYPES.map((type) => {
+    const found = draft.find((rule) => rule.type === type)
+    return (
+      found ?? { type, offsets: [], repeatEveryDays: null, escalationOffsets: null, recipients: [], enabled: false }
+    )
+  })
+
+  const problems = new Map<ConfigurableRuleType, OffsetProblem | 'recipients'>()
+  for (const rule of editable) {
+    const type = rule.type as ConfigurableRuleType
+    const offsets = offsetsProblem(rule.offsets)
+    if (offsets) problems.set(type, offsets)
+    else if (rule.enabled && RECIPIENTS_REQUIRED_TO_ENABLE[type] && rule.recipients.length === 0) {
+      problems.set(type, 'recipients')
+    }
+  }
+
+  const changed = editable.filter((rule) => ruleChanged(saved, rule))
+  const canSave = canManage && changed.length > 0 && problems.size === 0 && !busy
+
+  const update = (type: ConfigurableRuleType, change: Partial<ReminderRuleDto>) =>
+    setDraft((current) => {
+      const next = current.some((rule) => rule.type === type)
+        ? current.map((rule) => (rule.type === type ? { ...rule, ...change } : rule))
+        : [...current, { ...editable.find((rule) => rule.type === type)!, ...change }]
+      return next
+    })
+
+  const save = async () => {
+    setBusy(true)
+    setFailure(null)
+    try {
+      await saveReminderRules(changed)
+      setNotice(t('expenditureReminders.saved'))
+      onSaved()
+    } catch (error) {
+      setNotice(null)
+      const message = describeApiFailure(error)
+      const body = t(message.key, message.values)
+      setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <section className="rounded-md bg-surface-card p-5">
-      <div className="flex items-center gap-3 border-b border-surface-background pb-4">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-primary-50 text-xs font-semibold text-primary-700">
-          {step}
-        </span>
-        <h2 className="text-xl font-medium leading-[1.2] text-text-primary">{title}</h2>
-      </div>
-      <div className="mt-4 flex flex-col gap-3">{children}</div>
+    <section className="flex flex-col gap-4">
+      {notice ? <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+      {failure ? (
+        <Notice
+          badge={t('supplierCreditNoteDetail.notDone')}
+          body={failure}
+          action={{ label: t('common.close'), onClick: () => setFailure(null) }}
+        />
+      ) : null}
+
+      {canManage && people.read.status === 'failed' ? (
+        <p className="rounded-md bg-surface-card p-4 text-sm font-medium text-text-tertiary">
+          {t('expenditureReminders.noRoster')}
+        </p>
+      ) : null}
+
+      {editable.map((rule) => (
+        <RuleCard
+          key={rule.type}
+          rule={rule}
+          roster={roster}
+          canManage={canManage}
+          problem={problems.get(rule.type as ConfigurableRuleType) ?? null}
+          onChange={(change) => update(rule.type as ConfigurableRuleType, change)}
+        />
+      ))}
+
+      <article className="rounded-md border border-dashed border-border-subtle p-5">
+        <h3 className="text-base font-semibold leading-[1.2] text-text-secondary">
+          {t('expenditureReminders.rules.recurringMissing.title')}
+        </h3>
+        <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">
+          {/* Not an omission. It is set on the recurring instruction itself, so there is no rule
+              here to edit and the server refuses one. */}
+          {t('expenditureReminders.perRecurring')}{' '}
+          <Link to="/expenditure/recurring-bills" className="font-semibold text-primary-700 hover:underline">
+            {t('expenditureReminders.onTheRecurringBill')}
+          </Link>
+          .
+        </p>
+      </article>
+
+      {canManage ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={!canSave}
+            onClick={() => void save()}
+            className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-50"
+          >
+            {t(busy ? 'common.saving' : 'expenditureReminders.saveRules')}
+          </button>
+          {changed.length > 0 ? (
+            <p className="text-xs font-medium text-text-quaternary">
+              {t('expenditureReminders.unsaved', { count: changed.length })}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   )
 }
 
-export function ExpenditureRemindersPage() {
+function RuleCard({
+  rule,
+  roster,
+  canManage,
+  problem,
+  onChange,
+}: {
+  rule: ReminderRuleDto
+  roster: ReminderRecipientDto[] | null
+  canManage: boolean
+  problem: OffsetProblem | 'recipients' | null
+  onChange: (change: Partial<ReminderRuleDto>) => void
+}) {
   const { t } = useTranslation()
-
-  const [state, setState] = useState<Record<RuleId, RuleState>>(
-    () =>
-      Object.fromEntries(
-        RULES.map((rule) => [
-          rule.id,
-          {
-            on: rule.defaultOn,
-            options: rule.defaultOptions,
-            second: rule.second?.defaultOption,
-            recipients: rule.defaultRecipients,
-          },
-        ]),
-      ) as Record<RuleId, RuleState>,
-  )
-
-  const [inFawtir, setInFawtir] = useState(true)
-  const [emailMode, setEmailMode] = useState<EmailMode>('daily')
-  const [skipWeekends, setSkipWeekends] = useState(true)
-  const [stopInRun, setStopInRun] = useState(true)
-
-  const update = (id: RuleId, patch: Partial<RuleState>) =>
-    setState((current) => ({ ...current, [id]: { ...current[id], ...patch } }))
-
-  const toggleOption = (rule: Rule, optionId: string) => {
-    const current = state[rule.id].options
-    if (!rule.multi) return update(rule.id, { options: [optionId] })
-    const next = current.includes(optionId)
-      ? current.filter((id) => id !== optionId)
-      : [...current, optionId]
-    /* A rule with no timing left would never fire, so the last one stays on. */
-    update(rule.id, { options: next.length ? next : current })
-  }
-
-  /**
-   * What the panel on the right would actually send this morning.
-   *
-   * A candidate survives only if its rule is on and one of that rule's chosen timings matches
-   * where the document has got to — so switching "7 days before" off drops the Sohar line.
-   */
-  const sending = useMemo(
-    () =>
-      CANDIDATES.filter((candidate) => {
-        const rule = RULES.find((entry) => entry.id === candidate.rule)
-        const current = state[candidate.rule]
-        if (!rule || !current.on) return false
-
-        if (rule.id === 'whenLate') {
-          /* The day after, then every N days — so day 9 fires on a 3-day cadence. */
-          const dayAfter = current.options.includes('dayAfter') && candidate.days === 1
-          const repeat = current.options.includes('everyThree') && candidate.days % 3 === 0
-          return dayAfter || repeat
-        }
-        if (rule.id === 'approvalStuck') {
-          /* Past the owner's threshold, it is the owner's problem. */
-          const owner = rule.second?.options.find((option) => option.id === current.second)
-          return candidate.days >= (owner?.offset ?? Infinity)
-        }
-        return current.options.some(
-          (id) => rule.options.find((option) => option.id === id)?.offset === candidate.days,
-        )
-      }),
-    [state],
-  )
-
-  /** The people the morning email would actually go to, across every firing rule. */
-  const audience = useMemo(() => {
-    const ids = new Set<string>()
-    for (const candidate of sending) {
-      for (const id of state[candidate.rule].recipients) ids.add(id)
-    }
-    return [...ids]
-      .map((id) => [...PEOPLE, ...ROLES].find((person) => person.id === id)?.name)
-      .filter((name): name is string => Boolean(name))
-  }, [sending, state])
-
-  const audienceText =
-    audience.length <= 1
-      ? audience.join('')
-      : `${audience.slice(0, -1).join(', ')} ${t('expenditureReminders.and')} ${audience.at(-1)}`
-
-  const rulesIn = (section: 1 | 2) => RULES.filter((rule) => rule.section === section)
-
-  const renderRule = (rule: Rule) => {
-    const current = state[rule.id]
-    return (
-      <article key={rule.id} className="overflow-hidden rounded-sm border border-border-subtle">
-        <div className="flex items-center gap-3 bg-surface-tab-bar px-4 py-3.5">
-          <span
-            className={[
-              'flex size-9 shrink-0 items-center justify-center rounded-sm',
-              RULE_TILE[rule.tone],
-            ].join(' ')}
-          >
-            <img src={RULE_ICON[rule.icon]} alt="" className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-              {t(rule.titleKey)}
-            </h3>
-            <p className="mt-1 text-sm font-medium leading-[1.3] text-text-quaternary">
-              {t(rule.noteKey)}
-            </p>
-          </div>
-          <Switch
-            checked={current.on}
-            onChange={(on) => update(rule.id, { on })}
-            label={t(rule.titleKey)}
-          />
-        </div>
-
-        {/* The settings dim rather than disappear, so the shape of the rule stays readable. */}
-        <div
-          className={[
-            'flex items-center gap-3 bg-white px-4 py-3.5 transition-opacity',
-            current.on ? '' : 'pointer-events-none opacity-40',
-          ].join(' ')}
-        >
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-text-tertiary">{t(rule.leadKey)}</span>
-
-            {rule.options.map((option) => (
-              <Chip
-                key={option.id}
-                active={current.options.includes(option.id)}
-                onClick={() => toggleOption(rule, option.id)}
-              >
-                {t(option.labelKey)}
-              </Chip>
-            ))}
-
-            {rule.linkTo ? (
-              <Link
-                to={rule.linkTo.to}
-                className="inline-flex h-[38px] items-center rounded-sm border border-primary-700 bg-primary-25 px-3.5 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
-              >
-                {t(rule.linkTo.labelKey)}
-              </Link>
-            ) : null}
-
-            {rule.second ? (
-              <>
-                <span className="text-sm font-medium text-text-tertiary">
-                  {t(rule.second.leadKey)}
-                </span>
-                {rule.second.options.map((option) => (
-                  <Chip
-                    key={option.id}
-                    active={current.second === option.id}
-                    onClick={() => update(rule.id, { second: option.id })}
-                  >
-                    {t(option.labelKey)}
-                  </Chip>
-                ))}
-              </>
-            ) : null}
-          </div>
-
-          <div className="shrink-0">
-            <RecipientPicker
-              rule={rule}
-              value={current.recipients}
-              onChange={(recipients) => update(rule.id, { recipients })}
-            />
-          </div>
-        </div>
-      </article>
-    )
-  }
-
-  const CHANNELS = [
-    {
-      id: 'inFawtir' as const,
-      icon: bellIcon,
-      title: t('expenditureReminders.channels.inFawtir'),
-      note: t('expenditureReminders.channels.inFawtirNote'),
-      active: inFawtir,
-      onClick: () => setInFawtir((on) => !on),
-    },
-    {
-      id: 'daily' as const,
-      icon: mailIcon,
-      title: t('expenditureReminders.channels.daily'),
-      note: t('expenditureReminders.channels.dailyNote', { time: DIGEST_TIME }),
-      active: emailMode === 'daily',
-      onClick: () => setEmailMode((mode) => (mode === 'daily' ? 'off' : 'daily')),
-    },
-    {
-      id: 'each' as const,
-      icon: mobileIcon,
-      title: t('expenditureReminders.channels.each'),
-      note: t('expenditureReminders.channels.eachNote'),
-      active: emailMode === 'each',
-      onClick: () => setEmailMode((mode) => (mode === 'each' ? 'off' : 'each')),
-    },
-  ]
+  const type = rule.type as ConfigurableRuleType
+  const label = RULE_LABEL_KEY[type]
+  const derivedRecipients = !RECIPIENTS_REQUIRED_TO_ENABLE[type]
 
   return (
-    <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div className="max-w-[760px]">
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('expenditureReminders.title')}
-          </h1>
-          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
-            {t('expenditureReminders.subtitle')}
-          </p>
+    <article className="rounded-md bg-surface-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-[560px]">
+          <h3 className="text-base font-semibold leading-[1.2] text-text-secondary">{t(`${label}.title`)}</h3>
+          <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">{t(`${label}.note`)}</p>
         </div>
+        <label className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary">
+          <input
+            type="checkbox"
+            checked={rule.enabled}
+            disabled={!canManage}
+            onChange={(event) => onChange({ enabled: event.target.checked })}
+            className="size-5 accent-primary-700"
+          />
+          {t(rule.enabled ? 'expenditureReminders.on' : 'expenditureReminders.off')}
+        </label>
+      </div>
 
-        <div className="flex flex-col gap-4 xl:flex-row">
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <SectionCard step={1} title={t('expenditureReminders.sections.moneyLeaving')}>
-              {rulesIn(1).map(renderRule)}
-            </SectionCard>
+      <Days
+        legend={t('expenditureReminders.days')}
+        values={rule.offsets}
+        disabled={!canManage}
+        onChange={(offsets) => onChange({ offsets })}
+      />
 
-            <SectionCard step={2} title={t('expenditureReminders.sections.sittingStill')}>
-              {rulesIn(2).map(renderRule)}
-            </SectionCard>
+      {type === 'LATE' ? (
+        <label className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-text-secondary">
+          {t('expenditureReminders.repeatEvery')}
+          <input
+            type="number"
+            min={1}
+            max={MAX_OFFSET_DAYS}
+            value={rule.repeatEveryDays ?? ''}
+            disabled={!canManage}
+            onChange={(event) =>
+              onChange({ repeatEveryDays: event.target.value.trim() === '' ? null : Number(event.target.value) })
+            }
+            className={`${FIELD} w-24`}
+          />
+          {t('expenditureReminders.days_unit')}
+        </label>
+      ) : null}
 
-            <SectionCard step={3} title={t('expenditureReminders.sections.howTold')}>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {CHANNELS.map((channel) => (
-                  <button
-                    key={channel.id}
-                    type="button"
-                    aria-pressed={channel.active}
-                    onClick={channel.onClick}
-                    className={[
-                      'rounded-sm border p-4 text-start transition-colors',
-                      channel.active
-                        ? 'border-primary-700 bg-primary-25'
-                        : 'border-border-subtle bg-white hover:border-primary-300',
-                    ].join(' ')}
-                  >
-                    <span
-                      className={[
-                        'flex size-9 items-center justify-center rounded-sm',
-                        channel.active ? 'bg-white' : 'bg-surface-background',
-                      ].join(' ')}
-                    >
-                      <img src={channel.icon} alt="" className="size-5" />
-                    </span>
-                    <span className="mt-3 block text-base font-semibold leading-[1.2] text-text-primary">
-                      {channel.title}
-                    </span>
-                    <span className="mt-1.5 block text-sm font-medium leading-[1.35] text-text-quaternary">
-                      {channel.note}
-                    </span>
-                  </button>
-                ))}
-              </div>
+      {type === 'APPROVAL_STALE' ? (
+        <Days
+          legend={t('expenditureReminders.escalateAfter')}
+          values={rule.escalationOffsets ?? []}
+          disabled={!canManage}
+          onChange={(escalationOffsets) => onChange({ escalationOffsets })}
+        />
+      ) : null}
 
-              {[
-                {
-                  id: 'weekends',
-                  title: t('expenditureReminders.skipWeekends'),
-                  note: t('expenditureReminders.skipWeekendsNote'),
-                  checked: skipWeekends,
-                  onChange: setSkipWeekends,
-                },
-                {
-                  id: 'inRun',
-                  title: t('expenditureReminders.stopInRun'),
-                  note: t('expenditureReminders.stopInRunNote'),
-                  checked: stopInRun,
-                  onChange: setStopInRun,
-                },
-              ].map((row, index) => (
-                <div
-                  key={row.id}
+      <div className="mt-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.6px] text-text-quaternary">
+          {t('expenditureReminders.whoIsTold')}
+        </p>
+        {derivedRecipients ? (
+          <p className="mt-1 text-sm font-medium text-text-tertiary">
+            {/* These two find their own people, so naming someone is not required and the rule
+                can be switched on with nobody listed. */}
+            {t(`expenditureReminders.derived.${type}`)}
+          </p>
+        ) : roster ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {roster.map((person) => {
+              const chosen = rule.recipients.includes(person.id)
+              return (
+                <label
+                  key={person.id}
                   className={[
-                    'flex items-center justify-between gap-4 py-3.5',
-                    index === 0 ? 'mt-1 border-t border-surface-background' : '',
+                    'inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium',
+                    chosen ? 'border-primary-700 bg-primary-50 text-primary-800' : 'border-border-subtle text-text-tertiary',
                   ].join(' ')}
                 >
-                  <div className="min-w-0">
-                    <p className="text-base font-medium leading-[1.2] text-text-primary">
-                      {row.title}
-                    </p>
-                    <p className="mt-1 text-sm font-medium leading-[1.3] text-text-quaternary">
-                      {row.note}
-                    </p>
-                  </div>
-                  <Switch checked={row.checked} onChange={row.onChange} label={row.title} />
+                  <input
+                    type="checkbox"
+                    checked={chosen}
+                    disabled={!canManage || (!chosen && rule.recipients.length >= MAX_RECIPIENTS)}
+                    onChange={() =>
+                      onChange({
+                        recipients: chosen
+                          ? rule.recipients.filter((id) => id !== person.id)
+                          : [...rule.recipients, person.id],
+                      })
+                    }
+                    className="size-4 accent-primary-700"
+                  />
+                  {person.name}
+                </label>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="mt-1 text-sm font-medium text-text-tertiary">
+            {/* The people cannot be listed, so they are counted and sent back exactly as loaded:
+                saving a rule without them would quietly empty it. */}
+            {t('expenditureReminders.recipientCount', { count: rule.recipients.length })}
+          </p>
+        )}
+      </div>
+
+      {problem ? (
+        <p role="alert" className="mt-3 text-sm font-medium text-warning-700">
+          {t(`expenditureReminders.error.${problem}`, { max: MAX_OFFSETS, maxDays: MAX_OFFSET_DAYS })}
+        </p>
+      ) : null}
+    </article>
+  )
+}
+
+/** A row of day numbers: the offsets a rule fires at, or the ages an approval escalates at. */
+function Days({
+  legend,
+  values,
+  disabled,
+  onChange,
+}: {
+  legend: string
+  values: number[]
+  disabled: boolean
+  onChange: (values: number[]) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.6px] text-text-quaternary">{legend}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {values.map((value, index) => (
+          <span key={index} className="inline-flex items-center gap-1">
+            <input
+              type="number"
+              value={value}
+              disabled={disabled}
+              onChange={(event) =>
+                onChange(values.map((old, other) => (other === index ? Number(event.target.value) : old)))
+              }
+              aria-label={t('expenditureReminders.dayAt', { index: index + 1 })}
+              className={`${FIELD} w-20`}
+            />
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(values.filter((_, other) => other !== index))}
+              aria-label={t('expenditureReminders.removeDay', { day: value })}
+              className="text-sm font-semibold text-text-quaternary hover:text-warning-700 disabled:opacity-50"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          disabled={disabled || values.length >= MAX_OFFSETS}
+          onClick={() => onChange([...values, 0])}
+          className="h-[46px] rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary disabled:opacity-50"
+        >
+          {t('expenditureReminders.addDay')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Settings({
+  saved,
+  canManage,
+  onSaved,
+}: {
+  saved: ReminderSettingsDto
+  canManage: boolean
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [draft, setDraft] = useState<ReminderSettingsDto>(saved)
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+
+  useEffect(() => setDraft(saved), [saved])
+
+  const dirty =
+    draft.delivery !== saved.delivery ||
+    draft.digestTime !== saved.digestTime ||
+    draft.skipWeekends !== saved.skipWeekends ||
+    draft.stopWhenInRun !== saved.stopWhenInRun
+
+  const save = async () => {
+    setBusy(true)
+    setFailure(null)
+    try {
+      await saveReminderSettings(draft)
+      onSaved()
+    } catch (error) {
+      const message = describeApiFailure(error)
+      setFailure(t(message.key, message.values))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rounded-md bg-surface-card p-6">
+      <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
+        {t('expenditureReminders.sections.howTold')}
+      </h2>
+
+      <div className="mt-4 flex flex-col gap-3">
+        {DELIVERY.map((option) => (
+          <label key={option.value} className="flex items-start gap-3">
+            <input
+              type="radio"
+              name="delivery"
+              checked={draft.delivery === option.value}
+              disabled={!canManage}
+              onChange={() => setDraft({ ...draft, delivery: option.value })}
+              className="mt-1 size-4 accent-primary-700"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-text-secondary">{t(option.titleKey)}</span>
+              <span className="block text-sm font-medium text-text-quaternary">
+                {t(option.noteKey, { time: draft.digestTime })}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      <label className="mt-4 flex flex-wrap items-center gap-2 text-sm font-medium text-text-secondary">
+        {t('expenditureReminders.digestTime')}
+        <input
+          type="time"
+          value={draft.digestTime}
+          disabled={!canManage}
+          onChange={(event) => setDraft({ ...draft, digestTime: event.target.value })}
+          className={`${FIELD} w-32`}
+        />
+        <span className="text-xs font-medium text-text-quaternary">{t('expenditureReminders.digestTimeNote')}</span>
+      </label>
+
+      <div className="mt-4 flex flex-col gap-3">
+        <Switch
+          checked={draft.skipWeekends}
+          disabled={!canManage}
+          onChange={(skipWeekends) => setDraft({ ...draft, skipWeekends })}
+          title={t('expenditureReminders.skipWeekends')}
+          note={t('expenditureReminders.skipWeekendsNote')}
+        />
+        <Switch
+          checked={draft.stopWhenInRun}
+          disabled={!canManage}
+          onChange={(stopWhenInRun) => setDraft({ ...draft, stopWhenInRun })}
+          title={t('expenditureReminders.stopInRun')}
+          note={t('expenditureReminders.stopInRunNote')}
+        />
+      </div>
+
+      {failure ? (
+        <p role="alert" className="mt-3 text-sm font-medium text-warning-700">
+          {failure}
+        </p>
+      ) : null}
+
+      {canManage ? (
+        <button
+          type="button"
+          disabled={!dirty || busy}
+          onClick={() => void save()}
+          className="mt-4 inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-50"
+        >
+          {t(busy ? 'common.saving' : 'expenditureReminders.saveDelivery')}
+        </button>
+      ) : null}
+    </section>
+  )
+}
+
+function Switch({
+  checked,
+  disabled,
+  onChange,
+  title,
+  note,
+}: {
+  checked: boolean
+  disabled: boolean
+  onChange: (value: boolean) => void
+  title: string
+  note: string
+}) {
+  return (
+    <label className="flex items-start gap-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 size-5 accent-primary-700"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-text-secondary">{title}</span>
+        <span className="block text-sm font-medium text-text-quaternary">{note}</span>
+      </span>
+    </label>
+  )
+}
+
+function Preview() {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const preview = useApiRead<ReminderPreviewDto>(BILL_REMINDER_PREVIEW_PATH, loadReminderPreview)
+
+  return (
+    <section className="rounded-md bg-surface-card p-6">
+      <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('expenditureReminders.preview.title')}</h2>
+      {preview.read.status === 'loading' ? <LoadingNotice /> : null}
+      {preview.read.status === 'failed' ? <ApiReadFailure error={preview.read.error} retry={preview.retry} /> : null}
+      {preview.read.status === 'ready' ? (
+        preview.read.data.total === 0 ? (
+          <p className="mt-3 text-sm font-medium text-text-quaternary">{t('expenditureReminders.preview.nothing')}</p>
+        ) : (
+          <>
+            <p className="mt-1 text-sm font-medium text-text-quaternary">
+              {t('expenditureReminders.preview.headline', {
+                count: preview.read.data.total,
+                date: formatDate(preview.read.data.date, language),
+              })}
+            </p>
+            <div className="mt-4 flex flex-col gap-4">
+              {preview.read.data.groups.map((group) => (
+                <div key={group.recipientUserId} className="border-s-2 border-surface-background ps-4">
+                  <p className="text-sm font-semibold text-text-secondary">
+                    {group.displayName ?? t('expenditureReminders.someone')}
+                  </p>
+                  <p className="text-xs font-medium text-text-quaternary">{group.headline}</p>
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {group.items.map((item) => (
+                      <li key={`${item.subjectId}-${item.ruleType}-${item.daysFromDue}`} className="text-sm font-medium text-text-tertiary">
+                        {item.headline}
+                        {item.amount !== null && item.currency ? (
+                          <span className="ms-2 tabular-nums text-text-secondary">
+                            {formatAmount(item.amount, item.currency, language)}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
-            </SectionCard>
-          </div>
+            </div>
+          </>
+        )
+      ) : null}
+    </section>
+  )
+}
 
-          {/* What today would send */}
-          <aside className="flex w-full flex-col gap-4 xl:w-[340px] xl:shrink-0">
-            <section className="rounded-md bg-surface-card p-5">
-              <h2 className="border-b border-surface-background pb-4 text-xl font-medium leading-[1.2] text-text-primary">
-                {t('expenditureReminders.preview.title')}
-              </h2>
+/** The reader's own bell, not the tenant's: a reminder addressed to someone else is not here. */
+function Inbox() {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const [unreadOnly, setUnreadOnly] = useState(true)
+  const path = reminderInboxPath(unreadOnly)
+  const inbox = useApiRead<ReminderInboxItemDto[]>(path, () => loadReminderInbox(path))
+  const [acking, setAcking] = useState<string | null>(null)
 
-              {sending.length === 0 ? (
-                <p className="mt-4 rounded-sm bg-surface-background p-4 text-sm font-medium leading-[1.5] text-text-tertiary">
-                  {t('expenditureReminders.preview.nothing')}
-                </p>
-              ) : (
-                <>
-                  <div className="mt-4 rounded-sm border border-primary-300 bg-primary-25 p-3.5">
-                    <p className="text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.6px] text-primary-700">
-                      {emailMode === 'daily'
-                        ? t('expenditureReminders.preview.oneEmail', {
-                            time: DIGEST_TIME,
-                            who: audienceText,
-                          })
-                        : emailMode === 'each'
-                          ? t('expenditureReminders.preview.eachEmail', {
-                              count: sending.length,
-                              who: audienceText,
-                            })
-                          : t('expenditureReminders.preview.inAppOnly')}
-                    </p>
-                    <p className="mt-1.5 text-base font-medium leading-[1.3] text-text-primary">
-                      {t('expenditureReminders.preview.headline', { count: sending.length })}
-                    </p>
-                  </div>
+  const acknowledge = async (id: string) => {
+    setAcking(id)
+    try {
+      await acknowledgeReminder(id)
+      inbox.retry()
+    } finally {
+      setAcking(null)
+    }
+  }
 
-                  <ul className="mt-1 flex flex-col">
-                    {sending.map((candidate, index) => {
-                      const rule = RULES.find((entry) => entry.id === candidate.rule)!
-                      const who = state[candidate.rule].recipients
-                        .map(
-                          (id) =>
-                            [...PEOPLE, ...ROLES].find((person) => person.id === id)?.name ?? '',
-                        )
-                        .join(` ${t('expenditureReminders.and')} `)
-                      return (
-                        <li
-                          key={candidate.id}
-                          className={[
-                            'flex items-start gap-3 py-3.5',
-                            index < sending.length - 1 ? 'border-b border-surface-background' : '',
-                          ].join(' ')}
-                        >
-                          <span
-                            className={[
-                              'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-sm',
-                              RULE_TILE[rule.tone],
-                            ].join(' ')}
-                          >
-                            <img src={RULE_ICON[rule.icon]} alt="" className="size-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold leading-[1.3] text-text-primary">
-                              {t(candidate.titleKey, { days: candidate.days })}
-                            </p>
-                            <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                              {withRial(t(candidate.amountKey))} ·{' '}
-                              {t('expenditureReminders.preview.to')} {who}
-                            </p>
-                          </div>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </>
-              )}
-            </section>
-
-            <section className="rounded-md border border-border-subtle bg-surface-tab-bar p-4">
-              <p className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-                <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  {t('expenditureReminders.notSupplier')}{' '}
-                  <Link to="/income/reminders" className="text-primary-700 hover:underline">
-                    {t('expenditureReminders.underIncome')}
-                  </Link>
-                  .
-                </span>
-              </p>
-            </section>
-          </aside>
-        </div>
+  return (
+    <section className="rounded-md bg-surface-card p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('expenditureReminders.inbox.title')}</h2>
+        <label className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary">
+          <input
+            type="checkbox"
+            checked={unreadOnly}
+            onChange={(event) => setUnreadOnly(event.target.checked)}
+            className="size-4 accent-primary-700"
+          />
+          {t('expenditureReminders.inbox.unreadOnly')}
+        </label>
       </div>
-    </AppShell>
+
+      {inbox.read.status === 'loading' ? <LoadingNotice /> : null}
+      {inbox.read.status === 'failed' ? <ApiReadFailure error={inbox.read.error} retry={inbox.retry} /> : null}
+      {inbox.read.status === 'ready' ? (
+        inbox.read.data.length === 0 ? (
+          <p className="mt-3 text-sm font-medium text-text-quaternary">
+            {t(unreadOnly ? 'expenditureReminders.inbox.noneUnread' : 'expenditureReminders.inbox.none')}
+          </p>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-3">
+            {inbox.read.data.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 border-b border-surface-background pb-3 last:border-0">
+                <div>
+                  <p className="text-sm font-semibold text-text-secondary">{item.headline}</p>
+                  <p className="mt-0.5 text-xs font-medium text-text-quaternary">
+                    {t(`${RULE_LABEL_KEY[item.ruleType]}.title`)} · {formatInstant(item.createdAt, language)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {item.billId ? (
+                    <Link to={`/expenditure/bills/${item.billId}`} className="text-sm font-semibold text-primary-700 hover:underline">
+                      {t('expenditureReminders.inbox.openBill')}
+                    </Link>
+                  ) : null}
+                  {item.acknowledgedAt === null ? (
+                    <button
+                      type="button"
+                      disabled={acking === item.id}
+                      onClick={() => void acknowledge(item.id)}
+                      className="h-[36px] rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary disabled:opacity-50"
+                    >
+                      {t('expenditureReminders.inbox.acknowledge')}
+                    </button>
+                  ) : (
+                    <span className="text-xs font-medium text-text-quaternary">
+                      {t('expenditureReminders.inbox.acknowledged')}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+      <p className="mt-3 text-xs font-medium text-text-quaternary">
+        {t('expenditureReminders.inbox.count', { count: formatCount(inbox.read.status === 'ready' ? inbox.read.data.length : 0, language) })}
+      </p>
+    </section>
   )
 }
