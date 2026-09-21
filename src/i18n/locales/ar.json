@@ -5285,12 +5285,19 @@
       "recovered": "المستردّ هذا الربع",
       "recoveredMeta": "{{count}} إشعارات استُخدمت أو استُردّت",
       "mostFrom": "أكثر الإشعارات من",
-      "mostFromMeta": "{{count}} إشعارات هذه السنة · تستحق المراجعة"
+      "mostFromMeta": "{{count}} إشعارات هذه السنة · تستحق المراجعة",
+      "recoveredQuarter": "المسترد هذا الربع",
+      "topSupplier": "أكثر المورّدين إصدارًا",
+      "topSupplierMeta": "{{count}} إشعارات",
+      "noTopSupplier": "لا يوجد مورّد بارز"
     },
     "tabs": {
       "all": "الكل",
       "used": "مستخدمة",
-      "refunded": "مستردّة"
+      "refunded": "مُستردة",
+      "unapplied": "لم تُستخدم بعد",
+      "waiting": "بانتظار فاتورة",
+      "applied": "مستخدمة"
     },
     "col": {
       "creditNote": "الإشعار الدائن",
@@ -5310,7 +5317,13 @@
       "paid": "مدفوعة بالفعل",
       "noBillYet": "لم تصل الفاتورة",
       "noBill": "لا توجد فاتورة بعد",
-      "youdPayLess": "ستدفع أقل"
+      "youdPayLess": "ستدفع أقل",
+      "issued": "صدرت {{date}}",
+      "unnumbered": "بلا رقم",
+      "unknownSupplier": "المورّد غير مطابَق",
+      "theBill": "الفاتورة المخصومة",
+      "noReason": "لم يُذكر سبب",
+      "remaining": "متبقٍ للاستخدام {{amount}}"
     },
     "why": {
       "threeBoxes": "٣ صناديق لم تُسلَّم",
@@ -5323,7 +5336,11 @@
       "notUsed": "لم يُستخدم بعد",
       "waitingForBill": "بانتظار فاتورة",
       "used": "استُخدم على الفاتورة",
-      "refunded": "استُرد لنا"
+      "refunded": "استُرد لنا",
+      "UNAPPLIED": "لم تُستخدم بعد",
+      "WAITING_FOR_BILL": "بانتظار فاتورة",
+      "APPLIED": "مستخدمة",
+      "REFUNDED": "مُستردة"
     },
     "actions": {
       "setAgainst": "خصمه من الفاتورة",
@@ -5471,7 +5488,17 @@
       "decisionTaken": "{{what}}",
       "supplierName": "الاسم",
       "supplierVat": "الرقم الضريبي"
-    }
+    },
+    "source": {
+      "peppol": "وردت عبر Peppol",
+      "uploaded": "مرفوعة",
+      "scanned": "ممسوحة",
+      "recurring": "متكررة",
+      "selfBilled": "فوترة ذاتية"
+    },
+    "excluded": "{{count}} غير محتسبة أعلاه — بعملة مختلفة",
+    "pageOnly": "صفحة {{page}}",
+    "pageOf": "صفحة {{page}} من {{pages}}"
   },
   "supplierDebitNotes": {
     "title": "الإشعارات المدينة",
@@ -14620,5 +14647,57 @@
       "api": "يتحدث نظامك مع فوتر مباشرة.",
       "webhooks": "يُخبر فوتر أنظمتك لحظة حدوث أي تغيير."
     }
+  },
+  "supplierCreditNoteDetail": {
+    "back": "العودة إلى إشعارات الدائن",
+    "credited": "المبلغ الدائن",
+    "applied": "المستخدم حتى الآن",
+    "remaining": "المتبقي للاستخدام",
+    "factsTitle": "الإشعار",
+    "issued": "تاريخ الإصدار",
+    "source": "طريقة الوصول",
+    "vat": "ضريبة القيمة المضافة",
+    "reason": "سبب الإشعار",
+    "credits": "يخصم من",
+    "verified": "موثّق عبر الشبكة",
+    "verifiedYes": "نعم — تم التحقق والإبلاغ",
+    "verifiedNo": "لا — وصلنا كملف",
+    "nothingLeft": "استُخدم هذا الرصيد بالكامل أو استُرد. لم يتبقَّ شيء للتصرف فيه.",
+    "historyTitle": "ما تم بشأنه",
+    "noHistory": "لا يوجد تصرف صريح بعد. الإشعار المرتبط بفاتورة يخصم منها تلقائيًا.",
+    "againstBill": "مقابل فاتورة",
+    "recorded": "سُجّل {{when}}",
+    "applyTitle": "استخدامه مقابل فاتورة",
+    "applyNote": "يقلل ما هو مستحق على تلك الفاتورة.",
+    "findBill": "أي فاتورة",
+    "findBillPlaceholder": "ابحث باسم المورّد أو رقم الفاتورة",
+    "chosen": "سيُخصم من {{bill}}",
+    "change": "تغيير",
+    "noBills": "لا توجد فواتير مطابقة",
+    "stillOwed": "ما زال مستحقًا",
+    "amountOptional": "المبلغ (اختياري)",
+    "amount": "المبلغ",
+    "amountBlankNote": "اتركه فارغًا لأكبر مبلغ يناسب الرصيد والفاتورة معًا.",
+    "overRemaining": "أكبر من {{amount}} المتبقية على هذا الإشعار",
+    "applyCta": "استخدمه",
+    "refundTitle": "تسجيل استرداد",
+    "refundNote": "أعاد المورّد المبلغ نقدًا بدل خصمه من فاتورة.",
+    "paidOn": "تاريخ الدفع",
+    "referenceOptional": "مرجع الدفع (اختياري)",
+    "refundCta": "سجّل الاسترداد",
+    "notDone": "لم يتم",
+    "col": {
+      "what": "الإجراء",
+      "amount": "المبلغ",
+      "when": "التاريخ",
+      "reference": "مقابل / المرجع"
+    },
+    "kind": {
+      "APPLIED": "استُخدم مقابل فاتورة",
+      "REFUNDED": "مُسترد"
+    },
+    "refunded": "المسترد حتى الآن",
+    "appliedDone": "تم خصم الرصيد من تلك الفاتورة.",
+    "refundedDone": "تم تسجيل الاسترداد."
   }
 }

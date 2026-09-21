@@ -5169,12 +5169,19 @@
       "recovered": "Recovered this quarter",
       "recoveredMeta": "{{count}} notes used or refunded",
       "mostFrom": "Most credits from",
-      "mostFromMeta": "{{count}} notes this year · worth reviewing"
+      "mostFromMeta": "{{count}} notes this year · worth reviewing",
+      "recoveredQuarter": "Recovered this quarter",
+      "topSupplier": "Most notes from",
+      "topSupplierMeta": "{{count}} notes",
+      "noTopSupplier": "No supplier stands out"
     },
     "tabs": {
       "all": "All",
       "used": "Used",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "unapplied": "Not used yet",
+      "waiting": "Waiting for a bill",
+      "applied": "Used"
     },
     "col": {
       "creditNote": "Credit note",
@@ -5194,7 +5201,13 @@
       "paid": "Already paid",
       "noBillYet": "The bill has not arrived",
       "noBill": "No bill yet",
-      "youdPayLess": "you'd pay less"
+      "youdPayLess": "you'd pay less",
+      "issued": "Issued {{date}}",
+      "unnumbered": "No number",
+      "unknownSupplier": "Supplier not matched",
+      "theBill": "The bill it credits",
+      "noReason": "No reason given",
+      "remaining": "{{amount}} left to use"
     },
     "why": {
       "threeBoxes": "3 boxes never delivered",
@@ -5207,7 +5220,11 @@
       "notUsed": "Not yet used",
       "waitingForBill": "Waiting for a bill",
       "used": "Used on the bill",
-      "refunded": "Refunded to us"
+      "refunded": "Refunded to us",
+      "UNAPPLIED": "Not used yet",
+      "WAITING_FOR_BILL": "Waiting for a bill",
+      "APPLIED": "Used",
+      "REFUNDED": "Refunded"
     },
     "actions": {
       "setAgainst": "Set against the bill",
@@ -5355,7 +5372,17 @@
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
       "supplierVat": "VAT number"
-    }
+    },
+    "source": {
+      "peppol": "Received over Peppol",
+      "uploaded": "Uploaded",
+      "scanned": "Scanned",
+      "recurring": "Recurring",
+      "selfBilled": "Self-billed"
+    },
+    "excluded": "{{count}} not counted above — a different currency",
+    "pageOnly": "Page {{page}}",
+    "pageOf": "Page {{page}} of {{pages}}"
   },
   "supplierDebitNotes": {
     "title": "Debit Notes",
@@ -14144,5 +14171,58 @@
       "api": "Your own system talks to Fawtir directly.",
       "webhooks": "Fawtir tells your systems the moment something changes."
     }
+  },
+  "supplierCreditNoteDetail": {
+    "back": "Back to credit notes",
+    "credited": "Credited",
+    "applied": "Used so far",
+    "remaining": "Left to use",
+    "factsTitle": "The note",
+    "issued": "Issued",
+    "source": "How it reached us",
+    "vat": "VAT",
+    "reason": "Why the supplier credited",
+    "credits": "Credits",
+    "verified": "Network verified",
+    "verifiedYes": "Yes — validated and reported",
+    "verifiedNo": "No — supplied to us as a file",
+    "nothingLeft": "All of this credit has been used or refunded. Nothing is left to dispose of.",
+    "historyTitle": "What has been done with it",
+    "noHistory": "Nothing explicit yet. A note linked to a bill reduces it automatically.",
+    "againstBill": "Against a bill",
+    "recorded": "recorded {{when}}",
+    "applyTitle": "Use it against a bill",
+    "applyNote": "Lowers what is still owed on that bill.",
+    "findBill": "Which bill",
+    "findBillPlaceholder": "Search a supplier or bill number",
+    "chosen": "Applying to {{bill}}",
+    "change": "Change",
+    "noBills": "No bills match that search",
+    "stillOwed": "still owed",
+    "amountOptional": "Amount (optional)",
+    "amount": "Amount",
+    "amountBlankNote": "Leave blank for the largest amount that fits both the credit and the bill.",
+    "overRemaining": "More than the {{amount}} left on this note",
+    "applyCta": "Use it",
+    "applied2": "Applied",
+    "refundTitle": "Record a refund",
+    "refundNote": "The supplier gave the money back rather than crediting a bill.",
+    "paidOn": "Paid on",
+    "referenceOptional": "Payment reference (optional)",
+    "refundCta": "Record the refund",
+    "notDone": "Not done",
+    "col": {
+      "what": "What",
+      "amount": "Amount",
+      "when": "When",
+      "reference": "Against / reference"
+    },
+    "kind": {
+      "APPLIED": "Used against a bill",
+      "REFUNDED": "Refunded"
+    },
+    "refunded": "Refunded so far",
+    "appliedDone": "The credit was used against that bill.",
+    "refundedDone": "The refund was recorded."
   }
 }
