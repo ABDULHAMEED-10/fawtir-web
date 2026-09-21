@@ -5,6 +5,7 @@ import { ChartCard, ChartGrid, HorizontalBars, KpiCard, KpiRow, ReportShell, SER
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { activitySummaryPath, loadActivitySummary, type ActivitySummaryDto } from '../../api/compliance/activity'
+import { defaultReportRange } from '../../api/reports/reports'
 import { deliveredCount, shareOf } from '../../lib/activityLedger'
 import { formatCount } from '../../lib/format'
 
@@ -27,8 +28,10 @@ export function ReportsCompliancePage() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const from = params.get('from') ?? ''
-  const to = params.get('to') ?? ''
+  // The summary answers 400 without both, so the window is never empty.
+  const fallback = defaultReportRange()
+  const from = params.get('from') ?? fallback.from
+  const to = params.get('to') ?? fallback.to
 
   const set = (key: string, value: string) =>
     setParams(

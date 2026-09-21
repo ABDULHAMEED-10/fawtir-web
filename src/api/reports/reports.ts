@@ -143,3 +143,17 @@ export function catalogueHref(href: string): string {
 export function downloadReport(path: string): Promise<ApiDownload> {
   return apiDownload(path)
 }
+
+/**
+ * The window a report opens on when the reader has not chosen one.
+ *
+ * **Not optional.** `VolumeReportUseCase`, `VatReportUseCase` and the activity summary all answer
+ * 400 "from and to are required" without both, even though the controller binds them as optional
+ * request parameters — the signature says nothing about it and only a real call reveals it. Year
+ * to date is the smallest honest default: it always validates, and it is the window a tenant
+ * reconciling a return is most often looking at.
+ */
+export function defaultReportRange(today: Date = new Date()): { from: string; to: string } {
+  const iso = (d: Date) => d.toISOString().slice(0, 10)
+  return { from: `${today.getUTCFullYear()}-01-01`, to: iso(today) }
+}

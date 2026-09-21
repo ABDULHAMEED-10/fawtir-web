@@ -15,6 +15,7 @@ import {
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
+  defaultReportRange,
   loadVatReport,
   reportExportPath,
   vatPath,
@@ -40,8 +41,10 @@ export function ReportsVatPage() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const from = params.get('from') ?? ''
-  const to = params.get('to') ?? ''
+  // Both are required by the service, so the screen opens on a window rather than on a 400.
+  const fallback = defaultReportRange()
+  const from = params.get('from') ?? fallback.from
+  const to = params.get('to') ?? fallback.to
   const granularity = (params.get('granularity') as ReportGranularity | null) ?? 'QUARTER'
 
   const change = (next: { from?: string; to?: string; granularity?: ReportGranularity }) =>
@@ -57,7 +60,7 @@ export function ReportsVatPage() {
       { replace: true },
     )
 
-  const range = { from: from || null, to: to || null, granularity }
+  const range = { from, to, granularity }
   const path = vatPath(range)
   const report = useApiRead<VatReportDto>(path, () => loadVatReport(path))
   const data = report.read.status === 'ready' ? report.read.data : null

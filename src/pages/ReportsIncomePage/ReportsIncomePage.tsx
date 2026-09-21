@@ -14,6 +14,7 @@ import {
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
+  defaultReportRange,
   loadVolumeReport,
   reportExportPath,
   volumePath,
@@ -41,8 +42,9 @@ export function ReportsIncomePage() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const from = params.get('from') ?? ''
-  const to = params.get('to') ?? ''
+  const fallback = defaultReportRange()
+  const from = params.get('from') ?? fallback.from
+  const to = params.get('to') ?? fallback.to
   const granularity = (params.get('granularity') as ReportGranularity | null) ?? 'MONTH'
   const groupBy = (params.get('group_by') as VolumeGroupBy | null) ?? 'NONE'
 
@@ -59,7 +61,7 @@ export function ReportsIncomePage() {
       { replace: true },
     )
 
-  const range = { from: from || null, to: to || null, granularity }
+  const range = { from, to, granularity }
   const path = volumePath(range, groupBy)
   const report = useApiRead<VolumeReportDto>(path, () => loadVolumeReport(path))
   const data = report.read.status === 'ready' ? report.read.data : null
