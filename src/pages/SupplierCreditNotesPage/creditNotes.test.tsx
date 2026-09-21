@@ -12,6 +12,7 @@ const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SUMMARY_URL = '/api/v1/credit-notes/summary'
 const NOTE_ID = '70000000-0000-0000-0000-000000000001'
 const BILL_ID = '70000000-0000-0000-0000-000000000002'
+const OTHER_BILL_ID = '70000000-0000-0000-0000-000000000003'
 
 const ADMIN: Entitlements = {
   userId: 'u-1',
@@ -129,11 +130,37 @@ beforeEach(async () => {
             paymentRunReference: null,
             paidOnTheSpot: false,
           },
+          // A bill from a DIFFERENT supplier, which the server's own guard would refuse. The
+          // list endpoint takes no supplier parameter, so one arrives here and the screen is
+          // what has to keep it out of the picker.
+          {
+            id: OTHER_BILL_ID,
+            source: 'UPLOADED',
+            supplierId: 's-2',
+            supplierName: 'Browser Check Trading',
+            documentTypeCode: '380',
+            supplierBillNumber: 'BCT-0001',
+            issueDate: '2026-09-02',
+            dueDate: '2026-10-02',
+            overdue: false,
+            currencyCode: 'OMR',
+            totalIncludingVat: 500,
+            vatAmount: 25,
+            paidAmount: 0,
+            outstandingAmount: 500,
+            purchaseOrderReference: null,
+            workflowState: 'APPROVED',
+            readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+            match: null,
+            hold: null,
+            paymentRunReference: null,
+            paidOnTheSpot: false,
+          },
         ],
         page: 0,
-        pageSize: 10,
-        count: 1,
-        total: 1,
+        pageSize: 25,
+        count: 2,
+        total: 2,
       })
     }
     return json(404)
@@ -206,6 +233,38 @@ describe('Credit notes list, wired to the API', () => {
 })
 
 describe('One credit note', () => {
+  it('offers only this supplier\'s bills, because the server refuses any other outright', async () => {
+    renderDetail()
+    await screen.findByText('QMS-CN-1')
+
+    // Both bills come back from the list endpoint; only one can legally take this credit.
+    fireEvent.change(screen.getByLabelText('Which bill'), { target: { value: 'test' } })
+    expect(await screen.findByRole('button', { name: /QMS-7781/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /BCT-0001/ })).toBeNull()
+  })
+
+  it('names the supplier when nothing matches, so an empty list does not read as a broken search', async () => {
+    notes = [note({ supplierId: 's-9', supplierName: 'Nobody Else LLC' })]
+    renderDetail()
+    await screen.findByText('QMS-CN-1')
+
+    fireEvent.change(screen.getByLabelText('Which bill'), { target: { value: 'test' } })
+    expect(await screen.findByText(/No bills from Nobody Else LLC match that/)).toBeTruthy()
+  })
+
+  it('shows all four figures of the balance, so a refunded note still adds up', async () => {
+    notes = [note({ creditedAmount: 52.5, balance: { applied: 0, refunded: 12.5, remaining: 40 } })]
+    renderDetail()
+    await screen.findByText('QMS-CN-1')
+
+    // 52.500 credited = 0.000 applied + 12.500 refunded + 40.000 left. Drop the refund and the
+    // three that remain contradict each other.
+    expect(screen.getByText('52.500')).toBeTruthy()
+    expect(screen.getByText(/^Refunded/)).toBeTruthy()
+    expect(screen.getByText('12.500')).toBeTruthy()
+    expect(screen.getByText('40.000')).toBeTruthy()
+  })
+
   it('applies the credit to a bill the reader picked, and sends the amount they typed', async () => {
     renderDetail()
     await screen.findByText('QMS-CN-1')

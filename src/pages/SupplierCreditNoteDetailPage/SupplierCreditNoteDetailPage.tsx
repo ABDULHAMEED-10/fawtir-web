@@ -120,9 +120,17 @@ function CreditNoteDetail() {
             />
           ) : null}
 
-          <section className="grid gap-4 sm:grid-cols-3">
+          {/*
+            All four figures the balance carries, because three of them do not add up on their
+            own: a refunded note shows credited 52.500, used 0.000 and left 40.000, and the 12.500
+            that explains the gap is the one being left out. `CreditNoteBalance` keeps applied and
+            refunded apart deliberately — only cash back is a refund — so the screen shows both
+            rather than folding them into one "used" that would hide which happened.
+          */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Figure label={t('supplierCreditNoteDetail.credited')} value={item.credited === null ? '—' : money(item.credited)} strong />
             <Figure label={t('supplierCreditNoteDetail.applied')} value={money(row.balance.applied)} />
+            <Figure label={t('supplierCreditNoteDetail.refunded')} value={money(row.balance.refunded)} />
             <Figure label={t('supplierCreditNoteDetail.remaining')} value={money(row.balance.remaining)} strong />
           </section>
 
@@ -166,6 +174,7 @@ function CreditNoteDetail() {
                 noteId={id}
                 currency={row.currencyCode}
                 remaining={row.balance.remaining}
+                supplierId={row.supplierId}
                 supplierName={item.supplier}
                 onDone={afterAction}
                 onFailure={onFailure}
@@ -254,6 +263,7 @@ function Dispositions({
   noteId,
   currency,
   remaining,
+  supplierId,
   supplierName,
   onDone,
   onFailure,
@@ -261,6 +271,7 @@ function Dispositions({
   noteId: string
   currency: string
   remaining: number
+  supplierId: string | null
   supplierName: string | null
   onDone: (key: string) => void
   onFailure: (error: unknown) => void
@@ -273,8 +284,28 @@ function Dispositions({
   // a person to copy a UUID is how the wrong bill gets credited.
   const [search, setSearch] = useState('')
   const [chosen, setChosen] = useState<{ id: string; label: string } | null>(null)
-  const billsPath = billListPath({ filter: 'ALL', q: search.trim(), source: null, sort: 'NEWEST', page: 0, pageSize: 10 })
+  const billsPath = billListPath({ filter: 'ALL', q: search.trim(), source: null, sort: 'NEWEST', page: 0, pageSize: 25 })
   const bills = useApiRead<Page<BillRowDto>>(search.trim().length >= 2 ? billsPath : null, () => loadBillPage(billsPath))
+
+  /*
+   * Only this supplier's bills are offerable. `CreditNoteApplyGuard.requireSameSupplier` refuses
+   * any other outright, so an option from a second supplier is a click that can only ever fail —
+   * and it fails as an opaque 400, which reads to the person as the app being broken rather than
+   * as the rule it is.
+   *
+   * Matched on id, then participant-less name, the same order the server's guard uses. The filter
+   * is applied to the page the server returned, because the bill list takes no supplier parameter
+   * yet; a larger page size keeps a match from falling off the end of a common search. A server
+   * -side filter is the real fix and is a backend change.
+   */
+  const ownBill = (bill: BillRowDto) => {
+    if (supplierId !== null && bill.supplierId !== null) return bill.supplierId === supplierId
+    if (supplierName !== null && bill.supplierName !== null) {
+      return bill.supplierName.trim().toLowerCase() === supplierName.trim().toLowerCase()
+    }
+    // Neither side identifiable: fail closed, exactly as the guard does.
+    return false
+  }
 
   const [applyAmount, setApplyAmount] = useState('')
   const [refundAmount, setRefundAmount] = useState('')
@@ -335,11 +366,16 @@ function Dispositions({
             </button>
           </p>
         ) : bills.read.status === 'ready' ? (
-          bills.read.data.items.length === 0 ? (
-            <p className="mt-2 text-sm font-medium text-text-quaternary">{t('supplierCreditNoteDetail.noBills')}</p>
+          bills.read.data.items.filter(ownBill).length === 0 ? (
+            <p className="mt-2 text-sm font-medium text-text-quaternary">
+              {/* Says whose bills were looked through, so "nothing" does not read as a broken search. */}
+              {supplierName === null
+                ? t('supplierCreditNoteDetail.noBills')
+                : t('supplierCreditNoteDetail.noBillsForSupplier', { supplier: supplierName })}
+            </p>
           ) : (
             <ul className="mt-2 flex flex-col gap-1">
-              {bills.read.data.items.map((bill) => (
+              {bills.read.data.items.filter(ownBill).map((bill) => (
                 <li key={bill.id}>
                   <button
                     type="button"

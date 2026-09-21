@@ -27,6 +27,7 @@ import {
   slaStateOf,
   type ActivityTabId,
 } from '../../lib/activityLedger'
+import { defaultReportRange } from '../../api/reports/reports'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatCount, formatInstant } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
@@ -99,7 +100,10 @@ function ActivityLedger() {
   const tabFilters = ACTIVITY_TABS.find((entry) => entry.id === tab)?.filters ?? {}
   const listPath = activityListPath({ ...tabFilters, invoiceNumber: search }, pageNumber - 1)
   const list = useApiRead<ActivityListDto>(listPath, () => loadActivityList(listPath))
-  const summaryPath = activitySummaryPath()
+  // The summary refuses a call with no window — 400, whatever the signature says the parameters
+  // are. The ledger below is unwindowed and stays that way; only the counts above it need one.
+  const summaryRange = defaultReportRange()
+  const summaryPath = activitySummaryPath(summaryRange.from, summaryRange.to)
   const summary = useApiRead<ActivitySummaryDto>(summaryPath, () => loadActivitySummary(summaryPath))
 
   const [notice, setNotice] = useState<string | null>(null)

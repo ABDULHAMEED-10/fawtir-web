@@ -232,6 +232,17 @@ describe('the ledger screen', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Rejected or failed' }))
     await waitFor(() => expect(calls('/compliance/activity?').at(-1)).toContain('tdd_ack=RE'))
   })
+
+  it('always asks the summary for a window, because it answers 400 without one', async () => {
+    renderLedger()
+    await screen.findByText('INV-0001')
+
+    // The controller binds from and to as optional request parameters and then refuses the call
+    // that omits them, so the signature cannot be trusted and only a real call reveals it.
+    const summary = calls('/compliance/activity/summary').at(-1) ?? ''
+    expect(summary).toMatch(/[?&]from=\d{4}-\d{2}-\d{2}/)
+    expect(summary).toMatch(/[?&]to=\d{4}-\d{2}-\d{2}/)
+  })
 })
 
 describe('the compliance report', () => {

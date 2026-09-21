@@ -5533,7 +5533,7 @@
       "alreadyCharged": "Already charged",
       "neverAuthorised": "Never authorised",
       "other": "Other",
-      "otherPlaceholder": "Tell the supplier why, in one line"
+      "otherPlaceholder": "Your reason, in one line"
     },
     "detail": {
       "debitNotePeppol": "Debit note · Peppol",
@@ -5577,12 +5577,12 @@
       "vatRow": "VAT · 5%",
       "totalCharged": "Total charged",
       "yourDecision": "Your decision",
-      "refuseAndTell": "Refuse and tell them",
+      "refuseAndTell": "Refuse it",
       "accept": "Accept it",
       "hold": "Put on hold",
       "undo": "Undo",
       "pickReason": "Why are you refusing?",
-      "send": "Send the refusal",
+      "send": "Record the refusal",
       "cancel": "Cancel",
       "rateCardTitle": "Against your rate card",
       "rateCard": {
@@ -14451,6 +14451,8 @@
     "back": "Back to credit notes",
     "credited": "Credited",
     "applied": "Used so far",
+    "refunded": "Refunded in cash",
+    "noBillsForSupplier": "No bills from {{supplier}} match that. Only their own bills can take this credit.",
     "remaining": "Left to use",
     "factsTitle": "The note",
     "issued": "Issued",

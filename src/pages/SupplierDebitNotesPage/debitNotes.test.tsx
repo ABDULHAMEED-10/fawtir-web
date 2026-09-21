@@ -197,24 +197,24 @@ describe('One debit note', () => {
   it('sends the chosen preset as the reason when refusing', async () => {
     renderDetail()
     await screen.findByText('QMS-DN-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Refuse and tell them' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refuse it' }))
     fireEvent.click(screen.getByRole('radio', { name: 'Already charged' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Send the refusal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Record the refusal' }))
     await waitFor(() => expect(refuseBody).toEqual({ reason: 'Already charged' }))
   })
 
   it('will not send an empty free-text reason, which the server refuses anyway', async () => {
     renderDetail()
     await screen.findByText('QMS-DN-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Refuse and tell them' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refuse it' }))
     fireEvent.click(screen.getByRole('radio', { name: 'Other' }))
 
-    expect(screen.getByRole('button', { name: 'Send the refusal' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Record the refusal' })).toHaveProperty('disabled', true)
 
-    fireEvent.change(screen.getByPlaceholderText('Tell the supplier why, in one line'), {
+    fireEvent.change(screen.getByPlaceholderText('Your reason, in one line'), {
       target: { value: 'We never ordered this' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Send the refusal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Record the refusal' }))
     await waitFor(() => expect(refuseBody).toEqual({ reason: 'We never ordered this' }))
   })
 
@@ -226,7 +226,7 @@ describe('One debit note', () => {
     await screen.findByText('QMS-DN-1')
 
     expect(screen.getByRole('button', { name: 'Accept it' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Refuse and tell them' })).toHaveProperty('disabled', false)
+    expect(screen.getByRole('button', { name: 'Refuse it' })).toHaveProperty('disabled', false)
     expect(screen.getByText(/Only the opposite decision can be recorded/)).toBeTruthy()
   })
 
@@ -241,6 +241,18 @@ describe('One debit note', () => {
     expect(screen.queryByText(/supplier has been told/)).toBeNull()
     expect(screen.queryByText(/sends the supplier your reason/)).toBeNull()
     expect(screen.queryByText(/payment run/)).toBeNull()
+
+    // The controls too, not only the prose around them. "Refuse and tell them", "Send the
+    // refusal" and a placeholder reading "Tell the supplier why" all survived the first sweep
+    // because it read body text and never looked at a button label.
+    expect(screen.getByRole('button', { name: 'Refuse it' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Refuse it' }))
+    expect(screen.getByRole('button', { name: 'Record the refusal' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('radio', { name: 'Other' }))
+    expect(screen.getByPlaceholderText('Your reason, in one line')).toBeTruthy()
+    for (const label of [/tell them/i, /send the refusal/i, /tell the supplier/i]) {
+      expect(screen.queryByText(label)).toBeNull()
+    }
   })
 
   it('lists the decisions with their reasons, newest first as the server sends them', async () => {
@@ -263,6 +275,6 @@ describe('One debit note', () => {
     renderDetail()
     await screen.findByText('QMS-DN-1')
     expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Refuse and tell them' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Refuse it' })).toBeNull()
   })
 })

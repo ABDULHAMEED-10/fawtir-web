@@ -5652,7 +5652,7 @@
       "alreadyCharged": "فُوتر من قبل",
       "neverAuthorised": "غير مصرّح به",
       "other": "أخرى",
-      "otherPlaceholder": "اذكر للمورد السبب في سطر واحد"
+      "otherPlaceholder": "سببك في سطر واحد"
     },
     "detail": {
       "debitNotePeppol": "إشعار مدين · Peppol",
@@ -5696,12 +5696,12 @@
       "vatRow": "ض.ق.م · ٥٪",
       "totalCharged": "إجمالي الرسم",
       "yourDecision": "قرارك",
-      "refuseAndTell": "ارفض وأبلغهم",
+      "refuseAndTell": "ارفضه",
       "accept": "اقبله",
       "hold": "علّقه",
       "undo": "تراجع",
       "pickReason": "لماذا ترفضه؟",
-      "send": "إرسال الرفض",
+      "send": "سجّل الرفض",
       "cancel": "إلغاء",
       "rateCardTitle": "مقابل بطاقة أسعارك",
       "rateCard": {
@@ -14939,6 +14939,8 @@
     "back": "العودة إلى إشعارات الدائن",
     "credited": "المبلغ الدائن",
     "applied": "المستخدم حتى الآن",
+    "refunded": "مُعاد نقدًا",
+    "noBillsForSupplier": "لا توجد فواتير من {{supplier}} تطابق ذلك. لا يمكن خصم هذا الرصيد إلا من فواتيره هو.",
     "remaining": "المتبقي للاستخدام",
     "factsTitle": "الإشعار",
     "issued": "تاريخ الإصدار",
