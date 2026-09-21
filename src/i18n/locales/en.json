@@ -5293,7 +5293,8 @@
       "sheetCreditedTo": "Credited to",
       "sheetAgainst": "Against invoice",
       "sheetReason": "Reason",
-      "sheetAmount": "Amount"
+      "sheetAmount": "Amount",
+      "choose": "Choose the supplier's credit note"
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -5466,7 +5467,7 @@
       "cta": "Upload a debit note",
       "breadcrumb": "Upload a debit note",
       "title": "Check before you accept",
-      "subtitle": "A debit note raises what you owe. Nothing is added until you accept it — and you can refuse with a reason.",
+      "subtitle": "A debit note raises what the supplier says you owe. Uploading records the charge; accepting or refusing it is a separate decision on the note itself.",
       "fileMeta": "{{pages}} page · {{size}} · read in {{seconds}} seconds · recognised as a debit note",
       "whoSentIt": "Who sent it",
       "supplier": "Supplier",
@@ -5524,7 +5525,8 @@
       "holdNote": "Nothing added, nothing sent. Use this while you phone them.",
       "reasonNote": "This wording goes to the supplier. Keep it factual — it becomes part of the record.",
       "cancel": "Cancel",
-      "save": "Save the decision"
+      "save": "Save the decision",
+      "choose": "Choose the supplier's debit note"
     },
     "refuse": {
       "notInRates": "Not in our agreed rates",

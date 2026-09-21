@@ -6,6 +6,8 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import { billProblems, blankBillForm, linesTotals, toConfirmation, vatIncluded } from '../../lib/billIntake'
 import { UploadBillPage } from './UploadBillPage'
+import { UploadCreditNotePage } from '../UploadCreditNotePage'
+import { UploadDebitNotePage } from '../UploadDebitNotePage'
 import { ScanReceiptsPage } from '../ScanReceiptsPage'
 import { RecordSupplierBillPage } from '../RecordSupplierBillPage'
 
@@ -117,8 +119,12 @@ function renderAt(path: string) {
         <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
         <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
         <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
+        <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
+        <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
         <Route path="/expenditure/bills/:id" element={<p>bill page</p>} />
         <Route path="/expenditure/bills" element={<p>bills list</p>} />
+        <Route path="/expenditure/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/expenditure/debit-notes/:id" element={<p>debit note page</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -283,5 +289,47 @@ describe('scan receipts', () => {
 
     await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-2/confirm')).toHaveLength(1))
     expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-2/confirm')[0]).paidOnTheSpot).toBeNull()
+  })
+})
+
+describe('upload a supplier note', () => {
+  it('confirms a credit note as a 381 and opens it on the credit-note screen', async () => {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/credit-notes/upload')
+    await pick([new File(['<CreditNote/>'], 'note.xml', { type: 'application/xml' })])
+
+    expect(await screen.findByDisplayValue('MR-INV-8821')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    // The type is what decides which way the money points, so it is the assertion that matters:
+    // a 380 here would file a credit as something owed.
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe('381')
+  })
+
+  it('confirms a debit note as a 383 and opens it on the debit-note screen', async () => {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/debit-notes/upload')
+    await pick([new File(['<DebitNote/>'], 'note.xml', { type: 'application/xml' })])
+
+    expect(await screen.findByDisplayValue('MR-INV-8821')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe('383')
+  })
+
+  it('still files a bill as a 380 when no type is stated', async () => {
+    // The default is the capability half of the pair above: widening the field must not have
+    // changed what the bill upload sends.
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe('380')
   })
 })
