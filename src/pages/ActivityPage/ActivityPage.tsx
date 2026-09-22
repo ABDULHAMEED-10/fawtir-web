@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { RowsView } from '../../components/ui'
+import { LedgerExport } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -133,9 +134,13 @@ function ActivityLedger() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('activity.title')}</h1>
-        <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('activity.ledgerSubtitle')}</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-[680px]">
+          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('activity.title')}</h1>
+          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('activity.ledgerSubtitle')}</p>
+        </div>
+        {/* The evidence a tenant is asked for, carrying the filters on screen. */}
+        <LedgerExport filters={{ ...tabFilters, invoiceNumber: search }} name="fawtir-compliance-ledger" />
       </div>
 
       {notice ? <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}

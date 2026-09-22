@@ -14607,5 +14607,12 @@
       "contractReference": "Contract reference",
       "contractReferenceHint": "The contract this invoice falls under (IBT-012)."
     }
+  },
+  "ledgerExport": {
+    "csv": "Export CSV",
+    "xlsx": "Export Excel",
+    "working": "Preparing…",
+    "failed": "That download did not start. The ledger above is unaffected — try again.",
+    "truncated": "This file stopped at the 10,000-row limit and is not the whole ledger. Narrow the filters and export again."
   }
 }
