@@ -1,0 +1,78 @@
+# Build, type-check and test the web app on every push and pull request.
+#
+# Until now this repository had NO automation at all: no workflow, no hooks, no
+# pre-commit. 1,092 tests and a working type-check existed and nothing ran them
+# but a person remembering to. Types were caught only by Vercel, at deploy time,
+# after the merge.
+#
+# Two traps this file is shaped around, both found the hard way on 2026-09-22:
+#
+#   * `tsc --noEmit` type-checks NOTHING here. The root tsconfig.json is
+#     {"files": [], "references": [...]}, so that command resolves no program and
+#     exits 0 having read no source. The real check is `tsc -b`, which
+#     `npm run build` already runs. Never "simplify" this to --noEmit.
+#
+#   * `tsc -b` is incremental. A cached .tsbuildinfo can report success without
+#     re-checking anything, which is exactly how a merge that reintroduced a
+#     deleted import went unnoticed locally. CI starts from a clean checkout so
+#     the cache is cold, but the cache step below deliberately does NOT cache
+#     build output for the same reason.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A superseded run tells you about code nobody is going to merge.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the version this project is developed on. There is no
+          # .nvmrc; add one and switch to node-version-file if that changes.
+          node-version: '22'
+          # npm's own cache only. NOT node_modules and NOT .tsbuildinfo:
+          # a cached build artefact is how an incremental type-check reports
+          # success without checking anything.
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `npm run build` is `tsc -b && vite build`, so this is the type-check AND
+      # the production build in one step - the same command Vercel runs on
+      # deploy. It needs no secrets: FAWTIR_API_ORIGIN only feeds the dev-server
+      # proxy target, never the build.
+      - name: Type-check and build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
+
+      # NOT blocking, and the reason is specific rather than a shrug: on
+      # 2026-09-22 `eslint .` reported 28 errors, every one of them
+      # react-refresh/only-export-components - a Fast Refresh developer-experience
+      # rule about files that export both a component and something else. None of
+      # them is a correctness problem.
+      #
+      # Making this blocking today would paint the very first run red, and a CI
+      # that is red from its first commit is one everybody learns to ignore. So
+      # it runs, it reports, and it does not gate.
+      #
+      # Make it blocking - delete continue-on-error - once those 28 are cleared.
+      # Until then a rising count is visible in the log rather than invisible.
+      - name: Lint (reporting only - see the note above)
+        continue-on-error: true
+        run: npm run lint
