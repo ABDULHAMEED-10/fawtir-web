@@ -91,6 +91,12 @@ beforeEach(async () => {
       resubmitted.push(url)
       return json(200, {})
     }
+    if (url.includes('/reports/ota.')) {
+      return new Response('invoiceUuid,direction\n"a","ISSUED"\n', {
+        status: 200,
+        headers: { 'Content-Type': 'text/csv', 'X-Fawtir-Export-Truncated': 'false' },
+      })
+    }
     if (url.includes('/compliance/activity/summary')) return json(200, SUMMARY)
     if (url.includes('/compliance/activity')) {
       return json(200, { items, page: 0, page_size: 25, has_more: false })
@@ -231,6 +237,24 @@ describe('the ledger screen', () => {
     await screen.findByText('INV-0001')
     fireEvent.click(screen.getByRole('tab', { name: 'Rejected or failed' }))
     await waitFor(() => expect(calls('/compliance/activity?').at(-1)).toContain('tdd_ack=RE'))
+  })
+
+  it('exports the LEDGER, not the summary, carrying the filters on screen', async () => {
+    renderLedger()
+    await screen.findByText('INV-0001')
+    fireEvent.click(screen.getByRole('tab', { name: 'Rejected or failed' }))
+    await waitFor(() => expect(calls('/compliance/activity?').at(-1)).toContain('tdd_ack=RE'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }))
+
+    // /reports/ota is the per-document ledger. /reports/compliance is four counts and a median -
+    // a file of that proves nothing about individual documents.
+    await waitFor(() => {
+      const asked = decodeURIComponent(calls('/reports/ota').at(-1) ?? '')
+      expect(asked).toContain('/reports/ota.csv')
+      expect(asked).toContain('tdd_ack=RE')
+    })
+    expect(calls('/reports/compliance')).toHaveLength(0)
   })
 
   it('always asks the summary for a window, because it answers 400 without one', async () => {

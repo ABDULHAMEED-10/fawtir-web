@@ -139,6 +139,31 @@ export type ActivityFilters = {
 
 export const ACTIVITY_PAGE_SIZE = 25
 
+/**
+ * The ledger as a file — the compliance evidence a tenant is actually asked for.
+ *
+ * Deliberately NOT an export of `/reports/compliance`: that is four counts and a median, and a
+ * download of it proves nothing about individual documents. This is one row per document, and it
+ * carries the same filters the screen is showing so the file and the page cannot disagree.
+ *
+ * `reports.read`, not the activity permission — it lives under `/reports`, where the other exports
+ * are. The server caps it at 10,000 rows and says so through `X-Fawtir-Export-Truncated`; a file
+ * that stopped short without saying so would be worse evidence than none.
+ */
+export function ledgerExportPath(filters: ActivityFilters, format: 'csv' | 'xlsx') {
+  return withQuery(`/v1/reports/ota.${format}`, {
+    direction: filters.direction || null,
+    attention: filters.attention || null,
+    tdd_ack: filters.tddAck || null,
+    invoice_ack: filters.invoiceAck || null,
+    tdd_status: filters.tddStatus || null,
+    document_kind: filters.documentKind || null,
+    invoice_number: filters.invoiceNumber || null,
+    from: filters.from || null,
+    to: filters.to || null,
+  })
+}
+
 export function activityListPath(filters: ActivityFilters, page: number, pageSize = ACTIVITY_PAGE_SIZE) {
   return withQuery(ACTIVITY_PATH, {
     direction: filters.direction || null,

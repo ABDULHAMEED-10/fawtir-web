@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ChartCard, ChartGrid, HorizontalBars, KpiCard, KpiRow, ReportShell, SERIES } from '../../components/reports'
+import { ChartCard, ChartGrid, HorizontalBars, KpiCard, KpiRow, LedgerExport, ReportShell, SERIES } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { activitySummaryPath, loadActivitySummary, type ActivitySummaryDto } from '../../api/compliance/activity'
@@ -59,12 +59,21 @@ export function ReportsCompliancePage() {
           {t('reports.controls.to')}
           <input type="date" value={to} onChange={(event) => set('to', event.target.value)} className={FIELD} />
         </label>
-        <Link
-          to="/compliance/activity"
-          className="ms-auto inline-flex h-[40px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-        >
-          {t('reports.compliance.openLedger')}
-        </Link>
+        <div className="ms-auto flex flex-wrap items-center gap-2">
+          {/*
+            The export is of the LEDGER, not of the figures above it. This page is four counts and
+            a median; a file of that proves nothing about individual documents, and what a tenant
+            is asked to produce is every document they reported and when. Same window, so the file
+            and the cards cannot disagree.
+          */}
+          <LedgerExport filters={{ from, to }} name="fawtir-compliance-ledger" />
+          <Link
+            to="/compliance/activity"
+            className="inline-flex h-[40px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+          >
+            {t('reports.compliance.openLedger')}
+          </Link>
+        </div>
       </div>
 
       {summary.read.status === 'loading' ? <LoadingNotice /> : null}
