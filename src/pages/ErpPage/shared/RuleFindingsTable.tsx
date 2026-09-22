@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { RowsView } from '../../../components/ui'
 import { TARGETS, type Target } from '../../../lib/erpCatalogue'
-import type { Finding } from '../../../lib/erpMapping'
+import type { MappingFindingDto } from '../../../api/erp/mapping'
 
 /**
  * The business term a canonical path belongs to. `lines[0].tax.rate` is IBT-152; a path that
@@ -23,12 +23,18 @@ export function termLabel(target: Target, language: string) {
 }
 
 /**
- * A certification report's findings, or a rejected record's — rule id, what went wrong, the
- * canonical field, and the way into the wizard (docs/erp-and-console-plan.md §2.4, §2.8).
- * The message keys are already full (`erp.finding.*`, or `erp.dryRun.*` / `erp.error.*` when the
- * canonical model itself objected), so the copy is one lookup with the finding's values.
+ * A certification report's findings — rule id, what went wrong, the field, and the way into the
+ * wizard (docs/erp-and-console-plan.md §2.4, §2.8).
+ *
+ * `rule_id` is the PINT / EN 16931 rule identifier verbatim: public compliance vocabulary, not a
+ * Fawtir-invented code, and the identity a reader can look up or quote to their accountant. It is
+ * rendered as it arrived and never translated.
+ *
+ * `message` is the validator's own sentence, likewise rendered as it arrived. It is not a
+ * translation key — there is no closed set of them to translate, because the rules come from the
+ * Peppol rule artefacts. The fields the server sends are already free of document content.
  */
-export function RuleFindingsTable({ findings }: { findings: Finding[] }) {
+export function RuleFindingsTable({ findings }: { findings: MappingFindingDto[] }) {
   const { t, i18n } = useTranslation()
 
   if (findings.length === 0) {
@@ -48,10 +54,16 @@ export function RuleFindingsTable({ findings }: { findings: Finding[] }) {
         </thead>
         <tbody>
           {findings.map((finding, index) => {
-            const term = termForCanonicalPath(finding.field)
+            // The server names the business term directly in `field_id` when the rule names one.
+            // The XPath is the fallback: it says where in the emitted document it went wrong, which
+            // resolves to a term often enough to be worth linking.
+            const term = finding.field_id
+              ? TARGETS.find((target) => target.id === finding.field_id)
+              : termForCanonicalPath(finding.xpath ?? undefined)
+            const where = finding.field_id ?? finding.xpath
             return (
               <tr
-                key={`${finding.ruleId}-${finding.field ?? ''}-${index}`}
+                key={`${finding.rule_id ?? 'rule'}-${where ?? ''}-${index}`}
                 className="border-b border-surface-background last:border-0"
               >
                 <td className="px-4 py-3 align-top">
@@ -59,16 +71,21 @@ export function RuleFindingsTable({ findings }: { findings: Finding[] }) {
                     dir="ltr"
                     className="inline-flex h-[24px] items-center whitespace-nowrap rounded-[3px] bg-surface-background px-2 font-mono text-[11px] font-semibold text-text-tertiary"
                   >
-                    {finding.ruleId}
+                    {finding.rule_id ?? '—'}
                   </span>
+                  {finding.layer ? (
+                    <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+                      {finding.layer}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium leading-[1.5] text-text-secondary">
-                  {t(finding.messageKey, finding.values)}
+                  {finding.message ?? '—'}
                 </td>
                 <td className="px-4 py-3 align-top">
-                  {finding.field ? (
-                    <span dir="ltr" className="block font-mono text-[11px] text-text-secondary">
-                      {finding.field}
+                  {where ? (
+                    <span dir="ltr" className="block break-all font-mono text-[11px] text-text-secondary">
+                      {where}
                     </span>
                   ) : (
                     <span className="text-xs text-text-quaternary">—</span>

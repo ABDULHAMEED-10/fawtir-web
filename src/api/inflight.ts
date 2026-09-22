@@ -15,3 +15,16 @@ export function sharedRequest<T>(key: string, start: () => Promise<T>): Promise<
   pending.set(key, request)
   return request
 }
+
+/**
+ * Empties the registry. For tests only.
+ *
+ * The entry is removed in a `finally`, which runs as a microtask, so a test that finishes while a
+ * read is still settling leaves its key behind. The next test rendering the same screen then joins
+ * the previous test's promise and is answered from the previous test's stubs — a failure that
+ * lands on whichever test happens to run second and vanishes when that test runs alone. Clearing
+ * between tests removes the class rather than timing around it.
+ */
+export function resetSharedRequests() {
+  pending.clear()
+}

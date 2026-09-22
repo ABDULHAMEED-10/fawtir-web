@@ -1,87 +1,111 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ErpShell } from './ErpShell'
+import { GUIDED_MAPPING_FORMAT, useErpMapping } from './ErpMappingGate'
 import { JsonTree } from './shared/JsonTree'
 import { SamplePicker } from './shared/SamplePicker'
-import { termForCanonicalPath, termLabel } from './shared/RuleFindingsTable'
-import {
-  activeProfile,
-  dryRun,
-  mappingRoute,
-  sampleById,
-  shortHash,
-  useErpMapping,
-  type DryRunError,
-} from '../../lib/erpMapping'
-import { TARGET_BY_ID } from '../../lib/erpCatalogue'
+import { dryRunGuidedMapping, dryRunMappingProfile, type MappingDryRunDto } from '../../api/erp/mapping'
+import { ApiError } from '../../api'
+import { shortHash } from '../../lib/erp/mappingState'
+import { sessionSamples } from '../../lib/erp/sample'
 import infoIcon from '../../assets/settings/info.svg'
 
 /**
  * Settings › Integration › ERP mapping › Preview (docs/erp-and-console-plan.md §2.3, A.3).
  *
- * One sample through the guided mapping, side by side: what the ERP sent and what Fawtir would
- * file. When the mapping refuses, the right pane is the list of refusals, each one a link back
- * into the wizard at the term that caused it. This is level 3 — the mapping and the canonical
- * model, not the Authority's Schematron — and the screen says so rather than let a clean tree
- * read as a certified invoice.
+ * One sample through the mapping, side by side: what the ERP sent, and the canonical invoice
+ * Fawtir would build from it.
+ *
+ * **The right pane is the engine's answer, verbatim.** It calls the same dry-run the server runs
+ * in production — `POST …/guided/dry-run` for a wizard-authored mapping, `POST …/{format}/dry-run`
+ * for a hand-written one — and renders the canonical invoice it returns. Nothing is recomputed
+ * here. The design mock ran a JavaScript reimplementation of the mapping to draw this pane, which
+ * could only ever agree with the real engine by coincidence.
+ *
+ * **Nothing is submitted.** A dry run writes no ledger row, consumes no invoice number, generates
+ * no PINT-OM, dispatches nothing and does not touch certification. That is what makes it safe to
+ * run repeatedly while iterating — and it is also why a clean tree here is not a certified
+ * invoice: this stops before the five-layer validation, which only a certification run exercises.
  *
  * The chosen sample lives in the URL (`?sample=`) so a link to a preview is a link to *that*
- * preview; `?run=1` runs it on arrival.
+ * preview.
  */
 export function ErpPreviewPage() {
-  const { t, i18n } = useTranslation()
-  const state = useErpMapping()
+  const { t } = useTranslation()
+  const view = useErpMapping()
   const [params, setParams] = useSearchParams()
+  const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
-  const route = mappingRoute(state)
-  const active = activeProfile(state)
-  const hasGuided = state.guided && state.entries.length > 0
-  const canRun = hasGuided && route !== 'HAND_WRITTEN'
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<MappingDryRunDto | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
+  const [ranFor, setRanFor] = useState<string | null>(null)
 
   const requested = params.get('sample') ?? ''
-  const sampleId = sampleById(state, requested) ? requested : (state.samples[0]?.id ?? '')
-  const sample = sampleById(state, sampleId)
+  const chosen = samples.find((sample) => sample.id === requested) ?? samples[0]
+  const sampleId = chosen?.id ?? ''
 
-  const [ranFor, setRanFor] = useState<string | null>(
-    params.get('run') === '1' && canRun ? sampleId : null,
-  )
-  const result = useMemo(
-    () => (canRun && sample && ranFor === sample.id ? dryRun(state.entries, sample.payload) : null),
-    [canRun, sample, ranFor, state.entries],
-  )
+  const guided = view.route === 'GUIDED' && view.guided !== null
+  // A hand-written profile can be dry-run too, against the stored expression. Only a tenant with
+  // neither a guided mapping nor an active profile has nothing to run.
+  const canRun = Boolean(chosen) && (guided || view.activeProfile !== null)
 
   const choose = (id: string) => {
     setParams({ sample: id }, { replace: true })
+    setResult(null)
+    setFailure(null)
     setRanFor(null)
   }
-  const run = () => {
-    if (!sample) return
-    setParams({ sample: sample.id, run: '1' }, { replace: true })
-    setRanFor(sample.id)
+
+  /**
+   * Runs the sample.
+   *
+   * The guided route compiles the stored mapping first and answers 409 when it is incomplete,
+   * which is a distinct and actionable state — the reader has fields left to map — so it is
+   * reported as that rather than as a failure.
+   */
+  const run = async () => {
+    if (!chosen) return
+    setRunning(true)
+    setResult(null)
+    setFailure(null)
+    try {
+      const answer = guided
+        ? await dryRunGuidedMapping(GUIDED_MAPPING_FORMAT, { document: chosen.payload })
+        : await dryRunMappingProfile(GUIDED_MAPPING_FORMAT, { document: chosen.payload })
+      setResult(answer)
+      setRanFor(chosen.id)
+    } catch (error: unknown) {
+      setFailure(messageOf(error, t))
+      setRanFor(chosen.id)
+    } finally {
+      setRunning(false)
+    }
   }
 
-  const filedTone = result
-    ? result.errors.length
-      ? 'bg-danger-100 text-danger-700'
-      : 'bg-success-100 text-[#3d5648]'
-    : 'bg-surface-background text-text-tertiary'
-  const filedNote = result
-    ? result.errors.length
-      ? t('erp.preview.errorsHeadline', { count: result.errors.length })
-      : t('erp.preview.passedNote')
-    : undefined
+  const fresh = ranFor === sampleId
+  const shown = fresh ? result : null
+  const shownFailure = fresh ? failure : null
+
+  const filedTone = shownFailure
+    ? 'bg-danger-100 text-danger-700'
+    : shown
+      ? 'bg-success-100 text-[#3d5648]'
+      : 'bg-surface-background text-text-tertiary'
 
   return (
     <ErpShell title={t('erp.preview.title')} subtitle={t('erp.preview.subtitle')}>
-      {route === 'HAND_WRITTEN' && active ? (
+      {view.route === 'HAND_WRITTEN' && view.activeProfile ? (
         <Notice>
           <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-            {t('erp.preview.handWritten')}
+            {t('erp.preview.handWrittenRunnable')}
           </p>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-text-quaternary">
             <span dir="ltr" className="font-mono">
-              {t('erp.preview.handWrittenHash', { hash: shortHash(active.contentHash) })}
+              {t('erp.preview.handWrittenHash', {
+                hash: shortHash(view.activeProfile.contentHash),
+              })}
             </span>
             <Link
               to="/settings/erp-mapping/advanced"
@@ -93,7 +117,7 @@ export function ErpPreviewPage() {
         </Notice>
       ) : null}
 
-      {!hasGuided && route !== 'HAND_WRITTEN' ? (
+      {view.route === 'NONE' ? (
         <Notice>
           <p className="text-sm font-medium leading-[1.5] text-text-secondary">
             {t('erp.preview.none')}
@@ -110,15 +134,19 @@ export function ErpPreviewPage() {
       {/* Toolbar */}
       <section className="flex flex-wrap items-end gap-3 rounded-md bg-surface-card p-5">
         <div className="w-full max-w-[460px] max-lg:max-w-none">
-          <SamplePicker samples={state.samples} value={sampleId} onChange={choose} />
+          <SamplePicker samples={samples} value={sampleId} onChange={choose} />
         </div>
         <button
           type="button"
           onClick={run}
-          disabled={!sample || !canRun}
+          disabled={!canRun || running}
           className="inline-flex h-[50px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
         >
-          {result ? t('erp.preview.runAgain') : t('erp.preview.run')}
+          {running
+            ? t('erp.shared.working')
+            : shown || shownFailure
+              ? t('erp.preview.runAgain')
+              : t('erp.preview.run')}
         </button>
         <div className="ms-auto flex flex-col items-end gap-1 max-lg:w-full max-lg:items-start">
           <span
@@ -139,10 +167,10 @@ export function ErpPreviewPage() {
           tag={t('erp.preview.sentTag')}
           tagTone="bg-primary-50 text-primary-800"
           title={t('erp.preview.sent')}
-          note={sample?.label}
+          note={chosen?.label}
         >
-          {sample ? (
-            <JsonTree value={sample.payload} />
+          {chosen ? (
+            <JsonTree value={chosen.payload} />
           ) : (
             <p className="text-sm font-medium text-text-quaternary">{t('erp.preview.noSample')}</p>
           )}
@@ -153,27 +181,23 @@ export function ErpPreviewPage() {
           tag={t('erp.preview.filedTag')}
           tagTone={filedTone}
           title={t('erp.preview.filed')}
-          note={filedNote}
+          note={
+            shown
+              ? t('erp.preview.ranWith', {
+                  source: t(`erp.preview.source.${shown.mapping_source}`),
+                  hash: shortHash(shown.content_hash),
+                })
+              : undefined
+          }
         >
-          {!result ? (
-            <p className="text-sm font-medium leading-[1.5] text-text-quaternary">
-              {route === 'HAND_WRITTEN'
-                ? t('erp.preview.handWrittenShort')
-                : canRun
-                  ? t('erp.preview.notRun')
-                  : t('erp.preview.none')}
-            </p>
-          ) : result.errors.length ? (
-            <Refusals
-              errors={result.errors}
-              canonical={result.canonical}
-              language={i18n.language}
-            />
+          {shownFailure ? (
+            <Failure message={shownFailure} />
+          ) : shown ? (
+            <JsonTree value={shown.canonical_invoice} />
           ) : (
-            <>
-              <JsonTree value={result.canonical} />
-              {result.notes.length ? <Notes notes={result.notes} /> : null}
-            </>
+            <p className="text-sm font-medium leading-[1.5] text-text-quaternary">
+              {canRun ? t('erp.preview.notRun') : t('erp.preview.none')}
+            </p>
           )}
         </Pane>
       </div>
@@ -181,102 +205,37 @@ export function ErpPreviewPage() {
   )
 }
 
-/* A refusal per line, each pointing back into the wizard. */
-function Refusals({
-  errors,
-  canonical,
-  language,
-}: {
-  errors: DryRunError[]
-  canonical: Record<string, unknown> | null
-  language: string
-}) {
+/**
+ * What the engine said when it refused.
+ *
+ * One message, not a list, because that is what the engine returns: it stops at the first thing
+ * that fails and names the PINT-OM field, which is the output the reader is here for. The message
+ * never carries payload content — the engine's error hygiene keeps tenant business data out of it
+ * — so it is safe to render as it arrived.
+ */
+function Failure({ message }: { message: string }) {
   const { t } = useTranslation()
-  const [showPartial, setShowPartial] = useState(false)
   return (
-    <div className="flex flex-col gap-4">
-      <ul className="flex flex-col divide-y divide-surface-background rounded-sm border border-surface-background">
-        {errors.map((error, index) => {
-          const term =
-            (error.businessTermId ? TARGET_BY_ID[error.businessTermId] : undefined) ??
-            termForCanonicalPath(error.field)
-          return (
-            <li
-              key={`${error.field}-${error.messageKey}-${index}`}
-              className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-center gap-2">
-                  <span dir="ltr" className="font-mono text-[11px] font-semibold text-text-primary">
-                    {error.field}
-                  </span>
-                  {term ? (
-                    <span className="inline-flex h-[22px] items-center rounded-[3px] bg-surface-background px-2 text-[11px] font-medium text-text-tertiary">
-                      {termLabel(term, language)}
-                    </span>
-                  ) : null}
-                </p>
-                <p className="mt-1 text-sm font-medium leading-[1.5] text-danger-700">
-                  {t(error.messageKey, error.values)}
-                </p>
-              </div>
-              {term ? (
-                <Link
-                  to={`/settings/erp-mapping/fields#${term.id}`}
-                  className="shrink-0 whitespace-nowrap text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-                >
-                  {t('erp.shared.goToField')}
-                </Link>
-              ) : null}
-            </li>
-          )
-        })}
-      </ul>
-      {canonical ? (
-        <div>
-          <button
-            type="button"
-            onClick={() => setShowPartial((current) => !current)}
-            aria-expanded={showPartial}
-            className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-          >
-            {showPartial ? t('erp.preview.hidePartial') : t('erp.preview.showPartial')}
-          </button>
-          {showPartial ? (
-            <div className="mt-3">
-              <JsonTree value={canonical} />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+    <div className="flex flex-col gap-3">
+      <p className="text-sm font-medium leading-[1.6] text-danger-700">{message}</p>
+      <Link
+        to="/settings/erp-mapping/fields"
+        className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
+      >
+        {t('erp.preview.goToFields')}
+      </Link>
     </div>
   )
 }
 
-/* Transforms the mock cannot run; the server will. */
-function Notes({ notes }: { notes: DryRunError[] }) {
-  const { t } = useTranslation()
-  return (
-    <div className="mt-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-        {t('erp.preview.notes')}
-      </p>
-      <ul className="mt-1.5 flex flex-col gap-1">
-        {notes.map((note, index) => (
-          <li
-            key={`${note.field}-${index}`}
-            className="text-xs font-medium leading-[1.5] text-text-quaternary"
-          >
-            <span dir="ltr" className="font-mono text-[11px]">
-              {note.field}
-            </span>
-            {' · '}
-            {t(note.messageKey, note.values)}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
+/** A 409 means the guided mapping is not finished — a different thing to say than "it failed". */
+function messageOf(error: unknown, t: (key: string) => string): string {
+  if (error instanceof ApiError) {
+    if (error.status === 409) return t('erp.preview.incomplete')
+    const detail = error.problem.detail
+    if (typeof detail === 'string' && detail) return detail
+  }
+  return t('erp.preview.failed')
 }
 
 function Pane({

@@ -1,59 +1,93 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ErpShell, Pill, RouteStatePill } from './ErpShell'
+import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './ErpMappingGate'
 import { SamplePicker } from './shared/SamplePicker'
 import { RuleFindingsTable } from './shared/RuleFindingsTable'
-import { Button, Checkbox, Modal, RowsView, Select } from '../../components/ui'
+import { Button, Checkbox, Input, Modal, RowsView, Select } from '../../components/ui'
 import {
-  activeProfile,
-  mappingStore,
-  routeStates,
-  sampleById,
-  shortHash,
-  useErpMapping,
-  CERT_ROUTES,
-  DEFAULT_TRANSACTION_TYPE,
-  TRANSACTION_BITS,
-  type Attempt,
-  type CertRoute,
-} from '../../lib/erpMapping'
+  MAPPING_CERTIFICATION_ROUTES,
+  runMappingCertification,
+  type MappingCertificationHistoryDto,
+  type MappingCertificationRoute,
+  type MappingTestInvoiceReportDto,
+} from '../../api/erp/mapping'
+import { ApiError } from '../../api'
+import { DEFAULT_TRANSACTION_TYPE, shortHash } from '../../lib/erp/mappingState'
+import { sessionSamples } from '../../lib/erp/sample'
 import { shortDate } from '../../lib/settings'
 import infoIcon from '../../assets/settings/info.svg'
 
-/** How long the mock lets the pipeline "run" — long enough to read as work, short enough to wait for. */
-const PIPELINE_MS = 1200
+const isRoute = (value: string | null): value is MappingCertificationRoute =>
+  MAPPING_CERTIFICATION_ROUTES.includes(value as MappingCertificationRoute)
 
-const isRoute = (value: string | null): value is CertRoute =>
-  CERT_ROUTES.includes(value as CertRoute)
+/**
+ * The fifteen obligation-bearing BTOM-001 positions. Positions 16–20 are reserved placeholders no
+ * rule references, so they stay unset and the scope the gate keys on masks them anyway.
+ */
+const TRANSACTION_BITS = [
+  'fullTax',
+  'simplified',
+  'selfBilled',
+  'thirdParty',
+  'summary',
+  'continuous',
+  'export',
+  'deemed',
+  'importOfServices',
+  'profitMargin',
+  'profitMarginSelf',
+  'eCommerce',
+  'importOfGoods',
+  'specialZone',
+  'prepayment',
+] as const
 
-/** The 20-bit BTOM-001 string from the fifteen named bits; 16–20 are reserved and stay 0. */
-const compose = (bits: boolean[]) => `${bits.map((on) => (on ? '1' : '0')).join('')}00000`
+/**
+ * The bitmap, in the `1`/`X` alphabet.
+ *
+ * `X` for an unset position, not `0`: the certification run body is validated against
+ * `^[X1]{20}$` and a `0` is refused outright. The design mock composed `0`s, which would have
+ * failed every run. Both alphabets are accepted where a *scope* is derived, so the status query is
+ * unaffected — but one alphabet throughout keeps a status check and the run that answers it in
+ * agreement.
+ */
+const compose = (bits: boolean[]) => `${bits.map((on) => (on ? '1' : 'X')).join('')}XXXXX`
 const decompose = (type: string) => TRANSACTION_BITS.map((_, index) => type.charAt(index) === '1')
 
-const clock = (date: Date) =>
+/** Routes whose document corrects an earlier one, and therefore need the predecessor's identity. */
+const CORRECTION_ROUTES: MappingCertificationRoute[] = ['CREDIT_NOTE']
+
+const clockOf = (date: Date) =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 
 /**
  * Settings › Integration › ERP mapping › Certification (docs/erp-and-console-plan.md §2.4, A.4).
  *
- * Four routes, each proved against a real sample before invoices of that kind can be sent. A
- * pass is tied to the hash of the profile that earned it, so the moment the mapping changes every
- * route is stale and the page says so in a banner, not a toast. A failed run is a result — the
- * findings table — not an error.
+ * Four routes, each proved against a real sample before invoices of that kind can be sent — the
+ * FR-005 gate. A pass is tied to the hash of the expression that earned it, so the moment the
+ * mapping changes the pass stops being found and the route goes stale. That is the server's
+ * behaviour and this screen only reports it: nothing here decides that a mapping is certified, and
+ * there is deliberately no override.
+ *
+ * A failed run is a 200 carrying the report, not an error. It is the expected outcome while a
+ * tenant iterates, and the findings are what they came for.
  */
 export function ErpCertificationPage() {
   const { t } = useTranslation()
-  const state = useErpMapping()
+  const view = useErpMapping()
   const [params, setParams] = useSearchParams()
 
-  const active = activeProfile(state)
-  const routes = routeStates(state)
-  const anyStale = CERT_ROUTES.some((route) => routes[route].state === 'STALE')
+  const anyStale = MAPPING_CERTIFICATION_ROUTES.some(
+    (route) => view.certification[route].state === 'STALE',
+  )
 
   const requested = params.get('route')
-  const [open, setOpen] = useState<CertRoute | null>(isRoute(requested) ? requested : null)
-  const openRun = (route: CertRoute) => {
+  const [open, setOpen] = useState<MappingCertificationRoute | null>(
+    isRoute(requested) ? requested : null,
+  )
+  const openRun = (route: MappingCertificationRoute) => {
     setOpen(route)
     setParams({ route }, { replace: true })
   }
@@ -61,11 +95,6 @@ export function ErpCertificationPage() {
     setOpen(null)
     setParams({}, { replace: true })
   }
-
-  const history = useMemo(
-    () => [...state.attempts].sort((a, b) => b.at.getTime() - a.at.getTime()),
-    [state.attempts],
-  )
 
   return (
     <ErpShell title={t('erp.certification.title')} subtitle={t('erp.certification.subtitle')}>
@@ -81,7 +110,7 @@ export function ErpCertificationPage() {
         </div>
       ) : null}
 
-      {!active ? (
+      {!view.activeProfile ? (
         <div className="flex gap-3 rounded-md border border-pending-200 bg-pending-100/60 p-4">
           <img src={infoIcon} alt="" aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <div className="min-w-0">
@@ -100,56 +129,62 @@ export function ErpCertificationPage() {
 
       {/* Route cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {CERT_ROUTES.map((route) => {
-          const { state: routeState, last, pass } = routes[route]
-          const lastPass = [...state.attempts]
-            .reverse()
-            .find((attempt) => attempt.route === route && attempt.passed)
-          const shown = pass ?? lastPass ?? last
+        {MAPPING_CERTIFICATION_ROUTES.map((route) => {
+          const { state, last, pass, status } = view.certification[route]
           return (
             <article key={route} className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
                   {t(`erp.certRoute.${route}`)}
                 </h3>
-                <RouteStatePill state={routeState} />
+                <RouteStatePill state={state} />
               </div>
 
+              {/*
+                Both hashes, because the interesting failure is the mismatch: a tenant who
+                certified and then edited sees a certified hash that no longer equals the active
+                one, which is exactly why submission started being refused.
+              */}
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs font-medium">
                 <dt className="text-text-quaternary">{t('erp.certification.activeHash')}</dt>
                 <dd dir="ltr" className="text-start font-mono text-[11px] text-text-secondary">
-                  {active ? shortHash(active.contentHash) : '—'}
+                  {shortHash(status.active_content_hash)}
                 </dd>
                 <dt className="text-text-quaternary">
-                  {pass
+                  {status.certified
                     ? t('erp.certification.passHash')
-                    : lastPass
-                      ? t('erp.certification.stalePassHash')
-                      : t('erp.certification.lastHash')}
+                    : t('erp.certification.lastHash')}
                 </dt>
                 <dd
                   dir="ltr"
                   className={[
                     'text-start font-mono text-[11px]',
-                    shown && active && shown.contentHash !== active.contentHash
-                      ? 'text-pending-700'
-                      : 'text-text-secondary',
+                    !status.certified && last ? 'text-pending-700' : 'text-text-secondary',
                   ].join(' ')}
                 >
-                  {shown ? shortHash(shown.contentHash) : '—'}
+                  {shortHash(status.certified_content_hash ?? last?.content_hash ?? null)}
                 </dd>
               </dl>
 
               <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
                 {pass
-                  ? t('erp.certification.certifiedOn', { date: shortDate(pass.at), who: pass.by })
+                  ? t('erp.certification.certifiedOnServer', {
+                      date: shortDate(new Date(pass.certified_at)),
+                    })
                   : last
                     ? t('erp.certification.lastAttempt', {
-                        date: shortDate(last.at),
-                        findings: t('erp.shared.findingsCount', { count: last.findings.length }),
+                        date: shortDate(new Date(last.certified_at)),
+                        findings: t('erp.shared.findingsCount', { count: last.error_count }),
                       })
                     : t('erp.certification.neverTried')}
               </p>
+
+              {/* The server's reason, when it gave one — more use than any copy written here. */}
+              {!status.certified && status.reason ? (
+                <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+                  {status.reason}
+                </p>
+              ) : null}
 
               <button
                 type="button"
@@ -173,13 +208,13 @@ export function ErpCertificationPage() {
             {t('erp.certification.historyNote')}
           </p>
         </div>
-        {history.length === 0 ? (
+        {view.history.length === 0 ? (
           <p className="px-5 pb-5 text-sm font-medium text-text-quaternary">
             {t('erp.certification.noHistory')}
           </p>
         ) : (
           <div className="px-5 pb-5">
-            <History attempts={history} />
+            <History attempts={view.history} />
           </div>
         )}
       </section>
@@ -189,23 +224,20 @@ export function ErpCertificationPage() {
   )
 }
 
-function History({ attempts }: { attempts: Attempt[] }) {
+/**
+ * Every recorded attempt, newest first.
+ *
+ * Failures are retained deliberately — the gate refusing before it admitted is what an
+ * accreditation dossier asks for — so this is the dossier, not a debug log.
+ */
+function History({ attempts }: { attempts: MappingCertificationHistoryDto[] }) {
   const { t } = useTranslation()
-  const state = useErpMapping()
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
-  const toggle = (id: string) =>
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
 
-  const columns = ['route', 'result', 'hash', 'sample', 'type', 'when', 'by', 'findings'] as const
+  const columns = ['route', 'result', 'hash', 'kind', 'type', 'when', 'findings'] as const
 
   return (
     <RowsView>
-      <table className="w-full min-w-[960px] border-collapse">
+      <table className="w-full min-w-[860px] border-collapse">
         <thead>
           <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
             {columns.map((column) => (
@@ -217,24 +249,17 @@ function History({ attempts }: { attempts: Attempt[] }) {
         </thead>
         <tbody>
           {attempts.map((attempt) => {
-            const isOpen = expanded.has(attempt.id)
-            const sample = sampleById(state, attempt.sampleId)
-            return [
-              <tr
-                key={attempt.id}
-                className={[
-                  'border-b border-surface-background',
-                  isOpen ? '' : 'last:border-0',
-                ].join(' ')}
-              >
+            const when = new Date(attempt.certified_at)
+            return (
+              <tr key={attempt.id} className="border-b border-surface-background last:border-0">
                 <td className="px-4 py-3 align-top text-sm font-semibold text-text-primary">
                   {t(`erp.certRoute.${attempt.route}`)}
                 </td>
                 <td className="px-4 py-3 align-top">
                   <Pill
-                    tone={attempt.passed ? 'success' : 'danger'}
+                    tone={attempt.verdict === 'PASSED' ? 'success' : 'danger'}
                     label={
-                      attempt.passed
+                      attempt.verdict === 'PASSED'
                         ? t('erp.certification.passedPill')
                         : t('erp.certification.failedPill')
                     }
@@ -244,53 +269,29 @@ function History({ attempts }: { attempts: Attempt[] }) {
                   dir="ltr"
                   className="px-4 py-3 text-start align-top font-mono text-[11px] text-text-secondary"
                 >
-                  {shortHash(attempt.contentHash)}
+                  {shortHash(attempt.content_hash)}
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium text-text-secondary">
-                  {sample?.label ?? attempt.sampleId}
+                  {attempt.document_kind}
                 </td>
                 <td
                   dir="ltr"
                   className="px-4 py-3 text-start align-top font-mono text-[11px] text-text-secondary"
                 >
-                  {attempt.transactionType}
+                  {attempt.transaction_type}
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium text-text-secondary tabular-nums">
-                  {shortDate(attempt.at)} · {clock(attempt.at)}
+                  {shortDate(when)} · {clockOf(when)}
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium text-text-secondary">
-                  {attempt.by}
-                </td>
-                <td className="px-4 py-3 align-top">
-                  {attempt.findings.length ? (
-                    <button
-                      type="button"
-                      onClick={() => toggle(attempt.id)}
-                      aria-expanded={isOpen}
-                      className="whitespace-nowrap text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-                    >
-                      {t('erp.shared.findingsCount', { count: attempt.findings.length })}
-                      {' · '}
-                      {isOpen ? t('erp.certification.hide') : t('erp.certification.show')}
-                    </button>
+                  {attempt.summary ? (
+                    <span className="block max-w-[320px] leading-[1.5]">{attempt.summary}</span>
                   ) : (
-                    <span className="text-sm font-medium text-text-quaternary">
-                      {t('erp.shared.findingsCount', { count: 0 })}
-                    </span>
+                    t('erp.shared.findingsCount', { count: attempt.error_count })
                   )}
                 </td>
-              </tr>,
-              isOpen ? (
-                <tr
-                  key={`${attempt.id}-findings`}
-                  className="border-b border-surface-background last:border-0"
-                >
-                  <td colSpan={columns.length} className="bg-surface-background/40 px-4 py-4">
-                    <RuleFindingsTable findings={attempt.findings} />
-                  </td>
-                </tr>
-              ) : null,
-            ]
+              </tr>
+            )
           })}
         </tbody>
       </table>
@@ -298,47 +299,91 @@ function History({ attempts }: { attempts: Attempt[] }) {
   )
 }
 
-type Phase = 'idle' | 'running' | 'done'
-
-/** One test invoice: the sample, the transaction type, then the pipeline and its verdict. */
-function RunModal({ route, onClose }: { route: CertRoute; onClose: () => void }) {
+/**
+ * One test invoice.
+ *
+ * The body is the same envelope `POST /v1/invoices` takes, because the run rehearses that exact
+ * request — the sample as `document`, plus the PINT-OM supplement no mapping can produce. For a
+ * credit note the supplement additionally carries the predecessor's identity and the reason code,
+ * which IBR-032-OM and IBR-023-OM require; the reader supplies them because only they know which
+ * invoice is being corrected.
+ */
+function RunModal({
+  route,
+  onClose,
+}: {
+  route: MappingCertificationRoute
+  onClose: () => void
+}) {
   const { t } = useTranslation()
-  const state = useErpMapping()
-  const active = activeProfile(state)
+  const view = useErpMapping()
+  const reload = useErpMappingReload()
+  const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
-  const [sampleId, setSampleId] = useState(state.samples[0]?.id ?? '')
+  const [sampleId, setSampleId] = useState(samples[0]?.id ?? '')
   const [bits, setBits] = useState<boolean[]>(() => decompose(DEFAULT_TRANSACTION_TYPE[route]))
   const [advanced, setAdvanced] = useState(false)
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [result, setResult] = useState<Attempt | 'noProfile' | 'noSample' | null>(null)
-  const timer = useRef<number | undefined>(undefined)
+  const [issueTime, setIssueTime] = useState('12:00')
+  const [precedingNumber, setPrecedingNumber] = useState('')
+  const [precedingDate, setPrecedingDate] = useState('')
+  const [precedingUuid, setPrecedingUuid] = useState('')
+  const [reasonCode, setReasonCode] = useState('CAN')
+  const [running, setRunning] = useState(false)
+  const [report, setReport] = useState<MappingTestInvoiceReportDto | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
 
-  useEffect(() => () => window.clearTimeout(timer.current), [])
-
+  const sample = samples.find((s) => s.id === sampleId)
   const transactionType = compose(bits)
-  const preset = CERT_ROUTES.find((r) => DEFAULT_TRANSACTION_TYPE[r] === transactionType)
+  const needsCorrection = CORRECTION_ROUTES.includes(route)
+  const correctionReady =
+    !needsCorrection || (precedingNumber && precedingDate && precedingUuid && reasonCode)
+  const canRun = Boolean(sample) && Boolean(correctionReady) && !running
+
+  const presetRoute = MAPPING_CERTIFICATION_ROUTES.find(
+    (r) => DEFAULT_TRANSACTION_TYPE[r] === transactionType,
+  )
   const typeOptions = [
-    ...CERT_ROUTES.map((r) => ({
+    ...MAPPING_CERTIFICATION_ROUTES.map((r) => ({
       value: r,
       label: t(`erp.certRoute.${r}`),
       hint: DEFAULT_TRANSACTION_TYPE[r],
     })),
-    ...(preset
+    ...(presetRoute
       ? []
       : [{ value: 'CUSTOM', label: t('erp.certification.custom'), hint: transactionType }]),
   ]
 
-  const run = () => {
-    setPhase('running')
-    setResult(null)
-    timer.current = window.setTimeout(() => {
-      setResult(mappingStore.runCertification(route, sampleId, transactionType))
-      setPhase('done')
-    }, PIPELINE_MS)
+  const run = async () => {
+    if (!sample) return
+    setRunning(true)
+    setReport(null)
+    setFailure(null)
+    try {
+      const answer = await runMappingCertification(GUIDED_MAPPING_FORMAT, route, {
+        document: sample.payload,
+        supplement: {
+          issue_time: `${issueTime}:00`,
+          transaction_type: transactionType,
+          preceding_invoice_number: needsCorrection ? precedingNumber : null,
+          preceding_invoice_date: needsCorrection ? precedingDate : null,
+          preceding_invoice_uuid: needsCorrection ? precedingUuid : null,
+          credit_note_reason_code: needsCorrection ? reasonCode : null,
+        },
+      })
+      setReport(answer)
+      // A pass changes what the gate will admit, so the roll-up above is now behind.
+      reload()
+    } catch (error: unknown) {
+      // Only a malformed *request* is an error here; a failing test invoice is a 200 report.
+      setFailure(
+        error instanceof ApiError && typeof error.problem.detail === 'string'
+          ? error.problem.detail
+          : t('erp.certification.requestFailed'),
+      )
+    } finally {
+      setRunning(false)
+    }
   }
-
-  const running = phase === 'running'
-  const attempt = result && typeof result === 'object' ? result : null
 
   return (
     <Modal
@@ -350,35 +395,86 @@ function RunModal({ route, onClose }: { route: CertRoute; onClose: () => void })
       footer={
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           <span className="text-xs font-medium text-text-quaternary">
-            {active ? (
+            {view.activeProfile ? (
               <>
                 {t('erp.certification.activeHash')}{' '}
                 <span dir="ltr" className="inline-block font-mono text-[11px]">
-                  {shortHash(active.contentHash)}
+                  {shortHash(view.activeProfile.contentHash)}
                 </span>
               </>
             ) : null}
           </span>
           <span className="flex flex-wrap gap-2.5">
             <Button type="button" size="md" variant="secondary" onClick={onClose}>
-              {phase === 'done' ? t('common.close') : t('common.cancel')}
+              {report ? t('common.close') : t('common.cancel')}
             </Button>
-            <Button type="button" size="md" onClick={run} disabled={running || !sampleId}>
-              {phase === 'done' ? t('erp.certification.runAgain') : t('erp.certification.runNow')}
+            <Button type="button" size="md" onClick={run} disabled={!canRun}>
+              {running
+                ? t('erp.shared.working')
+                : report
+                  ? t('erp.certification.runAgain')
+                  : t('erp.certification.runNow')}
             </Button>
           </span>
         </div>
       }
     >
       <div className="flex flex-col gap-5">
-        <SamplePicker samples={state.samples} value={sampleId} onChange={setSampleId} />
+        <SamplePicker samples={samples} value={sampleId} onChange={setSampleId} />
+
+        <Input
+          bordered
+          type="time"
+          label={t('erp.certification.issueTime')}
+          hint={t('erp.certification.issueTimeNote')}
+          value={issueTime}
+          onChange={(event) => setIssueTime(event.target.value)}
+        />
+
+        {needsCorrection ? (
+          <fieldset className="flex flex-col gap-3 rounded-sm bg-surface-background/60 p-4">
+            <legend className="px-1 text-sm font-medium text-text-primary">
+              {t('erp.certification.correction')}
+            </legend>
+            <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('erp.certification.correctionNote')}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                bordered
+                label={t('erp.certification.precedingNumber')}
+                value={precedingNumber}
+                onChange={(event) => setPrecedingNumber(event.target.value)}
+              />
+              <Input
+                bordered
+                type="date"
+                label={t('erp.certification.precedingDate')}
+                value={precedingDate}
+                onChange={(event) => setPrecedingDate(event.target.value)}
+              />
+              <Input
+                bordered
+                label={t('erp.certification.precedingUuid')}
+                value={precedingUuid}
+                onChange={(event) => setPrecedingUuid(event.target.value)}
+              />
+              <Input
+                bordered
+                label={t('erp.certification.reasonCode')}
+                value={reasonCode}
+                onChange={(event) => setReasonCode(event.target.value.toUpperCase())}
+              />
+            </div>
+          </fieldset>
+        ) : null}
 
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-text-primary">
             {t('erp.certification.transactionType')}
           </span>
           <Select
-            value={preset ?? 'CUSTOM'}
+            value={presetRoute ?? 'CUSTOM'}
             onChange={(value) => {
               if (isRoute(value)) setBits(decompose(DEFAULT_TRANSACTION_TYPE[value]))
             }}
@@ -449,33 +545,13 @@ function RunModal({ route, onClose }: { route: CertRoute; onClose: () => void })
           </div>
         ) : null}
 
-        {result === 'noProfile' ? (
-          <div
-            role="alert"
-            className="flex gap-3 rounded-sm border border-pending-200 bg-pending-100/60 p-4"
-          >
-            <img src={infoIcon} alt="" aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            <div>
-              <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-                {t('erp.certification.noProfile')}
-              </p>
-              <Link
-                to="/settings/erp-mapping/fields"
-                className="mt-1.5 inline-block text-xs font-semibold text-primary-700 hover:text-primary-800"
-              >
-                {t('erp.certification.goToFields')}
-              </Link>
-            </div>
-          </div>
-        ) : null}
-
-        {result === 'noSample' ? (
-          <p role="alert" className="text-sm font-medium text-danger-700">
-            {t('erp.certification.noSampleResult')}
+        {failure ? (
+          <p role="alert" className="text-sm font-medium leading-[1.5] text-danger-700">
+            {failure}
           </p>
         ) : null}
 
-        {attempt?.passed ? (
+        {report?.passed ? (
           <div role="status" className="rounded-sm border-s-4 border-s-[#4c6c5a] bg-[#f4f8f5] p-4">
             <p className="text-base font-semibold text-[#3d5648]">
               {t('erp.certification.passed')}
@@ -483,23 +559,42 @@ function RunModal({ route, onClose }: { route: CertRoute; onClose: () => void })
             <p className="mt-1 text-sm font-medium leading-[1.5] text-text-secondary">
               {t('erp.certification.passedBody', {
                 route: t(`erp.certRoute.${route}`),
-                hash: shortHash(attempt.contentHash),
+                hash: shortHash(report.content_hash),
               })}
             </p>
+            {report.warnings.length > 0 ? (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-pending-700">
+                  {t('erp.certification.warningsOnPass', { count: report.warning_count })}
+                </p>
+                <div className="mt-2">
+                  <RuleFindingsTable findings={report.warnings} />
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
-        {attempt && !attempt.passed ? (
+        {report && !report.passed ? (
           <div role="status" className="flex flex-col gap-3">
             <div className="rounded-sm border-s-4 border-s-danger-700 bg-[#fdf4f2] p-4">
               <p className="text-base font-semibold text-danger-700">
                 {t('erp.certification.failed')}
               </p>
               <p className="mt-1 text-sm font-medium leading-[1.5] text-text-secondary">
-                {t('erp.certification.failedBody', { count: attempt.findings.length })}
+                {t('erp.certification.failedStage', {
+                  stage: report.stage,
+                  layer: report.failed_at ?? '—',
+                  count: report.error_count,
+                })}
               </p>
+              {report.message ? (
+                <p className="mt-1 text-sm font-medium leading-[1.5] text-text-secondary">
+                  {report.message}
+                </p>
+              ) : null}
             </div>
-            <RuleFindingsTable findings={attempt.findings} />
+            <RuleFindingsTable findings={report.errors} />
           </div>
         ) : null}
       </div>

@@ -2,16 +2,13 @@ import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from '../SettingsPage/SettingsShell'
+import { useErpMapping } from './ErpMappingGate'
 import {
-  CERT_ROUTES,
-  overviewStatus,
-  readiness,
-  routeStates,
-  useErpMapping,
-  type OverviewStatus,
-  type RouteState,
-} from '../../lib/erpMapping'
-import { COVERAGE_LIMITS } from '../../lib/erpCatalogue'
+  readinessProgress,
+  type ErpOverviewStatus,
+  type ErpRouteState,
+} from '../../lib/erp/mappingState'
+import { MAPPING_CERTIFICATION_ROUTES } from '../../api/erp/mapping'
 import infoIcon from '../../assets/settings/info.svg'
 
 /**
@@ -19,6 +16,10 @@ import infoIcon from '../../assets/settings/info.svg'
  * with the Integration tab lit, the screen's title, and the strip that links the seven screens —
  * Overview · Fields · Preview · Certify · Advanced · History · Samples — with a mark on the ones
  * that need attention.
+ *
+ * Every figure here comes from the backend through {@link useErpMapping}. The status pill is the
+ * server's certification answer rolled up, and the subnav counts are the server's own readiness
+ * lists; nothing is recomputed from a tenant payload in the browser.
  */
 
 type Tone = 'danger' | 'success' | 'pending' | 'neutral'
@@ -30,7 +31,7 @@ const PILL_TONE: Record<Tone, string> = {
   neutral: 'bg-surface-background text-text-tertiary',
 }
 
-const STATUS_TONE: Record<OverviewStatus, Tone> = {
+const STATUS_TONE: Record<ErpOverviewStatus, Tone> = {
   NOT_SET_UP: 'neutral',
   DRAFT: 'pending',
   READY_UNCERTIFIED: 'pending',
@@ -39,7 +40,7 @@ const STATUS_TONE: Record<OverviewStatus, Tone> = {
   STALE: 'danger',
 }
 
-const ROUTE_TONE: Record<RouteState, Tone> = {
+const ROUTE_TONE: Record<ErpRouteState, Tone> = {
   CERTIFIED: 'success',
   FAILED: 'danger',
   NOT_CERTIFIED: 'neutral',
@@ -57,12 +58,12 @@ export function Pill({ tone, label }: { tone: Tone; label: string }) {
   )
 }
 
-export function ErpStatusPill({ status }: { status: OverviewStatus }) {
+export function ErpStatusPill({ status }: { status: ErpOverviewStatus }) {
   const { t } = useTranslation()
   return <Pill tone={STATUS_TONE[status]} label={t(`erp.status.${status}`)} />
 }
 
-export function RouteStatePill({ state }: { state: RouteState }) {
+export function RouteStatePill({ state }: { state: ErpRouteState }) {
   const { t } = useTranslation()
   return <Pill tone={ROUTE_TONE[state]} label={t(`erp.routeState.${state}`)} />
 }
@@ -83,14 +84,14 @@ export type ScreenId = (typeof SCREENS)[number]['id']
 export function IntegrationSubnav() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const state = useErpMapping()
-  const ready = readiness(state)
-  const routes = routeStates(state)
+  const view = useErpMapping()
+  const progress = readinessProgress(view.readiness)
   const attention: Partial<Record<ScreenId, number>> = {
-    fields: ready.missingRequiredTargets.length + ready.invalidMappings.length,
-    certification: CERT_ROUTES.filter(
-      (r) => routes[r].state === 'FAILED' || routes[r].state === 'STALE',
-    ).length,
+    fields: progress.missing + progress.invalid,
+    certification: MAPPING_CERTIFICATION_ROUTES.filter((route) => {
+      const state = view.certification[route].state
+      return state === 'FAILED' || state === 'STALE'
+    }).length,
   }
 
   return (
@@ -126,9 +127,25 @@ export function IntegrationSubnav() {
   )
 }
 
-/** The three invoice kinds the guided path cannot express — beside every readiness indicator. */
+/**
+ * The invoice kinds the guided path cannot express — beside every readiness indicator.
+ *
+ * Rendered from the server's own `coverageLimits`, not from a list held here. The two disagreed:
+ * the design mock named three limits, and the backend publishes two, having reclassified goods
+ * classification as a per-item *conditional* gap — that one depends on the transaction type, so it
+ * is not an absolute limit and a tenant issuing only simplified invoices is unaffected by it.
+ * Reading the server's list means a reclassification like that shows up here instead of being
+ * contradicted, and a limit added later renders without a frontend change.
+ *
+ * Each id has a translation; an id with none falls back to the server's `summary` rather than
+ * rendering blank, because a coverage limit nobody can read is worse than an untranslated one.
+ */
 export function CoverageBanner({ compact = false }: { compact?: boolean }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const view = useErpMapping()
+  const limits = view.readiness?.coverageLimits ?? []
+  if (limits.length === 0) return null
+
   return (
     <div
       className={[
@@ -142,16 +159,20 @@ export function CoverageBanner({ compact = false }: { compact?: boolean }) {
           {t('erp.coverage.banner')}
         </p>
         <ul className="mt-1.5 flex flex-wrap gap-2">
-          {COVERAGE_LIMITS.map((limit) => (
-            <li key={limit.id}>
-              <Link
-                to="/settings/erp-mapping/advanced"
-                className="inline-flex h-[24px] items-center rounded-[3px] bg-white px-2 text-[11px] font-semibold text-pending-700 transition-colors hover:bg-pending-100"
-              >
-                {t(`erp.coverage.${limit.id}`)}
-              </Link>
-            </li>
-          ))}
+          {limits.map((limit) => {
+            const key = `erp.coverage.${limit.id}`
+            return (
+              <li key={limit.id}>
+                <Link
+                  to="/settings/erp-mapping/advanced"
+                  title={limit.guidance}
+                  className="inline-flex h-[24px] items-center rounded-[3px] bg-white px-2 text-[11px] font-semibold text-pending-700 transition-colors hover:bg-pending-100"
+                >
+                  {i18n.exists(key) ? t(key) : limit.summary}
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       </div>
     </div>
@@ -169,7 +190,7 @@ export function ErpShell({
   actions?: ReactNode
   children: ReactNode
 }) {
-  const state = useErpMapping()
+  const view = useErpMapping()
   return (
     <SettingsShell group="integration">
       <SettingsHeader
@@ -177,7 +198,7 @@ export function ErpShell({
         subtitle={subtitle}
         actions={
           <>
-            <ErpStatusPill status={overviewStatus(state)} />
+            <ErpStatusPill status={view.status} />
             {actions}
           </>
         }

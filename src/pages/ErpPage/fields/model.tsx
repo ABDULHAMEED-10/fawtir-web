@@ -1,6 +1,15 @@
 import { useTranslation } from 'react-i18next'
 import type { Target } from '../../../lib/erpCatalogue'
-import type { Entry, InvalidMapping } from '../../../lib/erpMapping'
+
+/**
+ * Presentation helpers for the Fields editor.
+ *
+ * The draft's own shape and rules live in `lib/erp/draft.ts`, next to the API types they have to
+ * match. Only the things that are genuinely about drawing a row are here.
+ */
+
+export { isBlank, normalise, errorsFor, withOrdinals } from '../../../lib/erp/draft'
+export type { DraftEntry, Draft } from '../../../lib/erp/draft'
 
 /** The term's name in the reader's language — the catalogue carries both. */
 export function useTermName() {
@@ -9,34 +18,25 @@ export function useTermName() {
   return (target: Target) => (arabic ? target.nameAr : target.name)
 }
 
+/**
+ * The reader-facing text for one validator refusal.
+ *
+ * Prefers the translated copy for the error code, and falls back to the server's own `message`
+ * when there is no translation for it. The fallback is the point: the validator's codes are a
+ * backend enum that can grow, and a code with no translation must still say what is wrong rather
+ * than render a raw key or collapse into a generic failure.
+ */
+export function useMappingError() {
+  const { t, i18n } = useTranslation()
+  return (error: { errorCode: string; message: string }) => {
+    const key = `erp.error.${error.errorCode}`
+    return i18n.exists(key) ? t(key) : error.message
+  }
+}
+
 /** The DOM id a row is reachable by, for the checklist's links and the anchor strip. */
 export const rowId = (businessTermId: string) => `erp-term-${businessTermId}`
 export const sectionId = (section: string) => `erp-section-${section}`
-
-/** An entry with nothing in it is not an entry — the row drops out of the draft. */
-export function isBlank(entry: Entry) {
-  return (
-    !entry.sourcePath &&
-    !entry.defaultValue &&
-    entry.transform === undefined &&
-    !entry.valueMap &&
-    !entry.valueMapDefault
-  )
-}
-
-/** Empty strings never reach the validator; they mean "not set". */
-export function normalise(entry: Entry): Entry {
-  const next = { ...entry }
-  if (!next.sourcePath) delete next.sourcePath
-  if (!next.defaultValue) delete next.defaultValue
-  if (next.transform !== undefined && !next.transform.trim()) delete next.transform
-  if (next.valueMap && Object.keys(next.valueMap).length === 0) delete next.valueMap
-  if (!next.valueMapDefault) delete next.valueMapDefault
-  return next
-}
-
-export const errorsFor = (invalid: InvalidMapping[], businessTermId: string) =>
-  invalid.filter((m) => m.businessTermId === businessTermId)
 
 /** Scrolls a row or section into view inside the app's scrolling `<main>`. */
 export function jumpTo(id: string) {

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { RowsView } from '../../components/ui'
 import { CoverageBanner, ErpShell, RouteStatePill } from './ErpShell'
+import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './ErpMappingGate'
 import { Kpi } from './overview/Kpi'
 import {
   ConfirmModal,
@@ -16,19 +17,16 @@ import {
   Td,
   Th,
 } from './overview/idiom'
-import { eventText } from './overview/files'
 import {
-  CERT_ROUTES,
-  activeProfile,
-  mappingRoute,
-  mappingStore,
-  overviewStatus,
-  readiness,
-  routeStates,
+  readinessProgress,
   shortHash,
-  useErpMapping,
-  type OverviewStatus,
-} from '../../lib/erpMapping'
+  type ErpOverviewStatus,
+} from '../../lib/erp/mappingState'
+import {
+  MAPPING_CERTIFICATION_ROUTES,
+  archiveGuidedMapping,
+  deactivateMappingProfile,
+} from '../../api/erp/mapping'
 import { TARGET_BY_ID } from '../../lib/erpCatalogue'
 import { shortDate } from '../../lib/settings'
 import routeIcon from '../../assets/settings/tile-integration.svg'
@@ -37,8 +35,6 @@ import certifiedIcon from '../../assets/settings/cert-ok.svg'
 import samplesIcon from '../../assets/settings/folder.svg'
 import infoIcon from '../../assets/settings/info.svg'
 import tickIcon from '../../assets/settings/check-green.svg'
-
-const SAMPLE_LIMIT = 10
 
 /** The plain-words list of what the Tax Authority insists on and most ERPs do not hold. */
 const OTA_FIELDS = [
@@ -55,27 +51,35 @@ const OTA_FIELDS = [
 /**
  * Settings › Integration › ERP mapping — the overview (docs/erp-and-console-plan.md §2.1, A.1).
  *
- * Four figures, the coverage limits, one row per certification route and the last five things
- * that happened. The call to action follows the status, so the button always says the next step
- * rather than a generic "manage".
+ * Four figures, the coverage limits, one row per certification route. Every one of them is read
+ * from the backend: the readiness lists come from the guided mapping's own validation, and the
+ * route states from the certification gate's answer for the live expression. The call to action
+ * follows the status, so the button always says the next step rather than a generic "manage".
+ *
+ * The activity panel the design called for is not here — mapping administration is audited
+ * server-side, but no tenant-facing endpoint exposes it, so there is nothing real to list and a
+ * plausible-looking empty log would be a claim that nothing had happened.
  */
 export function ErpOverviewPage() {
   const { t, i18n } = useTranslation()
-  const state = useErpMapping()
-  const status = overviewStatus(state)
-  const route = mappingRoute(state)
-  const ready = readiness(state)
-  const routes = routeStates(state)
-  const active = activeProfile(state)
+  const view = useErpMapping()
+  const reload = useErpMappingReload()
+  const progress = readinessProgress(view.readiness)
   const [startingOver, setStartingOver] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
-  const certified = CERT_ROUTES.filter((r) => routes[r].state === 'CERTIFIED').length
-  const failed = CERT_ROUTES.filter((r) => routes[r].state === 'FAILED').length
-  const stale = CERT_ROUTES.filter((r) => routes[r].state === 'STALE').length
-  const missing = ready.missingRequiredTargets.length
-  const invalid = ready.invalidMappings.length
-  const notSetUp = status === 'NOT_SET_UP'
-  const handWrittenOverGuided = route === 'HAND_WRITTEN' && state.guided && state.entries.length > 0
+  const certified = MAPPING_CERTIFICATION_ROUTES.filter(
+    (route) => view.certification[route].state === 'CERTIFIED',
+  ).length
+  const failed = MAPPING_CERTIFICATION_ROUTES.filter(
+    (route) => view.certification[route].state === 'FAILED',
+  ).length
+  const stale = MAPPING_CERTIFICATION_ROUTES.filter(
+    (route) => view.certification[route].state === 'STALE',
+  ).length
+  const notSetUp = view.status === 'NOT_SET_UP'
+  const handWrittenOverGuided =
+    view.route === 'HAND_WRITTEN' && (view.guided?.mappings.length ?? 0) > 0
 
   const termName = (id: string) => {
     const target = TARGET_BY_ID[id]
@@ -84,12 +88,12 @@ export function ErpOverviewPage() {
   }
 
   const fieldsNote = () => {
-    if (invalid > 0) return t('erp.overview.kpi.invalid', { count: invalid })
-    if (missing === 0) return t('erp.overview.kpi.fieldsComplete')
-    const names = ready.missingRequiredTargets.slice(0, 3).map(termName)
-    const rest = missing - names.length
+    if (progress.invalid > 0) return t('erp.overview.kpi.invalid', { count: progress.invalid })
+    if (progress.missing === 0) return t('erp.overview.kpi.fieldsComplete')
+    const names = (view.readiness?.missingRequiredTargets ?? []).slice(0, 3).map(termName)
+    const rest = progress.missing - names.length
     return t('erp.overview.kpi.fieldsMissing', {
-      count: missing,
+      count: progress.missing,
       names: rest > 0 ? `${names.join(', ')} +${rest}` : names.join(', '),
     })
   }
@@ -107,20 +111,42 @@ export function ErpOverviewPage() {
       .join(' · ')
   }
 
-  const samplesNote = () => {
-    const count = state.samples.length
-    if (count === 0) return t('erp.overview.kpi.samplesNone')
-    if (count >= SAMPLE_LIMIT) return t('erp.overview.kpi.samplesAtLimit')
-    return t('erp.overview.kpi.samplesRoom', { count: SAMPLE_LIMIT - count })
+  const profilesNote = () => {
+    if (view.profiles.length === 0) return t('erp.overview.kpi.profilesNone')
+    return view.activeProfile
+      ? t('erp.overview.kpi.profilesActive', { hash: shortHash(view.activeProfile.contentHash) })
+      : t('erp.overview.kpi.profilesInactive')
   }
 
   const routeNote = () => {
-    if (!active) return t('erp.route.NONE')
+    if (!view.activeProfile) return t('erp.route.NONE')
     return t('erp.overview.kpi.profileNote', {
-      system: route === 'GUIDED' ? t(`erp.sourceSystem.${state.sourceSystem}`) : active.erpKey,
-      version: active.version,
-      hash: shortHash(active.contentHash),
+      system:
+        view.route === 'GUIDED' && view.guided
+          ? t(`erp.sourceSystem.${view.guided.sourceSystem}`)
+          : (view.activeProfile.erpKey ?? t('erp.overview.kpi.erpKeyUnset')),
+      version: view.activeProfile.version,
+      hash: shortHash(view.activeProfile.contentHash),
     })
+  }
+
+  /**
+   * Start over means: archive the guided mapping and deactivate the live profile.
+   *
+   * Both are real endpoints and both are soft — the guided row is archived and the profile row is
+   * retained as a superseded revision, so History still shows what was there. It is destructive
+   * enough to confirm, because it retires every certification along with the expression.
+   */
+  const startOver = async () => {
+    setClearing(true)
+    try {
+      if (view.guided) await archiveGuidedMapping(GUIDED_MAPPING_FORMAT)
+      if (view.activeProfile) await deactivateMappingProfile(GUIDED_MAPPING_FORMAT)
+      setStartingOver(false)
+      reload()
+    } finally {
+      setClearing(false)
+    }
   }
 
   return (
@@ -129,16 +155,8 @@ export function ErpOverviewPage() {
       subtitle={t('erp.overview.subtitle')}
       actions={
         <>
-          <CallToAction status={status} missing={missing} />
-          {notSetUp ? (
-            <button
-              type="button"
-              onClick={() => mappingStore.restoreStory()}
-              className={TEXT_BUTTON}
-            >
-              {t('erp.overview.actions.restoreExample')}
-            </button>
-          ) : (
+          <CallToAction status={view.status} missing={progress.missing} />
+          {notSetUp ? null : (
             <button
               type="button"
               onClick={() => setStartingOver(true)}
@@ -155,35 +173,45 @@ export function ErpOverviewPage() {
         <Kpi
           icon={routeIcon}
           label={t('erp.overview.kpi.route')}
-          value={t(`erp.overview.kpi.routeValue.${route}`)}
+          value={t(`erp.overview.kpi.routeValue.${view.route}`)}
           note={routeNote()}
-          highlight={route === 'NONE' && !notSetUp}
+          highlight={view.route === 'NONE' && !notSetUp}
         />
         <Kpi
           icon={fieldsIcon}
           label={t('erp.overview.kpi.fields')}
-          value={String(ready.mappedRequired.length)}
-          unit={t('erp.overview.kpi.ofRequired', { count: ready.requiredTargets.length })}
+          value={String(progress.mapped)}
+          unit={t('erp.overview.kpi.ofRequired', { count: progress.required })}
           note={fieldsNote()}
-          tone={invalid > 0 ? 'danger' : missing > 0 && !notSetUp ? 'pending' : undefined}
+          tone={
+            progress.invalid > 0
+              ? 'danger'
+              : progress.missing > 0 && !notSetUp
+                ? 'pending'
+                : undefined
+          }
         />
         <Kpi
           icon={certifiedIcon}
           tint="bg-success-100"
           label={t('erp.overview.kpi.certified')}
           value={String(certified)}
-          unit={t('erp.overview.kpi.ofRoutes', { count: CERT_ROUTES.length })}
+          unit={t('erp.overview.kpi.ofRoutes', { count: MAPPING_CERTIFICATION_ROUTES.length })}
           note={certifiedNote()}
           tone={failed > 0 ? 'danger' : stale > 0 ? 'pending' : undefined}
         />
+        {/*
+          Profiles, not samples. The design's fourth figure counted stored sample payloads, and
+          nothing stores one — see SAMPLES in UNSUPPORTED_CAPABILITIES. Mapping revisions are real
+          and are the figure a tenant actually needs here: every save supersedes rather than
+          overwrites, so this is how many expressions this tenant has had.
+        */}
         <Kpi
           icon={samplesIcon}
           tint="bg-pending-100"
-          label={t('erp.overview.kpi.samples')}
-          value={String(state.samples.length)}
-          unit={t('erp.overview.kpi.ofSamples', { count: SAMPLE_LIMIT })}
-          note={samplesNote()}
-          tone={state.samples.length >= SAMPLE_LIMIT ? 'pending' : undefined}
+          label={t('erp.overview.kpi.profiles')}
+          value={String(view.profiles.length)}
+          note={profilesNote()}
         />
       </div>
 
@@ -191,7 +219,7 @@ export function ErpOverviewPage() {
         <EmptyState />
       ) : (
         <>
-          {state.guided ? <CoverageBanner /> : null}
+          {view.guided ? <CoverageBanner /> : null}
 
           {handWrittenOverGuided ? (
             <div className="flex flex-wrap items-center gap-3 rounded-md border border-pending-200 bg-pending-100/60 p-4">
@@ -210,14 +238,7 @@ export function ErpOverviewPage() {
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-4 xl:flex-row">
-            <div className="min-w-0 flex-1">
-              <CertificationTable />
-            </div>
-            <aside className="w-full xl:w-[360px] xl:shrink-0">
-              <RecentActivity />
-            </aside>
-          </div>
+          <CertificationTable />
         </>
       )}
 
@@ -225,20 +246,17 @@ export function ErpOverviewPage() {
         open={startingOver}
         title={t('erp.overview.startOver.title')}
         body={t('erp.overview.startOver.body')}
-        confirmLabel={t('erp.overview.startOver.confirm')}
+        confirmLabel={clearing ? t('erp.shared.working') : t('erp.overview.startOver.confirm')}
         danger
         onClose={() => setStartingOver(false)}
-        onConfirm={() => {
-          mappingStore.startOver()
-          setStartingOver(false)
-        }}
+        onConfirm={startOver}
       />
     </ErpShell>
   )
 }
 
 /** The next step, as one button. */
-function CallToAction({ status, missing }: { status: OverviewStatus; missing: number }) {
+function CallToAction({ status, missing }: { status: ErpOverviewStatus; missing: number }) {
   const { t } = useTranslation()
   switch (status) {
     case 'NOT_SET_UP':
@@ -323,19 +341,17 @@ function EmptyState() {
 /** One row per route: the state, what happened last, and the way to run it. */
 function CertificationTable() {
   const { t } = useTranslation()
-  const state = useErpMapping()
-  const routes = routeStates(state)
+  const view = useErpMapping()
 
-  const detail = (route: (typeof CERT_ROUTES)[number]) => {
-    const { state: routeState, last, pass } = routes[route]
-    if (routeState === 'CERTIFIED' && pass)
-      return t('erp.overview.cert.certifiedOn', { date: shortDate(pass.at) })
-    if (routeState === 'STALE') return t('erp.overview.cert.staleNote')
+  const detail = (route: (typeof MAPPING_CERTIFICATION_ROUTES)[number]) => {
+    const { state, last, pass } = view.certification[route]
+    if (state === 'CERTIFIED' && pass)
+      return t('erp.overview.cert.certifiedOn', { date: shortDate(new Date(pass.certified_at)) })
+    if (state === 'STALE') return t('erp.overview.cert.staleNote')
     if (last)
-      return `${t('erp.overview.cert.failedOn', { date: shortDate(last.at) })} · ${t(
-        'erp.overview.cert.findings',
-        { count: last.findings.length },
-      )}`
+      return `${t('erp.overview.cert.failedOn', {
+        date: shortDate(new Date(last.certified_at)),
+      })} · ${t('erp.overview.cert.findings', { count: last.error_count })}`
     return t('erp.overview.cert.notTried')
   }
 
@@ -352,7 +368,7 @@ function CertificationTable() {
             </tr>
           </thead>
           <tbody>
-            {CERT_ROUTES.map((route) => (
+            {MAPPING_CERTIFICATION_ROUTES.map((route) => (
               <tr key={route} className={TBODY_ROW}>
                 <Td first>
                   <p className="text-sm font-semibold text-text-primary">
@@ -360,7 +376,7 @@ function CertificationTable() {
                   </p>
                 </Td>
                 <Td>
-                  <RouteStatePill state={routes[route].state} />
+                  <RouteStatePill state={view.certification[route].state} />
                 </Td>
                 <Td>
                   <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
@@ -372,7 +388,9 @@ function CertificationTable() {
                     to={`/settings/erp-mapping/certification?route=${route}`}
                     className={`${TEXT_BUTTON} whitespace-nowrap`}
                   >
-                    {routes[route].last ? t('erp.overview.cert.rerun') : t('erp.overview.cert.run')}
+                    {view.certification[route].last
+                      ? t('erp.overview.cert.rerun')
+                      : t('erp.overview.cert.run')}
                   </Link>
                 </Td>
               </tr>
@@ -380,48 +398,6 @@ function CertificationTable() {
           </tbody>
         </table>
       </RowsView>
-    </SectionCard>
-  )
-}
-
-/** The last five audit entries, and the way to the whole log. */
-function RecentActivity() {
-  const { t } = useTranslation()
-  const state = useErpMapping()
-  const recent = state.events.slice(0, 5)
-
-  return (
-    <SectionCard
-      title={t('erp.overview.activity.title')}
-      note={t('erp.overview.activity.note')}
-      className="h-full"
-    >
-      {recent.length === 0 ? (
-        <p className="border-t border-surface-background px-5 py-8 text-center text-sm font-medium text-text-quaternary">
-          {t('erp.overview.activity.empty')}
-        </p>
-      ) : (
-        <ul className="border-t border-surface-background">
-          {recent.map((event) => (
-            <li
-              key={event.id}
-              className="flex flex-col gap-1 border-b border-surface-background px-5 py-3.5 last:border-0"
-            >
-              <p className="text-sm font-medium leading-[1.5] text-text-primary">
-                {eventText(t, event)}
-              </p>
-              <p className="text-xs font-medium text-text-quaternary">
-                {t('erp.overview.activity.by', { who: event.by, date: shortDate(event.at) })}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="border-t border-surface-background px-5 py-4">
-        <Link to="/settings/activity-log" className={TEXT_BUTTON}>
-          {t('erp.overview.activity.seeAll')}
-        </Link>
-      </div>
     </SectionCard>
   )
 }

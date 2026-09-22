@@ -36,7 +36,12 @@ import exportIcon from '../../assets/settings/tile-export.svg'
 import closingIcon from '../../assets/settings/tile-closing.svg'
 import integrationIcon from '../../assets/settings/tile-integration.svg'
 import connectIcon from '../../assets/settings/tile-connect.svg'
-import { overviewStatus, readiness as mappingReadiness, useErpMapping } from '../../lib/erpMapping'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  ERP_MAPPING_CARD_KEY,
+  loadErpMappingCard,
+  type ErpMappingCard,
+} from '../../lib/erp/mappingState'
 import { addonUsage, liveConnections, useConnector } from '../../lib/erpConnector'
 import { useFeature } from '../../lib/planAccess'
 import type { Feature } from '../../lib/plans'
@@ -101,9 +106,16 @@ export function SettingsPage() {
 
   const forecast = usageForecast()
   const bill = nextBill()
-  const mapping = useErpMapping()
-  const mappingStatus = overviewStatus(mapping)
-  const mappingReady = mappingReadiness(mapping)
+  // Two reads, not the mapping screens' eight — see loadErpMappingCard. Until they land the card
+  // shows the neutral "not set up" pill rather than a figure it does not have yet.
+  const mappingCard = useApiRead<ErpMappingCard>(ERP_MAPPING_CARD_KEY, () =>
+    loadErpMappingCard('JSON'),
+  )
+  const mapping: ErpMappingCard =
+    mappingCard.read.status === 'ready'
+      ? mappingCard.read.data
+      : { hasGuided: false, sourceSystem: null, status: 'NOT_SET_UP', mapped: 0, required: 0 }
+  const mappingStatus = mapping.status
   const connector = useConnector()
   const connections = liveConnections(connector)
   const connectionsInError = connections.filter((c) => c.state === 'ERROR').length
@@ -202,13 +214,13 @@ export function SettingsPage() {
               : mappingStatus === 'STALE' || mappingStatus === 'DRAFT'
                 ? 'pending'
                 : 'neutral',
-        footKey: mapping.guided
+        footKey: mapping.hasGuided
           ? 'settings.card.erpMappingFoot'
           : 'settings.card.erpMappingFootNone',
         footValues: {
-          system: t(`erp.sourceSystem.${mapping.sourceSystem}`),
-          mapped: mappingReady.mappedRequired.length,
-          required: mappingReady.requiredTargets.length,
+          system: mapping.sourceSystem ? t(`erp.sourceSystem.${mapping.sourceSystem}`) : '',
+          mapped: mapping.mapped,
+          required: mapping.required,
         },
       },
       {
@@ -313,7 +325,7 @@ export function SettingsPage() {
         footKey: 'settings.card.closingFoot',
       },
     ],
-    [forecast, bill, t, mapping, mappingStatus, mappingReady],
+    [forecast, bill, t, mapping, mappingStatus],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(
