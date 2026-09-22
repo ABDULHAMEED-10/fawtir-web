@@ -1,5 +1,5 @@
 import type { NewProduct, ProductDto } from '../api/catalog/products'
-import { TAX_CATEGORIES, type TaxCategory } from './catalogues'
+import type { TaxCategoryDto } from '../api/reference/referenceData'
 import { formatAmount, parseAmount } from './invoiceMath'
 
 /**
@@ -15,11 +15,15 @@ const RATELESS = new Set(['E', 'O'])
  * reverse charge and export are all 0%, so a rate alone would read an exempt product as
  * zero-rated.
  */
-export function taxCategoryOf(category: string, rate: number | null): TaxCategory | null {
+export function taxCategoryOf(
+  categories: TaxCategoryDto[],
+  category: string,
+  rate: number | null,
+): TaxCategoryDto | null {
   return (
-    TAX_CATEGORIES.find(
+    categories.find(
       (option) =>
-        option.categoryId === category &&
+        option.en16931Category === category &&
         (RATELESS.has(category) || parseAmount(option.rate) === parseAmount(String(rate ?? 0))),
     ) ?? null
   )
@@ -40,8 +44,12 @@ export type ProductLinePatch = {
  * The line a picked product starts. The catalogue price is exclusive of VAT; a line being entered
  * inclusive of VAT gets the inclusive price, as the toggle would have converted it.
  */
-export function lineFromProduct(product: ProductDto, exclVat: boolean): ProductLinePatch {
-  const tax = taxCategoryOf(product.defaultTaxCategory, product.defaultTaxRate)
+export function lineFromProduct(
+  categories: TaxCategoryDto[],
+  product: ProductDto,
+  exclVat: boolean,
+): ProductLinePatch {
+  const tax = taxCategoryOf(categories, product.defaultTaxCategory, product.defaultTaxRate)
   const vatRate = tax?.rate ?? String(product.defaultTaxRate ?? 0)
   const price = parseAmount(String(product.defaultUnitPrice))
   const rate = parseAmount(vatRate)
@@ -59,21 +67,24 @@ export function lineFromProduct(product: ProductDto, exclVat: boolean): ProductL
 }
 
 /** A quick-created product from the form's fields; the tax option supplies category and rate. */
-export function newProductFrom(fields: {
-  code: string
-  name: string
-  unit: string
-  price: string
-  taxCode: string
-}): NewProduct {
-  const tax = TAX_CATEGORIES.find((option) => option.code === fields.taxCode) ?? TAX_CATEGORIES[0]
+export function newProductFrom(
+  categories: TaxCategoryDto[],
+  fields: {
+    code: string
+    name: string
+    unit: string
+    price: string
+    taxCode: string
+  },
+): NewProduct {
+  const tax = categories.find((option) => option.code === fields.taxCode) ?? categories[0] ?? null
   return {
     code: fields.code.trim(),
     name: fields.name.trim(),
     defaultUnitCode: fields.unit,
     defaultUnitPrice: Number(formatAmount(parseAmount(fields.price), 3).replace(/,/g, '')),
-    defaultTaxCategory: tax.categoryId,
-    defaultTaxRate: RATELESS.has(tax.categoryId) ? null : Number(tax.rate),
+    defaultTaxCategory: tax?.en16931Category ?? '',
+    defaultTaxRate: RATELESS.has(tax.en16931Category) ? null : Number(tax.rate),
   }
 }
 

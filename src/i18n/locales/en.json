@@ -14541,5 +14541,55 @@
     "working": "Preparing…",
     "failed": "That download did not start. The ledger above is unaffected — try again.",
     "truncated": "This file stopped at the 10,000-row limit and is not the whole ledger. Narrow the filters and export again."
+  },
+  "reference": {
+    "netDays": "{{count}} days",
+    "taxCategory": {
+      "S5": "Standard rate - 5%",
+      "Z0": "Zero-rated - 0%",
+      "E0": "Exempt - 0%",
+      "O0": "Out of scope - 0%",
+      "AE0": "Reverse charge - 0%",
+      "G0": "Export - 0%"
+    },
+    "unitShort": {
+      "EA": "EA",
+      "KGM": "KG",
+      "LTR": "L",
+      "BG": "BG",
+      "BX": "BX",
+      "SA": "SA",
+      "PK": "PK",
+      "HUR": "HR",
+      "DAY": "DAY",
+      "MTR": "M"
+    },
+    "unit": {
+      "EA": "Each",
+      "KGM": "Kilogram",
+      "LTR": "Litre",
+      "BG": "Bag",
+      "BX": "Box",
+      "SA": "Sack",
+      "PK": "Pack",
+      "HUR": "Hour",
+      "DAY": "Day",
+      "MTR": "Metre"
+    },
+    "paymentTerm": {
+      "NET0": "Due on receipt",
+      "NET7": "Net 7 days",
+      "NET14": "Net 14 days",
+      "NET30": "Net 30 days",
+      "NET45": "Net 45 days",
+      "NET60": "Net 60 days"
+    },
+    "paymentMethod": {
+      "30": "Bank transfer",
+      "10": "Cash",
+      "20": "Cheque",
+      "48": "Card payment",
+      "68": "Online payment"
+    }
   }
 }

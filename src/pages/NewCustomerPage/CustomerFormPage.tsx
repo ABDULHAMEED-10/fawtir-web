@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { paymentMethodOptions, paymentTermOptions, taxCategoryOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { AppShell } from '../../layouts/AppShell'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import {
@@ -27,7 +28,6 @@ import {
   type CustomerSendingMethod,
   type CustomerTypeDto,
 } from '../../api/customers/customers'
-import { PAYMENT_METHOD_OPTIONS, PAYMENT_TERMS_OPTIONS, TAX_CATEGORY_OPTIONS } from '../../lib/catalogues'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { can, useSession } from '../../lib/session/session'
 import type { AddressField, AddressValues } from '../../lib/supplierForm'
@@ -103,6 +103,7 @@ export function EditCustomerForm() {
 
 function CustomerFormPage({ customerId }: { customerId: string | null }) {
   const { t } = useTranslation()
+  const reference = useReferenceData()
   const session = useSession()
   const navigate = useNavigate()
   const location = useLocation()
@@ -478,7 +479,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                 id={inputId('defaultTaxCategory')}
                 name="defaultTaxCategory"
                 label={t('newCustomer.billing.taxCategory')}
-                options={withBlank(TAX_CATEGORY_OPTIONS, values.defaultTaxCategory, t('supplierForm.notSet'))}
+                options={withBlank(taxCategoryOptions(reference, t), values.defaultTaxCategory, t('supplierForm.notSet'))}
                 value={values.defaultTaxCategory}
                 onChange={(next) => change('defaultTaxCategory', next)}
                 error={errorText('defaultTaxCategory')}
@@ -487,7 +488,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                 id={inputId('paymentTerms')}
                 name="paymentTerms"
                 label={t('newCustomer.billing.paymentTerms')}
-                options={withBlank(PAYMENT_TERMS_OPTIONS, values.paymentTerms, t('supplierForm.notSet'))}
+                options={withBlank(paymentTermOptions(reference, t), values.paymentTerms, t('supplierForm.notSet'))}
                 value={values.paymentTerms}
                 onChange={(next) => change('paymentTerms', next)}
                 error={errorText('paymentTerms')}
@@ -497,7 +498,7 @@ function CustomerFormPage({ customerId }: { customerId: string | null }) {
                 name="defaultPaymentMethod"
                 label={t('newCustomer.billing.paymentMethod')}
                 options={withBlank(
-                  PAYMENT_METHOD_OPTIONS.map((option) => ({ ...option, label: t(`invoiceDetails.pay.means.${option.value}`) })),
+                  paymentMethodOptions(reference, t).map((option) => ({ ...option, label: t(`invoiceDetails.pay.means.${option.value}`) })),
                   values.defaultPaymentMethod,
                   t('supplierForm.notSet'),
                 )}

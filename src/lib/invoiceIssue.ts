@@ -1,5 +1,6 @@
 import { ApiError } from '../api'
-import { PAYMENT_TERM_DAYS } from './catalogues'
+import type { ReferenceDataDto } from '../api/reference/referenceData'
+import { netDaysFor } from './reference/referenceData'
 
 /**
  * Issuing a draft: the dates it is issued with, what the server would refuse about them, and the
@@ -26,8 +27,12 @@ export function plusDays(isoDate: string, days: number): string {
  * The due date the terms give. The API stores terms as a code and a label with no day count, so
  * terms this build does not know fall back to the issue date and the reader sets the date.
  */
-export function dueDateFor(issueDate: string, termsCode: string | null | undefined): string {
-  const days = termsCode ? PAYMENT_TERM_DAYS[termsCode] : undefined
+export function dueDateFor(
+  reference: ReferenceDataDto | null,
+  issueDate: string,
+  termsCode: string | null | undefined,
+): string {
+  const days = netDaysFor(reference, termsCode) ?? undefined
   return plusDays(issueDate, days ?? 0)
 }
 

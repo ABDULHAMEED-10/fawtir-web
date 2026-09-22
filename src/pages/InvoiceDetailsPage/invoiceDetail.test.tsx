@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ReferenceDataContext } from '../../lib/reference/referenceData'
+import { SEEDED_REFERENCE } from '../../testing/referenceData'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -174,6 +176,7 @@ afterEach(() => {
 
 function renderInvoice() {
   return render(
+    <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
     <MemoryRouter initialEntries={[`/invoices/${ID}`]}>
       <Routes>
         <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
@@ -181,7 +184,8 @@ function renderInvoice() {
         <Route path="/invoices" element={<p>invoices list</p>} />
         <Route path="/login" element={<p>sign-in page</p>} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
+      </ReferenceDataContext.Provider>,
   )
 }
 
@@ -265,7 +269,7 @@ describe('An invoice, wired to the API', () => {
     const issue = fetchMock.mock.calls.filter(([url]) => String(url) === `/api/v1/invoice-drafts/${ID}/issue`)
     expect(issue).toHaveLength(1)
     const today = muscatToday()
-    expect(JSON.parse((issue[0][1] as RequestInit).body as string)).toEqual({ expectedVersion: 2, issueDate: today, dueDate: dueDateFor(today, 'NET30') })
+    expect(JSON.parse((issue[0][1] as RequestInit).body as string)).toEqual({ expectedVersion: 2, issueDate: today, dueDate: dueDateFor(SEEDED_REFERENCE, today, 'NET30') })
     expect(screen.queryByRole('button', { name: 'Issue invoice' })).toBeNull()
   })
 
@@ -519,9 +523,9 @@ describe('invoice detail mapping', () => {
     expect(issueProblems({ issueDate: '2026-09-16', dueDate: '2026-09-15' }, '2026-09-16')).toEqual({ dueDate: 'invoiceIssue.error.dueDateBeforeIssue' })
     // The same day is allowed.
     expect(issueProblems({ issueDate: '2026-09-16', dueDate: '2026-09-16' }, '2026-09-16')).toEqual({})
-    expect(dueDateFor('2026-12-20', 'NET30')).toBe('2027-01-19')
+    expect(dueDateFor(SEEDED_REFERENCE, '2026-12-20', 'NET30')).toBe('2027-01-19')
     // Terms this build has no day count for leave the due date on the issue date, for the reader to set.
-    expect(dueDateFor('2026-09-16', 'EOM')).toBe('2026-09-16')
+    expect(dueDateFor(SEEDED_REFERENCE, '2026-09-16', 'EOM')).toBe('2026-09-16')
   })
 
   it('names a readiness reason it has no sentence for rather than hiding it', () => {

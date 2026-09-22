@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { AppShell } from '../../layouts/AppShell'
 import { TableCheckbox } from '../../components/ui'
 import { SelectField, TextAreaField } from '../../components/form'
@@ -81,6 +82,7 @@ function SalesNote({ kind, draftId, invoiceId }: { kind: NoteKind; draftId: stri
 
 function NoteEditor({ kind, invoice, receivable, draft }: { kind: NoteKind } & Loaded) {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   const navigate = useNavigate()
   const session = useSession()
   const [form, setForm] = useState<NoteForm>(() => (draft ? fromNoteDraft(draft, invoice) : fromInvoice(invoice, kind)))
@@ -308,7 +310,7 @@ function NoteEditor({ kind, invoice, receivable, draft }: { kind: NoteKind } & L
           invoiceId={saved.id}
           version={saved.version}
           initialIssueDate={today}
-          initialDueDate={dueDateFor(today, invoice.details?.paymentTerms?.code)}
+          initialDueDate={dueDateFor(reference, today, invoice.details?.paymentTerms?.code)}
           kind={kind}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => navigate(`${base}/${issued.id}`, { replace: true })}

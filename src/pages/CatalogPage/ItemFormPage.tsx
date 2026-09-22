@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { taxCategoryOptions, unitOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { CatalogShell, Pill } from './CatalogShell'
 import { ItemTabs } from './ItemTabs'
 import { Input, Rial, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
-import { TAX_CATEGORY_OPTIONS, UNIT_OPTIONS } from '../../lib/catalogues'
 import { GROUPS, omr } from '../../lib/catalog'
 import {
   ITEM,
@@ -47,6 +47,7 @@ const KINDS = [
  */
 export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
   const { t } = useTranslation()
+  const reference = useReferenceData()
   const navigate = useNavigate()
   const { id } = useParams()
   const existing = mode === 'edit'
@@ -283,7 +284,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                     ariaLabel={t('item.soldAs')}
                     value={soldAs}
                     onChange={setSoldAs}
-                    options={UNIT_OPTIONS}
+                    options={unitOptions(reference, t)}
                   />
                 </label>
               </div>
@@ -316,7 +317,7 @@ export function ItemFormPage({ mode }: { mode: 'new' | 'edit' }) {
                   ariaLabel={t('item.taxCategory')}
                   value={taxCategory}
                   onChange={setTaxCategory}
-                  options={TAX_CATEGORY_OPTIONS}
+                  options={taxCategoryOptions(reference, t)}
                 />
               </label>
               <Input

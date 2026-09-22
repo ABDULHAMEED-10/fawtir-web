@@ -9,6 +9,9 @@ import { useConsoleAccess, type ConsoleAccess } from '../ConsoleShell/useConsole
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { LOGIN_ROUTE } from '../../lib/identity/login'
 import { REQUIRE_SESSION, SessionContext } from '../../lib/session/session'
+import { useApiRead } from '../../hooks'
+import { REFERENCE_DATA_PATH, loadReferenceData, type ReferenceDataDto } from '../../api/reference/referenceData'
+import { ReferenceDataContext, useReferenceData } from '../../lib/reference/referenceData'
 
 type AppShellProps = {
   children: ReactNode
@@ -32,14 +35,26 @@ export function AppShell({ children }: AppShellProps) {
 
 function GuardedShell({ children }: AppShellProps) {
   const { access, retry } = useConsoleAccess()
+  // Fetched beside the session rather than by each form that needs a dropdown: it is the same
+  // small, rarely-changing payload for every screen, and the shell already waits here, so this
+  // costs one parallel request instead of a loading branch in ten components.
+  const reference = useApiRead<ReferenceDataDto>(REFERENCE_DATA_PATH, loadReferenceData)
+  // Fall through to an enclosing provider while this request is in flight, rather than shadowing
+  // it with null: a nested provider always wins, so publishing null here would blank out a value
+  // a caller further out had already supplied.
+  const enclosing = useReferenceData()
   if (access.state === 'signedOut') return <Navigate to={LOGIN_ROUTE} replace />
   return (
     <SessionContext.Provider value={access.state === 'ready' ? access.entitlements : null}>
-      <Frame>
-        <AccessGate access={access} retry={retry}>
-          {children}
-        </AccessGate>
-      </Frame>
+      <ReferenceDataContext.Provider
+        value={reference.read.status === 'ready' ? reference.read.data : enclosing}
+      >
+        <Frame>
+          <AccessGate access={access} retry={retry}>
+            {children}
+          </AccessGate>
+        </Frame>
+      </ReferenceDataContext.Provider>
     </SessionContext.Provider>
   )
 }

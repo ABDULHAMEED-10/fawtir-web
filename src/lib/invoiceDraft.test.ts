@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { SEEDED_REFERENCE, SEEDED_TAX_CATEGORIES } from '../testing/referenceData'
 import type { DraftResponse } from '../api/invoices/drafts'
 import {
   blankDraftForm,
@@ -12,12 +13,12 @@ import {
 
 function form(overrides: Partial<DraftForm> = {}): DraftForm {
   return {
-    ...blankDraftForm(),
+    ...blankDraftForm(SEEDED_TAX_CATEGORIES),
     customerId: 'c-1',
     branchId: 'b-1',
     lines: [
       {
-        ...blankDraftLine(),
+        ...blankDraftLine(SEEDED_TAX_CATEGORIES),
         productId: 'p-1',
         productCode: 'FLT-1',
         description: 'Flat White',
@@ -31,7 +32,7 @@ function form(overrides: Partial<DraftForm> = {}): DraftForm {
 
 describe('the draft a form saves', () => {
   it('sends exclusive prices, the tax option, and the transaction type the tab implies', () => {
-    const request = toDraftRequest(form(), true)
+    const request = toDraftRequest(SEEDED_REFERENCE, form(), true, false, () => 'Net 30 days')
     expect(request).toMatchObject({
       customerId: 'c-1',
       branchId: 'b-1',
@@ -51,28 +52,28 @@ describe('the draft a form saves', () => {
       discount: { type: 'PERCENTAGE', value: 0 },
       taxCategory: { code: 'S5', en16931Category: 'S', rate: 5, exemptionReason: null },
     })
-    expect(toDraftRequest(form({ customerType: 'consumer' }), true).details.transactionType).toBe('SIMPLIFIED')
+    expect(toDraftRequest(SEEDED_REFERENCE, form({ customerType: 'consumer' }), true).details.transactionType).toBe('SIMPLIFIED')
   })
 
   it('strips VAT out of a price entered inclusive, since the server prices exclusive only', () => {
-    const request = toDraftRequest(form({ lines: [{ ...form().lines[0], unitPrice: '1.05' }] }), false)
+    const request = toDraftRequest(SEEDED_REFERENCE, form({ lines: [{ ...form().lines[0], unitPrice: '1.05' }] }), false)
     expect(request.lines[0].unitPrice).toBe(1)
   })
 
   it('sends a reason only where the category needs one', () => {
     const exempt = { ...form().lines[0], taxCode: 'E0', vatRate: '0', exemptionReason: '  Financial service  ' }
-    expect(toDraftRequest(form({ lines: [exempt] }), true).lines[0].taxCategory).toEqual({
+    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [exempt] }), true).lines[0].taxCategory).toEqual({
       code: 'E0',
       en16931Category: 'E',
       rate: 0,
       exemptionReason: 'Financial service',
     })
-    expect(toDraftRequest(form({ lines: [{ ...exempt, taxCode: 'S5', vatRate: '5' }] }), true).lines[0].taxCategory.exemptionReason).toBeNull()
+    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [{ ...exempt, taxCode: 'S5', vatRate: '5' }] }), true).lines[0].taxCategory.exemptionReason).toBeNull()
   })
 
   it('leaves the internal note out when this person cannot read it, so the server keeps it', () => {
-    expect('internalNote' in toDraftRequest(form({ internalNote: null }), true).details).toBe(false)
-    expect(toDraftRequest(form({ internalNote: '' }), true).details.internalNote).toBe('')
+    expect('internalNote' in toDraftRequest(SEEDED_REFERENCE, form({ internalNote: null }), true).details).toBe(false)
+    expect(toDraftRequest(SEEDED_REFERENCE, form({ internalNote: '' }), true).details.internalNote).toBe('')
   })
 })
 
@@ -114,7 +115,7 @@ describe('a saved draft back into the form', () => {
   }
 
   it('reads every field the save sends, so saving again changes nothing', () => {
-    const restored = fromDraftResponse(saved, 'business')
+    const restored = fromDraftResponse(SEEDED_TAX_CATEGORIES, saved, 'business')
     expect(restored).toMatchObject({
       paymentTerms: 'NET14',
       deliveryDate: '2026-09-10',
@@ -125,7 +126,7 @@ describe('a saved draft back into the form', () => {
       internalNote: null,
     })
     expect(restored.lines[0]).toMatchObject({ unitPrice: '1.8', taxCode: 'E0', exemptionReason: 'Financial service', discountValue: '10' })
-    const again = toDraftRequest(restored, true)
+    const again = toDraftRequest(SEEDED_REFERENCE, restored, true)
     expect(again.lines[0]).toMatchObject({ unitPrice: 1.8, taxCategory: { code: 'E0', en16931Category: 'E', exemptionReason: 'Financial service' } })
     expect(again.headerDiscount).toEqual({ type: 'FIXED_AMOUNT', value: 5 })
   })
@@ -133,8 +134,8 @@ describe('a saved draft back into the form', () => {
 
 describe('checks before saving', () => {
   it('names each gap and the line it is on', () => {
-    const blank = { ...blankDraftForm(), lines: [blankDraftLine(), { ...blankDraftLine('E0'), productId: 'p', unitPrice: '1', quantity: '0' }] }
-    expect(problemsBeforeSave(blank).map((problem) => `${problem.field}${problem.line ?? ''}`)).toEqual([
+    const blank = { ...blankDraftForm(SEEDED_TAX_CATEGORIES), lines: [blankDraftLine(SEEDED_TAX_CATEGORIES), { ...blankDraftLine(SEEDED_TAX_CATEGORIES, 'E0'), productId: 'p', unitPrice: '1', quantity: '0' }] }
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, blank).map((problem) => `${problem.field}${problem.line ?? ''}`)).toEqual([
       'customer',
       'branch',
       'product0',
@@ -142,7 +143,7 @@ describe('checks before saving', () => {
       'quantity1',
       'exemptionReason1',
     ])
-    expect(problemsBeforeSave(form())).toEqual([])
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, form())).toEqual([])
   })
 
   it('puts the server field errors on their lines and keeps the rest', () => {

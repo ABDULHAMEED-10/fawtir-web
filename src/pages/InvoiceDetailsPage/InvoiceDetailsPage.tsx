@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import { Modal, OmAmount, RowsView } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
 import { ApiError } from '../../api'
 import {
@@ -117,6 +118,7 @@ export function InvoiceDetailsPage() {
 
 function InvoiceScreen() {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   const language = i18n.language
   const session = useSession()
   const navigate = useNavigate()
@@ -711,7 +713,7 @@ function InvoiceScreen() {
           invoiceId={data.id}
           version={data.version}
           initialIssueDate={muscatToday()}
-          initialDueDate={dueDateFor(muscatToday(), data.details?.paymentTerms?.code)}
+          initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {

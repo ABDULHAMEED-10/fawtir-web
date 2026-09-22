@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { unitOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { CatalogShell } from './CatalogShell'
 import { Select, TableCheckbox } from '../../components/ui'
-import { UNIT_OPTIONS } from '../../lib/catalogues'
 import { omr } from '../../lib/catalog'
 import { SUGGESTED, DEFAULT_PICKS, readyToAdd, BUSINESS_KIND } from '../../lib/catalogBuild'
 import searchIcon from '../../assets/invoices/search.svg'
@@ -20,6 +20,7 @@ import tickWhiteIcon from '../../assets/catalog/check-white.svg'
  */
 export function BuildCatalogPage() {
   const { t } = useTranslation()
+  const reference = useReferenceData()
   const navigate = useNavigate()
 
   const [picks, setPicks] = useState<Set<string>>(new Set(DEFAULT_PICKS))
@@ -347,7 +348,7 @@ export function BuildCatalogPage() {
                               ariaLabel={t('buildCatalog.col.soldAs')}
                               value={size.soldAs}
                               onChange={() => undefined}
-                              options={UNIT_OPTIONS}
+                              options={unitOptions(reference, t)}
                             />
                           </span>
                         </td>

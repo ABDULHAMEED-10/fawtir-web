@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { taxCategoryOptions, unitOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { Combobox, Input, Modal, Select, type SelectOption } from '../ui'
 import { useApiRead } from '../../hooks'
 import type { Page } from '../../api'
@@ -9,7 +10,6 @@ import {
   searchProducts,
   type ProductDto,
 } from '../../api/catalog/products'
-import { TAX_CATEGORY_OPTIONS, UNIT_OPTIONS } from '../../lib/catalogues'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount } from '../../lib/format'
 import { newProductFrom, suggestProductCode, taxCategoryOf } from '../../lib/productLine'
@@ -37,6 +37,7 @@ export function ProductPicker({
   onPick: (product: ProductDto) => void
 }) {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   const session = useSession()
   const [typed, setTyped] = useState<string | null>(null)
   const [query, setQuery] = useState<string | null>(null)
@@ -52,6 +53,8 @@ export function ProductPicker({
   const found = useApiRead<Page<ProductDto>>(path, () => searchProducts(path!))
   const products = found.read.status === 'ready' ? found.read.data.items : []
 
+  const taxLabel = (code: string | undefined) =>
+    code ? t(`reference.taxCategory.${code}`, { defaultValue: code }) : undefined
   const options: SelectOption[] = products.map((product) => ({
     value: product.id,
     label: product.name,
@@ -59,7 +62,8 @@ export function ProductPicker({
       code: product.code,
       price: formatAmount(product.defaultUnitPrice, 'OMR', i18n.language),
       unit: product.defaultUnitCode,
-      tax: taxCategoryOf(product.defaultTaxCategory, product.defaultTaxRate)?.label ?? product.defaultTaxCategory,
+      tax: taxLabel(taxCategoryOf(reference?.taxCategories ?? [], product.defaultTaxCategory, product.defaultTaxRate)?.code)
+        ?? product.defaultTaxCategory,
     }),
   }))
 
@@ -147,6 +151,7 @@ function QuickCreateProduct({
   onCreated: (product: ProductDto) => void
 }) {
   const { t } = useTranslation()
+  const reference = useReferenceData()
   const [name, setName] = useState(initialName)
   const [code, setCode] = useState(() => (initialName ? suggestProductCode(initialName) : ''))
   const [price, setPrice] = useState('')
@@ -162,7 +167,7 @@ function QuickCreateProduct({
     setSaving(true)
     setFailure(null)
     try {
-      onCreated(await createProduct(newProductFrom({ code, name, unit, price, taxCode })))
+      onCreated(await createProduct(newProductFrom(reference?.taxCategories ?? [], { code, name, unit, price, taxCode })))
     } catch (error) {
       if (error instanceof ApiError && error.code === 'PRODUCT_CODE_DUPLICATE') {
         setFailure({ field: 'code', message: t('productPicker.codeTaken') })
@@ -224,11 +229,11 @@ function QuickCreateProduct({
           />
           <label className="flex flex-col gap-1 text-sm font-medium text-text-primary">
             {t('productPicker.unit')}
-            <Select value={unit} onChange={setUnit} options={UNIT_OPTIONS} ariaLabel={t('productPicker.unit')} />
+            <Select value={unit} onChange={setUnit} options={unitOptions(reference, t)} ariaLabel={t('productPicker.unit')} />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-text-primary">
             {t('productPicker.tax')}
-            <Select value={taxCode} onChange={setTaxCode} options={TAX_CATEGORY_OPTIONS} ariaLabel={t('productPicker.tax')} />
+            <Select value={taxCode} onChange={setTaxCode} options={taxCategoryOptions(reference, t)} ariaLabel={t('productPicker.tax')} />
           </label>
         </div>
         {failure && failure.field === null ? (
