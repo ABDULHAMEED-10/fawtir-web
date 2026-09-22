@@ -1882,7 +1882,8 @@
       "internal": "Internal note",
       "private": "private",
       "show": "Show the internal note",
-      "showHint": "Reading it is recorded in the activity."
+      "showHint": "Reading it is recorded in the activity.",
+      "supplier": "Note to supplier"
     },
     "attachments": {
       "title": "Attachments",
@@ -1994,7 +1995,11 @@
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
         "paymentGone": "That payment could not be found. The list has been refreshed."
       }
-    }
+    },
+    "billedBy": "Billed by",
+    "from": "From",
+    "viewSeller": "View supplier",
+    "sellerUnknown": "Supplier not shown"
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
@@ -2630,75 +2635,6 @@
       "preview": "Preview",
       "saveDraft": "Save draft",
       "issue": "Issue self-billed invoice"
-    }
-  },
-  "selfBillDetail": {
-    "breadcrumbIncome": "Income",
-    "breadcrumbSelfBilled": "Self-billed",
-    "raisedFor": "Raised for",
-    "to": "To",
-    "download": "Download",
-    "sendReminder": "Send reminder",
-    "recordPayment": "Record payment",
-    "status": {
-      "awaitingConfirmation": "Awaiting confirmation"
-    },
-    "tracks": {
-      "peppol": "Peppol delivery",
-      "ota": "OTA reporting",
-      "supplier": "Supplier confirmation"
-    },
-    "sections": {
-      "parties": "Parties & details",
-      "items": "Items supplied to you",
-      "history": "History",
-      "attachments": "Attachments"
-    },
-    "parties": {
-      "seller": "Seller · issues the supply",
-      "sellerNote": "Named as supplier on the document",
-      "buyer": "Buyer · raises this document",
-      "buyerNote": "You pay this and reclaim the VAT",
-      "you": "YOU"
-    },
-    "fields": {
-      "issueDate": "Issue date",
-      "supplyDate": "Supply date",
-      "paymentDue": "Payment due",
-      "agreement": "Agreement",
-      "receivingBranch": "Receiving branch",
-      "purchaseOrder": "Purchase order"
-    },
-    "col": {
-      "description": "Description",
-      "unitPrice": "Unit price",
-      "vat": "VAT",
-      "qty": "Qty",
-      "unit": "Unit",
-      "disc": "Disc %",
-      "total": "Total"
-    },
-    "totals": {
-      "subtotal": "Subtotal (excl. VAT)",
-      "discount": "Discount",
-      "net": "Net amount",
-      "vat": "VAT · Standard 5%",
-      "total": "Total amount"
-    },
-    "summary": {
-      "title": "Summary",
-      "subtotal": "Subtotal",
-      "discount": "Discount",
-      "net": "Net amount",
-      "vat": "VAT · Standard 5%",
-      "totalDue": "Total due"
-    },
-    "viewValidationReport": "View validation report",
-    "attachments": {
-      "drop": "Drop files or click to upload",
-      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
-      "download": "Download file",
-      "delete": "Delete file"
     }
   },
   "debitNotes": {
@@ -6013,44 +5949,14 @@
       "title": "Expenditure",
       "subtitle": "Bills, credit notes and debit notes you received, whatever way they reached you. Amounts are net of supplier credit notes.",
       "kpi": {
-        "billed": "Billed to you, net of VAT",
-        "billedNote": "vs the year before",
         "vat": "VAT you were charged",
         "vatNote": "One total per bill — received bills carry no rate breakdown",
-        "received": "Bills received",
-        "receivedNote": "more than last year",
-        "average": "Average bill",
-        "averageNote": "smaller, more often",
         "spend": "Spent",
         "spendNote": "Including VAT, net of supplier credit notes",
         "net": "Before VAT",
         "netNote": "Total less the VAT on it",
         "documents": "Documents received",
         "documentsNote": "Bills, credit notes and debit notes alike"
-      },
-      "monthly": "Monthly",
-      "topSuppliers": "Top suppliers",
-      "byCategory": "By category",
-      "howBillsReach": "How bills reach you",
-      "netBilled": "Net billed",
-      "vatCharged": "VAT charged",
-      "heaviestMonth": "{{month}} was the heaviest month · <amount>{{value}}</amount>",
-      "billedThisYear": "Billed this year",
-      "topSupplierShare": "{{name}} is {{percent}}% of spend",
-      "topCategoryShare": "{{name}} are {{percent}}%",
-      "peppol": "Peppol",
-      "uploaded": "Uploaded",
-      "scanned": "Scanned",
-      "peppolUp": "Peppol up {{points}} points in a year",
-      "q1": "Q1 2026",
-      "q2": "Q2 2026",
-      "q3SoFar": "Q3 so far",
-      "categories": {
-        "rawMaterials": "Raw materials",
-        "packaging": "Packaging",
-        "logistics": "Logistics",
-        "utilities": "Utilities",
-        "rent": "Rent & premises"
       },
       "groupBy": "Group by",
       "grouping": {
@@ -6083,38 +5989,25 @@
     },
     "cashFlow": {
       "title": "Cash flow",
-      "subtitle": "Money in against money out, what it leaves you with, and what is already committed for the weeks ahead.",
+      "subtitle": "Payments received against your invoices, against payments you recorded on suppliers' bills.",
       "kpi": {
         "in": "Money in",
-        "inNote": "customer payments received",
+        "inNote": "Customer payments received, less any reversal",
         "out": "Money out",
-        "outNote": "supplier payments made",
-        "kept": "Left over",
-        "keptNote": "across the twelve months",
-        "dueOut": "Due out in 30 days",
-        "dueOutNote": "against <amount>{{value}}</amount> expected in"
+        "outNote": "Supplier payments recorded, less any reversal",
+        "kept": "Net",
+        "keptNote": "In less out, over the range above"
       },
       "monthlyInOut": "Monthly in and out",
-      "whatYouKept": "What you kept",
-      "nextEightWeeks": "The next eight weeks",
-      "whereItWent": "Where it went",
+      "whatYouKept": "Net by period",
       "moneyIn": "Money in",
       "moneyOut": "Money out",
-      "positiveEveryMonth": "Positive every month this year",
-      "surplus": "Surplus",
-      "bestMonth": "Best month · <amount>{{value}}</amount>",
-      "expectedIn": "Expected in",
-      "committedOut": "Committed out",
-      "tightestWeek": "Tightest week is {{week}}",
-      "paidThisYear": "Paid this year",
-      "suppliersShare": "Suppliers are {{percent}}% of everything out",
-      "where": {
-        "suppliers": "Suppliers",
-        "rent": "Rent & premises",
-        "wages": "Wages",
-        "utilities": "Utilities",
-        "everythingElse": "Everything else"
-      }
+      "surplus": "Net",
+      "whatThisIs": "This is cash movement recorded in Fawtir — payments somebody entered against an invoice or a bill. It is not your bank balance and not a forecast: money that moved without a document, or that nobody recorded, is not here.",
+      "monthlyInOutNote": "Bucketed on the payment date, not the invoice date.",
+      "whatYouKeptNote": "In less out per period. A reversal counts in the period it was recorded.",
+      "reversalHeavy": "Reversals outweighed payments in {{periods}}, so those bars are not to scale — read the figures.",
+      "empty": "No payments were recorded in this range."
     },
     "vat": {
       "title": "VAT & Tax",
