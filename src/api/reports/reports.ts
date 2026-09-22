@@ -7,7 +7,9 @@ import { withQuery } from '../query'
  * Two report families and a downloads catalogue:
  *
  * - **volume** — issued documents only. The adapter reads `FROM invoice.invoices`, so this is
- *   the sell side; there is no received-document equivalent.
+ *   the sell side.
+ * - **expenditure** — the buy side, over `peppol.bills`. A separate report rather than a filter
+ *   on volume, because the two read different tables with no overlap.
  * - **vat** — OUTPUT (VAT charged, by EN 16931 category and rate), INPUT (VAT the tenant was
  *   charged, from received bills, which carry one VAT total and so have no category or rate),
  *   and NET per period and currency.
@@ -21,6 +23,12 @@ export const REPORT_LISTS_PATH = `${REPORTS_PATH}/lists`
 
 export type ReportGranularity = 'MONTH' | 'QUARTER' | 'YEAR'
 export type VolumeGroupBy = 'NONE' | 'TYPE' | 'CUSTOMER' | 'BRANCH'
+/**
+ * No `TYPE`, unlike the volume report. A supplier credit note subtracts from what bills and debit
+ * notes add, so a bar per type would set a negative bar beside two positive ones and invite the
+ * reader to add them up. The sign is already inside every amount.
+ */
+export type ExpenditureGroupBy = 'NONE' | 'SUPPLIER' | 'SOURCE' | 'CATEGORY'
 
 export type ReportRange = { from?: string | null; to?: string | null; granularity?: ReportGranularity }
 
@@ -58,6 +66,46 @@ export type VolumeReportDto = {
   groupBy: VolumeGroupBy
   rows: VolumeRowDto[]
   totals: CurrencyTotalDto[]
+}
+
+/**
+ * One bucket of received documents. Amounts are **signed**: a 381/261 credit note subtracts and a
+ * 383 debit note adds, the same signing the VAT report's INPUT rows apply to the same table.
+ *
+ * `netAmount` is total less VAT — a subtraction, not a reported taxable base, because a received
+ * bill carries no tax subtotals. `documents` counts every document whatever its sign.
+ *
+ * `groupKey` is empty under `NONE`; under `CATEGORY` an empty key means no category was recorded,
+ * which the page must show as "Uncategorised" rather than drop.
+ */
+export type ExpenditureRowDto = {
+  period: string
+  periodStart: string
+  periodEnd: string
+  groupKey: string | null
+  groupLabel: string | null
+  currency: string
+  documents: number
+  netAmount: number
+  vatAmount: number
+  totalAmount: number
+}
+
+export type ExpenditureTotalDto = {
+  currency: string
+  documents: number
+  netAmount: number
+  vatAmount: number
+  totalAmount: number
+}
+
+export type ExpenditureReportDto = {
+  from: string | null
+  to: string | null
+  granularity: ReportGranularity
+  groupBy: ExpenditureGroupBy
+  rows: ExpenditureRowDto[]
+  totals: ExpenditureTotalDto[]
 }
 
 /** `rate` is null on INPUT rows, and on E and O output rows where the rules forbid one. */
@@ -109,6 +157,14 @@ export function loadVolumeReport(path: string): Promise<VolumeReportDto> {
   return apiRequest<VolumeReportDto>(path)
 }
 
+export function expenditurePath(range: ReportRange, groupBy: ExpenditureGroupBy = 'NONE') {
+  return withQuery(`${REPORTS_PATH}/expenditure`, { ...rangeQuery(range), group_by: groupBy })
+}
+
+export function loadExpenditureReport(path: string): Promise<ExpenditureReportDto> {
+  return apiRequest<ExpenditureReportDto>(path)
+}
+
 export function vatPath(range: ReportRange) {
   return withQuery(`${REPORTS_PATH}/vat`, rangeQuery(range))
 }
@@ -125,10 +181,16 @@ export function loadListsCatalogue(): Promise<ListsCatalogueDto> {
  * Both report families export themselves. The href is built here rather than taken from a
  * response so the download always carries the same range the screen is showing.
  */
-export function reportExportPath(report: 'volume' | 'vat', format: 'csv' | 'xlsx', range: ReportRange, groupBy?: VolumeGroupBy) {
+export function reportExportPath(
+  report: 'volume' | 'vat' | 'expenditure',
+  format: 'csv' | 'xlsx',
+  range: ReportRange,
+  groupBy?: VolumeGroupBy | ExpenditureGroupBy,
+) {
   return withQuery(`${REPORTS_PATH}/${report}.${format}`, {
     ...rangeQuery(range),
-    group_by: report === 'volume' ? (groupBy ?? 'NONE') : null,
+    // /vat takes no grouping, and sending one it does not know would be a 400.
+    group_by: report === 'vat' ? null : (groupBy ?? 'NONE'),
   })
 }
 

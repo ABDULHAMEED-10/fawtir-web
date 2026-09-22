@@ -6011,16 +6011,22 @@
     },
     "expenditure": {
       "title": "Expenditure",
-      "subtitle": "Bills received over Peppol, uploaded and scanned are all counted together.",
+      "subtitle": "Bills, credit notes and debit notes you received, whatever way they reached you. Amounts are net of supplier credit notes.",
       "kpi": {
         "billed": "Billed to you, net of VAT",
         "billedNote": "vs the year before",
-        "vat": "VAT you can reclaim",
-        "vatNote": "all standard rate",
+        "vat": "VAT you were charged",
+        "vatNote": "One total per bill — received bills carry no rate breakdown",
         "received": "Bills received",
         "receivedNote": "more than last year",
         "average": "Average bill",
-        "averageNote": "smaller, more often"
+        "averageNote": "smaller, more often",
+        "spend": "Spent",
+        "spendNote": "Including VAT, net of supplier credit notes",
+        "net": "Before VAT",
+        "netNote": "Total less the VAT on it",
+        "documents": "Documents received",
+        "documentsNote": "Bills, credit notes and debit notes alike"
       },
       "monthly": "Monthly",
       "topSuppliers": "Top suppliers",
@@ -6045,7 +6051,35 @@
         "logistics": "Logistics",
         "utilities": "Utilities",
         "rent": "Rent & premises"
-      }
+      },
+      "groupBy": "Group by",
+      "grouping": {
+        "NONE": "Not grouped",
+        "SUPPLIER": "Supplier",
+        "SOURCE": "How it reached you",
+        "CATEGORY": "Category"
+      },
+      "by": {
+        "NONE": "Total",
+        "SUPPLIER": "By supplier",
+        "SOURCE": "By how it reached you",
+        "CATEGORY": "By category"
+      },
+      "source": {
+        "PEPPOL": "Peppol",
+        "UPLOADED": "Uploaded",
+        "SCANNED": "Scanned",
+        "RECURRING": "Recurring",
+        "SELF_BILLED": "Self-billed"
+      },
+      "spend": "Spent",
+      "byPeriod": "Spend by period",
+      "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
+      "byGroupNote": "Largest first, within the range above.",
+      "topShare": "{{name}} is {{percent}}% of spend",
+      "uncategorised": "Uncategorised",
+      "ungrouped": "Not grouped",
+      "empty": "Nothing was received in this range."
     },
     "cashFlow": {
       "title": "Cash flow",
