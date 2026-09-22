@@ -1,441 +1,321 @@
-import { useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, Popover, RowsView } from '../../components/ui'
+import { RowsView } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { pageCountOf, type Page } from '../../api'
+import {
+  DEBIT_NOTE_SUMMARY_PATH,
+  debitNoteListPath,
+  loadDebitNotePage,
+  loadDebitNoteSummary,
+  type DebitNoteRowDto,
+  type DebitNoteSummaryDto,
+} from '../../api/expenditure/notes'
 import {
   DEBIT_TABS,
-  DEBIT_TAB_STATES,
-  SUPPLIER_DEBIT_NOTES,
-  debitValue,
-  formatDebit,
-  type DebitState,
+  DEFAULT_DEBIT_TAB,
+  isDebitTab,
+  reasonLabelKey,
+  toDebitNoteItem,
+  type DebitNoteItem,
   type DebitTabId,
-} from '../../lib/supplierDebitNotes'
-import kpiEyeIcon from '../../assets/supplier-debit-notes/kpi-eye.svg'
-import kpiPlusIcon from '../../assets/supplier-debit-notes/kpi-plus.svg'
-import kpiAlertIcon from '../../assets/supplier-debit-notes/kpi-alert.svg'
-import actChevronIcon from '../../assets/supplier-credit-notes/act-chevron.svg'
+} from '../../lib/supplierNoteList'
+import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import uploadIcon from '../../assets/bills/upload.svg'
-import searchIcon from '../../assets/invoices/search.svg'
-import sortIcon from '../../assets/bills/sort.svg'
-import filterIcon from '../../assets/bills/filter.svg'
 import omrIcon from '../../assets/invoices/omr.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
-import viewIcon from '../../assets/actions/view.svg'
-import statementIcon from '../../assets/actions/statement.svg'
-import deleteIcon from '../../assets/actions/delete.svg'
 
-const STATE_CHIP: Record<DebitState, { bg: string; fg: string; dot: string }> = {
-  unchecked: { bg: 'bg-pending-100', fg: 'text-pending-700', dot: 'bg-pending-700' },
-  accepted: { bg: 'bg-success-100', fg: 'text-[#3d5648]', dot: 'bg-[#3d5648]' },
-  refused: { bg: 'bg-warning-100', fg: 'text-warning-700', dot: 'bg-warning-700' },
-  onHold: { bg: 'bg-primary-50', fg: 'text-primary-800', dot: 'bg-primary-800' },
+const CHIP: Record<'UNCHECKED' | 'ACCEPTED' | 'REFUSED', string> = {
+  UNCHECKED: 'bg-pending-100 text-pending-700',
+  ACCEPTED: 'bg-success-100 text-success-700',
+  REFUSED: 'bg-surface-background text-text-tertiary',
 }
+
+const COLUMNS = ['debitNote', 'supplier', 'against', 'why', 'status', 'extra'] as const
 
 /**
- * The one thing each row offers.
+ * Expenditure › Debit notes (E-16).
  *
- * Only a charge nobody has decided on can be acted on here, so that is the only filled button.
- * Figma offers "See the payment" on a refused note; a refused charge is never paid, so that
- * row goes to the bill it was raised against like the others.
+ * **Extra a supplier has charged after the original bill.** Unlike a credit note this INCREASES
+ * what is owed and is a payable in its own right, so a row carries its due date, what is still
+ * outstanding and whether it is late — and the decision is whether to accept the charge at all.
+ *
+ * Search, supplier filter and sort are not drawn: the endpoint filters by status and pages, and
+ * nothing more. See the credit-note list for the same reasoning.
  */
-const STATE_ACTION: Record<DebitState, { labelKey: string; primary?: boolean }> = {
-  unchecked: { labelKey: 'supplierDebitNotes.actions.acceptOrRefuse', primary: true },
-  accepted: { labelKey: 'supplierDebitNotes.actions.viewBill' },
-  refused: { labelKey: 'supplierDebitNotes.actions.viewBill' },
-  onHold: { labelKey: 'supplierDebitNotes.actions.seeDecision' },
-}
-
-type SortKey = 'natural' | 'extraDesc' | 'extraAsc' | 'supplierAsc'
-
-const SORT_OPTIONS: { value: SortKey; labelKey: string }[] = [
-  { value: 'natural', labelKey: 'recurringBills.sortOptions.natural' },
-  { value: 'extraDesc', labelKey: 'supplierDebitNotes.sortOptions.extraDesc' },
-  { value: 'extraAsc', labelKey: 'supplierDebitNotes.sortOptions.extraAsc' },
-  { value: 'supplierAsc', labelKey: 'billsPage.sortOptions.supplierAsc' },
-]
-
 export function SupplierDebitNotesPage() {
-  const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState<DebitTabId>('all')
-  const [query, setQuery] = useState('')
-  const [supplier, setSupplier] = useState('all')
-  const [sort, setSort] = useState<SortKey>('natural')
-  const [sortOpen, setSortOpen] = useState(false)
-  const sortRef = useRef<HTMLButtonElement>(null)
-
-  const notes = SUPPLIER_DEBIT_NOTES
-
-  const suppliers = useMemo(() => [...new Set(notes.map((note) => note.supplier))], [notes])
-
-  const rows = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    const filtered = notes.filter((note) => {
-      const states = DEBIT_TAB_STATES[activeTab]
-      const inTab = states.length === 0 || states.includes(note.state)
-      const inSupplier = supplier === 'all' || note.supplier === supplier
-      const matches =
-        needle === '' ||
-        note.id.toLowerCase().includes(needle) ||
-        note.supplier.toLowerCase().includes(needle) ||
-        note.againstBill.toLowerCase().includes(needle)
-      return inTab && inSupplier && matches
-    })
-    if (sort === 'natural') return filtered
-    return [...filtered].sort((a, b) => {
-      if (sort === 'supplierAsc') return a.supplier.localeCompare(b.supplier)
-      const diff = debitValue(a.extra) - debitValue(b.extra)
-      return sort === 'extraAsc' ? diff : -diff
-    })
-  }, [activeTab, notes, query, sort, supplier])
-
-  const counts = (tab: DebitTabId) => {
-    const states = DEBIT_TAB_STATES[tab]
-    return states.length === 0 ? notes.length : notes.filter((n) => states.includes(n.state)).length
-  }
-
-  /** All three figures follow from the rows, so the table and the cards can never disagree. */
-  const open = notes.filter((n) => n.state === 'unchecked' || n.state === 'onHold')
-  const accepted = notes.filter((n) => n.state === 'accepted')
-  const refused = notes.filter((n) => n.state === 'refused')
-  const sum = (list: typeof notes) => list.reduce((total, n) => total + debitValue(n.extra), 0)
-  const openTotal = sum(open)
-  const addedTotal = sum(open) + sum(accepted)
-  const refusedTotal = sum(refused)
-
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-[680px]">
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('supplierDebitNotes.title')}
-            </h1>
-            <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
-              {t('supplierDebitNotes.subtitle')}
-            </p>
-          </div>
-          <Link
-            to="/expenditure/debit-notes/upload"
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
-          >
-            <img src={uploadIcon} alt="" className="size-6" />
-            {t('supplierDebitNotes.upload.cta')}
-          </Link>
+      <DebitNotesScreen />
+    </AppShell>
+  )
+}
+
+function DebitNotesScreen() {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const [params, setParams] = useSearchParams()
+
+  const tab: DebitTabId = isDebitTab(params.get('tab')) ? (params.get('tab') as DebitTabId) : DEFAULT_DEBIT_TAB
+  const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
+
+  const update = (changes: Record<string, string | null>) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        for (const [key, value] of Object.entries(changes)) {
+          if (value === null || value === '') next.delete(key)
+          else next.set(key, value)
+        }
+        return next
+      },
+      { replace: true },
+    )
+
+  const summary = useApiRead<DebitNoteSummaryDto>(DEBIT_NOTE_SUMMARY_PATH, loadDebitNoteSummary)
+  const status = DEBIT_TABS.find((entry) => entry.id === tab)?.status ?? 'ALL'
+  const listPath = debitNoteListPath(status, pageNumber - 1)
+  const list = useApiRead<Page<DebitNoteRowDto>>(listPath, () => loadDebitNotePage(listPath))
+
+  const page = list.read.status === 'ready' ? list.read.data : null
+  const rows = page ? page.items.map(toDebitNoteItem) : []
+  const totals = summary.read.status === 'ready' ? summary.read.data : null
+  const count = (value: number) => formatCount(value, language)
+  const money = (value: number, currency: string) => formatAmount(value, currency, language)
+
+  return (
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-[660px]">
+          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('supplierDebitNotes.title')}</h1>
+          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('supplierDebitNotes.subtitle')}</p>
         </div>
+        <Link
+          to="/expenditure/debit-notes/upload"
+          className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
+        >
+          <img src={uploadIcon} alt="" className="size-6" />
+          {t('supplierDebitNotes.upload.cta')}
+        </Link>
+      </div>
 
-        {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <article className="flex flex-col gap-2.5 rounded-md border border-pending-200 bg-pending-100 p-5">
-            <div className="flex items-center gap-3.5">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-pending-500">
-                <img src={kpiEyeIcon} alt="" className="size-5" />
-              </span>
-              <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('supplierDebitNotes.kpi.needsChecking')}
-              </h3>
-            </div>
-            <div className="flex items-center gap-1">
-              <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" />
-              <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary">
-                {formatDebit(openTotal)}
-              </p>
-            </div>
-            <p className="text-sm font-medium leading-[1.3] text-text-tertiary">
-              {t('supplierDebitNotes.kpi.needsCheckingNote', { count: open.length })}
-            </p>
-          </article>
+      {summary.read.status === 'failed' ? <ApiReadFailure error={summary.read.error} retry={summary.retry} /> : null}
 
-          <article className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
-            <div className="flex items-center gap-3.5">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-surface-background">
-                <img src={kpiPlusIcon} alt="" className="size-5" />
-              </span>
-              <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('supplierDebitNotes.kpi.added')}
-              </h3>
-            </div>
-            <div className="flex items-center gap-1">
-              <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" />
-              <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary">
-                {formatDebit(addedTotal)}
-              </p>
-            </div>
-            <p className="text-sm font-medium leading-[1.3] text-text-tertiary">
-              {t('supplierDebitNotes.kpi.addedNote', {
-                total: open.length + accepted.length,
-                accepted: accepted.length,
-                open: open.length,
-              })}
-            </p>
-          </article>
-
-          <article className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
-            <div className="flex items-center gap-3.5">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-warning-100">
-                <img src={kpiAlertIcon} alt="" className="size-5" />
-              </span>
-              <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('supplierDebitNotes.kpi.rejected')}
-              </h3>
-            </div>
-            <div className="flex items-center gap-1">
-              <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" />
-              <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary">
-                {formatDebit(refusedTotal)}
-              </p>
-            </div>
-            <p className="text-sm font-medium leading-[1.3] text-text-tertiary">
-              {t('supplierDebitNotes.kpi.rejectedNote', { count: refused.length })}
-            </p>
-          </article>
-        </div>
-
-        {/* Table */}
-        <section className="rounded-md bg-surface-card">
-          <div className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5">
-            {DEBIT_TABS.map((tab) => {
-              const active = tab.id === activeTab
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={[
-                    'inline-flex h-[54px] items-center gap-2 border-b-2 px-4 text-sm font-medium transition-colors',
-                    active
-                      ? 'border-primary-700 text-primary-700'
-                      : 'border-transparent text-text-quaternary hover:text-text-secondary',
-                  ].join(' ')}
-                >
-                  {t(tab.labelKey)}
-                  <span
-                    className={[
-                      'text-xs font-semibold',
-                      active ? 'text-primary-700' : 'text-text-quaternary',
-                    ].join(' ')}
-                  >
-                    {counts(tab.id)}
-                  </span>
-                </button>
-              )
+      {totals ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Kpi
+            title={t('supplierDebitNotes.kpi.needsChecking')}
+            amount={money(totals.needsCheckingTotal, totals.currencyCode)}
+            note={t('supplierDebitNotes.kpi.needsCheckingNote', { count: totals.needsCheckingCount })}
+            highlight
+          />
+          <Kpi
+            title={t('supplierDebitNotes.kpi.added')}
+            amount={money(totals.acceptedThisQuarterTotal, totals.currencyCode)}
+            note={t('supplierDebitNotes.kpi.acceptedNote', {
+              count: count(totals.acceptedThisQuarterCount),
+              open: money(totals.acceptedOpenTotal, totals.currencyCode),
             })}
-          </div>
+          />
+          <Kpi
+            title={t('supplierDebitNotes.kpi.rejected')}
+            amount={money(totals.rejectedThisYearTotal, totals.currencyCode)}
+            note={t('supplierDebitNotes.kpi.rejectedNote', { count: totals.rejectedThisYearCount })}
+          />
+        </div>
+      ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <label className="relative flex h-[46px] w-full max-w-[344px] items-center max-md:max-w-none max-md:basis-full">
-              <img
-                src={searchIcon}
-                alt=""
-                className="pointer-events-none absolute start-3.5 size-5 opacity-60"
-              />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('supplierDebitNotes.searchPlaceholder')}
-                className="h-full w-full rounded-sm border border-border-subtle bg-white ps-11 pe-4 text-sm font-medium text-text-secondary outline-none placeholder:text-text-quaternary focus:border-primary-300"
-              />
-            </label>
+      {totals && totals.excludedFromTotals > 0 ? (
+        <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+          {t('supplierCreditNotes.excluded', { count: count(totals.excludedFromTotals) })}
+        </p>
+      ) : null}
 
-            <div className="flex items-center gap-2.5">
-              <FilterMenu
-                label={t('billsPage.filters')}
-                value={supplier}
-                defaultValue="all"
-                icon={filterIcon}
-                options={[
-                  { value: 'all', label: t('supplierDebitNotes.allSuppliers') },
-                  ...suppliers.map((name) => ({ value: name, label: name })),
-                ]}
-                onChange={setSupplier}
-              />
-              <button
-                ref={sortRef}
-                type="button"
-                onClick={() => setSortOpen((open) => !open)}
-                className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                <img src={sortIcon} alt="" className="size-5" />
-                {t('billsPage.sort')}
-              </button>
-              <Popover anchorRef={sortRef} open={sortOpen} onClose={() => setSortOpen(false)}>
-                <ul className="w-[220px] py-1.5">
-                  {SORT_OPTIONS.map((option) => (
-                    <li key={option.value}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSort(option.value)
-                          setSortOpen(false)
-                        }}
-                        className={[
-                          'flex w-full items-center px-4 py-2.5 text-start text-sm font-medium transition-colors hover:bg-primary-25',
-                          option.value === sort ? 'text-primary-700' : 'text-text-secondary',
-                        ].join(' ')}
-                      >
-                        {t(option.labelKey)}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </Popover>
-            </div>
-          </div>
+      <section className="rounded-md bg-surface-card">
+        <div className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5">
+          {DEBIT_TABS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={entry.id === tab}
+              onClick={() => update({ tab: entry.id === DEFAULT_DEBIT_TAB ? null : entry.id, page: null })}
+              className={[
+                'inline-flex h-[54px] items-center border-b-2 px-4 text-sm font-medium transition-colors',
+                entry.id === tab
+                  ? 'border-primary-700 text-primary-700'
+                  : 'border-transparent text-text-quaternary hover:text-text-secondary',
+              ].join(' ')}
+            >
+              {t(entry.labelKey)}
+            </button>
+          ))}
+        </div>
 
-          <RowsView className="px-5 pb-5">
-            <table className="w-full min-w-[980px] border-collapse">
-              <thead>
-                <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-                  {['debitNote', 'supplier', 'against', 'why', 'status', 'extra'].map(
-                    (key, index) => (
-                      <th
-                        key={key}
-                        className={[
-                          'h-[46px] px-4 text-start font-semibold first:rounded-s-sm',
-                          index === 5 ? 'text-end' : '',
-                        ].join(' ')}
-                      >
+        {list.read.status === 'loading' ? <LoadingNotice /> : null}
+        {list.read.status === 'failed' ? <ApiReadFailure error={list.read.error} retry={list.retry} /> : null}
+
+        {page ? (
+          rows.length === 0 ? (
+            <p className="px-6 py-14 text-center text-sm font-medium text-text-quaternary">
+              {t('supplierDebitNotes.empty')}
+            </p>
+          ) : (
+            <RowsView className="px-6 pb-6">
+              <table className="w-full min-w-[980px] border-collapse overflow-hidden rounded-sm text-start">
+                <thead>
+                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                    {COLUMNS.map((key) => (
+                      <th key={key} className="px-4 py-3 text-start font-semibold">
                         {t(`supplierDebitNotes.col.${key}`)}
                       </th>
-                    ),
-                  )}
-                  <th className="h-[46px] rounded-e-sm px-4" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="py-12 text-center text-sm font-medium text-text-quaternary"
-                    >
-                      {t('supplierDebitNotes.empty')}
-                    </td>
+                    ))}
                   </tr>
-                ) : (
-                  rows.map((note) => {
-                    const chip = STATE_CHIP[note.state]
-                    const action = STATE_ACTION[note.state]
-                    return (
-                      <tr
-                        key={note.id}
-                        className="border-b border-surface-background last:border-0"
-                      >
-                        <td className="px-4 py-4 align-top">
-                          <Link
-                            to={`/expenditure/debit-notes/${note.id}`}
-                            className="text-sm font-semibold text-primary-700 hover:underline"
-                          >
-                            {note.id}
-                          </Link>
-                          <p className="mt-1 text-xs font-medium text-text-quaternary">
-                            {t('supplierDebitNotes.rows.arrived', { date: note.arrived })}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4 align-top">
-                          <p className="text-sm font-semibold text-text-primary">{note.supplier}</p>
-                          <p className="mt-1 text-xs font-medium text-text-quaternary">
-                            {t(note.channelKey)}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4 align-top">
-                          <Link
-                            to={`/expenditure/bills/${note.againstBill}`}
-                            className="text-sm font-semibold text-primary-700 hover:underline"
-                          >
-                            {note.againstBill}
-                          </Link>
-                          <p className="mt-1 text-xs font-medium text-text-quaternary">
-                            {t(note.againstNoteKey)}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4 align-top text-sm font-medium text-text-secondary">
-                          {t(note.whyKey)}
-                        </td>
-                        <td className="px-4 py-4 align-top">
-                          <span
-                            className={[
-                              'inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-xs font-medium',
-                              chip.bg,
-                              chip.fg,
-                            ].join(' ')}
-                          >
-                            <span className={['size-1.5 rounded-full', chip.dot].join(' ')} />
-                            {note.state === 'accepted'
-                              ? t('supplierDebitNotes.state.accepted', { who: note.decidedBy })
-                              : t(`supplierDebitNotes.state.${note.state}`)}
-                          </span>
-                          <div className="mt-2">
-                            {action.primary ? (
-                              <Link
-                                to={`/expenditure/debit-notes/${note.id}`}
-                                className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800"
-                              >
-                                {t(action.labelKey)}
-                              </Link>
-                            ) : (
-                              <Link
-                                to={
-                                  note.state === 'onHold'
-                                    ? `/expenditure/debit-notes/${note.id}`
-                                    : `/expenditure/bills/${note.againstBill}`
-                                }
-                                className="inline-flex items-center gap-1 text-xs font-medium text-text-tertiary transition-colors hover:text-primary-700"
-                              >
-                                {t(action.labelKey)}
-                                <img
-                                  src={actChevronIcon}
-                                  alt=""
-                                  className="size-3 rtl:rotate-180"
-                                />
-                              </Link>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 align-top text-end">
-                          {/* A debit note raises what you owe, so the figure carries a plus. */}
-                          <p className="flex items-center justify-end gap-1 text-sm font-semibold text-text-primary tabular-nums">
-                            +<img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
-                            {note.extra}
-                          </p>
-                          <p className="mt-1 text-xs font-medium text-text-quaternary">
-                            {t(note.outcomeKey)}
-                          </p>
-                        </td>
-                        <td className="px-4 py-4 align-top text-end">
-                          <ActionMenu
-                            label={t('supplierDebitNotes.menu.rowActions')}
-                            items={[
-                              {
-                                id: 'open',
-                                labelKey: 'supplierDebitNotes.menu.open',
-                                icon: viewIcon,
-                                to: `/expenditure/debit-notes/${note.id}`,
-                              },
-                              {
-                                id: 'download',
-                                labelKey: 'supplierDebitNotes.menu.download',
-                                icon: statementIcon,
-                              },
-                              {
-                                id: 'remove',
-                                labelKey: 'supplierDebitNotes.menu.remove',
-                                icon: deleteIcon,
-                                danger: true,
-                              },
-                            ]}
-                          />
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </RowsView>
-        </section>
+                </thead>
+                <tbody>
+                  {rows.map((note) => (
+                    <DebitRow key={note.id} note={note} language={language} />
+                  ))}
+                </tbody>
+              </table>
+            </RowsView>
+          )
+        ) : null}
+
+        {page && (pageNumber > 1 || page.hasMore) ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background p-4">
+            <p className="text-xs font-medium text-text-quaternary">
+              {page.total === null
+                ? t('supplierCreditNotes.pageOnly', { page: count(pageNumber) })
+                : t('supplierCreditNotes.pageOf', { page: count(pageNumber), pages: count(pageCountOf(page)) })}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={pageNumber <= 1}
+                onClick={() => update({ page: String(pageNumber - 1) })}
+                className="h-[40px] rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
+              >
+                {t('common.previous')}
+              </button>
+              <button
+                type="button"
+                disabled={!page.hasMore}
+                onClick={() => update({ page: String(pageNumber + 1) })}
+                className="h-[40px] rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
+              >
+                {t('common.next')}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  )
+}
+
+function Kpi({ title, amount, note, highlight }: { title: string; amount: string; note: string; highlight?: boolean }) {
+  return (
+    <article
+      className={[
+        'flex flex-col gap-2.5 rounded-md p-5',
+        highlight ? 'border border-[#e6d7b8] bg-[#fbf6ea]' : 'bg-surface-card',
+      ].join(' ')}
+    >
+      <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">{title}</h3>
+      <div className="flex items-center gap-1">
+        <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" />
+        <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">{amount}</p>
       </div>
-    </AppShell>
+      <p className="text-sm font-medium leading-[1.3] text-text-tertiary">{note}</p>
+    </article>
+  )
+}
+
+function DebitRow({ note, language }: { note: DebitNoteItem; language: string }) {
+  const { t } = useTranslation()
+  const reason = reasonLabelKey(note.reasonCode)
+
+  return (
+    <tr className="border-b border-[#f3f3f3] last:border-b-0">
+      <td className="px-4 py-4 align-top">
+        <Link
+          to={`/expenditure/debit-notes/${note.id}`}
+          className="text-sm font-semibold leading-[1.2] text-primary-700 hover:underline"
+        >
+          {note.number ?? t('supplierCreditNotes.rows.unnumbered')}
+        </Link>
+        {note.issueDate ? (
+          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
+            {t('supplierDebitNotes.rows.arrived', { date: formatDate(note.issueDate, language) })}
+          </p>
+        ) : null}
+      </td>
+
+      <td className="px-4 py-4 align-top">
+        <p className="text-sm font-semibold leading-[1.2] text-text-primary">
+          {note.supplier ?? t('supplierCreditNotes.rows.unknownSupplier')}
+        </p>
+        <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
+          {t(`supplierCreditNotes.source.${note.source}`)}
+        </p>
+      </td>
+
+      <td className="px-4 py-4 align-top">
+        <p className="text-sm font-medium leading-[1.2] text-text-tertiary">
+          {/* The API names the bill the supplier referenced but gives no id for it, so this is
+              text rather than a link: a link built from a number we have not resolved would go
+              to the wrong bill or nowhere. */}
+          {note.relatesToBillNumber ?? t('supplierCreditNotes.rows.noBill')}
+        </p>
+      </td>
+
+      <td className="px-4 py-4 align-top">
+        <p className="text-sm font-medium leading-[1.3] text-text-tertiary">
+          {reason ? t(reason.key, { defaultValue: reason.fallback }) : t('supplierCreditNotes.rows.noReason')}
+        </p>
+      </td>
+
+      <td className="px-4 py-4 align-top">
+        <span
+          className={[
+            'inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]',
+            CHIP[note.status],
+          ].join(' ')}
+        >
+          {t(`supplierDebitNotes.status.${note.status}`)}
+        </span>
+      </td>
+
+      <td className="px-4 py-4 align-top">
+        <p
+          className={[
+            'text-base font-semibold leading-[1.2] tabular-nums',
+            note.owes && note.overdue ? 'text-danger-700' : 'text-text-secondary',
+          ].join(' ')}
+        >
+          {note.total === null ? '—' : formatAmount(note.total, note.currency, language)}
+        </p>
+        {note.status === 'REFUSED' ? (
+          // A refused charge is disputed, so it is not presented as money to pay even while the
+          // figure above states what the supplier asked for.
+          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
+            {t('supplierDebitNotes.rows.disputed')}
+          </p>
+        ) : note.owes ? (
+          <p
+            className={[
+              'mt-1 text-xs font-medium leading-[1.2]',
+              note.overdue ? 'text-danger-700' : 'text-text-tertiary',
+            ].join(' ')}
+          >
+            {t(note.overdue ? 'supplierDebitNotes.rows.overdue' : 'supplierDebitNotes.rows.outstanding', {
+              amount: formatAmount(note.outstanding, note.currency, language),
+            })}
+          </p>
+        ) : null}
+      </td>
+    </tr>
   )
 }

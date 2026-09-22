@@ -228,7 +228,13 @@ export function OrdersTab({ supplierId }: { supplierId: string }) {
             <tbody>
               {data.items.map((order) => (
                 <tr key={order.id} className="border-b border-surface-background last:border-0">
-                  <td className="py-3.5 pe-4 text-sm font-semibold text-text-primary">{order.number ?? t('supplierRecord.unnumbered')}</td>
+                  <td className="py-3.5 pe-4 text-sm font-semibold">
+                    {/* The tab listed orders with nowhere to go until the order had a screen of
+                        its own; submitting, approving and booking goods in all live there. */}
+                    <Link to={`/expenditure/purchase-orders/${order.id}`} className="text-primary-700 hover:underline">
+                      {order.number ?? t('supplierRecord.unnumbered')}
+                    </Link>
+                  </td>
                   <td className="py-3.5 pe-4">
                     <span className="inline-flex rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800">
                       {t(`supplierRecord.orderState.${order.state}`)}

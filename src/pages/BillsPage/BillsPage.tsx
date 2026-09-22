@@ -66,15 +66,21 @@ const SOURCE_STYLES: Record<BillSourceBadge, { bg: string; fg: string; labelKey:
 }
 
 
-/** Figma column widths, so the columns line up with the design at 1144. */
+/**
+ * Figma column widths. The design has no Outstanding column — it was drawn before the list
+ * carried one — so every other column gives up a little to pay for it and the total stays at
+ * the shell's 1144. Widening the table instead put the new column behind a horizontal scroll,
+ * which is the one place it is no use: a payables list is read by scanning what is still owed.
+ */
 const COLUMNS = [
   { key: 'check', width: 45 },
-  { key: 'supplier', width: 170 },
-  { key: 'theirBill', width: 161 },
-  { key: 'due', width: 160 },
-  { key: 'match', width: 193 },
-  { key: 'status', width: 235 },
-  { key: 'amount', width: 180 },
+  { key: 'supplier', width: 165 },
+  { key: 'theirBill', width: 145 },
+  { key: 'due', width: 150 },
+  { key: 'match', width: 160 },
+  { key: 'status', width: 190 },
+  { key: 'amount', width: 145 },
+  { key: 'outstanding', width: 144 },
 ] as const
 
 /** How long typing pauses before the search is sent, so each keystroke is not a request. */
@@ -546,18 +552,19 @@ function BillTable({
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.matched')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.status')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.amount')}</th>
+            <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.outstanding')}</th>
           </tr>
         </thead>
         <tbody>
           {page === null ? (
             <tr>
-              <td colSpan={7} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td colSpan={8} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
                 {t('appAccess.loading')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="py-12 text-center text-sm font-medium text-text-tertiary">
+              <td colSpan={8} className="py-12 text-center text-sm font-medium text-text-tertiary">
                 {t(ledgerEmpty ? 'billsPage.emptyLedger' : 'billsPage.empty')}
               </td>
             </tr>
@@ -722,6 +729,26 @@ function BillTableRow({
             })}
           </p>
         ) : null}
+      </td>
+
+      <td className="px-2 py-2.5 align-middle">
+        {row.owes ? (
+          <p
+            className={[
+              'text-base font-semibold leading-[1.2] tabular-nums',
+              // Money that is late is the thing a payables list exists to surface, so the figure
+              // carries it. The word is left to the due column, which already says how late;
+              // repeating it here would put "Overdue" twice on one row. Colour is not the only
+              // carrier — the sr-only line below says it, and the due column says it in print.
+              row.overdue ? 'text-danger-700' : 'text-text-secondary',
+            ].join(' ')}
+          >
+            {formatAmount(row.outstanding, row.currency, language)}
+            {row.overdue ? <span className="sr-only"> {t('billsPage.rows.overdue')}</span> : null}
+          </p>
+        ) : (
+          <p className="text-base font-medium text-text-muted">{t('billsPage.rows.nothingOwed')}</p>
+        )}
       </td>
     </tr>
   )

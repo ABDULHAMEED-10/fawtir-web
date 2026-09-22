@@ -147,9 +147,42 @@ describe('Bills list, wired to the API', () => {
     expect(screen.getByText('PO-0042')).toBeTruthy()
     expect(screen.getByText('Order and receipt agree')).toBeTruthy()
     expect(screen.getByText('New, not reviewed')).toBeTruthy()
-    expect(screen.getByText('1,234.560')).toBeTruthy()
+    // Nothing has been paid against this bill, so the amount and what is outstanding are the
+    // same figure, once in each column.
+    expect(screen.getAllByText('1,234.560')).toHaveLength(2)
     expect(screen.getByText('incl. VAT 58.789')).toBeTruthy()
     expect(listCalls()).toEqual([FIRST_PAGE])
+  })
+
+  it('shows what is outstanding per row, and marks the overdue ones', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({ id: 'b-part', supplierBillNumber: 'PART-1', paidAmount: 234.56, outstandingAmount: 1000 }),
+            bill({ id: 'b-late', supplierBillNumber: 'LATE-1', overdue: true, dueDate: muscatDay(-3), outstandingAmount: 500 }),
+            bill({ id: 'b-paid', supplierBillNumber: 'PAID-1', workflowState: 'PAID', paidAmount: 1234.56, outstandingAmount: 0 }),
+            bill({ id: 'b-credit', supplierBillNumber: 'CRED-1', documentTypeCode: '381', outstandingAmount: 90 }),
+          ]),
+        ),
+    ]
+    renderBills()
+    await screen.findByText('PART-1')
+
+    expect(screen.getByText('Outstanding')).toBeTruthy()
+    // Part paid: the amount stands, the outstanding is what is left.
+    expect(screen.getByText('1,000.000')).toBeTruthy()
+    expect(screen.getByText('500.000')).toBeTruthy()
+    // A settled bill and a credit note owe nothing, and neither shows a figure to chase.
+    expect(screen.getAllByText('Nothing owed')).toHaveLength(2)
+    expect(screen.getByText('3 days overdue')).toBeTruthy()
+
+    // The late figure is red, and red is not the only thing saying so: the cell carries the word
+    // for a screen reader. Colour alone would leave the state unreadable to anyone who cannot see it.
+    const late = screen.getByText('500.000')
+    expect(late.className).toContain('text-danger-700')
+    expect(within(late).getByText('Overdue')).toBeTruthy()
   })
 
   it('asks the server for the tab, the search, the source, the sort and the page size', async () => {
@@ -290,19 +323,30 @@ describe('Bills list, wired to the API', () => {
     expect(await screen.findByText('Qalhat Marine Supplies')).toBeTruthy()
     expect(screen.getByText('خلال 12 يومًا')).toBeTruthy()
     expect(screen.getByText('جديدة، لم تُراجع')).toBeTruthy()
-    expect(screen.getByText('1,234.560')).toBeTruthy()
+    expect(screen.getByText('المتبقي')).toBeTruthy()
+    // Amount and outstanding: the same figure on an unpaid bill, in Latin digits either way.
+    expect(screen.getAllByText('1,234.560')).toHaveLength(2)
   })
 })
 
 describe('bill list mapping', () => {
-  it('notes a credit note, a part payment, and settles counter purchases without a due date', () => {
+  it('notes a credit note, and settles counter purchases without a due date', () => {
     expect(toBillListItem(bill({ documentTypeCode: '381' })).amountNote).toEqual({ key: 'billsPage.rows.creditNote' })
-    expect(toBillListItem(bill({ paidAmount: 200, outstandingAmount: 1034.56 })).amountNote).toEqual({
-      key: 'billsPage.rows.leftToPay',
-      values: { amount: 1034.56 },
-    })
     expect(dueNoteOf(toBillListItem(bill({ paidOnTheSpot: true, dueDate: null })))).toEqual({ key: 'billsPage.rows.cash' })
     expect(dueNoteOf(toBillListItem(bill({ workflowState: 'PAID' })))).toBeNull()
+  })
+
+  it('carries what is still owed, and owes nothing on a credit note', () => {
+    const part = toBillListItem(bill({ paidAmount: 200, outstandingAmount: 1034.56 }))
+    expect(part.outstanding).toBe(1034.56)
+    expect(part.owes).toBe(true)
+    // The part payment used to be a note under the amount as well; one figure, one place.
+    expect(part.amountNote).toEqual({ key: 'billsPage.rows.inclVat', values: { amount: 58.789 } })
+
+    // A credit note lowers a bill. Whatever the server puts in the field, nothing is owed on it.
+    expect(toBillListItem(bill({ documentTypeCode: '381', outstandingAmount: 90 })).owes).toBe(false)
+    expect(toBillListItem(bill({ documentTypeCode: '261', outstandingAmount: 90 })).owes).toBe(false)
+    expect(toBillListItem(bill({ paidAmount: 1234.56, outstandingAmount: 0 })).owes).toBe(false)
   })
 
   it('counts days from the Muscat day, not the browser\'s', () => {
@@ -310,8 +354,31 @@ describe('bill list mapping', () => {
     const lateEvening = new Date('2026-09-14T21:30:00Z')
     expect(daysFromMuscatToday('2026-09-15', lateEvening)).toBe(0)
     expect(daysFromMuscatToday('2026-09-10', lateEvening)).toBe(-5)
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-10' })), lateEvening)).toEqual({
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-10', overdue: true })), lateEvening)).toEqual({
       key: 'billsPage.rows.daysOverdue',
+      values: { count: 5 },
+    })
+  })
+
+  it('lets the server, not this browser, decide that a bill is overdue', () => {
+    // The two clocks disagree for four hours of every day: 21:30 UTC on 14 Sept is already the
+    // 15th in Muscat, so a bill due on the 14th reads as a day late here while the service —
+    // running UTC, and the source of the count above the table — still calls it due today.
+    const lateEvening = new Date('2026-09-14T21:30:00Z')
+
+    // Past its date locally, not yet overdue to the server: say nothing that contradicts the count.
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.dueToday',
+    })
+
+    // Overdue to the server before the local calendar has caught up: no "0 days overdue".
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-15', overdue: true })), lateEvening)).toEqual({
+      key: 'billsPage.rows.overdue',
+    })
+
+    // Agreement is the ordinary case and still reads as a count.
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-20', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.inDays',
       values: { count: 5 },
     })
   })

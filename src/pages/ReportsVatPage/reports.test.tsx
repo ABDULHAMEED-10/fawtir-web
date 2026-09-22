@@ -1,0 +1,267 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import i18n from '../../i18n'
+import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
+import type { ListsCatalogueDto, VatReportDto, VolumeReportDto, VatRowDto, VolumeRowDto } from '../../api/reports/reports'
+import { catalogueHref } from '../../api/reports/reports'
+import { byPeriod, currenciesIn, outputByCategory, periodsOf, vatPosition } from '../../lib/vatReport'
+import { byGroup, byPeriodTotal, cancelledCount } from '../../lib/volumeReport'
+import { ReportsVatPage } from './ReportsVatPage'
+import { ReportsIncomePage } from '../ReportsIncomePage'
+import { ReportsListsPage } from '../ReportsListsPage'
+
+const READER: Entitlements = {
+  userId: 'u-1',
+  username: 'demo_admin',
+  tenantId: 't-1',
+  roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
+  permissions: ['reports.read', 'invoice.export'],
+  scopes: [],
+  featureFlags: {},
+}
+
+function vatRow(over: Partial<VatRowDto> = {}): VatRowDto {
+  return {
+    side: 'OUTPUT',
+    period: '2026-Q1',
+    periodStart: '2026-01-01',
+    periodEnd: '2026-03-31',
+    category: 'S',
+    rate: 5,
+    currency: 'OMR',
+    documents: 3,
+    taxableAmount: 1000,
+    vatAmount: 50,
+    ...over,
+  }
+}
+
+const VAT: VatReportDto = {
+  from: '2026-01-01',
+  to: '2026-06-30',
+  granularity: 'QUARTER',
+  output: [
+    vatRow(),
+    vatRow({ category: 'Z', rate: null, taxableAmount: 400, vatAmount: 0 }),
+    vatRow({ period: '2026-Q2', periodStart: '2026-04-01', taxableAmount: 2000, vatAmount: 100 }),
+  ],
+  input: [vatRow({ side: 'INPUT', category: 'ALL', rate: null, taxableAmount: 600, vatAmount: 30 })],
+  net: [
+    vatRow({ side: 'NET', category: 'ALL', rate: null, vatAmount: 20 }),
+    vatRow({ side: 'NET', period: '2026-Q2', category: 'ALL', rate: null, vatAmount: 100 }),
+  ],
+}
+
+function volumeRow(over: Partial<VolumeRowDto> = {}): VolumeRowDto {
+  return {
+    period: '2026-01',
+    periodStart: '2026-01-01',
+    periodEnd: '2026-01-31',
+    groupKey: null,
+    groupLabel: null,
+    currency: 'OMR',
+    documents: 4,
+    taxableAmount: 1000,
+    vatAmount: 50,
+    totalAmount: 1050,
+    cancelled: 0,
+    ...over,
+  }
+}
+
+const VOLUME: VolumeReportDto = {
+  from: '2026-01-01',
+  to: '2026-02-28',
+  granularity: 'MONTH',
+  groupBy: 'NONE',
+  rows: [volumeRow(), volumeRow({ period: '2026-02', totalAmount: 2100, cancelled: 2 })],
+  totals: [{ currency: 'OMR', documents: 8, taxableAmount: 3000, vatAmount: 150, totalAmount: 3150 }],
+}
+
+const CATALOGUE: ListsCatalogueDto = {
+  datasets: [
+    {
+      key: 'invoices',
+      title: 'Every invoice',
+      description: 'Issued and draft documents',
+      permission: 'invoice.export',
+      formats: ['csv', 'xlsx'],
+      hrefCsv: '/api/v1/authored-invoices/export.csv',
+      hrefXlsx: '/api/v1/authored-invoices/export.xlsx',
+      parameters: ['state', 'type'],
+    },
+    {
+      key: 'tax-document-register',
+      title: 'Tax document register',
+      description: 'What was reported',
+      permission: 'compliance.read',
+      formats: ['csv'],
+      hrefCsv: '/api/v1/reports/lists/tax-document-register.csv',
+      hrefXlsx: null,
+      parameters: [],
+    },
+  ],
+}
+
+function json(status: number, body?: unknown) {
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+let fetchMock: ReturnType<typeof vi.fn>
+const calls = (prefix: string) =>
+  fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
+
+beforeEach(async () => {
+  await i18n.changeLanguage('en')
+  forgetEntitlements()
+  fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    if (url.includes('/me/entitlements')) return json(200, READER)
+    if (url.includes('/reports/vat')) return json(200, VAT)
+    if (url.includes('/reports/volume')) return json(200, VOLUME)
+    if (url.includes('/reports/lists')) return json(200, CATALOGUE)
+    return json(404)
+  })
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => vi.unstubAllGlobals())
+
+const renderAt = (path: string, element: React.ReactNode) =>
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path={path.split('?')[0]} element={element} />
+      </Routes>
+    </MemoryRouter>,
+  )
+
+describe('VAT arithmetic', () => {
+  it('takes the net position from the server rather than subtracting here', () => {
+    const position = vatPosition(VAT)
+    expect(position.output).toBe(150)
+    expect(position.input).toBe(30)
+    // 150 - 30 is 120, but the server's NET rows say 120 too only because this fixture agrees.
+    // The point is that the figure comes from those rows: it decides how a period with input and
+    // no output reads, and a second answer computed here would eventually disagree with it.
+    expect(position.net).toBe(120)
+  })
+
+  it('shares treatments by taxable amount, not by VAT', () => {
+    // Zero-rated carries no VAT at all. Sharing by VAT would show it as nothing when it may be
+    // most of the trade.
+    const [standard, zero] = outputByCategory(VAT.output)
+    expect(standard.category).toBe('S')
+    expect(standard.taxable).toBe(3000)
+    expect(zero.category).toBe('Z')
+    expect(zero.vat).toBe(0)
+    expect(Math.round(zero.share)).toBe(12)
+  })
+
+  it('lines the periods up across all three sides', () => {
+    expect(periodsOf(VAT)).toEqual(['2026-Q1', '2026-Q2'])
+    expect(byPeriod(VAT.output, periodsOf(VAT))).toEqual([50, 100])
+    // Nothing was bought in Q2, which is a zero rather than a missing bar.
+    expect(byPeriod(VAT.input, periodsOf(VAT))).toEqual([30, 0])
+  })
+
+  it('names every currency in the range', () => {
+    expect(currenciesIn(VAT)).toEqual(['OMR'])
+    expect(currenciesIn({ ...VAT, input: [vatRow({ side: 'INPUT', currency: 'USD' })] })).toEqual(['OMR', 'USD'])
+  })
+})
+
+describe('volume arithmetic', () => {
+  it('totals signed amounts per period and counts cancellations apart', () => {
+    expect(byPeriodTotal(VOLUME.rows, ['2026-01', '2026-02'])).toEqual([1050, 2100])
+    // Cancelled documents carry no amount, so they are a count and never folded into a total.
+    expect(cancelledCount(VOLUME.rows)).toBe(2)
+  })
+
+  it('collapses ungrouped rows into one entry rather than dropping them', () => {
+    const groups = byGroup(VOLUME.rows)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].total).toBe(3150)
+    expect(groups[0].documents).toBe(8)
+  })
+
+  it('keeps a label a later row supplies', () => {
+    const groups = byGroup([
+      volumeRow({ groupKey: 'c-1', groupLabel: null, totalAmount: 100 }),
+      volumeRow({ groupKey: 'c-1', groupLabel: 'Al Bahja', totalAmount: 50 }),
+    ])
+    expect(groups[0].label).toBe('Al Bahja')
+    expect(groups[0].total).toBe(150)
+  })
+})
+
+describe('the catalogue href', () => {
+  it('drops the base the client adds back, so a download is not asked for twice', () => {
+    // The catalogue states absolute paths; the client prefixes /api. Left alone every download
+    // would ask for /api/api/v1/...
+    expect(catalogueHref('/api/v1/reports/lists/payments-made.csv')).toBe('/v1/reports/lists/payments-made.csv')
+    expect(catalogueHref('/v1/already-relative.csv')).toBe('/v1/already-relative.csv')
+  })
+})
+
+describe('the VAT page', () => {
+  it('shows the position and asks the server for the bucket it is showing', async () => {
+    renderAt('/reports/vat-tax', <ReportsVatPage />)
+    expect(await screen.findByText('150.000')).toBeTruthy()
+    expect(screen.getByText('30.000')).toBeTruthy()
+    expect(screen.getByText('120.000')).toBeTruthy()
+    expect(calls('/api/v1/reports/vat').at(-1)).toContain('granularity=QUARTER')
+
+    fireEvent.change(screen.getByLabelText('Bucket'), { target: { value: 'MONTH' } })
+    await waitFor(() => expect(calls('/api/v1/reports/vat').at(-1)).toContain('granularity=MONTH'))
+  })
+
+  it('says when a range mixes currencies instead of adding across them', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/vat')) return json(200, { ...VAT, input: [vatRow({ side: 'INPUT', currency: 'USD' })] })
+      return json(404)
+    })
+    renderAt('/reports/vat-tax', <ReportsVatPage />)
+    expect(await screen.findByText(/more than one currency \(OMR, USD\)/)).toBeTruthy()
+  })
+})
+
+describe('the income page', () => {
+  it('counts cancelled documents apart from the total', async () => {
+    renderAt('/reports/income', <ReportsIncomePage />)
+    expect(await screen.findByText('3,150.000')).toBeTruthy()
+    expect(screen.getByText('Plus 2 cancelled, which carry no amount')).toBeTruthy()
+  })
+
+  it('asks the server to group rather than grouping a page in the browser', async () => {
+    renderAt('/reports/income', <ReportsIncomePage />)
+    await screen.findByText('3,150.000')
+    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'CUSTOMER' } })
+    await waitFor(() => expect(calls('/api/v1/reports/volume').at(-1)).toContain('group_by=CUSTOMER'))
+  })
+})
+
+describe('the downloads page', () => {
+  it('renders the server catalogue, and greys what the reader may not take', async () => {
+    renderAt('/reports/lists', <ReportsListsPage />)
+    expect(await screen.findByText('Every invoice')).toBeTruthy()
+
+    // invoice.export is held, so both formats are offered.
+    const invoices = screen.getByText('Every invoice').closest('article')!
+    expect(within(invoices).getByRole('button', { name: 'CSV' })).toBeTruthy()
+    expect(within(invoices).getByRole('button', { name: 'Excel' })).toBeTruthy()
+    expect(within(invoices).getByText('Filters: state, type')).toBeTruthy()
+
+    // compliance.read is not, so the dataset is still named — hiding it would leave someone
+    // asking for a file they cannot see exists.
+    const register = screen.getByText('Tax document register').closest('article')!
+    expect(within(register).queryByRole('button')).toBeNull()
+    expect(within(register).getByText('Needs compliance.read')).toBeTruthy()
+  })
+})

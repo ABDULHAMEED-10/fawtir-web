@@ -163,6 +163,11 @@ export type ConfirmExtras = {
   category?: string | null
   paidOnTheSpot?: ConfirmIntakeDto['paidOnTheSpot']
   notDuplicateOf?: string | null
+  /**
+   * Defaults to a bill. A caller confirming a supplier's credit or debit note states it, because
+   * the same intake takes all three and the type is what decides which way the money points.
+   */
+  documentTypeCode?: ConfirmIntakeDto['documentTypeCode']
 }
 
 export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): ConfirmIntakeDto {
@@ -171,7 +176,7 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
   return {
     supplierId: form.supplierId,
     supplierName: orNull(form.supplierName),
-    documentTypeCode: '380',
+    documentTypeCode: extras.documentTypeCode ?? '380',
     billNumber: orNull(form.billNumber),
     issueDate: form.issueDate,
     dueDate: form.dueDate || null,

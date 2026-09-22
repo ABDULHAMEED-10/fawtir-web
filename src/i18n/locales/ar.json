@@ -22,6 +22,26 @@
     "arabic": "العربية"
   },
   "login": {
+    "totp": {
+      "title": "التحقق بخطوتين",
+      "instruction": "أدخل الرمز المكوّن من ٦ أرقام من تطبيق المصادقة.",
+      "label": "رمز تطبيق المصادقة",
+      "verify": "تحقق",
+      "verifying": "جارٍ التحقق…",
+      "startOver": "البدء من جديد"
+    },
+    "totpSetup": {
+      "title": "إعداد تطبيق المصادقة",
+      "instruction": "أضِف هذا المفتاح إلى تطبيق المصادقة، ثم أدخل الرمز المكوّن من ٦ أرقام الذي يعرضه.",
+      "manualKey": "مفتاح الإعداد",
+      "preparing": "جارٍ تجهيز مفتاح الإعداد…",
+      "label": "رمز تطبيق المصادقة",
+      "confirm": "تأكيد",
+      "confirming": "جارٍ التأكيد…",
+      "recoveryTitle": "احفظ رموز الاسترداد",
+      "recoveryHint": "كل رمز يسمح بتسجيل دخول واحد إذا فقدت تطبيق المصادقة. تُعرض الآن فقط.",
+      "recoverySaved": "لقد حفظتها"
+    },
     "title": "مرحبًا، سجّل الدخول الآن!",
     "usernameLabel": "اسم المستخدم",
     "usernamePlaceholder": "أدخل اسم المستخدم",
@@ -2478,118 +2498,123 @@
     "footerNote": "هذه الصفحة الرئيسية للاختبار والتنقّل فقط."
   },
   "selfBilling": {
-    "title": "الفواتير ذاتية الإصدار",
-    "subtitle": "يرسل فوتر فواتير مورّديك عبر Peppol ويبلغ عنها جهاز الضرائب في سلطنة عمان.",
+    "title": "الفوترة الذاتية",
+    "subtitle": "فواتير تحرّرها نيابة عن البائع بموجب اتفاقية موقّعة معه.",
     "agreements": "الاتفاقيات",
-    "export": "تصدير",
-    "create": "إنشاء فاتورة ذاتية",
-    "kpi": {
-      "raised": "الصادر هذا الشهر",
-      "raisedMeta": "عبر ٩ مستندات",
-      "inputVat": "ضريبة المدخلات المطالب بها",
-      "inputVatMeta": "قابلة للاسترداد في إقرار هذا الربع",
-      "awaiting": "بانتظار المورّد",
-      "awaitingMeta": "أقدمها صدر قبل ٦ أيام",
-      "expiring": "اتفاقيات تنتهي قريبًا",
-      "expiringMeta": "تنتهي اتفاقية Al Noor Dates خلال ٩ أيام"
-    },
-    "tabs": {
+    "explainer": "أنت المشتري في هذه المستندات: تحرّر الفاتورة عن البائع، وهي تسجّل ما تدين به له — لا ما هو مستحق لك.",
+    "usableAgreements_zero": "لا يوجد بائع يمكن فوترته ذاتيًا اليوم — راجع اتفاقياتك.",
+    "usableAgreements_one": "بائع واحد يمكن فوترته ذاتيًا اليوم.",
+    "usableAgreements_two": "بائعان يمكن فوترتهما ذاتيًا اليوم.",
+    "usableAgreements_few": "{{count}} بائعين يمكن فوترتهم ذاتيًا اليوم.",
+    "usableAgreements_many": "{{count}} بائعًا يمكن فوترتهم ذاتيًا اليوم.",
+    "usableAgreements_other": "{{count}} بائع يمكن فوترتهم ذاتيًا اليوم.",
+    "kindLabel": "نوع المستند",
+    "kind": {
       "all": "الكل",
-      "drafts": "المسودات",
-      "toSend": "للإرسال",
-      "awaiting": "بانتظار التأكيد",
-      "disputed": "محل نزاع",
-      "confirmed": "مؤكدة",
-      "paid": "مدفوعة"
+      "invoices": "الفواتير",
+      "creditNotes": "إشعارات الدائن"
     },
-    "status": {
-      "draft": "مسودة",
-      "toBeSent": "للإرسال",
-      "awaitingConfirmation": "بانتظار التأكيد",
-      "disputed": "محل نزاع من المورّد",
-      "confirmed": "مؤكدة",
-      "paid": "مدفوعة"
-    },
-    "searchPlaceholder": "ابحث بالمستند أو المورّد أو الرقم الضريبي",
-    "filters": "عوامل التصفية",
-    "sort": "ترتيب",
+    "searchPlaceholder": "ابحث بالرقم أو البائع",
+    "unnumbered": "لم يُرقّم بعد",
+    "unknownSeller": "البائع غير مسمّى",
+    "estimated": "تقديري",
+    "pageOf": "صفحة {{page}}",
     "col": {
-      "document": "المستند",
-      "supplier": "المورّد",
-      "issued": "الإصدار",
-      "due": "الاستحقاق",
-      "amount": "المبلغ",
-      "status": "الحالة",
-      "transmission": "حالة الإرسال"
+      "number": "الرقم",
+      "seller": "البائع",
+      "issued": "تاريخ الإصدار",
+      "owed": "تدين بـ",
+      "state": "الحالة"
     },
-    "rowMenu": "إجراءات الصف",
-    "showResult": "عرض النتائج:",
-    "prevPage": "الصفحة السابقة",
-    "nextPage": "الصفحة التالية"
+    "empty": {
+      "invoices": "لا توجد فواتير ذاتية هنا.",
+      "creditNotes": "لا توجد إشعارات دائن ذاتية هنا.",
+      "all": "لا توجد مستندات ذاتية هنا."
+    },
+    "create": "فاتورة ذاتية جديدة"
   },
   "agreements": {
-    "breadcrumbIncome": "الإيرادات",
     "breadcrumbSelfBilled": "الفوترة الذاتية",
-    "title": "الاتفاقيات",
-    "subtitle": "إذنك بإصدار الفواتير نيابةً عن كل مورّد. يجب أن تكون لدى المورّد اتفاقية سارية هنا قبل أن تتمكن من إصدار فاتورة ذاتية له.",
-    "export": "تصدير",
-    "newAgreement": "اتفاقية جديدة",
-    "alert": {
-      "title": "انتهت اتفاقية Nizwa Dairy Farms في ١٢ يوليو ٢٠٢٦",
-      "body": "هناك مسودة فاتورة ذاتية بقيمة ٣١٨٫٩٠٠ ر.ع. موقوفة حتى تجديد الاتفاقية. تبقى المستندات القائمة سارية وقابلة للإبلاغ.",
-      "action": "تجديد الاتفاقية"
-    },
-    "kpi": {
-      "active": "سارية",
-      "activeMeta": "موردون يمكنك إصدار فواتير ذاتية لهم اليوم",
-      "expiringSoon": "تنتهي قريبًا",
-      "expiringSoonMeta": "Al Noor Dates خلال ٩ أيام",
-      "awaiting": "بانتظار المورّد",
-      "awaitingMeta": "أُرسلت للقبول ولم تُوقَّع بعد",
-      "expired": "منتهية",
-      "expiredMeta": "توقف مسودة فاتورة واحدة"
-    },
-    "tabs": {
+    "title": "اتفاقيات الفوترة الذاتية",
+    "subtitle": "الاتفاقية المكتوبة التي تتيح لك إصدار الفاتورة نيابة عن البائع. وبدون اتفاقية سارية يُرفض إصدار فاتورة ذاتية.",
+    "open": "افتح اتفاقية",
+    "notDone": "لم يتم",
+    "empty": "لا توجد اتفاقيات هنا.",
+    "unknownSeller": "البائع لم يعد في قائمتك",
+    "reference": "المرجع {{reference}}",
+    "fromTo": "من {{from}} إلى {{to}}",
+    "fromOpenEnded": "من {{from}}، دون تاريخ انتهاء",
+    "lapsed": "منتهية",
+    "canIssue": "يمكنك إصدار فواتير ذاتية لهذا البائع.",
+    "verifiedAs": "مُوثّق بوصفه {{participant}} — وهذه هي الهوية التي يحملها المستند الذاتي بوصفها البائع.",
+    "withdrawnBecause": "سُحبت: {{reason}}",
+    "footnote": "أنت المشتري في الفاتورة الذاتية: أنت من يحرّرها، وهي تسجّل ما تدين به للبائع. والمستندات لا تُربط باتفاقية بعينها، بل تُطابَق بالبائع.",
+    "tab": {
       "all": "الكل",
-      "active": "سارية",
-      "awaiting": "بانتظار القبول",
-      "expiringSoon": "تنتهي قريبًا",
-      "expired": "منتهية",
-      "terminated": "مُنهاة"
+      "active": "جاهزة للاستخدام",
+      "waiting": "قيد الانتظار",
+      "ended": "منتهية"
     },
     "status": {
-      "active": "سارية",
-      "expiringSoon": "تنتهي قريبًا",
-      "awaitingAcceptance": "بانتظار القبول",
-      "expired": "منتهية",
-      "terminated": "مُنهاة"
+      "PENDING_ACTIVATION": "لم تُفعّل بعد",
+      "ACTIVE": "سارية",
+      "SUSPENDED": "موقوفة",
+      "WITHDRAWN": "مسحوبة"
     },
-    "kind": {
-      "agreed": "متفق عليها",
-      "statutory": "نظامية"
+    "blocked": {
+      "pendingActivation": "فعّل هذه الاتفاقية قبل أن تتمكن من الإصدار بموجبها.",
+      "suspended": "موقوفة، ولذلك يُرفض الإصدار. وإعادة تفعيلها ترفع ذلك.",
+      "withdrawn": "مسحوبة، ولا رجعة في ذلك — افتح اتفاقية جديدة لتعود إلى الفوترة الذاتية لهذا البائع.",
+      "notYetStarted": "تبدأ في {{from}}. والإصدار قبل ذلك مرفوض.",
+      "lapsed": "انتهت في {{to}}، ولذلك يُرفض الإصدار الآن. افتح اتفاقية جديدة للمتابعة.",
+      "unverified": "في انتظار توثيق فوتر لهوية هذا البائع على الشبكة. ولا شيء عليك فعله — ويظل الإصدار مرفوضًا حتى يتم ذلك."
     },
-    "signature": {
-      "onFile": "نسخة موقّعة محفوظة",
-      "notRequired": "لا يلزم توقيع",
-      "sentResend": "أُرسلت قبل ٣ أيام · إعادة إرسال",
-      "blocking": "توقف مسودة واحدة"
+    "kpi": {
+      "issuable": "جاهزة للاستخدام",
+      "issuableNote": "بائعون يمكنك فوترتهم ذاتيًا اليوم",
+      "awaitingFawtir": "بانتظار فوتر",
+      "awaitingFawtirNote": "علينا توثيق هوية البائع",
+      "lapsed": "منتهية",
+      "lapsedNote": "تجاوزت تاريخ انتهائها ولم تعد صالحة"
     },
-    "onPeppol": "على Peppol",
-    "searchPlaceholder": "ابحث بالمستند أو المورّد أو الرقم الضريبي",
-    "filters": "عوامل التصفية",
-    "sort": "ترتيب",
-    "col": {
-      "supplier": "المورّد",
-      "kind": "النوع",
-      "coverage": "النطاق",
-      "valid": "السريان",
-      "documents": "المستندات الصادرة",
-      "status": "الحالة"
+    "action": {
+      "activate": "فعّل",
+      "suspend": "أوقف",
+      "withdraw": "اسحب"
     },
-    "rowMenu": "إجراءات الصف",
-    "showResult": "عرض النتائج:",
-    "prevPage": "الصفحة السابقة",
-    "nextPage": "الصفحة التالية"
+    "done": {
+      "opened": "فُتحت الاتفاقية.",
+      "activated": "الاتفاقية سارية الآن.",
+      "suspended": "أُوقفت الاتفاقية.",
+      "withdrawn": "سُحبت الاتفاقية."
+    },
+    "problem": {
+      "referenceRequired": "امنح الاتفاقية مرجعًا.",
+      "referenceTooLong": "هذا المرجع طويل أكثر من اللازم.",
+      "fromRequired": "اذكر متى تبدأ الاتفاقية.",
+      "rangeInvalid": "تاريخ الانتهاء قبل تاريخ البداية."
+    },
+    "openDialog": {
+      "title": "افتح اتفاقية فوترة ذاتية",
+      "note": "سجّل الاتفاقية القائمة بينك وبين هذا البائع. واتفاقية واحدة سارية لكل بائع.",
+      "seller": "البائع",
+      "chooseSeller": "اختر بائعًا",
+      "reference": "مرجعك للاتفاقية",
+      "from": "سارية من",
+      "to": "حتى",
+      "openEnded": "اترك تاريخ الانتهاء فارغًا لاتفاقية دون أجل.",
+      "fixed": "لا يمكن تغيير المرجع ولا التواريخ بعد ذلك. ولتعديلها تسحب هذه الاتفاقية وتفتح غيرها.",
+      "confirm": "افتح الاتفاقية",
+      "opening": "جارٍ الفتح…"
+    },
+    "withdrawDialog": {
+      "title": "اسحب هذه الاتفاقية",
+      "body": "اسحب الاتفاقية مع {{seller}} ({{reference}}).",
+      "terminal": "لا رجعة في ذلك. وستُرفض الفواتير الذاتية لهذا البائع حتى تفتح اتفاقية جديدة.",
+      "reason": "السبب (اختياري)",
+      "confirm": "اسحبها",
+      "withdrawing": "جارٍ السحب…"
+    }
   },
   "newSelfBill": {
     "breadcrumb": "الفوترة الذاتية",
@@ -4465,7 +4490,9 @@
     "logoType": "استخدم صورة PNG أو SVG",
     "logoSize": "يجب أن يكون حجم الشعار أقل من ٢ ميغابايت",
     "tooLong": "هذا أطول من المسموح",
-    "addressTooLong": "استخدم ١٤٠ حرفًا أو أقل"
+    "addressTooLong": "استخدم ١٤٠ حرفًا أو أقل",
+    "tenantCode": "استخدم أحرفًا كبيرة أو أرقامًا أو شرطات أو شرطات سفلية، بحيث يبدأ بحرف",
+    "country": "استخدم رمز دولة من حرفين، مثل OM"
   },
   "identityErrors": {
     "validation": "لم يتم قبول بعض البيانات. راجع النموذج وحاول مرة أخرى.",
@@ -4559,7 +4586,8 @@
       "due": "الاستحقاق",
       "matched": "مطابَقة مع",
       "status": "الحالة",
-      "amount": "المبلغ"
+      "amount": "المبلغ",
+      "outstanding": "المتبقي"
     },
     "source": {
       "peppol": "Peppol",
@@ -4641,7 +4669,9 @@
       "creditNote": "إشعار دائن",
       "leftToPay": "متبقٍ للدفع {{amount}}",
       "inclVat": "شاملة الضريبة {{amount}}",
-      "noNumber": "بلا رقم فاتورة"
+      "noNumber": "بلا رقم فاتورة",
+      "overdue": "متأخرة",
+      "nothingOwed": "لا شيء مستحق"
     },
     "state": {
       "newNotReviewed": "جديدة، لم تُراجع",
@@ -5260,12 +5290,19 @@
       "recovered": "المستردّ هذا الربع",
       "recoveredMeta": "{{count}} إشعارات استُخدمت أو استُردّت",
       "mostFrom": "أكثر الإشعارات من",
-      "mostFromMeta": "{{count}} إشعارات هذه السنة · تستحق المراجعة"
+      "mostFromMeta": "{{count}} إشعارات هذه السنة · تستحق المراجعة",
+      "recoveredQuarter": "المسترد هذا الربع",
+      "topSupplier": "أكثر المورّدين إصدارًا",
+      "topSupplierMeta": "{{count}} إشعارات",
+      "noTopSupplier": "لا يوجد مورّد بارز"
     },
     "tabs": {
       "all": "الكل",
       "used": "مستخدمة",
-      "refunded": "مستردّة"
+      "refunded": "مُستردة",
+      "unapplied": "لم تُستخدم بعد",
+      "waiting": "بانتظار فاتورة",
+      "applied": "مستخدمة"
     },
     "col": {
       "creditNote": "الإشعار الدائن",
@@ -5285,7 +5322,13 @@
       "paid": "مدفوعة بالفعل",
       "noBillYet": "لم تصل الفاتورة",
       "noBill": "لا توجد فاتورة بعد",
-      "youdPayLess": "ستدفع أقل"
+      "youdPayLess": "ستدفع أقل",
+      "issued": "صدرت {{date}}",
+      "unnumbered": "بلا رقم",
+      "unknownSupplier": "المورّد غير مطابَق",
+      "theBill": "الفاتورة المخصومة",
+      "noReason": "لم يُذكر سبب",
+      "remaining": "متبقٍ للاستخدام {{amount}}"
     },
     "why": {
       "threeBoxes": "٣ صناديق لم تُسلَّم",
@@ -5298,7 +5341,11 @@
       "notUsed": "لم يُستخدم بعد",
       "waitingForBill": "بانتظار فاتورة",
       "used": "استُخدم على الفاتورة",
-      "refunded": "استُرد لنا"
+      "refunded": "استُرد لنا",
+      "UNAPPLIED": "لم تُستخدم بعد",
+      "WAITING_FOR_BILL": "بانتظار فاتورة",
+      "APPLIED": "مستخدمة",
+      "REFUNDED": "مُستردة"
     },
     "actions": {
       "setAgainst": "خصمه من الفاتورة",
@@ -5367,7 +5414,8 @@
       "sheetCreditedTo": "الخصم لصالح",
       "sheetAgainst": "مقابل الفاتورة",
       "sheetReason": "السبب",
-      "sheetAmount": "المبلغ"
+      "sheetAmount": "المبلغ",
+      "choose": "اختر إشعار المورّد الدائن"
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",
@@ -5446,7 +5494,17 @@
       "decisionTaken": "{{what}}",
       "supplierName": "الاسم",
       "supplierVat": "الرقم الضريبي"
-    }
+    },
+    "source": {
+      "peppol": "وردت عبر Peppol",
+      "uploaded": "مرفوعة",
+      "scanned": "ممسوحة",
+      "recurring": "متكررة",
+      "selfBilled": "فوترة ذاتية"
+    },
+    "excluded": "{{count}} غير محتسبة أعلاه — بعملة مختلفة",
+    "pageOnly": "صفحة {{page}}",
+    "pageOf": "صفحة {{page}} من {{pages}}"
   },
   "supplierDebitNotes": {
     "title": "الإشعارات المدينة",
@@ -5458,15 +5516,20 @@
       "needsCheckingNote_one": "رسم واحد لم يقبله أحد بعد",
       "needsCheckingNote_other": "{{count}} رسوم لم يقبلها أحد بعد",
       "added": "أُضيفت هذا الربع",
-      "addedNote": "{{total}} إشعارات · {{accepted}} مقبولة، {{open}} مفتوح",
       "rejected": "مرفوضة هذا العام",
-      "rejectedNote_one": "رسم واحد رُفض وسُحب",
-      "rejectedNote_other": "{{count}} رسوم رُفضت وسُحبت"
+      "rejectedNote_one": "رُفض رسم واحد",
+      "rejectedNote_other": "رُفض {{count}} رسم",
+      "acceptedNote": "{{count}} مقبولة · {{open}} ما زالت مفتوحة",
+      "rejectedNote_two": "رُفض رسمان",
+      "rejectedNote_few": "رُفضت {{count}} رسوم",
+      "rejectedNote_many": "رُفض {{count}} رسمًا"
     },
     "tabs": {
       "all": "الكل",
       "accepted": "مقبولة",
-      "rejected": "مرفوضة"
+      "rejected": "مرفوضة",
+      "unchecked": "بحاجة لمراجعة",
+      "refused": "مرفوضة"
     },
     "searchPlaceholder": "ابحث عن مورد أو رقم فاتورة...",
     "col": {
@@ -5484,7 +5547,10 @@
     "rows": {
       "arrived": "وصل {{date}}",
       "stillUnpaid": "غير مدفوعة بعد",
-      "alreadyPaid": "مدفوعة"
+      "alreadyPaid": "مدفوعة",
+      "outstanding": "{{amount}} مستحقة",
+      "overdue": "{{amount}} مستحقة ومتأخرة",
+      "disputed": "مرفوضة — لا تُعامل كمستحقة"
     },
     "why": {
       "outOfHours": "رسم تسليم خارج ساعات العمل",
@@ -5525,7 +5591,7 @@
       "cta": "رفع إشعار مدين",
       "breadcrumb": "رفع إشعار مدين",
       "title": "تحقق قبل القبول",
-      "subtitle": "الإشعار المدين يرفع ما عليك. لا يُضاف شيء حتى تقبله — ويمكنك رفضه مع ذكر السبب.",
+      "subtitle": "الإشعار المدين يرفع ما يقول المورّد إنه مستحق عليك. الرفع يسجّل الرسم؛ وقبوله أو رفضه قرار منفصل على الإشعار نفسه.",
       "fileMeta": "{{pages}} صفحة · {{size}} · قُرئ في {{seconds}} ثانيتين · تم التعرف عليه كإشعار مدين",
       "whoSentIt": "من أرسله",
       "supplier": "المورد",
@@ -5583,14 +5649,15 @@
       "holdNote": "لا إضافة ولا إرسال. استخدم هذا أثناء اتصالك بهم.",
       "reasonNote": "هذه الصيغة تصل إلى المورد. اجعلها واقعية — فهي تصبح جزءًا من السجل.",
       "cancel": "إلغاء",
-      "save": "حفظ القرار"
+      "save": "حفظ القرار",
+      "choose": "اختر إشعار المورّد المدين"
     },
     "refuse": {
       "notInRates": "ليس في أسعارنا المتفق عليها",
       "alreadyCharged": "فُوتر من قبل",
       "neverAuthorised": "غير مصرّح به",
       "other": "أخرى",
-      "otherPlaceholder": "اذكر للمورد السبب في سطر واحد"
+      "otherPlaceholder": "سببك في سطر واحد"
     },
     "detail": {
       "debitNotePeppol": "إشعار مدين · Peppol",
@@ -5634,16 +5701,12 @@
       "vatRow": "ض.ق.م · ٥٪",
       "totalCharged": "إجمالي الرسم",
       "yourDecision": "قرارك",
-      "decisionNote": "القبول يضيفه إلى {{bill}} وينضم إلى دفعة السداد القادمة. والرفض يرسل سببك إلى المورد عبر Peppol.",
-      "refuseAndTell": "ارفض وأبلغهم",
+      "refuseAndTell": "ارفضه",
       "accept": "اقبله",
       "hold": "علّقه",
-      "acceptDone": "قُبل. {{bill}} تظهر الآن {{total}} ريال.",
-      "refuseDone": "رُفض. أُبلغ المورد عبر Peppol.",
-      "holdDone": "معلّق. لم يُضف شيء ولم يُرسل شيء.",
       "undo": "تراجع",
       "pickReason": "لماذا ترفضه؟",
-      "send": "إرسال الرفض",
+      "send": "سجّل الرفض",
       "cancel": "إلغاء",
       "rateCardTitle": "مقابل بطاقة أسعارك",
       "rateCard": {
@@ -5687,7 +5750,34 @@
         "arrived": "وصل الإشعار المدين عبر Peppol",
         "arrivedDetail": "طوبق مع GCL-2301 تلقائيًا · ٢٦ يوليو، ١١:٠٥"
       }
-    }
+    },
+    "status": {
+      "UNCHECKED": "لم تُراجع بعد",
+      "ACCEPTED": "مقبولة",
+      "REFUSED": "مرفوضة"
+    },
+    "fact": {
+      "charged": "ما طالبوا به",
+      "vat": "ضريبة القيمة المضافة",
+      "outstanding": "المستحق",
+      "due": "تاريخ الاستحقاق",
+      "issued": "تاريخ الإصدار",
+      "source": "طريقة الوصول",
+      "why": "سبب المطالبة",
+      "against": "مقابل",
+      "late": "متأخرة"
+    },
+    "decided": {
+      "accepted": "تم القبول. سُجّل القرار.",
+      "refused": "تم الرفض. سُجّل سببك على الإشعار."
+    },
+    "backToList": "العودة إلى إشعارات المدين",
+    "chargeTitle": "الرسم",
+    "decisionTitle": "قرارك",
+    "decisionNote": "القبول أو الرفض يسجّل قرارك على هذا الإشعار. ولا يُرسل إلى المورّد من هنا.",
+    "reverseOnly": "الحالة {{status}} بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
+    "historyTitle": "سجل القرارات",
+    "noHistory": "لم يبتّ أحد في هذا الرسم بعد."
   },
   "expenditureReminders": {
     "title": "التذكيرات",
@@ -5771,8 +5861,8 @@
       "oneEmail": "بريد واحد · {{time}} · إلى {{who}}",
       "eachEmail": "{{count}} رسائل · فور حدوثها · إلى {{who}}",
       "inAppOnly": "داخل فوتر فقط · بلا بريد",
-      "headline_one": "أمر واحد يحتاج انتباهك هذا الصباح.",
-      "headline_other": "{{count}} أمور تحتاج انتباهك هذا الصباح.",
+      "headline_one": "سيُرسل تذكير واحد في {{date}}",
+      "headline_other": "سيُرسل {{count}} تذكير في {{date}}",
       "nothing": "لن يُرسل شيء اليوم. كل قاعدة قد تُفعّل مُطفأة.",
       "to": "إلى",
       "alNoor": "Al Noor Dates غير مدفوعة منذ {{days}} أيام",
@@ -5782,10 +5872,64 @@
       "discount": "خصم ٢٪ ينتهي ٥ أغسطس",
       "discountAmount": "يوفّر ٤٧٫٠٩٠ ريال",
       "approvals": "اعتمادان ينتظران {{days}} أيام",
-      "approvalsAmount": "٢٬٩٩٦٫٣١٠ ريال معلّقة"
+      "approvalsAmount": "٢٬٩٩٦٫٣١٠ ريال معلّقة",
+      "headline_two": "سيُرسل تذكيران في {{date}}",
+      "headline_few": "ستُرسل {{count}} تذكيرات في {{date}}",
+      "headline_many": "سيُرسل {{count}} تذكيرًا في {{date}}"
     },
     "notSupplier": "لا شيء من هذا يصل إلى المورد. أما مطالبة العميل بما عليه فتُضبط",
-    "underIncome": "ضمن الإيرادات"
+    "underIncome": "ضمن الإيرادات",
+    "on": "مفعّل",
+    "off": "متوقف",
+    "days": "الأيام",
+    "days_unit": "أيام",
+    "addDay": "إضافة يوم",
+    "dayAt": "اليوم {{index}}",
+    "removeDay": "حذف اليوم {{day}}",
+    "repeatEvery": "ثم كل",
+    "escalateAfter": "إشراك المُلّاك بعد",
+    "whoIsTold": "من يُبلَّغ",
+    "recipientCount_one": "شخص واحد محدد بالفعل",
+    "recipientCount_two": "شخصان محددان بالفعل",
+    "recipientCount_few": "{{count}} أشخاص محددون بالفعل",
+    "recipientCount_many": "{{count}} شخصًا محددون بالفعل",
+    "recipientCount_other": "{{count}} شخص محدد بالفعل",
+    "noRoster": "اختيار من يُبلَّغ يتطلب صلاحية إدارة المستخدمين. ويبقى الأشخاص المحددون على كل قاعدة كما هم.",
+    "saveRules": "حفظ القواعد",
+    "saveDelivery": "حفظ طريقة الإبلاغ",
+    "saved": "تم الحفظ.",
+    "unsaved_one": "تغيّرت قاعدة واحدة",
+    "unsaved_two": "تغيّرت قاعدتان",
+    "unsaved_few": "تغيّرت {{count}} قواعد",
+    "unsaved_many": "تغيّرت {{count}} قاعدة",
+    "unsaved_other": "تغيّرت {{count}} قاعدة",
+    "digestTime": "الإرسال عند",
+    "digestTimeNote": "المسح يطابق على الساعة.",
+    "perRecurring": "تُضبط هذه على كل فاتورة متكررة وليس هنا —",
+    "onTheRecurringBill": "افتح فاتورة متكررة",
+    "someone": "أحد أعضاء الفريق",
+    "derived": {
+      "APPROVAL_STALE": "المعتمدون الذين لم يبتّوا، ثم المُلّاك عند التصعيد. لا حاجة لتسمية أحد.",
+      "SCAN_UNCONFIRMED": "من رفعها. لا حاجة لتسمية أحد."
+    },
+    "error": {
+      "tooMany": "{{max}} أيام كحد أقصى",
+      "outOfRange": "يجب أن يكون كل يوم بين 0 و{{maxDays}}",
+      "repeated": "اليوم نفسه مرتين",
+      "notWhole": "أيام كاملة فقط",
+      "recipients": "تفعيل هذه القاعدة يتطلب شخصًا واحدًا على الأقل لإبلاغه"
+    },
+    "inbox": {
+      "title": "تذكيراتك",
+      "unreadOnly": "غير المقروء فقط",
+      "none": "لم يُرسل إليك شيء.",
+      "noneUnread": "لا يوجد غير مقروء.",
+      "acknowledge": "تعليم كمقروء",
+      "acknowledged": "مقروء",
+      "openBill": "افتح الفاتورة",
+      "count_one": "معروض {{count}}",
+      "count_other": "معروض {{count}}"
+    }
   },
   "documents": {
     "title": "المستندات",
@@ -5952,15 +6096,20 @@
       "title": "الإيرادات",
       "subtitle": "ما فوترته، وكيف يتجه، ومن أين يأتي. كل رسم يُصدَّر على حدة.",
       "kpi": {
-        "invoiced": "المفوتر، دون الضريبة",
-        "invoicedNote": "مقارنة بالعام السابق",
+        "invoiced": "المفوتر",
+        "invoicedNote": "الإجمالي شامل الضريبة، صافي إشعارات الدائن",
         "vat": "الضريبة المحصّلة",
         "vatNote": "٥٪ في كل الأحوال",
         "sent": "الفواتير المرسلة",
         "sentNote": "أكثر من العام الماضي",
         "average": "متوسط الفاتورة",
         "averageNote": "النمو من حجم العمليات",
-        "steady": "مستقر"
+        "steady": "مستقر",
+        "taxable": "المبلغ الخاضع",
+        "taxableNote": "قبل الضريبة",
+        "documents": "المستندات الصادرة",
+        "documentsNote": "كل مستند صادر في الفترة",
+        "documentsWithCancelled": "إضافة إلى {{count}} ملغاة لا تحمل مبلغًا"
       },
       "monthly": "شهريًا",
       "quarterly": "ربع سنوي",
@@ -5974,7 +6123,26 @@
       "quarterlyNote": "كل ربع يتقدم على العام الماضي",
       "onTrack": "في الطريق إلى <amount>{{value}}</amount>",
       "invoicedThisYear": "المفوتر هذا العام",
-      "topShare": "أبرز ٥ عملاء يمثلون {{percent}}٪ من الإيرادات"
+      "topShare": "أبرز ٥ عملاء يمثلون {{percent}}٪ من الإيرادات",
+      "empty": "لم يصدر شيء في هذه الفترة.",
+      "groupBy": "التجميع حسب",
+      "grouping": {
+        "NONE": "بلا تجميع",
+        "TYPE": "نوع المستند",
+        "CUSTOMER": "العميل",
+        "BRANCH": "الفرع"
+      },
+      "by": {
+        "TYPE": "حسب نوع المستند",
+        "CUSTOMER": "حسب العميل",
+        "BRANCH": "حسب الفرع",
+        "NONE": "الإجمالي"
+      },
+      "byPeriod": "الصادر حسب الفترة",
+      "byPeriodNote": "صافي التصحيحات — إشعار الدائن يُخصم من فترته.",
+      "byGroupNote": "الأكبر أولًا، ضمن الفترة أعلاه.",
+      "invoiced": "المفوتر",
+      "ungrouped": "بلا تجميع"
     },
     "expenditure": {
       "title": "المصروفات",
@@ -6060,11 +6228,13 @@
         "owed": "المستحق للهيئة",
         "owedNote": "على مدى اثني عشر شهرًا",
         "nextReturn": "الإقرار القادم",
-        "nextReturnNote": "الربع الثالث · شهران من ثلاثة"
+        "nextReturnNote": "الربع الثالث · شهران من ثلاثة",
+        "reclaim": "قابل للاسترداد",
+        "reclaimNote": "تجاوزت المدخلات المخرجات في هذه الفترة"
       },
       "quarterlyPosition": "الوضع الربع سنوي",
       "monthlyNetPayable": "الصافي المستحق شهريًا",
-      "byTreatment": "حسب المعالجة الضريبية",
+      "byTreatment": "ما حصّلته، حسب المعاملة",
       "reclaimBySupplier": "الاسترداد حسب المورد",
       "collectedOnSales": "المحصّل على المبيعات",
       "paidOnPurchases": "المدفوع على المشتريات",
@@ -6083,7 +6253,27 @@
       "q4Last": "الربع الرابع ٢٠٢٥",
       "q1": "الربع الأول ٢٠٢٦",
       "q2": "الربع الثاني ٢٠٢٦",
-      "q3SoFar": "الربع الثالث حتى الآن"
+      "q3SoFar": "الربع الثالث حتى الآن",
+      "empty": "لم يصدر أو يُستلم شيء في هذه الفترة.",
+      "mixedCurrency": "تحتوي هذه الفترة على أكثر من عملة ({{currencies}}). والأرقام أدناه لا تُجمع عبرها.",
+      "byPeriod": "المحصّل والقابل للاسترداد، حسب الفترة",
+      "byPeriodNote": "المخرجات هي الضريبة التي حصّلتها، والمدخلات هي التي دُفعت عليك.",
+      "netByPeriod": "الصافي حسب الفترة",
+      "netByPeriodNote": "فوق الصفر مستحق عليك، وتحته قابل للاسترداد.",
+      "byTreatmentNote": "النسبة من المبلغ الخاضع وليس من الضريبة — فالمعفى وصفري النسبة لا يحملان ضريبة.",
+      "taxableAmount": "المبلغ الخاضع",
+      "category": {
+        "S": "نسبة قياسية",
+        "Z": "نسبة صفرية",
+        "E": "معفى",
+        "O": "خارج النطاق",
+        "AE": "احتساب عكسي",
+        "G": "تصدير",
+        "K": "داخل المجموعة",
+        "L": "خاص",
+        "M": "خاص",
+        "ALL": "كل المشتريات"
+      }
     },
     "compliance": {
       "title": "الامتثال",
@@ -6096,7 +6286,15 @@
         "rejections": "حالات الرفض",
         "rejectionsNote": "أقل من العام الماضي",
         "delivered": "سُلّمت داخل النافذة",
-        "deliveredNote": "{{late}} متأخرة من {{sent}}"
+        "deliveredNote": "{{late}} متأخرة من {{sent}}",
+        "documents": "المستندات",
+        "documentsNote": "في هذه النافذة",
+        "reported": "أُقرّ باستلامه",
+        "reportedNote": "{{count}} منها",
+        "onTime": "أُبلغ في الوقت",
+        "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ضمن النافذة",
+        "median": "وسيط زمن الإقرار",
+        "medianNote": "من التحقق حتى وصول الإقرار"
       },
       "acceptedFirstTime": "القبول من أول مرة",
       "whyRejected": "لماذا تُرفض",
@@ -6118,7 +6316,17 @@
         "totals": "المجاميع لا تتطابق",
         "buyerVat": "الرقم الضريبي للمشتري",
         "everythingElse": "كل ما عدا ذلك"
-      }
+      },
+      "ledgerSubtitle": "هل أُبلغ عن كل مستند، وهل أُبلغ في الوقت.",
+      "openLedger": "افتح السجل",
+      "empty": "لا شيء في هذه النافذة.",
+      "documents": "المستندات",
+      "minutes": "{{count}} دقيقة",
+      "tddAcks": "نقطة هيئة الضرائب",
+      "invoiceAcks": "نقطة وصول المشتري",
+      "acksNote": "إقرارات استلام المستند الضريبي. وغياب الإقرار ليس فشلًا.",
+      "invoiceAcksNote": "إقرارات نقطة الوصول المستقبِلة باستلام الفاتورة.",
+      "deadLettered": "توقفت {{count}} بعد المحاولات وتحتاج مراجعة."
     },
     "lists": {
       "title": "الجداول",
@@ -6182,6 +6390,22 @@
           "title": "تصدير القيود",
           "detail": "كل شيء كقيود مزدوجة، جاهزة لـ Tally أو QuickBooks أو Zoho Books."
         }
+      },
+      "empty": "لا توجد مجموعات بيانات منشورة.",
+      "filters": "المرشحات: {{list}}",
+      "needsPermission": "يتطلب {{permission}}"
+    },
+    "controls": {
+      "from": "من",
+      "to": "إلى",
+      "granularity": "التجميع",
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "exportFailed": "تعذّر إنتاج الملف. والتقرير أعلاه غير متأثر.",
+      "bucket": {
+        "MONTH": "شهري",
+        "QUARTER": "ربع سنوي",
+        "YEAR": "سنوي"
       }
     }
   },
@@ -6431,7 +6655,7 @@
     "subtitle": "يخبر المورد بما تريده وبأي سعر. ولا يُستحق شيء حتى يرسلوا الفاتورة.",
     "discard": "تجاهل",
     "sendForApproval": "إرسال للاعتماد",
-    "supplierNote": "على Peppol · الأسعار من قائمة أسعار مارس · {{count}} فاتورة، كلها مطابقة لأمر",
+    "supplierNote": "ملاحظة للمورّد",
     "terms": "الشروط",
     "earlySettlement": "السداد المبكر",
     "leadTime": "مدة التوريد المعتادة",
@@ -6442,13 +6666,16 @@
       "quantity": "الكمية",
       "unitPrice": "سعر الوحدة",
       "vat": "ض.ق.م",
-      "lineTotal": "إجمالي السطر"
+      "lineTotal": "إجمالي السطر",
+      "ordered": "المطلوب",
+      "received": "المستلم",
+      "lineNet": "صافي السطر"
     },
     "addLine": "إضافة سطر",
-    "removeLine": "حذف هذا السطر",
+    "removeLine": "حذف السطر {{line}}",
     "net": "الصافي",
     "vatRow": "ض.ق.م · ٥٪",
-    "vat": "ض.ق.م",
+    "vat": "الضريبة",
     "orderValue": "قيمة الأمر",
     "whenAndWhere": "متى وأين",
     "orderDate": "تاريخ الأمر",
@@ -6482,7 +6709,75 @@
     "quantity": "الكمية",
     "sackPrice": "سعر الكيس",
     "inPlainWords": "بعبارة بسيطة",
-    "plainWords": "طلب بقيمة {{amount}} من البن والأكياس من {{supplier}}، مطلوب بحلول {{wanted}}، ويُسدَّد {{payable}} بشروط صافي ٣٠."
+    "plainWords": "طلب بقيمة {{amount}} من البن والأكياس من {{supplier}}، مطلوب بحلول {{wanted}}، ويُسدَّد {{payable}} بشروط صافي ٣٠.",
+    "newTitle": "أمر شراء جديد",
+    "supplier": "المورّد",
+    "currency": "العملة",
+    "linesTitle": "ما تطلبه",
+    "description": "الصنف",
+    "unit": "الوحدة",
+    "unitPrice": "سعر الوحدة",
+    "lineDescription": "السطر {{line}} — الصنف",
+    "lineQuantity": "السطر {{line}} — الكمية",
+    "lineUnit": "السطر {{line}} — الوحدة",
+    "lineUnitPrice": "السطر {{line}} — سعر الوحدة",
+    "lineVat": "السطر {{line}} — نسبة الضريبة",
+    "gross": "قيمة الأمر",
+    "totalsNote": "محسوبة هنا لتراها. والأمر يحمل الأرقام التي يحسبها الخادم.",
+    "saveDraft": "حفظ المسودة",
+    "unnumbered": "أمر بلا رقم",
+    "unnumberedReceipt": "استلام بلا رقم",
+    "backToExpenditure": "العودة إلى المصروفات",
+    "ordered": "صدر في {{date}}",
+    "noDate": "بلا تاريخ",
+    "submitted": "أُرسل للاعتماد",
+    "approved": "اعتُمد",
+    "markedSent": "وُسم كمُرسل",
+    "cancelled": "أُلغي",
+    "whatNext": "الخطوة التالية",
+    "awaitingGoods": "بانتظار البضاعة. سجّل استلامها أدناه عند وصولها.",
+    "sendNote": "هذا يسجّل أنك أبلغت المورّد. ولا يُرسل شيء من هنا.",
+    "needsApprover": "هذه الخطوة تتطلب صلاحية الاعتماد.",
+    "receiptsTitle": "الاستلامات",
+    "noReceipts": "لم يُسجَّل استلام بعد.",
+    "bookInTitle": "تسجيل استلام",
+    "bookIn": "سجّل الاستلام",
+    "bookInNote": "أدخل ما وصل. وما تبقّى يُبقي الأمر مستلمًا جزئيًا.",
+    "receivedOn": "تاريخ الاستلام",
+    "receiptNote": "ملاحظة",
+    "receiveFor": "المستلم من {{item}}",
+    "stillDue": "متبقٍ {{count}}",
+    "action": {
+      "submit": "أرسل للاعتماد",
+      "approve": "اعتمده",
+      "send": "وسمه كمُرسل",
+      "cancel": "إلغاء الأمر",
+      "close": "إغلاق الأمر"
+    },
+    "done": {
+      "submit": "أُرسل للاعتماد.",
+      "approve": "تم الاعتماد.",
+      "send": "وُسم كمُرسل. ولم يُرسل شيء.",
+      "cancel": "أُلغي الأمر.",
+      "close": "أُغلق الأمر."
+    },
+    "nothingToDo": {
+      "SENT": "بانتظار البضاعة.",
+      "PARTIALLY_RECEIVED": "وصل جزئيًا.",
+      "CLOSED": "هذا الأمر مغلق.",
+      "CANCELLED": "أُلغي هذا الأمر.",
+      "DRAFT": "",
+      "AWAITING_APPROVAL": "",
+      "APPROVED": "",
+      "RECEIVED": ""
+    },
+    "error": {
+      "description": "كل سطر يحتاج وصفًا حتى 500 حرف",
+      "quantity": "كل سطر يحتاج كمية أكبر من صفر",
+      "unitPrice": "كل سطر يحتاج سعر وحدة",
+      "vatRate": "لا يمكن أن تكون نسبة الضريبة سالبة",
+      "overBooked": "أكثر مما تبقّى على {{item}}"
+    }
   },
   "recordBill": {
     "title": "تسجيل فاتورة",
@@ -6633,14 +6928,20 @@
     "rowActions": "إجراءات الصف",
     "showing": "عرض {{shown}} من {{total}} إرسالًا",
     "kpi": {
-      "accepted": "مقبولة لدى الهيئة",
-      "acceptedBreakdown": "{{accepted}} مقبولة · {{rejected}} مرفوضة · {{waiting}} بالانتظار",
       "waitingOnYou": "بانتظارك",
       "waitingOnYouNote": "مرفوضة ولم تُصحَّح بعد. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.",
       "timeToAcceptance": "زمن القبول",
       "timeToAcceptanceNote": "المتوسط هذا الشهر، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
       "acknowledged": "أقرّ العميل بالاستلام",
-      "acknowledgedNote": "عاد الإشعار في الوقت المحدد في {{good}} من {{total}}"
+      "acknowledgedNote": "عاد الإشعار في الوقت المحدد في {{good}} من {{total}}",
+      "documents": "المستندات",
+      "documentsNote": "في السجل",
+      "reported": "أقرّت نقطة هيئة الضرائب باستلامه",
+      "reportedNote": "{{share}}% من المستندات",
+      "waiting": "بانتظار الإقرار",
+      "waitingNote": "لم يحدث خطأ. يبقى المستند هنا حتى يتحدث الطرف الآخر.",
+      "onTime": "أُبلغ في الوقت",
+      "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ما زالت ضمن النافذة"
     },
     "tabs": {
       "all": "الكل",
@@ -6652,10 +6953,8 @@
     },
     "col": {
       "invoice": "الفاتورة",
-      "reference": "مرجع المستند وفوترة",
       "flow": "المسار",
       "sent": "أُرسلت",
-      "otaSaid": "ما قالته الهيئة",
       "customer": "العميل"
     },
     "flow": {
@@ -6691,7 +6990,11 @@
     "ack": {
       "received": "استلمها",
       "notOnPeppol": "ليس على Peppol",
-      "noCustomer": "لا يوجد عميل"
+      "noCustomer": "لا يوجد عميل",
+      "AP": "سُلّم",
+      "AB": "سُلّم دون تأكيد",
+      "RE": "مرفوض أو فشل",
+      "NONE": "بلا إقرار بعد"
     },
     "today": "اليوم",
     "sortOptions": {
@@ -6725,6 +7028,47 @@
       "peppolNote": "{{id}} · يمكن للآخرين إيجادك والوصول إليك",
       "fawtara": "اتصال فوترة مفتوح",
       "fawtaraNote": "يستجيب خلال {{latency}} · الشهادة سارية حتى {{until}}"
+    },
+    "ledgerSubtitle": "ما جرى لكل مستند في طريقه إلى المشتري وإلى هيئة الضرائب.",
+    "unnumbered": "بلا رقم",
+    "b2c": "مستهلك",
+    "noTdd": "لا مستند ضريبي مستحق",
+    "searchByNumber": "ابحث برقم الفاتورة",
+    "resubmit": "إعادة الإرسال",
+    "resubmitted": "أُعيد الإرسال. وسيظهر في السجل عند الإقرار باستلامه.",
+    "showingPage": "صفحة {{page}} · حتى {{size}} في الصفحة",
+    "notATaxVerdict": "هذه إقرارات نقل وليست قرارات ضريبية. تتحقق هيئة الضرائب من المستند الضريبي مقابل قواعد التحقق لا للامتثال الضريبي، ولا ترسل حكمًا إلى مزوّد الخدمة.",
+    "ledgerTabs": {
+      "all": "الكل",
+      "attention": "يحتاج انتباهًا",
+      "rejected": "مرفوض أو فشل",
+      "waiting": "بلا إقرار بعد",
+      "issued": "صادر",
+      "received": "وارد"
+    },
+    "ledgerCol": {
+      "document": "المستند",
+      "counterparty": "الطرف الآخر",
+      "when": "الوقت",
+      "toBuyer": "نقطة وصول المشتري",
+      "toAuthority": "نقطة هيئة الضرائب",
+      "deadline": "المهلة"
+    },
+    "ackMeaning": {
+      "delivered": "سُلّم مع تأكيد",
+      "delivered-unconfirmed": "سُلّم دون تأكيد",
+      "rejected": "مرفوض أو فشل التسليم",
+      "silent": "لم يصل شيء بعد. وهذا ليس فشلًا."
+    },
+    "direction": {
+      "ISSUED": "صادر",
+      "RECEIVED": "وارد"
+    },
+    "sla": {
+      "met": "ضمن المهلة",
+      "missed": "تجاوزت المهلة",
+      "pending": "ضمن النافذة",
+      "none": "—"
     }
   },
   "activityEvent": {
@@ -7317,7 +7661,11 @@
       "connectionsPillError_many": "{{count}} تحتاج انتباهًا",
       "connectionsPillError_other": "{{count}} تحتاج انتباهًا",
       "connectionsFootActive": "الاستخراج التلقائي · {{collected}} من {{limit}} هذا الشهر",
-      "lockedPill": "متاح في باقة {{plan}}"
+      "lockedPill": "متاح في باقة {{plan}}",
+      "approvalsTitle": "اعتماد الفواتير",
+      "approvalsBody": "كم شخصًا يجب أن يعتمد فاتورة المورّد قبل سدادها، والمبلغ الذي لا يحتاج ما دونه إلى اعتماد.",
+      "approvalsPill": "قاعدة الاعتماد",
+      "approvalsFoot": "تسري على كل فاتورة"
     }
   },
   "peppolTax": {
@@ -9558,6 +9906,10 @@
         "closed": "مغلقون"
       },
       "col": {
+        "code": "الرمز",
+        "status": "الحالة",
+        "registered": "تاريخ التقديم",
+        "action": "الإجراء",
         "business": "المنشأة",
         "plan": "الخطة",
         "quota": "حصة هذا الشهر",
@@ -9570,7 +9922,28 @@
         "suspend": "أوقف الإرسال"
       },
       "showingAll": "عرض {{shown}} من {{total}}",
-      "rowMenu": "المزيد لهذا المشترك"
+      "rowMenu": "المزيد لهذا المشترك",
+      "loading": "جارٍ تحميل المشتركين…",
+      "empty": "لا يوجد مشتركون على المنصة بعد.",
+      "pastEnd": "هذه الصفحة تتجاوز نهاية السجل.",
+      "firstPage": "الانتقال إلى الصفحة الأولى",
+      "none": "—",
+      "noLegalName": "لم يُقدَّم الاسم القانوني بعد",
+      "review": "مراجعة",
+      "subtitlePlain": "كل منشأة تحتفظ المنصة بسجل لها",
+      "registered": "{{total}} على المنصة",
+      "showingRange": "عرض {{from}}–{{to}} من {{total}}",
+      "pager": {
+        "label": "صفحات المشتركين",
+        "previous": "الصفحة السابقة",
+        "next": "الصفحة التالية"
+      },
+      "status": {
+        "ACTIVE": "نشط",
+        "PENDING": "قيد الانتظار",
+        "SUSPENDED": "موقوف",
+        "CLOSED": "مغلق"
+      }
     },
     "soon": {
       "title": "لم يُبنَ بعد",
@@ -10168,6 +10541,33 @@
     "tenantDetail": {
       "notFound": "لا يوجد مستأجر بهذا المعرّف. ربما أُغلق الحساب أو أن الرابط قديم.",
       "notFoundBack": "العودة إلى المشتركين",
+      "loading": "جارٍ تحميل بيانات المشترك…",
+      "noCompanyDetails": "لم تُقدَّم بيانات المنشأة بعد",
+      "planDefault": "الافتراضي للمنصة",
+      "planPrice": "{{amount}} ريال عُماني شهريًا، سعر الباقة",
+      "planAllowance": "{{count}} فاتورة شهريًا ضمن الباقة",
+      "readiness": {
+        "ready": "جاهز للإرسال",
+        "notReady": "غير جاهز للإرسال"
+      },
+      "identityStatus": {
+        "PENDING": "قيد الانتظار",
+        "READY": "جاهز"
+      },
+      "field": {
+        "code": "رمز المشترك",
+        "legalName": "الاسم القانوني",
+        "tradingName": "الاسم التجاري",
+        "cr": "السجل التجاري",
+        "address": "العنوان المسجل",
+        "timezone": "المنطقة الزمنية",
+        "identityStatus": "حالة الهوية",
+        "contactEmail": "البريد الإلكتروني للتواصل",
+        "verification": "توثيق المنشأة",
+        "revision": "مراجعة الملف",
+        "plan": "الباقة",
+        "readiness": "إرسال الفواتير"
+      },
       "backTenants": "المشتركون",
       "backSubscriptions": "الاشتراكات",
       "planChip": "{{plan}} · {{term}}",
@@ -11394,7 +11794,10 @@
         "town": "المدينة",
         "townPlaceholder": "اختر مدينة",
         "businessType": "نوع النشاط",
-        "businessTypePlaceholder": "اختر نوعًا"
+        "businessTypePlaceholder": "اختر نوعًا",
+        "tenantCode": "رمز المستأجر",
+        "country": "الدولة",
+        "registeredAddress": "العنوان المسجَّل"
       },
       "owner": {
         "heading": "المالك",
@@ -11433,6 +11836,13 @@
         "paidLine": "{{amount}} · {{method}} · {{date}}",
         "notPaid": "ليس بعد — تبقى الفاتورة مفتوحة",
         "edit": "تعديل"
+      },
+      "creating": "جارٍ الإنشاء…",
+      "error": {
+        "conflict": "يوجد نشاط تجاري يستخدم رمز المستأجر أو الرقم الضريبي نفسه. غيّر البيانات ثم حاول مرة أخرى.",
+        "forbidden": "ليس لديك صلاحية لتسجيل نشاط تجاري.",
+        "validation": "رُفضت بعض البيانات. تحقّق من حقول الشركة ثم حاول مرة أخرى.",
+        "unexpected": "تعذّر إنشاء النشاط التجاري. حاول مرة أخرى، أو تواصل مع الدعم إذا استمرت المشكلة."
       }
     },
     "queue": {
@@ -13481,7 +13891,60 @@
     "notFound": "تعذّر العثور على هذا السجل. ربما حُذف أو أن الرابط غير صحيح.",
     "conflict": "عدّل شخص آخر هذا السجل أثناء عملك عليه. أعد التحميل لعرض أحدث نسخة ثم حاول مرة أخرى.",
     "csrf": "يلزم تحديث جلستك. أعد تحميل الصفحة وحاول مرة أخرى.",
-    "reference": "المرجع: {{id}}"
+    "reference": "المرجع: {{id}}",
+    "refused": {
+      "generic": "رفض الخادم هذا الطلب. لم يتغيّر شيء، ولن تُجدي إعادة المحاولة — والمرجع أدناه يدل الدعم على القاعدة التي منعته بالضبط.",
+      "creditNoteSupplierMismatch": "إشعار الدائن هذا من مورّد غير مورّد تلك الفاتورة. لا يخصم الرصيد إلا من فاتورة المورّد الذي أصدره.",
+      "creditNoteCurrencyMismatch": "إشعار الدائن والفاتورة بعملتين مختلفتين، فلا يمكن خصم أحدهما من الآخر.",
+      "creditNoteAlreadyApplied": "استُخدم هذا الإشعار من قبل على تلك الفاتورة. وتطبيقه ثانية يخصمها مرتين.",
+      "creditNoteExceedsBill": "هذا أكثر مما تبقّى مستحقًا على الفاتورة.",
+      "creditNoteExceedsCredit": "هذا أكثر مما تبقّى في إشعار الدائن.",
+      "creditNoteTargetNotPayable": "هذا المستند ليس فاتورة يمكن خصم رصيد منها.",
+      "refundAmountInvalid": "مبلغ الاسترداد يجب أن يكون أكبر من صفر.",
+      "refundDateRequired": "الاسترداد يجب أن يسجّل يوم سداده.",
+      "debitNoteAlreadyDecided": "هذا القرار مسجّل أصلًا. ولا يمكن تسجيل غير القرار المعاكس.",
+      "debitNoteReasonRequired": "الرفض يجب أن يذكر سببه.",
+      "debitNoteReasonTooLong": "السبب طويل أكثر من اللازم. اختصره ثم سجّل الرفض من جديد.",
+      "orderTransitionInvalid": "الطلب ليس في مرحلة تسمح بذلك. أعد التحميل لترى مرحلته الفعلية.",
+      "orderNotEditable": "لم يعد تعديل هذا الطلب ممكنًا في المرحلة التي بلغها.",
+      "orderConcurrentUpdate": "غيّر أحدهم هذا الطلب أثناء عملك عليه. أعد التحميل لترى أحدث نسخة.",
+      "orderLinesRequired": "الطلب يحتاج إلى بند واحد على الأقل.",
+      "overReceipt": "هذا أكثر مما تبقّى مستحقًا على الطلب.",
+      "receiptLinesRequired": "سجّل استلام بند واحد على الأقل.",
+      "receiptQuantityInvalid": "الكمية المستلمة يجب أن تكون أكبر من صفر.",
+      "receiptDateRequired": "التسليم يجب أن يسجّل يوم وصوله.",
+      "reminderNeedsRecipient": "هذا التذكير يجب أن يسمّي شخصًا واحدًا على الأقل لإبلاغه.",
+      "reminderNotConfigurable": "هذا التذكير لا يُضبط هنا، بل على الفاتورة المتكررة نفسها.",
+      "reminderRepeatOutOfRange": "فترة التكرار هذه خارج المدى الذي يقبله الخادم.",
+      "reminderTooManyRecipients": "عدد الأشخاص أكبر مما يبلغه تذكير واحد.",
+      "reminderEscalationNotAllowed": "هذا التذكير لا يتصاعد، فلا يمكن أن تكون له مرحلة تصعيد.",
+      "reminderDuplicate": "هذا التذكير مذكور مرتين. ولا يُضبط كل نوع إلا مرة واحدة.",
+      "billNotFound": "هذه الفاتورة ليست في هذا الحساب. وقد تكون حُذفت.",
+      "billNotReadyForPayment": "هذه الفاتورة ليست جاهزة للسداد بعد.",
+      "holdAlreadyOpen": "هذه الفاتورة معلّقة أصلًا.",
+      "holdNotOpen": "هذه الفاتورة ليست معلّقة، فليس هناك ما يُرفع عنه التعليق.",
+      "holdOnPaid": "الفاتورة المسدّدة لا يمكن تعليقها.",
+      "paymentCurrencyMismatch": "الدفعة والفاتورة بعملتين مختلفتين.",
+      "paymentAlreadyReversed": "هذه الدفعة عُكست من قبل.",
+      "approvalAlreadyGiven": "سبق أن اعتمدت هذه الفاتورة.",
+      "approvalReasonRequired": "الرفض يجب أن يذكر سببه.",
+      "applyAmountInvalid": "المبلغ المخصوم يجب أن يكون أكبر من صفر.",
+      "approvalPolicyInvalid": "قاعدة الاعتماد يجب أن تشترط معتمدًا واحدًا على الأقل."
+    },
+    "selfBilling": {
+      "generic": "رفض الخادم هذا بسبب اتفاقية الفوترة الذاتية مع هذا البائع. راجع الاتفاقية قبل إعادة المحاولة.",
+      "missing": "لا توجد اتفاقية فوترة ذاتية مع هذا البائع. افتح واحدة قبل الإصدار نيابة عنه.",
+      "notActive": "الاتفاقية مع هذا البائع ليست سارية. فعّلها ثم أصدر.",
+      "notInForce": "الاتفاقية مع هذا البائع غير نافذة في هذا التاريخ — فهي لم تبدأ بعد، أو انتهت.",
+      "sellerNotVerified": "لم توثّق فوتر بعد هوية هذا البائع على الشبكة. ويظل الإصدار مرفوضًا حتى يتم ذلك، وليس بيدك تعجيله.",
+      "alreadyExists": "توجد بالفعل اتفاقية سارية مع هذا البائع. اسحبها قبل فتح غيرها.",
+      "alreadyInState": "الاتفاقية في تلك الحالة أصلًا.",
+      "withdrawn": "سُحبت هذه الاتفاقية، ولا رجعة في السحب. افتح اتفاقية جديدة بدلًا من ذلك.",
+      "notFound": "هذه الاتفاقية ليست في هذا الحساب.",
+      "rangeInvalid": "تاريخ الانتهاء قبل تاريخ البداية.",
+      "referenceRequired": "الاتفاقية تحتاج مرجعًا.",
+      "referenceTooLong": "هذا المرجع طويل أكثر من اللازم."
+    }
   },
   "appAccess": {
     "checking": "جارٍ التحقق من صلاحيتك…",
@@ -14532,6 +14995,107 @@
       "erpMapping": "اربط حقول فواتير نظام ERP لديك ليقرأها فوتر ويتحقق منها ويبلّغ عنها.",
       "api": "يتحدث نظامك مع فوتر مباشرة.",
       "webhooks": "يُخبر فوتر أنظمتك لحظة حدوث أي تغيير."
+    }
+  },
+  "supplierCreditNoteDetail": {
+    "back": "العودة إلى إشعارات الدائن",
+    "credited": "المبلغ الدائن",
+    "applied": "المستخدم حتى الآن",
+    "refunded": "المسترد حتى الآن",
+    "noBillsForSupplier": "لا توجد فواتير من {{supplier}} تطابق ذلك. لا يمكن خصم هذا الرصيد إلا من فواتيره هو.",
+    "remaining": "المتبقي للاستخدام",
+    "factsTitle": "الإشعار",
+    "issued": "تاريخ الإصدار",
+    "source": "طريقة الوصول",
+    "vat": "ضريبة القيمة المضافة",
+    "reason": "سبب الإشعار",
+    "credits": "يخصم من",
+    "verified": "موثّق عبر الشبكة",
+    "verifiedYes": "نعم — تم التحقق والإبلاغ",
+    "verifiedNo": "لا — وصلنا كملف",
+    "nothingLeft": "استُخدم هذا الرصيد بالكامل أو استُرد. لم يتبقَّ شيء للتصرف فيه.",
+    "historyTitle": "ما تم بشأنه",
+    "noHistory": "لا يوجد تصرف صريح بعد. الإشعار المرتبط بفاتورة يخصم منها تلقائيًا.",
+    "againstBill": "مقابل فاتورة",
+    "recorded": "سُجّل {{when}}",
+    "applyTitle": "استخدامه مقابل فاتورة",
+    "applyNote": "يقلل ما هو مستحق على تلك الفاتورة.",
+    "findBill": "أي فاتورة",
+    "findBillPlaceholder": "ابحث باسم المورّد أو رقم الفاتورة",
+    "chosen": "سيُخصم من {{bill}}",
+    "change": "تغيير",
+    "noBills": "لا توجد فواتير مطابقة",
+    "stillOwed": "ما زال مستحقًا",
+    "amountOptional": "المبلغ (اختياري)",
+    "amount": "المبلغ",
+    "amountBlankNote": "اتركه فارغًا لأكبر مبلغ يناسب الرصيد والفاتورة معًا.",
+    "overRemaining": "أكبر من {{amount}} المتبقية على هذا الإشعار",
+    "applyCta": "استخدمه",
+    "refundTitle": "تسجيل استرداد",
+    "refundNote": "أعاد المورّد المبلغ نقدًا بدل خصمه من فاتورة.",
+    "paidOn": "تاريخ الدفع",
+    "referenceOptional": "مرجع الدفع (اختياري)",
+    "refundCta": "سجّل الاسترداد",
+    "notDone": "لم يتم",
+    "col": {
+      "what": "الإجراء",
+      "amount": "المبلغ",
+      "when": "التاريخ",
+      "reference": "مقابل / المرجع"
+    },
+    "kind": {
+      "APPLIED": "استُخدم مقابل فاتورة",
+      "REFUNDED": "مُسترد"
+    },
+    "appliedDone": "تم خصم الرصيد من تلك الفاتورة.",
+    "refundedDone": "تم تسجيل الاسترداد."
+  },
+  "approvalPolicy": {
+    "title": "اعتماد الفواتير",
+    "subtitle": "من يجب أن يعتمد فاتورة المورّد قبل سدادها. هذه هي القاعدة التي تطبّقها شاشة الفواتير — والفاتورة التي لم تستوفها لا يمكن ضمّها إلى دفعة سداد.",
+    "saved": "حُفظت قاعدة الاعتماد.",
+    "notSaved": "لم تُحفظ",
+    "save": "احفظ القاعدة",
+    "saving": "جارٍ الحفظ…",
+    "discard": "تجاهل التغييرات",
+    "readOnly": "يمكنك الاطلاع على هذه القاعدة دون تغييرها. تغييرها يحتاج صلاحية الإعدادات، وهي عمدًا ليست نفس صلاحية اعتماد الفاتورة.",
+    "approvers": {
+      "title": "عدد الاعتمادات",
+      "note": "كم شخصًا مختلفًا يجب أن يعتمد الفاتورة. واعتماد الشخص نفسه مرتين يُحسب مرة واحدة.",
+      "label": "عدد من يجب أن يعتمدوا",
+      "floor": "الحد الأدنى واحد. فالاعتماد يسبق السداد دائمًا، ولذلك لا يوجد خيار بلا اعتماد."
+    },
+    "threshold": {
+      "title": "الفواتير الصغيرة",
+      "note": "يمكنك تمرير الفواتير دون مبلغ معيّن بلا اعتماد.",
+      "EVERY_BILL": "كل فاتورة تحتاج اعتمادًا مهما كان مبلغها",
+      "BELOW_AMOUNT": "الفواتير دون مبلغ محدّد لا تحتاج اعتمادًا",
+      "label": "المبلغ",
+      "boundary": "الفاتورة التي تساوي {{amount}} بالضبط تظل بحاجة إلى اعتماد — ولا يُمرَّر إلا ما دونها.",
+      "removing": "هذا يزيل حدّ {{amount}}. والفواتير التي كانت تمرّ بلا اعتماد ستحتاج إليه من الآن."
+    },
+    "problem": {
+      "approversRequired": "اذكر كم اعتمادًا تحتاج الفاتورة.",
+      "approversRange": "بين ١ و١٠.",
+      "thresholdRequired": "أدخل المبلغ، أو اختر أن كل فاتورة تحتاج اعتمادًا.",
+      "thresholdPositive": "المبلغ يجب أن يكون أكبر من صفر.",
+      "thresholdDecimals": "ثلاث خانات عشرية على الأكثر.",
+      "thresholdTooLarge": "هذا المبلغ كبير أكثر من اللازم."
+    }
+  },
+  "selfBilledComposer": {
+    "breadcrumb": "الفوترة الذاتية",
+    "title": "فاتورة ذاتية جديدة",
+    "editTitle": "تعديل الفاتورة الذاتية",
+    "explainer": "أنت تحرّر هذه الفاتورة نيابة عن البائع. وعند إصدارها تسجّل ما تدين به له، ويُرفض الإصدار ما لم تكن هناك اتفاقية سارية مع ذلك البائع وتكن فوتر قد وثّقت هويته.",
+    "sections": {
+      "seller": "البائع"
+    },
+    "fields": {
+      "buyerReference": "مرجعك",
+      "buyerReferenceHint": "مرجعك أنت بوصفك المشتري (IBT-010). ولا يحمله إلا المستند الذاتي.",
+      "contractReference": "مرجع العقد",
+      "contractReferenceHint": "العقد الذي تندرج تحته هذه الفاتورة (IBT-012)."
     }
   }
 }

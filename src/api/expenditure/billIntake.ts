@@ -12,6 +12,9 @@ export const BILL_INTAKE_PATH = '/v1/bills/intake'
 export const INTAKE_MAX_BYTES = 10 * 1024 * 1024
 
 export type IntakeSourceDto = 'UPLOADED' | 'SCANNED'
+
+/** 380 a bill, 381 a supplier's credit note, 383 a supplier's debit note (`ConfirmRequest`). */
+export type IntakeDocumentTypeDto = '380' | '381' | '383'
 export type ExtractionStatusDto = 'NONE' | 'EXTRACTED' | 'FAILED'
 
 /** `ExtractedBillFields`. Every value is advice; confirm takes the person's fields. */
@@ -68,7 +71,13 @@ export async function discardIntake(id: string): Promise<void> {
 export type ConfirmIntakeDto = {
   supplierId: string | null
   supplierName: string | null
-  documentTypeCode: '380'
+  /**
+   * What kind of document the person is confirming. `ConfirmRequest` accepts `380|381|383`:
+   * a bill, a supplier's credit note, or a supplier's debit note. The same intake endpoint
+   * takes all three — the type is what decides which way the money points, so it is a field
+   * the caller states rather than one the file is trusted to declare.
+   */
+  documentTypeCode: IntakeDocumentTypeDto
   billNumber: string | null
   issueDate: string
   dueDate: string | null

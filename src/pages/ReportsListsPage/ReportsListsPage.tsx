@@ -1,111 +1,121 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ReportShell } from '../../components/reports'
-import { LIST_SECTIONS, formatCount, type ExportList } from '../../lib/reports'
-import invoiceIcon from '../../assets/reports/list-invoice.svg'
-import customersIcon from '../../assets/reports/list-customers.svg'
-import catalogIcon from '../../assets/reports/list-catalog.svg'
-import paymentIcon from '../../assets/reports/list-payment.svg'
-import billIcon from '../../assets/reports/list-bill.svg'
-import supplierIcon from '../../assets/reports/list-supplier.svg'
-import transferIcon from '../../assets/reports/list-transfer.svg'
-import noteIcon from '../../assets/reports/list-note.svg'
-import vatIcon from '../../assets/reports/list-vat.svg'
-import tddIcon from '../../assets/reports/list-tdd.svg'
-import agedIcon from '../../assets/reports/list-aged.svg'
-import journalIcon from '../../assets/reports/list-journal.svg'
-import excelIcon from '../../assets/reports/list-catalog.svg'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import {
+  REPORT_LISTS_PATH,
+  catalogueHref,
+  downloadReport,
+  loadListsCatalogue,
+  type ListsCatalogueDto,
+  type ListsDatasetDto,
+} from '../../api/reports/reports'
+import { saveDownload } from '../../lib/supplierRecord'
+import { can, useSession } from '../../lib/session/session'
 
-const ICONS: Record<ExportList['icon'], string> = {
-  invoice: invoiceIcon,
-  customers: customersIcon,
-  catalog: catalogIcon,
-  payment: paymentIcon,
-  bill: billIcon,
-  supplier: supplierIcon,
-  transfer: transferIcon,
-  note: noteIcon,
-  vat: vatIcon,
-  tdd: tddIcon,
-  aged: agedIcon,
-  journal: journalIcon,
-}
-
-/** The accountant's three exports sit on a warmer tile than the trading ones. */
-const WARM_TILES = new Set<ExportList['icon']>(['vat', 'tdd', 'aged'])
-
-function ListCard({ list }: { list: ExportList }) {
-  const { t } = useTranslation()
-  return (
-    <article className="flex flex-col rounded-md bg-surface-card p-5">
-      <div className="flex items-start gap-3.5">
-        <span
-          className={[
-            'flex size-9 shrink-0 items-center justify-center rounded-sm',
-            WARM_TILES.has(list.icon) ? 'bg-pending-100' : 'bg-primary-50',
-          ].join(' ')}
-        >
-          <img src={ICONS[list.icon]} alt="" className="size-[18px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-            {t(`reports.lists.items.${list.id}.title`)}
-          </h3>
-          <p className="mt-1.5 text-sm font-medium leading-[1.5] text-text-quaternary">
-            {t(`reports.lists.items.${list.id}.detail`)}
-          </p>
-          <p className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-semibold text-text-secondary tabular-nums">
-              {t('reports.lists.rows', {
-                count: list.rows,
-                formattedCount: formatCount(list.rows),
-              })}
-            </span>
-            <span className="text-xs font-medium text-text-quaternary">
-              {t('reports.lists.columns', { count: list.columns })}
-            </span>
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2.5">
-        <button
-          type="button"
-          className="inline-flex h-[42px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          <img src={excelIcon} alt="" className="size-[18px] brightness-0 invert" />
-          {t('reports.lists.downloadExcel')}
-        </button>
-        {(['csv', 'pdf'] as const).map((format) => (
-          <button
-            key={format}
-            type="button"
-            className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t(`reports.lists.${format}`)}
-          </button>
-        ))}
-      </div>
-    </article>
-  )
-}
-
+/**
+ * Reports › Downloads (position 7).
+ *
+ * **Rendered from the server's own catalogue**, not from a list kept here. Each dataset names its
+ * title, description, permission, formats, URLs and parameters, so a dataset added or renamed on
+ * the server appears correctly without a change on this side — and a hard-coded list, which is
+ * what this page had, cannot drift out of step with what actually downloads.
+ *
+ * A dataset the reader may not download is still shown, greyed, with the permission it wants.
+ * Hiding it would leave someone asking a colleague for a file nobody can see exists.
+ */
 export function ReportsListsPage() {
   const { t } = useTranslation()
+  const catalogue = useApiRead<ListsCatalogueDto>(REPORT_LISTS_PATH, loadListsCatalogue)
 
   return (
     <ReportShell titleKey="reports.lists.title" subtitleKey="reports.lists.subtitle">
-      {LIST_SECTIONS.map((section) => (
-        <section key={section.id} className="flex flex-col gap-4">
-          <h2 className="text-xl font-medium leading-[1.2] text-text-primary">
-            {t(`reports.lists.sections.${section.id}`)}
-          </h2>
-          <div className="grid gap-4 xl:grid-cols-2">
-            {section.lists.map((list) => (
-              <ListCard key={list.id} list={list} />
+      {catalogue.read.status === 'loading' ? <LoadingNotice /> : null}
+      {catalogue.read.status === 'failed' ? (
+        <ApiReadFailure error={catalogue.read.error} retry={catalogue.retry} />
+      ) : null}
+
+      {catalogue.read.status === 'ready' ? (
+        catalogue.read.data.datasets.length === 0 ? (
+          <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
+            {t('reports.lists.empty')}
+          </p>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {catalogue.read.data.datasets.map((dataset) => (
+              <DatasetCard key={dataset.key} dataset={dataset} />
             ))}
           </div>
-        </section>
-      ))}
+        )
+      ) : null}
     </ReportShell>
+  )
+}
+
+function DatasetCard({ dataset }: { dataset: ListsDatasetDto }) {
+  const { t } = useTranslation()
+  const session = useSession()
+  const allowed = can(session, dataset.permission)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  const download = async (format: 'csv' | 'xlsx') => {
+    const href = format === 'csv' ? dataset.hrefCsv : dataset.hrefXlsx
+    if (!href) return
+    setBusy(format)
+    setFailed(false)
+    try {
+      saveDownload(await downloadReport(catalogueHref(href)), `${dataset.key}.${format}`)
+    } catch {
+      setFailed(true)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <article className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
+      <div>
+        {/* The server's own title and description, not a translated copy: a dataset added there
+            would otherwise appear here as a missing key. */}
+        <h3 className="text-base font-semibold leading-[1.2] text-text-secondary">{dataset.title}</h3>
+        <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">{dataset.description}</p>
+      </div>
+
+      {dataset.parameters.length > 0 ? (
+        <p className="text-xs font-medium text-text-quaternary">
+          {t('reports.lists.filters', { list: dataset.parameters.join(', ') })}
+        </p>
+      ) : null}
+
+      {allowed ? (
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          {(['csv', 'xlsx'] as const).map((format) =>
+            dataset.formats.includes(format) && (format === 'csv' ? dataset.hrefCsv : dataset.hrefXlsx) ? (
+              <button
+                key={format}
+                type="button"
+                disabled={busy !== null}
+                onClick={() => void download(format)}
+                className="inline-flex h-[40px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25 disabled:opacity-50"
+              >
+                {t(busy === format ? 'common.saving' : `reports.controls.${format}`)}
+              </button>
+            ) : null,
+          )}
+        </div>
+      ) : (
+        <p className="mt-auto text-xs font-medium text-text-quaternary">
+          {t('reports.lists.needsPermission', { permission: dataset.permission })}
+        </p>
+      )}
+
+      {failed ? (
+        <p role="alert" className="text-sm font-medium text-warning-700">
+          {t('reports.controls.exportFailed')}
+        </p>
+      ) : null}
+    </article>
   )
 }

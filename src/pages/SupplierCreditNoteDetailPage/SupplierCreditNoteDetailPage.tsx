@@ -2,512 +2,540 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Rial, withRial } from '../../components/ui'
-import { CREDIT_DETAIL, type CreditUse } from '../../lib/supplierCreditNotes'
-import chevronIcon from '../../assets/invoices/chevron.svg'
-import downloadIcon from '../../assets/invoice-details/download.svg'
-import setIcon from '../../assets/supplier-credit-notes/act-set.svg'
-import decisionIcon from '../../assets/bill-detail/decision.svg'
-import tickIcon from '../../assets/bill-detail/tick.svg'
-import infoIcon from '../../assets/bill-capture/info.svg'
-import stepDoneIcon from '../../assets/supplier-credit-notes/step-done.svg'
-import billIcon from '../../assets/invoice-details/credit-note.svg'
-import receiptIcon from '../../assets/create-invoice/doc-delivery.svg'
-import fileIcon from '../../assets/bill-capture/file.svg'
+import { RowsView } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice, Notice, PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import type { Page } from '../../api'
+import {
+  applyCreditNote,
+  creditNotePath,
+  loadCreditNote,
+  loadCreditNoteSettlements,
+  refundCreditNote,
+  type CreditNoteRowDto,
+  type CreditNoteSettlementDto,
+} from '../../api/expenditure/notes'
+import { billListPath, loadBillPage, type BillRowDto } from '../../api/expenditure/bills'
+import { CREDIT_STATUS_CHIP, reasonLabelKey, toCreditNoteItem } from '../../lib/supplierNoteList'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
+import { can, useSession } from '../../lib/session/session'
 
-const LINKED_ICON = { bill: billIcon, receipt: receiptIcon, file: fileIcon }
-
-/** Stands in for the receipt reference while the sentence is split around it. */
-const RECEIPT_SLOT = '\u0000'
-
-/** The rial sign before every figure on this screen, in the figure's own size and colour. */
-function Omr({ className = '' }: { className?: string }) {
-  return (
-    <span className={className}>
-      <Rial />
-    </span>
-  )
+const CHIP: Record<'usable' | 'waiting' | 'done' | 'refunded', string> = {
+  usable: 'bg-pending-100 text-pending-700',
+  waiting: 'bg-surface-background text-text-tertiary',
+  done: 'bg-success-100 text-success-700',
+  refunded: 'bg-primary-50 text-primary-800',
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-md bg-surface-card p-5">
-      <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{title}</h2>
-      {children}
-    </section>
-  )
-}
+const FIELD =
+  'h-[46px] w-full rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
 
+/**
+ * Expenditure › Credit notes › one note (E-15).
+ *
+ * Two dispositions, and they are not interchangeable. **Apply** spends the credit against a bill
+ * the tenant owes, which lowers that bill's outstanding amount. **Refund** records that the
+ * supplier gave the money back instead, so it names no bill at all. Both write a settlement row;
+ * the rows below are the history of what has actually been done with the credit.
+ */
 export function SupplierCreditNoteDetailPage() {
-  const { t } = useTranslation()
-  const { id } = useParams()
-  const note = CREDIT_DETAIL
-
-  /** Undecided until someone picks — that is what the whole right column is for. */
-  const [decision, setDecision] = useState<CreditUse | null>(null)
-
-  const DECISIONS: { id: CreditUse; labelKey: string; doneKey: string }[] = [
-    {
-      id: 'setAgainst',
-      labelKey: 'supplierCreditNotes.detail.setAgainst',
-      doneKey: 'supplierCreditNotes.detail.setDone',
-    },
-    {
-      id: 'hold',
-      labelKey: 'supplierCreditNotes.detail.keepAsCredit',
-      doneKey: 'supplierCreditNotes.detail.keptDone',
-    },
-    {
-      id: 'refund',
-      labelKey: 'supplierCreditNotes.detail.askRefund',
-      doneKey: 'supplierCreditNotes.detail.refundDone',
-    },
-  ]
-
-  const decided = DECISIONS.find((option) => option.id === decision)
-
-  /**
-   * The reason sentence names the purchase receipt, and that name has to be a link.
-   *
-   * Splitting the sentence into two keys would leave translators guessing where the link goes,
-   * so the one key keeps its {{receipt}} placeholder and the two halves are recovered here.
-   */
-  const whyParts = t('supplierCreditNotes.detail.whyBody', { receipt: RECEIPT_SLOT }).split(
-    RECEIPT_SLOT,
-  )
-
   return (
     <AppShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/expenditure/credit-notes"
-            className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700"
-          >
-            {t('supplierCreditNotes.title')}
-          </Link>
-          <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-          <span className="text-2xl font-medium leading-[1.2] text-text-primary">
-            {id ?? note.id}
-          </span>
-        </div>
+      <CreditNoteDetail />
+    </AppShell>
+  )
+}
 
-        {/* Title row */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2.5">
+function CreditNoteDetail() {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const { id = '' } = useParams()
+  const session = useSession()
+  const canSettle = can(session, 'invoice.payment.manage')
+
+  const note = useApiRead<CreditNoteRowDto>(id ? creditNotePath(id) : null, () => loadCreditNote(id))
+  const settlements = useApiRead<CreditNoteSettlementDto[]>(
+    id ? `${creditNotePath(id)}/settlements` : null,
+    () => loadCreditNoteSettlements(id),
+  )
+
+  const [notice, setNotice] = useState<string | null>(null)
+  const [failure, setFailure] = useState<string | null>(null)
+
+  const row = note.read.status === 'ready' ? note.read.data : null
+  const item = row ? toCreditNoteItem(row) : null
+  const money = (value: number) => formatAmount(value, row?.currencyCode ?? 'OMR', language)
+
+  const afterAction = (key: string) => {
+    setFailure(null)
+    setNotice(t(key))
+    note.retry()
+    settlements.retry()
+  }
+
+  const onFailure = (error: unknown) => {
+    setNotice(null)
+    const message = describeApiFailure(error)
+    const body = t(message.key, message.values)
+    setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-4 pb-10">
+      <Link to="/expenditure/credit-notes" className="text-sm font-semibold text-primary-700 hover:underline">
+        {t('supplierCreditNoteDetail.back')}
+      </Link>
+
+      {note.read.status === 'loading' ? <LoadingNotice /> : null}
+      {note.read.status === 'failed' ? <ApiReadFailure error={note.read.error} retry={note.retry} /> : null}
+
+      {row && item ? (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
               <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-                {id ?? note.id}
+                {item.number ?? t('supplierCreditNotes.rows.unnumbered')}
               </h1>
-              <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-pending-100 px-2.5 text-xs font-medium text-pending-700">
-                <span className="size-1.5 rounded-full bg-pending-700" />
-                {t('supplierCreditNotes.state.notUsed')}
-              </span>
-              <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full border border-border-subtle px-2.5 text-[11px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
-                <span className="h-[1.5px] w-2.5 rounded-full bg-text-tertiary" />
-                {t('supplierCreditNotes.detail.creditNotePeppol')}
-              </span>
+              <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
+                {item.supplier ?? t('supplierCreditNotes.rows.unknownSupplier')}
+              </p>
             </div>
-            <p className="mt-2 text-sm font-medium leading-[1.4] text-text-tertiary">
-              {t('supplierCreditNotes.detail.from')}{' '}
-              <span className="font-semibold text-text-secondary">{note.supplier}</span> ·{' '}
-              {t('supplierCreditNotes.detail.issuedOn', { date: '' }).trim()}{' '}
-              <span className="font-semibold text-text-secondary">{note.issued}</span> ·{' '}
-              {t('supplierCreditNotes.detail.corrects')}{' '}
-              <Link
-                to={`/expenditure/bills/${note.corrects}`}
-                className="font-semibold text-text-secondary underline decoration-transparent underline-offset-2 transition-colors hover:decoration-current"
-              >
-                {note.corrects}
-              </Link>
-            </p>
+            <span
+              className={[
+                'inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]',
+                CHIP[CREDIT_STATUS_CHIP[item.status]],
+              ].join(' ')}
+            >
+              {t(`supplierCreditNotes.state.${item.status}`)}
+            </span>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
-            <button
-              type="button"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={downloadIcon} alt="" className="size-5" />
-              {t('supplierCreditNotes.detail.download')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDecision('setAgainst')}
-              disabled={decision !== null}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:bg-success-700 disabled:opacity-100"
-            >
-              <img src={setIcon} alt="" className="size-5" />
-              {decided ? (
-                <span>{withRial(t(decided.doneKey))}</span>
-              ) : (
-                t('supplierCreditNotes.detail.setAgainst')
-              )}
-            </button>
-          </div>
-        </div>
+          {notice ? <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+          {failure ? (
+            <Notice
+              badge={t('supplierCreditNoteDetail.notDone')}
+              body={failure}
+              action={{ label: t('common.close'), onClick: () => setFailure(null) }}
+            />
+          ) : null}
 
-        <div className="flex flex-col gap-[22px] xl:flex-row">
-          {/* Main column */}
-          <div className="flex min-w-0 flex-1 flex-col gap-4">
-            {/* The effect, up front */}
-            <section className="rounded-md border border-[#cfe0d5] bg-[#eef5f0] p-5">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-white">
-                  <span className="h-[2.5px] w-3.5 rounded-full bg-[#3d5648]" />
-                </span>
-                <div>
-                  <h2 className="text-xl font-medium leading-[1.2] text-[#2f4438]">
-                    {withRial(
-                      t('supplierCreditNotes.detail.youllPayLess', { amount: note.credit }),
-                    )}
-                  </h2>
-                  <p className="mt-1.5 text-sm font-medium leading-[1.4] text-[#4f6857]">
-                    {t('supplierCreditNotes.detail.youllPayLessNote')}
-                  </p>
-                </div>
-              </div>
+          {/*
+            All four figures the balance carries, because three of them do not add up on their
+            own: a refunded note shows credited 52.500, used 0.000 and left 40.000, and the 12.500
+            that explains the gap is the one being left out. `CreditNoteBalance` keeps applied and
+            refunded apart deliberately — only cash back is a refund — so the screen shows both
+            rather than folding them into one "used" that would hide which happened.
+          */}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Figure label={t('supplierCreditNoteDetail.credited')} value={item.credited === null ? '—' : money(item.credited)} strong />
+            <Figure label={t('supplierCreditNoteDetail.applied')} value={money(row.balance.applied)} />
+            <Figure label={t('supplierCreditNoteDetail.refunded')} value={money(row.balance.refunded)} />
+            <Figure label={t('supplierCreditNoteDetail.remaining')} value={money(row.balance.remaining)} strong />
+          </section>
 
-              <div className="mt-4 flex items-stretch gap-2.5">
-                {[
-                  {
-                    key: 'theyBilled',
-                    value: note.effect.billed,
-                    noteKey: note.effect.billedNoteKey,
-                    op: '−',
-                  },
-                  {
-                    key: 'thisCredit',
-                    value: note.credit,
-                    noteKey: note.effect.creditNoteKey,
-                    op: '=',
-                  },
-                  {
-                    key: 'youllPay',
-                    value: note.effect.willPay,
-                    noteKey: note.effect.willPayNoteKey,
-                  },
-                ].map((tile) => (
-                  <div key={tile.key} className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <div className="min-w-0 flex-1 rounded-sm border border-[#cfe0d5] bg-white px-4 py-3.5">
-                      <p className="text-[11px] font-semibold uppercase leading-[1.2] tracking-[0.5px] text-text-tertiary">
-                        {t(`supplierCreditNotes.detail.${tile.key}`)}
-                      </p>
-                      <p className="mt-2 flex items-baseline gap-1 whitespace-nowrap text-[22px] font-semibold leading-[1.2] text-text-primary max-md:text-lg">
-                        <Omr />
-                        {tile.value}
-                      </p>
-                      <p className="mt-1.5 text-xs font-medium leading-[1.3] text-text-quaternary">
-                        {t(tile.noteKey)}
-                      </p>
-                    </div>
-                    {tile.op ? (
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-text-tertiary">
-                        {tile.op}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </section>
+          <section className="rounded-md bg-surface-card p-6">
+            <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
+              {t('supplierCreditNoteDetail.factsTitle')}
+            </h2>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Fact label={t('supplierCreditNoteDetail.issued')} value={item.issueDate ? formatDate(item.issueDate, language) : '—'} />
+              <Fact label={t('supplierCreditNoteDetail.source')} value={t(`supplierCreditNotes.source.${item.source}`)} />
+              <Fact label={t('supplierCreditNoteDetail.vat')} value={row.vatAmount === null ? '—' : money(row.vatAmount)} />
+              <Fact
+                label={t('supplierCreditNoteDetail.reason')}
+                value={(() => {
+                  const reason = reasonLabelKey(item.reasonCode)
+                  return reason ? t(reason.key, { defaultValue: reason.fallback }) : t('supplierCreditNotes.rows.noReason')
+                })()}
+              />
+              <Fact
+                label={t('supplierCreditNoteDetail.credits')}
+                value={
+                  item.againstBillId ? (
+                    <Link to={`/expenditure/bills/${item.againstBillId}`} className="font-semibold text-primary-700 hover:underline">
+                      {item.againstBillNumber ?? t('supplierCreditNotes.rows.theBill')}
+                    </Link>
+                  ) : (
+                    (item.againstBillNumber ?? t('supplierCreditNotes.rows.noBill'))
+                  )
+                }
+              />
+              <Fact
+                label={t('supplierCreditNoteDetail.verified')}
+                value={t(item.networkVerified ? 'supplierCreditNoteDetail.verifiedYes' : 'supplierCreditNoteDetail.verifiedNo')}
+              />
+            </dl>
+          </section>
 
-            {/* Why */}
-            <Card title={t('supplierCreditNotes.detail.whyTitle')}>
-              <p className="mt-3 text-sm font-medium leading-[1.6] text-text-secondary">
-                {whyParts[0]}
-                <Link
-                  to={`/trade-documents/delivery-notes/${note.receiptRef}`}
-                  className="text-primary-700 hover:underline"
-                >
-                  {note.receiptRef}
-                </Link>
-                {whyParts[1]}
+          {canSettle ? (
+            row.balance.remaining > 0 ? (
+              <Dispositions
+                noteId={id}
+                currency={row.currencyCode}
+                remaining={row.balance.remaining}
+                supplierId={row.supplierId}
+                supplierName={item.supplier}
+                onDone={afterAction}
+                onFailure={onFailure}
+              />
+            ) : (
+              <p className="rounded-md bg-surface-card p-6 text-sm font-medium text-text-tertiary">
+                {t('supplierCreditNoteDetail.nothingLeft')}
               </p>
-              <blockquote className="mt-4 border-s-2 border-border-subtle ps-3 text-sm font-medium italic leading-[1.5] text-text-tertiary">
-                {t('supplierCreditNotes.detail.whyQuote')}
-              </blockquote>
-            </Card>
+            )
+          ) : (
+            <PermissionDeniedNotice />
+          )}
 
-            {/* Lines */}
-            <Card title={t('supplierCreditNotes.detail.whatsCredited')}>
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[560px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-surface-background text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
-                      {['item', 'qty', 'unitPrice', 'vat', 'lineTotal'].map((key, index) => (
-                        <th
-                          key={key}
-                          className={[
-                            'pb-2.5 font-semibold',
-                            index === 0 ? 'text-start' : 'text-end',
-                          ].join(' ')}
-                        >
-                          {t(`supplierCreditNotes.detail.col.${key}`)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {note.lines.map((line) => (
-                      <tr key={line.id}>
-                        <td className="py-4 pe-4">
-                          <p className="text-base font-semibold leading-[1.2] text-text-primary">
-                            {line.item}
-                          </p>
-                          <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                            {t(line.noteKey)}
-                          </p>
-                        </td>
-                        <td className="py-4 text-end text-sm font-medium text-text-secondary">
-                          {line.qty}
-                        </td>
-                        <td className="py-4 text-end text-sm font-medium text-text-secondary">
-                          <Omr className="me-1" />
-                          {line.unitPrice}
-                        </td>
-                        <td className="py-4 text-end text-sm font-medium text-text-secondary">
-                          {line.vat}
-                        </td>
-                        <td className="py-4 text-end text-sm font-semibold text-text-primary">
-                          −<Omr className="me-1" />
-                          {line.total}
-                        </td>
+          <section className="rounded-md bg-surface-card">
+            <h2 className="px-6 pt-6 text-xl font-medium leading-[1.2] text-text-secondary">
+              {t('supplierCreditNoteDetail.historyTitle')}
+            </h2>
+            {settlements.read.status === 'loading' ? <LoadingNotice /> : null}
+            {settlements.read.status === 'failed' ? (
+              <ApiReadFailure error={settlements.read.error} retry={settlements.retry} />
+            ) : null}
+            {settlements.read.status === 'ready' ? (
+              settlements.read.data.length === 0 ? (
+                <p className="px-6 py-10 text-sm font-medium text-text-quaternary">
+                  {/* Empty is a real state, not a gap: a note the V117 link governs has no explicit
+                      rows, and the facts above already say which bill it credits. */}
+                  {t('supplierCreditNoteDetail.noHistory')}
+                </p>
+              ) : (
+                <RowsView className="px-6 pb-6">
+                  <table className="w-full min-w-[680px] border-collapse text-start">
+                    <thead>
+                      <tr className="border-b border-surface-background text-[11px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
+                        {(['what', 'amount', 'when', 'reference'] as const).map((key) => (
+                          <th key={key} className="px-4 py-3 text-start font-semibold">
+                            {t(`supplierCreditNoteDetail.col.${key}`)}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {settlements.read.data.map((settlement) => (
+                        <tr key={settlement.id} className="border-b border-surface-background last:border-0">
+                          <td className="px-4 py-4 text-sm font-semibold text-text-secondary">
+                            {t(`supplierCreditNoteDetail.kind.${settlement.kind}`)}
+                          </td>
+                          <td className="px-4 py-4 text-sm font-medium tabular-nums text-text-secondary">
+                            {formatAmount(settlement.amount, row.currencyCode, language)}
+                          </td>
+                          <td className="px-4 py-4 text-sm font-medium text-text-tertiary">
+                            {formatDate(settlement.settledOn, language)}
+                            <span className="block text-xs text-text-quaternary">
+                              {t('supplierCreditNoteDetail.recorded', {
+                                when: formatInstantDay(settlement.occurredAt, language),
+                              })}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-sm font-medium text-text-tertiary">
+                            {settlement.billId ? (
+                              <Link to={`/expenditure/bills/${settlement.billId}`} className="font-semibold text-primary-700 hover:underline">
+                                {t('supplierCreditNoteDetail.againstBill')}
+                              </Link>
+                            ) : (
+                              (settlement.paymentReference ?? '—')
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </RowsView>
+              )
+            ) : null}
+          </section>
+        </>
+      ) : null}
+    </div>
+  )
+}
 
-              <dl className="ms-auto mt-2 w-full max-w-[360px]">
-                {[
-                  [t('supplierCreditNotes.detail.netCredited'), note.totals.net],
-                  [t('supplierCreditNotes.detail.vatRow'), note.totals.vat],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-4 py-1.5">
-                    <dt className="text-sm font-medium text-text-tertiary">{label}</dt>
-                    <dd className="text-sm font-semibold text-text-secondary tabular-nums">
-                      −<Omr className="me-1" />
-                      {value}
-                    </dd>
-                  </div>
-                ))}
-                <div className="mt-2 flex items-center justify-between gap-4 border-t border-surface-background pt-3.5">
-                  <dt className="text-base font-semibold text-text-primary">
-                    {t('supplierCreditNotes.detail.totalCredit')}
-                  </dt>
-                  <dd className="flex items-baseline gap-1 text-[22px] font-semibold leading-[1.2] text-text-primary tabular-nums">
-                    −<Omr />
-                    {note.totals.total}
-                  </dd>
-                </div>
-              </dl>
-            </Card>
+/**
+ * Apply and refund, side by side because they are alternatives: the credit either comes off a
+ * bill or comes back as money, and doing one leaves less of it for the other.
+ */
+function Dispositions({
+  noteId,
+  currency,
+  remaining,
+  supplierId,
+  supplierName,
+  onDone,
+  onFailure,
+}: {
+  noteId: string
+  currency: string
+  remaining: number
+  supplierId: string | null
+  supplierName: string | null
+  onDone: (key: string) => void
+  onFailure: (error: unknown) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const [busy, setBusy] = useState<'apply' | 'refund' | null>(null)
 
-            {/* Linked */}
-            <Card title={t('supplierCreditNotes.detail.linkedTitle')}>
-              <ul className="mt-2 flex flex-col">
-                {note.linked.map((doc, index) => (
-                  <li
-                    key={doc.id}
-                    className={[
-                      'flex items-center gap-3 py-3.5',
-                      index < note.linked.length - 1 ? 'border-b border-surface-background' : '',
-                    ].join(' ')}
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-background">
-                      <img src={LINKED_ICON[doc.icon]} alt="" className="size-[18px]" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm leading-[1.3]">
-                        {doc.to ? (
-                          <Link
-                            to={doc.to}
-                            className="font-semibold text-primary-700 hover:underline"
-                          >
-                            {doc.title}
-                          </Link>
-                        ) : (
-                          <span className="font-semibold text-text-primary">{doc.title}</span>
-                        )}
-                        {doc.to ? (
-                          <span className="font-semibold text-text-primary">
-                            {' '}
-                            · {t(doc.kindKey)}
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                        {t(doc.detailKey)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+  // The bill to apply against is searched rather than typed: the endpoint wants an id, and asking
+  // a person to copy a UUID is how the wrong bill gets credited.
+  const [search, setSearch] = useState('')
+  const [chosen, setChosen] = useState<{ id: string; label: string } | null>(null)
+  /*
+   * Only this supplier's bills are offerable. `CreditNoteApplyGuard.requireSameSupplier` refuses
+   * any other outright, so an option from a second supplier is a click that can only ever fail.
+   *
+   * The server narrows, via `supplier_id`. Filtering the returned page here instead would drop
+   * matches that fell past the page boundary and show "nothing found" for a bill that exists.
+   */
+  const billsPath = billListPath({
+    filter: 'ALL',
+    q: search.trim(),
+    source: null,
+    sort: 'NEWEST',
+    supplierId,
+    page: 0,
+    pageSize: 10,
+  })
+  const bills = useApiRead<Page<BillRowDto>>(search.trim().length >= 2 ? billsPath : null, () => loadBillPage(billsPath))
 
-            {/* Activity */}
-            <Card title={t('supplierCreditNotes.detail.activityTitle')}>
-              <ol className="mt-3 flex flex-col">
-                {note.activity.map((entry, index) => (
-                  <li key={entry.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <span
-                        className={[
-                          'flex size-6 shrink-0 items-center justify-center rounded-full',
-                          entry.tone === 'current' ? 'bg-primary-50' : 'bg-success-100',
-                        ].join(' ')}
-                      >
-                        {entry.tone === 'current' ? (
-                          <span className="h-[2px] w-2.5 rounded-full bg-primary-700" />
-                        ) : (
-                          <img src={stepDoneIcon} alt="" className="size-3" />
-                        )}
-                      </span>
-                      {index < note.activity.length - 1 ? (
-                        <span className="w-px flex-1 bg-border-subtle" />
-                      ) : null}
-                    </div>
-                    <div className={index < note.activity.length - 1 ? 'pb-5' : ''}>
-                      <p className="text-sm font-semibold leading-[1.3] text-text-primary">
-                        {t(entry.titleKey)}
-                      </p>
-                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                        {withRial(t(entry.detailKey))}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </Card>
-          </div>
+  /*
+   * And again over what came back, on id then name, the same order the server's guard uses. Not
+   * redundant: a note whose own supplier was never resolved to a record has no id to narrow by,
+   * and this is what fails closed for it, exactly as the guard does.
+   */
+  const ownBill = (bill: BillRowDto) => {
+    if (supplierId !== null && bill.supplierId !== null) return bill.supplierId === supplierId
+    if (supplierName !== null && bill.supplierName !== null) {
+      return bill.supplierName.trim().toLowerCase() === supplierName.trim().toLowerCase()
+    }
+    return false
+  }
 
-          {/* Right column */}
-          <aside className="flex w-full flex-col gap-4 xl:w-[340px] xl:shrink-0">
-            {/* The decision */}
-            <section className="rounded-md border border-primary-300 bg-primary-25 p-5">
-              <p className="flex items-center gap-2 text-base font-semibold leading-[1.2] text-primary-700">
-                <img src={decisionIcon} alt="" className="size-5" />
-                {t('supplierCreditNotes.detail.yourDecision')}
-              </p>
-              <p className="mt-3 flex items-baseline gap-1.5 text-[28px] font-semibold leading-[1.2] text-text-primary">
-                −<Omr />
-                {note.credit}
-              </p>
-              <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
-                {decided
-                  ? withRial(
-                      t('supplierCreditNotes.detail.decisionTaken', { what: t(decided.doneKey) }),
-                    )
-                  : t('supplierCreditNotes.detail.decisionNote', { bill: note.corrects })}
-              </p>
+  /*
+   * The rest of what the guard refuses as a target, so the list offers nothing that cannot work:
+   *
+   * - a credit note, itself included — nothing is owed ON one, so there is nothing to reduce
+   *   (`CREDIT_NOTE_TARGET_NOT_PAYABLE`);
+   * - a bill already settled — the amount would come out at zero
+   *   (`CREDIT_NOTE_APPLY_EXCEEDS_BILL`, "nothing to apply").
+   *
+   * A supplier's DEBIT note is deliberately still offered. It is the one type in IBR-023-OM's trio
+   * that adds to what is owed, so a credit legitimately reduces it, and the server allows it.
+   */
+  const CREDIT_NOTE_CODES = ['381', '261']
+  const creditable = (bill: BillRowDto) =>
+    ownBill(bill) &&
+    bill.id !== noteId &&
+    !CREDIT_NOTE_CODES.includes(bill.documentTypeCode ?? '') &&
+    bill.outstandingAmount > 0
 
-              {decided ? (
-                <button
-                  type="button"
-                  onClick={() => setDecision(null)}
-                  className="mt-4 inline-flex h-[46px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-                >
-                  {t('supplierCreditNotes.detail.undo')}
-                </button>
-              ) : (
-                <>
+  const [applyAmount, setApplyAmount] = useState('')
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundDate, setRefundDate] = useState('')
+  const [refundReference, setRefundReference] = useState('')
+
+  const parsed = (value: string) => {
+    const amount = Number(value)
+    return value.trim() !== '' && Number.isFinite(amount) && amount > 0 ? amount : null
+  }
+  const applyOver = parsed(applyAmount) !== null && parsed(applyAmount)! > remaining
+  const refundOver = parsed(refundAmount) !== null && parsed(refundAmount)! > remaining
+
+  const run = async (which: 'apply' | 'refund', call: () => Promise<unknown>, doneKey: string) => {
+    setBusy(which)
+    try {
+      await call()
+      onDone(doneKey)
+      setApplyAmount('')
+      setRefundAmount('')
+      setRefundReference('')
+      setChosen(null)
+      setSearch('')
+    } catch (error) {
+      onFailure(error)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('supplierCreditNoteDetail.applyTitle')}</h2>
+        <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">
+          {t('supplierCreditNoteDetail.applyNote')}
+        </p>
+
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold text-text-quaternary">{t('supplierCreditNoteDetail.findBill')}</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              setChosen(null)
+            }}
+            placeholder={supplierName ?? t('supplierCreditNoteDetail.findBillPlaceholder')}
+            className={`${FIELD} mt-1`}
+          />
+        </label>
+
+        {chosen ? (
+          <p className="mt-2 text-sm font-semibold text-text-secondary">
+            {t('supplierCreditNoteDetail.chosen', { bill: chosen.label })}{' '}
+            <button type="button" onClick={() => setChosen(null)} className="font-semibold text-primary-700 hover:underline">
+              {t('supplierCreditNoteDetail.change')}
+            </button>
+          </p>
+        ) : bills.read.status === 'ready' ? (
+          bills.read.data.items.filter(creditable).length === 0 ? (
+            <p className="mt-2 text-sm font-medium text-text-quaternary">
+              {/* Says whose bills were looked through, so "nothing" does not read as a broken search. */}
+              {supplierName === null
+                ? t('supplierCreditNoteDetail.noBills')
+                : t('supplierCreditNoteDetail.noBillsForSupplier', { supplier: supplierName })}
+            </p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1">
+              {bills.read.data.items.filter(creditable).map((bill) => (
+                <li key={bill.id}>
                   <button
                     type="button"
-                    onClick={() => setDecision('setAgainst')}
-                    className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                    onClick={() =>
+                      setChosen({
+                        id: bill.id,
+                        label: `${bill.supplierBillNumber ?? t('supplierCreditNotes.rows.unnumbered')} · ${bill.supplierName ?? ''}`.trim(),
+                      })
+                    }
+                    className="w-full rounded-sm px-3 py-2 text-start text-sm font-medium text-text-secondary hover:bg-primary-25"
                   >
-                    <img src={setIcon} alt="" className="size-5" />
-                    {t('supplierCreditNotes.detail.setAgainst')}
-                  </button>
-                  <div className="mt-2.5 flex gap-2.5">
-                    {DECISIONS.slice(1).map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setDecision(option.id)}
-                        className="inline-flex h-[42px] flex-1 items-center justify-center rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-primary-300 hover:bg-white"
-                      >
-                        {t(option.labelKey)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </section>
-
-            {/* VAT */}
-            <Card title={t('supplierCreditNotes.detail.vatEffect')}>
-              <dl className="mt-3 flex flex-col">
-                {[
-                  [t('supplierCreditNotes.detail.vatClaimed'), note.vat.claimed, false],
-                  [t('supplierCreditNotes.detail.vatReduced'), note.vat.reduced, true],
-                  [t('supplierCreditNotes.detail.vatReclaimable'), note.vat.reclaimable, false],
-                ].map(([label, value, negative], index) => (
-                  <div
-                    key={String(label)}
-                    className={[
-                      'flex items-center justify-between gap-3 py-2.5',
-                      index < 2 ? 'border-b border-surface-background' : '',
-                    ].join(' ')}
-                  >
-                    <dt className="text-sm font-medium leading-[1.3] text-text-tertiary">
-                      {String(label)}
-                    </dt>
-                    <dd className="shrink-0 text-sm font-semibold text-text-primary tabular-nums">
-                      {negative ? '−' : null}
-                      <Omr className="me-1" />
-                      {String(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-3 flex items-start gap-2 rounded-sm bg-surface-background p-3 text-xs font-medium leading-[1.4] text-text-tertiary">
-                <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
-                {t('supplierCreditNotes.detail.vatNote')}
-              </p>
-            </Card>
-
-            {/* Compliance */}
-            <Card title={t('supplierCreditNotes.detail.complianceTitle')}>
-              <ul className="mt-3 flex flex-col gap-2.5">
-                {note.compliance.map((key) => (
-                  <li key={key} className="flex items-start gap-2">
-                    <img src={tickIcon} alt="" className="mt-px size-4 shrink-0" />
-                    <span className="text-sm font-medium leading-[1.4] text-text-secondary">
-                      {t(key)}
+                    {bill.supplierBillNumber ?? t('supplierCreditNotes.rows.unnumbered')}
+                    <span className="block text-xs text-text-quaternary">
+                      {bill.supplierName} · {formatAmount(bill.outstandingAmount, bill.currencyCode, language)}{' '}
+                      {t('supplierCreditNoteDetail.stillOwed')}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
 
-            {/* Supplier */}
-            <Card title={t('supplierCreditNotes.detail.supplierTitle')}>
-              <dl className="mt-3 flex flex-col">
-                {[
-                  [t('supplierCreditNotes.detail.supplierName'), note.supplierCard.name],
-                  [t('supplierCreditNotes.detail.supplierVat'), note.supplierCard.vat],
-                  [t('supplierCreditNotes.detail.openBills'), note.supplierCard.openBills],
-                  [t('supplierCreditNotes.detail.creditNotes'), t(note.supplierCard.creditNotes)],
-                  [
-                    t('supplierCreditNotes.detail.shortDeliveries'),
-                    note.supplierCard.shortDeliveries,
-                  ],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-3 py-2">
-                    <dt className="text-sm font-medium leading-[1.3] text-text-tertiary">
-                      {label}
-                    </dt>
-                    <dd className="shrink-0 text-sm font-semibold text-text-primary">
-                      {withRial(value)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </Card>
-          </aside>
-        </div>
-      </div>
-    </AppShell>
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold text-text-quaternary">{t('supplierCreditNoteDetail.amountOptional')}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={applyAmount}
+            onChange={(event) => setApplyAmount(event.target.value)}
+            placeholder={formatAmount(remaining, currency, language)}
+            aria-invalid={applyOver}
+            className={`${FIELD} mt-1`}
+          />
+        </label>
+        {applyOver ? (
+          <p role="alert" className="mt-1 text-sm font-medium text-warning-700">
+            {t('supplierCreditNoteDetail.overRemaining', { amount: formatAmount(remaining, currency, language) })}
+          </p>
+        ) : (
+          <p className="mt-1 text-xs font-medium text-text-quaternary">{t('supplierCreditNoteDetail.amountBlankNote')}</p>
+        )}
+
+        <button
+          type="button"
+          disabled={chosen === null || applyOver || busy !== null}
+          onClick={() =>
+            void run('apply', () => applyCreditNote(noteId, chosen!.id, parsed(applyAmount)), 'supplierCreditNoteDetail.appliedDone')
+          }
+          className="mt-4 inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-50"
+        >
+          {t(busy === 'apply' ? 'common.saving' : 'supplierCreditNoteDetail.applyCta')}
+        </button>
+      </section>
+
+      <section className="rounded-md bg-surface-card p-6">
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('supplierCreditNoteDetail.refundTitle')}</h2>
+        <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">
+          {t('supplierCreditNoteDetail.refundNote')}
+        </p>
+
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold text-text-quaternary">{t('supplierCreditNoteDetail.amount')}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={refundAmount}
+            onChange={(event) => setRefundAmount(event.target.value)}
+            aria-invalid={refundOver}
+            className={`${FIELD} mt-1`}
+          />
+        </label>
+        {refundOver ? (
+          <p role="alert" className="mt-1 text-sm font-medium text-warning-700">
+            {t('supplierCreditNoteDetail.overRemaining', { amount: formatAmount(remaining, currency, language) })}
+          </p>
+        ) : null}
+
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold text-text-quaternary">{t('supplierCreditNoteDetail.paidOn')}</span>
+          <input type="date" value={refundDate} onChange={(event) => setRefundDate(event.target.value)} className={`${FIELD} mt-1`} />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold text-text-quaternary">{t('supplierCreditNoteDetail.referenceOptional')}</span>
+          <input
+            type="text"
+            maxLength={200}
+            value={refundReference}
+            onChange={(event) => setRefundReference(event.target.value)}
+            className={`${FIELD} mt-1`}
+          />
+        </label>
+
+        <button
+          type="button"
+          disabled={parsed(refundAmount) === null || refundOver || refundDate === '' || busy !== null}
+          onClick={() =>
+            void run(
+              'refund',
+              () => refundCreditNote(noteId, parsed(refundAmount)!, refundDate, refundReference.trim() || null),
+              'supplierCreditNoteDetail.refundedDone',
+            )
+          }
+          className="mt-4 inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary hover:bg-primary-25 disabled:opacity-50"
+        >
+          {t(busy === 'refund' ? 'common.saving' : 'supplierCreditNoteDetail.refundCta')}
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function Figure({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="rounded-md bg-surface-card p-5">
+      <p className="text-sm font-medium text-text-quaternary">{label}</p>
+      <p
+        className={[
+          'mt-1 tabular-nums leading-[1.2]',
+          strong ? 'text-[28px] font-semibold text-text-secondary' : 'text-xl font-medium text-text-tertiary',
+        ].join(' ')}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function Fact({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase tracking-[0.6px] text-text-quaternary">{label}</dt>
+      <dd className="mt-1 text-sm font-medium text-text-secondary">{value}</dd>
+    </div>
   )
 }

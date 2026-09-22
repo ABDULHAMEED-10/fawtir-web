@@ -14,6 +14,7 @@ import { customerListPath, loadCustomerPage, type CustomerDto, type CustomerType
 import {
   BRANCHES_PATH,
   createDraft,
+  createSelfBilledDraft,
   discardDraft,
   loadBranches,
   loadDraft,
@@ -235,7 +236,27 @@ function FieldError({ children }: { children: ReactNode }) {
 export function CreateInvoicePage() {
   return (
     <AppShell>
-      <InvoiceComposer />
+      <InvoiceComposer selfBilled={false} />
+    </AppShell>
+  )
+}
+
+/**
+ * The same composer, writing a self-billed invoice (389) instead (I-12).
+ *
+ * A mode rather than a second editor. The server takes the identical draft body on both routes,
+ * so a second 1,200-line composer would be a second place for the line arithmetic, the VAT
+ * handling, the stale-version handling and the issue flow to drift — and it is the drifting copy
+ * that eventually issues a wrong document.
+ *
+ * What genuinely differs is small and stated here: the create route and its permission, the two
+ * references only a self-billed document may carry (IBT-010, IBT-012), and that the counterparty
+ * is the SELLER — this document records what the tenant owes, not what it is owed.
+ */
+export function SelfBilledComposerPage() {
+  return (
+    <AppShell>
+      <InvoiceComposer selfBilled />
     </AppShell>
   )
 }
@@ -254,13 +275,15 @@ type PreviewState =
  * payment at creation and "mark as sent" (payments), linked documents (order forms), the project
  * (no backend field) and attachments (a draft must exist first). Issuing saves first, then confirms.
  */
-function InvoiceComposer() {
+function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const session = useSession()
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const canSave = can(session, 'invoice.draft')
+  // `selfbilling.create`, not `invoice.draft`: writing an invoice on someone else's behalf is a
+  // different authority from writing your own, and the server keeps them apart.
+  const canSave = can(session, selfBilled ? 'selfbilling.create' : 'invoice.draft')
   const canIssue = canSave && can(session, 'invoice.issue')
   const canReadNote = can(session, 'invoice.internal-note.read')
 
@@ -447,15 +470,21 @@ function InvoiceComposer() {
     }
     setSaving(true)
     setNotice(null)
-    const body = toDraftRequest(form, exclVat)
+    const body = toDraftRequest(form, exclVat, selfBilled)
     try {
-      const result = meta ? await saveDraft(meta.id, meta.version, body) : await createDraft(newIdempotencyKey(), body)
+      const result = meta
+        ? await saveDraft(meta.id, meta.version, body)
+        : selfBilled
+          ? await createSelfBilledDraft(newIdempotencyKey(), body)
+          : await createDraft(newIdempotencyKey(), body)
       const saved: DraftMeta = { id: result.id, version: result.version, state: result.authoringState }
       setMeta(saved)
       setDirty(false)
       if (!meta) {
         justCreated.current = result.id
-        navigate(`/invoices/${result.id}/edit`, { replace: true })
+        navigate(selfBilled ? `/income/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`, {
+          replace: true,
+        })
       }
       void runPreview(result.id)
       return saved
@@ -539,19 +568,30 @@ function InvoiceComposer() {
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-28">
       <div className="flex flex-wrap items-center gap-2">
-        <Link to="/invoices" className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary">
-          {t('createInvoice.breadcrumb')}
+        <Link
+          to={selfBilled ? '/income/self-billing' : '/invoices'}
+          className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary"
+        >
+          {t(selfBilled ? 'selfBilledComposer.breadcrumb' : 'createInvoice.breadcrumb')}
           <img src={backIcon} alt="" className="size-6 rotate-180 rtl:rotate-0" />
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {meta ? t('invoiceDraft.editTitle') : t('createInvoice.title')}
+            {selfBilled
+              ? t(meta ? 'selfBilledComposer.editTitle' : 'selfBilledComposer.title')
+              : t(meta ? 'invoiceDraft.editTitle' : 'createInvoice.title')}
           </h1>
           <span className="text-sm font-medium text-[#8f8f8f]">
             {meta ? t('invoiceDraft.meta.saved') : t('invoiceDraft.meta.new')}
           </span>
         </div>
       </div>
+
+      {selfBilled ? (
+        <p className="rounded-md bg-primary-25 p-3 text-sm font-medium leading-[1.5] text-primary-800">
+          {t('selfBilledComposer.explainer')}
+        </p>
+      ) : null}
 
       {meta && meta.state !== 'DRAFT' ? (
         <Notice body={t('invoiceDraft.notEditable', { state: t(`invoiceDraft.state.${meta.state}`) })} />
@@ -572,7 +612,10 @@ function InvoiceComposer() {
       {/* 1 Customer + Summary */}
       <div className="grid gap-4 xl:grid-cols-[1fr_332px]">
         <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
-          <SectionTitle step={1} title={t('createInvoice.sections.customer')} />
+          <SectionTitle
+            step={1}
+            title={t(selfBilled ? 'selfBilledComposer.sections.seller' : 'createInvoice.sections.customer')}
+          />
           <div className="h-px w-full bg-border-subtle" />
           <div className="grid gap-3 sm:grid-cols-3">
             {customerTypes.map((type) => {
@@ -753,6 +796,47 @@ function InvoiceComposer() {
               </FieldShell>
             </div>
           </div>
+
+          {/*
+            IBT-010 and IBT-012, and only here. On every other document the buyer is the customer
+            and both come from the customer record, so the server refuses them outright
+            (BUYER_REFERENCES_NOT_SELF_BILLED). On a self-billed document the tenant IS the buyer,
+            which makes this the only place those references can come from.
+          */}
+          {selfBilled ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('selfBilledComposer.fields.buyerReference')} />
+                <FieldShell>
+                  <input
+                    value={form.buyerReference}
+                    onChange={(e) => change({ buyerReference: e.target.value })}
+                    maxLength={200}
+                    aria-label={t('selfBilledComposer.fields.buyerReference')}
+                    className="w-full border-0 bg-transparent text-sm font-medium text-text-secondary outline-none"
+                  />
+                </FieldShell>
+                <p className="text-xs font-medium text-text-quaternary">
+                  {t('selfBilledComposer.fields.buyerReferenceHint')}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('selfBilledComposer.fields.contractReference')} />
+                <FieldShell>
+                  <input
+                    value={form.contractReference}
+                    onChange={(e) => change({ contractReference: e.target.value })}
+                    maxLength={200}
+                    aria-label={t('selfBilledComposer.fields.contractReference')}
+                    className="w-full border-0 bg-transparent text-sm font-medium text-text-secondary outline-none"
+                  />
+                </FieldShell>
+                <p className="text-xs font-medium text-text-quaternary">
+                  {t('selfBilledComposer.fields.contractReferenceHint')}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         {form.customerType === 'consumer' ? (
@@ -1110,7 +1194,7 @@ function CustomerCard({ kind, customer, onPick }: { kind: CustomerKind; customer
     return () => window.clearTimeout(timer)
   }, [typed])
 
-  const path = query === null ? null : customerListPath({ type: CUSTOMER_TYPE[kind], search: query, sort: 'NAME_ASC', page: 0, size: 20 })
+  const path = query === null ? null : customerListPath({ type: CUSTOMER_TYPE[kind], search: query, sort: 'NAME_ASC', page: 0, size: 25 })
   const found = useApiRead<Page<CustomerDto>>(path, () => loadCustomerPage(path!))
   const candidates = found.read.status === 'ready' ? found.read.data.items : []
   const vat = customer?.profile.details?.vatRegistrationNumber ?? null

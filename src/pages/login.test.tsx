@@ -97,7 +97,7 @@ async function fillLogin(username = 'hafidh.saif', password = PASSWORD) {
 }
 
 function holdChallenge(msFromNow = 300_000) {
-  holdLoginChallenge({ token: CHALLENGE_TOKEN, expiresAt: Date.now() + msFromNow })
+  holdLoginChallenge({ token: CHALLENGE_TOKEN, expiresAt: Date.now() + msFromNow, factor: 'EMAIL_OTP', state: null })
 }
 
 async function typeCode(code: string) {

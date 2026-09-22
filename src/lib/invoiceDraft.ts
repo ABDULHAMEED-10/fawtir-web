@@ -47,6 +47,13 @@ export type DraftForm = {
   headerDiscountType: DiscountType
   headerDiscountValue: string
   lines: DraftLine[]
+  /**
+   * IBT-010 and IBT-012 — the tenant's OWN references as buyer. Self-billed documents only; on
+   * every other document the buyer is the customer and the server refuses these outright
+   * (`BUYER_REFERENCES_NOT_SELF_BILLED`), so they are sent only when `selfBilled` is set.
+   */
+  buyerReference: string
+  contractReference: string
 }
 
 /** Categories the server prices only with a reason (`TaxCategoryInput`, `EXEMPTION_REASON_REQUIRED`). */
@@ -85,6 +92,8 @@ export function blankDraftForm(): DraftForm {
     headerDiscountType: 'PERCENTAGE',
     headerDiscountValue: '0',
     lines: [blankDraftLine()],
+    buyerReference: '',
+    contractReference: '',
   }
 }
 
@@ -99,7 +108,11 @@ export function taxOptionOf(line: Pick<DraftLine, 'taxCode' | 'vatRate'>) {
 const text = (value: string) => (value.trim() === '' ? null : value.trim())
 const number = (value: string) => Number((value || '0').replace(/,/g, ''))
 
-export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest {
+/**
+ * @param selfBilled sends IBT-010 and IBT-012. Omitted on every other document, because the
+ *                   server refuses them there rather than dropping them quietly.
+ */
+export function toDraftRequest(form: DraftForm, exclVat: boolean, selfBilled = false): DraftRequest {
   const terms = PAYMENT_TERMS_OPTIONS.find((option) => option.value === form.paymentTerms)
   return {
     customerId: form.customerId ?? '',
@@ -134,6 +147,9 @@ export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest 
       ...(form.internalNote === null ? {} : { internalNote: form.internalNote }),
       paymentTerms: terms ? { code: terms.value, label: terms.label } : null,
       transactionType: form.customerType === 'consumer' ? 'SIMPLIFIED' : 'FULL_TAX',
+      ...(selfBilled
+        ? { buyerReference: text(form.buyerReference), contractReference: text(form.contractReference) }
+        : {}),
     },
   }
 }
@@ -154,6 +170,10 @@ export function fromDraftResponse(draft: DraftResponse, customerType: CustomerKi
     purchaseOrder: draft.details.purchaseOrderReference ?? '',
     customerNote: draft.details.customerVisibleNote ?? '',
     internalNote: null,
+    // Read back deliberately. The draft PUT replaces the whole draft, so a reference the read
+    // left out would be cleared by the next save — the server's own DTO says exactly this.
+    buyerReference: draft.details.buyerReference ?? '',
+    contractReference: draft.details.contractReference ?? '',
     headerDiscountType: draft.headerDiscount.type,
     headerDiscountValue: String(Number(draft.headerDiscount.value)),
     lines: draft.lines.map((line) => {

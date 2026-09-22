@@ -1,0 +1,125 @@
+import { COMPANIES_PATH, REVIEW_PERMISSION, VERIFICATION_ROUTE } from './companyVerification'
+import type { IdentityStatus, TenantStatus, VerificationStatus } from './companyVerification'
+
+/**
+ * `GET /api/v1/platform/companies/{tenantId}/overview` — the platform's read model for one
+ * CUSTOMER tenant. Guarded by the same permission as the rest of that surface, so the console
+ * reuses {@link REVIEW_PERMISSION} rather than naming a second one.
+ *
+ * The backend answers 404 for an internal realm exactly as for an unknown id, so there is
+ * nothing for the client to filter: it renders what it is given.
+ */
+export const TENANT_OVERVIEW_PERMISSION = REVIEW_PERMISSION
+
+export function tenantOverviewPath(tenantId: string): string {
+  return `${COMPANIES_PATH}/${tenantId}/overview`
+}
+
+/** Where a company still awaiting a decision is reviewed. Tenant Detail links, never decides. */
+export function verificationRouteFor(tenantId: string): string {
+  return `${VERIFICATION_ROUTE}/${tenantId}`
+}
+
+/** `PlatformTenantOverview.Identity`. */
+export type OverviewIdentity = {
+  tenantId: string
+  tenantCode: string
+  tenantName: string
+  tenantStatus: TenantStatus | null
+  identityStatus: IdentityStatus | null
+}
+
+/**
+ * `PlatformTenantOverview.Company`. The registered address arrives as its parts because
+ * IBR-010-OM treats them as a unit; joining them for display is the caller's choice.
+ */
+export type OverviewCompany = {
+  legalName: string | null
+  legalNameAr: string | null
+  tradingName: string | null
+  commercialRegistrationNumber: string | null
+  taxNumber: string | null
+  country: string | null
+  registeredAddressLine1: string | null
+  registeredAddressLine2: string | null
+  registeredAddressLine3: string | null
+  registeredCity: string | null
+  registeredPostalCode: string | null
+  registeredCountrySubdivision: string | null
+  registeredPoBox: string | null
+  timezone: string | null
+  contactPersonName: string | null
+  contactPhone: string | null
+  contactEmail: string | null
+}
+
+/** `PlatformTenantOverview.Verification`. `evidenceRecorded` only — never the reference. */
+export type OverviewVerification = {
+  status: VerificationStatus
+  method: 'MANUAL_ATTESTATION' | null
+  rejectionReason: string | null
+  attestationReference: string | null
+  evidenceRecorded: boolean
+  profileRevision: number
+  submittedAt: string | null
+  submittedBy: string | null
+  decidedAt: string | null
+  decidedBy: string | null
+}
+
+/**
+ * `PlatformTenantOverview.Subscription`.
+ *
+ * `monthlyPrice` is the plan's configured price. It is not an amount invoiced, collected or
+ * owed, and must never be labelled payment, revenue or MRR. `invoicesPerMonth` is the plan's
+ * allowance and is not consumption — the backend can compute consumption and deliberately does
+ * not publish it here, so the console must not infer it either.
+ */
+export type OverviewSubscription = {
+  planCode: string | null
+  planName: string | null
+  monthlyPrice: string | number | null
+  invoicesPerMonth: number
+  overageEnabled: boolean
+  implicitDefault: boolean
+  startedOn: string | null
+  changedAt: string | null
+}
+
+/**
+ * `PlatformTenantOverview.Operational`. `ready` means the tenant may enter invoice submission
+ * and SMP entry points — not filing health, activity or certificate state, none of which the
+ * domain defines.
+ */
+export type OverviewOperational = {
+  ready: boolean
+  reasonCode: string | null
+}
+
+export type TenantOverview = {
+  identity: OverviewIdentity
+  company: OverviewCompany
+  verification: OverviewVerification
+  subscription: OverviewSubscription
+  operational: OverviewOperational
+}
+
+/** The monogram the header draws. Derived from the real name, never from a fixture. */
+export function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return '—'
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
+}
+
+/** The address parts the backend actually returned, in order, joined for one line of display. */
+export function addressLine(company: OverviewCompany): string[] {
+  return [
+    company.registeredAddressLine1,
+    company.registeredAddressLine2,
+    company.registeredAddressLine3,
+    company.registeredCity,
+    company.registeredCountrySubdivision,
+    company.registeredPostalCode,
+  ].filter((part): part is string => Boolean(part && part.trim()))
+}

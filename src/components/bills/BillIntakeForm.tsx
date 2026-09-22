@@ -12,6 +12,7 @@ import {
   discardIntake,
   possibleDuplicateOf,
   type ConfirmedBillDto,
+  type IntakeDocumentTypeDto,
   type IntakeDto,
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
@@ -62,12 +63,19 @@ export function BillIntakeForm({
   lockedSupplier,
   cancelTo,
   onSaved,
+  documentTypeCode = '380',
 }: {
   intake: IntakeDto
   file: File
   lockedSupplier?: { id: string; name: string; vatNumber: string | null }
   cancelTo: string
   onSaved: (bill: ConfirmedBillDto) => void
+  /**
+   * What is being confirmed. The same form serves all three because the fields are the same —
+   * a supplier, a number, a date, lines and a total — but the type decides which way the money
+   * points, so it is stated by the caller rather than guessed from the file.
+   */
+  documentTypeCode?: IntakeDocumentTypeDto
 }) {
   const { t, i18n } = useTranslation()
   const [form, setForm] = useState<BillForm>(() => {
@@ -112,7 +120,7 @@ export function BillIntakeForm({
     setBusy(true)
     setNotice(null)
     try {
-      onSaved(await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf })))
+      onSaved(await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf, documentTypeCode })))
     } catch (failure) {
       const same = possibleDuplicateOf(failure)
       if (same) {

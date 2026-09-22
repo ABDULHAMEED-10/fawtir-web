@@ -2,6 +2,12 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  createPlatformCompany,
+  newPlatformCompanyKey,
+  type PlatformCompanyRequestDto,
+} from '../../api/platform/companies'
+import { ApiError } from '../../api/errors'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import {
@@ -21,9 +27,7 @@ import {
   TENANT_IDENTITIES,
   periodAmount,
   planLabelKey,
-  subscriptionsStore,
   withVat,
-  type OnboardInput,
   type PaymentMethod,
   type SubscriptionPlanId,
   type Term,
@@ -67,6 +71,9 @@ const TOWNS = [...new Set(Object.values(TENANT_IDENTITIES).map((tenant) => tenan
 )
 
 type Draft = {
+  tenantCode: string
+  country: string
+  registeredAddress: string
   legalName: string
   tradingName: string
   cr: string
@@ -88,6 +95,9 @@ type Draft = {
 }
 
 type FieldName =
+  | 'tenantCode'
+  | 'country'
+  | 'registeredAddress'
   | 'legalName'
   | 'tradingName'
   | 'cr'
@@ -105,7 +115,17 @@ type FieldName =
   | 'reference'
 
 const ORDER: Record<Exclude<Step, 'review'>, FieldName[]> = {
-  company: ['legalName', 'tradingName', 'cr', 'vat', 'town', 'businessType'],
+  company: [
+    'legalName',
+    'tradingName',
+    'tenantCode',
+    'cr',
+    'vat',
+    'country',
+    'registeredAddress',
+    'town',
+    'businessType',
+  ],
   owner: ['ownerName', 'ownerPhone', 'ownerEmail'],
   plan: ['plan', 'term', 'method', 'amount', 'receivedOn', 'reference'],
 }
@@ -132,6 +152,17 @@ function validate(step: Exclude<Step, 'review'>, draft: Draft, t: TFunction): Er
   const required = t('validation.required')
   if (step === 'company') {
     if (!draft.legalName.trim()) errors.legalName = required
+    const code = draft.tenantCode.trim().toUpperCase()
+    if (!code) errors.tenantCode = required
+    // The server's own pattern, checked here so the operator is told on the field rather than
+    // by a 400 after the review step.
+    else if (!/^[A-Z][A-Z0-9_-]{0,49}$/.test(code)) errors.tenantCode = t('validation.tenantCode')
+    const country = draft.country.trim().toUpperCase()
+    if (!country) errors.country = required
+    else if (!/^[A-Z]{2}$/.test(country)) errors.country = t('validation.country')
+    if (!draft.registeredAddress.trim()) errors.registeredAddress = required
+    else if (draft.registeredAddress.trim().length > 500)
+      errors.registeredAddress = t('validation.tooLong')
     if (!draft.tradingName.trim()) errors.tradingName = required
     const cr = draft.cr.replace(/\s/g, '')
     if (!cr) errors.cr = required
@@ -171,6 +202,22 @@ function validate(step: Exclude<Step, 'review'>, draft: Draft, t: TFunction): Er
 
 const hasErrors = (errors: Errors<FieldName>) => Object.values(errors).some(Boolean)
 
+/**
+ * What the operator is told when the create is refused.
+ *
+ * A 409 is the interesting one: it means this key already onboarded a different company, or
+ * the code or tax number belongs to a business that exists. Either way a retry of the same
+ * form cannot succeed, so the message says to change the details rather than to try again.
+ */
+function describeCreateFailure(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError) {
+    if (error.status === 409) return t('console.onboard.error.conflict')
+    if (error.status === 403) return t('console.onboard.error.forbidden')
+    if (error.status === 400) return t('console.onboard.error.validation')
+  }
+  return t('console.onboard.error.unexpected')
+}
+
 /* -------------------------------------------------------------------- page */
 
 /**
@@ -184,6 +231,11 @@ export function ConsoleOnboardPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>('company')
   const [draft, setDraft] = useState<Draft>({
+    tenantCode: '',
+    // The only field with a sensible default: every business onboarded at the desk is Omani,
+    // and the operator can still change it.
+    country: 'OM',
+    registeredAddress: '',
     legalName: '',
     tradingName: '',
     cr: '',
@@ -204,6 +256,12 @@ export function ConsoleOnboardPage() {
     activate: true,
   })
   const [errors, setErrors] = useState<Errors<FieldName>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [submitFailure, setSubmitFailure] = useState<string | null>(null)
+  // Minted once for the life of this form, never per click. A second submit carries the key
+  // the first one did, so the backend answers with the company it already created rather than
+  // creating a second one.
+  const [idempotencyKey] = useState(newPlatformCompanyKey)
 
   const stepIndex = STEPS.indexOf(step)
   const patch = (change: Partial<Draft>) => {
@@ -237,7 +295,10 @@ export function ConsoleOnboardPage() {
     goTo(STEPS[stepIndex + 1])
   }
 
-  const create = () => {
+  const create = async () => {
+    // A resubmit while the first request is still in flight is the one case the key cannot
+    // help with -- the server has not answered yet -- so it is refused here.
+    if (submitting) return
     // Nothing reaches the ledger with a hole in it: a step edited after review is re-checked.
     for (const earlier of ['company', 'owner', 'plan'] as const) {
       const found = validate(earlier, draft, t)
@@ -247,36 +308,28 @@ export function ConsoleOnboardPage() {
         return
       }
     }
-    const digits = draft.ownerPhone.replace(/\D/g, '')
-    const received = dateOf(draft.receivedOn)
-    const input: OnboardInput = {
+    const request: PlatformCompanyRequestDto = {
+      tenantCode: draft.tenantCode.trim().toUpperCase(),
+      tenantName: draft.tradingName.trim(),
       legalName: draft.legalName.trim(),
-      tradingName: draft.tradingName.trim(),
-      cr: draft.cr.replace(/\s/g, ''),
-      vat: draft.vat.replace(/\s/g, '').toUpperCase(),
-      town: draft.town,
-      businessType: draft.businessType,
-      owner: {
-        name: draft.ownerName.trim(),
-        phone: `+968 ${digits.slice(0, 4)} ${digits.slice(4)}`,
-        email: draft.ownerEmail.trim(),
-      },
-      plan: draft.plan,
-      term: draft.term,
-      method: draft.method,
-      payment:
-        draft.paidNow && received
-          ? {
-              amount: parseAmount(draft.amount),
-              receivedOn: received,
-              reference: draft.reference.trim() || undefined,
-              note: draft.note.trim() || undefined,
-              activate: draft.activate,
-            }
-          : undefined,
+      taxNumber: draft.vat.replace(/s/g, '').toUpperCase(),
+      commercialRegistrationNumber: draft.cr.replace(/s/g, ''),
+      country: draft.country.trim().toUpperCase(),
+      registeredAddress: draft.registeredAddress.trim(),
+      administratorEmail: draft.ownerEmail.trim(),
+      timezone: 'Asia/Muscat',
     }
-    const { tenantId } = subscriptionsStore.onboard(input)
-    navigate(`/console/tenants/${tenantId}`, { state: { from: 'tenants' } })
+    setSubmitFailure(null)
+    setSubmitting(true)
+    try {
+      const result = await createPlatformCompany(idempotencyKey, request)
+      // The backend owns the identifier. Navigating by anything derived from the name or the
+      // code would address a business the register does not know by that name.
+      navigate(`/console/tenants/${result.tenantId}`, { state: { from: 'tenants' } })
+    } catch (error) {
+      setSubmitFailure(describeCreateFailure(error, t))
+      setSubmitting(false)
+    }
   }
 
   const trackerSteps: TrackerStep[] = STEPS.map((id, index) => ({
@@ -323,6 +376,11 @@ export function ConsoleOnboardPage() {
             <Link to="/console/tenants" className={TEXT_BUTTON}>
               {t('console.onboard.cancel')}
             </Link>
+            {submitFailure ? (
+              <p role="alert" className="text-sm font-medium leading-[1.4] text-error-600">
+                {submitFailure}
+              </p>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2.5 max-md:w-full max-md:justify-end">
               <button
                 type="button"
@@ -332,8 +390,17 @@ export function ConsoleOnboardPage() {
               >
                 {t('console.onboard.back')}
               </button>
-              <button type="submit" form={FORM_ID} className={PRIMARY_BUTTON}>
-                {step === 'review' ? t('console.onboard.create') : t('console.onboard.continue')}
+              <button
+                type="submit"
+                form={FORM_ID}
+                disabled={submitting}
+                className={PRIMARY_BUTTON}
+              >
+                {step === 'review'
+                  ? submitting
+                    ? t('console.onboard.creating')
+                    : t('console.onboard.create')
+                  : t('console.onboard.continue')}
               </button>
             </div>
           </div>
@@ -393,6 +460,43 @@ function CompanyStep({ draft, errors, patch }: StepProps) {
             value={draft.tradingName}
             onChange={(event) => patch({ tradingName: event.target.value })}
             error={errors.tradingName}
+          />
+        </div>
+        <div data-field="tenantCode">
+          <Input
+            bordered
+            name="tenantCode"
+            label={k('tenantCode')}
+            requiredMark
+            autoComplete="off"
+            value={draft.tenantCode}
+            onChange={(event) => patch({ tenantCode: event.target.value.toUpperCase() })}
+            error={errors.tenantCode}
+          />
+        </div>
+        <div data-field="country">
+          <Input
+            bordered
+            name="country"
+            label={k('country')}
+            requiredMark
+            autoComplete="country"
+            maxLength={2}
+            value={draft.country}
+            onChange={(event) => patch({ country: event.target.value.toUpperCase() })}
+            error={errors.country}
+          />
+        </div>
+        <div data-field="registeredAddress" className="md:col-span-2">
+          <Input
+            bordered
+            name="registeredAddress"
+            label={k('registeredAddress')}
+            requiredMark
+            autoComplete="street-address"
+            value={draft.registeredAddress}
+            onChange={(event) => patch({ registeredAddress: event.target.value })}
+            error={errors.registeredAddress}
           />
         </div>
         <div data-field="cr">

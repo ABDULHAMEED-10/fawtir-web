@@ -22,6 +22,26 @@
     "arabic": "العربية"
   },
   "login": {
+    "totp": {
+      "title": "Two-step verification",
+      "instruction": "Enter the 6-digit code from your authenticator app.",
+      "label": "Authenticator code",
+      "verify": "Verify",
+      "verifying": "Verifying…",
+      "startOver": "Start again"
+    },
+    "totpSetup": {
+      "title": "Set up your authenticator",
+      "instruction": "Add this key to your authenticator app, then enter the 6-digit code it shows.",
+      "manualKey": "Setup key",
+      "preparing": "Preparing your setup key…",
+      "label": "Authenticator code",
+      "confirm": "Confirm",
+      "confirming": "Confirming…",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryHint": "Each code signs you in once if you lose your authenticator. They are shown only now.",
+      "recoverySaved": "I have saved them"
+    },
     "title": "Hey, Login Now!",
     "usernameLabel": "Username",
     "usernamePlaceholder": "Enter your username",
@@ -2405,118 +2425,120 @@
     "footerNote": "This home page is for testing and navigation only."
   },
   "selfBilling": {
-    "title": "Self-billed invoices",
-    "subtitle": "Fawtir sends your supplier invoices via Peppol and reports them to Oman Tax Authority.",
+    "title": "Self-billing",
+    "subtitle": "Invoices you write on a seller's behalf, under a signed agreement with them.",
     "agreements": "Agreements",
-    "export": "Export",
-    "create": "Create self-billing invoice",
-    "kpi": {
-      "raised": "Raised this month",
-      "raisedMeta": "Across 9 documents",
-      "inputVat": "Input VAT claimed",
-      "inputVatMeta": "Recoverable on this quarter's return",
-      "awaiting": "Awaiting supplier",
-      "awaitingMeta": "Oldest raised 6 days ago",
-      "expiring": "Agreements expiring",
-      "expiringMeta": "Al Noor Dates expires in 9 days"
-    },
-    "tabs": {
+    "explainer": "On these documents you are the buyer: you write the invoice for the seller, and it records what you owe them — not what you are owed.",
+    "usableAgreements_one": "{{count}} seller can be self-billed today.",
+    "usableAgreements_other": "{{count}} sellers can be self-billed today.",
+    "usableAgreements_zero": "No seller can be self-billed today — check your agreements.",
+    "kindLabel": "Document type",
+    "kind": {
       "all": "All",
-      "drafts": "Drafts",
-      "toSend": "To send",
-      "awaiting": "Awaiting confirmation",
-      "disputed": "Disputed",
-      "confirmed": "Confirmed",
-      "paid": "Paid"
+      "invoices": "Invoices",
+      "creditNotes": "Credit notes"
     },
-    "status": {
-      "draft": "Draft",
-      "toBeSent": "To be sent",
-      "awaitingConfirmation": "Awaiting confirmation",
-      "disputed": "Disputed by supplier",
-      "confirmed": "Confirmed",
-      "paid": "Paid"
-    },
-    "searchPlaceholder": "Search by document, supplier or VAT number",
-    "filters": "Filters",
-    "sort": "Sort",
+    "searchPlaceholder": "Search by number or seller",
+    "unnumbered": "Not numbered yet",
+    "unknownSeller": "Seller not named",
+    "estimated": "est.",
+    "pageOf": "Page {{page}}",
     "col": {
-      "document": "Document",
-      "supplier": "Supplier",
+      "number": "Number",
+      "seller": "Seller",
       "issued": "Issued",
-      "due": "Due",
-      "amount": "Amount",
-      "status": "Status",
-      "transmission": "Transmission"
+      "owed": "You owe",
+      "state": "State"
     },
-    "rowMenu": "Row actions",
-    "showResult": "Show result:",
-    "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "empty": {
+      "invoices": "No self-billed invoices here.",
+      "creditNotes": "No self-billed credit notes here.",
+      "all": "No self-billed documents here."
+    },
+    "create": "New self-billed invoice"
   },
   "agreements": {
-    "breadcrumbIncome": "Income",
-    "breadcrumbSelfBilled": "Self -billed",
-    "title": "Agreements",
-    "subtitle": "Your permission to invoice on each supplier's behalf. A supplier must have an active agreement here before you can raise a self-billed invoice for them.",
-    "export": "Export",
-    "newAgreement": "New agreement",
-    "alert": {
-      "title": "Nizwa Dairy Farms' agreement expired on 12 July 2026",
-      "body": "1 draft self-billed invoice for OMR 318.900 is blocked until the agreement is renewed. Existing documents stay valid and reportable.",
-      "action": "Renew agreement"
-    },
-    "kpi": {
-      "active": "Active",
-      "activeMeta": "Suppliers you can self-bill today",
-      "expiringSoon": "Expiring soon",
-      "expiringSoonMeta": "Al Noor Dates in 9 days",
-      "awaiting": "Awaiting supplier",
-      "awaitingMeta": "Sent for acceptance, not yet signed",
-      "expired": "Expired",
-      "expiredMeta": "Blocking 1 draft invoice"
-    },
-    "tabs": {
+    "breadcrumbSelfBilled": "Self-billing",
+    "title": "Self-billing agreements",
+    "subtitle": "The written agreement that lets you invoice a seller on their behalf. Without one in force, issuing a self-billed invoice is refused.",
+    "open": "Open an agreement",
+    "notDone": "NOT DONE",
+    "empty": "No agreements here.",
+    "unknownSeller": "Seller no longer on your list",
+    "reference": "Ref {{reference}}",
+    "fromTo": "{{from}} to {{to}}",
+    "fromOpenEnded": "From {{from}}, open-ended",
+    "lapsed": "LAPSED",
+    "canIssue": "You can issue self-billed invoices to this seller.",
+    "verifiedAs": "Verified as {{participant}} — this is the identity a self-billed document carries as its seller.",
+    "withdrawnBecause": "Withdrawn: {{reason}}",
+    "footnote": "You are the buyer on a self-billed invoice: you write it, and it records what you owe the seller. Documents are not linked to a specific agreement — they are matched to the seller.",
+    "tab": {
       "all": "All",
-      "active": "Active",
-      "awaiting": "Awaiting acceptance",
-      "expiringSoon": "Expiring soon",
-      "expired": "Expired",
-      "terminated": "Terminated"
+      "active": "Ready to use",
+      "waiting": "Waiting",
+      "ended": "Ended"
     },
     "status": {
-      "active": "Active",
-      "expiringSoon": "Expiring soon",
-      "awaitingAcceptance": "Awaiting acceptance",
-      "expired": "Expired",
-      "terminated": "Terminated"
+      "PENDING_ACTIVATION": "Not active yet",
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended",
+      "WITHDRAWN": "Withdrawn"
     },
-    "kind": {
-      "agreed": "Agreed",
-      "statutory": "Statutory"
+    "blocked": {
+      "pendingActivation": "Activate this agreement before you can issue against it.",
+      "suspended": "Suspended, so issuing is refused. Activating it again lifts that.",
+      "withdrawn": "Withdrawn. This cannot be undone — open a new agreement to self-bill this seller again.",
+      "notYetStarted": "Starts on {{from}}. Issuing before then is refused.",
+      "lapsed": "Ended on {{to}}, so issuing is now refused. Open a new agreement to continue.",
+      "unverified": "Waiting on Fawtir to verify this seller's network identity. Nothing for you to do — issuing stays refused until it is done."
     },
-    "signature": {
-      "onFile": "Signed copy on file",
-      "notRequired": "No signature required",
-      "sentResend": "Sent 3 days ago · resend",
-      "blocking": "Blocking 1 draft"
+    "kpi": {
+      "issuable": "Ready to use",
+      "issuableNote": "Sellers you can self-bill today",
+      "awaitingFawtir": "Waiting on Fawtir",
+      "awaitingFawtirNote": "We have to verify the seller's identity",
+      "lapsed": "Lapsed",
+      "lapsedNote": "Past their end date and no longer usable"
     },
-    "onPeppol": "On Peppol",
-    "searchPlaceholder": "Search by document, supplier or VAT number",
-    "filters": "Filters",
-    "sort": "Sort",
-    "col": {
-      "supplier": "Supplier",
-      "kind": "Kind",
-      "coverage": "Coverage",
-      "valid": "Valid",
-      "documents": "Documents issued",
-      "status": "Status"
+    "action": {
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "withdraw": "Withdraw"
     },
-    "rowMenu": "Row actions",
-    "showResult": "Show result:",
-    "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "done": {
+      "opened": "The agreement was opened.",
+      "activated": "The agreement is active.",
+      "suspended": "The agreement is suspended.",
+      "withdrawn": "The agreement was withdrawn."
+    },
+    "problem": {
+      "referenceRequired": "Give the agreement a reference.",
+      "referenceTooLong": "That reference is too long.",
+      "fromRequired": "Say when the agreement starts.",
+      "rangeInvalid": "The end date is before the start date."
+    },
+    "openDialog": {
+      "title": "Open a self-billing agreement",
+      "note": "Record the agreement you already have with this seller. One live agreement per seller.",
+      "seller": "Seller",
+      "chooseSeller": "Choose a seller",
+      "reference": "Your reference for the agreement",
+      "from": "In force from",
+      "to": "Until",
+      "openEnded": "Leave the end date empty for an open-ended agreement.",
+      "fixed": "The reference and the dates cannot be changed afterwards. To alter them you withdraw this agreement and open another.",
+      "confirm": "Open the agreement",
+      "opening": "Opening…"
+    },
+    "withdrawDialog": {
+      "title": "Withdraw this agreement",
+      "body": "Withdraw the agreement with {{seller}} ({{reference}}).",
+      "terminal": "This cannot be undone. Self-billed invoices to this seller will be refused until you open a new agreement.",
+      "reason": "Reason (optional)",
+      "confirm": "Withdraw it",
+      "withdrawing": "Withdrawing…"
+    }
   },
   "newSelfBill": {
     "breadcrumb": "Self-billed",
@@ -4392,7 +4414,9 @@
     "logoType": "Use a PNG or SVG image",
     "logoSize": "Keep the logo under 2 MB",
     "tooLong": "This is longer than allowed",
-    "addressTooLong": "Use 140 characters or fewer"
+    "addressTooLong": "Use 140 characters or fewer",
+    "tenantCode": "Use uppercase letters, digits, dashes or underscores, starting with a letter",
+    "country": "Use a two-letter country code, such as OM"
   },
   "identityErrors": {
     "validation": "Some details were not accepted. Check the form and try again.",
@@ -4472,7 +4496,8 @@
       "due": "Due",
       "matched": "Matched against",
       "status": "Status",
-      "amount": "Amount"
+      "amount": "Amount",
+      "outstanding": "Outstanding"
     },
     "source": {
       "peppol": "Peppol",
@@ -4548,7 +4573,9 @@
       "creditNote": "Credit note",
       "leftToPay": "{{amount}} left to pay",
       "inclVat": "incl. VAT {{amount}}",
-      "noNumber": "No bill number"
+      "noNumber": "No bill number",
+      "overdue": "Overdue",
+      "nothingOwed": "Nothing owed"
     },
     "state": {
       "newNotReviewed": "New, not reviewed",
@@ -5144,12 +5171,19 @@
       "recovered": "Recovered this quarter",
       "recoveredMeta": "{{count}} notes used or refunded",
       "mostFrom": "Most credits from",
-      "mostFromMeta": "{{count}} notes this year · worth reviewing"
+      "mostFromMeta": "{{count}} notes this year · worth reviewing",
+      "recoveredQuarter": "Recovered this quarter",
+      "topSupplier": "Most notes from",
+      "topSupplierMeta": "{{count}} notes",
+      "noTopSupplier": "No supplier stands out"
     },
     "tabs": {
       "all": "All",
       "used": "Used",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "unapplied": "Not used yet",
+      "waiting": "Waiting for a bill",
+      "applied": "Used"
     },
     "col": {
       "creditNote": "Credit note",
@@ -5169,7 +5203,13 @@
       "paid": "Already paid",
       "noBillYet": "The bill has not arrived",
       "noBill": "No bill yet",
-      "youdPayLess": "you'd pay less"
+      "youdPayLess": "you'd pay less",
+      "issued": "Issued {{date}}",
+      "unnumbered": "No number",
+      "unknownSupplier": "Supplier not matched",
+      "theBill": "The bill it credits",
+      "noReason": "No reason given",
+      "remaining": "{{amount}} left to use"
     },
     "why": {
       "threeBoxes": "3 boxes never delivered",
@@ -5182,7 +5222,11 @@
       "notUsed": "Not yet used",
       "waitingForBill": "Waiting for a bill",
       "used": "Used on the bill",
-      "refunded": "Refunded to us"
+      "refunded": "Refunded to us",
+      "UNAPPLIED": "Not used yet",
+      "WAITING_FOR_BILL": "Waiting for a bill",
+      "APPLIED": "Used",
+      "REFUNDED": "Refunded"
     },
     "actions": {
       "setAgainst": "Set against the bill",
@@ -5251,7 +5295,8 @@
       "sheetCreditedTo": "Credited to",
       "sheetAgainst": "Against invoice",
       "sheetReason": "Reason",
-      "sheetAmount": "Amount"
+      "sheetAmount": "Amount",
+      "choose": "Choose the supplier's credit note"
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -5330,7 +5375,17 @@
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
       "supplierVat": "VAT number"
-    }
+    },
+    "source": {
+      "peppol": "Received over Peppol",
+      "uploaded": "Uploaded",
+      "scanned": "Scanned",
+      "recurring": "Recurring",
+      "selfBilled": "Self-billed"
+    },
+    "excluded": "{{count}} not counted above — a different currency",
+    "pageOnly": "Page {{page}}",
+    "pageOf": "Page {{page}} of {{pages}}"
   },
   "supplierDebitNotes": {
     "title": "Debit Notes",
@@ -5342,15 +5397,17 @@
       "needsCheckingNote_one": "{{count}} charge nobody has accepted yet",
       "needsCheckingNote_other": "{{count}} charges nobody has accepted yet",
       "added": "Added this quarter",
-      "addedNote": "{{total}} notes · {{accepted}} accepted, {{open}} open",
       "rejected": "Rejected this year",
-      "rejectedNote_one": "{{count}} charge refused and withdrawn",
-      "rejectedNote_other": "{{count}} charges refused and withdrawn"
+      "rejectedNote_one": "{{count}} charge refused",
+      "rejectedNote_other": "{{count}} charges refused",
+      "acceptedNote": "{{count}} accepted · {{open}} still open"
     },
     "tabs": {
       "all": "All",
       "accepted": "Accepted",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "unchecked": "Needs checking",
+      "refused": "Refused"
     },
     "searchPlaceholder": "Search supplier, bill number...",
     "col": {
@@ -5368,7 +5425,10 @@
     "rows": {
       "arrived": "Arrived {{date}}",
       "stillUnpaid": "Still unpaid",
-      "alreadyPaid": "Already paid"
+      "alreadyPaid": "Already paid",
+      "outstanding": "{{amount}} outstanding",
+      "overdue": "{{amount}} outstanding, late",
+      "disputed": "Refused — not treated as owed"
     },
     "why": {
       "outOfHours": "Out-of-hours delivery surcharge",
@@ -5409,7 +5469,7 @@
       "cta": "Upload a debit note",
       "breadcrumb": "Upload a debit note",
       "title": "Check before you accept",
-      "subtitle": "A debit note raises what you owe. Nothing is added until you accept it — and you can refuse with a reason.",
+      "subtitle": "A debit note raises what the supplier says you owe. Uploading records the charge; accepting or refusing it is a separate decision on the note itself.",
       "fileMeta": "{{pages}} page · {{size}} · read in {{seconds}} seconds · recognised as a debit note",
       "whoSentIt": "Who sent it",
       "supplier": "Supplier",
@@ -5467,14 +5527,15 @@
       "holdNote": "Nothing added, nothing sent. Use this while you phone them.",
       "reasonNote": "This wording goes to the supplier. Keep it factual — it becomes part of the record.",
       "cancel": "Cancel",
-      "save": "Save the decision"
+      "save": "Save the decision",
+      "choose": "Choose the supplier's debit note"
     },
     "refuse": {
       "notInRates": "Not in our agreed rates",
       "alreadyCharged": "Already charged",
       "neverAuthorised": "Never authorised",
       "other": "Other",
-      "otherPlaceholder": "Tell the supplier why, in one line"
+      "otherPlaceholder": "Your reason, in one line"
     },
     "detail": {
       "debitNotePeppol": "Debit note · Peppol",
@@ -5518,16 +5579,12 @@
       "vatRow": "VAT · 5%",
       "totalCharged": "Total charged",
       "yourDecision": "Your decision",
-      "decisionNote": "Accepting adds it to {{bill}} and it joins the next payment run. Refusing sends the supplier your reason over Peppol.",
-      "refuseAndTell": "Refuse and tell them",
+      "refuseAndTell": "Refuse it",
       "accept": "Accept it",
       "hold": "Put on hold",
-      "acceptDone": "Accepted. {{bill}} now shows OMR {{total}}.",
-      "refuseDone": "Refused. The supplier has been told over Peppol.",
-      "holdDone": "On hold. Nothing has been added or sent.",
       "undo": "Undo",
       "pickReason": "Why are you refusing?",
-      "send": "Send the refusal",
+      "send": "Record the refusal",
       "cancel": "Cancel",
       "rateCardTitle": "Against your rate card",
       "rateCard": {
@@ -5571,7 +5628,34 @@
         "arrived": "Debit note arrived over Peppol",
         "arrivedDetail": "Matched to GCL-2301 automatically · 26 Jul, 11:05"
       }
-    }
+    },
+    "status": {
+      "UNCHECKED": "Not checked yet",
+      "ACCEPTED": "Accepted",
+      "REFUSED": "Refused"
+    },
+    "fact": {
+      "charged": "What they charged",
+      "vat": "VAT",
+      "outstanding": "Outstanding",
+      "due": "Due",
+      "issued": "Issued",
+      "source": "How it reached us",
+      "why": "Why they charged it",
+      "against": "Against",
+      "late": "late"
+    },
+    "decided": {
+      "accepted": "Accepted. The decision is recorded.",
+      "refused": "Refused. Your reason is recorded against the note."
+    },
+    "backToList": "Back to debit notes",
+    "chargeTitle": "The charge",
+    "decisionTitle": "Your decision",
+    "decisionNote": "Accepting or refusing records your decision against this note. It is not sent to the supplier from here.",
+    "reverseOnly": "Already {{status}}. Only the opposite decision can be recorded.",
+    "historyTitle": "Decision history",
+    "noHistory": "Nobody has decided on this charge yet."
   },
   "expenditureReminders": {
     "title": "Reminders",
@@ -5655,8 +5739,8 @@
       "oneEmail": "One email · {{time}} · to {{who}}",
       "eachEmail": "{{count}} emails · as they happen · to {{who}}",
       "inAppOnly": "In Fawtir only · no email",
-      "headline_one": "One thing needs attention this morning.",
-      "headline_other": "{{count}} things need attention this morning.",
+      "headline_one": "{{count}} reminder would go out on {{date}}",
+      "headline_other": "{{count}} reminders would go out on {{date}}",
       "nothing": "Nothing would go out today. Every rule that could fire is switched off.",
       "to": "to",
       "alNoor": "Al Noor Dates unpaid for {{days}} days",
@@ -5669,7 +5753,52 @@
       "approvalsAmount": "OMR 2,996.310 held up"
     },
     "notSupplier": "None of this reaches a supplier. Chasing a customer for money they owe you is set up",
-    "underIncome": "under Income"
+    "underIncome": "under Income",
+    "on": "On",
+    "off": "Off",
+    "days": "Days",
+    "days_unit": "days",
+    "addDay": "Add a day",
+    "dayAt": "Day {{index}}",
+    "removeDay": "Remove day {{day}}",
+    "repeatEvery": "Then every",
+    "escalateAfter": "Bring in the owners after",
+    "whoIsTold": "Who is told",
+    "recipientCount_one": "{{count}} person already chosen",
+    "recipientCount_other": "{{count}} people already chosen",
+    "noRoster": "Choosing who is told needs user-admin rights. The people already on each rule are kept as they are.",
+    "saveRules": "Save the rules",
+    "saveDelivery": "Save how you are told",
+    "saved": "Saved.",
+    "unsaved_one": "{{count}} rule changed",
+    "unsaved_other": "{{count}} rules changed",
+    "digestTime": "Send at",
+    "digestTimeNote": "The sweep matches on the hour.",
+    "perRecurring": "This one is set on each recurring bill rather than here —",
+    "onTheRecurringBill": "open a recurring bill",
+    "someone": "Someone on the team",
+    "derived": {
+      "APPROVAL_STALE": "The approvers who have not decided, then the owners when it escalates. No need to name anyone.",
+      "SCAN_UNCONFIRMED": "Whoever uploaded it. No need to name anyone."
+    },
+    "error": {
+      "tooMany": "At most {{max}} days",
+      "outOfRange": "Each day must be between 0 and {{maxDays}}",
+      "repeated": "The same day twice",
+      "notWhole": "Whole days only",
+      "recipients": "Switching this on needs at least one person to tell"
+    },
+    "inbox": {
+      "title": "Your reminders",
+      "unreadOnly": "Unread only",
+      "none": "Nothing has been sent to you.",
+      "noneUnread": "Nothing unread.",
+      "acknowledge": "Mark as read",
+      "acknowledged": "Read",
+      "openBill": "Open the bill",
+      "count_one": "{{count}} shown",
+      "count_other": "{{count}} shown"
+    }
   },
   "documents": {
     "title": "Documents",
@@ -5832,15 +5961,20 @@
       "title": "Income",
       "subtitle": "What you've invoiced, how it's trending, & where it comes from. Every chart exports on its own.",
       "kpi": {
-        "invoiced": "Invoiced, net of VAT",
-        "invoicedNote": "vs the year before",
+        "invoiced": "Invoiced",
+        "invoicedNote": "Total including VAT, net of credit notes",
         "vat": "VAT charged",
         "vatNote": "5% throughout",
         "sent": "Invoices sent",
         "sentNote": "more than last year",
         "average": "Average invoice",
         "averageNote": "growth is from volume",
-        "steady": "Steady"
+        "steady": "Steady",
+        "taxable": "Taxable amount",
+        "taxableNote": "Before VAT",
+        "documents": "Documents issued",
+        "documentsNote": "Every issued document in the range",
+        "documentsWithCancelled": "Plus {{count}} cancelled, which carry no amount"
       },
       "monthly": "Monthly",
       "quarterly": "Quarterly",
@@ -5854,7 +5988,26 @@
       "quarterlyNote": "Every quarter ahead of last year",
       "onTrack": "On track for <amount>{{value}}</amount>",
       "invoicedThisYear": "Invoiced this year",
-      "topShare": "Top 5 are {{percent}}% of revenue"
+      "topShare": "Top 5 are {{percent}}% of revenue",
+      "empty": "Nothing was issued in this range.",
+      "groupBy": "Group by",
+      "grouping": {
+        "NONE": "Not grouped",
+        "TYPE": "Document type",
+        "CUSTOMER": "Customer",
+        "BRANCH": "Branch"
+      },
+      "by": {
+        "TYPE": "By document type",
+        "CUSTOMER": "By customer",
+        "BRANCH": "By branch",
+        "NONE": "Total"
+      },
+      "byPeriod": "Issued by period",
+      "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
+      "byGroupNote": "Largest first, over the range above.",
+      "invoiced": "Invoiced",
+      "ungrouped": "Not grouped"
     },
     "expenditure": {
       "title": "Expenditure",
@@ -5940,11 +6093,13 @@
         "owed": "Owed to the OTA",
         "owedNote": "over twelve months",
         "nextReturn": "Next return due",
-        "nextReturnNote": "Q3 · 2 of 3 months in"
+        "nextReturnNote": "Q3 · 2 of 3 months in",
+        "reclaim": "Reclaimable",
+        "reclaimNote": "Input exceeded output over this range"
       },
       "quarterlyPosition": "Quarterly position",
       "monthlyNetPayable": "Monthly net payable",
-      "byTreatment": "By tax treatment",
+      "byTreatment": "What you charged, by treatment",
       "reclaimBySupplier": "Reclaim by supplier",
       "collectedOnSales": "Collected on sales",
       "paidOnPurchases": "Paid on purchases",
@@ -5963,7 +6118,27 @@
       "q4Last": "Q4 2025",
       "q1": "Q1 2026",
       "q2": "Q2 2026",
-      "q3SoFar": "Q3 so far"
+      "q3SoFar": "Q3 so far",
+      "empty": "Nothing was issued or received in this range.",
+      "mixedCurrency": "This range holds more than one currency ({{currencies}}). The figures below are not added across them.",
+      "byPeriod": "Charged and reclaimable, by period",
+      "byPeriodNote": "Output is VAT you charged; input is VAT you were charged.",
+      "netByPeriod": "Net position by period",
+      "netByPeriodNote": "Above zero is owed; below zero is reclaimable.",
+      "byTreatmentNote": "Share of taxable amount, not of VAT — zero-rated and exempt supplies carry none.",
+      "taxableAmount": "Taxable amount",
+      "category": {
+        "S": "Standard rated",
+        "Z": "Zero rated",
+        "E": "Exempt",
+        "O": "Outside scope",
+        "AE": "Reverse charge",
+        "G": "Export",
+        "K": "Intra-community",
+        "L": "Special",
+        "M": "Special",
+        "ALL": "All purchases"
+      }
     },
     "compliance": {
       "title": "Compliance",
@@ -5976,7 +6151,15 @@
         "rejections": "Rejections",
         "rejectionsNote": "fewer than last year",
         "delivered": "Delivered inside the window",
-        "deliveredNote": "{{late}} late out of {{sent}}"
+        "deliveredNote": "{{late}} late out of {{sent}}",
+        "documents": "Documents",
+        "documentsNote": "In this window",
+        "reported": "Acknowledged",
+        "reportedNote": "{{count}} of them",
+        "onTime": "Reported in time",
+        "onTimeNote": "{{missed}} missed · {{pending}} still inside the window",
+        "median": "Median to acknowledgement",
+        "medianNote": "From validation to the acknowledgement arriving"
       },
       "acceptedFirstTime": "Accepted first time",
       "whyRejected": "Why things get rejected",
@@ -5998,7 +6181,17 @@
         "totals": "Totals do not add up",
         "buyerVat": "Buyer VAT number",
         "everythingElse": "Everything else"
-      }
+      },
+      "ledgerSubtitle": "Was each document reported, and was it reported in time.",
+      "openLedger": "Open the ledger",
+      "empty": "Nothing in this window.",
+      "documents": "Documents",
+      "minutes": "{{count}} min",
+      "tddAcks": "Tax Authority endpoint",
+      "invoiceAcks": "Buyer's Access Point",
+      "acksNote": "Acknowledgements of the tax document. No acknowledgement yet is not a failure.",
+      "invoiceAcksNote": "Acknowledgements of the invoice by the receiving Access Point.",
+      "deadLettered": "{{count}} gave up after retries and need looking at."
     },
     "lists": {
       "title": "Lists",
@@ -6062,6 +6255,22 @@
           "title": "Journal export",
           "detail": "Everything as double-entry lines, ready for Tally, QuickBooks or Zoho Books."
         }
+      },
+      "empty": "No datasets are published.",
+      "filters": "Filters: {{list}}",
+      "needsPermission": "Needs {{permission}}"
+    },
+    "controls": {
+      "from": "From",
+      "to": "To",
+      "granularity": "Bucket",
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "exportFailed": "The export could not be produced. The report above is unaffected.",
+      "bucket": {
+        "MONTH": "Monthly",
+        "QUARTER": "Quarterly",
+        "YEAR": "Yearly"
       }
     }
   },
@@ -6311,7 +6520,7 @@
     "subtitle": "Tells the supplier what you want and at what price. Nothing is owed until they send the bill.",
     "discard": "Discard",
     "sendForApproval": "Send for approval",
-    "supplierNote": "On Peppol · prices taken from their March price list · {{count}} bills, all matched to an order",
+    "supplierNote": "Note for the supplier",
     "terms": "Terms",
     "earlySettlement": "Early settlement",
     "leadTime": "Usual lead time",
@@ -6322,10 +6531,13 @@
       "quantity": "Quantity",
       "unitPrice": "Unit price",
       "vat": "VAT",
-      "lineTotal": "Line total"
+      "lineTotal": "Line total",
+      "ordered": "Ordered",
+      "received": "Received",
+      "lineNet": "Line net"
     },
     "addLine": "Add a line",
-    "removeLine": "Remove this line",
+    "removeLine": "Remove line {{line}}",
     "net": "Net",
     "vatRow": "VAT · 5%",
     "vat": "VAT",
@@ -6362,7 +6574,75 @@
     "quantity": "Quantity",
     "sackPrice": "Sack price",
     "inPlainWords": "In plain words",
-    "plainWords": "Ordering {{amount}} of beans and sacks from {{supplier}}, wanted by {{wanted}}, payable {{payable}} on Net 30."
+    "plainWords": "Ordering {{amount}} of beans and sacks from {{supplier}}, wanted by {{wanted}}, payable {{payable}} on Net 30.",
+    "newTitle": "New purchase order",
+    "supplier": "Supplier",
+    "currency": "Currency",
+    "linesTitle": "What you're ordering",
+    "description": "What it is",
+    "unit": "Unit",
+    "unitPrice": "Unit price",
+    "lineDescription": "Line {{line}} — what it is",
+    "lineQuantity": "Line {{line}} — quantity",
+    "lineUnit": "Line {{line}} — unit",
+    "lineUnitPrice": "Line {{line}} — unit price",
+    "lineVat": "Line {{line}} — VAT rate",
+    "gross": "Order value",
+    "totalsNote": "Worked out here so you can see it. The order carries the figures the server computes.",
+    "saveDraft": "Save the draft",
+    "unnumbered": "Unnumbered order",
+    "unnumberedReceipt": "Unnumbered delivery",
+    "backToExpenditure": "Back to Expenditure",
+    "ordered": "Ordered {{date}}",
+    "noDate": "no date",
+    "submitted": "Sent for approval",
+    "approved": "Approved",
+    "markedSent": "Marked as sent",
+    "cancelled": "Cancelled",
+    "whatNext": "What happens next",
+    "awaitingGoods": "Waiting on the goods. Book them in below as they arrive.",
+    "sendNote": "This records that you told the supplier. Nothing is transmitted from here.",
+    "needsApprover": "Someone with approval rights has to take this step.",
+    "receiptsTitle": "Deliveries",
+    "noReceipts": "Nothing has been booked in yet.",
+    "bookInTitle": "Book goods in",
+    "bookIn": "Book these in",
+    "bookInNote": "Enter what arrived. Anything left keeps the order partly received.",
+    "receivedOn": "Received on",
+    "receiptNote": "Note",
+    "receiveFor": "Received for {{item}}",
+    "stillDue": "{{count}} still due",
+    "action": {
+      "submit": "Send for approval",
+      "approve": "Approve it",
+      "send": "Mark as sent",
+      "cancel": "Cancel the order",
+      "close": "Close the order"
+    },
+    "done": {
+      "submit": "Sent for approval.",
+      "approve": "Approved.",
+      "send": "Marked as sent. Nothing was transmitted.",
+      "cancel": "The order was cancelled.",
+      "close": "The order is closed."
+    },
+    "nothingToDo": {
+      "SENT": "Waiting on the goods.",
+      "PARTIALLY_RECEIVED": "Partly arrived.",
+      "CLOSED": "This order is closed.",
+      "CANCELLED": "This order was cancelled.",
+      "DRAFT": "",
+      "AWAITING_APPROVAL": "",
+      "APPROVED": "",
+      "RECEIVED": ""
+    },
+    "error": {
+      "description": "Every line needs a description of up to 500 characters",
+      "quantity": "Every line needs a quantity above zero",
+      "unitPrice": "Every line needs a unit price",
+      "vatRate": "A VAT rate cannot be negative",
+      "overBooked": "More than is still due on {{item}}"
+    }
   },
   "recordBill": {
     "title": "Record a bill",
@@ -6509,14 +6789,20 @@
     "rowActions": "Row actions",
     "showing": "Showing {{shown}} of {{total}} submissions",
     "kpi": {
-      "accepted": "Accepted by the OTA",
-      "acceptedBreakdown": "{{accepted}} accepted · {{rejected}} rejected · {{waiting}} still waiting",
       "waitingOnYou": "Waiting on you",
       "waitingOnYouNote": "Rejected and not yet corrected. Until they're fixed, those sales aren't reported.",
       "timeToAcceptance": "Time to acceptance",
       "timeToAcceptanceNote": "Average this month, down from {{previous}}. Well inside the 24-hour rule.",
       "acknowledged": "Customer acknowledged",
-      "acknowledgedNote": "MLS came back in time on {{good}} of {{total}}"
+      "acknowledgedNote": "MLS came back in time on {{good}} of {{total}}",
+      "documents": "Documents",
+      "documentsNote": "In the ledger",
+      "reported": "Acknowledged by the Tax Authority endpoint",
+      "reportedNote": "{{share}}% of documents",
+      "waiting": "Awaiting acknowledgement",
+      "waitingNote": "Nothing has gone wrong. A document stays here until the other side speaks.",
+      "onTime": "Reported in time",
+      "onTimeNote": "{{missed}} missed · {{pending}} still inside the window"
     },
     "tabs": {
       "all": "All",
@@ -6528,10 +6814,8 @@
     },
     "col": {
       "invoice": "Invoice",
-      "reference": "TDD and Fawtara reference",
       "flow": "Which flow",
       "sent": "Sent",
-      "otaSaid": "What the OTA said",
       "customer": "Customer"
     },
     "flow": {
@@ -6567,7 +6851,11 @@
     "ack": {
       "received": "Received it",
       "notOnPeppol": "Not on Peppol",
-      "noCustomer": "No customer"
+      "noCustomer": "No customer",
+      "AP": "Delivered",
+      "AB": "Delivered, unconfirmed",
+      "RE": "Rejected or failed",
+      "NONE": "No acknowledgement yet"
     },
     "today": "Today",
     "sortOptions": {
@@ -6601,6 +6889,47 @@
       "peppolNote": "{{id}} · others can find and reach you",
       "fawtara": "Fawtara connection open",
       "fawtaraNote": "Answering in {{latency}} · certificate valid to {{until}}"
+    },
+    "ledgerSubtitle": "What happened to each document on its way to the buyer and to the Tax Authority.",
+    "unnumbered": "No number",
+    "b2c": "Consumer",
+    "noTdd": "No tax document owed",
+    "searchByNumber": "Search by invoice number",
+    "resubmit": "Resubmit",
+    "resubmitted": "Sent again. The ledger will show the new attempt once it is acknowledged.",
+    "showingPage": "Page {{page}} · up to {{size}} a page",
+    "notATaxVerdict": "These are transport acknowledgements, not tax decisions. The Tax Authority validates a tax document against the Schematron and not for tax compliance, and sends no verdict back to a service provider.",
+    "ledgerTabs": {
+      "all": "All",
+      "attention": "Needs attention",
+      "rejected": "Rejected or failed",
+      "waiting": "No acknowledgement yet",
+      "issued": "Issued",
+      "received": "Received"
+    },
+    "ledgerCol": {
+      "document": "Document",
+      "counterparty": "Counterparty",
+      "when": "When",
+      "toBuyer": "Buyer's Access Point",
+      "toAuthority": "Tax Authority endpoint",
+      "deadline": "Deadline"
+    },
+    "ackMeaning": {
+      "delivered": "Delivered with confirmation",
+      "delivered-unconfirmed": "Delivered without confirmation",
+      "rejected": "Rejected, or delivery failed",
+      "silent": "Nothing has been received yet. This is not a failure."
+    },
+    "direction": {
+      "ISSUED": "Issued",
+      "RECEIVED": "Received"
+    },
+    "sla": {
+      "met": "Met",
+      "missed": "Missed",
+      "pending": "Within the window",
+      "none": "—"
     }
   },
   "activityEvent": {
@@ -7185,7 +7514,11 @@
       "connectionsPillError_one": "{{count}} needs attention",
       "connectionsPillError_other": "{{count}} need attention",
       "connectionsFootActive": "Automatic extraction · {{collected}} of {{limit}} this month",
-      "lockedPill": "Available on {{plan}}"
+      "lockedPill": "Available on {{plan}}",
+      "approvalsTitle": "Bill approvals",
+      "approvalsBody": "How many people must approve a supplier's bill before it can be paid, and the amount below which none need to.",
+      "approvalsPill": "Approval rule",
+      "approvalsFoot": "Applies to every bill"
     }
   },
   "peppolTax": {
@@ -9405,6 +9738,10 @@
         "closed": "Closed"
       },
       "col": {
+        "code": "Code",
+        "status": "Status",
+        "registered": "Submitted",
+        "action": "Action",
         "business": "Business",
         "plan": "Plan",
         "quota": "Quota this month",
@@ -9417,7 +9754,28 @@
         "suspend": "Suspend filing"
       },
       "showingAll": "Showing {{shown}} of {{total}}",
-      "rowMenu": "More for this tenant"
+      "rowMenu": "More for this tenant",
+      "loading": "Loading tenants…",
+      "empty": "No tenants on the platform yet.",
+      "pastEnd": "That page is past the end of the register.",
+      "firstPage": "Go to the first page",
+      "none": "—",
+      "noLegalName": "Legal name not provided yet",
+      "review": "Review",
+      "subtitlePlain": "Every business the platform holds a record for",
+      "registered": "{{total}} on the platform",
+      "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+      "pager": {
+        "label": "Tenant pages",
+        "previous": "Previous page",
+        "next": "Next page"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "PENDING": "Pending",
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed"
+      }
     },
     "soon": {
       "title": "Not built yet",
@@ -9981,6 +10339,33 @@
     "tenantDetail": {
       "notFound": "No tenant with that id. It may have been closed, or the link is out of date.",
       "notFoundBack": "Back to tenants",
+      "loading": "Loading this tenant…",
+      "noCompanyDetails": "No company details submitted yet",
+      "planDefault": "platform default",
+      "planPrice": "OMR {{amount}} a month, plan price",
+      "planAllowance": "{{count}} invoices a month included",
+      "readiness": {
+        "ready": "Ready to submit",
+        "notReady": "Not ready to submit"
+      },
+      "identityStatus": {
+        "PENDING": "Pending",
+        "READY": "Ready"
+      },
+      "field": {
+        "code": "Tenant code",
+        "legalName": "Legal name",
+        "tradingName": "Trading name",
+        "cr": "Commercial registration",
+        "address": "Registered address",
+        "timezone": "Time zone",
+        "identityStatus": "Identity status",
+        "contactEmail": "Contact email",
+        "verification": "Company verification",
+        "revision": "Profile revision",
+        "plan": "Plan",
+        "readiness": "Invoice submission"
+      },
       "backTenants": "Tenants",
       "backSubscriptions": "Subscriptions",
       "planChip": "{{plan}} · {{term}}",
@@ -11148,7 +11533,10 @@
         "town": "Town",
         "townPlaceholder": "Choose a town",
         "businessType": "Business type",
-        "businessTypePlaceholder": "Choose a type"
+        "businessTypePlaceholder": "Choose a type",
+        "tenantCode": "Tenant code",
+        "country": "Country",
+        "registeredAddress": "Registered address"
       },
       "owner": {
         "heading": "The owner",
@@ -11187,6 +11575,13 @@
         "paidLine": "{{amount}} · {{method}} · {{date}}",
         "notPaid": "Not yet — the invoice stays open",
         "edit": "Edit"
+      },
+      "creating": "Creating…",
+      "error": {
+        "conflict": "A business already uses this tenant code or tax number. Change the details and try again.",
+        "forbidden": "You do not have permission to onboard a business.",
+        "validation": "Some details were refused. Check the company fields and try again.",
+        "unexpected": "The business could not be created. Try again, or contact support if it continues."
       }
     },
     "queue": {
@@ -13077,7 +13472,60 @@
     "notFound": "We couldn't find this record. It may have been removed, or the link may be wrong.",
     "conflict": "Someone changed this while you were working on it. Reload to see the latest version, then try again.",
     "csrf": "Your session needs refreshing. Reload the page and try again.",
-    "reference": "Reference: {{id}}"
+    "reference": "Reference: {{id}}",
+    "refused": {
+      "generic": "The server refused this. Nothing was changed, and repeating it will not help — the reference below tells support exactly which rule stopped it.",
+      "creditNoteSupplierMismatch": "This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.",
+      "creditNoteCurrencyMismatch": "The credit note and the bill are in different currencies, so one cannot reduce the other.",
+      "creditNoteAlreadyApplied": "This credit note has already been used against that bill. Applying it again would reduce the bill twice.",
+      "creditNoteExceedsBill": "That is more than the bill still has outstanding.",
+      "creditNoteExceedsCredit": "That is more than this credit note has left.",
+      "creditNoteTargetNotPayable": "That document is not a bill you can credit.",
+      "refundAmountInvalid": "A refund has to be an amount above zero.",
+      "refundDateRequired": "A refund has to record the day it was paid.",
+      "debitNoteAlreadyDecided": "That decision is already the one on record. Only the opposite decision can be recorded.",
+      "debitNoteReasonRequired": "A refusal has to say why.",
+      "debitNoteReasonTooLong": "That reason is too long. Shorten it and record the refusal again.",
+      "orderTransitionInvalid": "The order is not at a step where that can be done. Reload to see where it actually is.",
+      "orderNotEditable": "This order can no longer be edited at the step it has reached.",
+      "orderConcurrentUpdate": "Someone changed this order while you were working on it. Reload to see the latest version.",
+      "orderLinesRequired": "An order needs at least one line.",
+      "overReceipt": "That is more than the order still has due.",
+      "receiptLinesRequired": "Book in at least one line.",
+      "receiptQuantityInvalid": "A booked-in quantity has to be above zero.",
+      "receiptDateRequired": "A delivery has to record the day it arrived.",
+      "reminderNeedsRecipient": "This reminder has to name at least one person to tell.",
+      "reminderNotConfigurable": "That reminder is not set here. It is set on the recurring bill itself.",
+      "reminderRepeatOutOfRange": "That repeat interval is outside the range the server accepts.",
+      "reminderTooManyRecipients": "That is more people than one reminder can tell.",
+      "reminderEscalationNotAllowed": "That reminder does not escalate, so it cannot have an escalation step.",
+      "reminderDuplicate": "That reminder is listed twice. Each kind can only be set once.",
+      "billNotFound": "That bill is not on this account. It may have been removed.",
+      "billNotReadyForPayment": "That bill is not ready to be paid yet.",
+      "holdAlreadyOpen": "This bill is already on hold.",
+      "holdNotOpen": "This bill is not on hold, so there is nothing to release.",
+      "holdOnPaid": "A bill that has been paid cannot be put on hold.",
+      "paymentCurrencyMismatch": "The payment and the bill are in different currencies.",
+      "paymentAlreadyReversed": "That payment has already been reversed.",
+      "approvalAlreadyGiven": "You have already approved this bill.",
+      "approvalReasonRequired": "A rejection has to say why.",
+      "applyAmountInvalid": "An applied amount has to be above zero.",
+      "approvalPolicyInvalid": "An approval rule has to require at least one approver."
+    },
+    "selfBilling": {
+      "generic": "The server refused this because of the self-billing agreement with this seller. Check the agreement before trying again.",
+      "missing": "There is no self-billing agreement with this seller. Open one before issuing on their behalf.",
+      "notActive": "The agreement with this seller is not active. Activate it, then issue.",
+      "notInForce": "The agreement with this seller is not in force on this date — it has not started, or it has ended.",
+      "sellerNotVerified": "Fawtir has not yet verified this seller's network identity. Issuing stays refused until that is done, and there is nothing you can do to speed it up.",
+      "alreadyExists": "There is already a live agreement with this seller. Withdraw it before opening another.",
+      "alreadyInState": "The agreement is already in that state.",
+      "withdrawn": "This agreement was withdrawn, and a withdrawal cannot be undone. Open a new agreement instead.",
+      "notFound": "That agreement is not on this account.",
+      "rangeInvalid": "The end date is before the start date.",
+      "referenceRequired": "The agreement needs a reference.",
+      "referenceTooLong": "That reference is too long."
+    }
   },
   "appAccess": {
     "checking": "Checking your access…",
@@ -14056,6 +14504,108 @@
       "erpMapping": "Map the fields of your ERP's invoices so Fawtir reads, checks and reports them.",
       "api": "Your own system talks to Fawtir directly.",
       "webhooks": "Fawtir tells your systems the moment something changes."
+    }
+  },
+  "supplierCreditNoteDetail": {
+    "back": "Back to credit notes",
+    "credited": "Credited",
+    "applied": "Used so far",
+    "refunded": "Refunded so far",
+    "noBillsForSupplier": "No bills from {{supplier}} match that. Only their own bills can take this credit.",
+    "remaining": "Left to use",
+    "factsTitle": "The note",
+    "issued": "Issued",
+    "source": "How it reached us",
+    "vat": "VAT",
+    "reason": "Why the supplier credited",
+    "credits": "Credits",
+    "verified": "Network verified",
+    "verifiedYes": "Yes — validated and reported",
+    "verifiedNo": "No — supplied to us as a file",
+    "nothingLeft": "All of this credit has been used or refunded. Nothing is left to dispose of.",
+    "historyTitle": "What has been done with it",
+    "noHistory": "Nothing explicit yet. A note linked to a bill reduces it automatically.",
+    "againstBill": "Against a bill",
+    "recorded": "recorded {{when}}",
+    "applyTitle": "Use it against a bill",
+    "applyNote": "Lowers what is still owed on that bill.",
+    "findBill": "Which bill",
+    "findBillPlaceholder": "Search a supplier or bill number",
+    "chosen": "Applying to {{bill}}",
+    "change": "Change",
+    "noBills": "No bills match that search",
+    "stillOwed": "still owed",
+    "amountOptional": "Amount (optional)",
+    "amount": "Amount",
+    "amountBlankNote": "Leave blank for the largest amount that fits both the credit and the bill.",
+    "overRemaining": "More than the {{amount}} left on this note",
+    "applyCta": "Use it",
+    "applied2": "Applied",
+    "refundTitle": "Record a refund",
+    "refundNote": "The supplier gave the money back rather than crediting a bill.",
+    "paidOn": "Paid on",
+    "referenceOptional": "Payment reference (optional)",
+    "refundCta": "Record the refund",
+    "notDone": "Not done",
+    "col": {
+      "what": "What",
+      "amount": "Amount",
+      "when": "When",
+      "reference": "Against / reference"
+    },
+    "kind": {
+      "APPLIED": "Used against a bill",
+      "REFUNDED": "Refunded"
+    },
+    "appliedDone": "The credit was used against that bill.",
+    "refundedDone": "The refund was recorded."
+  },
+  "approvalPolicy": {
+    "title": "Bill approvals",
+    "subtitle": "Who must sign off a supplier's bill before it can be paid. This is the rule the Bills screen enforces — a bill that has not met it cannot be added to a payment run.",
+    "saved": "The approval rule was saved.",
+    "notSaved": "NOT SAVED",
+    "save": "Save the rule",
+    "saving": "Saving…",
+    "discard": "Discard changes",
+    "readOnly": "You can see this rule but not change it. Changing it needs the settings permission, which is deliberately not the same as being able to approve a bill.",
+    "approvers": {
+      "title": "How many approvals",
+      "note": "How many different people must approve a bill. The same person approving twice counts once.",
+      "label": "People who must approve",
+      "floor": "One is the minimum. Approval always gates payment, so there is no setting for none."
+    },
+    "threshold": {
+      "title": "Small bills",
+      "note": "You can let bills under a certain amount through without approval.",
+      "EVERY_BILL": "Every bill needs approval, whatever the amount",
+      "BELOW_AMOUNT": "Bills under a set amount need no approval",
+      "label": "Amount",
+      "boundary": "A bill of exactly {{amount}} still needs approval — only bills below it are let through.",
+      "removing": "This removes the {{amount}} threshold. Bills that needed no approval before will need one from now on."
+    },
+    "problem": {
+      "approversRequired": "Say how many approvals a bill needs.",
+      "approversRange": "Between 1 and 10.",
+      "thresholdRequired": "Enter the amount, or choose that every bill needs approval.",
+      "thresholdPositive": "The amount has to be above zero.",
+      "thresholdDecimals": "Up to three decimal places.",
+      "thresholdTooLarge": "That amount is too large."
+    }
+  },
+  "selfBilledComposer": {
+    "breadcrumb": "Self-billing",
+    "title": "New self-billed invoice",
+    "editTitle": "Edit self-billed invoice",
+    "explainer": "You are writing this invoice on the seller's behalf. When you issue it, it records what you owe them — and it is refused unless an agreement with that seller is in force and Fawtir has verified their identity.",
+    "sections": {
+      "seller": "Seller"
+    },
+    "fields": {
+      "buyerReference": "Your reference",
+      "buyerReferenceHint": "Your own reference as the buyer (IBT-010). Only a self-billed document carries this.",
+      "contractReference": "Contract reference",
+      "contractReferenceHint": "The contract this invoice falls under (IBT-012)."
     }
   }
 }
