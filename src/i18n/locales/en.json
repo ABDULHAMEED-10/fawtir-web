@@ -700,7 +700,7 @@
   },
   "plans": {
     "title": "Pick the plan that fits your volume",
-    "description": "Every plan is fully OTA-compliant validation, signing, Peppol delivery and TDD reporting are always included.",
+    "description": "Every plan is fully OTA-compliant. Validation, signing, Peppol delivery and TDD reporting are always included.",
     "billingLabel": "Billing cycle",
     "monthly": "Monthly",
     "annual": "Annual",
@@ -759,7 +759,7 @@
       "f3": "No setup fees"
     },
     "payNote": "You choose how to pay on the next step.",
-    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick — {{documents}} documents, no card needed, and it never turns into a bill on its own.",
+    "trialNote": "Every plan except Enterprise starts with a {{days}}-day free trial of the plan you pick: {{documents}} documents, no card needed, and it never turns into a bill on its own.",
     "businessPlus": {
       "name": "Business Plus",
       "description": "For established businesses and multi-branch operations.",
@@ -778,7 +778,7 @@
       "open": "Compare all features",
       "close": "Hide the full comparison",
       "title": "Everything in each plan",
-      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol and reports to the OTA — compliance is never gated. The plans differ in volume, people and features.",
+      "subtitle": "Every plan validates PINT-OM, signs, sends and receives over Peppol and reports to the OTA. Compliance is never gated. The plans differ in volume, people and features.",
       "columnFeature": "What you get",
       "included": "Included",
       "notIncluded": "Not included",
@@ -850,7 +850,7 @@
       "q8": "What is different about Enterprise?",
       "a8": "Enterprise is Business Plus with limits agreed on a call: documents, people, branches and price are set for your contract, automatic ERP extraction is included, and an account manager looks after you. Talk to our team and we will put a proposal together.",
       "q9": "Which plan can connect my ERP?",
-      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction — Fawtir reading the documents out of your ERP for you — is a priced add-on on Business Plus and included on Enterprise."
+      "a9": "Business Plus. It carries the REST API, webhooks and ERP field mapping, so your own system can send and receive documents through Fawtir. Automatic ERP extraction, where Fawtir reads the documents out of your ERP for you, is a priced add-on on Business Plus and included on Enterprise."
     }
   },
   "payment": {
@@ -8183,11 +8183,11 @@
     "featureGroup": {
       "income": "Income",
       "expenditure": "Expenditure",
-      "operations": "Selling, contacts and stock",
+      "operations": "Selling and stock",
       "people": "People and branches",
       "integration": "Connecting another system",
       "compliance": "Compliance and delivery",
-      "reports": "Reports and records"
+      "reports": "Reports and notices"
     },
     "featureName": {
       "invoices": "Tax invoices",
@@ -8198,14 +8198,14 @@
       "recurringInvoices": "Recurring invoices",
       "selfBilling": "Self-billing",
       "tradeDocuments": "Quotations, order forms and delivery notes",
-      "billTracking": "Bill tracking and uploading — received over Peppol, scanned or uploaded",
+      "billTracking": "Bill tracking and uploading",
       "supplierNotes": "Supplier credit and debit notes",
       "recurringBills": "Recurring bills",
       "approvals": "Approval workflow",
       "pos": "Point of sale and thermal receipts",
       "catalogue": "Catalogue and price rules",
       "stock": "Stock",
-      "reports": "Income, expenditure, cash-flow and VAT reports",
+      "reports": "Income, expenditure, cash-flow, VAT and compliance reports",
       "rolesAndPermissions": "Roles and permissions",
       "multiBranch": "Branches",
       "api": "REST API and sandbox",
@@ -8218,14 +8218,14 @@
       "signingQr": "Digital signing and QR codes on every invoice",
       "bilingual": "Bilingual invoices, English and Arabic",
       "archive": "Ten-year document archive",
-      "complianceLog": "Compliance activity log — refusals, resubmission, OTA call log",
+      "complianceLog": "Compliance activity log: refusals, resubmission, OTA call log",
       "customers": "Customer records and statements",
       "suppliers": "Supplier records, import and statements",
       "complianceReports": "Compliance and list reports",
       "exports": "Exports to CSV and PDF",
       "periodClosing": "Period closing",
       "activityLog": "Company activity log",
-      "notices": "Email and in-app notices — quota, certificate, refusals",
+      "notices": "Email and in-app notices: quota, certificate, refusals",
       "twoStep": "Two-step sign-in"
     },
     "featureShort": {
