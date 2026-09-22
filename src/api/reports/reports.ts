@@ -10,6 +10,8 @@ import { withQuery } from '../query'
  *   the sell side.
  * - **expenditure** — the buy side, over `peppol.bills`. A separate report rather than a filter
  *   on volume, because the two read different tables with no overlap.
+ * - **cash-flow** — money in against money out, over PAYMENTS rather than documents, so it
+ *   buckets on a different date from every other report here.
  * - **vat** — OUTPUT (VAT charged, by EN 16931 category and rate), INPUT (VAT the tenant was
  *   charged, from received bills, which carry one VAT total and so have no category or rate),
  *   and NET per period and currency.
@@ -108,6 +110,39 @@ export type ExpenditureReportDto = {
   totals: ExpenditureTotalDto[]
 }
 
+/**
+ * Cash that moved in one bucket, in one currency.
+ *
+ * Both directions are stated positive and `net` is the only signed figure. A reversal subtracts
+ * from its own direction — it never crosses to the other one — and falls in the period it was
+ * recorded in, so a closed month cannot change after the fact. A direction can therefore read
+ * negative where a period's reversals exceeded its payments.
+ */
+export type CashFlowRowDto = {
+  period: string
+  periodStart: string
+  periodEnd: string
+  currency: string
+  received: number
+  paidOut: number
+  net: number
+}
+
+export type CashFlowTotalDto = {
+  currency: string
+  received: number
+  paidOut: number
+  net: number
+}
+
+export type CashFlowReportDto = {
+  from: string | null
+  to: string | null
+  granularity: ReportGranularity
+  rows: CashFlowRowDto[]
+  totals: CashFlowTotalDto[]
+}
+
 /** `rate` is null on INPUT rows, and on E and O output rows where the rules forbid one. */
 export type VatRowDto = {
   side: 'OUTPUT' | 'INPUT' | 'NET'
@@ -165,6 +200,14 @@ export function loadExpenditureReport(path: string): Promise<ExpenditureReportDt
   return apiRequest<ExpenditureReportDto>(path)
 }
 
+export function cashFlowPath(range: ReportRange) {
+  return withQuery(`${REPORTS_PATH}/cash-flow`, rangeQuery(range))
+}
+
+export function loadCashFlowReport(path: string): Promise<CashFlowReportDto> {
+  return apiRequest<CashFlowReportDto>(path)
+}
+
 export function vatPath(range: ReportRange) {
   return withQuery(`${REPORTS_PATH}/vat`, rangeQuery(range))
 }
@@ -182,15 +225,15 @@ export function loadListsCatalogue(): Promise<ListsCatalogueDto> {
  * response so the download always carries the same range the screen is showing.
  */
 export function reportExportPath(
-  report: 'volume' | 'vat' | 'expenditure',
+  report: 'volume' | 'vat' | 'expenditure' | 'cash-flow',
   format: 'csv' | 'xlsx',
   range: ReportRange,
   groupBy?: VolumeGroupBy | ExpenditureGroupBy,
 ) {
   return withQuery(`${REPORTS_PATH}/${report}.${format}`, {
     ...rangeQuery(range),
-    // /vat takes no grouping, and sending one it does not know would be a 400.
-    group_by: report === 'vat' ? null : (groupBy ?? 'NONE'),
+    // /vat and /cash-flow take no grouping, and sending one they do not know would be a 400.
+    group_by: report === 'vat' || report === 'cash-flow' ? null : (groupBy ?? 'NONE'),
   })
 }
 

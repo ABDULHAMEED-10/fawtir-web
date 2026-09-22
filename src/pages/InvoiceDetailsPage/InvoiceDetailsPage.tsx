@@ -39,6 +39,7 @@ import {
   isDraft,
   lineTotals,
   paidPercent,
+  counterpartyKeys,
   paymentRows,
   statusOf,
   timelineOf,
@@ -200,6 +201,9 @@ function InvoiceScreen() {
   const data = invoice.read.data
   const draft = isDraft(data)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
+  // Self-billing inverts the parties — the tenant is the buyer and customerId names the seller —
+  // so every counterparty label on this page flips with the document type.
+  const party = counterpartyKeys(data.type)
   const owed = receivable.read.status === 'ready' ? receivable.read.data : null
   const status = statusOf(data, owed)
   const totals = lineTotals(data)
@@ -347,9 +351,9 @@ function InvoiceScreen() {
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
           ) : null}
-          <span className="font-medium text-text-quaternary">{t('invoiceDetails.to')}</span>
+          <span className="font-medium text-text-quaternary">{t(party.preposition)}</span>
           <span className="font-semibold text-text-primary">
-            {customer.read.status === 'ready' ? customer.read.data.displayName : t('invoiceDetails.customerUnknown')}
+            {customer.read.status === 'ready' ? customer.read.data.displayName : t(party.unknown)}
           </span>
           {data.deliveryState === 'SENT_MANUALLY' ? (
             <>
@@ -424,11 +428,11 @@ function InvoiceScreen() {
       ) : null}
 
       <SectionCard
-        title={t('invoiceDetails.billTo')}
+        title={t(party.section)}
         action={
           can(session, 'customer.read') && customer.read.status === 'ready' ? (
             <Link to={`/customers/${data.customerId}`} className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800">
-              {t('invoiceDetails.viewCustomer')}
+              {t(party.view)}
               <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
             </Link>
           ) : undefined
@@ -528,7 +532,7 @@ function InvoiceScreen() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-sm font-medium text-text-primary">
-              {t('invoiceDetails.notes.customer')} <span className="text-text-quaternary">{noteType ? t('salesNote.detail.onNote') : t('invoiceDetails.notes.onInvoice')}</span>
+              {t(party.note)} <span className="text-text-quaternary">{noteType ? t('salesNote.detail.onNote') : t('invoiceDetails.notes.onInvoice')}</span>
             </p>
             <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{data.details?.customerVisibleNote ?? '—'}</p>
           </div>
