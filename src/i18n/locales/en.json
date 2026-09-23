@@ -4413,6 +4413,8 @@
       "dueBills_one": "{{count}} bill",
       "dueBills_other": "{{count}} bills",
       "payableBills": "{{open}} open · {{overdue}} overdue",
+      "payableDisputed_one": "{{amount}} disputed on {{count}} refused bill",
+      "payableDisputed_other": "{{amount}} disputed on {{count}} refused bills",
       "readyBills_one": "{{count}} approved bill",
       "readyBills_other": "{{count}} approved bills",
       "otherCurrencies_one": "{{count}} bill in another currency is not in these {{currency}} totals.",

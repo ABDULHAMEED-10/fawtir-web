@@ -65,6 +65,9 @@ export type BillSummaryDto = {
   dueThisWeekTotal: number
   readyToPayCount: number
   readyToPayTotal: number
+  /** Refused in our books but still owed: a rejection is our opinion, not a settlement. */
+  disputedCount: number
+  disputedTotal: number
   excludedFromTotals: number
   needsAttention: { draft: number; new: number; mismatch: number; awaitingApproval: number; total: number; truncated: boolean }
   tabs: {
