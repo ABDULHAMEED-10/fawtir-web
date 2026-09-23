@@ -124,6 +124,7 @@ import {
   ConnectionRecordsPage,
   ConnectionWriteBackPage,
   ConnectionSettingsPage,
+  ErpMappingGate,
 } from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { RemindersPage } from './pages/RemindersPage'
@@ -478,7 +479,9 @@ function App() {
             path="/settings/erp-mapping"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpOverviewPage />
+                <ErpMappingGate>
+                  <ErpOverviewPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -486,7 +489,9 @@ function App() {
             path="/settings/erp-mapping/fields"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpFieldsPage />
+                <ErpMappingGate>
+                  <ErpFieldsPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -494,7 +499,9 @@ function App() {
             path="/settings/erp-mapping/preview"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpPreviewPage />
+                <ErpMappingGate>
+                  <ErpPreviewPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -502,7 +509,9 @@ function App() {
             path="/settings/erp-mapping/certification"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpCertificationPage />
+                <ErpMappingGate>
+                  <ErpCertificationPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -510,7 +519,9 @@ function App() {
             path="/settings/erp-mapping/advanced"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpAdvancedPage />
+                <ErpMappingGate>
+                  <ErpAdvancedPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -518,7 +529,9 @@ function App() {
             path="/settings/erp-mapping/history"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpHistoryPage />
+                <ErpMappingGate>
+                  <ErpHistoryPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -526,7 +539,9 @@ function App() {
             path="/settings/erp-mapping/samples"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpSamplesPage />
+                <ErpMappingGate>
+                  <ErpSamplesPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />

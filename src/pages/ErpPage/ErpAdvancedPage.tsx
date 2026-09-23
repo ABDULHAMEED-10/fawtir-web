@@ -1,98 +1,118 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErpShell, Pill } from './ErpShell'
+import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './ErpMappingGate'
 import { CodeEditor } from './shared/CodeEditor'
+import { SamplePicker } from './shared/SamplePicker'
 import { Button, Input, Modal } from '../../components/ui'
 import {
-  activeProfile,
-  compile,
-  contentHash,
-  mappingRoute,
-  mappingStore,
-  shortHash,
-  useErpMapping,
-} from '../../lib/erpMapping'
+  deactivateMappingProfile,
+  dryRunMappingProfile,
+  saveMappingProfile,
+  type MappingDryRunDto,
+} from '../../api/erp/mapping'
+import { ApiError } from '../../api'
+import { handWritten } from '../../lib/erp/draft'
+import { shortHash } from '../../lib/erp/mappingState'
+import { sessionSamples } from '../../lib/erp/sample'
 import infoIcon from '../../assets/settings/info.svg'
 import downloadIcon from '../../assets/settings/download-ink.svg'
 
-/** How long the editor waits after the last keystroke before parking the draft in the store. */
+/** How long the editor waits after the last keystroke before parking the draft for this visit. */
 const DRAFT_DEBOUNCE_MS = 300
-
-/** Lines that differ, position for position; the honest number a text comparison can give. */
-function differingLines(a: string, b: string) {
-  const left = a.split('\n')
-  const right = b.split('\n')
-  let count = 0
-  for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
-    if (left[i] !== right[i]) count += 1
-  }
-  return count
-}
 
 type Outcome =
   | { kind: 'saved'; version: number; hash: string }
-  | { kind: 'invalid' }
+  | { kind: 'refused'; message: string }
   | { kind: 'deactivated' }
-  | { kind: 'dryRun'; hash: string; differing: number | null; identical: boolean }
+  | { kind: 'dryRun'; result: MappingDryRunDto }
+  | { kind: 'dryRunFailed'; message: string }
 
 /**
  * Settings › Integration › ERP mapping › Advanced (docs/erp-and-console-plan.md §2.5, A.5).
  *
- * The hand-written JSONata profile, for the invoices the guided mapping cannot express. Saving
- * here makes this text the thing that runs; the banner says so while a guided mapping also
- * exists, because the two are not merged — one replaces the other. Deactivating leaves nothing
- * running, and the confirm dialog says what that means: every submission fails closed.
+ * The hand-written expression, for the invoices the guided mapping cannot express. Saving here
+ * makes this text the thing that runs; the banner says so while a guided mapping also exists,
+ * because the two are not merged — one replaces the other.
  *
- * The unsaved text is parked in the store (debounced) so leaving for the field wizard and coming
- * back does not lose an hour's work.
+ * **The expression is compiled by the server before it is stored.** A malformed one is refused
+ * here with the engine's own message, rather than first failing on a real tax document. Dry run
+ * sends the *unsaved* text as a supplied expression, which is precisely what that endpoint is for:
+ * it runs in the production engine and is never persisted, so iterating cannot change what the
+ * tenant's live invoices are mapped by.
+ *
+ * Nothing here computes a content hash locally. The hash is the server's SHA-256 of the stored
+ * content, it is what certification is keyed on, and a lookalike computed in the browser would be
+ * a number that means nothing.
  */
 export function ErpAdvancedPage() {
   const { t } = useTranslation()
-  const state = useErpMapping()
-  const active = activeProfile(state)
-  const route = mappingRoute(state)
-  const hasGuided = state.guided && state.entries.length > 0
-  const compiledGuided = useMemo(
-    () => (hasGuided ? compile(state.entries) : null),
-    [hasGuided, state.entries],
-  )
+  const view = useErpMapping()
+  const reload = useErpMappingReload()
+  const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
-  const [text, setText] = useState(() => state.handWrittenDraft || active?.content || '')
-  const [erpKey, setErpKey] = useState(() => active?.erpKey ?? state.sourceSystem)
+  const active = view.activeProfile
+  const hasGuided = (view.guided?.mappings.length ?? 0) > 0
+
+  const [text, setText] = useState(() => handWritten.read() || active?.content || '')
+  const [erpKey, setErpKey] = useState(
+    () => active?.erpKey ?? view.guided?.sourceSystem ?? 'CUSTOM',
+  )
+  const [sampleId, setSampleId] = useState(samples[0]?.id ?? '')
   const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
-  /* Park the draft in the store, debounced; flush whatever is pending when the screen unmounts. */
+  /* Park the draft for this visit, debounced; flush whatever is pending on unmount. */
   const latest = useRef(text)
   useEffect(() => {
     latest.current = text
-    const timer = window.setTimeout(() => mappingStore.setHandWrittenDraft(text), DRAFT_DEBOUNCE_MS)
+    const timer = window.setTimeout(() => handWritten.write(text), DRAFT_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
   }, [text])
-  useEffect(() => () => mappingStore.setHandWrittenDraft(latest.current), [])
+  useEffect(() => () => handWritten.write(latest.current), [])
 
   const edit = (next: string) => {
     setText(next)
-    setOutcome((current) => (current?.kind === 'invalid' ? null : current))
+    setOutcome((current) => (current?.kind === 'refused' ? null : current))
   }
 
-  const dryRun = () => {
-    const identical = compiledGuided !== null && text === compiledGuided
-    setOutcome({
-      kind: 'dryRun',
-      hash: contentHash(text),
-      differing: compiledGuided === null ? null : differingLines(text, compiledGuided),
-      identical,
-    })
-  }
+  const sample = samples.find((s) => s.id === sampleId)
 
-  const save = () => {
-    const saved = mappingStore.saveHandWritten(text, erpKey.trim() || state.sourceSystem)
-    if (saved === 'invalid') {
-      setOutcome({ kind: 'invalid' })
-      return
+  /** Runs the unsaved text against a sample, in the engine, without storing anything. */
+  const dryRun = async () => {
+    if (!sample) return
+    setBusy(true)
+    setOutcome(null)
+    try {
+      const result = await dryRunMappingProfile(GUIDED_MAPPING_FORMAT, {
+        document: sample.payload,
+        content: text,
+      })
+      setOutcome({ kind: 'dryRun', result })
+    } catch (error: unknown) {
+      setOutcome({ kind: 'dryRunFailed', message: messageOf(error, t) })
+    } finally {
+      setBusy(false)
     }
-    setOutcome({ kind: 'saved', version: saved.version, hash: saved.contentHash })
+  }
+
+  const save = async () => {
+    setBusy(true)
+    setOutcome(null)
+    try {
+      const saved = await saveMappingProfile(GUIDED_MAPPING_FORMAT, {
+        content: text,
+        erpKey: erpKey.trim() || undefined,
+      })
+      setOutcome({ kind: 'saved', version: saved.version, hash: saved.contentHash })
+      handWritten.clear()
+      reload()
+    } catch (error: unknown) {
+      setOutcome({ kind: 'refused', message: messageOf(error, t) })
+    } finally {
+      setBusy(false)
+    }
   }
 
   const download = () => {
@@ -107,13 +127,19 @@ export function ErpAdvancedPage() {
     URL.revokeObjectURL(url)
   }
 
-  const deactivate = () => {
-    mappingStore.deactivateProfile()
-    setConfirming(false)
-    setOutcome({ kind: 'deactivated' })
+  const deactivate = async () => {
+    setBusy(true)
+    try {
+      await deactivateMappingProfile(GUIDED_MAPPING_FORMAT)
+      setConfirming(false)
+      setOutcome({ kind: 'deactivated' })
+      reload()
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const invalid = outcome?.kind === 'invalid'
+  const refused = outcome?.kind === 'refused'
 
   return (
     <ErpShell title={t('erp.advanced.title')} subtitle={t('erp.advanced.subtitle')}>
@@ -142,8 +168,10 @@ export function ErpAdvancedPage() {
               {t('erp.advanced.runsNow')}
             </span>
             <Pill
-              tone={route === 'NONE' ? 'danger' : route === 'GUIDED' ? 'success' : 'pending'}
-              label={t(`erp.route.${route}`)}
+              tone={
+                view.route === 'NONE' ? 'danger' : view.route === 'GUIDED' ? 'success' : 'pending'
+              }
+              label={t(`erp.route.${view.route}`)}
             />
             {active ? (
               <span dir="ltr" className="font-mono text-[11px] font-medium text-text-secondary">
@@ -161,7 +189,7 @@ export function ErpAdvancedPage() {
         </div>
 
         <div className="flex flex-col gap-4 p-5">
-          <div className="max-w-[420px] max-md:max-w-none">
+          <div className="grid gap-4 md:grid-cols-2">
             <Input
               bordered
               label={t('erp.advanced.erpKey')}
@@ -171,6 +199,12 @@ export function ErpAdvancedPage() {
               dir="ltr"
               className="font-mono"
               maxLength={64}
+            />
+            <SamplePicker
+              samples={samples}
+              value={sampleId}
+              onChange={setSampleId}
+              label={t('erp.advanced.dryRunSample')}
             />
           </div>
 
@@ -183,19 +217,13 @@ export function ErpAdvancedPage() {
               value={text}
               onChange={edit}
               ariaLabel={t('erp.advanced.profileText')}
-              invalid={invalid}
+              invalid={refused}
             />
-            {invalid ? (
-              <p role="alert" className="text-xs font-medium text-text-danger">
-                {t('erp.advanced.invalid')}
-              </p>
-            ) : (
-              <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
-                {text.trim()
-                  ? t('erp.advanced.sizeNote', { size: (text.length / 1024).toFixed(1) })
-                  : t('erp.advanced.empty')}
-              </p>
-            )}
+            <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
+              {text.trim()
+                ? t('erp.advanced.sizeNote', { size: (text.length / 1024).toFixed(1) })
+                : t('erp.advanced.empty')}
+            </p>
           </div>
 
           {outcome?.kind === 'dryRun' ? (
@@ -203,23 +231,34 @@ export function ErpAdvancedPage() {
               <p className="text-sm font-semibold text-text-primary">
                 {t('erp.advanced.dryRunTitle')}
               </p>
-              <ul className="mt-2 flex flex-col gap-1 text-sm font-medium leading-[1.5] text-text-secondary">
-                <li>
-                  {t('erp.advanced.dryRunHash')}{' '}
-                  <span dir="ltr" className="inline-block font-mono text-[11px] font-semibold">
-                    {shortHash(outcome.hash)}
-                  </span>
-                </li>
-                <li>
-                  {outcome.identical
-                    ? t('erp.advanced.identical')
-                    : outcome.differing === null
-                      ? t('erp.advanced.noGuided')
-                      : t('erp.advanced.differs', { count: outcome.differing })}
-                </li>
-                <li className="text-xs text-text-quaternary">{t('erp.advanced.serverNote')}</li>
-              </ul>
+              <p className="mt-1.5 text-sm font-medium leading-[1.5] text-text-secondary">
+                {t('erp.advanced.dryRunHash')}{' '}
+                <span dir="ltr" className="inline-block font-mono text-[11px] font-semibold">
+                  {shortHash(outcome.result.content_hash)}
+                </span>
+              </p>
+              <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                {t('erp.advanced.dryRunOk')}
+              </p>
+              <pre
+                dir="ltr"
+                className="mt-3 max-h-[320px] overflow-auto rounded-sm bg-white p-3 text-left font-mono text-[11px] leading-[1.6] text-text-secondary"
+              >
+                {JSON.stringify(outcome.result.canonical_invoice, null, 2)}
+              </pre>
             </div>
+          ) : null}
+
+          {outcome?.kind === 'dryRunFailed' ? (
+            <p role="alert" className="text-sm font-medium leading-[1.5] text-danger-700">
+              {outcome.message}
+            </p>
+          ) : null}
+
+          {outcome?.kind === 'refused' ? (
+            <p role="alert" className="text-sm font-medium leading-[1.5] text-danger-700">
+              {outcome.message}
+            </p>
           ) : null}
 
           {outcome?.kind === 'saved' ? (
@@ -241,7 +280,7 @@ export function ErpAdvancedPage() {
             <button
               type="button"
               onClick={dryRun}
-              disabled={!text.trim()}
+              disabled={!text.trim() || !sample || busy}
               className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('erp.advanced.dryRun')}
@@ -258,15 +297,15 @@ export function ErpAdvancedPage() {
             <button
               type="button"
               onClick={save}
-              disabled={!text.trim()}
+              disabled={!text.trim() || busy}
               className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
             >
-              {t('erp.advanced.save')}
+              {busy ? t('erp.shared.working') : t('erp.advanced.save')}
             </button>
             <button
               type="button"
               onClick={() => setConfirming(true)}
-              disabled={!active}
+              disabled={!active || busy}
               className="ms-auto inline-flex h-[46px] items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:ms-0"
             >
               {t('erp.advanced.deactivate')}
@@ -313,4 +352,13 @@ export function ErpAdvancedPage() {
       </Modal>
     </ErpShell>
   )
+}
+
+/** The engine's own words where it gave them — it names the failing construct, which copy cannot. */
+function messageOf(error: unknown, t: (key: string) => string): string {
+  if (error instanceof ApiError) {
+    const detail = error.problem.detail
+    if (typeof detail === 'string' && detail) return detail
+  }
+  return t('erp.advanced.requestFailed')
 }

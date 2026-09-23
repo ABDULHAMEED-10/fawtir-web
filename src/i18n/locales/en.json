@@ -12033,7 +12033,10 @@
       "VALUE_MAP_TOO_LARGE": "At most 200 pairs of 128 characters",
       "MALFORMED_VALUE_MAP": "A code on the left is empty",
       "VALUE_MAP_NOT_ALLOWED": "Value maps are for code fields only",
-      "VALUE_MAP_DEFAULT_REQUIRED": "\"Use default\" needs a default code"
+      "VALUE_MAP_DEFAULT_REQUIRED": "\"Use default\" needs a default code",
+      "DUPLICATE_REPEATED_TARGET": "A line term is mapped twice — use [] on the source path instead",
+      "SOURCE_REPEATS_DEEPER_THAN_TARGET": "The source path repeats more often than this field does",
+      "REPETITION_ROOT_MISMATCH": "Two line fields read from different source arrays"
     },
     "warning": {
       "transformAfterMap": "{{term}}: the transform runs after the value map"
@@ -12184,7 +12187,11 @@
         "limit": "At most 200 pairs of 128 characters.",
         "listSize": "{{shown}} of {{size}} codes shown here; the full list comes from the server.",
         "save": "Save the map"
-      }
+      },
+      "versionNew": "Not saved yet",
+      "staleBodyServer": "Someone else saved this mapping while you were editing. Reload to take their version — your unsaved changes here will be lost.",
+      "saveRefusedGeneric": "One of the rows cannot be saved. Check the invalid rows above.",
+      "requestFailed": "That did not reach the server. Try again."
     },
     "overview": {
       "title": "ERP mapping",
@@ -12217,7 +12224,12 @@
         "samplesAtLimit": "At the limit — remove one to add another",
         "samplesRoom_one": "Room for {{count}} more",
         "samplesRoom_other": "Room for {{count}} more",
-        "profileNote": "{{system}} · profile v{{version}} · {{hash}}"
+        "profileNote": "{{system}} · profile v{{version}} · {{hash}}",
+        "profiles": "Mapping revisions",
+        "profilesNone": "No mapping stored yet",
+        "profilesActive": "Live expression {{hash}} · every save keeps the one before it",
+        "profilesInactive": "None live — the last one was deactivated",
+        "erpKeyUnset": "ERP not recorded"
       },
       "actions": {
         "restoreExample": "Restore the example",
@@ -12362,7 +12374,10 @@
         "unreadable": "The file could not be read as JSON.",
         "stale": "The mapping changed since this page was opened. Reload, then import again.",
         "unknownTerms_one": "Not imported — {{count}} term is not in the catalogue: {{terms}}",
-        "unknownTerms_other": "Not imported — {{count}} terms are not in the catalogue: {{terms}}"
+        "unknownTerms_other": "Not imported — {{count}} terms are not in the catalogue: {{terms}}",
+        "activatedServer": "Imported and activated — the mapping compiled and is now what runs.",
+        "draftServer": "Imported as a draft. {{count}} required field(s) are still unmapped, so nothing was activated.",
+        "requestFailed": "The import did not reach the server. Try again."
       },
       "previewButton": "Preview"
     },
@@ -12420,12 +12435,19 @@
           "hash": "Content hash",
           "erpKey": "ERP key",
           "created": "Created",
-          "action": ""
+          "action": "",
+          "erp": "ERP",
+          "state": "State",
+          "at": "Stored"
         },
         "empty": "No profile yet — a complete guided mapping compiles into one, or upload a hand-written profile.",
         "active": "Active",
         "view": "View",
-        "viewTitle": "Profile v{{count}}"
+        "viewTitle": "Profile v{{count}}",
+        "superseded": "Superseded",
+        "deactivate": "Deactivate",
+        "deactivateTitle": "Deactivate the live mapping?",
+        "deactivateBody": "Nothing will map invoices until another expression is stored and certified. Submissions fail closed in the meantime. The row is kept, so the expression stays readable."
       },
       "cert": {
         "col": {
@@ -12511,7 +12533,8 @@
       "uploadSample": "Upload one first",
       "kb": "{{size}} KB",
       "findingsCount_one": "{{count}} finding",
-      "findingsCount_other": "{{count}} findings"
+      "findingsCount_other": "{{count}} findings",
+      "working": "Working…"
     },
     "preview": {
       "title": "Preview",
@@ -12537,7 +12560,15 @@
       "handWrittenHash": "Profile {{hash}}",
       "openAdvanced": "Open the profile",
       "none": "Nothing to preview yet — finish the field mapping first.",
-      "goToFields": "Go to Fields"
+      "goToFields": "Go to Fields",
+      "handWrittenRunnable": "This tenant runs a hand-written profile. The preview runs that stored expression.",
+      "incomplete": "The guided mapping is not finished yet, so there is nothing to compile. Map the remaining required fields first.",
+      "failed": "The preview did not reach the server. Try again.",
+      "ranWith": "{{source}} · {{hash}}",
+      "source": {
+        "STORED": "Stored mapping",
+        "SUPPLIED": "Unsaved expression"
+      }
     },
     "certification": {
       "title": "Certification",
@@ -12564,7 +12595,8 @@
         "type": "Transaction type",
         "when": "When",
         "by": "By",
-        "findings": "Findings"
+        "findings": "Findings",
+        "kind": "Document"
       },
       "passedPill": "Passed",
       "failedPill": "Failed",
@@ -12604,7 +12636,19 @@
       "failed": "Failed",
       "failedBody_one": "{{count}} finding · the route stays uncertified until it passes.",
       "failedBody_other": "{{count}} findings · the route stays uncertified until it passes.",
-      "noSampleResult": "That sample is gone. Choose another."
+      "noSampleResult": "That sample is gone. Choose another.",
+      "certifiedOnServer": "Certified {{date}}",
+      "requestFailed": "The run could not be started. Check the fields above and try again.",
+      "issueTime": "Issue time",
+      "issueTimeNote": "IBT-168. Fawtir needs it and no mapping can produce it, so the run supplies it.",
+      "correction": "The invoice being corrected",
+      "correctionNote": "A credit note must name its predecessor — its number, issue date and UUID — and why it was issued. The rules require all four.",
+      "precedingNumber": "Invoice number",
+      "precedingDate": "Issue date",
+      "precedingUuid": "Invoice UUID",
+      "reasonCode": "Reason code",
+      "warningsOnPass": "Passed with {{count}} warning(s) — they do not block, but read them before going live",
+      "failedStage": "Stopped at {{stage}} · layer {{layer}} · {{count}} error(s)"
     },
     "advanced": {
       "title": "Hand-written profile",
@@ -12636,7 +12680,10 @@
       "deactivated": "Deactivated. Nothing runs now and submissions fail closed.",
       "confirmTitle": "Deactivate the profile?",
       "confirmBody": "Nothing will run in its place. Every submission from your ERP fails closed until a profile is active again.",
-      "confirmSubmit": "Deactivate"
+      "confirmSubmit": "Deactivate",
+      "dryRunSample": "Sample to run against",
+      "dryRunOk": "The engine accepted the expression and produced this canonical invoice. Nothing was saved or submitted.",
+      "requestFailed": "That did not reach the server. Try again."
     },
     "connector": {
       "backToList": "Connected systems",
@@ -13392,6 +13439,15 @@
           }
         }
       }
+    },
+    "unsupported": {
+      "notAvailable": "Not available yet",
+      "REVISIONS": "Draft revision history is not stored yet. Mapping revisions are under History.",
+      "SAMPLES": "Samples are not saved yet — one chosen here is used for this visit only.",
+      "ACTIVITY_LOG": "Mapping changes are recorded, but there is no screen to read them yet.",
+      "VALUE_MAPS": "Code-to-code tables are not supported yet. Use a transform instead.",
+      "ERP_VERSION": "Fawtir records the ERP, not its version.",
+      "PROFILE_ORIGIN": "Whether the live expression came from the wizard is inferred, not recorded."
     }
   },
   "apiErrors": {
