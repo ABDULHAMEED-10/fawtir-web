@@ -4503,6 +4503,8 @@
       "daysOverdue_one": "{{count}} day overdue",
       "daysOverdue_other": "{{count}} days overdue",
       "dueToday": "Due today",
+      "wasDue_one": "Was due {{count}} day ago",
+      "wasDue_other": "Was due {{count}} days ago",
       "agreesWithOrder": "Order and receipt agree",
       "differsFromOrder": "Differs from the order",
       "theyQuoted": "Their order ref: {{ref}}",
