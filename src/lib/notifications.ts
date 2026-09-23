@@ -4,7 +4,6 @@ import { usageForecast } from './settings'
 import { SIGNING_CERTIFICATE, certificateState } from './settingsCompany'
 import { invited } from './settingsPeople'
 import { STOCK_BOOK, SUPPLIER } from './catalogStock'
-import { getConnectorState, productName } from './erpConnector'
 
 /**
  * The bell in the topbar (Figma 144:33521).
@@ -62,37 +61,12 @@ export type Note = {
 const signing = SIGNING_CERTIFICATE
 const forecast = usageForecast()
 const invitee = invited[0]
-const connector = getConnectorState()
-const brokenConnection = connector.connections.find((c) => c.state === 'ERROR')
-const supersededRecord = connector.records.find((r) => r.state === 'SUPERSEDED')
-const supersededConnection = connector.connections.find(
-  (c) => c.id === supersededRecord?.connectionId,
-)
 
+// Two notes used to be built here from the ERP connector mock: a connection in ERROR after
+// three failed runs, and a record superseded in the ERP. Neither state exists -- Phase 2 has no
+// extraction, no runs and no ERROR state -- so the bell was telling tenants their integration
+// had failed and deep-linking them at screens that now say the feature is not switched on.
 export const NOTES: Note[] = [
-  ...(brokenConnection
-    ? [
-        {
-          id: 'connectorCredentials',
-          group: 'today',
-          tone: 'danger',
-          icon: 'refused',
-          titleKey: 'notes.connectorCredentials.title',
-          bodyKey: 'notes.connectorCredentials.body',
-          values: { label: brokenConnection.label, failures: brokenConnection.consecutiveFailures },
-          when: { at: '14:00' },
-          actions: [
-            {
-              id: 'fix',
-              labelKey: 'notes.connectorCredentials.fix',
-              kind: 'primary',
-              to: `/settings/erp/connections/${brokenConnection.id}/settings`,
-            },
-          ],
-          unread: true,
-        } satisfies Note,
-      ]
-    : []),
   {
     id: 'certificate',
     group: 'today',
@@ -153,33 +127,6 @@ export const NOTES: Note[] = [
     ],
     unread: false,
   },
-  ...(supersededRecord && supersededConnection
-    ? [
-        {
-          id: 'connectorSuperseded',
-          group: 'today',
-          tone: 'warning',
-          icon: 'refused',
-          titleKey: 'notes.connectorSuperseded.title',
-          bodyKey: 'notes.connectorSuperseded.body',
-          values: {
-            erpNumber: supersededRecord.erpNumber,
-            note: supersededRecord.supersededBy?.note ?? '',
-            product: productName(supersededConnection.product),
-          },
-          when: { at: '12:41' },
-          actions: [
-            {
-              id: 'open',
-              labelKey: 'notes.connectorSuperseded.open',
-              kind: 'secondary',
-              to: `/settings/erp/connections/${supersededConnection.id}/records/${supersededRecord.id}`,
-            },
-          ],
-          unread: false,
-        } satisfies Note,
-      ]
-    : []),
   {
     id: 'stock',
     group: 'today',

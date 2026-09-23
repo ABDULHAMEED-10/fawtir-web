@@ -1,127 +1,45 @@
 import type { ReactNode } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from '../../SettingsPage/SettingsShell'
-import { Pill } from '../ErpShell'
 import { SecondaryLink } from '../overview/idiom'
-import { useErpMapping } from '../../../lib/erpMapping'
-import {
-  connectionById,
-  mappingStatusOf,
-  pendingRejections,
-  productName,
-  useConnector,
-  type Connection,
-  type ConnectionState,
-  type MappingStatus,
-  type OutboxState,
-  type RecordState,
-  type RunState,
-} from '../../../lib/erpConnector'
+import { ConnectionStatePill } from './connectionParts'
+import type { ErpConnectionDto } from '../../../api/erp/connections'
 
 /**
- * The frame every connection screen shares (docs/erp-and-console-plan.md §3, Appendix B):
- * Settings' shell with the Integration tab lit, the connection's label and product with its
- * state, and the strip of six tabs — Overview · Mapping · Runs · Records · Write-back · Settings.
- * A mark on Records counts rejections waiting for someone.
+ * The frame every real connection screen shares: Settings' shell with Integration lit, the
+ * connection's name and system with its state, and the tabs.
+ *
+ * **Two tabs, not six.** The previous shell offered Overview · Mapping · Runs · Records ·
+ * Write-back · Settings. Four of those describe extraction — collecting invoices from an ERP on a
+ * schedule and writing outcomes back — which Phase 2 does not implement and this phase does not
+ * build. Their URLs still resolve so an existing bookmark does not 404, but they are off the strip
+ * and say plainly that the feature is not switched on. Leaving them on the strip would advertise
+ * working features that do not exist.
  */
 
-type Tone = 'danger' | 'success' | 'pending' | 'neutral'
-
-const CONNECTION_TONE: Record<ConnectionState, Tone> = {
-  DRAFT: 'neutral',
-  CONNECTED: 'success',
-  PAUSED: 'pending',
-  ERROR: 'danger',
-  DISCONNECTED: 'neutral',
-}
-const MAPPING_TONE: Record<MappingStatus, Tone> = {
-  UNMAPPED: 'neutral',
-  DRAFT: 'pending',
-  READY: 'pending',
-  CERTIFIED: 'success',
-  STALE: 'danger',
-}
-const RUN_TONE: Record<RunState, Tone> = {
-  RUNNING: 'pending',
-  SUCCEEDED: 'success',
-  PARTIAL: 'pending',
-  FAILED: 'danger',
-  SKIPPED_QUOTA: 'neutral',
-  SKIPPED_LEASE: 'neutral',
-}
-const RECORD_TONE: Record<RecordState, Tone> = {
-  COLLECTED: 'neutral',
-  MAPPED: 'neutral',
-  SUBMITTED: 'pending',
-  ACCEPTED: 'success',
-  REJECTED: 'danger',
-  WRITTEN_BACK: 'success',
-  WRITEBACK_FAILED: 'danger',
-  SUPERSEDED: 'pending',
-}
-const OUTBOX_TONE: Record<OutboxState, Tone> = {
-  PENDING: 'pending',
-  SENT: 'success',
-  FAILED: 'danger',
-  ABANDONED: 'neutral',
-}
-
-export function ConnectionStatePill({ state }: { state: ConnectionState }) {
-  const { t } = useTranslation()
-  return <Pill tone={CONNECTION_TONE[state]} label={t(`erp.connector.state.${state}`)} />
-}
-export function MappingStatusPill({ status }: { status: MappingStatus }) {
-  const { t } = useTranslation()
-  return <Pill tone={MAPPING_TONE[status]} label={t(`erp.connector.mappingStatus.${status}`)} />
-}
-export function RunStatePill({ state }: { state: RunState }) {
-  const { t } = useTranslation()
-  return <Pill tone={RUN_TONE[state]} label={t(`erp.connector.runState.${state}`)} />
-}
-export function RecordStatePill({ state }: { state: RecordState }) {
-  const { t } = useTranslation()
-  return <Pill tone={RECORD_TONE[state]} label={t(`erp.connector.recordState.${state}`)} />
-}
-export function OutboxStatePill({ state }: { state: OutboxState }) {
-  const { t } = useTranslation()
-  return <Pill tone={OUTBOX_TONE[state]} label={t(`erp.connector.outboxState.${state}`)} />
-}
-
-export const CONNECTION_TABS = [
+// Module-private: nothing outside needs them, and a component module that also exports
+// constants breaks fast refresh (react-refresh/only-export-components).
+const CONNECTION_TABS = [
   { id: 'overview', path: '' },
-  { id: 'mapping', path: '/mapping' },
-  { id: 'runs', path: '/runs' },
-  { id: 'records', path: '/records' },
-  { id: 'writeBack', path: '/write-back' },
   { id: 'settings', path: '/settings' },
 ] as const
-export type ConnectionTab = (typeof CONNECTION_TABS)[number]['id']
+type ConnectionTab = (typeof CONNECTION_TABS)[number]['id']
 
-export const connectionPath = (id: string, tab: ConnectionTab = 'overview') =>
+const connectionPath = (id: string, tab: ConnectionTab = 'overview') =>
   `/settings/erp/connections/${id}${CONNECTION_TABS.find((x) => x.id === tab)!.path}`
 
-/** The current connection from the route, or `undefined` when the id is unknown. */
-export function useConnection(): Connection | undefined {
-  const { id } = useParams<{ id: string }>()
-  const state = useConnector()
-  return connectionById(state, id)
-}
-
-function ConnectionTabs({ connection }: { connection: Connection }) {
+function ConnectionTabs({ connectionId }: { connectionId: string }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const state = useConnector()
-  const rejections = pendingRejections(state, connection.id)
   return (
     <nav
       aria-label={t('erp.connector.tabs.label')}
       className="-mb-2 flex gap-1 overflow-x-auto border-b border-border-subtle"
     >
       {CONNECTION_TABS.map((tab) => {
-        const to = connectionPath(connection.id, tab.id)
+        const to = connectionPath(connectionId, tab.id)
         const active = tab.id === 'overview' ? pathname === to : pathname.startsWith(to)
-        const mark = tab.id === 'records' ? rejections : 0
         return (
           <Link
             key={tab.id}
@@ -134,12 +52,7 @@ function ConnectionTabs({ connection }: { connection: Connection }) {
                 : 'border-transparent text-text-quaternary hover:text-text-secondary',
             ].join(' ')}
           >
-            {t(`erp.connector.tabs.${tab.id}`)}
-            {mark ? (
-              <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-700 px-1 text-[10px] font-semibold text-white">
-                {mark}
-              </span>
-            ) : null}
+            {t(`erp.connections.detail.${tab.id}`)}
           </Link>
         )
       })}
@@ -148,36 +61,30 @@ function ConnectionTabs({ connection }: { connection: Connection }) {
 }
 
 /**
- * Wraps a connection screen. When the route's id matches nothing, the frame says so and offers the
- * way back, so a stale link never lands on an empty page.
+ * Wraps a connection screen once its data has arrived.
+ *
+ * Loading, not-found and refused states belong to the screen that owns the read; this only draws
+ * the frame around a connection that exists. The subtitle names the system and how it connects,
+ * never the endpoint — an address can carry a query string, and a page heading is the one place a
+ * reader cannot choose not to look at.
  */
 export function ConnectionShell({
   connection,
   actions,
   children,
 }: {
-  connection: Connection | undefined
+  connection: ErpConnectionDto
   actions?: ReactNode
   children: ReactNode
 }) {
   const { t } = useTranslation()
-  const mapping = useErpMapping()
-
-  if (!connection) {
-    return (
-      <SettingsShell group="integration">
-        <SettingsHeader
-          title={t('erp.connector.notFound.title')}
-          subtitle={t('erp.connector.notFound.subtitle')}
-        />
-        <div>
-          <SecondaryLink to="/settings/erp/connections">
-            {t('erp.connector.backToList')}
-          </SecondaryLink>
-        </div>
-      </SettingsShell>
-    )
-  }
+  const subtitle = [
+    connection.sourceSystem,
+    connection.sourceVersion,
+    t(`erp.connections.mode.${connection.connectionMode}`),
+  ]
+    .filter((part): part is string => part !== null && part !== '')
+    .join(' · ')
 
   return (
     <SettingsShell group="integration">
@@ -189,26 +96,39 @@ export function ConnectionShell({
           <span aria-hidden="true" className="rtl:rotate-180">
             ‹
           </span>
-          {t('erp.connector.backToList')}
+          {t('erp.connections.backToList')}
         </Link>
         <SettingsHeader
-          title={connection.label}
-          subtitle={t('erp.connector.shell.subtitle', {
-            product: productName(connection.product),
-            version: connection.erpVersion ?? '',
-            url: connection.baseUrl,
-          })}
+          title={connection.name}
+          subtitle={subtitle}
           actions={
             <>
               <ConnectionStatePill state={connection.state} />
-              <MappingStatusPill status={mappingStatusOf(connection, mapping)} />
               {actions}
             </>
           }
         />
       </div>
-      <ConnectionTabs connection={connection} />
+      <ConnectionTabs connectionId={connection.id} />
       {children}
+    </SettingsShell>
+  )
+}
+
+/** The frame for a route whose connection id matches nothing, so a stale link is not a blank page. */
+export function ConnectionNotFound() {
+  const { t } = useTranslation()
+  return (
+    <SettingsShell group="integration">
+      <SettingsHeader
+        title={t('erp.connector.notFound.title')}
+        subtitle={t('erp.connector.notFound.subtitle')}
+      />
+      <div>
+        <SecondaryLink to="/settings/erp/connections">
+          {t('erp.connections.backToList')}
+        </SecondaryLink>
+      </div>
     </SettingsShell>
   )
 }
