@@ -5751,11 +5751,11 @@
     "ownPapersLink": "Go to suppliers",
     "searchPlaceholder": "Search by document number",
     "allKinds": "Every kind",
-    "allTdd": "Any tax-authority status",
+    "allTdd": "Any reporting status",
     "allYears": "Every tax year",
     "filter": {
       "kind": "Kind",
-      "tdd": "Tax authority",
+      "tdd": "Reporting status",
       "taxYear": "Tax year",
       "from": "From",
       "to": "To"
@@ -5770,7 +5770,7 @@
       "document": "Document",
       "counterparty": "Other party",
       "when": "When",
-      "tdd": "Tax authority",
+      "tdd": "Reporting status",
       "artefacts": "What's held",
       "kept": "Kept until"
     },
@@ -5844,7 +5844,7 @@
       "counterparty": "Other party",
       "occurredAt": "When",
       "taxYear": "Tax year",
-      "tdd": "Tax authority",
+      "tdd": "Reporting status",
       "ack": "Acknowledgement",
       "audience": "Sent to",
       "uuid": "Document UUID",
