@@ -73,6 +73,7 @@ function RecordBill({ id }: { id: string }) {
           lockedSupplier={{ id: profile.id, name: profile.displayName, vatNumber: profile.vatNumber }}
           cancelTo={back}
           onSaved={(bill) => navigate(`/expenditure/bills/${bill.id}`)}
+          onKept={() => navigate('/expenditure/bills?tab=needsAttention')}
         />
       )}
     </div>

@@ -4526,6 +4526,14 @@
       "inPaymentRunRef": "In payment run {{run}}",
       "paid": "Paid"
     },
+    "unconfirmed": {
+      "title": "Uploads waiting for their details",
+      "continue": "Continue",
+      "discard": "Discard",
+      "unnamed": "Untitled upload",
+      "UPLOADED": "Uploaded {{date}}",
+      "SCANNED": "Scanned {{date}} — receipts are confirmed from Scan a receipt"
+    },
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
       "drafts_other": "{{count}} uploaded or scanned bills are waiting for their details. They appear here once confirmed.",
@@ -14084,6 +14092,8 @@
     },
     "discard": "Discard",
     "saving": "Saving…",
+    "keep": "Save for later",
+    "savedFilled": "The details saved earlier are filled in. Check them, then save the bill.",
     "error": {
       "supplier": "Choose a supplier, or use the name as written on the bill.",
       "supplierUnknown": "That supplier is not on your list any more. Choose another.",
