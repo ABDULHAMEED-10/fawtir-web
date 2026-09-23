@@ -8,6 +8,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { InvoiceDetailDto, InvoiceHistoryDto, InvoicePaymentDto, InvoiceReceivableDto } from '../../api/invoices/detail'
 import { paymentProblems, paymentRows, statusOf, timelineOf } from '../../lib/invoiceDetail'
 import { InvoiceDetailsPage } from './InvoiceDetailsPage'
+import { SelfBillDetailPage } from '../SelfBillDetailPage'
 import { ApiError } from '../../api'
 import { dueDateFor, issueProblems, issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
 
@@ -354,6 +355,26 @@ describe('An invoice, wired to the API', () => {
     renderInvoice()
     expect(await screen.findByText('الرصيد المستحق')).toBeTruthy()
     expect(screen.getByText('سُجّل دفع')).toBeTruthy()
+  })
+})
+
+describe('A self-billed invoice through its own door', () => {
+  it('is the invoice page with the parties turned round: billed by the seller, not billed to a customer', async () => {
+    invoiceResponse = () => json(200, invoice({ type: 'SELF_BILLED_INVOICE', invoiceNumber: 'SBI-2026-0001' }))
+    render(
+      <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+        <MemoryRouter initialEntries={[`/income/self-billing/:id`.replace(':id', ID)]}>
+          <Routes>
+            <Route path="/income/self-billing/:id" element={<SelfBillDetailPage />} />
+            <Route path="/login" element={<p>sign-in page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </ReferenceDataContext.Provider>,
+    )
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
+    expect(await screen.findByText('Billed by')).toBeTruthy()
+    expect(screen.queryByText('Bill to')).toBeNull()
   })
 })
 

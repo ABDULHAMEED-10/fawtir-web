@@ -3,13 +3,15 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { ListsCatalogueDto, VatReportDto, VolumeReportDto, VatRowDto, VolumeRowDto } from '../../api/reports/reports'
+import type { CashFlowReportDto, ExpenditureReportDto, ListsCatalogueDto, VatReportDto, VolumeReportDto, VatRowDto, VolumeRowDto } from '../../api/reports/reports'
 import { catalogueHref } from '../../api/reports/reports'
 import { byPeriod, currenciesIn, outputByCategory, periodsOf, vatPosition } from '../../lib/vatReport'
 import { byGroup, byPeriodTotal, cancelledCount } from '../../lib/volumeReport'
 import { ReportsVatPage } from './ReportsVatPage'
 import { ReportsIncomePage } from '../ReportsIncomePage'
 import { ReportsListsPage } from '../ReportsListsPage'
+import { ReportsExpenditurePage } from '../ReportsExpenditurePage'
+import { ReportsCashFlowPage } from '../ReportsCashFlowPage'
 
 const READER: Entitlements = {
   userId: 'u-1',
@@ -79,6 +81,30 @@ const VOLUME: VolumeReportDto = {
   totals: [{ currency: 'OMR', documents: 8, taxableAmount: 3000, vatAmount: 150, totalAmount: 3150 }],
 }
 
+const EXPENDITURE: ExpenditureReportDto = {
+  from: '2026-01-01',
+  to: '2026-02-28',
+  granularity: 'MONTH',
+  groupBy: 'NONE',
+  rows: [
+    { period: '2026-01', periodStart: '2026-01-01', periodEnd: '2026-01-31', groupKey: null, groupLabel: null, currency: 'OMR', documents: 4, netAmount: 1000, vatAmount: 50, totalAmount: 1050 },
+    { period: '2026-02', periodStart: '2026-02-01', periodEnd: '2026-02-28', groupKey: null, groupLabel: null, currency: 'OMR', documents: 3, netAmount: 1500, vatAmount: 75, totalAmount: 1575 },
+  ],
+  totals: [{ currency: 'OMR', documents: 7, netAmount: 2500, vatAmount: 125, totalAmount: 2625 }],
+}
+
+// February's reversals outweigh its payments: a direction the server states negative.
+const CASH_FLOW: CashFlowReportDto = {
+  from: '2026-01-01',
+  to: '2026-02-28',
+  granularity: 'MONTH',
+  rows: [
+    { period: '2026-01', periodStart: '2026-01-01', periodEnd: '2026-01-31', currency: 'OMR', received: 1500, paidOut: 400, net: 1100 },
+    { period: '2026-02', periodStart: '2026-02-01', periodEnd: '2026-02-28', currency: 'OMR', received: -200, paidOut: 300, net: -500 },
+  ],
+  totals: [{ currency: 'OMR', received: 1300, paidOut: 700, net: 600 }],
+}
+
 const CATALOGUE: ListsCatalogueDto = {
   datasets: [
     {
@@ -124,6 +150,8 @@ beforeEach(async () => {
     if (url.includes('/reports/vat')) return json(200, VAT)
     if (url.includes('/reports/volume')) return json(200, VOLUME)
     if (url.includes('/reports/lists')) return json(200, CATALOGUE)
+    if (url.includes('/reports/expenditure')) return json(200, EXPENDITURE)
+    if (url.includes('/reports/cash-flow')) return json(200, CASH_FLOW)
     return json(404)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -244,6 +272,51 @@ describe('the income page', () => {
     await screen.findByText('3,150.000')
     fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'CUSTOMER' } })
     await waitFor(() => expect(calls('/api/v1/reports/volume').at(-1)).toContain('group_by=CUSTOMER'))
+  })
+})
+
+describe('the expenditure page', () => {
+  it('shows what was spent, the VAT charged on it and the documents behind it, from the server\'s totals', async () => {
+    renderAt('/reports/expenditure', <ReportsExpenditurePage />)
+    expect(await screen.findByText('2,625.000')).toBeTruthy()
+    expect(screen.getByText('2,500.000')).toBeTruthy()
+    expect(screen.getByText('125.000')).toBeTruthy()
+    expect(screen.getByText('Documents received')).toBeTruthy()
+    expect(calls('/api/v1/reports/expenditure')).toHaveLength(1)
+  })
+
+  it('asks the server to group, and names a bill without a category as such rather than dropping it', async () => {
+    renderAt('/reports/expenditure?group_by=CATEGORY', <ReportsExpenditurePage />)
+    // Once grouped, the total is on the card and in the group table alike.
+    await screen.findAllByText('2,625.000')
+    expect(calls('/api/v1/reports/expenditure').at(-1)).toContain('group_by=CATEGORY')
+    expect(screen.getAllByText('Uncategorised').length).toBeGreaterThan(0)
+
+    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'SUPPLIER' } })
+    await waitFor(() => expect(calls('/api/v1/reports/expenditure').at(-1)).toContain('group_by=SUPPLIER'))
+  })
+})
+
+describe('the cash flow page', () => {
+  it('states both directions from the server and names a reversal-heavy period instead of drawing it small', async () => {
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(await screen.findByText('1,300.000')).toBeTruthy()
+    expect(screen.getByText('700.000')).toBeTruthy()
+    expect(screen.getByText('600.000')).toBeTruthy()
+    // A bar cannot be negative, so the period is named and the reader is sent to the figures.
+    expect(screen.getByText(/Reversals outweighed payments in 2026-02/)).toBeTruthy()
+    expect(screen.queryByText('Bucketed on the payment date, not the invoice date.')).toBeNull()
+  })
+
+  it('says so when nothing was recorded, rather than drawing an empty chart', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/me/entitlements')) return json(200, READER)
+      if (url.includes('/reports/cash-flow')) return json(200, { ...CASH_FLOW, rows: [], totals: [] })
+      return json(404)
+    })
+    renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
+    expect(await screen.findByText('No payments were recorded in this range.')).toBeTruthy()
   })
 })
 
