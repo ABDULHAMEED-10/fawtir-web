@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
+import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Input, Select, withRial } from '../../components/ui'
 import { COMPANY } from '../../lib/settings'
-import { PAYMENT_TERMS_OPTIONS } from '../../lib/catalogues'
 import companyLogo from '../../assets/dashboard/bahja-logo.svg'
 import infoIcon from '../../assets/settings/info.svg'
 import tickIcon from '../../assets/settings/check-white.svg'
@@ -72,6 +72,7 @@ const omr = (value: number) =>
  */
 export function CompanyProfilePage() {
   const { t } = useTranslation()
+  const reference = useReferenceData()
   const [form, setForm] = useState(INITIAL)
   const [saved, setSaved] = useState(false)
 
@@ -350,7 +351,7 @@ export function CompanyProfilePage() {
                     ariaLabel={t('companyProfile.paymentTerms')}
                     value={form.paymentTerms}
                     onChange={(value) => set('paymentTerms', value)}
-                    options={PAYMENT_TERMS_OPTIONS}
+                    options={paymentTermOptions(reference, t)}
                   />
                 </Field>
               </div>

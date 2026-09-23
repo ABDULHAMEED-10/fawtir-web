@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import {
+  netDaysFor,
+  paymentTermOptions,
+  taxCategoryFor,
+  taxCategoryOptions,
+  unitOptions,
+  useReferenceData,
+} from '../../lib/reference/referenceData'
 import { AppShell } from '../../layouts/AppShell'
 import { Combobox, DateField, Modal, Select, withRial, type SelectOption } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
@@ -25,7 +33,6 @@ import {
   type BranchDto,
   type DraftPreview,
 } from '../../api/invoices/drafts'
-import { PAYMENT_TERM_DAYS, PAYMENT_TERMS_OPTIONS, TAX_CATEGORIES, TAX_CATEGORY_OPTIONS, UNIT_OPTIONS } from '../../lib/catalogues'
 import {
   NEEDS_EXEMPTION_REASON,
   blankDraftForm,
@@ -109,9 +116,9 @@ function failureText(t: Translate, error: unknown): string {
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body
 }
 
-/** A product's unit may be one the short list does not carry; it is shown rather than dropped. */
-function unitOptionsWith(code: string): SelectOption[] {
-  return UNIT_OPTIONS.some((option) => option.value === code) ? UNIT_OPTIONS : [...UNIT_OPTIONS, { value: code, label: code }]
+/** A product's unit may be one the catalogue does not carry; it is shown rather than dropped. */
+function unitOptionsWith(options: SelectOption[], code: string): SelectOption[] {
+  return options.some((option) => option.value === code) ? options : [...options, { value: code, label: code }]
 }
 
 function SectionTitle({ step, title }: { step: number; title: string }) {
@@ -280,6 +287,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const navigate = useNavigate()
   const session = useSession()
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   const language = i18n.language
   // `selfbilling.create`, not `invoice.draft`: writing an invoice on someone else's behalf is a
   // different authority from writing your own, and the server keeps them apart.
@@ -300,7 +308,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; body: string; stale?: boolean } | null>(null)
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle' })
   const [issueDate, setIssueDate] = useState(muscatToday)
-  const [dueDate, setDueDate] = useState(() => addDays(muscatToday(), PAYMENT_TERM_DAYS.NET30))
+  const [dueDate, setDueDate] = useState(() => addDays(muscatToday(), netDaysFor(reference, 'NET30') ?? 30))
   const [dueDateTouched, setDueDateTouched] = useState(false)
   const [defaultTax, setDefaultTax] = useState('S5')
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -335,7 +343,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           : loaded.details.transactionType === 'SIMPLIFIED'
             ? 'consumer'
             : 'business'
-        const next = fromDraftResponse(loaded, kind)
+        const next = fromDraftResponse(reference?.taxCategories ?? [], loaded, kind)
         if (canReadNote) {
           next.internalNote = await loadInternalNote(id)
             .then((note) => note.internalNote ?? '')
@@ -370,9 +378,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   // INV-PD-005 — terms fill the due date until the person takes it over.
   useEffect(() => {
     if (dueDateTouched || !issueDate) return
-    const days = PAYMENT_TERM_DAYS[form.paymentTerms]
-    if (days !== undefined) setDueDate(addDays(issueDate, days))
-  }, [form.paymentTerms, issueDate, dueDateTouched])
+    // null when the catalogue has not answered yet, or carries no such term: leave the date
+    // the reader is looking at alone rather than snapping it to a guess.
+    const days = netDaysFor(reference, form.paymentTerms)
+    if (days !== null) setDueDate(addDays(issueDate, days))
+  }, [form.paymentTerms, issueDate, dueDateTouched, reference])
 
   const change = (patch: Partial<DraftForm>) => {
     setForm((current) => ({ ...current, ...patch }))
@@ -387,7 +397,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     setDirty(true)
   }
   const addLine = () => {
-    setForm((current) => ({ ...current, lines: [...current.lines, blankDraftLine(defaultTax)] }))
+    setForm((current) => ({ ...current, lines: [...current.lines, blankDraftLine(reference?.taxCategories ?? [], defaultTax)] }))
     setDirty(true)
   }
 
@@ -461,7 +471,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
 
   /** Saves the form as the draft and answers the saved draft, or null when it was refused. */
   const persist = async (): Promise<DraftMeta | null> => {
-    const found = problemsBeforeSave(form)
+    const found = problemsBeforeSave(reference?.taxCategories ?? [], form)
     setProblems(found)
     setServerLineErrors({})
     if (found.length > 0) {
@@ -470,7 +480,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     }
     setSaving(true)
     setNotice(null)
-    const body = toDraftRequest(form, exclVat, selfBilled)
+    // The stored paymentTerms label is a snapshot of what the reader saw, so it has to be
+    // the translated text rather than the bare code.
+    const body = toDraftRequest(reference, form, exclVat, selfBilled, (code) =>
+      t(`reference.paymentTerm.${code}`, { defaultValue: code }),
+    )
     try {
       const result = meta
         ? await saveDraft(meta.id, meta.version, body)
@@ -740,7 +754,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               <Select
                 value={form.paymentTerms}
                 onChange={(paymentTerms) => change({ paymentTerms })}
-                options={PAYMENT_TERMS_OPTIONS}
+                options={paymentTermOptions(reference, t)}
                 ariaLabel={t('createInvoice.fields.paymentTerms')}
               />
             </div>
@@ -767,7 +781,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             </div>
             <div className="flex flex-col gap-1">
               <FieldLabel label={t('createInvoice.fields.taxCategory')} required />
-              <Select value={defaultTax} onChange={setDefaultTax} options={TAX_CATEGORY_OPTIONS} ariaLabel={t('createInvoice.fields.taxCategory')} />
+              <Select value={defaultTax} onChange={setDefaultTax} options={taxCategoryOptions(reference, t)} ariaLabel={t('createInvoice.fields.taxCategory')} />
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -890,7 +904,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             <div className="mt-3 flex flex-col gap-3">
               {form.lines.map((row, index) => {
                 const amounts = estimate.lines[index]
-                const tax = taxOptionOf(row)
+                const tax = taxOptionOf(reference?.taxCategories ?? [], row)
                 const messages = lineMessages(index)
                 return (
                   <div key={row.id} className="flex flex-col gap-1">
@@ -899,7 +913,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                       <ProductPicker
                         productId={row.productId}
                         label={row.description}
-                        onPick={(product) => updateLine(row.id, lineFromProduct(product, exclVat))}
+                        onPick={(product) => updateLine(row.id, lineFromProduct(reference?.taxCategories ?? [], product, exclVat))}
                       />
                       <FieldShell>
                         <input
@@ -915,12 +929,12 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         <Select
                           value={tax.code}
                           onChange={(code) =>
-                            updateLine(row.id, { taxCode: code, vatRate: TAX_CATEGORIES.find((c) => c.code === code)?.rate ?? '5' })
+                            updateLine(row.id, { taxCode: code, vatRate: taxCategoryFor(reference, code)?.rate ?? '0' })
                           }
-                          options={TAX_CATEGORY_OPTIONS}
+                          options={taxCategoryOptions(reference, t)}
                           ariaLabel={t('createInvoice.items.vat')}
                         />
-                        {NEEDS_EXEMPTION_REASON.has(tax.categoryId) ? (
+                        {NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
                           <input
                             value={row.exemptionReason}
                             onChange={(e) => updateLine(row.id, { exemptionReason: e.target.value })}
@@ -943,7 +957,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                       <Select
                         value={row.unit}
                         onChange={(unit) => updateLine(row.id, { unit })}
-                        options={unitOptionsWith(row.unit)}
+                        options={unitOptionsWith(unitOptions(reference, t), row.unit)}
                         ariaLabel={t('createInvoice.items.unit')}
                       />
                       <DiscountField
