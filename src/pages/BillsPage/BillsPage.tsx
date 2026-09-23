@@ -16,6 +16,7 @@ import {
   type BillRowDto,
   type BillSummaryDto,
 } from '../../api/expenditure/bills'
+import { discardIntake, loadIntakes, unconfirmedIntakesPath, type IntakePageDto } from '../../api/expenditure/billIntake'
 import {
   BILL_PAGE_SIZES,
   BILL_SORTS,
@@ -37,7 +38,7 @@ import {
   type Note,
 } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
 import kpiDueIcon from '../../assets/bills/kpi-due.svg'
@@ -279,8 +280,9 @@ function BillsScreen() {
         </div>
 
         {tab === 'needsAttention' && totals.needsAttention.draft > 0 ? (
-          <div className="px-6 pb-3.5">
+          <div className="flex flex-col gap-3 px-6 pb-3.5">
             <Notice body={t('billsPage.notice.drafts', { count: totals.needsAttention.draft })} />
+            <UnconfirmedUploads onChanged={summary.retry} />
           </div>
         ) : null}
         {truncated ? (
@@ -339,6 +341,65 @@ function BillsScreen() {
           </div>
         ) : null}
       </section>
+    </div>
+  )
+}
+
+/**
+ * The uploads the drafts notice counts, each with a way back to it: an upload saved for later is
+ * finished on its own page; a receipt is confirmed from Scan a receipt and can only be discarded
+ * here. A companion to the notice, so a failed read shows nothing rather than a second error
+ * beside the count.
+ */
+function UnconfirmedUploads({ onChanged }: { onChanged: () => void }) {
+  const { t, i18n } = useTranslation()
+  const session = useSession()
+  const [failure, setFailure] = useState<string | null>(null)
+  const path = unconfirmedIntakesPath(0, 20)
+  const intakes = useApiRead<IntakePageDto>(path, () => loadIntakes(path))
+  if (intakes.read.status !== 'ready') return null
+
+  const discard = async (id: string) => {
+    setFailure(null)
+    try {
+      await discardIntake(id)
+      intakes.retry()
+      onChanged()
+    } catch (error) {
+      setFailure(failureText(t, error))
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {failure ? <Notice body={failure} action={{ label: t('common.close'), onClick: () => setFailure(null) }} /> : null}
+      <ul aria-label={t('billsPage.unconfirmed.title')} className="divide-y divide-border-subtle rounded-md border border-border-subtle">
+        {intakes.read.data.items.map((intake) => (
+          <li key={intake.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-text-primary">
+                {intake.extracted.supplierName || intake.filename || t('billsPage.unconfirmed.unnamed')}
+                {intake.extracted.billNumber ? ` · ${intake.extracted.billNumber}` : ''}
+              </p>
+              <p className="text-xs font-medium text-text-quaternary">
+                {t(`billsPage.unconfirmed.${intake.source}`, { date: formatInstantDay(intake.uploadedAt, i18n.language) })}
+              </p>
+            </div>
+            {can(session, 'invoice.payment.manage') ? (
+              <div className="flex items-center gap-4">
+                {intake.source === 'UPLOADED' ? (
+                  <Link to={`/expenditure/bills/upload/${intake.id}`} className="text-sm font-semibold text-primary-800 hover:text-primary-700">
+                    {t('billsPage.unconfirmed.continue')}
+                  </Link>
+                ) : null}
+                <button type="button" onClick={() => void discard(intake.id)} className="text-sm font-semibold text-text-tertiary hover:text-text-danger">
+                  {t('billsPage.unconfirmed.discard')}
+                </button>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

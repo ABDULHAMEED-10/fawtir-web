@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillRowDto, BillSummaryDto } from '../../api/expenditure/bills'
+import type { IntakeDto } from '../../api/expenditure/billIntake'
 import { daysFromMuscatToday, dueNoteOf, statusLabelKey, toBillListItem } from '../../lib/billList'
 import { BillsPage } from './BillsPage'
 
@@ -85,6 +86,7 @@ function itemsPage(items: BillRowDto[], total = items.length, page = 0, pageSize
 }
 
 let fetchMock: ReturnType<typeof vi.fn>
+let unconfirmed: IntakeDto[]
 let listResponses: Array<() => Response>
 let summaryResponse: () => Response
 let who: Entitlements
@@ -98,6 +100,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = ADMIN
   summaryResponse = () => json(200, SUMMARY)
+  unconfirmed = []
   listResponses = [() => json(200, itemsPage([bill()], 1))]
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -107,6 +110,8 @@ beforeEach(async () => {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
     }
+    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED')) return json(200, { items: unconfirmed, page: 0, pageSize: 20, count: unconfirmed.length })
+    if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && init?.method === 'DELETE') return new Response(null, { status: 204 })
     throw new Error(`unexpected request to ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -399,5 +404,54 @@ describe('bill list mapping', () => {
       'billsPage.state.inPaymentRunRef',
     )
     expect(statusLabelKey(toBillListItem(bill({ workflowState: 'ON_HOLD' })))).toBe('billsPage.state.onHold')
+  })
+})
+
+function intakeRow(id: string, source: IntakeDto['source'], typed: { supplierName?: string; billNumber?: string }): IntakeDto {
+  return {
+    id,
+    source,
+    filename: source === 'SCANNED' ? 'receipt.jpg' : 'bill.pdf',
+    contentType: source === 'SCANNED' ? 'image/jpeg' : 'application/pdf',
+    byteSize: 120,
+    sha256: 'x',
+    documentTypeCode: null,
+    extractionStatus: 'NONE',
+    extracted: {
+      supplierName: typed.supplierName ?? null,
+      supplierVatNumber: null,
+      billNumber: typed.billNumber ?? null,
+      issueDate: null,
+      dueDate: null,
+      currency: null,
+      net: null,
+      vat: null,
+      total: null,
+      lines: [],
+      confidence: {},
+    },
+    confirmedBillId: null,
+    workflowState: 'DRAFT',
+    uploadedAt: '2026-09-17T08:00:00Z',
+  }
+}
+
+describe('uploads waiting for their details', () => {
+  it('lists them under the drafts notice: a way back to an upload, only a discard for a receipt', async () => {
+    summaryResponse = () => json(200, { ...SUMMARY, needsAttention: { ...SUMMARY.needsAttention, draft: 2 } })
+    unconfirmed = [intakeRow('i-1', 'UPLOADED', { supplierName: 'Nizwa Hardware Store', billNumber: 'NHS-2026-14' }), intakeRow('i-2', 'SCANNED', {})]
+    renderBills('/expenditure/bills?tab=needsAttention')
+
+    const list = await screen.findByRole('list', { name: 'Uploads waiting for their details' })
+    const [upload, receipt] = within(list).getAllByRole('listitem')
+    expect(within(upload).getByText('Nizwa Hardware Store · NHS-2026-14')).toBeTruthy()
+    expect(within(upload).getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/expenditure/bills/upload/i-1')
+    expect(within(receipt).getByText('receipt.jpg')).toBeTruthy()
+    expect(within(receipt).queryByRole('link', { name: 'Continue' })).toBeNull()
+
+    fireEvent.click(within(receipt).getByRole('button', { name: 'Discard' }))
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([url, init]) => url === '/api/v1/bills/intake/i-2' && (init as RequestInit | undefined)?.method === 'DELETE')).toHaveLength(1),
+    )
   })
 })

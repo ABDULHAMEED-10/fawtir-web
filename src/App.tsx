@@ -205,6 +205,7 @@ function App() {
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/expenditure/bills" element={<BillsPage />} />
           <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
+          <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
           <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
           <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
