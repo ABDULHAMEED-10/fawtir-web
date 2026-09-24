@@ -163,7 +163,7 @@ function ExpiredAlert() {
       </div>
       <button
         type="button"
-        className="shrink-0 text-sm font-semibold text-danger-700 hover:underline"
+        className="inline-flex h-[38px] shrink-0 items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100"
       >
         {t('agreements.alert.action')}
       </button>
@@ -293,7 +293,7 @@ function AgreementRowCells({ row }: { row: AgreementRow }) {
         </span>
         <p
           className={[
-            'mt-1.5 inline-flex items-center gap-1 text-xs font-semibold leading-[1.2]',
+            'mt-1.5 flex items-center gap-1 text-xs font-semibold leading-[1.2]',
             SIGNATURE_TONE[row.signatureTone],
           ].join(' ')}
         >

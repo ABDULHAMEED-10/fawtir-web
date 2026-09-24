@@ -1353,8 +1353,8 @@
   "periodicList": {
     "title": "Periodic invoices",
     "subtitle": "Invoices that go out on a schedule. Each run copies one invoice you already have and leaves a draft for you to check and issue.",
-    "add": "Set one up",
-    "searchPlaceholder": "Search by customer",
+    "add": "New recurring invoice",
+    "searchPlaceholder": "Search by name, customer, reference…",
     "narrowsThisList": "Searching narrows the schedules on this page.",
     "empty": "Nothing here.",
     "unknownCustomer": "Customer not shown",
@@ -1365,14 +1365,22 @@
     "tab": {
       "active": "Active",
       "paused": "Paused",
-      "all": "All"
+      "all": "All",
+      "onRequest": "On request",
+      "draft": "Draft"
     },
     "col": {
       "customer": "Customer",
       "howOften": "How often",
       "nextDraft": "Next draft",
       "state": "Where it stands",
-      "left": "Runs left"
+      "left": "Runs left",
+      "schedule": "Schedule",
+      "frequency": "Frequency",
+      "nextInvoice": "Next invoice",
+      "perInvoice": "Per invoice",
+      "generated": "Generated",
+      "status": "Status"
     },
     "interval": {
       "WEEKLY": "Weekly",
@@ -1404,12 +1412,83 @@
     },
     "menu": {
       "pause": "Pause",
-      "resume": "Resume"
+      "resume": "Resume",
+      "view": "Open",
+      "edit": "Edit"
     },
     "done": {
       "paused": "Paused. No drafts will be raised until you resume it.",
       "resumed": "Resumed. The next draft is due {{date}}."
-    }
+    },
+    "breadcrumbIncome": "Income",
+    "subtitleLive_one": "{{count}} recurring schedule · {{active}} active",
+    "subtitleLive_other": "{{count}} recurring schedules · {{active}} active",
+    "export": "Export",
+    "filters": "Filters",
+    "filter": {
+      "allFrequencies": "All frequencies"
+    },
+    "sort": {
+      "nextSoonest": "Next invoice, soonest",
+      "name": "Schedule name",
+      "amountHighest": "Amount, highest"
+    },
+    "emptyTab": {
+      "onRequest": "No schedule runs on request yet — every schedule has a cadence for now.",
+      "draft": "No draft schedules — a schedule starts the moment it is set up."
+    },
+    "kpi": {
+      "revenue": "Recurring revenue",
+      "perMonth": "/month",
+      "revenueMeta_one": "Across {{count}} active schedule",
+      "revenueMeta_other": "Across {{count}} active schedules",
+      "due": "Due next 30 days",
+      "dueMeta_one": "{{count}} invoice to generate",
+      "dueMeta_other": "{{count}} invoices to generate",
+      "generated": "Generated this month",
+      "generatedMeta": "Counted on each schedule's page",
+      "attention": "Needs attention",
+      "attentionMeta": "{{paused}} paused · {{overdue}} overdue"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "finished": "Finished",
+      "onRequest": "On request",
+      "draft": "Draft"
+    },
+    "cadence": {
+      "weekly": "on a {{weekday}}",
+      "monthly_ordinal_one": "on the {{count}}st",
+      "monthly_ordinal_two": "on the {{count}}nd",
+      "monthly_ordinal_few": "on the {{count}}rd",
+      "monthly_ordinal_other": "on the {{count}}th",
+      "quarterly_ordinal_one": "on the {{count}}st of the quarter",
+      "quarterly_ordinal_two": "on the {{count}}nd of the quarter",
+      "quarterly_ordinal_few": "on the {{count}}rd of the quarter",
+      "quarterly_ordinal_other": "on the {{count}}th of the quarter",
+      "yearly": "on {{date}}"
+    },
+    "weekday": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "notPriced": "Priced when issued",
+    "generatedOnPage": "On its page",
+    "rowMenu": "Schedule actions",
+    "selectAll": "Select all schedules on this page",
+    "selectRow": "Select {{name}}",
+    "showResult": "Show result:",
+    "resultTotal_one": "{{count}} schedule",
+    "resultTotal_other": "{{count}} schedules",
+    "pages": "Pages",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
   },
   "suppliersPage": {
     "title": "Suppliers",
@@ -1677,10 +1756,10 @@
       "overdueMeta": "1 invoice · oldest 20 days",
       "outstandingLive_one": "Across {{invoices}} unpaid invoice",
       "outstandingLive_other": "Across {{invoices}} unpaid invoices",
-      "paidLive_one": "{{invoices}} invoice paid in full",
-      "paidLive_other": "{{invoices}} invoices paid in full",
-      "awaitingLive_one": "{{invoices}} invoice due within {{days}} days",
-      "awaitingLive_other": "{{invoices}} invoices due within {{days}} days",
+      "paidLive_one": "{{invoices}} invoice collected",
+      "paidLive_other": "{{invoices}} invoices collected",
+      "awaitingLive_one": "{{invoices}} invoice due soon",
+      "awaitingLive_other": "{{invoices}} invoices due soon",
       "overdueLive_one": "{{invoices}} invoice · oldest {{days}} days",
       "overdueLive_other": "{{invoices}} invoices · oldest {{days}} days",
       "overdueNone": "Nothing overdue"
@@ -1718,7 +1797,8 @@
       "documentType": "Document type",
       "docType": {
         "all": "All documents"
-      }
+      },
+      "docTypeLabel": "Doc Type"
     },
     "col": {
       "invoice": "Invoice",
@@ -1727,7 +1807,8 @@
       "due": "Due",
       "amount": "Amount",
       "status": "Status",
-      "transmission": "Transmission"
+      "transmission": "Transmission",
+      "peppolOta": "PEPPOL/OTA"
     },
     "transmission": {
       "accepted": "Accepted",
@@ -1788,7 +1869,8 @@
       "overdue_other": "Overdue · {{count}} days"
     },
     "delivery": {
-      "sentManually": "Sent manually"
+      "sentManually": "Sent manually",
+      "notSent": "Not sent"
     },
     "amountNote": {
       "estimate": "Estimate · priced at issue",
@@ -1814,7 +1896,11 @@
       "amountHighest": "Amount: high to low",
       "amountLowest": "Amount: low to high",
       "customer": "Customer A–Z"
-    }
+    },
+    "notIssuedYet": "Not issued yet",
+    "bulkUnavailable": "Bulk upload is not available yet: the import endpoint has not been built.",
+    "sendUnavailable": "Sending is not available yet: documents are not delivered over Peppol or by e-mail from here until the delivery service exists.",
+    "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document."
   },
   "invoiceDetails": {
     "breadcrumbIncome": "Income",
@@ -1834,7 +1920,12 @@
     "actions": {
       "creditNote": "Credit note",
       "edit": "Edit draft",
-      "cancel": "Cancel invoice"
+      "cancel": "Cancel invoice",
+      "more": "More actions",
+      "duplicate": "Duplicate",
+      "periodic": "Periodic invoice",
+      "send": "Send",
+      "sendReminder": "Send reminder"
     },
     "fields": {
       "issueDate": "Issue date",
@@ -1845,7 +1936,9 @@
       "branch": "Branch",
       "poReference": "PO reference",
       "subject": "Subject",
-      "paymentMethod": "Payment method"
+      "paymentMethod": "Payment method",
+      "vatTreatment": "VAT treatment",
+      "project": "Project"
     },
     "col": {
       "description": "Description",
@@ -1862,7 +1955,9 @@
       "total": "Total amount",
       "taxable": "Taxable amount",
       "vatOnly": "VAT",
-      "atIssue": "A draft is priced when it is issued."
+      "atIssue": "A draft is priced when it is issued.",
+      "net": "Net amount",
+      "vatRate": "VAT · Standard {{rate}}%"
     },
     "notes": {
       "title": "Notes",
@@ -1877,12 +1972,19 @@
       "title": "Attachments",
       "none": "No files are kept with this invoice.",
       "draftNote": "Files can be added or removed while this is a draft.",
-      "issuedNote": "Files can only be added or removed while an invoice is a draft."
+      "issuedNote": "Files can only be added or removed while an invoice is a draft.",
+      "meta": "{{size}} · Uploaded {{date}}",
+      "drop": "Drop files or click to upload",
+      "removeUnavailable": "Files cannot be removed from here yet."
     },
     "payments": {
       "title": "Payments",
       "none": "No payment has been recorded against this invoice.",
-      "reversed": "Reversed"
+      "reversed": "Reversed",
+      "ref": "Ref {{reference}}",
+      "paid": "Paid",
+      "of": "of",
+      "receiptUnavailable": "No receipt is rendered for a payment yet."
     },
     "timeline": {
       "title": "Activity",
@@ -1893,7 +1995,7 @@
     "draftNotice": "This is a draft. It has no number and no figures until it is issued, and nothing has been sent or reported.",
     "customerUnknown": "Customer not shown",
     "noVat": "No VAT number on record",
-    "sentManually": "Sent by hand",
+    "sentManually": "Sent manually",
     "credited": "Credited",
     "byYou": "by you",
     "due": {
@@ -1983,7 +2085,47 @@
         "alreadyReversed": "That payment was already reversed. The list has been refreshed.",
         "paymentGone": "That payment could not be found. The list has been refreshed."
       }
-    }
+    },
+    "titleNote": {
+      "CREDIT_NOTE": "Credit note {{id}}",
+      "DEBIT_NOTE": "Debit note {{id}}"
+    },
+    "notSentYet": "Not sent yet",
+    "sendUnavailable": "Sending is not available yet: documents are not delivered over Peppol or by e-mail from here until the delivery service exists.",
+    "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
+    "delivered": {
+      "sentManually": "Sent manually to {{customer}} · {{when}}",
+      "notSent": "Not yet sent to {{customer}}"
+    },
+    "reminder": {
+      "title": "Payment reminder",
+      "pause": "Pause",
+      "pauseUnavailable": "Reminders can only be paused for every invoice at once, from Reminders › Settings.",
+      "sendNow": "Send now",
+      "details": "Reminder details"
+    },
+    "onPeppol": "On Peppol",
+    "vatNumber": "VAT {{number}}",
+    "currencyOmr": "OMR - Omani Rial",
+    "vat": {
+      "rate": "{{category}} · {{rate}}%",
+      "mixed": "Mixed rates"
+    },
+    "catalogRef": "Catalog #{{code}}",
+    "pdf": {
+      "title": "Invoice PDF",
+      "download": "Download PDF",
+      "unavailable": "The PDF is not rendered yet; this preview is drawn from the invoice's own data.",
+      "previewNote": "Preview drawn from the invoice's data. The signed PDF appears here once documents are rendered."
+    },
+    "preview": {
+      "taxInvoice": "TAX INVOICE",
+      "creditNote": "CREDIT NOTE",
+      "debitNote": "DEBIT NOTE",
+      "from": "From",
+      "totalDue": "Total due"
+    },
+    "you": "You"
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
@@ -2080,7 +2222,17 @@
       "discountType": "discount type",
       "omr": "OMR",
       "descriptionPlaceholder": "Describe what you are billing for",
-      "incl": "Incl."
+      "incl": "Incl.",
+      "type": "Type",
+      "typeOfLine": "Line {{line}} — goods or service",
+      "goods": "Goods",
+      "service": "Service",
+      "classification": "Classification",
+      "classificationPlaceholder": "Choose a classification",
+      "classificationSearch": "Search by activity name",
+      "classificationNone": "No classification matches",
+      "pickFromCatalogue": "Pick from catalogue",
+      "netAmount": "Net amount"
     },
     "toggles": {
       "paid": "Mark as paid",
@@ -2095,11 +2247,12 @@
       "private": "private",
       "customerText": "Thank you for your business. Please settle within 30 days by bank transfer using the reference above.",
       "internalText": "Loyalty discount approved by Hafidh on 15 Jul. Follow up if unpaid by 20 Aug.",
-      "uploadTitle": "Drag & drop files here, or click to browse",
-      "uploadHint": "PDF, JPG, XLSX · up to 10 MB each",
+      "uploadTitle": "Drop files or click to upload",
+      "uploadHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
       "removeFile": "Remove {{name}}",
       "tooLarge": "{{name}} is over 10 MB and was not added.",
-      "wrongType": "{{name}} is not a supported file type."
+      "wrongType": "{{name}} is not a supported file type.",
+      "supportingDocuments": "Supporting documents"
     },
     "actions": {
       "preview": "Preview",
@@ -2117,7 +2270,59 @@
       "empty": "No documents linked yet.",
       "allLinked": "All related documents are linked",
       "browse": "Browse documents",
-      "linkDocuments": "Link documents"
+      "linkDocuments": "Link documents",
+      "pending": "Order forms and delivery notes can be linked once they are connected."
+    },
+    "header": {
+      "savedJustNow": "Saved just now",
+      "savedAt": "Saved {{time}}",
+      "unsaved": "Unsaved changes",
+      "notSaved": "Not saved yet",
+      "usage": "/ {{allowance}} used",
+      "saved": "Saved"
+    },
+    "terms": {
+      "NET0": "Due on receipt",
+      "NET15": "Net 15 days",
+      "NET30": "Net 30 days",
+      "NET60": "Net 60 days",
+      "EOM": "End of month",
+      "ADVANCE": "Advance payment"
+    },
+    "units": {
+      "EA": "Each",
+      "H87": "Piece",
+      "KGM": "Kilogram",
+      "LTR": "Litre",
+      "BX": "Box",
+      "MTR": "Metre",
+      "PK": "Pack",
+      "BG": "Bag",
+      "HUR": "Hour",
+      "DAY": "Day",
+      "MON": "Month",
+      "E48": "Job",
+      "C62": "Unit"
+    },
+    "taxCategories": {
+      "S5": "Standard rate - 5%",
+      "Z0": "Zero-rated - 0%",
+      "E0": "Exempt - 0%",
+      "O0": "Out of scope - 0%",
+      "AE0": "Reverse charge - 0%",
+      "G0": "Export - 0%"
+    },
+    "paymentMethods": {
+      "10": "Cash",
+      "20": "Cheque",
+      "30": "Bank transfer",
+      "48": "Card payment",
+      "68": "Online payment"
+    },
+    "vatMode": {
+      "label": "VAT mode",
+      "exclusive": "Exclusive of VAT",
+      "inclusive": "Inclusive of VAT"
     }
   },
   "periodicInvoice": {
@@ -2142,7 +2347,18 @@
       "left": "Runs left",
       "noLimit": "No limit",
       "subtype": "Invoicing period",
-      "subtypeNote": "Set by the cadence: weekly and monthly are summary invoices, longer ones are continuous supply (IBR-036-OM)."
+      "subtypeNote": "Set by the cadence: weekly and monthly are summary invoices, longer ones are continuous supply (IBR-036-OM).",
+      "subject": "Subject / about",
+      "po": "PO reference",
+      "paymentTerms": "Payment terms",
+      "currency": "Currency",
+      "taxCategory": "Tax category",
+      "branch": "Branch",
+      "project": "Project",
+      "noteCustomer": "Note to customer",
+      "onInvoice": "on invoice",
+      "internalNote": "Internal note",
+      "private": "private"
     },
     "chooseCustomer": "Choose a customer",
     "searchCustomers": "Search customers",
@@ -2156,7 +2372,7 @@
     "openTemplate": "Open the invoice",
     "noTemplate": "Not recorded",
     "openDraft": "Open the draft",
-    "runs": "What it has done",
+    "runs": "Invoices generated",
     "draftedCount_one": "{{count}} draft raised",
     "draftedCount_other": "{{count}} drafts raised",
     "noRuns": "It has not run yet.",
@@ -2183,6 +2399,89 @@
       "occurrences": "Give a whole number of runs, or leave it empty.",
       "intervalRequired": "Choose how often it runs.",
       "notFound": "This schedule no longer exists."
+    },
+    "kind": "Recurring invoice",
+    "nextShort": "Next",
+    "moreActions": "More actions",
+    "pauseSeries": "Pause series",
+    "resumeSeries": "Resume series",
+    "saveChanges": "Save changes",
+    "sections": {
+      "details": "Invoice details",
+      "notes": "Notes on every invoice",
+      "schedule": "Schedule",
+      "items": "Items",
+      "upcoming": "Upcoming invoices"
+    },
+    "vat": "VAT {{number}}",
+    "onPeppol": "On Peppol",
+    "change": "Change",
+    "currency": {
+      "OMR": "OMR - Omani Rial",
+      "other": "{{code}}"
+    },
+    "taxByLine": "As on each line",
+    "every": {
+      "WEEKLY": "Every week {{cadence}}",
+      "MONTHLY": "Every month {{cadence}}",
+      "QUARTERLY": "Every quarter {{cadence}}",
+      "ANNUALLY": "Every year {{cadence}}"
+    },
+    "cadence": {
+      "title": "Billing cadence",
+      "never": "{{every}}, until you stop it.",
+      "date": "{{every}}, until {{date}}.",
+      "count_one": "{{every}}, {{count}} more time.",
+      "count_other": "{{every}}, {{count}} more times.",
+      "next": "Next invoice",
+      "inDays_zero": "today",
+      "inDays_one": "in {{count}} day",
+      "inDays_other": "in {{count}} days",
+      "overdue": "overdue — the next sweep raises it"
+    },
+    "frequency": "Frequency",
+    "repeatsOn": "Repeats on",
+    "starts": "Starts",
+    "ends": "Ends",
+    "ending": {
+      "never": "Never",
+      "date": "On a date",
+      "count": "After a number of invoices"
+    },
+    "invoicesUnit": "invoices",
+    "sendAuto": "Send automatically",
+    "sendAutoNote": "Each invoice is issued and delivered to the customer over Peppol without review.",
+    "notify": "Notify me on each run",
+    "notifyNote": "Get an email confirmation whenever a new invoice is generated.",
+    "notAvailable": "Not available yet",
+    "totals": {
+      "excluding": "Total excluding",
+      "vat": "Vat",
+      "total": "Total amount"
+    },
+    "willRaiseBefore": "Fawtir will raise a draft for",
+    "willRaiseAfter": "{{every}} for {{customer}}, ready for you to check and issue.",
+    "linesFrom": "The lines are copied from {{number}} — edit that invoice to change them.",
+    "theCustomer": "the customer",
+    "chooseTemplateForLines": "Choose the invoice to copy to see its lines here.",
+    "pill": {
+      "DRAFTED": "Draft",
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped"
+    },
+    "runMeta": "Run {{date}}",
+    "generatedNextBefore": "The next invoice generates on",
+    "generatedNextAfter": ". It will appear here the moment it is raised.",
+    "noUpcoming": "Nothing more to come.",
+    "upcoming": {
+      "started": "Started",
+      "issued": "Issued",
+      "each": "Each",
+      "invoices_one": "{{count}} invoice",
+      "invoices_other": "{{count}} invoices"
+    },
+    "done": {
+      "saved": "Saved. The next run follows the new schedule."
     }
   },
   "creditNotesPage": {
@@ -2456,12 +2755,19 @@
       "due": "Due",
       "amount": "Amount",
       "status": "Status",
-      "transmission": "Transmission"
+      "transmission": "Peppol/OTA"
     },
     "rowMenu": "Row actions",
     "showResult": "Show result:",
     "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "nextPage": "Next page",
+    "peppol": {
+      "AP": "AP",
+      "AB": "AB",
+      "RE": "RE"
+    },
+    "selectAll": "Select all self-billed invoices on this page",
+    "selectRow": "Select {{id}}"
   },
   "agreements": {
     "breadcrumbIncome": "Income",
@@ -13179,7 +13485,9 @@
       "product": "Choose a product for this line.",
       "quantity": "Quantity must be more than zero.",
       "unitPrice": "Enter a price.",
-      "exemptionReason": "Say why no VAT is charged on this line."
+      "exemptionReason": "Say why no VAT is charged on this line.",
+      "description": "Enter a description.",
+      "walkInName": "Enter the customer's name."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",
@@ -13225,7 +13533,11 @@
         "city": "city",
         "street": "street"
       }
-    }
+    },
+    "walkInOnFile": "Already one of your customers.",
+    "walkInPermission": "You can't add customers, so choose one already on file.",
+    "walkInRefused": "The customer could not be added: {{reason}}",
+    "previewed": "Draft saved and priced. The figures are the server's."
   },
   "invoiceIssue": {
     "action": "Issue invoice",
@@ -13784,13 +14096,23 @@
       "customer": "Customer",
       "issued": "Issued",
       "state": "State",
-      "amount": "Amount"
+      "amount": "Amount",
+      "creditNote": "Credit note",
+      "debitNote": "Debit note",
+      "reverses": "Reverses",
+      "adjusts": "Adjusts",
+      "creditAmount": "Credit amount",
+      "debitAmount": "Debit amount",
+      "refund": "Refund",
+      "payment": "Payment",
+      "status": "Status"
     },
     "error": {
       "reason": "Choose why the note is issued.",
       "noLines": "Tick at least one line.",
       "creditAmounts": "Each ticked line needs a quantity above zero and a price, no more than on the invoice.",
-      "debitAmounts": "Each ticked line needs a quantity above zero and a price."
+      "debitAmounts": "Each ticked line needs a quantity above zero and a price.",
+      "description": "Every line needs a description."
     },
     "refused": {
       "invoiceNotIssued": "This invoice is not issued (or was cancelled), so it cannot be corrected.",
@@ -13819,7 +14141,11 @@
       "cancelled": "Cancelled",
       "awaiting": "Awaiting payment",
       "overdue": "Overdue",
-      "paid": "Paid"
+      "paid": "Paid",
+      "toSend": "To send",
+      "refundDue": "Refund due",
+      "applied": "Applied",
+      "refunded": "Refunded"
     },
     "search": "Search by number or customer",
     "startFromInvoice": "Start from an invoice",
@@ -13855,6 +14181,393 @@
       "cancelled": {
         "CREDIT_NOTE": "The credit note is cancelled.",
         "DEBIT_NOTE": "The debit note is cancelled."
+      },
+      "editDraft": "Edit draft",
+      "download": "Download",
+      "sendReminder": "Send reminder",
+      "recordPayment": "Record payment",
+      "recordRefund": "Record refund",
+      "draftNotice": "This is a draft. It has no number and no figures until it is issued.",
+      "appliedTo": "Applied to {{invoice}}",
+      "addedTo": "Added to {{invoice}}",
+      "refundDue": "Refund due",
+      "nowDue": "Now due on the invoice",
+      "refundBanner": "Refund due to {{customer}}",
+      "refundBannerHint": "{{invoice}} is settled in full; the credit exceeds it by this amount.",
+      "awaitingBanner": "Awaiting payment from {{customer}}",
+      "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due {{date}} — {{when}}.",
+      "dueIn": "in {{count}} days",
+      "dueToday": "due today",
+      "dueLate": "{{count}} days late",
+      "paidBanner": "Paid by {{customer}}.",
+      "notSent": "Not sent yet.",
+      "notSentHint": {
+        "credit": "This credit note is ready to deliver to {{customer}} over Peppol.",
+        "debit": "This debit note is ready to deliver to {{customer}} over Peppol."
+      },
+      "details": "Details",
+      "viewCustomer": "View customer",
+      "reverses": "Reverses {{invoice}}",
+      "adjusts": "Adjusts {{invoice}}",
+      "settled": "Settled by this credit",
+      "balanceReduced": "Balance reduced",
+      "balanceIncreased": "Balance increased",
+      "originalMeta": "Original total OMR {{amount}} · issued {{date}}",
+      "originalPaid": "OMR {{amount}} already paid",
+      "openInvoice": "Open invoice",
+      "noVat": "No VAT number",
+      "onPeppol": "On Peppol",
+      "fields": {
+        "number": {
+          "credit": "Credit note number",
+          "debit": "Debit note number"
+        },
+        "issueDate": "Issue date",
+        "currency": "Currency",
+        "paymentDue": "Payment due",
+        "concerning": "Concerning invoice",
+        "po": "PO reference",
+        "tax": "Tax category",
+        "reasonFor": {
+          "credit": "Reason for credit",
+          "debit": "Reason for debit"
+        }
+      },
+      "category": {
+        "standard": "Standard rate",
+        "zero": "Zero-rated",
+        "exempt": "Exempt",
+        "outOfScope": "Out of scope",
+        "reverseCharge": "Reverse charge",
+        "export": "Export"
+      },
+      "mixedRates": "mixed rates",
+      "items": "Items",
+      "col": {
+        "description": "Description",
+        "unitPrice": "Unit price",
+        "difference": "Difference",
+        "vat": "VAT",
+        "qty": "Qty",
+        "unit": "Unit",
+        "disc": "Disc %",
+        "total": "Total"
+      },
+      "lineOrigin": "Originally line {{n}} of {{invoice}} · invoiced at {{price}}",
+      "lineAdded": "Added on this note",
+      "totals": {
+        "net": {
+          "credit": "Net credited (excl. VAT)",
+          "debit": "Net charged (excl. VAT)"
+        },
+        "vat": {
+          "credit": "VAT reversed · {{rate}}%",
+          "debit": "VAT added · {{rate}}%"
+        },
+        "total": {
+          "credit": "Total credited",
+          "debit": "Total charged"
+        }
+      },
+      "totalsAtIssue": "The figures are set when the note is issued.",
+      "notesTitle": "Notes & attachments",
+      "noteCustomer": "Note to customer",
+      "onTheNote": {
+        "credit": "On credit note",
+        "debit": "On debit note"
+      },
+      "noteInternal": "Internal note",
+      "private": "Private",
+      "showInternal": "Show the note",
+      "showInternalHint": "Reading it is recorded in the activity.",
+      "supportingDocs": "Supporting documents",
+      "downloadFile": "Download",
+      "refunds": "Refunds",
+      "payments": "Payments",
+      "refundPending": "refund pending",
+      "refundNone": "— nothing to refund",
+      "refundPendingHint": "The credit clears {{invoice}}'s balance and leaves a refund owed. Record it here once the money is sent back.",
+      "refundNoneHint": "The credit was applied to {{invoice}}'s balance; no money goes back to the customer.",
+      "refundNotWired": "Refunds are not recorded in Fawtir yet. Pay it outside Fawtir and keep the reference on the internal note.",
+      "awaitingPayment": "awaiting payment",
+      "awaitingPaymentHint": "Added to {{invoice}}'s balance. {{customer}} owes OMR {{amount}} in total, due {{date}}.",
+      "reverse": "Reverse",
+      "reversed": "Reversed",
+      "reverseTitle": "Reverse this payment?",
+      "reverseBody": "The payment of OMR {{amount}} is cancelled by a new, dated entry. Nothing is deleted.",
+      "reverseConfirm": "Reverse the payment",
+      "activity": "Activity",
+      "byYou": "by you",
+      "truncated": "Only the last {{count}} events are shown.",
+      "pdfTitle": {
+        "credit": "Credit note PDF",
+        "debit": "Debit note PDF"
+      },
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "print": "Print",
+      "fullscreen": "Full screen",
+      "preview": {
+        "kind": {
+          "credit": "Credit note",
+          "debit": "Debit note"
+        },
+        "seller": "Your company",
+        "sellerInitial": "F",
+        "from": "From",
+        "to": "Credit to",
+        "issueDate": "Issue date",
+        "original": "Original invoice",
+        "dueDate": "Payment due",
+        "reason": "Reason",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "net": "Net",
+        "total": "Total",
+        "qrAlt": "QR code of the note"
+      },
+      "done": {
+        "recorded": "Payment recorded.",
+        "reversed": "Payment reversed."
+      },
+      "cancelReason": "Reason",
+      "refused": {
+        "stale": "This note changed elsewhere; reload it and try again.",
+        "notCancellable": "This note can no longer be cancelled.",
+        "delivered": "A note that was already delivered cannot be cancelled."
+      }
+    },
+    "status": {
+      "draft": "Draft",
+      "toSend": "To be sent",
+      "refundDue": "Refund due",
+      "applied": "Applied",
+      "refunded": "Refunded",
+      "awaiting": "Awaiting payment",
+      "overdue": "Overdue",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "issued": {
+      "credit": "Credit note {{number}} issued.",
+      "debit": "Debit note {{number}} issued."
+    },
+    "list": {
+      "subtitle": {
+        "credit": "{{notes}} credit notes · OMR {{amount}} credited this quarter",
+        "debit": "{{notes}} debit notes · OMR {{amount}} charged this quarter"
+      },
+      "export": "Export",
+      "exporting": "Exporting…",
+      "exportTruncated": "The export stopped at the server's row limit; it is not every note.",
+      "discardStale": "This draft changed elsewhere; the list has been refreshed.",
+      "kpi": {
+        "credited": "Credited · 30 days",
+        "creditedMeta": "{{notes}} credit notes issued",
+        "refundDue": "Refund due",
+        "refundDueMeta": "{{notes}} refunds to pay out",
+        "applied": "Applied to invoices",
+        "appliedMeta": "{{notes}} offset, no cash out",
+        "refunded": "Refunded",
+        "refundedMeta": "{{notes}} paid back to customer",
+        "charged": "Charged · 30 days",
+        "chargedMeta": "{{notes}} debit notes issued",
+        "awaiting": "Awaiting payment",
+        "awaitingMeta": "{{notes}} still to collect",
+        "collected": "Collected",
+        "collectedMeta": "{{notes}} settled by the customer",
+        "overdue": "Overdue",
+        "overdueMeta": "{{notes}} notes · {{days}} days late",
+        "overdueNone": "Nothing overdue",
+        "unavailable": "Figures unavailable"
+      },
+      "search": "Search by number, invoice, customer...",
+      "filters": "Filters",
+      "sort": "Sort",
+      "sortBy": {
+        "updated": "Last updated",
+        "issuedNewest": "Issued · newest first",
+        "issuedOldest": "Issued · oldest first",
+        "amountHighest": "Amount · highest first",
+        "amountLowest": "Amount · lowest first",
+        "customer": "Customer A–Z"
+      },
+      "selectAll": "Select every note on this page",
+      "selectRow": "Select {{id}}",
+      "rowMenu": "Note actions",
+      "rowAction": {
+        "view": "View note",
+        "openInvoice": "Open invoice",
+        "edit": "Edit draft",
+        "discard": "Discard draft"
+      },
+      "noResults": "No notes match.",
+      "showResult": "Show result:",
+      "discardTitle": "Discard this draft?",
+      "discardBody": "The draft is set aside and leaves the list. Its trail is kept.",
+      "discardConfirm": "Discard draft",
+      "refund": {
+        "applied": "Applied",
+        "offset": "offset invoice",
+        "due": "refund due",
+        "refundedOn": "refunded {{date}}",
+        "refunded": "refunded"
+      },
+      "payment": {
+        "paidOn": "Paid {{date}}",
+        "paid": "Paid",
+        "settled": "Settled",
+        "due": "Due {{date}}",
+        "daysLate": "{{count}} days late",
+        "addedToInvoice": "Added to invoice balance",
+        "inDays": "In {{count}} days"
+      }
+    },
+    "compose": {
+      "breadcrumbIncome": "Income",
+      "original": "Original invoice",
+      "pickInvoicePlaceholder": "Choose an issued invoice",
+      "pickInvoiceSearch": "Search by number or customer",
+      "pickInvoiceNone": "No issued invoice matches.",
+      "customerUnknown": "Customer",
+      "reversing": "Reversing",
+      "adjusting": "Adjusting",
+      "for": "For",
+      "more": "More actions",
+      "openInvoice": "Open invoice",
+      "discardDraft": "Discard draft",
+      "state": {
+        "UNPAID": "Unpaid",
+        "PARTIALLY_PAID": "Partially paid",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      },
+      "issuedOn": "Issued {{date}}",
+      "sentManually": "sent to the customer",
+      "notSent": "not sent yet",
+      "invoiceTotal": "Invoice total",
+      "alreadyCredited": "Already credited",
+      "creditable": "Creditable",
+      "paid": "Paid",
+      "outstanding": "Outstanding",
+      "what": {
+        "credit": "What to credit",
+        "debit": "What to charge"
+      },
+      "items": "Items",
+      "reasonFor": {
+        "credit": "Reason for credit",
+        "debit": "Reason for debit"
+      },
+      "shownOn": {
+        "credit": "Shown on the credit note",
+        "debit": "Shown on the debit note"
+      },
+      "reference": "Reference / RMA",
+      "referencePlaceholder": "e.g. RMA-0142",
+      "printedOn": {
+        "credit": "printed on credit note",
+        "debit": "printed on debit note"
+      },
+      "detailsTitle": {
+        "credit": "Credit note details",
+        "debit": "Debit note details"
+      },
+      "number": {
+        "credit": "Credit note number",
+        "debit": "Debit note number"
+      },
+      "numberAtIssue": "Assigned when issued",
+      "issueDate": "Issue date",
+      "paymentDue": "Payment due",
+      "paymentDueHint": "follows the invoice terms",
+      "concerning": "Concerning invoice",
+      "currency": "Currency",
+      "currencyName": {
+        "OMR": "OMR — Omani Rial"
+      },
+      "taxCategory": "Default tax category",
+      "standardRate": "Standard rate · {{rate}}%",
+      "peppolTitle": "Send to customer over Peppol",
+      "onPeppol": "On Peppol",
+      "peppolHint": {
+        "credit": "The credit note is delivered to {{customer}} the moment it's issued.",
+        "debit": "The debit note reaches {{customer}} the moment it's issued, and the additional VAT is reported to the OTA at the same time."
+      },
+      "attachments": "Attachments",
+      "dropFiles": "Drop files or click to upload",
+      "dropHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+      "removeFile": "Remove"
+    },
+    "mode": {
+      "full": "Full invoice",
+      "fullHint": "Reverse the entire invoice, a full cancellation",
+      "lines": "Specific lines",
+      "linesHint": "Pick the lines to credit, e.g. a returned item",
+      "custom": "Custom amount",
+      "customHint": "Credit a flat amount, e.g. a goodwill discount",
+      "correctLines": "Correct existing lines",
+      "correctLinesHint": "Raise the price or quantity on something already invoiced",
+      "additionalItems": "Additional items",
+      "additionalItemsHint": "Goods or services delivered after the invoice went out",
+      "flatCharge": "Flat charge",
+      "flatChargeHint": "One amount: freight, a surcharge or a late payment fee"
+    },
+    "banner": {
+      "full": "This cancels the whole invoice. Every line on {{invoice}} will be reversed in full.",
+      "lines": "Untick what you are not crediting, or lower a line's quantity or price — never above what {{invoice}} charged.",
+      "custom": "One amount, excluding VAT. VAT is reversed at the invoice's rate.",
+      "correctLines": "Only the difference is charged. {{invoice}}'s original lines stay exactly as they were issued — this note bills the shortfall.",
+      "additionalItems": "These lines were not on {{invoice}}; they are charged in full, with VAT at the invoice's rate.",
+      "flatCharge": "One amount, excluding VAT. VAT is added at the invoice's rate."
+    },
+    "lines": {
+      "description": "Description",
+      "descriptionPlaceholder": "Describe the line",
+      "kind": "Goods / service",
+      "goods": "Goods",
+      "service": "Service",
+      "excl": "Excl.",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
+      "unit": "Unit",
+      "discount": "Discount",
+      "totExcl": "Tot. excl.",
+      "onInvoice": "On {{invoice}}: {{qty}} × {{price}}",
+      "addLine": "Add a line",
+      "remove": "Remove line",
+      "untitled": "untitled line"
+    },
+    "amount": {
+      "title": {
+        "credit": "Amount to credit",
+        "debit": "Amount to charge"
+      },
+      "reduces": "Reduces recognised revenue",
+      "increases": "Increases recognised revenue",
+      "net": {
+        "credit": "Net to credit",
+        "debit": "Net to charge"
+      },
+      "vat": {
+        "credit": "VAT reversed · {{rate}}%",
+        "debit": "VAT added · {{rate}}%"
+      },
+      "total": {
+        "credit": "Total to credit",
+        "debit": "Total to charge"
+      },
+      "effectOn": "Effect on {{customer}}",
+      "outstanding": "Outstanding on {{invoice}}",
+      "applied": "Applied to balance",
+      "added": "Added by this note",
+      "newBalance": "New invoice balance",
+      "refundTitle": "Refund due to customer",
+      "refundHint": "Credit exceeds the outstanding balance, so {{invoice}} is settled in full and the difference is refundable.",
+      "refundNone": "The credit is within what is still owed on {{invoice}}, so nothing goes back to the customer.",
+      "filed": {
+        "credit": "Filed against {{invoice}} · reverses declared VAT with the OTA.",
+        "debit": "Filed against {{invoice}} · declares the additional VAT with the OTA."
       }
     }
   },
@@ -13983,7 +14696,9 @@
       "empty": "No reminders have gone out yet.",
       "emptyPage": "Nothing on this page. Go back a page.",
       "noTotal": "Fawtir reads this a page at a time; the API sends no total, so there is no page count.",
-      "sweepNote": "Reminders are sent by a daily job, and it runs only where this installation has it switched on. Sending one by hand works either way."
+      "sweepNote": "Reminders are sent by a daily job, and it runs only where this installation has it switched on. Sending one by hand works either way.",
+      "anyDate": "Any date",
+      "pages": "Pages"
     },
     "settings": {
       "title": "When reminders go out",
@@ -14001,7 +14716,16 @@
       "addRung": "Add a rung",
       "rungLimit": "Up to {{count}} rungs.",
       "save": "Save",
-      "sweepNote": "The daily job sends these at 08:00 Muscat time where it is switched on. The hour is set for the whole installation, not per account."
+      "sweepNote": "The daily job sends these at 08:00 Muscat time where it is switched on. The hour is set for the whole installation, not per account.",
+      "ladderCount_one": "Reminder ladder · {{count}} rung",
+      "ladderCount_other": "Reminder ladder · {{count}} rungs",
+      "ladderOn": "goes out on its own",
+      "ladderOff": "switched off — sent by hand only",
+      "sentFromInvoice": "Send now, from an invoice",
+      "stepInvoice": "Invoice sent",
+      "stepInvoiceNote": "Day 0 is the due date",
+      "stepRung": "Reminder {{index}}",
+      "stepDay": "Day {{day}}"
     },
     "rung": {
       "onDueDate": "On the due date",
@@ -14070,6 +14794,11 @@
       "historyTitle": "Already sent",
       "noHistory": "No reminder has gone out for this invoice.",
       "stillSendable": "You can still send one yourself."
+    },
+    "pill": {
+      "SENT": "Sent",
+      "FAILED": "Failed",
+      "SKIPPED": "Skipped"
     }
   },
   "planGate": {
@@ -14090,5 +14819,29 @@
       "api": "Your own system talks to Fawtir directly.",
       "webhooks": "Fawtir tells your systems the moment something changes."
     }
+  },
+  "lineComposer": {
+    "exclVat": "Excl. VAT",
+    "inclVat": "Incl. VAT",
+    "col": {
+      "description": "Description",
+      "excl": "Excl.",
+      "incl": "Incl.",
+      "vat": "VAT (%)",
+      "qty": "Quantity",
+      "unit": "Unit",
+      "discount": "Discount",
+      "total": "Tot. Excl."
+    },
+    "kind": {
+      "goods": "Goods",
+      "service": "Service"
+    },
+    "kindLabel": "goods or service",
+    "descriptionPlaceholder": "Describe what was supplied",
+    "qtyUp": "One more",
+    "qtyDown": "One fewer",
+    "remove": "Remove line",
+    "addLine": "Add line item"
   }
 }

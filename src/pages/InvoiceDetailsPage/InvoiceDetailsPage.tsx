@@ -2,7 +2,14 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Modal, OmAmount, RowsView } from '../../components/ui'
+import {
+  ActionMenu,
+  Modal,
+  OmAmount,
+  RialMark,
+  RowsView,
+  type ActionMenuItem,
+} from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
@@ -27,6 +34,12 @@ import {
 } from '../../api/invoices/detail'
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
+import {
+  loadReminderPreview,
+  reminderPreviewPath,
+  sendReminderNow,
+  type ReminderPreviewDto,
+} from '../../api/invoices/reminders'
 import type { Page } from '../../api'
 import { NOTE_ROUTES } from '../../lib/salesNote'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
@@ -44,17 +57,39 @@ import {
   timelineOf,
   type Note as ViewNote,
 } from '../../lib/invoiceDetail'
+import {
+  REMINDER_REFUSALS,
+  VERDICT_NOTE,
+  canSendByHand,
+  rungNote,
+  rungToday,
+} from '../../lib/paymentReminders'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatDate, formatInstant } from '../../lib/format'
+import { formatAmount, formatDate, formatInstant, initialsOf } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
 import { can, useSession } from '../../lib/session/session'
 import backIcon from '../../assets/invoice-details/back.svg'
 import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
 import clockIcon from '../../assets/invoice-details/clock.svg'
 import chevronIcon from '../../assets/invoice-details/chevron.svg'
+import copyIcon from '../../assets/invoice-details/copy.svg'
+import periodicIcon from '../../assets/invoice-details/periodic.svg'
+import sendIcon from '../../assets/invoice-details/send.svg'
+import pdfIcon from '../../assets/invoice-details/pdf.svg'
+import zoomInIcon from '../../assets/invoice-details/zoom-in.svg'
+import zoomOutIcon from '../../assets/invoice-details/zoom-out.svg'
+import printIcon from '../../assets/invoice-details/print.svg'
+import fullscreenIcon from '../../assets/invoice-details/fullscreen.svg'
 import downloadIcon from '../../assets/invoice-details/download.svg'
+import peppolBadgeIcon from '../../assets/invoice-details/peppol-badge.svg'
+import filePdfIcon from '../../assets/self-bill-detail/file-pdf.svg'
+import fileJpgIcon from '../../assets/self-bill-detail/file-jpg.svg'
+import fileDownloadIcon from '../../assets/self-bill-detail/file-download.svg'
+import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
+import uploadIcon from '../../assets/create-invoice/upload.svg'
 import editIcon from '../../assets/actions/edit.svg'
-import timelineCurrentIcon from '../../assets/invoice-details/timeline-check.svg'
+import debitNoteIcon from '../../assets/actions/invoice.svg'
+import deleteIcon from '../../assets/actions/delete.svg'
 
 type Tone = ReturnType<typeof statusOf>['tone']
 
@@ -68,6 +103,8 @@ const STATUS_TONES: Record<Tone, string> = {
   overdue: 'border-danger-100 bg-danger-100 text-danger-700',
   paid: 'border-success-100 bg-success-100 text-success-700',
 }
+
+const ZOOMS = [0.75, 1, 1.25]
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
 
@@ -88,7 +125,7 @@ function SectionCard({
         <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{title}</h2>
         {action}
       </div>
-      <div className="mb-3 h-px w-full bg-border-subtle" />
+      <div className="mb-4 h-px w-full bg-border-subtle" />
       {children}
     </section>
   )
@@ -96,15 +133,20 @@ function SectionCard({
 
 function MetaField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <div className="min-w-0">
       <p className="text-xs font-medium leading-[1.2] text-[#727579]">{label}</p>
-      <p className="text-sm font-medium leading-[1.2] text-text-primary">{value}</p>
+      <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-primary">{value}</p>
     </div>
   )
 }
 
 const GHOST_BUTTON =
   'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-60'
+const PRIMARY_BUTTON =
+  'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
+/** The 32px bordered icon buttons beside a file or a payment (Figma 154:163406). */
+const ICON_BUTTON =
+  'flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle transition-colors hover:bg-neutral-25 disabled:cursor-not-allowed disabled:opacity-40'
 
 export function InvoiceDetailsPage() {
   return (
@@ -139,13 +181,18 @@ function InvoiceScreen() {
     document ? `${invoicePath(id)}/attachments` : null,
     () => loadAttachments(id),
   )
-  const history = useApiRead<InvoiceHistoryDto>(document ? `${invoicePath(id)}/history` : null, () => loadHistory(id))
+  const history = useApiRead<InvoiceHistoryDto>(
+    document ? `${invoicePath(id)}/history` : null,
+    () => loadHistory(id),
+  )
   // Reading the internal note writes an audit event on the server. Loading it with the page made
   // every visit a "note read" — the trail filled with reads nobody made — so it is fetched only
   // when someone asks to see it.
   const [noteWanted, setNoteWanted] = useState(false)
   const internalNote = useApiRead<{ internalNote: string | null }>(
-    document && noteWanted && can(session, 'invoice.internal-note.read') ? `${invoicePath(id)}/internal-note` : null,
+    document && noteWanted && can(session, 'invoice.internal-note.read')
+      ? `${invoicePath(id)}/internal-note`
+      : null,
     () => loadInternalNote(id),
   )
   // The read is the audit event, so the timeline is refreshed once it has happened, not before.
@@ -163,16 +210,46 @@ function InvoiceScreen() {
   // The credit and debit notes that correct this invoice (I-10/I-11), listed on the invoice so a
   // reader sees why its balance moved and can open each note.
   const notesPath =
-    document && document.type === 'INVOICE' && document.authoringState !== 'DRAFT' && document.authoringState !== 'DISCARDED'
-      ? invoiceListPath({ state: null, payment: null, type: null, from: null, to: null, search: '', correctionOf: id, sort: 'ISSUED_NEWEST', page: 0, size: 50 })
+    document &&
+    document.type === 'INVOICE' &&
+    document.authoringState !== 'DRAFT' &&
+    document.authoringState !== 'DISCARDED'
+      ? invoiceListPath({
+          state: null,
+          payment: null,
+          type: null,
+          from: null,
+          to: null,
+          search: '',
+          correctionOf: id,
+          sort: 'ISSUED_NEWEST',
+          page: 0,
+          size: 50,
+        })
       : null
   const notes = useApiRead<Page<InvoiceRowDto>>(notesPath, () => loadInvoicePage(notesPath!))
 
+  // The reminder banner (Figma 154:163981): what would go out for an issued, unsettled invoice.
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+  const owed = receivable.read.status === 'ready' ? receivable.read.data : null
+  const chaseable =
+    document !== null &&
+    document.authoringState === 'ISSUED' &&
+    document.type !== 'CREDIT_NOTE' &&
+    owed !== null &&
+    (owed.paymentState === 'UNPAID' || owed.paymentState === 'PARTIALLY_PAID')
+  const previewPath = chaseable ? reminderPreviewPath(id, rungToday(today, document.dueDate)) : null
+  const reminder = useApiRead<ReminderPreviewDto>(previewPath, () =>
+    loadReminderPreview(previewPath!),
+  )
+  const [remindersOpen, setRemindersOpen] = useState(false)
+  const [sendingReminder, setSendingReminder] = useState(false)
+
   // Arriving from the composer's issue: the number it was given, said once.
   const issuedNumber = (location.state as { issuedNumber?: string | null } | null)?.issuedNumber
-  const [notice, setNotice] = useState<{ key: string; values?: Record<string, string> } | { body: string } | null>(
-    issuedNumber ? { key: 'invoiceIssue.done', values: { number: issuedNumber } } : null,
-  )
+  const [notice, setNotice] = useState<
+    { key: string; values?: Record<string, string> } | { body: string } | null
+  >(issuedNumber ? { key: 'invoiceIssue.done', values: { number: issuedNumber } } : null)
   const [issuing, setIssuing] = useState(false)
   // Said once: a reload of this page is not another issue.
   useEffect(() => {
@@ -183,16 +260,24 @@ function InvoiceScreen() {
   const [paying, setPaying] = useState(false)
   // The payment being reversed, and the key minted when its confirmation opened: confirming twice
   // is one reversal, not two refusals.
-  const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(null)
+  const [reversing, setReversing] = useState<{ id: string; amount: number; key: string } | null>(
+    null,
+  )
   const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const [fullscreen, setFullscreen] = useState(false)
 
   if (invoice.read.status !== 'ready') {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
         <Breadcrumb />
-        {invoice.read.status === 'loading' ? <LoadingNotice /> : <ApiReadFailure error={invoice.read.error} retry={invoice.retry} />}
+        {invoice.read.status === 'loading' ? (
+          <LoadingNotice />
+        ) : (
+          <ApiReadFailure error={invoice.read.error} retry={invoice.retry} />
+        )}
       </div>
     )
   }
@@ -200,15 +285,50 @@ function InvoiceScreen() {
   const data = invoice.read.data
   const draft = isDraft(data)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
-  const owed = receivable.read.status === 'ready' ? receivable.read.data : null
   const status = statusOf(data, owed)
   const totals = lineTotals(data)
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)
   const day = (value: string | null) => (value ? formatDate(value, language) : '—')
-  const branchName = branches.read.status === 'ready' ? branches.read.data.find((branch) => branch.id === data.branchId)?.name : undefined
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+  const branchName =
+    branches.read.status === 'ready'
+      ? branches.read.data.find((branch) => branch.id === data.branchId)?.name
+      : undefined
+  const customerName =
+    customer.read.status === 'ready'
+      ? customer.read.data.displayName
+      : t('invoiceDetails.customerUnknown')
+  const onPeppol =
+    customer.read.status === 'ready' && customer.read.data.peppolDelivery === 'ACTIVE'
   const due = dueNote(owed, today)
+  const vatRates = [
+    ...new Set(data.lines.map((line) => `${line.en16931Category}:${line.taxRate ?? 0}`)),
+  ]
+  const vatTreatment =
+    data.lines.length === 0
+      ? '—'
+      : vatRates.length > 1
+        ? t('invoiceDetails.vat.mixed')
+        : t('invoiceDetails.vat.rate', {
+            category: t(`invoiceDetails.category.${data.lines[0].en16931Category}`, {
+              defaultValue: data.lines[0].taxCategoryCode,
+            }),
+            rate: data.lines[0].taxRate ?? 0,
+          })
+  const sentAt =
+    history.read.status === 'ready'
+      ? history.read.data.entries.find((entry) => entry.eventType === 'MARKED_SENT_MANUALLY')
+          ?.occurredAt
+      : undefined
+  const title = noteType
+    ? t(`invoiceDetails.titleNote.${noteType}`, { id: data.invoiceNumber ?? '' })
+    : t('invoiceDetails.title', { id: data.invoiceNumber ?? '' })
+  const shownReminder = reminder.read.status === 'ready' ? reminder.read.data : null
+  const canRemind =
+    chaseable &&
+    can(session, 'invoice.payment.manage') &&
+    shownReminder !== null &&
+    canSendByHand(shownReminder.verdict)
 
   const cancel = async () => {
     const text = reason.trim()
@@ -219,7 +339,9 @@ function InvoiceScreen() {
       await cancelInvoice(id, data.version, text)
       setCancelling(false)
       setReason('')
-      setNotice({ key: noteType ? `salesNote.detail.cancelled.${noteType}` : 'invoiceDetails.done.cancelled' })
+      setNotice({
+        key: noteType ? `salesNote.detail.cancelled.${noteType}` : 'invoiceDetails.done.cancelled',
+      })
       invoice.retry()
       history.retry()
     } catch (error) {
@@ -247,11 +369,31 @@ function InvoiceScreen() {
       afterPayment()
     } catch (error) {
       setReversing(null)
-      const refusal = error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+      const refusal =
+        error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
       setNotice(refusal ? { key: refusal.key } : { body: refusalText(t, error) })
       afterPayment()
     } finally {
       setBusy(false)
+    }
+  }
+
+  const sendReminder = async () => {
+    if (!shownReminder) return
+    setSendingReminder(true)
+    setNotice(null)
+    try {
+      const sent = await sendReminderNow(id, shownReminder.rung)
+      setNotice({ body: t('paymentReminders.invoice.sent', { recipient: sent.recipient ?? '' }) })
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : null
+      setNotice({
+        body: code && REMINDER_REFUSALS[code] ? t(REMINDER_REFUSALS[code]) : refusalText(t, error),
+      })
+    } finally {
+      // A refusal can mean the rung is now spent, so what the banner shows is re-read either way.
+      reminder.retry()
+      setSendingReminder(false)
     }
   }
 
@@ -260,6 +402,7 @@ function InvoiceScreen() {
     can(session, 'invoice.payment.manage') &&
     (owed?.paymentState === 'UNPAID' || owed?.paymentState === 'PARTIALLY_PAID')
   const canReverse = data.authoringState === 'ISSUED' && can(session, 'invoice.payment.manage')
+  const issuedInvoice = !draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED'
 
   const download = async (file: InvoiceAttachmentDto) => {
     setNotice(null)
@@ -276,6 +419,40 @@ function InvoiceScreen() {
     }
   }
 
+  // The header's overflow menu (the design's "⋮"): what is not one of the four named buttons.
+  const moreActions: ActionMenuItem[] = []
+  if (issuedInvoice && can(session, 'debitnote.create')) {
+    moreActions.push({
+      id: 'debitNote',
+      labelKey: 'salesNote.debit.action',
+      icon: debitNoteIcon,
+      to: `/income/debit-notes/new?invoice=${data.id}`,
+    })
+  }
+  if (data.authoringState === 'ISSUED' && can(session, 'invoice.cancel')) {
+    moreActions.push({
+      id: 'cancel',
+      labelKey: noteType
+        ? `salesNote.detail.cancelAction.${noteType}`
+        : 'invoiceDetails.actions.cancel',
+      icon: deleteIcon,
+      danger: true,
+      onSelect: () => setCancelling(true),
+    })
+  }
+
+  const preview = (
+    <DocumentPreview
+      data={data}
+      status={t(status.key, { count: 0 })}
+      customer={customer.read.status === 'ready' ? customer.read.data : null}
+      branch={branchName}
+      lineTotals={totals}
+      money={money}
+      day={day}
+    />
+  )
+
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       <Breadcrumb type={data.type} />
@@ -283,24 +460,33 @@ function InvoiceScreen() {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {data.invoiceNumber ?? t('invoiceDetails.draftTitle')}
+            {data.invoiceNumber ? title : t('invoiceDetails.draftTitle')}
           </h1>
           <span
-            className={['inline-flex h-[31px] items-center gap-2 rounded-full border px-3 text-sm font-semibold', STATUS_TONES[status.tone]].join(' ')}
+            className={[
+              'inline-flex h-[31px] items-center gap-2 rounded-full border px-3 text-sm font-semibold',
+              STATUS_TONES[status.tone],
+            ].join(' ')}
           >
             <span className="size-1.5 rounded-full bg-current" />
             {t(status.key, { count: 0 })}
           </span>
-          {data.type !== 'INVOICE' ? (
-            <span className="inline-flex items-center rounded-sm bg-neutral-25 px-2.5 py-1 text-xs font-semibold text-text-secondary">
-              {t(`invoicesPage.docType.${data.type}`)}
-            </span>
-          ) : null}
 
           <div className="ms-auto flex flex-wrap items-center gap-3">
+            {moreActions.length > 0 ? (
+              <ActionMenu
+                items={moreActions}
+                label={t('invoiceDetails.actions.more')}
+                variant="bordered"
+              />
+            ) : null}
             {draft && can(session, 'invoice.draft') ? (
               <Link
-                to={data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? `${NOTE_ROUTES[data.type]}/${data.id}/edit` : `/invoices/${data.id}/edit`}
+                to={
+                  data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE'
+                    ? `${NOTE_ROUTES[data.type]}/${data.id}/edit`
+                    : `/invoices/${data.id}/edit`
+                }
                 className={GHOST_BUTTON}
               >
                 <img src={editIcon} alt="" className="size-5" />
@@ -308,33 +494,69 @@ function InvoiceScreen() {
               </Link>
             ) : null}
             {draft && can(session, 'invoice.issue') ? (
-              <button
-                type="button"
-                onClick={() => setIssuing(true)}
-                className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-              >
-                {t(noteType === 'CREDIT_NOTE' ? 'invoiceIssue.creditNote.submit' : noteType === 'DEBIT_NOTE' ? 'invoiceIssue.debitNote.submit' : 'invoiceIssue.action')}
+              <button type="button" onClick={() => setIssuing(true)} className={PRIMARY_BUTTON}>
+                {t(
+                  noteType === 'CREDIT_NOTE'
+                    ? 'invoiceIssue.creditNote.submit'
+                    : noteType === 'DEBIT_NOTE'
+                      ? 'invoiceIssue.debitNote.submit'
+                      : 'invoiceIssue.action',
+                )}
               </button>
             ) : null}
-            {!draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED' && can(session, 'creditnote.create') ? (
-              <button type="button" onClick={() => navigate(`/income/credit-notes/new?invoice=${data.id}`)} className={GHOST_BUTTON}>
+            {!draft && data.authoringState === 'ISSUED' && can(session, 'invoice.draft') ? (
+              // TODO(backend): there is no route to copy a document; the design's button says so when pressed.
+              <button
+                type="button"
+                onClick={() => setNotice({ key: 'invoiceDetails.duplicateUnavailable' })}
+                className={GHOST_BUTTON}
+              >
+                <img src={copyIcon} alt="" className="size-5" />
+                {t('invoiceDetails.actions.duplicate')}
+              </button>
+            ) : null}
+            {issuedInvoice && can(session, 'invoice.draft') ? (
+              <Link to={`/income/periodic/new?template=${data.id}`} className={GHOST_BUTTON}>
+                <img src={periodicIcon} alt="" className="h-3 w-[26px]" />
+                {t('invoiceDetails.actions.periodic')}
+              </Link>
+            ) : null}
+            {issuedInvoice && can(session, 'creditnote.create') ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/income/credit-notes/new?invoice=${data.id}`)}
+                className={GHOST_BUTTON}
+              >
                 <img src={creditNoteIcon} alt="" className="size-5" />
                 {t('invoiceDetails.actions.creditNote')}
               </button>
             ) : null}
-            {!draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED' && can(session, 'debitnote.create') ? (
-              <button type="button" onClick={() => navigate(`/income/debit-notes/new?invoice=${data.id}`)} className={GHOST_BUTTON}>
-                {t('salesNote.debit.action')}
-              </button>
-            ) : null}
-            {data.authoringState === 'ISSUED' && can(session, 'invoice.cancel') ? (
-              <button
-                type="button"
-                onClick={() => setCancelling(true)}
-                className="inline-flex h-[46px] items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100"
-              >
-                {noteType ? t(`salesNote.detail.cancelAction.${noteType}`) : t('invoiceDetails.actions.cancel')}
-              </button>
+            {!draft && data.authoringState === 'ISSUED' ? (
+              canRemind ? (
+                <button
+                  type="button"
+                  onClick={() => void sendReminder()}
+                  disabled={sendingReminder}
+                  className={PRIMARY_BUTTON}
+                >
+                  <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
+                  {t(
+                    sendingReminder
+                      ? 'paymentReminders.invoice.sending'
+                      : 'invoiceDetails.actions.sendReminder',
+                  )}
+                </button>
+              ) : (
+                // TODO(backend): no delivery route exists (B4); the design's Send says so when pressed.
+                <button
+                  type="button"
+                  onClick={() => setNotice({ key: 'invoiceDetails.sendUnavailable' })}
+                  className={PRIMARY_BUTTON}
+                >
+                  <img src={sendIcon} alt="" className="size-5 brightness-0 invert" />
+                  {t('invoiceDetails.actions.send')}
+                </button>
+              )
             ) : null}
           </div>
         </div>
@@ -347,129 +569,363 @@ function InvoiceScreen() {
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
           ) : null}
-          <span className="font-medium text-text-quaternary">{t('invoiceDetails.to')}</span>
-          <span className="font-semibold text-text-primary">
-            {customer.read.status === 'ready' ? customer.read.data.displayName : t('invoiceDetails.customerUnknown')}
-          </span>
-          {data.deliveryState === 'SENT_MANUALLY' ? (
+          {!draft ? (
             <>
+              <span className="font-medium text-text-quaternary">
+                {data.deliveryState === 'SENT_MANUALLY'
+                  ? t('invoiceDetails.sentManually')
+                  : t('invoiceDetails.notSentYet')}
+              </span>
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
-              <span className="font-medium text-text-quaternary">{t('invoiceDetails.sentManually')}</span>
             </>
           ) : null}
+          <span className="font-medium text-text-quaternary">{t('invoiceDetails.to')}</span>
+          <span className="font-semibold text-text-primary">{customerName}</span>
         </div>
       </div>
 
       {notice ? (
-        <Notice body={'key' in notice ? t(notice.key, notice.values) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} />
+        <Notice
+          body={'key' in notice ? t(notice.key, notice.values) : notice.body}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
       ) : null}
 
       {draft ? (
         <section className="rounded-sm border border-primary-300 bg-primary-25 p-4">
-          <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t('invoiceDetails.draftNotice')}</p>
-        </section>
-      ) : owed && owed.paymentState !== 'NOT_APPLICABLE' ? (
-        <section className="rounded-sm bg-surface-card p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('invoiceDetails.outstandingBalance')}</h2>
-            {due ? (
-              <span
-                className={[
-                  'inline-flex h-[31px] items-center gap-2 rounded-full border py-1 ps-1 pe-3 text-sm font-semibold',
-                  due.key === 'invoiceDetails.due.late' ? 'border-danger-100 bg-danger-100 text-danger-700' : 'border-[#e7e3da] bg-warning-100 text-[#6d5a39]',
-                ].join(' ')}
-              >
-                <img src={clockIcon} alt="" className="size-5" />
-                {t(due.key, due.values)}
-              </span>
-            ) : null}
-          </div>
-          <div className="mb-3 h-px w-full bg-border-subtle" />
-
-          <OmAmount
-            size="lg"
-            amount={money(owed.outstandingAmount)}
-            amountClassName="text-[32px] font-semibold leading-none text-text-primary/90"
-            className="mb-2"
-          />
-          <div className="mb-3 h-3 overflow-hidden rounded-[5px] bg-surface-background">
-            <div className="h-full rounded-[5px] bg-primary-700" style={{ width: `${paidPercent(owed)}%` }} />
-          </div>
-          <div className="mb-3 h-px w-full bg-border-subtle" />
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-sm font-medium text-[#727579]">
-                {noteType ? t(`salesNote.detail.documentTotal.${noteType}`) : t('invoiceDetails.invoiceTotal')}
-              </p>
-              <OmAmount size="sm" amount={money(owed.documentTotal)} className="mt-1" amountClassName="text-xl font-semibold text-text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-[#727579]">{t('invoiceDetails.paid')}</p>
-              <OmAmount size="sm" amount={money(owed.paidAmount)} className="mt-1" amountClassName="text-xl font-semibold text-success-700" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-[#727579]">
-                {owed.creditedAmount > 0 ? t('invoiceDetails.credited') : t('invoiceDetails.outstanding')}
-              </p>
-              <OmAmount
-                size="sm"
-                amount={money(owed.creditedAmount > 0 ? owed.creditedAmount : owed.outstandingAmount)}
-                className="mt-1"
-                amountClassName="text-xl font-semibold text-text-primary"
-              />
-            </div>
-          </div>
+          <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+            {t('invoiceDetails.draftNotice')}
+          </p>
         </section>
       ) : null}
 
-      <SectionCard
-        title={t('invoiceDetails.billTo')}
-        action={
-          can(session, 'customer.read') && customer.read.status === 'ready' ? (
-            <Link to={`/customers/${data.customerId}`} className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800">
-              {t('invoiceDetails.viewCustomer')}
-              <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
-            </Link>
-          ) : undefined
-        }
-      >
-        {customer.read.status === 'ready' ? (
-          <div className="mb-4 rounded-sm border border-primary-300 bg-primary-25 px-2 py-3">
-            <p className="truncate text-sm font-medium text-text-primary">{customer.read.data.displayName}</p>
-            <p className="truncate text-xs font-medium text-text-quaternary">
-              {customer.read.data.profile.details?.vatRegistrationNumber ?? t('invoiceDetails.noVat')}
-            </p>
-          </div>
-        ) : null}
+      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {chaseable ? (
+            <section className="rounded-sm border border-primary-300 bg-primary-25 px-4 py-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <BellIcon />
+                <p className="min-w-0 flex-1 text-sm font-medium leading-[1.3] text-text-secondary max-md:basis-[calc(100%-32px)]">
+                  <span className="font-semibold text-text-primary">
+                    {t('invoiceDetails.reminder.title')}
+                  </span>{' '}
+                  {shownReminder ? (
+                    <>
+                      {t(VERDICT_NOTE[shownReminder.verdict])}
+                      {shownReminder.rung !== null ? (
+                        <span className="text-text-quaternary">
+                          {' · '}
+                          {t(rungNote(shownReminder.rung).key, rungNote(shownReminder.rung).values)}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    '…'
+                  )}
+                </p>
+                <div className="flex items-center gap-2 max-md:w-full max-md:justify-end">
+                  {/* TODO(backend): reminders pause per tenant only (the ladder's switch), never per invoice. */}
+                  <button
+                    type="button"
+                    disabled
+                    title={t('invoiceDetails.reminder.pauseUnavailable')}
+                    className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
+                  >
+                    {t('invoiceDetails.reminder.pause')}
+                  </button>
+                  {canRemind ? (
+                    <button
+                      type="button"
+                      onClick={() => void sendReminder()}
+                      disabled={sendingReminder}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
+                    >
+                      <img src={sendIcon} alt="" className="size-4" />
+                      {t(
+                        sendingReminder
+                          ? 'paymentReminders.invoice.sending'
+                          : 'invoiceDetails.reminder.sendNow',
+                      )}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setRemindersOpen((open) => !open)}
+                    aria-expanded={remindersOpen}
+                    aria-label={t('invoiceDetails.reminder.details')}
+                    className="inline-flex size-9 items-center justify-center rounded-sm border border-border-subtle bg-white"
+                  >
+                    <img
+                      src={chevronIcon}
+                      alt=""
+                      className={[
+                        'size-5 transition-transform',
+                        remindersOpen ? 'rotate-90' : '-rotate-90',
+                      ].join(' ')}
+                    />
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+          {chaseable && remindersOpen ? (
+            <InvoiceRemindersCard invoiceId={id} dueDate={data.dueDate} />
+          ) : null}
 
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-wrap gap-6 lg:gap-20">
-            <MetaField label={t('invoiceDetails.fields.issueDate')} value={day(data.issueDate)} />
-            {/* A credit note is not collected: its due date is only the issue date the API requires. */}
-            {data.type === 'CREDIT_NOTE' ? null : <MetaField label={t('invoiceDetails.fields.dueDate')} value={day(data.dueDate)} />}
-            <MetaField label={t('invoiceDetails.fields.deliveryDate')} value={day(data.details?.deliveryDate ?? null)} />
-          </div>
-          <div className="flex flex-wrap gap-6 lg:gap-20">
-            <MetaField label={t('invoiceDetails.fields.paymentTerms')} value={data.details?.paymentTerms?.label ?? '—'} />
-            <MetaField label={t('invoiceDetails.fields.currency')} value={data.currency} />
-            <MetaField label={t('invoiceDetails.fields.branch')} value={branchName ?? '—'} />
-          </div>
-          <div className="flex flex-wrap gap-6 lg:gap-20">
-            <MetaField label={t('invoiceDetails.fields.poReference')} value={data.details?.purchaseOrderReference ?? '—'} />
-            <MetaField label={t('invoiceDetails.fields.subject')} value={data.details?.subject ?? '—'} />
-            <MetaField label={t('invoiceDetails.fields.paymentMethod')} value={data.details?.paymentMethod?.label ?? '—'} />
-          </div>
+          {!draft && owed && owed.paymentState !== 'NOT_APPLICABLE' ? (
+            <section className="rounded-sm bg-surface-card p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
+                  {t('invoiceDetails.outstandingBalance')}
+                </h2>
+                {due ? (
+                  <span
+                    className={[
+                      'inline-flex h-[31px] items-center gap-2 rounded-full border py-1 ps-2 pe-3 text-sm font-semibold',
+                      due.key === 'invoiceDetails.due.late'
+                        ? 'border-danger-100 bg-danger-100 text-danger-700'
+                        : 'border-[#e7e3da] bg-warning-100 text-[#6d5a39]',
+                    ].join(' ')}
+                  >
+                    <img src={clockIcon} alt="" className="size-5" />
+                    {t(due.key, due.values)}
+                    {owed.dueDate ? ` · ${day(owed.dueDate)}` : ''}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mb-4 h-px w-full bg-border-subtle" />
+
+              <OmAmount
+                size="lg"
+                amount={money(owed.outstandingAmount)}
+                amountClassName="text-[32px] font-semibold leading-none text-text-primary/90"
+                className="mb-3"
+              />
+              <div className="mb-4 h-3 overflow-hidden rounded-[5px] bg-surface-background">
+                <div
+                  className="h-full rounded-[5px] bg-primary-700"
+                  style={{ width: `${paidPercent(owed)}%` }}
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-sm font-medium text-[#727579]">
+                    {noteType
+                      ? t(`salesNote.detail.documentTotal.${noteType}`)
+                      : t('invoiceDetails.invoiceTotal')}
+                  </p>
+                  <OmAmount
+                    size="sm"
+                    amount={money(owed.documentTotal)}
+                    className="mt-1"
+                    amountClassName="text-xl font-semibold text-text-primary"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#727579]">{t('invoiceDetails.paid')}</p>
+                  <OmAmount
+                    size="sm"
+                    amount={money(owed.paidAmount)}
+                    className="mt-1"
+                    amountClassName="text-xl font-semibold text-success-700"
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#727579]">
+                    {owed.creditedAmount > 0
+                      ? t('invoiceDetails.credited')
+                      : t('invoiceDetails.outstanding')}
+                  </p>
+                  <OmAmount
+                    size="sm"
+                    amount={money(
+                      owed.creditedAmount > 0 ? owed.creditedAmount : owed.outstandingAmount,
+                    )}
+                    className="mt-1"
+                    amountClassName="text-xl font-semibold text-text-primary"
+                  />
+                </div>
+              </div>
+
+              {/* TODO(backend): no Peppol delivery event exists (B4); the bar reports the one delivery fact recorded. */}
+              <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">
+                <DeliveryIcon sent={data.deliveryState === 'SENT_MANUALLY'} />
+                <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
+                  {data.deliveryState === 'SENT_MANUALLY'
+                    ? t('invoiceDetails.delivered.sentManually', {
+                        customer: customerName,
+                        when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
+                      })
+                    : t('invoiceDetails.delivered.notSent', { customer: customerName })}
+                </p>
+              </div>
+            </section>
+          ) : null}
+
+          <SectionCard
+            title={t('invoiceDetails.billTo')}
+            action={
+              can(session, 'customer.read') && customer.read.status === 'ready' ? (
+                <Link
+                  to={`/customers/${data.customerId}`}
+                  className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
+                >
+                  {t('invoiceDetails.viewCustomer')}
+                  <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
+                </Link>
+              ) : undefined
+            }
+          >
+            {customer.read.status === 'ready' ? (
+              <div className="mb-4 flex items-center gap-3 rounded-sm border border-primary-300 bg-primary-25 px-3 py-2.5">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-primary-800">
+                  {initialsOf(customer.read.data.displayName)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-text-primary">
+                    {customer.read.data.displayName}
+                  </p>
+                  <p className="truncate text-xs font-medium text-text-quaternary">
+                    {customer.read.data.profile.details?.vatRegistrationNumber
+                      ? t('invoiceDetails.vatNumber', {
+                          number: customer.read.data.profile.details.vatRegistrationNumber,
+                        })
+                      : t('invoiceDetails.noVat')}
+                  </p>
+                </div>
+                {onPeppol ? (
+                  <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-primary-300 bg-white px-2 text-xs font-semibold text-primary-800">
+                    <img src={peppolBadgeIcon} alt="" className="size-4" />
+                    {t('invoiceDetails.onPeppol')}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-3">
+              <MetaField label={t('invoiceDetails.fields.issueDate')} value={day(data.issueDate)} />
+              {/* A credit note is not collected: its due date is only the issue date the API requires. */}
+              {data.type === 'CREDIT_NOTE' ? null : (
+                <MetaField label={t('invoiceDetails.fields.dueDate')} value={day(data.dueDate)} />
+              )}
+              <MetaField
+                label={t('invoiceDetails.fields.deliveryDate')}
+                value={day(data.details?.deliveryDate ?? null)}
+              />
+              <MetaField
+                label={t('invoiceDetails.fields.paymentTerms')}
+                value={data.details?.paymentTerms?.label ?? '—'}
+              />
+              <MetaField
+                label={t('invoiceDetails.fields.currency')}
+                value={data.currency === 'OMR' ? t('invoiceDetails.currencyOmr') : data.currency}
+              />
+              <MetaField label={t('invoiceDetails.fields.vatTreatment')} value={vatTreatment} />
+              <MetaField label={t('invoiceDetails.fields.branch')} value={branchName ?? '—'} />
+              {/* TODO(backend): the document carries no project; the design's field is drawn empty. */}
+              <MetaField
+                label={t('invoiceDetails.fields.project')}
+                value={data.details?.contractReference ?? '—'}
+              />
+              <MetaField
+                label={t('invoiceDetails.fields.poReference')}
+                value={data.details?.purchaseOrderReference ?? '—'}
+              />
+              <MetaField
+                label={t('invoiceDetails.fields.subject')}
+                value={data.details?.subject ?? '—'}
+              />
+              <MetaField
+                label={t('invoiceDetails.fields.paymentMethod')}
+                value={data.details?.paymentMethod?.label ?? '—'}
+              />
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
+
+        <aside className="min-w-0">
+          <section className="rounded-sm bg-surface-card p-4 xl:sticky xl:top-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="inline-flex items-center gap-2 text-base font-medium leading-[1.2] text-text-secondary">
+                <img src={pdfIcon} alt="" className="size-6" />
+                {t('invoiceDetails.pdf.title')}
+              </h2>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setZoom(ZOOMS[Math.max(0, ZOOMS.indexOf(zoom) - 1)])}
+                  disabled={zoom === ZOOMS[0]}
+                  aria-label={t('invoiceDetails.zoomOut')}
+                  className="rounded-sm p-0.5 hover:bg-neutral-25 disabled:opacity-40"
+                >
+                  <img src={zoomOutIcon} alt="" className="size-5" />
+                </button>
+                <span className="min-w-[38px] text-center text-xs font-medium text-text-quaternary tabular-nums">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom) + 1)])
+                  }
+                  disabled={zoom === ZOOMS[ZOOMS.length - 1]}
+                  aria-label={t('invoiceDetails.zoomIn')}
+                  className="rounded-sm p-0.5 hover:bg-neutral-25 disabled:opacity-40"
+                >
+                  <img src={zoomInIcon} alt="" className="size-5" />
+                </button>
+                {/* TODO(backend): no PDF is rendered for a document yet; download and print wait for it. */}
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
+                  aria-label={t('invoiceDetails.pdf.download')}
+                  className="ms-1 rounded-sm p-0.5 disabled:opacity-40"
+                >
+                  <img src={downloadIcon} alt="" className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  title={t('invoiceDetails.pdf.unavailable')}
+                  aria-label={t('invoiceDetails.print')}
+                  className="rounded-sm p-0.5 disabled:opacity-40"
+                >
+                  <img src={printIcon} alt="" className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFullscreen(true)}
+                  aria-label={t('invoiceDetails.fullscreen')}
+                  className="rounded-sm p-0.5 hover:bg-neutral-25"
+                >
+                  <img src={fullscreenIcon} alt="" className="size-5" />
+                </button>
+              </div>
+            </div>
+            <div className="mb-3 h-px w-full bg-border-subtle" />
+            <div className="max-h-[560px] overflow-auto rounded-sm bg-surface-background p-3">
+              <div style={{ zoom }}>{preview}</div>
+            </div>
+            <p className="mt-2 text-[11px] font-medium leading-[1.3] text-text-quaternary">
+              {t('invoiceDetails.pdf.previewNote')}
+            </p>
+          </section>
+        </aside>
+      </div>
 
       <SectionCard title={t('invoiceDetails.items')}>
         <RowsView>
           <table className="w-full min-w-[720px] border-collapse text-start">
             <thead>
               <tr className="border-b border-surface-background text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.8px] text-text-quaternary">
-                <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.description')}</th>
-                <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.unitPrice')}</th>
+                <th className="py-2 text-start font-semibold">
+                  {t('invoiceDetails.col.description')}
+                </th>
+                <th className="py-2 text-start font-semibold">
+                  {t('invoiceDetails.col.unitPrice')}
+                </th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.vat')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.qty')}</th>
                 <th className="py-2 text-start font-semibold">{t('invoiceDetails.col.unit')}</th>
@@ -482,18 +938,43 @@ function InvoiceScreen() {
                 <tr key={line.lineNumber} className="border-b border-surface-background">
                   <td className="py-3 pe-4">
                     <p className="text-base font-medium text-text-primary">{line.description}</p>
-                    {line.productCode ? <p className="text-sm font-medium text-text-quaternary">{line.productCode}</p> : null}
+                    <p className="mt-1 text-sm font-medium text-text-quaternary">
+                      {[
+                        line.unitCode,
+                        line.productCode
+                          ? t('invoiceDetails.catalogRef', { code: line.productCode })
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
                   </td>
-                  <td className="py-3 text-sm font-medium text-text-secondary">{money(line.unitPrice)}</td>
                   <td className="py-3 text-sm font-medium text-text-secondary">
-                    {line.taxRate === null ? t(`invoiceDetails.category.${line.en16931Category}`, { defaultValue: line.taxCategoryCode }) : `${line.taxRate}%`}
+                    {money(line.unitPrice)}
                   </td>
-                  <td className="py-3 text-base font-medium text-text-secondary">{line.quantity}</td>
-                  <td className="py-3 text-base font-medium text-text-secondary">{line.unitCode}</td>
                   <td className="py-3 text-sm font-medium text-text-secondary">
-                    {line.discountValue === 0 ? '—' : line.discountType === 'PERCENTAGE' ? `${line.discountValue}%` : money(line.discountValue)}
+                    {line.taxRate === null
+                      ? t(`invoiceDetails.category.${line.en16931Category}`, {
+                          defaultValue: line.taxCategoryCode,
+                        })
+                      : `${line.taxRate}%`}
                   </td>
-                  <td className="py-3 text-end text-xl font-semibold text-text-primary/90">{money(totals.get(line.lineNumber))}</td>
+                  <td className="py-3 text-base font-medium text-text-secondary">
+                    {line.quantity}
+                  </td>
+                  <td className="py-3 text-base font-medium text-text-secondary">
+                    {line.unitCode}
+                  </td>
+                  <td className="py-3 text-sm font-medium text-text-secondary">
+                    {line.discountValue === 0
+                      ? '0'
+                      : line.discountType === 'PERCENTAGE'
+                        ? `${line.discountValue}%`
+                        : money(line.discountValue)}
+                  </td>
+                  <td className="py-3 text-end text-xl font-semibold text-text-primary/90">
+                    {money(totals.get(line.lineNumber))}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -501,26 +982,50 @@ function InvoiceScreen() {
         </RowsView>
 
         {data.totals ? (
-          <div className="mt-4 ms-auto flex w-full max-w-[328px] flex-col gap-2">
+          <div className="mt-4 ms-auto flex w-full max-w-[328px] flex-col gap-2.5">
             {[
-              ['invoiceDetails.totals.subtotal', data.totals.subtotal, 'text-text-primary'],
-              ['invoiceDetails.totals.discount', data.totals.totalDiscount, 'text-success-700'],
-              ['invoiceDetails.totals.taxable', data.totals.taxableAmount, 'text-text-primary'],
-              ['invoiceDetails.totals.vatOnly', data.totals.vatAmount, 'text-text-primary'],
+              ['invoiceDetails.totals.subtotal', money(data.totals.subtotal), 'text-text-primary'],
+              [
+                'invoiceDetails.totals.discount',
+                `− ${money(data.totals.totalDiscount)}`,
+                'text-success-700',
+              ],
+              ['invoiceDetails.totals.net', money(data.totals.taxableAmount), 'text-text-primary'],
+              [
+                vatRates.length === 1 && data.lines[0]
+                  ? t('invoiceDetails.totals.vatRate', { rate: data.lines[0].taxRate ?? 0 })
+                  : t('invoiceDetails.totals.vatOnly'),
+                money(data.totals.vatAmount),
+                'text-text-primary',
+              ],
             ].map(([key, value, tone]) => (
-              <div key={key as string} className="flex items-center justify-between gap-4 text-sm">
-                <span className="font-medium text-text-tertiary">{t(key as string)}</span>
-                <OmAmount size="xs" amount={money(value as number)} amountClassName={`text-base font-semibold ${tone as string}`} />
+              <div key={key} className="flex items-center justify-between gap-4 text-sm">
+                <span className="font-medium text-text-tertiary">
+                  {key.startsWith('invoiceDetails.') ? t(key) : key}
+                </span>
+                <OmAmount
+                  size="xs"
+                  amount={value}
+                  amountClassName={`text-base font-semibold ${tone}`}
+                />
               </div>
             ))}
             <div className="my-1 h-px w-full bg-border-subtle" />
             <div className="flex items-center justify-between gap-4">
-              <span className="text-sm font-medium text-text-primary">{t('invoiceDetails.totals.total')}</span>
-              <OmAmount size="sm" amount={money(data.totals.totalAmount)} amountClassName="text-xl font-semibold text-text-primary" />
+              <span className="text-sm font-medium text-text-primary">
+                {t('invoiceDetails.totals.total')}
+              </span>
+              <OmAmount
+                size="sm"
+                amount={money(data.totals.totalAmount)}
+                amountClassName="text-xl font-semibold text-text-primary"
+              />
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm font-medium text-text-quaternary">{t('invoiceDetails.totals.atIssue')}</p>
+          <p className="mt-4 text-sm font-medium text-text-quaternary">
+            {t('invoiceDetails.totals.atIssue')}
+          </p>
         )}
       </SectionCard>
 
@@ -528,62 +1033,125 @@ function InvoiceScreen() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-sm font-medium text-text-primary">
-              {t('invoiceDetails.notes.customer')} <span className="text-text-quaternary">{noteType ? t('salesNote.detail.onNote') : t('invoiceDetails.notes.onInvoice')}</span>
+              {t('invoiceDetails.notes.customer')}{' '}
+              <span className="text-xs text-text-quaternary">
+                {noteType ? t('salesNote.detail.onNote') : t('invoiceDetails.notes.onInvoice')}
+              </span>
             </p>
-            <p className="text-sm font-medium leading-[1.5] text-text-tertiary">{data.details?.customerVisibleNote ?? '—'}</p>
+            <div className="min-h-[64px] rounded-sm border border-border-subtle bg-surface-tab-bar px-3 py-2.5">
+              <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
+                {data.details?.customerVisibleNote ?? '—'}
+              </p>
+            </div>
           </div>
           {can(session, 'invoice.internal-note.read') ? (
             <div>
               <p className="mb-2 text-sm font-medium text-text-primary">
-                {t('invoiceDetails.notes.internal')} <span className="text-text-quaternary">{t('invoiceDetails.notes.private')}</span>
+                {t('invoiceDetails.notes.internal')}{' '}
+                <span className="text-xs text-text-quaternary">
+                  {t('invoiceDetails.notes.private')}
+                </span>
               </p>
-              {noteWanted ? (
-                <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
-                  {internalNote.read.status === 'ready' ? (internalNote.read.data.internalNote ?? '—') : '…'}
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setNoteWanted(true)}
-                  className="text-sm font-semibold text-primary-800 hover:text-primary-700"
-                >
-                  {t('invoiceDetails.notes.show')}
-                </button>
-              )}
-              {!noteWanted ? (
-                <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">{t('invoiceDetails.notes.showHint')}</p>
-              ) : null}
+              <div className="min-h-[64px] rounded-sm border border-border-subtle bg-surface-tab-bar px-3 py-2.5">
+                {noteWanted ? (
+                  <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
+                    {internalNote.read.status === 'ready'
+                      ? (internalNote.read.data.internalNote ?? '—')
+                      : '…'}
+                  </p>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setNoteWanted(true)}
+                      className="text-sm font-semibold text-primary-800 hover:text-primary-700"
+                    >
+                      {t('invoiceDetails.notes.show')}
+                    </button>
+                    <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                      {t('invoiceDetails.notes.showHint')}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           ) : null}
         </div>
       </SectionCard>
 
       <SectionCard title={t('invoiceDetails.attachments.title')}>
-        {attachments.read.status === 'ready' && attachments.read.data.length > 0 ? (
-          <ul className="flex flex-col gap-3">
-            {attachments.read.data.map((file) => (
-              <li key={file.id} className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-2.5 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-base font-medium text-text-primary">{file.filename}</p>
-                  <p className="truncate text-sm font-medium text-text-quaternary">
-                    {formatFileSize(file.byteSize)} · {formatInstant(file.attachedAt, language)}
-                  </p>
+        <div className="flex flex-col gap-3">
+          {attachments.read.status === 'ready' && attachments.read.data.length > 0
+            ? attachments.read.data.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-3 rounded-sm border border-border-subtle p-2.5"
+                >
+                  <img
+                    src={file.contentType.startsWith('image/') ? fileJpgIcon : filePdfIcon}
+                    alt=""
+                    className="size-9 shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-medium leading-[1.2] text-text-primary">
+                      {file.filename}
+                    </p>
+                    <p className="mt-1.5 truncate text-sm font-medium leading-[1.2] text-text-tertiary">
+                      {t('invoiceDetails.attachments.meta', {
+                        size: formatFileSize(file.byteSize),
+                        date: formatDate(file.attachedAt.slice(0, 10), language),
+                      })}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => download(file)}
+                    aria-label={t('invoiceDetails.download')}
+                    className={ICON_BUTTON}
+                  >
+                    <img src={fileDownloadIcon} alt="" className="size-4" />
+                  </button>
+                  {/* TODO(backend): no attachment removal route exists; the design's bin waits for it. */}
+                  <button
+                    type="button"
+                    disabled
+                    title={t(
+                      draft
+                        ? 'invoiceDetails.attachments.removeUnavailable'
+                        : 'invoiceDetails.attachments.issuedNote',
+                    )}
+                    aria-label={t('invoiceDetails.delete')}
+                    className={ICON_BUTTON}
+                  >
+                    <img src={fileDeleteIcon} alt="" className="size-4" />
+                  </button>
                 </div>
-                <button type="button" onClick={() => download(file)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-800">
-                  <img src={downloadIcon} alt="" className="size-5" />
-                  {t('invoiceDetails.download')}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm font-medium text-text-quaternary">
-            {noteType ? t('salesNote.detail.attachmentsNone') : t('invoiceDetails.attachments.none')}
-          </p>
-        )}
-        <p className="mt-3 text-xs font-medium leading-[1.4] text-text-quaternary">
-          {t(draft ? 'invoiceDetails.attachments.draftNote' : noteType ? 'salesNote.detail.attachmentsIssued' : 'invoiceDetails.attachments.issuedNote')}
-        </p>
+              ))
+            : null}
+          {attachments.read.status === 'ready' && attachments.read.data.length === 0 ? (
+            <p className="text-sm font-medium text-text-quaternary">
+              {noteType
+                ? t('salesNote.detail.attachmentsNone')
+                : t('invoiceDetails.attachments.none')}
+            </p>
+          ) : null}
+          {/* TODO(backend): no upload route exists; the design's drop zone is drawn and explains itself. */}
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 opacity-70">
+            <img src={uploadIcon} alt="" className="size-5" />
+            <p className="text-sm font-medium text-text-secondary">
+              {t('invoiceDetails.attachments.drop')}
+            </p>
+            <p className="text-xs font-medium text-text-muted">
+              {t(
+                draft
+                  ? 'invoiceDetails.attachments.draftNote'
+                  : noteType
+                    ? 'salesNote.detail.attachmentsIssued'
+                    : 'invoiceDetails.attachments.issuedNote',
+              )}
+            </p>
+          </div>
+        </div>
       </SectionCard>
 
       {/* Nothing is paid on a credit note; it lowers the invoice's balance instead. */}
@@ -595,8 +1163,11 @@ function InvoiceScreen() {
               <button
                 type="button"
                 onClick={() => setPaying(true)}
-                className="inline-flex items-center gap-2 text-base font-semibold text-primary-800 hover:text-primary-700"
+                className="inline-flex items-center gap-1 text-base font-semibold text-primary-800 hover:text-primary-700"
               >
+                <span aria-hidden="true" className="text-xl leading-none">
+                  +
+                </span>
                 {t('invoiceDetails.pay.open')}
               </button>
             ) : undefined
@@ -605,16 +1176,34 @@ function InvoiceScreen() {
           {payments.read.status === 'ready' && paymentRows(payments.read.data).length > 0 ? (
             <ul className="flex flex-col gap-3">
               {paymentRows(payments.read.data).map((row) => (
-                <li key={row.id} className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-2.5 py-2.5">
-                  <div className="min-w-0">
-                    <p className={['truncate text-base font-medium', row.reversed ? 'text-text-quaternary line-through' : 'text-text-primary'].join(' ')}>
-                      {money(row.amount)}
+                <li
+                  key={row.id}
+                  className="flex items-center gap-3 rounded-sm border border-border-subtle p-2.5"
+                >
+                  <img src={filePdfIcon} alt="" className="size-9 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={[
+                        'truncate text-base font-medium leading-[1.2]',
+                        row.reversed ? 'text-text-quaternary line-through' : 'text-text-primary',
+                      ].join(' ')}
+                    >
+                      {row.methodCode
+                        ? t(`invoiceDetails.pay.means.${row.methodCode}`, {
+                            defaultValue: row.methodCode,
+                          })
+                        : t('invoiceDetails.payments.title')}
+                      {' — '}
+                      <span className={row.reversed ? 'line-through' : ''}>
+                        {money(row.amount)}
+                      </span>
                     </p>
-                    <p className="truncate text-sm font-medium text-text-quaternary">
+                    <p className="mt-1.5 truncate text-sm font-medium leading-[1.2] text-text-tertiary">
                       {[
                         day(row.paymentDate),
-                        row.methodCode ? t(`invoiceDetails.pay.means.${row.methodCode}`, { defaultValue: row.methodCode }) : null,
-                        row.reference,
+                        row.reference
+                          ? t('invoiceDetails.payments.ref', { reference: row.reference })
+                          : null,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
@@ -624,33 +1213,78 @@ function InvoiceScreen() {
                     <span className="shrink-0 rounded-full bg-neutral-25 px-3 py-1 text-xs font-semibold text-text-quaternary">
                       {t('invoiceDetails.payments.reversed')}
                     </span>
-                  ) : canReverse ? (
-                    <button
-                      type="button"
-                      onClick={() => setReversing({ id: row.id, amount: row.amount, key: newPaymentKey() })}
-                      className="shrink-0 text-sm font-semibold text-text-quaternary hover:text-danger-700"
-                    >
-                      {t('invoiceDetails.pay.reverse')}
-                    </button>
-                  ) : null}
+                  ) : (
+                    <>
+                      {/* TODO(backend): no receipt is rendered for a payment; the design's download waits for it. */}
+                      <button
+                        type="button"
+                        disabled
+                        title={t('invoiceDetails.payments.receiptUnavailable')}
+                        aria-label={t('invoiceDetails.download')}
+                        className={ICON_BUTTON}
+                      >
+                        <img src={fileDownloadIcon} alt="" className="size-4" />
+                      </button>
+                      {canReverse ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReversing({ id: row.id, amount: row.amount, key: newPaymentKey() })
+                          }
+                          aria-label={t('invoiceDetails.pay.reverse')}
+                          title={t('invoiceDetails.pay.reverse')}
+                          className={[ICON_BUTTON, 'hover:bg-danger-100'].join(' ')}
+                        >
+                          <img src={fileDeleteIcon} alt="" className="size-4" />
+                        </button>
+                      ) : null}
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm font-medium text-text-quaternary">{t('invoiceDetails.payments.none')}</p>
+            <p className="text-sm font-medium text-text-quaternary">
+              {t('invoiceDetails.payments.none')}
+            </p>
           )}
+          {owed && owed.paymentState !== 'NOT_APPLICABLE' ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-text-secondary">
+              <span className="inline-flex items-center gap-1">
+                {t('invoiceDetails.payments.paid')}{' '}
+                <OmAmount
+                  size="xs"
+                  amount={money(owed.paidAmount)}
+                  amountClassName="font-semibold text-text-primary"
+                />{' '}
+                {t('invoiceDetails.payments.of')}{' '}
+                <OmAmount
+                  size="xs"
+                  amount={money(owed.documentTotal)}
+                  amountClassName="font-semibold text-text-primary"
+                />
+              </span>
+              <span className="inline-flex items-center gap-1">
+                {t('invoiceDetails.outstanding')}{' '}
+                <OmAmount
+                  size="xs"
+                  amount={money(owed.outstandingAmount)}
+                  amountClassName="font-semibold text-text-primary"
+                />
+              </span>
+            </div>
+          ) : null}
         </SectionCard>
       ) : null}
-
-      {/* Reminders chase an issued, unsettled invoice; a draft has nothing to chase and a credit
-          note is not owed to us. */}
-      {!draft && data.type !== 'CREDIT_NOTE' ? <InvoiceRemindersCard invoiceId={id} dueDate={data.dueDate} /> : null}
 
       {notes.read.status === 'ready' && notes.read.data.items.length > 0 ? (
         <SectionCard title={t('salesNote.onInvoice.title')}>
           <ul className="flex flex-col">
             {notes.read.data.items.map((note) => (
-              <li key={note.id} className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3 last:border-0">
+              <li
+                key={note.id}
+                className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3 last:border-0"
+              >
                 <Link
                   to={`${NOTE_ROUTES[note.type === 'DEBIT_NOTE' ? 'DEBIT_NOTE' : 'CREDIT_NOTE']}/${note.id}`}
                   className="text-sm font-semibold text-primary-700 hover:underline"
@@ -660,10 +1294,20 @@ function InvoiceScreen() {
                 <span className="text-xs font-medium text-text-quaternary">
                   {t(`invoicesPage.docType.${note.type}`)}
                   {note.issueDate ? ` · ${formatDate(note.issueDate, language)}` : ''}
-                  {note.authoringState !== 'ISSUED' ? ` · ${t(`salesNote.state.${note.authoringState}`)}` : ''}
+                  {note.authoringState !== 'ISSUED'
+                    ? ` · ${t(`salesNote.state.${note.authoringState}`)}`
+                    : ''}
                 </span>
-                <span className="ms-auto text-sm font-semibold text-text-primary tabular-nums">
-                  {note.totals ? `${formatAmount(note.totals.totalAmount, note.currency, language)} ${note.currency}` : '—'}
+                <span className="ms-auto">
+                  {note.totals ? (
+                    <OmAmount
+                      size="xs"
+                      amount={formatAmount(note.totals.totalAmount, note.currency, language)}
+                      amountClassName="text-sm font-semibold text-text-primary tabular-nums"
+                    />
+                  ) : (
+                    <span className="text-sm font-semibold text-text-primary">—</span>
+                  )}
                 </span>
               </li>
             ))}
@@ -676,31 +1320,54 @@ function InvoiceScreen() {
           <ol className="flex flex-col">
             {timelineOf(history.read.data, session?.userId ?? null).map((event, index, all) => (
               <li key={`${event.key}-${event.at}-${index}`} className="flex gap-3">
-                <div className="flex w-8 flex-col items-center">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-50">
-                    <img src={timelineCurrentIcon} alt="" className="size-3.5" />
+                <div className="flex w-7 shrink-0 flex-col items-center">
+                  <span
+                    className={[
+                      'flex size-7 shrink-0 items-center justify-center rounded-full',
+                      index === 0 ? 'bg-primary-700' : 'bg-success-700',
+                    ].join(' ')}
+                  >
+                    <CheckIcon />
                   </span>
-                  {index < all.length - 1 ? <span className="w-px flex-1 bg-border-subtle" /> : null}
+                  {index < all.length - 1 ? (
+                    <span className="my-1 w-0.5 flex-1 bg-success-700" />
+                  ) : null}
                 </div>
-                <div className="pb-5">
-                  <p className="text-base font-medium text-text-primary">
+                <div className={index < all.length - 1 ? 'pb-5' : ''}>
+                  <p className="text-base font-medium leading-[1.2] text-text-primary">
                     {t(event.key)}
-                    {event.byYou ? <span className="font-medium text-text-quaternary"> · {t('invoiceDetails.byYou')}</span> : null}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-text-quaternary">
-                    {[formatInstant(event.at, language), event.outcome].filter(Boolean).join(' · ')}
+                  <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-tertiary">
+                    {[
+                      event.byYou ? t('invoiceDetails.you') : null,
+                      formatInstant(event.at, language),
+                      event.outcome,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </p>
                 </div>
               </li>
             ))}
             {history.read.data.truncated ? (
-              <li className="text-sm font-medium text-text-quaternary">{t('invoiceDetails.timeline.truncated', { count: history.read.data.limit })}</li>
+              <li className="text-sm font-medium text-text-quaternary">
+                {t('invoiceDetails.timeline.truncated', { count: history.read.data.limit })}
+              </li>
             ) : null}
           </ol>
         ) : (
           <p className="text-sm font-medium text-text-quaternary">…</p>
         )}
       </SectionCard>
+
+      <Modal
+        open={fullscreen}
+        onClose={() => setFullscreen(false)}
+        title={t('invoiceDetails.pdf.title')}
+        width={880}
+      >
+        <div className="rounded-sm bg-surface-background p-4">{preview}</div>
+      </Modal>
 
       {issuing ? (
         <IssueInvoiceModal
@@ -759,7 +1426,9 @@ function InvoiceScreen() {
         }
       >
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          {t('invoiceDetails.pay.reverseBody', { amount: reversing ? money(reversing.amount) : '' })}
+          {t('invoiceDetails.pay.reverseBody', {
+            amount: reversing ? money(reversing.amount) : '',
+          })}
         </p>
       </Modal>
 
@@ -769,7 +1438,11 @@ function InvoiceScreen() {
           setCancelling(false)
           setReason('')
         }}
-        title={noteType ? t(`salesNote.detail.cancelTitle.${noteType}`) : t('invoiceDetails.cancel.title')}
+        title={
+          noteType
+            ? t(`salesNote.detail.cancelTitle.${noteType}`)
+            : t('invoiceDetails.cancel.title')
+        }
         footer={
           <div className="flex justify-end gap-3">
             <button
@@ -788,14 +1461,22 @@ function InvoiceScreen() {
               disabled={busy || reason.trim() === ''}
               className="inline-flex h-[46px] items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {noteType ? t(`salesNote.detail.cancelConfirm.${noteType}`) : t('invoiceDetails.cancel.confirm')}
+              {noteType
+                ? t(`salesNote.detail.cancelConfirm.${noteType}`)
+                : t('invoiceDetails.cancel.confirm')}
             </button>
           </div>
         }
       >
-        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{noteType ? t(`salesNote.detail.cancelBody.${noteType}`) : t('invoiceDetails.cancel.body')}</p>
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {noteType
+            ? t(`salesNote.detail.cancelBody.${noteType}`)
+            : t('invoiceDetails.cancel.body')}
+        </p>
         <label className="mt-4 block">
-          <span className="text-sm font-semibold text-text-secondary">{t('invoiceDetails.cancel.reason')}</span>
+          <span className="text-sm font-semibold text-text-secondary">
+            {t('invoiceDetails.cancel.reason')}
+          </span>
           <textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
@@ -809,25 +1490,262 @@ function InvoiceScreen() {
   )
 }
 
+/**
+ * The "Invoice PDF" pane, drawn from the document itself.
+ *
+ * TODO(backend): no PDF is rendered for a document today (decision of 2026-09-16), so the pane
+ * shows the same facts laid out as the paper would be; the real file replaces it when it exists.
+ */
+function DocumentPreview({
+  data,
+  status,
+  customer,
+  branch,
+  lineTotals: totals,
+  money,
+  day,
+}: {
+  data: InvoiceDetailDto
+  status: string
+  customer: CustomerDto | null
+  branch: string | undefined
+  lineTotals: Map<number, number>
+  money: (value: number | null | undefined) => string
+  day: (value: string | null) => string
+}) {
+  const { t } = useTranslation()
+  const kind =
+    data.type === 'CREDIT_NOTE'
+      ? 'creditNote'
+      : data.type === 'DEBIT_NOTE'
+        ? 'debitNote'
+        : 'taxInvoice'
+  return (
+    <div className="mx-auto w-full max-w-[420px] rounded-[3px] bg-white p-5 text-[9px] leading-[1.35] text-text-secondary shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-sm bg-primary-700 text-[11px] font-bold text-white">
+            {initialsOf(branch ?? 'F')}
+          </span>
+          <div>
+            <p className="text-[11px] font-semibold text-text-primary">{branch ?? '—'}</p>
+          </div>
+        </div>
+        <div className="text-end">
+          <p className="text-[11px] font-bold text-primary-800">
+            {t(`invoiceDetails.preview.${kind}`)}
+          </p>
+          <p className="text-text-quaternary">
+            {data.invoiceNumber ?? t('invoiceDetails.draftTitle')}
+          </p>
+          <span className="mt-1 inline-flex rounded-full bg-warning-100 px-1.5 py-px text-[7px] font-semibold text-[#6d5a39]">
+            {status}
+          </span>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
+            {t('invoiceDetails.preview.from')}
+          </p>
+          <p className="font-semibold text-text-primary">{branch ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
+            {t('invoiceDetails.billTo')}
+          </p>
+          <p className="font-semibold text-text-primary">{customer?.displayName ?? '—'}</p>
+          {customer?.profile.invoiceAddress?.cityName ? (
+            <p>
+              {customer.profile.invoiceAddress.cityName}
+              {customer.profile.invoiceAddress.countryCode
+                ? `, ${customer.profile.invoiceAddress.countryCode}`
+                : ''}
+            </p>
+          ) : null}
+          {customer?.profile.details?.vatRegistrationNumber ? (
+            <p>
+              {t('invoiceDetails.vatNumber', {
+                number: customer.profile.details.vatRegistrationNumber,
+              })}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {[
+          ['invoiceDetails.fields.issueDate', day(data.issueDate)],
+          // A credit note is not collected, so its paper names no due date either.
+          ...(data.type === 'CREDIT_NOTE'
+            ? []
+            : [['invoiceDetails.fields.dueDate', day(data.dueDate)]]),
+          ['invoiceDetails.fields.poReference', data.details?.purchaseOrderReference ?? '—'],
+          ['invoiceDetails.fields.paymentTerms', data.details?.paymentTerms?.label ?? '—'],
+        ].map(([label, value]) => (
+          <div key={label}>
+            <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
+              {t(label)}
+            </p>
+            <p className="font-medium text-text-primary">{value}</p>
+          </div>
+        ))}
+      </div>
+      <table className="mt-3 w-full border-collapse">
+        <thead>
+          <tr className="bg-primary-700 text-[7px] font-semibold uppercase text-white">
+            <th className="px-1.5 py-1 text-start">{t('invoiceDetails.col.description')}</th>
+            <th className="px-1.5 py-1 text-end">{t('invoiceDetails.col.unitPrice')}</th>
+            <th className="px-1.5 py-1 text-end">{t('invoiceDetails.col.qty')}</th>
+            <th className="px-1.5 py-1 text-end">{t('invoiceDetails.col.vat')}</th>
+            <th className="px-1.5 py-1 text-end">{t('invoiceDetails.col.total')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.lines.map((line) => (
+            <tr key={line.lineNumber} className="border-b border-surface-background">
+              <td className="px-1.5 py-1 text-text-primary">{line.description}</td>
+              <td className="px-1.5 py-1 text-end">{money(line.unitPrice)}</td>
+              <td className="px-1.5 py-1 text-end">{line.quantity}</td>
+              <td className="px-1.5 py-1 text-end">
+                {line.taxRate === null ? '—' : `${line.taxRate}%`}
+              </td>
+              <td className="px-1.5 py-1 text-end font-semibold text-text-primary">
+                {money(totals.get(line.lineNumber))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.totals ? (
+        <div className="ms-auto mt-2 w-[58%]">
+          {[
+            [t('invoiceDetails.totals.subtotal'), money(data.totals.subtotal)],
+            [t('invoiceDetails.totals.discount'), `− ${money(data.totals.totalDiscount)}`],
+            [t('invoiceDetails.totals.net'), money(data.totals.taxableAmount)],
+            [t('invoiceDetails.totals.vatOnly'), money(data.totals.vatAmount)],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-2 py-0.5">
+              <span className="text-text-quaternary">{label}</span>
+              <span className="inline-flex items-center gap-0.5 text-text-primary">
+                <RialMark className="w-2 text-text-secondary" />
+                {value}
+              </span>
+            </div>
+          ))}
+          <div className="mt-1 flex justify-between gap-2 border-t border-border-subtle pt-1 text-[10px] font-bold text-text-primary">
+            <span>{t('invoiceDetails.preview.totalDue')}</span>
+            <span className="inline-flex items-center gap-0.5">
+              <RialMark className="w-2.5 text-text-primary" />
+              {money(data.totals.totalAmount)}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 text-text-quaternary">{t('invoiceDetails.totals.atIssue')}</p>
+      )}
+      {data.details?.customerVisibleNote ? (
+        <p className="mt-4 text-[8px] text-text-quaternary">{data.details.customerVisibleNote}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="size-3.5">
+      <path
+        d="M3.5 8.5 6.5 11.5 12.5 5"
+        fill="none"
+        stroke="white"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function DeliveryIcon({ sent }: { sent: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className={['size-5 shrink-0', sent ? 'text-success-700' : 'text-text-muted'].join(' ')}
+    >
+      <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      {sent ? (
+        <path
+          d="M6.5 10.5 9 13 13.5 7.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="M10 6v4.5l2.5 1.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  )
+}
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className="size-5 shrink-0 text-primary-800">
+      <path
+        d="M10 2.5a4.5 4.5 0 0 0-4.5 4.5v2.6c0 .6-.2 1.2-.6 1.7l-1.1 1.5a.7.7 0 0 0 .6 1.1h11.2a.7.7 0 0 0 .6-1.1l-1.1-1.5a2.8 2.8 0 0 1-.6-1.7V7A4.5 4.5 0 0 0 10 2.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 16a2 2 0 0 0 4 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function Breadcrumb({ type }: { type?: InvoiceDetailDto['type'] }) {
   const { t } = useTranslation()
   const note = type === 'CREDIT_NOTE' || type === 'DEBIT_NOTE' ? type : null
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Link to="/invoices" className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary">
+      <Link
+        to="/invoices"
+        className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary"
+      >
         {t('invoiceDetails.breadcrumbIncome')}
-        <img src={backIcon} alt="" className="size-6 rotate-180" />
+        <img src={backIcon} alt="" className="size-6 rotate-180 rtl:rotate-0" />
       </Link>
-      <Link to={note ? NOTE_ROUTES[note] : '/invoices'} className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary">
-        {note ? t(note === 'CREDIT_NOTE' ? 'salesNote.credit.list' : 'salesNote.debit.list') : t('invoiceDetails.breadcrumbInvoices')}
+      <Link
+        to={note ? NOTE_ROUTES[note] : '/invoices'}
+        className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-text-secondary"
+      >
+        {note
+          ? t(note === 'CREDIT_NOTE' ? 'salesNote.credit.list' : 'salesNote.debit.list')
+          : t('invoiceDetails.breadcrumbInvoices')}
       </Link>
     </div>
   )
 }
 
 function refusalText(t: Translate, error: unknown): string {
-  if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION') return t('invoiceDetails.refused.stale')
-  if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE') return t('invoiceDetails.refused.notCancellable')
+  if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
+    return t('invoiceDetails.refused.stale')
+  if (error instanceof ApiError && error.code === 'INVOICE_NOT_CANCELLABLE')
+    return t('invoiceDetails.refused.notCancellable')
   if (error instanceof ApiError && error.code === 'DELIVERED_INVOICE_CANCELLATION_NOT_APPROVED') {
     return t('invoiceDetails.refused.delivered')
   }

@@ -18,7 +18,7 @@ import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import warningIcon from '../../assets/self-bill-detail/warning.svg'
-import { RowsView, withRial } from '../../components/ui'
+import { OmAmount, RowsView, withRial } from '../../components/ui'
 
 const TRACK_ICONS: Record<string, string> = {
   peppol: peppolTrackIcon,
@@ -249,36 +249,56 @@ export function SelfBillDetailPage() {
                   <span className="font-medium text-text-primary">
                     {t('selfBillDetail.summary.subtotal')}
                   </span>
-                  <span className="font-semibold text-text-secondary">{doc.summary.subtotal}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={doc.summary.subtotal}
+                    amountClassName="font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-primary">
                     {t('selfBillDetail.summary.discount')}
                   </span>
-                  <span className="font-semibold text-text-quaternary">
-                    − {doc.summary.discount}
+                  <span className="inline-flex items-center gap-1 font-semibold text-text-quaternary">
+                    −
+                    <OmAmount
+                      size="xs"
+                      amount={doc.summary.discount}
+                      amountClassName="font-semibold text-text-quaternary"
+                      iconClassName="text-text-quaternary"
+                    />
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-primary">
                     {t('selfBillDetail.summary.net')}
                   </span>
-                  <span className="font-semibold text-text-secondary">{doc.summary.net}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={doc.summary.net}
+                    amountClassName="font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-secondary">
                     {t('selfBillDetail.summary.vat')}
                   </span>
-                  <span className="font-semibold text-text-secondary">{doc.summary.vat}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={doc.summary.vat}
+                    amountClassName="font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="h-px w-full bg-surface-background" />
                 <div className="flex items-center justify-between">
                   <span className="text-base font-medium text-text-primary">
                     {t('selfBillDetail.summary.totalDue')}
                   </span>
-                  <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
-                    {doc.summary.total}
-                  </span>
+                  <OmAmount
+                    size="md"
+                    amount={doc.summary.total}
+                    amountClassName="text-[22px] font-semibold leading-[1.2] text-text-primary"
+                  />
                 </div>
               </div>
             </section>
@@ -315,7 +335,8 @@ export function SelfBillDetailPage() {
                       </p>
                     </td>
                     <td className="py-3 text-sm font-medium text-text-secondary">
-                      {item.unitPrice}
+                      {/* Three decimals: the design's "1.8" is a display slip, not a price. */}
+                      {Number(item.unitPrice).toFixed(3)}
                     </td>
                     <td className="py-3 text-sm font-medium text-text-secondary">{item.vat}</td>
                     <td className="py-3 text-base font-medium text-text-secondary">{item.qty}</td>

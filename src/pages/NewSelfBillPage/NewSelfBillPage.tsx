@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { NEW_SELF_BILL, SELF_BILL_KINDS, type SelfBillKind } from '../../lib/selfBillCreate'
-import { LineItemsTable, useLineTotals, type LineItem } from '../../components/invoice'
-import { withRial } from '../../components/ui'
+import { useLineTotals } from '../../components/invoice'
+import { OmAmount, withRial } from '../../components/ui'
+import { LineComposer, type ComposerLine } from './LineComposer'
 import { formatAtScale } from '../../lib/invoiceMath'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import statutoryIcon from '../../assets/customers/type-government.svg'
@@ -21,11 +22,12 @@ import uploadIcon from '../../assets/create-invoice/upload.svg'
 import signedIcon from '../../assets/agreements/signed.svg'
 
 /** The two lines from the design, priced through the same engine the invoice uses. */
-const INITIAL_LINES: LineItem[] = [
+const INITIAL_LINES: ComposerLine[] = [
   {
     id: '1',
+    kind: 'goods',
     description: 'Cappuccino - Large',
-    unitPrice: '1.8',
+    unitPrice: '1.800',
     vatRate: '5',
     quantity: '12',
     unit: 'EA',
@@ -34,8 +36,9 @@ const INITIAL_LINES: LineItem[] = [
   },
   {
     id: '2',
+    kind: 'goods',
     description: 'Coffee Beans 1kg - H Blend',
-    unitPrice: '9.5',
+    unitPrice: '9.500',
     vatRate: '5',
     quantity: '4',
     unit: 'KGM',
@@ -164,7 +167,7 @@ export function NewSelfBillPage() {
   const doc = NEW_SELF_BILL
   const [kind, setKind] = useState<SelfBillKind>('agreed')
   const [exclVat, setExclVat] = useState(true)
-  const [lines, setLines] = useState<LineItem[]>(INITIAL_LINES)
+  const [lines, setLines] = useState<ComposerLine[]>(INITIAL_LINES)
   const totals = useLineTotals(lines, exclVat)
   const [recordPayment, setRecordPayment] = useState(doc.payment.recordNow)
   const [deliverByEmail, setDeliverByEmail] = useState(doc.payment.deliverByEmail)
@@ -354,36 +357,56 @@ export function NewSelfBillPage() {
                   <span className="font-medium text-text-primary">
                     {t('newSelfBill.summary.subtotal')}
                   </span>
-                  <span className="font-semibold text-text-secondary">{doc.summary.subtotal}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.subtotal)}
+                    amountClassName="font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-primary">
                     {t('newSelfBill.summary.discount')}
                   </span>
-                  <span className="font-semibold text-text-quaternary">
-                    − {doc.summary.discount}
+                  <span className="inline-flex items-center gap-1 font-semibold text-text-quaternary">
+                    −
+                    <OmAmount
+                      size="xs"
+                      amount={formatAtScale(totals.itemDiscount + totals.headerDiscount)}
+                      amountClassName="font-semibold text-text-quaternary"
+                      iconClassName="text-text-quaternary"
+                    />
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-primary">
                     {t('newSelfBill.summary.net')}
                   </span>
-                  <span className="font-semibold text-text-secondary">{doc.summary.net}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.taxable)}
+                    amountClassName="font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-secondary">
                     {t('newSelfBill.summary.vat')}
                   </span>
-                  <span className="font-semibold text-text-secondary">{doc.summary.vat}</span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.vat)}
+                    amountClassName="font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="h-px w-full bg-surface-background" />
                 <div className="flex items-center justify-between">
                   <span className="text-base font-medium text-text-primary">
                     {t('newSelfBill.summary.totalDue')}
                   </span>
-                  <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
-                    {doc.summary.total}
-                  </span>
+                  <OmAmount
+                    size="md"
+                    amount={formatAtScale(totals.total)}
+                    amountClassName="text-[22px] font-semibold leading-[1.2] text-text-primary"
+                  />
                 </div>
               </div>
             </section>
@@ -454,12 +477,13 @@ export function NewSelfBillPage() {
         </Card>
 
         {/* 3 Items supplied to you */}
-        <LineItemsTable
+        <LineComposer
           lines={lines}
           onChange={setLines}
           exclVat={exclVat}
           onExclVatChange={setExclVat}
           totals={totals}
+          taxLabel={doc.fields.taxCategory}
           titleSlot={<SectionTitle step={3} title={t('newSelfBill.sections.items')} />}
           footer={
             <>
@@ -468,26 +492,32 @@ export function NewSelfBillPage() {
                   <span className="font-medium text-text-secondary">
                     {t('newSelfBill.totals.excluding')}
                   </span>
-                  <span className="text-base font-semibold text-text-secondary">
-                    {formatAtScale(totals.taxable)}
-                  </span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.taxable)}
+                    amountClassName="text-base font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-secondary">
                     {t('newSelfBill.totals.vat')}
                   </span>
-                  <span className="text-base font-semibold text-text-secondary">
-                    {formatAtScale(totals.vat)}
-                  </span>
+                  <OmAmount
+                    size="xs"
+                    amount={formatAtScale(totals.vat)}
+                    amountClassName="text-base font-semibold text-text-secondary"
+                  />
                 </div>
                 <div className="h-px w-full bg-surface-background" />
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-text-primary">
                     {t('newSelfBill.totals.total')}
                   </span>
-                  <span className="text-xl font-semibold text-text-primary">
-                    {formatAtScale(totals.total)}
-                  </span>
+                  <OmAmount
+                    size="sm"
+                    amount={formatAtScale(totals.total)}
+                    amountClassName="text-xl font-semibold text-text-primary"
+                  />
                 </div>
               </div>
             </>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, RowsView } from '../../components/ui'
+import { ActionMenu, RowsView, Select, TableCheckbox } from '../../components/ui'
 import { selfBillRowActions } from '../../lib/rowActions'
 import {
   SELF_BILL_AGREEMENT_COUNT,
@@ -67,22 +67,23 @@ const TRANSMISSION_STYLES: Record<
   SelfBillTransmission,
   { bg: string; fg: string; labelKey: string; titleKey: string }
 > = {
+  // The Peppol response codes, as the design prints them; the hint spells each one out.
   accepted: {
     bg: 'bg-success-100',
     fg: 'text-success-700',
-    labelKey: 'invoicesPage.transmission.accepted',
+    labelKey: 'selfBilling.peppol.AP',
     titleKey: 'invoicesPage.transmission.acceptedHint',
   },
   acknowledged: {
     bg: 'bg-primary-25',
     fg: 'text-primary-700',
-    labelKey: 'invoicesPage.transmission.acknowledged',
+    labelKey: 'selfBilling.peppol.AB',
     titleKey: 'invoicesPage.transmission.acknowledgedHint',
   },
   rejected: {
     bg: 'bg-danger-100',
     fg: 'text-danger-700',
-    labelKey: 'invoicesPage.transmission.rejected',
+    labelKey: 'selfBilling.peppol.RE',
     titleKey: 'invoicesPage.transmission.rejectedHint',
   },
 }
@@ -150,7 +151,7 @@ function SelfBillingKpiCards() {
         <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
           <div className="flex items-center gap-3.5">
             <img src={KPI_ICONS[kpi.icon]} alt="" className="size-11 shrink-0" />
-            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
+            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary max-xl:text-lg min-[1360px]:whitespace-nowrap">
               {t(kpi.titleKey)}
             </h3>
           </div>
@@ -245,6 +246,8 @@ function SelfBillingTable() {
   const [activeTab, setActiveTab] = useState<SelfBillTabId>('all')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
+  const [size, setSize] = useState(6)
+  const [selected, setSelected] = useState<string[]>([])
 
   const rows = useMemo(
     () =>
@@ -332,7 +335,19 @@ function SelfBillingTable() {
           <thead>
             <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
               <th className="w-10 px-5 py-2.5">
-                <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
+                <TableCheckbox
+                  checked={rows.length > 0 && rows.every((row) => selected.includes(row.id))}
+                  indeterminate={rows.some((row) => selected.includes(row.id))}
+                  disabled={rows.length === 0}
+                  onChange={() =>
+                    setSelected((current) =>
+                      rows.every((row) => current.includes(row.id))
+                        ? current.filter((id) => !rows.some((row) => row.id === id))
+                        : [...new Set([...current, ...rows.map((row) => row.id)])],
+                    )
+                  }
+                  ariaLabel={t('selfBilling.selectAll')}
+                />
               </th>
               <th className="px-2 py-2.5 text-start font-semibold">
                 {t('selfBilling.col.document')}
@@ -365,7 +380,17 @@ function SelfBillingTable() {
               >
                 {/* The checkbox and the row menu must not trigger the row navigation. */}
                 <td className="px-5 py-2.5" onClick={(e) => e.stopPropagation()}>
-                  <span className="block size-[15px] rounded-sm border border-border-default" />
+                  <TableCheckbox
+                    checked={selected.includes(row.id)}
+                    onChange={() =>
+                      setSelected((current) =>
+                        current.includes(row.id)
+                          ? current.filter((id) => id !== row.id)
+                          : [...current, row.id],
+                      )
+                    }
+                    ariaLabel={t('selfBilling.selectRow', { id: row.id })}
+                  />
                 </td>
                 <SelfBillRowCells row={row} />
                 <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
@@ -380,13 +405,21 @@ function SelfBillingTable() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-text-muted">{t('selfBilling.showResult')}</span>
-          <button
-            type="button"
-            className="inline-flex h-9 w-[55px] items-center justify-between rounded-sm border border-border-subtle px-3 text-sm font-semibold text-text-secondary"
-          >
-            6
-            <img src={chevronIcon} alt="" className="size-4 rotate-90 opacity-70" />
-          </button>
+          <div className="w-[88px]">
+            <Select
+              compact
+              value={String(size)}
+              onChange={(value) => {
+                setSize(Number(value))
+                setPage(1)
+              }}
+              options={[6, 10, 25, 50].map((option) => ({
+                value: String(option),
+                label: String(option),
+              }))}
+              ariaLabel={t('selfBilling.showResult')}
+            />
+          </div>
         </div>
         <div className="flex items-center">
           <button

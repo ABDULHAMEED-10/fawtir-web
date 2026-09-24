@@ -82,7 +82,7 @@ export const SELF_BILL_DETAIL = {
       qty: '12',
       unit: 'EA',
       discount: '0',
-      total: '23.400',
+      total: '21.600',
     },
     {
       id: '2',

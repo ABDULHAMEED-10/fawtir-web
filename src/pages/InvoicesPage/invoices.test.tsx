@@ -9,7 +9,8 @@ import { InvoicesPage } from './InvoicesPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SUMMARY_URL = '/api/v1/authored-invoices/summary'
-const FIRST_PAGE = '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=0&size=10'
+const FIRST_PAGE =
+  '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=0&size=10'
 
 const ADMIN: Entitlements = {
   userId: 'u-1',
@@ -83,7 +84,16 @@ function draft(overrides: Partial<InvoiceRowDto> = {}): InvoiceRowDto {
     dueDate: null,
     details: { subject: null, purchaseOrderReference: 'PO-77' },
     // 12 × 1.600 exclusive at 5% = 19.200 + 0.960.
-    lines: [{ lineNumber: 1, quantity: 12, unitPrice: 1.6, discountType: 'PERCENTAGE', discountValue: 0, taxRate: 5 }],
+    lines: [
+      {
+        lineNumber: 1,
+        quantity: 12,
+        unitPrice: 1.6,
+        discountType: 'PERCENTAGE',
+        discountValue: 0,
+        taxRate: 5,
+      },
+    ],
     totals: null,
     customerName: 'Nizwa Dates Co',
     payment: null,
@@ -123,7 +133,10 @@ beforeEach(async () => {
   exportResponse = () =>
     new Response('invoiceNumber\n', {
       status: 200,
-      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="fawtir-invoices.csv"' },
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="fawtir-invoices.csv"',
+      },
     })
   fetchMock = vi.fn(async (url: string) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -163,22 +176,23 @@ describe('Invoices list, wired to the API', () => {
     expect(screen.getByText('1,234.500')).toBeTruthy()
     expect(screen.getByText('Across 12 unpaid invoices')).toBeTruthy()
     expect(screen.getByText('9,876.125')).toBeTruthy()
-    expect(screen.getByText('18 invoices paid in full')).toBeTruthy()
-    expect(screen.getByText('2 invoices due within 7 days')).toBeTruthy()
+    expect(screen.getByText('18 invoices collected')).toBeTruthy()
+    expect(screen.getByText('2 invoices due soon')).toBeTruthy()
     // 7 July to 15 September.
     expect(screen.getByText('4 invoices · oldest 70 days')).toBeTruthy()
     expect(within(screen.getByRole('button', { name: /^All\s?41$/ })).getByText('41')).toBeTruthy()
     expect(within(screen.getByRole('button', { name: /^Overdue/ })).getByText('5')).toBeTruthy()
-    // Nothing is sent while submission is off, so the design's "To send" tab has nothing to count.
-    expect(screen.queryByRole('button', { name: /To send/ })).toBeNull()
-    expect(screen.queryByText('Transmission')).toBeNull()
+    // The design's "To send" tab and PEPPOL/OTA column are drawn; the summary carries no count for
+    // the tab yet, and the column shows the one delivery fact the API records.
+    expect(screen.getByRole('button', { name: /^To send/ })).toBeTruthy()
+    expect(screen.getByText('PEPPOL/OTA')).toBeTruthy()
 
     const row = screen.getByText('INV-2026-0042').closest('tr')!
     expect(within(row).getByText('August supply')).toBeTruthy()
     expect(within(row).getByText('1 Aug 2026')).toBeTruthy()
     expect(within(row).getByText('845.125')).toBeTruthy()
-    expect(within(row).getByText('600.000 still owed')).toBeTruthy()
     expect(within(row).getByText('Overdue · 15 days')).toBeTruthy()
+    expect(within(row).getByText('Not sent')).toBeTruthy()
 
     expect(listCalls()).toEqual([FIRST_PAGE])
   })
@@ -188,8 +202,9 @@ describe('Invoices list, wired to the API', () => {
     const row = (await screen.findByText('Nizwa Dates Co')).closest('tr')!
     expect(within(row).getByText('Draft', { selector: 'p' })).toBeTruthy()
     expect(within(row).getByText('PO-77')).toBeTruthy()
-    expect(within(row).getByText('20.160')).toBeTruthy()
-    expect(within(row).getByText('Estimate · priced at issue')).toBeTruthy()
+    expect(within(row).getByText('20.160').closest('span[title]')?.getAttribute('title')).toBe(
+      'Estimate · priced at issue',
+    )
   })
 
   it('asks the server for the tab, search, type, period, sort and page size', async () => {
@@ -198,15 +213,19 @@ describe('Invoices list, wired to the API', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Overdue/ }))
     await waitFor(() =>
-      expect(listCalls().at(-1)).toBe('/api/v1/authored-invoices?payment=OVERDUE&sort=UPDATED&page=0&size=10'),
+      expect(listCalls().at(-1)).toBe(
+        '/api/v1/authored-invoices?payment=OVERDUE&sort=UPDATED&page=0&size=10',
+      ),
     )
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sohar' } })
     await waitFor(() =>
-      expect(listCalls().at(-1)).toBe('/api/v1/authored-invoices?payment=OVERDUE&q=sohar&sort=UPDATED&page=0&size=10'),
+      expect(listCalls().at(-1)).toBe(
+        '/api/v1/authored-invoices?payment=OVERDUE&q=sohar&sort=UPDATED&page=0&size=10',
+      ),
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Document type/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Doc Type/ }))
     fireEvent.click(await screen.findByRole('option', { name: 'Debit note' }))
     await waitFor(() => expect(listCalls().at(-1)).toContain('type=DEBIT_NOTE'))
 
@@ -214,11 +233,12 @@ describe('Invoices list, wired to the API', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'Last month' }))
     await waitFor(() => expect(listCalls().at(-1)).toContain('from=2026-08-01&to=2026-08-31'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Recently updated' }))
+    fireEvent.click(screen.getByRole('button', { name: /Sort/ }))
     fireEvent.click(await screen.findByRole('option', { name: 'Due soonest' }))
     await waitFor(() => expect(listCalls().at(-1)).toContain('sort=DUE_SOONEST'))
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Show result:' }), { target: { value: '25' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Show result:' }))
+    fireEvent.click(await screen.findByRole('option', { name: '25' }))
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe(
         '/api/v1/authored-invoices?payment=OVERDUE&type=DEBIT_NOTE&from=2026-08-01&to=2026-08-31&q=sohar&sort=DUE_SOONEST&page=0&size=25',
@@ -236,11 +256,14 @@ describe('Invoices list, wired to the API', () => {
     expect(screen.getByText('41 documents')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '3' }))
     expect(await screen.findByText('INV-2026-0009')).toBeTruthy()
-    expect(listCalls().at(-1)).toBe('/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=2&size=10')
+    expect(listCalls().at(-1)).toBe(
+      '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=2&size=10',
+    )
   })
 
   it('says there are no invoices yet, and separately that a filter matched none', async () => {
-    summaryResponse = () => json(200, { ...SUMMARY, all: 0, drafts: 0, awaiting: 0, overdue: 0, paid: 0 })
+    summaryResponse = () =>
+      json(200, { ...SUMMARY, all: 0, drafts: 0, awaiting: 0, overdue: 0, paid: 0 })
     listResponses = [() => json(200, springPage([], 0))]
     const { unmount } = renderInvoices()
     expect(await screen.findByText(/No invoices yet/)).toBeTruthy()
@@ -252,7 +275,8 @@ describe('Invoices list, wired to the API', () => {
   })
 
   it('reads a refusal as "no access", not as an empty list', async () => {
-    summaryResponse = () => json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
+    summaryResponse = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
     renderInvoices()
     expect(await screen.findByText('No access')).toBeTruthy()
     expect(screen.queryByText(/No invoices yet/)).toBeNull()
@@ -260,7 +284,11 @@ describe('Invoices list, wired to the API', () => {
 
   it('offers a retry with the reference when the list fails', async () => {
     listResponses = [
-      () => json(500, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'corr-91' }),
+      () =>
+        json(500, {
+          type: 'https://api.fawtir.om/problems/internal-error',
+          correlationId: 'corr-91',
+        }),
       () => json(200, springPage([issued()], 1)),
     ]
     renderInvoices()
@@ -270,16 +298,25 @@ describe('Invoices list, wired to the API', () => {
     expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
   })
 
-  it('offers edit and discard on drafts only, and only to someone who may draft', async () => {
+  it('offers the row menu on every row, and discards a draft from its Delete', async () => {
     renderInvoices()
     const issuedRow = (await screen.findByText('INV-2026-0042')).closest('tr')!
-    expect(within(issuedRow).queryByRole('button', { name: 'Invoice actions' })).toBeNull()
+    fireEvent.click(within(issuedRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View invoice' })).toBeTruthy()
+    // A credit note needs creditnote.create, which this reader lacks; the periodic entry needs invoice.draft.
+    expect(screen.queryByRole('menuitem', { name: 'Issue credit note' })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Periodic invoice' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
     const draftRow = screen.getByText('Nizwa Dates Co').closest('tr')!
     fireEvent.click(within(draftRow).getByRole('button', { name: 'Invoice actions' }))
-    expect(await screen.findByText('Edit draft')).toBeTruthy()
-    fireEvent.click(screen.getByText('Discard draft'))
+    expect(screen.queryByRole('menuitem', { name: 'Periodic invoice' })).toBeNull()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }))
     fireEvent.click(await screen.findByRole('button', { name: /Discard/, hidden: false }))
-    await waitFor(() => expect(calls('/api/v1/invoice-drafts/')).toEqual(['/api/v1/invoice-drafts/draft-1?expected_version=2']))
+    await waitFor(() =>
+      expect(calls('/api/v1/invoice-drafts/')).toEqual([
+        '/api/v1/invoice-drafts/draft-1?expected_version=2',
+      ]),
+    )
     await waitFor(() => expect(listCalls()).toHaveLength(2))
   })
 
@@ -295,7 +332,12 @@ describe('Invoices list, wired to the API', () => {
     await screen.findByText('Sohar Port Logistics')
     expect(screen.queryByRole('link', { name: /Create Invoice/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /Export/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Invoice actions' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull()
+    // The menu stays (view, send, duplicate); what needs a permission is left out of it.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Invoice actions' })[1])
+    expect(await screen.findByRole('menuitem', { name: 'View invoice' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Issue credit note' })).toBeNull()
   })
 
   it('exports the list it is showing, and warns when the file stops at the cap', async () => {
@@ -329,7 +371,7 @@ describe('Invoices list, wired to the API', () => {
     expect(screen.getByText('متأخر · 15 يومًا')).toBeTruthy()
     expect(screen.getByText('845.125')).toBeTruthy()
     expect(screen.getByText('عبر 12 فاتورة غير مدفوعة')).toBeTruthy()
-    expect(screen.getByText('تقدير · يُسعَّر عند الإصدار')).toBeTruthy()
+    expect(screen.getByText('لم تُرسل')).toBeTruthy()
   })
 })
 
@@ -344,20 +386,53 @@ describe('invoice list mapping', () => {
   it('keeps authoring, payment and delivery apart', () => {
     const credited = toInvoiceListItem(
       issued({
-        payment: { state: 'PAID', overdue: false, daysOverdue: null, paidAmount: 0, creditedAmount: 845.125, outstandingAmount: 0 },
+        payment: {
+          state: 'PAID',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: 0,
+          creditedAmount: 845.125,
+          outstandingAmount: 0,
+        },
         deliveryState: 'SENT_MANUALLY',
       }),
     )
     expect(credited).toMatchObject({ authoring: 'issued', payment: 'paid', sentManually: true })
-    expect(credited.amountNote).toEqual({ key: 'invoicesPage.amountNote.credited', values: { amount: 845.125 } })
+    expect(credited.amountNote).toEqual({
+      key: 'invoicesPage.amountNote.credited',
+      values: { amount: 845.125 },
+    })
 
-    const note = toInvoiceListItem(issued({ type: 'CREDIT_NOTE', payment: { state: 'NOT_APPLICABLE', overdue: false, daysOverdue: null, paidAmount: null, creditedAmount: null, outstandingAmount: null } }))
+    const note = toInvoiceListItem(
+      issued({
+        type: 'CREDIT_NOTE',
+        payment: {
+          state: 'NOT_APPLICABLE',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: null,
+          creditedAmount: null,
+          outstandingAmount: null,
+        },
+      }),
+    )
     expect(note).toMatchObject({ authoring: 'issued', payment: null, amountNote: null })
 
     const awaiting = toInvoiceListItem(
-      issued({ payment: { state: 'UNPAID', overdue: false, daysOverdue: null, paidAmount: 0, creditedAmount: 0, outstandingAmount: 845.125 } }),
+      issued({
+        payment: {
+          state: 'UNPAID',
+          overdue: false,
+          daysOverdue: null,
+          paidAmount: 0,
+          creditedAmount: 0,
+          outstandingAmount: 845.125,
+        },
+      }),
     )
     expect(awaiting).toMatchObject({ payment: 'awaiting', amountNote: null })
-    expect(toInvoiceListItem(issued({ authoringState: 'CANCELLED', payment: null })).authoring).toBe('cancelled')
+    expect(
+      toInvoiceListItem(issued({ authoringState: 'CANCELLED', payment: null })).authoring,
+    ).toBe('cancelled')
   })
 })

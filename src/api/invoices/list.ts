@@ -59,7 +59,14 @@ export type InvoiceRowDto = {
   invoiceNumber: string | null
   issueDate: string | null
   dueDate: string | null
-  details: { subject: string | null; purchaseOrderReference: string | null } | null
+  details: {
+    subject: string | null
+    purchaseOrderReference: string | null
+    /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. */
+    correctionReasonCode?: string | null
+  } | null
+  /** The issuing branch; the notes list names it under the customer. */
+  branchId?: string | null
   headerDiscount?: DiscountDto | null
   lines: InvoiceRowLineDto[]
   /** Null until the document is issued: a draft is priced only then. */
@@ -78,6 +85,8 @@ export type InvoiceSummaryDto = {
   asOf: string
   all: number
   drafts: number
+  /** TODO(backend): the design's "To send" tab count — issued, undelivered documents. Not answered today. */
+  toSend?: number
   awaiting: number
   overdue: number
   paid: number

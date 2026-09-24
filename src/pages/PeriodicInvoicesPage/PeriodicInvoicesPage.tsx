@@ -1,8 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { RowsView } from '../../components/ui'
+import {
+  ActionMenu,
+  FilterMenu,
+  OmAmount,
+  RowsView,
+  Select,
+  SortMenu,
+  TableCheckbox,
+  type ActionMenuItem,
+} from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -10,33 +19,81 @@ import {
   loadPeriodicSchedules,
   setPeriodicActive,
   type PeriodicScheduleDto,
+  type RecurrenceInterval,
 } from '../../api/invoices/periodic'
 import { customerListPath, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
+import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import type { Page } from '../../api'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
-import { PERIODIC_TABS, narrowSchedules, periodicCounts, scheduleNote, scheduleTone, type PeriodicTabId } from '../../lib/periodicInvoice'
-import searchIcon from '../../assets/invoices/search.svg'
+import {
+  PERIODIC_INTERVALS,
+  PERIODIC_SORTS,
+  PERIODIC_TABS,
+  cadenceNote,
+  countTab,
+  monthlyEquivalent,
+  narrowSchedules,
+  periodicCounts,
+  scheduleName,
+  scheduleNote,
+  scheduleStatus,
+  scheduleTone,
+  sortSchedules,
+  type PeriodicSortId,
+  type PeriodicStatus,
+  type PeriodicTabId,
+  type TemplateInfo,
+} from '../../lib/periodicInvoice'
+import revenueIcon from '../../assets/periodic/kpi-revenue.svg'
+import dueIcon from '../../assets/periodic/kpi-due.svg'
+import generatedIcon from '../../assets/periodic/kpi-generated.svg'
+import attentionIcon from '../../assets/periodic/kpi-attention.svg'
+import scheduleIcon from '../../assets/periodic/schedule.svg'
+import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
-
-const TONE: Record<'warn' | 'ok' | 'muted', string> = {
-  warn: 'text-warning-700',
-  ok: 'text-text-secondary',
-  muted: 'text-text-quaternary',
-}
+import searchIcon from '../../assets/invoices/search.svg'
+import filterIcon from '../../assets/credit-notes/filter.svg'
+import chevronIcon from '../../assets/invoices/chevron.svg'
+import viewIcon from '../../assets/actions/view.svg'
+import editIcon from '../../assets/actions/edit.svg'
+import pauseIcon from '../../assets/actions/pause.svg'
+import resumeIcon from '../../assets/actions/periodic.svg'
 
 /** The customers list refuses a page over 100, so names are read a hundred at a time. */
 const CUSTOMER_PAGE_SIZE = 100
+/** The invoices list's own cap: the schedules' templates are looked up in this page of it. */
+const INVOICE_PAGE_SIZE = 100
+const PAGE_SIZES = [6, 10, 25, 50]
+const DEFAULT_PAGE_SIZE = 10
 
-const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+const muscatToday = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+
+const TONE: Record<'warn' | 'ok' | 'muted', string> = {
+  warn: 'text-warning-700',
+  ok: 'text-text-tertiary',
+  muted: 'text-text-quaternary',
+}
+
+/** Status pill fills read straight off the Figma labels. */
+const STATUS_STYLES: Record<PeriodicStatus, string> = {
+  active: 'bg-success-100 text-success-700',
+  paused: 'bg-pending-100 text-pending-700',
+  finished: 'bg-neutral-25 text-neutral-700',
+  onRequest: 'bg-primary-25 text-primary-700',
+  draft: 'bg-neutral-25 text-neutral-700',
+}
 
 /**
- * Income › Periodic invoices (I-13).
+ * Income › Periodic invoices (I-13, Figma 154:159427).
  *
  * Each schedule copies one invoice on a cadence and raises a **draft** for someone to check and
- * issue. The API answers a bare array — no paging, no totals, no filters — so the tabs, the search
- * and the three counts are all computed from the list in hand, and the page says so.
+ * issue. The API answers a bare array — no paging, no totals, no filters — so the tabs, the search,
+ * the sort, the paging and the four figures are all worked out from the list in hand. A schedule
+ * carries only a customer id and a template invoice id, so the names, the amounts and the
+ * references come from the customers and invoices lists, read once each.
  */
 export function PeriodicInvoicesPage() {
   const { t, i18n } = useTranslation()
@@ -44,21 +101,112 @@ export function PeriodicInvoicesPage() {
   const session = useSession()
   const canManage = can(session, 'invoice.draft')
   const today = muscatToday()
-  const [tab, setTab] = useState<PeriodicTabId>('active')
+  const [tab, setTab] = useState<PeriodicTabId>('all')
   const [search, setSearch] = useState('')
+  const [interval, setInterval] = useState<RecurrenceInterval | 'all'>('all')
+  const [sort, setSort] = useState<PeriodicSortId>('nextSoonest')
+  const [page, setPage] = useState(1)
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE)
+  const [selected, setSelected] = useState<string[]>([])
   const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
-  const schedules = useApiRead<PeriodicScheduleDto[]>(PERIODIC_SCHEDULES_PATH, loadPeriodicSchedules)
-  // The schedule carries a customer id and nothing else, so the names come from the customers list.
-  const customersPath = customerListPath({ type: null, search: '', sort: 'NAME_ASC', page: 0, size: CUSTOMER_PAGE_SIZE })
-  const customers = useApiRead<Page<CustomerDto>>(customersPath, () => loadCustomerPage(customersPath))
+  const schedules = useApiRead<PeriodicScheduleDto[]>(
+    PERIODIC_SCHEDULES_PATH,
+    loadPeriodicSchedules,
+  )
+  const customersPath = customerListPath({
+    type: null,
+    search: '',
+    sort: 'NAME_ASC',
+    page: 0,
+    size: CUSTOMER_PAGE_SIZE,
+  })
+  const customers = useApiRead<Page<CustomerDto>>(customersPath, () =>
+    loadCustomerPage(customersPath),
+  )
+  // TODO(backend): the schedule should carry its template's number, subject, reference and total;
+  // until it does, the invoices list is read once and the templates looked up in it.
+  const invoicesPath = invoiceListPath({
+    state: 'DRAFT,ISSUED',
+    payment: null,
+    type: 'INVOICE',
+    from: null,
+    to: null,
+    search: '',
+    sort: 'ISSUED_NEWEST',
+    page: 0,
+    size: INVOICE_PAGE_SIZE,
+  })
+  const invoices = useApiRead<Page<InvoiceRowDto>>(invoicesPath, () =>
+    loadInvoicePage(invoicesPath),
+  )
 
   const rows = schedules.read.status === 'ready' ? schedules.read.data : []
-  const names = new Map((customers.read.status === 'ready' ? customers.read.data.items : []).map((row) => [row.id, row.displayName]))
+  const names = useMemo(
+    () =>
+      new Map(
+        (customers.read.status === 'ready' ? customers.read.data.items : []).map((row) => [
+          row.id,
+          row.displayName,
+        ]),
+      ),
+    [customers.read],
+  )
+  const templates = useMemo(
+    () =>
+      new Map<string, TemplateInfo>(
+        (invoices.read.status === 'ready' ? invoices.read.data.items : []).map((row) => [
+          row.id,
+          {
+            number: row.invoiceNumber,
+            subject: row.details?.subject ?? null,
+            reference: row.details?.purchaseOrderReference ?? null,
+            total: row.totals?.totalAmount ?? null,
+            currency: row.currency,
+          },
+        ]),
+      ),
+    [invoices.read],
+  )
   const nameOf = (customerId: string) => names.get(customerId)
+  const templateOf = (schedule: PeriodicScheduleDto) =>
+    schedule.templateInvoiceId ? templates.get(schedule.templateInvoiceId) : undefined
+  const titleOf = (schedule: PeriodicScheduleDto) =>
+    scheduleName(templateOf(schedule), nameOf(schedule.customerId)) ??
+    t('periodicList.unknownCustomer')
+  const amountOf = (schedule: PeriodicScheduleDto) => templateOf(schedule)?.total ?? 0
+
   const counts = periodicCounts(rows, today)
-  const visible = narrowSchedules(rows, tab, search, nameOf)
+  const activeRows = rows.filter((schedule) => scheduleStatus(schedule) === 'active')
+  const revenue = activeRows.reduce(
+    (sum, schedule) => sum + monthlyEquivalent(amountOf(schedule), schedule.interval),
+    0,
+  )
+  const dueSoonAmount = activeRows
+    .filter(
+      (schedule) =>
+        scheduleNote(schedule, today).key !== 'periodicList.state.finished' &&
+        daysUntil(today, schedule.nextRunDate) <= 30,
+    )
+    .reduce((sum, schedule) => sum + amountOf(schedule), 0)
+
+  const visible = sortSchedules(
+    narrowSchedules(rows, tab, search, nameOf, templateOf, interval === 'all' ? null : interval),
+    sort,
+    titleOf,
+    amountOf,
+  )
+  const pageCount = Math.max(1, Math.ceil(visible.length / size))
+  const current = Math.min(page, pageCount)
+  const shown = visible.slice((current - 1) * size, current * size)
+  const allOnPageSelected = shown.length > 0 && shown.every((row) => selected.includes(row.id))
+  const someOnPageSelected = !allOnPageSelected && shown.some((row) => selected.includes(row.id))
+
+  const narrow = (change: () => void) => {
+    setPage(1)
+    change()
+  }
 
   const toggle = async (schedule: PeriodicScheduleDto) => {
     setNotice(null)
@@ -69,151 +217,610 @@ export function PeriodicInvoicesPage() {
       setNotice(
         schedule.active
           ? { key: 'periodicList.done.paused' }
-          : { body: t('periodicList.done.resumed', { date: formatDate(saved.nextRunDate, language) }) },
+          : {
+              body: t('periodicList.done.resumed', {
+                date: formatDate(saved.nextRunDate, language),
+              }),
+            },
       )
     } catch (error) {
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)
-      setNotice({ body: message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body })
+      setNotice({
+        body: message.reference
+          ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+          : body,
+      })
     } finally {
       setBusy(null)
     }
   }
 
+  const exportCsv = () => {
+    const header = ['schedule', 'customer', 'frequency', 'next_run', 'per_invoice', 'status']
+    const lines = visible.map((schedule) =>
+      [
+        titleOf(schedule),
+        nameOf(schedule.customerId) ?? schedule.customerId,
+        schedule.interval,
+        schedule.nextRunDate,
+        amountOf(schedule).toFixed(3),
+        scheduleStatus(schedule),
+      ]
+        .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+        .join(','),
+    )
+    const blob = new Blob([[header.join(','), ...lines].join('\n')], {
+      type: 'text/csv;charset=utf-8',
+    })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `periodic-invoices-${today}.csv`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const menuFor = (schedule: PeriodicScheduleDto): ActionMenuItem[] => [
+    {
+      id: 'view',
+      labelKey: 'periodicList.menu.view',
+      icon: viewIcon,
+      to: `/income/periodic/${schedule.id}`,
+    },
+    ...(canManage
+      ? [
+          {
+            id: 'edit',
+            labelKey: 'periodicList.menu.edit',
+            icon: editIcon,
+            to: `/income/periodic/${schedule.id}/edit`,
+          },
+          schedule.active
+            ? {
+                id: 'pause',
+                labelKey: 'periodicList.menu.pause',
+                icon: pauseIcon,
+                onSelect: () => void toggle(schedule),
+              }
+            : {
+                id: 'resume',
+                labelKey: 'periodicList.menu.resume',
+                icon: resumeIcon,
+                onSelect: () => void toggle(schedule),
+              },
+        ]
+      : []),
+  ]
+
+  const kpis = [
+    {
+      id: 'revenue',
+      icon: revenueIcon,
+      title: t('periodicList.kpi.revenue'),
+      amount: formatAmount(revenue, 'OMR', language),
+      suffix: t('periodicList.kpi.perMonth'),
+      meta: t('periodicList.kpi.revenueMeta', { count: activeRows.length }),
+    },
+    {
+      id: 'due',
+      icon: dueIcon,
+      title: t('periodicList.kpi.due'),
+      amount: formatAmount(dueSoonAmount, 'OMR', language),
+      meta: t('periodicList.kpi.dueMeta', { count: counts.dueSoon }),
+    },
+    {
+      // TODO(backend): a summary with what the schedules raised this month; the runs are only
+      // readable one schedule at a time, so the figure cannot be counted here.
+      id: 'generated',
+      icon: generatedIcon,
+      title: t('periodicList.kpi.generated'),
+      amount: null,
+      meta: t('periodicList.kpi.generatedMeta'),
+    },
+    {
+      id: 'attention',
+      icon: attentionIcon,
+      title: t('periodicList.kpi.attention'),
+      count: counts.paused + counts.overdue,
+      meta: t('periodicList.kpi.attentionMeta', { paused: counts.paused, overdue: counts.overdue }),
+      danger: counts.paused + counts.overdue > 0,
+    },
+  ]
+
   return (
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-[720px]">
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('periodicList.title')}</h1>
-            <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('periodicList.subtitle')}</p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-2xl font-medium leading-[1.2] text-text-quaternary">
+                {t('periodicList.breadcrumbIncome')}
+              </span>
+              <img src={chevronIcon} alt="" aria-hidden="true" className="size-6 rtl:rotate-180" />
+              <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+                {t('periodicList.title')}
+              </h1>
+            </div>
+            <p className="mt-1 text-sm font-medium leading-[1.2] text-[#8f8f8f]">
+              {schedules.read.status === 'ready'
+                ? t('periodicList.subtitleLive', { count: counts.total, active: counts.active })
+                : t('periodicList.subtitle')}
+            </p>
           </div>
-          {canManage ? (
-            <Link
-              to="/income/periodic/new"
-              className="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={visible.length === 0}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
             >
-              <img src={plusIcon} alt="" className="size-4 brightness-0 invert" />
-              {t('periodicList.add')}
-            </Link>
-          ) : null}
+              <img src={exportIcon} alt="" className="size-6 rotate-180" />
+              {t('periodicList.export')}
+            </button>
+            {canManage ? (
+              <Link
+                to="/income/periodic/new"
+                className="inline-flex h-[46px] items-center gap-1.5 rounded-sm bg-primary-700 py-2.5 ps-2.5 pe-4 text-base font-semibold text-white transition-colors hover:bg-primary-800"
+              >
+                <img src={plusIcon} alt="" className="size-6" />
+                {t('periodicList.add')}
+              </Link>
+            ) : null}
+          </div>
         </div>
 
         {schedules.read.status === 'ready' ? (
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Count label={t('periodicList.count.schedules')} value={counts.total} note={t('periodicList.count.schedulesNote', { count: counts.paused })} />
-            <Count label={t('periodicList.count.active')} value={counts.active} note={t('periodicList.count.activeNote')} />
-            <Count label={t('periodicList.count.dueSoon')} value={counts.dueSoon} note={t('periodicList.count.dueSoonNote')} />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {kpis.map((kpi) => (
+              <article
+                key={kpi.id}
+                className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5"
+              >
+                <div className="flex items-center gap-3.5">
+                  <img src={kpi.icon} alt="" className="size-11 shrink-0" />
+                  <h3 className="whitespace-nowrap text-lg font-medium leading-[1.2] text-text-secondary">
+                    {kpi.title}
+                  </h3>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  {'count' in kpi ? (
+                    <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">
+                      {formatCount(kpi.count ?? 0, language)}
+                    </p>
+                  ) : kpi.amount === null ? (
+                    <p className="text-[32px] font-semibold leading-[1.2] text-text-quaternary">
+                      —
+                    </p>
+                  ) : (
+                    <OmAmount
+                      size="lg"
+                      amount={kpi.amount}
+                      amountClassName="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums"
+                    />
+                  )}
+                  {'suffix' in kpi && kpi.suffix ? (
+                    <span className="text-base font-medium text-text-tertiary">{kpi.suffix}</span>
+                  ) : null}
+                </div>
+                <p
+                  className={[
+                    'text-sm font-medium leading-[1.2]',
+                    'danger' in kpi && kpi.danger ? 'text-danger-700' : 'text-text-tertiary',
+                  ].join(' ')}
+                >
+                  {kpi.meta}
+                </p>
+              </article>
+            ))}
           </div>
         ) : null}
 
-        {notice ? <Notice body={'key' in notice ? t(notice.key) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+        {notice ? (
+          <Notice
+            body={'key' in notice ? t(notice.key) : notice.body}
+            action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+          />
+        ) : null}
 
-        <section className="rounded-md bg-surface-card">
-          <div className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5">
-            {PERIODIC_TABS.map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                role="tab"
-                aria-selected={entry === tab}
-                onClick={() => setTab(entry)}
-                className={[
-                  'inline-flex h-[54px] items-center border-b-2 px-4 text-sm font-medium transition-colors',
-                  entry === tab ? 'border-primary-700 text-primary-700' : 'border-transparent text-text-quaternary hover:text-text-secondary',
-                ].join(' ')}
-              >
-                {t(`periodicList.tab.${entry}`)}
-              </button>
-            ))}
+        <section className="overflow-hidden rounded-md bg-surface-card">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
+            {PERIODIC_TABS.map((entry) => {
+              const active = entry === tab
+              const tally = countTab(rows, entry)
+              return (
+                <button
+                  key={entry}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => narrow(() => setTab(entry))}
+                  className={[
+                    'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
+                    active
+                      ? 'font-semibold text-primary-800'
+                      : 'font-medium text-text-quaternary hover:text-text-secondary',
+                  ].join(' ')}
+                >
+                  {t(`periodicList.tab.${entry}`)}
+                  <span
+                    className={[
+                      'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                      active
+                        ? 'bg-primary-25 text-primary-800'
+                        : 'bg-primary-25 text-text-quaternary',
+                    ].join(' ')}
+                  >
+                    {formatCount(tally, language)}
+                  </span>
+                  {active ? (
+                    <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 border-b border-surface-background p-4">
-            <label className="relative block min-w-[240px] flex-1">
-              <span className="sr-only">{t('periodicList.searchPlaceholder')}</span>
-              <img src={searchIcon} alt="" className="pointer-events-none absolute start-3 top-3.5 size-5" />
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
+            <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
+              <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
+                type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => narrow(() => setSearch(event.target.value))}
                 placeholder={t('periodicList.searchPlaceholder')}
-                className="h-[46px] w-full rounded-sm border border-border-subtle bg-white ps-10 pe-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500"
+                aria-label={t('periodicList.searchPlaceholder')}
+                className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
               />
             </label>
-            <p className="text-xs font-medium text-text-quaternary">{t('periodicList.narrowsThisList')}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <FilterMenu
+                label={t('periodicList.filters')}
+                icon={filterIcon}
+                value={interval}
+                defaultValue="all"
+                onChange={(value) => narrow(() => setInterval(value))}
+                options={[
+                  { value: 'all', label: t('periodicList.filter.allFrequencies') },
+                  ...PERIODIC_INTERVALS.map((value) => ({
+                    value,
+                    label: t(`periodicList.interval.${value}`),
+                    count: rows.filter((row) => row.interval === value).length,
+                  })),
+                ]}
+              />
+              <SortMenu
+                value={sort}
+                onChange={(value) => narrow(() => setSort(value))}
+                options={PERIODIC_SORTS.map((value) => ({
+                  value,
+                  labelKey: `periodicList.sort.${value}`,
+                }))}
+              />
+            </div>
           </div>
 
           {schedules.read.status === 'loading' ? <LoadingNotice /> : null}
-          {schedules.read.status === 'failed' ? <ApiReadFailure error={schedules.read.error} retry={schedules.retry} /> : null}
+          {schedules.read.status === 'failed' ? (
+            <div className="px-6 pb-5">
+              <ApiReadFailure error={schedules.read.error} retry={schedules.retry} />
+            </div>
+          ) : null}
 
           {schedules.read.status === 'ready' ? (
-            visible.length === 0 ? (
-              <p className="px-6 py-14 text-center text-sm font-medium text-text-quaternary">{t('periodicList.empty')}</p>
-            ) : (
-              <RowsView>
-                <table className="w-full min-w-[880px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-surface-background text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
-                      {(['customer', 'howOften', 'nextDraft', 'state', 'left'] as const).map((key) => (
-                        <th key={key} className="px-5 py-3 text-start font-semibold">
-                          {t(`periodicList.col.${key}`)}
-                        </th>
-                      ))}
-                      <th className="px-5 py-3" />
+            <RowsView>
+              <table className="w-full min-w-[1040px] border-collapse text-start">
+                <thead>
+                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                    <th className="w-10 px-5 py-2.5">
+                      <TableCheckbox
+                        checked={allOnPageSelected}
+                        indeterminate={someOnPageSelected}
+                        disabled={shown.length === 0}
+                        onChange={() =>
+                          setSelected((current) =>
+                            allOnPageSelected
+                              ? current.filter((id) => !shown.some((row) => row.id === id))
+                              : [...new Set([...current, ...shown.map((row) => row.id)])],
+                          )
+                        }
+                        ariaLabel={t('periodicList.selectAll')}
+                      />
+                    </th>
+                    {(
+                      [
+                        'schedule',
+                        'customer',
+                        'frequency',
+                        'nextInvoice',
+                        'perInvoice',
+                        'generated',
+                        'status',
+                      ] as const
+                    ).map((key) => (
+                      <th key={key} className="px-2 py-2.5 text-start font-semibold">
+                        {t(`periodicList.col.${key}`)}
+                      </th>
+                    ))}
+                    <th className="w-12 px-2 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={9}
+                        className="py-12 text-center text-sm font-medium text-text-quaternary"
+                      >
+                        {t(
+                          tab === 'onRequest' || tab === 'draft'
+                            ? `periodicList.emptyTab.${tab}`
+                            : 'periodicList.empty',
+                        )}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {visible.map((schedule) => {
+                  ) : (
+                    shown.map((schedule) => {
+                      const template = templateOf(schedule)
+                      const status = scheduleStatus(schedule)
                       const note = scheduleNote(schedule, today)
+                      const cadence = cadenceNote(schedule)
+                      const menu = menuFor(schedule)
                       return (
-                        <tr key={schedule.id} className="border-b border-surface-background last:border-0">
-                          <td className="px-5 py-4 align-top">
-                            <Link to={`/income/periodic/${schedule.id}`} className="text-sm font-semibold text-primary-700 hover:underline">
-                              {nameOf(schedule.customerId) ?? t('periodicList.unknownCustomer')}
+                        <tr
+                          key={schedule.id}
+                          className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
+                        >
+                          <td className="px-5 py-2.5">
+                            <TableCheckbox
+                              checked={selected.includes(schedule.id)}
+                              onChange={() =>
+                                setSelected((current) =>
+                                  current.includes(schedule.id)
+                                    ? current.filter((id) => id !== schedule.id)
+                                    : [...current, schedule.id],
+                                )
+                              }
+                              ariaLabel={t('periodicList.selectRow', { name: titleOf(schedule) })}
+                            />
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <Link
+                              to={`/income/periodic/${schedule.id}`}
+                              className="text-sm font-semibold leading-[1.2] text-text-primary hover:text-primary-700 hover:underline"
+                            >
+                              {titleOf(schedule)}
                             </Link>
-                            <p className="mt-1 text-xs font-medium text-text-quaternary">{t(`periodicList.subtype.${schedule.transactionSubtype}`)}</p>
+                            <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
+                              {[
+                                t(`periodicList.subtype.${schedule.transactionSubtype}`),
+                                template?.reference,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
                           </td>
-                          <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">{t(`periodicList.interval.${schedule.interval}`)}</td>
-                          <td className="px-5 py-4 align-top text-sm font-medium text-text-secondary">{formatDate(schedule.nextRunDate, language)}</td>
-                          <td className={['px-5 py-4 align-top text-sm font-medium', TONE[scheduleTone(schedule, today)]].join(' ')}>
-                            {t(note.key, note.values ? { ...note.values, date: note.values.date ? formatDate(String(note.values.date), language) : undefined } : undefined)}
+                          <td className="px-2 py-2.5 text-sm font-medium text-text-secondary">
+                            {nameOf(schedule.customerId) ?? t('periodicList.unknownCustomer')}
                           </td>
-                          <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">
-                            {schedule.remainingOccurrences === null ? t('periodicList.noLimit') : t('periodicList.leftCount', { count: schedule.remainingOccurrences })}
+                          <td className="px-2 py-2.5">
+                            <span className="flex items-center gap-2.5">
+                              <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-background">
+                                <img src={scheduleIcon} alt="" className="size-[18px]" />
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium leading-[1.2] text-text-secondary">
+                                  {t(`periodicList.interval.${schedule.interval}`)}
+                                </span>
+                                <span className="mt-1 block text-xs font-medium leading-[1.2] text-text-tertiary">
+                                  {t(cadence.key, {
+                                    ...cadence.values,
+                                    ordinal: true,
+                                    weekday: cadence.values?.weekday
+                                      ? t(`periodicList.weekday.${cadence.values.weekday}`)
+                                      : undefined,
+                                    date: cadence.values?.date
+                                      ? formatDate(String(cadence.values.date), language).replace(
+                                          /\s\d{4}$/,
+                                          '',
+                                        )
+                                      : undefined,
+                                  })}
+                                </span>
+                              </span>
+                            </span>
                           </td>
-                          <td className="px-5 py-4 align-top text-end">
-                            {canManage ? (
-                              <button
-                                type="button"
-                                disabled={busy === schedule.id}
-                                onClick={() => void toggle(schedule)}
-                                className="text-sm font-semibold text-text-quaternary hover:text-primary-700 disabled:opacity-50"
-                              >
-                                {t(schedule.active ? 'periodicList.menu.pause' : 'periodicList.menu.resume')}
-                              </button>
-                            ) : null}
+                          <td className="px-2 py-2.5">
+                            {status === 'active' ? (
+                              <>
+                                <p className="text-sm font-medium leading-[1.2] text-text-secondary">
+                                  {formatDate(schedule.nextRunDate, language)}
+                                </p>
+                                <p
+                                  className={[
+                                    'mt-1 text-xs font-medium leading-[1.2]',
+                                    TONE[scheduleTone(schedule, today)],
+                                  ].join(' ')}
+                                >
+                                  {t(
+                                    note.key,
+                                    note.values
+                                      ? {
+                                          ...note.values,
+                                          date: note.values.date
+                                            ? formatDate(String(note.values.date), language)
+                                            : undefined,
+                                        }
+                                      : undefined,
+                                  )}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-sm font-medium text-text-quaternary">
+                                {t(`periodicList.status.${status}`)}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5">
+                            {template?.total !== null && template?.total !== undefined ? (
+                              <OmAmount
+                                size="sm"
+                                amount={formatAmount(template.total, template.currency, language)}
+                                amountClassName="text-base font-semibold leading-[1.2] text-text-secondary tabular-nums"
+                              />
+                            ) : (
+                              <span className="text-sm font-medium text-text-quaternary">
+                                {t('periodicList.notPriced')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5">
+                            {/* TODO(backend): a run count and a last-run date on the schedule; the runs are only readable one schedule at a time. */}
+                            <Link
+                              to={`/income/periodic/${schedule.id}`}
+                              className="text-xs font-medium leading-[1.2] text-text-tertiary hover:text-primary-700 hover:underline"
+                            >
+                              {t('periodicList.generatedOnPage')}
+                            </Link>
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <span
+                              className={[
+                                'inline-flex items-center gap-2 rounded-full px-3 py-[5px] text-sm font-medium',
+                                STATUS_STYLES[status],
+                              ].join(' ')}
+                            >
+                              <span className="size-1.5 shrink-0 rounded-full bg-current" />
+                              {t(`periodicList.status.${status}`)}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <span
+                              className={
+                                busy === schedule.id ? 'pointer-events-none opacity-50' : ''
+                              }
+                            >
+                              <ActionMenu items={menu} label={t('periodicList.rowMenu')} floating />
+                            </span>
                           </td>
                         </tr>
                       )
-                    })}
-                  </tbody>
-                </table>
-              </RowsView>
-            )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </RowsView>
+          ) : null}
+
+          {schedules.read.status === 'ready' && visible.length > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-text-muted">
+                  {t('periodicList.showResult')}
+                </span>
+                <div className="w-[88px]">
+                  <Select
+                    compact
+                    value={String(size)}
+                    onChange={(value) => narrow(() => setSize(Number(value)))}
+                    options={PAGE_SIZES.map((option) => ({
+                      value: String(option),
+                      label: formatCount(option, language),
+                    }))}
+                    ariaLabel={t('periodicList.showResult')}
+                  />
+                </div>
+                <span className="text-sm font-medium text-text-tertiary">
+                  {t('periodicList.resultTotal', { count: visible.length })}
+                </span>
+              </div>
+              {pageCount > 1 ? (
+                <PageNumbers current={current} pageCount={pageCount} onChange={setPage} />
+              ) : null}
+            </div>
           ) : null}
         </section>
 
-        <p className="text-xs font-medium leading-[1.5] text-text-quaternary">{t('periodicList.sweepNote')}</p>
+        <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+          {t('periodicList.sweepNote')}
+        </p>
       </div>
     </AppShell>
   )
 }
 
-function Count({ label, value, note }: { label: string; value: number; note: string }) {
+function daysUntil(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
+/** The list pager as the invoices list draws it: first, last and a window around the current page. */
+function PageNumbers({
+  current,
+  pageCount,
+  onChange,
+}: {
+  current: number
+  pageCount: number
+  onChange: (page: number) => void
+}) {
+  const { t, i18n } = useTranslation()
+  const numbers = useMemo<(number | string)[]>(() => {
+    if (pageCount <= 6) return Array.from({ length: pageCount }, (_, i) => i + 1)
+    const near = [current - 1, current, current + 1].filter((n) => n > 1 && n < pageCount)
+    return [
+      1,
+      ...(near[0] > 2 ? ['…'] : []),
+      ...near,
+      ...(near.at(-1)! < pageCount - 1 ? ['…'] : []),
+      pageCount,
+    ]
+  }, [pageCount, current])
+
   return (
-    <article className="rounded-md bg-surface-card p-5">
-      <h2 className="text-sm font-medium text-text-tertiary">{label}</h2>
-      <p className="mt-2 text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">{value}</p>
-      <p className="mt-2 text-sm font-medium text-text-quaternary">{note}</p>
-    </article>
+    <nav aria-label={t('periodicList.pages')} className="flex items-center">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, current - 1))}
+        disabled={current <= 1}
+        className="inline-flex size-10 items-center justify-center rounded-md text-text-muted disabled:opacity-40"
+        aria-label={t('periodicList.prevPage')}
+      >
+        <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
+      </button>
+      {numbers.map((n, index) =>
+        typeof n === 'string' ? (
+          <span
+            key={`gap-${index}`}
+            className="inline-flex size-10 items-center justify-center text-sm font-medium text-text-muted"
+          >
+            …
+          </span>
+        ) : (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-current={n === current ? 'page' : undefined}
+            className={[
+              'inline-flex size-10 items-center justify-center rounded-xl text-center transition-colors',
+              n === current
+                ? 'bg-primary-25 text-base font-extrabold text-primary-700'
+                : 'text-sm font-medium text-text-muted hover:bg-neutral-25',
+            ].join(' ')}
+          >
+            {formatCount(n, i18n.language)}
+          </button>
+        ),
+      )}
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(pageCount, current + 1))}
+        disabled={current >= pageCount}
+        className="inline-flex size-10 items-center justify-center rounded-md text-text-muted disabled:opacity-40"
+        aria-label={t('periodicList.nextPage')}
+      >
+        <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
+      </button>
+    </nav>
   )
 }

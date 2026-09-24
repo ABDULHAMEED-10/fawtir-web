@@ -49,12 +49,43 @@ const MONTHLY: PeriodicScheduleDto = {
   active: true,
 }
 
-const LAPSED: PeriodicScheduleDto = { ...MONTHLY, id: 'sch-2', customerId: 'cus-2', nextRunDate: plusDays(-3), interval: 'QUARTERLY', transactionSubtype: 'CONTINUOUS_SUPPLY' }
-const PAUSED: PeriodicScheduleDto = { ...MONTHLY, id: 'sch-3', customerId: 'cus-3', active: false, remainingOccurrences: null }
+const LAPSED: PeriodicScheduleDto = {
+  ...MONTHLY,
+  id: 'sch-2',
+  customerId: 'cus-2',
+  nextRunDate: plusDays(-3),
+  interval: 'QUARTERLY',
+  transactionSubtype: 'CONTINUOUS_SUPPLY',
+}
+const PAUSED: PeriodicScheduleDto = {
+  ...MONTHLY,
+  id: 'sch-3',
+  customerId: 'cus-3',
+  active: false,
+  remainingOccurrences: null,
+}
 
 const RUNS: PeriodicRunDto[] = [
-  { runDate: plusDays(-20), periodStart: plusDays(-50), periodEnd: plusDays(-21), outcome: 'DRAFTED', draftInvoiceId: 'inv-9', draftInvoice: '/api/v1/authored-invoices/inv-9', failureReason: null, createdAt: '2026-08-01T06:00:00Z' },
-  { runDate: plusDays(-50), periodStart: plusDays(-80), periodEnd: plusDays(-51), outcome: 'FAILED', draftInvoiceId: null, draftInvoice: null, failureReason: 'template gone', createdAt: '2026-07-01T06:00:00Z' },
+  {
+    runDate: plusDays(-20),
+    periodStart: plusDays(-50),
+    periodEnd: plusDays(-21),
+    outcome: 'DRAFTED',
+    draftInvoiceId: 'inv-9',
+    draftInvoice: '/api/v1/authored-invoices/inv-9',
+    failureReason: null,
+    createdAt: '2026-08-01T06:00:00Z',
+  },
+  {
+    runDate: plusDays(-50),
+    periodStart: plusDays(-80),
+    periodEnd: plusDays(-51),
+    outcome: 'FAILED',
+    draftInvoiceId: null,
+    draftInvoice: null,
+    failureReason: 'template gone',
+    createdAt: '2026-07-01T06:00:00Z',
+  },
 ]
 
 const CUSTOMERS = {
@@ -71,7 +102,21 @@ const CUSTOMERS = {
 
 const INVOICES = {
   content: [
-    { id: 'inv-1', type: 'INVOICE', version: 3, authoringState: 'ISSUED', deliveryState: 'NOT_SUBMITTED', customerId: 'cus-1', currency: 'OMR', invoiceNumber: 'INV-2026-000012', issueDate: plusDays(-30), dueDate: null, details: null, lines: [], totals: { totalAmount: 58.59 } },
+    {
+      id: 'inv-1',
+      type: 'INVOICE',
+      version: 3,
+      authoringState: 'ISSUED',
+      deliveryState: 'NOT_SUBMITTED',
+      customerId: 'cus-1',
+      currency: 'OMR',
+      invoiceNumber: 'INV-2026-000012',
+      issueDate: plusDays(-30),
+      dueDate: null,
+      details: null,
+      lines: [],
+      totals: { totalAmount: 58.59 },
+    },
   ],
   number: 0,
   size: 50,
@@ -79,8 +124,78 @@ const INVOICES = {
   totalPages: 1,
 }
 
+/** The invoice the schedule copies, as the detail route answers it: the lines the page draws. */
+const TEMPLATE = {
+  id: 'inv-1',
+  type: 'INVOICE',
+  correctionOfInvoiceId: null,
+  version: 3,
+  authoringState: 'ISSUED',
+  deliveryState: 'NOT_SUBMITTED',
+  deliveryBlocker: null,
+  customerId: 'cus-1',
+  branchId: 'br-main',
+  currency: 'OMR',
+  vatMode: 'EXCLUSIVE',
+  invoiceNumber: 'INV-2026-000012',
+  issueDate: plusDays(-30),
+  dueDate: null,
+  issuedAt: null,
+  details: {
+    deliveryDate: null,
+    subject: 'Monthly coffee supply',
+    purchaseOrderReference: 'PO-88213',
+    customerVisibleNote: null,
+    paymentTerms: { code: 'NET30', label: 'Net 30 days' },
+    paymentMethod: null,
+    correctionReasonCode: null,
+    buyerReference: null,
+    contractReference: null,
+    transactionType: null,
+    transactionSubtypes: null,
+    invoicingPeriod: null,
+  },
+  headerDiscount: null,
+  lines: [
+    {
+      lineNumber: 1,
+      productId: null,
+      productCode: null,
+      description: 'Cappuccino - Large',
+      unitCode: 'EA',
+      quantity: 12,
+      unitPrice: 1.8,
+      discountType: 'PERCENTAGE',
+      discountValue: 0,
+      taxCategoryCode: 'S5',
+      en16931Category: 'S',
+      taxRate: 5,
+      exemptionReason: null,
+    },
+    {
+      lineNumber: 2,
+      productId: null,
+      productCode: null,
+      description: 'Coffee Beans 1kg',
+      unitCode: 'KGM',
+      quantity: 4,
+      unitPrice: 9.5,
+      discountType: 'PERCENTAGE',
+      discountValue: 10,
+      taxCategoryCode: 'S5',
+      en16931Category: 'S',
+      taxRate: 5,
+      exemptionReason: null,
+    },
+  ],
+  totals: null,
+}
+
 function json(status: number, body?: unknown) {
-  return new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
 let fetchMock: ReturnType<typeof vi.fn>
@@ -89,7 +204,11 @@ let schedules: PeriodicScheduleDto[]
 let createResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
-  fetchMock.mock.calls.filter(([url, init]) => String(url).startsWith(prefix) && ((init as RequestInit | undefined)?.method ?? 'GET') === method)
+  fetchMock.mock.calls.filter(
+    ([url, init]) =>
+      String(url).startsWith(prefix) &&
+      ((init as RequestInit | undefined)?.method ?? 'GET') === method,
+  )
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -103,10 +222,16 @@ beforeEach(async () => {
     if (url.startsWith('/api/v1/customers?')) return json(200, CUSTOMERS)
     if (url === '/api/v1/customers/cus-1') return json(200, CUSTOMERS.content[0])
     if (url.startsWith('/api/v1/authored-invoices?')) return json(200, INVOICES)
+    if (url === '/api/v1/authored-invoices/inv-1') return json(200, TEMPLATE)
+    if (url === '/api/v1/authored-invoices/inv-1/internal-note')
+      return json(200, { internalNote: null })
     if (url.endsWith('/pause')) return json(200, { ...MONTHLY, active: false })
     if (url.endsWith('/resume')) return json(200, { ...PAUSED, active: true, nextRunDate: TODAY })
     if (url.endsWith('/sch-1/runs')) return json(200, RUNS)
-    if (url === '/api/v1/periodic-invoice-schedules/sch-1') return method === 'PUT' ? json(200, { ...MONTHLY, interval: 'QUARTERLY' }) : json(200, MONTHLY)
+    if (url === '/api/v1/periodic-invoice-schedules/sch-1')
+      return method === 'PUT'
+        ? json(200, { ...MONTHLY, interval: 'QUARTERLY' })
+        : json(200, MONTHLY)
     if (url === '/api/v1/periodic-invoice-schedules' && method === 'POST') return createResponse()
     if (url === '/api/v1/periodic-invoice-schedules') return json(200, schedules)
     throw new Error(`unexpected request to ${method} ${url}`)
@@ -141,14 +266,26 @@ describe('Periodic invoices, wired to the API', () => {
 
     expect(await screen.findByRole('link', { name: 'Muscat Grand Hotel' })).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Sohar Beach Resort' })).toBeTruthy()
-    // Paused schedules are not in the Active tab.
-    expect(screen.queryByRole('link', { name: 'Nizwa Cafe' })).toBeNull()
     expect(screen.getByText('In 10 days')).toBeTruthy()
     expect(screen.getByText(/Was due/)).toBeTruthy()
     // The counts are the page's own, from the list it holds.
-    expect(within(screen.getByText('Schedules').closest('article') as HTMLElement).getByText('3')).toBeTruthy()
-    expect(within(screen.getByText('Due in 30 days').closest('article') as HTMLElement).getByText('2')).toBeTruthy()
-    expect(screen.getByText(/raises these drafts on its own only where the daily sweep is switched on/)).toBeTruthy()
+    expect(screen.getByText('3 recurring schedules · 2 active')).toBeTruthy()
+    expect(
+      within(screen.getByText('Due next 30 days').closest('article') as HTMLElement).getByText(
+        '2 invoices to generate',
+      ),
+    ).toBeTruthy()
+    expect(
+      within(screen.getByText('Needs attention').closest('article') as HTMLElement).getByText(
+        '1 paused · 1 overdue',
+      ),
+    ).toBeTruthy()
+    // Paused schedules are not in the Active tab.
+    fireEvent.click(screen.getByRole('tab', { name: /^Active/ }))
+    expect(screen.queryByRole('link', { name: 'Nizwa Cafe' })).toBeNull()
+    expect(
+      screen.getByText(/raises these drafts on its own only where the daily sweep is switched on/),
+    ).toBeTruthy()
   })
 
   it('narrows the list it holds, since the API filters nothing', async () => {
@@ -156,10 +293,12 @@ describe('Periodic invoices, wired to the API', () => {
     await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
     const before = calls('GET', '/api/v1/periodic-invoice-schedules').length
 
-    fireEvent.click(screen.getByRole('tab', { name: 'All' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
     expect(await screen.findByRole('link', { name: 'Nizwa Cafe' })).toBeTruthy()
 
-    fireEvent.change(screen.getByPlaceholderText('Search by customer'), { target: { value: 'sohar' } })
+    fireEvent.change(screen.getByPlaceholderText('Search by name, customer, reference…'), {
+      target: { value: 'sohar' },
+    })
     expect(screen.getByRole('link', { name: 'Sohar Beach Resort' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Muscat Grand Hotel' })).toBeNull()
     expect(calls('GET', '/api/v1/periodic-invoice-schedules')).toHaveLength(before)
@@ -168,15 +307,24 @@ describe('Periodic invoices, wired to the API', () => {
   it('pauses from the list, and says where a resumed schedule now falls', async () => {
     renderAt('/income/periodic')
     await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
-    const row = screen.getByRole('link', { name: 'Muscat Grand Hotel' }).closest('tr') as HTMLElement
+    const row = screen
+      .getByRole('link', { name: 'Muscat Grand Hotel' })
+      .closest('tr') as HTMLElement
 
-    fireEvent.click(within(row).getByRole('button', { name: 'Pause' }))
-    await waitFor(() => expect(calls('POST', '/api/v1/periodic-invoice-schedules/sch-1/pause')).toHaveLength(1))
+    // The row's actions live in its menu, as on every list.
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Pause' }))
+    await waitFor(() =>
+      expect(calls('POST', '/api/v1/periodic-invoice-schedules/sch-1/pause')).toHaveLength(1),
+    )
     expect(await screen.findByText(/No drafts will be raised until you resume it/)).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Paused' }))
-    const paused = (await screen.findByRole('link', { name: 'Nizwa Cafe' })).closest('tr') as HTMLElement
-    fireEvent.click(within(paused).getByRole('button', { name: 'Resume' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Paused/ }))
+    const paused = (await screen.findByRole('link', { name: 'Nizwa Cafe' })).closest(
+      'tr',
+    ) as HTMLElement
+    fireEvent.click(within(paused).getByRole('button', { name: 'Schedule actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Resume' }))
     // Resume can move a lapsed run to today, so the page reads the date it got back.
     expect(await screen.findByText(/The next draft is due/)).toBeTruthy()
   })
@@ -184,16 +332,29 @@ describe('Periodic invoices, wired to the API', () => {
   it('opens a schedule, naming the customer, the invoice it copies and what it has done', async () => {
     renderAt('/income/periodic/sch-1')
 
-    // The customer's name is what anyone recognises the schedule by, so it is the heading.
-    expect(await screen.findByRole('heading', { level: 1, name: 'Muscat Grand Hotel' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Open the invoice' }).getAttribute('href')).toBe('/invoices/inv-1')
-    expect(screen.getByRole('link', { name: 'Muscat Grand Hotel' }).getAttribute('href')).toBe('/customers/cus-1')
+    // The schedule goes by the copied invoice's subject and the customer's name, so that is the heading.
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Monthly coffee supply, Muscat Grand Hotel',
+      }),
+    ).toBeTruthy()
+    // The lines the design draws are the template's own, priced by the same engine as the composer.
+    expect(await screen.findByDisplayValue('Cappuccino - Large')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open the invoice' }).getAttribute('href')).toBe(
+      '/invoices/inv-1',
+    )
+    expect(screen.getByRole('link', { name: 'Muscat Grand Hotel' }).getAttribute('href')).toBe(
+      '/customers/cus-1',
+    )
     expect(screen.getByText('Summary invoice')).toBeTruthy()
     expect(screen.getByText('1 draft raised')).toBeTruthy()
     expect(screen.getByText('Draft raised')).toBeTruthy()
     expect(screen.getByText('Could not be raised')).toBeTruthy()
     expect(screen.getByText('template gone')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Open the draft' }).getAttribute('href')).toBe('/invoices/inv-9')
+    expect(screen.getByRole('link', { name: 'Open the draft' }).getAttribute('href')).toBe(
+      '/invoices/inv-9',
+    )
   })
 
   it('sets one up by choosing a customer and one of their invoices', async () => {
@@ -207,13 +368,21 @@ describe('Periodic invoices, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Customer' }))
     fireEvent.click(await screen.findByRole('option', { name: /Muscat Grand Hotel/ }))
     // The invoices offered are that customer's own.
-    await waitFor(() => expect(calls('GET', '/api/v1/authored-invoices?').some((call) => String(call[0]).includes('customer_id=cus-1'))).toBe(true))
+    await waitFor(() =>
+      expect(
+        calls('GET', '/api/v1/authored-invoices?').some((call) =>
+          String(call[0]).includes('customer_id=cus-1'),
+        ),
+      ).toBe(true),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Invoice to copy' }))
     fireEvent.click(await screen.findByRole('option', { name: /INV-2026-000012/ }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Start the schedule' }))
     await waitFor(() => expect(calls('POST', '/api/v1/periodic-invoice-schedules')).toHaveLength(1))
-    expect(JSON.parse(String(calls('POST', '/api/v1/periodic-invoice-schedules')[0][1]?.body))).toMatchObject({
+    expect(
+      JSON.parse(String(calls('POST', '/api/v1/periodic-invoice-schedules')[0][1]?.body)),
+    ).toMatchObject({
       customerId: 'cus-1',
       templateInvoiceId: 'inv-1',
       interval: 'MONTHLY',
@@ -225,14 +394,23 @@ describe('Periodic invoices, wired to the API', () => {
 
   it('edits only what the API lets it, and says why the rest is fixed', async () => {
     renderAt('/income/periodic/sch-1/edit')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Edit the schedule' })).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Monthly coffee supply, Muscat Grand Hotel',
+      }),
+    ).toBeTruthy()
     expect(screen.getByText(/fixed once a schedule exists/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull()
 
-    fireEvent.change(screen.getByLabelText('How often'), { target: { value: 'QUARTERLY' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
-    await waitFor(() => expect(calls('PUT', '/api/v1/periodic-invoice-schedules/sch-1')).toHaveLength(1))
-    expect(JSON.parse(String(calls('PUT', '/api/v1/periodic-invoice-schedules/sch-1')[0][1]?.body))).toMatchObject({
+    fireEvent.click(screen.getByRole('tab', { name: 'Quarterly' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() =>
+      expect(calls('PUT', '/api/v1/periodic-invoice-schedules/sch-1')).toHaveLength(1),
+    )
+    expect(
+      JSON.parse(String(calls('PUT', '/api/v1/periodic-invoice-schedules/sch-1')[0][1]?.body)),
+    ).toMatchObject({
       interval: 'QUARTERLY',
       nextRunDate: MONTHLY.nextRunDate,
     })
@@ -242,17 +420,27 @@ describe('Periodic invoices, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderAt('/income/periodic')
     expect(await screen.findByRole('heading', { level: 1, name: 'الفواتير الدورية' })).toBeTruthy()
-    expect(screen.getByText('فاتورة ملخّصة')).toBeTruthy()
+    expect(screen.getAllByText('فاتورة ملخّصة').length).toBeGreaterThan(0)
   })
 })
 
 describe('periodic schedule helpers', () => {
   it('says where a schedule stands, paused and finished before any date', () => {
     expect(scheduleNote(PAUSED, TODAY)).toEqual({ key: 'periodicList.state.paused' })
-    expect(scheduleNote({ ...MONTHLY, remainingOccurrences: 0 }, TODAY)).toEqual({ key: 'periodicList.state.finished' })
-    expect(scheduleNote({ ...MONTHLY, nextRunDate: TODAY }, TODAY)).toEqual({ key: 'periodicList.state.today' })
-    expect(scheduleNote(MONTHLY, TODAY)).toEqual({ key: 'periodicList.state.dueIn', values: { count: 10 } })
-    expect(scheduleNote(LAPSED, TODAY)).toEqual({ key: 'periodicList.state.overdue', values: { date: LAPSED.nextRunDate } })
+    expect(scheduleNote({ ...MONTHLY, remainingOccurrences: 0 }, TODAY)).toEqual({
+      key: 'periodicList.state.finished',
+    })
+    expect(scheduleNote({ ...MONTHLY, nextRunDate: TODAY }, TODAY)).toEqual({
+      key: 'periodicList.state.today',
+    })
+    expect(scheduleNote(MONTHLY, TODAY)).toEqual({
+      key: 'periodicList.state.dueIn',
+      values: { count: 10 },
+    })
+    expect(scheduleNote(LAPSED, TODAY)).toEqual({
+      key: 'periodicList.state.overdue',
+      values: { date: LAPSED.nextRunDate },
+    })
     expect(scheduleTone(LAPSED, TODAY)).toBe('warn')
     expect(scheduleTone(PAUSED, TODAY)).toBe('muted')
     expect(daysBetween(TODAY, plusDays(3))).toBe(3)
@@ -260,10 +448,22 @@ describe('periodic schedule helpers', () => {
 
   it('counts only what it can count from the list it holds', () => {
     // The lapsed one is still owed, so it counts as due.
-    expect(periodicCounts([MONTHLY, LAPSED, PAUSED], TODAY)).toEqual({ total: 3, active: 2, paused: 1, dueSoon: 2 })
+    expect(periodicCounts([MONTHLY, LAPSED, PAUSED], TODAY)).toEqual({
+      total: 3,
+      active: 2,
+      paused: 1,
+      dueSoon: 2,
+      overdue: 1,
+    })
     expect(draftedCount(RUNS)).toBe(1)
-    expect(narrowSchedules([MONTHLY, PAUSED], 'active', '', () => undefined).map((s) => s.id)).toEqual(['sch-1'])
-    expect(narrowSchedules([MONTHLY, PAUSED], 'all', 'nizwa', (id) => (id === 'cus-3' ? 'Nizwa Cafe' : 'Other')).map((s) => s.id)).toEqual(['sch-3'])
+    expect(
+      narrowSchedules([MONTHLY, PAUSED], 'active', '', () => undefined).map((s) => s.id),
+    ).toEqual(['sch-1'])
+    expect(
+      narrowSchedules([MONTHLY, PAUSED], 'all', 'nizwa', (id) =>
+        id === 'cus-3' ? 'Nizwa Cafe' : 'Other',
+      ).map((s) => s.id),
+    ).toEqual(['sch-3'])
   })
 
   it('refuses what the server would, and sends only the fields each route takes', () => {
@@ -271,14 +471,34 @@ describe('periodic schedule helpers', () => {
     expect(periodicProblems(form, TODAY, false)).toEqual({})
     expect(periodicProblems({ ...form, customerId: '' }, TODAY, false)).toHaveProperty('customerId')
     // Editing cannot change the customer or the template, so neither is asked for.
-    expect(periodicProblems({ ...form, customerId: '', templateInvoiceId: '' }, TODAY, true)).toEqual({})
-    expect(periodicProblems({ ...form, firstRunDate: plusDays(-1) }, TODAY, false)).toHaveProperty('firstRunDate', 'periodicInvoice.error.datePast')
-    expect(periodicProblems({ ...form, endDate: plusDays(-5) }, TODAY, false)).toHaveProperty('endDate', 'periodicInvoice.error.endBeforeStart')
-    expect(periodicProblems({ ...form, occurrences: '0' }, TODAY, false)).toHaveProperty('occurrences')
+    expect(
+      periodicProblems({ ...form, customerId: '', templateInvoiceId: '' }, TODAY, true),
+    ).toEqual({})
+    expect(periodicProblems({ ...form, firstRunDate: plusDays(-1) }, TODAY, false)).toHaveProperty(
+      'firstRunDate',
+      'periodicInvoice.error.datePast',
+    )
+    expect(periodicProblems({ ...form, endDate: plusDays(-5) }, TODAY, false)).toHaveProperty(
+      'endDate',
+      'periodicInvoice.error.endBeforeStart',
+    )
+    expect(periodicProblems({ ...form, occurrences: '0' }, TODAY, false)).toHaveProperty(
+      'occurrences',
+    )
     expect(periodicProblems({ ...form, occurrences: '0' }, TODAY, true)).toEqual({})
 
-    expect(toCreateRequest({ ...form, occurrences: '6' })).toMatchObject({ customerId: 'cus-1', templateInvoiceId: 'inv-1', occurrences: 6, endDate: null })
-    expect(toUpdateRequest({ ...form, occurrences: '' })).toEqual({ interval: 'MONTHLY', nextRunDate: TODAY, endDate: null, occurrences: null })
+    expect(toCreateRequest({ ...form, occurrences: '6' })).toMatchObject({
+      customerId: 'cus-1',
+      templateInvoiceId: 'inv-1',
+      occurrences: 6,
+      endDate: null,
+    })
+    expect(toUpdateRequest({ ...form, occurrences: '' })).toEqual({
+      interval: 'MONTHLY',
+      nextRunDate: TODAY,
+      endDate: null,
+      occurrences: null,
+    })
   })
 
   it('reopens a saved schedule in the form it was saved from', () => {
