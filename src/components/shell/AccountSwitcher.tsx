@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Popover } from '../ui'
 import { ACCOUNTS, type Branch } from '../../lib/shell'
+import { useSession } from '../../lib/session/session'
 import { useTenantPlan } from '../../lib/planAccess'
 import bahjaLogo from '../../assets/dashboard/bahja-logo.svg'
 import chevron from '../../assets/dashboard/chevron.svg'
@@ -12,6 +13,9 @@ import chevron from '../../assets/dashboard/chevron.svg'
  * One account can trade from several branches, and the till, the catalogue and the reports all
  * follow whichever is chosen. The plan belongs to the account, so it does not change with the
  * branch — which is why it is stated once at the foot of the list rather than on every row.
+ *
+ * <p>The name on the card is the signed-in workspace's, from {@code /me/entitlements}. The branch
+ * list below it is still design-time data, so picking one changes this label and nothing else.
  */
 export function AccountSwitcher() {
   const { t } = useTranslation()
@@ -19,7 +23,12 @@ export function AccountSwitcher() {
   const planLabel = t('shell.plan.named', { plan: t(`plan.planName.${useTenantPlan()}`) })
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  const [current, setCurrent] = useState<Branch>(ACCOUNTS[0])
+  // Null until a branch is picked, so the card opens on the signed-in workspace rather than on
+  // a fixture. Before the name was served by /me/entitlements this read ACCOUNTS[0], which
+  // showed every tenant the same company (browser gate, 24 September 2026).
+  const [branch, setBranch] = useState<Branch | null>(null)
+  const session = useSession()
+  const accountName = branch?.name ?? session?.tenantName ?? ACCOUNTS[0].name
 
   return (
     <>
@@ -35,7 +44,7 @@ export function AccountSwitcher() {
           <img src={bahjaLogo} alt="" className="size-[31px] shrink-0 rounded-full object-cover" />
           <span className="min-w-0">
             <span className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e]">
-              {current.name}
+              {accountName}
             </span>
             <span className="block truncate text-xs font-medium leading-[1.2] text-text-quaternary">
               {planLabel}
@@ -51,7 +60,7 @@ export function AccountSwitcher() {
         </p>
         <ul role="listbox" className="pb-1">
           {ACCOUNTS.map((account) => {
-            const chosen = account.id === current.id
+            const chosen = account.id === branch?.id
             return (
               <li key={account.id}>
                 <button
@@ -59,7 +68,7 @@ export function AccountSwitcher() {
                   role="option"
                   aria-selected={chosen}
                   onClick={() => {
-                    setCurrent(account)
+                    setBranch(account)
                     setOpen(false)
                   }}
                   className="flex w-full items-center gap-2.5 px-3 py-2.5 text-start transition-colors hover:bg-primary-25"
