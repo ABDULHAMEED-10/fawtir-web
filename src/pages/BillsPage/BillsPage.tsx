@@ -457,7 +457,20 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       titleKey: 'billsPage.kpi.payable',
       figure: money(totals.openTotal),
       money: true,
-      meta: t('billsPage.kpi.payableBills', { open: count(totals.openCount), overdue: count(totals.overdueCount) }),
+      // Rejecting a bill does not cancel it: under VAT the liability stands until the supplier
+      // issues a credit note. It leaves the payable figure above and is named here instead of
+      // disappearing from the page altogether (decision 3, 2026-09-24).
+      meta: [
+        t('billsPage.kpi.payableBills', { open: count(totals.openCount), overdue: count(totals.overdueCount) }),
+        totals.disputedCount > 0
+          ? t('billsPage.kpi.payableDisputed', {
+              amount: money(totals.disputedTotal),
+              count: totals.disputedCount,
+            })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       link: null,
     },
     {

@@ -33,6 +33,8 @@ const SUMMARY: BillSummaryDto = {
   dueThisWeekTotal: 1500.25,
   readyToPayCount: 4,
   readyToPayTotal: 2222.5,
+  disputedCount: 0,
+  disputedTotal: 0,
   excludedFromTotals: 0,
   needsAttention: { draft: 0, new: 2, mismatch: 1, awaitingApproval: 3, total: 6, truncated: false },
   tabs: { needsAttention: 6, all: 31, awaitingApproval: 3, approved: 4, onHold: 1, paid: 17, truncated: false },
@@ -467,6 +469,25 @@ function intakeRow(id: string, source: IntakeDto['source'], typed: { supplierNam
     uploadedAt: '2026-09-17T08:00:00Z',
   }
 }
+
+describe('a disputed bill', () => {
+  it('is named beside total payable, not folded into it', async () => {
+    // Rejecting a bill does not cancel it — the supplier still claims it — so it leaves the
+    // payable figure and is reported separately rather than vanishing (decision 3, 2026-09-24).
+    summaryResponse = () => json(200, { ...SUMMARY, disputedCount: 1, disputedTotal: 3140 })
+    renderBills()
+
+    expect(await screen.findByText('8,765.432')).toBeTruthy()
+    expect(screen.getByText(/13 open · 2 overdue · 3,140.000 disputed on 1 refused bill/)).toBeTruthy()
+  })
+
+  it('says nothing when there is no dispute', async () => {
+    renderBills()
+    expect(await screen.findByText('8,765.432')).toBeTruthy()
+    expect(screen.getByText('13 open · 2 overdue')).toBeTruthy()
+    expect(screen.queryByText(/disputed/)).toBeNull()
+  })
+})
 
 describe('uploads waiting for their details', () => {
   it('lists them under the drafts notice: a way back to an upload, only a discard for a receipt', async () => {
