@@ -155,6 +155,9 @@ describe('refusals', () => {
     expect(erpRefusalOf(refusal(409, 'CONNECTION_VERSION_CONFLICT'))).toBe('VERSION_CONFLICT')
     expect(erpRefusalOf(refusal(409, 'CONNECTION_NAME_DUPLICATE'))).toBe('NAME_DUPLICATE')
     expect(erpRefusalOf(refusal(400, 'CONNECTION_NOT_READY_COMPLETE'))).toBe('NOT_READY_COMPLETE')
+    // Its own code, so the message can name the address instead of the transport settings.
+    expect(erpRefusalOf(refusal(400, 'CONNECTION_ENDPOINT_INVALID'))).toBe('ENDPOINT_INVALID')
+    expect(erpRefusalOf(refusal(400, 'CONNECTION_CONFIGURATION_INVALID'))).toBe('CONFIGURATION_INVALID')
     expect(erpRefusalOf(refusal(503, 'CREDENTIAL_ENCRYPTION_UNAVAILABLE'))).toBe(
       'CREDENTIAL_ENCRYPTION_UNAVAILABLE',
     )

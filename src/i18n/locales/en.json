@@ -10913,6 +10913,14 @@
       "label": "Where you are"
     },
     "erp": {
+      "unavailable": {
+        "crumb": "Connections",
+        "title": "Tenant ERP connections",
+        "subtitle": "The platform view of what tenants have connected.",
+        "badge": "Not built yet",
+        "body": "Fawtir cannot show tenant ERP connections from here yet. A tenant's own connections are managed inside that tenant, and no platform-wide view has been built. This screen showed sample data before, which was indistinguishable from the real thing.",
+        "action": "Back to the console"
+      },
       "event": {
         "requestApproved": "Add-on approved",
         "requestApprovedTrial": "Add-on approved on a {{days}}-day trial",
@@ -12650,6 +12658,7 @@
         "TRANSITION_INVALID": "That is not possible from the connection’s current state. Reload and try again.",
         "NOT_READY_COMPLETE": "Not ready yet. A connection Fawtir collects from needs an address, a transport and sign-in details.",
         "VALUE_INVALID": "Something in the form was not accepted. Check the values and try again.",
+        "ENDPOINT_INVALID": "That address was not accepted. Give the address on its own, with no user name or password in it.",
         "CONFIGURATION_INVALID": "The transport settings were not accepted. They must be a JSON object and must not contain passwords or tokens.",
         "CREDENTIAL_ENCRYPTION_UNAVAILABLE": "Sign-in details cannot be saved right now. An administrator needs to finish setting up encryption.",
         "NOT_FOUND": "This connection no longer exists."

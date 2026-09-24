@@ -102,7 +102,7 @@ export function ConsoleTemplatePage() {
           <>
             <ConsoleBreadcrumbs
               items={[
-                { labelKey: 'console.nav.group.erp', to: '/console/erp' },
+                { labelKey: 'console.nav.group.erp' },
                 { labelKey: 'console.nav.erpTemplates', to: '/console/erp/templates' },
                 { label: id ?? '' },
               ]}
@@ -140,7 +140,7 @@ function TemplateScreen({
     <>
       <ConsoleBreadcrumbs
         items={[
-          { labelKey: 'console.nav.group.erp', to: '/console/erp' },
+          { labelKey: 'console.nav.group.erp' },
           { labelKey: 'console.nav.erpTemplates', to: '/console/erp/templates' },
           { label: template.name },
         ]}

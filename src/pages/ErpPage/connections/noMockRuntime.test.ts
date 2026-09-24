@@ -34,6 +34,13 @@ const GUARDED = [
   'api/erp/connections.ts',
   'lib/erp/connectionPolicy.ts',
   'hooks/useErpAccess.ts',
+  // The console's own two connection screens, since the browser gate of 24 September 2026:
+  // they drew the same invented state for an operator, who would answer a support call from
+  // it. They now say the platform view is not built (ConsoleErpUnavailable). The templates,
+  // add-on request, audit and queue screens still read the fixture and are out of scope here.
+  'pages/ConsolePage/erp/ConsoleErpPage.tsx',
+  'pages/ConsolePage/erp/ConsoleErpConnectionPage.tsx',
+  'pages/ConsolePage/erp/ConsoleErpUnavailable.tsx',
 ]
 
 function filesUnder(relative: string): string[] {
