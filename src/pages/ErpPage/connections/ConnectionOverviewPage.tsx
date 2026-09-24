@@ -1,522 +1,370 @@
-import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { RowsView } from '../../../components/ui'
-import { Pill } from '../ErpShell'
-import { Kpi } from '../overview/Kpi'
+import { SettingsShell } from '../../SettingsPage/SettingsShell'
 import {
+  ConfirmModal,
   Mono,
-  PRIMARY_BUTTON,
+  SECONDARY_BUTTON,
+  SMALL_BUTTON,
   SectionCard,
-  TBODY_ROW,
-  TEXT_BUTTON,
-  THEAD_ROW,
-  Td,
-  Th,
 } from '../overview/idiom'
 import {
-  ConnectionShell,
-  MappingStatusPill,
-  RunStatePill,
-  connectionPath,
-  useConnection,
-} from './ConnectionShell'
-import { DangerZone, PauseResumeButton, Strip, dateTime, thousands, timeOf } from './detailShared'
-import { useErpMapping } from '../../../lib/erpMapping'
+  ApiReadFailure,
+  LoadingNotice,
+  PermissionDeniedNotice,
+} from '../../../components/feedback/ApiNotice'
+import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
+import { ConnectionFailure, ConnectionNotice, TestOutcomePill } from './connectionParts'
+import { useConnectionDetail, useMutation } from './connectionData'
+import { useErpAccess } from '../../../hooks/useErpAccess'
+import { useLanguage } from '../../../hooks'
+import { isNotFound } from '../../../lib/apiFailure'
+import { erpConnectionControls, testReasonKey } from '../../../lib/erp/connectionPolicy'
+import { formatInstant } from '../../../lib/format'
 import {
-  addonUsage,
-  connectorStore,
-  mappingStatusOf,
-  productName,
-  runsFor,
-  templateLabel,
-  useConnector,
-  watermarkAgeDays,
-  watermarkIsStale,
-  type CollectResult,
-  type Connection,
-} from '../../../lib/erpConnector'
-import { shortDate } from '../../../lib/settings'
-import watermarkIcon from '../../../assets/settings/tile-integration.svg'
-import lastRunIcon from '../../../assets/settings/check-ink.svg'
-import nextRunIcon from '../../../assets/settings/clock.svg'
-import quotaIcon from '../../../assets/settings/folder.svg'
-
-type Notice =
-  | { kind: 'refused'; error: Extract<CollectResult, { ok: false }>['error'] }
-  | { kind: 'collected'; fetched: number }
+  testErpConnection,
+  transitionErpConnection,
+  type ErpConnectionDto,
+  type ErpConnectionTestDto,
+} from '../../../api/erp/connections'
 
 /**
- * Settings › Integration › Connected systems › connection › Overview (docs/erp-and-console-plan.md
- * §3, Appendix B "Detail · Overview").
+ * One connection: what it is, what its last check said, and the lifecycle actions.
  *
- * What the connection is doing right now, told first when something is wrong: the state banner,
- * then four figures (newest invoice, last run, next run, this month's allowance), how it is set up,
- * the last five runs, what happened recently, and — last — the one thing that cannot be undone.
+ * Nothing here is computed from invented data. The last-check panel shows the verdict the backend
+ * persisted, and the Check action asks **Fawtir** to probe the endpoint — the browser never
+ * contacts the tenant's ERP. Doing it from the page would bypass the server's destination policy,
+ * run from the operator's own network instead of ours, and put the result outside the audit trail.
  */
 export function ConnectionOverviewPage() {
-  const { t } = useTranslation()
-  const connection = useConnection()
-  const mapping = useErpMapping()
-  const [notice, setNotice] = useState<Notice | null>(null)
+  const { id } = useParams<{ id: string }>()
+  const { access, ready } = useErpAccess()
+  const { read, connection, reload } = useConnectionDetail(ready && access.read ? id : undefined)
 
-  const collect = (c: Connection) => {
-    const result = connectorStore.collectNow(c.id, mappingStatusOf(c, mapping))
-    setNotice(
-      result.ok
-        ? { kind: 'collected', fetched: result.run.fetched }
-        : { kind: 'refused', error: result.error },
+  if (!ready) {
+    return (
+      <SettingsShell group="integration">
+        <LoadingNotice />
+      </SettingsShell>
     )
+  }
+  if (!access.read) {
+    return (
+      <SettingsShell group="integration">
+        <PermissionDeniedNotice />
+      </SettingsShell>
+    )
+  }
+  // The last good answer keeps the screen mounted while a post-mutation refresh is in flight, so
+  // a verdict or a confirmation cannot be discarded by its own reload.
+  if (connection !== null) return <Overview connection={connection} reload={reload} />
+  if (read.status === 'failed') {
+    // A 404 is a stale link, not a failure to retry; anything else can be retried.
+    if (isNotFound(read.error)) return <ConnectionNotFound />
+    return (
+      <SettingsShell group="integration">
+        <ApiReadFailure error={read.error} retry={reload} />
+      </SettingsShell>
+    )
+  }
+  return (
+    <SettingsShell group="integration">
+      <LoadingNotice />
+    </SettingsShell>
+  )
+}
+
+function Overview({
+  connection,
+  reload,
+}: {
+  connection: ErpConnectionDto
+  reload: () => void
+}) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const navigate = useNavigate()
+  const { access } = useErpAccess()
+  const controls = erpConnectionControls(connection, access)
+  const mutation = useMutation()
+  const [confirmArchive, setConfirmArchive] = useState(false)
+  // The freshest verdict, held beside the connection so a check does not have to wait for the
+  // reload before the user sees what happened. The row's own persisted verdict still reloads.
+  const [verdict, setVerdict] = useState<ErpConnectionTestDto | null>(null)
+
+  async function transition(action: 'ready' | 'disable' | 'archive') {
+    const moved = await mutation.run(action, () =>
+      transitionErpConnection(connection.id, action, connection.version),
+    )
+    if (moved !== undefined) reload()
+  }
+
+  async function check() {
+    const result = await mutation.run('test', () => testErpConnection(connection.id))
+    if (result !== undefined) {
+      setVerdict(result)
+      // Reload so the persisted verdict and the version on screen match what the server now
+      // holds. The result stays visible throughout -- the panel is rendered from `verdict`, not
+      // from the read, so a refresh cannot discard it.
+      reload()
+    }
   }
 
   return (
-    <ConnectionShell
-      connection={connection}
-      actions={
-        connection && connection.state !== 'DISCONNECTED' ? (
-          <>
-            <button type="button" onClick={() => collect(connection)} className={PRIMARY_BUTTON}>
-              {t('erp.connector.overview.actions.collectNow')}
-            </button>
-            <PauseResumeButton connection={connection} />
-          </>
-        ) : null
-      }
-    >
-      {connection ? (
-        <>
-          {notice ? <CollectNotice notice={notice} connection={connection} /> : null}
-          <StateBanners connection={connection} />
-          <Figures connection={connection} />
-          <SetupCard connection={connection} />
-          <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-            <LastRuns connection={connection} />
-            <RecentActivity connection={connection} />
-          </div>
-          <DangerZone connection={connection} />
-        </>
-      ) : null}
+    <ConnectionShell connection={connection}>
+      <div className="flex flex-col gap-5">
+        <ConnectionFailure error={mutation.error} onReload={reload} />
+
+        <SectionCard
+          title={t('erp.connections.detail.overview')}
+          note={t(`erp.connections.stateHint.${connection.state}`)}
+        >
+          <dl className="grid gap-x-8 gap-y-4 p-5 pt-0 md:grid-cols-2">
+            <Fact label={t('erp.connections.detail.system')}>
+              {connection.sourceSystem}
+            </Fact>
+            <Fact label={t('erp.connections.detail.version')}>
+              {connection.sourceVersion ?? t('erp.connections.detail.noVersion')}
+            </Fact>
+            <Fact label={t('erp.connections.detail.connects')}>
+              {connection.transportType === null
+                ? '—'
+                : t(`erp.connections.transport.${connection.transportType}`)}
+            </Fact>
+            <Fact label={t('erp.connections.detail.endpoint')}>
+              {connection.endpoint === null ? (
+                t('erp.connections.detail.noEndpoint')
+              ) : (
+                <Mono>{connection.endpoint}</Mono>
+              )}
+            </Fact>
+            <Fact label={t('erp.connections.detail.credential')}>
+              {connection.credentialConfigured
+                ? [
+                    t('erp.connections.credential.configured'),
+                    connection.credentialType === null
+                      ? null
+                      : t(`erp.connections.credentialType.${connection.credentialType}`),
+                    connection.credentialHint,
+                  ]
+                    .filter((part): part is string => part !== null && part !== '')
+                    .join(' · ')
+                : t('erp.connections.credential.notConfigured')}
+            </Fact>
+            <Fact label={t('erp.connections.detail.version_label')}>
+              <Mono>{String(connection.version)}</Mono>
+            </Fact>
+            <Fact label={t('erp.connections.detail.created')}>
+              {formatInstant(connection.createdAt, language)}
+            </Fact>
+            <Fact label={t('erp.connections.detail.updated')}>
+              {formatInstant(connection.updatedAt, language)}
+            </Fact>
+            {connection.configuration !== null && connection.configuration !== '{}' ? (
+              <div className="md:col-span-2">
+                <dt className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+                  {t('erp.connections.detail.configuration')}
+                </dt>
+                <dd className="mt-1">
+                  <pre
+                    dir="ltr"
+                    className="overflow-x-auto rounded-sm bg-surface-background p-3 font-mono text-[11px] text-text-secondary"
+                  >
+                    {connection.configuration}
+                  </pre>
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        </SectionCard>
+
+        <TestPanel
+          connection={connection}
+          verdict={verdict}
+          canTest={controls.canTest}
+          blocked={controls.testBlockedReason}
+          hasTestPermission={access.test}
+          busy={mutation.busy === 'test'}
+          onCheck={check}
+        />
+
+        {access.manage ? (
+          <SectionCard title={t('erp.connections.detail.settings')}>
+            <div className="flex flex-wrap items-center gap-2.5 p-5 pt-0">
+              {controls.canMarkReady ? (
+                <button
+                  type="button"
+                  className={SMALL_BUTTON}
+                  onClick={() => transition('ready')}
+                  disabled={mutation.busy !== null}
+                >
+                  {mutation.busy === 'ready'
+                    ? t('erp.connections.actions.markingReady')
+                    : connection.state === 'DISABLED'
+                      ? t('erp.connections.actions.enable')
+                      : t('erp.connections.actions.markReady')}
+                </button>
+              ) : null}
+              {controls.canDisable ? (
+                <button
+                  type="button"
+                  className={SECONDARY_BUTTON}
+                  onClick={() => transition('disable')}
+                  disabled={mutation.busy !== null}
+                >
+                  {mutation.busy === 'disable'
+                    ? t('erp.connections.actions.disabling')
+                    : t('erp.connections.actions.disable')}
+                </button>
+              ) : null}
+              {controls.canEdit ? (
+                <button
+                  type="button"
+                  className={SECONDARY_BUTTON}
+                  onClick={() => navigate(`/settings/erp/connections/${connection.id}/settings`)}
+                  disabled={mutation.busy !== null}
+                >
+                  {t('erp.connections.edit.heading')}
+                </button>
+              ) : null}
+              {controls.canArchive ? (
+                <button
+                  type="button"
+                  className={SECONDARY_BUTTON}
+                  onClick={() => setConfirmArchive(true)}
+                  disabled={mutation.busy !== null}
+                >
+                  {mutation.busy === 'archive'
+                    ? t('erp.connections.actions.archiving')
+                    : t('erp.connections.actions.archive')}
+                </button>
+              ) : null}
+            </div>
+          </SectionCard>
+        ) : null}
+
+        <ConfirmModal
+          open={confirmArchive}
+          title={t('erp.connections.actions.archiveConfirmTitle')}
+          body={t('erp.connections.actions.archiveConfirmBody')}
+          confirmLabel={t('erp.connections.actions.archiveConfirm')}
+          danger
+          onClose={() => setConfirmArchive(false)}
+          onConfirm={() => {
+            setConfirmArchive(false)
+            void transition('archive')
+          }}
+        />
+      </div>
     </ConnectionShell>
   )
 }
 
-/** Why Collect now was refused, or what it did. */
-function CollectNotice({ notice, connection }: { notice: Notice; connection: Connection }) {
-  const { t } = useTranslation()
-  if (notice.kind === 'collected')
-    return (
-      <Strip tone="success">
-        {t('erp.connector.overview.collect.done', { count: notice.fetched })}
-      </Strip>
-    )
-  const link =
-    notice.error === 'NOT_CERTIFIED'
-      ? { to: connectionPath(connection.id, 'mapping'), key: 'openMapping' }
-      : notice.error === 'CREDENTIALS'
-        ? { to: connectionPath(connection.id, 'settings'), key: 'openSettings' }
-        : null
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Strip
-      tone={notice.error === 'CREDENTIALS' ? 'danger' : 'pending'}
-      action={
-        link ? (
-          <Link to={link.to} className={TEXT_BUTTON}>
-            {t(`erp.connector.overview.collect.${link.key}`)}
-          </Link>
-        ) : null
-      }
-    >
-      {t(`erp.connector.overview.collect.refused.${notice.error}`)}
-    </Strip>
-  )
-}
-
-/** ERROR, PAUSED and a stale watermark each get their own line; more than one may show. */
-function StateBanners({ connection: c }: { connection: Connection }) {
-  const { t } = useTranslation()
-  const pauseReason = c.pauseReason
-  const age = watermarkAgeDays(c)
-  return (
-    <>
-      {c.state === 'ERROR' ? (
-        <Strip
-          tone="danger"
-          action={
-            <Link to={connectionPath(c.id, 'settings')} className={TEXT_BUTTON}>
-              {t('erp.connector.overview.banner.replaceCredentials')}
-            </Link>
-          }
-        >
-          {t(`erp.connector.overview.banner.error.${c.errorKey ?? 'threeFailures'}`, {
-            count: c.consecutiveFailures,
-          })}
-        </Strip>
-      ) : null}
-      {c.state === 'PAUSED' && c.pausedAt ? (
-        <Strip tone="pending">
-          {t('erp.connector.overview.banner.paused', {
-            date: shortDate(c.pausedAt),
-            reason: pauseReason ? ` · ${pauseReason}` : '',
-          })}
-        </Strip>
-      ) : null}
-      {c.state === 'DISCONNECTED' ? (
-        <Strip tone="neutral">{t('erp.connector.overview.banner.disconnected')}</Strip>
-      ) : null}
-      {watermarkIsStale(c) && c.watermark && age !== null ? (
-        <Strip tone="pending">
-          {t('erp.connector.overview.banner.stale', {
-            count: age,
-            erpNumber: c.watermark.erpNumber,
-            date: shortDate(c.watermark.issuedAt),
-          })}
-        </Strip>
-      ) : null}
-    </>
-  )
-}
-
-/** The four figures. */
-function Figures({ connection: c }: { connection: Connection }) {
-  const { t } = useTranslation()
-  const state = useConnector()
-  const usage = addonUsage(state)
-  const lastRun = runsFor(state, c.id)[0]
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {/* An ERP number is longer than a figure, so it is drawn a size down and may break. */}
-      <FigureCard
-        icon={watermarkIcon}
-        label={t('erp.connector.overview.kpi.watermark')}
-        value={
-          <span
-            dir="ltr"
-            className={[
-              'break-all text-[22px] font-semibold leading-[1.2] tabular-nums',
-              watermarkIsStale(c) ? 'text-pending-700' : 'text-text-primary',
-            ].join(' ')}
-          >
-            {c.watermark?.erpNumber ?? '—'}
-          </span>
-        }
-        note={
-          c.watermark
-            ? t('erp.connector.overview.kpi.watermarkNote', {
-                date: dateTime(c.watermark.issuedAt),
-              })
-            : t('erp.connector.overview.kpi.watermarkNone')
-        }
-      />
-      {/* Last run carries a pill beside the time, which Kpi's plain `value` cannot hold. */}
-      <FigureCard
-        icon={lastRunIcon}
-        label={t('erp.connector.overview.kpi.lastRun')}
-        value={
-          <>
-            <span className="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
-              {c.lastRunAt ? timeOf(c.lastRunAt) : '—'}
-            </span>
-            {lastRun ? <RunStatePill state={lastRun.state} /> : null}
-          </>
-        }
-        note={
-          c.lastRunAt
-            ? lastRun
-              ? t('erp.connector.overview.kpi.lastRunNote', {
-                  date: shortDate(c.lastRunAt),
-                  fetched: lastRun.fetched,
-                  created: lastRun.created,
-                })
-              : shortDate(c.lastRunAt)
-            : t('erp.connector.overview.kpi.lastRunNone')
-        }
-      />
-      <Kpi
-        icon={nextRunIcon}
-        tint="bg-pending-100"
-        label={t('erp.connector.overview.kpi.nextRun')}
-        value={
-          c.state === 'PAUSED'
-            ? t('erp.connector.state.PAUSED')
-            : c.nextRunAt
-              ? timeOf(c.nextRunAt)
-              : '—'
-        }
-        note={
-          c.state === 'PAUSED'
-            ? t('erp.connector.overview.kpi.nextRunPaused')
-            : c.nextRunAt
-              ? t('erp.connector.overview.kpi.nextRunNote', {
-                  date: shortDate(c.nextRunAt),
-                  schedule: t(`erp.connector.schedule.${c.scheduleMinutes}`),
-                })
-              : t('erp.connector.overview.kpi.nextRunNone')
-        }
-        tone={c.state === 'PAUSED' ? 'pending' : undefined}
-      />
-      <Kpi
-        icon={quotaIcon}
-        tint="bg-success-100"
-        label={t('erp.connector.overview.kpi.collected')}
-        value={thousands(usage.collected)}
-        unit={t('erp.connector.overview.kpi.ofAllowance', {
-          limit: thousands(usage.collectedLimit),
-        })}
-        note={t('erp.connector.overview.kpi.collectedNote', {
-          percent: Math.round(usage.collectedSpent * 100),
-          date: shortDate(state.addon.resetsOn),
-        })}
-        tone={usage.collectedSpent >= 0.8 ? 'pending' : undefined}
-      />
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+        {label}
+      </dt>
+      <dd className="mt-1 break-words text-sm font-medium text-text-secondary">{children}</dd>
     </div>
   )
 }
 
-/** Kpi's shape with a free-form value — for a figure that is a pill or an ERP number. */
-function FigureCard({
-  icon,
-  label,
-  value,
-  note,
+/**
+ * The check panel: the action, the freshest verdict, and the one the server has stored.
+ *
+ * Every line comes from the backend's response. There is no remote body, header, status line,
+ * certificate, address or exception text here, because the response carries none — and the reason
+ * text is looked up from the stable code rather than printed, so an unrecognised code falls back
+ * to a safe sentence instead of rendering blank.
+ */
+function TestPanel({
+  connection,
+  verdict,
+  canTest,
+  blocked,
+  hasTestPermission,
+  busy,
+  onCheck,
 }: {
-  icon: string
-  label: string
-  value: ReactNode
-  note: string
+  connection: ErpConnectionDto
+  verdict: ErpConnectionTestDto | null
+  canTest: boolean
+  blocked: 'ARCHIVED' | 'NO_CREDENTIAL' | 'CREDENTIAL_NOT_PROBEABLE' | null
+  hasTestPermission: boolean
+  busy: boolean
+  onCheck: () => void
 }) {
-  return (
-    <article className="min-w-0 rounded-md bg-surface-card p-5">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-50">
-          <img src={icon} alt="" className="size-[18px]" />
-        </span>
-        <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{label}</h3>
-      </div>
-      <p className="mt-3 flex min-h-[34px] flex-wrap items-center gap-2">{value}</p>
-      <p className="mt-2 text-xs font-medium leading-[1.4] text-text-quaternary">{note}</p>
-    </article>
-  )
-}
-
-/** How the connection is set up — a definition list, two columns wide on a desktop. */
-function SetupCard({ connection: c }: { connection: Connection }) {
   const { t } = useTranslation()
-  const mapping = useErpMapping()
-  const status = mappingStatusOf(c, mapping)
-
-  const provenance = () => {
-    if (c.mapping.usesTenantMapping) return t('erp.connector.overview.setup.mappingTenant')
-    if (!c.mapping.template) return t('erp.connector.overview.setup.mappingByHand')
-    return c.mapping.lastEditedAt
-      ? t('erp.connector.overview.setup.mappingEdited', {
-          template: templateLabel(c.mapping.template),
-          date: shortDate(c.mapping.lastEditedAt),
-        })
-      : t('erp.connector.overview.setup.mappingUnedited', {
-          date: shortDate(c.mapping.template.appliedAt),
-        })
-  }
-
-  const rows: { id: string; value: ReactNode }[] = [
-    {
-      id: 'product',
-      value: `${productName(c.product)} ${c.erpVersion ?? ''}`.trim(),
-    },
-    { id: 'address', value: <Mono className="text-xs">{c.baseUrl}</Mono> },
-    {
-      id: 'auth',
-      value: (
-        <span className="flex flex-wrap items-baseline gap-x-2">
-          <span>{t(`erp.connector.authKind.${c.authKind}`)}</span>
-          <Mono className="text-text-tertiary">{c.credentialHint}</Mono>
-        </span>
-      ),
-    },
-    ...(c.database
-      ? [{ id: 'database', value: <Mono className="text-xs">{c.database}</Mono> }]
-      : []),
-    {
-      id: 'scopes',
-      value: (
-        <span className="flex flex-wrap gap-1.5">
-          {c.scopes.map((s) => (
-            <Pill key={s} tone="neutral" label={t(`erp.connector.scope.${s}`)} />
-          ))}
-        </span>
-      ),
-    },
-    { id: 'schedule', value: t(`erp.connector.schedule.${c.scheduleMinutes}`) },
-    {
-      id: 'writeBack',
-      value: c.writeBackEnabled
-        ? t('erp.connector.overview.setup.on')
-        : t('erp.connector.overview.setup.off'),
-    },
-    {
-      id: 'mapping',
-      value: (
-        <span className="flex flex-wrap items-center gap-2">
-          <MappingStatusPill status={status} />
-          <span className="text-sm font-medium text-text-tertiary">{provenance()}</span>
-        </span>
-      ),
-    },
-    {
-      id: 'created',
-      value: t('erp.connector.overview.setup.createdValue', {
-        date: shortDate(c.createdAt),
-        by: c.createdBy,
-      }),
-    },
-  ]
-  // The last row of each column loses its hairline so the card ends clean.
-  const lastRowStart = rows.length - (rows.length % 2 === 0 ? 2 : 1)
+  const { language } = useLanguage()
 
   return (
     <SectionCard
-      title={t('erp.connector.overview.setup.title')}
-      note={t('erp.connector.overview.setup.note')}
+      title={t('erp.connections.test.heading')}
+      note={t('erp.connections.test.intro')}
       actions={
-        <Link to={connectionPath(c.id, 'settings')} className={TEXT_BUTTON}>
-          {t('erp.connector.overview.setup.change')}
-        </Link>
+        canTest ? (
+          <button type="button" className={SMALL_BUTTON} onClick={onCheck} disabled={busy}>
+            {busy ? t('erp.connections.test.running') : t('erp.connections.test.run')}
+          </button>
+        ) : undefined
       }
     >
-      <dl className="grid border-t border-surface-background md:grid-cols-2">
-        {rows.map((row, index) => (
-          <div
-            key={row.id}
-            className={[
-              'flex flex-col gap-1 border-b border-surface-background px-5 py-3.5',
-              index % 2 === 0 ? 'md:border-e' : '',
-              index >= lastRowStart ? 'md:border-b-0' : '',
-              index === rows.length - 1 ? 'border-b-0' : '',
-            ].join(' ')}
-          >
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-              {t(`erp.connector.overview.setup.row.${row.id}`)}
-            </dt>
-            <dd className="min-w-0 break-words text-sm font-semibold text-text-primary">
-              {row.value}
-            </dd>
+      <div className="flex flex-col gap-3 p-5 pt-0">
+        {!hasTestPermission ? (
+          <p className="text-sm font-medium text-text-quaternary">
+            {t('erp.connections.permission.noTest')}
+          </p>
+        ) : blocked !== null ? (
+          <p className="text-sm font-medium text-text-quaternary">
+            {t(`erp.connections.test.blocked.${blocked}`)}
+          </p>
+        ) : null}
+
+        {verdict !== null ? (
+          <div className="flex flex-col gap-2 rounded-md bg-surface-background p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <TestOutcomePill outcome={verdict.outcome} />
+              <span className="text-xs font-medium text-text-quaternary">
+                {t('erp.connections.test.latency', { ms: verdict.latencyMs })}
+              </span>
+            </div>
+            <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+              {t(testReasonKey(verdict.reasonCode))}
+            </p>
+            {!verdict.verdictPersisted ? (
+              <p className="text-sm font-medium leading-[1.6] text-text-quaternary">
+                {t('erp.connections.test.notPersisted')}
+              </p>
+            ) : null}
+            {verdict.success ? (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('erp.connections.test.doesNotActivate')}
+              </p>
+            ) : null}
           </div>
-        ))}
-      </dl>
-    </SectionCard>
-  )
-}
-
-/** The last five runs, and the way to all of them. */
-function LastRuns({ connection: c }: { connection: Connection }) {
-  const { t } = useTranslation()
-  const state = useConnector()
-  const runs = runsFor(state, c.id).slice(0, 5)
-
-  return (
-    <SectionCard
-      title={t('erp.connector.overview.runs.title')}
-      note={t('erp.connector.overview.runs.note')}
-      actions={
-        <Link to={connectionPath(c.id, 'runs')} className={TEXT_BUTTON}>
-          {t('erp.connector.overview.runs.seeAll')}
-        </Link>
-      }
-    >
-      <RowsView>
-        <table className="w-full min-w-[520px] border-collapse">
-          <thead>
-            <tr className={THEAD_ROW}>
-              <Th first>{t('erp.connector.overview.runs.col.time')}</Th>
-              <Th>{t('erp.connector.overview.runs.col.trigger')}</Th>
-              <Th>{t('erp.connector.overview.runs.col.state')}</Th>
-              <Th align="end">{t('erp.connector.overview.runs.col.fetched')}</Th>
-              <Th align="end">{t('erp.connector.overview.runs.col.new')}</Th>
-              <Th align="end">{t('erp.connector.overview.runs.col.errors')}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-5 py-8 text-center text-sm font-medium text-text-quaternary"
-                >
-                  {t('erp.connector.overview.runs.empty')}
-                </td>
-              </tr>
-            ) : (
-              runs.map((run) => (
-                <tr key={run.id} className={TBODY_ROW}>
-                  <Td first>
-                    <Link
-                      to={`${connectionPath(c.id, 'runs')}/${run.id}`}
-                      className="text-sm font-semibold text-text-primary tabular-nums hover:text-primary-800"
-                    >
-                      {timeOf(run.startedAt)}
-                    </Link>
-                    <p className="text-xs font-medium text-text-quaternary">
-                      {shortDate(run.startedAt)}
-                    </p>
-                  </Td>
-                  <Td>
-                    <span className="text-sm font-medium text-text-secondary">
-                      {t(`erp.connector.runTrigger.${run.trigger}`)}
-                    </span>
-                  </Td>
-                  <Td>
-                    <RunStatePill state={run.state} />
-                  </Td>
-                  <Td align="end" className="text-sm font-medium text-text-secondary tabular-nums">
-                    {run.fetched}
-                  </Td>
-                  <Td align="end" className="text-sm font-medium text-text-secondary tabular-nums">
-                    {run.created}
-                  </Td>
-                  <Td
-                    align="end"
-                    className={[
-                      'text-sm font-semibold tabular-nums',
-                      run.errors > 0 ? 'text-danger-700' : 'text-text-quaternary',
-                    ].join(' ')}
-                  >
-                    {run.errors}
-                  </Td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </RowsView>
-    </SectionCard>
-  )
-}
-
-/** The last eight things that happened, newest first. */
-function RecentActivity({ connection: c }: { connection: Connection }) {
-  const { t } = useTranslation()
-  const events = c.events.slice(0, 8)
-  return (
-    <SectionCard
-      title={t('erp.connector.overview.activity.title')}
-      note={t('erp.connector.overview.activity.note')}
-      className="h-full"
-    >
-      <ul className="border-t border-surface-background">
-        {events.map((e) => (
-          <li
-            key={e.id}
-            className="flex flex-col gap-0.5 border-b border-surface-background px-5 py-3 last:border-0"
-          >
-            <p className="text-sm font-medium leading-[1.5] text-text-primary">
-              {t(`erp.connector.event.${e.actionKey}`, e.values)}
-            </p>
-            <p className="text-xs font-medium text-text-quaternary">
-              {t('erp.connector.overview.activity.by', { when: dateTime(e.at), who: e.by })}
-            </p>
-          </li>
-        ))}
-      </ul>
+        ) : connection.lastTestOutcome !== null && connection.lastTestedAt !== null ? (
+          <ConnectionNotice>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <TestOutcomePill outcome={connection.lastTestOutcome} />
+                <span className="text-xs font-medium text-text-quaternary">
+                  {t('erp.connections.test.testedAt', {
+                    when: formatInstant(connection.lastTestedAt, language),
+                  })}
+                </span>
+              </div>
+              <p>{t(testReasonKey(connection.lastTestReasonCode))}</p>
+            </div>
+          </ConnectionNotice>
+        ) : (
+          <p className="text-sm font-medium text-text-quaternary">
+            {t('erp.connections.list.neverTested')}
+          </p>
+        )}
+      </div>
     </SectionCard>
   )
 }
