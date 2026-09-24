@@ -388,6 +388,38 @@ describe('bill list mapping', () => {
     })
   })
 
+  it('does not call a bill refused weeks ago "Due today"', () => {
+    // The server stopped counting a REJECTED bill as overdue whatever its date, which left this
+    // branch — written only for the one-day clock skew — claiming a bill refused long ago was due
+    // today (found 2026-09-24 on the Bills list).
+    const now = new Date('2026-09-24T09:00:00Z')
+
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-19', overdue: false, workflowState: 'REJECTED' })), now),
+    ).toEqual({ key: 'billsPage.rows.wasDue', values: { count: 5 } })
+
+    // The same the day after it was due: a rejected bill is never the skew, at any width.
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-23', overdue: false, workflowState: 'REJECTED' })), now),
+    ).toEqual({ key: 'billsPage.rows.wasDue', values: { count: 1 } })
+  })
+
+  it('still absorbs the one-day skew it was written for', () => {
+    // 21:30 UTC on 14 Sept is the 15th in Muscat. A bill due on the 14th, unpaid and not rejected,
+    // is a day late here and due today to the server. That must keep reading "Due today" — saying
+    // "Was due 1 day ago" for four hours every evening would be the same defect in reverse.
+    const lateEvening = new Date('2026-09-14T21:30:00Z')
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.dueToday',
+    })
+
+    // A gap wider than the skew is never the skew, whatever the workflow state says.
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-12', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.wasDue',
+      values: { count: 3 },
+    })
+  })
+
   it('reads NO_ORDER as no order, not as an agreement', () => {
     expect(toBillListItem(bill({ match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false }, purchaseOrderReference: 'THEIR-PO-5' })).match).toEqual({
       verdict: 'none',

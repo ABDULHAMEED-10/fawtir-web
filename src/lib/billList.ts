@@ -180,8 +180,20 @@ export function dueNoteOf(item: BillListItem, now?: Date): Note | null {
       ? { key: 'billsPage.rows.daysOverdue', values: { count: -days } }
       : { key: 'billsPage.rows.overdue' }
   }
-  // Past its date locally but not yet overdue to the server: the same skew, the other way round.
-  return days > 0 ? { key: 'billsPage.rows.inDays', values: { count: days } } : { key: 'billsPage.rows.dueToday' }
+  if (days > 0) return { key: 'billsPage.rows.inDays', values: { count: days } }
+
+  // Past its date locally while the server says it is not overdue. That used to mean only the skew
+  // above, the other way round, so the branch said "Due today" -- and it was right while "not
+  // overdue" implied "not yet past due".
+  //
+  // It stopped implying that: a REJECTED bill is excluded from overdue whatever its date, so a bill
+  // refused weeks ago read "Due today" on the Bills list (found 2026-09-24, from the fix that made
+  // the row agree with the summary card). The skew is bounded at one day, so a wider gap is never
+  // skew; a rejected bill is never skew either, at any width.
+  const cannotBeSkew = days < -1 || item.status === 'rejected'
+  return days < 0 && cannotBeSkew
+    ? { key: 'billsPage.rows.wasDue', values: { count: -days } }
+    : { key: 'billsPage.rows.dueToday' }
 }
 
 export type BillTabId = 'needsAttention' | 'all' | 'awaitingApproval' | 'approved' | 'onHold' | 'paid'
