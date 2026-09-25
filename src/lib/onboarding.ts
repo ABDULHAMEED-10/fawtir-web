@@ -108,6 +108,11 @@ export type IdentityPreview = {
 export type OnboardingState = {
   businessSize?: BusinessSize
   invoicingMethod?: InvoicingMethod
+  /**
+   * Whether the registrant will use Fawtir POS. Only a POS user is asked the business type and
+   * sub-type; `false` skips both screens. UI only: the backend has no field for it yet.
+   */
+  usesPos?: boolean
   businessType?: BusinessTypeId
   subBusinessType?: string
   identity?: IdentityPreview

@@ -178,9 +178,12 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
     >
       <div className="flex w-full flex-col gap-6">
         <div className="flex flex-col gap-3">
-          <span className="inline-flex h-[29px] w-fit items-center justify-center rounded-sm border border-primary-150 px-2.5 text-base font-medium text-primary-700">
-            {t(CATEGORY_LABEL_KEYS[category])}
-          </span>
+          {/* The trade chip only for a POS registrant: the others never chose one. */}
+          {state.usesPos === false ? null : (
+            <span className="inline-flex h-[29px] w-fit items-center justify-center rounded-sm border border-primary-150 px-2.5 text-base font-medium text-primary-700">
+              {t(CATEGORY_LABEL_KEYS[category])}
+            </span>
+          )}
           <h2 className="text-[32px] font-medium leading-[1.2] text-text-primary">
             {t('businessIdentity.title')}
           </h2>
@@ -307,7 +310,11 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
                 </p>
               ) : (
                 <p className="text-xs font-medium leading-[1.2] text-text-tertiary">
-                  {t('businessIdentity.isicHint')}
+                  {t(
+                    state.usesPos === false
+                      ? 'businessIdentity.isicHintNoPos'
+                      : 'businessIdentity.isicHint',
+                  )}
                 </p>
               )}
             </div>

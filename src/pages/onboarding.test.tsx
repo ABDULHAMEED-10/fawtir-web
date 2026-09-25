@@ -135,19 +135,20 @@ describe('About your business', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  // Every combination, because the prototype branched on them: all sixteen must reach the
-  // business-type step, since the backend refuses a draft without a category and a type.
+  // Every combination, because the prototype branched on them: with POS ticked all sixteen must
+  // reach the business-type step. Size and invoicing never decide the route; POS does.
   it.each(
     SIZES.flatMap(([sizeKey, size]) =>
       METHODS.map(([methodKey, method]) => [sizeKey, size, methodKey, method]),
     ),
   )(
-    '%s (%s) with %s (%s) saves once and continues to the business type',
+    '%s (%s) with %s (%s) and POS saves once and continues to the business type',
     async (sizeKey, size, methodKey, method) => {
       const user = userEvent.setup({ delay: null })
       renderAt('/about-business')
       await user.click(screen.getByText(i18n.t(sizeKey)))
       await user.click(screen.getByText(i18n.t(methodKey)))
+      await user.click(screen.getByText(i18n.t('aboutBusiness.posCardTitle')))
       await user.click(submit())
 
       expect(await screen.findByText(i18n.t('businessType.title'))).toBeTruthy()
@@ -159,6 +160,42 @@ describe('About your business', () => {
       ])
     },
   )
+
+  it('without POS, skips the trade screens and still leaves a registration the backend accepts', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderAt('/about-business')
+    expect(
+      screen
+        .getByRole('button', { name: new RegExp(i18n.t('aboutBusiness.posCardTitle')) })
+        .getAttribute('aria-pressed'),
+    ).toBe('false')
+    await user.click(submit())
+
+    expect(await screen.findByText(i18n.t('businessIdentity.title'))).toBeTruthy()
+    expect(requests()).toEqual([
+      {
+        url: '/api/v1/auth/signup/business-profile',
+        body: {
+          onboardingToken: TOKEN,
+          businessSize: 'JUST_ME',
+          invoicingMethod: 'PAPER_OR_MANUAL',
+        },
+      },
+      {
+        url: '/api/v1/auth/signup/business-category',
+        body: { onboardingToken: TOKEN, businessCategory: 'FOOD_AND_BEVERAGE' },
+      },
+      {
+        url: '/api/v1/auth/signup/business-type',
+        body: { onboardingToken: TOKEN, businessType: 'RESTAURANT' },
+      },
+    ])
+    // The placeholder trade is not shown anywhere: no category chip, no activity suggested from it.
+    expect(screen.queryByText(i18n.t('businessType.options.foodBeverage'))).toBeNull()
+    expect(
+      screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') }).textContent,
+    ).toContain(i18n.t('businessIdentity.isicPlaceholder'))
+  })
 
   it('restores the previous answers on Back', () => {
     renderAt('/about-business', { businessSize: '11-50', invoicingMethod: 'erp' })
@@ -334,15 +371,13 @@ describe('Business identity', () => {
   })
 
   it('reports a registered VATIN or CR when the earlier steps are all saved', async () => {
-    fetchMock
-      .mockResolvedValueOnce(conflict())
-      .mockResolvedValueOnce(
-        status('BUSINESS_IDENTITY', {
-          businessProfileComplete: true,
-          businessCategoryComplete: true,
-          businessTypeComplete: true,
-        }),
-      )
+    fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(
+      status('BUSINESS_IDENTITY', {
+        businessProfileComplete: true,
+        businessCategoryComplete: true,
+        businessTypeComplete: true,
+      }),
+    )
     const user = userEvent.setup({ delay: null })
     renderAt('/business-identity', AFTER_TYPE)
     await user.type(field('companyName'), 'Al Noor Bakery LLC')

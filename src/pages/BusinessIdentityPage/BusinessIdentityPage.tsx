@@ -15,9 +15,10 @@ export function BusinessIdentityPage() {
   }, [])
 
   return (
-    <OnboardingGate ready={Boolean(state.subBusinessType)}>
+    // A registrant without POS never saw the trade screens, so Back returns to About business.
+    <OnboardingGate ready={Boolean(state.subBusinessType) || state.usesPos === false}>
       <AuthLayout
-        backTo="/sub-business-type"
+        backTo={state.usesPos === false ? '/about-business' : '/sub-business-type'}
         backState={location.state}
         showLanguageSwitcher={false}
         hero={<BusinessIdentityHero preview={preview} />}

@@ -13,7 +13,8 @@ import {
   UsersIcon,
 } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
-import { recordBusinessProfile } from '../../lib/identity/onboarding'
+import { NavPosIcon } from '../../layouts/AppShell/navIcons'
+import { recordBusinessProfile, recordNoPosDefaults } from '../../lib/identity/onboarding'
 import {
   BUSINESS_SIZE_LABEL_KEYS,
   INVOICING_METHOD_LABEL_KEYS,
@@ -31,16 +32,30 @@ export function AboutBusinessForm() {
   const [invoicingMethod, setInvoicingMethod] = useState<InvoicingMethod>(
     state.invoicingMethod ?? 'paper',
   )
+  // Unticked by default: only someone who says they will use POS is asked the trade screens.
+  const [usesPos, setUsesPos] = useState<boolean>(state.usesPos ?? false)
   const { save, submitting, formError } = useOnboardingStep()
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const result = await save((token, signal) =>
-      recordBusinessProfile(token, businessSize, invoicingMethod, signal),
-    )
+    const result = await save(async (token, signal) => {
+      await recordBusinessProfile(token, businessSize, invoicingMethod, signal)
+      // Skipping the two trade screens still has to leave a registration the backend accepts.
+      if (!usesPos) await recordNoPosDefaults(token, signal)
+    })
     if (!result.saved) return
-    const next: OnboardingState = { ...state, businessSize, invoicingMethod }
-    navigate('/business-type', { state: next })
+    if (usesPos) {
+      const next: OnboardingState = { ...state, businessSize, invoicingMethod, usesPos }
+      navigate('/business-type', { state: next })
+      return
+    }
+    // The placeholder trade is never carried in the state, so nothing downstream shows or
+    // suggests from it (the ISIC field starts empty and asks for the real activity).
+    const { businessType: _type, subBusinessType: _subType, ...rest } = state
+    void _type
+    void _subType
+    const next: OnboardingState = { ...rest, businessSize, invoicingMethod, usesPos }
+    navigate('/business-identity', { state: next })
   }
 
   const sizeOptions: Array<{
@@ -167,6 +182,27 @@ export function AboutBusinessForm() {
                 onSelect={() => setInvoicingMethod(option.value)}
               />
             ))}
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-xl font-medium leading-[1.2] text-text-primary">
+              {t('aboutBusiness.posTitle')}
+            </h3>
+            <p className="text-base font-medium leading-[1.2] text-text-quaternary">
+              {t('aboutBusiness.posSubtitle')}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <SelectionCard
+              title={t('aboutBusiness.posCardTitle')}
+              description={t('aboutBusiness.posCardDesc')}
+              icon={<NavPosIcon className="size-6" />}
+              selected={usesPos}
+              onSelect={() => setUsesPos((current) => !current)}
+            />
           </div>
         </section>
       </div>

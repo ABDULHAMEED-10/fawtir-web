@@ -129,7 +129,7 @@
   },
   "aboutBusiness": {
     "title": "Tell us about your business",
-    "description": "Two quick questions. We’ll use your answers to skip anything you don’t need and set up only what’s relevant to you.",
+    "description": "Three quick questions. We'll use your answers to skip anything you don't need and set up only what's relevant to you.",
     "sizeTitle": "How big is your business?",
     "sizeSubtitle": "Including you and any staff across all locations.",
     "size": {
@@ -154,7 +154,11 @@
       "erp": "Full ERP system",
       "erpDesc": "SAP, Oracle, Odoo, Dynamics..."
     },
-    "submit": "Continue"
+    "submit": "Continue",
+    "posTitle": "Will you use Fawtir POS?",
+    "posSubtitle": "Tick it if you sell at a counter. We'll then ask what kind of business you run.",
+    "posCardTitle": "Yes, I'll use the POS",
+    "posCardDesc": "Counter sales, receipts and daily closing"
   },
   "businessType": {
     "title": "What kind of business is this?",
@@ -656,14 +660,14 @@
     "description": "The legal and tax details that identify you on every invoice. Straight off your CR and VAT certificates.",
     "logoLabel": "Company logo",
     "logoTitle": "Add your logo",
-    "logoHint": "PNG or SVG · preview only — add it from your company settings once approved",
+    "logoHint": "PNG or SVG · preview only. Add it from your company settings once approved.",
     "companyNameLabel": "Legal company name",
     "crLabel": "Commercial registration (CR) no.",
     "crHint": "The number printed on your CR certificate.",
     "vatinLabel": "VAT Identification Number (VATIN)",
     "vatinHint": "Oman VATIN · 12 characters.",
     "peppolLabel": "Peppol Participant ID",
-    "peppolHint": "Set up once your business is verified — it is not assigned during signup.",
+    "peppolHint": "Set up once your business is verified. It is not assigned during signup.",
     "accentLabel": "Invoice accent color",
     "submit": "Continue",
     "logoRemove": "Remove logo",
@@ -682,7 +686,8 @@
     "isicHint": "What your business does, as registered. Pre-filled from your specialty; change it if it is not right.",
     "isicPlaceholder": "Search by activity",
     "isicSearch": "Type an activity, e.g. restaurant",
-    "isicNone": "No activity matches"
+    "isicNone": "No activity matches",
+    "isicHintNoPos": "What your business does, as registered. Search by activity name."
   },
   "addressContact": {
     "title": "Address & contact",
@@ -13139,13 +13144,16 @@
       "invoicing": "Invoicing today",
       "category": "Business type",
       "trade": "Specialty",
-      "activity": "Business activity (ISIC)"
+      "activity": "Business activity (ISIC)",
+      "pos": "Fawtir POS"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",
     "submit": "Submit for review",
     "submitting": "Submitting…",
-    "conflict": "This VATIN or CR number was registered by another business first. Edit your business identity and submit again."
+    "conflict": "This VATIN or CR number was registered by another business first. Edit your business identity and submit again.",
+    "posYes": "Yes, will use it",
+    "posNo": "Not for now"
   },
   "signupPending": {
     "received": {
