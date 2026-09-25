@@ -88,7 +88,13 @@ describe('allowedRoute', () => {
 })
 
 describe('business identity', () => {
-  const valid = { companyName: ' Al Noor Trading LLC ', crNumber: ' cr-1234567 ', vatin: ' om1100112233 ', accent: 'GREEN' as const }
+  const valid = {
+    companyName: ' Al Noor Trading LLC ',
+    crNumber: ' cr-1234567 ',
+    vatin: ' om1100112233 ',
+    industrialClassification: '561010',
+    accent: 'GREEN' as const,
+  }
 
   it('builds exactly the backend fields, upper-cased as stored, with no logo reference', () => {
     const request = buildBusinessIdentityRequest(valid)
@@ -104,18 +110,28 @@ describe('business identity', () => {
 
   it('checks CR length only, as the backend does', () => {
     expect(validateBusinessIdentity({ ...valid, crNumber: 'A1' }).crNumber).toBeUndefined()
-    expect(validateBusinessIdentity({ ...valid, crNumber: 'x'.repeat(21) }).crNumber).toBe('validation.tooLong')
-    expect(validateBusinessIdentity({ ...valid, crNumber: '  ' }).crNumber).toBe('validation.required')
+    expect(validateBusinessIdentity({ ...valid, crNumber: 'x'.repeat(21) }).crNumber).toBe(
+      'validation.tooLong',
+    )
+    expect(validateBusinessIdentity({ ...valid, crNumber: '  ' }).crNumber).toBe(
+      'validation.required',
+    )
   })
 
   it('accepts only OM11 and OM12 VATINs', () => {
     expect(validateBusinessIdentity({ ...valid, vatin: 'OM1200000001' }).vatin).toBeUndefined()
-    expect(validateBusinessIdentity({ ...valid, vatin: 'OM1300000001' }).vatin).toBe('validation.vatin')
-    expect(validateBusinessIdentity({ ...valid, vatin: 'OM110011223' }).vatin).toBe('validation.vatin')
+    expect(validateBusinessIdentity({ ...valid, vatin: 'OM1300000001' }).vatin).toBe(
+      'validation.vatin',
+    )
+    expect(validateBusinessIdentity({ ...valid, vatin: 'OM110011223' }).vatin).toBe(
+      'validation.vatin',
+    )
   })
 
   it('requires the legal name and bounds it at 255', () => {
-    expect(validateBusinessIdentity({ ...valid, companyName: '' }).companyName).toBe('validation.required')
+    expect(validateBusinessIdentity({ ...valid, companyName: '' }).companyName).toBe(
+      'validation.required',
+    )
     expect(validateBusinessIdentity({ ...valid, companyName: 'x'.repeat(256) }).companyName).toBe(
       'validation.tooLong',
     )
@@ -156,11 +172,20 @@ describe('address and contact', () => {
     expect(validateAddressContact({ ...valid, addressLine: 'x'.repeat(141) }).addressLine).toBe(
       'validation.addressTooLong',
     )
-    expect(validateAddressContact({ ...valid, role: 'x'.repeat(101) }).role).toBe('validation.tooLong')
+    expect(validateAddressContact({ ...valid, role: 'x'.repeat(101) }).role).toBe(
+      'validation.tooLong',
+    )
   })
 
   it('validates the required fields, phone and email', () => {
-    const errors = validateAddressContact({ ...valid, addressLine: '', city: '', contactName: '', phone: '123', email: 'nope' })
+    const errors = validateAddressContact({
+      ...valid,
+      addressLine: '',
+      city: '',
+      contactName: '',
+      phone: '123',
+      email: 'nope',
+    })
     expect(errors).toMatchObject({
       addressLine: 'validation.required',
       city: 'validation.required',

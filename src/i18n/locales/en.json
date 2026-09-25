@@ -677,7 +677,12 @@
       "PURPLE": "Purple",
       "RED": "Red",
       "NAVY": "Navy"
-    }
+    },
+    "isicLabel": "Business activity (ISIC)",
+    "isicHint": "What your business does, as registered. Pre-filled from your specialty; change it if it is not right.",
+    "isicPlaceholder": "Search by activity",
+    "isicSearch": "Type an activity, e.g. restaurant",
+    "isicNone": "No activity matches"
   },
   "addressContact": {
     "title": "Address & contact",
@@ -12549,7 +12554,8 @@
       "size": "Team size",
       "invoicing": "Invoicing today",
       "category": "Business type",
-      "trade": "Specialty"
+      "trade": "Specialty",
+      "activity": "Business activity (ISIC)"
     },
     "edit": "Edit",
     "savedEarlier": "Saved earlier",

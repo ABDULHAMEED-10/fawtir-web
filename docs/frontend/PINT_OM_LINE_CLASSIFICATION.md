@@ -163,9 +163,13 @@ the HS search and can still issue a valid invoice; the composer maps "Other" to 
 - **Screen**: Settings > Company profile, section "Who you are", field **Business activity (ISIC)**: a
   search box over activity names (English and Arabic) that stores the 6-digit code. The invoice
   composer prints it read-only under the invoice details ("Business activity: 561010 · Restaurants
-  and cafés", with a link to Company settings) and never asks for it. It is **not** part of sign-up:
-  sign-up collects only the coarse business type and sub-type it always did, and the sign-up /
-  onboarding API needs no change for this.
+  and cafés", with a link to Company settings) and never asks for it.
+- **Sign-up**: the Business identity step (`/business-identity`, next to the CR number and VATIN)
+  asks for it as **Business activity (ISIC)**, required, pre-filled from the specialty chosen on
+  the Sub business type step (`src/lib/codeLists/isicBySubType.ts`) and searchable; the review
+  page prints it. The value is **not sent yet**: `POST /v1/auth/signup/business-identity` needs an
+  `industrialClassification` field (6-digit code) that lands on the tenant's company settings at
+  approval, so the Settings > Company field shows it from day one.
 - **What the front end holds today**: a placeholder list of about a hundred common Omani activities
   (`src/lib/codeLists/isic.ts`) so the search has something to find. It is not the full national
   list and must not be treated as one.

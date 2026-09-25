@@ -211,6 +211,7 @@ export const ISIC_ACTIVITIES: IsicActivity[] = [
   a('773010', 'Renting of machinery and equipment, other', 'تأجير الآلات والمعدات الأخرى'),
   a('781010', 'Employment placement agencies', 'وكالات التوظيف'),
   a('791110', 'Travel agency activities', 'أنشطة وكالات السفر'),
+  a('791210', 'Tour operator activities', 'أنشطة منظمي الرحلات السياحية'),
   a('801010', 'Private security activities', 'أنشطة الأمن الخاص'),
   a('812110', 'General cleaning of buildings', 'التنظيف العام للمباني'),
   a('821110', 'Combined office administrative services', 'الخدمات الإدارية المكتبية المجمعة'),

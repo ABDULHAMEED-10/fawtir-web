@@ -3,25 +3,23 @@ import type { ServerFieldMap } from './errors'
 import { GOVERNORATE_NAMES, type GovernorateId } from '../governorates'
 import type { BusinessSize, InvoiceAccent, InvoicingMethod } from '../onboarding'
 import type { BusinessTypeId } from '../subBusinessTypes'
-import { email, omanPhone, postalCode, required, toOmanE164, vatin, type FieldError } from '../validation'
-
+import {
+  email,
+  omanPhone,
+  postalCode,
+  required,
+  toOmanE164,
+  vatin,
+  type FieldError,
+} from '../validation'
 
 /** `SignupBusinessSize`, `SignupInvoicingMethod`, `SignupBusinessCategory`, `SignupBusinessType`. */
 export type SignupBusinessSize = 'JUST_ME' | 'PEOPLE_2_TO_10' | 'PEOPLE_11_TO_50' | 'PEOPLE_50_PLUS'
 export type SignupInvoicingMethod =
-  | 'PAPER_OR_MANUAL'
-  | 'SPREADSHEETS'
-  | 'ACCOUNTING_SOFTWARE'
-  | 'FULL_ERP_SYSTEM'
+  'PAPER_OR_MANUAL' | 'SPREADSHEETS' | 'ACCOUNTING_SOFTWARE' | 'FULL_ERP_SYSTEM'
 export type SignupBusinessCategory = 'FOOD_AND_BEVERAGE'
 export type SignupBusinessType =
-  | 'COFFEE_SHOP'
-  | 'RESTAURANT'
-  | 'BAKERY'
-  | 'FAST_FOOD'
-  | 'JUICE_BAR'
-  | 'DESSERT_SHOP'
-  | 'CATERING'
+  'COFFEE_SHOP' | 'RESTAURANT' | 'BAKERY' | 'FAST_FOOD' | 'JUICE_BAR' | 'DESSERT_SHOP' | 'CATERING'
 
 export const BUSINESS_SIZE: Record<BusinessSize, SignupBusinessSize> = {
   'just-me': 'JUST_ME',
@@ -76,7 +74,6 @@ export function registrableCategory(chosen: BusinessTypeId | undefined): Busines
   const [first] = BUSINESS_CATEGORY.keys()
   return first
 }
-
 
 /** `SelfServiceSignupService.toStatus` — the server, not the client, orders the steps. */
 export type SignupStage =
@@ -184,7 +181,11 @@ export function recordBusinessProfile(
 ): Promise<void> {
   return post(
     '/v1/auth/signup/business-profile',
-    { onboardingToken, businessSize: BUSINESS_SIZE[size], invoicingMethod: INVOICING_METHOD[method] },
+    {
+      onboardingToken,
+      businessSize: BUSINESS_SIZE[size],
+      invoicingMethod: INVOICING_METHOD[method],
+    },
     signal,
   )
 }
@@ -205,18 +206,21 @@ export function recordBusinessType(
   return post('/v1/auth/signup/business-type', { onboardingToken, businessType }, signal)
 }
 
-
 export type BusinessIdentityValues = {
   companyName: string
   crNumber: string
   vatin: string
+  /** ISIC Rev. 4, Oman 6-digit code (IBR-081-OM): what the registered business does. */
+  industrialClassification: string
   accent: InvoiceAccent
 }
 
-export type BusinessIdentityField = 'companyName' | 'crNumber' | 'vatin'
+export type BusinessIdentityField =
+  'companyName' | 'crNumber' | 'industrialClassification' | 'vatin'
 export const BUSINESS_IDENTITY_FIELD_ORDER: readonly BusinessIdentityField[] = [
   'companyName',
   'crNumber',
+  'industrialClassification',
   'vatin',
 ]
 
@@ -244,6 +248,7 @@ export function validateBusinessIdentity(
   return {
     companyName: required(values.companyName) ?? tooLong(values.companyName, LEGAL_NAME_MAX_LENGTH),
     crNumber: required(values.crNumber) ?? tooLong(values.crNumber, CR_MAX_LENGTH),
+    industrialClassification: required(values.industrialClassification),
     vatin: vatin(values.vatin),
   }
 }
@@ -254,7 +259,12 @@ export function validateBusinessIdentity(
  * ones, so an anonymous registrant cannot mint a reference, and sending a made-up one would point
  * the tenant's logo at nothing.
  */
-export function buildBusinessIdentityRequest(values: BusinessIdentityValues): BusinessIdentityRequest {
+export function buildBusinessIdentityRequest(
+  values: BusinessIdentityValues,
+): BusinessIdentityRequest {
+  // TODO(backend): `industrialClassification` (the 6-digit ISIC code chosen on this step) is not
+  // sent: `SignupBusinessIdentityRequest` has no field for it yet. It travels in the onboarding
+  // state to the review page; see docs/frontend/PINT_OM_LINE_CLASSIFICATION.md §8.
   return {
     legalCompanyName: values.companyName.trim(),
     commercialRegistrationNumber: values.crNumber.trim().toUpperCase(),
@@ -277,7 +287,6 @@ export const BUSINESS_IDENTITY_SERVER_FIELDS: ServerFieldMap<BusinessIdentityFie
   ['taxNumber', { field: 'vatin', key: 'validation.vatin' }],
 ])
 
-
 export type AddressContactValues = {
   addressLine: string
   postalCode: string
@@ -290,14 +299,7 @@ export type AddressContactValues = {
 }
 
 export type AddressContactField =
-  | 'addressLine'
-  | 'postalCode'
-  | 'city'
-  | 'governorate'
-  | 'contactName'
-  | 'role'
-  | 'phone'
-  | 'email'
+  'addressLine' | 'postalCode' | 'city' | 'governorate' | 'contactName' | 'role' | 'phone' | 'email'
 
 export const ADDRESS_CONTACT_FIELD_ORDER: readonly AddressContactField[] = [
   'addressLine',
@@ -339,10 +341,13 @@ export function validateAddressContact(
   return {
     addressLine:
       required(values.addressLine) ??
-      (values.addressLine.trim().length > ADDRESS_LINE_MAX_LENGTH ? 'validation.addressTooLong' : undefined),
+      (values.addressLine.trim().length > ADDRESS_LINE_MAX_LENGTH
+        ? 'validation.addressTooLong'
+        : undefined),
     postalCode: postalCode(values.postalCode),
     city: required(values.city) ?? tooLong(values.city, CITY_MAX_LENGTH),
-    contactName: required(values.contactName) ?? tooLong(values.contactName, CONTACT_NAME_MAX_LENGTH),
+    contactName:
+      required(values.contactName) ?? tooLong(values.contactName, CONTACT_NAME_MAX_LENGTH),
     role: tooLong(values.role, CONTACT_ROLE_MAX_LENGTH),
     phone: omanPhone(values.phone),
     email: email(values.email),
