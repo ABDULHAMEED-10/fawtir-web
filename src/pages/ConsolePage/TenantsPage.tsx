@@ -1,370 +1,230 @@
-import { useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Pager, RowsView } from '../../components/ui'
 import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
+import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
+import { ConsoleStatusPill, type ConsolePillTone } from '../../layouts/ConsoleShell/ConsoleStatusPill'
+import { useConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
 import {
-  ConsoleBuildingIcon,
-  ConsoleClockIcon,
-  ConsoleIncidentIcon,
-} from '../../layouts/ConsoleShell/consoleIcons'
-import { NavReportsIcon } from '../../layouts/AppShell/navIcons'
-import { ActionMenu, FilterMenu, Rial, RowsView, SortMenu, withRial } from '../../components/ui'
-import { tenantRowActions } from '../../lib/rowActions'
-import {
-  ALL_TENANTS,
-  NEEDS_ATTENTION,
-  PLANS,
-  PLATFORM,
-  REVENUE,
-  REVENUE_PER_TENANT,
-  TENANT_TABS,
-  count,
-  omr,
-  tenantsForTab,
-  type FilingDay,
-  type TenantTabId,
-} from '../../lib/superAdmin'
-import searchIcon from '../../assets/dashboard/search.svg'
+  REVIEW_PERMISSION,
+  VERIFICATION_ROUTE,
+  queuePath,
+  type CompanySummary,
+  type CompanySummaryPage,
+  type TenantStatus,
+} from '../../lib/console/companyVerification'
+import { countryName, formatDay, localeFor } from '../../lib/console/format'
 
-const CHIP_TONE = {
-  bad: 'bg-danger-100 text-danger-700',
-  watch: 'bg-pending-100 text-pending-700',
-  calm: 'bg-primary-50 text-primary-800',
-} as const
+const TENANTS_ROUTE = '/console/tenants'
 
-const HEALTH_TONE = {
-  bad: 'text-danger-700',
-  watch: 'text-pending-700',
-  calm: 'text-text-quaternary',
-} as const
-
-/** A day of filing, drawn as one bar of the week strip. */
-const DAY_COLOUR: Record<FilingDay, string> = {
-  clear: 'bg-success-700',
-  some: 'bg-pending-500',
-  bad: 'bg-danger-700',
-  none: 'bg-neutral-100',
+/**
+ * The tone each tenant lifecycle state carries. Keyed on the backend's own
+ * `TenantStatus`, so a state the backend adds shows as neutral rather than
+ * crashing the row.
+ */
+const STATUS_TONE: Record<TenantStatus, ConsolePillTone> = {
+  ACTIVE: 'success',
+  PENDING: 'pending',
+  SUSPENDED: 'danger',
+  CLOSED: 'neutral',
 }
 
-function Chip({ label, tone }: { label: string; tone: 'bad' | 'watch' | 'calm' }) {
-  return (
-    <span
-      className={`inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.03em] ${CHIP_TONE[tone]}`}
-    >
-      <span className="size-1.5 rounded-full bg-current" />
-      {label}
-    </span>
-  )
+/** Reads the page from the URL. One-based in the URL, zero-based to the backend. */
+function tenantsPage(params: URLSearchParams): number {
+  const page = Number(params.get('page'))
+  return Number.isInteger(page) && page > 1 ? page : 1
 }
 
-function KpiCard({
-  icon,
-  title,
-  value,
-  note,
-  tone = 'calm',
-}: {
-  icon: React.ReactNode
-  title: string
-  value: string
-  note: string
-  tone?: 'bad' | 'watch' | 'calm'
-}) {
-  const valueTone =
-    tone === 'bad' ? 'text-danger-700' : tone === 'watch' ? 'text-pending-700' : 'text-text-primary'
-  return (
-    <article className="flex min-w-[240px] flex-1 flex-col gap-2.5 rounded-md bg-surface-card p-5">
-      <div className="flex items-center gap-2.5">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-background">
-          {icon}
-        </span>
-        <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{title}</h3>
-      </div>
-      <p className={`text-[32px] font-semibold leading-[1.2] ${valueTone}`}>{withRial(value)}</p>
-      <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{withRial(note)}</p>
-    </article>
-  )
-}
-
+/**
+ * The platform's operational register of tenant records (read-only).
+ *
+ * Distinct from {@link VerificationPage}, which owns the onboarding decision
+ * workflow: this screen lists every tenant the platform holds, whatever its
+ * verification state, and never offers attest or reject.
+ *
+ * Paged and ordered by the backend alone. The prototype's plan, quota, filing
+ * health and monthly revenue columns are absent because
+ * `GET /api/v1/platform/companies` publishes no such fields and no other
+ * endpoint does either — rendering them would have meant inventing commercial
+ * figures for real businesses. Search, filters, sort and export went for the
+ * same reason: the endpoint's only parameters are `status`, `page` and `size`.
+ */
 export function TenantsPage() {
-  const { t } = useTranslation()
-  const [tab, setTab] = useState<TenantTabId>('all')
-  const [query, setQuery] = useState('')
-
-  const rows = tenantsForTab(tab).filter((tenant) =>
-    `${tenant.name} ${tenant.vat} ${tenant.town}`
-      .toLowerCase()
-      .includes(query.trim().toLowerCase()),
+  return (
+    <ConsoleShell requires={REVIEW_PERMISSION}>
+      <TenantsRegister />
+    </ConsoleShell>
   )
-  const tabCount = TENANT_TABS.find((entry) => entry.id === tab)?.count ?? rows.length
+}
+
+function TenantsRegister() {
+  const { t, i18n } = useTranslation()
+  const [params, setParams] = useSearchParams()
+  const page = tenantsPage(params)
+  // 'all' sends no status filter, which is what an operational register wants:
+  // every tenant, not only the ones awaiting a decision.
+  const { read, retry } = useConsoleRead<CompanySummaryPage>(queuePath('all', page - 1))
+  const number = new Intl.NumberFormat(localeFor(i18n.language))
+
+  const goTo = (next: number) => {
+    const params = new URLSearchParams()
+    if (next > 1) params.set('page', String(next))
+    setParams(params)
+  }
+
+  let body
+  if (read.status === 'loading') {
+    body = <ConsoleNotice busy body={t('console.tenants.loading')} />
+  } else if (read.status === 'failed') {
+    body = <ConsoleReadFailure error={read.error} retry={retry} />
+  } else if (read.data.items.length === 0) {
+    body =
+      read.data.totalElements === 0 ? (
+        <p className="px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+          {t('console.tenants.empty')}
+        </p>
+      ) : (
+        <ConsoleNotice
+          body={t('console.tenants.pastEnd')}
+          action={{ label: t('console.tenants.firstPage'), onClick: () => goTo(1) }}
+        />
+      )
+  } else {
+    body = <TenantsTable rows={read.data.items} />
+  }
+
+  const loaded = read.status === 'ready' && read.data.items.length > 0 ? read.data : null
 
   return (
-    <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-        <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants' }]} />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('console.tenants.title')}
-            </h1>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-              {t('console.tenants.subtitle', {
-                live: count(PLATFORM.live),
-                onboarding: PLATFORM.onboarding,
-              })}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-            <button
-              type="button"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.tenants.export')}
-            </button>
-            <Link
-              to="/console/tenants/new"
-              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              {t('console.tenants.onboard')}
-            </Link>
-          </div>
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants' }]} />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('console.tenants.title')}
+          </h1>
+          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
+            {read.status === 'ready'
+              ? t('console.tenants.registered', {
+                  total: number.format(read.data.totalElements),
+                })
+              : t('console.tenants.subtitlePlain')}
+          </p>
         </div>
-
-        <div className="flex flex-wrap gap-4">
-          <KpiCard
-            icon={<ConsoleBuildingIcon className="size-[18px] text-primary-700" />}
-            title={t('console.tenants.kpi.live')}
-            value={count(PLATFORM.live)}
-            note={t('console.tenants.kpi.liveNote', {
-              joined: PLATFORM.joinedThisMonth,
-              left: PLATFORM.leftThisMonth,
-            })}
-          />
-          <KpiCard
-            icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
-            title={t('console.tenants.kpi.atRisk')}
-            value={String(NEEDS_ATTENTION)}
-            note={t('console.tenants.kpi.atRiskNote', {
-              certificates: PLATFORM.certificatesExpiring,
-              blocked: PLATFORM.overQuotaBlocked,
-            })}
-            tone="bad"
-          />
-          <KpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-pending-700" />}
-            title={t('console.tenants.kpi.quiet')}
-            value={String(PLATFORM.quiet)}
-            note={t('console.tenants.kpi.quietNote', { broken: PLATFORM.quietLooksBroken })}
-          />
-          <KpiCard
-            icon={<NavReportsIcon className="size-[18px] text-success-700" />}
-            title={t('console.tenants.kpi.revenue')}
-            value={`OMR ${omr(REVENUE)}`}
-            note={t('console.tenants.kpi.revenueNote', { average: omr(REVENUE_PER_TENANT) })}
-          />
+        <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
+          <Link
+            to="/console/tenants/new"
+            className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+          >
+            {t('console.tenants.onboard')}
+          </Link>
         </div>
+      </div>
 
-        <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
-            {TENANT_TABS.map((entry) => {
-              const active = entry.id === tab
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => setTab(entry.id)}
-                  aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
-                >
-                  {t(entry.labelKey)}
-                  <span className="text-xs font-semibold text-text-quaternary">
-                    {count(entry.count)}
-                  </span>
-                  {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
+      <section className="flex flex-col rounded-md bg-surface-card">
+        <div className="px-6 py-4">{body}</div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-            <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
-              <img src={searchIcon} alt="" className="size-5 shrink-0" />
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('console.tenants.searchPlaceholder')}
-                className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
-              />
-            </label>
-            <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-              <FilterMenu
-                label={t('console.tenants.filters')}
-                value="all"
-                defaultValue="all"
-                onChange={() => {}}
-                options={[{ value: 'all', label: t('console.tenants.filterAll') }]}
-              />
-              <SortMenu
-                value="name"
-                onChange={() => {}}
-                options={[{ value: 'name', labelKey: 'console.tenants.sortName' }]}
-              />
-            </div>
-          </div>
-
-          <RowsView className="px-6 pb-6">
-            <table className="w-full min-w-[1000px] border-collapse text-start">
-              <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
-                  <th className="px-4 py-3 text-start font-semibold">
-                    {t('console.tenants.col.business')}
-                  </th>
-                  <th className="px-2 py-3 text-start font-semibold">
-                    {t('console.tenants.col.plan')}
-                  </th>
-                  <th className="px-2 py-3 text-start font-semibold">
-                    {t('console.tenants.col.quota')}
-                  </th>
-                  <th className="px-2 py-3 text-start font-semibold">
-                    {t('console.tenants.col.health')}
-                  </th>
-                  <th className="px-2 py-3 text-end font-semibold">
-                    {t('console.tenants.col.monthly')}
-                  </th>
-                  <th className="w-12 px-2 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((tenant) => {
-                  const plan = PLANS[tenant.plan]
-                  const used = Math.min(tenant.used / plan.quota, 1)
-                  return (
-                    <tr key={tenant.id} className="border-b border-[#f3f3f3] last:border-b-0">
-                      <td className="px-4 py-4">
-                        <span className="flex items-center gap-3">
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
-                            {tenant.initials}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="flex flex-wrap items-center gap-2">
-                              <span className="text-base font-medium leading-[1.2] text-text-primary">
-                                {tenant.name}
-                              </span>
-                              {tenant.chipKey ? (
-                                <Chip
-                                  label={t(tenant.chipKey, tenant.chipValues)}
-                                  tone={tenant.chipTone ?? 'calm'}
-                                />
-                              ) : null}
-                              {tenant.chip2Key ? (
-                                <Chip
-                                  label={t(tenant.chip2Key, tenant.chip2Values)}
-                                  tone={tenant.chip2Tone ?? 'calm'}
-                                />
-                              ) : null}
-                            </span>
-                            <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                              {tenant.town} · {t('console.tenants.vat')} {tenant.vat} ·{' '}
-                              {t(tenant.sinceLabelKey, { when: tenant.since })}
-                            </span>
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-2 py-4">
-                        <span className="block text-sm font-medium text-text-primary">
-                          {t(plan.labelKey)}
-                        </span>
-                        <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                          {tenant.state === 'onboarding'
-                            ? t('console.tenants.freeUntil')
-                            : withRial(
-                                t('console.tenants.perMonth', { amount: omr(plan.monthly) }),
-                              )}
-                        </span>
-                      </td>
-                      <td className="px-2 py-4">
-                        <span className="block h-1.5 w-full max-w-[150px] overflow-hidden rounded-full bg-neutral-50">
-                          <span
-                            className={`block h-full rounded-full ${used >= 0.85 ? 'bg-pending-500' : 'bg-success-700'}`}
-                            style={{ width: `${Math.round(used * 100)}%` }}
-                          />
-                        </span>
-                        <span className="mt-1.5 block text-xs font-medium text-text-quaternary">
-                          {t('console.tenants.ofQuota', {
-                            used: count(tenant.used),
-                            quota: count(plan.quota),
-                          })}
-                        </span>
-                      </td>
-                      <td className="px-2 py-4">
-                        <span className="flex items-center gap-1">
-                          {tenant.week.map((day, index) => (
-                            <span
-                              key={index}
-                              className={`h-1.5 w-4 rounded-full ${DAY_COLOUR[day]}`}
-                            />
-                          ))}
-                        </span>
-                        <span
-                          className={`mt-1.5 block text-xs font-medium ${HEALTH_TONE[tenant.healthTone]}`}
-                        >
-                          {t(tenant.healthKey)}
-                        </span>
-                      </td>
-                      <td className="px-2 py-4 text-end">
-                        <span className="block text-sm font-semibold text-text-primary">
-                          <span className="me-1">
-                            <Rial />
-                          </span>
-                          {omr(tenant.billed)}
-                        </span>
-                        <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                          {t(tenant.ageKey, tenant.ageValues)}
-                        </span>
-                      </td>
-                      <td className="px-2 py-4">
-                        <ActionMenu
-                          items={tenantRowActions()}
-                          label={t('console.tenants.rowMenu')}
-                        />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            {rows.length === 0 ? (
-              <p className="px-6 py-12 text-center text-sm font-medium text-text-tertiary">
-                {t('console.tenants.noResults')}
-              </p>
-            ) : null}
-          </RowsView>
-
+        {loaded ? (
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
             <p className="text-sm font-medium text-text-tertiary">
-              {tab === 'all'
-                ? t('console.tenants.showingAll', { shown: rows.length, total: count(tabCount) })
-                : t('console.tenants.showing', {
-                    shown: rows.length,
-                    total: count(tabCount),
-                    tab: t(TENANT_TABS.find((entry) => entry.id === tab)!.labelKey).toLowerCase(),
-                  })}
+              {t('console.tenants.showingRange', {
+                from: number.format(loaded.page * loaded.size + 1),
+                to: number.format(loaded.page * loaded.size + loaded.items.length),
+                total: number.format(loaded.totalElements),
+              })}
             </p>
-            <p className="text-xs font-medium text-text-quaternary">
-              {t('console.tenants.allCount', { count: count(ALL_TENANTS) })}
-            </p>
+            {loaded.totalPages > 1 ? (
+              <Pager
+                page={loaded.page + 1}
+                pageCount={loaded.totalPages}
+                onChange={goTo}
+                labels={{
+                  nav: t('console.tenants.pager.label'),
+                  previous: t('console.tenants.pager.previous'),
+                  next: t('console.tenants.pager.next'),
+                }}
+              />
+            ) : null}
           </div>
-        </section>
-      </div>
-    </ConsoleShell>
+        ) : null}
+      </section>
+    </div>
+  )
+}
+
+function TenantsTable({ rows }: { rows: CompanySummary[] }) {
+  const { t, i18n } = useTranslation()
+  const none = t('console.tenants.none')
+
+  return (
+    <RowsView>
+      <table className="w-full min-w-[760px] border-collapse text-start">
+        <thead>
+          <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+            <th className="px-4 py-3 text-start font-semibold">
+              {t('console.tenants.col.business')}
+            </th>
+            <th className="px-2 py-3 text-start font-semibold">{t('console.tenants.col.code')}</th>
+            <th className="px-2 py-3 text-start font-semibold">{t('console.tenants.col.status')}</th>
+            <th className="px-2 py-3 text-start font-semibold">
+              {t('console.tenants.col.registered')}
+            </th>
+            <th className="px-2 py-3 text-end font-semibold">
+              {t('console.tenants.col.action')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((tenant) => (
+            <tr key={tenant.tenantId} className="border-b border-[#f3f3f3] last:border-b-0">
+              <td className="px-4 py-4">
+                <Link
+                  to={`${TENANTS_ROUTE}/${tenant.tenantId}`}
+                  className="text-base font-medium leading-[1.2] text-text-primary hover:text-primary-800"
+                >
+                  {tenant.tenantName}
+                </Link>
+                <span className="mt-1 block text-xs font-medium text-text-quaternary">
+                  {tenant.legalName ?? t('console.tenants.noLegalName')}
+                  {tenant.country ? ` · ${countryName(tenant.country, i18n.language)}` : ''}
+                </span>
+              </td>
+              <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                {tenant.tenantCode}
+              </td>
+              <td className="px-2 py-4">
+                {tenant.tenantStatus ? (
+                  <ConsoleStatusPill
+                    tone={STATUS_TONE[tenant.tenantStatus] ?? 'neutral'}
+                    label={t(`console.tenants.status.${tenant.tenantStatus}`)}
+                  />
+                ) : (
+                  <span className="text-sm font-medium text-text-secondary">{none}</span>
+                )}
+              </td>
+              <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                {tenant.submittedAt ? formatDay(tenant.submittedAt, i18n.language) : none}
+              </td>
+              <td className="px-2 py-4 text-end">
+                {/*
+                  A company awaiting a decision is work, and the decision belongs to the
+                  verification queue alone — this directory links to it rather than carrying a
+                  second attest/reject implementation.
+                */}
+                {tenant.verificationStatus === 'PENDING_VERIFICATION' ? (
+                  <Link
+                    to={`${VERIFICATION_ROUTE}/${tenant.tenantId}`}
+                    className="text-sm font-semibold text-primary-800 hover:text-primary-700"
+                  >
+                    {t('console.tenants.review')}
+                  </Link>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </RowsView>
   )
 }

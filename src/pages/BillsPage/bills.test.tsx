@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillRowDto, BillSummaryDto } from '../../api/expenditure/bills'
+import type { IntakeDto } from '../../api/expenditure/billIntake'
 import { daysFromMuscatToday, dueNoteOf, statusLabelKey, toBillListItem } from '../../lib/billList'
 import { BillsPage } from './BillsPage'
 
@@ -32,6 +33,8 @@ const SUMMARY: BillSummaryDto = {
   dueThisWeekTotal: 1500.25,
   readyToPayCount: 4,
   readyToPayTotal: 2222.5,
+  disputedCount: 0,
+  disputedTotal: 0,
   excludedFromTotals: 0,
   needsAttention: { draft: 0, new: 2, mismatch: 1, awaitingApproval: 3, total: 6, truncated: false },
   tabs: { needsAttention: 6, all: 31, awaitingApproval: 3, approved: 4, onHold: 1, paid: 17, truncated: false },
@@ -85,6 +88,7 @@ function itemsPage(items: BillRowDto[], total = items.length, page = 0, pageSize
 }
 
 let fetchMock: ReturnType<typeof vi.fn>
+let unconfirmed: IntakeDto[]
 let listResponses: Array<() => Response>
 let summaryResponse: () => Response
 let who: Entitlements
@@ -98,6 +102,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = ADMIN
   summaryResponse = () => json(200, SUMMARY)
+  unconfirmed = []
   listResponses = [() => json(200, itemsPage([bill()], 1))]
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -107,6 +112,8 @@ beforeEach(async () => {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
     }
+    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED')) return json(200, { items: unconfirmed, page: 0, pageSize: 20, count: unconfirmed.length })
+    if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && init?.method === 'DELETE') return new Response(null, { status: 204 })
     throw new Error(`unexpected request to ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -147,9 +154,42 @@ describe('Bills list, wired to the API', () => {
     expect(screen.getByText('PO-0042')).toBeTruthy()
     expect(screen.getByText('Order and receipt agree')).toBeTruthy()
     expect(screen.getByText('New, not reviewed')).toBeTruthy()
-    expect(screen.getByText('1,234.560')).toBeTruthy()
+    // Nothing has been paid against this bill, so the amount and what is outstanding are the
+    // same figure, once in each column.
+    expect(screen.getAllByText('1,234.560')).toHaveLength(2)
     expect(screen.getByText('incl. VAT 58.789')).toBeTruthy()
     expect(listCalls()).toEqual([FIRST_PAGE])
+  })
+
+  it('shows what is outstanding per row, and marks the overdue ones', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({ id: 'b-part', supplierBillNumber: 'PART-1', paidAmount: 234.56, outstandingAmount: 1000 }),
+            bill({ id: 'b-late', supplierBillNumber: 'LATE-1', overdue: true, dueDate: muscatDay(-3), outstandingAmount: 500 }),
+            bill({ id: 'b-paid', supplierBillNumber: 'PAID-1', workflowState: 'PAID', paidAmount: 1234.56, outstandingAmount: 0 }),
+            bill({ id: 'b-credit', supplierBillNumber: 'CRED-1', documentTypeCode: '381', outstandingAmount: 90 }),
+          ]),
+        ),
+    ]
+    renderBills()
+    await screen.findByText('PART-1')
+
+    expect(screen.getByText('Outstanding')).toBeTruthy()
+    // Part paid: the amount stands, the outstanding is what is left.
+    expect(screen.getByText('1,000.000')).toBeTruthy()
+    expect(screen.getByText('500.000')).toBeTruthy()
+    // A settled bill and a credit note owe nothing, and neither shows a figure to chase.
+    expect(screen.getAllByText('Nothing owed')).toHaveLength(2)
+    expect(screen.getByText('3 days overdue')).toBeTruthy()
+
+    // The late figure is red, and red is not the only thing saying so: the cell carries the word
+    // for a screen reader. Colour alone would leave the state unreadable to anyone who cannot see it.
+    const late = screen.getByText('500.000')
+    expect(late.className).toContain('text-danger-700')
+    expect(within(late).getByText('Overdue')).toBeTruthy()
   })
 
   it('asks the server for the tab, the search, the source, the sort and the page size', async () => {
@@ -290,19 +330,30 @@ describe('Bills list, wired to the API', () => {
     expect(await screen.findByText('Qalhat Marine Supplies')).toBeTruthy()
     expect(screen.getByText('خلال 12 يومًا')).toBeTruthy()
     expect(screen.getByText('جديدة، لم تُراجع')).toBeTruthy()
-    expect(screen.getByText('1,234.560')).toBeTruthy()
+    expect(screen.getByText('المتبقي')).toBeTruthy()
+    // Amount and outstanding: the same figure on an unpaid bill, in Latin digits either way.
+    expect(screen.getAllByText('1,234.560')).toHaveLength(2)
   })
 })
 
 describe('bill list mapping', () => {
-  it('notes a credit note, a part payment, and settles counter purchases without a due date', () => {
+  it('notes a credit note, and settles counter purchases without a due date', () => {
     expect(toBillListItem(bill({ documentTypeCode: '381' })).amountNote).toEqual({ key: 'billsPage.rows.creditNote' })
-    expect(toBillListItem(bill({ paidAmount: 200, outstandingAmount: 1034.56 })).amountNote).toEqual({
-      key: 'billsPage.rows.leftToPay',
-      values: { amount: 1034.56 },
-    })
     expect(dueNoteOf(toBillListItem(bill({ paidOnTheSpot: true, dueDate: null })))).toEqual({ key: 'billsPage.rows.cash' })
     expect(dueNoteOf(toBillListItem(bill({ workflowState: 'PAID' })))).toBeNull()
+  })
+
+  it('carries what is still owed, and owes nothing on a credit note', () => {
+    const part = toBillListItem(bill({ paidAmount: 200, outstandingAmount: 1034.56 }))
+    expect(part.outstanding).toBe(1034.56)
+    expect(part.owes).toBe(true)
+    // The part payment used to be a note under the amount as well; one figure, one place.
+    expect(part.amountNote).toEqual({ key: 'billsPage.rows.inclVat', values: { amount: 58.789 } })
+
+    // A credit note lowers a bill. Whatever the server puts in the field, nothing is owed on it.
+    expect(toBillListItem(bill({ documentTypeCode: '381', outstandingAmount: 90 })).owes).toBe(false)
+    expect(toBillListItem(bill({ documentTypeCode: '261', outstandingAmount: 90 })).owes).toBe(false)
+    expect(toBillListItem(bill({ paidAmount: 1234.56, outstandingAmount: 0 })).owes).toBe(false)
   })
 
   it('counts days from the Muscat day, not the browser\'s', () => {
@@ -310,9 +361,64 @@ describe('bill list mapping', () => {
     const lateEvening = new Date('2026-09-14T21:30:00Z')
     expect(daysFromMuscatToday('2026-09-15', lateEvening)).toBe(0)
     expect(daysFromMuscatToday('2026-09-10', lateEvening)).toBe(-5)
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-10' })), lateEvening)).toEqual({
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-10', overdue: true })), lateEvening)).toEqual({
       key: 'billsPage.rows.daysOverdue',
       values: { count: 5 },
+    })
+  })
+
+  it('lets the server, not this browser, decide that a bill is overdue', () => {
+    // The two clocks disagree for four hours of every day: 21:30 UTC on 14 Sept is already the
+    // 15th in Muscat, so a bill due on the 14th reads as a day late here while the service —
+    // running UTC, and the source of the count above the table — still calls it due today.
+    const lateEvening = new Date('2026-09-14T21:30:00Z')
+
+    // Past its date locally, not yet overdue to the server: say nothing that contradicts the count.
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.dueToday',
+    })
+
+    // Overdue to the server before the local calendar has caught up: no "0 days overdue".
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-15', overdue: true })), lateEvening)).toEqual({
+      key: 'billsPage.rows.overdue',
+    })
+
+    // Agreement is the ordinary case and still reads as a count.
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-20', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.inDays',
+      values: { count: 5 },
+    })
+  })
+
+  it('does not call a bill refused weeks ago "Due today"', () => {
+    // The server stopped counting a REJECTED bill as overdue whatever its date, which left this
+    // branch — written only for the one-day clock skew — claiming a bill refused long ago was due
+    // today (found 2026-09-24 on the Bills list).
+    const now = new Date('2026-09-24T09:00:00Z')
+
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-19', overdue: false, workflowState: 'REJECTED' })), now),
+    ).toEqual({ key: 'billsPage.rows.wasDue', values: { count: 5 } })
+
+    // The same the day after it was due: a rejected bill is never the skew, at any width.
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-23', overdue: false, workflowState: 'REJECTED' })), now),
+    ).toEqual({ key: 'billsPage.rows.wasDue', values: { count: 1 } })
+  })
+
+  it('still absorbs the one-day skew it was written for', () => {
+    // 21:30 UTC on 14 Sept is the 15th in Muscat. A bill due on the 14th, unpaid and not rejected,
+    // is a day late here and due today to the server. That must keep reading "Due today" — saying
+    // "Was due 1 day ago" for four hours every evening would be the same defect in reverse.
+    const lateEvening = new Date('2026-09-14T21:30:00Z')
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.dueToday',
+    })
+
+    // A gap wider than the skew is never the skew, whatever the workflow state says.
+    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-12', overdue: false })), lateEvening)).toEqual({
+      key: 'billsPage.rows.wasDue',
+      values: { count: 3 },
     })
   })
 
@@ -332,5 +438,73 @@ describe('bill list mapping', () => {
       'billsPage.state.inPaymentRunRef',
     )
     expect(statusLabelKey(toBillListItem(bill({ workflowState: 'ON_HOLD' })))).toBe('billsPage.state.onHold')
+  })
+})
+
+function intakeRow(id: string, source: IntakeDto['source'], typed: { supplierName?: string; billNumber?: string }): IntakeDto {
+  return {
+    id,
+    source,
+    filename: source === 'SCANNED' ? 'receipt.jpg' : 'bill.pdf',
+    contentType: source === 'SCANNED' ? 'image/jpeg' : 'application/pdf',
+    byteSize: 120,
+    sha256: 'x',
+    documentTypeCode: null,
+    extractionStatus: 'NONE',
+    extracted: {
+      supplierName: typed.supplierName ?? null,
+      supplierVatNumber: null,
+      billNumber: typed.billNumber ?? null,
+      issueDate: null,
+      dueDate: null,
+      currency: null,
+      net: null,
+      vat: null,
+      total: null,
+      lines: [],
+      confidence: {},
+    },
+    confirmedBillId: null,
+    workflowState: 'DRAFT',
+    uploadedAt: '2026-09-17T08:00:00Z',
+  }
+}
+
+describe('a disputed bill', () => {
+  it('is named beside total payable, not folded into it', async () => {
+    // Rejecting a bill does not cancel it — the supplier still claims it — so it leaves the
+    // payable figure and is reported separately rather than vanishing (decision 3, 2026-09-24).
+    summaryResponse = () => json(200, { ...SUMMARY, disputedCount: 1, disputedTotal: 3140 })
+    renderBills()
+
+    expect(await screen.findByText('8,765.432')).toBeTruthy()
+    expect(screen.getByText(/13 open · 2 overdue · 3,140.000 disputed on 1 refused bill/)).toBeTruthy()
+  })
+
+  it('says nothing when there is no dispute', async () => {
+    renderBills()
+    expect(await screen.findByText('8,765.432')).toBeTruthy()
+    expect(screen.getByText('13 open · 2 overdue')).toBeTruthy()
+    expect(screen.queryByText(/disputed/)).toBeNull()
+  })
+})
+
+describe('uploads waiting for their details', () => {
+  it('lists them under the drafts notice: a way back to an upload, only a discard for a receipt', async () => {
+    summaryResponse = () => json(200, { ...SUMMARY, needsAttention: { ...SUMMARY.needsAttention, draft: 2 } })
+    unconfirmed = [intakeRow('i-1', 'UPLOADED', { supplierName: 'Nizwa Hardware Store', billNumber: 'NHS-2026-14' }), intakeRow('i-2', 'SCANNED', {})]
+    renderBills('/expenditure/bills?tab=needsAttention')
+
+    const list = await screen.findByRole('list', { name: 'Uploads waiting for their details' })
+    const [upload, receipt] = within(list).getAllByRole('listitem')
+    expect(within(upload).getByText('Nizwa Hardware Store · NHS-2026-14')).toBeTruthy()
+    expect(within(upload).getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/expenditure/bills/upload/i-1')
+    expect(within(receipt).getByText('receipt.jpg')).toBeTruthy()
+    expect(within(receipt).queryByRole('link', { name: 'Continue' })).toBeNull()
+
+    fireEvent.click(within(receipt).getByRole('button', { name: 'Discard' }))
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([url, init]) => url === '/api/v1/bills/intake/i-2' && (init as RequestInit | undefined)?.method === 'DELETE')).toHaveLength(1),
+    )
   })
 })

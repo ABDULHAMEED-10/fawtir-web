@@ -1055,4 +1055,70 @@ export default [
       return { currency: 'OMR', lines: [], totals }
     },
   },
+  /**
+   * The platform's code lists (/v1/reference-data, src/api/reference/referenceData.ts): the V193
+   * seeds. The shell loads them beside the session; the composer names them from the locale files.
+   */
+  {
+    match: '/api/v1/reference-data',
+    reply: () => ({
+      taxCategories: [
+        {
+          code: 'S5',
+          en16931Category: 'S',
+          rate: '5',
+          exemptionReasonRequired: false,
+          active: true,
+        },
+        {
+          code: 'Z0',
+          en16931Category: 'Z',
+          rate: '0',
+          exemptionReasonRequired: false,
+          active: true,
+        },
+        {
+          code: 'E0',
+          en16931Category: 'E',
+          rate: '0',
+          exemptionReasonRequired: true,
+          active: true,
+        },
+        {
+          code: 'O0',
+          en16931Category: 'O',
+          rate: '0',
+          exemptionReasonRequired: true,
+          active: true,
+        },
+        {
+          code: 'AE0',
+          en16931Category: 'AE',
+          rate: '0',
+          exemptionReasonRequired: true,
+          active: true,
+        },
+        {
+          code: 'G0',
+          en16931Category: 'G',
+          rate: '0',
+          exemptionReasonRequired: true,
+          active: true,
+        },
+      ],
+      units: ['EA', 'KGM', 'LTR', 'BG', 'BX', 'SA', 'PK', 'HUR', 'DAY', 'MTR'].map((code) => ({
+        code,
+        active: true,
+      })),
+      paymentTerms: [
+        { code: 'NET0', netDays: 0, active: true },
+        { code: 'NET7', netDays: 7, active: true },
+        { code: 'NET14', netDays: 14, active: true },
+        { code: 'NET30', netDays: 30, active: true },
+        { code: 'NET45', netDays: 45, active: true },
+        { code: 'NET60', netDays: 60, active: true },
+      ],
+      paymentMethods: ['30', '10', '20', '48', '68'].map((code) => ({ code, active: true })),
+    }),
+  },
 ]

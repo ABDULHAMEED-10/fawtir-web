@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Select } from '../../../components/ui'
 import { shortDate } from '../../../lib/settings'
-import type { Sample } from '../../../lib/erpMapping'
+import type { SessionSample } from '../../../lib/erp/sample'
 
 /**
- * Which uploaded sample a preview or a certification runs over (docs/erp-and-console-plan.md
- * §2.3, §2.4). The app's own listbox, with the sample's size, date and uploader on the second
- * line so two invoices from the same month can be told apart without opening them.
+ * Which sample a preview or a certification runs over (docs/erp-and-console-plan.md §2.3, §2.4).
+ * The app's own listbox, with the sample's size and when it was added on the second line so two
+ * invoices from the same month can be told apart without opening them.
+ *
+ * Samples last for this visit only — nothing stores one. The uploader's name is gone from the hint
+ * for the same reason: there is no stored record to name, and the reader added it themselves.
  */
 export function SamplePicker({
   samples,
@@ -16,7 +19,7 @@ export function SamplePicker({
   label,
   compact = false,
 }: {
-  samples: Sample[]
+  samples: SessionSample[]
   value: string
   onChange: (id: string) => void
   label?: string
@@ -28,8 +31,8 @@ export function SamplePicker({
     value: sample.id,
     label: sample.label,
     hint: `${t('erp.shared.kb', { size: (sample.byteSize / 1024).toFixed(1) })} · ${shortDate(
-      sample.createdAt,
-    )} · ${sample.createdBy}`,
+      sample.addedAt,
+    )}`,
   }))
 
   return (

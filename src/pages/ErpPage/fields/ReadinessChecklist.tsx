@@ -2,14 +2,19 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CoverageBanner } from '../ErpShell'
 import { TARGET_BY_ID } from '../../../lib/erpCatalogue'
-import type { Readiness, SaveResult } from '../../../lib/erpMapping'
-import { useTermName } from './model'
+import type { GuidedMappingValidationDto } from '../../../api/erp/mapping'
+import type { SaveOutcome } from '../../../lib/erp/draft'
+import { useMappingError, useTermName } from './model'
 import tickIcon from '../../../assets/settings/check-white.svg'
 
 /**
  * The sticky right-hand column (docs/erp-and-console-plan.md §2.2 "Checklist"): required n/m
- * with the missing ones named and linked, the invalid rows, the validator's warnings, the three
+ * with the missing ones named and linked, the invalid rows, the validator's warnings, the
  * coverage limits, and the Save button with what the last save came back with.
+ *
+ * Every figure is the server's. `requiredTenantMappedTargets` counts only the mandatory terms a
+ * tenant can actually supply — the platform-supplied and derived ones are excluded by the server,
+ * because a readiness figure that could never reach 100% teaches the reader to ignore it.
  */
 export function ReadinessChecklist({
   readiness,
@@ -17,21 +22,25 @@ export function ReadinessChecklist({
   dirty,
   result,
   version,
+  saving,
   onSave,
   onJump,
 }: {
-  readiness: Readiness
+  readiness: GuidedMappingValidationDto
   checking: boolean
   dirty: boolean
-  result: SaveResult | null
-  version: number
+  result: SaveOutcome | null
+  /** Null before the mapping has ever been saved. */
+  version: number | null
+  saving: boolean
   onSave: () => void
   onJump: (businessTermId: string) => void
 }) {
   const { t } = useTranslation()
   const termName = useTermName()
-  const total = readiness.requiredTargets.length
-  const mapped = readiness.mappedRequired.length
+  const mappingError = useMappingError()
+  const total = readiness.requiredTenantMappedTargets.length
+  const mapped = readiness.mappedRequiredTargets.length
   const complete = mapped === total
   const invalid = readiness.invalidMappings
 
@@ -56,7 +65,9 @@ export function ReadinessChecklist({
             {t('erp.fields.checklist')}
           </h3>
           <p className="mt-0.5 text-xs font-medium text-text-quaternary">
-            {t('erp.fields.version', { version })}
+            {version === null
+              ? t('erp.fields.versionNew')
+              : t('erp.fields.version', { version })}
           </p>
         </div>
         {checking ? (
@@ -117,12 +128,16 @@ export function ReadinessChecklist({
         {invalid.length > 0 ? (
           <ul className="mt-2 flex flex-col gap-2">
             {invalid.map((mapping, index) => {
-              const target = TARGET_BY_ID[mapping.businessTermId]
+              // The server sends a null term when the refused entry did not name one at all
+              // (MISSING_SOURCE on a blank row). There is no row to jump to in that case, so the
+              // message stands on its own rather than linking nowhere.
+              const termId = mapping.businessTermId
+              const target = termId ? TARGET_BY_ID[termId] : undefined
               return (
-                <li key={`${mapping.businessTermId}-${mapping.errorCode}-${index}`}>
-                  {jump(mapping.businessTermId, target ? termName(target) : mapping.businessTermId)}
+                <li key={`${termId ?? 'unnamed'}-${mapping.errorCode}-${index}`}>
+                  {termId ? jump(termId, target ? termName(target) : termId) : null}
                   <p className="mt-0.5 text-xs font-medium leading-[1.5] text-text-danger">
-                    {t(`erp.error.${mapping.errorCode}`, mapping.values)}
+                    {mappingError(mapping)}
                   </p>
                 </li>
               )
@@ -140,12 +155,13 @@ export function ReadinessChecklist({
         <div className="mt-4 border-t border-surface-background pt-4">
           <p className="text-sm font-medium text-text-tertiary">{t('erp.fields.warnings')}</p>
           <ul className="mt-1.5 flex flex-col gap-1">
+            {/* The server sends finished sentences here, not keys — rendered as they arrive. */}
             {readiness.warnings.map((warning, index) => (
               <li
-                key={`${warning.key}-${index}`}
+                key={`warning-${index}`}
                 className="text-xs font-medium leading-[1.5] text-pending-700"
               >
-                {t(warning.key, warning.values)}
+                {warning}
               </li>
             ))}
           </ul>
@@ -157,14 +173,21 @@ export function ReadinessChecklist({
       </div>
 
       {/* Save */}
+      {/*
+        Enabled for an incomplete draft on purpose. `valid` and `readyForActivation` are different
+        questions: saving an unfinished mapping is how a tenant works through seventy fields over
+        more than one sitting, and only a structurally invalid entry is refused. Disabling Save
+        until everything was mapped would strand exactly the reader this screen is for.
+      */}
       <button
         type="button"
         onClick={onSave}
-        className="mt-4 inline-flex h-[46px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+        disabled={saving}
+        className="mt-4 inline-flex h-[46px] w-full items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <img src={tickIcon} alt="" className="size-4" />
-        {t('erp.fields.save')}
-        {dirty ? (
+        {saving ? t('erp.shared.working') : t('erp.fields.save')}
+        {dirty && !saving ? (
           <span
             aria-label={t('erp.fields.unsaved')}
             title={t('erp.fields.unsaved')}
@@ -185,8 +208,14 @@ export function ReadinessChecklist({
                 : 'text-[#3d5648]',
           ].join(' ')}
         >
+          {/*
+            A refusal shows the server's own sentence. The save route throws on the first
+            structurally invalid entry, so it answers with one message rather than the whole
+            validation document — the full list is above, from the validate route, which answers
+            200 even when the mapping is invalid.
+          */}
           {result.status === 'refused'
-            ? t('erp.fields.saveRefused', { count: result.readiness.invalidMappings.length })
+            ? result.message
             : result.status === 'draft'
               ? t('erp.fields.saveDraft', {
                   count: result.readiness.missingRequiredTargets.length,

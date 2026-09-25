@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { commonFailureMessage, type FormMessage } from '../../lib/identity/errors'
 import {
   LOGIN_CODE_RESEND_DELAY_MS,
+  LOGIN_FACTOR_TOTP,
   LOGIN_ROUTE,
   landingRoute,
   isChallengeSpent,
@@ -15,10 +16,31 @@ import {
 import { dropLoginChallenge, requestFirstLoginCode } from '../../lib/identity/loginChallenge'
 import { VERIFICATION_CODE_LENGTH, formatCountdown } from '../../lib/identity/verification'
 import { VerifyCodeView } from '../VerifyCodePage/VerifyCodeView'
+import { TotpEnrollmentForm } from './TotpEnrollmentForm'
+import { TotpVerifyForm } from './TotpVerifyForm'
 
 const emptyCode = () => Array<string>(VERIFICATION_CODE_LENGTH).fill('')
 
+/**
+ * The second factor, whichever one the server asked for.
+ *
+ * <p>The branch is on the server's decision, not on anything this screen knows about the
+ * account. An authenticator challenge never reaches the email flow below — which matters
+ * because that flow's first act is to send a code, and the backend refuses to send one against
+ * a TOTP challenge.
+ */
 export function LoginCodeForm({ challenge }: { challenge: LoginChallenge }) {
+  if (challenge.factor === LOGIN_FACTOR_TOTP) {
+    return challenge.state === 'ENROLLMENT_REQUIRED' ? (
+      <TotpEnrollmentForm challenge={challenge} />
+    ) : (
+      <TotpVerifyForm challenge={challenge} />
+    )
+  }
+  return <EmailCodeForm challenge={challenge} />
+}
+
+function EmailCodeForm({ challenge }: { challenge: LoginChallenge }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [code, setCode] = useState<string[]>(emptyCode)

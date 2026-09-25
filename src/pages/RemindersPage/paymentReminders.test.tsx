@@ -16,6 +16,7 @@ import {
   rangeProblem,
   rungNote,
   rungProblem,
+  rungToday,
   scheduleChanged,
   scheduleProblem,
   stepOf,
@@ -77,7 +78,6 @@ const LOG: ReminderLogDto[] = [
 // and the one where the message was previously unreachable. Three weeks out, whatever today is.
 const DUE_DATE = plusDays(21)
 /** Today's distance from that due date, which is the rung the card previews at. */
-const RUNG_TODAY = -21
 
 const invoiceRow = (over: Record<string, unknown>) => ({
   id: 'inv-1',
@@ -442,14 +442,21 @@ describe('Reminders on one invoice', () => {
   })
 
   it('reads the message on a day when no rung falls, and still offers a manual send', async () => {
-    preview = { ...PREVIEW, verdict: 'NO_RUNG_TODAY', rung: RUNG_TODAY }
+    // Derived, not written down: the card previews at today's distance from the due date, so a
+    // hard-coded offset is only correct on the day it was written. Computed from the same helper
+    // the card uses, against the same Muscat "today", so the expectation moves with the calendar.
+    const offset = rungToday(
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date()),
+      DUE_DATE,
+    )
+    preview = { ...PREVIEW, verdict: 'NO_RUNG_TODAY', rung: offset }
     renderCard()
 
     // Previewing at today's distance from the due date is what makes the message readable at all.
     await waitFor(() =>
       expect(
         calls('GET', '/api/v1/authored-invoices/inv-1/reminders/preview').some((call) =>
-          String(call[0]).includes(`days_from_due=${RUNG_TODAY}`),
+          String(call[0]).includes(`days_from_due=${offset}`),
         ),
       ).toBe(true),
     )

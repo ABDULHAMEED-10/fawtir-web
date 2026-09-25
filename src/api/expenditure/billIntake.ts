@@ -1,4 +1,4 @@
-import { apiRequest } from '../client'
+import { apiDownload, apiRequest } from '../client'
 import { ApiError } from '../errors'
 
 /**
@@ -12,6 +12,9 @@ export const BILL_INTAKE_PATH = '/v1/bills/intake'
 export const INTAKE_MAX_BYTES = 10 * 1024 * 1024
 
 export type IntakeSourceDto = 'UPLOADED' | 'SCANNED'
+
+/** 380 a bill, 381 a supplier's credit note, 383 a supplier's debit note (`ConfirmRequest`). */
+export type IntakeDocumentTypeDto = '380' | '381' | '383'
 export type ExtractionStatusDto = 'NONE' | 'EXTRACTED' | 'FAILED'
 
 /** `ExtractedBillFields`. Every value is advice; confirm takes the person's fields. */
@@ -68,7 +71,13 @@ export async function discardIntake(id: string): Promise<void> {
 export type ConfirmIntakeDto = {
   supplierId: string | null
   supplierName: string | null
-  documentTypeCode: '380'
+  /**
+   * What kind of document the person is confirming. `ConfirmRequest` accepts `380|381|383`:
+   * a bill, a supplier's credit note, or a supplier's debit note. The same intake endpoint
+   * takes all three — the type is what decides which way the money points, so it is a field
+   * the caller states rather than one the file is trusted to declare.
+   */
+  documentTypeCode: IntakeDocumentTypeDto
   billNumber: string | null
   issueDate: string
   dueDate: string | null
@@ -115,4 +124,59 @@ export function possibleDuplicateOf(error: unknown): PossibleDuplicateDto | null
   if (typeof found !== 'object' || found === null) return null
   const bill = found as Record<string, unknown>
   return typeof bill.billId === 'string' ? (bill as unknown as PossibleDuplicateDto) : null
+}
+
+/** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */
+export type IntakePageDto = { items: IntakeDto[]; page: number; pageSize: number; count: number }
+
+export function unconfirmedIntakesPath(page = 0, pageSize = 20): string {
+  return `${BILL_INTAKE_PATH}?status=UNCONFIRMED&page=${page}&page_size=${pageSize}`
+}
+
+export function loadIntakes(path: string): Promise<IntakePageDto> {
+  return apiRequest<IntakePageDto>(path)
+}
+
+export function intakePath(id: string): string {
+  return `${BILL_INTAKE_PATH}/${encodeURIComponent(id)}`
+}
+
+export function loadIntake(id: string): Promise<IntakeDto> {
+  return apiRequest<IntakeDto>(intakePath(id))
+}
+
+/**
+ * The stored bytes as a File, so an upload resumed later previews exactly as the one the person
+ * just picked. The server names the file in Content-Disposition; the record's own name is the
+ * fallback.
+ */
+export async function loadIntakeFile(intake: IntakeDto): Promise<File> {
+  const download = await apiDownload(`${intakePath(intake.id)}/file`)
+  return new File([download.blob], download.filename ?? intake.filename ?? 'bill', { type: download.blob.type || intake.contentType })
+}
+
+/** `FieldsRequest`: a person's corrections. No confidence is sent — a typed field is confident by definition. */
+export type IntakeCorrectionsDto = {
+  supplierName: string | null
+  supplierVatNumber: string | null
+  billNumber: string | null
+  issueDate: string | null
+  dueDate: string | null
+  currency: string | null
+  net: number | null
+  vat: number | null
+  total: number | null
+  lines: { description: string | null; quantity: number | null; unitPrice: number | null; vatRate: number | null; amount: number | null }[]
+}
+
+/** `UpdateRequest`. */
+export type UpdateIntakeDto = { extracted: IntakeCorrectionsDto | null; documentTypeCode: IntakeDocumentTypeDto | null }
+
+/**
+ * `invoice.payment.manage`. Saves what the person has typed so far on the intake — the bytes are
+ * untouched — so the bill can be finished later. Refused once the intake is confirmed
+ * (`BILL_INTAKE_ALREADY_CONFIRMED`).
+ */
+export function updateIntake(id: string, body: UpdateIntakeDto): Promise<IntakeDto> {
+  return apiRequest<IntakeDto>(intakePath(id), { method: 'PUT', body })
 }

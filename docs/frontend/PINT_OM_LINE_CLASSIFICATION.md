@@ -157,3 +157,21 @@ the HS search and can still issue a valid invoice; the composer maps "Other" to 
    when the draft is issued (`POST /v1/invoice-drafts/{id}/issue`), with a problem detail naming
    the line and the rule (`IBR-079-OM`, `IBR-155-OM`, `IBR-081-OM`), so the composer can point at
    the line. Simplified invoices skip all three checks.
+
+## 8. Where the industrial classification sits in the product
+
+- **Screen**: Settings > Company profile, section "Who you are", field **Business activity (ISIC)**: a
+  search box over activity names (English and Arabic) that stores the 6-digit code. The invoice
+  composer prints it read-only under the invoice details ("Business activity: 561010 · Restaurants
+  and cafés", with a link to Company settings) and never asks for it. It is **not** part of sign-up:
+  sign-up collects only the coarse business type and sub-type it always did, and the sign-up /
+  onboarding API needs no change for this.
+- **What the front end holds today**: a placeholder list of about a hundred common Omani activities
+  (`src/lib/codeLists/isic.ts`) so the search has something to find. It is not the full national
+  list and must not be treated as one.
+- **What the backend owns**: the complete Oman 6-digit ISIC Rev. 4 list from the PINT-OM code-list
+  folder in §5 (or `peppol-om` on Maven), served by `GET /v1/code-lists/isic?q=`; the tenant's choice
+  stored on `GET/PUT /v1/settings/company` as `industrialClassification { code, name }`; the value
+  copied onto every line at submission (IBR-081-OM); and the refusal at issue when a tenant has none.
+- **Also in this repo**: `docs/frontend/INCOME_DESIGN_REALIGNMENT_BACKEND_ASKS.md` rows 3.8 and 3.9
+  list the same asks screen by screen, next to every other place where the Income UI is ahead of the API.

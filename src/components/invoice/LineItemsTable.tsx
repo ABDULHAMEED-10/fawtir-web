@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { selectAllOnFocus } from './numericInput'
 import { useTranslation } from 'react-i18next'
+import { taxCategoryOptions, unitOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { Select, withRial } from '../ui'
 import { blankLine, convertLinePrices, type LineItem, type useLineTotals } from './lineItems'
-import { TAX_CATEGORIES, TAX_CATEGORY_OPTIONS, UNIT_OPTIONS } from '../../lib/catalogues'
 import { formatAtScale, type DiscountType } from '../../lib/invoiceMath'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
 import omrIcon from '../../assets/create-invoice/omr.svg'
@@ -158,6 +158,8 @@ export function LineItemsTable({
   footer?: ReactNode
 }) {
   const { t } = useTranslation()
+  const reference = useReferenceData()
+  const categories = reference?.taxCategories ?? []
   const [nextId, setNextId] = useState(lines.length + 1)
 
   const update = (id: string, patch: Partial<LineItem>) =>
@@ -248,13 +250,15 @@ export function LineItemsTable({
                   </FieldShell>
                   {/* Catalogue-resolved: the rate is never typed. */}
                   <Select
-                    value={TAX_CATEGORIES.find((c) => c.rate === row.vatRate)?.code ?? 'S5'}
+                    value={categories.find((c) => c.rate === row.vatRate)?.code ?? ''}
                     onChange={(code) =>
                       update(row.id, {
-                        vatRate: TAX_CATEGORIES.find((c) => c.code === code)?.rate ?? '5',
+                        // The rate shown beside the line. The SERVER derives what it stores from
+                        // the category, so a stale catalogue here mislabels rather than mis-taxes.
+                        vatRate: categories.find((c) => c.code === code)?.rate ?? '0',
                       })
                     }
-                    options={TAX_CATEGORY_OPTIONS}
+                    options={taxCategoryOptions(reference, t)}
                     ariaLabel={t('createInvoice.items.vat')}
                   />
                   <FieldShell>
@@ -270,7 +274,7 @@ export function LineItemsTable({
                   <Select
                     value={row.unit}
                     onChange={(unit) => update(row.id, { unit })}
-                    options={UNIT_OPTIONS}
+                    options={unitOptions(reference, t)}
                     ariaLabel={t('createInvoice.items.unit')}
                   />
                   <DiscountField

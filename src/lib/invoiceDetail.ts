@@ -212,3 +212,44 @@ export const PAYMENT_REFUSALS: Record<string, { field: PaymentField | null; key:
   PAYMENT_ALREADY_REVERSED: { field: null, key: 'invoiceDetails.pay.error.alreadyReversed' },
   PAYMENT_NOT_FOUND: { field: null, key: 'invoiceDetails.pay.error.paymentGone' },
 }
+
+/**
+ * Self-billing inverts the parties: the tenant is the BUYER and `customerId` names the SELLER.
+ *
+ * So the counterparty labels have to flip. "Bill to Gulf Supplies" on a document Gulf Supplies is
+ * billing YOU for is not a cosmetic slip — it states the wrong direction of a debt, on a screen
+ * whose whole job is to say who owes whom.
+ *
+ * The document is otherwise an ordinary authored invoice read from the same endpoints, which is
+ * why a self-billed document's page is the invoice page rather than one of its own.
+ */
+export function isSelfBilled(type: string): boolean {
+  return type.startsWith('SELF_BILLED')
+}
+
+/** Counterparty wording for a document type: seller-facing when self-billed, buyer-facing otherwise. */
+export function counterpartyKeys(type: string): {
+  section: string
+  preposition: string
+  view: string
+  unknown: string
+  note: string
+} {
+  return isSelfBilled(type)
+    ? {
+        section: 'invoiceDetails.billedBy',
+        preposition: 'invoiceDetails.from',
+        view: 'invoiceDetails.viewSeller',
+        unknown: 'invoiceDetails.sellerUnknown',
+        // `customerVisibleNote` is the field, but on a self-bill the party who reads it is the
+        // supplier — the name of the column is not the name of the reader.
+        note: 'invoiceDetails.notes.supplier',
+      }
+    : {
+        section: 'invoiceDetails.billTo',
+        preposition: 'invoiceDetails.to',
+        view: 'invoiceDetails.viewCustomer',
+        unknown: 'invoiceDetails.customerUnknown',
+        note: 'invoiceDetails.notes.customer',
+      }
+}

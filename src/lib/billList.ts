@@ -47,6 +47,16 @@ export type BillListItem = {
   currency: string
   amount: number | null
   amountNote: Note | null
+  /** What is still owed on this bill. Zero once it is settled. */
+  outstanding: number
+  /** Whether anything is actually owed, so a credit note is not presented as a debt. */
+  owes: boolean
+  /**
+   * The server's judgment, not the browser's. It is computed at read time from the same clock
+   * as the tab counts and the KPI strip, so taking it from here keeps a row and the totals
+   * above it telling the same story.
+   */
+  overdue: boolean
 }
 
 const SOURCE: Record<BillSourceDto, BillSourceBadge> = {
@@ -113,14 +123,22 @@ export function toBillListItem(row: BillRowDto): BillListItem {
     currency: row.currencyCode,
     amount: row.totalIncludingVat,
     amountNote: amountNoteOf(row),
+    outstanding: row.outstandingAmount,
+    owes: !isCreditNote(row) && row.outstandingAmount > 0,
+    overdue: row.overdue,
   }
 }
 
+function isCreditNote(row: BillRowDto): boolean {
+  return row.documentTypeCode !== null && CREDIT_NOTES.has(row.documentTypeCode)
+}
+
+/**
+ * The part payment that used to be noted here now has a column of its own, so it is not
+ * repeated under the amount: the same figure in two places reads as two figures.
+ */
 function amountNoteOf(row: BillRowDto): Note | null {
-  if (row.documentTypeCode && CREDIT_NOTES.has(row.documentTypeCode)) return { key: 'billsPage.rows.creditNote' }
-  if (row.paidAmount > 0 && row.outstandingAmount > 0) {
-    return { key: 'billsPage.rows.leftToPay', values: { amount: row.outstandingAmount } }
-  }
+  if (isCreditNote(row)) return { key: 'billsPage.rows.creditNote' }
   if (row.vatAmount !== null && row.vatAmount > 0) return { key: 'billsPage.rows.inclVat', values: { amount: row.vatAmount } }
   return null
 }
@@ -143,14 +161,39 @@ export function daysFromMuscatToday(isoDate: string, now: Date = new Date()): nu
   return Math.round((Date.UTC(dy, dm - 1, dd) - Date.UTC(y, m - 1, d)) / 86_400_000)
 }
 
+/**
+ * Whether a bill is overdue is {@link BillListItem.overdue} — the server's answer. Only the
+ * number of days is counted here.
+ *
+ * <p>The two clocks do not agree for part of every day: this browser reads Asia/Muscat while
+ * the service runs UTC, so between 20:00 and midnight UTC the local calendar is already on
+ * tomorrow and the server is not. Deciding "overdue" here made a row turn red up to four hours
+ * before the count above the table agreed with it. So the flag decides, and when the local
+ * count has not caught up the row says "overdue" without a number rather than "0 days overdue".</p>
+ */
 export function dueNoteOf(item: BillListItem, now?: Date): Note | null {
   if (item.paidOnTheSpot) return { key: 'billsPage.rows.cash' }
   if (!item.dueDate || item.paid) return null
   const days = daysFromMuscatToday(item.dueDate, now)
-  if (days === 0) return { key: 'billsPage.rows.dueToday' }
-  return days > 0
-    ? { key: 'billsPage.rows.inDays', values: { count: days } }
-    : { key: 'billsPage.rows.daysOverdue', values: { count: -days } }
+  if (item.overdue) {
+    return days < 0
+      ? { key: 'billsPage.rows.daysOverdue', values: { count: -days } }
+      : { key: 'billsPage.rows.overdue' }
+  }
+  if (days > 0) return { key: 'billsPage.rows.inDays', values: { count: days } }
+
+  // Past its date locally while the server says it is not overdue. That used to mean only the skew
+  // above, the other way round, so the branch said "Due today" -- and it was right while "not
+  // overdue" implied "not yet past due".
+  //
+  // It stopped implying that: a REJECTED bill is excluded from overdue whatever its date, so a bill
+  // refused weeks ago read "Due today" on the Bills list (found 2026-09-24, from the fix that made
+  // the row agree with the summary card). The skew is bounded at one day, so a wider gap is never
+  // skew; a rejected bill is never skew either, at any width.
+  const cannotBeSkew = days < -1 || item.status === 'rejected'
+  return days < 0 && cannotBeSkew
+    ? { key: 'billsPage.rows.wasDue', values: { count: -days } }
+    : { key: 'billsPage.rows.dueToday' }
 }
 
 export type BillTabId = 'needsAttention' | 'all' | 'awaitingApproval' | 'approved' | 'onHold' | 'paid'

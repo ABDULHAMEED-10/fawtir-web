@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '../../../components/ui'
 import { TRANSFORM_PRESETS, type Requirement, type Target } from '../../../lib/erpCatalogue'
-import type { Entry, InvalidMapping, SampleKey } from '../../../lib/erpMapping'
+import type { GuidedMappingInvalidEntryDto } from '../../../api/erp/mapping'
+import type { DraftEntry } from '../../../lib/erp/draft'
+import type { SampleKey } from '../../../lib/erp/sample'
 import { SourcePathPicker } from './SourcePathPicker'
 import { TransformDisclosure } from './TransformDisclosure'
-import { rowId, useTermName } from './model'
+import { rowId, useMappingError, useTermName } from './model'
 import chevronIcon from '../../../assets/create-invoice/chevron.svg'
 
 const REQUIREMENT_TONE: Record<Requirement, string> = {
@@ -90,18 +92,16 @@ export function FieldRow({
   keys,
   hasSample,
   onChange,
-  onOpenValueMap,
   initialPickerOpen = false,
   flash = false,
   inGroup = false,
 }: {
   target: Target
-  entry?: Entry
-  errors: InvalidMapping[]
+  entry?: DraftEntry
+  errors: GuidedMappingInvalidEntryDto[]
   keys: SampleKey[]
   hasSample: boolean
-  onChange: (patch: Partial<Entry>) => void
-  onOpenValueMap: () => void
+  onChange: (patch: Partial<DraftEntry>) => void
   initialPickerOpen?: boolean
   /** Briefly lit after a checklist link scrolled here. */
   flash?: boolean
@@ -109,6 +109,7 @@ export function FieldRow({
   inGroup?: boolean
 }) {
   const { t } = useTranslation()
+  const mappingError = useMappingError()
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const pathError = errors.find((e) => e.errorCode === 'MALFORMED_SOURCE_PATH')
@@ -119,8 +120,10 @@ export function FieldRow({
   const showAdvanced = advancedOpen || Boolean(transformError)
 
   const sourcePath = entry?.sourcePath ?? ''
-  const hasValueMap = Boolean(target.codeList || target.lookup)
-  const pairCount = Object.keys(entry?.valueMap ?? {}).length
+  // A code field is where a value map would belong. The compiler has no field for one, so the
+  // affordance says so instead of opening an editor whose result could not be saved — see
+  // VALUE_MAPS in UNSUPPORTED_CAPABILITIES. A code-to-code translation goes in the transform.
+  const wantsValueMap = Boolean(target.codeList || target.lookup)
   const preset = TRANSFORM_PRESETS.find((p) => p.fragment === (entry?.transform ?? '').trim())
   const transformLabel =
     entry?.transform === undefined
@@ -159,7 +162,7 @@ export function FieldRow({
           onChange={(value) => onChange({ sourcePath: value })}
           keys={keys}
           hasSample={hasSample}
-          error={pathError ? t(`erp.error.${pathError.errorCode}`, pathError.values) : undefined}
+          error={pathError ? mappingError(pathError) : undefined}
           defaultOpen={initialPickerOpen}
         />
         <Input
@@ -175,21 +178,13 @@ export function FieldRow({
       </div>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
-        {hasValueMap ? (
-          <button
-            type="button"
-            onClick={onOpenValueMap}
-            className={[
-              'inline-flex h-[34px] items-center gap-1.5 rounded-sm border px-3 text-xs font-semibold transition-colors',
-              pairCount > 0
-                ? 'border-border-brand-subtle bg-primary-25 text-primary-800 hover:bg-primary-50'
-                : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
-            ].join(' ')}
+        {wantsValueMap ? (
+          <span
+            title={t('erp.unsupported.VALUE_MAPS')}
+            className="inline-flex h-[34px] cursor-not-allowed items-center gap-1.5 rounded-sm border border-border-subtle bg-surface-background px-3 text-xs font-semibold text-text-quaternary"
           >
-            {pairCount > 0
-              ? t('erp.fields.valueMapCount', { count: pairCount })
-              : t('erp.fields.valueMap')}
-          </button>
+            {t('erp.fields.valueMap')} · {t('erp.unsupported.notAvailable')}
+          </span>
         ) : null}
         <button
           type="button"
@@ -216,13 +211,9 @@ export function FieldRow({
 
       {showAdvanced ? (
         <TransformDisclosure
-          value={entry?.transform}
+          value={entry?.transform ?? undefined}
           onChange={(next) => onChange({ transform: next })}
-          error={
-            transformError
-              ? t(`erp.error.${transformError.errorCode}`, transformError.values)
-              : undefined
-          }
+          error={transformError ? mappingError(transformError) : undefined}
         />
       ) : null}
 
@@ -237,7 +228,7 @@ export function FieldRow({
                 aria-hidden="true"
                 className="mt-[7px] size-1.5 shrink-0 rounded-full bg-current"
               />
-              {t(`erp.error.${error.errorCode}`, error.values)}
+              {mappingError(error)}
             </li>
           ))}
         </ul>

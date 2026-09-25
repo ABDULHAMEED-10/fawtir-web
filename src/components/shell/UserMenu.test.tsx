@@ -77,7 +77,7 @@ describe('Sign out', () => {
   it('sends one logout carrying the CSRF token, then lands on Login', async () => {
     let release: (response: Response) => void = () => {}
     fetchMock.mockReturnValue(new Promise<Response>((resolve) => (release = resolve)))
-    holdLoginChallenge({ token: 'mfa.leftover', expiresAt: Date.now() + 60_000 })
+    holdLoginChallenge({ token: 'mfa.leftover', expiresAt: Date.now() + 60_000, factor: 'EMAIL_OTP', state: null })
     renderMenu()
     openMenu()
     fireEvent.click(signOutItem())

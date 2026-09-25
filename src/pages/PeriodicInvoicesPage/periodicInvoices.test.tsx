@@ -404,8 +404,8 @@ describe('Periodic invoices, wired to the API', () => {
     fireEvent.change(screen.getByLabelText('Description 1'), {
       target: { value: 'Cappuccino - Large' },
     })
-    fireEvent.change(screen.getByLabelText('Excl. 1'), { target: { value: '1.8' } })
-    fireEvent.blur(screen.getByLabelText('Excl. 1'), { target: { value: '1.8' } })
+    fireEvent.change(screen.getByLabelText('Price excl. 1'), { target: { value: '1.8' } })
+    fireEvent.blur(screen.getByLabelText('Price excl. 1'), { target: { value: '1.8' } })
     fireEvent.change(screen.getByLabelText('Quantity 1'), { target: { value: '12' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Start the schedule' }))

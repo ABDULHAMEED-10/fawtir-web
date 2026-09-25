@@ -299,12 +299,12 @@ describe('a credit note', () => {
       .closest('[role="status"]') as HTMLElement
     expect(within(refund).getByText('21.000')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Issue the credit note' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
     expect(await screen.findByText('Choose why the note is issued.')).toBeTruthy()
     expect(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/credit-notes`)).toHaveLength(0)
 
     chooseReason('Returned goods')
-    fireEvent.click(screen.getByRole('button', { name: 'Issue the credit note' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
 
     // Nothing opens over the page: the draft is saved and issued with the dates on the page.
     expect(await screen.findByText('credit note page')).toBeTruthy()

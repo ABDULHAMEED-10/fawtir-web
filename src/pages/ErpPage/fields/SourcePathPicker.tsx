@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Input, Popover } from '../../../components/ui'
 import { SOURCE_PATH, SOURCE_PATH_MAX } from '../../../lib/erpCatalogue'
-import type { SampleKey } from '../../../lib/erpMapping'
+import type { SampleKey } from '../../../lib/erp/sample'
 import searchIcon from '../../../assets/order-forms-v2/search.svg'
 import chevronIcon from '../../../assets/create-invoice/chevron.svg'
 

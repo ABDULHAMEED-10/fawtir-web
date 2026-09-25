@@ -11,7 +11,9 @@ import {
   confirmIntake,
   discardIntake,
   possibleDuplicateOf,
+  updateIntake,
   type ConfirmedBillDto,
+  type IntakeDocumentTypeDto,
   type IntakeDto,
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
@@ -24,7 +26,9 @@ import {
   blankLine,
   fromIntake,
   linesTotals,
+  savedDetails,
   toConfirmation,
+  toCorrections,
   totalDisagrees,
   type BillField,
   type BillForm,
@@ -62,12 +66,25 @@ export function BillIntakeForm({
   lockedSupplier,
   cancelTo,
   onSaved,
+  onKept,
+  documentTypeCode = '380',
 }: {
   intake: IntakeDto
   file: File
   lockedSupplier?: { id: string; name: string; vatNumber: string | null }
   cancelTo: string
   onSaved: (bill: ConfirmedBillDto) => void
+  /**
+   * Where to go once a half-typed bill is saved on the intake for later (`PUT`). Offered only
+   * when the caller can bring the person back to it — the Bills page lists unconfirmed uploads.
+   */
+  onKept?: () => void
+  /**
+   * What is being confirmed. The same form serves all three because the fields are the same —
+   * a supplier, a number, a date, lines and a total — but the type decides which way the money
+   * points, so it is stated by the caller rather than guessed from the file.
+   */
+  documentTypeCode?: IntakeDocumentTypeDto
 }) {
   const { t, i18n } = useTranslation()
   const [form, setForm] = useState<BillForm>(() => {
@@ -78,7 +95,7 @@ export function BillIntakeForm({
   const [errors, setErrors] = useState<BillProblems>({})
   const [notice, setNotice] = useState<string | null>(null)
   const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'confirm' | 'keep' | null>(null)
   const inFlight = useRef(false)
 
   const set = (patch: Partial<BillForm>) => {
@@ -109,33 +126,64 @@ export function BillIntakeForm({
       return
     }
     inFlight.current = true
-    setBusy(true)
+    setBusy('confirm')
     setNotice(null)
     try {
-      onSaved(await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf })))
+      onSaved(await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf, documentTypeCode })))
     } catch (failure) {
-      const same = possibleDuplicateOf(failure)
-      if (same) {
-        setDuplicate(same)
-      } else if (failure instanceof ApiError && failure.code && CONFIRM_REFUSALS[failure.code]) {
-        const refusal = CONFIRM_REFUSALS[failure.code]
-        if (refusal.field) setErrors({ [refusal.field]: refusal.key })
-        setNotice(refusal.field ? t('billIntake.fixFirst') : t(refusal.key))
-      } else if (failure instanceof ApiError && failure.fieldErrors.length > 0) {
-        const placed: BillProblems = {}
-        for (const entry of failure.fieldErrors) {
-          const field = entry.field.startsWith('lines') ? 'lines' : REQUEST_FIELDS[entry.field.split('.')[0]]
-          if (field) placed[field] = field === 'lines' ? 'billIntake.error.lines' : 'billIntake.error.refused'
-        }
-        setErrors(placed)
-        setNotice(t('billIntake.fixFirst'))
-      } else {
-        const described = describeApiFailure(failure)
-        setNotice(t(described.key, described.values))
-      }
+      refuse(failure)
     } finally {
       inFlight.current = false
-      setBusy(false)
+      setBusy(null)
+    }
+  }
+
+  /** Save what is typed so far on the intake and leave; the rest is filled in on coming back. */
+  const keep = async () => {
+    if (inFlight.current || !onKept) return
+    const problems = billProblems(form, { needsNumber: false, partial: true })
+    setErrors(problems)
+    if (Object.keys(problems).length > 0) {
+      setNotice(t('billIntake.fixFirst'))
+      return
+    }
+    inFlight.current = true
+    setBusy('keep')
+    setNotice(null)
+    try {
+      await updateIntake(intake.id, { extracted: toCorrections(form, vatNumber), documentTypeCode })
+      onKept()
+    } catch (failure) {
+      refuse(failure)
+    } finally {
+      inFlight.current = false
+      setBusy(null)
+    }
+  }
+
+  // The refusals are the intake's, not the action's: a confirm and a save-for-later fail the same
+  // ways — a field the server will not take, an intake already confirmed or gone. The update's
+  // field paths sit under `extracted.`, which is stripped so they land on the same inputs.
+  const refuse = (failure: unknown) => {
+    const same = possibleDuplicateOf(failure)
+    if (same) {
+      setDuplicate(same)
+    } else if (failure instanceof ApiError && failure.code && CONFIRM_REFUSALS[failure.code]) {
+      const refusal = CONFIRM_REFUSALS[failure.code]
+      if (refusal.field) setErrors({ [refusal.field]: refusal.key })
+      setNotice(refusal.field ? t('billIntake.fixFirst') : t(refusal.key))
+    } else if (failure instanceof ApiError && failure.fieldErrors.length > 0) {
+      const placed: BillProblems = {}
+      for (const entry of failure.fieldErrors) {
+        const path = entry.field.replace(/^extracted\./, '')
+        const field = path.startsWith('lines') ? 'lines' : REQUEST_FIELDS[path.split('.')[0]]
+        if (field) placed[field] = field === 'lines' ? 'billIntake.error.lines' : 'billIntake.error.refused'
+      }
+      setErrors(placed)
+      setNotice(t('billIntake.fixFirst'))
+    } else {
+      const described = describeApiFailure(failure)
+      setNotice(t(described.key, described.values))
     }
   }
 
@@ -157,7 +205,7 @@ export function BillIntakeForm({
 
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <p className="rounded-sm bg-primary-25 px-4 py-3 text-sm font-medium leading-[1.4] text-text-secondary">
-          {intake.extractionStatus === 'EXTRACTED' ? t('billIntake.checkFilled') : t('billIntake.typeItIn')}
+          {intake.extractionStatus === 'EXTRACTED' ? t('billIntake.checkFilled') : savedDetails(intake) ? t('billIntake.savedFilled') : t('billIntake.typeItIn')}
         </p>
         {notice ? <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
 
@@ -397,7 +445,7 @@ export function BillIntakeForm({
               </Link>
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy !== null}
                 onClick={() => void save(duplicate.billId)}
                 className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
               >
@@ -415,12 +463,22 @@ export function BillIntakeForm({
           >
             {t('billIntake.discard')}
           </Link>
+          {onKept ? (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => void keep()}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60"
+            >
+              {busy === 'keep' ? t('billIntake.saving') : t('billIntake.keep')}
+            </button>
+          ) : null}
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy !== null}
             className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
           >
-            {busy ? t('billIntake.saving') : t('uploadBill.saveBill')}
+            {busy === 'confirm' ? t('billIntake.saving') : t('uploadBill.saveBill')}
           </button>
         </div>
       </div>

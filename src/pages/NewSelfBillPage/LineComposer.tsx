@@ -6,11 +6,16 @@ import {
   ClassificationField,
   convertLinePrices,
   unitOptions,
-  type LineItem,
   type useLineTotals,
 } from '../../components/invoice'
-import { formatAmount, formatAtScale, parseAmount } from '../../lib/invoiceMath'
-import { unitsFor } from '../../lib/invoiceDraft'
+import { formatAtScale } from '../../lib/invoiceMath'
+import {
+  blankComposerLine,
+  defaultUnitFor,
+  normalisePrice,
+  type ComposerLine,
+  type LineKind,
+} from '../../lib/selfBillCreate'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
@@ -33,35 +38,7 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
  * screen is told not to have. The arithmetic is the same engine (`useLineTotals`).
  */
 
-export type LineKind = 'goods' | 'service'
-
-export type ComposerLine = LineItem & {
-  kind: LineKind
-  /** The Oman 12-digit HS code of a goods line (IBR-079-OM), from `lib/codeLists/hs`. */
-  hsCode?: string
-  /** The CL-12-OM service type of a service line (IBR-155-OM), from `lib/codeLists/serviceTypes`. */
-  serviceType?: string
-}
-
-export function blankComposerLine(id: string, vatRate = '5'): ComposerLine {
-  return {
-    id,
-    kind: 'goods',
-    description: '',
-    unitPrice: '0.000',
-    vatRate,
-    quantity: '1',
-    unit: 'EA',
-    discountType: 'PERCENTAGE',
-    discountValue: '0',
-  }
-}
-
-/** Three decimals, never below zero, and 0 when nothing readable was typed. */
-export function normalisePrice(raw: string): string {
-  const value = parseAmount(raw)
-  return formatAmount(value < 0n ? 0n : value, 3).replace(/,/g, '')
-}
+export type { ComposerLine, LineKind } from '../../lib/selfBillCreate'
 
 function FieldShell({ children, readOnly }: { children: ReactNode; readOnly?: boolean }) {
   return (
@@ -232,7 +209,7 @@ export function LineComposer({
                         onChange={(kind) =>
                           update(row.id, {
                             kind,
-                            unit: unitsFor(kind)[0],
+                            unit: defaultUnitFor(kind),
                             hsCode: undefined,
                             serviceType: undefined,
                           })

@@ -1,4 +1,4 @@
-import type { ConfirmIntakeDto, IntakeDto } from '../api/expenditure/billIntake'
+import type { ConfirmIntakeDto, IntakeCorrectionsDto, IntakeDto } from '../api/expenditure/billIntake'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 
 /**
@@ -63,10 +63,13 @@ export function blankBillForm(): BillForm {
 const text = (value: string | null | undefined) => (value ?? '').trim()
 const amount = (value: number | null | undefined) => (value === null || value === undefined ? '' : String(value))
 
-/** What an XML bill carried, as starting values. A PDF or photo has nothing, so the form stays blank. */
+/**
+ * What an XML bill carried, or what a person saved on the intake earlier, as starting values. A
+ * fresh PDF or photo has nothing, so the form stays blank.
+ */
 export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()): BillForm {
   const read = intake.extracted
-  if (intake.extractionStatus !== 'EXTRACTED' || !read) return base
+  if (!read) return base
   return {
     ...base,
     supplierName: base.supplierId ? base.supplierName : text(read.supplierName) || base.supplierName,
@@ -76,14 +79,28 @@ export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()):
     currency: read.currency ?? base.currency,
     vat: amount(read.vat) || base.vat,
     total: amount(read.total) || base.total,
-    lines: read.lines.map((line) => ({
-      ...blankLine(),
-      description: text(line.description),
-      quantity: amount(line.quantity) || '1',
-      unitPrice: amount(line.unitPrice),
-      vatRate: amount(line.vatRate) || '0',
-    })),
+    lines:
+      read.lines.length > 0
+        ? read.lines.map((line) => ({
+            ...blankLine(),
+            description: text(line.description),
+            quantity: amount(line.quantity) || '1',
+            unitPrice: amount(line.unitPrice),
+            vatRate: amount(line.vatRate) || '0',
+          }))
+        : base.lines,
   }
+}
+
+/**
+ * Whether a person saved details on this intake earlier: the server marks every field a
+ * correction carried, so a saved-and-resumed PDF has marks where a fresh one has none. An XML
+ * bill's marks are the extractor's, told apart by its status.
+ */
+export function savedDetails(intake: IntakeDto): boolean {
+  const read = intake.extracted
+  if (!read || intake.extractionStatus === 'EXTRACTED') return false
+  return Object.values(read.confidence).some(Boolean) || read.lines.length > 0
 }
 
 /** Plain `123.450` for the API; the engine's own string groups thousands for display. */
@@ -133,22 +150,24 @@ export function totalDisagrees(form: BillForm): boolean {
  * What the server would refuse, said before sending. `needsNumber` is the bill pages' rule: a
  * supplier's bill always carries a number, and the duplicate check needs it. A receipt may not.
  */
-export function billProblems(form: BillForm, { needsNumber }: { needsNumber: boolean }): BillProblems {
+export function billProblems(form: BillForm, { needsNumber, partial = false }: { needsNumber: boolean; partial?: boolean }): BillProblems {
   const problems: BillProblems = {}
-  if (!form.supplierId && !form.supplierName.trim()) problems.supplier = 'billIntake.error.supplier'
-  if (needsNumber && !form.billNumber.trim()) problems.billNumber = 'validation.required'
-  if (!form.issueDate) problems.issueDate = 'validation.required'
+  // A bill kept for later may be half typed; what it may not be is malformed, because the server
+  // would refuse the figures and the person would only find out on coming back.
+  if (!partial && !form.supplierId && !form.supplierName.trim()) problems.supplier = 'billIntake.error.supplier'
+  if (!partial && needsNumber && !form.billNumber.trim()) problems.billNumber = 'validation.required'
+  if (!partial && !form.issueDate) problems.issueDate = 'validation.required'
   if (form.issueDate && form.dueDate && form.dueDate < form.issueDate) problems.dueDate = 'billIntake.error.dueBeforeIssue'
-  if (!form.currency) problems.currency = 'validation.required'
+  if (!partial && !form.currency) problems.currency = 'validation.required'
   const total = form.total.trim()
-  if (!total) problems.total = 'validation.required'
-  else if (!MONEY.test(total)) problems.total = 'billIntake.error.amount'
+  if (!total && !partial) problems.total = 'validation.required'
+  else if (total && !MONEY.test(total)) problems.total = 'billIntake.error.amount'
   const vat = form.vat.trim()
   if (vat && !MONEY.test(vat)) problems.vat = 'billIntake.error.amount'
   else if (vat && MONEY.test(total) && Number(vat) > Number(total)) problems.vat = 'billIntake.error.vatOverTotal'
   const badLine = form.lines.some(
     (line) =>
-      !line.description.trim() ||
+      (!partial && !line.description.trim()) ||
       !QUANTITY.test(line.quantity.trim()) ||
       Number(line.quantity) <= 0 ||
       !MONEY.test(line.unitPrice.trim()) ||
@@ -163,6 +182,11 @@ export type ConfirmExtras = {
   category?: string | null
   paidOnTheSpot?: ConfirmIntakeDto['paidOnTheSpot']
   notDuplicateOf?: string | null
+  /**
+   * Defaults to a bill. A caller confirming a supplier's credit or debit note states it, because
+   * the same intake takes all three and the type is what decides which way the money points.
+   */
+  documentTypeCode?: ConfirmIntakeDto['documentTypeCode']
 }
 
 export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): ConfirmIntakeDto {
@@ -171,7 +195,7 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
   return {
     supplierId: form.supplierId,
     supplierName: orNull(form.supplierName),
-    documentTypeCode: '380',
+    documentTypeCode: extras.documentTypeCode ?? '380',
     billNumber: orNull(form.billNumber),
     issueDate: form.issueDate,
     dueDate: form.dueDate || null,
@@ -192,6 +216,36 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     category: extras.category ?? null,
     paidOnTheSpot: extras.paidOnTheSpot ?? null,
     notDuplicateOf: extras.notDuplicateOf ?? null,
+  }
+}
+
+/**
+ * The form as corrections on the intake (`PUT`): whatever is typed, well-formed figures as numbers
+ * and the rest null. Called after `billProblems(…, { partial: true })`, which is what keeps the
+ * line arithmetic below off malformed input. The lines' nets come through the same engine as a
+ * confirmation's.
+ */
+export function toCorrections(form: BillForm, supplierVatNumber: string | null): IntakeCorrectionsDto {
+  const totals = linesTotals(form.lines)
+  const orNull = (value: string) => (value.trim() ? value.trim() : null)
+  const money = (value: string) => (MONEY.test(value.trim()) ? Number(value.trim()) : null)
+  return {
+    supplierName: orNull(form.supplierName),
+    supplierVatNumber,
+    billNumber: orNull(form.billNumber),
+    issueDate: form.issueDate || null,
+    dueDate: form.dueDate || null,
+    currency: form.currency || null,
+    net: totals ? Number(totals.net) : null,
+    vat: money(form.vat),
+    total: money(form.total),
+    lines: form.lines.map((line, index) => ({
+      description: orNull(line.description),
+      quantity: QUANTITY.test(line.quantity.trim()) ? Number(line.quantity.trim()) : null,
+      unitPrice: money(line.unitPrice),
+      vatRate: RATE.test(line.vatRate.trim()) ? Number(line.vatRate.trim()) : null,
+      amount: totals ? Number(totals.lineNets[index]) : null,
+    })),
   }
 }
 

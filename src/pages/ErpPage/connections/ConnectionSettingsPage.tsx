@@ -1,464 +1,466 @@
 import { useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Button, Checkbox, Input, Modal, Select, Switch } from '../../../components/ui'
-import { Pill } from '../ErpShell'
-import { Mono, PRIMARY_BUTTON, SMALL_BUTTON, SectionCard } from '../overview/idiom'
-import { ConnectionShell, useConnection } from './ConnectionShell'
-import { DangerZone, PauseResumeButton, Strip, dateTime } from './detailShared'
+import { SettingsShell } from '../../SettingsPage/SettingsShell'
+import { PRIMARY_BUTTON, SECONDARY_BUTTON, SectionCard } from '../overview/idiom'
+import { SelectField, TextAreaField, TextField } from '../../../components/form/FormFields'
 import {
-  AUTH_KINDS,
-  CREDENTIAL_FIELDS,
-  PRODUCT_FIELDS,
-  SCHEDULES,
-  connectorStore,
-  type AuthKind,
-  type Connection,
-  type ScheduleMinutes,
-  type Scope,
-  type TestResult,
-} from '../../../lib/erpConnector'
+  ApiReadFailure,
+  LoadingNotice,
+  PermissionDeniedNotice,
+} from '../../../components/feedback/ApiNotice'
+import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
+import { ConnectionFailure, ConnectionNotice } from './connectionParts'
+import { useConnectionDetail, useMutation } from './connectionData'
+import { useErpAccess } from '../../../hooks/useErpAccess'
+import { useLanguage } from '../../../hooks'
+import { isNotFound } from '../../../lib/apiFailure'
+import {
+  erpConnectionControls,
+  isProbeableCredentialType,
+} from '../../../lib/erp/connectionPolicy'
+import { formatInstant } from '../../../lib/format'
+import {
+  storeErpCredential,
+  updateErpConnection,
+  type ErpConnectionDto,
+  type ErpCredentialType,
+  type ErpTransportType,
+} from '../../../api/erp/connections'
+
+const TRANSPORTS: ErpTransportType[] = ['REST', 'JDBC', 'FILE', 'SOAP']
+const CREDENTIAL_TYPES: ErpCredentialType[] = [
+  'BASIC_AUTH',
+  'API_TOKEN',
+  'OAUTH2_CLIENT_CREDENTIALS',
+  'SSH_PRIVATE_KEY',
+]
 
 /**
- * Settings › Integration › Connected systems › connection › Settings (docs/erp-and-console-plan.md
- * §3, Appendix B "Detail · Settings").
+ * A connection's editable configuration and its sign-in details.
  *
- * Three cards: the connection's own fields with one Save; the credentials — never shown, only
- * described — with Test now and Replace; and the danger zone. Replacing credentials is the way a
- * connection in ERROR comes back: the new secret is tested at once and a pass clears the error.
+ * Two cards behind two different permissions, because the backend draws them separately:
+ * `erp.connection.manage` edits the configuration and `erp.credential.replace` writes the secret.
+ * Someone holding only the first sees the form but not the credential card — manage does not
+ * imply secret administration, and implying otherwise here would be the one place a user could
+ * infer a capability they do not have.
  */
 export function ConnectionSettingsPage() {
-  const connection = useConnection()
+  const { id } = useParams<{ id: string }>()
+  const { access, ready } = useErpAccess()
+  const { read, connection, reload } = useConnectionDetail(ready && access.read ? id : undefined)
+
+  if (!ready) {
+    return (
+      <SettingsShell group="integration">
+        <LoadingNotice />
+      </SettingsShell>
+    )
+  }
+  if (!access.read) {
+    return (
+      <SettingsShell group="integration">
+        <PermissionDeniedNotice />
+      </SettingsShell>
+    )
+  }
+  // Last good first, so the refresh after a save or a credential write does not unmount the form
+  // and throw away the confirmation it was about to show.
+  if (connection === null) {
+    if (read.status === 'failed') {
+      if (isNotFound(read.error)) return <ConnectionNotFound />
+      return (
+        <SettingsShell group="integration">
+          <ApiReadFailure error={read.error} retry={reload} />
+        </SettingsShell>
+      )
+    }
+    return (
+      <SettingsShell group="integration">
+        <LoadingNotice />
+      </SettingsShell>
+    )
+  }
+
   return (
     <ConnectionShell connection={connection}>
-      {connection ? (
-        <>
-          <ConnectionForm connection={connection} />
-          <CredentialsCard connection={connection} />
-          <DangerZone connection={connection}>
-            <PauseResumeButton connection={connection} className={SMALL_BUTTON} />
-          </DangerZone>
-        </>
-      ) : null}
+      <div className="flex flex-col gap-5">
+        <EditForm connection={connection} reload={reload} />
+        <CredentialCard connection={connection} reload={reload} />
+      </div>
     </ConnectionShell>
   )
 }
 
-const isHttps = (url: string) => /^https:\/\/[^\s/]+\.[^\s/]+/i.test(url.trim())
-
-function ConnectionForm({ connection: c }: { connection: Connection }) {
+/**
+ * The editable half.
+ *
+ * `sourceSystem` and `connectionMode` are shown as read-only facts rather than disabled inputs:
+ * the update request has no field for either, so a disabled input would imply a control that could
+ * one day be enabled, when in fact changing either means archiving and re-creating.
+ *
+ * `expectedVersion` is the version the read returned, so a save refuses rather than overwrites if
+ * somebody else changed the row meanwhile. On that refusal the form keeps what the user typed —
+ * losing their edit in order to tell them about somebody else's would be its own bug.
+ */
+function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload: () => void }) {
   const { t } = useTranslation()
-  const [label, setLabel] = useState(c.label)
-  const [baseUrl, setBaseUrl] = useState(c.baseUrl)
-  const [schedule, setSchedule] = useState<ScheduleMinutes>(c.scheduleMinutes)
-  const [write, setWrite] = useState(c.scopes.includes('WRITE'))
-  const [writeBack, setWriteBack] = useState(c.writeBackEnabled)
-  const [saved, setSaved] = useState(false)
-  const [touched, setTouched] = useState(false)
+  const { access } = useErpAccess()
+  const controls = erpConnectionControls(connection, access)
+  const mutation = useMutation()
 
-  // Another screen (or the store) may change the connection; the form follows unless it is mid-edit.
+  const [name, setName] = useState(connection.name)
+  const [sourceVersion, setSourceVersion] = useState(connection.sourceVersion ?? '')
+  const [transport, setTransport] = useState<ErpTransportType | ''>(connection.transportType ?? '')
+  const [endpoint, setEndpoint] = useState(connection.endpoint ?? '')
+  const [configuration, setConfiguration] = useState(connection.configuration ?? '')
+
+  // Re-seed from the server after a successful save or an outside reload, but never while a
+  // refusal is on screen: that is exactly when the user's unsaved values must survive.
   useEffect(() => {
-    if (touched) return
-    setLabel(c.label)
-    setBaseUrl(c.baseUrl)
-    setSchedule(c.scheduleMinutes)
-    setWrite(c.scopes.includes('WRITE'))
-    setWriteBack(c.writeBackEnabled)
-  }, [c, touched])
+    if (mutation.error !== null) return
+    setName(connection.name)
+    setSourceVersion(connection.sourceVersion ?? '')
+    setTransport(connection.transportType ?? '')
+    setEndpoint(connection.endpoint ?? '')
+    setConfiguration(connection.configuration ?? '')
+  }, [connection, mutation.error])
 
-  const labelError =
-    touched && !label.trim() ? t('erp.connector.settingsTab.form.labelRequired') : undefined
-  const urlError =
-    touched && !isHttps(baseUrl) ? t('erp.connector.settingsTab.form.urlHttps') : undefined
-  const scopes: Scope[] = write ? ['READ', 'WRITE'] : ['READ']
-  const dirty =
-    label !== c.label ||
-    baseUrl !== c.baseUrl ||
-    schedule !== c.scheduleMinutes ||
-    scopes.join() !== c.scopes.join() ||
-    (write && writeBack) !== c.writeBackEnabled
-  const readOnly = c.state === 'DISCONNECTED'
-
-  const save = () => {
-    setTouched(true)
-    if (!label.trim() || !isHttps(baseUrl)) return
-    connectorStore.update(c.id, {
-      label: label.trim(),
-      baseUrl: baseUrl.trim(),
-      scheduleMinutes: schedule,
-      scopes,
-      writeBackEnabled: write && writeBack,
-    })
-    setTouched(false)
-    setSaved(true)
+  async function save(event: React.FormEvent) {
+    event.preventDefault()
+    const saved = await mutation.run('save', () =>
+      updateErpConnection(connection.id, {
+        name: name.trim(),
+        sourceVersion: sourceVersion.trim() === '' ? null : sourceVersion.trim(),
+        transportType: transport === '' ? null : transport,
+        endpoint: endpoint.trim() === '' ? null : endpoint.trim(),
+        configuration: configuration.trim() === '' ? null : configuration.trim(),
+        expectedVersion: connection.version,
+      }),
+    )
+    if (saved !== undefined) reload()
   }
 
-  const edit =
-    <T,>(setter: (v: T) => void) =>
-    (v: T) => {
-      setTouched(true)
-      setSaved(false)
-      setter(v)
-    }
+  if (!controls.canEdit) {
+    return (
+      <SectionCard title={t('erp.connections.edit.heading')}>
+        <p className="p-5 pt-0 text-sm font-medium text-text-quaternary">
+          {connection.state === 'ARCHIVED'
+            ? t('erp.connections.stateHint.ARCHIVED')
+            : t('erp.connections.permission.readOnly')}
+        </p>
+      </SectionCard>
+    )
+  }
 
+  const busy = mutation.busy === 'save'
   return (
-    <SectionCard
-      title={t('erp.connector.settingsTab.form.title')}
-      note={t('erp.connector.settingsTab.form.note')}
-    >
-      <form
-        className="border-t border-surface-background p-5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          save()
-        }}
-      >
-        {saved ? (
-          <div className="mb-5">
-            <Strip tone="success">{t('erp.connector.settingsTab.form.saved')}</Strip>
-          </div>
-        ) : null}
-        <div className="grid gap-5 md:grid-cols-2">
-          <Input
-            bordered
-            label={t('erp.connector.settingsTab.form.label')}
-            value={label}
-            disabled={readOnly}
-            onChange={(e) => edit(setLabel)(e.target.value)}
-            error={labelError}
+    <form onSubmit={save} className="flex flex-col gap-5">
+      <ConnectionFailure error={mutation.error} onReload={reload} />
+      {mutation.done === 'save' && mutation.error === null ? (
+        <ConnectionNotice>{t('erp.connections.edit.saved')}</ConnectionNotice>
+      ) : null}
+
+      <SectionCard title={t('erp.connections.edit.heading')} note={t('erp.connections.edit.intro')}>
+        <div className="grid gap-5 p-5 pt-0 md:grid-cols-2">
+          <TextField
+            id="erp-edit-name"
+            name="name"
+            label={t('erp.connections.create.name')}
+            required
+            maxLength={120}
+            value={name}
+            onChange={setName}
           />
-          <Input
-            bordered
-            dir="ltr"
-            label={t('erp.connector.settingsTab.form.url')}
-            value={baseUrl}
-            disabled={readOnly}
-            inputMode="url"
-            placeholder="https://"
-            onChange={(e) => edit(setBaseUrl)(e.target.value)}
-            error={urlError}
-            hint={urlError ? undefined : t('erp.connector.settingsTab.form.urlHint')}
-            className="font-mono"
+          <TextField
+            id="erp-edit-version"
+            name="sourceVersion"
+            label={t('erp.connections.create.sourceVersion')}
+            maxLength={40}
+            value={sourceVersion}
+            onChange={setSourceVersion}
           />
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-text-primary">
-              {t('erp.connector.settingsTab.form.schedule')}
-            </span>
-            <Select
-              ariaLabel={t('erp.connector.settingsTab.form.schedule')}
-              value={String(schedule)}
-              disabled={readOnly}
-              onChange={(v) => edit(setSchedule)(Number(v) as ScheduleMinutes)}
-              options={SCHEDULES.map((m) => ({
-                value: String(m),
-                label: t(`erp.connector.schedule.${m}`),
-              }))}
+          <SelectField
+            id="erp-edit-transport"
+            name="transportType"
+            label={t('erp.connections.create.transport')}
+            options={TRANSPORTS.map((value) => ({
+              value,
+              label: t(`erp.connections.transport.${value}`),
+            }))}
+            value={transport}
+            onChange={(next) => setTransport(next as ErpTransportType)}
+          />
+          <TextField
+            id="erp-edit-endpoint"
+            name="endpoint"
+            label={t('erp.connections.create.endpoint')}
+            hint={t('erp.connections.create.endpointHint')}
+            maxLength={2048}
+            value={endpoint}
+            onChange={setEndpoint}
+          />
+          <div className="md:col-span-2">
+            <TextAreaField
+              id="erp-edit-configuration"
+              name="configuration"
+              label={t('erp.connections.create.configuration')}
+              value={configuration}
+              onChange={setConfiguration}
+              maxLength={8192}
             />
-            <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
-              {t('erp.connector.settingsTab.form.scheduleHint')}
+            <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('erp.connections.create.configurationHint')}
             </p>
           </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-text-primary">
-              {t('erp.connector.settingsTab.form.scopes')}
-            </span>
-            <div className="flex min-h-[50px] flex-wrap items-center gap-x-6 gap-y-2 rounded-sm border border-border-default px-4">
-              <Checkbox
-                label={t('erp.connector.settingsTab.form.scopeRead')}
-                checked
-                disabled
-                readOnly
-              />
-              <Checkbox
-                label={t('erp.connector.settingsTab.form.scopeWrite')}
-                checked={write}
-                disabled={readOnly}
-                onChange={(e) => {
-                  edit(setWrite)(e.target.checked)
-                  if (!e.target.checked) setWriteBack(false)
-                }}
-              />
+          <div className="md:col-span-2 grid gap-4 rounded-md bg-surface-background p-4 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+                {t('erp.connections.edit.lockedSystem')}
+              </p>
+              <p className="mt-1 text-sm font-medium text-text-secondary">
+                {connection.sourceSystem}
+              </p>
             </div>
-            <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
-              {t('erp.connector.settingsTab.form.scopesHint')}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+                {t('erp.connections.edit.lockedMode')}
+              </p>
+              <p className="mt-1 text-sm font-medium text-text-secondary">
+                {t(`erp.connections.mode.${connection.connectionMode}`)}
+              </p>
+            </div>
+            <p className="md:col-span-2 text-xs font-medium leading-[1.5] text-text-quaternary">
+              {t('erp.connections.edit.lockedWhy')}
             </p>
           </div>
         </div>
+      </SectionCard>
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-background/60 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-text-primary">
-              {t('erp.connector.settingsTab.form.writeBack')}
-            </p>
-            <p className="text-xs font-medium leading-[1.4] text-text-quaternary">
-              {write
-                ? t('erp.connector.settingsTab.form.writeBackHint')
-                : t('erp.connector.settingsTab.form.writeBackNeedsWrite')}
-            </p>
-          </div>
-          <Switch
-            checked={write && writeBack}
-            disabled={!write || readOnly}
-            label={t('erp.connector.settingsTab.form.writeBack')}
-            onChange={edit(setWriteBack)}
-          />
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button type="submit" disabled={readOnly || !dirty} className={PRIMARY_BUTTON}>
-            {t('erp.connector.settingsTab.form.save')}
-          </button>
-          <span className="text-xs font-medium leading-[1.5] text-text-quaternary">
-            {t('erp.connector.settingsTab.form.saveNote')}
-          </span>
-        </div>
-      </form>
-    </SectionCard>
-  )
-}
-
-function CredentialsCard({ connection: c }: { connection: Connection }) {
-  const { t } = useTranslation()
-  const [tested, setTested] = useState<TestResult | null>(null)
-  const [replacing, setReplacing] = useState(false)
-  const [rotated, setRotated] = useState<TestResult | null>(null)
-  const last = c.lastTest
-  const readOnly = c.state === 'DISCONNECTED'
-
-  const testLine = (result: TestResult) =>
-    result.ok
-      ? t('erp.connector.settingsTab.credentials.testOk', {
-          date: dateTime(result.at),
-          latency: result.latencyMs ?? 0,
-          version: result.erpVersion ?? '',
-        })
-      : `${t('erp.connector.settingsTab.credentials.testFailed', { date: dateTime(result.at) })} ${t(
-          `erp.connector.testError.${result.errorCode ?? 'UNREACHABLE'}`,
-        )}`
-
-  return (
-    <SectionCard
-      title={t('erp.connector.settingsTab.credentials.title')}
-      note={t('erp.connector.settingsTab.credentials.note')}
-      actions={
-        <>
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => {
-              setRotated(null)
-              setTested(connectorStore.test(c.id))
-            }}
-            className={SMALL_BUTTON}
-          >
-            {t('erp.connector.settingsTab.credentials.testNow')}
-          </button>
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => setReplacing(true)}
-            className={SMALL_BUTTON}
-          >
-            {t('erp.connector.settingsTab.credentials.replace')}
-          </button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4 border-t border-surface-background p-5">
-        {rotated ? (
-          <Strip tone={rotated.ok ? 'success' : 'danger'}>
-            {rotated.ok
-              ? t('erp.connector.settingsTab.credentials.rotated', {
-                  latency: rotated.latencyMs ?? 0,
-                })
-              : t('erp.connector.settingsTab.credentials.rotationFailed', {
-                  reason: t(`erp.connector.testError.${rotated.errorCode ?? 'UNREACHABLE'}`),
-                })}
-          </Strip>
-        ) : tested ? (
-          <Strip tone={tested.ok ? 'success' : 'danger'}>{testLine(tested)}</Strip>
-        ) : null}
-
-        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-              {t('erp.connector.settingsTab.credentials.signsInWith')}
-            </dt>
-            <dd className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold text-text-primary">
-              <span>{t(`erp.connector.authKind.${c.authKind}`)}</span>
-              <Mono className="text-text-tertiary">{c.credentialHint}</Mono>
-            </dd>
-          </div>
-          <div className="flex flex-col gap-1">
-            <dt className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-              {t('erp.connector.settingsTab.credentials.lastTest')}
-            </dt>
-            <dd className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-secondary">
-              {last ? (
-                <>
-                  <Pill
-                    tone={last.ok ? 'success' : 'danger'}
-                    label={
-                      last.ok
-                        ? t('erp.connector.settingsTab.credentials.ok')
-                        : t('erp.connector.settingsTab.credentials.error')
-                    }
-                  />
-                  <span>{testLine(last)}</span>
-                </>
-              ) : (
-                t('erp.connector.settingsTab.credentials.neverTested')
-              )}
-            </dd>
-          </div>
-          {last?.ok && last.grantedScopes ? (
-            <div className="flex flex-col gap-1">
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-                {t('erp.connector.settingsTab.credentials.granted')}
-              </dt>
-              <dd className="flex flex-wrap gap-1.5">
-                {last.grantedScopes.map((s) => (
-                  <Pill key={s} tone="neutral" label={t(`erp.connector.scope.${s}`)} />
-                ))}
-              </dd>
-            </div>
-          ) : null}
-          {last?.ok && last.company ? (
-            <div className="flex flex-col gap-1">
-              <dt className="text-[10px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-                {t('erp.connector.settingsTab.credentials.company')}
-              </dt>
-              <dd className="text-sm font-semibold text-text-primary">{last.company}</dd>
-            </div>
-          ) : null}
-        </dl>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <button type="submit" className={PRIMARY_BUTTON} disabled={busy || name.trim() === ''}>
+          {busy ? t('erp.connections.edit.saving') : t('erp.connections.edit.save')}
+        </button>
       </div>
-
-      <ReplaceCredentialsModal
-        open={replacing}
-        connection={c}
-        onClose={() => setReplacing(false)}
-        onDone={(result) => {
-          setTested(null)
-          setRotated(result)
-          if (result.ok) setReplacing(false)
-        }}
-      />
-    </SectionCard>
+    </form>
   )
 }
 
-const SECRET_FIELDS = new Set(['apiKey', 'password', 'clientSecret', 'apiSecret'])
-
-/** The non-secret hint the screens keep of a credential: the login and the key's tail. */
-function buildHint(kind: AuthKind, values: Record<string, string>) {
-  const tail = (v?: string) => (v && v.length >= 4 ? `····${v.slice(-4)}` : '····')
-  const parts: string[] = []
-  if (values.username?.trim()) parts.push(values.username.trim())
-  if (kind === 'API_KEY') parts.push(`key ${tail(values.apiKey)}`)
-  if (kind === 'OAUTH2_CLIENT' || kind === 'OAUTH2_AUTHCODE')
-    parts.push(`client ${tail(values.clientId)}`)
-  return parts.join(' · ') || '—'
-}
-
-function ReplaceCredentialsModal({
-  open,
-  connection: c,
-  onClose,
-  onDone,
+/**
+ * The write-only credential half.
+ *
+ * What is shown of an existing credential: that one is configured, its kind, its caller-supplied
+ * label and when it was last replaced. Never the secret — there is no endpoint that returns it and
+ * no field on any response that could carry it, so "show saved password" is not a feature that was
+ * left out, it is one that cannot exist.
+ *
+ * The secret lives in this component's state for exactly as long as it takes to submit, and is
+ * cleared on success. It is never written to `localStorage`, `sessionStorage`, a query string, a
+ * URL, a log or any store that outlives the form.
+ */
+function CredentialCard({
+  connection,
+  reload,
 }: {
-  open: boolean
-  connection: Connection
-  onClose: () => void
-  onDone: (result: TestResult) => void
+  connection: ErpConnectionDto
+  reload: () => void
 }) {
   const { t } = useTranslation()
-  const kinds = AUTH_KINDS[c.product]
-  const [kind, setKind] = useState<AuthKind>(c.authKind)
-  const [values, setValues] = useState<Record<string, string>>({})
-  const [result, setResult] = useState<TestResult | null>(null)
-  const [tried, setTried] = useState(false)
+  const { language } = useLanguage()
+  const { access } = useErpAccess()
+  const controls = erpConnectionControls(connection, access)
+  const mutation = useMutation()
 
-  useEffect(() => {
-    if (!open) return
-    setKind(c.authKind)
-    setValues({ database: c.database ?? '' })
-    setResult(null)
-    setTried(false)
-  }, [open, c.authKind, c.database])
+  const [open, setOpen] = useState(false)
+  const [type, setType] = useState<ErpCredentialType>(connection.credentialType ?? 'BASIC_AUTH')
+  const [secret, setSecret] = useState('')
+  const [hint, setHint] = useState('')
 
-  const fields = [...CREDENTIAL_FIELDS[kind], ...(PRODUCT_FIELDS[c.product] ?? [])].filter(
-    (f, i, all) => all.indexOf(f) === i,
-  )
-  const missing = fields.filter((f) => !values[f]?.trim())
-
-  const submit = () => {
-    setTried(true)
-    if (missing.length) return
-    const outcome = connectorStore.rotateCredentials(c.id, kind, buildHint(kind, values))
-    setResult(outcome)
-    onDone(outcome)
+  function close() {
+    // Clearing on cancel as well as on success: a secret typed and abandoned must not sit in
+    // component state waiting for the next time the panel opens.
+    setSecret('')
+    setHint('')
+    setOpen(false)
+    mutation.clear()
   }
 
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={t('erp.connector.settingsTab.replace.title')}
-      subtitle={t('erp.connector.settingsTab.replace.subtitle')}
-      width={520}
-      footer={
-        <div className="flex flex-wrap justify-end gap-2.5">
-          <Button type="button" size="md" variant="secondary" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button type="button" size="md" onClick={submit}>
-            {t('erp.connector.settingsTab.replace.confirm')}
-          </Button>
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    const stored = await mutation.run('credential', () =>
+      storeErpCredential(connection.id, {
+        credentialType: type,
+        secret,
+        hint: hint.trim() === '' ? null : hint.trim(),
+        expectedVersion: connection.version,
+      }),
+    )
+    if (stored !== undefined) {
+      // Cleared the moment the write is acknowledged, before the reload. The response carries
+      // metadata only, so there is nothing to put back into the field even if we wanted to.
+      setSecret('')
+      setHint('')
+      setOpen(false)
+      reload()
+    }
+  }
+
+  const facts = (
+    <dl className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+      <div>
+        <dt className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+          {t('erp.connections.credential.heading')}
+        </dt>
+        <dd className="mt-1 text-sm font-medium text-text-secondary">
+          {connection.credentialConfigured
+            ? t('erp.connections.credential.configured')
+            : t('erp.connections.credential.notConfigured')}
+        </dd>
+      </div>
+      {connection.credentialType !== null ? (
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+            {t('erp.connections.credential.type')}
+          </dt>
+          <dd className="mt-1 text-sm font-medium text-text-secondary">
+            {t(`erp.connections.credentialType.${connection.credentialType}`)}
+          </dd>
         </div>
+      ) : null}
+      {connection.credentialHint !== null ? (
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+            {t('erp.connections.credential.hint')}
+          </dt>
+          <dd className="mt-1 text-sm font-medium text-text-secondary">
+            {connection.credentialHint}
+          </dd>
+        </div>
+      ) : null}
+      {connection.credentialConfigured ? (
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary">
+            {t('erp.connections.credential.rotated')}
+          </dt>
+          <dd className="mt-1 text-sm font-medium text-text-secondary">
+            {connection.credentialRotatedAt === null
+              ? t('erp.connections.credential.never')
+              : formatInstant(connection.credentialRotatedAt, language)}
+          </dd>
+        </div>
+      ) : null}
+    </dl>
+  )
+
+  if (!access.credential) {
+    return (
+      <SectionCard title={t('erp.connections.credential.heading')}>
+        <div className="flex flex-col gap-3 p-5 pt-0">
+          {facts}
+          <p className="text-sm font-medium text-text-quaternary">
+            {t('erp.connections.permission.noCredential')}
+          </p>
+        </div>
+      </SectionCard>
+    )
+  }
+
+  const busy = mutation.busy === 'credential'
+  return (
+    <SectionCard
+      title={t('erp.connections.credential.heading')}
+      actions={
+        controls.canConfigureCredential && !open ? (
+          <button type="button" className={SECONDARY_BUTTON} onClick={() => setOpen(true)}>
+            {connection.credentialConfigured
+              ? t('erp.connections.credential.replace')
+              : t('erp.connections.credential.configure')}
+          </button>
+        ) : undefined
       }
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-text-primary">
-            {t('erp.connector.settingsTab.replace.kind')}
-          </span>
-          <Select
-            ariaLabel={t('erp.connector.settingsTab.replace.kind')}
-            value={kind}
-            onChange={(v) => {
-              setKind(v as AuthKind)
-              setResult(null)
-            }}
-            options={kinds.map((k) => ({ value: k, label: t(`erp.connector.authKind.${k}`) }))}
-          />
-        </div>
-        {fields.map((field) => (
-          <Input
-            key={field}
-            bordered
-            dir="ltr"
-            label={t(`erp.connector.settingsTab.replace.field.${field}`)}
-            type={SECRET_FIELDS.has(field) ? 'password' : 'text'}
-            autoComplete="off"
-            value={values[field] ?? ''}
-            onChange={(e) => setValues((v) => ({ ...v, [field]: e.target.value }))}
-            error={
-              tried && !values[field]?.trim()
-                ? t('erp.connector.settingsTab.replace.required')
-                : undefined
-            }
-          />
-        ))}
-        {result && !result.ok ? (
-          <Strip tone="danger">
-            {t('erp.connector.settingsTab.credentials.rotationFailed', {
-              reason: t(`erp.connector.testError.${result.errorCode ?? 'UNREACHABLE'}`),
-            })}
-          </Strip>
-        ) : (
-          <Strip tone="neutral">{t('erp.connector.settingsTab.replace.note')}</Strip>
-        )}
+      <div className="flex flex-col gap-4 p-5 pt-0">
+        {facts}
+
+        {mutation.done === 'credential' && !open && mutation.error === null ? (
+          <ConnectionNotice>{t('erp.connections.credential.saved')}</ConnectionNotice>
+        ) : null}
+
+        {open ? (
+          <form onSubmit={submit} className="flex flex-col gap-4 rounded-md bg-surface-background p-4">
+            <ConnectionFailure error={mutation.error} onReload={reload} />
+            <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
+              {t('erp.connections.credential.writeOnly')}
+            </p>
+            {connection.credentialConfigured ? (
+              <p className="text-sm font-semibold leading-[1.6] text-text-secondary">
+                {t('erp.connections.credential.replaceWarning')}
+              </p>
+            ) : null}
+
+            <SelectField
+              id="erp-credential-type"
+              name="credentialType"
+              label={t('erp.connections.credential.type')}
+              options={CREDENTIAL_TYPES.map((value) => ({
+                value,
+                label: t(`erp.connections.credentialType.${value}`),
+              }))}
+              required
+              value={type}
+              onChange={(next) => setType(next as ErpCredentialType)}
+            />
+            {!isProbeableCredentialType(type) ? (
+              <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
+                {t('erp.connections.credential.notProbeable')}
+              </p>
+            ) : null}
+
+            <TextField
+              id="erp-credential-secret"
+              name="secret"
+              // A password input, so it is not rendered on screen, not offered to a password
+              // manager as a reusable login, and not read out by a screen reader.
+              type="password"
+              label={t('erp.connections.credential.secret')}
+              hint={
+                type === 'BASIC_AUTH'
+                  ? t('erp.connections.credential.secretHintBasic')
+                  : t('erp.connections.credential.secretHintToken')
+              }
+              required
+              maxLength={4096}
+              value={secret}
+              onChange={setSecret}
+            />
+            <TextField
+              id="erp-credential-hint"
+              name="hint"
+              label={t('erp.connections.credential.hint')}
+              hint={t('erp.connections.credential.hintHint')}
+              maxLength={64}
+              value={hint}
+              onChange={setHint}
+            />
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button type="submit" className={PRIMARY_BUTTON} disabled={busy || secret === ''}>
+                {busy
+                  ? t('erp.connections.credential.submitting')
+                  : t('erp.connections.credential.submit')}
+              </button>
+              <button
+                type="button"
+                className={SECONDARY_BUTTON}
+                onClick={close}
+                disabled={busy}
+              >
+                {t('erp.connections.credential.cancel')}
+              </button>
+            </div>
+          </form>
+        ) : null}
       </div>
-    </Modal>
+    </SectionCard>
   )
 }

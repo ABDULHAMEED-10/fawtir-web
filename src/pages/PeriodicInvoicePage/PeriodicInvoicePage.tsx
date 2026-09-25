@@ -49,7 +49,8 @@ import {
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
-import { CURRENCY_OPTIONS, PAYMENT_TERMS_OPTIONS, TAX_CATEGORIES } from '../../lib/catalogues'
+import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from '../../lib/selfBillCreate'
+import { PAYMENT_TERMS } from '../../lib/invoiceDraft'
 import { formatAtScale } from '../../lib/invoiceMath'
 import { can, useSession } from '../../lib/session/session'
 import {
@@ -257,13 +258,20 @@ function ScheduleComposer({ id }: { id: string | null }) {
   // Named as the invoice composer names them, on the trigger and on every line.
   const taxOptions: SelectOption[] = TAX_CATEGORIES.map((category) => ({
     value: category.code,
-    label: t(`createInvoice.taxCategories.${category.code}`, { defaultValue: category.label }),
-    hint: `EN 16931 · ${category.categoryId}`,
+    label: t(`createInvoice.taxCategories.${category.code}`, { defaultValue: category.code }),
+    hint: `EN 16931 · ${category.en16931Category}`,
   }))
+  const termsOptions: SelectOption[] = PAYMENT_TERMS.map((term) => ({
+    value: term.code,
+    label: t(term.labelKey, { defaultValue: term.label }),
+  }))
+  const currencyOptions: SelectOption[] = [
+    { value: 'OMR', label: t('createInvoice.values.currency') },
+  ]
   const taxLabel =
     taxOptions.find((option) => option.value === form.taxCategory)?.label ?? form.taxCategory
   const termsLabel =
-    PAYMENT_TERMS_OPTIONS.find((option) => option.value === form.paymentTerms)?.label ?? null
+    termsOptions.find((option) => option.value === form.paymentTerms)?.label ?? null
   const describedLines = lines.filter((line) => line.description.trim()).length
 
   if (!canManage && !id) {
@@ -659,7 +667,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
                   value={form.paymentTerms}
                   disabled={locked}
                   onChange={(paymentTerms) => set({ paymentTerms })}
-                  options={PAYMENT_TERMS_OPTIONS}
+                  options={termsOptions}
                   ariaLabel={t('periodicInvoice.fields.paymentTerms')}
                 />
               </div>
@@ -669,7 +677,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
                   value={form.currency}
                   disabled={locked}
                   onChange={(currency) => set({ currency })}
-                  options={CURRENCY_OPTIONS}
+                  options={currencyOptions}
                   ariaLabel={t('periodicInvoice.fields.currency')}
                 />
               </div>

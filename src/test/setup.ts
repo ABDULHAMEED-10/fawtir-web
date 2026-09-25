@@ -5,3 +5,21 @@ import { configure } from '@testing-library/react'
 // 1 s default, failing a different handful of console tests on each run. The wait still ends as
 // soon as the element appears; only a genuinely missing element now takes 5 s to fail.
 configure({ asyncUtilTimeout: 5_000 })
+
+// jsdom implements no media queries, and `useCompact` — which every chart uses to pick a
+// breakpoint — calls `window.matchMedia` without a guard for its absence. Unstubbed, rendering
+// any chart throws inside the component and the test reads as "element not found" rather than as
+// the TypeError it is. Reports the widest layout, which is what a chart assumes by default.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string): MediaQueryList =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList
+}

@@ -8,7 +8,7 @@ import type {
   UpdatePeriodicScheduleDto,
 } from '../api/invoices/periodic'
 import type { InvoiceDetailDto, InvoiceLineDto } from '../api/invoices/detail'
-import { TAX_CATEGORIES } from './catalogues'
+import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from './selfBillCreate'
 import { itemTypeOfUnit } from './invoiceDraft'
 import { toExclusivePrice, type DiscountType } from './invoiceMath'
 
@@ -553,7 +553,7 @@ export function templateOfForm(
       discount: { type: line.discountType, value: Number(line.discountValue) || 0 },
       taxCategory: {
         code: form.taxCategory,
-        en16931Category: category?.categoryId ?? 'S',
+        en16931Category: category?.en16931Category ?? 'S',
         rate: Number(category?.rate ?? line.vatRate) || 0,
         exemptionReason: null,
       },

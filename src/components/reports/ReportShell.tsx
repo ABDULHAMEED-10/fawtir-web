@@ -1,12 +1,8 @@
-import { useRef, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Popover } from '../ui'
-import { PERIOD_OPTIONS } from '../../lib/reports'
 import chevronIcon from '../../assets/invoices/chevron.svg'
-import chevronDownIcon from '../../assets/create-invoice/chevron.svg'
-import exportIcon from '../../assets/bill-capture/file.svg'
 import expandIcon from '../../assets/invoice-details/fullscreen.svg'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import upIcon from '../../assets/reports/trend-up.svg'
@@ -15,9 +11,14 @@ import downIcon from '../../assets/reports/trend-down.svg'
 /**
  * The frame every Reports screen sits in (Figma 112:8367 and siblings).
  *
- * All six share a breadcrumb, a period selector, a PDF export and then either a row of four
- * figures or a grid of chart cards, so the chrome lives here and each page supplies only what
- * makes it different.
+ * All six share a breadcrumb and then either a row of figures or a grid of chart cards, so the
+ * chrome lives here and each page supplies only what makes it different.
+ *
+ * The period pill and the "Export as PDF" button this frame used to carry are gone. The pill set
+ * local state and drove no request, and the button had no handler and no endpoint behind it —
+ * two controls that looked live and did nothing. The range, the bucket and the real CSV/Excel
+ * exports belong to the report being shown, so they are `ReportControls` on the pages that have
+ * an endpoint to honour them rather than chrome on every page whether or not it does.
  */
 
 export function ReportShell({
@@ -30,10 +31,6 @@ export function ReportShell({
   children: ReactNode
 }) {
   const { t } = useTranslation()
-  const [period, setPeriod] = useState(PERIOD_OPTIONS[0].value)
-  const [periodOpen, setPeriodOpen] = useState(false)
-  const periodRef = useRef<HTMLButtonElement>(null)
-  const active = PERIOD_OPTIONS.find((option) => option.value === period) ?? PERIOD_OPTIONS[0]
 
   return (
     <AppShell>
@@ -57,46 +54,6 @@ export function ReportShell({
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-            <button
-              ref={periodRef}
-              type="button"
-              onClick={() => setPeriodOpen((open) => !open)}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              {t(active.labelKey)}
-              <img src={chevronDownIcon} alt="" className="size-4 brightness-0 invert" />
-            </button>
-            <Popover anchorRef={periodRef} open={periodOpen} onClose={() => setPeriodOpen(false)}>
-              <ul className="w-[180px] py-1.5">
-                {PERIOD_OPTIONS.map((option) => (
-                  <li key={option.value}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPeriod(option.value)
-                        setPeriodOpen(false)
-                      }}
-                      className={[
-                        'flex w-full px-4 py-2.5 text-start text-sm font-medium transition-colors hover:bg-primary-25',
-                        option.value === period ? 'text-primary-700' : 'text-text-secondary',
-                      ].join(' ')}
-                    >
-                      {t(option.labelKey)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Popover>
-
-            <button
-              type="button"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={exportIcon} alt="" className="size-5" />
-              {t('reports.exportPdf')}
-            </button>
-          </div>
         </div>
 
         {children}

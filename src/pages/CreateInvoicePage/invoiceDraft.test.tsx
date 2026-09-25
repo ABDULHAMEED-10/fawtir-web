@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SEEDED_REFERENCE } from '../../testing/referenceData'
+import { ReferenceDataContext } from '../../lib/reference/referenceData'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -173,6 +175,7 @@ function IssuedLanding() {
 
 function renderAt(path: string) {
   return render(
+    <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/invoices/new" element={<CreateInvoicePage />} />
@@ -180,7 +183,8 @@ function renderAt(path: string) {
         <Route path="/invoices" element={<p>invoices list</p>} />
         <Route path="/invoices/:id" element={<IssuedLanding />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
+      </ReferenceDataContext.Provider>,
   )
 }
 

@@ -1,122 +1,167 @@
+import { useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import {
-  ChartCard,
-  ChartGrid,
-  HorizontalBars,
-  KpiCard,
-  KpiRow,
-  LineChart,
-  PlainBars,
-  ReportShell,
-  SERIES,
-  StackedPercentRows,
-} from '../../components/reports'
-import {
-  COMPLIANCE,
-  FISCAL_MONTHS,
-  formatCount,
-  formatDuration,
-  formatPercent,
-} from '../../lib/reports'
+import { ChartCard, ChartGrid, HorizontalBars, KpiCard, KpiRow, LedgerExport, ReportShell, SERIES } from '../../components/reports'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import { activitySummaryPath, loadActivitySummary, type ActivitySummaryDto } from '../../api/compliance/activity'
+import { defaultReportRange } from '../../api/reports/reports'
+import { deliveredCount, shareOf } from '../../lib/activityLedger'
+import { formatCount } from '../../lib/format'
 
+const FIELD =
+  'h-[40px] rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
+
+/**
+ * Reports › Compliance.
+ *
+ * The same ledger summary the Activity screen reads, presented as a period report. It answers
+ * **was it reported, and was it reported in time** — the PASR Annex A obligation — and nothing
+ * about tax.
+ *
+ * The prototype drew acceptance rates, rejection causes and a time-to-clear curve. Two of those
+ * have no source: the summary carries counts and one median, not a reason breakdown, and there
+ * is no acceptance verdict to rate. What replaces them is what the window actually holds.
+ */
 export function ReportsCompliancePage() {
-  const { t } = useTranslation()
-  const months = FISCAL_MONTHS.map((month) => t(`reports.months.${month}`))
-  const best = Math.max(...COMPLIANCE.monthlyAcceptance)
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const [params, setParams] = useSearchParams()
+
+  // The summary answers 400 without both, so the window is never empty.
+  const fallback = defaultReportRange()
+  const from = params.get('from') ?? fallback.from
+  const to = params.get('to') ?? fallback.to
+
+  const set = (key: string, value: string) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (!value) next.delete(key)
+        else next.set(key, value)
+        return next
+      },
+      { replace: true },
+    )
+
+  const path = activitySummaryPath(from, to)
+  const summary = useApiRead<ActivitySummaryDto>(path, () => loadActivitySummary(path))
+  const data = summary.read.status === 'ready' ? summary.read.data : null
 
   return (
-    <ReportShell titleKey="reports.compliance.title" subtitleKey="reports.compliance.subtitle">
-      <KpiRow>
-        <KpiCard
-          label={t('reports.compliance.kpi.accepted')}
-          value={`${COMPLIANCE.acceptedPercent.toFixed(1)}%`}
-          change={{ text: `${COMPLIANCE.acceptedChange}pt`, direction: 'up' }}
-          note={t('reports.compliance.kpi.acceptedNote', {
-            accepted: formatCount(COMPLIANCE.acceptedFirstTime),
-            sent: formatCount(COMPLIANCE.sent),
-          })}
-        />
-        <KpiCard
-          label={t('reports.compliance.kpi.timeToClear')}
-          value={formatDuration(COMPLIANCE.averageSeconds)}
-          change={{ text: `${COMPLIANCE.fasterBy}s`, direction: 'down' }}
-          note={t('reports.compliance.kpi.timeToClearNote')}
-        />
-        <KpiCard
-          label={t('reports.compliance.kpi.rejections')}
-          value={formatCount(COMPLIANCE.rejected)}
-          change={{ text: formatCount(COMPLIANCE.rejectionsFewer), direction: 'down' }}
-          note={t('reports.compliance.kpi.rejectionsNote')}
-        />
-        <KpiCard
-          label={t('reports.compliance.kpi.delivered')}
-          value={`${COMPLIANCE.onTimePercent.toFixed(1)}%`}
-          note={t('reports.compliance.kpi.deliveredNote', {
-            late: COMPLIANCE.lateDeliveries,
-            sent: formatCount(COMPLIANCE.sent),
-          })}
-        />
-      </KpiRow>
+    <ReportShell titleKey="reports.compliance.title" subtitleKey="reports.compliance.ledgerSubtitle">
+      <div className="flex flex-wrap items-end gap-3 rounded-md bg-surface-card p-4">
+        <label className="flex flex-col gap-1 text-xs font-semibold text-text-quaternary">
+          {t('reports.controls.from')}
+          <input type="date" value={from} onChange={(event) => set('from', event.target.value)} className={FIELD} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-semibold text-text-quaternary">
+          {t('reports.controls.to')}
+          <input type="date" value={to} onChange={(event) => set('to', event.target.value)} className={FIELD} />
+        </label>
+        <div className="ms-auto flex flex-wrap items-center gap-2">
+          {/*
+            The export is of the LEDGER, not of the figures above it. This page is four counts and
+            a median; a file of that proves nothing about individual documents, and what a tenant
+            is asked to produce is every document they reported and when. Same window, so the file
+            and the cards cannot disagree.
+          */}
+          <LedgerExport filters={{ from, to }} name="fawtir-compliance-ledger" />
+          <Link
+            to="/compliance/activity"
+            className="inline-flex h-[40px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+          >
+            {t('reports.compliance.openLedger')}
+          </Link>
+        </div>
+      </div>
 
-      <ChartGrid>
-        <ChartCard
-          title={t('reports.compliance.acceptedFirstTime')}
-          legend={[{ label: t('reports.compliance.acceptanceSeries'), color: SERIES.strong }]}
-          note={t('reports.compliance.bestMonthYet', { percent: best.toFixed(1) })}
-        >
-          <LineChart values={COMPLIANCE.monthlyAcceptance} labels={months} labelWidth={38} />
-        </ChartCard>
+      {summary.read.status === 'loading' ? <LoadingNotice /> : null}
+      {summary.read.status === 'failed' ? <ApiReadFailure error={summary.read.error} retry={summary.retry} /> : null}
 
-        <ChartCard
-          title={t('reports.compliance.whyRejected')}
-          legend={[{ label: t('reports.compliance.rejections'), color: SERIES.strong }]}
-          note={t('reports.compliance.oneCause', {
-            percent: formatPercent(COMPLIANCE.reasons[0].value, COMPLIANCE.rejected),
-          })}
-        >
-          <HorizontalBars
-            rows={COMPLIANCE.reasons.map((reason) => ({
-              label: t(reason.labelKey),
-              value: reason.value,
-              display: formatCount(reason.value),
-            }))}
-          />
-        </ChartCard>
+      {data ? (
+        data.documents === 0 ? (
+          <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
+            {t('reports.compliance.empty')}
+          </p>
+        ) : (
+          <>
+            <KpiRow>
+              <KpiCard
+                label={t('reports.compliance.kpi.documents')}
+                value={formatCount(data.documents, language)}
+                note={t('reports.compliance.kpi.documentsNote')}
+              />
+              <KpiCard
+                label={t('reports.compliance.kpi.reported')}
+                value={`${shareOf(deliveredCount(data.tdd_ack), data.documents)}%`}
+                note={t('reports.compliance.kpi.reportedNote', { count: deliveredCount(data.tdd_ack) })}
+              />
+              <KpiCard
+                label={t('reports.compliance.kpi.onTime')}
+                value={`${shareOf(data.sla.met, data.sla.met + data.sla.missed)}%`}
+                note={t('reports.compliance.kpi.onTimeNote', { missed: data.sla.missed, pending: data.sla.pending })}
+              />
+              <KpiCard
+                label={t('reports.compliance.kpi.median')}
+                value={
+                  data.median_minutes_to_tdd_ack === null
+                    ? '—'
+                    : t('reports.compliance.minutes', { count: Math.round(data.median_minutes_to_tdd_ack) })
+                }
+                note={t('reports.compliance.kpi.medianNote')}
+              />
+            </KpiRow>
 
-        <ChartCard
-          title={t('reports.compliance.timeToClear')}
-          legend={[{ label: t('reports.compliance.secondsToAcceptance'), color: SERIES.green }]}
-          note={t('reports.compliance.insideTheRule')}
-        >
-          <PlainBars
-            values={COMPLIANCE.secondsToClear}
-            labels={months}
-            highlight={COMPLIANCE.secondsToClear.length - 1}
-            color={SERIES.greenSoft}
-            highlightColor={SERIES.green}
-            labelWidth={38}
-          />
-        </ChartCard>
+            <ChartGrid>
+              <ChartCard
+                title={t('reports.compliance.tddAcks')}
+                legend={[{ label: t('reports.compliance.documents'), color: SERIES.strong }]}
+                note={t('reports.compliance.acksNote')}
+              >
+                <HorizontalBars rows={ackRows(data.tdd_ack, t, language)} />
+              </ChartCard>
 
-        <ChartCard
-          title={t('reports.compliance.whatHappened')}
-          legend={[
-            { label: t('reports.compliance.firstTime'), color: SERIES.green },
-            { label: t('reports.compliance.onRetry'), color: SERIES.brown },
-            { label: t('reports.compliance.deliveryFailed'), color: SERIES.rose },
-          ]}
-          note={t('reports.compliance.retriesFalling')}
-        >
-          <StackedPercentRows
-            rows={COMPLIANCE.outcomes.map((row) => ({
-              label: t(row.labelKey),
-              parts: [row.firstTime, row.onRetry, row.failed],
-            }))}
-            colors={[SERIES.green, SERIES.brown, SERIES.rose]}
-            minLabelWidth={10}
-          />
-        </ChartCard>
-      </ChartGrid>
+              <ChartCard
+                title={t('reports.compliance.invoiceAcks')}
+                legend={[{ label: t('reports.compliance.documents'), color: SERIES.strong }]}
+                note={t('reports.compliance.invoiceAcksNote')}
+              >
+                <HorizontalBars rows={ackRows(data.invoice_ack, t, language)} />
+              </ChartCard>
+            </ChartGrid>
+
+            {data.dead_lettered > 0 ? (
+              <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+                {t('reports.compliance.deadLettered', { count: data.dead_lettered })}
+              </p>
+            ) : null}
+
+            <p className="text-xs font-medium leading-[1.5] text-text-quaternary">{t('activity.notATaxVerdict')}</p>
+          </>
+        )
+      ) : null}
     </ReportShell>
   )
+}
+
+function ackRows(
+  counts: ActivitySummaryDto['tdd_ack'],
+  t: (key: string, values?: Record<string, unknown>) => string,
+  language: string,
+) {
+  // Silence is listed with the rest rather than hidden or folded into a failure bucket: it is
+  // most of a healthy window and a reader needs to see it as its own thing.
+  return (
+    [
+      ['AP', counts.ap],
+      ['AB', counts.ab],
+      ['RE', counts.re],
+      ['NONE', counts.none],
+    ] as const
+  ).map(([ack, value]) => ({
+    label: t(`activity.ack.${ack}`),
+    value,
+    display: formatCount(value, language),
+  }))
 }

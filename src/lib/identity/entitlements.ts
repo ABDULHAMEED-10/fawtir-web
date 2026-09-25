@@ -19,6 +19,11 @@ export type Entitlements = {
   userId: string
   username: string
   tenantId: string
+  /**
+   * The workspace's display name. Absent when the server could not read the tenant row, in which
+   * case a caller keeps whatever it was showing -- it is a label, and nothing is decided from it.
+   */
+  tenantName?: string | null
   roles: AssignedRole[]
   permissions: string[]
   scopes: string[]

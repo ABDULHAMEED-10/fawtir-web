@@ -7,9 +7,11 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto } from '../api/invoices/list'
 import type { SelectOption } from '../components/ui/Select'
-import { itemTypeOfUnit } from './invoiceDraft'
+import { PAYMENT_TERMS, itemTypeOfUnit } from './invoiceDraft'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
-import { dueDateFor, issueProblems, muscatToday } from './invoiceIssue'
+import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
+import { netDaysFor } from './reference/referenceData'
+import type { ReferenceDataDto } from '../api/reference/referenceData'
 
 /**
  * A sales credit or debit note against an issued invoice (I-10/I-11), as the Income designs draw
@@ -230,9 +232,27 @@ export function addedLine(
  * a debit note keeps none, because it charges only what was missed — and only the difference, so
  * its lines start at a price of nothing.
  */
+/**
+ * A debit note's payment due date follows the invoice's terms (154:165351: "Payment due, follows
+ * the invoice terms"). The platform's reference list answers the net days when it has arrived;
+ * until then, or for a term it does not carry, the composer's own table says what "Net 30" means
+ * rather than leaving the note due the day it is issued.
+ */
+export function noteDueDate(
+  reference: ReferenceDataDto | null,
+  issueDate: string,
+  termsCode: string | null | undefined,
+): string {
+  const days = netDaysFor(reference, termsCode)
+  if (days !== null) return plusDays(issueDate, days)
+  const term = PAYMENT_TERMS.find((row) => row.code === termsCode)
+  return term ? term.due(issueDate) : issueDate
+}
+
 export function fromInvoice(
   invoice: InvoiceDetailDto,
   kind: NoteKind,
+  reference: ReferenceDataDto | null = null,
   today = muscatToday(),
 ): NoteForm {
   const credit = kind === 'CREDIT_NOTE'
@@ -242,7 +262,7 @@ export function fromInvoice(
     reference: '',
     note: '',
     issueDate: today,
-    dueDate: credit ? today : dueDateFor(today, invoice.details?.paymentTerms?.code),
+    dueDate: credit ? today : noteDueDate(reference, today, invoice.details?.paymentTerms?.code),
     sendPeppol: true,
     lines: invoice.lines.map((line) =>
       invoiceLine(line, credit, credit ? money3(line.unitPrice) : '0.000'),
@@ -258,10 +278,11 @@ export function fromNoteDraft(
   draft: DraftResponse,
   invoice: InvoiceDetailDto,
   kind?: NoteKind,
+  reference: ReferenceDataDto | null = null,
   today = muscatToday(),
 ): NoteForm {
   const noteKind: NoteKind = kind ?? (draft.type === 'DEBIT_NOTE' ? 'DEBIT_NOTE' : 'CREDIT_NOTE')
-  const base = fromInvoice(invoice, noteKind, today)
+  const base = fromInvoice(invoice, noteKind, reference, today)
   const keyOf = (productId: string | null, description: string) =>
     `${productId ?? ''}|${description}`
   const kept = new Map(

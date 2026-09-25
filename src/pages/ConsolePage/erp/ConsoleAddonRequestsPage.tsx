@@ -153,7 +153,7 @@ export function ConsoleAddonRequestsPage() {
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         <ConsoleBreadcrumbs
           items={[
-            { labelKey: 'console.nav.group.erp', to: '/console/erp' },
+            { labelKey: 'console.nav.group.erp' },
             { labelKey: 'console.nav.erpRequests' },
           ]}
         />

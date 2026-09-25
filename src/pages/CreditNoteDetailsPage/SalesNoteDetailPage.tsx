@@ -574,7 +574,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
             <div className="flex flex-wrap items-start justify-between gap-3 p-4">
               <div>
                 <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                  {t(`salesNote.amount.title.${kindKey}`)}
+                  {t(`salesNote.detail.amountTitle.${kindKey}`)}
                 </h2>
                 <OmAmount
                   size="lg"

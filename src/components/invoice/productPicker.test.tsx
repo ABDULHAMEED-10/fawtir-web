@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ReferenceDataContext } from '../../lib/reference/referenceData'
+import { SEEDED_REFERENCE, SEEDED_TAX_CATEGORIES } from '../../testing/referenceData'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
@@ -94,11 +96,13 @@ const ADMIN: Entitlements = {
 
 function renderPicker(onPick = vi.fn(), permissions = ADMIN.permissions) {
   render(
-    <MemoryRouter>
-      <SessionContext.Provider value={{ ...ADMIN, permissions }}>
-        <ProductPicker productId={null} label="" onPick={onPick} />
-      </SessionContext.Provider>
-    </MemoryRouter>,
+    <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+      <MemoryRouter>
+        <SessionContext.Provider value={{ ...ADMIN, permissions }}>
+          <ProductPicker productId={null} label="" onPick={onPick} />
+        </SessionContext.Provider>
+      </MemoryRouter>
+    </ReferenceDataContext.Provider>,
   )
   return onPick
 }
@@ -189,11 +193,13 @@ describe('ProductPicker', () => {
 describe('the invoice line a product starts', () => {
   it('fills the description, price, unit and tax category from the product', async () => {
     render(
-      <MemoryRouter initialEntries={['/invoices/new']}>
-        <Routes>
-          <Route path="/invoices/new" element={<CreateInvoicePage />} />
-        </Routes>
-      </MemoryRouter>,
+      <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+        <MemoryRouter initialEntries={['/invoices/new']}>
+          <Routes>
+            <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          </Routes>
+        </MemoryRouter>
+      </ReferenceDataContext.Provider>,
     )
     // The description is typed text now; the catalogue opens from the button at its end.
     const [first] = await screen.findAllByRole('button', { name: /Pick from catalogue/ })
@@ -204,25 +210,33 @@ describe('the invoice line a product starts', () => {
         (screen.getAllByRole('textbox', { name: 'Description' })[0] as HTMLInputElement).value,
       ).toContain('Flat White'),
     )
-    expect((screen.getAllByRole('textbox', { name: 'Price excl.' })[0] as HTMLInputElement).value).toBe(
-      '1.600',
-    )
+    expect(
+      (screen.getAllByRole('textbox', { name: 'Price excl.' })[0] as HTMLInputElement).value,
+    ).toBe('1.600')
   })
 })
 
 describe('product line mapping', () => {
   it('finds the tax option by category and rate, so exempt is not read as zero-rated', () => {
-    expect(taxCategoryOf('E', null)?.code).toBe('E0')
-    expect(taxCategoryOf('Z', 0)?.code).toBe('Z0')
-    expect(taxCategoryOf('S', 5)?.code).toBe('S5')
-    expect(taxCategoryOf('S', 10)).toBeNull()
+    expect(taxCategoryOf(SEEDED_TAX_CATEGORIES, 'E', null)?.code).toBe('E0')
+    expect(taxCategoryOf(SEEDED_TAX_CATEGORIES, 'Z', 0)?.code).toBe('Z0')
+    expect(taxCategoryOf(SEEDED_TAX_CATEGORIES, 'S', 5)?.code).toBe('S5')
+    expect(taxCategoryOf(SEEDED_TAX_CATEGORIES, 'S', 10)).toBeNull()
   })
 
   it('prices the line inclusive of VAT when the line is being entered that way', () => {
-    expect(lineFromProduct(product({ defaultUnitPrice: 10 }), true).unitPrice).toBe('10.000')
-    expect(lineFromProduct(product({ defaultUnitPrice: 10 }), false).unitPrice).toBe('10.500')
     expect(
-      lineFromProduct(product({ defaultTaxCategory: 'E', defaultTaxRate: null }), false),
+      lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), true).unitPrice,
+    ).toBe('10.000')
+    expect(
+      lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), false).unitPrice,
+    ).toBe('10.500')
+    expect(
+      lineFromProduct(
+        SEEDED_TAX_CATEGORIES,
+        product({ defaultTaxCategory: 'E', defaultTaxRate: null }),
+        false,
+      ),
     ).toMatchObject({
       vatRate: '0',
       taxCode: 'E0',
@@ -231,13 +245,25 @@ describe('product line mapping', () => {
 
   it('stores exempt and out-of-scope products without a rate', () => {
     expect(
-      newProductFrom({ code: 'X', name: 'X', unit: 'EA', price: '2', taxCode: 'E0' }),
+      newProductFrom(SEEDED_TAX_CATEGORIES, {
+        code: 'X',
+        name: 'X',
+        unit: 'EA',
+        price: '2',
+        taxCode: 'E0',
+      }),
     ).toMatchObject({
       defaultTaxCategory: 'E',
       defaultTaxRate: null,
     })
     expect(
-      newProductFrom({ code: 'X', name: 'X', unit: 'EA', price: '2.5', taxCode: 'Z0' }),
+      newProductFrom(SEEDED_TAX_CATEGORIES, {
+        code: 'X',
+        name: 'X',
+        unit: 'EA',
+        price: '2.5',
+        taxCode: 'Z0',
+      }),
     ).toMatchObject({
       defaultTaxCategory: 'Z',
       defaultTaxRate: 0,

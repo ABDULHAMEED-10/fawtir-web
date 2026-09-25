@@ -12,6 +12,7 @@ import {
 } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
 import { ApiError } from '../../api'
 import {
@@ -53,8 +54,10 @@ import {
   PAYMENT_REFUSALS,
   dueNote,
   isDraft,
+  isSelfBilled,
   lineTotals,
   paidPercent,
+  counterpartyKeys,
   paymentRows,
   statusOf,
   timelineOf,
@@ -160,6 +163,7 @@ export function InvoiceDetailsPage() {
 
 function InvoiceScreen() {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   const language = i18n.language
   const session = useSession()
   const navigate = useNavigate()
@@ -291,6 +295,9 @@ function InvoiceScreen() {
   const data = invoice.read.data
   const draft = isDraft(data)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
+  // Self-billing inverts the parties: the tenant is the buyer and customerId names the seller,
+  // so every counterparty label on this page flips with the document type.
+  const party = counterpartyKeys(data.type)
   const status = statusOf(data, owed)
   const totals = lineTotals(data)
   const money = (value: number | null | undefined) =>
@@ -301,9 +308,7 @@ function InvoiceScreen() {
       ? branches.read.data.find((branch) => branch.id === data.branchId)?.name
       : undefined
   const customerName =
-    customer.read.status === 'ready'
-      ? customer.read.data.displayName
-      : t('invoiceDetails.customerUnknown')
+    customer.read.status === 'ready' ? customer.read.data.displayName : t(party.unknown)
   const onPeppol =
     customer.read.status === 'ready' && customer.read.data.peppolDelivery === 'ACTIVE'
   const due = dueNote(owed, today)
@@ -326,9 +331,12 @@ function InvoiceScreen() {
       ? history.read.data.entries.find((entry) => entry.eventType === 'MARKED_SENT_MANUALLY')
           ?.occurredAt
       : undefined
+  // A self-bill's own page (Figma) heads with the number alone; the document word is in the type pill.
   const title = noteType
     ? t(`invoiceDetails.titleNote.${noteType}`, { id: data.invoiceNumber ?? '' })
-    : t('invoiceDetails.title', { id: data.invoiceNumber ?? '' })
+    : isSelfBilled(data.type)
+      ? (data.invoiceNumber ?? '')
+      : t('invoiceDetails.title', { id: data.invoiceNumber ?? '' })
   const shownReminder = reminder.read.status === 'ready' ? reminder.read.data : null
   const ladder = reminderLadder(
     schedule.read.status === 'ready' ? schedule.read.data.offsets : null,
@@ -593,7 +601,7 @@ function InvoiceScreen() {
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
           ) : null}
-          <span className="font-medium text-text-quaternary">{t('invoiceDetails.to')}</span>
+          <span className="font-medium text-text-quaternary">{t(party.preposition)}</span>
           <span className="font-semibold text-text-primary">{customerName}</span>
         </div>
       </div>
@@ -789,14 +797,14 @@ function InvoiceScreen() {
           ) : null}
 
           <SectionCard
-            title={t('invoiceDetails.billTo')}
+            title={t(party.section)}
             action={
               can(session, 'customer.read') && customer.read.status === 'ready' ? (
                 <Link
                   to={`/customers/${data.customerId}`}
                   className="inline-flex items-center gap-0.5 text-base font-semibold text-primary-800"
                 >
-                  {t('invoiceDetails.viewCustomer')}
+                  {t(party.view)}
                   <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
                 </Link>
               ) : undefined
@@ -1060,7 +1068,7 @@ function InvoiceScreen() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-2 text-sm font-medium text-text-primary">
-              {t('invoiceDetails.notes.customer')}{' '}
+              {t(party.note)}{' '}
               <span className="text-xs text-text-quaternary">
                 {noteType ? t('salesNote.detail.onNote') : t('invoiceDetails.notes.onInvoice')}
               </span>
@@ -1429,7 +1437,7 @@ function InvoiceScreen() {
           invoiceId={data.id}
           version={data.version}
           initialIssueDate={muscatToday()}
-          initialDueDate={dueDateFor(muscatToday(), data.details?.paymentTerms?.code)}
+          initialDueDate={dueDateFor(reference, muscatToday(), data.details?.paymentTerms?.code)}
           kind={noteType ?? 'INVOICE'}
           onClose={() => setIssuing(false)}
           onIssued={(issued) => {
@@ -1607,7 +1615,7 @@ function DocumentPreview({
         </div>
         <div>
           <p className="text-[7px] font-semibold uppercase tracking-wide text-text-quaternary">
-            {t('invoiceDetails.billTo')}
+            {t(counterpartyKeys(data.type).section)}
           </p>
           <p className="font-semibold text-text-primary">{customer?.displayName ?? '—'}</p>
           {customer?.profile.invoiceAddress?.cityName ? (

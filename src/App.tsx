@@ -32,6 +32,7 @@ import { SupplierDebitNotesPage } from './pages/SupplierDebitNotesPage'
 import { SupplierDetailPage } from './pages/SupplierDetailPage'
 import { EditSupplierPage } from './pages/EditSupplierPage'
 import { NewPurchaseOrderPage } from './pages/NewPurchaseOrderPage'
+import { PurchaseOrderDetailPage } from './pages/PurchaseOrderDetailPage'
 import { RecordSupplierBillPage } from './pages/RecordSupplierBillPage'
 import { ImportCustomersPage, ImportSuppliersPage } from './pages/StagedImportPage'
 import { SupplierStatementPage } from './pages/SupplierStatementPage'
@@ -81,6 +82,7 @@ import {
   ExportPage,
   ClosingPage,
   SigningInPage,
+  ApprovalPolicyPage,
   AddBranchPage,
   InvitePage,
   MakeRolePage,
@@ -90,6 +92,7 @@ import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
+import { NewSelfBillPage } from './pages/NewSelfBillPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
 import {
   PosPage,
@@ -122,6 +125,7 @@ import {
   ConnectionRecordsPage,
   ConnectionWriteBackPage,
   ConnectionSettingsPage,
+  ErpMappingGate,
 } from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
 import { RemindersPage } from './pages/RemindersPage'
@@ -131,7 +135,6 @@ import { DeliveryNoteDetailPage } from './pages/DeliveryNoteDetailPage'
 import { NewDebitNotePage } from './pages/NewDebitNotePage'
 import { DebitNoteDetailPage } from './pages/DebitNoteDetailPage'
 import { AgreementsPage } from './pages/AgreementsPage'
-import { NewSelfBillPage } from './pages/NewSelfBillPage'
 import { SelfBillDetailPage } from './pages/SelfBillDetailPage'
 import { PeriodicInvoicesPage } from './pages/PeriodicInvoicesPage'
 import { PeriodicInvoicePage } from './pages/PeriodicInvoicePage'
@@ -203,6 +206,7 @@ function App() {
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/expenditure/bills" element={<BillsPage />} />
           <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
+          <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
           <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
           <Route path="/expenditure/payments" element={<PaymentRunsListPage />} />
           <Route path="/expenditure/payments/new" element={<PaymentRunPage />} />
@@ -326,6 +330,7 @@ function App() {
           <Route path="/settings/export" element={<ExportPage />} />
           <Route path="/settings/closing" element={<ClosingPage />} />
           <Route path="/settings/signing-in" element={<SigningInPage />} />
+          <Route path="/settings/approvals" element={<ApprovalPolicyPage />} />
           <Route path="/compliance/activity" element={<ActivityPage />} />
           <Route path="/compliance/activity/call-log" element={<OtaCallLogPage />} />
           <Route path="/compliance/activity/call-log/:id" element={<OtaCallDetailPage />} />
@@ -441,8 +446,17 @@ function App() {
               </PlanGated>
             }
           />
+          {/* The design's dedicated composer (Figma 154:161180), writing a self-billed draft. */}
           <Route
             path="/income/self-billing/new"
+            element={
+              <PlanGated feature="selfBilling">
+                <NewSelfBillPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/self-billing/:id/edit"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBillPage />
@@ -467,7 +481,9 @@ function App() {
             path="/settings/erp-mapping"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpOverviewPage />
+                <ErpMappingGate>
+                  <ErpOverviewPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -475,7 +491,9 @@ function App() {
             path="/settings/erp-mapping/fields"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpFieldsPage />
+                <ErpMappingGate>
+                  <ErpFieldsPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -483,7 +501,9 @@ function App() {
             path="/settings/erp-mapping/preview"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpPreviewPage />
+                <ErpMappingGate>
+                  <ErpPreviewPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -491,7 +511,9 @@ function App() {
             path="/settings/erp-mapping/certification"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpCertificationPage />
+                <ErpMappingGate>
+                  <ErpCertificationPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -499,7 +521,9 @@ function App() {
             path="/settings/erp-mapping/advanced"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpAdvancedPage />
+                <ErpMappingGate>
+                  <ErpAdvancedPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -507,7 +531,9 @@ function App() {
             path="/settings/erp-mapping/history"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpHistoryPage />
+                <ErpMappingGate>
+                  <ErpHistoryPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -515,7 +541,9 @@ function App() {
             path="/settings/erp-mapping/samples"
             element={
               <PlanGated feature="erpMapping" shell="settings">
-                <ErpSamplesPage />
+                <ErpMappingGate>
+                  <ErpSamplesPage />
+                </ErpMappingGate>
               </PlanGated>
             }
           />
@@ -646,6 +674,7 @@ function App() {
           <Route path="/customers/import" element={<ImportCustomersPage />} />
           <Route path="/suppliers/:slug/edit" element={<EditSupplierPage />} />
           <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route path="/expenditure/purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
           <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
           <Route path="/suppliers/:slug/statement" element={<SupplierStatementPage />} />
           <Route path="/suppliers/:slug" element={<SupplierDetailPage />} />

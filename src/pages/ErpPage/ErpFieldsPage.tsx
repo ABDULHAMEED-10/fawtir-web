@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ErpShell } from './ErpShell'
+import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './ErpMappingGate'
 import { Modal, Select } from '../../components/ui'
 import {
   REQUIRED_TARGETS,
@@ -12,72 +13,94 @@ import {
   type Target,
 } from '../../lib/erpCatalogue'
 import {
-  SOURCE_SYSTEMS,
-  flattenKeys,
-  mappingStore,
-  useErpMapping,
-  validate,
-  type Entry,
-  type Readiness,
-  type SaveResult,
-  type SourceSystem,
-} from '../../lib/erpMapping'
+  MAPPING_SOURCE_SYSTEMS,
+  saveGuidedMapping,
+  validateGuidedMapping,
+  type GuidedMappingRequest,
+  type GuidedMappingValidationDto,
+  type MappingSourceSystem,
+} from '../../api/erp/mapping'
+import { ApiError } from '../../api'
+import {
+  draftOf,
+  isBlank,
+  isDirty,
+  normalise,
+  type Draft,
+  type DraftEntry,
+  type SaveOutcome,
+} from '../../lib/erp/draft'
+import { NO_READINESS } from '../../lib/erp/mappingState'
+import { flattenKeys, sessionSamples } from '../../lib/erp/sample'
 import { FieldRow, ReadOnlyRow } from './fields/FieldRow'
 import { SectionCard } from './fields/SectionCard'
 import { ReadinessChecklist } from './fields/ReadinessChecklist'
-import { ValueMapModal } from './fields/ValueMapModal'
-import { errorsFor, isBlank, jumpTo, normalise, rowId, sectionId } from './fields/model'
+import { errorsFor, jumpTo, rowId, sectionId } from './fields/model'
 
-/** The backend rate-limits validation (30 req/min shared), so edits settle before it runs. */
+/**
+ * How long after the last keystroke the draft is sent for validation.
+ *
+ * The validate route is a real request behind the gateway's shared rate limit, so edits settle
+ * first. Two seconds also matches what a reader reads as "it checked when I stopped typing".
+ */
 const VALIDATE_AFTER_MS = 2000
 const FLASH_MS = 1600
 
 /**
  * Settings › Integration › ERP mapping › Fields (docs/erp-and-console-plan.md §2.2, A.2).
  *
- * One long page, not a stepper: the seven sections in catalogue order, every TENANT_MAPPED term
- * a row, and a readiness checklist that never scrolls away. The draft is local — copied from the
- * store on arrival, validated two seconds after the last edit, written back with the version it
- * was read at so a save over someone else's is refused rather than silently winning.
+ * One long page, not a stepper: the seven sections in catalogue order, every TENANT_MAPPED term a
+ * row, and a readiness checklist that never scrolls away.
+ *
+ * **The validator is the server's.** The draft is held locally while the reader works and sent to
+ * `POST …/guided/validate` two seconds after the last edit; the answer is rendered as it arrives.
+ * Nothing here decides whether a mapping is valid — a second validator in the browser would
+ * eventually disagree with the one that runs at save time, and the reader would be told their
+ * mapping was fine by the screen and refused by the server.
+ *
+ * Saving sends the version the draft was read at, so a save over someone else's is a 409 and
+ * offers a reload rather than silently winning.
  */
 export function ErpFieldsPage() {
   const { t } = useTranslation()
-  const state = useErpMapping()
+  const view = useErpMapping()
+  const reloadView = useErpMappingReload()
   const [params] = useSearchParams()
+  const samples = useSyncExternalStore(sessionSamples.subscribe, sessionSamples.snapshot)
 
   /* ------------------------------------------------------------ the draft */
-  const [draft, setDraft] = useState<Entry[]>(() => state.entries)
-  const [sourceSystem, setSourceSystem] = useState<SourceSystem>(state.sourceSystem)
-  const [baseline, setBaseline] = useState(() => ({
-    entries: state.entries,
-    sourceSystem: state.sourceSystem,
-    version: state.version,
-  }))
-  const [sampleId, setSampleId] = useState(state.samples[0]?.id ?? '')
-  const [readiness, setReadiness] = useState<Readiness>(() => validate(state.entries))
+  const [draft, setDraft] = useState<Draft>(() => draftOf(view.guided))
+  const [baseline, setBaseline] = useState<Draft>(() => draftOf(view.guided))
+  const [sampleId, setSampleId] = useState('')
+  const [readiness, setReadiness] = useState<GuidedMappingValidationDto>(
+    () => view.readiness ?? NO_READINESS,
+  )
   const [checking, setChecking] = useState(false)
-  const [result, setResult] = useState<SaveResult | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [result, setResult] = useState<SaveOutcome | null>(null)
   const [stale, setStale] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
 
   const opened = params.get('open')?.split(':') ?? []
-  const [valueMapFor, setValueMapFor] = useState<string | null>(
-    opened[0] === 'valueMap' && TARGET_BY_ID[opened[1]] ? opened[1] : null,
-  )
   const pickerFor = opened[0] === 'picker' ? opened[1] : undefined
 
-  const dirty = useMemo(
-    () =>
-      sourceSystem !== baseline.sourceSystem ||
-      JSON.stringify(draft) !== JSON.stringify(baseline.entries),
-    [draft, sourceSystem, baseline],
+  const dirty = useMemo(() => isDirty(draft, baseline), [draft, baseline])
+
+  const sample = samples.find((s) => s.id === sampleId) ?? samples[0]
+  const keys = useMemo(() => (sample ? flattenKeys(sample.payload) : []), [sample])
+  const byTerm = useMemo(
+    () => new Map(draft.entries.map((entry) => [entry.businessTermId, entry])),
+    [draft.entries],
   )
 
-  const sample = state.samples.find((s) => s.id === sampleId) ?? state.samples[0]
-  const keys = useMemo(() => (sample ? flattenKeys(sample.payload) : []), [sample])
-  const byTerm = useMemo(() => new Map(draft.map((e) => [e.businessTermId, e])), [draft])
+  const requestOf = (next: Draft): GuidedMappingRequest => ({
+    sourceSystem: next.sourceSystem,
+    expectedVersion: next.version,
+    mappings: next.entries,
+  })
 
-  /* --------------------------------------------- validation, 2 s after idle */
+  /* ------------------------------------- validation, 2 s after the last edit */
   const skipValidate = useRef(true)
   useEffect(() => {
     if (skipValidate.current) {
@@ -85,72 +108,105 @@ export function ErpFieldsPage() {
       return
     }
     setChecking(true)
+    const controller = new AbortController()
     const timer = window.setTimeout(() => {
-      setReadiness(validate(draft))
-      setChecking(false)
+      validateGuidedMapping(GUIDED_MAPPING_FORMAT, requestOf(draft), {
+        signal: controller.signal,
+      })
+        .then((answer) => {
+          setReadiness(answer)
+          setChecking(false)
+        })
+        .catch((error: unknown) => {
+          // An abort is this effect being superseded by a newer edit, not a failure to report.
+          if (controller.signal.aborted) return
+          setChecking(false)
+          setFailure(describe(error, t))
+        })
     }, VALIDATE_AFTER_MS)
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+    // requestOf and draft.sourceSystem are covered by `draft`; t is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft])
 
-  /* ------------------------------------------------- after a save, re-sync */
-  const resync = useRef(false)
-  useEffect(() => {
-    if (!resync.current) return
-    resync.current = false
-    skipValidate.current = true
-    setDraft(state.entries)
-    setSourceSystem(state.sourceSystem)
-    setBaseline({
-      entries: state.entries,
-      sourceSystem: state.sourceSystem,
-      version: state.version,
-    })
-  }, [state.entries, state.sourceSystem, state.version])
-
-  const update = (businessTermId: string, patch: Partial<Entry>) => {
+  const update = (businessTermId: string, patch: Partial<DraftEntry>) => {
     setResult(null)
+    setFailure(null)
     setDraft((current) => {
-      const index = current.findIndex((e) => e.businessTermId === businessTermId)
-      const base: Entry =
+      const index = current.entries.findIndex((e) => e.businessTermId === businessTermId)
+      const base: DraftEntry =
         index >= 0
-          ? current[index]
+          ? current.entries[index]
           : {
               businessTermId,
-              onUnmapped: 'FAIL',
-              ordinal: current.reduce((max, e) => Math.max(max, e.ordinal), -1) + 1,
+              ordinal: current.entries.reduce((max, e) => Math.max(max, e.ordinal), -1) + 1,
             }
       const next = normalise({ ...base, ...patch })
-      if (isBlank(next)) return index >= 0 ? current.filter((_, i) => i !== index) : current
-      if (index >= 0) return current.map((e, i) => (i === index ? next : e))
-      return [...current, next]
+      const entries = isBlank(next)
+        ? index >= 0
+          ? current.entries.filter((_, i) => i !== index)
+          : current.entries
+        : index >= 0
+          ? current.entries.map((e, i) => (i === index ? next : e))
+          : [...current.entries, next]
+      return { ...current, entries }
     })
   }
 
-  const save = () => {
-    const outcome = mappingStore.saveGuided(draft, sourceSystem, baseline.version)
-    if (outcome === 'stale') {
-      setStale(true)
-      return
+  /**
+   * Saves the draft.
+   *
+   * Three answers matter. A 409 means someone else saved first and the only safe move is to re-read
+   * — offering to merge would mean guessing which of two mappings the reader meant. A 400 is a
+   * structurally invalid entry, and the server's sentence is shown as it arrived. Anything else
+   * succeeded, and whether it also compiled and activated a profile is what the server's
+   * `readyForActivation` says, not something inferred here.
+   */
+  const save = async () => {
+    setSaving(true)
+    setFailure(null)
+    try {
+      const answer = await saveGuidedMapping(GUIDED_MAPPING_FORMAT, requestOf(draft))
+      setReadiness(answer)
+      setChecking(false)
+      setResult({
+        status: answer.readyForActivation ? 'activated' : 'draft',
+        readiness: answer,
+      })
+      skipValidate.current = true
+      setBaseline(draft)
+      // The roll-up above — status pill, subnav badges, profile list — is now behind.
+      reloadView()
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 409) {
+        setStale(true)
+        return
+      }
+      if (error instanceof ApiError && error.status === 400) {
+        setResult({ status: 'refused', message: refusalOf(error, t) })
+        return
+      }
+      setFailure(describe(error, t))
+    } finally {
+      setSaving(false)
     }
-    setResult(outcome)
-    setReadiness(outcome.readiness)
-    setChecking(false)
-    if (outcome.status !== 'refused') resync.current = true
   }
 
+  /** Discards the local draft and takes the server's copy, after a lost race or on demand. */
   const reload = () => {
     skipValidate.current = true
-    setDraft(state.entries)
-    setSourceSystem(state.sourceSystem)
-    setBaseline({
-      entries: state.entries,
-      sourceSystem: state.sourceSystem,
-      version: state.version,
-    })
-    setReadiness(validate(state.entries))
+    const fresh = draftOf(view.guided)
+    setDraft(fresh)
+    setBaseline(fresh)
+    setReadiness(view.readiness ?? NO_READINESS)
     setChecking(false)
     setResult(null)
     setStale(false)
+    setFailure(null)
+    reloadView()
   }
 
   const jumpToRow = (businessTermId: string) => {
@@ -165,7 +221,9 @@ export function ErpFieldsPage() {
   /* ------------------------------------------------------------ per section */
   const sectionCounts = (section: Section) => {
     const required = REQUIRED_TARGETS.filter((target) => target.section === section)
-    const mapped = required.filter((target) => readiness.mappedRequired.includes(target.id))
+    const mapped = required.filter((target) =>
+      readiness.mappedRequiredTargets.includes(target.id),
+    )
     return { mapped: mapped.length, total: required.length }
   }
 
@@ -179,7 +237,6 @@ export function ErpFieldsPage() {
         keys={keys}
         hasSample={Boolean(sample)}
         onChange={(patch) => update(target.id, patch)}
-        onOpenValueMap={() => setValueMapFor(target.id)}
         initialPickerOpen={pickerFor === target.id}
         flash={flash === target.id}
         inGroup={inGroup}
@@ -222,10 +279,14 @@ export function ErpFieldsPage() {
     })
   }
 
-  const valueMapTarget = valueMapFor ? TARGET_BY_ID[valueMapFor] : undefined
-
   return (
     <ErpShell title={t('erp.fields.title')} subtitle={t('erp.fields.subtitle')}>
+      {failure ? (
+        <p role="alert" className="rounded-md bg-danger-100 px-4 py-3 text-sm font-medium text-danger-700">
+          {failure}
+        </p>
+      ) : null}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {/* The sections */}
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -241,12 +302,15 @@ export function ErpFieldsPage() {
                 </span>
                 <Select
                   ariaLabel={t('erp.fields.sourceSystem')}
-                  value={sourceSystem}
+                  value={draft.sourceSystem}
                   onChange={(value) => {
                     setResult(null)
-                    setSourceSystem(value as SourceSystem)
+                    setDraft((current) => ({
+                      ...current,
+                      sourceSystem: value as MappingSourceSystem,
+                    }))
                   }}
-                  options={SOURCE_SYSTEMS.map((system) => ({
+                  options={MAPPING_SOURCE_SYSTEMS.map((system) => ({
                     value: system,
                     label: t(`erp.sourceSystem.${system}`),
                   }))}
@@ -256,15 +320,15 @@ export function ErpFieldsPage() {
                 <span className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-medium text-text-secondary">
                   {t('erp.fields.sample')}
                   <span className="font-normal text-text-quaternary">
-                    {t('erp.fields.sampleNote')}
+                    {t('erp.unsupported.SAMPLES')}
                   </span>
                 </span>
-                {state.samples.length > 0 ? (
+                {samples.length > 0 ? (
                   <Select
                     ariaLabel={t('erp.fields.sample')}
                     value={sample?.id ?? ''}
                     onChange={setSampleId}
-                    options={state.samples.map((s) => ({
+                    options={samples.map((s) => ({
                       value: s.id,
                       label: s.label,
                       hint: t('erp.fields.sampleHint', { count: flattenKeys(s.payload).length }),
@@ -338,23 +402,12 @@ export function ErpFieldsPage() {
             dirty={dirty}
             result={result}
             version={baseline.version}
+            saving={saving}
             onSave={save}
             onJump={jumpToRow}
           />
         </aside>
       </div>
-
-      {valueMapTarget ? (
-        <ValueMapModal
-          key={valueMapTarget.id}
-          open
-          onClose={() => setValueMapFor(null)}
-          target={valueMapTarget}
-          entry={byTerm.get(valueMapTarget.id)}
-          sample={sample}
-          onSave={(patch) => update(valueMapTarget.id, patch)}
-        />
-      ) : null}
 
       <Modal
         open={stale}
@@ -380,9 +433,29 @@ export function ErpFieldsPage() {
         }
       >
         <p className="text-sm font-medium leading-[1.6] text-text-secondary">
-          {t('erp.fields.staleBody', { version: state.version })}
+          {t('erp.fields.staleBodyServer')}
         </p>
       </Modal>
     </ErpShell>
   )
+}
+
+/**
+ * The server's refusal sentence.
+ *
+ * Fawtir's validation problems carry `detail`; this route's refusal is one sentence naming the
+ * error code and the term, which is more use to a reader than any generic copy would be. Falls
+ * back to translated copy only when the body carried nothing.
+ */
+function refusalOf(error: ApiError, t: (key: string) => string): string {
+  const detail = error.problem.detail
+  return typeof detail === 'string' && detail ? detail : t('erp.fields.saveRefusedGeneric')
+}
+
+function describe(error: unknown, t: (key: string) => string): string {
+  if (error instanceof ApiError) {
+    const detail = error.problem.detail
+    if (typeof detail === 'string' && detail) return detail
+  }
+  return t('erp.fields.requestFailed')
 }

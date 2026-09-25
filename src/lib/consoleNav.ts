@@ -4,7 +4,6 @@ import {
   NavDocumentsIcon,
   NavReportsIcon,
   NavSettingsIcon,
-  NavStockIcon,
   NavTddIcon,
 } from '../layouts/AppShell/navIcons'
 import {
@@ -99,12 +98,9 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
     id: 'erp',
     labelKey: 'console.nav.group.erp',
     items: [
-      {
-        id: 'erpConnections',
-        labelKey: 'console.nav.erpConnections',
-        to: '/console/erp',
-        Icon: NavStockIcon,
-      },
+      // No Connections entry: there is no platform-scoped ERP API, so the screen behind
+      // /console/erp can only say so (ConsoleErpUnavailable). The route is kept for an
+      // operator's bookmark; offering it here would invite reading invented state.
       {
         id: 'erpTemplates',
         labelKey: 'console.nav.erpTemplates',

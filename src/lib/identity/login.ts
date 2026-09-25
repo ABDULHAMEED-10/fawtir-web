@@ -36,11 +36,26 @@ export const USERNAME_MAX_LENGTH = 255
 export const PASSWORD_MAX_LENGTH = 128
 
 /**
- * The only second factor this screen offers. Every company policy must allow EMAIL_OTP or SMS_OTP
- * (`TenantIdentityPolicyService`), and the login response does not say which factor a user has,
- * so the email code is the one factor that works for everyone without asking.
+ * The factor to use when the server names none. Every company policy must allow EMAIL_OTP or
+ * SMS_OTP (`TenantIdentityPolicyService`), so the email code is the one that works for everyone
+ * — which is what makes it the right fallback and the wrong default.
+ *
+ * It is no longer assumed. Where policy fixes a factor the server says so on the login response
+ * and signs the same decision into the challenge, and this screen renders that decision.
+ * Presenting EMAIL_OTP against a challenge minted for an authenticator is refused by the
+ * backend, so a client that ignored the decision would simply fail.
  */
 export const LOGIN_FACTOR = 'EMAIL_OTP'
+
+/** The authenticator factor, required for the FAWTIR operations realm. */
+export const LOGIN_FACTOR_TOTP = 'TOTP'
+
+/** How far the login has got, as the server sees it. */
+export type MfaState = 'VERIFICATION_REQUIRED' | 'ENROLLMENT_REQUIRED'
+
+/** Enrolling an authenticator the server has just demanded, before any session exists. */
+export const TOTP_ENROLL_PATH = '/v1/auth/mfa/totp/enroll'
+export const TOTP_CONFIRM_PATH = '/v1/auth/mfa/totp/confirm'
 
 /**
  * Client-side only: `/auth/mfa/otp/request` has no server cooldown, just per-IP rate limits. A
@@ -62,10 +77,24 @@ export type LoginResponse = {
   mfaRequired: boolean
   mfaChallengeToken?: string | null
   mfaChallengeExpiresIn?: number
+  /** Absent wherever policy fixes no factor, which is every customer login. */
+  mfaState?: MfaState | null
+  mfaRequiredFactor?: string | null
 }
 
-/** The second-factor handle, alive until `expiresAt` (client clock). */
-export type LoginChallenge = { token: string; expiresAt: number }
+/**
+ * The second-factor handle, alive until `expiresAt` (client clock).
+ *
+ * `factor` and `state` are the server's decision, carried so the screen can render it. They are
+ * a copy: the authoritative one is signed into `token`, and that is what the backend reads. A
+ * tampered copy changes what this screen draws and nothing the server will accept.
+ */
+export type LoginChallenge = {
+  token: string
+  expiresAt: number
+  factor: string
+  state: MfaState | null
+}
 
 export type LoginOutcome = { kind: 'code'; challenge: LoginChallenge } | { kind: 'signedIn' }
 
@@ -113,7 +142,20 @@ export function toLoginOutcome(
     typeof expiresIn === 'number' &&
     expiresIn > 0
   ) {
-    return { kind: 'code', challenge: { token, expiresAt: receivedAt + expiresIn * 1000 } }
+    return {
+      kind: 'code',
+      challenge: {
+        token,
+        expiresAt: receivedAt + expiresIn * 1000,
+        // Only a factor the server named is honoured. An unrecognised one falls back to the
+        // email code rather than rendering a screen for something this build cannot drive.
+        factor: response.mfaRequiredFactor === LOGIN_FACTOR_TOTP ? LOGIN_FACTOR_TOTP : LOGIN_FACTOR,
+        state:
+          response.mfaState === 'ENROLLMENT_REQUIRED' || response.mfaState === 'VERIFICATION_REQUIRED'
+            ? response.mfaState
+            : null,
+      },
+    }
   }
   throw new Error('Unrecognised login response')
 }
@@ -157,12 +199,65 @@ export async function verifyLoginCode(
 ): Promise<void> {
   await apiRequest<LoginResponse | undefined>(LOGIN_VERIFY_PATH, {
     method: 'POST',
-    body: { challengeToken: challenge.token, factor: LOGIN_FACTOR, code, portalCookie: true },
+    // The factor the server named, not a constant. Sending EMAIL_OTP against an authenticator
+    // challenge is refused by the backend, so this is what makes the screen work rather than
+    // what makes it safe.
+    body: { challengeToken: challenge.token, factor: challenge.factor, code, portalCookie: true },
     signal,
     credentials: 'same-origin',
   })
   // A new session may belong to someone other than whoever this tab last described.
   forgetEntitlements()
+}
+
+/** What the server staged for an authenticator to be set up from. */
+export type TotpEnrollment = {
+  secret: string
+  otpauthUri: string
+  enrollmentChallenge: string
+}
+
+/**
+ * Begins enrolment during a login that demands it.
+ *
+ * The challenge is the credential: the caller proved a password to obtain it, and the backend
+ * refuses any challenge that does not say enrolment is owed. Nothing is persisted here — the
+ * secret lives in component state for the life of the screen and is gone on reload, which is
+ * why a reload restarts enrolment rather than resuming it.
+ */
+export async function beginTotpEnrollment(
+  challenge: LoginChallenge,
+  signal?: AbortSignal,
+): Promise<TotpEnrollment> {
+  return apiRequest<TotpEnrollment>(TOTP_ENROLL_PATH, {
+    method: 'POST',
+    body: { challengeToken: challenge.token },
+    signal,
+    credentials: 'same-origin',
+  })
+}
+
+/** What confirming enrolment returns. Recovery codes are shown once and never stored. */
+export type TotpConfirmation = { enabled: boolean; backupCodes?: string[] | null }
+
+/**
+ * Confirms enrolment with the first code from the authenticator.
+ *
+ * Deliberately does not sign the user in: the original challenge still has to be completed
+ * through {@link verifyLoginCode}, so enrolling is not a shortcut past the second factor.
+ */
+export async function confirmTotpEnrollment(
+  challenge: LoginChallenge,
+  enrollmentChallenge: string,
+  code: string,
+  signal?: AbortSignal,
+): Promise<TotpConfirmation> {
+  return apiRequest<TotpConfirmation>(TOTP_CONFIRM_PATH, {
+    method: 'POST',
+    body: { challengeToken: challenge.token, code, enrollmentChallenge },
+    signal,
+    credentials: 'same-origin',
+  })
 }
 
 /**

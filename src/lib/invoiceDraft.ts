@@ -1,6 +1,6 @@
 import type { DraftRequest, DraftResponse } from '../api/invoices/drafts'
 import type { ProblemFieldError } from '../api/errors'
-import { TAX_CATEGORIES } from './catalogues'
+import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import { formatAmount, parseAmount, toExclusivePrice, type DiscountType } from './invoiceMath'
 import { taxCategoryOf } from './productLine'
 
@@ -64,6 +64,53 @@ export type DraftForm = {
   headerDiscountType: DiscountType
   headerDiscountValue: string
   lines: DraftLine[]
+  /**
+   * IBT-010 and IBT-012 — the tenant's OWN references as buyer. Self-billed documents only; on
+   * every other document the buyer is the customer and the server refuses these outright
+   * (`BUYER_REFERENCES_NOT_SELF_BILLED`), so they are sent only when `selfBilled` is set.
+   */
+  buyerReference: string
+  contractReference: string
+}
+
+/**
+ * Stands in while the catalogue has not answered. Not a default rate: an empty code is one the
+ * server does not carry, so a line built on it is refused rather than priced.
+ */
+const NO_CATEGORY: TaxCategoryDto = {
+  code: '',
+  en16931Category: 'S',
+  rate: '0',
+  exemptionReasonRequired: false,
+  active: true,
+}
+
+/**
+ * The design's catalogue (Figma 154:160716: "Standard rate - 5%", Net 30 days, Bank transfer,
+ * EA), which is also what the platform seeds (V193). The composer draws it whenever the platform's
+ * list has not answered: the shell fetches `/v1/reference-data` only behind the session guard,
+ * and a build without the guard never fetches it, so without this the header's tax category read
+ * "Loading..." and every line was priced at 0% (product owner, 25 Sep 2026: the design first, the
+ * integration adapts). A code the server does not carry is still refused on save, as a field
+ * error the line shows.
+ */
+export const DESIGN_REFERENCE: ReferenceDataDto = {
+  taxCategories: [
+    { code: 'S5', en16931Category: 'S', rate: '5', exemptionReasonRequired: false, active: true },
+    { code: 'Z0', en16931Category: 'Z', rate: '0', exemptionReasonRequired: false, active: true },
+    { code: 'E0', en16931Category: 'E', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'O0', en16931Category: 'O', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'AE0', en16931Category: 'AE', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'G0', en16931Category: 'G', rate: '0', exemptionReasonRequired: true, active: true },
+  ],
+  // Empty on purpose: the line's unit list is the design's own (GOODS_UNITS / SERVICE_UNITS).
+  units: [],
+  paymentTerms: [
+    { code: 'NET0', netDays: 0, active: true },
+    { code: 'NET30', netDays: 30, active: true },
+    { code: 'NET60', netDays: 60, active: true },
+  ],
+  paymentMethods: ['30', '10', '20', '48', '68'].map((code) => ({ code, active: true })),
 }
 
 /** Categories the server prices only with a reason (`TaxCategoryInput`, `EXEMPTION_REASON_REQUIRED`). */
@@ -177,11 +224,35 @@ export function paymentTermOf(code: string): PaymentTerm | undefined {
   return PAYMENT_TERMS.find((term) => term.code === code)
 }
 
+/**
+ * The due date a terms code implies for an issue date: the design's terms first, then a code the
+ * platform's list carries with a day count (a loaded draft may hold one). Null for a code neither
+ * knows, so the date the reader is looking at is left alone rather than snapped to a guess.
+ */
+export function dueDateOf(
+  reference: ReferenceDataDto | null,
+  code: string,
+  issueDate: string,
+): string | null {
+  const term = paymentTermOf(code)
+  if (term) return term.due(issueDate)
+  const days = (reference?.paymentTerms ?? []).find((option) => option.code === code)?.netDays
+  return days === undefined ? null : plusDays(issueDate, days)
+}
+
 /* ---------------------------------------------------------------- form */
 
 let nextLine = 1
-export function blankDraftLine(taxCode = 'S5'): DraftLine {
-  const tax = TAX_CATEGORIES.find((option) => option.code === taxCode) ?? TAX_CATEGORIES[0]
+/**
+ * A blank line.
+ *
+ * `categories` can be empty — the catalogue is fetched, and a caller may reach here before it has
+ * answered. The line then carries no tax code and a zero rate rather than throwing: the server
+ * derives the rate it stores from the category and refuses an unknown one, so an unpriced line is
+ * refused on save instead of quietly taxed at a guess.
+ */
+export function blankDraftLine(categories: TaxCategoryDto[], taxCode = 'S5'): DraftLine {
+  const tax = categories.find((option) => option.code === taxCode) ?? categories[0] ?? NO_CATEGORY
   return {
     id: `L${nextLine++}`,
     productId: null,
@@ -199,7 +270,7 @@ export function blankDraftLine(taxCode = 'S5'): DraftLine {
   }
 }
 
-export function blankDraftForm(): DraftForm {
+export function blankDraftForm(categories: TaxCategoryDto[] = []): DraftForm {
   return {
     customerType: 'business',
     customerId: null,
@@ -213,30 +284,54 @@ export function blankDraftForm(): DraftForm {
     internalNote: '',
     headerDiscountType: 'PERCENTAGE',
     headerDiscountValue: '0',
-    lines: [blankDraftLine()],
+    lines: [blankDraftLine(categories)],
+    buyerReference: '',
+    contractReference: '',
   }
 }
 
-export function taxOptionOf(line: Pick<DraftLine, 'taxCode' | 'vatRate'>) {
+export function taxOptionOf(
+  categories: TaxCategoryDto[],
+  line: Pick<DraftLine, 'taxCode' | 'vatRate'>,
+): TaxCategoryDto {
   return (
-    TAX_CATEGORIES.find((option) => option.code === line.taxCode) ??
-    TAX_CATEGORIES.find((option) => option.rate === line.vatRate) ??
-    TAX_CATEGORIES[0]
+    categories.find((option) => option.code === line.taxCode) ??
+    categories.find((option) => option.rate === line.vatRate) ??
+    categories[0] ??
+    NO_CATEGORY
   )
 }
 
 const text = (value: string) => (value.trim() === '' ? null : value.trim())
 const number = (value: string) => Number((value || '0').replace(/,/g, ''))
 
-export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest {
-  const terms = paymentTermOf(form.paymentTerms)
+/**
+ * @param selfBilled sends IBT-010 and IBT-012. Omitted on every other document, because the
+ *                   server refuses them there rather than dropping them quietly.
+ * @param termLabel  the label the reader saw for the terms code, stored beside it as a snapshot.
+ *                   Without one, the design's English label, then what a loaded draft carried.
+ */
+export function toDraftRequest(
+  reference: ReferenceDataDto | null,
+  form: DraftForm,
+  exclVat: boolean,
+  selfBilled = false,
+  termLabel?: (code: string) => string,
+): DraftRequest {
+  const termsCode = form.paymentTerms
+  const known =
+    (reference?.paymentTerms ?? []).some((option) => option.code === termsCode) ||
+    paymentTermOf(termsCode) !== undefined
+  const label = known
+    ? (termLabel?.(termsCode) ?? paymentTermOf(termsCode)?.label ?? termsCode)
+    : (form.paymentTermsLabel ?? termsCode)
   return {
     customerId: form.customerId ?? '',
     branchId: form.branchId ?? '',
     currency: 'OMR',
     vatMode: 'EXCLUSIVE',
     lines: form.lines.map((line, index) => {
-      const tax = taxOptionOf(line)
+      const tax = taxOptionOf(reference?.taxCategories ?? [], line)
       // TODO(backend): `itemType` (goods/service), `hsCode` and `serviceType` have no draft field
       // and `InvoiceDraftRequest` refuses unknown members, so the line's classification stays on
       // the client until the API carries `lines[].itemType`, `lines[].hsCode` and
@@ -255,9 +350,9 @@ export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest 
         discount: { type: line.discountType, value: number(line.discountValue) },
         taxCategory: {
           code: tax.code,
-          en16931Category: tax.categoryId,
+          en16931Category: tax.en16931Category,
           rate: Number(tax.rate),
-          exemptionReason: NEEDS_EXEMPTION_REASON.has(tax.categoryId)
+          exemptionReason: NEEDS_EXEMPTION_REASON.has(tax.en16931Category)
             ? text(line.exemptionReason)
             : null,
         },
@@ -270,12 +365,17 @@ export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest 
       purchaseOrderReference: text(form.purchaseOrder),
       customerVisibleNote: text(form.customerNote),
       ...(form.internalNote === null ? {} : { internalNote: form.internalNote }),
-      paymentTerms: terms
-        ? { code: terms.code, label: terms.label }
-        : form.paymentTerms
-          ? { code: form.paymentTerms, label: form.paymentTermsLabel ?? form.paymentTerms }
-          : null,
+      // The label is a SNAPSHOT of what the reader saw, which is why the server stores it
+      // beside the code rather than resolving it later. The design's terms (Net 15, End of
+      // month, Advance payment) are sent by code even where the platform's list lacks them.
+      paymentTerms: termsCode ? { code: termsCode, label } : null,
       transactionType: form.customerType === 'consumer' ? 'SIMPLIFIED' : 'FULL_TAX',
+      ...(selfBilled
+        ? {
+            buyerReference: text(form.buyerReference),
+            contractReference: text(form.contractReference),
+          }
+        : {}),
     },
   }
 }
@@ -285,7 +385,11 @@ export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest 
  * record, which the draft does not carry; `internalNote` is filled separately, and only for
  * someone who may read it.
  */
-export function fromDraftResponse(draft: DraftResponse, customerType: CustomerKind): DraftForm {
+export function fromDraftResponse(
+  categories: TaxCategoryDto[],
+  draft: DraftResponse,
+  customerType: CustomerKind,
+): DraftForm {
   return {
     customerType,
     customerId: draft.customerId,
@@ -297,12 +401,16 @@ export function fromDraftResponse(draft: DraftResponse, customerType: CustomerKi
     purchaseOrder: draft.details.purchaseOrderReference ?? '',
     customerNote: draft.details.customerVisibleNote ?? '',
     internalNote: null,
+    // Read back deliberately. The draft PUT replaces the whole draft, so a reference the read
+    // left out would be cleared by the next save — the server's own DTO says exactly this.
+    buyerReference: draft.details.buyerReference ?? '',
+    contractReference: draft.details.contractReference ?? '',
     headerDiscountType: draft.headerDiscount.type,
     headerDiscountValue: String(Number(draft.headerDiscount.value)),
     lines: draft.lines.map((line) => {
       const tax =
-        TAX_CATEGORIES.find((option) => option.code === line.taxCategoryCode) ??
-        taxCategoryOf(line.en16931Category, line.taxRate)
+        categories.find((option) => option.code === line.taxCategoryCode) ??
+        taxCategoryOf(categories, line.en16931Category, line.taxRate)
       return {
         id: `L${nextLine++}`,
         productId: line.productId || null,
@@ -338,7 +446,7 @@ export type FormProblem = {
 }
 
 /** What stops a save before it is sent. The server re-checks everything; this only saves a round trip. */
-export function problemsBeforeSave(form: DraftForm): FormProblem[] {
+export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm): FormProblem[] {
   const problems: FormProblem[] = []
   if (!form.customerId) problems.push({ field: 'customer', key: 'invoiceDraft.problem.customer' })
   if (!form.branchId) problems.push({ field: 'branch', key: 'invoiceDraft.problem.branch' })
@@ -351,7 +459,7 @@ export function problemsBeforeSave(form: DraftForm): FormProblem[] {
       problems.push({ field: 'unitPrice', line: index, key: 'invoiceDraft.problem.unitPrice' })
     }
     if (
-      NEEDS_EXEMPTION_REASON.has(taxOptionOf(line).categoryId) &&
+      NEEDS_EXEMPTION_REASON.has(taxOptionOf(categories, line).en16931Category) &&
       line.exemptionReason.trim() === ''
     ) {
       problems.push({

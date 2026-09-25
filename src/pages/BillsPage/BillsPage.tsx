@@ -16,6 +16,7 @@ import {
   type BillRowDto,
   type BillSummaryDto,
 } from '../../api/expenditure/bills'
+import { discardIntake, loadIntakes, unconfirmedIntakesPath, type IntakePageDto } from '../../api/expenditure/billIntake'
 import {
   BILL_PAGE_SIZES,
   BILL_SORTS,
@@ -37,7 +38,7 @@ import {
   type Note,
 } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import kpiAttentionIcon from '../../assets/bills/kpi-attention.svg'
 import kpiDueIcon from '../../assets/bills/kpi-due.svg'
@@ -66,15 +67,21 @@ const SOURCE_STYLES: Record<BillSourceBadge, { bg: string; fg: string; labelKey:
 }
 
 
-/** Figma column widths, so the columns line up with the design at 1144. */
+/**
+ * Figma column widths. The design has no Outstanding column — it was drawn before the list
+ * carried one — so every other column gives up a little to pay for it and the total stays at
+ * the shell's 1144. Widening the table instead put the new column behind a horizontal scroll,
+ * which is the one place it is no use: a payables list is read by scanning what is still owed.
+ */
 const COLUMNS = [
   { key: 'check', width: 45 },
-  { key: 'supplier', width: 170 },
-  { key: 'theirBill', width: 161 },
-  { key: 'due', width: 160 },
-  { key: 'match', width: 193 },
-  { key: 'status', width: 235 },
-  { key: 'amount', width: 180 },
+  { key: 'supplier', width: 165 },
+  { key: 'theirBill', width: 145 },
+  { key: 'due', width: 150 },
+  { key: 'match', width: 160 },
+  { key: 'status', width: 190 },
+  { key: 'amount', width: 145 },
+  { key: 'outstanding', width: 144 },
 ] as const
 
 /** How long typing pauses before the search is sent, so each keystroke is not a request. */
@@ -273,8 +280,9 @@ function BillsScreen() {
         </div>
 
         {tab === 'needsAttention' && totals.needsAttention.draft > 0 ? (
-          <div className="px-6 pb-3.5">
+          <div className="flex flex-col gap-3 px-6 pb-3.5">
             <Notice body={t('billsPage.notice.drafts', { count: totals.needsAttention.draft })} />
+            <UnconfirmedUploads onChanged={summary.retry} />
           </div>
         ) : null}
         {truncated ? (
@@ -337,6 +345,65 @@ function BillsScreen() {
   )
 }
 
+/**
+ * The uploads the drafts notice counts, each with a way back to it: an upload saved for later is
+ * finished on its own page; a receipt is confirmed from Scan a receipt and can only be discarded
+ * here. A companion to the notice, so a failed read shows nothing rather than a second error
+ * beside the count.
+ */
+function UnconfirmedUploads({ onChanged }: { onChanged: () => void }) {
+  const { t, i18n } = useTranslation()
+  const session = useSession()
+  const [failure, setFailure] = useState<string | null>(null)
+  const path = unconfirmedIntakesPath(0, 20)
+  const intakes = useApiRead<IntakePageDto>(path, () => loadIntakes(path))
+  if (intakes.read.status !== 'ready') return null
+
+  const discard = async (id: string) => {
+    setFailure(null)
+    try {
+      await discardIntake(id)
+      intakes.retry()
+      onChanged()
+    } catch (error) {
+      setFailure(failureText(t, error))
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {failure ? <Notice body={failure} action={{ label: t('common.close'), onClick: () => setFailure(null) }} /> : null}
+      <ul aria-label={t('billsPage.unconfirmed.title')} className="divide-y divide-border-subtle rounded-md border border-border-subtle">
+        {intakes.read.data.items.map((intake) => (
+          <li key={intake.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-text-primary">
+                {intake.extracted.supplierName || intake.filename || t('billsPage.unconfirmed.unnamed')}
+                {intake.extracted.billNumber ? ` · ${intake.extracted.billNumber}` : ''}
+              </p>
+              <p className="text-xs font-medium text-text-quaternary">
+                {t(`billsPage.unconfirmed.${intake.source}`, { date: formatInstantDay(intake.uploadedAt, i18n.language) })}
+              </p>
+            </div>
+            {can(session, 'invoice.payment.manage') ? (
+              <div className="flex items-center gap-4">
+                {intake.source === 'UPLOADED' ? (
+                  <Link to={`/expenditure/bills/upload/${intake.id}`} className="text-sm font-semibold text-primary-800 hover:text-primary-700">
+                    {t('billsPage.unconfirmed.continue')}
+                  </Link>
+                ) : null}
+                <button type="button" onClick={() => void discard(intake.id)} className="text-sm font-semibold text-text-tertiary hover:text-text-danger">
+                  {t('billsPage.unconfirmed.discard')}
+                </button>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function failureText(t: Translate, error: unknown): string {
   const message = describeApiFailure(error)
   const body = t(message.key, message.values)
@@ -390,7 +457,20 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       titleKey: 'billsPage.kpi.payable',
       figure: money(totals.openTotal),
       money: true,
-      meta: t('billsPage.kpi.payableBills', { open: count(totals.openCount), overdue: count(totals.overdueCount) }),
+      // Rejecting a bill does not cancel it: under VAT the liability stands until the supplier
+      // issues a credit note. It leaves the payable figure above and is named here instead of
+      // disappearing from the page altogether (decision 3, 2026-09-24).
+      meta: [
+        t('billsPage.kpi.payableBills', { open: count(totals.openCount), overdue: count(totals.overdueCount) }),
+        totals.disputedCount > 0
+          ? t('billsPage.kpi.payableDisputed', {
+              amount: money(totals.disputedTotal),
+              count: totals.disputedCount,
+            })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       link: null,
     },
     {
@@ -546,18 +626,19 @@ function BillTable({
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.matched')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.status')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.amount')}</th>
+            <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.outstanding')}</th>
           </tr>
         </thead>
         <tbody>
           {page === null ? (
             <tr>
-              <td colSpan={7} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td colSpan={8} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
                 {t('appAccess.loading')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="py-12 text-center text-sm font-medium text-text-tertiary">
+              <td colSpan={8} className="py-12 text-center text-sm font-medium text-text-tertiary">
                 {t(ledgerEmpty ? 'billsPage.emptyLedger' : 'billsPage.empty')}
               </td>
             </tr>
@@ -722,6 +803,26 @@ function BillTableRow({
             })}
           </p>
         ) : null}
+      </td>
+
+      <td className="px-2 py-2.5 align-middle">
+        {row.owes ? (
+          <p
+            className={[
+              'text-base font-semibold leading-[1.2] tabular-nums',
+              // Money that is late is the thing a payables list exists to surface, so the figure
+              // carries it. The word is left to the due column, which already says how late;
+              // repeating it here would put "Overdue" twice on one row. Colour is not the only
+              // carrier — the sr-only line below says it, and the due column says it in print.
+              row.overdue ? 'text-danger-700' : 'text-text-secondary',
+            ].join(' ')}
+          >
+            {formatAmount(row.outstanding, row.currency, language)}
+            {row.overdue ? <span className="sr-only"> {t('billsPage.rows.overdue')}</span> : null}
+          </p>
+        ) : (
+          <p className="text-base font-medium text-text-muted">{t('billsPage.rows.nothingOwed')}</p>
+        )}
       </td>
     </tr>
   )

@@ -1,0 +1,151 @@
+import { apiRequest } from '../client'
+import { fromItemsPage, type ItemsPage, type Page } from '../page'
+import { withQuery } from '../query'
+
+/**
+ * Purchase orders (`PurchaseOrderController`, E-13) — what the tenant has ordered from a supplier,
+ * and what has arrived against it.
+ *
+ * **Nothing is transmitted.** The only dispatch channel is a log line: `send` records that the
+ * buyer says they communicated the order and moves it to SENT, and `sent_at` is the durable fact.
+ * Peppol Order is out of scope, so no screen may offer to send one.
+ */
+
+export const PURCHASE_ORDERS_PATH = '/v1/purchase-orders'
+
+export type PurchaseOrderStateDto =
+  | 'DRAFT'
+  | 'AWAITING_APPROVAL'
+  | 'APPROVED'
+  | 'SENT'
+  | 'PARTIALLY_RECEIVED'
+  | 'RECEIVED'
+  | 'CLOSED'
+  | 'CANCELLED'
+
+export type PurchaseOrderLineDto = {
+  id: string
+  lineNo: number
+  description: string
+  quantity: number
+  unit: string | null
+  unitPrice: number
+  vatRate: number | null
+  lineNet: number
+  vatAmount: number
+}
+
+export type PurchaseOrderDto = {
+  id: string
+  supplierId: string
+  number: string | null
+  state: PurchaseOrderStateDto
+  orderDate: string | null
+  wantedBy: string | null
+  deliverToBranchId: string | null
+  yourReference: string | null
+  supplierNote: string | null
+  currency: string
+  totalNet: number | null
+  totalVat: number | null
+  totalGross: number | null
+  lines: PurchaseOrderLineDto[]
+  submittedBy: string | null
+  submittedAt: string | null
+  approvedBy: string | null
+  approvedAt: string | null
+  sentAt: string | null
+  cancelledAt: string | null
+  createdBy: string | null
+  version: number
+}
+
+export type PurchaseOrderLineRequest = {
+  lineNo: number | null
+  description: string
+  quantity: number
+  unit: string | null
+  unitPrice: number
+  vatRate: number | null
+}
+
+export type PurchaseOrderRequest = {
+  supplierId: string
+  orderDate: string | null
+  wantedBy: string | null
+  deliverToBranchId: string | null
+  yourReference: string | null
+  supplierNote: string | null
+  currency: string
+  /** At least one. The server refuses an order with no lines. */
+  lines: PurchaseOrderLineRequest[]
+}
+
+export type GoodsReceiptLineDto = { id: string; purchaseOrderLineId: string; quantityReceived: number }
+
+export type GoodsReceiptDto = {
+  id: string
+  purchaseOrderId: string
+  number: string | null
+  receivedOn: string | null
+  checkedInBy: string | null
+  note: string | null
+  lines: GoodsReceiptLineDto[]
+}
+
+export type GoodsReceiptRequest = {
+  receivedOn: string | null
+  note: string | null
+  lines: { purchaseOrderLineId: string; quantityReceived: number }[]
+}
+
+export function purchaseOrderPath(id: string) {
+  return `${PURCHASE_ORDERS_PATH}/${id}`
+}
+
+export function purchaseOrderListPath(query: {
+  supplierId?: string | null
+  state?: PurchaseOrderStateDto | null
+  page?: number
+  pageSize?: number
+}) {
+  return withQuery(PURCHASE_ORDERS_PATH, {
+    supplierId: query.supplierId ?? null,
+    state: query.state ?? null,
+    page: query.page ?? 0,
+    page_size: query.pageSize ?? 20,
+  })
+}
+
+export async function loadPurchaseOrderPage(path: string): Promise<Page<PurchaseOrderDto>> {
+  return fromItemsPage(await apiRequest<ItemsPage<PurchaseOrderDto>>(path))
+}
+
+export function loadPurchaseOrder(id: string): Promise<PurchaseOrderDto> {
+  return apiRequest<PurchaseOrderDto>(purchaseOrderPath(id))
+}
+
+/** `purchase-order.manage`. */
+export function createPurchaseOrder(body: PurchaseOrderRequest): Promise<PurchaseOrderDto> {
+  return apiRequest<PurchaseOrderDto>(PURCHASE_ORDERS_PATH, { method: 'POST', body })
+}
+
+export function updatePurchaseOrder(id: string, body: PurchaseOrderRequest): Promise<PurchaseOrderDto> {
+  return apiRequest<PurchaseOrderDto>(purchaseOrderPath(id), { method: 'PUT', body })
+}
+
+/** The transitions, each refused by the domain when the order is not in a state that allows it. */
+export type PurchaseOrderAction = 'submit' | 'approve' | 'send' | 'cancel' | 'close'
+
+export function actOnPurchaseOrder(id: string, action: PurchaseOrderAction): Promise<PurchaseOrderDto> {
+  return apiRequest<PurchaseOrderDto>(`${purchaseOrderPath(id)}/${action}`, { method: 'POST' })
+}
+
+export function loadGoodsReceipts(id: string): Promise<GoodsReceiptDto[]> {
+  return apiRequest<GoodsReceiptDto[]>(`${purchaseOrderPath(id)}/receipts`)
+}
+
+/** Books goods in. The order moves itself to PARTIALLY_RECEIVED or RECEIVED as a result. */
+export function recordGoodsReceipt(id: string, body: GoodsReceiptRequest): Promise<GoodsReceiptDto> {
+  return apiRequest<GoodsReceiptDto>(`${purchaseOrderPath(id)}/receipts`, { method: 'POST', body })
+}

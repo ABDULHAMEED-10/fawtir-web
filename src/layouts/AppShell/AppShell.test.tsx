@@ -12,6 +12,7 @@ const ACCOUNTANT: Entitlements = {
   userId: 'u-1',
   username: 'layla.accounts',
   tenantId: 't-1',
+  tenantName: 'Nizwa Dates Trading',
   roles: [{ id: 'r-1', code: 'ACCOUNTANT', name: 'Accountant', systemRole: true }],
   permissions: ['invoice.read', 'reports.read'],
   scopes: [],
@@ -92,6 +93,25 @@ describe('AppShell session guard', () => {
     expect(screen.queryByRole('link', { name: /^Customers$/ })).toBeNull()
     // invoice.read keeps Income.
     expect(screen.getByRole('button', { name: /Income/ })).toBeTruthy()
+  })
+
+  it('names the workspace the session belongs to, not a fixture', async () => {
+    // The card used to read the first entry of a demo branch list, so every tenant saw the
+    // same company. The name now comes from /me/entitlements.
+    fetchMock.mockResolvedValue(json(200, ACCOUNTANT))
+    renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+    expect(screen.getByText('Nizwa Dates Trading')).toBeTruthy()
+    expect(screen.queryByText('Al Bahja Coffee')).toBeNull()
+  })
+
+  it('keeps the card readable when the server sends no workspace name', async () => {
+    // Null is what the projection returns when row-level security hides the tenant row. A
+    // label is not worth an empty card, so the previous name stands.
+    fetchMock.mockResolvedValue(json(200, { ...ACCOUNTANT, tenantName: null }))
+    renderAt('/suppliers')
+    await screen.findByText(/screen for/)
+    expect(screen.getByText('Al Bahja Coffee')).toBeTruthy()
   })
 
   it('offers a retry when the session check itself fails', async () => {

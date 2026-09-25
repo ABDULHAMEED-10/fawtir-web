@@ -4,8 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
-import { billProblems, blankBillForm, linesTotals, toConfirmation, vatIncluded } from '../../lib/billIntake'
+import { billProblems, blankBillForm, linesTotals, savedDetails, toConfirmation, toCorrections, vatIncluded } from '../../lib/billIntake'
 import { UploadBillPage } from './UploadBillPage'
+import { UploadCreditNotePage } from '../UploadCreditNotePage'
+import { UploadDebitNotePage } from '../UploadDebitNotePage'
 import { ScanReceiptsPage } from '../ScanReceiptsPage'
 import { RecordSupplierBillPage } from '../RecordSupplierBillPage'
 
@@ -78,6 +80,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let uploads: IntakeDto[]
 let confirmAnswers: Response[]
+/** The intake a resume link (`/upload/:intakeId`) finds, when one is set. */
+let resumed: IntakeDto | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(([called, init]) => String(called).startsWith(prefix) && ((init as RequestInit | undefined)?.method ?? 'GET') === method)
@@ -88,6 +92,7 @@ beforeEach(async () => {
   forgetEntitlements()
   uploads = []
   confirmAnswers = []
+  resumed = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, MANAGER)
@@ -100,6 +105,13 @@ beforeEach(async () => {
       return json(200, { profile: { id: SUPPLIER_ID, displayName: 'Qalhat Marine Supplies LLC', vatNumber: 'OM1100999002' } })
     if (url.startsWith('/api/v1/purchase-orders?'))
       return json(200, { items: [{ id: 'po-1', number: 'PO-0033', state: 'RECEIVED', orderDate: '2026-08-20', wantedBy: null, currency: 'OMR', totalGross: 105 }], page: 0, pageSize: 50, count: 1 })
+    if (/\/api\/v1\/bills\/intake\/[^/]+\/file$/.test(url)) {
+      return new Response('%PDF-1.4', { status: 200, headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="saved.pdf"' } })
+    }
+    if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && method === 'PUT') return json(200, intake('i-kept'))
+    if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && method === 'GET') {
+      return resumed ? json(200, resumed) : json(404, { error: 'BILL_INTAKE_NOT_FOUND' })
+    }
     throw new Error(`unexpected ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -115,10 +127,15 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/expenditure/bills/upload" element={<UploadBillPage />} />
+        <Route path="/expenditure/bills/upload/:intakeId" element={<UploadBillPage />} />
         <Route path="/expenditure/bills/scan" element={<ScanReceiptsPage />} />
         <Route path="/suppliers/:slug/record-bill" element={<RecordSupplierBillPage />} />
+        <Route path="/expenditure/credit-notes/upload" element={<UploadCreditNotePage />} />
+        <Route path="/expenditure/debit-notes/upload" element={<UploadDebitNotePage />} />
         <Route path="/expenditure/bills/:id" element={<p>bill page</p>} />
         <Route path="/expenditure/bills" element={<p>bills list</p>} />
+        <Route path="/expenditure/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/expenditure/debit-notes/:id" element={<p>debit note page</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -135,6 +152,29 @@ async function pick(files: File[]) {
 const pdf = (name = 'bill.pdf') => new File(['%PDF-1.4'], name, { type: 'application/pdf' })
 
 describe('the bill form rules', () => {
+  it('keeps a half-typed bill as corrections, refusing only malformed figures', () => {
+    const half = { ...blankBillForm(), billNumber: 'NHS-2026-14', total: '42.500' }
+    expect(billProblems(half, { needsNumber: true, partial: true })).toEqual({})
+    expect(billProblems(half, { needsNumber: true })).toMatchObject({ supplier: 'billIntake.error.supplier', issueDate: 'validation.required' })
+    expect(billProblems({ ...half, vat: '4,2' }, { needsNumber: true, partial: true })).toEqual({ vat: 'billIntake.error.amount' })
+    expect(toCorrections(half, null)).toEqual({
+      supplierName: null,
+      supplierVatNumber: null,
+      billNumber: 'NHS-2026-14',
+      issueDate: null,
+      dueDate: null,
+      currency: 'OMR',
+      net: null,
+      vat: null,
+      total: 42.5,
+      lines: [],
+    })
+    // Saved details are told from a fresh PDF by the server's marks, and from an XML by its status.
+    expect(savedDetails(intake('i'))).toBe(false)
+    expect(savedDetails(intake('i', { extracted: { ...intake('i').extracted, total: 42.5, confidence: { total: true } } }))).toBe(true)
+    expect(savedDetails(XML_INTAKE)).toBe(false)
+  })
+
   it('adds lines up through the invoice engine and sends plain figures', () => {
     const form = {
       ...blankBillForm(),
@@ -222,6 +262,71 @@ describe('upload a bill', () => {
   })
 })
 
+describe('an upload saved for later', () => {
+  it('keeps what is typed so far without demanding the rest, then goes back to the list', async () => {
+    uploads.push(intake('i-pdf'))
+    renderAt('/expenditure/bills/upload')
+    await pick([pdf()])
+    await screen.findByText(/Nothing is read out of a PDF or photo/)
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Their bill number/ }), { target: { value: 'NHS-2026-14' } })
+    fireEvent.change(screen.getByRole('textbox', { name: /Total on the bill/ }), { target: { value: '42.500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save for later' }))
+
+    await waitFor(() => expect(calls('PUT', '/api/v1/bills/intake/i-pdf')).toHaveLength(1))
+    expect(bodyOf(calls('PUT', '/api/v1/bills/intake/i-pdf')[0])).toEqual({
+      documentTypeCode: '380',
+      extracted: { supplierName: null, supplierVatNumber: null, billNumber: 'NHS-2026-14', issueDate: null, dueDate: null, currency: 'OMR', net: null, vat: null, total: 42.5, lines: [] },
+    })
+    expect(await screen.findByText('bills list')).toBeTruthy()
+    expect(calls('DELETE', '/api/v1/bills/intake/i-pdf')).toHaveLength(0)
+    expect(calls('POST', '/api/v1/bills/intake/i-pdf/confirm')).toHaveLength(0)
+  })
+
+  it('refuses to keep a malformed figure, though not a missing one', async () => {
+    uploads.push(intake('i-pdf'))
+    renderAt('/expenditure/bills/upload')
+    await pick([pdf()])
+    await screen.findByText(/Nothing is read out of a PDF or photo/)
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Total on the bill/ }), { target: { value: '42,5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save for later' }))
+
+    expect(await screen.findByText('Some fields need attention before the bill can be saved.')).toBeTruthy()
+    expect(calls('PUT', '/api/v1/bills/intake/i-pdf')).toHaveLength(0)
+  })
+
+  it('comes back with its file and the details typed so far, and confirms from there', async () => {
+    resumed = intake('i-kept', {
+      extracted: {
+        ...intake('i-kept').extracted,
+        supplierName: 'Nizwa Hardware Store',
+        billNumber: 'NHS-2026-14',
+        issueDate: '2026-09-01',
+        currency: 'OMR',
+        total: 42.5,
+        confidence: { supplierName: true, billNumber: true, issueDate: true, currency: true, total: true },
+      },
+    })
+    renderAt('/expenditure/bills/upload/i-kept')
+
+    expect(await screen.findByDisplayValue('NHS-2026-14')).toBeTruthy()
+    expect(screen.getByText(/The details saved earlier are filled in/)).toBeTruthy()
+    expect(calls('GET', '/api/v1/bills/intake/i-kept/file')).toHaveLength(1)
+    expect(screen.getByText('saved.pdf')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-kept/confirm')[0])).toMatchObject({ supplierName: 'Nizwa Hardware Store', billNumber: 'NHS-2026-14', total: 42.5, issueDate: '2026-09-01' })
+  })
+
+  it('sends a link to an upload confirmed meanwhile on to its bill', async () => {
+    resumed = intake('i-done', { confirmedBillId: 'b-77', workflowState: null })
+    renderAt('/expenditure/bills/upload/i-done')
+    expect(await screen.findByText('bill page')).toBeTruthy()
+  })
+})
+
 describe('record a bill from a supplier', () => {
   it('asks for the file first and sends the page’s supplier with a chosen order', async () => {
     uploads.push({ ...XML_INTAKE, id: 'i-rec' })
@@ -283,5 +388,47 @@ describe('scan receipts', () => {
 
     await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-2/confirm')).toHaveLength(1))
     expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-2/confirm')[0]).paidOnTheSpot).toBeNull()
+  })
+})
+
+describe('upload a supplier note', () => {
+  it('confirms a credit note as a 381 and opens it on the credit-note screen', async () => {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/credit-notes/upload')
+    await pick([new File(['<CreditNote/>'], 'note.xml', { type: 'application/xml' })])
+
+    expect(await screen.findByDisplayValue('MR-INV-8821')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    // The type is what decides which way the money points, so it is the assertion that matters:
+    // a 380 here would file a credit as something owed.
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe('381')
+  })
+
+  it('confirms a debit note as a 383 and opens it on the debit-note screen', async () => {
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/debit-notes/upload')
+    await pick([new File(['<DebitNote/>'], 'note.xml', { type: 'application/xml' })])
+
+    expect(await screen.findByDisplayValue('MR-INV-8821')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe('383')
+  })
+
+  it('still files a bill as a 380 when no type is stated', async () => {
+    // The default is the capability half of the pair above: widening the field must not have
+    // changed what the bill upload sends.
+    uploads.push(XML_INTAKE)
+    renderAt('/expenditure/bills/upload')
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: 'Save the bill' }))
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe('380')
   })
 })

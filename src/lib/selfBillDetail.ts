@@ -1,169 +1,257 @@
+import type {
+  InvoiceDetailDto,
+  InvoiceHistoryDto,
+  InvoiceReceivableDto,
+} from '../api/invoices/detail'
+import type { AgreementDto } from '../api/selfBilling/agreements'
+import { lineTotals, timelineOf } from './invoiceDetail'
+import { lapsed } from './selfBillingAgreements'
+
 /**
- * Self-billed invoice detail (Figma 13:48136).
+ * Self-billed invoice detail (Figma 154:167694), written from what the API holds.
  *
- * Three independent tracks sit at the top: how the document reached the supplier over
- * Peppol, whether the OTA accepted the Tax Data Document, and whether the supplier has
- * confirmed it. They can disagree — a document can be delivered and cleared while the
- * supplier still has not confirmed.
+ * The frame draws three independent tracks at the top: how the document reached the supplier
+ * over Peppol, whether the Tax Authority accepted it, and whether the supplier has confirmed it.
+ * The platform answers only the first (`deliveryState`, and the response code when it is
+ * reported). TODO(backend): no OTA verdict and no supplier confirmation or dispute exist on any
+ * response (INCOME_DESIGN_REALIGNMENT_BACKEND_ASKS.md §7.2), so those two tracks, the status
+ * pill's "Awaiting confirmation" and the open item at the top of the history are drawn as the
+ * design draws them, from the delivery facts, until the states arrive.
  */
 
-export type TrackTone = 'success' | 'pending' | 'danger'
+export type TrackTone = 'success' | 'pending' | 'danger' | 'muted'
 
 export type SelfBillTrack = {
-  id: string
+  id: 'peppol' | 'ota' | 'supplier'
   labelKey: string
-  value: string
+  valueKey: string
+  values?: Record<string, string | number>
   tone: TrackTone
-  /** Optional Peppol response code chip beside the value. */
-  code?: string
-  note: string
+  /** The Peppol response code chip beside the value, when one was reported. */
+  code: string | null
+  noteKey: string
+  noteValues?: Record<string, string | number>
 }
 
-export type TimelineTone = 'current' | 'done'
+export type SelfBillStatusTone = 'muted' | 'info' | 'pending' | 'success'
+
+/** Whole days from `from` (an ISO day or instant) to `today`, never negative. */
+export function daysSince(from: string | null, today: string): number {
+  if (!from) return 0
+  const start = Date.parse(`${from.slice(0, 10)}T00:00:00Z`)
+  const end = Date.parse(`${today}T00:00:00Z`)
+  return Math.max(0, Math.round((end - start) / 86_400_000))
+}
+
+export function isDelivered(invoice: InvoiceDetailDto): boolean {
+  return invoice.deliveryState === 'DELIVERED' || Boolean(invoice.peppolResponse)
+}
+
+/**
+ * The status pill under the number. A draft, a cancellation and a paid document are the API's
+ * own words; an issued document that nobody has confirmed reads as the design's "Awaiting
+ * confirmation" (TODO(backend): no confirmation state), or "To be sent" while it has not left.
+ */
+export function selfBillStatus(
+  invoice: InvoiceDetailDto,
+  receivable: InvoiceReceivableDto | null,
+): { key: string; tone: SelfBillStatusTone } {
+  if (invoice.authoringState === 'DRAFT')
+    return { key: 'selfBillDetail.status.draft', tone: 'muted' }
+  if (invoice.authoringState === 'CANCELLED' || invoice.authoringState === 'DISCARDED')
+    return { key: 'selfBillDetail.status.cancelled', tone: 'muted' }
+  if (receivable?.paymentState === 'PAID')
+    return { key: 'selfBillDetail.status.paid', tone: 'success' }
+  if (invoice.deliveryState === 'NOT_SUBMITTED')
+    return { key: 'selfBillDetail.status.toBeSent', tone: 'info' }
+  return { key: 'selfBillDetail.status.awaitingConfirmation', tone: 'pending' }
+}
+
+const RESPONSE_NOTE: Record<string, string> = {
+  AB: 'selfBillDetail.peppol.acceptedWithWarnings',
+  AP: 'selfBillDetail.peppol.accepted',
+  RE: 'selfBillDetail.peppol.rejected',
+}
+
+export function selfBillTracks(
+  invoice: InvoiceDetailDto,
+  context: { supplier: string; today: string; deliveredAt: string | null },
+): SelfBillTrack[] {
+  const draft = invoice.authoringState === 'DRAFT'
+  const delivered = isDelivered(invoice)
+  const code = invoice.peppolResponse ?? null
+
+  const peppol: SelfBillTrack = draft
+    ? {
+        id: 'peppol',
+        labelKey: 'selfBillDetail.tracks.peppol',
+        valueKey: 'selfBillDetail.peppol.notSent',
+        tone: 'muted',
+        code: null,
+        noteKey: 'selfBillDetail.peppol.afterIssue',
+      }
+    : delivered
+      ? {
+          id: 'peppol',
+          labelKey: 'selfBillDetail.tracks.peppol',
+          valueKey:
+            code === 'RE'
+              ? 'selfBillDetail.peppol.rejectedValue'
+              : 'selfBillDetail.peppol.delivered',
+          tone: code === 'RE' ? 'danger' : 'success',
+          code,
+          noteKey: code ? RESPONSE_NOTE[code] : 'selfBillDetail.peppol.deliveredNote',
+          noteValues: { when: context.deliveredAt ?? '' },
+        }
+      : invoice.deliveryState === 'SENT_MANUALLY'
+        ? {
+            id: 'peppol',
+            labelKey: 'selfBillDetail.tracks.peppol',
+            valueKey: 'selfBillDetail.peppol.sentManually',
+            tone: 'success',
+            code: null,
+            noteKey: 'selfBillDetail.peppol.sentManuallyNote',
+          }
+        : {
+            id: 'peppol',
+            labelKey: 'selfBillDetail.tracks.peppol',
+            valueKey: 'selfBillDetail.peppol.notSent',
+            tone: 'pending',
+            code: null,
+            noteKey: 'selfBillDetail.peppol.notSentNote',
+          }
+
+  // TODO(backend): the Tax Authority's verdict is not reported on any response.
+  const ota: SelfBillTrack = {
+    id: 'ota',
+    labelKey: 'selfBillDetail.tracks.ota',
+    valueKey: 'selfBillDetail.ota.notReported',
+    tone: draft || !delivered ? 'muted' : 'pending',
+    code: null,
+    noteKey:
+      draft || !delivered
+        ? 'selfBillDetail.ota.afterDelivery'
+        : 'selfBillDetail.ota.notReportedNote',
+  }
+
+  // TODO(backend): nothing records a supplier's confirmation or dispute.
+  const supplier: SelfBillTrack =
+    draft || !delivered
+      ? {
+          id: 'supplier',
+          labelKey: 'selfBillDetail.tracks.supplier',
+          valueKey: 'selfBillDetail.supplier.notAsked',
+          tone: 'muted',
+          code: null,
+          noteKey: 'selfBillDetail.supplier.afterDelivery',
+        }
+      : {
+          id: 'supplier',
+          labelKey: 'selfBillDetail.tracks.supplier',
+          valueKey: 'selfBillDetail.supplier.awaiting',
+          values: { count: daysSince(invoice.deliveredAt ?? invoice.issueDate, context.today) },
+          tone: 'pending',
+          code: null,
+          noteKey: 'selfBillDetail.supplier.awaitingNote',
+          noteValues: { supplier: context.supplier },
+        }
+
+  return [peppol, ota, supplier]
+}
+
+/** The note under the Agreement field: how long the agreement on file has left, if it is ending. */
+export function agreementNote(
+  agreement: AgreementDto | null,
+  today: string,
+): { key: string; values?: Record<string, number>; tone: 'pending' | 'danger' } | null {
+  if (!agreement || agreement.effectiveTo === null) return null
+  if (lapsed(agreement, today)) return { key: 'selfBillDetail.agreementLapsed', tone: 'danger' }
+  const left = daysSince(today, agreement.effectiveTo)
+  return left <= 30
+    ? { key: 'selfBillDetail.agreementExpiresIn', values: { count: left }, tone: 'pending' }
+    : null
+}
+
+export type SelfBillItem = {
+  lineNumber: number
+  description: string
+  unit: string
+  productCode: string | null
+  unitPrice: number
+  vatRate: number | null
+  quantity: number
+  discountLabel: string
+  total: number
+}
+
+export function selfBillItems(invoice: InvoiceDetailDto): SelfBillItem[] {
+  const totals = lineTotals(invoice)
+  return invoice.lines.map((line) => ({
+    lineNumber: line.lineNumber,
+    description: line.description,
+    unit: line.unitCode,
+    productCode: line.productCode,
+    unitPrice: line.unitPrice,
+    vatRate: line.taxRate,
+    quantity: line.quantity,
+    discountLabel:
+      line.discountValue === 0
+        ? '0'
+        : line.discountType === 'PERCENTAGE'
+          ? `${line.discountValue}%`
+          : String(line.discountValue),
+    total: totals.get(line.lineNumber) ?? 0,
+  }))
+}
 
 export type SelfBillEvent = {
   id: string
-  title: string
-  detail: string
-  timestamp: string
-  tone: TimelineTone
-  /** Explanatory callout under the entry, tinted #f4f6fb on #eaedf8. */
-  callout?: string
+  titleKey: string
+  titleValues?: Record<string, string | number>
+  detailKey: string | null
+  detailValues?: Record<string, string | number>
+  /** An ISO instant, or null for the open item whose "timestamp" is how long it has been open. */
+  at: string | null
+  openForDays?: number
+  tone: 'current' | 'done'
 }
 
-export const SELF_BILL_DETAIL = {
-  id: 'SB-0114',
-  status: { labelKey: 'selfBillDetail.status.awaitingConfirmation', tone: 'pending' as TrackTone },
-  raisedFor: 'Al Noor Dates LLC',
-  issued: 'issued 24 Jul 2026',
-  billedTo: 'Muscat Grand Hotel LLC',
-  tracks: [
+/**
+ * The history, newest first as the frame draws it. The open item at the top (waiting for the
+ * supplier) is drawn while the document is with the supplier and nothing has been recorded since;
+ * TODO(backend): it is the design's, not a recorded event, until a confirmation state exists.
+ */
+export function selfBillTimeline(
+  invoice: InvoiceDetailDto,
+  history: InvoiceHistoryDto,
+  context: { userId: string | null; supplier: string; today: string; paid: boolean },
+): SelfBillEvent[] {
+  const recorded: SelfBillEvent[] = timelineOf(history, context.userId)
+    .map((entry, index) => ({
+      id: `h-${index}`,
+      titleKey: entry.key,
+      detailKey: entry.outcome
+        ? 'selfBillDetail.history.outcome'
+        : entry.byYou
+          ? 'selfBillDetail.history.byYou'
+          : null,
+      detailValues: entry.outcome ? { outcome: entry.outcome } : undefined,
+      at: entry.at,
+      tone: 'done' as const,
+    }))
+    .sort((a, b) => (a.at! < b.at! ? 1 : -1))
+  const waiting = invoice.authoringState === 'ISSUED' && isDelivered(invoice) && !context.paid
+  if (!waiting) return recorded
+  return [
     {
-      id: 'peppol',
-      labelKey: 'selfBillDetail.tracks.peppol',
-      value: 'Delivered',
-      tone: 'success' as TrackTone,
-      code: 'AB',
-      note: 'Accepted with warnings · 24 Jul, 09:44',
+      id: 'open',
+      titleKey: 'selfBillDetail.history.waitingTitle',
+      titleValues: { supplier: context.supplier },
+      detailKey: 'selfBillDetail.history.waitingDetail',
+      at: null,
+      openForDays: daysSince(invoice.deliveredAt ?? invoice.issueDate, context.today),
+      tone: 'current',
     },
-    {
-      id: 'ota',
-      labelKey: 'selfBillDetail.tracks.ota',
-      value: 'TDD accepted',
-      tone: 'success' as TrackTone,
-      note: 'Reported in 4 min, inside the 15-minute window',
-    },
-    {
-      id: 'supplier',
-      labelKey: 'selfBillDetail.tracks.supplier',
-      value: 'Awaiting · 6 days',
-      tone: 'pending' as TrackTone,
-      note: 'Al Noor Dates has not confirmed or disputed yet',
-    },
-  ] satisfies SelfBillTrack[],
-  seller: { name: 'Muscat Grand Hotel LLC', noteKey: 'selfBillDetail.parties.sellerNote' },
-  buyer: { name: 'Al Bahja Coffee', noteKey: 'selfBillDetail.parties.buyerNote' },
-  fields: {
-    issueDate: '24 Jul 2026',
-    supplyDate: '22 Jul 2026',
-    paymentDue: '23 Aug 2026',
-    agreement: 'SBA-2025-011',
-    agreementNote: 'Expires in 9 days',
-    receivingBranch: 'Al Bahja Coffee (Main)',
-    purchaseOrder: 'PO-88301',
-  },
-  items: [
-    {
-      id: '1',
-      description: 'Cappuccino - Large',
-      meta: 'EA · Catalog #BV-014',
-      unitPrice: '1.8',
-      vat: '5%',
-      qty: '12',
-      unit: 'EA',
-      discount: '0',
-      total: '21.600',
-    },
-    {
-      id: '2',
-      description: 'Coffee Beans 1kg - House Blend',
-      meta: 'KG · Catalog #BN-002',
-      unitPrice: '9.500',
-      vat: '5%',
-      qty: '4',
-      unit: 'KG',
-      discount: '10%',
-      total: '34.200',
-    },
-  ],
-  totals: {
-    subtotal: 'OMR 59.600',
-    discount: '− OMR 3.800',
-    net: 'OMR 55.800',
-    vat: 'OMR 2.790',
-    total: 'OMR 58.590',
-  },
-  summary: {
-    subtotal: '59.600',
-    discount: '3.800',
-    net: '55.800',
-    vat: '2.790',
-    total: '58.590',
-  },
-  /** Newest first, as drawn — the open item sits at the top in sand, the rest in green. */
-  timeline: [
-    {
-      id: 'e5',
-      title: 'Waiting for Al Noor Dates to confirm',
-      detail:
-        'They can confirm, or dispute a line if something is wrong. Nothing further happens automatically.',
-      timestamp: 'Open for 6 days',
-      tone: 'current' as TimelineTone,
-    },
-    {
-      id: 'e4',
-      title: 'Tax Data Document accepted by the Oman Tax Authority',
-      detail: 'Submitted to C5 and acknowledged in 4 minutes, well inside the 15-minute window.',
-      timestamp: '24 Jul 2026 · 09:48',
-      tone: 'done' as TimelineTone,
-    },
-    {
-      id: 'e3',
-      title: 'Delivered to Al Noor Dates over Peppol',
-      detail: 'Their access point returned status AB.',
-      timestamp: '24 Jul 2026 · 09:44',
-      tone: 'done' as TimelineTone,
-      callout:
-        'AB means accepted with warnings. The document arrived and is valid. Their system flagged that the delivery address on line 1 differs from the one they hold: nothing you need to fix.',
-    },
-    {
-      id: 'e2',
-      title: 'Validated and signed',
-      detail:
-        'Passed all five layers against PINT-OM self-billing, then signed with your Peppol certificate.',
-      timestamp: '24 Jul 2026 · 09:41',
-      tone: 'done' as TimelineTone,
-    },
-    {
-      id: 'e1',
-      title: 'Draft created',
-      detail: 'By Hafidh Saif, from goods received note GRN-4468.',
-      timestamp: '24 Jul 2026 · 09:12',
-      tone: 'done' as TimelineTone,
-    },
-  ] satisfies SelfBillEvent[],
-  attachments: [
-    {
-      id: 'a1',
-      kind: 'pdf' as const,
-      name: 'Readable copy',
-      meta: 'Purchase order · 248 KB · Uploaded 18 Jul 2026',
-    },
-    {
-      id: 'a2',
-      kind: 'jpg' as const,
-      name: 'Signed delivery note - 18 Jul.jpg',
-      meta: 'Delivery note · 1.2 MB · Uploaded 18 Jul 2026',
-    },
-  ],
+    ...recorded,
+  ]
 }

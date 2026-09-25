@@ -1,4 +1,5 @@
-import { Trans, useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   ChartCard,
   ChartGrid,
@@ -6,121 +7,176 @@ import {
   HorizontalBars,
   KpiCard,
   KpiRow,
-  OmrNote,
   PlainBars,
+  ReportControls,
   ReportShell,
   SERIES,
-  StackedPercentRows,
 } from '../../components/reports'
-import { FISCAL_MONTHS, VAT, formatCount, formatOmr } from '../../lib/reports'
+import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
+import {
+  defaultReportRange,
+  loadVatReport,
+  reportExportPath,
+  vatPath,
+  type ReportGranularity,
+  type VatReportDto,
+} from '../../api/reports/reports'
+import { byPeriod, currenciesIn, outputByCategory, periodsOf, vatPosition } from '../../lib/vatReport'
+import { formatAmount, formatCount } from '../../lib/format'
 
+/**
+ * Reports › VAT (position 7).
+ *
+ * The tenant's VAT position as the server computes it: **output** is VAT charged on issued
+ * documents by EN 16931 category and rate, **input** is VAT the tenant was charged on received
+ * bills, and **net** is what the two come to per period.
+ *
+ * Two things the prototype drew are gone because nothing backs them. There is no next-return due
+ * date — the platform holds no filing calendar — and no reclaim-by-supplier chart, because an
+ * input row carries one VAT total for the bill and names no supplier dimension to group by.
+ */
 export function ReportsVatPage() {
-  const { t } = useTranslation()
-  const months = FISCAL_MONTHS.map((month) => t(`reports.months.${month}`))
-  const peakMonth = FISCAL_MONTHS[VAT.peakMonthIndex]
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const [params, setParams] = useSearchParams()
+
+  // Both are required by the service, so the screen opens on a window rather than on a 400.
+  const fallback = defaultReportRange()
+  const from = params.get('from') ?? fallback.from
+  const to = params.get('to') ?? fallback.to
+  const granularity = (params.get('granularity') as ReportGranularity | null) ?? 'QUARTER'
+
+  const change = (next: { from?: string; to?: string; granularity?: ReportGranularity }) =>
+    setParams(
+      (current) => {
+        const updated = new URLSearchParams(current)
+        for (const [key, value] of Object.entries(next)) {
+          if (!value) updated.delete(key)
+          else updated.set(key, value)
+        }
+        return updated
+      },
+      { replace: true },
+    )
+
+  const range = { from, to, granularity }
+  const path = vatPath(range)
+  const report = useApiRead<VatReportDto>(path, () => loadVatReport(path))
+  const data = report.read.status === 'ready' ? report.read.data : null
 
   return (
     <ReportShell titleKey="reports.vat.title" subtitleKey="reports.vat.subtitle">
+      <ReportControls
+        from={from}
+        to={to}
+        granularity={granularity}
+        onChange={change}
+        exports={{
+          csv: reportExportPath('vat', 'csv', range),
+          xlsx: reportExportPath('vat', 'xlsx', range),
+          name: 'vat-report',
+        }}
+      />
+
+      {report.read.status === 'loading' ? <LoadingNotice /> : null}
+      {report.read.status === 'failed' ? <ApiReadFailure error={report.read.error} retry={report.retry} /> : null}
+
+      {data ? <VatBody report={data} language={language} t={t} /> : null}
+    </ReportShell>
+  )
+}
+
+function VatBody({
+  report,
+  language,
+  t,
+}: {
+  report: VatReportDto
+  language: string
+  t: (key: string, values?: Record<string, unknown>) => string
+}) {
+  const currencies = currenciesIn(report)
+  const currency = currencies[0] ?? 'OMR'
+  const money = (value: number) => formatAmount(value, currency, language)
+  const position = vatPosition(report)
+  const periods = periodsOf(report)
+  // Each series is walked once, not once per bar.
+  const outputSeries = byPeriod(report.output, periods)
+  const inputSeries = byPeriod(report.input, periods)
+  const netSeries = byPeriod(report.net, periods)
+  const categories = outputByCategory(report.output)
+
+  if (periods.length === 0) {
+    return (
+      <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
+        {t('reports.vat.empty')}
+      </p>
+    )
+  }
+
+  return (
+    <>
+      {currencies.length > 1 ? (
+        // Every figure here is a plain sum. Adding OMR to USD would produce a number nobody can
+        // use, so the page says which currencies are in the range rather than totalling across.
+        <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
+          {t('reports.vat.mixedCurrency', { currencies: currencies.join(', ') })}
+        </p>
+      ) : null}
+
       <KpiRow>
+        <KpiCard label={t('reports.vat.kpi.collected')} value={money(position.output)} currency note={t('reports.vat.kpi.collectedNote')} />
+        <KpiCard label={t('reports.vat.kpi.paid')} value={money(position.input)} currency note={t('reports.vat.kpi.paidNote')} />
         <KpiCard
-          label={t('reports.vat.kpi.collected')}
-          value={formatOmr(VAT.collected)}
+          label={t(position.net >= 0 ? 'reports.vat.kpi.owed' : 'reports.vat.kpi.reclaim')}
+          value={money(Math.abs(position.net))}
           currency
-          change={{ text: `${VAT.collectedGrowth}%`, direction: 'up' }}
-          note={t('reports.vat.kpi.collectedNote')}
-        />
-        <KpiCard
-          label={t('reports.vat.kpi.paid')}
-          value={formatOmr(VAT.paid)}
-          currency
-          change={{ text: `${VAT.paidGrowth}%`, direction: 'up' }}
-          note={t('reports.vat.kpi.paidNote')}
-        />
-        <KpiCard
-          label={t('reports.vat.kpi.owed')}
-          value={formatOmr(VAT.owed)}
-          currency
-          change={{ text: `${VAT.owedGrowth}%`, direction: 'up' }}
-          note={t('reports.vat.kpi.owedNote')}
-        />
-        <KpiCard
-          label={t('reports.vat.kpi.nextReturn')}
-          value={VAT.nextReturnDue}
-          note={t('reports.vat.kpi.nextReturnNote')}
+          // Which way it points is the server's NET rows, not a subtraction done here: a period
+          // with input and no output has to read one way, and two answers would drift apart.
+          note={t(position.net >= 0 ? 'reports.vat.kpi.owedNote' : 'reports.vat.kpi.reclaimNote')}
         />
       </KpiRow>
 
       <ChartGrid>
         <ChartCard
-          title={t('reports.vat.quarterlyPosition')}
+          title={t('reports.vat.byPeriod')}
           legend={[
             { label: t('reports.vat.collectedOnSales'), color: SERIES.strong },
             { label: t('reports.vat.paidOnPurchases'), color: SERIES.grey },
           ]}
-          note={t('reports.vat.gapWidening')}
+          note={t('reports.vat.byPeriodNote')}
         >
           <GroupedBars
-            data={VAT.quarterly.map((quarter) => ({ a: quarter.paid, b: quarter.collected }))}
-            labels={VAT.quarterly.map((quarter) => t(quarter.labelKey))}
+            data={inputSeries.map((paid, index) => ({ a: paid, b: outputSeries[index] }))}
+            labels={periods}
             colors={[SERIES.grey, SERIES.strong]}
             labelWidth={56}
           />
         </ChartCard>
 
         <ChartCard
-          title={t('reports.vat.monthlyNetPayable')}
+          title={t('reports.vat.netByPeriod')}
           legend={[{ label: t('reports.vat.netPayable'), color: SERIES.strong }]}
-          note={
-            <Trans
-              i18nKey="reports.vat.peakMonth"
-              values={{
-                month: t(`reports.monthsLong.${peakMonth}`),
-                value: formatCount(VAT.monthlyNet[VAT.peakMonthIndex]),
-              }}
-              components={{ amount: <OmrNote /> }}
-            />
-          }
+          note={t('reports.vat.netByPeriodNote')}
         >
-          <PlainBars
-            values={VAT.monthlyNet}
-            labels={months}
-            highlight={VAT.peakMonthIndex}
-            labelWidth={38}
-          />
+          <PlainBars values={netSeries} labels={periods} labelWidth={56} />
         </ChartCard>
 
         <ChartCard
           title={t('reports.vat.byTreatment')}
-          legend={[
-            { label: t('reports.vat.standard'), color: SERIES.strong },
-            { label: t('reports.vat.zeroRated'), color: SERIES.softer },
-            { label: t('reports.vat.exempt'), color: SERIES.soft },
-          ]}
-          note={t('reports.vat.almostAllStandard')}
-        >
-          <StackedPercentRows
-            rows={VAT.treatment.map((row) => ({
-              label: t(row.labelKey),
-              parts: [row.standard, row.zeroRated, row.exempt],
-            }))}
-            colors={[SERIES.strong, SERIES.softer, SERIES.soft]}
-          />
-        </ChartCard>
-
-        <ChartCard
-          title={t('reports.vat.reclaimBySupplier')}
-          legend={[{ label: t('reports.vat.reclaimable'), color: SERIES.strong }]}
-          note={t('reports.vat.allBacked')}
+          legend={[{ label: t('reports.vat.taxableAmount'), color: SERIES.strong }]}
+          note={t('reports.vat.byTreatmentNote')}
         >
           <HorizontalBars
-            rows={VAT.reclaimBySupplier.map((supplier) => ({
-              label: 'isKey' in supplier && supplier.isKey ? t(supplier.name) : supplier.name,
-              value: supplier.value,
-              display: formatCount(supplier.value),
+            rows={categories.map((entry) => ({
+              label: t(`reports.vat.category.${entry.category}`, { defaultValue: entry.category }),
+              value: entry.taxable,
+              display: `${formatCount(Math.round(entry.share), language)}% · ${money(entry.taxable)}`,
             }))}
           />
         </ChartCard>
       </ChartGrid>
-    </ReportShell>
+    </>
   )
 }

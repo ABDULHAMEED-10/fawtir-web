@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { taxCategoryFor, useReferenceData } from '../../lib/reference/referenceData'
+import { unitOptions as lineUnitOptions } from '../../components/invoice/unitOptions'
 import { AppShell } from '../../layouts/AppShell'
 import {
   Combobox,
@@ -34,6 +36,7 @@ import { productSearchPath, searchProducts, type ProductDto } from '../../api/ca
 import {
   BRANCHES_PATH,
   createDraft,
+  createSelfBilledDraft,
   discardDraft,
   loadBranches,
   loadDraft,
@@ -44,12 +47,13 @@ import {
   type BranchDto,
   type DraftPreview,
 } from '../../api/invoices/drafts'
-import { PAYMENT_METHOD_OPTIONS, TAX_CATEGORIES } from '../../lib/catalogues'
 import {
+  DESIGN_REFERENCE,
   NEEDS_EXEMPTION_REASON,
   PAYMENT_TERMS,
   blankDraftForm,
   blankDraftLine,
+  dueDateOf,
   fromDraftResponse,
   itemTypeOfUnit,
   paymentTermOf,
@@ -113,6 +117,8 @@ const KIND_OF: Record<CustomerTypeDto, CustomerKind> = {
 const SEARCH_DELAY_MS = 250
 const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
 const ATTACHMENT_TYPES = '.pdf,.jpg,.jpeg,.png,.xlsx'
+/** UNCL4461, in the design's order, until the platform's list (`/v1/reference-data`) answers. */
+const PAYMENT_METHODS = ['30', '10', '20', '48', '68']
 
 /** The Oman calendar day, which is the day an invoice is issued on. */
 function muscatToday(): string {
@@ -136,6 +142,11 @@ function failureText(t: Translate, error: unknown): string {
   const message = describeApiFailure(error)
   const body = t(message.key, message.values)
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body
+}
+
+/** A tax category as the composer names it (`createInvoice.taxCategories.*`), else its code. */
+function taxLabel(t: Translate, code: string | undefined): string | undefined {
+  return code ? t(`createInvoice.taxCategories.${code}`, { defaultValue: code }) : undefined
 }
 
 /** A price as the row keeps it: three decimals, never negative, `0.000` for nothing. */
@@ -380,6 +391,7 @@ function FieldError({ children }: { children: ReactNode }) {
  */
 function CataloguePick({ onPick }: { onPick: (product: ProductDto) => void }) {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData() ?? DESIGN_REFERENCE
   const [typed, setTyped] = useState<string | null>(null)
   const [query, setQuery] = useState<string | null>(null)
   useEffect(() => {
@@ -411,8 +423,14 @@ function CataloguePick({ onPick }: { onPick: (product: ProductDto) => void }) {
           price: formatMoney(product.defaultUnitPrice, 'OMR', i18n.language),
           unit: product.defaultUnitCode,
           tax:
-            taxCategoryOf(product.defaultTaxCategory, product.defaultTaxRate)?.label ??
-            product.defaultTaxCategory,
+            taxLabel(
+              t,
+              taxCategoryOf(
+                reference?.taxCategories ?? [],
+                product.defaultTaxCategory,
+                product.defaultTaxRate,
+              )?.code,
+            ) ?? product.defaultTaxCategory,
         }),
       }))}
       onSearch={setTyped}
@@ -441,7 +459,27 @@ function CataloguePick({ onPick }: { onPick: (product: ProductDto) => void }) {
 export function CreateInvoicePage() {
   return (
     <AppShell>
-      <InvoiceComposer />
+      <InvoiceComposer selfBilled={false} />
+    </AppShell>
+  )
+}
+
+/**
+ * The same composer, writing a self-billed invoice (389) instead (I-12).
+ *
+ * A mode rather than a second editor. The server takes the identical draft body on both routes,
+ * so a second 1,200-line composer would be a second place for the line arithmetic, the VAT
+ * handling, the stale-version handling and the issue flow to drift — and it is the drifting copy
+ * that eventually issues a wrong document.
+ *
+ * What genuinely differs is small and stated here: the create route and its permission, the two
+ * references only a self-billed document may carry (IBT-010, IBT-012), and that the counterparty
+ * is the SELLER — this document records what the tenant owes, not what it is owed.
+ */
+export function SelfBilledComposerPage() {
+  return (
+    <AppShell>
+      <InvoiceComposer selfBilled />
     </AppShell>
   )
 }
@@ -476,18 +514,21 @@ type PaymentState = {
  * attachments are drawn and wait for their fields (each marked TODO(backend)). Issuing saves first,
  * then confirms.
  */
-function InvoiceComposer() {
+function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const session = useSession()
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData() ?? DESIGN_REFERENCE
   const language = i18n.language
-  const canSave = can(session, 'invoice.draft')
+  // `selfbilling.create`, not `invoice.draft`: writing an invoice on someone else's behalf is a
+  // different authority from writing your own, and the server keeps them apart.
+  const canSave = can(session, selfBilled ? 'selfbilling.create' : 'invoice.draft')
   const canIssue = canSave && can(session, 'invoice.issue')
   const canReadNote = can(session, 'invoice.internal-note.read')
   const canAddCustomer = can(session, 'customer.manage')
 
-  const [form, setForm] = useState<DraftForm>(blankDraftForm)
+  const [form, setForm] = useState<DraftForm>(() => blankDraftForm(reference?.taxCategories ?? []))
   const [exclVat, setExclVat] = useState(true)
   const [meta, setMeta] = useState<DraftMeta | null>(null)
   const [customer, setCustomer] = useState<CustomerDto | null>(null)
@@ -557,7 +598,7 @@ function InvoiceComposer() {
           : loaded.details.transactionType === 'SIMPLIFIED'
             ? 'consumer'
             : 'business'
-        const next = fromDraftResponse(loaded, kind)
+        const next = fromDraftResponse(reference?.taxCategories ?? [], loaded, kind)
         if (canReadNote) {
           next.internalNote = await loadInternalNote(id)
             .then((note) => note.internalNote ?? '')
@@ -598,9 +639,30 @@ function InvoiceComposer() {
   // INV-PD-005 — terms fill the due date until the person takes it over.
   useEffect(() => {
     if (dueDateTouched || !issueDate) return
-    const term = paymentTermOf(form.paymentTerms)
-    if (term) setDueDate(term.due(issueDate))
-  }, [form.paymentTerms, issueDate, dueDateTouched])
+    // Null for terms neither the design nor the platform's list knows: the date the reader is
+    // looking at is left alone rather than snapped to a guess.
+    const due = dueDateOf(reference, form.paymentTerms, issueDate)
+    if (due) setDueDate(due)
+  }, [form.paymentTerms, issueDate, dueDateTouched, reference])
+
+  // The catalogue may answer after the first line exists (the shell fetches it beside the
+  // session): a new draft's line still without a category takes the header default, so a typed
+  // line is priced rather than refused for an empty code.
+  useEffect(() => {
+    if (id || !reference) return
+    const tax = taxCategoryFor(reference, defaultTax)
+    if (!tax) return
+    setForm((current) =>
+      current.lines.some((line) => !line.taxCode)
+        ? {
+            ...current,
+            lines: current.lines.map((line) =>
+              line.taxCode ? line : { ...line, taxCode: tax.code, vatRate: tax.rate },
+            ),
+          }
+        : current,
+    )
+  }, [id, reference, defaultTax])
 
   // "Saved just now" ages into a time after a minute.
   const [, tick] = useState(0)
@@ -630,7 +692,10 @@ function InvoiceComposer() {
     setDirty(true)
   }
   const addLine = () => {
-    setForm((current) => ({ ...current, lines: [...current.lines, blankDraftLine(defaultTax)] }))
+    setForm((current) => ({
+      ...current,
+      lines: [...current.lines, blankDraftLine(reference?.taxCategories ?? [], defaultTax)],
+    }))
     setDirty(true)
   }
   /**
@@ -646,12 +711,12 @@ function InvoiceComposer() {
     })
   }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
-    const patch = lineFromProduct(product, exclVat)
+    const patch = lineFromProduct(reference?.taxCategories ?? [], product, exclVat)
     updateLine(line.id, { ...patch, itemType: itemTypeOfUnit(patch.unit) })
   }
   /** The header's default category goes onto every line still at the previous default. */
   const setDefaultTaxCategory = (code: string) => {
-    const tax = TAX_CATEGORIES.find((category) => category.code === code)
+    const tax = taxCategoryFor(reference, code)
     if (!tax) return
     setForm((current) => ({
       ...current,
@@ -782,6 +847,14 @@ function InvoiceComposer() {
     }
   }
 
+  /** The terms as the reader sees them: the design's names, the platform's, then a loaded label. */
+  const termLabel = (code: string) =>
+    t(`createInvoice.terms.${code}`, {
+      defaultValue: t(`reference.paymentTerm.${code}`, {
+        defaultValue: form.paymentTermsLabel ?? code,
+      }),
+    })
+
   /** Saves the form as the draft and answers the saved draft, or null when it was refused. */
   const persist = async (): Promise<DraftMeta | null> => {
     let current = form
@@ -796,7 +869,7 @@ function InvoiceComposer() {
       }
       current = { ...current, customerId }
     }
-    const found = problemsBeforeSave(current)
+    const found = problemsBeforeSave(reference?.taxCategories ?? [], current)
     setProblems(found)
     if (found.length > 0) {
       setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
@@ -804,11 +877,15 @@ function InvoiceComposer() {
     }
     setSaving(true)
     setNotice(null)
-    const body = toDraftRequest(current, exclVat)
+    // The stored paymentTerms label is a snapshot of what the reader saw, so it has to be
+    // the translated text rather than the bare code.
+    const body = toDraftRequest(reference, current, exclVat, selfBilled, termLabel)
     try {
       const result = meta
         ? await saveDraft(meta.id, meta.version, body)
-        : await createDraft(newIdempotencyKey(), body)
+        : selfBilled
+          ? await createSelfBilledDraft(newIdempotencyKey(), body)
+          : await createDraft(newIdempotencyKey(), body)
       const savedMeta: DraftMeta = {
         id: result.id,
         version: result.version,
@@ -819,7 +896,12 @@ function InvoiceComposer() {
       setSavedAt(Date.now())
       if (!meta) {
         justCreated.current = result.id
-        navigate(`/invoices/${result.id}/edit`, { replace: true })
+        navigate(
+          selfBilled ? `/income/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`,
+          {
+            replace: true,
+          },
+        )
       }
       void runPreview(result.id)
       return savedMeta
@@ -864,7 +946,7 @@ function InvoiceComposer() {
   const issue = async () => {
     const missing = problemsBeforeIssue(form)
     if (missing.length > 0) {
-      setProblems([...problemsBeforeSave(form), ...missing])
+      setProblems([...problemsBeforeSave(reference?.taxCategories ?? [], form), ...missing])
       setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
       return
     }
@@ -876,7 +958,7 @@ function InvoiceComposer() {
     if (!meta) return
     try {
       await discardDraft(meta.id, meta.version)
-      navigate('/invoices')
+      navigate(selfBilled ? '/income/self-billing' : '/invoices')
     } catch (error) {
       setDiscardOpen(false)
       setNotice({
@@ -950,26 +1032,33 @@ function InvoiceComposer() {
     value: term.code,
     label: t(term.labelKey),
   }))
+  // A loaded draft's terms may be a code the design does not list (the platform's own, or an
+  // older one); it is shown rather than dropped.
   if (form.paymentTerms && !paymentTermOf(form.paymentTerms)) {
-    termOptions.push({
-      value: form.paymentTerms,
-      label: form.paymentTermsLabel ?? form.paymentTerms,
-    })
+    termOptions.push({ value: form.paymentTerms, label: termLabel(form.paymentTerms) })
   }
-  const taxOptions: SelectOption[] = TAX_CATEGORIES.map((category) => ({
-    value: category.code,
-    label: t(`createInvoice.taxCategories.${category.code}`),
-    hint: `EN 16931 · ${category.categoryId}`,
-  }))
-  const unitOptions = (line: DraftLine): SelectOption[] => {
-    const codes = [...unitsFor(line.itemType)]
-    // A product's unit may be one the short list does not carry; it is shown rather than dropped.
-    if (!codes.includes(line.unit)) codes.push(line.unit)
-    return codes.map((code) => ({
-      value: code,
-      label: t(`createInvoice.units.${code}`, { defaultValue: code }),
+  // The platform's categories (the rate it stores is derived from them), named as the design does.
+  const taxOptions: SelectOption[] = (reference?.taxCategories ?? [])
+    .filter((category) => category.active)
+    .map((category) => ({
+      value: category.code,
+      label: taxLabel(t, category.code) ?? category.code,
+      hint: `EN 16931 · ${category.en16931Category}`,
     }))
-  }
+  const unitOptions = (line: DraftLine): SelectOption[] =>
+    lineUnitOptions(line.itemType, t, line.unit, reference)
+  // The platform's UNCL4461 means, the design's five until it answers; named as the design does.
+  const paymentMethodChoices: SelectOption[] = (
+    reference?.paymentMethods.some((method) => method.active)
+      ? reference.paymentMethods.filter((method) => method.active).map((method) => method.code)
+      : PAYMENT_METHODS
+  ).map((code) => ({
+    value: code,
+    label: t(`createInvoice.paymentMethods.${code}`, {
+      defaultValue: t(`reference.paymentMethod.${code}`, { defaultValue: code }),
+    }),
+    hint: `UNCL4461 · ${code}`,
+  }))
   const usage = usageForecast()
   const savedText = dirty
     ? t('createInvoice.header.unsaved')
@@ -996,15 +1085,17 @@ function InvoiceComposer() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to="/invoices"
+            to={selfBilled ? '/income/self-billing' : '/invoices'}
             className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary"
           >
-            {t('createInvoice.breadcrumb')}
+            {t(selfBilled ? 'selfBilledComposer.breadcrumb' : 'createInvoice.breadcrumb')}
             <img src={backIcon} alt="" className="size-6 rotate-180 rtl:rotate-0" />
           </Link>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {meta ? t('invoiceDraft.editTitle') : t('createInvoice.title')}
+              {selfBilled
+                ? t(meta ? 'selfBilledComposer.editTitle' : 'selfBilledComposer.title')
+                : t(meta ? 'invoiceDraft.editTitle' : 'createInvoice.title')}
             </h1>
             <span className="text-sm font-medium text-[#8f8f8f]">
               {meta ? t('invoiceDraft.meta.saved') : t('invoiceDraft.meta.new')}
@@ -1046,6 +1137,12 @@ function InvoiceComposer() {
         </div>
       </div>
 
+      {selfBilled ? (
+        <p className="rounded-md bg-primary-25 p-3 text-sm font-medium leading-[1.5] text-primary-800">
+          {t('selfBilledComposer.explainer')}
+        </p>
+      ) : null}
+
       {meta && meta.state !== 'DRAFT' ? (
         <Notice
           body={t('invoiceDraft.notEditable', { state: t(`invoiceDraft.state.${meta.state}`) })}
@@ -1067,7 +1164,12 @@ function InvoiceComposer() {
       {/* 1 Customer + Summary */}
       <div className="grid gap-4 xl:grid-cols-[1fr_332px]">
         <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
-          <SectionTitle step={1} title={t('createInvoice.sections.customer')} />
+          <SectionTitle
+            step={1}
+            title={t(
+              selfBilled ? 'selfBilledComposer.sections.seller' : 'createInvoice.sections.customer',
+            )}
+          />
           <div className="h-px w-full bg-border-subtle" />
           <div className="grid gap-3 sm:grid-cols-3">
             {customerTypes.map((type) => {
@@ -1293,6 +1395,7 @@ function InvoiceComposer() {
                 value={defaultTax}
                 onChange={setDefaultTaxCategory}
                 options={taxOptions}
+                placeholder={t('appAccess.loading')}
                 ariaLabel={t('createInvoice.fields.taxCategory')}
               />
             </div>
@@ -1342,6 +1445,47 @@ function InvoiceComposer() {
               </Link>
             </p>
           )}
+
+          {/*
+            IBT-010 and IBT-012, and only here. On every other document the buyer is the customer
+            and both come from the customer record, so the server refuses them outright
+            (BUYER_REFERENCES_NOT_SELF_BILLED). On a self-billed document the tenant IS the buyer,
+            which makes this the only place those references can come from.
+          */}
+          {selfBilled ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('selfBilledComposer.fields.buyerReference')} />
+                <FieldShell>
+                  <input
+                    value={form.buyerReference}
+                    onChange={(e) => change({ buyerReference: e.target.value })}
+                    maxLength={200}
+                    aria-label={t('selfBilledComposer.fields.buyerReference')}
+                    className={INPUT}
+                  />
+                </FieldShell>
+                <p className="text-xs font-medium text-text-quaternary">
+                  {t('selfBilledComposer.fields.buyerReferenceHint')}
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('selfBilledComposer.fields.contractReference')} />
+                <FieldShell>
+                  <input
+                    value={form.contractReference}
+                    onChange={(e) => change({ contractReference: e.target.value })}
+                    maxLength={200}
+                    aria-label={t('selfBilledComposer.fields.contractReference')}
+                    className={INPUT}
+                  />
+                </FieldShell>
+                <p className="text-xs font-medium text-text-quaternary">
+                  {t('selfBilledComposer.fields.contractReferenceHint')}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         {consumer ? (
@@ -1410,7 +1554,7 @@ function InvoiceComposer() {
             <div className="mt-3 flex flex-col gap-3">
               {form.lines.map((row, index) => {
                 const amounts = estimate.lines[index]
-                const tax = taxOptionOf(row)
+                const tax = taxOptionOf(reference?.taxCategories ?? [], row)
                 const messages = lineMessages(index)
                 return (
                   <div key={row.id} className="flex flex-col gap-1">
@@ -1470,15 +1614,15 @@ function InvoiceComposer() {
                         <FieldShell tone="text">
                           <span
                             className="block truncate text-sm font-medium text-text-secondary"
-                            title={t(`createInvoice.taxCategories.${tax.code}`)}
+                            title={taxLabel(t, tax.code)}
                           >
                             {tax.rate}%
                             <span className="ms-1 text-xs font-medium text-text-quaternary">
-                              {tax.categoryId}
+                              {tax.en16931Category}
                             </span>
                           </span>
                         </FieldShell>
-                        {NEEDS_EXEMPTION_REASON.has(tax.categoryId) ? (
+                        {NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
                           <input
                             value={row.exemptionReason}
                             onChange={(e) =>
@@ -1652,10 +1796,7 @@ function InvoiceComposer() {
             <Select
               value={payment.method}
               onChange={(method) => setPayment((current) => ({ ...current, method }))}
-              options={PAYMENT_METHOD_OPTIONS.map((option) => ({
-                ...option,
-                label: t(`createInvoice.paymentMethods.${option.value}`),
-              }))}
+              options={paymentMethodChoices}
               ariaLabel={t('createInvoice.fields.paymentMethod')}
             />
           </div>
@@ -1973,7 +2114,7 @@ function useCustomerSearch(kind: CustomerKind) {
           search: query,
           sort: 'NAME_ASC',
           page: 0,
-          size: 20,
+          size: 25,
         })
   const found = useApiRead<Page<CustomerDto>>(path, () => loadCustomerPage(path!))
   return {

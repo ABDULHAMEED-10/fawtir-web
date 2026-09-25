@@ -1,5 +1,5 @@
 export { apiDownload, apiRequest, type ApiDownload, type ApiRequestOptions } from './client'
-export { sharedRequest } from './inflight'
+export { sharedRequest, resetSharedRequests } from './inflight'
 export { withQuery, type QueryValue } from './query'
 export {
   fromArray,

@@ -36,8 +36,14 @@ import exportIcon from '../../assets/settings/tile-export.svg'
 import closingIcon from '../../assets/settings/tile-closing.svg'
 import integrationIcon from '../../assets/settings/tile-integration.svg'
 import connectIcon from '../../assets/settings/tile-connect.svg'
-import { overviewStatus, readiness as mappingReadiness, useErpMapping } from '../../lib/erpMapping'
-import { addonUsage, liveConnections, useConnector } from '../../lib/erpConnector'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  ERP_MAPPING_CARD_KEY,
+  loadErpMappingCard,
+  type ErpMappingCard,
+} from '../../lib/erp/mappingState'
+import { listErpConnections } from '../../api/erp/connections'
+import { useErpAccess } from '../../hooks/useErpAccess'
 import { useFeature } from '../../lib/planAccess'
 import type { Feature } from '../../lib/plans'
 import { LockIcon } from '../../components/ui/icons'
@@ -101,14 +107,32 @@ export function SettingsPage() {
 
   const forecast = usageForecast()
   const bill = nextBill()
-  const mapping = useErpMapping()
-  const mappingStatus = overviewStatus(mapping)
-  const mappingReady = mappingReadiness(mapping)
-  const connector = useConnector()
-  const connections = liveConnections(connector)
-  const connectionsInError = connections.filter((c) => c.state === 'ERROR').length
-  const connectorUsage = addonUsage(connector)
-  const addonActive = connector.addon.state === 'ACTIVE'
+  // Two reads, not the mapping screens' eight — see loadErpMappingCard. Until they land the card
+  // shows the neutral "not set up" pill rather than a figure it does not have yet.
+  const mappingCard = useApiRead<ErpMappingCard>(ERP_MAPPING_CARD_KEY, () =>
+    loadErpMappingCard('JSON'),
+  )
+  // Memoized so the fallback object is not a fresh identity on every render, which would make the
+  // cards memo below recompute each time. It was already in that memo's dependency list; the
+  // lint only surfaced once the mock connector values left the list and stopped masking it.
+  const mapping = useMemo<ErpMappingCard>(
+    () =>
+      mappingCard.read.status === 'ready'
+        ? mappingCard.read.data
+        : { hasGuided: false, sourceSystem: null, status: 'NOT_SET_UP', mapped: 0, required: 0 },
+    [mappingCard.read],
+  )
+  const mappingStatus = mapping.status
+  // The real count, and only when the reader may see it: a user without erp.connection.read gets
+  // no request rather than a 403 on every visit to Settings. The card previously showed a
+  // mock-derived count, an "N need attention" badge for a state the backend does not have, and a
+  // "{{collected}} of {{limit}} this month" figure for extraction that does not run.
+  const { access: erpAccess } = useErpAccess()
+  const connectionCount = useApiRead(
+    erpAccess.read ? 'settings-erp-connection-count' : null,
+    () => listErpConnections(false).then((page) => page.total),
+  )
+  const connections = connectionCount.read.status === 'ready' ? connectionCount.read.data : null
 
   const cards = useMemo<Card[]>(
     () => [
@@ -202,13 +226,13 @@ export function SettingsPage() {
               : mappingStatus === 'STALE' || mappingStatus === 'DRAFT'
                 ? 'pending'
                 : 'neutral',
-        footKey: mapping.guided
+        footKey: mapping.hasGuided
           ? 'settings.card.erpMappingFoot'
           : 'settings.card.erpMappingFootNone',
         footValues: {
-          system: t(`erp.sourceSystem.${mapping.sourceSystem}`),
-          mapped: mappingReady.mappedRequired.length,
-          required: mappingReady.requiredTargets.length,
+          system: mapping.sourceSystem ? t(`erp.sourceSystem.${mapping.sourceSystem}`) : '',
+          mapped: mapping.mapped,
+          required: mapping.required,
         },
       },
       {
@@ -216,26 +240,17 @@ export function SettingsPage() {
         group: 'integration',
         feature: 'erpMapping',
         icon: connectIcon,
-        iconTint: addonActive
-          ? connectionsInError
-            ? 'bg-danger-100'
-            : 'bg-success-100'
-          : 'bg-surface-background',
+        iconTint: connections !== null && connections > 0 ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/erp/connections',
-        pillKey: !addonActive
-          ? 'settings.card.connectionsPill'
-          : connectionsInError
-            ? 'settings.card.connectionsPillError'
+        // Until the count arrives — or when the reader may not see it — the card says nothing
+        // about how many there are, rather than guessing at zero.
+        pillKey:
+          connections === null
+            ? 'settings.card.connectionsPillUnknown'
             : 'settings.card.connectionsPillActive',
-        pillValues: { count: connectionsInError || connections.length },
-        pillTone: !addonActive ? 'neutral' : connectionsInError ? 'danger' : 'success',
-        footKey: addonActive
-          ? 'settings.card.connectionsFootActive'
-          : 'settings.card.connectionsFoot',
-        footValues: {
-          collected: connectorUsage.collected.toLocaleString('en-US'),
-          limit: connectorUsage.collectedLimit.toLocaleString('en-US'),
-        },
+        pillValues: { count: connections ?? 0 },
+        pillTone: connections !== null && connections > 0 ? 'success' : 'neutral',
+        footKey: 'settings.card.connectionsFoot',
       },
       {
         id: 'plan',
@@ -290,6 +305,19 @@ export function SettingsPage() {
         footValues: { date: longDate(LAST_EXPORT_ON) },
       },
       {
+        // The tile grid is otherwise mock-fed; this card carries no figure on purpose, so the most
+        // visited Settings screen gains no network read that could fail on it. The live policy is
+        // on the page itself.
+        id: 'approvals',
+        group: 'company',
+        icon: rolesIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/approvals',
+        pillKey: 'settings.card.approvalsPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.approvalsFoot',
+      },
+      {
         id: 'closing',
         group: 'records',
         icon: closingIcon,
@@ -300,7 +328,7 @@ export function SettingsPage() {
         footKey: 'settings.card.closingFoot',
       },
     ],
-    [forecast, bill, t, mapping, mappingStatus, mappingReady],
+    [forecast, bill, t, mapping, mappingStatus, connections],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(

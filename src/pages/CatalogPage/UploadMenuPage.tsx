@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { unitOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { CatalogShell, Kpi } from './CatalogShell'
 import { Select, TableCheckbox, withRial } from '../../components/ui'
-import { UNIT_OPTIONS } from '../../lib/catalogues'
 import { omr } from '../../lib/catalog'
 import {
   READ_GROUPS,
@@ -36,6 +36,7 @@ const VAT_PERCENT = 5
  */
 export function UploadMenuPage() {
   const { t } = useTranslation()
+  const reference = useReferenceData()
   const navigate = useNavigate()
 
   const [ticked, setTicked] = useState<Set<string>>(new Set(DEFAULT_TICKS))
@@ -323,7 +324,7 @@ export function UploadMenuPage() {
                             ariaLabel={t('uploadMenu.col.soldAs')}
                             value={row.soldAs}
                             onChange={(value) => setRow(group.id, row.id, { soldAs: value })}
-                            options={UNIT_OPTIONS}
+                            options={unitOptions(reference, t)}
                           />
                         </span>
 

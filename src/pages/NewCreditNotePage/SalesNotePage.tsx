@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
@@ -381,12 +382,13 @@ function Stat({ label, amount, tone = '' }: { label: string; amount: string; ton
 
 function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: NoteKind } & Loaded) {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   const navigate = useNavigate()
   const session = useSession()
   const credit = kind === 'CREDIT_NOTE'
   const kindKey = credit ? 'credit' : 'debit'
   const [form, setForm] = useState<NoteForm>(() =>
-    draft ? fromNoteDraft(draft, invoice, kind) : fromInvoice(invoice, kind),
+    draft ? fromNoteDraft(draft, invoice, kind, reference) : fromInvoice(invoice, kind, reference),
   )
   const [saved, setSaved] = useState<DraftResponse | null>(draft)
   const [problems, setProblems] = useState<NoteProblems>({})

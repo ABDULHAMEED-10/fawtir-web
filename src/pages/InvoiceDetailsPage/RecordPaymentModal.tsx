@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { useTranslation } from 'react-i18next'
+import { paymentMethodOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { DateField, Input, Modal, Rial, Select } from '../../components/ui'
 import { Notice } from '../../components/feedback/ApiNotice'
 import {
@@ -10,7 +11,6 @@ import {
 } from '../ConsolePage/subscriptions/modalFields'
 import { ApiError } from '../../api'
 import { newPaymentKey, recordPayment } from '../../api/invoices/detail'
-import { PAYMENT_METHOD_OPTIONS } from '../../lib/catalogues'
 import {
   PAYMENT_REFUSALS,
   paymentProblems,
@@ -48,6 +48,7 @@ export function RecordPaymentModal({
   onRecorded: () => void
 }) {
   const { t, i18n } = useTranslation()
+  const reference = useReferenceData()
   // One key for the life of the modal: a second click, or a retry after a lost response, is the
   // same payment and the server records it once.
   const [idempotencyKey] = useState(newPaymentKey)
@@ -154,7 +155,7 @@ export function RecordPaymentModal({
             <Select
               value={form.methodCode}
               onChange={(value) => change('methodCode', value)}
-              options={PAYMENT_METHOD_OPTIONS.map((option) => ({
+              options={paymentMethodOptions(reference, t).map((option) => ({
                 ...option,
                 label: t(`invoiceDetails.pay.means.${option.value}`),
               }))}
