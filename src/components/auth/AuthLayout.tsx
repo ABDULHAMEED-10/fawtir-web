@@ -33,8 +33,10 @@ export function AuthLayout({
           {showLanguageSwitcher ? <LanguageSwitcher /> : <span />}
         </div>
 
-        <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center overflow-y-auto py-4">
-          {children}
+        {/* Centred with auto margins, not justify-center: a form taller than the viewport would
+            otherwise start above the scroll origin, its heading cut off where no scroll reaches. */}
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center overflow-y-auto py-4">
+          <div className="my-auto flex w-full justify-center">{children}</div>
         </div>
       </section>
     </div>

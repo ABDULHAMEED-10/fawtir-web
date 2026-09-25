@@ -790,7 +790,10 @@ function InvoiceScreen() {
                           customer: customerName,
                           when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
                         })
-                      : t('invoiceDetails.delivered.notSent', { customer: customerName })}
+                      : // A reader who may not see the customer gets the fact without a placeholder name.
+                        customer.read.status === 'ready'
+                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                        : t('invoiceDetails.notSentYet')}
                 </p>
               </div>
             </section>

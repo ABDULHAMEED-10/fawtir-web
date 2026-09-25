@@ -505,7 +505,8 @@ describe('An invoice, wired to the API', () => {
     expect(screen.queryByRole('button', { name: /Credit note/i })).toBeNull()
     expect(calls().some((call) => call.endsWith('/internal-note'))).toBe(false)
     expect(calls().some((call) => call.includes('/customers/'))).toBe(false)
-    expect(screen.getByText(/Customer not shown/)).toBeTruthy()
+    expect(screen.getByText('Customer not shown')).toBeTruthy()
+    expect(screen.queryByText(/Not yet sent to/)).toBeNull()
   })
 
   it('shows the not-found state for an invoice this tenant does not have', async () => {
