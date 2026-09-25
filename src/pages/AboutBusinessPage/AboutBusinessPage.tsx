@@ -6,9 +6,8 @@ export function AboutBusinessPage() {
   return (
     // The first step: nothing before it can be missing, so any live session may open it.
     <OnboardingGate ready>
-      {/* The code is spent and the account exists, so the code screen only sends the user
-          straight back here. Back leaves the flow instead; every answer is saved on the server. */}
-      <AuthLayout backTo="/" showLanguageSwitcher={false}>
+      {/* Back to the code step, which shows itself as done once the email is verified. */}
+      <AuthLayout backTo="/verify-code" showLanguageSwitcher={false}>
         <AboutBusinessForm />
       </AuthLayout>
     </OnboardingGate>

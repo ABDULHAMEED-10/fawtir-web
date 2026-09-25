@@ -106,7 +106,10 @@
     "descriptionEmail": "We sent a 6-digit code to {{contact}}. It expires in {{minutes}} minutes.",
     "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code.",
     "expired": "This code has expired. Request a new one.",
-    "submitting": "Verifying…"
+    "submitting": "Verifying…",
+    "verifiedTitle": "Your email is verified",
+    "verifiedDescription": "This step is done, and your answers so far are saved. Carry on setting up your business.",
+    "verifiedContinue": "Continue"
   },
   "newPassword": {
     "title": "Create a new password",
