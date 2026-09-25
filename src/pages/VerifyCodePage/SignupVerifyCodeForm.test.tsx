@@ -17,7 +17,10 @@ const signupState = (overrides: Record<string, string> = {}) => ({
   ...overrides,
 })
 
-const VERIFIED = { onboardingToken: 'so.onboarding-token', onboardingTokenExpiresAt: minutesFromNow(120) }
+const VERIFIED = {
+  onboardingToken: 'so.onboarding-token',
+  onboardingTokenExpiresAt: minutesFromNow(120),
+}
 
 function json(status: number, body?: unknown, headers: Record<string, string> = {}) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -73,19 +76,34 @@ describe('Signup verify code', () => {
   it('names the email the code went to and never the tenant code', () => {
     renderVerify(signupState())
 
-    expect(screen.getByText(i18n.t('verifyCode.descriptionEmail', { contact: 'hafidh@example.test', minutes: 10 }))).toBeTruthy()
+    expect(
+      screen.getByText(
+        i18n.t('verifyCode.descriptionEmail', { contact: 'hafidh@example.test', minutes: 10 }),
+      ),
+    ).toBeTruthy()
     expect(document.body.textContent).not.toContain('TNT-7F3K2Q')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('auto-advances while typing and fills every box from a paste', async () => {
     const user = await typeCode('12')
-    expect(digits().map((input) => (input as HTMLInputElement).value).slice(0, 2)).toEqual(['1', '2'])
+    expect(
+      digits()
+        .map((input) => (input as HTMLInputElement).value)
+        .slice(0, 2),
+    ).toEqual(['1', '2'])
     expect(document.activeElement).toBe(digits()[2])
 
     await user.click(digits()[0])
     await user.paste('654321')
-    expect(digits().map((input) => (input as HTMLInputElement).value)).toEqual(['6', '5', '4', '3', '2', '1'])
+    expect(digits().map((input) => (input as HTMLInputElement).value)).toEqual([
+      '6',
+      '5',
+      '4',
+      '3',
+      '2',
+      '1',
+    ])
   })
 
   it('asks for all six digits before calling the backend', async () => {
@@ -133,7 +151,9 @@ describe('Signup verify code', () => {
   })
 
   it('reports a wrong code while the code is live', async () => {
-    fetchMock.mockResolvedValue(json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }))
+    fetchMock.mockResolvedValue(
+      json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }),
+    )
     const user = await typeCode('000000')
     await user.click(submit())
 
@@ -143,8 +163,15 @@ describe('Signup verify code', () => {
   })
 
   it('reports an expired code once the server-given expiry has passed', async () => {
-    fetchMock.mockResolvedValue(json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }))
-    renderVerify(signupState({ emailVerificationExpiresAt: minutesFromNow(-1), resendAvailableAt: minutesFromNow(-9) }))
+    fetchMock.mockResolvedValue(
+      json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }),
+    )
+    renderVerify(
+      signupState({
+        emailVerificationExpiresAt: minutesFromNow(-1),
+        resendAvailableAt: minutesFromNow(-9),
+      }),
+    )
     const user = userEvent.setup({ delay: null })
     await user.click(digits()[0])
     await user.keyboard('123456')
@@ -154,9 +181,25 @@ describe('Signup verify code', () => {
   })
 
   it.each([
-    ['429', () => json(429, { type: 'https://api.fawtir.om/problems/rate-limited' }, { 'Retry-After': '20' }), 'identityErrors.rateLimitedFor', { seconds: 20 }],
-    ['5xx', () => json(503, { type: 'https://api.fawtir.om/problems/internal-error' }), 'identityErrors.service', {}],
-    ['a network failure', () => Promise.reject(new TypeError('Failed to fetch')), 'identityErrors.network', {}],
+    [
+      '429',
+      () =>
+        json(429, { type: 'https://api.fawtir.om/problems/rate-limited' }, { 'Retry-After': '20' }),
+      'identityErrors.rateLimitedFor',
+      { seconds: 20 },
+    ],
+    [
+      '5xx',
+      () => json(503, { type: 'https://api.fawtir.om/problems/internal-error' }),
+      'identityErrors.service',
+      {},
+    ],
+    [
+      'a network failure',
+      () => Promise.reject(new TypeError('Failed to fetch')),
+      'identityErrors.network',
+      {},
+    ],
   ])('shows the shared message for %s', async (_label, respond, key, values) => {
     fetchMock.mockImplementation(respond)
     const user = await typeCode('123456')
@@ -184,17 +227,24 @@ describe('Signup verify code', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
       expect(url).toBe('/api/v1/auth/signup/resend')
-      expect(JSON.parse(init.body as string)).toEqual({ tenantCode: 'TNT-7F3K2Q', email: 'hafidh@example.test' })
+      expect(JSON.parse(init.body as string)).toEqual({
+        tenantCode: 'TNT-7F3K2Q',
+        email: 'hafidh@example.test',
+      })
       expect((resend() as HTMLButtonElement).disabled).toBe(true)
       expect(digits().every((input) => (input as HTMLInputElement).value === '')).toBe(true)
     })
 
     it('reports a refused resend without restarting the cooldown', async () => {
-      fetchMock.mockResolvedValue(json(429, { type: 'https://api.fawtir.om/problems/rate-limited' }, { 'Retry-After': '45' }))
+      fetchMock.mockResolvedValue(
+        json(429, { type: 'https://api.fawtir.om/problems/rate-limited' }, { 'Retry-After': '45' }),
+      )
       renderVerify(signupState({ resendAvailableAt: minutesFromNow(-1) }))
       await userEvent.setup({ delay: null }).click(resend())
 
-      expect(await screen.findByText(i18n.t('identityErrors.rateLimitedFor', { seconds: 45 }))).toBeTruthy()
+      expect(
+        await screen.findByText(i18n.t('identityErrors.rateLimitedFor', { seconds: 45 })),
+      ).toBeTruthy()
       expect((resend() as HTMLButtonElement).disabled).toBe(false)
     })
   })
@@ -205,9 +255,13 @@ describe('Signup verify code', () => {
       expect((await screen.findByTestId('location')).textContent).toBe('/signup')
     })
 
-    it('sends an already verified registrant on to onboarding', async () => {
+    it('shows the step as done to an already verified registrant, who continues to onboarding', async () => {
       saveOnboardingSession(VERIFIED)
       renderVerify(null)
+      expect(await screen.findByText(i18n.t('verifyCode.verifiedTitle'))).toBeTruthy()
+      // The spent code is never asked for again.
+      expect(screen.queryByText(i18n.t('verifyCode.title'))).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('verifyCode.verifiedContinue') }))
       expect((await screen.findByTestId('location')).textContent).toBe('/about-business')
     })
   })
@@ -215,13 +269,20 @@ describe('Signup verify code', () => {
   it('speaks Arabic without any English server text', async () => {
     await i18n.changeLanguage('ar')
     fetchMock.mockResolvedValue(
-      json(401, { type: 'https://api.fawtir.om/problems/authentication-failed', detail: 'The email verification code is invalid or expired.' }),
+      json(401, {
+        type: 'https://api.fawtir.om/problems/authentication-failed',
+        detail: 'The email verification code is invalid or expired.',
+      }),
     )
     const user = await typeCode('000000')
     await user.click(submit())
 
     expect(await screen.findByText(i18n.t('verifyCode.invalid'))).toBeTruthy()
     expect(document.body.textContent).not.toContain('The email verification code')
-    expect(screen.getByText(i18n.t('verifyCode.descriptionEmail', { contact: 'hafidh@example.test', minutes: 10 }))).toBeTruthy()
+    expect(
+      screen.getByText(
+        i18n.t('verifyCode.descriptionEmail', { contact: 'hafidh@example.test', minutes: 10 }),
+      ),
+    ).toBeTruthy()
   })
 })
