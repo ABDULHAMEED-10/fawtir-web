@@ -38,6 +38,10 @@ const ADMIN: Entitlements = {
   featureFlags: {},
 }
 const READ_ONLY: Entitlements = { ...ADMIN, username: 'viewer', permissions: ['invoice.read'] }
+const CAN_MANAGE_ATTACHMENTS: Entitlements = {
+  ...ADMIN,
+  permissions: [...ADMIN.permissions, 'invoice.attachment.manage'],
+}
 
 function invoice(overrides: Partial<InvoiceDetailDto> = {}): InvoiceDetailDto {
   return {
@@ -188,6 +192,14 @@ let receivableResponse: () => Response
 let cancelResponse: () => Response
 let payResponse: () => Response
 let issueResponse: () => Response
+let attachmentFiles: Array<{
+  id: string
+  filename: string
+  contentType: string
+  byteSize: number
+  sha256: string
+  attachedAt: string
+}>
 let who: Entitlements
 
 const calls = () =>
@@ -204,6 +216,16 @@ beforeEach(async () => {
   cancelResponse = () => json(200, invoice({ authoringState: 'CANCELLED', version: 5 }))
   payResponse = () => json(200, PAYMENTS[0])
   issueResponse = () => json(200, invoice({ version: 5 }))
+  attachmentFiles = [
+    {
+      id: 'f-1',
+      filename: 'delivery-note.pdf',
+      contentType: 'application/pdf',
+      byteSize: 2048,
+      sha256: 'x',
+      attachedAt: '2026-08-01T08:00:00Z',
+    },
+  ]
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -211,17 +233,24 @@ beforeEach(async () => {
     if (url === `${URL_BASE}/payments`)
       return method === 'POST' ? payResponse() : json(200, PAYMENTS)
     if (url.startsWith(`${URL_BASE}/payments/`)) return payResponse()
-    if (url === `${URL_BASE}/attachments`)
-      return json(200, [
-        {
-          id: 'f-1',
-          filename: 'delivery-note.pdf',
-          contentType: 'application/pdf',
-          byteSize: 2048,
-          sha256: 'x',
-          attachedAt: '2026-08-01T08:00:00Z',
-        },
-      ])
+    if (url === `${URL_BASE}/attachments` && method === 'GET') return json(200, attachmentFiles)
+    if (url === `${URL_BASE}/attachments` && method === 'POST') {
+      const created = {
+        id: 'f-2',
+        filename: 'scan.pdf',
+        contentType: 'application/pdf',
+        byteSize: 1024,
+        sha256: 'y',
+        attachedAt: '2026-08-05T08:00:00Z',
+      }
+      attachmentFiles = [...attachmentFiles, created]
+      return json(201, created)
+    }
+    if (url.startsWith(`${URL_BASE}/attachments/`) && method === 'DELETE') {
+      const removedId = url.slice(`${URL_BASE}/attachments/`.length)
+      attachmentFiles = attachmentFiles.filter((file) => file.id !== removedId)
+      return json(204)
+    }
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === `${URL_BASE}/internal-note`)
       return json(200, { internalNote: 'Chase Hamed in September.' })
@@ -756,6 +785,71 @@ describe('Recording and reversing payments', () => {
     // "Paid" is both the status pill and the balance card's column label; wait for the balance.
     await waitFor(() => expect(screen.getAllByText('Paid').length).toBeGreaterThan(1))
     expect(screen.queryByRole('button', { name: 'Add payment' })).toBeNull()
+  })
+})
+
+describe('Attachments', () => {
+  const fileInput = () =>
+    document.querySelector('input[type="file"]') as HTMLInputElement
+
+  it('uploads a file on a draft invoice with the permission, and refreshes the list', async () => {
+    who = CAN_MANAGE_ATTACHMENTS
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    renderInvoice()
+    await screen.findByText('delivery-note.pdf')
+
+    const picked = new File(['%PDF-1.4 fake'], 'scan.pdf', { type: 'application/pdf' })
+    fireEvent.change(fileInput(), { target: { files: [picked] } })
+
+    await waitFor(() => expect(calls()).toContain(`POST ${URL_BASE}/attachments`))
+    expect(await screen.findByText('scan.pdf')).toBeTruthy()
+    await waitFor(() =>
+      expect(calls().filter((call) => call === `GET ${URL_BASE}/attachments`)).toHaveLength(2),
+    )
+  })
+
+  it('removes a file on a draft invoice with the permission', async () => {
+    who = CAN_MANAGE_ATTACHMENTS
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    renderInvoice()
+    await screen.findByText('delivery-note.pdf')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(calls()).toContain(`DELETE ${URL_BASE}/attachments/f-1`))
+    await waitFor(() => expect(screen.queryByText('delivery-note.pdf')).toBeNull())
+  })
+
+  it('rejects an oversized or wrong-type file locally, without calling the API', async () => {
+    who = CAN_MANAGE_ATTACHMENTS
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    renderInvoice()
+    await screen.findByText('delivery-note.pdf')
+
+    const wrongType = new File(['GIF87a'], 'photo.gif', { type: 'image/gif' })
+    fireEvent.change(fileInput(), { target: { files: [wrongType] } })
+    expect(await screen.findByText('photo.gif is not a supported file type.')).toBeTruthy()
+    expect(calls()).not.toContain(`POST ${URL_BASE}/attachments`)
+  })
+
+  it('offers neither upload nor removal without the permission, or once the invoice is issued', async () => {
+    who = { ...ADMIN, permissions: ['invoice.read'] }
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    const { unmount } = renderInvoice()
+    await screen.findByText('delivery-note.pdf')
+    expect(fileInput()).toBeNull()
+    expect((screen.getByRole('button', { name: 'Delete' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+    unmount()
+
+    who = CAN_MANAGE_ATTACHMENTS
+    invoiceResponse = () => json(200, invoice({ authoringState: 'ISSUED' }))
+    renderInvoice()
+    await screen.findByText('delivery-note.pdf')
+    expect(fileInput()).toBeNull()
+    expect((screen.getByRole('button', { name: 'Delete' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
   })
 })
 

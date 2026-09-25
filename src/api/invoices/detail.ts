@@ -161,6 +161,24 @@ export function downloadAttachment(invoiceId: string, attachmentId: string): Pro
   return apiDownload(`${path(invoiceId)}/attachments/${encodeURIComponent(attachmentId)}`)
 }
 
+/** `invoice.attachment.manage`, draft only (`INVOICE_ATTACHMENT_REQUIRES_DRAFT` otherwise). */
+export function uploadAttachment(invoiceId: string, file: File): Promise<InvoiceAttachmentDto> {
+  const form = new FormData()
+  form.append('file', file)
+  return apiRequest<InvoiceAttachmentDto>(`${path(invoiceId)}/attachments`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+/** `invoice.attachment.manage`. Refused under legal hold (`INVOICE_ATTACHMENT_NOT_REMOVABLE`). */
+export async function removeAttachment(invoiceId: string, attachmentId: string): Promise<void> {
+  await apiRequest<unknown>(
+    `${path(invoiceId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    { method: 'DELETE' },
+  )
+}
+
 /** ISSUED only, and refused once the invoice was delivered — a credit note is the remedy then. */
 export function cancelInvoice(
   invoiceId: string,
