@@ -90,8 +90,20 @@ export function SignupReviewForm() {
       rows: [
         { label: t('signupReview.fields.size'), value: shown(sizeKey) },
         { label: t('signupReview.fields.invoicing'), value: shown(invoicingKey) },
-        { label: t('signupReview.fields.category'), value: shown(categoryKey) },
-        { label: t('signupReview.fields.trade'), value: shown(trade?.labelKey) },
+        {
+          label: t('signupReview.fields.pos'),
+          value:
+            state.usesPos === undefined
+              ? saved
+              : t(state.usesPos ? 'signupReview.posYes' : 'signupReview.posNo'),
+        },
+        // The trade is asked only of POS users; without POS the backend holds a placeholder.
+        ...(state.usesPos === false
+          ? []
+          : [
+              { label: t('signupReview.fields.category'), value: shown(categoryKey) },
+              { label: t('signupReview.fields.trade'), value: shown(trade?.labelKey) },
+            ]),
       ],
     },
     {

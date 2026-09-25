@@ -198,6 +198,26 @@ export function recordBusinessCategory(
   return post('/v1/auth/signup/business-category', { onboardingToken, businessCategory }, signal)
 }
 
+/**
+ * A registrant who will not use Fawtir POS skips the Business type and Sub business type
+ * screens. The backend still requires both answers before the identity step and at submission,
+ * so they are saved here with the one category it accepts and a placeholder type, never shown.
+ * TODO(backend): make category and type optional when `usesPos` is false (or accept a
+ * `usesPos` flag on the business profile), then drop these two calls.
+ */
+export const NO_POS_PLACEHOLDER = {
+  category: 'FOOD_AND_BEVERAGE' as SignupBusinessCategory,
+  type: 'RESTAURANT' as SignupBusinessType,
+}
+
+export async function recordNoPosDefaults(
+  onboardingToken: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await recordBusinessCategory(onboardingToken, NO_POS_PLACEHOLDER.category, signal)
+  await recordBusinessType(onboardingToken, NO_POS_PLACEHOLDER.type, signal)
+}
+
 export function recordBusinessType(
   onboardingToken: string,
   businessType: SignupBusinessType,
