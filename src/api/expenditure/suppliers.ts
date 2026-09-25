@@ -9,7 +9,8 @@ import { withQuery } from '../query'
 export const SUPPLIERS_PATH = '/v1/suppliers'
 export const SUPPLIER_SUMMARY_PATH = `${SUPPLIERS_PATH}/summary`
 
-export type SupplierListFilter = 'ALL' | 'ACTIVE' | 'NEEDS_FIX' | 'OWED' | 'NOT_ON_PEPPOL' | 'SWITCHED_OFF'
+export type SupplierListFilter =
+  'ALL' | 'ACTIVE' | 'NEEDS_FIX' | 'OWED' | 'NOT_ON_PEPPOL' | 'SWITCHED_OFF'
 export type SupplierListSort = 'NAME' | 'OWED_DESC' | 'OWED_ASC'
 export type BillingChannel = 'PEPPOL' | 'EMAIL_PDF' | 'PAPER' | 'MANUAL'
 export type SupplierHealthFlag = 'NO_BANK_DETAILS' | 'NO_VAT_NUMBER' | 'BANK_CHANGED_UNCONFIRMED'
@@ -41,6 +42,8 @@ export type SupplierListRowDto = {
     bankChangedAt: string | null
   }
   status: SupplierStatus
+  /** TODO(backend): when the supplier was switched off; the list frame dates it under the name. */
+  switchedOffAt?: string | null
 }
 
 /** `SupplierSummary`. */
@@ -171,7 +174,8 @@ export type SupplierDetailDto = {
     defaultTaxCategory: string | null
     paymentTerms: string | null
     defaultPaymentMethod: string | null
-    bankDetails: (SupplierBankDetailsDto & { changedAt: string | null; confirmedAt: string | null }) | null
+    bankDetails:
+      (SupplierBankDetailsDto & { changedAt: string | null; confirmedAt: string | null }) | null
     contactPerson: string | null
     roleTitle: string | null
     emailRecipients: string[] | null
@@ -205,7 +209,10 @@ export function loadSupplier(id: string): Promise<SupplierDetailDto> {
 }
 
 /** `supplier.manage`. The key is the form's, so a second click or a retry adds one supplier. */
-export function createSupplier(idempotencyKey: string, body: SupplierRequestDto): Promise<SupplierDetailDto> {
+export function createSupplier(
+  idempotencyKey: string,
+  body: SupplierRequestDto,
+): Promise<SupplierDetailDto> {
   return apiRequest<SupplierDetailDto>(SUPPLIERS_PATH, {
     method: 'POST',
     body,
@@ -220,7 +227,9 @@ export function updateSupplier(id: string, body: SupplierRequestDto): Promise<Su
 
 /** Someone checked the new account with the supplier; clears `BANK_CHANGED_UNCONFIRMED`. */
 export function confirmSupplierBankDetails(id: string): Promise<SupplierDetailDto> {
-  return apiRequest<SupplierDetailDto>(`${supplierPath(id)}/bank-details/confirm`, { method: 'POST' })
+  return apiRequest<SupplierDetailDto>(`${supplierPath(id)}/bank-details/confirm`, {
+    method: 'POST',
+  })
 }
 
 export function newSupplierKey(): string {

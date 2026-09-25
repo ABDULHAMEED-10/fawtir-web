@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, Pager, Popover, RowsView, type ActionMenuItem } from '../../components/ui'
+import {
+  ActionMenu,
+  FilterMenu,
+  OmAmount,
+  Pager,
+  RowsView,
+  SortMenu,
+  type ActionMenuItem,
+} from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { pageCountOf, type Page } from '../../api'
@@ -16,10 +24,12 @@ import {
   type SupplierSummaryDto,
 } from '../../api/expenditure/suppliers'
 import {
+  inChannel,
+  isSupplierChannelFilter,
   isSupplierSort,
   isSupplierTab,
-  RECORD_LABEL,
   ROW_ACTION,
+  SUPPLIER_CHANNEL_FILTERS,
   SUPPLIER_PAGE_SIZE,
   SUPPLIER_SORTS,
   SUPPLIER_TABS,
@@ -27,14 +37,16 @@ import {
   toSupplierListItem,
   type Note,
   type SupplierChannel,
+  type SupplierChannelFilter,
   type SupplierListItem,
   type SupplierSortKey,
   type SupplierTabId,
 } from '../../lib/supplierList'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatCount } from '../../lib/format'
+import { formatAmount, formatCount, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import { SuppliersEmptyState } from './SuppliersEmptyState'
+import { SwitchSupplierOffModal, type SwitchOffTarget } from './SwitchSupplierOffModal'
 import kpiSuppliersIcon from '../../assets/suppliers/kpi-suppliers.svg'
 import kpiPeppolIcon from '../../assets/suppliers/kpi-peppol.svg'
 import kpiOweIcon from '../../assets/suppliers/kpi-owe.svg'
@@ -48,13 +60,11 @@ import menuPayIcon from '../../assets/suppliers/menu-pay.svg'
 import menuAttachIcon from '../../assets/suppliers/menu-attach.svg'
 import menuStatementIcon from '../../assets/suppliers/menu-statement.svg'
 import menuCopyIcon from '../../assets/suppliers/menu-copy.svg'
-import editIcon from '../../assets/actions/edit.svg'
 import menuOffIcon from '../../assets/suppliers/menu-off.svg'
 import importIcon from '../../assets/bills/upload.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
-import sortIcon from '../../assets/bills/sort.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
+import filterIcon from '../../assets/bills/filter.svg'
 
 /**
  * A supplier whose channel was never recorded gets the neutral chip. The API calls it MANUAL, which
@@ -91,18 +101,24 @@ export function SuppliersPage() {
 }
 
 /**
- * Inside the shell, so its reads start only once the shell has confirmed a session. The tab,
- * search, sort and page live in the URL, so a filtered list survives a reload and the back button.
+ * Suppliers (Figma 163:25756), inside the shell so its reads start only once the shell has
+ * confirmed a session. The tab, search, channel, sort and page live in the URL, so a filtered list
+ * survives a reload and the back button.
  */
 function SuppliersScreen() {
   const { t, i18n } = useTranslation()
   const session = useSession()
   const [params, setParams] = useSearchParams()
 
-  const tab: SupplierTabId = isSupplierTab(params.get('tab')) ? (params.get('tab') as SupplierTabId) : 'all'
+  const tab: SupplierTabId = isSupplierTab(params.get('tab'))
+    ? (params.get('tab') as SupplierTabId)
+    : 'all'
   const sortKey: SupplierSortKey = isSupplierSort(params.get('sort'))
     ? (params.get('sort') as SupplierSortKey)
     : 'nameAsc'
+  const channel: SupplierChannelFilter = isSupplierChannelFilter(params.get('channel'))
+    ? (params.get('channel') as SupplierChannelFilter)
+    : 'all'
   const query = params.get('q') ?? ''
   const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
 
@@ -126,16 +142,19 @@ function SuppliersScreen() {
   useEffect(() => setTyped(query), [query])
   useEffect(() => {
     if (typed === query) return
-    const timer = window.setTimeout(() => update({ q: typed.trim() || null, page: null }), SEARCH_DELAY_MS)
+    const timer = window.setTimeout(
+      () => update({ q: typed.trim() || null, page: null }),
+      SEARCH_DELAY_MS,
+    )
     return () => window.clearTimeout(timer)
     // Armed by typing only: `update` is a new function each render, and depending on it would
     // restart the pause on every render. It reads the params when it runs, so nothing goes stale.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typed])
 
-  const [sortOpen, setSortOpen] = useState(false)
-  const sortRef = useRef<HTMLButtonElement>(null)
   const [actionError, setActionError] = useState<unknown>(null)
+  const [offTarget, setOffTarget] = useState<SwitchOffTarget | null>(null)
+  const [busy, setBusy] = useState(false)
 
   const summary = useApiRead<SupplierSummaryDto>(SUPPLIER_SUMMARY_PATH, loadSupplierSummary)
   const listPath = supplierListPath({
@@ -152,21 +171,30 @@ function SuppliersScreen() {
     list.retry()
   }
 
-  const onSwitch = async (supplier: SupplierListItem) => {
+  const switchTo = async (id: string, to: 'off' | 'on') => {
     setActionError(null)
+    setBusy(true)
     try {
-      await switchSupplier(supplier.id, supplier.active ? 'off' : 'on')
+      await switchSupplier(id, to)
+      setOffTarget(null)
       refresh()
     } catch (error) {
       setActionError(error)
+      setOffTarget(null)
+    } finally {
+      setBusy(false)
     }
   }
 
   const header = (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="max-w-[720px]">
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('suppliersPage.title')}</h1>
-        <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('suppliersPage.subtitle')}</p>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+          {t('suppliersPage.title')}
+        </h1>
+        <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
+          {t('suppliersPage.subtitle')}
+        </p>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
         {can(session, 'customer.import') ? (
@@ -220,6 +248,13 @@ function SuppliersScreen() {
   const language = i18n.language
   const count = (value: number) => formatCount(value, language)
 
+  const items =
+    list.read.status === 'ready'
+      ? list.read.data.items
+          .map((row) => toSupplierListItem(row))
+          .filter((item) => inChannel(item, channel))
+      : null
+
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       {header}
@@ -231,13 +266,18 @@ function SuppliersScreen() {
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-50">
               <img src={kpiSuppliersIcon} alt="" className="size-[18px]" />
             </span>
-            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{t('suppliersPage.kpi.suppliers')}</h3>
+            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">
+              {t('suppliersPage.kpi.suppliers')}
+            </h3>
           </div>
           <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
             {count(totals.total)}
           </p>
           <p className="mt-2 text-xs font-medium leading-[1.3] text-text-quaternary">
-            {t('suppliersPage.kpi.suppliersNote', { active: count(totals.active), off: count(totals.switchedOff) })}
+            {t('suppliersPage.kpi.suppliersNote', {
+              active: count(totals.active),
+              off: count(totals.switchedOff),
+            })}
           </p>
         </article>
 
@@ -246,12 +286,14 @@ function SuppliersScreen() {
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success-100">
               <img src={kpiPeppolIcon} alt="" className="size-[18px]" />
             </span>
-            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{t('suppliersPage.kpi.peppol')}</h3>
+            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">
+              {t('suppliersPage.kpi.peppol')}
+            </h3>
           </div>
           <p className="mt-3 flex items-baseline gap-1.5 text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
             {count(totals.onPeppol)}
             <span className="text-sm font-medium text-text-quaternary">
-              {t('suppliersPage.kpi.peppolOf', { total: count(totals.total) })}
+              {t('suppliersPage.kpi.peppolOf', { total: count(totals.active) })}
             </span>
           </p>
           <p className="mt-2 text-xs font-medium leading-[1.3] text-text-quaternary">
@@ -264,12 +306,16 @@ function SuppliersScreen() {
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-50">
               <img src={kpiOweIcon} alt="" className="size-[18px]" />
             </span>
-            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{t('suppliersPage.kpi.owe')}</h3>
+            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">
+              {t('suppliersPage.kpi.owe')}
+            </h3>
           </div>
-          <p className="mt-3 flex items-center gap-1.5 text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums">
-            <img src={omrRowIcon} alt="" className="h-auto w-[22px] shrink-0" />
-            {formatAmount(totals.owedTotal, totals.currencyCode, language)}
-          </p>
+          <OmAmount
+            size="md"
+            className="mt-3 gap-1.5"
+            amount={formatAmount(totals.owedTotal, totals.currencyCode, language)}
+            amountClassName="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums"
+          />
           <p className="mt-2 text-xs font-medium leading-[1.3] text-text-quaternary">
             {t('suppliersPage.kpi.oweNote', { count: totals.openBills })}
           </p>
@@ -280,7 +326,9 @@ function SuppliersScreen() {
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-pending-500">
               <img src={kpiFixIcon} alt="" className="size-[18px]" />
             </span>
-            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">{t('suppliersPage.kpi.needsFix')}</h3>
+            <h3 className="text-base font-medium leading-[1.2] text-text-secondary">
+              {t('suppliersPage.kpi.needsFix')}
+            </h3>
           </div>
           <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-pending-700 tabular-nums">
             {count(totals.needsFixSuppliers)}
@@ -314,7 +362,14 @@ function SuppliersScreen() {
                 ].join(' ')}
               >
                 {t(entry.labelKey)}
-                <span className={['text-xs font-semibold', isActive ? 'text-primary-700' : 'text-text-quaternary'].join(' ')}>
+                <span
+                  className={[
+                    'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                    isActive
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'bg-surface-background text-text-quaternary',
+                  ].join(' ')}
+                >
                   {count(tabCount(totals, entry.id))}
                 </span>
               </button>
@@ -324,7 +379,11 @@ function SuppliersScreen() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 p-5">
           <label className="relative flex h-[46px] w-full max-w-[344px] items-center max-md:max-w-none max-md:basis-full">
-            <img src={searchIcon} alt="" className="pointer-events-none absolute start-3.5 size-5 opacity-60" />
+            <img
+              src={searchIcon}
+              alt=""
+              className="pointer-events-none absolute start-3.5 size-5 opacity-60"
+            />
             <input
               type="search"
               value={typed}
@@ -336,37 +395,28 @@ function SuppliersScreen() {
             />
           </label>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              ref={sortRef}
-              type="button"
-              onClick={() => setSortOpen((open) => !open)}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              <img src={sortIcon} alt="" className="size-5" />
-              {t('suppliersPage.sort')}
-            </button>
-            <Popover anchorRef={sortRef} open={sortOpen} onClose={() => setSortOpen(false)}>
-              <ul className="w-[220px] py-1.5">
-                {SUPPLIER_SORTS.map((option) => (
-                  <li key={option.value}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        update({ sort: option.value === 'nameAsc' ? null : option.value, page: null })
-                        setSortOpen(false)
-                      }}
-                      className={[
-                        'flex w-full px-4 py-2.5 text-start text-sm font-medium transition-colors hover:bg-primary-25',
-                        option.value === sortKey ? 'text-primary-700' : 'text-text-secondary',
-                      ].join(' ')}
-                    >
-                      {t(option.labelKey)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </Popover>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <FilterMenu
+              label={t('suppliersPage.filters')}
+              value={channel}
+              defaultValue="all"
+              icon={filterIcon}
+              options={SUPPLIER_CHANNEL_FILTERS.map((option) => ({
+                value: option.value,
+                label: t(option.labelKey),
+              }))}
+              onChange={(value) => update({ channel: value === 'all' ? null : value })}
+            />
+            <SortMenu
+              value={sortKey}
+              options={SUPPLIER_SORTS.map((option) => ({
+                value: option.value,
+                labelKey: option.labelKey,
+              }))}
+              onChange={(value) => update({ sort: value === 'nameAsc' ? null : value, page: null })}
+              label={t('suppliersPage.sort')}
+              width={220}
+            />
           </div>
         </div>
 
@@ -385,17 +435,26 @@ function SuppliersScreen() {
           </div>
         ) : (
           <SupplierTable
-            page={list.read.status === 'ready' ? list.read.data : null}
+            items={items}
             language={language}
-            onSwitch={onSwitch}
+            onSwitchOff={(supplier) =>
+              setOffTarget({
+                id: supplier.id,
+                name: supplier.name,
+                openBills: supplier.openBills,
+                owed: supplier.owed,
+                currency: supplier.currency,
+              })
+            }
+            onSwitchOn={(supplier) => void switchTo(supplier.id, 'on')}
           />
         )}
 
-        {list.read.status === 'ready' && list.read.data.items.length > 0 ? (
+        {list.read.status === 'ready' && items && items.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
             <p className="text-sm font-medium text-text-quaternary">
               {t('suppliersPage.showing', {
-                shown: count(list.read.data.items.length),
+                shown: count(items.length),
                 total: count(list.read.data.total ?? list.read.data.items.length),
                 scope,
               })}
@@ -415,24 +474,37 @@ function SuppliersScreen() {
           </div>
         ) : null}
       </section>
+
+      <SwitchSupplierOffModal
+        target={offTarget}
+        busy={busy}
+        onClose={() => setOffTarget(null)}
+        // TODO(backend): send the reason and the note once `POST /suppliers/{id}/switch-off` takes them.
+        onConfirm={(target) => void switchTo(target.id, 'off')}
+      />
     </div>
   )
 }
 
-function failureText(t: (key: string, values?: Record<string, unknown>) => string, error: unknown): string {
+function failureText(
+  t: (key: string, values?: Record<string, unknown>) => string,
+  error: unknown,
+): string {
   const message = describeApiFailure(error)
   const body = t(message.key, message.values)
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body
 }
 
 function SupplierTable({
-  page,
+  items,
   language,
-  onSwitch,
+  onSwitchOff,
+  onSwitchOn,
 }: {
-  page: Page<SupplierListRowDto> | null
+  items: SupplierListItem[] | null
   language: string
-  onSwitch: (supplier: SupplierListItem) => void
+  onSwitchOff: (supplier: SupplierListItem) => void
+  onSwitchOn: (supplier: SupplierListItem) => void
 }) {
   const { t } = useTranslation()
   return (
@@ -440,43 +512,53 @@ function SupplierTable({
       <table className="w-full min-w-[1140px] border-collapse">
         <thead>
           <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-            {(['supplier', 'howTheyBill', 'terms', 'youOwe', 'theirRecord'] as const).map((key, index) => (
-              <th
-                key={key}
-                className={['h-[46px] px-4 font-semibold first:rounded-s-sm', index === 3 ? 'text-end' : 'text-start'].join(' ')}
-              >
-                {t(`suppliersPage.col.${key}`)}
-              </th>
-            ))}
+            {(['supplier', 'howTheyBill', 'terms', 'youOwe', 'theirRecord'] as const).map(
+              (key, index) => (
+                <th
+                  key={key}
+                  className={[
+                    'h-[46px] px-4 font-semibold first:rounded-s-sm',
+                    index === 3 ? 'text-end' : 'text-start',
+                  ].join(' ')}
+                >
+                  {t(`suppliersPage.col.${key}`)}
+                </th>
+              ),
+            )}
             <th className="h-[46px] px-4" />
             <th className="h-[46px] rounded-e-sm px-4" />
           </tr>
         </thead>
         <tbody>
-          {page === null ? (
+          {items === null ? (
             <tr>
-              <td colSpan={7} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td
+                colSpan={7}
+                role="status"
+                className="py-12 text-center text-sm font-medium text-text-quaternary"
+              >
                 {t('appAccess.loading')}
               </td>
             </tr>
-          ) : page.items.length === 0 ? (
+          ) : items.length === 0 ? (
             <tr>
-              <td colSpan={7} className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td
+                colSpan={7}
+                className="py-12 text-center text-sm font-medium text-text-quaternary"
+              >
                 {t('suppliersPage.empty')}
               </td>
             </tr>
           ) : (
-            page.items.map((row) => {
-              const supplier = toSupplierListItem(row)
-              return (
-                <SupplierTableRow
-                  key={supplier.id}
-                  supplier={supplier}
-                  language={language}
-                  onSwitch={() => onSwitch(supplier)}
-                />
-              )
-            })
+            items.map((supplier) => (
+              <SupplierTableRow
+                key={supplier.id}
+                supplier={supplier}
+                language={language}
+                onSwitchOff={() => onSwitchOff(supplier)}
+                onSwitchOn={() => onSwitchOn(supplier)}
+              />
+            ))
           )}
         </tbody>
       </table>
@@ -492,17 +574,20 @@ function NoteText({ note }: { note: Note | { text: string } }) {
 function SupplierTableRow({
   supplier,
   language,
-  onSwitch,
+  onSwitchOff,
+  onSwitchOn,
 }: {
   supplier: SupplierListItem
   language: string
-  onSwitch: () => void
+  onSwitchOff: () => void
+  onSwitchOn: () => void
 }) {
   const { t } = useTranslation()
   const session = useSession()
   const chip = CHANNEL_CHIP[supplier.channel]
   const detail = `/suppliers/${supplier.id}`
 
+  /** The row menu (Figma 163:28984): two titled groups, then the destructive item. */
   const menu: (ActionMenuItem & { requires: string })[] = [
     {
       id: 'newPurchaseOrder',
@@ -530,16 +615,8 @@ function SupplierTableRow({
       requires: 'invoice.payment.manage',
     },
     {
-      id: 'edit',
-      sectionKey: 'suppliersPage.menu.theirRecord',
-      labelKey: 'suppliersPage.menu.edit',
-      descriptionKey: 'suppliersPage.menu.editNote',
-      icon: editIcon,
-      to: `${detail}/edit`,
-      requires: 'supplier.manage',
-    },
-    {
       id: 'attachDocument',
+      sectionKey: 'suppliersPage.menu.theirRecord',
       labelKey: 'suppliersPage.menu.attachDocument',
       descriptionKey: 'suppliersPage.menu.attachDocumentNote',
       icon: menuAttachIcon,
@@ -569,7 +646,7 @@ function SupplierTableRow({
           descriptionKey: 'suppliersPage.menu.switchOffNoteSearchable',
           icon: menuOffIcon,
           danger: true,
-          onSelect: onSwitch,
+          onSelect: onSwitchOff,
           requires: 'supplier.manage',
         }
       : {
@@ -577,11 +654,13 @@ function SupplierTableRow({
           labelKey: 'suppliersPage.menu.switchOn',
           descriptionKey: 'suppliersPage.menu.switchOnNote',
           icon: menuOffIcon,
-          onSelect: onSwitch,
+          onSelect: onSwitchOn,
           requires: 'supplier.manage',
         },
   ]
-  const items: ActionMenuItem[] = menu.flatMap(({ requires, ...item }) => (can(session, requires) ? [item] : []))
+  const items: ActionMenuItem[] = menu.flatMap(({ requires, ...item }) =>
+    can(session, requires) ? [item] : [],
+  )
 
   return (
     <tr className="border-b border-surface-background last:border-0">
@@ -591,12 +670,19 @@ function SupplierTableRow({
             {supplier.initials}
           </span>
           <div className="min-w-0">
-            <Link to={detail} className="whitespace-nowrap text-sm font-semibold text-text-primary hover:text-primary-700">
+            <Link
+              to={detail}
+              className="whitespace-nowrap text-sm font-semibold text-text-primary hover:text-primary-700"
+            >
               {supplier.name}
             </Link>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
               {!supplier.active
-                ? t('suppliersPage.record.switchedOff')
+                ? supplier.switchedOffAt
+                  ? t('suppliersPage.switchedOffOn', {
+                      date: formatInstantDay(supplier.switchedOffAt, language),
+                    })
+                  : t('suppliersPage.record.switchedOff')
                 : supplier.vat
                   ? t('suppliersPage.vatNumber', { vat: supplier.vat })
                   : t('suppliersPage.noVatOnFile')}
@@ -616,7 +702,10 @@ function SupplierTableRow({
           {t(`suppliersPage.channel.${supplier.channel}`)}
         </span>
         {supplier.channelNote ? (
-          <p className="mt-1.5 max-w-[170px] text-xs font-medium leading-[1.4] text-text-quaternary" dir="auto">
+          <p
+            className="mt-1.5 max-w-[170px] text-xs font-medium leading-[1.4] text-text-quaternary"
+            dir="auto"
+          >
             <NoteText note={supplier.channelNote} />
           </p>
         ) : null}
@@ -634,15 +723,15 @@ function SupplierTableRow({
       </td>
 
       <td className="px-4 py-4 align-top text-end">
-        <p
-          className={[
-            'flex items-center justify-end gap-1 text-sm font-semibold tabular-nums',
+        <OmAmount
+          size="xs"
+          className="justify-end"
+          amount={formatAmount(supplier.owed, supplier.currency, language)}
+          amountClassName={[
+            'text-sm font-semibold tabular-nums',
             supplier.owed === 0 ? 'text-text-quaternary' : 'text-text-primary',
           ].join(' ')}
-        >
-          <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
-          {formatAmount(supplier.owed, supplier.currency, language)}
-        </p>
+        />
         <p
           className={[
             'mt-1 whitespace-nowrap text-xs font-medium',
@@ -659,11 +748,16 @@ function SupplierTableRow({
             {[0, 1, 2, 3].map((dot) => (
               <span
                 key={dot}
-                className={['size-[7px] rounded-[2px]', dot < supplier.score ? SCORE_TONE[supplier.score] : 'bg-border-subtle'].join(' ')}
+                className={[
+                  'size-[7px] rounded-[2px]',
+                  dot < supplier.score ? SCORE_TONE[supplier.score] : 'bg-border-subtle',
+                ].join(' ')}
               />
             ))}
           </span>
-          <span className="whitespace-nowrap text-sm font-medium text-text-secondary">{t(RECORD_LABEL[supplier.issue])}</span>
+          <span className="whitespace-nowrap text-sm font-medium text-text-secondary">
+            <NoteText note={supplier.recordLabel} />
+          </span>
         </div>
         {supplier.recordNote ? (
           <p className="mt-1 text-xs font-medium text-text-quaternary">
@@ -677,7 +771,7 @@ function SupplierTableRow({
           // "Turn back on" does what it says rather than opening the record, and only for someone
           // allowed to do it.
           can(session, 'supplier.manage') ? (
-            <button type="button" onClick={onSwitch} className={ROW_ACTION_CLASS}>
+            <button type="button" onClick={onSwitchOn} className={ROW_ACTION_CLASS}>
               {t(ROW_ACTION.switchedOff)}
             </button>
           ) : null
@@ -689,7 +783,9 @@ function SupplierTableRow({
       </td>
 
       <td className="px-4 py-4 align-top text-end">
-        {items.length > 0 ? <ActionMenu wide label={t('suppliersPage.rowActions')} items={items} /> : null}
+        {items.length > 0 ? (
+          <ActionMenu wide floating label={t('suppliersPage.rowActions')} items={items} />
+        ) : null}
       </td>
     </tr>
   )

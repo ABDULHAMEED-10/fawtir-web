@@ -23,10 +23,12 @@ import { addressLine, saveDownload, termsNote } from '../../lib/supplierRecord'
 import {
   AGEING_BUCKETS,
   PERIODS,
+  ageingNote,
   columnsOf,
   customRangeProblem,
   emailBlocker,
   entryLink,
+  entryOpen,
   issuerAddress,
   periodRange,
   periodTotals,
@@ -44,12 +46,19 @@ const KIND_CHIP: Record<StatementEntryKind, string> = {
   REVERSAL: 'bg-warning-100 text-[#6d5a39]',
 }
 
-const BUCKET_TONE = ['border-[#4c6c5a]', 'border-[#6d5a39]', 'border-pending-200', 'border-warning-700']
+const BUCKET_TONE = [
+  'border-[#4c6c5a]',
+  'border-[#6d5a39]',
+  'border-pending-200',
+  'border-warning-700',
+]
 
-const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
+const muscatToday = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
 /**
- * `/suppliers/:slug/statement` (Figma 117:34891), the list and the supplier page link by id.
+ * `/suppliers/:slug/statement` (Suppliers › Statement, Figma 163:28602); the list and the
+ * supplier page link by id.
  *
  * Every figure is the server's: the running balance, the period totals and the closing balance
  * come from `GET /suppliers/{id}/statement`, and the downloads and the e-mail are asked for the
@@ -76,19 +85,28 @@ function SupplierStatement({ id }: { id: string }) {
   const [customProblem, setCustomProblem] = useState<string | null>(null)
   const [periodOpen, setPeriodOpen] = useState(false)
   const periodRef = useRef<HTMLButtonElement>(null)
-  const [notice, setNotice] = useState<{ key: string; values?: Record<string, string> } | { body: string } | null>(null)
+  const [notice, setNotice] = useState<
+    { key: string; values?: Record<string, string> } | { body: string } | null
+  >(null)
   const [emailing, setEmailing] = useState(false)
 
   const supplier = useApiRead<SupplierDetailDto>(supplierPath(id), () => loadSupplier(id))
   const path = supplierStatementPath(id, range.from, range.to)
   const statement = useApiRead<SupplierStatementDto>(path, () => loadSupplierStatement(path))
   // When the figures were read, for "Prepared": a new period is a new statement.
-  const preparedAt = useMemo(() => (statement.read.status === 'ready' ? new Date().toISOString() : null), [statement.read])
+  const preparedAt = useMemo(
+    () => (statement.read.status === 'ready' ? new Date().toISOString() : null),
+    [statement.read],
+  )
 
   if (supplier.read.status !== 'ready') {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
-        {supplier.read.status === 'loading' ? <LoadingNotice /> : <ApiReadFailure error={supplier.read.error} retry={supplier.retry} />}
+        {supplier.read.status === 'loading' ? (
+          <LoadingNotice />
+        ) : (
+          <ApiReadFailure error={supplier.read.error} retry={supplier.retry} />
+        )}
       </div>
     )
   }
@@ -102,7 +120,11 @@ function SupplierStatement({ id }: { id: string }) {
   const failed = (error: unknown) => {
     const message = describeApiFailure(error)
     const body = t(message.key, message.values)
-    setNotice({ body: message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body })
+    setNotice({
+      body: message.reference
+        ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+        : body,
+    })
   }
 
   const choose = (next: Period) => {
@@ -122,12 +144,16 @@ function SupplierStatement({ id }: { id: string }) {
     if (!problem) setRange(custom)
   }
 
-  const fileName = (format: StatementFormat) => `statement-${profile.displayName}-${range.from}-${range.to}.${format}`
+  const fileName = (format: StatementFormat) =>
+    `statement-${profile.displayName}-${range.from}-${range.to}.${format}`
 
   const download = async (format: StatementFormat) => {
     setNotice(null)
     try {
-      saveDownload(await downloadSupplierStatement(id, format, range.from, range.to), fileName(format))
+      saveDownload(
+        await downloadSupplierStatement(id, format, range.from, range.to),
+        fileName(format),
+      )
     } catch (error) {
       failed(error)
     }
@@ -156,18 +182,30 @@ function SupplierStatement({ id }: { id: string }) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Link to="/suppliers" className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700">
+            <Link
+              to="/suppliers"
+              className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700"
+            >
               {t('suppliersPage.title')}
             </Link>
             <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-            <Link to={`/suppliers/${id}`} className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700">
+            <Link
+              to={`/suppliers/${id}`}
+              className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700"
+            >
               {profile.displayName}
             </Link>
             <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-            <span className="text-2xl font-medium leading-[1.2] text-text-primary">{t('supplierStatement.title')}</span>
+            <span className="text-2xl font-medium leading-[1.2] text-text-primary">
+              {t('supplierStatement.title')}
+            </span>
           </div>
-          <h1 className="mt-1 text-[32px] font-medium leading-[1.2] text-text-primary">{t('supplierStatement.title')}</h1>
-          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">{t('supplierStatement.subtitle')}</p>
+          <h1 className="mt-1 text-[32px] font-medium leading-[1.2] text-text-primary">
+            {t('supplierStatement.title')}
+          </h1>
+          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
+            {t('supplierStatement.subtitle')}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <button
@@ -215,11 +253,21 @@ function SupplierStatement({ id }: { id: string }) {
         <section className="flex flex-wrap items-end gap-3 rounded-md bg-surface-card p-4">
           <label className="flex min-w-[180px] flex-col gap-1.5 text-sm font-semibold text-text-secondary">
             {t('supplierStatement.customFrom')}
-            <DateField value={custom.from} max={today} ariaLabel={t('supplierStatement.customFrom')} onChange={(from) => setCustom((current) => ({ ...current, from }))} />
+            <DateField
+              value={custom.from}
+              max={today}
+              ariaLabel={t('supplierStatement.customFrom')}
+              onChange={(from) => setCustom((current) => ({ ...current, from }))}
+            />
           </label>
           <label className="flex min-w-[180px] flex-col gap-1.5 text-sm font-semibold text-text-secondary">
             {t('supplierStatement.customTo')}
-            <DateField value={custom.to} max={today} ariaLabel={t('supplierStatement.customTo')} onChange={(to) => setCustom((current) => ({ ...current, to }))} />
+            <DateField
+              value={custom.to}
+              max={today}
+              ariaLabel={t('supplierStatement.customTo')}
+              onChange={(to) => setCustom((current) => ({ ...current, to }))}
+            />
           </label>
           <button
             type="button"
@@ -236,25 +284,45 @@ function SupplierStatement({ id }: { id: string }) {
         </section>
       ) : null}
 
-      {notice ? <Notice body={'key' in notice ? t(notice.key, notice.values) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+      {notice ? (
+        <Notice
+          body={'key' in notice ? t(notice.key, notice.values) : notice.body}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
 
       {statement.read.status === 'loading' ? <LoadingNotice /> : null}
-      {statement.read.status === 'failed' ? <ApiReadFailure error={statement.read.error} retry={statement.retry} /> : null}
+      {statement.read.status === 'failed' ? (
+        <ApiReadFailure error={statement.read.error} retry={statement.retry} />
+      ) : null}
 
       {statement.read.status === 'ready' ? body(statement.read.data) : null}
 
-      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur">
+      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur lg:start-[248px] lg:rtl:start-0 lg:rtl:end-[248px]">
         <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3 px-6 py-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-text-tertiary">
             {statement.read.status === 'ready' ? (
               <>
-                <OmAmount size="xs" amount={formatAmount(statement.read.data.closing, statement.read.data.currencyCode, language)} amountClassName="font-semibold text-text-primary tabular-nums" />
+                <OmAmount
+                  size="xs"
+                  amount={formatAmount(
+                    statement.read.data.closing,
+                    statement.read.data.currencyCode,
+                    language,
+                  )}
+                  amountClassName="font-semibold text-text-primary tabular-nums"
+                />
                 {t('supplierStatement.footer', { count: statement.read.data.entries.length })}
+                {typeof statement.read.data.unusedCredits === 'number' &&
+                statement.read.data.unusedCredits > 0
+                  ? ` · ${t('supplierStatement.unusedCredits', { count: statement.read.data.unusedCredits })}`
+                  : null}
               </>
             ) : null}
           </p>
           <div className="flex flex-wrap items-center gap-2.5">
-            {(['pdf', 'xlsx', 'csv'] as const).map((format) => (
+            {/* The CSV export stays on the supplier page's Statement menu; the design's bar offers PDF and Excel. */}
+            {(['pdf', 'xlsx'] as const).map((format) => (
               <button
                 key={format}
                 type="button"
@@ -277,7 +345,9 @@ function SupplierStatement({ id }: { id: string }) {
               </button>
             ) : null}
           </div>
-          {canManage && blocker ? <p className="w-full text-end text-xs font-medium text-text-quaternary">{t(blocker)}</p> : null}
+          {canManage && blocker ? (
+            <p className="w-full text-end text-xs font-medium text-text-quaternary">{t(blocker)}</p>
+          ) : null}
         </div>
       </div>
 
@@ -307,9 +377,18 @@ function SupplierStatement({ id }: { id: string }) {
     const signed = (value: number) => `${value < 0 ? '−' : ''}${money(Math.abs(value))}`
     const totals = periodTotals(data)
     const issuer = data.issuer
-    const issuerName = issuer ? (language === 'ar' && issuer.legalNameAr ? issuer.legalNameAr : issuer.legalName) : null
+    const issuerName = issuer
+      ? language === 'ar' && issuer.legalNameAr
+        ? issuer.legalNameAr
+        : issuer.legalName
+      : null
     const terms = termsNote(detail.profile.paymentTerms)
-    const supplierFacts = [detail.profile.vatNumber ? t('supplierStatement.vat', { number: detail.profile.vatNumber }) : null, detail.profile.participantId]
+    const supplierFacts = [
+      detail.profile.vatNumber
+        ? t('supplierStatement.vat', { number: detail.profile.vatNumber })
+        : null,
+      detail.profile.participantId,
+    ]
       .filter(Boolean)
       .join(' · ')
 
@@ -317,28 +396,63 @@ function SupplierStatement({ id }: { id: string }) {
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="grid gap-6 p-6 md:grid-cols-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">{t('supplierStatement.statementFor')}</p>
-            <p className="mt-2 text-base font-semibold leading-[1.3] text-text-primary">{supplierName}</p>
-            {supplierFacts ? <p className="mt-1 text-xs font-medium leading-[1.5] text-text-tertiary">{supplierFacts}</p> : null}
-            {addressLine(detail.invoiceAddress) ? <p className="text-xs font-medium leading-[1.5] text-text-tertiary">{addressLine(detail.invoiceAddress)}</p> : null}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
+              {t('supplierStatement.statementFor')}
+            </p>
+            <p className="mt-2 text-base font-semibold leading-[1.3] text-text-primary">
+              {supplierName}
+            </p>
+            {supplierFacts ? (
+              <p className="mt-1 text-xs font-medium leading-[1.5] text-text-tertiary">
+                {supplierFacts}
+              </p>
+            ) : null}
+            {addressLine(detail.invoiceAddress) ? (
+              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                {addressLine(detail.invoiceAddress)}
+              </p>
+            ) : null}
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">{t('supplierStatement.issuedBy')}</p>
-            <p className="mt-2 text-base font-semibold leading-[1.3] text-text-primary">{issuerName ?? '—'}</p>
-            {issuer?.vatNumber ? <p className="mt-1 text-xs font-medium leading-[1.5] text-text-tertiary">{t('supplierStatement.vat', { number: issuer.vatNumber })}</p> : null}
-            {issuerAddress(issuer) ? <p className="text-xs font-medium leading-[1.5] text-text-tertiary">{issuerAddress(issuer)}</p> : null}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
+              {t('supplierStatement.issuedBy')}
+            </p>
+            <p className="mt-2 text-base font-semibold leading-[1.3] text-text-primary">
+              {issuerName ?? '—'}
+            </p>
+            {issuer?.vatNumber ? (
+              <p className="mt-1 text-xs font-medium leading-[1.5] text-text-tertiary">
+                {t('supplierStatement.vat', { number: issuer.vatNumber })}
+              </p>
+            ) : null}
+            {issuerAddress(issuer) ? (
+              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                {issuerAddress(issuer)}
+              </p>
+            ) : null}
           </div>
           <div className="md:text-end">
             <p className="text-xl font-semibold leading-[1.2] text-text-primary">
               {dayOf(data.from)} – {dayOf(data.to)}
             </p>
-            {prepared ? <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-tertiary">{t('supplierStatement.prepared', { when: formatInstant(prepared, language) })}</p> : null}
-            {terms ? <p className="text-xs font-medium leading-[1.5] text-text-tertiary">{t(terms.key, terms.values)}</p> : null}
+            {prepared ? (
+              <p className="mt-1.5 text-xs font-medium leading-[1.5] text-text-tertiary">
+                {t('supplierStatement.prepared', { when: formatInstant(prepared, language) })}
+              </p>
+            ) : null}
+            {terms ? (
+              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                {t(terms.key, terms.values)}
+              </p>
+            ) : null}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 border-y border-surface-background bg-surface-background/40 px-6 py-5">
-          <Figure label={t('supplierStatement.owedBefore', { date: dayOf(data.from) })} value={money(data.opening)} />
+          <Figure
+            label={t('supplierStatement.owedOn', { date: dayOf(data.from) })}
+            value={money(data.opening)}
+          />
           <Operator>+</Operator>
           <Figure label={t('supplierStatement.theyBilledYou')} value={money(data.bills)} />
           <Operator>−</Operator>
@@ -346,8 +460,15 @@ function SupplierStatement({ id }: { id: string }) {
           <Operator>−</Operator>
           <Figure label={t('supplierStatement.credits')} value={money(data.credits)} />
           <div className="ms-auto text-end">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">{t('supplierStatement.owedOn', { date: dayOf(data.to) })}</p>
-            <OmAmount size="lg" amount={money(data.closing)} className="mt-1.5 justify-end" amountClassName="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums" />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
+              {t('supplierStatement.owedOn', { date: dayOf(data.to) })}
+            </p>
+            <OmAmount
+              size="lg"
+              amount={money(data.closing)}
+              className="mt-1.5 justify-end"
+              amountClassName="text-[28px] font-semibold leading-[1.2] text-text-primary tabular-nums"
+            />
           </div>
         </div>
 
@@ -355,55 +476,101 @@ function SupplierStatement({ id }: { id: string }) {
           <table className="w-full min-w-[900px] border-collapse">
             <thead>
               <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-                {(['date', 'whatItWas', 'kind', 'theyBilled', 'youPaid', 'owedAfter'] as const).map((key, index) => (
-                  <th key={key} className={['h-[46px] px-5 font-semibold', index >= 3 ? 'text-end' : 'text-start'].join(' ')}>
-                    {t(`supplierStatement.col.${key}`)}
-                  </th>
-                ))}
+                {(['date', 'whatItWas', 'kind', 'theyBilled', 'youPaid', 'owedAfter'] as const).map(
+                  (key, index) => (
+                    <th
+                      key={key}
+                      className={[
+                        'h-[46px] px-5 font-semibold',
+                        index >= 3 ? 'text-end' : 'text-start',
+                      ].join(' ')}
+                    >
+                      {t(`supplierStatement.col.${key}`)}
+                    </th>
+                  ),
+                )}
               </tr>
             </thead>
             <tbody>
               <tr className="border-b border-surface-background">
-                <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">{dayOf(data.from)}</td>
+                <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">
+                  {dayOf(data.from)}
+                </td>
                 <td className="px-5 py-4 align-top">
-                  <p className="text-sm font-semibold text-text-primary">{t('supplierStatement.broughtForward')}</p>
-                  <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">{t('supplierStatement.broughtForwardNote')}</p>
+                  <p className="text-sm font-semibold text-text-primary">
+                    {t('supplierStatement.broughtForward')}
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
+                    {t('supplierStatement.broughtForwardNote')}
+                  </p>
                 </td>
                 <td />
                 <td />
                 <td />
-                <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">{money(data.opening)}</td>
+                <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
+                  {money(data.opening)}
+                </td>
               </tr>
               {data.entries.map((entry) => {
                 const { billed, paid } = columnsOf(entry.kind, entry.amount)
                 const link = entryLink(entry.kind, entry.documentId)
                 const reference = entry.reference ?? t('supplierStatement.noReference')
                 return (
-                  <tr key={`${entry.kind}-${entry.documentId}`} className="border-b border-surface-background">
-                    <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">{dayOf(entry.date)}</td>
+                  <tr
+                    key={`${entry.kind}-${entry.documentId}`}
+                    className={[
+                      'border-b border-surface-background',
+                      entryOpen(entry) ? 'bg-surface-background/40' : '',
+                    ].join(' ')}
+                  >
+                    <td className="px-5 py-4 align-top text-sm font-medium text-text-tertiary">
+                      {dayOf(entry.date)}
+                    </td>
                     <td className="px-5 py-4 align-top">
                       {link ? (
-                        <Link to={link} className="text-sm font-semibold text-primary-700 hover:underline">
+                        <Link
+                          to={link}
+                          className="text-sm font-semibold text-primary-700 hover:underline"
+                        >
                           {reference}
                         </Link>
                       ) : (
                         <p className="text-sm font-semibold text-text-primary">{reference}</p>
                       )}
+                      {entry.detail ? (
+                        <p className="mt-1 max-w-[280px] text-xs font-medium leading-[1.5] text-text-quaternary">
+                          {entry.detail}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-5 py-4 align-top">
-                      <span className={['inline-flex h-[24px] items-center rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]', KIND_CHIP[entry.kind]].join(' ')}>
+                      <span
+                        className={[
+                          'inline-flex h-[24px] items-center rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]',
+                          KIND_CHIP[entry.kind],
+                        ].join(' ')}
+                      >
                         {t(`supplierStatement.kind.${entry.kind}`)}
                       </span>
                     </td>
-                    <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">{billed === null ? '' : signed(billed)}</td>
-                    <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">{paid === null ? '' : signed(paid)}</td>
-                    <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">{money(entry.runningBalance)}</td>
+                    <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
+                      {billed === null ? '' : signed(billed)}
+                    </td>
+                    <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
+                      {paid === null ? '' : signed(paid)}
+                    </td>
+                    <td className="px-5 py-4 align-top text-end text-sm font-semibold text-text-primary tabular-nums">
+                      {money(entry.runningBalance)}
+                    </td>
                   </tr>
                 )
               })}
               {data.entries.length === 0 ? (
                 <tr className="border-b border-surface-background">
-                  <td colSpan={6} className="px-5 py-6 text-center text-sm font-medium text-text-quaternary">
+                  <td
+                    colSpan={6}
+                    className="px-5 py-6 text-center text-sm font-medium text-text-quaternary"
+                  >
                     {t('supplierStatement.noEntries')}
                   </td>
                 </tr>
@@ -412,32 +579,60 @@ function SupplierStatement({ id }: { id: string }) {
                 <td colSpan={3} className="px-5 py-4 text-sm font-semibold text-text-primary">
                   {t('supplierStatement.overThePeriod')}
                 </td>
-                <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">{signed(totals.billedNet)}</td>
-                <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">{money(totals.paid)}</td>
+                <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">
+                  {signed(totals.billedNet)}
+                </td>
+                <td className="px-5 py-4 text-end text-sm font-semibold text-text-primary tabular-nums">
+                  {money(totals.paid)}
+                </td>
                 <td className="px-5 py-4 text-end">
-                  <OmAmount size="xs" amount={money(data.closing)} className="justify-end" amountClassName="text-sm font-semibold text-text-primary tabular-nums" />
+                  <OmAmount
+                    size="xs"
+                    amount={money(data.closing)}
+                    className="justify-end"
+                    amountClassName="text-sm font-semibold text-text-primary tabular-nums"
+                  />
                 </td>
               </tr>
             </tbody>
           </table>
         </RowsView>
 
-        <div className="p-6">
-          <p className="text-sm font-semibold text-text-primary">{t('supplierStatement.ageingTitle')}</p>
-          <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">{t('supplierStatement.ageingNote')}</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {AGEING_BUCKETS.map((bucket, index) => (
+        <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
+          {AGEING_BUCKETS.map((bucket, index) => {
+            const note = ageingNote(bucket, data)
+            return (
               <div key={bucket} className={['border-s-2 ps-3', BUCKET_TONE[index]].join(' ')}>
-                <p className="text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.6px] text-text-quaternary">{t(`supplierStatement.ageing.${bucket}`)}</p>
+                <p className="text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.6px] text-text-quaternary">
+                  {t(`supplierStatement.ageing.${bucket}`)}
+                </p>
                 {data.ageing[bucket] > 0 ? (
-                  <OmAmount size="sm" amount={money(data.ageing[bucket])} className="mt-1.5" amountClassName="text-xl font-semibold leading-[1.2] text-text-primary tabular-nums" />
+                  <OmAmount
+                    size="sm"
+                    amount={money(data.ageing[bucket])}
+                    className="mt-1.5"
+                    amountClassName="text-xl font-semibold leading-[1.2] text-text-primary tabular-nums"
+                  />
                 ) : (
-                  <p className="mt-1.5 text-xl font-semibold leading-[1.2] text-text-quaternary">{t('supplierStatement.nothing')}</p>
+                  <p className="mt-1.5 text-xl font-semibold leading-[1.2] text-text-quaternary">
+                    {t('supplierStatement.nothing')}
+                  </p>
                 )}
+                {/* TODO(backend): the bill count and next due date under each figure (§7.14). */}
+                <p className="mt-1.5 text-xs font-medium leading-[1.3] text-text-quaternary">
+                  {note
+                    ? t(note.key, {
+                        ...note.values,
+                        date:
+                          typeof note.values?.date === 'string'
+                            ? dayOf(note.values.date)
+                            : undefined,
+                      })
+                    : '—'}
+                </p>
               </div>
-            ))}
-          </div>
-          <p className="mt-4 text-xs font-medium leading-[1.5] text-text-quaternary">{t('supplierStatement.creditNote')}</p>
+            )
+          })}
         </div>
       </section>
     )
@@ -479,7 +674,11 @@ function EmailStatementModal({
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
-        setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+        setFailure(
+          message.reference
+            ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+            : body,
+        )
       }
     } finally {
       setBusy(false)
@@ -492,7 +691,10 @@ function EmailStatementModal({
       width={520}
       onClose={onClose}
       title={t('supplierStatement.email.title')}
-      subtitle={t('supplierStatement.email.subtitle', { from: formatDate(from, i18n.language), to: formatDate(to, i18n.language) })}
+      subtitle={t('supplierStatement.email.subtitle', {
+        from: formatDate(from, i18n.language),
+        to: formatDate(to, i18n.language),
+      })}
       footer={
         <div className="flex justify-end gap-3">
           <button
@@ -515,15 +717,28 @@ function EmailStatementModal({
     >
       {failure ? <Notice body={failure} /> : null}
       <fieldset className="mt-2 flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold text-text-secondary">{t('supplierStatement.email.to')}</legend>
+        <legend className="mb-2 text-sm font-semibold text-text-secondary">
+          {t('supplierStatement.email.to')}
+        </legend>
         {recipients.map((address) => (
-          <label key={address} className="flex items-center gap-2 rounded-sm border border-border-subtle px-3 py-2.5 text-sm font-medium text-text-primary">
-            <input type="radio" name="recipient" value={address} checked={recipient === address} onChange={() => setRecipient(address)} />
+          <label
+            key={address}
+            className="flex items-center gap-2 rounded-sm border border-border-subtle px-3 py-2.5 text-sm font-medium text-text-primary"
+          >
+            <input
+              type="radio"
+              name="recipient"
+              value={address}
+              checked={recipient === address}
+              onChange={() => setRecipient(address)}
+            />
             <span dir="ltr">{address}</span>
           </label>
         ))}
       </fieldset>
-      <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">{t('supplierStatement.email.note')}</p>
+      <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
+        {t('supplierStatement.email.note')}
+      </p>
     </Modal>
   )
 }
@@ -531,8 +746,15 @@ function EmailStatementModal({
 function Figure({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">{label}</p>
-      <OmAmount size="sm" amount={value} className="mt-1.5" amountClassName="text-lg font-semibold leading-[1.2] text-text-primary tabular-nums" />
+      <p className="text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">
+        {label}
+      </p>
+      <OmAmount
+        size="sm"
+        amount={value}
+        className="mt-1.5"
+        amountClassName="text-lg font-semibold leading-[1.2] text-text-primary tabular-nums"
+      />
     </div>
   )
 }

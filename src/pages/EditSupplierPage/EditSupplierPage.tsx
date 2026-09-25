@@ -1,9 +1,9 @@
 import { EditSupplierForm } from '../NewSupplierPage/SupplierFormPage'
 
 /**
- * `/suppliers/:slug/edit`: the same form as a new supplier, loaded from the record (decision of
- * 2026-09-16). The Figma edit frame's side panels that nothing backs (what the change affects,
- * recent changes) are not drawn; its completeness check is, from the record's own health flags.
+ * `/suppliers/:slug/edit`: the supplier form on the Edit frame (Figma 163:26848), loaded from the
+ * record, with the side column the frame draws: is the record complete, what changing it affects
+ * (from the record's overview), and the changes the record itself dates.
  */
 export function EditSupplierPage() {
   return <EditSupplierForm />

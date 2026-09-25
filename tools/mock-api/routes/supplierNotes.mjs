@@ -1,0 +1,1236 @@
+/**
+ * Supplier credit and debit notes (E-15, E-16): the lists and summaries, one note, its
+ * settlements or decisions, apply / refund and accept / refuse, plus the bill intake the two
+ * upload screens go through, the bills and suppliers the screens resolve, and the session and
+ * reference data the guarded shell asks for.
+ *
+ * Al Bahja Coffee's suppliers, rial amounts, September 2026. Shapes follow
+ * src/api/expenditure/notes.ts, bills.ts, billIntake.ts, suppliers.ts and supplierRecord.ts.
+ * The figures are one population: every summary is derived from the rows below.
+ *
+ * `agreements.mjs` and `notes.mjs` sort before this file and answer `/me/entitlements` first, so
+ * a run that needs the permissions below loads this module alone (see the brief).
+ */
+
+const ENTITLEMENTS = {
+  userId: 'u-hafidh',
+  username: 'hafidh.saif',
+  tenantId: 't-albahja',
+  tenantName: 'Al Bahja Coffee',
+  roles: [{ id: 'r-owner', code: 'OWNER', name: 'Owner', systemRole: true }],
+  permissions: [
+    'invoice.read',
+    'invoice.write',
+    'invoice.approve',
+    'invoice.payment.manage',
+    'customer.read',
+    'supplier.read',
+    'supplier.write',
+    'product.read',
+  ],
+  scopes: [],
+  featureFlags: {},
+}
+
+const REFERENCE_DATA = {
+  taxCategories: [
+    { code: 'S5', en16931Category: 'S', rate: '5', exemptionReasonRequired: false, active: true },
+    { code: 'Z0', en16931Category: 'Z', rate: '0', exemptionReasonRequired: false, active: true },
+    { code: 'E0', en16931Category: 'E', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'O0', en16931Category: 'O', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'AE0', en16931Category: 'AE', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'G0', en16931Category: 'G', rate: '0', exemptionReasonRequired: true, active: true },
+  ],
+  units: ['EA', 'KGM', 'LTR', 'BG', 'BX', 'SA', 'PK', 'HUR', 'DAY', 'MTR'].map((code) => ({
+    code,
+    active: true,
+  })),
+  paymentTerms: [
+    { code: 'NET0', netDays: 0, active: true },
+    { code: 'NET7', netDays: 7, active: true },
+    { code: 'NET14', netDays: 14, active: true },
+    { code: 'NET30', netDays: 30, active: true },
+    { code: 'NET45', netDays: 45, active: true },
+    { code: 'NET60', netDays: 60, active: true },
+  ],
+  paymentMethods: ['30', '10', '20', '48', '68'].map((code) => ({ code, active: true })),
+}
+
+/* ------------------------------------------------------------------ suppliers */
+
+const SUPPLIERS = [
+  supplier('s-and', 'Al Noor Dates LLC', 'OM1100518844', 'Al Noor Dates LLC', '0248:OM1100518844'),
+  supplier(
+    's-mr',
+    'Muscat Roastery Co',
+    'OM1100711290',
+    'Muscat Roastery Co LLC',
+    '0248:OM1100711290',
+  ),
+  supplier('s-sp', 'Sohar Packaging LLC', 'OM1100628391', 'Sohar Packaging LLC', null),
+  supplier(
+    's-mz',
+    'Mazoon Electricity',
+    'OM1100200330',
+    'Mazoon Electricity Company SAOC',
+    '0248:OM1100200330',
+  ),
+  supplier(
+    's-gcl',
+    'Gulf Cold Logistics',
+    'OM1100554027',
+    'Gulf Cold Logistics LLC',
+    '0248:OM1100554027',
+  ),
+]
+
+function supplier(id, displayName, vatNumber, legalName, participantId) {
+  return {
+    id,
+    displayName,
+    legalName,
+    vatNumber,
+    participantId,
+    billingChannel: participantId ? 'PEPPOL' : 'EMAIL_PDF',
+    selfBilling: false,
+    terms: {
+      paymentTerms: 'NET30',
+      netDays: 30,
+      earlyPaymentDiscountPercent: null,
+      earlyPaymentDiscountDays: null,
+      earlyPaymentDiscount: null,
+    },
+    youOwe: { amount: 0, currency: 'OMR', openBills: 0, onHold: 0 },
+    record: {
+      health: [],
+      paidOnTimeCount: 11,
+      settledCount: 12,
+      paidOnTime: '11 of 12',
+      bankChangedAt: null,
+    },
+    status: 'ACTIVE',
+  }
+}
+
+function supplierDetail(row) {
+  return {
+    profile: {
+      id: row.id,
+      type: 'BUSINESS',
+      displayName: row.displayName,
+      legalName: row.legalName,
+      vatNumber: row.vatNumber,
+      registeredForVat: true,
+      registeredOnPeppol: row.participantId !== null,
+      participantScheme: row.participantId ? '0248' : null,
+      participantValue: row.participantId ? row.participantId.split(':')[1] : null,
+      participantId: row.participantId,
+      defaultCurrency: 'OMR',
+      defaultTaxCategory: 'S5',
+      paymentTerms: 'NET30',
+      defaultPaymentMethod: '30',
+      bankDetails: null,
+      contactPerson: null,
+      roleTitle: null,
+      emailRecipients: null,
+      telephone: null,
+      mobilePhone: null,
+      preferredLanguage: 'en',
+      receivingChannel: row.billingChannel,
+      requiresApprovalBeforePayment: true,
+      earlyPaymentDiscountPercent: null,
+      earlyPaymentDiscountDays: null,
+      commercialRegistrationNumber: null,
+      notes: null,
+      supplierCategory: null,
+      selfBillingAgreement: false,
+      health: [],
+      supplierSince: '2025-03-04',
+      switchedOffAt: null,
+      status: 'ACTIVE',
+      customerStatus: null,
+      version: 3,
+    },
+    invoiceAddress: null,
+    sameAsInvoicingAddress: true,
+    deliveryAddress: null,
+  }
+}
+
+/* ---------------------------------------------------------------------- bills */
+
+const BILLS = [
+  bill(
+    'b-and-3382',
+    's-and',
+    'AND-INV-3382',
+    '2026-07-28',
+    '2026-08-27',
+    933.9,
+    44.47,
+    933.9,
+    'APPROVED',
+    'PEPPOL',
+  ),
+  bill(
+    'b-and-3301',
+    's-and',
+    'AND-INV-3301',
+    '2026-07-02',
+    '2026-08-01',
+    2117.1,
+    100.81,
+    0,
+    'PAID',
+    'PEPPOL',
+  ),
+  bill(
+    'b-and-3150',
+    's-and',
+    'AND-INV-3150',
+    '2026-06-20',
+    '2026-07-20',
+    1288.0,
+    61.333,
+    1288.0,
+    'APPROVED',
+    'PEPPOL',
+  ),
+  bill(
+    'b-mr-8790',
+    's-mr',
+    'MR-INV-8790',
+    '2026-07-24',
+    '2026-08-23',
+    1480.5,
+    70.5,
+    1480.5,
+    'APPROVED',
+    'PEPPOL',
+  ),
+  bill(
+    'b-sp-1140',
+    's-sp',
+    'SP-INV-1140',
+    '2026-07-24',
+    '2026-08-23',
+    3140.0,
+    149.52,
+    3140.0,
+    'APPROVED',
+    'UPLOADED',
+    'PR-0014',
+  ),
+  bill(
+    'b-sp-1108',
+    's-sp',
+    'SP-INV-1108',
+    '2026-07-10',
+    '2026-08-09',
+    940.8,
+    44.8,
+    0,
+    'PAID',
+    'UPLOADED',
+  ),
+  bill(
+    'b-mz-2288',
+    's-mz',
+    'MZ-INV-2288',
+    '2026-07-05',
+    '2026-08-04',
+    412.3,
+    19.633,
+    412.3,
+    'APPROVED',
+    'PEPPOL',
+  ),
+  bill(
+    'b-mz-7801',
+    's-mz',
+    'MZ-INV-7801',
+    '2026-06-06',
+    '2026-07-06',
+    388.5,
+    18.5,
+    0,
+    'PAID',
+    'PEPPOL',
+  ),
+  bill(
+    'b-gcl-2301',
+    's-gcl',
+    'GCL-2301',
+    '2026-07-25',
+    '2026-08-25',
+    288.4,
+    13.733,
+    288.4,
+    'APPROVED',
+    'PEPPOL',
+  ),
+  bill(
+    'b-gcl-2288',
+    's-gcl',
+    'GCL-2288',
+    '2026-07-18',
+    '2026-08-17',
+    411.5,
+    19.595,
+    411.5,
+    'ON_HOLD',
+    'PEPPOL',
+  ),
+]
+
+function bill(
+  id,
+  supplierId,
+  number,
+  issueDate,
+  dueDate,
+  total,
+  vat,
+  outstanding,
+  state,
+  source,
+  run = null,
+) {
+  const supplierRow = SUPPLIERS.find((s) => s.id === supplierId)
+  return {
+    id,
+    source,
+    supplierId,
+    supplierName: supplierRow.displayName,
+    documentTypeCode: '380',
+    supplierBillNumber: number,
+    issueDate,
+    dueDate,
+    overdue: state !== 'PAID' && dueDate < '2026-09-25',
+    currencyCode: 'OMR',
+    totalIncludingVat: total,
+    vatAmount: vat,
+    paidAmount: total - outstanding,
+    outstandingAmount: outstanding,
+    purchaseOrderReference: null,
+    workflowState: state,
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+    match: null,
+    hold:
+      state === 'ON_HOLD'
+        ? { reason: 'Three deliveries in dispute', openedAt: '2026-07-30T08:10:00Z' }
+        : null,
+    paymentRunReference: run,
+    paidOnTheSpot: false,
+  }
+}
+
+/* --------------------------------------------------------------- credit notes */
+
+const CREDIT_NOTES = [
+  creditNote({
+    id: 'cn-and-0442',
+    supplierId: 's-and',
+    number: 'AND-CN-0442',
+    issueDate: '2026-07-30',
+    source: 'PEPPOL',
+    credited: 84.9,
+    vat: 4.05,
+    reasonCode: 'SHORT_DELIVERY',
+    status: 'UNAPPLIED',
+    balance: { applied: 0, refunded: 0, remaining: 84.9 },
+    billId: 'b-and-3382',
+  }),
+  creditNote({
+    id: 'cn-mr-0118',
+    supplierId: 's-mr',
+    number: 'MR-CN-0118',
+    issueDate: '2026-07-28',
+    source: 'PEPPOL',
+    credited: 242.5,
+    vat: 11.548,
+    reasonCode: 'OVERCHARGE',
+    status: 'WAITING_FOR_BILL',
+    balance: { applied: 0, refunded: 0, remaining: 242.5 },
+    billNumber: 'MR-INV-8811',
+  }),
+  creditNote({
+    id: 'cn-sp-0067',
+    supplierId: 's-sp',
+    number: 'SP-CN-0067',
+    issueDate: '2026-07-24',
+    source: 'UPLOADED',
+    credited: 100.8,
+    vat: 4.8,
+    reasonCode: 'DAMAGED',
+    status: 'APPLIED',
+    balance: { applied: 100.8, refunded: 0, remaining: 0 },
+    billId: 'b-sp-1140',
+  }),
+  creditNote({
+    id: 'cn-mz-2210',
+    supplierId: 's-mz',
+    number: 'MZ-CN-2210',
+    issueDate: '2026-07-18',
+    source: 'PEPPOL',
+    credited: 61.3,
+    vat: 2.919,
+    reasonCode: 'PRICE_CORRECTION',
+    status: 'REFUNDED',
+    balance: { applied: 0, refunded: 61.3, remaining: 0 },
+    billId: 'b-mz-7801',
+  }),
+  creditNote({
+    id: 'cn-and-0391',
+    supplierId: 's-and',
+    number: 'AND-CN-0391',
+    issueDate: '2026-07-11',
+    source: 'PEPPOL',
+    credited: 249.1,
+    vat: 11.862,
+    reasonCode: 'RETURN',
+    status: 'APPLIED',
+    balance: { applied: 249.1, refunded: 0, remaining: 0 },
+    billId: 'b-and-3301',
+  }),
+]
+
+function creditNote({
+  id,
+  supplierId,
+  number,
+  issueDate,
+  source,
+  credited,
+  vat,
+  reasonCode,
+  status,
+  balance,
+  billId = null,
+  billNumber = null,
+}) {
+  const supplierRow = SUPPLIERS.find((s) => s.id === supplierId)
+  const billRow = billId ? BILLS.find((b) => b.id === billId) : null
+  return {
+    id,
+    inboundDeliveryId: source === 'PEPPOL' ? `inb-${id}` : null,
+    source,
+    networkVerified: source === 'PEPPOL',
+    supplierId,
+    supplierName: supplierRow.displayName,
+    supplierParticipantId: supplierRow.participantId,
+    documentTypeCode: '381',
+    creditNoteNumber: number,
+    issueDate,
+    currencyCode: 'OMR',
+    taxCurrencyCode: null,
+    creditedAmount: credited,
+    vatAmount: vat,
+    reasonCode,
+    approval: 'NONE',
+    status,
+    balance,
+    credits: {
+      billNumber: billRow ? billRow.supplierBillNumber : billNumber,
+      issueDate: billRow ? billRow.issueDate : null,
+      documentUuid: billRow ? `uuid-${billRow.id}` : null,
+      billId: billRow ? billRow.id : null,
+      applied: status === 'APPLIED',
+    },
+  }
+}
+
+const CREDIT_SETTLEMENTS = {
+  'cn-sp-0067': [
+    {
+      id: 'st-1',
+      creditNoteId: 'cn-sp-0067',
+      billId: 'b-sp-1140',
+      kind: 'APPLIED',
+      amount: 100.8,
+      paymentReference: null,
+      settledOn: '2026-07-26',
+      actorId: 'u-hafidh',
+      occurredAt: '2026-07-26T09:12:00Z',
+    },
+  ],
+  'cn-mz-2210': [
+    {
+      id: 'st-2',
+      creditNoteId: 'cn-mz-2210',
+      billId: null,
+      kind: 'REFUNDED',
+      amount: 61.3,
+      paymentReference: 'TRF-88213',
+      settledOn: '2026-08-02',
+      actorId: 'u-hafidh',
+      occurredAt: '2026-08-02T11:40:00Z',
+    },
+  ],
+  'cn-and-0391': [
+    {
+      id: 'st-3',
+      creditNoteId: 'cn-and-0391',
+      billId: 'b-and-3301',
+      kind: 'APPLIED',
+      amount: 249.1,
+      paymentReference: null,
+      settledOn: '2026-07-14',
+      actorId: 'u-hafidh',
+      occurredAt: '2026-07-14T14:05:00Z',
+    },
+  ],
+}
+
+function creditSummary() {
+  const usable = CREDIT_NOTES.filter((n) => n.balance.remaining > 0)
+  const recovered = CREDIT_NOTES.filter((n) => n.status === 'APPLIED' || n.status === 'REFUNDED')
+  const tally = new Map()
+  for (const note of CREDIT_NOTES) tally.set(note.supplierId, (tally.get(note.supplierId) ?? 0) + 1)
+  const [topId, topCount] = [...tally.entries()].sort((a, b) => b[1] - a[1])[0]
+  return {
+    currencyCode: 'OMR',
+    usableCount: usable.length,
+    usableCredit: round(usable.reduce((sum, n) => sum + n.balance.remaining, 0)),
+    recoveredThisQuarterCount: recovered.length,
+    recoveredThisQuarter: round(
+      recovered.reduce((sum, n) => sum + n.balance.applied + n.balance.refunded, 0),
+    ),
+    topSupplier: {
+      supplierId: topId,
+      supplierName: SUPPLIERS.find((s) => s.id === topId).displayName,
+      noteCount: topCount,
+    },
+    excludedFromTotals: 0,
+  }
+}
+
+/* ---------------------------------------------------------------- debit notes */
+
+const DEBIT_NOTES = [
+  debitNote({
+    id: 'dn-gcl-0091',
+    supplierId: 's-gcl',
+    number: 'GCL-DN-0091',
+    issueDate: '2026-07-26',
+    dueDate: '2026-08-25',
+    source: 'PEPPOL',
+    total: 96.5,
+    vat: 4.595,
+    reasonCode: 'SURCHARGE',
+    status: 'UNCHECKED',
+    outstanding: 96.5,
+    paid: 0,
+    billId: 'b-gcl-2301',
+  }),
+  debitNote({
+    id: 'dn-mr-0034',
+    supplierId: 's-mr',
+    number: 'MR-DN-0034',
+    issueDate: '2026-07-27',
+    dueDate: '2026-08-26',
+    source: 'PEPPOL',
+    total: 61.75,
+    vat: 2.94,
+    reasonCode: 'PRICE_CORRECTION',
+    status: 'ACCEPTED',
+    outstanding: 61.75,
+    paid: 0,
+    decidedAt: '2026-07-28T10:30:00Z',
+    billId: 'b-mr-8790',
+  }),
+  debitNote({
+    id: 'dn-sp-0012',
+    supplierId: 's-sp',
+    number: 'SP-DN-0012',
+    issueDate: '2026-07-22',
+    dueDate: '2026-08-21',
+    source: 'UPLOADED',
+    total: 80.65,
+    vat: 3.84,
+    reasonCode: 'SURCHARGE',
+    status: 'ACCEPTED',
+    outstanding: 0,
+    paid: 80.65,
+    decidedAt: '2026-07-23T08:15:00Z',
+    billId: 'b-sp-1108',
+  }),
+  debitNote({
+    id: 'dn-mz-0088',
+    supplierId: 's-mz',
+    number: 'MZ-DN-0088',
+    issueDate: '2026-07-16',
+    dueDate: '2026-08-15',
+    source: 'PEPPOL',
+    total: 122.7,
+    vat: 5.843,
+    reasonCode: 'LATE_FEE',
+    status: 'REFUSED',
+    outstanding: 122.7,
+    paid: 0,
+    decidedAt: '2026-07-17T13:02:00Z',
+    decisionReason: 'Already charged',
+    billId: 'b-mz-2288',
+  }),
+  debitNote({
+    id: 'dn-and-0021',
+    supplierId: 's-and',
+    number: 'AND-DN-0021',
+    issueDate: '2026-07-09',
+    dueDate: '2026-08-08',
+    source: 'PEPPOL',
+    total: 61.3,
+    vat: 2.919,
+    reasonCode: 'DUPLICATE',
+    status: 'REFUSED',
+    outstanding: 61.3,
+    paid: 0,
+    decidedAt: '2026-07-10T09:45:00Z',
+    decisionReason: 'Handling charge billed twice',
+    billId: 'b-and-3150',
+  }),
+]
+
+function debitNote({
+  id,
+  supplierId,
+  number,
+  issueDate,
+  dueDate,
+  source,
+  total,
+  vat,
+  reasonCode,
+  status,
+  outstanding,
+  paid,
+  decidedAt = null,
+  decisionReason = null,
+  billId,
+}) {
+  const supplierRow = SUPPLIERS.find((s) => s.id === supplierId)
+  const billRow = BILLS.find((b) => b.id === billId)
+  return {
+    id,
+    inboundDeliveryId: source === 'PEPPOL' ? `inb-${id}` : null,
+    source,
+    networkVerified: source === 'PEPPOL',
+    supplierId,
+    supplierName: supplierRow.displayName,
+    supplierParticipantId: supplierRow.participantId,
+    debitNoteNumber: number,
+    issueDate,
+    dueDate,
+    overdue: status === 'ACCEPTED' && outstanding > 0 && dueDate < '2026-09-25',
+    currencyCode: 'OMR',
+    taxCurrencyCode: null,
+    totalIncludingVat: total,
+    vatAmount: vat,
+    amountDue: total,
+    reasonCode,
+    approval: 'NONE',
+    paidAmount: paid,
+    creditedAmount: 0,
+    outstandingAmount: outstanding,
+    paymentState: paid >= total ? 'PAID' : paid > 0 ? 'PARTIALLY_PAID' : 'UNPAID',
+    status,
+    decidedBy: decidedAt ? 'u-hafidh' : null,
+    decidedAt,
+    decisionReason,
+    relatesTo: {
+      billNumber: billRow.supplierBillNumber,
+      issueDate: billRow.issueDate,
+      documentUuid: `uuid-${billRow.id}`,
+    },
+  }
+}
+
+const DEBIT_DECISIONS = {
+  'dn-mr-0034': [
+    {
+      decision: 'ACCEPTED',
+      reason: null,
+      decidedBy: 'u-hafidh',
+      decidedAt: '2026-07-28T10:30:00Z',
+    },
+  ],
+  'dn-sp-0012': [
+    { decision: 'ACCEPTED', reason: null, decidedBy: 'u-ali', decidedAt: '2026-07-23T08:15:00Z' },
+  ],
+  'dn-mz-0088': [
+    {
+      decision: 'REFUSED',
+      reason: 'Already charged',
+      decidedBy: 'u-hafidh',
+      decidedAt: '2026-07-17T13:02:00Z',
+    },
+  ],
+  'dn-and-0021': [
+    {
+      decision: 'REFUSED',
+      reason: 'Handling charge billed twice',
+      decidedBy: 'u-hafidh',
+      decidedAt: '2026-07-10T09:45:00Z',
+    },
+    { decision: 'ACCEPTED', reason: null, decidedBy: 'u-yusuf', decidedAt: '2026-07-09T16:20:00Z' },
+  ],
+}
+
+function debitSummary() {
+  const unchecked = DEBIT_NOTES.filter((n) => n.status === 'UNCHECKED')
+  const accepted = DEBIT_NOTES.filter((n) => n.status === 'ACCEPTED')
+  const refused = DEBIT_NOTES.filter((n) => n.status === 'REFUSED')
+  return {
+    currencyCode: 'OMR',
+    needsCheckingCount: unchecked.length,
+    needsCheckingTotal: round(unchecked.reduce((sum, n) => sum + n.totalIncludingVat, 0)),
+    acceptedThisQuarterCount: accepted.length,
+    acceptedThisQuarterTotal: round(accepted.reduce((sum, n) => sum + n.totalIncludingVat, 0)),
+    acceptedOpenTotal: round(accepted.reduce((sum, n) => sum + n.outstandingAmount, 0)),
+    rejectedThisYearCount: refused.length,
+    rejectedThisYearTotal: round(refused.reduce((sum, n) => sum + n.totalIncludingVat, 0)),
+    excludedFromTotals: 0,
+  }
+}
+
+/* ------------------------------------------------ the notes as bill rows (lines) */
+
+const NOTE_LINES = {
+  'cn-and-0442': [
+    {
+      lineNo: 1,
+      description: 'Khalas dates, 5 kg box',
+      quantity: 3,
+      unit: 'EA',
+      unitPrice: 26.95,
+      vatRate: 5,
+      lineNet: 80.85,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+  ],
+  'cn-sp-0067': [
+    {
+      lineNo: 1,
+      description: 'Kraft coffee bags 1kg, printed',
+      quantity: 400,
+      unit: 'EA',
+      unitPrice: 0.24,
+      vatRate: 5,
+      lineNet: 96.0,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+  ],
+  'dn-gcl-0091': [
+    {
+      lineNo: 1,
+      description: 'Out-of-hours delivery surcharge',
+      quantity: 1,
+      unit: 'EA',
+      unitPrice: 91.905,
+      vatRate: 5,
+      lineNet: 91.905,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+  ],
+  'dn-mz-0088': [
+    {
+      lineNo: 1,
+      description: 'Late payment fee, July account',
+      quantity: 1,
+      unit: 'EA',
+      unitPrice: 116.857,
+      vatRate: 5,
+      lineNet: 116.857,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+  ],
+}
+
+function noteAsBillDetail(note, kind) {
+  const total = kind === 'credit' ? note.creditedAmount : note.totalIncludingVat
+  const number = kind === 'credit' ? note.creditNoteNumber : note.debitNoteNumber
+  const row = {
+    id: note.id,
+    source: note.source,
+    supplierId: note.supplierId,
+    supplierName: note.supplierName,
+    documentTypeCode: kind === 'credit' ? '381' : '383',
+    supplierBillNumber: number,
+    issueDate: note.issueDate,
+    dueDate: kind === 'credit' ? null : note.dueDate,
+    overdue: kind === 'credit' ? false : note.overdue,
+    currencyCode: 'OMR',
+    totalIncludingVat: total,
+    vatAmount: note.vatAmount,
+    paidAmount: kind === 'credit' ? 0 : note.paidAmount,
+    outstandingAmount: kind === 'credit' ? 0 : note.outstandingAmount,
+    purchaseOrderReference: null,
+    workflowState: 'APPROVED',
+    readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: true },
+    match: null,
+    hold: null,
+    paymentRunReference: null,
+    paidOnTheSpot: false,
+    inboundDeliveryId: note.inboundDeliveryId,
+    networkVerified: note.networkVerified,
+    amountDue: total,
+    creditedAmount: 0,
+    complianceObligation: note.networkVerified ? 'REPORTED_BY_SENDER' : 'PENDING_COMPLIANCE_INPUT',
+  }
+  return {
+    bill: row,
+    lines: NOTE_LINES[note.id] ?? [],
+    readiness: row.readiness,
+    approvals: [],
+    hold: null,
+    holdHistory: [],
+    settlement: {
+      billTotal: total,
+      paidAmount: row.paidAmount,
+      creditedAmount: 0,
+      outstandingAmount: row.outstandingAmount,
+      currency: 'OMR',
+      paymentState: 'UNPAID',
+      overdue: row.overdue,
+      dueDate: row.dueDate,
+    },
+    payments: [],
+    paymentRunReference: null,
+    intake:
+      note.source === 'UPLOADED'
+        ? {
+            id: `intake-${note.id}`,
+            source: 'UPLOADED',
+            filename: `${number}.pdf`,
+            contentType: 'application/pdf',
+            uploadedAt: `${note.issueDate}T09:00:00Z`,
+          }
+        : null,
+    compliance: {
+      source: note.source,
+      networkVerified: note.networkVerified,
+      obligation: row.complianceObligation,
+    },
+    activity: [{ at: `${note.issueDate}T11:05:00Z`, kind: 'ARRIVED', detail: null, actor: null }],
+  }
+}
+
+function billDetail(row) {
+  return {
+    bill: {
+      ...row,
+      inboundDeliveryId: row.source === 'PEPPOL' ? `inb-${row.id}` : null,
+      networkVerified: row.source === 'PEPPOL',
+      amountDue: row.totalIncludingVat,
+      creditedAmount: 0,
+      complianceObligation: 'REPORTED_BY_SENDER',
+    },
+    lines: [],
+    readiness: row.readiness,
+    approvals: [],
+    hold: row.hold
+      ? {
+          id: 'h-1',
+          reason: row.hold.reason,
+          openedBy: 'u-hafidh',
+          openedAt: row.hold.openedAt,
+          releasedBy: null,
+          releasedAt: null,
+        }
+      : null,
+    holdHistory: [],
+    settlement: {
+      billTotal: row.totalIncludingVat,
+      paidAmount: row.paidAmount,
+      creditedAmount: 0,
+      outstandingAmount: row.outstandingAmount,
+      currency: 'OMR',
+      paymentState: row.outstandingAmount > 0 ? 'UNPAID' : 'PAID',
+      overdue: row.overdue,
+      dueDate: row.dueDate,
+    },
+    payments: [],
+    paymentRunReference: row.paymentRunReference,
+    intake:
+      row.source === 'UPLOADED'
+        ? {
+            id: `intake-${row.id}`,
+            source: 'UPLOADED',
+            filename: `${row.supplierBillNumber}.pdf`,
+            contentType: 'application/pdf',
+            uploadedAt: `${row.issueDate}T09:00:00Z`,
+          }
+        : null,
+    compliance: {
+      source: row.source,
+      networkVerified: row.source === 'PEPPOL',
+      obligation: 'REPORTED_BY_SENDER',
+    },
+    activity: [{ at: `${row.issueDate}T10:00:00Z`, kind: 'ARRIVED', detail: null, actor: null }],
+  }
+}
+
+/* --------------------------------------------------------------------- intake */
+
+const INTAKES = new Map()
+let intakeSeed = 0
+
+function newIntake(query) {
+  intakeSeed += 1
+  const id = `intake-new-${intakeSeed}`
+  const intake = {
+    id,
+    source: query.get('source') ?? 'UPLOADED',
+    filename: 'SP-credit-note-July.pdf',
+    contentType: 'application/pdf',
+    byteSize: 190464,
+    sha256: 'c0ffee'.padEnd(64, '0'),
+    documentTypeCode: null,
+    extractionStatus: 'NONE',
+    extracted: {
+      supplierName: null,
+      supplierVatNumber: null,
+      billNumber: null,
+      issueDate: null,
+      dueDate: null,
+      currency: null,
+      net: null,
+      vat: null,
+      total: null,
+      lines: [],
+      confidence: {},
+    },
+    confirmedBillId: null,
+    workflowState: null,
+    uploadedAt: '2026-09-25T09:00:00Z',
+  }
+  INTAKES.set(id, intake)
+  return intake
+}
+
+/* ------------------------------------------------------------------ helpers */
+
+function round(value) {
+  return Math.round(value * 1000) / 1000
+}
+
+function page(items, query) {
+  const pageNo = Number(query.get('page') ?? 0)
+  const size = Number(query.get('page_size') ?? 20)
+  const slice = items.slice(pageNo * size, pageNo * size + size)
+  return { items: slice, page: pageNo, pageSize: size, count: slice.length, total: items.length }
+}
+
+function byStatus(items, query) {
+  const status = query.get('status') ?? 'ALL'
+  return status === 'ALL' ? items : items.filter((n) => n.status === status)
+}
+
+function billsFor(query) {
+  const supplierId = query.get('supplier_id')
+  const q = (query.get('q') ?? '').trim().toLowerCase()
+  return BILLS.filter(
+    (b) =>
+      (!supplierId || b.supplierId === supplierId) &&
+      (!q || `${b.supplierBillNumber} ${b.supplierName}`.toLowerCase().includes(q)),
+  )
+}
+
+function refusal(status, code, detail) {
+  return {
+    status,
+    body: {
+      type: `https://api.fawtir.om/problems/${code.toLowerCase()}`,
+      title: code,
+      status,
+      detail,
+      error: code,
+      trace_id: 'trace-mock',
+    },
+  }
+}
+
+export default [
+  { match: '/api/v1/me/entitlements', reply: () => ENTITLEMENTS },
+  { match: '/api/v1/reference-data', reply: () => REFERENCE_DATA },
+
+  /* credit notes */
+  { match: '/api/v1/credit-notes/summary', reply: () => creditSummary() },
+  {
+    match: '/api/v1/credit-notes',
+    reply: ({ query }) => page(byStatus(CREDIT_NOTES, query), query),
+  },
+  {
+    match: /^\/api\/v1\/credit-notes\/([^/]+)$/,
+    reply: ({ params }) => CREDIT_NOTES.find((n) => n.id === params[0]) ?? { status: 404 },
+  },
+  {
+    match: /^\/api\/v1\/credit-notes\/([^/]+)\/settlements$/,
+    reply: ({ params }) => CREDIT_SETTLEMENTS[params[0]] ?? [],
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/credit-notes\/([^/]+)\/apply$/,
+    reply: ({ params, body }) => {
+      const note = CREDIT_NOTES.find((n) => n.id === params[0])
+      if (!note) return { status: 404 }
+      const target = BILLS.find((b) => b.id === body?.billId)
+      if (!target) return refusal(400, 'CREDIT_NOTE_TARGET_NOT_FOUND', 'No such bill.')
+      if (target.supplierId !== note.supplierId)
+        return refusal(
+          400,
+          'CREDIT_NOTE_SUPPLIER_MISMATCH',
+          'A credit can only reduce a bill from the supplier who issued it.',
+        )
+      const amount = round(
+        Math.min(
+          body?.amount ?? note.balance.remaining,
+          note.balance.remaining,
+          target.outstandingAmount,
+        ),
+      )
+      note.balance = {
+        applied: round(note.balance.applied + amount),
+        refunded: note.balance.refunded,
+        remaining: round(note.balance.remaining - amount),
+      }
+      note.status = note.balance.remaining > 0 ? 'UNAPPLIED' : 'APPLIED'
+      note.credits = {
+        billNumber: target.supplierBillNumber,
+        issueDate: target.issueDate,
+        documentUuid: `uuid-${target.id}`,
+        billId: target.id,
+        applied: true,
+      }
+      target.outstandingAmount = round(target.outstandingAmount - amount)
+      const settlement = {
+        id: `st-${Date.now()}`,
+        creditNoteId: note.id,
+        billId: target.id,
+        kind: 'APPLIED',
+        amount,
+        paymentReference: null,
+        settledOn: '2026-09-25',
+        actorId: 'u-hafidh',
+        occurredAt: new Date().toISOString(),
+      }
+      ;(CREDIT_SETTLEMENTS[note.id] ??= []).push(settlement)
+      return { settlement, status: note.status, balance: note.balance }
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/credit-notes\/([^/]+)\/refund$/,
+    reply: ({ params, body }) => {
+      const note = CREDIT_NOTES.find((n) => n.id === params[0])
+      if (!note) return { status: 404 }
+      const amount = round(Math.min(body?.amount ?? 0, note.balance.remaining))
+      note.balance = {
+        applied: note.balance.applied,
+        refunded: round(note.balance.refunded + amount),
+        remaining: round(note.balance.remaining - amount),
+      }
+      note.status = note.balance.remaining > 0 ? 'UNAPPLIED' : 'REFUNDED'
+      const settlement = {
+        id: `st-${Date.now()}`,
+        creditNoteId: note.id,
+        billId: null,
+        kind: 'REFUNDED',
+        amount,
+        paymentReference: body?.paymentReference ?? null,
+        settledOn: body?.paidOn ?? '2026-09-25',
+        actorId: 'u-hafidh',
+        occurredAt: new Date().toISOString(),
+      }
+      ;(CREDIT_SETTLEMENTS[note.id] ??= []).push(settlement)
+      return { settlement, status: note.status, balance: note.balance }
+    },
+  },
+
+  /* debit notes */
+  { match: '/api/v1/debit-notes/summary', reply: () => debitSummary() },
+  { match: '/api/v1/debit-notes', reply: ({ query }) => page(byStatus(DEBIT_NOTES, query), query) },
+  {
+    match: /^\/api\/v1\/debit-notes\/([^/]+)$/,
+    reply: ({ params }) => DEBIT_NOTES.find((n) => n.id === params[0]) ?? { status: 404 },
+  },
+  {
+    match: /^\/api\/v1\/debit-notes\/([^/]+)\/decisions$/,
+    reply: ({ params }) => DEBIT_DECISIONS[params[0]] ?? [],
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/debit-notes\/([^/]+)\/(accept|refuse)$/,
+    reply: ({ params, body }) => {
+      const note = DEBIT_NOTES.find((n) => n.id === params[0])
+      if (!note) return { status: 404 }
+      const decision = params[1] === 'accept' ? 'ACCEPTED' : 'REFUSED'
+      if (note.status === decision)
+        return refusal(409, 'DEBIT_NOTE_DECISION_UNCHANGED', 'That decision is already recorded.')
+      if (decision === 'REFUSED' && !body?.reason)
+        return refusal(400, 'DEBIT_NOTE_REASON_REQUIRED', 'A refusal needs a reason.')
+      const record = {
+        decision,
+        reason: decision === 'REFUSED' ? body.reason : null,
+        decidedBy: 'u-hafidh',
+        decidedAt: new Date().toISOString(),
+      }
+      note.status = decision
+      note.decidedBy = record.decidedBy
+      note.decidedAt = record.decidedAt
+      note.decisionReason = record.reason
+      ;(DEBIT_DECISIONS[note.id] ??= []).unshift(record)
+      return record
+    },
+  },
+
+  /* bills: the list the choosers search, one bill, and the notes' own rows */
+  { match: '/api/v1/bills', reply: ({ query }) => page(billsFor(query), query) },
+  {
+    match: /^\/api\/v1\/bills\/([^/]+)$/,
+    reply: ({ params }) => {
+      const row = BILLS.find((b) => b.id === params[0])
+      if (row) return billDetail(row)
+      const credit = CREDIT_NOTES.find((n) => n.id === params[0])
+      if (credit) return noteAsBillDetail(credit, 'credit')
+      const debit = DEBIT_NOTES.find((n) => n.id === params[0])
+      if (debit) return noteAsBillDetail(debit, 'debit')
+      return { status: 404 }
+    },
+  },
+  {
+    match: /^\/api\/v1\/inbound-invoices\/([^/]+)\/document$/,
+    reply: () => ({
+      status: 200,
+      headers: { 'Content-Disposition': 'attachment; filename="note.xml"' },
+      body: '<Invoice/>',
+    }),
+  },
+
+  /* intake */
+  { method: 'POST', match: '/api/v1/bills/intake', reply: ({ query }) => newIntake(query) },
+  {
+    match: /^\/api\/v1\/bills\/intake\/([^/]+)$/,
+    reply: ({ params }) => INTAKES.get(params[0]) ?? { status: 404 },
+  },
+  {
+    method: 'DELETE',
+    match: /^\/api\/v1\/bills\/intake\/([^/]+)$/,
+    reply: ({ params }) => ({ status: INTAKES.delete(params[0]) ? 204 : 404 }),
+  },
+  {
+    method: 'PUT',
+    match: /^\/api\/v1\/bills\/intake\/([^/]+)$/,
+    reply: ({ params }) => INTAKES.get(params[0]) ?? { status: 404 },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/bills\/intake\/([^/]+)\/confirm$/,
+    reply: ({ params, body }) => {
+      const intake = INTAKES.get(params[0])
+      if (!intake) return refusal(404, 'BILL_INTAKE_NOT_FOUND', 'No such upload.')
+      if (intake.confirmedBillId)
+        return refusal(409, 'BILL_INTAKE_ALREADY_CONFIRMED', 'Already saved.')
+      const supplierRow = SUPPLIERS.find((s) => s.id === body?.supplierId) ?? null
+      const id = `${body?.documentTypeCode === '383' ? 'dn' : 'cn'}-new-${intakeSeed}`
+      const base = {
+        id,
+        supplierId: supplierRow?.id ?? null,
+        number: body?.billNumber ?? null,
+        issueDate: body?.issueDate ?? '2026-09-25',
+        source: 'UPLOADED',
+        reasonCode: 'OTHER',
+      }
+      if (body?.documentTypeCode === '383') {
+        DEBIT_NOTES.unshift(
+          debitNote({
+            ...base,
+            dueDate: body?.dueDate ?? '2026-10-25',
+            total: body?.total ?? 0,
+            vat: body?.vat ?? 0,
+            status: 'UNCHECKED',
+            outstanding: body?.total ?? 0,
+            paid: 0,
+            billId: BILLS[0].id,
+          }),
+        )
+        DEBIT_NOTES[0].supplierName = supplierRow?.displayName ?? body?.supplierName ?? 'Unknown'
+        DEBIT_NOTES[0].relatesTo = null
+      } else {
+        CREDIT_NOTES.unshift(
+          creditNote({
+            ...base,
+            credited: body?.total ?? 0,
+            vat: body?.vat ?? 0,
+            status: 'UNAPPLIED',
+            balance: { applied: 0, refunded: 0, remaining: body?.total ?? 0 },
+          }),
+        )
+        CREDIT_NOTES[0].supplierName = supplierRow?.displayName ?? body?.supplierName ?? 'Unknown'
+      }
+      intake.confirmedBillId = id
+      return {
+        id,
+        supplierBillNumber: body?.billNumber ?? null,
+        totalIncludingVat: body?.total ?? 0,
+        currencyCode: body?.currency ?? 'OMR',
+      }
+    },
+  },
+
+  /* suppliers */
+  {
+    match: '/api/v1/suppliers',
+    reply: ({ query }) => {
+      const q = (query.get('q') ?? '').trim().toLowerCase()
+      return page(
+        SUPPLIERS.filter((s) => !q || s.displayName.toLowerCase().includes(q)),
+        query,
+      )
+    },
+  },
+  {
+    match: /^\/api\/v1\/suppliers\/([^/]+)\/overview$/,
+    reply: ({ params }) => {
+      const open = BILLS.filter((b) => b.supplierId === params[0] && b.outstandingAmount > 0)
+      const bucket = (rows) => ({
+        amount: round(rows.reduce((sum, b) => sum + b.outstandingAmount, 0)),
+        bills: rows.length,
+        nextDue: rows[0]?.dueDate ?? null,
+      })
+      const late = open.filter((b) => b.overdue && b.workflowState !== 'ON_HOLD')
+      const onHold = open.filter((b) => b.workflowState === 'ON_HOLD')
+      const notDue = open.filter((b) => !b.overdue && b.workflowState !== 'ON_HOLD')
+      return {
+        tabs: {
+          bills: BILLS.filter((b) => b.supplierId === params[0]).length,
+          payments: 3,
+          orders: 2,
+          documents: 1,
+        },
+        match: { agreed: 4, orderBacked: 5, summary: null },
+        usualLeadTimeDays: 3,
+        payables: {
+          currencyCode: 'OMR',
+          notDue: bucket(notDue),
+          dueSoon: bucket([]),
+          late: bucket(late),
+          onHold: bucket(onHold),
+          everLate: late.length > 0,
+          total: bucket(open).amount,
+        },
+      }
+    },
+  },
+  {
+    match: /^\/api\/v1\/suppliers\/([^/]+)$/,
+    reply: ({ params }) => {
+      const row = SUPPLIERS.find((s) => s.id === params[0])
+      return row ? supplierDetail(row) : { status: 404 }
+    },
+  },
+]

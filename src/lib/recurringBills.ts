@@ -5,17 +5,16 @@ import type {
   RecurringBillRequestDto,
   RecurringListState,
   RecurringMode,
+  RecurringRunDto,
 } from '../api/expenditure/recurringBills'
 
 /**
- * Recurring bills (E-12, decisions of 2026-09-18).
+ * Recurring bills (E-12; Figma 163:23795, 163:17821, 163:18190).
  *
- * A recurring bill is a standing instruction, not a document. In `EXPECT` mode Fawtir watches for
- * the supplier's own bill and matches it to the period; in `RAISE` mode Fawtir writes the bill
- * itself. Both are offered, and the words follow the mode.
- *
- * The design's "why the jump?", "mark received" and "stop watching" have nothing behind them — a
- * watch is paused or edited, and arrivals are matched by the sweep — so they are not drawn.
+ * A recurring bill is a standing instruction, not a document. The frames draw the watch: Fawtir
+ * expects the supplier's bill around a day, tells you when nothing came or the amount moved, and
+ * never writes the bill itself. The API also has a `RAISE` mode; a watch saved in it keeps it and
+ * the form asks only for its first date.
  */
 
 export const RECURRING_TABS: RecurringListState[] = ['ACTIVE', 'LATE', 'PAUSED', 'ALL']
@@ -23,6 +22,13 @@ export const RECURRING_TABS: RecurringListState[] = ['ACTIVE', 'LATE', 'PAUSED',
 export const INTERVALS: RecurrenceInterval[] = ['WEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY']
 
 export const MODES: RecurringMode[] = ['EXPECT', 'RAISE']
+
+export const PER_YEAR: Record<RecurrenceInterval, number> = {
+  WEEKLY: 52,
+  MONTHLY: 12,
+  QUARTERLY: 4,
+  ANNUALLY: 1,
+}
 
 /** The colour a state is read in: amber when something wants attention. */
 export const EXPECTATION_TONE: Record<ExpectationState, 'warn' | 'ok' | 'muted'> = {
@@ -35,14 +41,16 @@ export const EXPECTATION_TONE: Record<ExpectationState, 'warn' | 'ok' | 'muted'>
 export type StateNote = { key: string; values?: Record<string, string | number> }
 
 /**
- * What the row says about the watch. A paused watch says so before anything else — its expectation
+ * What the row says about the watch. A paused watch says so before anything else: its expectation
  * is whatever it was when watching stopped. A RAISE watch has no expectation at all: it says when
  * it will next write a bill.
  */
 export function stateNote(bill: RecurringBillDto): StateNote {
   if (!bill.active) return { key: 'recurringBills.state.paused' }
   if (bill.mode === 'RAISE') {
-    return bill.nextRunDate ? { key: 'recurringBills.state.willRaise', values: { date: bill.nextRunDate } } : { key: 'recurringBills.state.noNextRun' }
+    return bill.nextRunDate
+      ? { key: 'recurringBills.state.willRaise', values: { date: bill.nextRunDate } }
+      : { key: 'recurringBills.state.noNextRun' }
   }
   const expectation = bill.expectation
   if (!expectation) return { key: 'recurringBills.state.watching' }
@@ -52,9 +60,12 @@ export function stateNote(bill: RecurringBillDto): StateNote {
     case 'ARRIVED':
       return { key: 'recurringBills.state.arrived' }
     case 'ARRIVED_OUT_OF_RANGE':
-      return { key: 'recurringBills.state.outOfRange', values: { percent: formatVariance(expectation.variancePercent) } }
+      return {
+        key: 'recurringBills.state.outOfRange',
+        values: { percent: formatVariance(expectation.variancePercent) },
+      }
     case 'DUE_TO_ARRIVE':
-      return expectation.expectedOn ? { key: 'recurringBills.state.dueOn', values: { date: expectation.expectedOn } } : { key: 'recurringBills.state.watching' }
+      return { key: 'recurringBills.state.dueToArrive' }
   }
 }
 
@@ -91,6 +102,147 @@ export const RECURRING_REFUSALS: Record<string, string> = {
   RECURRING_BILL_PAUSED: 'recurringBills.chase.paused',
 }
 
+/* -------------------------------------------------------------- the row's words */
+
+/** The tile glyph a watch is drawn with, read off the category it was filed under. */
+export type CategoryGlyph = 'premises' | 'power' | 'internet' | 'software' | 'delivery' | 'other'
+
+/** The categories the form offers (Figma 163:17821). The API stores the text as typed. */
+export const CATEGORY_OPTIONS: { value: string; key: string; glyph: CategoryGlyph }[] = [
+  { value: 'Rent & premises', key: 'premises', glyph: 'premises' },
+  { value: 'Utilities', key: 'utilities', glyph: 'power' },
+  { value: 'Telecoms', key: 'telecoms', glyph: 'internet' },
+  { value: 'Software', key: 'software', glyph: 'software' },
+  { value: 'Logistics', key: 'logistics', glyph: 'delivery' },
+  { value: 'Professional fees', key: 'fees', glyph: 'other' },
+]
+
+export function categoryGlyph(category: string | null): CategoryGlyph {
+  const text = (category ?? '').toLowerCase()
+  if (/rent|premis|shop|office|clean/.test(text)) return 'premises'
+  if (/util|power|electric|water|gas/.test(text)) return 'power'
+  if (/tele|internet|phone|mobile/.test(text)) return 'internet'
+  if (/soft|subscri|cloud|licen/.test(text)) return 'software'
+  if (/logist|deliver|freight|transport/.test(text)) return 'delivery'
+  return 'other'
+}
+
+/** Weekday names for a weekly watch's `arrivesAroundDay` (1 = Sunday, the Omani week's first day). */
+export const WEEKDAY_KEYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+]
+
+/** "Monthly, around the 28th" / "Weekly, on Sundays" / "Yearly, in March". */
+export function cadenceNote(
+  bill: Pick<RecurringBillDto, 'interval' | 'arrivesAroundDay' | 'mode' | 'nextRunDate'>,
+  language: string,
+): StateNote {
+  const day = bill.arrivesAroundDay
+  if (bill.interval === 'WEEKLY') {
+    return day
+      ? {
+          key: 'recurringBills.cadence.weekly',
+          values: { weekday: `recurringBills.weekday.${WEEKDAY_KEYS[(day - 1) % 7]}` },
+        }
+      : { key: 'recurringBills.interval.WEEKLY' }
+  }
+  if (bill.interval === 'ANNUALLY') {
+    const iso = bill.nextRunDate
+    return iso
+      ? { key: 'recurringBills.cadence.yearly', values: { month: monthName(iso, language) } }
+      : { key: 'recurringBills.interval.ANNUALLY' }
+  }
+  const key =
+    bill.interval === 'MONTHLY'
+      ? 'recurringBills.cadence.monthly'
+      : 'recurringBills.cadence.quarterly'
+  return day
+    ? { key, values: { day: ordinal(day, language) } }
+    : { key: `recurringBills.interval.${bill.interval}` }
+}
+
+export function ordinal(day: number, language: string): string {
+  if (language.startsWith('ar')) return new Intl.NumberFormat('ar-OM').format(day)
+  const rest = day % 100
+  const suffix =
+    rest >= 11 && rest <= 13
+      ? 'th'
+      : day % 10 === 1
+        ? 'st'
+        : day % 10 === 2
+          ? 'nd'
+          : day % 10 === 3
+            ? 'rd'
+            : 'th'
+  return `${day}${suffix}`
+}
+
+export function monthName(
+  isoDate: string,
+  language: string,
+  style: 'long' | 'short' = 'long',
+): string {
+  const match = /^(\d{4})-(\d{2})/.exec(isoDate)
+  if (!match) return isoDate
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1))
+  return new Intl.DateTimeFormat(language.startsWith('ar') ? 'ar-OM' : 'en-GB', {
+    month: style,
+    timeZone: 'UTC',
+  }).format(date)
+}
+
+export function monthYear(isoDate: string, language: string): string {
+  const match = /^(\d{4})-(\d{2})/.exec(isoDate)
+  if (!match) return isoDate
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1))
+  return new Intl.DateTimeFormat(language.startsWith('ar') ? 'ar-OM' : 'en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+}
+
+/** Days between two ISO dates, positive when `to` is later. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
+/* ------------------------------------------------------------------ the form */
+
+export type VatTreatment = 'standard' | 'zero' | 'exempt' | 'outOfScope'
+export const VAT_TREATMENTS: VatTreatment[] = ['standard', 'zero', 'exempt', 'outOfScope']
+const STANDARD_RATE = 5
+
+/** The VAT inside a VAT-inclusive amount under the chosen treatment; null when nothing is charged. */
+export function vatOf(total: number, treatment: VatTreatment): number | null {
+  if (!(total > 0)) return null
+  if (treatment !== 'standard') return 0
+  return Math.round((total - total / (1 + STANDARD_RATE / 100)) * 1000) / 1000
+}
+
+export function treatmentOf(vatAmount: number | null, total: number): VatTreatment {
+  if (vatAmount === null) return 'standard'
+  return vatAmount > 0 && total > 0 ? 'standard' : 'zero'
+}
+
+/** The band a bill passes in without comment. */
+export function toleranceBand(amount: number, percent: number): { low: number; high: number } {
+  const spread = (amount * percent) / 100
+  return {
+    low: Math.round((amount - spread) * 1000) / 1000,
+    high: Math.round((amount + spread) * 1000) / 1000,
+  }
+}
+
+/** "If it hasn't arrived": straight away, then the design's steps. */
+export const LATE_AFTER_OPTIONS = [0, 2, 5, 7]
+
 export type RecurringForm = {
   mode: RecurringMode
   supplierId: string | null
@@ -100,16 +252,19 @@ export type RecurringForm = {
   theirReference: string
   interval: RecurrenceInterval
   arrivesAroundDay: string
+  /** Empty when the bill is paid on arrival. */
   paymentDueDay: string
-  paymentTermsDays: string
   startDate: string
   watchingFrom: string
   endDate: string
   totalIncludingVat: string
-  vatAmount: string
+  vatTreatment: VatTreatment
   tolerancePercent: string
+  /** Off: the tolerance is not sent, so an amount outside the band is not flagged. */
+  flagOutsideRange: boolean
   lateAfterDays: string
   autoApproveWithinRange: boolean
+  notifyUserId: string | null
 }
 
 export function blankRecurringForm(today: string): RecurringForm {
@@ -123,15 +278,16 @@ export function blankRecurringForm(today: string): RecurringForm {
     interval: 'MONTHLY',
     arrivesAroundDay: '1',
     paymentDueDay: '',
-    paymentTermsDays: '30',
     startDate: today,
     watchingFrom: today,
     endDate: '',
     totalIncludingVat: '',
-    vatAmount: '',
+    vatTreatment: 'standard',
     tolerancePercent: '10',
-    lateAfterDays: '5',
+    flagOutsideRange: true,
+    lateAfterDays: '2',
     autoApproveWithinRange: false,
+    notifyUserId: null,
   }
 }
 
@@ -147,15 +303,16 @@ export function formOf(bill: RecurringBillDto, today: string): RecurringForm {
     interval: bill.interval,
     arrivesAroundDay: bill.arrivesAroundDay === null ? '' : String(bill.arrivesAroundDay),
     paymentDueDay: bill.paymentDueDay === null ? '' : String(bill.paymentDueDay),
-    paymentTermsDays: String(bill.paymentTermsDays),
     startDate: bill.nextRunDate ?? today,
     watchingFrom: bill.watchingFrom ?? today,
     endDate: bill.endDate ?? '',
     totalIncludingVat: String(bill.totalIncludingVat),
-    vatAmount: bill.vatAmount === null ? '' : String(bill.vatAmount),
-    tolerancePercent: bill.tolerancePercent === null ? '' : String(bill.tolerancePercent),
+    vatTreatment: treatmentOf(bill.vatAmount, bill.totalIncludingVat),
+    tolerancePercent: bill.tolerancePercent === null ? '10' : String(bill.tolerancePercent),
+    flagOutsideRange: bill.mode !== 'EXPECT' || bill.tolerancePercent !== null,
     lateAfterDays: bill.lateAfterDays === null ? '' : String(bill.lateAfterDays),
     autoApproveWithinRange: bill.autoApproveWithinRange,
+    notifyUserId: bill.notifyUserId,
   }
 }
 
@@ -167,25 +324,32 @@ const AMOUNT = /^\d{1,15}(\.\d{1,3})?$/
 export function recurringProblems(form: RecurringForm): Partial<Record<RecurringField, string>> {
   const problems: Partial<Record<RecurringField, string>> = {}
   if (!form.supplierName.trim()) problems.supplierName = 'validation.required'
+  if (!form.category.trim()) problems.category = 'validation.required'
   if (!form.description.trim()) problems.description = 'validation.required'
-  if (!AMOUNT.test(form.totalIncludingVat.trim()) || Number(form.totalIncludingVat) <= 0) problems.totalIncludingVat = 'recurringBills.error.amountInvalid'
-  if (form.vatAmount.trim()) {
-    if (!AMOUNT.test(form.vatAmount.trim())) problems.vatAmount = 'recurringBills.error.amountInvalid'
-    else if (Number(form.vatAmount) > Number(form.totalIncludingVat)) problems.vatAmount = 'recurringBills.error.vatExceedsTotal'
-  }
+  if (!AMOUNT.test(form.totalIncludingVat.trim()) || Number(form.totalIncludingVat) <= 0)
+    problems.totalIncludingVat = 'recurringBills.error.amountInvalid'
   const maxDay = form.interval === 'WEEKLY' ? 7 : 31
   if (form.mode === 'EXPECT') {
     const day = Number(form.arrivesAroundDay)
-    if (!form.arrivesAroundDay.trim()) problems.arrivesAroundDay = 'recurringBills.error.arrivalDayRequired'
-    else if (!Number.isInteger(day) || day < 1 || day > maxDay) problems.arrivesAroundDay = 'recurringBills.error.arrivalDayInvalid'
+    if (!form.arrivesAroundDay.trim())
+      problems.arrivesAroundDay = 'recurringBills.error.arrivalDayRequired'
+    else if (!Number.isInteger(day) || day < 1 || day > maxDay)
+      problems.arrivesAroundDay = 'recurringBills.error.arrivalDayInvalid'
     const tolerance = Number(form.tolerancePercent)
-    if (form.tolerancePercent.trim() && (!(tolerance >= 0) || tolerance > 100)) problems.tolerancePercent = 'recurringBills.error.toleranceInvalid'
+    if (
+      form.flagOutsideRange &&
+      form.tolerancePercent.trim() &&
+      (!(tolerance >= 0) || tolerance > 100)
+    )
+      problems.tolerancePercent = 'recurringBills.error.toleranceInvalid'
     const late = Number(form.lateAfterDays)
-    if (form.lateAfterDays.trim() && (!Number.isInteger(late) || late < 0 || late > 60)) problems.lateAfterDays = 'recurringBills.error.lateAfterInvalid'
+    if (form.lateAfterDays.trim() && (!Number.isInteger(late) || late < 0 || late > 60))
+      problems.lateAfterDays = 'recurringBills.error.lateAfterInvalid'
   }
   if (form.paymentDueDay.trim()) {
     const due = Number(form.paymentDueDay)
-    if (!Number.isInteger(due) || due < 1 || due > 31) problems.paymentDueDay = 'recurringBills.error.dueDayInvalid'
+    if (!Number.isInteger(due) || due < 1 || due > 31)
+      problems.paymentDueDay = 'recurringBills.error.dueDayInvalid'
   }
   return problems
 }
@@ -194,14 +358,17 @@ const digitsOrNull = (value: string): number | null => (value.trim() ? Number(va
 
 export function toRecurringRequest(form: RecurringForm, currency = 'OMR'): RecurringBillRequestDto {
   const expecting = form.mode === 'EXPECT'
+  const total = Number(form.totalIncludingVat)
   return {
     supplierId: form.supplierId,
     supplierName: form.supplierName.trim(),
     description: form.description.trim(),
     currencyCode: currency,
-    totalIncludingVat: Number(form.totalIncludingVat),
-    vatAmount: digitsOrNull(form.vatAmount),
-    paymentTermsDays: digitsOrNull(form.paymentTermsDays),
+    totalIncludingVat: total,
+    vatAmount: vatOf(total, form.vatTreatment),
+    // The design asks for the day the payment usually falls due, not a number of days; a bill
+    // paid on arrival has no terms.
+    paymentTermsDays: form.paymentDueDay.trim() ? null : 0,
     interval: form.interval,
     // A RAISE watch starts on its start date; an EXPECT watch is told when to start watching, and
     // the server works out the first expected day from the arrival day.
@@ -213,39 +380,232 @@ export function toRecurringRequest(form: RecurringForm, currency = 'OMR'): Recur
     theirReference: form.theirReference.trim() || null,
     arrivesAroundDay: expecting ? digitsOrNull(form.arrivesAroundDay) : null,
     paymentDueDay: digitsOrNull(form.paymentDueDay),
-    tolerancePercent: expecting ? digitsOrNull(form.tolerancePercent) : null,
+    tolerancePercent:
+      expecting && form.flagOutsideRange ? digitsOrNull(form.tolerancePercent) : null,
     lateAfterDays: expecting ? digitsOrNull(form.lateAfterDays) : null,
     autoApproveWithinRange: expecting ? form.autoApproveWithinRange : null,
-    notifyUserId: null,
+    notifyUserId: form.notifyUserId,
     watchingFrom: expecting ? form.watchingFrom || null : null,
   }
 }
 
 /** The whole instruction in one sentence, so it can be read back before it is saved. */
-export function plainWords(form: RecurringForm): StateNote {
+export function plainWords(form: RecurringForm, language: string, who: string): StateNote {
+  const day = Number(form.arrivesAroundDay) || 0
+  const late = Number(form.lateAfterDays) || 0
   const values = {
     supplier: form.supplierName.trim() || '…',
     description: form.description.trim() || '…',
     amount: form.totalIncludingVat.trim() || '…',
-    day: form.arrivesAroundDay || '…',
-    tolerance: form.tolerancePercent || '0',
-    count: Number(form.lateAfterDays || 0),
+    when: `recurringBills.when.${form.interval}`,
+    day:
+      form.interval === 'WEEKLY'
+        ? `recurringBills.weekday.${WEEKDAY_KEYS[Math.max(0, (day - 1) % 7)]}`
+        : ordinal(day || 1, language),
+    flagDay: ordinal(day + late || 1, language),
+    who,
+    tolerance: form.flagOutsideRange ? form.tolerancePercent || '0' : '',
   }
-  return { key: form.mode === 'EXPECT' ? 'recurringBills.plain.expect' : 'recurringBills.plain.raise', values }
+  if (form.mode === 'RAISE') return { key: 'recurringBills.plain.raise', values }
+  return {
+    key: form.flagOutsideRange
+      ? 'recurringBills.plain.expect'
+      : 'recurringBills.plain.expectNoTolerance',
+    values,
+  }
+}
+
+/** The three dates the aside draws: expected, flagged if absent, payment due. */
+export function timelineOf(
+  form: RecurringForm,
+  language: string,
+): { day: string; key: string; noteKey: string }[] {
+  const day = Number(form.arrivesAroundDay) || 1
+  const late = Number(form.lateAfterDays) || 0
+  const due = Number(form.paymentDueDay) || 0
+  const label = (value: number) => (form.interval === 'WEEKLY' ? '' : String(value))
+  return [
+    {
+      day: label(day),
+      key: 'recurringBills.form.timeline.expected',
+      noteKey: 'recurringBills.form.timeline.expectedNote',
+    },
+    {
+      day: label(day + late),
+      key: 'recurringBills.form.timeline.flagged',
+      noteKey: 'recurringBills.form.timeline.flaggedNote',
+    },
+    {
+      day: due ? String(due) : label(day),
+      key: 'recurringBills.form.timeline.due',
+      noteKey: 'recurringBills.form.timeline.dueNote',
+    },
+  ].map((step) => ({
+    ...step,
+    day:
+      step.day && language.startsWith('ar')
+        ? new Intl.NumberFormat('ar-OM').format(Number(step.day))
+        : step.day,
+  }))
+}
+
+/* ------------------------------------------------------------------ the detail */
+
+/** What a period cost: the usual amount moved by the recorded variance, once a bill arrived. */
+export function amountOf(run: RecurringRunDto, usual: number): number | null {
+  if (
+    run.outcome === 'ARRIVED' ||
+    run.outcome === 'ARRIVED_OUT_OF_RANGE' ||
+    run.outcome === 'RAISED'
+  ) {
+    return Math.round(usual * (1 + (run.variancePercent ?? 0) / 100) * 1000) / 1000
+  }
+  return null
+}
+
+export type ChartBar = { label: string; amount: number; tone: 'paid' | 'recent' | 'expected' }
+
+/** The last twelve periods, oldest first; the latest arrival in brand blue, an open period dashed. */
+export function chartBars(runs: RecurringRunDto[], usual: number, language: string): ChartBar[] {
+  const ordered = [...runs].sort((a, b) => a.runDate.localeCompare(b.runDate)).slice(-12)
+  const lastArrived = [...ordered].reverse().find((run) => amountOf(run, usual) !== null)
+  return ordered.map((run) => {
+    const amount = amountOf(run, usual)
+    return {
+      label:
+        monthName(run.periodStart ?? run.runDate, language, 'short') +
+        (amount === null ? ' ?' : ''),
+      amount: amount ?? usual,
+      tone: amount === null ? 'expected' : run === lastArrived ? 'recent' : 'paid',
+    }
+  })
+}
+
+export type TrackRecord = {
+  matched: number
+  periods: number
+  onTime: number
+  changed: number
+  paidThisYear: number
+  costPerYear: number
+}
+
+export function trackRecord(
+  runs: RecurringRunDto[],
+  bill: RecurringBillDto,
+  today: string,
+): TrackRecord {
+  const closed = runs.filter((run) => run.outcome !== 'EXPECTED')
+  const arrived = closed.filter((run) => amountOf(run, bill.totalIncludingVat) !== null)
+  const year = today.slice(0, 4)
+  return {
+    matched: arrived.length,
+    periods: closed.length,
+    onTime: arrived.filter((run) => run.outcome !== 'LATE').length,
+    changed: arrived.filter((run) => (run.variancePercent ?? 0) !== 0).length,
+    paidThisYear:
+      Math.round(
+        arrived
+          .filter((run) => run.runDate.startsWith(year))
+          .reduce((sum, run) => sum + (amountOf(run, bill.totalIncludingVat) ?? 0), 0) * 1000,
+      ) / 1000,
+    costPerYear: Math.round(bill.totalIncludingVat * PER_YEAR[bill.interval] * 1000) / 1000,
+  }
+}
+
+export type Activity = {
+  id: string
+  key: string
+  values: Record<string, string | number>
+  tone: 'current' | 'done'
+}
+
+/** What happened, newest first: the open period, the last few arrivals, and the day watching began. */
+export function activityOf(
+  bill: RecurringBillDto,
+  runs: RecurringRunDto[],
+  day: (iso: string) => string,
+  limit = 4,
+): Activity[] {
+  const items: Activity[] = []
+  const ordered = [...runs].sort((a, b) => b.runDate.localeCompare(a.runDate)).slice(0, limit)
+  for (const run of ordered) {
+    const when = run.periodStart ?? run.runDate
+    if (run.outcome === 'LATE')
+      items.push({
+        id: run.id,
+        key: 'recurringBills.detail.activity.flagged',
+        values: { expected: run.expectedOn ? day(run.expectedOn) : '' },
+        tone: 'current',
+      })
+    else if (run.outcome === 'ARRIVED')
+      items.push({
+        id: run.id,
+        key: 'recurringBills.detail.activity.arrived',
+        values: { when: day(when), expected: run.expectedOn ? day(run.expectedOn) : '' },
+        tone: 'done',
+      })
+    else if (run.outcome === 'ARRIVED_OUT_OF_RANGE')
+      items.push({
+        id: run.id,
+        key: 'recurringBills.detail.activity.outOfRange',
+        values: { when: day(when), percent: formatVariance(run.variancePercent) },
+        tone: 'done',
+      })
+    else if (run.outcome === 'RAISED')
+      items.push({
+        id: run.id,
+        key: 'recurringBills.detail.activity.raised',
+        values: { when: day(run.runDate) },
+        tone: 'done',
+      })
+  }
+  if (bill.watchingFrom)
+    items.push({
+      id: 'started',
+      key: 'recurringBills.detail.activity.started',
+      values: { date: day(bill.watchingFrom) },
+      tone: 'done',
+    })
+  return items
 }
 
 /** The category and the search box narrow the page in hand: the API filters by state only. */
-export function narrow(items: RecurringBillDto[], search: string, category: string): RecurringBillDto[] {
+export function narrow(
+  items: RecurringBillDto[],
+  search: string,
+  category: string,
+): RecurringBillDto[] {
   const text = search.trim().toLowerCase()
   return items.filter((bill) => {
     if (category && (bill.category ?? '') !== category) return false
     if (!text) return true
-    return [bill.description, bill.supplierName, bill.theirReference ?? ''].some((field) => field.toLowerCase().includes(text))
+    return [bill.description, bill.supplierName, bill.theirReference ?? ''].some((field) =>
+      field.toLowerCase().includes(text),
+    )
   })
 }
 
 export function categoriesOf(items: RecurringBillDto[]): string[] {
-  return [...new Set(items.map((bill) => bill.category).filter((category): category is string => Boolean(category)))].sort()
+  return [
+    ...new Set(
+      items
+        .map((bill) => bill.category)
+        .filter((category): category is string => Boolean(category)),
+    ),
+  ].sort()
+}
+
+export type RecurringSort = 'natural' | 'amountDesc' | 'amountAsc' | 'titleAsc'
+export const RECURRING_SORTS: RecurringSort[] = ['natural', 'amountDesc', 'amountAsc', 'titleAsc']
+
+export function sortRows(items: RecurringBillDto[], sort: RecurringSort): RecurringBillDto[] {
+  if (sort === 'natural') return items
+  return [...items].sort((a, b) => {
+    if (sort === 'titleAsc') return a.description.localeCompare(b.description)
+    const diff = a.totalIncludingVat - b.totalIncludingVat
+    return sort === 'amountAsc' ? diff : -diff
+  })
 }
 
 /** A full page may have more behind it; the API answers no total. */

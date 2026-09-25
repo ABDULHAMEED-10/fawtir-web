@@ -1,4 +1,9 @@
-import type { ImportBatchDto, ImportBatchRowDto, ImportSeverity, ImportTarget } from '../api/counterpartyImport'
+import type {
+  ImportBatchDto,
+  ImportBatchRowDto,
+  ImportSeverity,
+  ImportTarget,
+} from '../api/counterpartyImport'
 
 /**
  * The staged counterparty import (E-06, decisions of 2026-09-18).
@@ -38,7 +43,9 @@ export function importable(row: ImportBatchRowDto): boolean {
  * reads as "all of them", and the explicit list otherwise.
  */
 export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>): number[] | null {
-  const chosen = batch.rows.filter((row) => importable(row) && keep.has(row.rowNumber)).map((row) => row.rowNumber)
+  const chosen = batch.rows
+    .filter((row) => importable(row) && keep.has(row.rowNumber))
+    .map((row) => row.rowNumber)
   return chosen.length === Number(batch.counts.wouldImport) ? null : chosen
 }
 
@@ -55,7 +62,10 @@ export function expired(batch: ImportBatchDto, now: Date): boolean {
 }
 
 /** A batch that cannot be committed any more, and why — an expired or already-used review. */
-export function batchBlocker(batch: ImportBatchDto, now: Date): 'expired' | 'committed' | 'cancelled' | null {
+export function batchBlocker(
+  batch: ImportBatchDto,
+  now: Date,
+): 'expired' | 'committed' | 'cancelled' | null {
   if (batch.state === 'COMMITTED') return 'committed'
   if (batch.state === 'CANCELLED') return 'cancelled'
   return expired(batch, now) ? 'expired' : null
@@ -80,6 +90,9 @@ const FIELD_LABELS: Record<string, string> = {
   invoiceCountry: 'stagedImport.field.country',
   invoiceCityName: 'stagedImport.field.city',
   invoiceStreetName: 'stagedImport.field.street',
+  bankIban: 'stagedImport.field.iban',
+  bankBic: 'stagedImport.field.bic',
+  bankName: 'stagedImport.field.bankName',
 }
 
 export function fieldLabel(field: string | null): { key: string } | { text: string } | null {
@@ -96,7 +109,12 @@ export function fieldLabel(field: string | null): { key: string } | { text: stri
 export function problemNote(row: ImportBatchRowDto): { key: string } | { text: string } | null {
   if (!row.message) return null
   if (row.severity === 'NEEDS_A_LOOK' && /already on file/i.test(row.message)) {
-    return { key: row.field === 'vatRegistrationNumber' ? 'stagedImport.problem.duplicateVat' : 'stagedImport.problem.duplicatePeppol' }
+    return {
+      key:
+        row.field === 'vatRegistrationNumber'
+          ? 'stagedImport.problem.duplicateVat'
+          : 'stagedImport.problem.duplicatePeppol',
+    }
   }
   return { text: row.message }
 }

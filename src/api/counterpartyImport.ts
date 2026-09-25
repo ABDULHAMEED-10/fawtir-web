@@ -24,6 +24,10 @@ export type ImportBatchRowDto = {
   /** Null until the batch is committed, then CREATED or SKIPPED. */
   outcome: string | null
   outcomeMessage: string | null
+  /** TODO(backend): the line under the name in the review ("Net 30 · rustaq@timber.om"). */
+  summary?: string | null
+  /** TODO(backend): what the file holds in the column at fault, for the review's field box. */
+  value?: string | null
 }
 
 export type ImportBatchDto = {
@@ -37,7 +41,14 @@ export type ImportBatchDto = {
   expiresAt: string | null
   committedAt: string | null
   rows: ImportBatchRowDto[]
-  counts: { ready: number; needsALook: number; cannotImport: number; wouldImport: number }
+  counts: {
+    ready: number
+    needsALook: number
+    cannotImport: number
+    wouldImport: number
+    /** TODO(backend): how many of the ready rows are on Peppol; the review's first card says so. */
+    onPeppol?: number
+  }
 }
 
 export type ImportCommitResultDto = {
@@ -51,7 +62,8 @@ export type ImportCommitResultDto = {
 /** 2 MiB, the server's own limit. */
 export const IMPORT_MAX_BYTES = 2 * 1024 * 1024
 
-const base = (target: ImportTarget) => (target === 'SUPPLIER' ? '/v1/suppliers/import' : '/v1/customers/import')
+const base = (target: ImportTarget) =>
+  target === 'SUPPLIER' ? '/v1/suppliers/import' : '/v1/customers/import'
 
 export function importBatchPath(target: ImportTarget, batchId: string) {
   return `${base(target)}/${encodeURIComponent(batchId)}`
@@ -68,7 +80,11 @@ export function loadImportBatch(target: ImportTarget, batchId: string): Promise<
 }
 
 /** `rowNumbers` names the rows to bring in; null means every importable row. */
-export function commitImport(target: ImportTarget, batchId: string, rowNumbers: number[] | null): Promise<ImportCommitResultDto> {
+export function commitImport(
+  target: ImportTarget,
+  batchId: string,
+  rowNumbers: number[] | null,
+): Promise<ImportCommitResultDto> {
   return apiRequest<ImportCommitResultDto>(`${importBatchPath(target, batchId)}/commit`, {
     method: 'POST',
     body: rowNumbers === null ? {} : { rowNumbers },

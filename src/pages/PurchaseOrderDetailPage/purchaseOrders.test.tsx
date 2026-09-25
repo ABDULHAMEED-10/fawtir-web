@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { configure, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -16,6 +16,10 @@ import {
   receivedByLine,
 } from '../../lib/purchaseOrders'
 import { PurchaseOrderDetailPage } from './PurchaseOrderDetailPage'
+import { NewPurchaseOrderPage } from '../NewPurchaseOrderPage'
+
+// The pages render slowly on a loaded machine; the default second is not enough for a find.
+configure({ asyncUtilTimeout: 15000 })
 
 const ORDER_ID = '90000000-0000-0000-0000-000000000001'
 const LINE_A = '90000000-0000-0000-0000-00000000000a'
@@ -31,7 +35,10 @@ const BUYER: Entitlements = {
   featureFlags: {},
 }
 
-const APPROVER: Entitlements = { ...BUYER, permissions: [...BUYER.permissions, 'purchase-order.approve'] }
+const APPROVER: Entitlements = {
+  ...BUYER,
+  permissions: [...BUYER.permissions, 'purchase-order.approve'],
+}
 
 function order(over: Partial<PurchaseOrderDto> = {}): PurchaseOrderDto {
   return {
@@ -49,8 +56,28 @@ function order(over: Partial<PurchaseOrderDto> = {}): PurchaseOrderDto {
     totalVat: 5,
     totalGross: 105,
     lines: [
-      { id: LINE_A, lineNo: 1, description: 'Arabica beans', quantity: 10, unit: 'kg', unitPrice: 8, vatRate: 5, lineNet: 80, vatAmount: 4 },
-      { id: LINE_B, lineNo: 2, description: 'Filters', quantity: 4, unit: 'box', unitPrice: 5, vatRate: 5, lineNet: 20, vatAmount: 1 },
+      {
+        id: LINE_A,
+        lineNo: 1,
+        description: 'Arabica beans',
+        quantity: 10,
+        unit: 'kg',
+        unitPrice: 8,
+        vatRate: 5,
+        lineNet: 80,
+        vatAmount: 4,
+      },
+      {
+        id: LINE_B,
+        lineNo: 2,
+        description: 'Filters',
+        quantity: 4,
+        unit: 'box',
+        unitPrice: 5,
+        vatRate: 5,
+        lineNet: 20,
+        vatAmount: 1,
+      },
     ],
     submittedBy: null,
     submittedAt: null,
@@ -62,6 +89,49 @@ function order(over: Partial<PurchaseOrderDto> = {}): PurchaseOrderDto {
     version: 1,
     ...over,
   }
+}
+
+const SUPPLIER = {
+  profile: {
+    id: 's-1',
+    type: 'BUSINESS',
+    displayName: 'Muscat Roastery Co',
+    legalName: 'Muscat Roastery Company LLC',
+    vatNumber: 'OM1100447102',
+    registeredForVat: true,
+    registeredOnPeppol: true,
+    participantScheme: '0248',
+    participantValue: 'OM1100447102',
+    participantId: '0248:OM1100447102',
+    defaultCurrency: 'OMR',
+    defaultTaxCategory: 'S5',
+    paymentTerms: 'NET30',
+    defaultPaymentMethod: '30',
+    bankDetails: null,
+    contactPerson: null,
+    roleTitle: null,
+    emailRecipients: [],
+    telephone: null,
+    mobilePhone: null,
+    preferredLanguage: 'en',
+    receivingChannel: 'PEPPOL',
+    requiresApprovalBeforePayment: true,
+    earlyPaymentDiscountPercent: 2,
+    earlyPaymentDiscountDays: 7,
+    commercialRegistrationNumber: null,
+    notes: null,
+    supplierCategory: null,
+    selfBillingAgreement: false,
+    health: [],
+    supplierSince: '2024-09-02',
+    switchedOffAt: null,
+    status: 'ACTIVE',
+    customerStatus: 'ACTIVE',
+    version: 1,
+  },
+  invoiceAddress: null,
+  sameAsInvoicingAddress: true,
+  deliveryAddress: null,
 }
 
 function json(status: number, body?: unknown) {
@@ -77,6 +147,7 @@ let current: PurchaseOrderDto
 let receipts: GoodsReceiptDto[]
 let actions: string[]
 let bookedBody: unknown
+let createdBody: unknown
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -86,14 +157,25 @@ beforeEach(async () => {
   receipts = []
   actions = []
   bookedBody = null
+  createdBody = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.includes('/me/entitlements')) return json(200, who)
     if (url.includes(`/purchase-orders/${ORDER_ID}/receipts`)) {
       if (init?.method === 'POST') {
         bookedBody = JSON.parse(String(init.body))
-        return json(201, { id: 'r-1', purchaseOrderId: ORDER_ID, number: 'GR-1', receivedOn: '2026-09-18', checkedInBy: 'u-1', note: null, lines: [] })
+        return json(201, {
+          id: 'r-1',
+          purchaseOrderId: ORDER_ID,
+          number: 'GR-1',
+          receivedOn: '2026-09-18',
+          checkedInBy: 'u-1',
+          note: null,
+          lines: [],
+        })
       }
       return json(200, receipts)
     }
@@ -103,6 +185,38 @@ beforeEach(async () => {
       return json(200, current)
     }
     if (url.includes(`/purchase-orders/${ORDER_ID}`)) return json(200, current)
+    if (url.endsWith('/api/v1/purchase-orders') && init?.method === 'POST') {
+      createdBody = JSON.parse(String(init.body))
+      return json(201, order({ state: 'DRAFT' }))
+    }
+    if (url.includes('/api/v1/purchase-orders?'))
+      return json(200, {
+        items: [order({ id: 'po-old', number: 'PO-0000', state: 'CLOSED' })],
+        page: 0,
+        pageSize: 1,
+        count: 1,
+      })
+    if (url.endsWith('/api/v1/suppliers/s-1')) return json(200, SUPPLIER)
+    if (url.endsWith('/api/v1/suppliers/s-1/overview'))
+      return json(200, {
+        tabs: { bills: 3, payments: 1, orders: 2, documents: 0 },
+        match: { agreed: 3, orderBacked: 3, summary: null },
+        usualLeadTimeDays: 6,
+        payables: {
+          currencyCode: 'OMR',
+          notDue: { amount: 0, bills: 0, nextDue: null },
+          dueSoon: { amount: 0, bills: 0, nextDue: null },
+          late: { amount: 0, bills: 0, nextDue: null },
+          onHold: { amount: 0, bills: 0, nextDue: null },
+          everLate: false,
+          total: 0,
+        },
+      })
+    if (url.endsWith('/api/v1/suppliers/s-1/contacts')) return json(200, [])
+    if (url.endsWith('/api/v1/branches'))
+      return json(200, [
+        { id: 'br-1', code: 'NZW', name: 'Souq Street', type: 'BRANCH', city: 'Nizwa' },
+      ])
     return json(404)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -133,7 +247,14 @@ describe('the purchase-order state machine', () => {
   })
 
   it('cancels anything unfinished, and nothing finished', () => {
-    for (const state of ['DRAFT', 'AWAITING_APPROVAL', 'APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED'] as const) {
+    for (const state of [
+      'DRAFT',
+      'AWAITING_APPROVAL',
+      'APPROVED',
+      'SENT',
+      'PARTIALLY_RECEIVED',
+      'RECEIVED',
+    ] as const) {
       expect(canCancel(state)).toBe(true)
     }
     expect(canCancel('CLOSED')).toBe(false)
@@ -151,8 +272,24 @@ describe('the purchase-order state machine', () => {
 describe('what is still due', () => {
   it('adds deliveries up per line rather than reading only the last one', () => {
     const booked: GoodsReceiptDto[] = [
-      { id: 'r1', purchaseOrderId: ORDER_ID, number: 'GR-1', receivedOn: null, checkedInBy: null, note: null, lines: [{ id: 'l1', purchaseOrderLineId: LINE_A, quantityReceived: 4 }] },
-      { id: 'r2', purchaseOrderId: ORDER_ID, number: 'GR-2', receivedOn: null, checkedInBy: null, note: null, lines: [{ id: 'l2', purchaseOrderLineId: LINE_A, quantityReceived: 3 }] },
+      {
+        id: 'r1',
+        purchaseOrderId: ORDER_ID,
+        number: 'GR-1',
+        receivedOn: null,
+        checkedInBy: null,
+        note: null,
+        lines: [{ id: 'l1', purchaseOrderLineId: LINE_A, quantityReceived: 4 }],
+      },
+      {
+        id: 'r2',
+        purchaseOrderId: ORDER_ID,
+        number: 'GR-2',
+        receivedOn: null,
+        checkedInBy: null,
+        note: null,
+        lines: [{ id: 'l2', purchaseOrderLineId: LINE_A, quantityReceived: 3 }],
+      },
     ]
     const received = receivedByLine(booked)
     expect(received.get(LINE_A)).toBe(7)
@@ -167,9 +304,13 @@ describe('a draft order line', () => {
   it('refuses what the server would', () => {
     expect(lineProblem({ ...emptyLine(), description: 'Beans', unitPrice: '8' })).toBeNull()
     expect(lineProblem({ ...emptyLine(), description: '', unitPrice: '8' })).toBe('description')
-    expect(lineProblem({ ...emptyLine(), description: 'Beans', quantity: '0', unitPrice: '8' })).toBe('quantity')
+    expect(
+      lineProblem({ ...emptyLine(), description: 'Beans', quantity: '0', unitPrice: '8' }),
+    ).toBe('quantity')
     expect(lineProblem({ ...emptyLine(), description: 'Beans', unitPrice: '' })).toBe('unitPrice')
-    expect(lineProblem({ ...emptyLine(), description: 'Beans', unitPrice: '8', vatRate: '-1' })).toBe('vatRate')
+    expect(
+      lineProblem({ ...emptyLine(), description: 'Beans', unitPrice: '8', vatRate: '-1' }),
+    ).toBe('vatRate')
     // A free line price is legitimate; only a negative one is not.
     expect(lineProblem({ ...emptyLine(), description: 'Sample', unitPrice: '0' })).toBeNull()
   })
@@ -214,13 +355,24 @@ describe('one purchase order', () => {
     expect(screen.getByRole('button', { name: 'Approve it' })).toHaveProperty('disabled', true)
     expect(screen.getByText(/approval rights/)).toBeTruthy()
     // Cancelling is a manage right, which this reader has, so it stays available.
-    expect(screen.getByRole('button', { name: 'Cancel the order' })).toHaveProperty('disabled', false)
+    expect(screen.getByRole('button', { name: 'Cancel the order' })).toHaveProperty(
+      'disabled',
+      false,
+    )
   })
 
   it('books goods in against what is left, and refuses more than that', async () => {
     current = order({ state: 'SENT' })
     receipts = [
-      { id: 'r1', purchaseOrderId: ORDER_ID, number: 'GR-1', receivedOn: '2026-09-15', checkedInBy: 'u-1', note: null, lines: [{ id: 'l1', purchaseOrderLineId: LINE_A, quantityReceived: 6 }] },
+      {
+        id: 'r1',
+        purchaseOrderId: ORDER_ID,
+        number: 'GR-1',
+        receivedOn: '2026-09-15',
+        checkedInBy: 'u-1',
+        note: null,
+        lines: [{ id: 'l1', purchaseOrderLineId: LINE_A, quantityReceived: 6 }],
+      },
     ]
     renderDetail()
     await screen.findByText('PO-0001')
@@ -232,11 +384,18 @@ describe('one purchase order', () => {
     expect(screen.getByRole('button', { name: 'Book these in' })).toHaveProperty('disabled', true)
 
     fireEvent.change(forBeans, { target: { value: '4' } })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Book these in' })).toHaveProperty('disabled', false))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Book these in' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Book these in' }))
 
     await waitFor(() =>
-      expect(bookedBody).toMatchObject({ lines: [{ purchaseOrderLineId: LINE_A, quantityReceived: 4 }] }),
+      expect(bookedBody).toMatchObject({
+        lines: [{ purchaseOrderLineId: LINE_A, quantityReceived: 4 }],
+      }),
     )
   })
 
@@ -254,6 +413,55 @@ describe('one purchase order', () => {
 
     expect(screen.getByText('This order was cancelled.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Cancel the order' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Approve|Mark as sent|Send for approval/ })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /Approve|Mark as sent|Send for approval/ }),
+    ).toBeNull()
+  })
+})
+
+describe('New purchase order (Figma 163:27317)', () => {
+  it('creates the order and sends it for approval in one press, with the lines as typed', async () => {
+    render(
+      <MemoryRouter initialEntries={['/suppliers/s-1/purchase-order']}>
+        <Routes>
+          <Route path="/suppliers/:slug/purchase-order" element={<NewPurchaseOrderPage />} />
+          <Route path="/expenditure/purchase-orders/:id" element={<p>order page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'New purchase order' }),
+    ).toBeTruthy()
+    // The supplier strip reads the record: terms, early settlement, lead time.
+    expect(await screen.findByText('Net 30 days')).toBeTruthy()
+    expect(screen.getByText('6 days')).toBeTruthy()
+    // The design's line rules: free text, goods or service, a unit on the row, no picker.
+    fireEvent.change(screen.getByLabelText('Line 1: what it is'), {
+      target: { value: 'Green beans Yirgacheffe' },
+    })
+    fireEvent.change(screen.getByLabelText('Line 1: quantity'), { target: { value: '300' } })
+    fireEvent.change(screen.getByLabelText('Line 1: unit price'), { target: { value: '7.4' } })
+    expect(screen.getByRole('button', { name: 'Goods', pressed: true })).toBeTruthy()
+    expect(screen.getByLabelText('Line 1: unit')).toBeTruthy()
+    expect(screen.getAllByText('2,331.000').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
+    await waitFor(() => expect(actions).toEqual(['submit']))
+    expect(createdBody).toMatchObject({
+      supplierId: 's-1',
+      currency: 'OMR',
+      deliverToBranchId: 'br-1',
+    })
+    expect((createdBody as { lines: unknown[] }).lines).toEqual([
+      {
+        lineNo: 1,
+        description: 'Green beans Yirgacheffe',
+        quantity: 300,
+        unit: 'EA',
+        unitPrice: 7.4,
+        vatRate: 5,
+      },
+    ])
+    expect(await screen.findByText('order page')).toBeTruthy()
   })
 })

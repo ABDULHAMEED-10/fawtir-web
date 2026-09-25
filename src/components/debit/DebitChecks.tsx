@@ -7,18 +7,17 @@ import okIcon from '../../assets/supplier-debit-notes/check-ok.svg'
 import warnIcon from '../../assets/supplier-debit-notes/check-warn.svg'
 
 /**
- * "Does this look right" (Figma 86:11732 and 86:12235).
+ * "Does this look right" (Figma 163:20010 and 163:20528).
  *
- * The automatic read of an incoming charge against what we already hold — the bill, the rate
- * card, the delivery record, the last twelve months of notes. It appears on both the upload and
- * the detail screen unchanged, which is why it lives here rather than in either page.
+ * The automatic read of an incoming charge against what we already hold. It appears on both the
+ * upload and the detail screen unchanged, which is why it lives here rather than in either page.
  */
 
 /**
  * Turns the document references inside a check's sentence into links.
  *
  * The sentences are translated as whole sentences, so the references are found by name rather
- * than split into separate keys — a translator moving "GCL-2301" within the sentence keeps the
+ * than split into separate keys: a translator moving "GCL-2301" within the sentence keeps the
  * link working, and one that drops it simply loses the link rather than breaking the text.
  */
 function withRefs(text: string, refs: DebitCheck['refs']) {
@@ -52,6 +51,7 @@ export function DebitChecks({
   summaryBody: string
 }) {
   const { t } = useTranslation()
+  const worries = checks.some((check) => check.verdict === 'check')
 
   return (
     <>
@@ -76,10 +76,10 @@ export function DebitChecks({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold leading-[1.3] text-text-primary">
-                  {t(check.titleKey)}
+                  {t(check.titleKey, check.values)}
                 </p>
                 <p className="mt-1 text-xs font-medium leading-[1.5] text-text-quaternary">
-                  {withRefs(t(check.detailKey), check.refs)}
+                  {withRefs(t(check.detailKey, check.values), check.refs)}
                 </p>
               </div>
               <span
@@ -95,10 +95,22 @@ export function DebitChecks({
         })}
       </ul>
 
-      <p className="mt-3 flex items-start gap-2 rounded-sm bg-pending-100 p-3.5 text-xs font-medium leading-[1.5] text-pending-500">
-        <img src={warnIcon} alt="" className="mt-0.5 size-3.5 shrink-0" />
+      <p
+        className={[
+          'mt-3 flex items-start gap-2 rounded-sm p-3.5 text-xs font-medium leading-[1.5]',
+          worries ? 'bg-pending-100 text-pending-500' : 'bg-success-100 text-success-700',
+        ].join(' ')}
+      >
+        <img src={worries ? warnIcon : okIcon} alt="" className="mt-0.5 size-3.5 shrink-0" />
         <span>
-          <span className="font-semibold text-pending-700">{summaryTitle}</span> {summaryBody}
+          <span
+            className={['font-semibold', worries ? 'text-pending-700' : 'text-success-700'].join(
+              ' ',
+            )}
+          >
+            {summaryTitle}
+          </span>{' '}
+          {withRial(summaryBody)}
         </span>
       </p>
     </>

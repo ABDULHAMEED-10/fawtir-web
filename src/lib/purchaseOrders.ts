@@ -1,3 +1,5 @@
+import type { ItemType } from './invoiceDraft'
+import { addDays } from './dates'
 import type {
   GoodsReceiptDto,
   PurchaseOrderAction,
@@ -66,16 +68,36 @@ export function canEdit(state: PurchaseOrderStateDto): boolean {
   return state === 'DRAFT'
 }
 
+/**
+ * One line of the composer (Suppliers › Detail › New purchase order, Figma 163:27317), on the
+ * product owner's line rules: a free-text description, goods or service, the unit on the row
+ * following that choice, the price excluding VAT to three decimals, the tax rate read as text.
+ */
 export type LineDraft = {
+  /** Local key only; the server numbers lines 1..n in their order. */
+  id?: string
   description: string
+  /** Goods or service. Not an order field yet: it decides which unit list the row offers. */
+  itemType?: ItemType
   quantity: string
   unit: string
   unitPrice: string
   vatRate: string
 }
 
-export function emptyLine(): LineDraft {
-  return { description: '', quantity: '1', unit: '', unitPrice: '', vatRate: '5' }
+let lineSeed = 0
+
+export function emptyLine(vatRate = '5'): LineDraft {
+  lineSeed += 1
+  return {
+    id: `po-line-${lineSeed}`,
+    description: '',
+    itemType: 'goods',
+    quantity: '1',
+    unit: 'EA',
+    unitPrice: '0.000',
+    vatRate,
+  }
 }
 
 export type LineProblem = 'description' | 'quantity' | 'unitPrice' | 'vatRate'
@@ -124,7 +146,10 @@ export function receivedByLine(receipts: GoodsReceiptDto[]): Map<string, number>
   const totals = new Map<string, number>()
   for (const receipt of receipts) {
     for (const line of receipt.lines) {
-      totals.set(line.purchaseOrderLineId, (totals.get(line.purchaseOrderLineId) ?? 0) + line.quantityReceived)
+      totals.set(
+        line.purchaseOrderLineId,
+        (totals.get(line.purchaseOrderLineId) ?? 0) + line.quantityReceived,
+      )
     }
   }
   return totals
@@ -138,4 +163,52 @@ export function outstandingOn(line: PurchaseOrderLineDto, received: Map<string, 
 export function fullyReceived(order: PurchaseOrderDto, receipts: GoodsReceiptDto[]): boolean {
   const received = receivedByLine(receipts)
   return order.lines.length > 0 && order.lines.every((line) => outstandingOn(line, received) === 0)
+}
+
+/** When the supplier's bill would fall due if it arrived on the wanted date, on their terms. */
+export function payableBy(wantedBy: string, netDays: number | null): string | null {
+  if (!wantedBy || netDays === null) return null
+  return addDays(wantedBy, netDays)
+}
+
+const normalise = (text: string) => text.trim().toLowerCase().replace(/s+/g, ' ')
+
+export type Comparison = {
+  /** How many of this order's lines the last order also carried, by description. */
+  sameItems: { matched: number; total: number }
+  /** The largest quantity move among the lines both orders carry, as a signed percentage. */
+  quantity: { description: string; percent: number } | null
+  /** The largest unit-price move among the lines both orders carry, as a signed percentage. */
+  price: { description: string; percent: number } | null
+}
+
+/**
+ * "Compared with the last one" (Figma 163:27317): the design's "Same items 2 of 3", "Quantity
+ * +40% beans", "Sack price up 5.4%", worked out from this draft against the supplier's previous
+ * order rather than typed.
+ */
+export function comparedWithLast(
+  lines: LineDraft[],
+  last: PurchaseOrderDto | null,
+): Comparison | null {
+  if (!last) return null
+  const previous = new Map(last.lines.map((line) => [normalise(line.description), line]))
+  const valid = lines.filter((line) => lineProblem(line) === null)
+  let quantity: Comparison['quantity'] = null
+  let price: Comparison['price'] = null
+  let matched = 0
+  for (const line of valid) {
+    const before = previous.get(normalise(line.description))
+    if (!before) continue
+    matched += 1
+    const move = (now: number, then: number) =>
+      then > 0 ? Math.round(((now - then) / then) * 1000) / 10 : 0
+    const q = move(Number(line.quantity), before.quantity)
+    if (q !== 0 && (!quantity || Math.abs(q) > Math.abs(quantity.percent)))
+      quantity = { description: line.description.trim(), percent: q }
+    const p = move(Number(line.unitPrice), before.unitPrice)
+    if (p !== 0 && (!price || Math.abs(p) > Math.abs(price.percent)))
+      price = { description: line.description.trim(), percent: p }
+  }
+  return { sameItems: { matched, total: valid.length }, quantity, price }
 }

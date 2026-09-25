@@ -2,21 +2,39 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { FilterMenu, Popover, RowsView, TableCheckbox } from '../../components/ui'
+import {
+  ActionMenu,
+  FilterMenu,
+  Modal,
+  Popover,
+  RialMark,
+  RowsView,
+  SortMenu,
+  TableCheckbox,
+  type ActionMenuItem,
+} from '../../components/ui'
 import { BillStatusChip } from '../../components/bills'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
-import { pageCountOf, type Page } from '../../api'
+import { ApiError, pageCountOf, type Page } from '../../api'
 import {
   BILL_SUMMARY_PATH,
   approveBill,
   billListPath,
+  holdBill,
   loadBillPage,
   loadBillSummary,
+  rejectBill,
+  releaseBill,
   type BillRowDto,
   type BillSummaryDto,
 } from '../../api/expenditure/bills'
-import { discardIntake, loadIntakes, unconfirmedIntakesPath, type IntakePageDto } from '../../api/expenditure/billIntake'
+import {
+  discardIntake,
+  loadIntakes,
+  unconfirmedIntakesPath,
+  type IntakePageDto,
+} from '../../api/expenditure/billIntake'
 import {
   BILL_PAGE_SIZES,
   BILL_SORTS,
@@ -26,12 +44,16 @@ import {
   DEFAULT_BILL_TAB,
   billPageSizeOf,
   billTabCount,
+  draftRowOf,
+  draftRowPath,
   dueNoteOf,
   isBillSort,
   isBillSource,
   isBillTab,
+  rowActionOf,
   toBillListItem,
   type BillListItem,
+  type BillRowAction,
   type BillSortKey,
   type BillSourceBadge,
   type BillTabId,
@@ -49,39 +71,61 @@ import scanIcon from '../../assets/bills/scan.svg'
 import matchOkIcon from '../../assets/bills/match-ok.svg'
 import matchWarnIcon from '../../assets/bills/match-warn.svg'
 import actApproveIcon from '../../assets/bills/act-approve.svg'
-import sortIcon from '../../assets/bills/sort.svg'
+import actEyeIcon from '../../assets/bills/act-eye.svg'
+import actBellIcon from '../../assets/bills/act-bell.svg'
+import actEditIcon from '../../assets/bills/act-edit.svg'
+import actChevronIcon from '../../assets/bills/act-chevron.svg'
 import filterIcon from '../../assets/bills/filter.svg'
-import omrIcon from '../../assets/invoices/omr.svg'
-import omrRowIcon from '../../assets/invoices/omr-row.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import searchIcon from '../../assets/invoices/search.svg'
+import viewIcon from '../../assets/actions/view.svg'
+import pauseIcon from '../../assets/actions/pause.svg'
+import deleteIcon from '../../assets/actions/delete.svg'
+import releaseIcon from '../../assets/bill-detail/tick.svg'
 
-/** Source badge: 4px radius, not a pill — the status chips are the pills. */
+/** Source badge: 4px radius, not a pill. The status chips are the pills. */
 const SOURCE_STYLES: Record<BillSourceBadge, { bg: string; fg: string; labelKey: string }> = {
   peppol: { bg: 'bg-success-100', fg: 'text-success-700', labelKey: 'billsPage.source.peppol' },
   uploaded: { bg: 'bg-[#e3e4ea]', fg: 'text-[#474a5e]', labelKey: 'billsPage.source.uploaded' },
   scanned: { bg: 'bg-pending-100', fg: 'text-pending-700', labelKey: 'billsPage.source.scanned' },
   // Not drawn in the design: the two sources without a supplier's document take the neutral badge.
-  recurring: { bg: 'bg-surface-background', fg: 'text-text-tertiary', labelKey: 'billsPage.source.recurring' },
-  selfBilled: { bg: 'bg-primary-50', fg: 'text-primary-800', labelKey: 'billsPage.source.selfBilled' },
+  recurring: {
+    bg: 'bg-surface-background',
+    fg: 'text-text-tertiary',
+    labelKey: 'billsPage.source.recurring',
+  },
+  selfBilled: {
+    bg: 'bg-primary-50',
+    fg: 'text-primary-800',
+    labelKey: 'billsPage.source.selfBilled',
+  },
 }
 
-
 /**
- * Figma column widths. The design has no Outstanding column — it was drawn before the list
- * carried one — so every other column gives up a little to pay for it and the total stays at
- * the shell's 1144. Widening the table instead put the new column behind a horizontal scroll,
- * which is the one place it is no use: a payables list is read by scanning what is still owed.
+ * The button under a row's status chip (Figma 163:21928). Only Approve is filled: it is the one
+ * action that moves the bill on by itself. The rest open something, so they read as secondary.
  */
+const ACTION_STYLES: Record<
+  BillRowAction,
+  { icon: string; labelKey: string; primary?: boolean; trailingIcon?: boolean }
+> = {
+  approve: { icon: actApproveIcon, labelKey: 'billsPage.actions.approve', primary: true },
+  reviewDifference: { icon: actEyeIcon, labelKey: 'billsPage.actions.reviewDifference' },
+  nudge: { icon: actBellIcon, labelKey: 'billsPage.actions.nudge' },
+  checkAndSave: { icon: actEditIcon, labelKey: 'billsPage.actions.checkAndSave' },
+  viewHold: { icon: actChevronIcon, labelKey: 'billsPage.actions.viewHold', trailingIcon: true },
+}
+
+/** Figma column widths, so the seven columns and the menu line up with the design at 1144. */
 const COLUMNS = [
   { key: 'check', width: 45 },
-  { key: 'supplier', width: 165 },
-  { key: 'theirBill', width: 145 },
-  { key: 'due', width: 150 },
-  { key: 'match', width: 160 },
-  { key: 'status', width: 190 },
-  { key: 'amount', width: 145 },
-  { key: 'outstanding', width: 144 },
+  { key: 'supplier', width: 159 },
+  { key: 'theirBill', width: 161 },
+  { key: 'due', width: 160 },
+  { key: 'match', width: 193 },
+  { key: 'status', width: 202 },
+  { key: 'amount', width: 154 },
+  { key: 'menu', width: 44 },
 ] as const
 
 /** How long typing pauses before the search is sent, so each keystroke is not a request. */
@@ -90,7 +134,26 @@ const SEARCH_DELAY_MS = 300
 /** The resolution window the filtered tabs read (`BillWorkflowService.RESOLUTION_WINDOW`). */
 const RESOLUTION_WINDOW = 2000
 
+/** Server refusals worth their own sentence; anything else reads through `describeApiFailure`. */
+const REFUSALS: Record<string, string> = {
+  APPROVAL_ALREADY_GIVEN: 'billDetail.refused.alreadyApproved',
+  APPROVAL_TRANSITION_INVALID: 'billDetail.refused.changed',
+  APPROVAL_REJECTION_REASON_REQUIRED: 'billDetail.refused.reasonRequired',
+  BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
+  BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
+  BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
+  BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
+}
+
+const PRIMARY_BUTTON =
+  'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
+const QUIET_BUTTON =
+  'inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-60'
+
 type Translate = (key: string, values?: Record<string, unknown>) => string
+
+/** A decision taken from a row: the bill it is about and the reason it needs. */
+type Asking = { kind: 'reject' | 'hold'; billId: string; number: string }
 
 export function BillsPage() {
   return (
@@ -110,8 +173,12 @@ function BillsScreen() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const tab: BillTabId = isBillTab(params.get('tab')) ? (params.get('tab') as BillTabId) : DEFAULT_BILL_TAB
-  const sortKey: BillSortKey = isBillSort(params.get('sort')) ? (params.get('sort') as BillSortKey) : 'newest'
+  const tab: BillTabId = isBillTab(params.get('tab'))
+    ? (params.get('tab') as BillTabId)
+    : DEFAULT_BILL_TAB
+  const sortKey: BillSortKey = isBillSort(params.get('sort'))
+    ? (params.get('sort') as BillSortKey)
+    : 'newest'
   const sourceKey: BillSourceBadge | 'all' = isBillSource(params.get('source'))
     ? (params.get('source') as BillSourceBadge)
     : 'all'
@@ -138,7 +205,10 @@ function BillsScreen() {
   useEffect(() => setTyped(query), [query])
   useEffect(() => {
     if (typed === query) return
-    const timer = window.setTimeout(() => update({ q: typed.trim() || null, page: null }), SEARCH_DELAY_MS)
+    const timer = window.setTimeout(
+      () => update({ q: typed.trim() || null, page: null }),
+      SEARCH_DELAY_MS,
+    )
     return () => window.clearTimeout(timer)
     // Armed by typing only; `update` reads the params when it runs, so nothing goes stale.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,30 +225,68 @@ function BillsScreen() {
   })
   const list = useApiRead<Page<BillRowDto>>(listPath, () => loadBillPage(listPath))
 
-  const [actionError, setActionError] = useState<unknown>(null)
-  const [approving, setApproving] = useState<string | null>(null)
-  const onApprove = async (billId: string) => {
-    setActionError(null)
-    setApproving(billId)
+  // The uploads and receipts nobody has confirmed, drawn as the design's draft rows at the top
+  // of the first page of Needs attention and All. The API lists them apart from the bills.
+  const known = summary.read.status === 'ready' ? summary.read.data : null
+  const showDrafts =
+    (tab === 'needsAttention' || tab === 'all') &&
+    pageNumber === 1 &&
+    query === '' &&
+    (known?.needsAttention.draft ?? 0) > 0
+  const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20) : null
+  const intakes = useApiRead<IntakePageDto>(intakesPath, () => loadIntakes(intakesPath!))
+
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [asking, setAsking] = useState<Asking | null>(null)
+  const [reason, setReason] = useState('')
+
+  const refresh = () => {
+    summary.retry()
+    list.retry()
+    if (intakesPath) intakes.retry()
+  }
+
+  const act = async (billId: string, run: () => Promise<unknown>) => {
+    setNotice(null)
+    setBusy(billId)
     try {
-      await approveBill(billId)
-      summary.retry()
-      list.retry()
+      await run()
+      refresh()
+      return true
     } catch (error) {
-      setActionError(error)
+      setNotice(refusalText(t, error))
+      return false
     } finally {
-      setApproving(null)
+      setBusy(null)
+    }
+  }
+
+  const confirmReason = async () => {
+    const text = reason.trim()
+    if (!asking || text === '') return
+    const ok = await act(asking.billId, () =>
+      asking.kind === 'reject' ? rejectBill(asking.billId, text) : holdBill(asking.billId, text),
+    )
+    if (ok) {
+      setAsking(null)
+      setReason('')
     }
   }
 
   const count = (value: number) => formatCount(value, language)
   const canCapture = can(session, 'invoice.payment.manage')
+  const canApprove = can(session, 'invoice.approve')
 
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('billsPage.title')}</h1>
-        <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">{t('billsPage.subtitle')}</p>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+          {t('billsPage.title')}
+        </h1>
+        <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">
+          {t('billsPage.subtitle')}
+        </p>
       </div>
       {canCapture ? (
         <div className="flex flex-wrap items-center gap-3">
@@ -216,6 +324,7 @@ function BillsScreen() {
 
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
+  const drafts = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
   const truncated = (page?.truncated ?? false) || (tab !== 'all' && totals.tabs.truncated)
 
   return (
@@ -232,22 +341,30 @@ function BillsScreen() {
                 key={entry.id}
                 type="button"
                 aria-pressed={active}
-                onClick={() => update({ tab: entry.id === DEFAULT_BILL_TAB ? null : entry.id, page: null })}
+                onClick={() =>
+                  update({ tab: entry.id === DEFAULT_BILL_TAB ? null : entry.id, page: null })
+                }
                 className={[
                   'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
-                  active ? 'font-semibold text-primary-800' : 'font-medium text-text-quaternary hover:text-text-secondary',
+                  active
+                    ? 'font-semibold text-primary-800'
+                    : 'font-medium text-text-quaternary hover:text-text-secondary',
                 ].join(' ')}
               >
                 {t(entry.labelKey)}
                 <span
                   className={[
                     'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
-                    active ? 'bg-primary-25 text-primary-800' : 'bg-primary-25 text-text-quaternary',
+                    active
+                      ? 'bg-primary-25 text-primary-800'
+                      : 'bg-primary-25 text-text-quaternary',
                   ].join(' ')}
                 >
                   {count(billTabCount(totals, entry.id))}
                 </span>
-                {active ? <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-800" /> : null}
+                {active ? (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-800" />
+                ) : null}
               </button>
             )
           })}
@@ -272,27 +389,33 @@ function BillsScreen() {
               value={sourceKey}
               defaultValue="all"
               onChange={(value) => update({ source: value === 'all' ? null : value, page: null })}
-              options={BILL_SOURCES.map((option) => ({ value: option.id, label: t(option.labelKey) }))}
+              options={BILL_SOURCES.map((option) => ({
+                value: option.id,
+                label: t(option.labelKey),
+              }))}
               icon={filterIcon}
             />
-            <SortMenu value={sortKey} onChange={(value) => update({ sort: value === 'newest' ? null : value, page: null })} />
+            <SortMenu
+              value={sortKey}
+              options={BILL_SORTS}
+              label={t('billsPage.sort')}
+              width={240}
+              onChange={(value) => update({ sort: value === 'newest' ? null : value, page: null })}
+            />
           </div>
         </div>
 
-        {tab === 'needsAttention' && totals.needsAttention.draft > 0 ? (
-          <div className="flex flex-col gap-3 px-6 pb-3.5">
-            <Notice body={t('billsPage.notice.drafts', { count: totals.needsAttention.draft })} />
-            <UnconfirmedUploads onChanged={summary.retry} />
-          </div>
-        ) : null}
         {truncated ? (
           <div className="px-6 pb-3.5">
             <Notice body={t('billsPage.notice.truncated', { window: count(RESOLUTION_WINDOW) })} />
           </div>
         ) : null}
-        {actionError ? (
+        {notice ? (
           <div className="px-6 pb-3.5">
-            <Notice body={failureText(t, actionError)} action={{ label: t('common.close'), onClick: () => setActionError(null) }} />
+            <Notice
+              body={notice}
+              action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+            />
           </div>
         ) : null}
 
@@ -303,34 +426,38 @@ function BillsScreen() {
         ) : (
           <BillTable
             page={page}
-            canApprove={can(session, 'invoice.approve')}
-            approving={approving}
-            onApprove={onApprove}
-            ledgerEmpty={totals.tabs.all === 0}
+            drafts={drafts}
+            canApprove={canApprove}
+            canManage={canCapture}
+            busy={busy}
+            ledgerEmpty={totals.tabs.all === 0 && drafts.length === 0}
+            onApprove={(id) => void act(id, () => approveBill(id))}
+            onRelease={(id) => void act(id, () => releaseBill(id))}
+            onAsk={(next) => {
+              setReason('')
+              setAsking(next)
+            }}
+            onDiscard={(intakeId) => void act(intakeId, () => discardIntake(intakeId))}
+            onUnavailable={(key) => setNotice(t(key))}
           />
         )}
 
-        {page && page.items.length > 0 ? (
+        {page && (page.items.length > 0 || drafts.length > 0) ? (
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-            <label className="flex items-center gap-4">
-              <span className="text-sm font-medium text-text-muted">{t('billsPage.showResult')}</span>
-              <select
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-text-muted">
+                {t('billsPage.showResult')}
+              </span>
+              <PageSizeMenu
                 value={size}
-                onChange={(event) =>
+                onChange={(next) =>
                   update({
-                    size: Number(event.target.value) === DEFAULT_BILL_PAGE_SIZE ? null : event.target.value,
+                    size: next === DEFAULT_BILL_PAGE_SIZE ? null : String(next),
                     page: null,
                   })
                 }
-                className="h-9 rounded-sm border border-border-subtle bg-white px-2 text-sm font-semibold text-text-secondary"
-              >
-                {BILL_PAGE_SIZES.map((option) => (
-                  <option key={option} value={option}>
-                    {count(option)}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
             {pageCountOf(page) > 1 ? (
               <PageNumbers
                 current={pageNumber}
@@ -341,79 +468,70 @@ function BillsScreen() {
           </div>
         ) : null}
       </section>
+
+      <Modal
+        open={asking !== null}
+        onClose={() => {
+          setAsking(null)
+          setReason('')
+        }}
+        title={t(asking?.kind === 'hold' ? 'billDetail.hold.title' : 'billDetail.reject.title')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setAsking(null)
+                setReason('')
+              }}
+              className={QUIET_BUTTON}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmReason()}
+              disabled={busy !== null || reason.trim() === ''}
+              className={[
+                PRIMARY_BUTTON,
+                asking?.kind === 'reject' ? 'bg-danger-700 hover:bg-danger-700/90' : '',
+              ].join(' ')}
+            >
+              {t(asking?.kind === 'hold' ? 'billDetail.hold.confirm' : 'billDetail.reject.confirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-semibold text-text-primary">{asking?.number}</p>
+        <p className="mt-1 text-sm font-medium leading-[1.5] text-text-secondary">
+          {t(asking?.kind === 'hold' ? 'billDetail.hold.body' : 'billDetail.reject.body')}
+        </p>
+        <label className="mt-4 block">
+          <span className="text-sm font-semibold text-text-secondary">
+            {t('billDetail.reject.reason')}
+          </span>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            maxLength={asking?.kind === 'hold' ? 500 : 1000}
+            rows={3}
+            className="mt-1.5 w-full rounded-sm border border-border-subtle p-3 text-sm text-text-primary outline-none focus:border-primary-500"
+          />
+        </label>
+      </Modal>
     </div>
   )
 }
 
-/**
- * The uploads the drafts notice counts, each with a way back to it: an upload saved for later is
- * finished on its own page; a receipt is confirmed from Scan a receipt and can only be discarded
- * here. A companion to the notice, so a failed read shows nothing rather than a second error
- * beside the count.
- */
-function UnconfirmedUploads({ onChanged }: { onChanged: () => void }) {
-  const { t, i18n } = useTranslation()
-  const session = useSession()
-  const [failure, setFailure] = useState<string | null>(null)
-  const path = unconfirmedIntakesPath(0, 20)
-  const intakes = useApiRead<IntakePageDto>(path, () => loadIntakes(path))
-  if (intakes.read.status !== 'ready') return null
-
-  const discard = async (id: string) => {
-    setFailure(null)
-    try {
-      await discardIntake(id)
-      intakes.retry()
-      onChanged()
-    } catch (error) {
-      setFailure(failureText(t, error))
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {failure ? <Notice body={failure} action={{ label: t('common.close'), onClick: () => setFailure(null) }} /> : null}
-      <ul aria-label={t('billsPage.unconfirmed.title')} className="divide-y divide-border-subtle rounded-md border border-border-subtle">
-        {intakes.read.data.items.map((intake) => (
-          <li key={intake.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-text-primary">
-                {intake.extracted.supplierName || intake.filename || t('billsPage.unconfirmed.unnamed')}
-                {intake.extracted.billNumber ? ` · ${intake.extracted.billNumber}` : ''}
-              </p>
-              <p className="text-xs font-medium text-text-quaternary">
-                {t(`billsPage.unconfirmed.${intake.source}`, { date: formatInstantDay(intake.uploadedAt, i18n.language) })}
-              </p>
-            </div>
-            {can(session, 'invoice.payment.manage') ? (
-              <div className="flex items-center gap-4">
-                {intake.source === 'UPLOADED' ? (
-                  <Link to={`/expenditure/bills/upload/${intake.id}`} className="text-sm font-semibold text-primary-800 hover:text-primary-700">
-                    {t('billsPage.unconfirmed.continue')}
-                  </Link>
-                ) : null}
-                <button type="button" onClick={() => void discard(intake.id)} className="text-sm font-semibold text-text-tertiary hover:text-text-danger">
-                  {t('billsPage.unconfirmed.discard')}
-                </button>
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function failureText(t: Translate, error: unknown): string {
+function refusalText(t: Translate, error: unknown): string {
+  if (error instanceof ApiError && error.code && REFUSALS[error.code])
+    return t(REFUSALS[error.code])
   const message = describeApiFailure(error)
   const body = t(message.key, message.values)
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body
 }
 
-/**
- * The four cards. "Start a payment run" is left off the ready card until the payment-run screens
- * are wired: it would open a page of mock runs.
- */
+/** The four cards of the frame, each with its figure, its line of context and, on two, a link. */
 function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: () => void }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -438,7 +556,10 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       ]
         .filter(Boolean)
         .join(' · '),
-      link: attention.total > 0 ? { label: t('billsPage.kpi.attentionLink'), onClick: onReview } : null,
+      link:
+        attention.total > 0
+          ? { label: t('billsPage.kpi.attentionLink'), onClick: onReview, to: null }
+          : null,
     },
     {
       id: 'due',
@@ -447,6 +568,7 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       titleKey: 'billsPage.kpi.due',
       figure: money(totals.dueThisWeekTotal),
       money: true,
+      // TODO(backend): the design adds "earliest 2 Aug"; the summary carries no earliest due date.
       meta: t('billsPage.kpi.dueBills', { count: totals.dueThisWeekCount }),
       link: null,
     },
@@ -461,7 +583,10 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       // issues a credit note. It leaves the payable figure above and is named here instead of
       // disappearing from the page altogether (decision 3, 2026-09-24).
       meta: [
-        t('billsPage.kpi.payableBills', { open: count(totals.openCount), overdue: count(totals.overdueCount) }),
+        t('billsPage.kpi.payableBills', {
+          open: count(totals.openCount),
+          overdue: count(totals.overdueCount),
+        }),
         totals.disputedCount > 0
           ? t('billsPage.kpi.payableDisputed', {
               amount: money(totals.disputedTotal),
@@ -481,9 +606,15 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       figure: money(totals.readyToPayTotal),
       money: true,
       meta: t('billsPage.kpi.readyBills', { count: totals.readyToPayCount }),
-      link: null,
+      link:
+        totals.readyToPayCount > 0
+          ? { label: t('billsPage.kpi.readyLink'), onClick: null, to: '/expenditure/payments/new' }
+          : null,
     },
   ]
+
+  const linkClass =
+    'inline-flex w-fit items-center gap-0.5 text-base font-semibold leading-[1.2] text-primary-800 transition-colors hover:text-primary-900'
 
   return (
     <div className="flex flex-col gap-2">
@@ -491,40 +622,54 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
         {cards.map((kpi) => (
           <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
             <div className="flex items-center gap-2">
-              <span className={['flex size-[45px] shrink-0 items-center justify-center rounded-full', kpi.tint].join(' ')}>
+              <span
+                className={[
+                  'flex size-[45px] shrink-0 items-center justify-center rounded-full',
+                  kpi.tint,
+                ].join(' ')}
+              >
                 <img src={kpi.icon} alt="" className="size-6" />
               </span>
-              <h3 className="whitespace-nowrap text-xl font-medium leading-[1.2] text-text-secondary">{t(kpi.titleKey)}</h3>
+              <h3 className="whitespace-nowrap text-xl font-medium leading-[1.2] text-text-secondary">
+                {t(kpi.titleKey)}
+              </h3>
             </div>
-            <div className="flex items-center gap-1">
-              {kpi.money ? <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" /> : null}
-              <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">{kpi.figure}</p>
+            <div className="flex items-center gap-1 text-text-secondary">
+              {kpi.money ? <RialMark className="w-8 shrink-0" /> : null}
+              <p className="text-[32px] font-semibold leading-[1.2] tabular-nums">{kpi.figure}</p>
             </div>
             <p className="text-sm font-medium leading-[1.4] text-text-tertiary">{kpi.meta}</p>
             {kpi.link ? (
-              <button
-                type="button"
-                onClick={kpi.link.onClick}
-                className="inline-flex w-fit items-center gap-0.5 text-base font-semibold leading-[1.2] text-primary-800 transition-colors hover:text-primary-900"
-              >
-                {kpi.link.label}
-                <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
-              </button>
+              kpi.link.to ? (
+                <Link to={kpi.link.to} className={linkClass}>
+                  {kpi.link.label}
+                  <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
+                </Link>
+              ) : (
+                <button type="button" onClick={kpi.link.onClick ?? undefined} className={linkClass}>
+                  {kpi.link.label}
+                  <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
+                </button>
+              )
             ) : null}
           </article>
         ))}
       </div>
       {totals.excludedFromTotals > 0 ? (
         <p className="text-xs font-medium text-text-tertiary">
-          {t('billsPage.kpi.otherCurrencies', { count: totals.excludedFromTotals, currency: totals.currencyCode })}
+          {t('billsPage.kpi.otherCurrencies', {
+            count: totals.excludedFromTotals,
+            currency: totals.currencyCode,
+          })}
         </p>
       ) : null}
     </div>
   )
 }
 
-function SortMenu({ value, onChange }: { value: BillSortKey; onChange: (value: BillSortKey) => void }) {
-  const { t } = useTranslation()
+/** The design's "Show result" number box: a listbox rather than a native select. */
+function PageSizeMenu({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const anchor = useRef<HTMLButtonElement>(null)
   return (
@@ -535,29 +680,32 @@ function SortMenu({ value, onChange }: { value: BillSortKey; onChange: (value: B
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+        aria-label={t('billsPage.showResult')}
+        className="inline-flex h-9 min-w-[55px] items-center justify-between gap-2 rounded-sm border border-border-subtle px-3 text-sm font-semibold text-text-secondary"
       >
-        <img src={sortIcon} alt="" className="size-6" />
-        {value === 'newest' ? t('billsPage.sort') : t(BILL_SORTS.find((option) => option.value === value)!.labelKey)}
+        {formatCount(value, i18n.language)}
+        <img src={chevronIcon} alt="" className="size-4 rotate-90 opacity-70" />
       </button>
-      <Popover open={open} anchorRef={anchor} onClose={() => setOpen(false)} width={240} align="end">
+      <Popover open={open} anchorRef={anchor} onClose={() => setOpen(false)} width={96}>
         <ul role="listbox" className="py-1">
-          {BILL_SORTS.map((option) => (
-            <li key={option.value}>
+          {BILL_PAGE_SIZES.map((option) => (
+            <li key={option}>
               <button
                 type="button"
                 role="option"
-                aria-selected={option.value === value}
+                aria-selected={option === value}
                 onClick={() => {
-                  onChange(option.value)
+                  onChange(option)
                   setOpen(false)
                 }}
                 className={[
-                  'w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-primary-25',
-                  option.value === value ? 'font-semibold text-primary-800' : 'font-medium text-text-secondary',
+                  'w-full px-3 py-2 text-start text-sm transition-colors hover:bg-primary-25',
+                  option === value
+                    ? 'font-semibold text-primary-800'
+                    : 'font-medium text-text-secondary',
                 ].join(' ')}
               >
-                {t(option.labelKey)}
+                {formatCount(option, i18n.language)}
               </button>
             </li>
           ))}
@@ -567,30 +715,46 @@ function SortMenu({ value, onChange }: { value: BillSortKey; onChange: (value: B
   )
 }
 
-function NoteText({ note }: { note: Note }) {
-  const { t } = useTranslation()
-  return <>{t(note.key, note.values)}</>
+function NoteText({ note, currency }: { note: Note; currency: string }) {
+  const { t, i18n } = useTranslation()
+  const values = { ...note.values }
+  if (typeof values.amount === 'number')
+    values.amount = formatAmount(values.amount, currency, i18n.language)
+  if (typeof values.date === 'string') values.date = formatInstantDay(values.date, i18n.language)
+  return <>{t(note.key, values)}</>
 }
 
-/**
- * Rows do not open the bill yet: the detail page is still the prototype's, which ignores the id
- * and would show another bill's figures. It is wired in its own slice (E-09).
- */
 function BillTable({
   page,
+  drafts,
   canApprove,
-  approving,
-  onApprove,
+  canManage,
+  busy,
   ledgerEmpty,
+  onApprove,
+  onRelease,
+  onAsk,
+  onDiscard,
+  onUnavailable,
 }: {
   page: Page<BillRowDto> | null
+  drafts: IntakePageDto['items']
   canApprove: boolean
-  approving: string | null
-  onApprove: (billId: string) => void
+  canManage: boolean
+  busy: string | null
   ledgerEmpty: boolean
+  onApprove: (billId: string) => void
+  onRelease: (billId: string) => void
+  onAsk: (asking: Asking) => void
+  onDiscard: (intakeId: string) => void
+  /** An action the design offers and the API cannot do yet; the key names the sentence. */
+  onUnavailable: (key: string) => void
 }) {
   const { t } = useTranslation()
-  const rows = useMemo(() => (page ? page.items.map(toBillListItem) : []), [page])
+  const rows = useMemo(
+    () => [...drafts.map(draftRowOf), ...(page ? page.items.map(toBillListItem) : [])],
+    [page, drafts],
+  )
   const [selected, setSelected] = useState<string[]>([])
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
@@ -624,15 +788,21 @@ function BillTable({
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.theirBill')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.due')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.matched')}</th>
+            {/* Figma labels this column "Amount" as well, a copy slip: it holds the status and
+                the action, and the amount is the column after it. */}
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.status')}</th>
             <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.amount')}</th>
-            <th className="px-2 py-2.5 text-start font-semibold">{t('billsPage.col.outstanding')}</th>
+            <th className="px-2 py-2.5" />
           </tr>
         </thead>
         <tbody>
           {page === null ? (
             <tr>
-              <td colSpan={8} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td
+                colSpan={8}
+                role="status"
+                className="py-12 text-center text-sm font-medium text-text-quaternary"
+              >
                 {t('appAccess.loading')}
               </td>
             </tr>
@@ -650,12 +820,20 @@ function BillTable({
                 selected={selected.includes(row.id)}
                 onSelect={() =>
                   setSelected((current) =>
-                    current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id],
+                    current.includes(row.id)
+                      ? current.filter((id) => id !== row.id)
+                      : [...current, row.id],
                   )
                 }
-                canApprove={canApprove && row.canApprove}
-                approving={approving === row.id}
+                action={rowActionOf(row, canApprove)}
+                canApprove={canApprove}
+                canManage={canManage}
+                busy={busy === row.id || (row.draft !== null && busy === row.draft.intakeId)}
                 onApprove={() => onApprove(row.id)}
+                onRelease={() => onRelease(row.id)}
+                onAsk={(kind) => onAsk({ kind, billId: row.id, number: row.number ?? row.id })}
+                onDiscard={() => row.draft && onDiscard(row.draft.intakeId)}
+                onUnavailable={onUnavailable}
               />
             ))
           )}
@@ -669,30 +847,116 @@ function BillTableRow({
   row,
   selected,
   onSelect,
+  action,
   canApprove,
-  approving,
+  canManage,
+  busy,
   onApprove,
+  onRelease,
+  onAsk,
+  onDiscard,
+  onUnavailable,
 }: {
   row: BillListItem
   selected: boolean
   onSelect: () => void
+  action: BillRowAction | null
   canApprove: boolean
-  approving: boolean
+  canManage: boolean
+  busy: boolean
   onApprove: () => void
+  onRelease: () => void
+  onAsk: (kind: 'reject' | 'hold') => void
+  onDiscard: () => void
+  onUnavailable: (key: string) => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const source = SOURCE_STYLES[row.source]
   const dueNote = dueNoteOf(row)
+  const to = draftRowPath(row) ?? `/expenditure/bills/${row.id}`
+  const scanned = row.source === 'scanned'
+
+  /**
+   * The row menu. No frame draws it for bills (163:24153 is a payment run's), so it offers what
+   * the row's state allows: the bill itself, and the decisions the detail page takes.
+   */
+  const menu: ActionMenuItem[] = row.draft
+    ? [
+        { id: 'check', labelKey: 'billsPage.actions.checkAndSave', icon: actEditIcon, to },
+        ...(canManage
+          ? [
+              {
+                id: 'discard',
+                labelKey: 'billsPage.unconfirmed.discard',
+                icon: deleteIcon,
+                danger: true,
+                onSelect: onDiscard,
+              },
+            ]
+          : []),
+      ]
+    : [
+        { id: 'view', labelKey: 'billsPage.rowMenu.view', icon: viewIcon, to },
+        ...(canApprove && row.canApprove
+          ? [
+              {
+                id: 'approve',
+                labelKey: 'billsPage.actions.approve',
+                icon: actApproveIcon,
+                onSelect: onApprove,
+              },
+            ]
+          : []),
+        ...(canManage && row.status === 'onHold'
+          ? [
+              {
+                id: 'release',
+                labelKey: 'billDetail.decision.release',
+                icon: releaseIcon,
+                onSelect: onRelease,
+              },
+            ]
+          : []),
+        ...(canManage && row.owes && row.status !== 'onHold' && !row.paid
+          ? [
+              {
+                id: 'hold',
+                labelKey: 'billDetail.decision.putOnHold',
+                icon: pauseIcon,
+                onSelect: () => onAsk('hold'),
+              },
+            ]
+          : []),
+        ...(canApprove && row.owes && row.status !== 'rejected' && !row.paid
+          ? [
+              {
+                id: 'reject',
+                labelKey: 'billDetail.actions.reject',
+                icon: deleteIcon,
+                danger: true,
+                onSelect: () => onAsk('reject'),
+              },
+            ]
+          : []),
+      ]
 
   return (
     <tr className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60">
       <td className="px-5 py-2.5 align-middle">
-        <TableCheckbox checked={selected} onChange={onSelect} ariaLabel={t('billsPage.selectRow', { id: row.number ?? row.id })} />
+        <TableCheckbox
+          checked={selected}
+          onChange={onSelect}
+          ariaLabel={t('billsPage.selectRow', { id: row.number ?? row.id })}
+        />
       </td>
 
       <td className="py-2.5 pe-2 align-middle">
-        <p className="text-sm font-semibold leading-[1.2] text-text-primary">{row.supplier ?? '—'}</p>
+        <p className="text-sm font-semibold leading-[1.2] text-text-primary">
+          {row.supplier ?? t('billDetail.supplierUnknown')}
+        </p>
+        {/* TODO(backend): the design adds "arrived 29 Jul" and "PDF · by Yusuf" beside the badge;
+            the list row carries neither an arrival time nor an uploader. */}
         <span
           className={[
             'mt-1 inline-flex items-center rounded-[2px] px-2 py-1 text-[10px] font-semibold uppercase leading-[1.2]',
@@ -705,10 +969,21 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <Link to={`/expenditure/bills/${row.id}`} className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline">
-          {row.number ?? t('billsPage.rows.noNumber')}
+        <Link
+          to={to}
+          className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline"
+        >
+          {row.number
+            ? scanned
+              ? t('billsPage.rows.receipt', { number: row.number })
+              : row.number
+            : (row.draft?.filename ?? t('billsPage.rows.noNumber'))}
         </Link>
-        {row.issueDate ? (
+        {row.draft ? (
+          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
+            {t('billsPage.rows.read', { date: formatInstantDay(row.draft.uploadedAt, language) })}
+          </p>
+        ) : row.issueDate ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
             {t('billsPage.rows.issued', { date: formatDate(row.issueDate, language) })}
           </p>
@@ -721,16 +996,19 @@ function BillTableRow({
             ? t('billsPage.rows.paidOnTheDay')
             : row.dueDate
               ? formatDate(row.dueDate, language)
-              : '—'}
+              : t('billsPage.rows.noDueDate')}
         </p>
         {dueNote ? (
           <p
             className={[
               'mt-1 text-xs font-medium leading-[1.2]',
-              dueNote.key === 'billsPage.rows.daysOverdue' ? 'text-danger-700' : 'text-text-tertiary',
+              dueNote.key === 'billsPage.rows.daysOverdue' ||
+              dueNote.key === 'billsPage.rows.overdue'
+                ? 'text-danger-700'
+                : 'text-text-tertiary',
             ].join(' ')}
           >
-            <NoteText note={dueNote} />
+            <NoteText note={dueNote} currency={row.currency} />
           </p>
         ) : null}
       </td>
@@ -742,99 +1020,160 @@ function BillTableRow({
               <span className="block h-[1.5px] w-3 rounded-full bg-text-quaternary" />
             </span>
           ) : (
-            <img src={row.match.verdict === 'ok' ? matchOkIcon : matchWarnIcon} alt="" className="size-5 shrink-0" />
+            <img
+              src={row.match.verdict === 'ok' ? matchOkIcon : matchWarnIcon}
+              alt=""
+              className="size-5 shrink-0"
+            />
           )}
           <span className="text-sm font-semibold leading-[1.2] text-text-primary">
-            {row.match.verdict === 'none' ? t('billsPage.rows.noOrder') : (row.match.order ?? t('billsPage.rows.noOrder'))}
+            {row.match.verdict === 'none'
+              ? t('billsPage.rows.noOrder')
+              : (row.match.order ?? t('billsPage.rows.noOrder'))}
           </span>
         </div>
-        {row.match.verdict === 'none' ? (
-          row.match.theirOrder ? (
-            <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-              {t('billsPage.rows.theyQuoted', { ref: row.match.theirOrder })}
-            </p>
-          ) : null
-        ) : (
-          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-            <NoteText note={row.match.note} />
-          </p>
-        )}
+        <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
+          {row.match.verdict === 'none' ? (
+            row.match.theirOrder ? (
+              t('billsPage.rows.theyQuoted', { ref: row.match.theirOrder })
+            ) : row.paidOnTheSpot || scanned ? (
+              t('billsPage.rows.overTheCounter')
+            ) : (
+              t('billsPage.rows.noOrderNote')
+            )
+          ) : (
+            <NoteText note={row.match.note} currency={row.currency} />
+          )}
+        </p>
       </td>
 
       <td className="px-2 py-2.5 align-middle">
         <BillStatusChip item={row} />
-        {row.holdReason ? (
-          <p className="mt-1.5 max-w-[220px] truncate text-xs font-medium leading-[1.2] text-text-tertiary" title={row.holdReason}>
-            {row.holdReason}
-          </p>
-        ) : null}
-        {canApprove ? (
-          <button
-            type="button"
-            onClick={onApprove}
-            disabled={approving}
-            className="mt-2 inline-flex h-[30px] items-center gap-1 rounded-sm bg-primary-700 px-2.5 text-xs font-semibold leading-[1.2] text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
-          >
-            <img src={actApproveIcon} alt="" className="size-4 shrink-0" />
-            {approving ? t('billsPage.actions.approving') : t('billsPage.actions.approve')}
-          </button>
+        {action ? (
+          <div className="mt-2">
+            <RowActionButton
+              action={action}
+              label={
+                action === 'viewHold' ? (row.holdReason ?? t('billsPage.state.onHold')) : undefined
+              }
+              to={action === 'approve' || action === 'nudge' ? undefined : to}
+              busy={busy}
+              onClick={
+                action === 'approve'
+                  ? onApprove
+                  : action === 'nudge'
+                    ? () => onUnavailable('billsPage.notice.nudgeUnavailable')
+                    : undefined
+              }
+            />
+          </div>
         ) : null}
       </td>
 
       <td className="px-2 py-2.5 align-middle">
         {row.amount !== null ? (
-          <div className="flex items-center gap-1">
-            <img src={omrRowIcon} alt="" className="h-auto w-5 shrink-0" />
-            <p className="text-base font-semibold leading-[1.2] text-text-secondary tabular-nums">
+          <div className="flex items-center gap-1 text-text-secondary">
+            <RialMark className="w-5 shrink-0" />
+            <p className="text-base font-semibold leading-[1.2] tabular-nums">
               {formatAmount(row.amount, row.currency, language)}
             </p>
           </div>
         ) : (
-          <p className="text-base font-medium text-text-muted">—</p>
+          <p className="text-base font-medium text-text-muted">{t('billsPage.rows.noAmount')}</p>
         )}
         {row.amountNote ? (
-          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-            {t(row.amountNote.key, {
-              ...row.amountNote.values,
-              amount:
-                row.amountNote.values?.amount !== undefined
-                  ? formatAmount(row.amountNote.values.amount, row.currency, language)
-                  : undefined,
-            })}
+          <p
+            className={[
+              'mt-1 text-xs font-medium leading-[1.2]',
+              // Money that is late is what a payables list exists to surface, so the note that
+              // says what is still owed carries it. The word is in the due column beside it.
+              row.overdue && row.amountNote.key === 'billsPage.rows.leftToPay'
+                ? 'text-danger-700'
+                : 'text-text-tertiary',
+            ].join(' ')}
+          >
+            <NoteText note={row.amountNote} currency={row.currency} />
           </p>
         ) : null}
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        {row.owes ? (
-          <p
-            className={[
-              'text-base font-semibold leading-[1.2] tabular-nums',
-              // Money that is late is the thing a payables list exists to surface, so the figure
-              // carries it. The word is left to the due column, which already says how late;
-              // repeating it here would put "Overdue" twice on one row. Colour is not the only
-              // carrier — the sr-only line below says it, and the due column says it in print.
-              row.overdue ? 'text-danger-700' : 'text-text-secondary',
-            ].join(' ')}
-          >
-            {formatAmount(row.outstanding, row.currency, language)}
-            {row.overdue ? <span className="sr-only"> {t('billsPage.rows.overdue')}</span> : null}
-          </p>
-        ) : (
-          <p className="text-base font-medium text-text-muted">{t('billsPage.rows.nothingOwed')}</p>
-        )}
+        <ActionMenu items={menu} label={t('billsPage.rowMenuLabel')} floating />
       </td>
     </tr>
   )
 }
 
+/** The action under the status chip: a filled Approve, or an outlined link into the bill. */
+function RowActionButton({
+  action,
+  label,
+  to,
+  busy,
+  onClick,
+}: {
+  action: BillRowAction
+  /** Overrides the action's own label: a held bill shows its reason. */
+  label?: string
+  to?: string
+  busy: boolean
+  onClick?: () => void
+}) {
+  const { t } = useTranslation()
+  const style = ACTION_STYLES[action]
+  const className = [
+    'inline-flex h-[30px] max-w-[190px] items-center gap-1 rounded-sm px-2.5 text-xs font-semibold leading-[1.2] transition-colors',
+    style.primary
+      ? 'bg-primary-700 text-white hover:bg-primary-800 disabled:opacity-60'
+      : 'border border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
+  ].join(' ')
+  const content = (
+    <>
+      {style.trailingIcon ? null : <img src={style.icon} alt="" className="size-4 shrink-0" />}
+      <span className="truncate">
+        {label ??
+          (action === 'approve' && busy ? t('billsPage.actions.approving') : t(style.labelKey))}
+      </span>
+      {style.trailingIcon ? (
+        <img src={style.icon} alt="" className="size-4 shrink-0 rtl:rotate-180" />
+      ) : null}
+    </>
+  )
+  if (to) {
+    return (
+      <Link to={to} className={className} title={label}>
+        {content}
+      </Link>
+    )
+  }
+  return (
+    <button type="button" onClick={onClick} disabled={busy} className={className}>
+      {content}
+    </button>
+  )
+}
+
 /** The design's pager: first, last, and the neighbours of the current page, with gaps elided. */
-function PageNumbers({ current, pageCount, onChange }: { current: number; pageCount: number; onChange: (page: number) => void }) {
+function PageNumbers({
+  current,
+  pageCount,
+  onChange,
+}: {
+  current: number
+  pageCount: number
+  onChange: (page: number) => void
+}) {
   const { t, i18n } = useTranslation()
   const numbers = useMemo<(number | string)[]>(() => {
     if (pageCount <= 6) return Array.from({ length: pageCount }, (_, i) => i + 1)
     const near = [current - 1, current, current + 1].filter((n) => n > 1 && n < pageCount)
-    return [1, ...(near[0] > 2 ? ['…'] : []), ...near, ...(near.at(-1)! < pageCount - 1 ? ['…'] : []), pageCount]
+    return [
+      1,
+      ...(near[0] > 2 ? ['…'] : []),
+      ...near,
+      ...(near.at(-1)! < pageCount - 1 ? ['…'] : []),
+      pageCount,
+    ]
   }, [pageCount, current])
 
   return (
@@ -850,7 +1189,10 @@ function PageNumbers({ current, pageCount, onChange }: { current: number; pageCo
       </button>
       {numbers.map((n, index) =>
         typeof n === 'string' ? (
-          <span key={`gap-${index}`} className="inline-flex size-10 items-center justify-center text-sm font-medium text-text-muted">
+          <span
+            key={`gap-${index}`}
+            className="inline-flex size-10 items-center justify-center text-sm font-medium text-text-muted"
+          >
             …
           </span>
         ) : (
@@ -861,7 +1203,9 @@ function PageNumbers({ current, pageCount, onChange }: { current: number; pageCo
             aria-current={n === current ? 'page' : undefined}
             className={[
               'inline-flex size-10 items-center justify-center rounded-xl text-center transition-colors',
-              n === current ? 'bg-primary-25 text-base font-extrabold text-primary-700' : 'text-sm font-medium text-text-muted hover:bg-neutral-25',
+              n === current
+                ? 'bg-primary-25 text-base font-extrabold text-primary-700'
+                : 'text-sm font-medium text-text-muted hover:bg-neutral-25',
             ].join(' ')}
           >
             {formatCount(n, i18n.language)}

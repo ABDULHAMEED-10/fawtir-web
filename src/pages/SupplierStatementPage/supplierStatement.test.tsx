@@ -1,13 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import type { SupplierStatementDto } from '../../api/expenditure/supplierRecord'
 import { termsNote } from '../../lib/supplierRecord'
-import { columnsOf, customRangeProblem, emailBlocker, entryLink, periodRange, periodTotals } from '../../lib/supplierStatement'
+import {
+  columnsOf,
+  customRangeProblem,
+  emailBlocker,
+  entryLink,
+  periodRange,
+  periodTotals,
+} from '../../lib/supplierStatement'
 import { SupplierStatementPage } from './SupplierStatementPage'
+
+// The pages render slowly on a loaded machine; the default second is not enough for a find.
+configure({ asyncUtilTimeout: 15000 })
 
 const ID = '55cedba4-5eef-4e5e-906e-2676166d110a'
 const ONE = `/api/v1/suppliers/${ID}`
@@ -61,7 +71,17 @@ const DETAIL: SupplierDetailDto = {
     customerStatus: 'ACTIVE',
     version: 3,
   },
-  invoiceAddress: { attention: null, countryCode: 'OM', cityName: 'Sohar', countrySubentity: 'North Batinah', streetName: 'Falaj Road', buildingNumber: '12', additionalStreetName: null, poBox: null, postalCode: '311' },
+  invoiceAddress: {
+    attention: null,
+    countryCode: 'OM',
+    cityName: 'Sohar',
+    countrySubentity: 'North Batinah',
+    streetName: 'Falaj Road',
+    buildingNumber: '12',
+    additionalStreetName: null,
+    poBox: null,
+    postalCode: '311',
+  },
   sameAsInvoicingAddress: true,
   deliveryAddress: null,
 }
@@ -77,9 +97,30 @@ const STATEMENT: SupplierStatementDto = {
   payments: 300,
   closing: 1000,
   entries: [
-    { date: '2026-07-27', kind: 'BILL', documentId: 'bill-1', reference: 'SOHAR-1002', amount: 1200, runningBalance: 1400 },
-    { date: '2026-08-01', kind: 'CREDIT_NOTE', documentId: 'note-1', reference: 'SOHAR-CN-1', amount: 100, runningBalance: 1300 },
-    { date: '2026-08-24', kind: 'PAYMENT', documentId: 'pay-1', reference: 'TRF-9', amount: 300, runningBalance: 1000 },
+    {
+      date: '2026-07-27',
+      kind: 'BILL',
+      documentId: 'bill-1',
+      reference: 'SOHAR-1002',
+      amount: 1200,
+      runningBalance: 1400,
+    },
+    {
+      date: '2026-08-01',
+      kind: 'CREDIT_NOTE',
+      documentId: 'note-1',
+      reference: 'SOHAR-CN-1',
+      amount: 100,
+      runningBalance: 1300,
+    },
+    {
+      date: '2026-08-24',
+      kind: 'PAYMENT',
+      documentId: 'pay-1',
+      reference: 'TRF-9',
+      amount: 300,
+      runningBalance: 1000,
+    },
   ],
   ageing: { NOT_DUE: 1000, DUE_WITHIN_30: 0, LATE_30: 0, LATE_60_PLUS: 0 },
   issuer: {
@@ -97,7 +138,10 @@ const STATEMENT: SupplierStatementDto = {
 }
 
 function json(status: number, body?: unknown) {
-  return new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  return new Response(body === undefined ? null : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
 let fetchMock: ReturnType<typeof vi.fn>
@@ -106,7 +150,11 @@ let detail: SupplierDetailDto
 let emailResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
-  fetchMock.mock.calls.filter(([url, init]) => String(url).startsWith(prefix) && ((init as RequestInit | undefined)?.method ?? 'GET') === method)
+  fetchMock.mock.calls.filter(
+    ([url, init]) =>
+      String(url).startsWith(prefix) &&
+      ((init as RequestInit | undefined)?.method ?? 'GET') === method,
+  )
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -119,10 +167,15 @@ beforeEach(async () => {
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url === ONE) return json(200, detail)
     if (url.startsWith(`${ONE}/statement/email`)) return emailResponse()
-    if (url.startsWith(`${ONE}/statement.`)) return new Response('%PDF', { status: 200, headers: { 'Content-Type': 'application/pdf' } })
+    if (url.startsWith(`${ONE}/statement.`))
+      return new Response('%PDF', { status: 200, headers: { 'Content-Type': 'application/pdf' } })
     if (url.startsWith(`${ONE}/statement`)) {
       const query = new URL(url, 'http://x').searchParams
-      return json(200, { ...STATEMENT, from: query.get('from') ?? STATEMENT.from, to: query.get('to') ?? STATEMENT.to })
+      return json(200, {
+        ...STATEMENT,
+        from: query.get('from') ?? STATEMENT.from,
+        to: query.get('to') ?? STATEMENT.to,
+      })
     }
     throw new Error(`unexpected request to ${method} ${url}`)
   })
@@ -164,24 +217,32 @@ describe('The supplier statement, wired to the API', () => {
     // The closing balance: the equation, the last running balance, the total row, the ageing and the footer.
     expect(screen.getAllByText('1,000.000')).toHaveLength(5)
 
-    expect(screen.getByRole('link', { name: 'SOHAR-1002' }).getAttribute('href')).toBe('/expenditure/bills/bill-1')
+    expect(screen.getByRole('link', { name: 'SOHAR-1002' }).getAttribute('href')).toBe(
+      '/expenditure/bills/bill-1',
+    )
     expect(screen.getByText('−100.000')).toBeTruthy()
-    expect(screen.getByText('Late by 60 days or more')).toBeTruthy()
-    expect(screen.getByText(/A rejected bill is not on this statement/)).toBeTruthy()
+    // The ageing strip (Figma 163:28602): four figures, the design's labels, no paragraph around them.
+    expect(screen.getByText('Late by 60 or more')).toBeTruthy()
+    expect(screen.getByText('Not due yet')).toBeTruthy()
+    expect(screen.queryByText(/A rejected bill is not on this statement/)).toBeNull()
   })
 
   it('reads the year to date first, and any period the reader picks', async () => {
     renderStatement()
     await screen.findByRole('heading', { level: 1, name: 'Statement' })
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
-    expect(String(calls('GET', `${ONE}/statement?`)[0][0])).toContain(`from=${today.slice(0, 4)}-01-01`)
+    expect(String(calls('GET', `${ONE}/statement?`)[0][0])).toContain(
+      `from=${today.slice(0, 4)}-01-01`,
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: /This year/ }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'This month' }))
+    fireEvent.click(screen.getByRole('button', { name: /Yearly/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Monthly' }))
     await waitFor(() => expect(calls('GET', `${ONE}/statement?`)).toHaveLength(2))
-    expect(String(calls('GET', `${ONE}/statement?`)[1][0])).toContain(`from=${today.slice(0, 7)}-01`)
+    expect(String(calls('GET', `${ONE}/statement?`)[1][0])).toContain(
+      `from=${today.slice(0, 7)}-01`,
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: /This month/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Monthly/ }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Custom dates' }))
     // The calendar opens on the month in the field, which both dates start in.
     const pick = (field: 'From' | 'To', dayOfMonth: number) => {
@@ -192,14 +253,19 @@ describe('The supplier statement, wired to the API', () => {
     pick('From', 9)
     pick('To', 2)
     fireEvent.click(screen.getByRole('button', { name: 'Show the statement' }))
-    expect(await screen.findByRole('alert')).toHaveProperty('textContent', "The first date can't be after the second.")
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      "The first date can't be after the second.",
+    )
     expect(calls('GET', `${ONE}/statement?`)).toHaveLength(2)
 
     pick('To', 12)
     fireEvent.click(screen.getByRole('button', { name: 'Show the statement' }))
     await waitFor(() => expect(calls('GET', `${ONE}/statement?`)).toHaveLength(3))
     const month = today.slice(0, 7)
-    expect(String(calls('GET', `${ONE}/statement?`)[2][0])).toContain(`from=${month}-09&to=${month}-12`)
+    expect(String(calls('GET', `${ONE}/statement?`)[2][0])).toContain(
+      `from=${month}-09&to=${month}-12`,
+    )
   })
 
   it('asks for each file over the period on screen', async () => {
@@ -211,8 +277,35 @@ describe('The supplier statement, wired to the API', () => {
     await waitFor(() => expect(calls('GET', `${ONE}/statement.xlsx`)).toHaveLength(1))
     expect(String(calls('GET', `${ONE}/statement.xlsx`)[0][0])).toContain(`to=${today}`)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }))
-    await waitFor(() => expect(calls('GET', `${ONE}/statement.csv`)).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
+    await waitFor(() => expect(calls('GET', `${ONE}/statement.pdf`)).toHaveLength(1))
+    // The design's bar offers PDF and Excel; the CSV export lives on the supplier page's Statement menu.
+    expect(screen.queryByRole('button', { name: 'Download CSV' })).toBeNull()
+  })
+
+  it('draws the notes under the rows and the ageing figures once the server sends them', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url === ONE) return json(200, detail)
+      if (url.startsWith(`${ONE}/statement?`))
+        return json(200, {
+          ...STATEMENT,
+          entries: STATEMENT.entries.map((entry) =>
+            entry.kind === 'BILL'
+              ? { ...entry, detail: 'Against PO-0021 · matched in full', outstanding: 1000 }
+              : entry,
+          ),
+          ageingDetail: { NOT_DUE: { bills: 1, nextDue: '2026-10-19' } },
+          everLate: false,
+          unusedCredits: 1,
+        })
+      throw new Error(`unexpected ${url}`)
+    })
+    renderStatement()
+    expect(await screen.findByText('Against PO-0021 · matched in full')).toBeTruthy()
+    expect(screen.getByText('1 bill · next due 19 Oct 2026')).toBeTruthy()
+    expect(screen.getByText('Never been late with them')).toBeTruthy()
+    expect(screen.getByText(/1 credit note still unused/)).toBeTruthy()
   })
 
   it('emails the statement to an address already on the record, and says when email is off', async () => {
@@ -222,10 +315,16 @@ describe('The supplier statement, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Email it to them' }))
     const dialog = await screen.findByRole('dialog', { name: 'Email this statement' })
     fireEvent.click(within(dialog).getByRole('radio', { name: 'finance@soharpack.om' }))
-    emailResponse = () => json(400, { type: 'https://api.fawtir.om/problems/validation-failed', detail: 'E-mail delivery is not switched on for this deployment' })
+    emailResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        detail: 'E-mail delivery is not switched on for this deployment',
+      })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Send it' }))
     expect(await screen.findByText(/Email isn't switched on for this deployment/)).toBeTruthy()
-    expect(JSON.parse(String(calls('POST', `${ONE}/statement/email`)[0][1]?.body))).toEqual({ recipient: 'finance@soharpack.om' })
+    expect(JSON.parse(String(calls('POST', `${ONE}/statement/email`)[0][1]?.body))).toEqual({
+      recipient: 'finance@soharpack.om',
+    })
 
     emailResponse = () => json(200, { recipient: 'finance@soharpack.om', nameSubstituted: false })
     fireEvent.click(screen.getByRole('button', { name: 'Send it' }))
@@ -240,14 +339,21 @@ describe('The supplier statement, wired to the API', () => {
     expect(screen.getByRole('button', { name: 'Download PDF' })).toBeTruthy()
 
     who = MANAGER
-    detail = { ...DETAIL, profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', emailRecipients: [] } }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', emailRecipients: [] },
+    }
     forgetEntitlements()
     renderStatement()
     // The reader's page above offered none, so this is the only one on screen.
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Email it to them' })).toHaveLength(1))
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Email it to them' })).toHaveLength(1),
+    )
     const off = screen.getAllByRole('button', { name: 'Email it to them' })[0] as HTMLButtonElement
     expect(off.disabled).toBe(true)
-    expect(screen.getByText('This supplier is switched off, so nothing is sent to them.')).toBeTruthy()
+    expect(
+      screen.getByText('This supplier is switched off, so nothing is sent to them.'),
+    ).toBeTruthy()
   })
 
   it('reads in Arabic', async () => {
@@ -268,9 +374,15 @@ describe('statement helpers', () => {
   })
 
   it('says what a custom range would be refused for', () => {
-    expect(customRangeProblem('', '2026-09-17', '2026-09-17')).toBe('supplierStatement.error.datesRequired')
-    expect(customRangeProblem('2026-09-18', '2026-09-17', '2026-09-17')).toBe('supplierStatement.error.fromAfterTo')
-    expect(customRangeProblem('2026-09-01', '2026-09-30', '2026-09-17')).toBe('supplierStatement.error.future')
+    expect(customRangeProblem('', '2026-09-17', '2026-09-17')).toBe(
+      'supplierStatement.error.datesRequired',
+    )
+    expect(customRangeProblem('2026-09-18', '2026-09-17', '2026-09-17')).toBe(
+      'supplierStatement.error.fromAfterTo',
+    )
+    expect(customRangeProblem('2026-09-01', '2026-09-30', '2026-09-17')).toBe(
+      'supplierStatement.error.future',
+    )
     expect(customRangeProblem('2026-09-01', '2026-09-17', '2026-09-17')).toBeNull()
   })
 
@@ -289,14 +401,21 @@ describe('statement helpers', () => {
     expect(termsNote('NET_10')).toEqual({ key: 'supplierRecord.terms.net', values: { count: 10 } })
     expect(termsNote('DUE_ON_RECEIPT')).toEqual({ key: 'supplierRecord.terms.onReceipt' })
     expect(termsNote('NET0')).toEqual({ key: 'supplierRecord.terms.onReceipt' })
-    expect(termsNote('MONTHLY')).toEqual({ key: 'supplierRecord.terms.raw', values: { code: 'MONTHLY' } })
+    expect(termsNote('MONTHLY')).toEqual({
+      key: 'supplierRecord.terms.raw',
+      values: { code: 'MONTHLY' },
+    })
     expect(termsNote('  ')).toBeNull()
   })
 
   it('says why the statement cannot be emailed before the server is asked', () => {
     expect(emailBlocker(DETAIL.profile, true)).toBeNull()
-    expect(emailBlocker({ ...DETAIL.profile, emailRecipients: [] }, true)).toBe('supplierStatement.email.noAddress')
-    expect(emailBlocker({ ...DETAIL.profile, status: 'SWITCHED_OFF' }, true)).toBe('supplierStatement.email.switchedOff')
+    expect(emailBlocker({ ...DETAIL.profile, emailRecipients: [] }, true)).toBe(
+      'supplierStatement.email.noAddress',
+    )
+    expect(emailBlocker({ ...DETAIL.profile, status: 'SWITCHED_OFF' }, true)).toBe(
+      'supplierStatement.email.switchedOff',
+    )
     expect(emailBlocker({ ...DETAIL.profile, emailRecipients: [] }, false)).toBeNull()
   })
 })

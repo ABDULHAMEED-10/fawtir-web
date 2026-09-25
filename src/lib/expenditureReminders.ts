@@ -1,270 +1,225 @@
+import type {
+  ReminderDeliveryDto,
+  ReminderPreviewDto,
+  ReminderRuleDto,
+  ReminderRuleTypeDto,
+} from '../api/expenditure/billReminders'
+
 /**
- * Reminders about money going out — Expenditure › Reminders (Figma 86:13150).
+ * The Reminders frame's catalogue (Figma 163:21448) over the API's rule types (E-14).
  *
- * These never reach a supplier. They are the nudges Fawtir sends *your* team: pay this before
- * it is late, this approval has not moved, this discount is about to lapse. Chasing a customer
- * for money they owe you is the Income-side screen.
- *
- * The right-hand "What today would send" panel is not a static illustration — it is derived
- * from the rules below, so switching a rule off or changing a timing chip changes what the
- * morning email would contain.
+ * The frame draws each rule as a row of timing chips and a picker for who is told; the API keeps
+ * an offsets ladder, a repeat on the late rule, an escalation on the stale-approval rule and a
+ * recipient set. Each chip here is one offset; a saved offset the frame does not draw becomes an
+ * extra chip so nothing on file is hidden or lost on save.
  */
 
-/** Who a rule tells. Real people, or a role resolved per document. */
-export type Recipient = {
-  id: string
-  name: string
-  /** Roles ("Whoever scanned it") have no avatar and read as a placeholder. */
-  role?: boolean
-}
+export type RuleOption = { offset: number; labelKey: string }
 
-export const PEOPLE: Recipient[] = [
-  { id: 'yusuf', name: 'Yusuf' },
-  { id: 'hafidh', name: 'Hafidh' },
-  { id: 'aisha', name: 'Aisha' },
-]
-
-export const ROLES: Recipient[] = [
-  { id: 'scanner', name: 'Whoever scanned it', role: true },
-  { id: 'namedOnEach', name: 'The person named on each', role: true },
-]
-
-/** One timing choice inside a rule, e.g. "7 days before". */
-export type RuleOption = {
-  id: string
-  labelKey: string
-  /** Days before (positive) or after (negative) the event this fires. */
-  offset: number
-}
-
-export type RuleId =
-  | 'beforeDue'
-  | 'whenLate'
-  | 'discountExpiry'
-  | 'approvalStuck'
-  | 'mismatch'
-  | 'scannedReceipt'
-  | 'recurringMissing'
-
-export type Rule = {
-  id: RuleId
+export type RuleSpec = {
+  type: ReminderRuleTypeDto
   section: 1 | 2
   icon: 'clock' | 'alert' | 'discount' | 'approval' | 'eye' | 'camera' | 'calendar'
   /** Tint behind the rule's icon. */
   tone: 'blue' | 'red' | 'green' | 'grey' | 'sand'
-  titleKey: string
-  noteKey: string
-  /** The word before the chips — "Remind", "Chase", "Warn". */
+  /** The word before the chips: "Remind", "Chase", "Warn". */
   leadKey: string
   options: RuleOption[]
   /** More than one timing can be on at once (7 days *and* 2 days before). */
   multi: boolean
-  defaultOptions: string[]
-  /**
-   * A second chip group, for the rules that escalate: nudge one person, then another.
-   * The lead reads between the two groups.
-   */
-  second?: { leadKey: string; options: RuleOption[]; defaultOption: string }
-  /** Recipients the rule starts with. */
-  defaultRecipients: string[]
-  /** Rules that resolve their recipient per document offer roles instead of people. */
-  roleOnly?: boolean
-  /** "Set per bill on Recurring bills" — the timing lives on each bill, not here. */
+  /** LATE only: the "then every N days" chip, which is `repeatEveryDays`. */
+  repeat?: { days: number; labelKey: string }
+  /** APPROVAL_STALE only: the second chip group, which is `escalationOffsets`. */
+  escalation?: { leadKey: string; options: RuleOption[] }
+  /** Who is told: named people, or whoever the document itself points at. */
+  recipients: 'people' | 'derived'
+  derivedKey?: string
+  /** "Set per bill on Recurring bills": the timing lives on each bill, not here. */
   linkTo?: { labelKey: string; to: string }
-  defaultOn: boolean
 }
 
-const DAY_OPTIONS = (ids: [string, string, string], offsets: [number, number, number]) =>
-  ids.map((id, index) => ({
-    id,
-    labelKey: `expenditureReminders.options.${id}`,
-    offset: offsets[index],
+const days = (offsets: number[], keys: string[]): RuleOption[] =>
+  offsets.map((offset, index) => ({
+    offset,
+    labelKey: `expenditureReminders.options.${keys[index]}`,
   }))
 
-export const RULES: Rule[] = [
+export const RULE_SPECS: RuleSpec[] = [
   {
-    id: 'beforeDue',
+    type: 'BEFORE_DUE',
     section: 1,
     icon: 'clock',
     tone: 'blue',
-    titleKey: 'expenditureReminders.rules.beforeDue.title',
-    noteKey: 'expenditureReminders.rules.beforeDue.note',
     leadKey: 'expenditureReminders.leads.remind',
-    options: DAY_OPTIONS(['sevenBefore', 'twoBefore', 'onTheDay'], [7, 2, 0]),
+    options: days([7, 2, 0], ['sevenBefore', 'twoBefore', 'onTheDay']),
     multi: true,
-    defaultOptions: ['sevenBefore', 'twoBefore'],
-    defaultRecipients: ['yusuf'],
-    defaultOn: true,
+    recipients: 'people',
   },
   {
-    id: 'whenLate',
+    type: 'LATE',
     section: 1,
     icon: 'alert',
     tone: 'red',
-    titleKey: 'expenditureReminders.rules.whenLate.title',
-    noteKey: 'expenditureReminders.rules.whenLate.note',
     leadKey: 'expenditureReminders.leads.chase',
-    options: [
-      { id: 'dayAfter', labelKey: 'expenditureReminders.options.dayAfter', offset: -1 },
-      { id: 'everyThree', labelKey: 'expenditureReminders.options.everyThree', offset: -3 },
-    ],
+    options: days([1], ['dayAfter']),
     multi: true,
-    defaultOptions: ['dayAfter', 'everyThree'],
-    defaultRecipients: ['yusuf', 'hafidh'],
-    defaultOn: true,
+    repeat: { days: 3, labelKey: 'expenditureReminders.options.everyThree' },
+    recipients: 'people',
   },
   {
-    id: 'discountExpiry',
+    type: 'DISCOUNT_EXPIRY',
     section: 1,
     icon: 'discount',
     tone: 'green',
-    titleKey: 'expenditureReminders.rules.discountExpiry.title',
-    noteKey: 'expenditureReminders.rules.discountExpiry.note',
     leadKey: 'expenditureReminders.leads.warn',
-    options: [
-      {
-        id: 'threeBeforeExpiry',
-        labelKey: 'expenditureReminders.options.threeBeforeExpiry',
-        offset: 3,
-      },
-    ],
+    options: days([3], ['threeBeforeExpiry']),
     multi: false,
-    defaultOptions: ['threeBeforeExpiry'],
-    defaultRecipients: ['hafidh'],
-    defaultOn: true,
+    recipients: 'people',
   },
   {
-    id: 'approvalStuck',
+    type: 'APPROVAL_STALE',
     section: 2,
     icon: 'approval',
     tone: 'blue',
-    titleKey: 'expenditureReminders.rules.approvalStuck.title',
-    noteKey: 'expenditureReminders.rules.approvalStuck.note',
     leadKey: 'expenditureReminders.leads.nudgeApprover',
-    options: [
-      { id: 'twoDays', labelKey: 'expenditureReminders.options.twoDays', offset: 2 },
-      { id: 'threeDays', labelKey: 'expenditureReminders.options.threeDays', offset: 3 },
-    ],
+    options: days([1, 2, 3], ['oneDay', 'twoDays', 'threeDays']),
     multi: false,
-    defaultOptions: ['twoDays'],
-    second: {
+    escalation: {
       leadKey: 'expenditureReminders.leads.thenOwner',
-      options: [
-        { id: 'fiveDays', labelKey: 'expenditureReminders.options.fiveDays', offset: 5 },
-        { id: 'sevenDays', labelKey: 'expenditureReminders.options.sevenDays', offset: 7 },
-      ],
-      defaultOption: 'fiveDays',
+      options: days([5, 7], ['fiveDays', 'sevenDays']),
     },
-    defaultRecipients: ['hafidh'],
-    defaultOn: true,
+    recipients: 'derived',
+    derivedKey: 'expenditureReminders.derived.APPROVAL_STALE',
   },
   {
-    id: 'mismatch',
+    type: 'MISMATCH_STALE',
     section: 2,
     icon: 'eye',
     tone: 'grey',
-    titleKey: 'expenditureReminders.rules.mismatch.title',
-    noteKey: 'expenditureReminders.rules.mismatch.note',
     leadKey: 'expenditureReminders.leads.remindAfter',
-    options: DAY_OPTIONS(['oneDay', 'threeDays', 'aWeek'], [1, 3, 7]),
+    options: days([1, 3, 7], ['oneDay', 'threeDays', 'aWeek']),
     multi: false,
-    defaultOptions: ['threeDays'],
-    defaultRecipients: ['yusuf'],
-    defaultOn: true,
+    recipients: 'people',
   },
   {
-    id: 'scannedReceipt',
+    type: 'SCAN_UNCONFIRMED',
     section: 2,
     icon: 'camera',
     tone: 'grey',
-    titleKey: 'expenditureReminders.rules.scannedReceipt.title',
-    noteKey: 'expenditureReminders.rules.scannedReceipt.note',
     leadKey: 'expenditureReminders.leads.remindAfter',
-    options: [
-      { id: 'twoDays', labelKey: 'expenditureReminders.options.twoDays', offset: 2 },
-      { id: 'aWeek', labelKey: 'expenditureReminders.options.aWeek', offset: 7 },
-    ],
+    options: days([2, 7], ['twoDays', 'aWeek']),
     multi: false,
-    defaultOptions: ['twoDays'],
-    defaultRecipients: ['scanner'],
-    roleOnly: true,
-    defaultOn: true,
+    recipients: 'derived',
+    derivedKey: 'expenditureReminders.derived.SCAN_UNCONFIRMED',
   },
   {
-    id: 'recurringMissing',
+    // Never a rule: it is set on each recurring bill and the server refuses a row for it.
+    type: 'RECURRING_LATE',
     section: 2,
     icon: 'calendar',
     tone: 'sand',
-    titleKey: 'expenditureReminders.rules.recurringMissing.title',
-    noteKey: 'expenditureReminders.rules.recurringMissing.note',
     leadKey: 'expenditureReminders.leads.setPerBill',
     options: [],
     multi: false,
-    defaultOptions: [],
+    recipients: 'derived',
+    derivedKey: 'expenditureReminders.derived.RECURRING_LATE',
     linkTo: {
       labelKey: 'expenditureReminders.options.recurringBills',
       to: '/expenditure/recurring-bills',
     },
-    defaultRecipients: ['namedOnEach'],
-    roleOnly: true,
-    defaultOn: true,
   },
 ]
 
-/* ------------------------------------------------------- what today would send */
+export const RULES_IN_SECTION = (section: 1 | 2) =>
+  RULE_SPECS.filter((spec) => spec.section === section)
 
-/**
- * The things sitting in the ledger this morning that a rule could fire on.
- *
- * `days` is how far the event is — days until due for `beforeDue`, days overdue for `whenLate`,
- * days waiting for `approvalStuck`. A candidate appears in the panel only when its rule is on
- * and one of the rule's chosen timings actually matches, which is what makes the panel move
- * when a chip is clicked.
- */
-export type Candidate = {
-  id: string
-  rule: RuleId
-  titleKey: string
-  amountKey: string
-  days: number
+/** The frame's chips, plus one for any saved offset the frame does not draw. */
+export function chipOptions(options: RuleOption[], offsets: number[]): RuleOption[] {
+  const extra = offsets
+    .filter((offset) => !options.some((option) => option.offset === offset))
+    .sort((a, b) => a - b)
+  return [
+    ...options,
+    ...extra.map((offset) => ({ offset, labelKey: 'expenditureReminders.options.nDays' })),
+  ]
 }
 
-export const CANDIDATES: Candidate[] = [
+/** A single-choice rule swaps its offset; a multi-choice one toggles it and keeps the ladder's order. */
+export function toggleOffset(offsets: number[], offset: number, multi: boolean): number[] {
+  if (!multi) return offsets.length === 1 && offsets[0] === offset ? [] : [offset]
+  return offsets.includes(offset)
+    ? offsets.filter((value) => value !== offset)
+    : [...offsets, offset]
+}
+
+/** The rules the footer counts as on: every enabled rule, and the recurring one, which is always set per bill. */
+export function rulesOn(rules: ReminderRuleDto[]): number {
+  return rules.filter((rule) => rule.enabled).length + 1
+}
+
+export type PreviewLine = {
+  id: string
+  ruleType: ReminderRuleTypeDto
+  headline: string
+  amount: number | null
+  currency: string | null
+  recipients: string[]
+}
+
+/** The preview is grouped per person; the frame lists each thing once, naming everyone it goes to. */
+export function flattenPreview(preview: ReminderPreviewDto): PreviewLine[] {
+  const lines = new Map<string, PreviewLine>()
+  for (const group of preview.groups) {
+    const who = group.displayName ?? group.recipientUserId
+    for (const item of group.items) {
+      const id = `${item.ruleType}:${item.subjectId}:${item.daysFromDue}`
+      const line = lines.get(id) ?? {
+        id,
+        ruleType: item.ruleType,
+        headline: item.headline,
+        amount: item.amount,
+        currency: item.currency,
+        recipients: [],
+      }
+      if (!line.recipients.includes(who)) line.recipients.push(who)
+      lines.set(id, line)
+    }
+  }
+  return [...lines.values()]
+}
+
+export function audienceOf(preview: ReminderPreviewDto): string[] {
+  return preview.groups.map((group) => group.displayName ?? group.recipientUserId)
+}
+
+/** "Yusuf", "Yusuf and Hafidh", "Yusuf, Hafidh and Aisha". */
+export function joinNames(names: string[], and: string): string {
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} ${and} ${names[names.length - 1]}`
+}
+
+export const DELIVERIES: {
+  value: ReminderDeliveryDto
+  icon: 'bell' | 'mail' | 'mobile'
+  titleKey: string
+  noteKey: string
+}[] = [
   {
-    id: 'alNoor',
-    rule: 'whenLate',
-    titleKey: 'expenditureReminders.preview.alNoor',
-    amountKey: 'expenditureReminders.preview.alNoorAmount',
-    days: 9,
+    value: 'IN_APP',
+    icon: 'bell',
+    titleKey: 'expenditureReminders.channels.inFawtir',
+    noteKey: 'expenditureReminders.channels.inFawtirNote',
   },
   {
-    /**
-     * Figma prints "due in 4 days" against a rule set to 7 and 2 days before, so as drawn this
-     * line could never fire. Seven puts it on the earlier of the two chosen timings.
-     */
-    id: 'sohar',
-    rule: 'beforeDue',
-    titleKey: 'expenditureReminders.preview.sohar',
-    amountKey: 'expenditureReminders.preview.soharAmount',
-    days: 7,
+    value: 'DAILY_DIGEST',
+    icon: 'mail',
+    titleKey: 'expenditureReminders.channels.daily',
+    noteKey: 'expenditureReminders.channels.dailyNote',
   },
   {
-    id: 'discount',
-    rule: 'discountExpiry',
-    titleKey: 'expenditureReminders.preview.discount',
-    amountKey: 'expenditureReminders.preview.discountAmount',
-    days: 3,
-  },
-  {
-    id: 'approvals',
-    rule: 'approvalStuck',
-    titleKey: 'expenditureReminders.preview.approvals',
-    amountKey: 'expenditureReminders.preview.approvalsAmount',
-    days: 6,
+    value: 'IMMEDIATE_EMAIL',
+    icon: 'mobile',
+    titleKey: 'expenditureReminders.channels.each',
+    noteKey: 'expenditureReminders.channels.eachNote',
   },
 ]
-
-/** How the team hears about all this. */
-export type EmailMode = 'daily' | 'each' | 'off'
-
-export const DIGEST_TIME = '08:00'

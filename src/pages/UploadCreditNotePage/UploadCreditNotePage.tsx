@@ -1,24 +1,22 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { BillFilePicker, BillIntakeForm } from '../../components/bills'
+import { BillFilePicker } from '../../components/bills'
 import { PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
+import { NoteBreadcrumb } from '../../components/debit/NoteParts'
+import { SupplierNoteIntake } from '../../components/debit/SupplierNoteIntake'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import { BILL_FILE_TYPES } from '../../lib/billIntake'
 import { can, useSession } from '../../lib/session/session'
-import chevronIcon from '../../assets/invoices/chevron.svg'
 
 /**
- * Expenditure › Credit notes › Upload (E-15).
+ * Expenditure > Credit notes > Upload (E-15), on its frame (Figma 163:19080).
  *
- * The same intake a bill goes through, confirmed as a **381** instead of a 380. One endpoint takes
- * all three document types and the fields are identical — a supplier, a number, a date, lines and
- * a total — so this is the bill upload with the type stated and the destination changed. Reusing
- * it is not a shortcut: a second form would be a second place for the supplier match, the
- * duplicate check and the line arithmetic to drift.
- *
- * Nothing is read out of a PDF or a photo; only a Peppol/UBL XML file fills fields in.
+ * The same intake a bill goes through, confirmed as a **381** instead of a 380, drawn as the
+ * frame draws it: the file beside the note, which bill it corrects and what that changes, the
+ * lines, how to use the credit, and its effect on the VAT return. The first step, choosing the
+ * file, is the picker every intake starts from; the frame shows the screen after it.
  */
 export function UploadCreditNotePage() {
   return (
@@ -36,22 +34,17 @@ function UploadCreditNote() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          to="/expenditure/credit-notes"
-          className="text-2xl font-medium leading-[1.2] text-primary-700 hover:text-primary-800"
-        >
-          {t('supplierCreditNotes.title')}
-        </Link>
-        <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-        <span className="text-2xl font-medium leading-[1.2] text-text-primary">
-          {t('supplierCreditNotes.upload.breadcrumb')}
-        </span>
-      </div>
+      <NoteBreadcrumb
+        to="/expenditure/credit-notes"
+        parent={t('supplierCreditNotes.title')}
+        current={t('supplierCreditNotes.upload.breadcrumb')}
+      />
 
-      <div>
+      <div className="-mt-2">
         <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-          {t('supplierCreditNotes.upload.breadcrumb')}
+          {uploaded
+            ? t('supplierCreditNotes.upload.title')
+            : t('supplierCreditNotes.upload.breadcrumb')}
         </h1>
         <p className="mt-1 text-base font-medium leading-[1.3] text-text-quaternary">
           {t('supplierCreditNotes.upload.subtitle')}
@@ -69,12 +62,13 @@ function UploadCreditNote() {
           onUploaded={([first]) => setUploaded(first)}
         />
       ) : (
-        <BillIntakeForm
+        <SupplierNoteIntake
+          kind="credit"
           intake={uploaded.intake}
           file={uploaded.file}
-          documentTypeCode="381"
           cancelTo="/expenditure/credit-notes"
-          // The confirmed row is a credit note, so it is opened on the credit-note detail rather
+          onReplace={() => setUploaded(null)}
+          // The confirmed row is a credit note, so it opens on the credit-note detail rather
           // than the bill detail: the same id, but the screen that knows it reduces what is owed.
           onSaved={(note) => navigate(`/expenditure/credit-notes/${note.id}`)}
         />

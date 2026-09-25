@@ -863,7 +863,7 @@
   },
   "payment": {
     "title": "أكمل اشتراكك",
-    "description": "خطوة أخيرة. اختر طريقة الدفع — يفعّل فريق فوتر حسابك فور تأكيد الدفع.",
+    "description": "خطوة أخيرة. اختر طريقة الدفع، يفعّل فريق فوتر حسابك فور تأكيد الدفع.",
     "card": {
       "title": "بطاقة",
       "subtitle": "خصم أو ائتمان",
@@ -888,7 +888,7 @@
       "bank": "البنك",
       "reference": "المرجع",
       "yourInvoice": "رقم فاتورتك",
-      "note": "نرسل لك الفاتورة بهذه البيانات عبر البريد. يفعّل فريق فوتر حسابك بعد تأكيد التحويل — عادةً خلال يوم عمل."
+      "note": "نرسل لك الفاتورة بهذه البيانات عبر البريد. يفعّل فريق فوتر حسابك بعد تأكيد التحويل، عادةً خلال يوم عمل."
     },
     "summary": {
       "title": "ملخص الطلب",
@@ -903,7 +903,7 @@
       "totalDue": "المستحق اليوم",
       "renewPrefix": "يتجدد في {{date}} بمبلغ {{amount}}. سنذكّرك قبلها. ",
       "cancelAnytime": "ألغِ في أي وقت",
-      "renewSuffix": " — يستمر الوصول حتى نهاية الفترة.",
+      "renewSuffix": "يستمر الوصول حتى نهاية الفترة.",
       "addonLine": "الاستخراج التلقائي من ERP ({{cycle}})"
     },
     "payCta": "ادفع {{amount}} وفعّل",
@@ -937,7 +937,7 @@
       "yourEmail": "بريدك"
     },
     "cash": {
-      "note": "ادفع في مكتب فوتر بمسقط أو لدى مندوب فوتر. تحصل على إيصال، ويفعّل فريق فوتر حسابك فور تسجيله — عادةً في اليوم نفسه."
+      "note": "ادفع في مكتب فوتر بمسقط أو لدى مندوب فوتر. تحصل على إيصال، ويفعّل فريق فوتر حسابك فور تسجيله، عادةً في اليوم نفسه."
     },
     "sendLinkCta": "أرسل لي رابط الدفع",
     "cashCta": "سأدفع نقدًا",
@@ -1582,7 +1582,7 @@
   "suppliersPage": {
     "title": "الموردون",
     "subtitle": "كل من يفوتر عليك. شروطهم وبياناتهم البنكية وحالتهم على Peppol تحدد كيف تصل الفواتير وكيف تُسدَّد.",
-    "importFromExcel": "استيراد من ملف",
+    "importFromExcel": "استيراد من Excel",
     "newSupplier": "مورد جديد",
     "searchPlaceholder": "ابحث هنا...",
     "filters": "عوامل التصفية",
@@ -1605,7 +1605,7 @@
       "owe": "المستحق عليك لهم",
       "oweNote": "عبر {{count}} فاتورة مفتوحة",
       "needsFix": "سجلات تحتاج إلى تصحيح",
-      "needsFixNote": "{{bank}} دون بيانات بنكية · {{vat}} دون رقم ضريبي · {{account}} بيانات بنكية تحتاج إلى تأكيد"
+      "needsFixNote": "{{bank}} دون بيانات بنكية · {{vat}} دون رقم ضريبي · {{account}} تغيّر حسابه"
     },
     "tabs": {
       "all": "الكل",
@@ -1671,7 +1671,13 @@
       "noVatNumber": "لا رقم ضريبي",
       "notOnPeppol": "ليسوا على Peppol",
       "switchedOff": "موقوف",
-      "bankChangedUnconfirmed": "بيانات بنكية تحتاج إلى تأكيد"
+      "bankChangedUnconfirmed": "بيانات بنكية تحتاج إلى تأكيد",
+      "bankChangedAgo_zero": "تغيّر البنك اليوم",
+      "bankChangedAgo_one": "تغيّر البنك قبل يوم",
+      "bankChangedAgo_two": "تغيّر البنك قبل يومين",
+      "bankChangedAgo_few": "تغيّر البنك قبل {{count}} أيام",
+      "bankChangedAgo_many": "تغيّر البنك قبل {{count}} يومًا",
+      "bankChangedAgo_other": "تغيّر البنك قبل {{count}} يوم"
     },
     "recordNote": {
       "elevenOnTime": "١١ من ١١ سُددت في موعدها",
@@ -1821,7 +1827,8 @@
     "notes": {
       "label": "ملاحظة عن المورّد",
       "placeholder": "أضف تعليمات داخلية أو تفاصيل دفع اختيارية..."
-    }
+    },
+    "subtitle": "من هم، وكيف تصلك فواتيرهم، وكيف تدفع لهم. تُفحص الأرقام الضريبية ومعرّفات Peppol أثناء الكتابة."
   },
   "invoicesPage": {
     "title": "الفواتير",
@@ -2879,7 +2886,7 @@
     "applied": "مطبّق على الرصيد",
     "newBalance": "الرصيد الجديد",
     "refundDue": "استرداد مستحق",
-    "refundHint": "دفع العميل زيادة — استرد هذا المبلغ بشكل منفصل.",
+    "refundHint": "دفع العميل زيادة: استرد هذا المبلغ بشكل منفصل.",
     "footerNote": "مرتبط بـ {{id}} · مسودة حتى الإصدار",
     "customAmount": "المبلغ المراد رده",
     "customMax": "يمكن رد ما يصل إلى {{amount}} على هذه الفاتورة."
@@ -3434,7 +3441,7 @@
       "flatCharge": "رسم ثابت",
       "flatChargeHint": "مبلغ واحد للشحن أو رسم إضافي أو غرامة تأخير"
     },
-    "basisNote": "يُحمَّل الفرق فقط. تبقى بنود {{invoice}} الأصلية كما صدرت تمامًا — يغطي هذا الإشعار النقص.",
+    "basisNote": "يُحمَّل الفرق فقط. تبقى بنود {{invoice}} الأصلية كما صدرت تمامًا، يغطي هذا الإشعار النقص.",
     "amount": {
       "title": "المبلغ المُحمَّل",
       "increasesRevenue": "يزيد الإيراد المعترف به",
@@ -3501,7 +3508,7 @@
       "nowDue": "المستحق الآن على الفاتورة"
     },
     "awaitingFrom": "بانتظار السداد من {{customer}}",
-    "awaitingHint": "انضم المبلغ إلى رصيد {{invoice}}، لذا يسدّد العميل مبلغًا واحدًا. يستحق في ٢٩ أغسطس ٢٠٢٦ — خلال ٣٠ يومًا.",
+    "awaitingHint": "انضم المبلغ إلى رصيد {{invoice}}، لذا يسدّد العميل مبلغًا واحدًا. يستحق في ٢٩ أغسطس ٢٠٢٦، خلال ٣٠ يومًا.",
     "sections": {
       "details": "البيانات",
       "items": "البنود",
@@ -5132,7 +5139,7 @@
   "scanToFill": {
     "button": "مسح لتعبئة الحقول",
     "title": "امسح فاتورة لتعبئة هذا النموذج",
-    "subtitle": "ارفع فاتورة مورد أو صورة لها. سنقرأها ونعبّئ الحقول — وتراجع كل شيء قبل تطبيقه.",
+    "subtitle": "ارفع فاتورة مورد أو صورة لها. سنقرأها ونعبّئ الحقول، وتراجع كل شيء قبل تطبيقه.",
     "drop": "أفلت ملفًا هنا، أو اضغط للاختيار",
     "dropHint": "PDF أو JPG أو PNG · حتى ١٠ ميجابايت",
     "privacy": "يُقرأ الملف لاستخراج بيانات الفاتورة ولا يُرفق بالفاتورة ما لم ترفقه بنفسك.",
@@ -5140,7 +5147,7 @@
     "failed": "تعذّرت قراءة هذا الملف. جرّب مسحًا أوضح، أو أدخل الفاتورة يدويًا.",
     "tooLarge": "حجم الملف يتجاوز ١٠ ميجابايت. الرجاء رفع ملف أصغر.",
     "readCount": "تمت قراءة {{fields}} حقلًا و{{lines}} بندًا",
-    "checkFields": "{{count}} حقل غير واضح — الرجاء مراجعته بعد التعبئة.",
+    "checkFields": "{{count}} حقل غير واضح، الرجاء مراجعته بعد التعبئة.",
     "check": "راجع",
     "fieldsFound": "الحقول المكتشفة",
     "linesFound": "البنود المكتشفة",
@@ -5196,7 +5203,7 @@
   "invoiceReminder": {
     "title": "التذكير {{current}} من {{total}}",
     "goesOut": "يُرسل {{when}}",
-    "pausedNote": "موقوف — لن يُرسل أي تذكير",
+    "pausedNote": "موقوف: لن يُرسل أي تذكير",
     "allSent": "تم إرسال كل التذكيرات",
     "allSentNote": "لم يتبقَّ شيء في التسلسل",
     "pause": "إيقاف",
@@ -5213,7 +5220,7 @@
   },
   "billsPage": {
     "title": "الفواتير الواردة",
-    "subtitle": "كل ما طالبك به الموردون — مطابَق ومعتمد ومدفوع.",
+    "subtitle": "كل ما فوتره لك مورّدوك: مطابَق ومعتمَد ومدفوع.",
     "uploadBill": "رفع فاتورة",
     "scanReceipt": "مسح إيصال",
     "searchPlaceholder": "ابحث بالمورد أو رقم الفاتورة...",
@@ -5313,7 +5320,8 @@
       "nudge": "تذكير المعتمِد",
       "checkAndSave": "تحقق واحفظ",
       "viewDispute": "تسليمتان فُوترتا مرتين",
-      "approving": "جارٍ الاعتماد…"
+      "approving": "جارٍ الاعتماد…",
+      "viewHold": "اعرف السبب"
     },
     "sortOptions": {
       "dueAsc": "الاستحقاق: الأقرب أولًا",
@@ -5371,7 +5379,13 @@
       "wasDue_many": "كانت مستحقة منذ {{count}} يومًا",
       "wasDue_other": "كانت مستحقة منذ {{count}} يوم",
       "overdue": "متأخرة",
-      "nothingOwed": "لا شيء مستحق"
+      "nothingOwed": "لا شيء مستحق",
+      "receipt": "إيصال {{number}}",
+      "read": "قُرئ {{date}}",
+      "noDueDate": "بلا تاريخ استحقاق",
+      "noOrderNote": "لا يوجد طلب شراء وراءها",
+      "noAmount": "لا مبلغ بعد",
+      "queried": "استُفسر عنها {{date}}"
     },
     "state": {
       "newNotReviewed": "جديدة، لم تُراجع",
@@ -5392,7 +5406,8 @@
       "drafts_few": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
       "drafts_many": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
       "drafts_other": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
-      "truncated": "يعرض هذا التبويب أحدث {{window}} فاتورة فقط، لذا قد لا تظهر الفواتير الأقدم."
+      "truncated": "يعرض هذا التبويب أحدث {{window}} فاتورة فقط، لذا قد لا تظهر الفواتير الأقدم.",
+      "nudgeUnavailable": "تنبيه المعتمِد غير متاح بعد. تواصل معه مباشرة في الوقت الحالي."
     },
     "emptyLedger": "لا توجد فواتير بعد. تصل فواتير الموردين المسجلين على Peppol إلى هنا تلقائيًا.",
     "pages": "الصفحات",
@@ -5402,7 +5417,10 @@
       "discard": "تجاهل",
       "unnamed": "ملف بلا اسم",
       "UPLOADED": "رُفع في {{date}}",
-      "SCANNED": "مُسح في {{date}} — تُؤكَّد الإيصالات من «مسح إيصال»"
+      "SCANNED": "مُسح في {{date}}: تُؤكَّد الإيصالات من «مسح إيصال»"
+    },
+    "rowMenu": {
+      "view": "عرض الفاتورة"
     }
   },
   "billDetail": {
@@ -5425,11 +5443,11 @@
       "paid": "مدفوعة",
       "arrivedOn": "{{date}}",
       "via": {
-        "PEPPOL": "عبر Peppol",
+        "PEPPOL": "بيبول",
         "UPLOADED": "مرفوعة",
         "SCANNED": "ممسوحة",
-        "RECURRING": "متكررة",
-        "SELF_BILLED": "ذاتية الإصدار"
+        "RECURRING": "دورية",
+        "SELF_BILLED": "فوترة ذاتية"
       },
       "byHand": "طوبقت يدويًا",
       "differs": "تختلف عن الطلب",
@@ -5442,7 +5460,9 @@
       "inRun": "في دفعة {{run}}",
       "paidOn": "دُفعت {{date}}",
       "dueOn": "تستحق {{date}}",
-      "automatically": "تلقائيًا"
+      "automatically": "تلقائيًا",
+      "arrivedVia": "{{date}} · {{source}}",
+      "notYet": "ليس بعد"
     },
     "match": {
       "ordered": "المطلوب",
@@ -5457,7 +5477,18 @@
       "theirRefOnly": "كتب المورّد الطلب {{reference}} على الفاتورة، لكنه غير مرتبط بأي من طلباتكم.",
       "against": "مطابَقة بـ {{order}}",
       "receipt": "إيصال {{receipt}}",
-      "price": "السعر المفوتَر"
+      "price": "السعر المفوتَر",
+      "orderedTile": "ما طلبته",
+      "receivedTile": "ما استلمته",
+      "billedTile": "ما فوتروه",
+      "quantityUnit": "{{quantity}} {{unit}}",
+      "lineCount_one": "بند واحد",
+      "lineCount_other": "{{count}} بنود",
+      "perUnitText": "{{price}} لكل {{unit}}",
+      "onReceipt": "{{receipt}}",
+      "thisBill": "هذه الفاتورة",
+      "quantityUnitMore_one": "{{quantity}} {{unit}} + بند واحد",
+      "quantityUnitMore_other": "{{quantity}} {{unit}} + {{count}} بنود"
     },
     "lines": {
       "title": "ما يطالبون به",
@@ -5471,7 +5502,8 @@
       "vatRate": "ض.ق.م · {{rate}}",
       "theyreCharging": "إجمالي المطالبة",
       "none": "لم يرسل المورّد أي بنود مع هذه الفاتورة.",
-      "vatOnly": "ضريبة القيمة المضافة"
+      "vatOnly": "ضريبة القيمة المضافة",
+      "receivedOn": "استُلم على {{receipt}}"
     },
     "linked": {
       "title": "المستندات المرتبطة",
@@ -5480,7 +5512,13 @@
       "purchaseReceipt": "إيصال استلام",
       "originalFile": "الملف الأصلي",
       "matchIt": "مطابقة بطلب",
-      "removeMatch": "إزالة المطابقة"
+      "removeMatch": "إزالة المطابقة",
+      "matchedOn": "طوبقت {{date}}",
+      "matchedByHandOn": "طوبقت يدويًا {{date}}",
+      "matchedToThisBill": "مطابَق مع هذه الفاتورة",
+      "receiptAgainst": "استُلم مقابل {{order}}",
+      "originalNote": "الملف الأصلي كما أرسله المورّد",
+      "none": "لا شيء مرتبط بهذه الفاتورة بعد."
     },
     "activity": {
       "title": "النشاط",
@@ -5511,21 +5549,32 @@
       "held": "قيد الانتظار: «{{reason}}». تبقى خارج كل دفعات السداد حتى يُفرج عنها.",
       "paid": "مدفوعة بالكامل.",
       "creditNote": "الإشعار الدائن يخفّض ما عليكم. لا شيء لاعتماده أو دفعه.",
-      "release": "إفراج"
+      "release": "إفراج",
+      "queryIt": "استفسر عنها"
     },
     "compliance": {
       "title": "الامتثال",
       "overPeppol": "وصلت عبر شبكة Peppol وتم التحقق منها",
-      "reportedBySupplier": "أبلغ عنها مزوّد المورّد إلى جهاز الضرائب — لا شيء عليكم تقديمه",
-      "reportedBySender": "أبلغ عنها المرسِل — لا شيء عليكم تقديمه",
-      "pendingInput": "لا يوجد إبلاغ ضريبي من المورّد بعد — بانتظار بيانات الامتثال",
-      "notApplicable": "خارج نطاق الإبلاغ الضريبي"
+      "reportedBySupplier": "أبلغ عنها مزوّد المورّد إلى جهاز الضرائب، لا شيء عليكم تقديمه",
+      "reportedBySender": "أبلغ عنها المرسِل: لا شيء عليكم تقديمه",
+      "pendingInput": "لا يوجد إبلاغ ضريبي من المورّد بعد، بانتظار بيانات الامتثال",
+      "notApplicable": "خارج نطاق الإبلاغ الضريبي",
+      "notValidated": "غير مُتحقق منها: لم تصل عبر بيبول",
+      "passedPintOm": "اجتازت التحقق وفق PINT-OM",
+      "noPintOm": "لا تحقق PINT-OM على فاتورة مرفوعة أو ممسوحة",
+      "originalKept": "الملف الأصلي محفوظ طوال فترة الاحتفاظ",
+      "noOriginal": "لا ملف أصلي مسجل"
     },
     "supplier": {
       "title": "المورد",
       "name": "الاسم",
       "theirRef": "مرجع فاتورتهم",
-      "vat": "الرقم الضريبي"
+      "vat": "الرقم الضريبي",
+      "openBills": "الفواتير المفتوحة",
+      "openBillsValue": "{{count}} · ¤{{amount}}",
+      "paidOnTime": "الدفع في الموعد",
+      "alwaysOnTime": "لم تتأخر قط",
+      "paidLateBefore": "تأخرت من قبل"
     },
     "breadcrumbBill": "فاتورة",
     "supplierUnknown": "لم يُذكر اسم المورّد",
@@ -5545,7 +5594,7 @@
     },
     "reject": {
       "title": "رفض هذه الفاتورة",
-      "body": "يُسجَّل الرفض في دفاتركم مع سببه. لا يُرسل شيء إلى المورّد — أبلغوه بأنفسكم.",
+      "body": "يُسجَّل الرفض في دفاتركم مع سببه. لا يُرسل شيء إلى المورّد، أبلغوه بأنفسكم.",
       "reason": "السبب",
       "confirm": "رفض الفاتورة"
     },
@@ -5564,7 +5613,7 @@
     },
     "refused": {
       "alreadyApproved": "سبق أن اعتمدت هذه الفاتورة. تحتاج معتمِدًا آخر.",
-      "changed": "تغيّرت هذه الفاتورة بعد تحميل الصفحة. تم تحديثها — حاول مرة أخرى.",
+      "changed": "تغيّرت هذه الفاتورة بعد تحميل الصفحة. تم تحديثها، حاول مرة أخرى.",
       "reasonRequired": "الرفض يحتاج سببًا.",
       "paidCannotHold": "لا يمكن وضع فاتورة مدفوعة قيد الانتظار.",
       "notPayable": "لا شيء مستحق على هذه الفاتورة، فلا يمكن وضعها قيد الانتظار.",
@@ -5577,12 +5626,28 @@
       "released": "تم الإفراج عنها.",
       "matched": "طوبقت بالطلب.",
       "unmatched": "أُزيلت المطابقة."
+    },
+    "notStated": "غير مذكور",
+    "terms": {
+      "title": "شروط الدفع",
+      "due": "الاستحقاق",
+      "terms": "الشروط",
+      "earlyPayment": "الدفع المبكر",
+      "payTo": "الدفع إلى",
+      "netDays_one": "صافي يوم واحد",
+      "netDays_other": "صافي {{count}} يومًا",
+      "paidOnTheSpot": "دُفعت في الحال",
+      "earlyPaymentValue": "{{percent}}٪ قبل {{date}}",
+      "none": "لا يوجد",
+      "bank": "البنك",
+      "noBank": "لا بيانات بنكية مسجلة",
+      "saving": "الدفع بحلول {{date}} يوفّر"
     }
   },
   "uploadBill": {
     "breadcrumb": "رفع فاتورة",
     "title": "تحقق مما قرأناه",
-    "subtitle": "قرأت فوتِر الملف نيابة عنك. كل ما لم تكن متأكدة منه مميّز باللون الكهرماني — راجعه وصحّح ما يلزم.",
+    "subtitle": "قرأ فوتر ملف الفاتورة الإلكترونية لك. راجع كل حقل مقابل الملف وصحح أي خطأ.",
     "fileMeta": "{{pages}} صفحة · {{size}} · قُرئ في {{seconds}} ثوانٍ · {{read}} من {{fields}} حقلًا مؤكدة",
     "replaceFile": "استبدال الملف",
     "pageOf": "صفحة {{current}} من {{total}}",
@@ -5592,7 +5657,7 @@
     "billNumber": "رقم فاتورتهم",
     "billDate": "تاريخ الفاتورة",
     "paymentDue": "تاريخ الاستحقاق",
-    "noDueDate": "لا يوجد تاريخ استحقاق مطبوع. أُخذ من عبارة «خلال ١٠ أيام» في الملف — تأكد من صحته.",
+    "noDueDate": "لم يُدخل تاريخ استحقاق. إن ذكرت الفاتورة \"خلال 10 أيام\" فاحسبه من تاريخ الفاتورة.",
     "whatTheyCharged": "ما طالبوا به",
     "col": {
       "description": "الوصف",
@@ -5619,12 +5684,13 @@
     "leftUnlinked": "تُركت بلا ربط. يمكنك ربطها بأمر شراء لاحقًا من الفاتورة نفسها.",
     "unlinkedHint": "اتركها بلا ربط في حالة الشراء المباشر أو خدمة بلا أمر شراء.",
     "cancel": "إلغاء",
-    "saveBill": "حفظ الفاتورة"
+    "saveBill": "حفظ الفاتورة",
+    "titleTyped": "أدخل بيانات الفاتورة"
   },
   "scanReceipts": {
     "breadcrumb": "مسح الإيصالات",
     "title": "راجع الإيصالات واحدًا تلو الآخر",
-    "subtitle": "أُدخلت {{count}} صور. قرأت فوتِر كل واحدة — أكّدها واحدة تلو الأخرى. وكل ما لم تتأكد منه مميّز باللون الكهرماني.",
+    "subtitle": "أُدخلت {{count}} صور. قرأت فوتِر كل واحدة، أكّدها واحدة تلو الأخرى. وكل ما لم تتأكد منه مميّز باللون الكهرماني.",
     "receiptOf": "الإيصال {{current}} من {{total}}",
     "progressMeta": "{{saved}} محفوظة · {{left}} بانتظار المراجعة · {{total}} ريال مؤكدة حتى الآن",
     "percentDone": "{{percent}}٪ مكتمل",
@@ -5670,8 +5736,17 @@
       "card": "بطاقة",
       "pettyCash": "مصروف نثري"
     },
-    "confirmNext": "تأكيد والتالي",
-    "savedNext": "حُفظ — التالي"
+    "confirmNext": "احفظ وانتقل للتالي",
+    "savedNext": "محفوظ، التالي",
+    "onYourList": "الرقم الضريبي {{vat}}: هذا المورّد على قائمتك.",
+    "vatNotOnReceipt": "لا رقم ضريبي مسجل لهذا المورّد على قائمتك.",
+    "pickCategory": "اختر الغرض من الشراء.",
+    "footer": {
+      "toCheck_one": "حقل واحد يحتاج مراجعة",
+      "toCheck_other": "{{count}} حقول تحتاج مراجعة",
+      "onThisOne": "في هذا الإيصال"
+    },
+    "discardThisOne": "تجاهل هذا الإيصال"
   },
   "paymentsPage": {
     "breadcrumb": "المدفوعات",
@@ -5714,10 +5789,15 @@
     },
     "blocked": {
       "count": "{{count}} فواتير أخرى لا يمكن دفعها بعد",
-      "reason": "لم تُعتمد بعد",
-      "onHold": "معلّقة — تسليمتان فُوترتا مرتين",
-      "mismatch": "اختلاف — ٣ صناديق أكثر مما استلمنا",
-      "openDispute": "فتح النزاع"
+      "reason": "لم تُعتمد بعد، أو معلّقة",
+      "onHold": "معلّقة: تسليمتان فُوترتا مرتين",
+      "mismatch": "اختلاف: ٣ صناديق أكثر مما استلمنا",
+      "openDispute": "فتح النزاع",
+      "more_one": "فاتورة أخرى لا يمكن دفعها بعد",
+      "more_two": "فاتورتان أخريان لا يمكن دفعهما بعد",
+      "more_few": "{{count}} فواتير أخرى لا يمكن دفعها بعد",
+      "more_many": "{{count}} فاتورة أخرى لا يمكن دفعها بعد",
+      "more_other": "{{count}} فاتورة أخرى لا يمكن دفعها بعد"
     },
     "whenAndWhere": "متى ومن أين",
     "paymentDate": "تاريخ الدفع",
@@ -5744,12 +5824,18 @@
     "whoGetsPaid": "من سيُدفع له",
     "nobodyYet": "لم تحدد شيئًا، لذا لن تُنفّذ أي تحويلات.",
     "billsAsOneTransfer_one": "فاتورة واحدة · تُدفع منفردة",
-    "billsAsOneTransfer_other": "{{count}} فواتير · تُدفع بتحويل واحد"
+    "billsAsOneTransfer_other": "{{count}} فاتورة · تُدفع كتحويل واحد",
+    "issued": "صدرت {{date}}",
+    "savedEarly": "توفير {{percent}}٪ بالدفع المبكر",
+    "billsAsOneTransfer_zero": "لا فواتير",
+    "billsAsOneTransfer_two": "فاتورتان · تُدفعان كتحويل واحد",
+    "billsAsOneTransfer_few": "{{count}} فواتير · تُدفع كتحويل واحد",
+    "billsAsOneTransfer_many": "{{count}} فاتورة · تُدفع كتحويل واحد"
   },
   "paymentsInvoices": {
     "breadcrumb": "الفواتير",
     "title": "الفواتير التي ستدفعها",
-    "subtitle": "كل فاتورة في PR-0014 كما أرسلها المورد — تصفّحها قبل الاعتماد.",
+    "subtitle": "كل فاتورة في {{reference}} كما أرسلها المورد، تصفّحها قبل الاعتماد.",
     "printAll": "طباعة الكل",
     "downloadAll": "تنزيل الكل",
     "moreActions": "إجراءات أخرى",
@@ -5787,28 +5873,40 @@
     "payingInThisRun": "المدفوع في هذه الدفعة",
     "checks": {
       "matchesDocument": "كل شيء يطابق المستند",
-      "matchedTo": "مطابقة مع PO-0031 وGRN-0087",
+      "matchedTo": "مطابقة مع {{order}}",
       "matchedTo8790": "مطابقة مع PO-0027 وGRN-0081",
-      "matchedByHand": "طوبقت يدويًا مع PO-0031",
+      "matchedByHand": "طوبقت يدويًا مع {{order}}",
       "readFromPhoto": "قُرئت من صورة وأُكدت",
-      "noOrder": "بدون أمر شراء — شراء مباشر",
-      "approvedBy": "اعتمدها حافظ في ٣٠ يوليو",
+      "noOrder": "بدون أمر شراء، شراء مباشر",
+      "approvedBy": "اعتمدها {{who}} في {{date}}",
       "approvedBy21": "اعتمدها حافظ في ٢١ يوليو",
       "approvedBy26": "اعتمدها حافظ في ٢٦ يوليو",
-      "approvedBy30": "اعتمدها حافظ في ٣٠ يوليو"
+      "approvedBy30": "اعتمدها حافظ في ٣٠ يوليو",
+      "peppolVerified": "وصلت عبر بيبول وتم التحقق منها",
+      "uploaded": "رُفعت وفُحصت يدويًا",
+      "matchedToBoth": "مطابقة مع {{order}} و{{receipt}}",
+      "mismatch": "لا تتفق مع {{order}}",
+      "approvedAutomatically": "اعتُمدت تلقائيًا",
+      "awaitingApproval": "بانتظار الاعتماد"
     },
-    "discountNote": "الدفع في ٣ أغسطس يمنحك خصم ٢٪ — أي ٤٧٫٠٩٠ ريال أقل من القيمة الاسمية.",
+    "discountNote": "الدفع في {{date}} يمنحك خصم {{percent}}٪، أي {{amount}} أقل من القيمة الاسمية.",
     "openFullBill": "فتح الفاتورة كاملة",
     "takeOut": "إخراجها من الدفعة",
     "previous": "السابق",
     "next": "التالي",
-    "arrowHint": "الفاتورة {{current}} من {{total}} · استخدم مفاتيح الأسهم للتنقل."
+    "arrowHint": "الفاتورة {{current}} من {{total}} · استخدم مفاتيح الأسهم للتنقل.",
+    "issuedDue": "{{issued}} · تستحق {{due}}",
+    "issuedOverdue": "{{issued}} · متأخرة",
+    "documentUnavailable": "تعذّر عرض المستند.",
+    "notRecorded": "غير مسجّل",
+    "onTime": "في الموعد",
+    "viaPeppol": "وصلت عبر شبكة بيبول"
   },
   "recurringBills": {
     "title": "الفواتير المتكررة",
-    "subtitle": "الفواتير التي تتكرر. إمّا أن يترقّب فوتر فاتورة المورّد ويخبرك بتأخرها أو بتغيّر مبلغها، وإمّا أن ينشئها بنفسه.",
-    "add": "أنشئ واحدة",
-    "searchPlaceholder": "ابحث في الوصف أو المورّد أو مرجعه",
+    "subtitle": "الفواتير التي تتوقعها كل شهر. تراقب فوتِر وصولها، وتخبرك عندما تتأخر إحداها، وتنبّهك إذا تغيّر المبلغ.",
+    "add": "إضافة فاتورة متكررة",
+    "searchPlaceholder": "ابحث عن المورد أو رقم الفاتورة...",
     "categoryFilter": "الفئة",
     "allCategories": "كل الفئات",
     "narrowsThisPage": "البحث والفئة يضيّقان الصفحة المعروضة فقط.",
@@ -5851,12 +5949,14 @@
     },
     "kpi": {
       "expected": "المتوقع شهريًا",
-      "expectedMeta": "{{count}} مُعدّة · {{active}} نشطة",
+      "expectedMeta": "{{count}} فواتير متكررة · {{active}} نشطة",
       "late": "متأخرة الوصول",
       "noneLate": "لا شيء متأخر.",
       "seeLate": "اعرض المتأخرة",
       "next": "القادمة",
-      "noneComing": "لا شيء متوقع بعد."
+      "noneComing": "لا شيء متوقع بعد.",
+      "chaseIt": "طالِب بها",
+      "nothing": "لا شيء بعد"
     },
     "state": {
       "paused": "موقوفة",
@@ -5867,19 +5967,23 @@
       "late_few": "متأخرة {{count}} أيام",
       "late_many": "متأخرة {{count}} يومًا",
       "late_other": "متأخرة {{count}} يوم",
-      "arrived": "وصلت كما هو متوقع",
+      "arrived": "تصل كما هو متوقع",
       "outOfRange": "وصلت، {{percent}} عن المعتاد",
       "dueOn": "مستحقة {{date}}",
       "willRaise": "تُنشأ في {{date}}",
-      "noNextRun": "لا تاريخ قادم"
+      "noNextRun": "لا تاريخ قادم",
+      "dueToArrive": "متوقع وصولها"
     },
     "menu": {
       "edit": "تعديل",
       "pause": "إيقاف",
-      "resume": "استئناف"
+      "resume": "استئناف",
+      "open": "فتحها"
     },
     "actions": {
-      "chase": "تابِعها"
+      "chase": "طالِب المورد",
+      "whyTheJump": "لماذا القفزة؟",
+      "resume": "استئناف المراقبة"
     },
     "chase": {
       "notExpecting": "ينشئ فوتر هذه الفاتورة بنفسه، فلا أحد لمتابعته.",
@@ -5899,27 +6003,72 @@
       "category": "الفئة",
       "theirReference": "مرجع المورّد",
       "optional": "اختياري",
-      "whenItArrives": "متى تتكرر",
+      "whenItArrives": "متى تصل عادةً",
       "howOften": "كل كم",
-      "arrivesAround": "تصل عادة في اليوم",
+      "arrivesAround": "تصل حوالي",
       "arrivesAroundWeekday": "تصل عادة في يوم الأسبوع (١–٧)",
       "startsOn": "أول إنشاء في",
-      "watchingFrom": "الترقّب من",
+      "watchingFrom": "المراقبة من",
       "endsOn": "تتوقف بعد",
       "paymentTerms": "مهلة السداد (أيام)",
       "paymentDueDay": "السداد في اليوم",
-      "whatItCosts": "كم تكلّف",
-      "usualAmount": "المبلغ المعتاد شامل الضريبة",
+      "whatItCosts": "كم تكلّف عادةً",
+      "usualAmount": "المبلغ المعتاد",
       "vatAmount": "منه ضريبة",
       "whenToTellYou": "متى نخبرك",
       "tolerance": "أخبرني إن تغيّر أكثر من (٪)",
       "lateAfter": "تُعد متأخرة بعد (أيام)",
-      "autoApprove": "اعتمدها تلقائيًا إن وصلت ضمن النطاق",
-      "autoApproveNote": "يُسجَّل على الإعداد. يذكره فوتر ولا يعتمد شيئًا نيابة عنك بعد.",
+      "autoApprove": "اعتمدها تلقائيًا عندما تكون ضمن النطاق",
+      "autoApproveNote": "يتخطى خطوة الاعتماد لفاتورة تشبه تمامًا كل شهر. معطّل افتراضيًا.",
       "inPlainWords": "بعبارة واضحة",
-      "save": "احفظ التعديلات",
+      "save": "حفظ التغييرات",
       "start": "ابدأ الترقّب",
-      "saving": "جارٍ الحفظ…"
+      "saving": "جارٍ الحفظ…",
+      "title": "إضافة فاتورة متكررة",
+      "newCrumb": "جديدة",
+      "editCrumb": "تعديل",
+      "subtitle": "أخبر فوتِر بما تتوقعه. لن تنشئ شيئًا: تراقب الفاتورة الحقيقية وتخبرك إن تأخرت أو تغيّر مبلغها.",
+      "preparedBy": "صادرة عن",
+      "chooseCategory": "اختر فئة",
+      "whenItIsRaised": "متى تُنشأ",
+      "arrivesOn": "تصل يوم",
+      "paymentDue": "السداد عادةً",
+      "onArrival": "عند الوصول",
+      "ofNextMonth": "يوم {{day}} من الشهر التالي",
+      "vatTreatment": "معاملة ض.ق.م",
+      "tellMeIfItMoves": "أخبرني إن تغيّر أكثر من",
+      "toleranceNote": "فاتورة بين {{low}} و{{high}} تمرّ دون تعليق. أي شيء خارج ذلك يُعلَّم لتراجعه.",
+      "decreaseTolerance": "تضييق الهامش",
+      "increaseTolerance": "توسيع الهامش",
+      "ifNotArrived": "إن لم تصل",
+      "ifNotArrivedNote": "تنتظر فوتِر بعد التاريخ المتوقع، ثم تعلّمها في القائمة وتبلغك",
+      "straightAway": "فورًا",
+      "afterDays_one": "بعد يوم",
+      "afterDays_two": "بعد يومين",
+      "afterDays_few": "بعد {{count}} أيام",
+      "afterDays_many": "بعد {{count}} يومًا",
+      "afterDays_other": "بعد {{count}} يوم",
+      "ifOutsideRange": "إن كان المبلغ خارج النطاق",
+      "ifOutsideRangeNote": "تصل الفاتورة كالمعتاد، لكنها تُعلَّم ليراجعها أحد قبل الاعتماد",
+      "whoGetsTold": "من يُبلَّغ",
+      "whoGetsToldNote": "تذهب الإشعارات إلى هذا الشخص، لا إلى المورد",
+      "nobody": "لم يُسمَّ أحد",
+      "someone": "أحد أفراد الفريق",
+      "whatYoureSettingUp": "ما تقوم بإعداده",
+      "timeline": {
+        "expected": "متوقعة",
+        "expectedNote": "تبدأ فوتِر بمراقبتها",
+        "flagged": "تُعلَّم إن غابت",
+        "flaggedNote": "تُعلَّم كمتأخرة، ويُبلَّغ {{who}}",
+        "due": "استحقاق السداد",
+        "dueNote": "تظهر في نافذة دفعة السداد"
+      },
+      "pastBills": "فواتير سابقة من هذا المورد",
+      "pickSupplierFirst": "اختر المورد لترى ما أرسله من قبل.",
+      "noPastBills": "لا شيء مسجّل من {{supplier}} بعد.",
+      "pastBillsUnavailable": "تعذّرت قراءة فواتيرهم السابقة.",
+      "aboutFrom": "حوالي {{amount}} من {{supplier}}",
+      "add": "إضافة الفاتورة المتكررة"
     },
     "plain": {
       "expect_zero": "{{supplier}} يرسل {{description}} بنحو {{amount}}، عادة في اليوم {{day}}. أخبرني إن تغيّر أكثر من {{tolerance}}٪، أو إن لم تصل في موعدها.",
@@ -5933,7 +6082,10 @@
       "raise_two": "ينشئ فوتر {{description}} لـ{{supplier}} بمبلغ {{amount}} كل مرة.",
       "raise_few": "ينشئ فوتر {{description}} لـ{{supplier}} بمبلغ {{amount}} كل مرة.",
       "raise_many": "ينشئ فوتر {{description}} لـ{{supplier}} بمبلغ {{amount}} كل مرة.",
-      "raise_other": "ينشئ فوتر {{description}} لـ{{supplier}} بمبلغ {{amount}} كل مرة."
+      "raise_other": "ينشئ فوتر {{description}} لـ{{supplier}} بمبلغ {{amount}} كل مرة.",
+      "expect": "فاتورة بحوالي {{amount}} من {{supplier}}، متوقعة {{when}}. أخبر {{who}} إن لم تصل بحلول يوم {{flagDay}}، أو إن زاد الفارق عن {{tolerance}}٪.",
+      "expectNoTolerance": "فاتورة بحوالي {{amount}} من {{supplier}}، متوقعة {{when}}. أخبر {{who}} إن لم تصل بحلول يوم {{flagDay}}.",
+      "raise": "تنشئ فوتِر {{description}} لصالح {{supplier}} بمبلغ {{amount}} في كل مرة."
     },
     "error": {
       "arrivalDayRequired": "حدّد اليوم الذي تصل فيه عادة.",
@@ -5951,7 +6103,7 @@
       "nothingYet": "لا شيء بعد",
       "variance": "{{percent}} عن المبلغ المعتاد",
       "nextExpected": "المتوقع القادم",
-      "watchedSince": "الترقّب منذ",
+      "watchedSince": "مراقبة منذ {{since}}",
       "tolerance": "النطاق المسموح",
       "lateAfter": "تُعد متأخرة بعد",
       "paymentTerms": "مهلة السداد",
@@ -5967,7 +6119,118 @@
       "history": "فترة بفترة",
       "historyNote": "صف لكل فترة، وصلت فاتورة أو لم تصل.",
       "noRuns": "لم تتكرر بعد.",
-      "openBill": "افتح الفاتورة"
+      "openBill": "افتح الفاتورة",
+      "from": "من",
+      "lateArriving_one": "متأخرة يومًا",
+      "lateArriving_two": "متأخرة يومين",
+      "lateArriving_few": "متأخرة {{count}} أيام",
+      "lateArriving_many": "متأخرة {{count}} يومًا",
+      "lateArriving_other": "متأخرة {{count}} يوم",
+      "pauseWatching": "إيقاف المراقبة",
+      "resumeWatching": "استئناف المراقبة",
+      "alertTitle": "فاتورة {{month}} لم تصل",
+      "alertBody": "كانت متوقعة حوالي {{expected}}، ولم يصل شيء.",
+      "alertDue_one": "السداد مستحق في {{due}}، فبقي يوم واحد لتدبير الأمر.",
+      "alertDue_two": "السداد مستحق في {{due}}، فبقي يومان لتدبير الأمر.",
+      "alertDue_few": "السداد مستحق في {{due}}، فبقيت {{count}} أيام لتدبير الأمر.",
+      "alertDue_many": "السداد مستحق في {{due}}، فبقي {{count}} يومًا لتدبير الأمر.",
+      "alertDue_other": "السداد مستحق في {{due}}، فبقي {{count}} يوم لتدبير الأمر.",
+      "markReceived": "تعليمها كمستلَمة",
+      "notYet": "غير متاح بعد: يحتاج إلى الخادم.",
+      "whatItsCost": "كم كلّفت",
+      "last12": "آخر ١٢ شهرًا",
+      "export": "تصدير",
+      "legend": {
+        "paid": "وصلت ودُفعت",
+        "recent": "الأحدث",
+        "expected": "متوقعة، لم تصل"
+      },
+      "flatFor_one": "ثابتة عند {{amount}} لشهر واحد",
+      "flatFor_two": "ثابتة عند {{amount}} لشهرين",
+      "flatFor_few": "ثابتة عند {{amount}} لمدة {{count}} أشهر",
+      "flatFor_many": "ثابتة عند {{amount}} لمدة {{count}} شهرًا",
+      "flatFor_other": "ثابتة عند {{amount}} لمدة {{count}} شهر",
+      "movedTimes_one": "تغيّر المبلغ مرة",
+      "movedTimes_two": "تغيّر المبلغ مرتين",
+      "movedTimes_few": "تغيّر المبلغ {{count}} مرات",
+      "movedTimes_many": "تغيّر المبلغ {{count}} مرة",
+      "movedTimes_other": "تغيّر المبلغ {{count}} مرة",
+      "everyPeriod": "كل فترة حتى الآن",
+      "seeAll": "عرض الكل ({{count}})",
+      "seeFewer": "عرض أقل",
+      "col": {
+        "month": "الفترة",
+        "bill": "الفاتورة",
+        "arrived": "الوصول",
+        "amount": "المبلغ",
+        "paid": "السداد"
+      },
+      "expectedOn": "متوقعة {{date}}",
+      "arrivedChip": "وصلت",
+      "arrivedOff": "وصلت، {{percent}}",
+      "daysLate_one": "متأخرة يومًا",
+      "daysLate_two": "متأخرة يومين",
+      "daysLate_few": "متأخرة {{count}} أيام",
+      "daysLate_many": "متأخرة {{count}} يومًا",
+      "daysLate_other": "متأخرة {{count}} يوم",
+      "expectedAmount": "متوقع",
+      "sameAsUsual": "كالمعتاد",
+      "onUsual": "{{percent}} عن المعتاد",
+      "dueOn": "تستحق {{date}}",
+      "onArrival": "عند الوصول",
+      "activityTitle": "النشاط",
+      "activity": {
+        "flagged": "عُلّمت كمتأخرة الوصول",
+        "flaggedDetail": "متوقعة {{expected}}، ولم يصل شيء · أُبلغ {{who}}",
+        "arrived": "وصلت الفاتورة وطوبقت",
+        "arrivedDetail": "فترة {{when}}، متوقعة {{expected}}",
+        "outOfRange": "وصلت خارج النطاق",
+        "outOfRangeDetail": "فترة {{when}}، {{percent}} عن المبلغ المعتاد",
+        "raised": "أنشأتها فوتِر",
+        "raisedDetail": "كُتبت في {{when}}",
+        "started": "بدأت مراقبة هذه الفاتورة",
+        "startedDetail": "مراقبة منذ {{date}}"
+      },
+      "whatExpects": "ما تتوقعه فوتِر",
+      "howOften": "كل كم",
+      "theDay": "يوم {{day}}",
+      "nextRaised": "الإنشاء التالي",
+      "paymentDue": "استحقاق السداد",
+      "flagIfOutside": "تُعلَّم إن خرجت عن",
+      "doesNotCreate": "لا تنشئ فوتِر الفاتورة. تنتظر الحقيقية وتطابقها.",
+      "doesCreate": "تكتب فوتِر هذه الفاتورة بنفسها في يومها، بالمبلغ المعتاد.",
+      "whenItTells": "متى تخبرك",
+      "ifNothingArrives": "إن لم يصل شيء",
+      "ifAmountOff": "إن اختلف المبلغ",
+      "approveAutomatically": "اعتماد تلقائي",
+      "on": "مفعّل",
+      "off": "معطّل",
+      "trackRecord": "السجل",
+      "billsMatched": "فواتير مطابَقة",
+      "arrivedOnTime": "وصلت في موعدها",
+      "ofPeriods": "{{count}} من {{total}}",
+      "everChanged": "هل تغيّر المبلغ",
+      "never": "أبدًا",
+      "times_one": "مرة",
+      "times_two": "مرتان",
+      "times_few": "{{count}} مرات",
+      "times_many": "{{count}} مرة",
+      "times_other": "{{count}} مرة",
+      "paidThisYear": "المدفوع هذا العام",
+      "costPerYear": "التكلفة السنوية",
+      "supplier": "المورد",
+      "sendsBillsBy": "يرسل الفواتير عبر",
+      "channel": {
+        "peppol": "بيبول",
+        "email": "PDF بالبريد",
+        "paper": "ورقيًا",
+        "manual": "تُدخل يدويًا"
+      },
+      "contact": "جهة الاتصال",
+      "notOnFile": "غير مسجّل",
+      "onPeppol": "على بيبول. تصل فواتيرهم بنفسها موثّقة.",
+      "notOnPeppol": "ليس على بيبول. الانضمام إليه يغني عن الرفع والمطالبة.",
+      "openSupplier": "فتح المورد"
     },
     "runCol": {
       "period": "الفترة",
@@ -5984,11 +6247,79 @@
       "ARRIVED": "وصلت",
       "ARRIVED_OUT_OF_RANGE": "وصلت خارج النطاق",
       "LATE": "لم تصل"
+    },
+    "rowMenu": "إجراءات الفاتورة المتكررة",
+    "timing": {
+      "expected": "متوقعة",
+      "lastArrived": "آخر وصول",
+      "nextRaised": "الإنشاء التالي",
+      "paused": "موقوفة"
+    },
+    "rows": {
+      "nothingArrived": "لم يصل شيء",
+      "arrivedAndMatched": "وصلت وطوبقت",
+      "inDays_one": "خلال يوم",
+      "inDays_two": "خلال يومين",
+      "inDays_few": "خلال {{count}} أيام",
+      "inDays_many": "خلال {{count}} يومًا",
+      "inDays_other": "خلال {{count}} يوم",
+      "nothingWatched": "لا شيء يُراقَب",
+      "resumeToWatch": "استأنف لتعود المراقبة",
+      "raisedByFawtir": "تنشئها فوتِر في يومها",
+      "onTheLast": "{{percent}} عن السابقة",
+      "nextDue": "التالية في {{month}}",
+      "per": {
+        "WEEKLY": "أسبوعيًا",
+        "MONTHLY": "شهريًا",
+        "QUARTERLY": "كل ربع سنة",
+        "ANNUALLY": "سنويًا"
+      }
+    },
+    "cadence": {
+      "weekly": "أسبوعيًا، {{weekday}}",
+      "monthly": "شهريًا، حوالي يوم {{day}}",
+      "quarterly": "كل ربع سنة، حوالي يوم {{day}}",
+      "yearly": "سنويًا، في {{month}}"
+    },
+    "weekday": {
+      "sunday": "أيام الأحد",
+      "monday": "أيام الاثنين",
+      "tuesday": "أيام الثلاثاء",
+      "wednesday": "أيام الأربعاء",
+      "thursday": "أيام الخميس",
+      "friday": "أيام الجمعة",
+      "saturday": "أيام السبت"
+    },
+    "categories": {
+      "premises": "الإيجار والمباني",
+      "utilities": "المرافق",
+      "telecoms": "الاتصالات",
+      "software": "البرمجيات والاشتراكات",
+      "logistics": "اللوجستيات",
+      "fees": "أتعاب مهنية"
+    },
+    "sortOptions": {
+      "natural": "كما هي",
+      "amountDesc": "المبلغ: من الأعلى",
+      "amountAsc": "المبلغ: من الأدنى",
+      "titleAsc": "الاسم أبجديًا"
+    },
+    "vat": {
+      "standard": "النسبة الأساسية · ٥٪",
+      "zero": "نسبة صفرية · ٠٪",
+      "exempt": "معفاة",
+      "outOfScope": "خارج النطاق"
+    },
+    "when": {
+      "WEEKLY": "كل أسبوع {{day}}",
+      "MONTHLY": "حوالي يوم {{day}} من كل شهر",
+      "QUARTERLY": "حوالي يوم {{day}}، كل ربع سنة",
+      "ANNUALLY": "حوالي يوم {{day}}، مرة في السنة"
     }
   },
   "supplierCreditNotes": {
     "title": "الإشعارات الدائنة",
-    "subtitle": "أموال يدين بها موردوك لك — عن نقص التسليم أو التلف أو الزيادة في الفوترة أو المرتجعات. كل إشعار يخفّض ما تدين به على فاتورة، أو يبقى رصيدًا حتى تستخدمه.",
+    "subtitle": "أموال يدين بها موردوك لك عن نقص التسليم أو التلف أو الزيادة في الفوترة أو المرتجعات. كل إشعار يخفّض ما تدين به على فاتورة، أو يبقى رصيدًا حتى تستخدمه.",
     "allSuppliers": "كل الموردين",
     "rowMenu": "إجراءات الإشعار الدائن",
     "empty": "لا توجد إشعارات دائنة مطابقة لهذه التصفية.",
@@ -5996,13 +6327,14 @@
       "stillUsable": "رصيد يمكنك استخدامه",
       "stillUsableMeta": "{{count}} إشعارات لم تُخصم من فاتورة بعد",
       "recovered": "المستردّ هذا الربع",
-      "recoveredMeta": "{{count}} إشعارات استُخدمت أو استُردّت",
+      "recoveredMeta": "{{count}} إشعارات استُخدمت أو استُردت",
       "mostFrom": "أكثر الإشعارات من",
-      "mostFromMeta": "{{count}} إشعارات هذه السنة · تستحق المراجعة",
+      "mostFromMeta": "{{count}} إشعارات هذا العام · تستحق المراجعة",
       "recoveredQuarter": "المسترد هذا الربع",
       "topSupplier": "أكثر المورّدين إصدارًا",
       "topSupplierMeta": "{{count}} إشعارات",
-      "noTopSupplier": "لا يوجد مورّد بارز"
+      "noTopSupplier": "لا يوجد مورّد بارز",
+      "noTopSupplierMeta": "لم يرسل أي مورد إشعارًا دائنًا بعد"
     },
     "tabs": {
       "all": "الكل",
@@ -6036,7 +6368,10 @@
       "unknownSupplier": "المورّد غير مطابَق",
       "theBill": "الفاتورة المخصومة",
       "noReason": "لم يُذكر سبب",
-      "remaining": "متبقٍ للاستخدام {{amount}}"
+      "remaining": "متبقٍ للاستخدام {{amount}}",
+      "takenOff": "خُصم من الفاتورة",
+      "paidBack": "أُعيد إليك",
+      "reducedByThis": "خُفّضت بهذا الإشعار"
     },
     "why": {
       "threeBoxes": "٣ صناديق لم تُسلَّم",
@@ -6058,7 +6393,8 @@
     "actions": {
       "setAgainst": "خصمه من الفاتورة",
       "viewBill": "عرض الفاتورة",
-      "seePayment": "عرض الدفعة"
+      "seePayment": "عرض الدفعة",
+      "openNote": "افتح الإشعار"
     },
     "sortOptions": {
       "creditDesc": "الرصيد: من الأعلى للأقل",
@@ -6073,7 +6409,7 @@
       "cta": "رفع إشعار دائن",
       "breadcrumb": "رفع إشعار دائن",
       "title": "تحقق مما قرأناه",
-      "subtitle": "أرسل المورد هذا خارج Peppol، لذا لم يتحقق منه أحد. أكّد الأرقام وحدّد الفاتورة التي يصححها.",
+      "subtitle": "أرسل المورد هذا خارج بيبول، فلم يتحقق منه أحد. أكّد الأرقام وحدّد الفاتورة التي يصححها.",
       "fileMeta": "{{pages}} صفحة · {{size}} · قُرئ في {{seconds}} ثانيتين · تم التعرف عليه كإشعار دائن",
       "whoSentIt": "من أرسله",
       "supplier": "المورد",
@@ -6105,7 +6441,7 @@
       "doesNotAddUp": "لم يعد مجموع السطور يطابق {{printed}} المطبوع في الملف.",
       "howToUse": "كيفية استخدامه",
       "setNow": "اخصمه من {{bill}} الآن",
-      "setNowNote": "الفاتورة غير مدفوعة، لذا ستدفع {{amount}} ريال أقل ببساطة.",
+      "setNowNote": "الفاتورة غير مدفوعة، فتدفع ببساطة أقل بمقدار OMR {{amount}}.",
       "hold": "احتفظ به رصيدًا",
       "holdNote": "اتركه دون استخدام واخصمه من فاتورة {{supplier}} لاحقة.",
       "refund": "اطلب استردادًا",
@@ -6123,7 +6459,15 @@
       "sheetAgainst": "مقابل الفاتورة",
       "sheetReason": "السبب",
       "sheetAmount": "المبلغ",
-      "choose": "اختر إشعار المورّد الدائن"
+      "choose": "اختر إشعار المورّد الدائن",
+      "fileMetaRead": "{{size}} · {{read}} · يُحفظ كإشعار دائن",
+      "saveAndSet": "احفظ واخصمه من الفاتورة",
+      "setNowNoBill": "اخصمه من الفاتورة الآن",
+      "setNowPick": "اختر الفاتورة التي يصححها أولًا.",
+      "savedHeld": "حُفظ. يبقى الرصيد محتجزًا حتى تخصمه من فاتورة.",
+      "savedApplied": "حُفظ وخُصم من الفاتورة.",
+      "footerLead": "كل شيء مُراجع",
+      "footerNote": "الإشعارات المرفوعة لا تُتحقق ولا تُبلَّغ كإشعارات بيبول"
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",
@@ -6131,7 +6475,7 @@
       "issuedOn": "صدر {{date}}",
       "corrects": "يصحح",
       "download": "تنزيل",
-      "youllPayLess": "ستدفع {{amount}} ريال أقل",
+      "youllPayLess": "ستدفع أقل بمقدار OMR {{amount}}",
       "youllPayLessNote": "الفاتورة التي يصححها لم تُدفع بعد، لذا يُخصم الرصيد مباشرة مما تدين به.",
       "theyBilled": "فوتروا",
       "billedNote": "AND-INV-3382 · ٢٨ يوليو",
@@ -6141,7 +6485,7 @@
       "willPayNote": "تستحق ٢٧ أغسطس",
       "whyTitle": "لماذا منحوك رصيدًا",
       "whyBody": "نقص ثلاثة صناديق في تسليم ٢٧ يوليو. سجّل يوسف ٤٥ صندوقًا مقابل ٤٨ مطلوبة في {{receipt}}، وفوترت الفاتورة ٤٨، واستُفسر عن الفرق في ٣٠ يوليو.",
-      "whyQuote": "«نقص في شحنة ٢٧ يوليو — ٣ صناديق تمر خلاص لم تُحمّل. خُصمت بالكامل.»",
+      "whyQuote": "«نقص في شحنة ٢٧ يوليو، ٣ صناديق تمر خلاص لم تُحمّل. خُصمت بالكامل.»",
       "whatsCredited": "ما يُخصم",
       "col": {
         "item": "الصنف",
@@ -6160,7 +6504,7 @@
       "keepAsCredit": "الاحتفاظ به رصيدًا",
       "askRefund": "طلب استرداد",
       "setDone": "خُصم من AND-INV-3382. الفاتورة الآن ٨٤٩٫٠٠٠ ريال.",
-      "keptDone": "احتُفظ به رصيدًا لدى Al Noor Dates LLC.",
+      "keptDone": "احتُفظ به رصيدًا لدى {{supplier}}. لا يتغير شيء حتى تخصمه من فاتورة.",
       "refundDone": "طُلب الاسترداد. سيظهر عند سداد المورد له.",
       "undo": "تراجع",
       "vatEffect": "الأثر على ضريبتك",
@@ -6170,9 +6514,12 @@
       "vatNote": "تعدّل فوتِر هذا في إقرارك الضريبي للفترة. لا شيء تفعله يدويًا.",
       "complianceTitle": "الامتثال",
       "compliance": {
-        "valid": "إشعار دائن صحيح — يشير إلى الفاتورة الأصلية",
+        "valid": "إشعار دائن صالح: يشير إلى الفاتورة الأصلية",
         "pintOm": "اجتاز تحقق PINT-OM",
-        "tdd": "قُدّم مستند البيانات الضريبية للهيئة"
+        "tdd": "قُدّم مستند البيانات الضريبية للهيئة",
+        "noBill": "لا يشير إلى فاتورة أصلية",
+        "notValidated": "رُفع خارج بيبول: لم يُتحقق منه",
+        "notReported": "لم تبلّغ الشبكة هيئة الضرائب به"
       },
       "supplierTitle": "المورد",
       "openBills": "فواتير مفتوحة",
@@ -6186,22 +6533,53 @@
         "receipt": "إيصال استلام",
         "receiptDetail": "٤٥ من ٤٨ صندوقًا سجّلها يوسف · ٢٧ يوليو",
         "original": "الملف الأصلي",
-        "originalDetail": "الملف الأصلي كما أرسله المورد"
+        "originalDetail": "الملف الأصلي كما أرسله المورد",
+        "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورد"
       },
       "activityTitle": "النشاط",
       "activity": {
         "waiting": "بانتظار خصمه من الفاتورة",
-        "waitingDetail": "حتى يتم ذلك، تظهر AND-INV-3382 بكامل ٩٣٣٫٩٠٠ ريال",
+        "waitingDetail": "حتى يُخصم، لا تزال {{bill}} تُظهر مبلغها كاملًا",
         "reported": "أُبلغت هيئة الضرائب",
-        "reportedDetail": "قُدّم مستند البيانات الضريبية للمستلم وقُبل · ٣٠ يوليو",
+        "reportedDetail": "أُودعت وثيقة البيانات الضريبية من جهة المستلم وقُبلت · {{date}}",
         "arrived": "وصل الإشعار الدائن عبر Peppol",
-        "arrivedDetail": "طوبق مع AND-INV-3382 تلقائيًا · ٣٠ يوليو، ١٤:٢٢",
+        "arrivedDetail": "طُوبق مع {{bill}} · {{date}}",
         "queried": "استُفسر عن الاختلاف مع المورد",
-        "queriedDetail": "أشار يوسف البلوشي إلى فوترة ٣ صناديق زيادة · ٣٠ يوليو، ٠٩:٤٠"
+        "queriedDetail": "أشار يوسف البلوشي إلى فوترة ٣ صناديق زيادة · ٣٠ يوليو، ٠٩:٤٠",
+        "waitingNoBill": "رصيد OMR {{left}} لاستخدامه على فاتورة لاحقة",
+        "waitingBill": "بانتظار الفاتورة التي يصححها",
+        "waitingBillDetail": "رصيد OMR {{amount}}، محتجز حتى تصل الفاتورة",
+        "applied": "خُصم من الفاتورة",
+        "appliedLinked": "{{bill}} مرتبطة بهذا الإشعار وتُخفَّض به تلقائيًا",
+        "appliedDetail": "خُصم OMR {{amount}} من {{bill}}",
+        "appliedNoBill": "خُصم OMR {{amount}} مما كنت تدين به",
+        "refunded": "استُرد لك",
+        "refundedDetail": "أعاد المورد OMR {{amount}}",
+        "settledApplied": "استُخدم على فاتورة",
+        "settledAppliedDetail": "OMR {{amount}} في {{date}} · سُجّل {{when}}",
+        "settledRefunded": "سُجّل استرداد",
+        "settledRefundedDetail": "OMR {{amount}} دُفع في {{date}} · سُجّل {{when}}",
+        "settledRefundedRef": "OMR {{amount}} دُفع في {{date}} · المرجع {{reference}} · سُجّل {{when}}",
+        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "الاسم",
-      "supplierVat": "الرقم الضريبي"
+      "supplierVat": "الرقم الضريبي",
+      "creditToUse": "رصيد OMR {{amount}} للاستخدام",
+      "paidLessTitle": "دفعت أقل بمقدار OMR {{amount}}",
+      "refundedTitle": "استُرد لك OMR {{amount}}",
+      "refundedBody": "أعاد المورد الرصيد بدل خصمه من فاتورة.",
+      "paidLessBody": "خُصم الرصيد من {{bill}} ونزل مما كنت تدين به.",
+      "waitingBody": "الفاتورة التي يصححها لم تصل بعد. ينتظرها الرصيد.",
+      "billPaidNote": "الفاتورة التي يصححها دُفعت بالفعل، فاطلب استردادًا أو احتفظ بالرصيد للفاتورة التالية.",
+      "noBillNote": "لا فاتورة واحدة تحمل هذا الرصيد بعد. اخصمه من فاتورة أو احتفظ به لفاتورة لاحقة.",
+      "noBillTile": "لا فاتورة بعد",
+      "dueOn": "يستحق في {{date}}",
+      "stillUnpaidOf": "{{amount}} لا يزال غير مدفوع",
+      "reasonCode": "رمز السبب {{code}}",
+      "lineBilledOn": "فُوتر على {{bill}}",
+      "decisionNoteNoBill": "اختر الفاتورة التي يخفّضها هذا الرصيد، أو احتفظ به لفاتورة لاحقة، أو سجّل استردادًا."
     },
     "source": {
       "peppol": "وردت عبر Peppol",
@@ -6210,13 +6588,13 @@
       "recurring": "متكررة",
       "selfBilled": "فوترة ذاتية"
     },
-    "excluded": "{{count}} غير محتسبة أعلاه — بعملة مختلفة",
+    "excluded": "{{count}} غير محتسبة أعلاه، بعملة مختلفة",
     "pageOnly": "صفحة {{page}}",
     "pageOf": "صفحة {{page}} من {{pages}}"
   },
   "supplierDebitNotes": {
     "title": "الإشعارات المدينة",
-    "subtitle": "رسوم إضافية أضافها الموردون بعد الفاتورة الأصلية — رسوم إضافية أو تصحيحات أسعار أو غرامات تأخير. كل واحد منها يرفع ما عليك، فتحقق منه قبل قبوله.",
+    "subtitle": "رسوم إضافية أضافها الموردون بعد الفاتورة الأصلية: رسوم إضافية، تصحيحات أسعار، غرامات تأخير. كل واحد يرفع ما تدين به، فراجعه قبل قبوله.",
     "allSuppliers": "كل الموردين",
     "empty": "لا توجد إشعارات مدينة تطابق بحثك.",
     "kpi": {
@@ -6225,8 +6603,8 @@
       "needsCheckingNote_other": "{{count}} رسوم لم يقبلها أحد بعد",
       "added": "أُضيفت هذا الربع",
       "rejected": "مرفوضة هذا العام",
-      "rejectedNote_one": "رُفض رسم واحد",
-      "rejectedNote_other": "رُفض {{count}} رسم",
+      "rejectedNote_one": "رسم واحد مرفوض",
+      "rejectedNote_other": "{{count}} رسوم مرفوضة",
       "acceptedNote": "{{count}} مقبولة · {{open}} ما زالت مفتوحة",
       "rejectedNote_two": "رُفض رسمان",
       "rejectedNote_few": "رُفضت {{count}} رسوم",
@@ -6258,7 +6636,8 @@
       "alreadyPaid": "مدفوعة",
       "outstanding": "{{amount}} مستحقة",
       "overdue": "{{amount}} مستحقة ومتأخرة",
-      "disputed": "مرفوضة — لا تُعامل كمستحقة"
+      "disputed": "مرفوضة: لا تُعامل كمستحقة",
+      "overdueShort": "مستحق ومتأخر"
     },
     "why": {
       "outOfHours": "رسم تسليم خارج ساعات العمل",
@@ -6272,7 +6651,8 @@
       "accepted": "قبله {{who}}",
       "acceptedPlain": "مقبول",
       "refused": "مرفوض",
-      "onHold": "معلّق"
+      "onHold": "معلّق",
+      "refusedWhy": "مرفوض · {{reason}}"
     },
     "outcome": {
       "youdPayMore": "ستدفع أكثر",
@@ -6299,7 +6679,7 @@
       "cta": "رفع إشعار مدين",
       "breadcrumb": "رفع إشعار مدين",
       "title": "تحقق قبل القبول",
-      "subtitle": "الإشعار المدين يرفع ما يقول المورّد إنه مستحق عليك. الرفع يسجّل الرسم؛ وقبوله أو رفضه قرار منفصل على الإشعار نفسه.",
+      "subtitle": "الإشعار المدين يرفع ما تدين به. لا يُضاف شيء حتى تقبله، ويمكنك رفضه مع ذكر السبب.",
       "fileMeta": "{{pages}} صفحة · {{size}} · قُرئ في {{seconds}} ثانيتين · تم التعرف عليه كإشعار مدين",
       "whoSentIt": "من أرسله",
       "supplier": "المورد",
@@ -6350,15 +6730,27 @@
       "doesNotAddUp": "مجموع السطور لم يعد يطابق {{printed}} المطبوعة على الملف.",
       "decision": "قرارك",
       "accept": "اقبله",
-      "acceptNote": "يُضاف {{amount}} ريال إلى {{bill}} لتصبح {{total}}. وينضم إلى دفعة السداد القادمة.",
+      "acceptNote": "يُسجَّل OMR {{amount}} على {{bill}}، فيصبح ما تدين به OMR {{total}}.",
       "refuse": "ارفضه",
-      "refuseNote": "لا يُضاف شيء. يرسل فوتر سببك إلى المورد، ويبقى الرسم مرفوضًا.",
+      "refuseNote": "لا يُضاف شيء. يُسجَّل سببك ويبقى الرسم مرفوضًا.",
       "hold": "علّقه",
-      "holdNote": "لا إضافة ولا إرسال. استخدم هذا أثناء اتصالك بهم.",
-      "reasonNote": "هذه الصيغة تصل إلى المورد. اجعلها واقعية — فهي تصبح جزءًا من السجل.",
+      "holdNote": "لا يُضاف شيء ولا يُسجَّل شيء. استخدم هذا ريثما تتصل بهم.",
+      "reasonNote": "اجعله واقعيًا: يصبح جزءًا من السجل.",
       "cancel": "إلغاء",
-      "save": "حفظ القرار",
-      "choose": "اختر إشعار المورّد المدين"
+      "save": "احفظ الإشعار المدين",
+      "choose": "اختر إشعار المورّد المدين",
+      "fileMetaRead": "{{size}} · {{read}} · يُحفظ كإشعار مدين",
+      "saveAndAccept": "احفظ واقبله",
+      "saveAndRefuse": "احفظ وارفضه",
+      "savedHeld": "حُفظ. لا يُضاف شيء حتى يقبله أحد.",
+      "savedAccepted": "حُفظ وقُبل.",
+      "savedRefused": "حُفظ ورُفض. سُجّل سببك.",
+      "footerLead_one": "أمر واحد يستحق المراجعة",
+      "footerLead_other": "{{count}} أمور تستحق المراجعة",
+      "footerFine": "لا شيء لافت",
+      "footerNote": "لا يُضاف شيء إلى ما تدين به حتى تقبل",
+      "noDecisionRight": "يمكنك حفظ الرسم؛ أما قبوله أو رفضه فيحتاج صلاحية الاعتماد.",
+      "acceptNoteNoBill": "يُسجَّل OMR {{amount}} مستحقًا لهذا المورد."
     },
     "refuse": {
       "notInRates": "ليس في أسعارنا المتفق عليها",
@@ -6445,19 +6837,43 @@
         "theBillDetail": "استُلمت ٢٥ يوليو · اعتُمدت ٢٦ يوليو · غير مدفوعة · تستحق ٢٥ أغسطس",
         "receipt": "إيصال استلام",
         "receiptDetail": "وقّع عليه يوسف البلوشي الساعة ٠٧:٤٠ · ٢٥ يوليو",
-        "rateCardDetail": "٩٦٫٠٠٠ ريال ثابتة لكل تسليم، ٠٦:٠٠–١٨:٠٠، دون رسوم إضافية"
+        "rateCardDetail": "٩٦٫٠٠٠ ريال ثابتة لكل تسليم، ٠٦:٠٠–١٨:٠٠، دون رسوم إضافية",
+        "billDetail": "استُلمت في {{date}} · {{state}} · تستحق في {{due}}",
+        "billNotOnFile": "مذكورة على الإشعار، وليست بين فواتير هذا المورد"
       },
       "activityTitle": "النشاط",
       "activity": {
         "waiting": "بانتظار قرار من أحد",
-        "waitingDetail": "دون مراجعة منذ ٤ أيام · ذكّر يوسف في ٢٩ يوليو",
+        "waitingDetail": "لا يُضاف شيء إلى ما تدين به حتى يقبل أحد OMR {{amount}}",
         "checked": "قُورن ببطاقة الأسعار",
         "checkedDetail": "رُصدت مشكلتان تلقائيًا · ٢٦ يوليو",
         "reported": "أُبلغت هيئة الضرائب",
-        "reportedDetail": "قُدّم مستند البيانات الضريبية للمستلم · ٢٦ يوليو",
+        "reportedDetail": "أُودعت وثيقة البيانات الضريبية من جهة المستلم · {{date}}",
         "arrived": "وصل الإشعار المدين عبر Peppol",
-        "arrivedDetail": "طوبق مع GCL-2301 تلقائيًا · ٢٦ يوليو، ١١:٠٥"
-      }
+        "arrivedDetail": "طُوبق مع {{bill}} · {{date}}",
+        "accepted": "مقبول",
+        "acceptedDetail": "OMR {{amount}} مستحق · {{when}}",
+        "acceptedSettled": "سُدّد · {{when}}",
+        "refused": "مرفوض",
+        "refusedDetail": "{{reason}} · {{when}}",
+        "refusedPlain": "سُجّل {{when}}",
+        "decidedAccepted": "قُبل",
+        "decidedRefused": "رُفض",
+        "decidedUnchecked": "أُعيد فتحه",
+        "decidedWithReason": "{{reason}} · {{when}}",
+        "decidedAt": "{{when}}",
+        "arrivedNoBill": "صدر في {{date}} · لم تُذكر فاتورة"
+      },
+      "acceptedTitle": "ستدفع أكثر بمقدار OMR {{amount}}",
+      "acceptedBody": "قُبل الرسم وهو مستحق، يستحق في {{date}}.",
+      "acceptedSettledBody": "قُبل الرسم وسُدّد.",
+      "refusedTitle": "رُفض OMR {{amount}}",
+      "refusedBody": "لم يُضف شيء إلى ما تدين به. سُجّل سببك على الإشعار.",
+      "billNotOnFile": "{{bill}} غير مسجلة",
+      "lineAgainst": "مذكور مقابل {{bill}}",
+      "heldNote": "معلّق. لا يُضاف شيء ولا يُسجَّل شيء حتى تقرر.",
+      "reasonRecorded": "يُسجَّل سببك على الإشعار. لا يُرسل إلى المورد من هنا.",
+      "rateCardMissing": "لا بطاقة أسعار مسجلة لهذا المورد بعد. حين تُسجَّل، يُقرأ الرسم مقابلها هنا."
     },
     "status": {
       "UNCHECKED": "لم تُراجع بعد",
@@ -6485,11 +6901,51 @@
     "decisionNote": "القبول أو الرفض يسجّل قرارك على هذا الإشعار. ولا يُرسل إلى المورّد من هنا.",
     "reverseOnly": "الحالة {{status}} بالفعل. لا يمكن تسجيل سوى القرار المعاكس.",
     "historyTitle": "سجل القرارات",
-    "noHistory": "لم يبتّ أحد في هذا الرسم بعد."
+    "noHistory": "لم يبتّ أحد في هذا الرسم بعد.",
+    "checks": {
+      "realBill": "يشير إلى فاتورة حقيقية",
+      "realBillOpen": "{{bill}} مسجلة لدينا وOMR {{outstanding}} منها غير مدفوع.",
+      "realBillPaid": "{{bill}} مسجلة لدينا ودُفعت بالكامل.",
+      "billNotFound": "الفاتورة التي يذكرها غير مسجلة",
+      "billNotFoundDetail": "{{bill}} ليست بين فواتير هذا المورد. تحقق من الرقم قبل القبول.",
+      "noBill": "لا يذكر فاتورة",
+      "noBillDetail": "لا يحدد الإشعار الفاتورة التي يُضاف إليها.",
+      "noBillPick": "اختر الفاتورة التي يُضاف إليها ليقع الرسم على الفاتورة الصحيحة.",
+      "supplierKnown": "المورد في قائمتك",
+      "supplierKnownDetail": "{{supplier}} مورد تشتري منه بالفعل.",
+      "supplierUnknown": "المورد ليس في قائمتك",
+      "supplierUnknownDetail": "\"{{supplier}}\" لا يطابق موردًا تشتري منه.",
+      "validated": "تُحقق منه على شبكة بيبول",
+      "validatedDetail": "استُلم عبر بيبول وتُحقق منه وبُلّغت به هيئة الضرائب.",
+      "notValidated": "لم يتحقق منه أحد",
+      "notValidatedDetail": "وصل خارج بيبول، فالأرقام هي ما يقوله الملف فقط.",
+      "vatAddsUp": "الضريبة متسقة",
+      "vatAddsUpDetail": "ضريبة OMR {{vat}}، كما تبلغ النسبة القياسية على الصافي.",
+      "vatOdd": "الضريبة غير متسقة",
+      "vatOddDetail": "الضريبة المذكورة OMR {{vat}}، بينما تبلغ النسبة القياسية على الصافي OMR {{expected}}.",
+      "vatMissing": "لا ضريبة مذكورة",
+      "vatMissingDetail": "لا يذكر الإشعار مبلغ الضريبة.",
+      "nothingRead": "لم يُقرأ شيء من الملف",
+      "nothingReadDetail": "لا يُقرأ PDF ولا صورة. تحقق من كل رقم مقابل الملف على اليسار.",
+      "addsUp": "البنود تساوي الإجمالي في الملف",
+      "addsUpDetail": "يذكر ملف الفاتورة الإلكترونية OMR {{printed}}، والبنود تبلغ المقدار نفسه.",
+      "doesNotAddUp": "البنود لا تساوي الإجمالي في الملف",
+      "doesNotAddUpDetail": "يذكر ملف الفاتورة الإلكترونية OMR {{printed}}؛ بينما تبلغ البنود OMR {{lines}}.",
+      "notRepeat": "ليس تكرارًا لرسم سابق",
+      "notRepeatOnSave": "يُفحص عند الحفظ: الرقم نفسه من هذا المورد يُرفض كمكرر.",
+      "summaryFine": "لا شيء لافت.",
+      "summaryFineBody": "كل الفحوص التي يستطيع فوتر إجراءها على هذا الرسم نجحت.",
+      "summaryWorries_one": "سبب واحد للتدقيق.",
+      "summaryWorries_other": "{{count}} أسباب للتدقيق.",
+      "summaryWorriesBody": "اقرأ النقاط المعلّمة بـ\"راجع\" قبل قبول الرسم.",
+      "summaryBeforeAccept_one": "أمر واحد يستحق النظر قبل القبول.",
+      "summaryBeforeAccept_other": "{{count}} أمور تستحق النظر قبل القبول.",
+      "summaryBeforeAcceptBody": "اقرأ النقاط المعلّمة بـ\"راجع\"، ثم قرر."
+    }
   },
   "expenditureReminders": {
     "title": "التذكيرات",
-    "subtitle": "متى ينبغي لفوتر أن يُخبر فريقك بشأن الأموال الخارجة. هذه تصل إلى أشخاص هنا — ولا تصل إلى المورد أبدًا.",
+    "subtitle": "متى تخبر فوتِر فريقك بالأموال الخارجة. تصل هذه إلى أشخاص هنا، لا إلى المورد أبدًا.",
     "and": "و",
     "addPerson": "إضافة شخص آخر",
     "removePerson": "إزالة من هذا التذكير",
@@ -6520,7 +6976,12 @@
       "fiveDays": "٥ أيام",
       "sevenDays": "٧ أيام",
       "aWeek": "أسبوع",
-      "recurringBills": "الفواتير المتكررة"
+      "recurringBills": "الفواتير المتكررة",
+      "nDays_one": "يوم",
+      "nDays_two": "يومان",
+      "nDays_few": "{{count}} أيام",
+      "nDays_many": "{{count}} يومًا",
+      "nDays_other": "{{count}} يوم"
     },
     "rules": {
       "beforeDue": {
@@ -6529,7 +6990,7 @@
       },
       "whenLate": {
         "title": "بعد تأخر الفاتورة",
-        "note": "يواصل التذكير حتى تُدفع — فتأخير سداد المورد يكلّف حسن النية"
+        "note": "يواصل التذكير حتى تُدفع، فتأخير سداد المورد يكلّف حسن النية"
       },
       "discountExpiry": {
         "title": "قبل انتهاء خصم السداد المبكر",
@@ -6558,7 +7019,7 @@
       "daily": "بريد واحد يوميًا",
       "dailyNote": "كل شيء في ملخص واحد الساعة {{time}}",
       "each": "بريد فور حدوثه",
-      "eachNote": "بريد لكل تذكير — أكثر إزعاجًا"
+      "eachNote": "بريد لكل تذكير، أكثر إزعاجًا"
     },
     "skipWeekends": "تخطّي عطلة نهاية الأسبوع",
     "skipWeekendsNote": "تأجيل ما يستحق الجمعة أو السبت إلى صباح الأحد",
@@ -6569,8 +7030,8 @@
       "oneEmail": "بريد واحد · {{time}} · إلى {{who}}",
       "eachEmail": "{{count}} رسائل · فور حدوثها · إلى {{who}}",
       "inAppOnly": "داخل فوتر فقط · بلا بريد",
-      "headline_one": "سيُرسل تذكير واحد في {{date}}",
-      "headline_other": "سيُرسل {{count}} تذكير في {{date}}",
+      "headline_one": "أمر واحد يحتاج إلى انتباه هذا الصباح.",
+      "headline_other": "{{count}} أمر يحتاج إلى انتباه هذا الصباح.",
       "nothing": "لن يُرسل شيء اليوم. كل قاعدة قد تُفعّل مُطفأة.",
       "to": "إلى",
       "alNoor": "Al Noor Dates غير مدفوعة منذ {{days}} أيام",
@@ -6581,9 +7042,9 @@
       "discountAmount": "يوفّر ٤٧٫٠٩٠ ريال",
       "approvals": "اعتمادان ينتظران {{days}} أيام",
       "approvalsAmount": "٢٬٩٩٦٫٣١٠ ريال معلّقة",
-      "headline_two": "سيُرسل تذكيران في {{date}}",
-      "headline_few": "ستُرسل {{count}} تذكيرات في {{date}}",
-      "headline_many": "سيُرسل {{count}} تذكيرًا في {{date}}"
+      "headline_two": "أمران يحتاجان إلى انتباه هذا الصباح.",
+      "headline_few": "{{count}} أمور تحتاج إلى انتباه هذا الصباح.",
+      "headline_many": "{{count}} أمرًا يحتاج إلى انتباه هذا الصباح."
     },
     "notSupplier": "لا شيء من هذا يصل إلى المورد. أما مطالبة العميل بما عليه فتُضبط",
     "underIncome": "ضمن الإيرادات",
@@ -6613,12 +7074,13 @@
     "unsaved_other": "تغيّرت {{count}} قاعدة",
     "digestTime": "الإرسال عند",
     "digestTimeNote": "المسح يطابق على الساعة.",
-    "perRecurring": "تُضبط هذه على كل فاتورة متكررة وليس هنا —",
+    "perRecurring": "تُضبط هذه على كل فاتورة متكررة وليس هنا، ",
     "onTheRecurringBill": "افتح فاتورة متكررة",
     "someone": "أحد أعضاء الفريق",
     "derived": {
-      "APPROVAL_STALE": "المعتمدون الذين لم يبتّوا، ثم المُلّاك عند التصعيد. لا حاجة لتسمية أحد.",
-      "SCAN_UNCONFIRMED": "من رفعها. لا حاجة لتسمية أحد."
+      "APPROVAL_STALE": "المعتمِدون، ثم المسؤولون",
+      "SCAN_UNCONFIRMED": "من مسح الإيصال",
+      "RECURRING_LATE": "الشخص المسمّى على كل فاتورة"
     },
     "error": {
       "tooMany": "{{max}} أيام كحد أقصى",
@@ -6637,6 +7099,20 @@
       "openBill": "افتح الفاتورة",
       "count_one": "معروض {{count}}",
       "count_other": "معروض {{count}}"
+    },
+    "footer": {
+      "rulesOn_one": "قاعدة واحدة مفعّلة",
+      "rulesOn_two": "قاعدتان مفعّلتان",
+      "rulesOn_few": "{{count}} قواعد مفعّلة",
+      "rulesOn_many": "{{count}} قاعدة مفعّلة",
+      "rulesOn_other": "{{count}} قاعدة مفعّلة",
+      "IN_APP": "في فوتِر فقط",
+      "DAILY_DIGEST": "بريد يومي واحد في {{time}}",
+      "IMMEDIATE_EMAIL": "بريد مع كل تذكير",
+      "weekendsSkipped": "مع تخطي عطلة الأسبوع",
+      "sendNow": "أرسل لي ملخص اليوم الآن",
+      "notYet": "غير متاح بعد: يحتاج إلى الخادم.",
+      "save": "حفظ التغييرات"
     }
   },
   "documents": {
@@ -7138,8 +7614,9 @@
     "bandNote": {
       "notDueYet": "{{count}} فاتورة · تستحق {{date}}",
       "dueWithin7": "{{count}} فاتورة · تستحق {{date}}",
-      "alreadyLate": "لم نتأخر معهم قط",
-      "onHold": "لا شيء قيد الاعتراض"
+      "alreadyLate": "لم يتأخر السداد معهم قط",
+      "onHold": "لا شيء محل نزاع",
+      "lateBefore": "لا شيء متأخر الآن"
     },
     "openBills": "الفواتير المفتوحة",
     "seeAll": "عرض الكل {{count}}",
@@ -7220,24 +7697,65 @@
     "address": "العنوان",
     "supplierSince": "مورد منذ",
     "addedBy": "أضافه",
-    "switchOff": "إيقاف هذا المورد"
+    "switchOff": "إيقاف هذا المورد",
+    "termsWithEarly": "{{terms}} مع {{percent}}٪ للسداد المبكر",
+    "where": {
+      "paying": "يُدفع في {{date}}",
+      "inRun": "بانتظار تاريخ دفع الدفعة",
+      "approvals": "{{given}} من {{required}} موافقات حتى الآن",
+      "awaiting": "بانتظار موافقة أحدهم",
+      "held": "معلّقة: {{reason}}",
+      "mismatch": "تختلف عن {{po}}",
+      "counter": "دُفعت عند الشراء",
+      "approved": "معتمدة، ليست في دفعة بعد",
+      "new": "لم تُراجع بعد"
+    },
+    "addToRun": "أضف إلى دفعة",
+    "arrived": "وصلت {{date}}",
+    "fewerLines": "بنود أقل",
+    "purchasesNote_one": "فاتورة واحدة خلال الاثني عشر شهرًا الماضية، بمجموع {{amount}}. تغيّرات الأسعار لا تُتابع بعد.",
+    "purchasesNote_other": "{{count}} فاتورة خلال الاثني عشر شهرًا الماضية، بمجموع {{amount}}. تغيّرات الأسعار لا تُتابع بعد.",
+    "version": "الإصدار {{number}}",
+    "selfBillingOnNote": "أنت تُصدر الفواتير نيابة عنهم",
+    "oweInRun_one": "فاتورة واحدة معتمدة وموجودة في مسودة الدفعة {{run}}.",
+    "oweInRun_other": "{{count}} فواتير معتمدة وموجودة في مسودة الدفعة {{run}}.",
+    "oweInRunPaying_one": "فاتورة واحدة معتمدة وموجودة في مسودة الدفعة {{run}}، تُدفع في {{date}}.",
+    "oweInRunPaying_other": "{{count}} فواتير معتمدة وموجودة في مسودة الدفعة {{run}}، تُدفع في {{date}}.",
+    "purchasesNote_zero": "لا فواتير خلال الاثني عشر شهرًا الماضية. تغيّرات الأسعار لا تُتابع بعد.",
+    "purchasesNote_two": "فاتورتان خلال الاثني عشر شهرًا الماضية، بمجموع {{amount}}. تغيّرات الأسعار لا تُتابع بعد.",
+    "purchasesNote_few": "{{count}} فواتير خلال الاثني عشر شهرًا الماضية، بمجموع {{amount}}. تغيّرات الأسعار لا تُتابع بعد.",
+    "purchasesNote_many": "{{count}} فاتورة خلال الاثني عشر شهرًا الماضية، بمجموع {{amount}}. تغيّرات الأسعار لا تُتابع بعد.",
+    "oweInRun_zero": "لا فواتير في مسودة الدفعة {{run}}.",
+    "oweInRun_two": "فاتورتان معتمدتان وموجودتان في مسودة الدفعة {{run}}.",
+    "oweInRun_few": "{{count}} فواتير معتمدة وموجودة في مسودة الدفعة {{run}}.",
+    "oweInRun_many": "{{count}} فاتورة معتمدة وموجودة في مسودة الدفعة {{run}}.",
+    "oweInRunPaying_zero": "لا فواتير في مسودة الدفعة {{run}}، تُدفع في {{date}}.",
+    "oweInRunPaying_two": "فاتورتان معتمدتان وموجودتان في مسودة الدفعة {{run}}، تُدفع في {{date}}.",
+    "oweInRunPaying_few": "{{count}} فواتير معتمدة وموجودة في مسودة الدفعة {{run}}، تُدفع في {{date}}.",
+    "oweInRunPaying_many": "{{count}} فاتورة معتمدة وموجودة في مسودة الدفعة {{run}}، تُدفع في {{date}}."
   },
   "supplierPay": {
     "title": "ادفع لـ {{name}}",
     "whichBills": "أي الفواتير",
     "selectAll": "حدد كل القابل للدفع",
     "bill": {
-      "approvedNotInRun": "اعتُمدت ٣٠ يوليو · تستحق ٢٩ أغسطس · ليست في أي دفعة بعد",
+      "approvedNotInRun": "معتمدة · صدرت {{issued}} · تُستحق {{due}}",
       "inDraftRun": "في مسودة الدفعة {{run}} · تستحق {{due}}",
-      "waitingApproval": "بانتظار اعتماد {{who}} · لا يمكن دفعها بعد",
+      "waitingApproval": "{{given}} من {{required}} موافقات · لا يمكن دفعها بعد",
       "twoPercentBy6": "٢٪ عند السداد قبل ٦ أغسطس",
       "twoPercentBy5": "٢٪ عند السداد قبل ٥ أغسطس",
       "windowPassed": "انتهت نافذة الخصم",
-      "chaseApproval": "تابع الاعتماد"
+      "chaseApproval": "تابع الاعتماد",
+      "discountBy": "{{percent}}٪ إذا دُفعت بحلول {{date}}",
+      "noDiscount": "لا خصم للسداد المبكر",
+      "onHold": "معلّقة · لا يمكن دفعها بعد",
+      "mismatch": "لا تطابق أمر الشراء · لا يمكن دفعها بعد",
+      "rejected": "مرفوضة · لا يمكن دفعها",
+      "openTheBill": "افتح الفاتورة"
     },
     "whichRun": "أي دفعة",
     "addToDraft": "أضف إلى مسودة الدفعة {{run}}",
-    "addToDraftNote": "تضم بالفعل {{bills}} فاتورة لـ {{suppliers}} موردين، {{amount}}، وتُسدَّد {{date}}. اثنتان من فواتيرهم فيها — والثالثة ستنضم في التحويل نفسه.",
+    "addToDraftNote": "تحوي بالفعل {{amount}}، تُدفع في {{date}}. ستنضم فواتيرهم إلى التحويل نفسه.",
     "startOwn": "ابدأ دفعة لهم وحدهم",
     "startOwnNote": "دفعة منفصلة تضم {{name}} فقط. مفيدة عندما تريد سداد مورد واحد مبكرًا دون تحريك البقية.",
     "creditTheyOwe": "رصيد لك لديهم",
@@ -7250,7 +7768,19 @@
     "footerNote": "· تحويل واحد · تُسدَّد الدفعة {{date}}",
     "cancel": "إلغاء",
     "addToRun": "أضف إلى {{run}}",
-    "startTheRun": "ابدأ الدفعة"
+    "startTheRun": "ابدأ الدفعة",
+    "addToScheduled": "أضف إلى الدفعة المجدولة {{run}}",
+    "addToDraftNoteNoDate": "تحوي بالفعل {{amount}}. لا تاريخ دفع بعد.",
+    "noCredit": "لا إشعار دائن غير مستخدم",
+    "noCreditNote": "أي إشعار دائن يدينون لك به يُخصم من التحويل هنا.",
+    "nBills_one": "فاتورة واحدة",
+    "nBills_other": "{{count}} فواتير",
+    "oneTransferNoBank": "تحويل واحد",
+    "footerNoteNoDate": "· تحويل واحد · لا تاريخ دفع بعد",
+    "nBills_zero": "لا فواتير",
+    "nBills_two": "فاتورتان",
+    "nBills_few": "{{count}} فواتير",
+    "nBills_many": "{{count}} فاتورة"
   },
   "supplierOff": {
     "title": "إيقاف {{name}}",
@@ -7265,7 +7795,7 @@
       "pickersNote": "لا يمكن اختيارهم في فاتورة أو أمر أو دفعة جديدة",
       "peppolHeld": "تُحتجز فواتير Peppol الواردة",
       "peppolHeldNote": "إن أرسلوا واحدة رغم ذلك فستصل إلى «تحتاج انتباهًا» بدل أن تُحفظ",
-      "searchable": "تبقى كل الفواتير الـ{{count}} قابلة للبحث",
+      "searchable": "تبقى كل فواتيرهم قابلة للبحث",
       "searchableNote": "لا شيء يغادر الأرشيف أو التقارير أو أرقام ضريبتك",
       "recordOpen": "يبقى سجلهم متاحًا للقراءة",
       "recordOpenNote": "العقد وقوائم الأسعار وكشف الحساب كلها باقية"
@@ -7282,7 +7812,20 @@
     "reversible": "قابل للتراجع",
     "reversibleNote": "- متى احتجت.",
     "cancel": "إلغاء",
-    "confirm": "أوقفهم"
+    "confirm": "أوقفهم",
+    "stillOpen_zero": "لا فواتير مفتوحة معهم",
+    "stillOpen_one": "فاتورة واحدة ما زالت مفتوحة معهم",
+    "stillOpen_two": "فاتورتان ما زالتا مفتوحتين معهم",
+    "stillOpen_few": "{{count}} فواتير ما زالت مفتوحة معهم",
+    "stillOpen_many": "{{count}} فاتورة ما زالت مفتوحة معهم",
+    "stillOpen_other": "{{count}} فاتورة ما زالت مفتوحة معهم",
+    "openBills_zero": "لا فواتير مفتوحة، بمجموع",
+    "openBills_one": "فاتورة مفتوحة واحدة، بمجموع",
+    "openBills_two": "فاتورتان مفتوحتان، بمجموع",
+    "openBills_few": "{{count}} فواتير مفتوحة، بمجموع",
+    "openBills_many": "{{count}} فاتورة مفتوحة، بمجموع",
+    "openBills_other": "{{count}} فاتورة مفتوحة، بمجموع",
+    "openRecord": "افتح سجلهم"
   },
   "supplierEdit": {
     "edit": "تعديل",
@@ -7295,7 +7838,7 @@
     "tradingName": "الاسم التجاري",
     "commercialRegistration": "السجل التجاري",
     "vatNumber": "الرقم الضريبي",
-    "vatHint": "OM يتبعها عشرة أرقام، بصيغة الرقم الضريبي العماني.",
+    "vatHint": "اثنا عشر رقمًا بصيغة الرقم الضريبي العماني.",
     "country": "الدولة",
     "howBillsReach": "كيف تصلك فواتيرهم",
     "onPeppol": "هم على شبكة Peppol",
@@ -7325,10 +7868,10 @@
     "newTag": "وسم {{n}}",
     "isComplete": "هل السجل مكتمل",
     "complete": {
-      "vat": "الرقم الضريبي — يمكنك استرداد ضريبتهم",
-      "peppol": "معرّف Peppol — تصل الفواتير كبيانات",
-      "iban": "الآيبان — يمكن إدراجهم في دفعة سداد",
-      "terms": "الشروط — تواريخ الاستحقاق تُحتسب تلقائيًا",
+      "vat": "الرقم الضريبي - يمكنك استرداد ضريبتهم",
+      "peppol": "معرّف Peppol - تصل الفواتير كبيانات",
+      "iban": "الآيبان - يمكن إدراجهم في دفعة سداد",
+      "terms": "الشروط - تواريخ الاستحقاق تُحتسب تلقائيًا",
       "secondContact": "جهة اتصال ثانية عند غياب {{name}}"
     },
     "whatItAffects": "ما الذي يتأثر بالتغيير",
@@ -7346,7 +7889,36 @@
       "contact": "تغيّرت جهة الاتصال إلى أحمد الحارثي",
       "contactMeta": "{{who}} · {{on}}",
       "created": "أُنشئ المورد",
-      "createdMeta": "من أول فاتورة Peppol لهم · {{on}}"
+      "createdMeta": "من أول فاتورة Peppol لهم · {{on}}",
+      "bankConfirmed": "أُكّدت البيانات البنكية",
+      "switchedOff": "أُوقف المورد"
+    },
+    "vatValid": "اثنا عشر رقمًا بصيغة الرقم الضريبي العماني.",
+    "peppolValid": "معرّف Peppol صحيح، المخطط والمعرّف معًا.",
+    "earlyWithin": "٪ خلال",
+    "earlyDaysUnit": "يومًا",
+    "bankPlaceholder": "مثال: بنك مسقط",
+    "emailHint": "لعدة عناوين، افصل بينها بفواصل.",
+    "addressPlaceholder": "الشارع والمدينة، مثال: المنطقة الصناعية الرسيل، مسقط",
+    "theContact": "جهة الاتصال الرئيسية",
+    "notAvailable": "غير متاح بعد",
+    "noChanges": "لا شيء مسجّل بعد.",
+    "categories": {
+      "rawMaterials": "مواد خام",
+      "packaging": "تغليف",
+      "logistics": "خدمات لوجستية",
+      "utilities": "مرافق",
+      "rent": "إيجار",
+      "services": "خدمات",
+      "equipment": "معدات",
+      "other": "أخرى"
+    },
+    "currencyName": {
+      "OMR": "ريال عماني",
+      "USD": "دولار أمريكي",
+      "EUR": "يورو",
+      "AED": "درهم إماراتي",
+      "SAR": "ريال سعودي"
     }
   },
   "purchaseOrder": {
@@ -7394,21 +7966,25 @@
     "payableBy": "مستحق السداد",
     "whatHappens": "ماذا يحدث بعد ذلك",
     "after": {
-      "approves": "يعتمده {{who}}",
-      "approvesNote": "يتجاوز حد {{limit}}",
+      "approves": "يعتمده أحد المعتمدين",
+      "approvesNote": "شخص لديه صلاحية اعتماد أوامر الشراء",
       "sent": "يُرسل إلى المورد",
       "sentNote": "عبر Peppol والبريد الإلكتروني",
       "goodsArrive": "تصل البضاعة وتسجّل استلامها",
-      "goodsArriveNote": "يُنشئ إيصالًا - {{grn}}",
+      "goodsArriveNote": "يُنشئ إيصال استلام مقابل هذا الأمر",
       "billTurnsUp": "تصل فاتورتهم",
-      "billTurnsUpNote": "تُطابَق مع هذا الأمر والإيصال تلقائيًا"
+      "billTurnsUpNote": "تُطابَق مع هذا الأمر والإيصال تلقائيًا",
+      "sentBoth": "عبر بيبول وبالبريد الإلكتروني",
+      "sentPeppol": "عبر بيبول",
+      "sentEmail": "بالبريد الإلكتروني",
+      "sentYourself": "بوسائلك الخاصة، ثم يُعلَّم كمُرسَل"
     },
     "comparedWithLast": "مقارنة بالأمر السابق",
     "sameItems": "أصناف مشتركة",
     "quantity": "الكمية",
     "sackPrice": "سعر الكيس",
     "inPlainWords": "بعبارة بسيطة",
-    "plainWords": "طلب بقيمة {{amount}} من البن والأكياس من {{supplier}}، مطلوب بحلول {{wanted}}، ويُسدَّد {{payable}} بشروط صافي ٣٠.",
+    "plainWords": "طلب بقيمة {{amount}} من {{supplier}}، مطلوب بحلول {{wanted}}، يُستحق سداده في {{payable}} بشروط {{terms}}.",
     "newTitle": "أمر شراء جديد",
     "supplier": "المورّد",
     "currency": "العملة",
@@ -7416,11 +7992,11 @@
     "description": "الصنف",
     "unit": "الوحدة",
     "unitPrice": "سعر الوحدة",
-    "lineDescription": "السطر {{line}} — الصنف",
-    "lineQuantity": "السطر {{line}} — الكمية",
-    "lineUnit": "السطر {{line}} — الوحدة",
-    "lineUnitPrice": "السطر {{line}} — سعر الوحدة",
-    "lineVat": "السطر {{line}} — نسبة الضريبة",
+    "lineDescription": "السطر {{line}}: الصنف",
+    "lineQuantity": "السطر {{line}}: الكمية",
+    "lineUnit": "السطر {{line}}: الوحدة",
+    "lineUnitPrice": "السطر {{line}}: سعر الوحدة",
+    "lineVat": "السطر {{line}}: نسبة الضريبة",
     "gross": "قيمة الأمر",
     "totalsNote": "محسوبة هنا لتراها. والأمر يحمل الأرقام التي يحسبها الخادم.",
     "saveDraft": "حفظ المسودة",
@@ -7476,14 +8052,67 @@
       "unitPrice": "كل سطر يحتاج سعر وحدة",
       "vatRate": "لا يمكن أن تكون نسبة الضريبة سالبة",
       "overBooked": "أكثر مما تبقّى على {{item}}"
-    }
+    },
+    "newCrumb": "أمر جديد",
+    "detailTitle": "أمر الشراء {{number}}",
+    "onPeppol": "على بيبول",
+    "notOnPeppol": "ليس على بيبول",
+    "billsMatched_one": "فاتورة واحدة، {{matched}} من {{backed}} مطابقة لأمر شراء",
+    "billsMatched_other": "{{count}} فاتورة، {{matched}} من {{backed}} مطابقة لأمر شراء",
+    "days_one": "يوم واحد",
+    "days_other": "{{count}} أيام",
+    "vatAt": "ضريبة القيمة المضافة · {{rate}}٪",
+    "noBranches": "لا يوجد فرع للتسليم إليه بعد. أضف واحدًا في الإعدادات.",
+    "emailPdfNoContact": "لا يوجد بريد إلكتروني في سجلهم بعد",
+    "ofItems": "{{matched}} من {{total}}",
+    "movedBy": "{{percent}} {{item}}",
+    "unchanged": "دون تغيير",
+    "priceUp": "ارتفع {{percent}}٪ على {{item}}",
+    "priceDown": "انخفض {{percent}}٪ على {{item}}",
+    "noPrevious": "لا يوجد أمر سابق للمقارنة.",
+    "stateNote": {
+      "DRAFT": "مسودة. لم يُرسل للاعتماد بعد.",
+      "AWAITING_APPROVAL": "أُرسل للاعتماد. لا يصل شيء إلى المورّد حتى يُعتمد.",
+      "APPROVED": "معتمد. علّمه كمُرسَل عندما يصل إلى المورّد.",
+      "SENT": "لدى المورّد. سجّل البضائع عند وصولها.",
+      "PARTIALLY_RECEIVED": "وصل جزء منه. سجّل الباقي عند وصوله.",
+      "RECEIVED": "وصل كل شيء. أغلق الأمر بعد وصول فاتورتهم.",
+      "CLOSED": "مغلق. طُلب واستُلم وفُوتر.",
+      "CANCELLED": "أُلغي. لا شيء آخر يحدث له."
+    },
+    "where": {
+      "submittedAt": "أُرسل للاعتماد {{when}}",
+      "notSubmitted": "لم يُرسل للاعتماد بعد",
+      "notSent": "لم يُعلَّم كمُرسَل بعد",
+      "deliveries_one": "تسليم واحد مسجّل",
+      "deliveries_other": "{{count}} تسليمات مسجّلة",
+      "deliveries_zero": "لا تسليمات مسجّلة",
+      "deliveries_two": "تسليمان مسجّلان",
+      "deliveries_few": "{{count}} تسليمات مسجّلة",
+      "deliveries_many": "{{count}} تسليمًا مسجّلًا"
+    },
+    "whereItIs": "أين وصل",
+    "nextNote": {
+      "submit": "أرسله للاعتماد. لا يصل شيء إلى المورّد حتى يعتمده أحدهم.",
+      "approve": "اعتمده، ويمكن بعدها تعليمه كمُرسَل.",
+      "send": "عندما يصل الأمر إلى المورّد، علّمه كمُرسَل ليمكن تسجيل البضائع مقابله.",
+      "close": "وصل كل ما طُلب. أغلق الأمر لإنهائه."
+    },
+    "billsMatched_zero": "لا فواتير بعد",
+    "billsMatched_two": "فاتورتان، {{matched}} من {{backed}} مطابقة لأمر شراء",
+    "billsMatched_few": "{{count}} فواتير، {{matched}} من {{backed}} مطابقة لأمر شراء",
+    "billsMatched_many": "{{count}} فاتورة، {{matched}} من {{backed}} مطابقة لأمر شراء",
+    "days_zero": "0 يوم",
+    "days_two": "يومان",
+    "days_few": "{{count}} أيام",
+    "days_many": "{{count}} يومًا"
   },
   "recordBill": {
     "title": "تسجيل فاتورة",
     "subtitle": "إدخالها يدويًا. لا يُستحق شيء حتى تُحفظ، ولا يُدفع شيء حتى يعتمدها أحد.",
     "discard": "تجاهل",
     "sendForApproval": "إرسال للاعتماد",
-    "supplierNote": "الرقم الضريبي {{vat}} · على Peppol، فالفواتير تصل عادة تلقائيًا — لكن ليس هذه",
+    "supplierNote": "الرقم الضريبي {{vat}} · على Peppol، فالفواتير تصل عادة تلقائيًا، لكن ليس هذه",
     "terms": "الشروط",
     "earlySettlement": "السداد المبكر",
     "openOrders": "أوامر مفتوحة",
@@ -7523,23 +8152,53 @@
     "theirVatNumber": "رقمهم الضريبي",
     "onFileValid": "محفوظ وصحيح",
     "after": {
-      "approves": "يعتمدها {{who}}",
+      "approves": "يعتمدها أحد المعتمدين",
       "approvesNote": "أقل من حد {{limit}}",
       "joinsRun": "تنضم إلى دفعة السداد القادمة",
-      "joinsRunNote": "تستحق {{due}} · السداد المبكر بحلول {{by}} يوفّر {{saves}} ريال",
+      "joinsRunNote": "تُستحق {{due}} · السداد المبكر بحلول {{by}} يوفّر {{saves}}",
       "orderCloses": "يُغلق {{order}}",
-      "orderClosesNote": "الطلب والاستلام والفوترة كلها مكتملة"
+      "orderClosesNote": "الطلب والاستلام والفوترة كلها مكتملة",
+      "approvesAny": "كل فاتورة تحتاج إلى اعتماد قبل سدادها",
+      "approvesUnder": "أقل من حد {{limit}}",
+      "approvesOver": "أكثر من حد {{limit}}",
+      "joinsRunPlain": "تُستحق {{due}}",
+      "nothingMatched": "لا تتم أي مطابقة"
     },
-    "plainWords": "تسجيل {{amount}} من {{supplier}} مقابل {{order}}، تُسدَّد {{payable}}. كل شيء متطابق."
+    "plainWords": "تسجيل {{amount}} من {{supplier}} مقابل {{order}}، تُستحق في {{payable}}.",
+    "crumb": "تسجيل فاتورة",
+    "peppolNote": "على بيبول، فالفواتير تصل عادةً وحدها: هذه لم تصل",
+    "orderNote": {
+      "SENT": "أُرسل، البضائع مطلوبة بحلول {{date}}. لم يصل شيء بعد.",
+      "PARTIALLY_RECEIVED": "استُلم جزئيًا. بعضه لم يصل بعد.",
+      "RECEIVED": "استُلم بالكامل. بانتظار فاتورتهم."
+    },
+    "orderState": {
+      "SENT": "لم يُسلَّم",
+      "PARTIALLY_RECEIVED": "سُلّم جزئيًا",
+      "RECEIVED": "بانتظار فاتورة"
+    },
+    "attached": "مرفق: {{name}}",
+    "replaceFile": "استبدل الملف",
+    "needsFile": "أرفق ملف الفاتورة أولًا: تُحفظ الفاتورة من ملفها ليبقى أصلها في السجل.",
+    "straightToApprovalAny": "كل فاتورة تحتاج إلى اعتماد قبل سدادها",
+    "straightToApprovalUnder": "أقل من {{limit}}، فيمكن اعتمادها دون انتظار",
+    "straightToApprovalOver": "أكثر من {{limit}}، فتحتاج إلى اعتماد قبل سدادها",
+    "nothingReceived": "لم يُسجَّل استلام بعد",
+    "receivedUnits": "{{units}} مسجّلة الاستلام",
+    "noneOfIt": "لا شيء يُسترد",
+    "onFile": "في السجل",
+    "notOnFile": "ليس في السجل",
+    "plainWordsNoOrder": "تسجيل {{amount}} من {{supplier}} دون أمر شراء، تُستحق في {{payable}}.",
+    "everythingMatches": "كل شيء مطابق."
   },
   "supplierStatement": {
     "title": "كشف الحساب",
     "subtitle": "كل ما جرى بينك وبين هذا المورّد خلال الفترة، بترتيب حدوثه.",
     "print": "طباعة",
     "period": {
-      "year": "هذه السنة",
-      "quarter": "هذا الربع",
-      "month": "هذا الشهر",
+      "year": "سنوي",
+      "quarter": "ربع سنوي",
+      "month": "شهري",
       "last90": "آخر ٩٠ يومًا",
       "custom": "تواريخ مخصصة"
     },
@@ -7584,8 +8243,8 @@
     "ageing": {
       "NOT_DUE": "غير مستحقة بعد",
       "DUE_WITHIN_30": "مستحقة خلال ٣٠ يومًا",
-      "LATE_30": "متأخرة حتى ٥٩ يومًا",
-      "LATE_60_PLUS": "متأخرة ٦٠ يومًا فأكثر"
+      "LATE_30": "متأخر 30 يومًا",
+      "LATE_60_PLUS": "متأخر 60 يومًا أو أكثر"
     },
     "creditNote": "الفاتورة المرفوضة ليست في هذا الكشف. والإشعار الدائن غير المطبَّق على فاتورة يخفض الرصيد هنا دون الفواتير أعلاه.",
     "nothing": "لا شيء",
@@ -7612,7 +8271,13 @@
       "switchedOff": "هذا المورّد موقوف، فلا يُرسل إليه شيء.",
       "noAddress": "لا يوجد بريد إلكتروني في سجل هذا المورّد. أضف واحدًا من صفحته.",
       "unavailable": "البريد الإلكتروني غير مفعّل في هذا التثبيت. نزّل الكشف وأرسله بنفسك."
-    }
+    },
+    "unusedCredits_one": "إشعار دائن واحد لم يُستخدم بعد",
+    "unusedCredits_other": "{{count}} إشعارات دائنة لم تُستخدم بعد",
+    "unusedCredits_zero": "لا إشعارات دائنة غير مستخدمة",
+    "unusedCredits_two": "إشعاران دائنان لم يُستخدما بعد",
+    "unusedCredits_few": "{{count}} إشعارات دائنة لم تُستخدم بعد",
+    "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد"
   },
   "activity": {
     "title": "النشاط",
@@ -9173,7 +9838,7 @@
     "yourNextBill": "فاتورتك القادمة",
     "inDays_one": "خلال يوم",
     "inDays_other": "خلال {{count}} يوم",
-    "nothingExtra": "لا شيء إضافي هذا الشهر — أنت ضمن الخطة في المستندات والأشخاص. <b>إن أضفت الشخص السادس</b> قبل {{day}}، ستصبح {{amount}} ر.ع.",
+    "nothingExtra": "لا شيء إضافي هذا الشهر، أنت ضمن الخطة في المستندات والأشخاص. <b>إن أضفت الشخص السادس</b> قبل {{day}}، ستصبح {{amount}} ر.ع.",
     "extraThisMonth": "{{count}} أشخاص فوق الخمسة المشمولين، بـ{{each}} ر.ع. لكل منهم. تُحتسب مع الخطة في {{day}}.",
     "line": {
       "plan": "خطة {{plan}}",
@@ -9256,11 +9921,11 @@
       "byWhatsApp": "واتساب على {{phone}}",
       "byEmail": "{{email}}",
       "linkArrives": "يصلك رابط الدفع عبر {{to}} في {{date}}. تريده الآن؟",
-      "linkSentNow": "أُرسل الرابط عبر {{to}} — صالح {{days}} أيام. لا يُخصم شيء حتى تدفعه.",
+      "linkSentNow": "أُرسل الرابط عبر {{to}}، صالح {{days}} أيام. لا يُخصم شيء حتى تدفعه.",
       "payNow": "أرسل الرابط الآن",
       "next": {
-        "bankTransfer": "حوّل المبلغ إلى الحساب المبيّن مع ذكر رقم الفاتورة. يفعّل فريق فوتر الفترة القادمة فور وصوله — عادةً خلال يوم عمل.",
-        "cash": "ادفع في مكتب فوتر أو لدى مندوبك. تحصل على إيصال، ويفعّل فريق فوتر الفترة القادمة فور تسجيله — عادةً في اليوم نفسه.",
+        "bankTransfer": "حوّل المبلغ إلى الحساب المبيّن مع ذكر رقم الفاتورة. يفعّل فريق فوتر الفترة القادمة فور وصوله، عادةً خلال يوم عمل.",
+        "cash": "ادفع في مكتب فوتر أو لدى مندوبك. تحصل على إيصال، ويفعّل فريق فوتر الفترة القادمة فور تسجيله، عادةً في اليوم نفسه.",
         "cheque": "سلّم شيكًا باسم Insight Technology LLC إلى مندوبك. تُفعَّل الفترة بعد تحصيله."
       },
       "linkTitle": "بطاقة عبر رابط آمن",
@@ -10370,7 +11035,7 @@
   "uploadMenu": {
     "breadcrumb": "رفع قائمة",
     "title": "راجع ما قرأناه من قائمتك",
-    "subtitle": "لا شيء في كتالوجك بعد. صحّح ما خرج خطأ، ثم أضف ما تريده — ويُهمل الباقي.",
+    "subtitle": "لا شيء في كتالوجك بعد. صحّح ما خرج خطأ، ثم أضف ما تريده، ويُهمل الباقي.",
     "replaceWithOther": "استبدلها بأخرى",
     "step": {
       "uploaded": "رُفعت القائمة",
@@ -10386,7 +11051,7 @@
       "headings": "عناوين صارت مجموعات",
       "headingsNote": "أقسام قائمتك تُطابق مجموعات الكتالوج."
     },
-    "yourMenu": "قائمتك — صفحة {{page}}",
+    "yourMenu": "قائمتك: صفحة {{page}}",
     "readClearly": "قُرئت بوضوح",
     "needsChecking": "تحتاج مراجعة",
     "tapLineToJump": "انقر سطرًا للانتقال إليه",
@@ -10412,7 +11077,7 @@
       "arabicOnly": "بالعربية فقط. أضف اسمًا إنجليزيًا أيضًا إن كانت فواتيرك تصدر بالإنجليزية.",
       "onRequest": "تقول القائمة «حسب الطلب» بدل السعر. ضع سعرًا، أو اتركه."
     },
-    "footer": "{{ticked}} من {{total}} محددة · ضريبة {{rate}}٪ مطبقة عليها كلها — قُرئت الأسعار بـ{{currency}}",
+    "footer": "{{ticked}} من {{total}} محددة · ضريبة {{rate}}٪ مطبقة عليها كلها، قُرئت الأسعار بـ{{currency}}",
     "discard": "أهمل",
     "addItems": "أضف {{count}} صنفًا",
     "added": "أُضيفت"
@@ -15350,11 +16015,17 @@
       "raw": "الشروط {{code}}"
     },
     "unnumbered": "بدون رقم",
-    "vat": "الرقم الضريبي {{vat}}"
+    "vat": "الرقم الضريبي {{vat}}",
+    "provenance": {
+      "SIGNED": "وُقّع في {{date}}",
+      "EMAILED": "أُرسل بالبريد في {{date}}",
+      "RECEIVED": "استُلم في {{date}}",
+      "UPLOADED": "رُفع في {{date}}"
+    }
   },
   "paymentRuns": {
     "title": "المدفوعات",
-    "subtitle": "تجمع دفعات السداد الفواتير المعتمدة في ملف بنكي واحد لكل دفعة.",
+    "subtitle": "اختر الفواتير التي ستُدفع معًا. تجمعها فوتِر حسب المورد وتبني ملفًا واحدًا لبنكك.",
     "newRun": "دفعة سداد جديدة",
     "all": "الكل",
     "none": "لا توجد دفعات سداد بعد.",
@@ -15479,7 +16150,32 @@
       "total": "المبلغ المدفوع {{amount}}",
       "submit": "أضف إلى الدفعة"
     },
-    "totals": "الإجمالي"
+    "totals": "الإجمالي",
+    "newCrumb": "جديدة",
+    "createdOn": "بدأت {{date}}",
+    "noDate": "لا تاريخ بعد",
+    "noFormat": "لم يُختر بعد",
+    "noReference": "بلا مرجع",
+    "nothingSent": "لم يُرسل شيء",
+    "downloadWhenScheduled": "حدّد تاريخ الدفع أولًا، ثم يمكن إنشاء الملف.",
+    "menu": {
+      "thisRun": "هذه الدفعة",
+      "startAgain": "البدء من جديد",
+      "exportSheet": "تصدير كجدول بيانات",
+      "exportSheetNote": "كل فاتورة وتحويل بصيغة xlsx",
+      "remittance": "إرسال إشعار السداد بالبريد",
+      "remittanceNote": "يخبر كل مورد بما دفعته ومقابل أي فواتير",
+      "changeFormat": "تغيير صيغة البنك",
+      "changeFormatNote": "الحالية: {{format}}",
+      "copyRun": "نسخها إلى دفعة جديدة",
+      "copyRunNote": "الموردون أنفسهم، فواتير جديدة",
+      "reset": "إعادة ضبط التحديد",
+      "resetNote": "إلغاء تحديد كل شيء والبدء من جديد",
+      "resetTitle": "إعادة ضبط {{reference}}؟",
+      "resetBody": "تُخرج كل الفواتير من الدفعة. تبقى الدفعة فارغة لتملأها من جديد.",
+      "delete": "حذف",
+      "notYet": "غير متاح بعد: يحتاج إلى الخادم."
+    }
   },
   "billIntake": {
     "supplier": "المورّد",
@@ -15525,7 +16221,7 @@
     "linesDisagree": "مجموع البنود {{lines}} (الضريبة {{vat}})، وليس الإجمالي الذي أدخلته.",
     "useLines": "استخدم أرقام البنود",
     "order": "أمر الشراء",
-    "letItMatch": "لم يُختر أمر — يبحث فوتر عن أمر مطابق",
+    "letItMatch": "لم يُختر أمر: يبحث فوتر عن أمر مطابق",
     "orderOption": "{{number}} · {{date}} · {{total}}",
     "matchedByHand": "تُطابَق الفاتورة مع هذا الأمر عند الحفظ.",
     "matcherLooks": "عند الحفظ، يبحث فوتر عن أمر مفتوح من هذا المورّد يطابق الفاتورة.",
@@ -15539,7 +16235,7 @@
         "SCANNED": "ممسوحة ضوئيًا"
       },
       "open": "افتح تلك الفاتورة",
-      "different": "إنها فاتورة مختلفة — احفظها"
+      "different": "إنها فاتورة مختلفة: احفظها"
     },
     "discard": "تجاهل",
     "saving": "جارٍ الحفظ…",
@@ -15580,10 +16276,24 @@
       "saved": "حُفظ كفاتورة.",
       "typeIt": "لا يُقرأ أي شيء من الصورة. أدخل الإيصال من الصورة المعروضة.",
       "vatWorkedOut": "محسوبة من الإجمالي والنسبة. اكتب فوقها إذا ذكر الإيصال غير ذلك.",
-      "owingNote": "يُسجَّل كفاتورة تُدفع لاحقًا."
+      "owingNote": "يُسجَّل كفاتورة تُدفع لاحقًا.",
+      "progressCounts": "{{saved}} محفوظة · {{left}} تنتظر المراجعة",
+      "confirmedSoFar": "{{total}} مؤكدة حتى الآن"
     },
     "keep": "حفظ لوقت لاحق",
-    "savedFilled": "التفاصيل المحفوظة سابقًا معبّأة. راجعها ثم احفظ الفاتورة."
+    "savedFilled": "التفاصيل المحفوظة سابقًا معبّأة. راجعها ثم احفظ الفاتورة.",
+    "file": {
+      "readFields": "{{read}} حقول مُلئت من الفاتورة الإلكترونية",
+      "savedEarlier": "بيانات محفوظة سابقًا",
+      "notRead": "PDF أو صورة، لم تُقرأ: أدخل بيانات الفاتورة بجانبها",
+      "xmlNotRead": "XML، تعذر قراءته كفاتورة إلكترونية"
+    },
+    "footer": {
+      "toCheck_one": "حقل واحد ما زال يحتاج مراجعة",
+      "toCheck_other": "{{count}} حقول ما زالت تحتاج مراجعة",
+      "notReported": "الفواتير المرفوعة لا يُتحقق منها ولا يُبلغ عنها كفواتير بيبول"
+    },
+    "noOpenOrders": "لا طلبات شراء مفتوحة لهذا المورّد لربطها."
   },
   "salesNote": {
     "credit": {
@@ -16152,7 +16862,7 @@
     }
   },
   "stagedImport": {
-    "breadcrumb": "استيراد من ملف",
+    "breadcrumb": "استيراد من Excel",
     "startOver": "ابدأ من جديد",
     "target": {
       "SUPPLIER": {
@@ -16165,7 +16875,13 @@
         "done_few": "أُدخل {{count}} موردين",
         "done_many": "أُدخل {{count}} مورّدًا",
         "done_other": "أُدخل {{count}} مورّد",
-        "seeThem": "اعرض الموردين"
+        "seeThem": "اعرض الموردين",
+        "bringIn_zero": "لا موردين لإدخالهم",
+        "bringIn_one": "أدخل موردًا واحدًا",
+        "bringIn_two": "أدخل موردين اثنين",
+        "bringIn_few": "أدخل {{count}} موردين",
+        "bringIn_many": "أدخل {{count}} موردًا",
+        "bringIn_other": "أدخل {{count}} مورد"
       },
       "CUSTOMER": {
         "list": "العملاء",
@@ -16177,7 +16893,13 @@
         "done_few": "أُدخل {{count}} عملاء",
         "done_many": "أُدخل {{count}} عميلًا",
         "done_other": "أُدخل {{count}} عميل",
-        "seeThem": "اعرض العملاء"
+        "seeThem": "اعرض العملاء",
+        "bringIn_zero": "لا عملاء لإدخالهم",
+        "bringIn_one": "أدخل عميلًا واحدًا",
+        "bringIn_two": "أدخل عميلين اثنين",
+        "bringIn_few": "أدخل {{count}} عملاء",
+        "bringIn_many": "أدخل {{count}} عميلًا",
+        "bringIn_other": "أدخل {{count}} عميل"
       }
     },
     "step": {
@@ -16195,7 +16917,7 @@
       "size": "{{name}} أكبر من ٢ ميغابايت. قسّمه واستورد أجزاءه."
     },
     "reviewTitle": "راجع قبل الاستيراد",
-    "reviewSubtitle": "لم يُحفظ شيء بعد. قُرئ كل صف وفُحص كما يفحص النموذج الواحد. أزل التحديد عمّا لا تريده.",
+    "reviewSubtitle": "لم يُحفظ شيء بعد. قرأ فوتر كل صف وفحصه بالطريقة نفسها التي يفحص بها النموذج: صحّح ما هو خاطئ هنا.",
     "fileLine_zero": "{{name}} · لا صفوف",
     "fileLine_one": "{{name}} · صف واحد",
     "fileLine_two": "{{name}} · صفان",
@@ -16206,11 +16928,12 @@
     "expires": "تُحفظ هذه المراجعة حتى {{when}}",
     "card": {
       "ready": "جاهزة للإدخال",
-      "readyNote": "لا شيء يستدعي السؤال في هذه الصفوف.",
+      "readyNote": "كل شيء سليم.",
       "needsALook": "تستحق نظرة",
-      "needsALookNote": "ستدخل، لكن قد تكون لديك أصلًا.",
+      "needsALookNote": "ستُستورد، لكن هناك نقصًا أو تكرارًا.",
       "cannotImport": "لا يمكن استيرادها",
-      "cannotImportNote": "نزّلها، وصحّحها في الملف، ثم افحصه مجددًا."
+      "cannotImportNote": "صحّحها هنا، أو اتركها وأضفها لاحقًا.",
+      "readyNotePeppol": "كل شيء سليم. {{count}} منها على Peppol."
     },
     "tab": {
       "cannotImport": "لا يمكن استيرادها",
@@ -16223,7 +16946,10 @@
       "row": "الصف",
       "name": "الاسم",
       "verdict": "الحكم",
-      "whatsWrong": "ما وجده فوتر"
+      "whatsWrong": "ما الخطأ",
+      "suppliers": "المورد",
+      "customers": "العميل",
+      "problemField": "الحقل الخاطئ"
     },
     "severity": {
       "READY": "جاهز",
@@ -16232,7 +16958,7 @@
     },
     "bringInRow": "أدخل الصف {{row}}",
     "leftOutRow": "مستبعد",
-    "blank": "(بلا اسم)",
+    "blank": "(فارغ)",
     "noProblem": "لا شيء يستدعي السؤال.",
     "nothingHere": "لا شيء في هذه القائمة.",
     "problem": {
@@ -16256,21 +16982,24 @@
       "taxCategory": "الفئة الضريبية",
       "country": "الدولة",
       "city": "المدينة",
-      "street": "الشارع"
+      "street": "الشارع",
+      "iban": "الآيبان",
+      "bic": "السويفت",
+      "bankName": "البنك"
     },
     "wouldComeIn": "{{coming}} من {{total}} ستدخل",
     "leftOut_zero": "· لا شيء مستبعد",
-    "leftOut_one": "· صف واحد مستبعد",
-    "leftOut_two": "· صفان مستبعدان",
-    "leftOut_few": "· {{count}} صفوف مستبعدة",
-    "leftOut_many": "· {{count}} صفًا مستبعدًا",
-    "leftOut_other": "· {{count}} صف مستبعد",
-    "downloadFailed_zero": "نزّل المتعذّرة",
-    "downloadFailed_one": "نزّل الصف المتعذّر",
-    "downloadFailed_two": "نزّل الصفين المتعذّرين",
-    "downloadFailed_few": "نزّل {{count}} صفوف متعذّرة",
-    "downloadFailed_many": "نزّل {{count}} صفًا متعذّرًا",
-    "downloadFailed_other": "نزّل {{count}} صف متعذّر",
+    "leftOut_one": "· صف واحد مستبعد ما لم تصحّحه",
+    "leftOut_two": "· صفان مستبعدان ما لم تصحّحهما",
+    "leftOut_few": "· {{count}} صفوف مستبعدة ما لم تصحّحها",
+    "leftOut_many": "· {{count}} صفًا مستبعدًا ما لم تصحّحها",
+    "leftOut_other": "· {{count}} صف مستبعد ما لم تصحّحها",
+    "downloadFailed_zero": "نزّل ما فشل",
+    "downloadFailed_one": "نزّل الصف الذي فشل",
+    "downloadFailed_two": "نزّل الصفين اللذين فشلا",
+    "downloadFailed_few": "نزّل {{count}} صفوف فشلت",
+    "downloadFailed_many": "نزّل {{count}} صفًا فشلت",
+    "downloadFailed_other": "نزّل {{count}} صف فشلت",
     "bringIn_zero": "لا شيء لإدخاله",
     "bringIn_one": "أدخل صفًا واحدًا",
     "bringIn_two": "أدخل صفين",
@@ -16285,12 +17014,19 @@
     },
     "doneNote": "اختير {{selected}}، واستُبعد {{skipped}}.",
     "doneStale_zero": "لم يتعذّر شيء.",
-    "doneStale_one": "تعذّر إنشاء صف واحد في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
-    "doneStale_two": "تعذّر إنشاء صفين في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
-    "doneStale_few": "تعذّر إنشاء {{count}} صفوف في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
-    "doneStale_many": "تعذّر إنشاء {{count}} صفًا في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
-    "doneStale_other": "تعذّر إنشاء {{count}} صف في النهاية — تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
-    "another": "استورد ملفًا آخر"
+    "doneStale_one": "تعذّر إنشاء صف واحد في النهاية، تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_two": "تعذّر إنشاء صفين في النهاية، تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_few": "تعذّر إنشاء {{count}} صفوف في النهاية، تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_many": "تعذّر إنشاء {{count}} صفًا في النهاية، تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "doneStale_other": "تعذّر إنشاء {{count}} صف في النهاية، تغيّر شيء بعد الفحص. نزّل الملف وافحصه مجددًا.",
+    "another": "استورد ملفًا آخر",
+    "action": {
+      "leaveOut": "اتركه",
+      "bringInAnyway": "أدخله على أي حال",
+      "bringItIn": "أدخله"
+    },
+    "typeAName": "اكتب اسمًا",
+    "empty": "فارغ"
   },
   "paymentReminders": {
     "backToHistory": "← التذكيرات المرسلة",
@@ -16492,8 +17228,8 @@
     "reason": "سبب الإشعار",
     "credits": "يخصم من",
     "verified": "موثّق عبر الشبكة",
-    "verifiedYes": "نعم — تم التحقق والإبلاغ",
-    "verifiedNo": "لا — وصلنا كملف",
+    "verifiedYes": "نعم: تم التحقق والإبلاغ",
+    "verifiedNo": "لا: وصلنا كملف",
     "nothingLeft": "استُخدم هذا الرصيد بالكامل أو استُرد. لم يتبقَّ شيء للتصرف فيه.",
     "historyTitle": "ما تم بشأنه",
     "noHistory": "لا يوجد تصرف صريح بعد. الإشعار المرتبط بفاتورة يخصم منها تلقائيًا.",
@@ -16533,7 +17269,7 @@
   },
   "approvalPolicy": {
     "title": "اعتماد الفواتير",
-    "subtitle": "من يجب أن يعتمد فاتورة المورّد قبل سدادها. هذه هي القاعدة التي تطبّقها شاشة الفواتير — والفاتورة التي لم تستوفها لا يمكن ضمّها إلى دفعة سداد.",
+    "subtitle": "من يجب أن يعتمد فاتورة المورّد قبل سدادها. هذه هي القاعدة التي تطبّقها شاشة الفواتير، والفاتورة التي لم تستوفها لا يمكن ضمّها إلى دفعة سداد.",
     "saved": "حُفظت قاعدة الاعتماد.",
     "notSaved": "لم تُحفظ",
     "save": "احفظ القاعدة",
@@ -16552,7 +17288,7 @@
       "EVERY_BILL": "كل فاتورة تحتاج اعتمادًا مهما كان مبلغها",
       "BELOW_AMOUNT": "الفواتير دون مبلغ محدّد لا تحتاج اعتمادًا",
       "label": "المبلغ",
-      "boundary": "الفاتورة التي تساوي {{amount}} بالضبط تظل بحاجة إلى اعتماد — ولا يُمرَّر إلا ما دونها.",
+      "boundary": "الفاتورة التي تساوي {{amount}} بالضبط تظل بحاجة إلى اعتماد، ولا يُمرَّر إلا ما دونها.",
       "removing": "هذا يزيل حدّ {{amount}}. والفواتير التي كانت تمرّ بلا اعتماد ستحتاج إليه من الآن."
     },
     "problem": {
@@ -16772,6 +17508,109 @@
       "removeUnavailable": "لا يمكن إزالة الملفات من هنا بعد.",
       "issued": "يمكن إضافة الملفات أو إزالتها ما دام المستند مسودة فقط.",
       "uploadUnavailable": "الرفع من هنا غير متاح بعد: لا يوجد مسار للمرفقات."
+    }
+  },
+  "supplierNotes": {
+    "searchPlaceholder": "ابحث بالمورد أو رقم الفاتورة...",
+    "sort": {
+      "natural": "حسب الوصول",
+      "amountDesc": "المبلغ: من الأعلى إلى الأقل",
+      "amountAsc": "المبلغ: من الأقل إلى الأعلى",
+      "supplierAsc": "المورد من أ إلى ي"
+    },
+    "pager": {
+      "nav": "الصفحات"
+    },
+    "channel": {
+      "peppol": "عبر بيبول",
+      "uploaded": "رُفع يدويًا",
+      "scanned": "مُصوَّر",
+      "recurring": "من فاتورة متكررة",
+      "selfBilled": "فوترة ذاتية"
+    },
+    "kind": {
+      "credit": {
+        "peppol": "إشعار دائن · بيبول",
+        "uploaded": "إشعار دائن · مرفوع",
+        "scanned": "إشعار دائن · مصوَّر",
+        "recurring": "إشعار دائن · متكرر",
+        "selfBilled": "إشعار دائن · فوترة ذاتية"
+      },
+      "debit": {
+        "peppol": "إشعار مدين · بيبول",
+        "uploaded": "إشعار مدين · مرفوع",
+        "scanned": "إشعار مدين · مصوَّر",
+        "recurring": "إشعار مدين · متكرر",
+        "selfBilled": "إشعار مدين · فوترة ذاتية"
+      }
+    },
+    "rows": {
+      "billed": "فُوتر في {{date}}",
+      "due": "يستحق في {{date}}"
+    },
+    "noLines": "تفاصيل البنود ليست على هذا الإشعار بعد.",
+    "noLinked": "لا شيء مرتبط بهذا الإشعار بعد.",
+    "vatRow": "ضريبة القيمة المضافة",
+    "thisBill": "الفاتورة",
+    "theBill": "الفاتورة",
+    "thisSupplier": "هذا المورد",
+    "billState": {
+      "draft": "مسودة",
+      "new": "جديدة",
+      "mismatch": "غير مطابقة",
+      "awaitingApproval": "بانتظار الاعتماد",
+      "approved": "معتمدة",
+      "onHold": "معلّقة",
+      "rejected": "مرفوضة",
+      "inPaymentRun": "في دفعة سداد",
+      "paid": "مدفوعة"
+    },
+    "activity": {
+      "arrivedPeppol": "وصل الإشعار الدائن عبر بيبول",
+      "arrivedUploaded": "رُفع الإشعار الدائن يدويًا",
+      "arrivedScanned": "صُوِّر الإشعار الدائن",
+      "arrivedRecurring": "أُنشئ الإشعار الدائن من فاتورة متكررة",
+      "arrivedSelfBilled": "صدر إشعار دائن بفوترة ذاتية",
+      "arrivedPeppolDebit": "وصل الإشعار المدين عبر بيبول",
+      "arrivedUploadedDebit": "رُفع الإشعار المدين يدويًا",
+      "arrivedScannedDebit": "صُوِّر الإشعار المدين",
+      "arrivedRecurringDebit": "أُنشئ الإشعار المدين من فاتورة متكررة",
+      "arrivedSelfBilledDebit": "صدر إشعار مدين بفوترة ذاتية"
+    },
+    "error": {
+      "needLine": "أضف بندًا واحدًا على الأقل ليكون للإشعار إجمالي.",
+      "needReason": "اختر سبب الرفض أو اكتبه."
+    },
+    "savedButNot": "حُفظ الإشعار، لكن الخطوة التالية لم تكتمل.",
+    "openSaved": "افتح الإشعار",
+    "file": {
+      "readXml": "قُرئت الحقول من ملف الفاتورة الإلكترونية",
+      "notRead": "لا يُقرأ شيء من PDF أو صورة"
+    },
+    "linesAsTyped": "لم يُقرأ شيء من الملف، فالأرقام كما كتبتها.",
+    "billCard": "{{state}} · {{outstanding}} غير مدفوع · يستحق في {{due}}",
+    "inRun": "في الدفعة {{run}}",
+    "billChosenByHand": "اختيرت يدويًا. تحقق منها مقابل المرجع المطبوع على الملف.",
+    "findBill": "أي فاتورة",
+    "findBillPlaceholder": "ابحث برقم الفاتورة",
+    "pickSupplierFirst": "اختر المورد أولًا"
+  },
+  "expenditureNotes": {
+    "reason": {
+      "SHORT_DELIVERY": "نقص في التسليم",
+      "DAMAGED": "بضاعة تالفة",
+      "OVERCHARGE": "زيادة في الفوترة",
+      "RETURN": "بضاعة مرتجعة",
+      "PRICE_CORRECTION": "تصحيح سعر",
+      "SURCHARGE": "رسم إضافي",
+      "LATE_FEE": "غرامة تأخير سداد",
+      "DUPLICATE": "فُوتر مرتين",
+      "OTHER": "أخرى",
+      "QTY": "الكمية تختلف عن الفاتورة",
+      "VAL": "تصحيح سعر أو قيمة",
+      "CAN": "أُلغي الطلب",
+      "VAT": "تصحيح الضريبة",
+      "OTH": "سبب آخر"
     }
   }
 }

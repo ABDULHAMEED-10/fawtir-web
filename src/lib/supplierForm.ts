@@ -9,13 +9,16 @@ import type { ProblemFieldError } from '../api/errors'
 import * as validate from './validation'
 
 /**
- * The supplier form, for a new supplier and for an existing one (decisions of 2026-09-16, E-02).
+ * The supplier form, for a new supplier and for an existing one, on the Edit frame's layout
+ * (Figma 163:26848; the product owner's rule of 26 Sep 2026: the frame wins).
  *
- * One form on the New page's layout. What it holds is what `SupplierRequest` carries; the mock's
- * logo, website, trading name, tags and self-billing switch have nothing behind them and are not
- * here. The request is flat, and an edit replaces what it is sent, so the mapping back to a request
- * is where most of the care is: the bank details are sent only when someone changed them, because
- * any change — even resending the same account without its bank name — raises "bank changed".
+ * What it holds is what `SupplierRequest` carries. The frame's trading name and tags have nothing
+ * behind them and live on the page only (TODO(backend)). The request is flat, and an edit replaces
+ * what it is sent, so the mapping back to a request is where most of the care is: the bank details
+ * are sent only when someone changed them, because any change, even resending the same account
+ * without its bank name, raises "bank changed". Fields the frame does not draw (role, mobile, the
+ * language, the tax and payment-method defaults, the pickup address, the notes) are carried through
+ * as loaded so an edit does not erase them.
  */
 
 export type AddressValues = {
@@ -29,7 +32,14 @@ export type AddressValues = {
    * The parts the form does not draw (governorate, building number, …), carried through as they
    * were loaded: an edit replaces the whole address, and dropping them would erase them.
    */
-  kept: Pick<SupplierAddressDto, 'countrySubentity' | 'buildingNumber' | 'additionalStreetName' | 'addressLine3' | 'countrySubentityCode'>
+  kept: Pick<
+    SupplierAddressDto,
+    | 'countrySubentity'
+    | 'buildingNumber'
+    | 'additionalStreetName'
+    | 'addressLine3'
+    | 'countrySubentityCode'
+  >
 }
 
 export type AddressField = Exclude<keyof AddressValues, 'kept'>
@@ -39,7 +49,7 @@ export type SupplierFormValues = {
   legalName: string
   commercialRegistrationNumber: string
   supplierCategory: string
-  registeredForVat: boolean
+  /** Empty means not registered for VAT: the frame has no separate switch. */
   vatNumber: string
   registeredOnPeppol: boolean
   /** `scheme:value`, as the supplier quotes it: `0248:OM1100000000`. */
@@ -56,6 +66,7 @@ export type SupplierFormValues = {
   defaultTaxCategory: string
   paymentTerms: string
   defaultPaymentMethod: string
+  bankName: string
   iban: string
   bic: string
   earlyPaymentDiscountPercent: string
@@ -74,7 +85,12 @@ export type SupplierField =
   | `pickup.${AddressField}`
 
 /** What an edit was loaded with, to tell a changed account from an untouched one. */
-export type LoadedBank = { iban: string; bic: string; beneficiaryName: string | null; bankName: string | null } | null
+export type LoadedBank = {
+  iban: string
+  bic: string
+  beneficiaryName: string | null
+  bankName: string | null
+} | null
 
 const NOTHING_KEPT: AddressValues['kept'] = {
   countrySubentity: null,
@@ -100,7 +116,6 @@ export function blankSupplierForm(): SupplierFormValues {
     legalName: '',
     commercialRegistrationNumber: '',
     supplierCategory: '',
-    registeredForVat: true,
     vatNumber: '',
     registeredOnPeppol: true,
     peppolId: '',
@@ -114,6 +129,7 @@ export function blankSupplierForm(): SupplierFormValues {
     defaultTaxCategory: 'S5',
     paymentTerms: 'NET30',
     defaultPaymentMethod: '30',
+    bankName: '',
     iban: '',
     bic: '',
     earlyPaymentDiscountPercent: '',
@@ -154,15 +170,17 @@ export function addressValues(address: SupplierAddressDto | null): AddressValues
   }
 }
 
-export function fromSupplierDetail(detail: SupplierDetailDto): { values: SupplierFormValues; bank: LoadedBank } {
+export function fromSupplierDetail(detail: SupplierDetailDto): {
+  values: SupplierFormValues
+  bank: LoadedBank
+} {
   const p = detail.profile
   const values: SupplierFormValues = {
     type: p.type,
     legalName: text(p.legalName ?? p.displayName),
     commercialRegistrationNumber: text(p.commercialRegistrationNumber),
     supplierCategory: text(p.supplierCategory),
-    registeredForVat: p.registeredForVat ?? p.vatNumber !== null,
-    vatNumber: text(p.vatNumber),
+    vatNumber: p.registeredForVat === false ? '' : text(p.vatNumber),
     registeredOnPeppol: p.registeredOnPeppol ?? p.participantId !== null,
     peppolId: text(p.participantId),
     contactPerson: text(p.contactPerson),
@@ -170,15 +188,19 @@ export function fromSupplierDetail(detail: SupplierDetailDto): { values: Supplie
     emails: (p.emailRecipients ?? []).join('\n'),
     telephone: nationalPhone(p.telephone),
     mobilePhone: nationalPhone(p.mobilePhone),
-    preferredLanguage: p.preferredLanguage === 'en' || p.preferredLanguage === 'ar' ? p.preferredLanguage : '',
+    preferredLanguage:
+      p.preferredLanguage === 'en' || p.preferredLanguage === 'ar' ? p.preferredLanguage : '',
     defaultCurrency: text(p.defaultCurrency),
     defaultTaxCategory: text(p.defaultTaxCategory),
     paymentTerms: text(p.paymentTerms),
     defaultPaymentMethod: text(p.defaultPaymentMethod),
+    bankName: text(p.bankDetails?.bankName),
     iban: text(p.bankDetails?.iban),
     bic: text(p.bankDetails?.bic),
-    earlyPaymentDiscountPercent: p.earlyPaymentDiscountPercent === null ? '' : String(p.earlyPaymentDiscountPercent),
-    earlyPaymentDiscountDays: p.earlyPaymentDiscountDays === null ? '' : String(p.earlyPaymentDiscountDays),
+    earlyPaymentDiscountPercent:
+      p.earlyPaymentDiscountPercent === null ? '' : String(p.earlyPaymentDiscountPercent),
+    earlyPaymentDiscountDays:
+      p.earlyPaymentDiscountDays === null ? '' : String(p.earlyPaymentDiscountDays),
     receivingChannel: p.receivingChannel ?? 'MANUAL',
     requiresApprovalBeforePayment: p.requiresApprovalBeforePayment ?? false,
     billing: addressValues(detail.invoiceAddress),
@@ -187,7 +209,12 @@ export function fromSupplierDetail(detail: SupplierDetailDto): { values: Supplie
     notes: text(p.notes),
   }
   const bank = p.bankDetails
-    ? { iban: p.bankDetails.iban, bic: text(p.bankDetails.bic), beneficiaryName: p.bankDetails.beneficiaryName, bankName: p.bankDetails.bankName }
+    ? {
+        iban: p.bankDetails.iban,
+        bic: text(p.bankDetails.bic),
+        beneficiaryName: p.bankDetails.beneficiaryName,
+        bankName: p.bankDetails.bankName,
+      }
     : null
   return { values, bank }
 }
@@ -211,31 +238,64 @@ export function addressRequest(address: AddressValues): SupplierAddressDto | nul
     postalCode: orNull(address.postalCode),
   }
   // The country select always holds a value, so a country alone is not an address anyone entered.
-  const entered = Object.entries(request).some(([field, value]) => field !== 'countryCode' && value !== null && value !== undefined)
+  const entered = Object.entries(request).some(
+    ([field, value]) => field !== 'countryCode' && value !== null && value !== undefined,
+  )
   return entered ? request : null
 }
 
 const compactIban = (value: string) => value.replace(/\s+/g, '').toUpperCase()
 
 /**
+ * The frame draws the address as one line ("Rusayl Industrial Estate, Muscat"). The request keeps
+ * a street and a city, so the line is the two joined, and a typed line is split at its last comma:
+ * everything before it is the street, what follows is the city. The parts the line does not carry
+ * (governorate, building, postcode) stay as loaded.
+ */
+export function addressLine(address: AddressValues): string {
+  return [address.streetName, address.cityName]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
+export function withAddressLine(address: AddressValues, line: string): AddressValues {
+  const cut = line.lastIndexOf(',')
+  const streetName = cut < 0 ? line.trim() : line.slice(0, cut).trim()
+  const cityName = cut < 0 ? '' : line.slice(cut + 1).trim()
+  return { ...address, streetName, cityName }
+}
+
+/**
  * @param loadedBank the account the edit opened with; null on a new supplier. The account is sent
- *        only when the IBAN or BIC differs from it, with the beneficiary and bank name it had, so an
+ *        only when the IBAN, BIC or bank name differs from it, with the beneficiary it had, so an
  *        edit that never touched it neither clears the bank name nor flags a change nobody made.
  */
-export function toSupplierRequest(values: SupplierFormValues, loadedBank: LoadedBank, version?: number): SupplierRequestDto {
+export function toSupplierRequest(
+  values: SupplierFormValues,
+  loadedBank: LoadedBank,
+  version?: number,
+): SupplierRequestDto {
   const [scheme, ...rest] = values.peppolId.trim().split(':')
   const participantValue = rest.join(':').trim()
   const iban = compactIban(values.iban)
   const bic = values.bic.trim().toUpperCase()
-  const bankChanged = iban !== '' && (loadedBank === null || iban !== compactIban(loadedBank.iban) || bic !== loadedBank.bic.toUpperCase())
+  const bankName = orNull(values.bankName)
+  const bankChanged =
+    iban !== '' &&
+    (loadedBank === null ||
+      iban !== compactIban(loadedBank.iban) ||
+      bic !== loadedBank.bic.toUpperCase() ||
+      bankName !== loadedBank.bankName)
   const percent = values.earlyPaymentDiscountPercent.trim()
   const days = values.earlyPaymentDiscountDays.trim()
   const pickup = values.sameAsBilling ? null : addressRequest(values.pickup)
+  const vatNumber = orNull(values.vatNumber.toUpperCase())
   return {
     type: values.type,
     legalName: values.legalName.trim(),
-    vatNumber: values.registeredForVat ? orNull(values.vatNumber.toUpperCase()) : null,
-    registeredForVat: values.registeredForVat,
+    vatNumber,
+    registeredForVat: vatNumber !== null,
     registeredOnPeppol: values.registeredOnPeppol,
     participantScheme: values.registeredOnPeppol ? orNull(scheme ?? '') : null,
     participantValue: values.registeredOnPeppol ? orNull(participantValue.toUpperCase()) : null,
@@ -244,7 +304,7 @@ export function toSupplierRequest(values: SupplierFormValues, loadedBank: Loaded
     paymentTerms: orNull(values.paymentTerms),
     defaultPaymentMethod: orNull(values.defaultPaymentMethod),
     bankDetails: bankChanged
-      ? { beneficiaryName: loadedBank?.beneficiaryName ?? null, iban, bic: bic || null, bankName: loadedBank?.bankName ?? null }
+      ? { beneficiaryName: loadedBank?.beneficiaryName ?? null, iban, bic: bic || null, bankName }
       : null,
     contactPerson: values.contactPerson.trim(),
     roleTitle: orNull(values.roleTitle),
@@ -252,7 +312,13 @@ export function toSupplierRequest(values: SupplierFormValues, loadedBank: Loaded
     telephone: e164(values.telephone),
     mobilePhone: e164(values.mobilePhone),
     preferredLanguage: values.preferredLanguage || null,
-    receivingChannel: values.receivingChannel,
+    // The frame has one switch, "They are on the Peppol network": on means bills arrive as data;
+    // off means PDFs by email, unless the record already names another way they come.
+    receivingChannel: values.registeredOnPeppol
+      ? 'PEPPOL'
+      : values.receivingChannel === 'PEPPOL'
+        ? 'EMAIL_PDF'
+        : values.receivingChannel,
     requiresApprovalBeforePayment: values.requiresApprovalBeforePayment,
     earlyPaymentDiscountPercent: percent === '' ? null : Number(percent),
     earlyPaymentDiscountDays: days === '' ? null : Number(days),
@@ -284,11 +350,16 @@ const OM_PARTICIPANT = /^OM11\d{8}$/
  * grammar of a 0242 identifier, and whether a VAT number or Peppol ID is already on another record,
  * are only known there.
  */
-export function supplierProblems(values: SupplierFormValues, loadedBank: LoadedBank): SupplierProblems {
+export function supplierProblems(
+  values: SupplierFormValues,
+  loadedBank: LoadedBank,
+): SupplierProblems {
   const problems: SupplierProblems = {}
   if (!values.legalName.trim()) problems.legalName = 'validation.required'
   if (!values.contactPerson.trim()) problems.contactPerson = 'validation.required'
-  if (values.registeredForVat) {
+  // The frame stars the VAT number, but its own list counts suppliers with "No VAT number on
+  // file", so a supplier can be saved without one; a typed one must be an Oman VATIN.
+  if (values.vatNumber.trim()) {
     const vat = validate.vatin(values.vatNumber)
     if (vat) problems.vatNumber = vat
   }
@@ -296,19 +367,23 @@ export function supplierProblems(values: SupplierFormValues, loadedBank: LoadedB
     const [scheme, ...rest] = values.peppolId.trim().split(':')
     const value = rest.join(':').trim().toUpperCase()
     if (!values.peppolId.trim()) problems.peppolId = 'validation.required'
-    else if ((scheme !== '0248' && scheme !== '0242') || !value) problems.peppolId = 'supplierForm.error.peppolShape'
+    else if ((scheme !== '0248' && scheme !== '0242') || !value)
+      problems.peppolId = 'supplierForm.error.peppolShape'
     // OM11 only: a group VAT number (OM12) is not a participant, which the server names separately.
-    else if (scheme === '0248' && !OM_PARTICIPANT.test(value)) problems.peppolId = 'supplierForm.error.peppolVat'
+    else if (scheme === '0248' && !OM_PARTICIPANT.test(value))
+      problems.peppolId = 'supplierForm.error.peppolVat'
   }
   const emails = emailList(values.emails)
   if (emails.some((entry) => validate.email(entry))) problems.emails = 'validation.email'
-  else if (new Set(emails.map((entry) => entry.toLowerCase())).size !== emails.length) problems.emails = 'supplierForm.error.duplicateEmail'
+  else if (new Set(emails.map((entry) => entry.toLowerCase())).size !== emails.length)
+    problems.emails = 'supplierForm.error.duplicateEmail'
   else if (emails.length > 10) problems.emails = 'supplierForm.error.tooManyEmails'
   for (const field of ['telephone', 'mobilePhone'] as const) {
     const value = values[field].trim()
     if (!value) continue
     if (value.startsWith('+')) {
-      if (!/^\+[1-9][0-9]{6,14}$/.test(value.replace(/[\s().-]/g, ''))) problems[field] = 'supplierForm.error.phone'
+      if (!/^\+[1-9][0-9]{6,14}$/.test(value.replace(/[\s().-]/g, '')))
+        problems[field] = 'supplierForm.error.phone'
     } else {
       const refused = validate.omanPhone(value)
       if (refused) problems[field] = refused
@@ -318,7 +393,9 @@ export function supplierProblems(values: SupplierFormValues, loadedBank: LoadedB
   if (iban && !IBAN_SHAPE.test(iban)) problems.iban = 'supplierForm.error.iban'
   if (!iban && loadedBank) problems.iban = 'supplierForm.error.ibanKeep'
   if (!iban && values.bic.trim()) problems.iban = 'validation.required'
-  if (values.bic.trim() && !BIC_SHAPE.test(values.bic.trim().toUpperCase())) problems.bic = 'supplierForm.error.bic'
+  if (values.bic.trim() && !BIC_SHAPE.test(values.bic.trim().toUpperCase()))
+    problems.bic = 'supplierForm.error.bic'
+  if (!iban && values.bankName.trim()) problems.iban = 'validation.required'
   const percent = values.earlyPaymentDiscountPercent.trim()
   const days = values.earlyPaymentDiscountDays.trim()
   if (percent !== '' || days !== '') {
@@ -327,9 +404,11 @@ export function supplierProblems(values: SupplierFormValues, loadedBank: LoadedB
       problems.earlyPaymentDiscountPercent = 'supplierForm.error.discountPercent'
     }
     if (days === '') problems.earlyPaymentDiscountDays = 'supplierForm.error.discountPair'
-    else if (!/^\d{1,4}$/.test(days)) problems.earlyPaymentDiscountDays = 'supplierForm.error.discountDays'
+    else if (!/^\d{1,4}$/.test(days))
+      problems.earlyPaymentDiscountDays = 'supplierForm.error.discountDays'
   }
-  if (!values.sameAsBilling && addressRequest(values.pickup) === null) problems['pickup.cityName'] = 'supplierForm.error.pickupRequired'
+  if (!values.sameAsBilling && addressRequest(values.pickup) === null)
+    problems['pickup.cityName'] = 'supplierForm.error.pickupRequired'
   return problems
 }
 
@@ -353,6 +432,7 @@ const REQUEST_TO_FORM: Record<string, SupplierField> = {
   defaultPaymentMethod: 'defaultPaymentMethod',
   'bankDetails.iban': 'iban',
   'bankDetails.bic': 'bic',
+  'bankDetails.bankName': 'bankName',
   earlyPaymentDiscountPercent: 'earlyPaymentDiscountPercent',
   earlyPaymentDiscountDays: 'earlyPaymentDiscountDays',
   commercialRegistrationNumber: 'commercialRegistrationNumber',
@@ -364,14 +444,28 @@ const REQUEST_TO_FORM: Record<string, SupplierField> = {
 /** A rule the server names, per input, in words this build has; anything else shows the server's own. */
 const RULE_KEYS: Partial<Record<SupplierField, Record<string, string>>> = {
   vatNumber: { INVALID_FORMAT: 'validation.vatin', INVALID_CHARACTERS: 'validation.vatin' },
-  peppolId: { INVALID_FORMAT: 'supplierForm.error.peppolShape', VAT_GROUP_NOT_A_PARTICIPANT: 'supplierForm.error.vatGroup' },
-  emails: { INVALID_FORMAT: 'validation.email', DUPLICATE: 'supplierForm.error.duplicateEmail', TOO_MANY: 'supplierForm.error.tooManyEmails' },
+  peppolId: {
+    INVALID_FORMAT: 'supplierForm.error.peppolShape',
+    VAT_GROUP_NOT_A_PARTICIPANT: 'supplierForm.error.vatGroup',
+  },
+  emails: {
+    INVALID_FORMAT: 'validation.email',
+    DUPLICATE: 'supplierForm.error.duplicateEmail',
+    TOO_MANY: 'supplierForm.error.tooManyEmails',
+  },
   telephone: { INVALID_FORMAT: 'supplierForm.error.phone' },
   mobilePhone: { INVALID_FORMAT: 'supplierForm.error.phone' },
   iban: { INVALID_FORMAT: 'supplierForm.error.iban' },
   bic: { INVALID_FORMAT: 'supplierForm.error.bic' },
-  earlyPaymentDiscountPercent: { REQUIRED: 'supplierForm.error.discountPair', OUT_OF_RANGE: 'supplierForm.error.discountPercent', INVALID_FORMAT: 'supplierForm.error.discountPercent' },
-  earlyPaymentDiscountDays: { REQUIRED: 'supplierForm.error.discountPair', OUT_OF_RANGE: 'supplierForm.error.discountDays' },
+  earlyPaymentDiscountPercent: {
+    REQUIRED: 'supplierForm.error.discountPair',
+    OUT_OF_RANGE: 'supplierForm.error.discountPercent',
+    INVALID_FORMAT: 'supplierForm.error.discountPercent',
+  },
+  earlyPaymentDiscountDays: {
+    REQUIRED: 'supplierForm.error.discountPair',
+    OUT_OF_RANGE: 'supplierForm.error.discountDays',
+  },
   'pickup.cityName': { REQUIRED: 'supplierForm.error.pickupRequired' },
 }
 
@@ -388,7 +482,10 @@ export function placeSupplierErrors(errors: readonly ProblemFieldError[]): {
   const fields: Partial<Record<SupplierField, PlacedError>> = {}
   const other: string[] = []
   for (const error of errors) {
-    const address = /^(invoiceAddress|deliveryAddress)\.(attention|countryCode|cityName|streetName|poBox|postalCode)$/.exec(error.field)
+    const address =
+      /^(invoiceAddress|deliveryAddress)\.(attention|countryCode|cityName|streetName|poBox|postalCode)$/.exec(
+        error.field,
+      )
     const field: SupplierField | undefined = address
       ? (`${address[1] === 'invoiceAddress' ? 'billing' : 'pickup'}.${address[2]}` as SupplierField)
       : REQUEST_TO_FORM[error.field]
@@ -397,7 +494,14 @@ export function placeSupplierErrors(errors: readonly ProblemFieldError[]): {
       continue
     }
     if (fields[field]) continue
-    const key = error.code === 'REQUIRED' ? 'validation.required' : error.code === 'TOO_LONG' ? 'validation.tooLong' : error.code ? RULE_KEYS[field]?.[error.code] : undefined
+    const key =
+      error.code === 'REQUIRED'
+        ? 'validation.required'
+        : error.code === 'TOO_LONG'
+          ? 'validation.tooLong'
+          : error.code
+            ? RULE_KEYS[field]?.[error.code]
+            : undefined
     fields[field] = key ? { key } : { text: error.message }
   }
   return { fields, other }

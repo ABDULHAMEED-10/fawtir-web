@@ -1,10 +1,16 @@
-import type { StatementEntryKind, StatementIssuerDto, SupplierStatementDto } from '../api/expenditure/supplierRecord'
+import type {
+  StatementAgeingBucket,
+  StatementEntryKind,
+  StatementIssuerDto,
+  SupplierStatementDto,
+} from '../api/expenditure/supplierRecord'
 import type { SupplierDetailDto } from '../api/expenditure/suppliers'
 
 /**
- * A supplier statement (E-05, decisions of 2026-09-17), read from `GET /suppliers/{id}/statement`.
- * The design's per-entry notes ("against PO-0021 · matched in full") and its unused-credit count
- * have nothing behind them and are not drawn.
+ * A supplier statement (Suppliers › Statement, Figma 163:28602), read from
+ * `GET /suppliers/{id}/statement`. The design's per-entry notes ("Against PO-0021 · matched in
+ * full"), the bill count under each ageing figure and the footer's unused-credit count are read
+ * from optional fields the backend is asked for (§7.13 to 7.15) and left blank until they arrive.
  */
 
 export const PERIODS = ['year', 'quarter', 'month', 'last90', 'custom'] as const
@@ -13,7 +19,10 @@ export type Period = (typeof PERIODS)[number]
 const iso = (date: Date) => date.toISOString().slice(0, 10)
 
 /** The dates a preset covers, to today; a custom period keeps the dates it was given. */
-export function periodRange(period: Exclude<Period, 'custom'>, today: string): { from: string; to: string } {
+export function periodRange(
+  period: Exclude<Period, 'custom'>,
+  today: string,
+): { from: string; to: string } {
   const [year, month] = today.split('-').map(Number)
   switch (period) {
     case 'year':
@@ -43,7 +52,10 @@ export function customRangeProblem(from: string, to: string, today: string): str
  * Which column an entry's amount is in, signed as it moves what is owed: a credit note lowers
  * what they billed, a reversal gives back what was paid.
  */
-export function columnsOf(kind: StatementEntryKind, amount: number): { billed: number | null; paid: number | null } {
+export function columnsOf(
+  kind: StatementEntryKind,
+  amount: number,
+): { billed: number | null; paid: number | null } {
   switch (kind) {
     case 'BILL':
       return { billed: amount, paid: null }
@@ -61,26 +73,72 @@ export function entryLink(kind: StatementEntryKind, documentId: string): string 
   return kind === 'BILL' || kind === 'CREDIT_NOTE' ? `/expenditure/bills/${documentId}` : null
 }
 
-export const AGEING_BUCKETS = ['NOT_DUE', 'DUE_WITHIN_30', 'LATE_30', 'LATE_60_PLUS'] as const
+export const AGEING_BUCKETS: readonly StatementAgeingBucket[] = [
+  'NOT_DUE',
+  'DUE_WITHIN_30',
+  'LATE_30',
+  'LATE_60_PLUS',
+]
+
+export type AgeingNote = { key: string; values?: Record<string, string | number> } | null
+
+/**
+ * The line under an ageing figure: "1 bill · due 28 Aug" when the server says how many, "Never
+ * been late with them" under an empty late bucket when it says they never were, otherwise nothing.
+ */
+export function ageingNote(
+  bucket: StatementAgeingBucket,
+  statement: SupplierStatementDto,
+): AgeingNote {
+  const detail = statement.ageingDetail?.[bucket]
+  if (detail && detail.bills > 0) {
+    return detail.nextDue
+      ? { key: 'supplierRecord.bandNote', values: { count: detail.bills, date: detail.nextDue } }
+      : { key: 'supplierRecord.bandCount', values: { count: detail.bills } }
+  }
+  // The design says it once, under the first late bucket; the 60-day one reads a dash.
+  if (bucket === 'LATE_30' && statement.everLate === false) {
+    return { key: 'supplierDetail.bandNote.alreadyLate' }
+  }
+  return null
+}
+
+/** A bill still open at the end of the period, which the design shades. Only when the server says. */
+export function entryOpen(entry: SupplierStatementDto['entries'][number]): boolean {
+  return entry.kind === 'BILL' && typeof entry.outstanding === 'number' && entry.outstanding > 0
+}
 
 /** The issuer's address as one line, in the order a letter would carry it. */
 export function issuerAddress(issuer: StatementIssuerDto | null): string | null {
   if (!issuer) return null
-  const parts = [issuer.addressLine1, issuer.addressLine2, issuer.addressLine3, issuer.city, issuer.countrySubdivision, issuer.postalCode, issuer.country].filter(
-    (part): part is string => Boolean(part && part.trim()),
-  )
+  const parts = [
+    issuer.addressLine1,
+    issuer.addressLine2,
+    issuer.addressLine3,
+    issuer.city,
+    issuer.countrySubdivision,
+    issuer.postalCode,
+    issuer.country,
+  ].filter((part): part is string => Boolean(part && part.trim()))
   return parts.length > 0 ? parts.join(', ') : null
 }
 
 /** Why the statement cannot be e-mailed from here, before asking the server. */
-export function emailBlocker(profile: SupplierDetailDto['profile'], canManage: boolean): string | null {
+export function emailBlocker(
+  profile: SupplierDetailDto['profile'],
+  canManage: boolean,
+): string | null {
   if (!canManage) return null
   if (profile.status === 'SWITCHED_OFF') return 'supplierStatement.email.switchedOff'
-  if (!profile.emailRecipients || profile.emailRecipients.length === 0) return 'supplierStatement.email.noAddress'
+  if (!profile.emailRecipients || profile.emailRecipients.length === 0)
+    return 'supplierStatement.email.noAddress'
   return null
 }
 
 export function periodTotals(statement: SupplierStatementDto): { billedNet: number; paid: number } {
   // Rounded to the fils so a float remainder never prints as a stray thousandth.
-  return { billedNet: Math.round((statement.bills - statement.credits) * 1000) / 1000, paid: statement.payments }
+  return {
+    billedNet: Math.round((statement.bills - statement.credits) * 1000) / 1000,
+    paid: statement.payments,
+  }
 }

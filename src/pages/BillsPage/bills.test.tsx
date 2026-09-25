@@ -36,8 +36,23 @@ const SUMMARY: BillSummaryDto = {
   disputedCount: 0,
   disputedTotal: 0,
   excludedFromTotals: 0,
-  needsAttention: { draft: 0, new: 2, mismatch: 1, awaitingApproval: 3, total: 6, truncated: false },
-  tabs: { needsAttention: 6, all: 31, awaitingApproval: 3, approved: 4, onHold: 1, paid: 17, truncated: false },
+  needsAttention: {
+    draft: 0,
+    new: 2,
+    mismatch: 1,
+    awaitingApproval: 3,
+    total: 6,
+    truncated: false,
+  },
+  tabs: {
+    needsAttention: 6,
+    all: 31,
+    awaitingApproval: 3,
+    approved: 4,
+    onHold: 1,
+    paid: 17,
+    truncated: false,
+  },
 }
 
 const ID = '11111111-1111-1111-1111-111111111111'
@@ -83,7 +98,13 @@ function json(status: number, body?: unknown) {
   })
 }
 
-function itemsPage(items: BillRowDto[], total = items.length, page = 0, pageSize = 10, truncated = false) {
+function itemsPage(
+  items: BillRowDto[],
+  total = items.length,
+  page = 0,
+  pageSize = 10,
+  truncated = false,
+) {
   return { items, page, pageSize, count: items.length, total, truncated }
 }
 
@@ -112,8 +133,10 @@ beforeEach(async () => {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
     }
-    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED')) return json(200, { items: unconfirmed, page: 0, pageSize: 20, count: unconfirmed.length })
-    if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && init?.method === 'DELETE') return new Response(null, { status: 204 })
+    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED'))
+      return json(200, { items: unconfirmed, page: 0, pageSize: 20, count: unconfirmed.length })
+    if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && init?.method === 'DELETE')
+      return new Response(null, { status: 204 })
     throw new Error(`unexpected request to ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -154,42 +177,69 @@ describe('Bills list, wired to the API', () => {
     expect(screen.getByText('PO-0042')).toBeTruthy()
     expect(screen.getByText('Order and receipt agree')).toBeTruthy()
     expect(screen.getByText('New, not reviewed')).toBeTruthy()
-    // Nothing has been paid against this bill, so the amount and what is outstanding are the
-    // same figure, once in each column.
-    expect(screen.getAllByText('1,234.560')).toHaveLength(2)
+    // One amount column, as the frame draws it; what is still owed is a note under it.
+    expect(screen.getByText('1,234.560')).toBeTruthy()
     expect(screen.getByText('incl. VAT 58.789')).toBeTruthy()
+    expect(screen.queryByText('Outstanding')).toBeNull()
+    expect(screen.getByRole('link', { name: /Start a payment run/ }).getAttribute('href')).toBe(
+      '/expenditure/payments/new',
+    )
     expect(listCalls()).toEqual([FIRST_PAGE])
   })
 
-  it('shows what is outstanding per row, and marks the overdue ones', async () => {
+  it('notes what is still owed under the amount, and marks the overdue ones', async () => {
     listResponses = [
       () =>
         json(
           200,
           itemsPage([
-            bill({ id: 'b-part', supplierBillNumber: 'PART-1', paidAmount: 234.56, outstandingAmount: 1000 }),
-            bill({ id: 'b-late', supplierBillNumber: 'LATE-1', overdue: true, dueDate: muscatDay(-3), outstandingAmount: 500 }),
-            bill({ id: 'b-paid', supplierBillNumber: 'PAID-1', workflowState: 'PAID', paidAmount: 1234.56, outstandingAmount: 0 }),
-            bill({ id: 'b-credit', supplierBillNumber: 'CRED-1', documentTypeCode: '381', outstandingAmount: 90 }),
+            bill({
+              id: 'b-part',
+              supplierBillNumber: 'PART-1',
+              paidAmount: 234.56,
+              outstandingAmount: 1000,
+            }),
+            bill({
+              id: 'b-late',
+              supplierBillNumber: 'LATE-1',
+              overdue: true,
+              dueDate: muscatDay(-3),
+              paidAmount: 734.56,
+              outstandingAmount: 500,
+            }),
+            bill({
+              id: 'b-paid',
+              supplierBillNumber: 'PAID-1',
+              workflowState: 'PAID',
+              paidAmount: 1234.56,
+              outstandingAmount: 0,
+            }),
+            bill({
+              id: 'b-credit',
+              supplierBillNumber: 'CRED-1',
+              documentTypeCode: '381',
+              outstandingAmount: 90,
+            }),
           ]),
         ),
     ]
     renderBills()
     await screen.findByText('PART-1')
 
-    expect(screen.getByText('Outstanding')).toBeTruthy()
-    // Part paid: the amount stands, the outstanding is what is left.
-    expect(screen.getByText('1,000.000')).toBeTruthy()
-    expect(screen.getByText('500.000')).toBeTruthy()
-    // A settled bill and a credit note owe nothing, and neither shows a figure to chase.
-    expect(screen.getAllByText('Nothing owed')).toHaveLength(2)
+    // The frame has no Outstanding column: a part payment is a note under the amount.
+    expect(screen.queryByText('Outstanding')).toBeNull()
+    expect(screen.getByText('1,000.000 left to pay')).toBeTruthy()
+    // A settled bill says what its total included; a credit note says what it is.
+    expect(screen.getByText('Credit note')).toBeTruthy()
+    expect(
+      within(screen.getByText('PAID-1').closest('tr')!).getByText('incl. VAT 58.789'),
+    ).toBeTruthy()
     expect(screen.getByText('3 days overdue')).toBeTruthy()
 
-    // The late figure is red, and red is not the only thing saying so: the cell carries the word
-    // for a screen reader. Colour alone would leave the state unreadable to anyone who cannot see it.
-    const late = screen.getByText('500.000')
+    // The late note is red, and so is the due column's count: colour is not the only carrier.
+    const late = screen.getByText('500.000 left to pay')
     expect(late.className).toContain('text-danger-700')
-    expect(within(late).getByText('Overdue')).toBeTruthy()
+    expect(screen.getByText('3 days overdue').className).toContain('text-danger-700')
   })
 
   it('asks the server for the tab, the search, the source, the sort and the page size', async () => {
@@ -200,17 +250,24 @@ describe('Bills list, wired to the API', () => {
     await waitFor(() => expect(listCalls().at(-1)).toBe('/api/v1/bills?page=0&page_size=10'))
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'qalhat' } })
-    await waitFor(() => expect(listCalls().at(-1)).toBe('/api/v1/bills?q=qalhat&page=0&page_size=10'))
+    await waitFor(() =>
+      expect(listCalls().at(-1)).toBe('/api/v1/bills?q=qalhat&page=0&page_size=10'),
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Sort' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Due: soonest first' }))
     await waitFor(() =>
-      expect(listCalls().at(-1)).toBe('/api/v1/bills?q=qalhat&sort=DUE_SOONEST&page=0&page_size=10'),
+      expect(listCalls().at(-1)).toBe(
+        '/api/v1/bills?q=qalhat&sort=DUE_SOONEST&page=0&page_size=10',
+      ),
     )
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Show result:' }), { target: { value: '25' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Show result:' }))
+    fireEvent.click(await screen.findByRole('option', { name: '25' }))
     await waitFor(() =>
-      expect(listCalls().at(-1)).toBe('/api/v1/bills?q=qalhat&sort=DUE_SOONEST&page=0&page_size=25'),
+      expect(listCalls().at(-1)).toBe(
+        '/api/v1/bills?q=qalhat&sort=DUE_SOONEST&page=0&page_size=25',
+      ),
     )
   })
 
@@ -235,10 +292,28 @@ describe('Bills list, wired to the API', () => {
   it('approves on the server, then reads the cards and the list again', async () => {
     listResponses = [
       () => json(200, itemsPage([bill()], 1)),
-      () => json(200, itemsPage([bill({ workflowState: 'APPROVED', readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } })], 1)),
+      () =>
+        json(
+          200,
+          itemsPage(
+            [
+              bill({
+                workflowState: 'APPROVED',
+                readiness: {
+                  state: 'READY',
+                  distinctApprovals: 1,
+                  required: 1,
+                  autoApproved: false,
+                },
+              }),
+            ],
+            1,
+          ),
+        ),
     ]
     renderBills()
-    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/v1/bills/${ID}/approval/approve`,
@@ -246,7 +321,9 @@ describe('Bills list, wired to the API', () => {
       ),
     )
     await waitFor(() =>
-      expect(within(screen.getByText('Qalhat Marine Supplies').closest('tr')!).getByText('Approved')).toBeTruthy(),
+      expect(
+        within(screen.getByText('Qalhat Marine Supplies').closest('tr')!).getByText('Approved'),
+      ).toBeTruthy(),
     )
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
     expect(calls(SUMMARY_URL).length).toBeGreaterThan(1)
@@ -258,8 +335,23 @@ describe('Bills list, wired to the API', () => {
         json(
           200,
           itemsPage([
-            bill({ id: 'mm', supplierName: 'Mismatch Co', workflowState: 'MISMATCH', match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false } }),
-            bill({ id: 'aw', supplierName: 'Awaiting Co', workflowState: 'AWAITING_APPROVAL', readiness: { state: 'PENDING', distinctApprovals: 1, required: 2, autoApproved: false } }),
+            bill({
+              id: 'mm',
+              supplierName: 'Mismatch Co',
+              workflowState: 'MISMATCH',
+              match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false },
+            }),
+            bill({
+              id: 'aw',
+              supplierName: 'Awaiting Co',
+              workflowState: 'AWAITING_APPROVAL',
+              readiness: {
+                state: 'PENDING',
+                distinctApprovals: 1,
+                required: 2,
+                autoApproved: false,
+              },
+            }),
           ]),
         ),
     ]
@@ -280,13 +372,17 @@ describe('Bills list, wired to the API', () => {
         tabs: { ...SUMMARY.tabs, truncated: true },
       })
     renderBills()
-    expect(await screen.findByText(/2 uploaded or scanned bills are waiting/)).toBeTruthy()
-    expect(screen.getByText(/newest 2,000 bills only/)).toBeTruthy()
-    expect(screen.getByText('2 new · 1 mismatch · 3 awaiting approval · 2 uploads to confirm')).toBeTruthy()
+    // The frame has no notice for drafts: they are rows, and the card counts them.
+    expect(await screen.findByText(/newest 2,000 bills only/)).toBeTruthy()
+    expect(screen.queryByText(/uploaded or scanned bills are waiting/)).toBeNull()
+    expect(
+      screen.getByText('2 new · 1 mismatch · 3 awaiting approval · 2 uploads to confirm'),
+    ).toBeTruthy()
   })
 
   it('tells an empty ledger from a search that found nothing', async () => {
-    summaryResponse = () => json(200, { ...SUMMARY, tabs: { ...SUMMARY.tabs, all: 0, needsAttention: 0 } })
+    summaryResponse = () =>
+      json(200, { ...SUMMARY, tabs: { ...SUMMARY.tabs, all: 0, needsAttention: 0 } })
     listResponses = [() => json(200, itemsPage([], 0))]
     const { unmount } = renderBills()
     expect(await screen.findByText(/No bills yet/)).toBeTruthy()
@@ -298,14 +394,19 @@ describe('Bills list, wired to the API', () => {
   })
 
   it('reads a refusal as "no access", not as an empty list', async () => {
-    summaryResponse = () => json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
+    summaryResponse = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
     renderBills()
     expect(await screen.findByText('No access')).toBeTruthy()
   })
 
   it('offers a retry with the reference when the list fails', async () => {
     listResponses = [
-      () => json(500, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'corr-91' }),
+      () =>
+        json(500, {
+          type: 'https://api.fawtir.om/problems/internal-error',
+          correlationId: 'corr-91',
+        }),
       () => json(200, itemsPage([bill()], 1)),
     ]
     renderBills()
@@ -330,16 +431,19 @@ describe('Bills list, wired to the API', () => {
     expect(await screen.findByText('Qalhat Marine Supplies')).toBeTruthy()
     expect(screen.getByText('خلال 12 يومًا')).toBeTruthy()
     expect(screen.getByText('جديدة، لم تُراجع')).toBeTruthy()
-    expect(screen.getByText('المتبقي')).toBeTruthy()
-    // Amount and outstanding: the same figure on an unpaid bill, in Latin digits either way.
-    expect(screen.getAllByText('1,234.560')).toHaveLength(2)
+    // Latin digits either way.
+    expect(screen.getByText('1,234.560')).toBeTruthy()
   })
 })
 
 describe('bill list mapping', () => {
   it('notes a credit note, and settles counter purchases without a due date', () => {
-    expect(toBillListItem(bill({ documentTypeCode: '381' })).amountNote).toEqual({ key: 'billsPage.rows.creditNote' })
-    expect(dueNoteOf(toBillListItem(bill({ paidOnTheSpot: true, dueDate: null })))).toEqual({ key: 'billsPage.rows.cash' })
+    expect(toBillListItem(bill({ documentTypeCode: '381' })).amountNote).toEqual({
+      key: 'billsPage.rows.creditNote',
+    })
+    expect(dueNoteOf(toBillListItem(bill({ paidOnTheSpot: true, dueDate: null })))).toEqual({
+      key: 'billsPage.rows.cash',
+    })
     expect(dueNoteOf(toBillListItem(bill({ workflowState: 'PAID' })))).toBeNull()
   })
 
@@ -347,21 +451,30 @@ describe('bill list mapping', () => {
     const part = toBillListItem(bill({ paidAmount: 200, outstandingAmount: 1034.56 }))
     expect(part.outstanding).toBe(1034.56)
     expect(part.owes).toBe(true)
-    // The part payment used to be a note under the amount as well; one figure, one place.
-    expect(part.amountNote).toEqual({ key: 'billsPage.rows.inclVat', values: { amount: 58.789 } })
+    // The frame notes what is left under the amount; there is no column for it.
+    expect(part.amountNote).toEqual({
+      key: 'billsPage.rows.leftToPay',
+      values: { amount: 1034.56 },
+    })
 
     // A credit note lowers a bill. Whatever the server puts in the field, nothing is owed on it.
-    expect(toBillListItem(bill({ documentTypeCode: '381', outstandingAmount: 90 })).owes).toBe(false)
-    expect(toBillListItem(bill({ documentTypeCode: '261', outstandingAmount: 90 })).owes).toBe(false)
+    expect(toBillListItem(bill({ documentTypeCode: '381', outstandingAmount: 90 })).owes).toBe(
+      false,
+    )
+    expect(toBillListItem(bill({ documentTypeCode: '261', outstandingAmount: 90 })).owes).toBe(
+      false,
+    )
     expect(toBillListItem(bill({ paidAmount: 1234.56, outstandingAmount: 0 })).owes).toBe(false)
   })
 
-  it('counts days from the Muscat day, not the browser\'s', () => {
+  it("counts days from the Muscat day, not the browser's", () => {
     // 21:30 UTC on 14 Sept is already 15 Sept in Muscat.
     const lateEvening = new Date('2026-09-14T21:30:00Z')
     expect(daysFromMuscatToday('2026-09-15', lateEvening)).toBe(0)
     expect(daysFromMuscatToday('2026-09-10', lateEvening)).toBe(-5)
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-10', overdue: true })), lateEvening)).toEqual({
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-10', overdue: true })), lateEvening),
+    ).toEqual({
       key: 'billsPage.rows.daysOverdue',
       values: { count: 5 },
     })
@@ -374,17 +487,23 @@ describe('bill list mapping', () => {
     const lateEvening = new Date('2026-09-14T21:30:00Z')
 
     // Past its date locally, not yet overdue to the server: say nothing that contradicts the count.
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening)).toEqual({
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening),
+    ).toEqual({
       key: 'billsPage.rows.dueToday',
     })
 
     // Overdue to the server before the local calendar has caught up: no "0 days overdue".
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-15', overdue: true })), lateEvening)).toEqual({
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-15', overdue: true })), lateEvening),
+    ).toEqual({
       key: 'billsPage.rows.overdue',
     })
 
     // Agreement is the ordinary case and still reads as a count.
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-20', overdue: false })), lateEvening)).toEqual({
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-20', overdue: false })), lateEvening),
+    ).toEqual({
       key: 'billsPage.rows.inDays',
       values: { count: 5 },
     })
@@ -397,12 +516,18 @@ describe('bill list mapping', () => {
     const now = new Date('2026-09-24T09:00:00Z')
 
     expect(
-      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-19', overdue: false, workflowState: 'REJECTED' })), now),
+      dueNoteOf(
+        toBillListItem(bill({ dueDate: '2026-09-19', overdue: false, workflowState: 'REJECTED' })),
+        now,
+      ),
     ).toEqual({ key: 'billsPage.rows.wasDue', values: { count: 5 } })
 
     // The same the day after it was due: a rejected bill is never the skew, at any width.
     expect(
-      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-23', overdue: false, workflowState: 'REJECTED' })), now),
+      dueNoteOf(
+        toBillListItem(bill({ dueDate: '2026-09-23', overdue: false, workflowState: 'REJECTED' })),
+        now,
+      ),
     ).toEqual({ key: 'billsPage.rows.wasDue', values: { count: 1 } })
   })
 
@@ -411,37 +536,60 @@ describe('bill list mapping', () => {
     // is a day late here and due today to the server. That must keep reading "Due today" — saying
     // "Was due 1 day ago" for four hours every evening would be the same defect in reverse.
     const lateEvening = new Date('2026-09-14T21:30:00Z')
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening)).toEqual({
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-14', overdue: false })), lateEvening),
+    ).toEqual({
       key: 'billsPage.rows.dueToday',
     })
 
     // A gap wider than the skew is never the skew, whatever the workflow state says.
-    expect(dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-12', overdue: false })), lateEvening)).toEqual({
+    expect(
+      dueNoteOf(toBillListItem(bill({ dueDate: '2026-09-12', overdue: false })), lateEvening),
+    ).toEqual({
       key: 'billsPage.rows.wasDue',
       values: { count: 3 },
     })
   })
 
   it('reads NO_ORDER as no order, not as an agreement', () => {
-    expect(toBillListItem(bill({ match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false }, purchaseOrderReference: 'THEIR-PO-5' })).match).toEqual({
+    expect(
+      toBillListItem(
+        bill({
+          match: { verdict: 'NO_ORDER', purchaseOrderNumber: null, byHand: false },
+          purchaseOrderReference: 'THEIR-PO-5',
+        }),
+      ).match,
+    ).toEqual({
       verdict: 'none',
       theirOrder: 'THEIR-PO-5',
     })
-    expect(toBillListItem(bill({ match: { verdict: 'MATCHED_BY_HAND', purchaseOrderNumber: 'PO-1', byHand: false } })).match).toMatchObject({
+    expect(
+      toBillListItem(
+        bill({ match: { verdict: 'MATCHED_BY_HAND', purchaseOrderNumber: 'PO-1', byHand: false } }),
+      ).match,
+    ).toMatchObject({
       verdict: 'ok',
       note: { key: 'billsPage.rows.matchedByHand' },
     })
   })
 
   it('names the run a bill is in, and uses the plain label when there is nothing to add', () => {
-    expect(statusLabelKey(toBillListItem(bill({ workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'RUN-7' })))).toBe(
-      'billsPage.state.inPaymentRunRef',
+    expect(
+      statusLabelKey(
+        toBillListItem(bill({ workflowState: 'IN_PAYMENT_RUN', paymentRunReference: 'RUN-7' })),
+      ),
+    ).toBe('billsPage.state.inPaymentRunRef')
+    expect(statusLabelKey(toBillListItem(bill({ workflowState: 'ON_HOLD' })))).toBe(
+      'billsPage.state.onHold',
     )
-    expect(statusLabelKey(toBillListItem(bill({ workflowState: 'ON_HOLD' })))).toBe('billsPage.state.onHold')
   })
 })
 
-function intakeRow(id: string, source: IntakeDto['source'], typed: { supplierName?: string; billNumber?: string }): IntakeDto {
+function intakeRow(
+  id: string,
+  source: IntakeDto['source'],
+  typed: { supplierName?: string; billNumber?: string },
+): IntakeDto {
   return {
     id,
     source,
@@ -478,7 +626,9 @@ describe('a disputed bill', () => {
     renderBills()
 
     expect(await screen.findByText('8,765.432')).toBeTruthy()
-    expect(screen.getByText(/13 open · 2 overdue · 3,140.000 disputed on 1 refused bill/)).toBeTruthy()
+    expect(
+      screen.getByText(/13 open · 2 overdue · 3,140.000 disputed on 1 refused bill/),
+    ).toBeTruthy()
   })
 
   it('says nothing when there is no dispute', async () => {
@@ -490,21 +640,43 @@ describe('a disputed bill', () => {
 })
 
 describe('uploads waiting for their details', () => {
-  it('lists them under the drafts notice: a way back to an upload, only a discard for a receipt', async () => {
-    summaryResponse = () => json(200, { ...SUMMARY, needsAttention: { ...SUMMARY.needsAttention, draft: 2 } })
-    unconfirmed = [intakeRow('i-1', 'UPLOADED', { supplierName: 'Nizwa Hardware Store', billNumber: 'NHS-2026-14' }), intakeRow('i-2', 'SCANNED', {})]
+  it('draws them as draft rows: an upload goes back to its page, a receipt back into Scan receipts', async () => {
+    summaryResponse = () =>
+      json(200, { ...SUMMARY, needsAttention: { ...SUMMARY.needsAttention, draft: 2 } })
+    unconfirmed = [
+      intakeRow('i-1', 'UPLOADED', {
+        supplierName: 'Nizwa Hardware Store',
+        billNumber: 'NHS-2026-14',
+      }),
+      intakeRow('i-2', 'SCANNED', {}),
+    ]
     renderBills('/expenditure/bills?tab=needsAttention')
 
-    const list = await screen.findByRole('list', { name: 'Uploads waiting for their details' })
-    const [upload, receipt] = within(list).getAllByRole('listitem')
-    expect(within(upload).getByText('Nizwa Hardware Store · NHS-2026-14')).toBeTruthy()
-    expect(within(upload).getByRole('link', { name: 'Continue' }).getAttribute('href')).toBe('/expenditure/bills/upload/i-1')
-    expect(within(receipt).getByText('receipt.jpg')).toBeTruthy()
-    expect(within(receipt).queryByRole('link', { name: 'Continue' })).toBeNull()
+    const upload = (await screen.findByText('Nizwa Hardware Store')).closest('tr')!
+    expect(within(upload).getByText('NHS-2026-14')).toBeTruthy()
+    expect(within(upload).getByText('Draft, confirm details')).toBeTruthy()
+    expect(
+      within(upload)
+        .getByRole('link', { name: /Check and save/ })
+        .getAttribute('href'),
+    ).toBe('/expenditure/bills/upload/i-1')
+    const receipt = screen.getByText('receipt.jpg').closest('tr')!
+    expect(
+      within(receipt)
+        .getByRole('link', { name: /Check and save/ })
+        .getAttribute('href'),
+    ).toBe('/expenditure/bills/scan?intake=i-2')
 
-    fireEvent.click(within(receipt).getByRole('button', { name: 'Discard' }))
+    fireEvent.click(within(receipt).getByRole('button', { name: 'Bill actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Discard' }))
     await waitFor(() =>
-      expect(fetchMock.mock.calls.filter(([url, init]) => url === '/api/v1/bills/intake/i-2' && (init as RequestInit | undefined)?.method === 'DELETE')).toHaveLength(1),
+      expect(
+        fetchMock.mock.calls.filter(
+          ([url, init]) =>
+            url === '/api/v1/bills/intake/i-2' &&
+            (init as RequestInit | undefined)?.method === 'DELETE',
+        ),
+      ).toHaveLength(1),
     )
   })
 })

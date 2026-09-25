@@ -1,9 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { DateField } from '../ui'
+import { DateField, Rial, Select } from '../ui'
 import { Notice } from '../feedback/ApiNotice'
-import { FieldLabel, SelectField, TextField } from '../form'
+import { FieldLabel, TextField } from '../form'
+import { selectAllOnFocus } from '../invoice'
 import { useApiRead } from '../../hooks'
 import type { Page } from '../../api'
 import { ApiError } from '../../api/errors'
@@ -17,13 +18,18 @@ import {
   type IntakeDto,
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
-import { loadSupplierOrders, supplierOrdersPath, type PurchaseOrderRowDto } from '../../api/expenditure/supplierRecord'
+import {
+  loadSupplierOrders,
+  supplierOrdersPath,
+  type PurchaseOrderRowDto,
+} from '../../api/expenditure/supplierRecord'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   CONFIRM_REFUSALS,
   CURRENCIES,
   billProblems,
   blankLine,
+  fileKindOf,
   fromIntake,
   linesTotals,
   savedDetails,
@@ -38,9 +44,13 @@ import {
 import { formatAmount, formatDate } from '../../lib/format'
 import { IntakeFilePreview } from './IntakeFilePreview'
 import { SupplierPicker } from './SupplierPicker'
+import fileIcon from '../../assets/bill-capture/file.svg'
+import okCheckIcon from '../../assets/bill-detail/tick.svg'
+import orderDocIcon from '../../assets/create-invoice/doc-order.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
 import deleteIcon from '../../assets/invoice-details/delete.svg'
 import warnIcon from '../../assets/bills/match-warn.svg'
+import matchOkIcon from '../../assets/bills/match-ok.svg'
 
 /** Orders a bill can still be matched against. */
 const BILLABLE = new Set<PurchaseOrderRowDto['state']>(['SENT', 'PARTIALLY_RECEIVED', 'RECEIVED'])
@@ -56,9 +66,39 @@ const REQUEST_FIELDS: Record<string, BillField> = {
   total: 'total',
 }
 
+/** The 42px figure box on a line, and the 50px one on the totals. */
+const LINE_INPUT =
+  'h-[42px] rounded-sm border border-primary-300 bg-surface-tab-bar px-2 text-end text-sm font-medium text-text-secondary outline-none focus:border-primary-700'
+const TOTAL_INPUT =
+  'h-[42px] w-[140px] rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-end font-semibold text-text-primary outline-none tabular-nums focus:border-primary-700'
+
+function Note({ tone, children }: { tone: 'warn' | 'ok' | 'info'; children: React.ReactNode }) {
+  const icon = tone === 'warn' ? warnIcon : tone === 'ok' ? matchOkIcon : okCheckIcon
+  return (
+    <p
+      className={[
+        'flex items-start gap-1.5 text-xs font-medium leading-[1.4]',
+        tone === 'warn'
+          ? 'text-[#887147]'
+          : tone === 'ok'
+            ? 'text-success-700'
+            : 'text-text-tertiary',
+      ].join(' ')}
+    >
+      <img src={icon} alt="" className="mt-px size-4 shrink-0" />
+      <span>{children}</span>
+    </p>
+  )
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
 /**
- * A supplier's bill, typed beside its file and confirmed into a payable. Shared by Upload a bill
- * and a supplier's Record a bill, which fixes the supplier.
+ * A supplier's bill, checked or typed beside its file and confirmed into a payable (Figma
+ * 163:22397). Shared by Upload a bill and a supplier's Record a bill, which fixes the supplier.
  */
 export function BillIntakeForm({
   intake,
@@ -67,6 +107,7 @@ export function BillIntakeForm({
   cancelTo,
   onSaved,
   onKept,
+  onReplace,
   documentTypeCode = '380',
 }: {
   intake: IntakeDto
@@ -76,12 +117,14 @@ export function BillIntakeForm({
   onSaved: (bill: ConfirmedBillDto) => void
   /**
    * Where to go once a half-typed bill is saved on the intake for later (`PUT`). Offered only
-   * when the caller can bring the person back to it — the Bills page lists unconfirmed uploads.
+   * when the caller can bring the person back to it: the Bills page lists unconfirmed uploads.
    */
   onKept?: () => void
+  /** "Replace the file": the caller discards this upload and shows the picker again. */
+  onReplace?: () => void
   /**
-   * What is being confirmed. The same form serves all three because the fields are the same —
-   * a supplier, a number, a date, lines and a total — but the type decides which way the money
+   * What is being confirmed. The same form serves all three because the fields are the same,
+   * a supplier, a number, a date, lines and a total, but the type decides which way the money
    * points, so it is stated by the caller rather than guessed from the file.
    */
   documentTypeCode?: IntakeDocumentTypeDto
@@ -89,32 +132,54 @@ export function BillIntakeForm({
   const { t, i18n } = useTranslation()
   const [form, setForm] = useState<BillForm>(() => {
     const filled = fromIntake(intake)
-    return lockedSupplier ? { ...filled, supplierId: lockedSupplier.id, supplierName: lockedSupplier.name } : filled
+    return lockedSupplier
+      ? { ...filled, supplierId: lockedSupplier.id, supplierName: lockedSupplier.name }
+      : filled
   })
   const [vatNumber, setVatNumber] = useState<string | null>(lockedSupplier?.vatNumber ?? null)
   const [errors, setErrors] = useState<BillProblems>({})
   const [notice, setNotice] = useState<string | null>(null)
   const [duplicate, setDuplicate] = useState<PossibleDuplicateDto | null>(null)
   const [busy, setBusy] = useState<'confirm' | 'keep' | null>(null)
+  const [dismissedOrders, setDismissedOrders] = useState<string[]>([])
   const inFlight = useRef(false)
 
   const set = (patch: Partial<BillForm>) => {
     setForm((current) => ({ ...current, ...patch }))
     // A changed supplier or number is a different question: the duplicate warning no longer applies.
-    if ('supplierId' in patch || 'supplierName' in patch || 'billNumber' in patch) setDuplicate(null)
+    if ('supplierId' in patch || 'supplierName' in patch || 'billNumber' in patch)
+      setDuplicate(null)
   }
-  const setLine = (id: string, patch: Partial<BillLine>) => set({ lines: form.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)) })
+  const setLine = (id: string, patch: Partial<BillLine>) =>
+    set({ lines: form.lines.map((line) => (line.id === id ? { ...line, ...patch } : line)) })
 
   const totals = useMemo(() => linesTotals(form.lines), [form.lines])
   const disagrees = totalDisagrees(form)
   const extractedVat = intake.extracted?.supplierVatNumber?.trim().toUpperCase() ?? null
-  const vatMatches = Boolean(form.supplierId && vatNumber && extractedVat && vatNumber.toUpperCase() === extractedVat)
+  const vatMatches = Boolean(
+    form.supplierId && vatNumber && extractedVat && vatNumber.toUpperCase() === extractedVat,
+  )
+  const read = intake.extractionStatus === 'EXTRACTED'
+  // The design's "2 fields still to check": what the server would still refuse, counted live.
+  const toCheck = Object.keys(billProblems(form, { needsNumber: true })).length
 
   const ordersPath = form.supplierId ? supplierOrdersPath(form.supplierId, 0, 50) : null
-  const orders = useApiRead<Page<PurchaseOrderRowDto>>(ordersPath, () => loadSupplierOrders(ordersPath!))
-  const billable = orders.read.status === 'ready' ? orders.read.data.items.filter((order) => BILLABLE.has(order.state)) : []
+  const orders = useApiRead<Page<PurchaseOrderRowDto>>(ordersPath, () =>
+    loadSupplierOrders(ordersPath!),
+  )
+  const billable =
+    orders.read.status === 'ready'
+      ? orders.read.data.items.filter((order) => BILLABLE.has(order.state))
+      : []
+  const linked = billable.find((order) => order.id === form.purchaseOrderId) ?? null
+  // TODO(backend): the design suggests the order the matcher thinks fits ("Same supplier, same
+  // two bag sizes…"); the API only lists the supplier's open orders, so the newest one is offered.
+  const suggestion = linked
+    ? null
+    : (billable.find((order) => !dismissedOrders.includes(order.id)) ?? null)
 
-  const money = (value: number | string, currency = form.currency) => formatAmount(value, currency, i18n.language)
+  const money = (value: number | string, currency = form.currency) =>
+    formatAmount(value, currency, i18n.language)
   const error = (field: BillField) => (errors[field] ? t(errors[field]!) : undefined)
 
   const save = async (notDuplicateOf: string | null) => {
@@ -129,7 +194,9 @@ export function BillIntakeForm({
     setBusy('confirm')
     setNotice(null)
     try {
-      onSaved(await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf, documentTypeCode })))
+      onSaved(
+        await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf, documentTypeCode })),
+      )
     } catch (failure) {
       refuse(failure)
     } finally {
@@ -162,7 +229,7 @@ export function BillIntakeForm({
   }
 
   // The refusals are the intake's, not the action's: a confirm and a save-for-later fail the same
-  // ways — a field the server will not take, an intake already confirmed or gone. The update's
+  // ways, a field the server will not take, an intake already confirmed or gone. The update's
   // field paths sit under `extracted.`, which is stripped so they land on the same inputs.
   const refuse = (failure: unknown) => {
     const same = possibleDuplicateOf(failure)
@@ -177,7 +244,8 @@ export function BillIntakeForm({
       for (const entry of failure.fieldErrors) {
         const path = entry.field.replace(/^extracted\./, '')
         const field = path.startsWith('lines') ? 'lines' : REQUEST_FIELDS[path.split('.')[0]]
-        if (field) placed[field] = field === 'lines' ? 'billIntake.error.lines' : 'billIntake.error.refused'
+        if (field)
+          placed[field] = field === 'lines' ? 'billIntake.error.lines' : 'billIntake.error.refused'
       }
       setErrors(placed)
       setNotice(t('billIntake.fixFirst'))
@@ -192,6 +260,17 @@ export function BillIntakeForm({
     await discardIntake(intake.id).catch(() => undefined)
   }
 
+  const fileMeta = [
+    formatBytes(intake.byteSize || file.size),
+    read
+      ? t('billIntake.file.readFields', {
+          read: Object.values(intake.extracted?.confidence ?? {}).filter(Boolean).length,
+        })
+      : savedDetails(intake)
+        ? t('billIntake.file.savedEarlier')
+        : t(fileKindOf(file) === 'xml' ? 'billIntake.file.xmlNotRead' : 'billIntake.file.notRead'),
+  ].join(' · ')
+
   return (
     <form
       noValidate
@@ -199,98 +278,147 @@ export function BillIntakeForm({
         event.preventDefault()
         void save(null)
       }}
-      className="flex flex-col gap-4 xl:flex-row"
+      className="flex flex-col gap-4"
     >
-      <IntakeFilePreview file={file} filledFromXml={intake.extractionStatus === 'EXTRACTED'} />
+      {notice ? (
+        <Notice
+          body={notice}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
-        <p className="rounded-sm bg-primary-25 px-4 py-3 text-sm font-medium leading-[1.4] text-text-secondary">
-          {intake.extractionStatus === 'EXTRACTED' ? t('billIntake.checkFilled') : savedDetails(intake) ? t('billIntake.savedFilled') : t('billIntake.typeItIn')}
-        </p>
-        {notice ? <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
-
-        <section className="rounded-md bg-surface-card p-5">
-          <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{t('uploadBill.whoSentIt')}</h2>
-          <div className="mt-4 flex flex-col gap-1.5">
-            <FieldLabel label={t('billIntake.supplier')} required htmlFor="bill-supplier" />
-            {lockedSupplier ? (
-              <p id="bill-supplier" className="text-base font-semibold text-text-primary">
-                {lockedSupplier.name}
-              </p>
-            ) : (
-              <SupplierPicker
-                id="bill-supplier"
-                value={{ id: form.supplierId, name: form.supplierName, vatNumber }}
-                onPick={(picked) => {
-                  setVatNumber(picked.vatNumber)
-                  set({ supplierId: picked.id, supplierName: picked.name, purchaseOrderId: '' })
-                }}
-                error={error('supplier')}
-              />
-            )}
-            {vatMatches ? <p className="text-xs font-medium text-success-700">{t('uploadBill.vatMatches')}</p> : null}
-            {!form.supplierId && extractedVat ? (
-              <p className="text-xs font-medium text-text-tertiary">{t('billIntake.vatOnFile', { vat: extractedVat })}</p>
-            ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-primary-300 bg-primary-25 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-sm bg-white">
+            <img src={fileIcon} alt="" className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold leading-[1.2] text-text-primary">
+              {file.name}
+            </p>
+            <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">{fileMeta}</p>
           </div>
+        </div>
+        {onReplace ? (
+          <button
+            type="button"
+            onClick={onReplace}
+            className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('uploadBill.replaceFile')}
+          </button>
+        ) : null}
+      </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <TextField
-              id="bill-number"
-              name="billNumber"
-              label={t('uploadBill.billNumber')}
-              required
-              maxLength={200}
-              value={form.billNumber}
-              onChange={(billNumber) => set({ billNumber })}
-              error={error('billNumber')}
-            />
-            <SelectField
-              id="bill-currency"
-              name="currency"
-              label={t('billIntake.currency')}
-              required
-              options={[...CURRENCIES]}
-              value={form.currency}
-              onChange={(currency) => set({ currency })}
-              error={error('currency')}
-            />
-            <div className="flex flex-col gap-1">
-              <FieldLabel label={t('uploadBill.billDate')} required />
-              <DateField value={form.issueDate} onChange={(issueDate) => set({ issueDate })} ariaLabel={t('uploadBill.billDate')} />
-              {error('issueDate') ? (
-                <p role="alert" className="text-xs font-medium text-text-danger">
-                  {error('issueDate')}
-                </p>
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-1">
-              <FieldLabel label={t('uploadBill.paymentDue')} />
-              <DateField value={form.dueDate} onChange={(dueDate) => set({ dueDate })} ariaLabel={t('uploadBill.paymentDue')} min={form.issueDate || undefined} />
-              {error('dueDate') ? (
-                <p role="alert" className="text-xs font-medium text-text-danger">
-                  {error('dueDate')}
+      <div className="flex flex-col gap-4 xl:flex-row">
+        <IntakeFilePreview file={file} filledFromXml={read} />
+
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          <section className="rounded-md bg-surface-card p-5">
+            <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
+              {t('uploadBill.whoSentIt')}
+            </h2>
+            <div className="mt-4 flex flex-col gap-1.5">
+              <FieldLabel label={t('billIntake.supplier')} required htmlFor="bill-supplier" />
+              {lockedSupplier ? (
+                <p id="bill-supplier" className="text-base font-semibold text-text-primary">
+                  {lockedSupplier.name}
                 </p>
               ) : (
-                <p className="text-xs font-medium text-text-quaternary">{t('billIntake.dueHint')}</p>
+                <SupplierPicker
+                  id="bill-supplier"
+                  value={{ id: form.supplierId, name: form.supplierName, vatNumber }}
+                  onPick={(picked) => {
+                    setVatNumber(picked.vatNumber)
+                    set({ supplierId: picked.id, supplierName: picked.name, purchaseOrderId: '' })
+                  }}
+                  error={error('supplier')}
+                />
               )}
+              {vatMatches ? (
+                <Note tone="info">{t('uploadBill.vatMatches')}</Note>
+              ) : !form.supplierId && extractedVat ? (
+                <Note tone="info">{t('billIntake.vatOnFile', { vat: extractedVat })}</Note>
+              ) : null}
             </div>
-          </div>
-        </section>
 
-        <section className="rounded-md bg-surface-card p-5">
-          <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{t('uploadBill.whatTheyCharged')}</h2>
-          <p className="mt-1 text-sm font-medium text-text-quaternary">{t('billIntake.linesOptional')}</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <TextField
+                id="bill-number"
+                name="billNumber"
+                label={t('uploadBill.billNumber')}
+                required
+                maxLength={200}
+                value={form.billNumber}
+                onChange={(billNumber) => set({ billNumber })}
+                error={error('billNumber')}
+              />
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('uploadBill.billDate')} required />
+                <DateField
+                  value={form.issueDate}
+                  onChange={(issueDate) => set({ issueDate })}
+                  ariaLabel={t('uploadBill.billDate')}
+                />
+                {error('issueDate') ? (
+                  <p role="alert" className="text-xs font-medium text-text-danger">
+                    {error('issueDate')}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('uploadBill.paymentDue')} />
+                <DateField
+                  value={form.dueDate}
+                  onChange={(dueDate) => set({ dueDate })}
+                  ariaLabel={t('uploadBill.paymentDue')}
+                  min={form.issueDate || undefined}
+                />
+                {error('dueDate') ? (
+                  <p role="alert" className="text-xs font-medium text-text-danger">
+                    {error('dueDate')}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            {!error('dueDate') ? (
+              <div className="mt-3">
+                <Note tone={form.dueDate ? 'info' : 'warn'}>
+                  {form.dueDate ? t('billIntake.dueHint') : t('uploadBill.noDueDate')}
+                </Note>
+              </div>
+            ) : null}
+          </section>
 
-          {form.lines.length > 0 ? (
+          <section className="rounded-md bg-surface-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
+                {t('uploadBill.whatTheyCharged')}
+              </h2>
+              <label className="flex items-center gap-2 text-sm font-medium text-text-tertiary">
+                {t('billIntake.currency')}
+                <span className="w-[120px]">
+                  <Select
+                    value={form.currency}
+                    onChange={(currency) => set({ currency })}
+                    options={CURRENCIES.map((code) => ({ value: code, label: code }))}
+                    ariaLabel={t('billIntake.currency')}
+                    compact
+                  />
+                </span>
+              </label>
+            </div>
+
             <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse">
+              <table className="w-full min-w-[520px] border-collapse">
                 <thead>
                   <tr className="text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
-                    <th className="pb-2 text-start font-semibold">{t('uploadBill.col.description')}</th>
+                    <th className="pb-2 text-start font-semibold">
+                      {t('uploadBill.col.description')}
+                    </th>
                     <th className="pb-2 text-end font-semibold">{t('uploadBill.col.qty')}</th>
                     <th className="pb-2 text-end font-semibold">{t('uploadBill.col.rate')}</th>
-                    <th className="pb-2 text-end font-semibold">{t('billIntake.vatPercent')}</th>
+                    <th className="pb-2 text-end font-semibold">{t('uploadBill.col.vat')}</th>
                     <th className="pb-2 text-end font-semibold">{t('uploadBill.col.amount')}</th>
                     <th className="pb-2" />
                   </tr>
@@ -301,10 +429,12 @@ export function BillIntakeForm({
                       <td className="py-1.5 pe-2">
                         <input
                           value={line.description}
-                          onChange={(event) => setLine(line.id, { description: event.target.value })}
+                          onChange={(event) =>
+                            setLine(line.id, { description: event.target.value })
+                          }
                           aria-label={t('uploadBill.col.description')}
                           maxLength={500}
-                          className="h-[42px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-sm font-medium text-text-secondary outline-none"
+                          className="h-[42px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-700"
                         />
                       </td>
                       {(['quantity', 'unitPrice', 'vatRate'] as const).map((key) => (
@@ -312,17 +442,24 @@ export function BillIntakeForm({
                           <input
                             value={line[key]}
                             inputMode="decimal"
+                            onFocus={selectAllOnFocus}
                             onChange={(event) => setLine(line.id, { [key]: event.target.value })}
                             aria-label={t(`billIntake.lineField.${key}`)}
-                            className="h-[42px] w-[80px] rounded-sm border border-primary-300 bg-surface-tab-bar px-2 text-end text-sm font-medium text-text-secondary outline-none"
+                            className={[LINE_INPUT, 'w-[72px]'].join(' ')}
                           />
                         </td>
                       ))}
-                      <td className="ps-1 py-1.5 text-end text-sm font-semibold text-text-secondary tabular-nums">{totals?.lineNets[index]}</td>
+                      <td className="ps-1 py-1.5">
+                        <span className="flex h-[42px] w-[92px] items-center justify-end rounded-sm border border-border-subtle bg-white px-2 text-sm font-semibold text-text-secondary tabular-nums">
+                          {totals?.lineNets[index]}
+                        </span>
+                      </td>
                       <td className="ps-1 py-1.5">
                         <button
                           type="button"
-                          onClick={() => set({ lines: form.lines.filter((other) => other.id !== line.id) })}
+                          onClick={() =>
+                            set({ lines: form.lines.filter((other) => other.id !== line.id) })
+                          }
                           aria-label={t('uploadBill.removeLine')}
                           className="inline-flex size-8 items-center justify-center rounded-sm hover:bg-surface-background"
                         >
@@ -334,127 +471,275 @@ export function BillIntakeForm({
                 </tbody>
               </table>
             </div>
-          ) : null}
-          {error('lines') ? (
-            <p role="alert" className="mt-2 text-xs font-medium text-text-danger">
-              {error('lines')}
-            </p>
-          ) : null}
 
-          <button
-            type="button"
-            onClick={() => set({ lines: [...form.lines, blankLine()] })}
-            className="mt-3 inline-flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            <img src={plusIcon} alt="" className="size-4" />
-            {t('uploadBill.addLine')}
-          </button>
+            <button
+              type="button"
+              onClick={() => set({ lines: [...form.lines, blankLine()] })}
+              className="mt-3 inline-flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              <img src={plusIcon} alt="" className="size-4" />
+              {t('uploadBill.addLine')}
+            </button>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <TextField
-              id="bill-vat"
-              name="vat"
-              label={t('billIntake.vatAmount')}
-              inputMode="decimal"
-              value={form.vat}
-              onChange={(vat) => set({ vat })}
-              error={error('vat')}
-            />
-            <TextField
-              id="bill-total"
-              name="total"
-              label={t('billIntake.totalOnBill')}
-              required
-              inputMode="decimal"
-              value={form.total}
-              onChange={(total) => set({ total })}
-              error={error('total')}
-            />
-          </div>
-
-          {totals ? (
-            <div className={['mt-4 rounded-sm px-3.5 py-3', disagrees ? 'bg-[#faf5ea]' : 'bg-success-100'].join(' ')}>
-              <p className={['flex flex-wrap items-center gap-2 text-xs font-medium leading-[1.4]', disagrees ? 'text-[#887147]' : 'text-success-700'].join(' ')}>
-                {disagrees ? <img src={warnIcon} alt="" className="size-4 shrink-0" /> : null}
-                <span>
-                  {disagrees
-                    ? t('billIntake.linesDisagree', { lines: money(totals.total), vat: money(totals.vat) })
-                    : form.total.trim()
-                      ? t('billIntake.addsUp')
-                      : t('billIntake.linesComeTo', { lines: money(totals.total), vat: money(totals.vat) })}
-                </span>
-                {disagrees || !form.total.trim() ? (
-                  <button type="button" onClick={() => set({ total: totals.total, vat: totals.vat })} className="font-semibold text-primary-700 underline">
-                    {t('billIntake.useLines')}
-                  </button>
-                ) : null}
-              </p>
+            <div className="mt-3">
+              {error('lines') ? (
+                <p role="alert" className="text-xs font-medium text-text-danger">
+                  {error('lines')}
+                </p>
+              ) : (
+                <Note tone="info">{t('billIntake.linesOptional')}</Note>
+              )}
             </div>
-          ) : null}
-        </section>
 
-        <section className="rounded-md bg-surface-card p-5">
-          <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{t('uploadBill.linkToOrder')}</h2>
-          {form.supplierId ? (
-            <div className="mt-4">
-              <SelectField
-                id="bill-order"
-                name="purchaseOrderId"
-                label={t('billIntake.order')}
-                options={[
-                  { value: '', label: t('billIntake.letItMatch') },
-                  ...billable.map((order) => ({
-                    value: order.id,
-                    label: t('billIntake.orderOption', {
-                      number: order.number ?? '—',
-                      date: order.orderDate ? formatDate(order.orderDate, i18n.language) : '—',
-                      total: order.totalGross === null ? '—' : money(order.totalGross, order.currency),
-                    }),
-                  })),
-                ]}
-                value={form.purchaseOrderId}
-                onChange={(purchaseOrderId) => set({ purchaseOrderId })}
-                hint={t(form.purchaseOrderId ? 'billIntake.matchedByHand' : 'billIntake.matcherLooks')}
-              />
-            </div>
-          ) : (
-            <p className="mt-3 text-sm font-medium leading-[1.4] text-text-tertiary">{t('billIntake.orderNeedsSupplier')}</p>
-          )}
-        </section>
+            <dl className="mt-5 ms-auto flex w-full max-w-[360px] flex-col gap-2">
+              <div className="flex items-center justify-between gap-4 py-1">
+                <dt className="text-sm font-medium text-text-tertiary">{t('uploadBill.net')}</dt>
+                <dd className="flex items-center gap-1 text-sm font-semibold text-text-secondary tabular-nums">
+                  <Rial />
+                  {totals ? money(totals.net) : t('billDetail.notStated')}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <dt>
+                  <label htmlFor="bill-vat" className="text-sm font-medium text-text-tertiary">
+                    {t('billIntake.vatAmount')}
+                  </label>
+                </dt>
+                <dd className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
+                  <Rial />
+                  <input
+                    id="bill-vat"
+                    name="vat"
+                    inputMode="decimal"
+                    value={form.vat}
+                    onFocus={selectAllOnFocus}
+                    onChange={(event) => set({ vat: event.target.value })}
+                    aria-invalid={error('vat') ? true : undefined}
+                    className={[
+                      TOTAL_INPUT,
+                      'text-sm',
+                      error('vat') ? 'ring-1 ring-border-danger' : '',
+                    ].join(' ')}
+                  />
+                </dd>
+              </div>
+              {error('vat') ? (
+                <p role="alert" className="text-end text-xs font-medium text-text-danger">
+                  {error('vat')}
+                </p>
+              ) : null}
+              <div className="flex items-center justify-between gap-4 border-t border-surface-background pt-3">
+                <dt>
+                  <label htmlFor="bill-total" className="text-base font-semibold text-text-primary">
+                    {t('billIntake.totalOnBill')}
+                    <span className="text-xl leading-4 text-primary-700">*</span>
+                  </label>
+                </dt>
+                <dd className="flex items-center gap-2 text-[22px] font-semibold leading-[1.2] text-text-primary">
+                  <Rial />
+                  <input
+                    id="bill-total"
+                    name="total"
+                    inputMode="decimal"
+                    required
+                    value={form.total}
+                    onFocus={selectAllOnFocus}
+                    onChange={(event) => set({ total: event.target.value })}
+                    aria-invalid={error('total') ? true : undefined}
+                    className={[
+                      TOTAL_INPUT,
+                      'text-lg',
+                      error('total') ? 'ring-1 ring-border-danger' : '',
+                    ].join(' ')}
+                  />
+                </dd>
+              </div>
+              {error('total') ? (
+                <p role="alert" className="text-end text-xs font-medium text-text-danger">
+                  {error('total')}
+                </p>
+              ) : null}
+            </dl>
 
-        {duplicate ? (
-          <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
-            <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
-              <img src={warnIcon} alt="" className="size-5" />
-              {t('billIntake.duplicate.title')}
-            </h2>
-            <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-              {t('billIntake.duplicate.body', {
-                number: duplicate.supplierBillNumber,
-                date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '—',
-                total: duplicate.total === null ? '—' : `${money(duplicate.total, duplicate.currencyCode ?? form.currency)} ${duplicate.currencyCode ?? form.currency}`,
-                source: t(`billIntake.duplicate.source.${duplicate.source}`),
-              })}
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                to={`/expenditure/bills/${duplicate.billId}`}
-                className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+            {totals ? (
+              <div
+                className={[
+                  'mt-4 rounded-sm px-3.5 py-3',
+                  disagrees ? 'bg-[#faf5ea]' : 'bg-success-100',
+                ].join(' ')}
               >
-                {t('billIntake.duplicate.open')}
-              </Link>
-              <button
-                type="button"
-                disabled={busy !== null}
-                onClick={() => void save(duplicate.billId)}
-                className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
-              >
-                {t('billIntake.duplicate.different')}
-              </button>
-            </div>
+                <p
+                  className={[
+                    'flex flex-wrap items-center gap-2 text-xs font-medium leading-[1.4]',
+                    disagrees ? 'text-[#887147]' : 'text-success-700',
+                  ].join(' ')}
+                >
+                  <img
+                    src={disagrees ? warnIcon : matchOkIcon}
+                    alt=""
+                    className="size-4 shrink-0"
+                  />
+                  <span>
+                    {disagrees
+                      ? t('billIntake.linesDisagree', {
+                          lines: money(totals.total),
+                          vat: money(totals.vat),
+                        })
+                      : form.total.trim()
+                        ? t('billIntake.addsUp')
+                        : t('billIntake.linesComeTo', {
+                            lines: money(totals.total),
+                            vat: money(totals.vat),
+                          })}
+                  </span>
+                  {disagrees || !form.total.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => set({ total: totals.total, vat: totals.vat })}
+                      className="font-semibold text-primary-700 underline"
+                    >
+                      {t('billIntake.useLines')}
+                    </button>
+                  ) : null}
+                </p>
+              </div>
+            ) : null}
           </section>
-        ) : null}
 
+          <section className="rounded-md bg-surface-card p-5">
+            <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
+              {t('uploadBill.linkToOrder')}
+            </h2>
+
+            {!form.supplierId ? (
+              <p className="mt-4 text-sm font-medium leading-[1.4] text-text-tertiary">
+                {t('billIntake.orderNeedsSupplier')}
+              </p>
+            ) : linked || suggestion ? (
+              <div
+                className={[
+                  'mt-4 flex flex-wrap items-center justify-between gap-4 rounded-sm border p-4',
+                  linked ? 'border-success-700 bg-success-100' : 'border-primary-300 bg-primary-25',
+                ].join(' ')}
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white">
+                    <img src={orderDocIcon} alt="" className="size-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold leading-[1.2] text-text-primary">
+                      {linked
+                        ? t('uploadBill.linkedTo', { order: linked.number ?? linked.id })
+                        : t('uploadBill.looksLike', {
+                            order: suggestion!.number ?? suggestion!.id,
+                          })}
+                    </p>
+                    <p className="mt-1 text-sm font-medium leading-[1.4] text-text-tertiary">
+                      {t('billIntake.orderOption', {
+                        number: (linked ?? suggestion)!.number ?? '',
+                        date: (linked ?? suggestion)!.orderDate
+                          ? formatDate((linked ?? suggestion)!.orderDate!, i18n.language)
+                          : '',
+                        total:
+                          (linked ?? suggestion)!.totalGross === null
+                            ? ''
+                            : money(
+                                (linked ?? suggestion)!.totalGross!,
+                                (linked ?? suggestion)!.currency,
+                              ),
+                      })}
+                    </p>
+                  </div>
+                </div>
+                {linked ? (
+                  <button
+                    type="button"
+                    onClick={() => set({ purchaseOrderId: '' })}
+                    className="shrink-0 text-sm font-semibold text-primary-700 hover:text-primary-800"
+                  >
+                    {t('uploadBill.unlink')}
+                  </button>
+                ) : (
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDismissedOrders((current) => [...current, suggestion!.id])}
+                      className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                    >
+                      {t('uploadBill.notThisOne')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set({ purchaseOrderId: suggestion!.id })}
+                      className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                    >
+                      {t('uploadBill.linkIt')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="mt-4 text-sm font-medium leading-[1.4] text-text-tertiary">
+                {orders.read.status === 'loading'
+                  ? t('billIntake.searching')
+                  : billable.length === 0
+                    ? t('billIntake.noOpenOrders')
+                    : t('uploadBill.leftUnlinked')}
+              </p>
+            )}
+
+            <p className="mt-3 flex items-start gap-1.5 text-xs font-medium leading-[1.4] text-text-quaternary">
+              <img src={okCheckIcon} alt="" className="mt-px size-4 shrink-0" />
+              {t(form.purchaseOrderId ? 'billIntake.matchedByHand' : 'uploadBill.unlinkedHint')}
+            </p>
+          </section>
+
+          {duplicate ? (
+            <section role="alert" className="rounded-md border border-[#d8c9a8] bg-[#faf5ea] p-5">
+              <h2 className="flex items-center gap-2 text-base font-semibold text-text-primary">
+                <img src={warnIcon} alt="" className="size-5" />
+                {t('billIntake.duplicate.title')}
+              </h2>
+              <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
+                {t('billIntake.duplicate.body', {
+                  number: duplicate.supplierBillNumber,
+                  date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
+                  total:
+                    duplicate.total === null
+                      ? ''
+                      : `${money(duplicate.total, duplicate.currencyCode ?? form.currency)} ${duplicate.currencyCode ?? form.currency}`,
+                  source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                })}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  to={`/expenditure/bills/${duplicate.billId}`}
+                  className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+                >
+                  {t('billIntake.duplicate.open')}
+                </Link>
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void save(duplicate.billId)}
+                  className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800 disabled:opacity-60"
+                >
+                  {t('billIntake.duplicate.different')}
+                </button>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-md bg-surface-card px-5 py-4 shadow-card">
+        <p className="text-sm font-medium leading-[1.4] text-text-tertiary">
+          <span className="font-semibold text-text-primary">
+            {t('billIntake.footer.toCheck', { count: toCheck })}
+          </span>
+          {' · '}
+          {t(read ? 'billIntake.footer.notReported' : 'billIntake.footer.notReported')}
+        </p>
         <div className="flex flex-wrap justify-end gap-3">
           <Link
             to={cancelTo}
@@ -476,8 +761,9 @@ export function BillIntakeForm({
           <button
             type="submit"
             disabled={busy !== null}
-            className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
           >
+            <img src={okCheckIcon} alt="" className="size-4 brightness-0 invert" />
             {busy === 'confirm' ? t('billIntake.saving') : t('uploadBill.saveBill')}
           </button>
         </div>

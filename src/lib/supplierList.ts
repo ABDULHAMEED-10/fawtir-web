@@ -8,17 +8,18 @@ import type {
 import { initialsOf } from './format'
 
 /**
- * The Suppliers list (Figma 117:31875) as the screen draws it, built from `GET /v1/suppliers`.
+ * The Suppliers list (Figma 163:25756) as the screen draws it, built from `GET /v1/suppliers`.
  *
- * The mock rows this replaced carried per-row sentences ("both approved", "July's bill hasn't
- * arrived") the API has no data for. Each note here is written only from fields the row really
- * carries, and is left out when the row cannot support it.
+ * The frame's per-row sentences ("both approved", "July's bill hasn't arrived") have no data
+ * behind them. Each note here is written only from fields the row really carries, and is left out
+ * when the row cannot support it.
  */
 
 export type SupplierChannel = 'peppol' | 'emailPdf' | 'paper' | 'manual'
 
 /** What, if anything, is wrong with the record, worst first when several are. */
-export type RecordIssue = 'complete' | 'bankChanged' | 'noBankDetails' | 'noVatNumber' | 'notOnPeppol' | 'switchedOff'
+export type RecordIssue =
+  'complete' | 'bankChanged' | 'noBankDetails' | 'noVatNumber' | 'notOnPeppol' | 'switchedOff'
 
 export type Note = { key: string; values?: Record<string, number | string> }
 
@@ -39,10 +40,14 @@ export type SupplierListItem = {
   /** Something on hold makes the owed line a warning. */
   owedAlert: boolean
   issue: RecordIssue
+  /** The issue as the column names it: "Bank changed 4d ago" when the row says when. */
+  recordLabel: Note
   /** Out of four: the filled dots in "their record". */
   score: number
   recordNote: Note | null
   active: boolean
+  /** When they were switched off, for the line under the name (Figma "Switched off 12 Apr 2026"). */
+  switchedOffAt: string | null
 }
 
 const CHANNEL: Record<BillingChannel, SupplierChannel> = {
@@ -90,7 +95,8 @@ function channelNoteOf(row: SupplierListRowDto): SupplierListItem['channelNote']
 function termsOf(row: SupplierListRowDto): SupplierListItem['terms'] {
   // The API reads DUE_ON_RECEIPT, IMMEDIATE and COD as zero net days (`SupplierTerms`).
   if (row.terms.netDays === 0) return { key: 'suppliersPage.terms.onReceipt' }
-  if (row.terms.netDays !== null) return { key: 'suppliersPage.terms.netDays', values: { count: row.terms.netDays } }
+  if (row.terms.netDays !== null)
+    return { key: 'suppliersPage.terms.netDays', values: { count: row.terms.netDays } }
   // Free text the tenant typed on the supplier form. It is their data, shown as they wrote it.
   if (row.terms.paymentTerms) return { text: row.terms.paymentTerms }
   return { key: 'suppliersPage.terms.none' }
@@ -105,7 +111,11 @@ function termsNoteOf(row: SupplierListRowDto): Note | null {
 function owedNoteOf(row: SupplierListRowDto): Note {
   const { openBills, onHold } = row.youOwe
   if (openBills === 0) return { key: 'suppliersPage.owedNote.nothingOpen' }
-  if (onHold > 0) return { key: 'suppliersPage.owedNote.openWithHold', values: { count: openBills, held: onHold } }
+  if (onHold > 0)
+    return {
+      key: 'suppliersPage.owedNote.openWithHold',
+      values: { count: openBills, held: onHold },
+    }
   return { key: 'suppliersPage.owedNote.open', values: { count: openBills } }
 }
 
@@ -121,7 +131,24 @@ function recordNoteOf(row: SupplierListRowDto, issue: RecordIssue): Note | null 
   return null
 }
 
-export function toSupplierListItem(row: SupplierListRowDto): SupplierListItem {
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * "Bank changed 4d ago", as the frame draws it, from the row's `bankChangedAt`; the plain label
+ * when the row does not say when.
+ */
+function recordLabelOf(row: SupplierListRowDto, issue: RecordIssue, now: number): Note {
+  if (issue === 'bankChanged' && row.record.bankChangedAt) {
+    const changed = new Date(row.record.bankChangedAt).getTime()
+    if (Number.isFinite(changed)) {
+      const days = Math.max(0, Math.floor((now - changed) / DAY_MS))
+      return { key: 'suppliersPage.record.bankChangedAgo', values: { count: days } }
+    }
+  }
+  return { key: RECORD_LABEL[issue] }
+}
+
+export function toSupplierListItem(row: SupplierListRowDto, now = Date.now()): SupplierListItem {
   const issue = issueOf(row)
   return {
     id: row.id,
@@ -138,9 +165,12 @@ export function toSupplierListItem(row: SupplierListRowDto): SupplierListItem {
     owedNote: owedNoteOf(row),
     owedAlert: row.youOwe.onHold > 0,
     issue,
+    recordLabel: recordLabelOf(row, issue, now),
     score: scoreOf(row),
     recordNote: recordNoteOf(row, issue),
     active: row.status === 'ACTIVE',
+    // TODO(backend): `switchedOffAt` on list rows (typed optional); the frame dates the switch-off.
+    switchedOffAt: row.status === 'SWITCHED_OFF' ? (row.switchedOffAt ?? null) : null,
   }
 }
 
@@ -154,7 +184,7 @@ export const ROW_ACTION: Record<RecordIssue, string> = {
   switchedOff: 'suppliersPage.rowAction.turnBackOn',
 }
 
-/** Labels for the issue column. The mock's "Bank changed 4d ago" had a date the list cannot know. */
+/** Labels for the issue column; a dated bank change is written by `recordLabelOf`. */
 export const RECORD_LABEL: Record<RecordIssue, string> = {
   complete: 'suppliersPage.record.complete',
   bankChanged: 'suppliersPage.record.bankChangedUnconfirmed',
@@ -168,14 +198,15 @@ export const RECORD_LABEL: Record<RecordIssue, string> = {
 
 export type SupplierTabId = 'all' | 'active' | 'needsFix' | 'youOwe' | 'notOnPeppol' | 'switchedOff'
 
-export const SUPPLIER_TABS: { id: SupplierTabId; labelKey: string; filter: SupplierListFilter }[] = [
-  { id: 'all', labelKey: 'suppliersPage.tabs.all', filter: 'ALL' },
-  { id: 'active', labelKey: 'suppliersPage.tabs.active', filter: 'ACTIVE' },
-  { id: 'needsFix', labelKey: 'suppliersPage.tabs.needsFix', filter: 'NEEDS_FIX' },
-  { id: 'youOwe', labelKey: 'suppliersPage.tabs.youOwe', filter: 'OWED' },
-  { id: 'notOnPeppol', labelKey: 'suppliersPage.tabs.notOnPeppol', filter: 'NOT_ON_PEPPOL' },
-  { id: 'switchedOff', labelKey: 'suppliersPage.tabs.switchedOff', filter: 'SWITCHED_OFF' },
-]
+export const SUPPLIER_TABS: { id: SupplierTabId; labelKey: string; filter: SupplierListFilter }[] =
+  [
+    { id: 'all', labelKey: 'suppliersPage.tabs.all', filter: 'ALL' },
+    { id: 'active', labelKey: 'suppliersPage.tabs.active', filter: 'ACTIVE' },
+    { id: 'needsFix', labelKey: 'suppliersPage.tabs.needsFix', filter: 'NEEDS_FIX' },
+    { id: 'youOwe', labelKey: 'suppliersPage.tabs.youOwe', filter: 'OWED' },
+    { id: 'notOnPeppol', labelKey: 'suppliersPage.tabs.notOnPeppol', filter: 'NOT_ON_PEPPOL' },
+    { id: 'switchedOff', labelKey: 'suppliersPage.tabs.switchedOff', filter: 'SWITCHED_OFF' },
+  ]
 
 export function isSupplierTab(value: string | null): value is SupplierTabId {
   return SUPPLIER_TABS.some((tab) => tab.id === value)
@@ -203,11 +234,39 @@ export function tabCount(summary: SupplierSummaryDto, tab: SupplierTabId): numbe
   }
 }
 
+/* ---------------------------------------------------------------- filtering */
+
+export type SupplierChannelFilter = 'all' | SupplierChannel
+
+export const SUPPLIER_CHANNEL_FILTERS: { value: SupplierChannelFilter; labelKey: string }[] = [
+  { value: 'all', labelKey: 'suppliersPage.allChannels' },
+  { value: 'peppol', labelKey: 'suppliersPage.channel.peppol' },
+  { value: 'emailPdf', labelKey: 'suppliersPage.channel.emailPdf' },
+  { value: 'paper', labelKey: 'suppliersPage.channel.paper' },
+]
+
+export function isSupplierChannelFilter(value: string | null): value is SupplierChannelFilter {
+  return SUPPLIER_CHANNEL_FILTERS.some((option) => option.value === value)
+}
+
+/**
+ * The frame's Filters menu narrows the list by channel. The API has no channel parameter
+ * (TODO(backend): `channel=` on GET /v1/suppliers), so until it does the page it fetched is
+ * narrowed here, and the line under the table says how many of the page are shown.
+ */
+export function inChannel(item: SupplierListItem, channel: SupplierChannelFilter): boolean {
+  return channel === 'all' || item.channel === channel
+}
+
 /* ------------------------------------------------------------------ sorting */
 
 export type SupplierSortKey = 'nameAsc' | 'owedDesc' | 'owedAsc'
 
-export const SUPPLIER_SORTS: { value: SupplierSortKey; labelKey: string; sort: SupplierListSort }[] = [
+export const SUPPLIER_SORTS: {
+  value: SupplierSortKey
+  labelKey: string
+  sort: SupplierListSort
+}[] = [
   { value: 'nameAsc', labelKey: 'suppliersPage.sortOptions.nameAsc', sort: 'NAME' },
   { value: 'owedDesc', labelKey: 'suppliersPage.sortOptions.owedDesc', sort: 'OWED_DESC' },
   { value: 'owedAsc', labelKey: 'suppliersPage.sortOptions.owedAsc', sort: 'OWED_ASC' },

@@ -6,6 +6,7 @@ import type {
   BillSummaryDto,
   BillWorkflowState,
 } from '../api/expenditure/bills'
+import type { IntakeDto } from '../api/expenditure/billIntake'
 
 /**
  * The Bills list's view model, written only from what a row carries. The mock's per-row sentences
@@ -38,7 +39,9 @@ export type BillListItem = {
   /** Settled at the counter: no due date to show, and none to chase. */
   paidOnTheSpot: boolean
   paid: boolean
-  match: { verdict: 'ok' | 'warn'; order: string | null; note: Note } | { verdict: 'none'; theirOrder: string | null }
+  match:
+    | { verdict: 'ok' | 'warn'; order: string | null; note: Note }
+    | { verdict: 'none'; theirOrder: string | null }
   status: BillStatusChip
   statusValues?: Record<string, string | number>
   /** A person's reason for holding the bill, shown under the chip. */
@@ -57,6 +60,17 @@ export type BillListItem = {
    * above it telling the same story.
    */
   overdue: boolean
+  /**
+   * An upload or receipt nobody has confirmed yet, drawn as the design's "Draft, confirm details"
+   * row. The API keeps these apart from the bills (`GET /bills/intake?status=UNCONFIRMED`), so the
+   * row carries the intake it came from and the page it is finished on.
+   */
+  draft: {
+    intakeId: string
+    source: 'UPLOADED' | 'SCANNED'
+    uploadedAt: string
+    filename: string | null
+  } | null
 }
 
 const SOURCE: Record<BillSourceDto, BillSourceBadge> = {
@@ -119,14 +133,77 @@ export function toBillListItem(row: BillRowDto): BillListItem {
           : undefined,
     holdReason: row.workflowState === 'ON_HOLD' ? (row.hold?.reason ?? null) : null,
     // A mismatch is approved only after its difference has been looked at, which is the detail's job.
-    canApprove: pending && (row.workflowState === 'NEW' || row.workflowState === 'AWAITING_APPROVAL'),
+    canApprove:
+      pending && (row.workflowState === 'NEW' || row.workflowState === 'AWAITING_APPROVAL'),
     currency: row.currencyCode,
     amount: row.totalIncludingVat,
     amountNote: amountNoteOf(row),
     outstanding: row.outstandingAmount,
     owes: !isCreditNote(row) && row.outstandingAmount > 0,
     overdue: row.overdue,
+    draft: null,
   }
+}
+
+/**
+ * An unconfirmed upload or receipt as a row of the list (Figma 163:21928 draws "Draft, confirm
+ * details" beside the bills). What was typed so far names it; a fresh photo has only its file.
+ */
+export function draftRowOf(intake: IntakeDto): BillListItem {
+  const read = intake.extracted
+  const vat = read?.vat ?? null
+  return {
+    id: `intake:${intake.id}`,
+    supplier: read?.supplierName?.trim() || null,
+    source: intake.source === 'SCANNED' ? 'scanned' : 'uploaded',
+    number: read?.billNumber?.trim() || null,
+    issueDate: read?.issueDate ?? null,
+    dueDate: read?.dueDate ?? null,
+    paidOnTheSpot: false,
+    paid: false,
+    match: { verdict: 'none', theirOrder: null },
+    status: 'draft',
+    holdReason: null,
+    canApprove: false,
+    currency: read?.currency ?? 'OMR',
+    amount: read?.total ?? null,
+    amountNote:
+      vat === null
+        ? { key: 'billsPage.rows.vatUnclear' }
+        : { key: 'billsPage.rows.inclVat', values: { amount: vat } },
+    outstanding: 0,
+    owes: false,
+    overdue: false,
+    draft: {
+      intakeId: intake.id,
+      source: intake.source,
+      uploadedAt: intake.uploadedAt,
+      filename: intake.filename,
+    },
+  }
+}
+
+/** Where a draft row is finished: an upload on its own page, a receipt back in Scan receipts. */
+export function draftRowPath(item: BillListItem): string | null {
+  if (!item.draft) return null
+  return item.draft.source === 'SCANNED'
+    ? `/expenditure/bills/scan?intake=${encodeURIComponent(item.draft.intakeId)}`
+    : `/expenditure/bills/upload/${encodeURIComponent(item.draft.intakeId)}`
+}
+
+/**
+ * The one button the design draws under a row's status chip: Approve on a bill waiting for it,
+ * a look at the difference on a mismatch, a nudge when someone else must approve, the hold
+ * reason on a held bill, and "Check and save" on a draft.
+ */
+export type BillRowAction = 'approve' | 'reviewDifference' | 'nudge' | 'viewHold' | 'checkAndSave'
+
+export function rowActionOf(item: BillListItem, canApprove: boolean): BillRowAction | null {
+  if (item.draft) return 'checkAndSave'
+  if (item.status === 'mismatch') return 'reviewDifference'
+  if (item.status === 'onHold') return 'viewHold'
+  if (item.canApprove) return canApprove ? 'approve' : 'nudge'
+  return null
 }
 
 function isCreditNote(row: BillRowDto): boolean {
@@ -134,18 +211,26 @@ function isCreditNote(row: BillRowDto): boolean {
 }
 
 /**
- * The part payment that used to be noted here now has a column of its own, so it is not
- * repeated under the amount: the same figure in two places reads as two figures.
+ * The line under the amount, as the design draws it: the day a held bill was queried, what is
+ * still owed on a part-paid one, "Credit note" on a note, and otherwise the VAT the total
+ * includes. One note per row; the outstanding figure has no column of its own in the frame.
  */
 function amountNoteOf(row: BillRowDto): Note | null {
   if (isCreditNote(row)) return { key: 'billsPage.rows.creditNote' }
-  if (row.vatAmount !== null && row.vatAmount > 0) return { key: 'billsPage.rows.inclVat', values: { amount: row.vatAmount } }
+  if (row.workflowState === 'ON_HOLD' && row.hold)
+    return { key: 'billsPage.rows.queried', values: { date: row.hold.openedAt } }
+  if (row.paidAmount > 0 && row.outstandingAmount > 0 && row.workflowState !== 'PAID') {
+    return { key: 'billsPage.rows.leftToPay', values: { amount: row.outstandingAmount } }
+  }
+  if (row.vatAmount !== null && row.vatAmount > 0)
+    return { key: 'billsPage.rows.inclVat', values: { amount: row.vatAmount } }
   return null
 }
 
 /** Status chip label key, with the approver count when the policy needs more than one. */
 export function statusLabelKey(item: BillListItem): string {
-  if (item.status === 'awaitingApproval' && item.statusValues) return 'billsPage.state.awaitingApprovals'
+  if (item.status === 'awaitingApproval' && item.statusValues)
+    return 'billsPage.state.awaitingApprovals'
   if (item.status === 'inPaymentRun' && item.statusValues) return 'billsPage.state.inPaymentRunRef'
   return `billsPage.state.${item.status}`
 }
@@ -196,12 +281,17 @@ export function dueNoteOf(item: BillListItem, now?: Date): Note | null {
     : { key: 'billsPage.rows.dueToday' }
 }
 
-export type BillTabId = 'needsAttention' | 'all' | 'awaitingApproval' | 'approved' | 'onHold' | 'paid'
+export type BillTabId =
+  'needsAttention' | 'all' | 'awaitingApproval' | 'approved' | 'onHold' | 'paid'
 
 export const BILL_TABS: { id: BillTabId; labelKey: string; filter: BillFilter }[] = [
   { id: 'needsAttention', labelKey: 'billsPage.tabs.needsAttention', filter: 'NEEDS_ATTENTION' },
   { id: 'all', labelKey: 'billsPage.tabs.all', filter: 'ALL' },
-  { id: 'awaitingApproval', labelKey: 'billsPage.tabs.awaitingApproval', filter: 'AWAITING_APPROVAL' },
+  {
+    id: 'awaitingApproval',
+    labelKey: 'billsPage.tabs.awaitingApproval',
+    filter: 'AWAITING_APPROVAL',
+  },
   { id: 'approved', labelKey: 'billsPage.tabs.approved', filter: 'APPROVED' },
   { id: 'onHold', labelKey: 'billsPage.tabs.onHold', filter: 'ON_HOLD' },
   { id: 'paid', labelKey: 'billsPage.tabs.paid', filter: 'PAID' },
@@ -217,7 +307,8 @@ export function billTabCount(summary: BillSummaryDto, tab: BillTabId): number {
   return summary.tabs[tab]
 }
 
-export type BillSortKey = 'newest' | 'dueAsc' | 'dueDesc' | 'amountDesc' | 'amountAsc' | 'supplierAsc'
+export type BillSortKey =
+  'newest' | 'dueAsc' | 'dueDesc' | 'amountDesc' | 'amountAsc' | 'supplierAsc'
 
 export const BILL_SORTS: { value: BillSortKey; labelKey: string; sort: BillSort }[] = [
   { value: 'newest', labelKey: 'billsPage.sortOptions.newest', sort: 'NEWEST' },
@@ -232,7 +323,11 @@ export function isBillSort(value: string | null): value is BillSortKey {
   return BILL_SORTS.some((option) => option.value === value)
 }
 
-export const BILL_SOURCES: { id: BillSourceBadge | 'all'; labelKey: string; source: BillSourceDto | null }[] = [
+export const BILL_SOURCES: {
+  id: BillSourceBadge | 'all'
+  labelKey: string
+  source: BillSourceDto | null
+}[] = [
   { id: 'all', labelKey: 'billsPage.sourceFilter.all', source: null },
   { id: 'peppol', labelKey: 'billsPage.source.peppol', source: 'PEPPOL' },
   { id: 'uploaded', labelKey: 'billsPage.source.uploaded', source: 'UPLOADED' },
@@ -245,7 +340,9 @@ export function isBillSource(value: string | null): value is BillSourceBadge {
   return BILL_SOURCES.some((option) => option.id === value && option.id !== 'all')
 }
 
-export const BILL_PAGE_SIZES = [10, 25, 50] as const
+/** The design's "Show result" box offers 5; the server's default page is 10. */
+/** The design's "Show result" box offers 5; the server's default page stays 10. */
+export const BILL_PAGE_SIZES = [5, 10, 25, 50] as const
 export const DEFAULT_BILL_PAGE_SIZE = 10
 
 export function billPageSizeOf(value: string | null): number {
