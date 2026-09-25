@@ -16,7 +16,13 @@ const ADMIN: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['invoice.read', 'invoice.approve', 'invoice.payment.manage', 'purchase-order.read'],
+  permissions: [
+    'invoice.read',
+    'invoice.approve',
+    'invoice.payment.manage',
+    'purchase-order.read',
+    'supplier.read',
+  ],
   scopes: [],
   featureFlags: {},
 }
@@ -75,7 +81,15 @@ function detail(overrides: Partial<BillDetailDto> = {}): BillDetailDto {
       },
     ],
     readiness: { state: 'PENDING', distinctApprovals: 1, required: 2, autoApproved: false },
-    approvals: [{ id: 'a-1', decision: 'APPROVED', reason: null, decidedBy: 'u-2', decidedAt: '2026-09-03T09:00:00Z' }],
+    approvals: [
+      {
+        id: 'a-1',
+        decision: 'APPROVED',
+        reason: null,
+        decidedBy: 'u-2',
+        decidedAt: '2026-09-03T09:00:00Z',
+      },
+    ],
     hold: null,
     holdHistory: [],
     settlement: {
@@ -94,7 +108,12 @@ function detail(overrides: Partial<BillDetailDto> = {}): BillDetailDto {
     compliance: { source: 'PEPPOL', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
     activity: [
       { at: '2026-09-03T09:00:00Z', kind: 'APPROVED', detail: null, actor: 'u-2' },
-      { at: '2026-09-02T06:00:00Z', kind: 'MATCHED', detail: 'MATCHED — Quantities and prices agree', actor: null },
+      {
+        at: '2026-09-02T06:00:00Z',
+        kind: 'MATCHED',
+        detail: 'MATCHED — Quantities and prices agree',
+        actor: null,
+      },
     ],
   }
   return { ...base, ...overrides }
@@ -137,7 +156,10 @@ let actionResponse: () => Response
 let ordersResponse: () => Response
 let who: Entitlements
 
-const calls = () => fetchMock.mock.calls.map(([url, init]) => `${(init as RequestInit)?.method ?? 'GET'} ${String(url)}`)
+const calls = () =>
+  fetchMock.mock.calls.map(
+    ([url, init]) => `${(init as RequestInit)?.method ?? 'GET'} ${String(url)}`,
+  )
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -147,11 +169,60 @@ beforeEach(async () => {
   matchResponse = () => json(200, MATCH)
   actionResponse = () => json(200, {})
   ordersResponse = () =>
-    json(200, { items: [{ id: 'po-2', number: 'PO-0044', state: 'RECEIVED', orderDate: '2026-08-20', currency: 'OMR', totalGross: 900.5 }] })
+    json(200, {
+      items: [
+        {
+          id: 'po-2',
+          number: 'PO-0044',
+          state: 'RECEIVED',
+          orderDate: '2026-08-20',
+          currency: 'OMR',
+          totalGross: 900.5,
+        },
+      ],
+    })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url.startsWith('/api/v1/purchase-orders')) return ordersResponse()
+    // The supplier's record and standing, behind the Payment terms and Supplier cards.
+    if (url === '/api/v1/suppliers/s-1')
+      return json(200, {
+        profile: {
+          id: 's-1',
+          displayName: 'Qalhat Marine Supplies',
+          vatNumber: 'OM1100447102',
+          paymentTerms: 'NET30',
+          bankDetails: {
+            beneficiaryName: 'Qalhat Marine Supplies',
+            iban: 'OM90 0018 0000 6283 2290',
+            bic: null,
+            bankName: 'Bank Muscat',
+            changedAt: null,
+            confirmedAt: null,
+          },
+          earlyPaymentDiscountPercent: 2,
+          earlyPaymentDiscountDays: 7,
+        },
+        invoiceAddress: null,
+        sameAsInvoicingAddress: true,
+        deliveryAddress: null,
+      })
+    if (url === '/api/v1/suppliers/s-1/overview')
+      return json(200, {
+        tabs: { bills: 2, payments: 1, orders: 3, documents: 0 },
+        match: { agreed: 2, orderBacked: 2, summary: null },
+        usualLeadTimeDays: 8,
+        payables: {
+          currencyCode: 'OMR',
+          notDue: { amount: 2354.31, bills: 1, nextDue: '2026-10-01' },
+          dueSoon: { amount: 404.79, bills: 1, nextDue: '2026-09-28' },
+          late: { amount: 0, bills: 0, nextDue: null },
+          onHold: { amount: 0, bills: 0, nextDue: null },
+          everLate: false,
+          total: 2759.1,
+        },
+      })
     if (url === `${BILL_URL}/match`) return method === 'GET' ? matchResponse() : actionResponse()
     if (url.startsWith(`${BILL_URL}/`)) return actionResponse()
     if (url === BILL_URL) return billResponse()
@@ -187,19 +258,34 @@ describe('A bill, wired to the API', () => {
     expect(screen.getByText('Arrived over Peppol')).toBeTruthy()
     expect(screen.getByText('1 of 2 approvals')).toBeTruthy()
 
-    // Once in the comparison, once in the supplier's own lines.
-    expect(screen.getAllByText('Green beans — Yirgacheffe')).toHaveLength(2)
-    expect(screen.getAllByText('300 KG').length).toBeGreaterThan(0)
+    expect(screen.getByText('Green beans — Yirgacheffe')).toBeTruthy()
+    expect(screen.getByText('Received on GRN-0087')).toBeTruthy()
+    // Once in the three-way tiles, once in the supplier's own lines.
+    expect(screen.getAllByText('300 KG').length).toBeGreaterThan(1)
     // Net is derived: the bill carries a total and its VAT, never a net of its own.
     expect(screen.getByText('2,242.200')).toBeTruthy()
     expect(screen.getByText('VAT · 5%')).toBeTruthy()
     expect(screen.getAllByText('2,354.310').length).toBeGreaterThan(0)
     expect(screen.getByText('Order, delivery and bill all agree')).toBeTruthy()
+
+    // Payment terms and the supplier card, fed from the supplier's record and standing.
+    // The supplier's record is a second read, started once the bill names the supplier.
+    expect(await screen.findByText('2% before 8 Sept 2026')).toBeTruthy()
+    expect(screen.getByText('Net 30 days')).toBeTruthy()
+    expect(screen.getByText('Bank Muscat ···2290')).toBeTruthy()
+    expect(screen.getByText('OM1100447102')).toBeTruthy()
+    expect(screen.getByText(/2 · /)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'PO-0031' }).getAttribute('href')).toBe(
+      '/expenditure/purchase-orders/po-1',
+    )
+    expect(screen.getByText('Received against PO-0031')).toBeTruthy()
   })
 
   it('says who reports the bill to the Tax Authority, and never claims a filing of its own', async () => {
     renderBill()
-    expect(await screen.findByText(/Reported to the Tax Authority by the supplier's provider/)).toBeTruthy()
+    expect(
+      await screen.findByText(/Reported to the Tax Authority by the supplier's provider/),
+    ).toBeTruthy()
     expect(screen.getByText('Delivered over the Peppol network and verified')).toBeTruthy()
     expect(screen.queryByText(/TDD/)).toBeNull()
     expect(screen.queryByText(/Archived/)).toBeNull()
@@ -209,7 +295,11 @@ describe('A bill, wired to the API', () => {
     billResponse = () =>
       json(200, {
         ...detail(),
-        compliance: { source: 'UPLOADED', networkVerified: false, obligation: 'PENDING_COMPLIANCE_INPUT' },
+        compliance: {
+          source: 'UPLOADED',
+          networkVerified: false,
+          obligation: 'PENDING_COMPLIANCE_INPUT',
+        },
       })
     renderBill()
     expect(await screen.findByText(/No tax report from the supplier yet/)).toBeTruthy()
@@ -237,13 +327,23 @@ describe('A bill, wired to the API', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '  Wrong quantity  ' } })
     fireEvent.click(confirm)
     await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/approval/reject`))
-    const body = JSON.parse(String(fetchMock.mock.calls.find(([url, init]) => url === `${BILL_URL}/approval/reject` && init)?.[1]?.body))
+    const body = JSON.parse(
+      String(
+        fetchMock.mock.calls.find(
+          ([url, init]) => url === `${BILL_URL}/approval/reject` && init,
+        )?.[1]?.body,
+      ),
+    )
     expect(body).toEqual({ reason: 'Wrong quantity' })
   })
 
   it('reads a refusal as its own sentence, not as a generic failure', async () => {
     actionResponse = () =>
-      json(400, { type: 'https://api.fawtir.om/problems/approval-failed', error: 'APPROVAL_ALREADY_GIVEN', detail: 'nope' })
+      json(400, {
+        type: 'https://api.fawtir.om/problems/approval-failed',
+        error: 'APPROVAL_ALREADY_GIVEN',
+        detail: 'nope',
+      })
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     fireEvent.click(screen.getByRole('button', { name: 'Approve for payment' }))
@@ -254,7 +354,14 @@ describe('A bill, wired to the API', () => {
     billResponse = () =>
       json(200, {
         ...detail(),
-        hold: { id: 'h-1', reason: 'Disputed with the supplier', openedBy: 'u-2', openedAt: '2026-09-04T07:00:00Z', releasedBy: null, releasedAt: null },
+        hold: {
+          id: 'h-1',
+          reason: 'Disputed with the supplier',
+          openedBy: 'u-2',
+          openedAt: '2026-09-04T07:00:00Z',
+          releasedBy: null,
+          releasedAt: null,
+        },
       })
     renderBill()
     expect(await screen.findByText(/On hold: “Disputed with the supplier”\./)).toBeTruthy()
@@ -275,24 +382,38 @@ describe('A bill, wired to the API', () => {
   })
 
   it('matches a bill to one of the supplier orders, and can remove the match', async () => {
-    billResponse = () => json(200, { ...detail(), bill: { ...detail().bill, match: null, purchaseOrderReference: 'PO-0031' } })
-    matchResponse = () => json(200, { ...MATCH, verdict: null, purchaseOrderNumber: null, comparison: [] })
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        bill: { ...detail().bill, match: null, purchaseOrderReference: 'PO-0031' },
+      })
+    matchResponse = () =>
+      json(200, { ...MATCH, verdict: null, purchaseOrderNumber: null, comparison: [] })
     renderBill()
     expect(await screen.findByText('Not matched to an order')).toBeTruthy()
     expect(screen.getByText(/wrote order PO-0031 on the bill/)).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Match to an order' }))
+    // Offered twice by design: on the verdict card and on Linked documents; either opens the picker.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Match to an order' })[0])
     fireEvent.click(await screen.findByRole('button', { name: /PO-0044/ }))
     await waitFor(() => expect(calls()).toContain(`PUT ${BILL_URL}/match`))
-    const body = JSON.parse(String(fetchMock.mock.calls.find(([url, init]) => url === `${BILL_URL}/match` && (init as RequestInit)?.method === 'PUT')?.[1]?.body))
+    const body = JSON.parse(
+      String(
+        fetchMock.mock.calls.find(
+          ([url, init]) => url === `${BILL_URL}/match` && (init as RequestInit)?.method === 'PUT',
+        )?.[1]?.body,
+      ),
+    )
     expect(body).toEqual({ purchaseOrderId: 'po-2' })
   })
 
-  it('shows what was ordered, received and billed, per line', async () => {
+  it('shows what was ordered, received and billed, as the three tiles', async () => {
     renderBill()
-    const table = await screen.findByText('Ordered')
-    const row = table.closest('table')!.querySelectorAll('tbody tr')[0]
-    expect(within(row as HTMLElement).getByText('300 KG')).toBeTruthy()
+    const ordered = (await screen.findByText('You ordered')).closest('div')!.parentElement!
+    expect(within(ordered).getByText('300 KG')).toBeTruthy()
+    expect(within(ordered).getByText('7.400 per KG · PO-0031')).toBeTruthy()
+    expect(screen.getByText('You received')).toBeTruthy()
+    expect(screen.getByText('They billed')).toBeTruthy()
     expect(calls()).toContain(`GET ${BILL_URL}/match`)
   })
 
@@ -303,7 +424,8 @@ describe('A bill, wired to the API', () => {
   })
 
   it('shows the not-found state for a bill this tenant does not have', async () => {
-    billResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found', error: 'BILL_NOT_FOUND' })
+    billResponse = () =>
+      json(404, { type: 'https://api.fawtir.om/problems/not-found', error: 'BILL_NOT_FOUND' })
     renderBill()
     expect(await screen.findByText('Not found')).toBeTruthy()
   })
@@ -332,10 +454,24 @@ describe('bill detail mapping', () => {
       {
         ...detail(),
         readiness: { state: 'READY', distinctApprovals: 2, required: 2, autoApproved: false },
-        settlement: { ...detail().settlement, paymentState: 'PAID', outstandingAmount: 0, paidAmount: 2354.31 },
+        settlement: {
+          ...detail().settlement,
+          paymentState: 'PAID',
+          outstandingAmount: 0,
+          paidAmount: 2354.31,
+        },
         paymentRunReference: 'RUN-9',
         payments: [
-          { id: 'p-1', entryType: 'PAYMENT', amount: 2354.31, currency: 'OMR', methodCode: 'BANK', paymentReference: null, paymentDate: '2026-09-20', occurredAt: '2026-09-20T08:00:00Z' },
+          {
+            id: 'p-1',
+            entryType: 'PAYMENT',
+            amount: 2354.31,
+            currency: 'OMR',
+            methodCode: 'BANK',
+            paymentReference: null,
+            paymentDate: '2026-09-20',
+            occurredAt: '2026-09-20T08:00:00Z',
+          },
         ],
       },
       format,
@@ -345,26 +481,50 @@ describe('bill detail mapping', () => {
 
   it('offers no decision on a credit note or a paid bill', () => {
     const can = () => true
-    expect(decisionsOf(detail(), can)).toMatchObject({ approve: true, reject: true, hold: true, release: false })
-    expect(decisionsOf({ ...detail(), bill: { ...detail().bill, documentTypeCode: '381' } }, can)).toMatchObject({
+    expect(decisionsOf(detail(), can)).toMatchObject({
+      approve: true,
+      reject: true,
+      hold: true,
+      release: false,
+    })
+    expect(
+      decisionsOf({ ...detail(), bill: { ...detail().bill, documentTypeCode: '381' } }, can),
+    ).toMatchObject({
       approve: false,
       reject: false,
       hold: false,
     })
     expect(
-      decisionsOf({ ...detail(), settlement: { ...detail().settlement, paymentState: 'PAID' } }, can),
+      decisionsOf(
+        { ...detail(), settlement: { ...detail().settlement, paymentState: 'PAID' } },
+        can,
+      ),
     ).toMatchObject({ approve: false, reject: false, hold: false })
   })
 
   it('never claims a receiver-side filing', () => {
+    // Four lines as the frame draws them, each from a fact held; a missing fact says so.
     expect(complianceOf(detail()).map((note) => note.key)).toEqual([
       'billDetail.compliance.overPeppol',
+      'billDetail.compliance.passedPintOm',
       'billDetail.compliance.reportedBySupplier',
+      'billDetail.compliance.originalKept',
     ])
     expect(
-      complianceOf({ ...detail(), compliance: { source: 'SCANNED', networkVerified: false, obligation: 'PENDING_COMPLIANCE_INPUT' } }).map(
-        (note) => note.key,
-      ),
-    ).toEqual(['billDetail.compliance.pendingInput'])
+      complianceOf({
+        ...detail(),
+        bill: { ...detail().bill, inboundDeliveryId: null },
+        compliance: {
+          source: 'SCANNED',
+          networkVerified: false,
+          obligation: 'PENDING_COMPLIANCE_INPUT',
+        },
+      }).map((note) => note.key),
+    ).toEqual([
+      'billDetail.compliance.notValidated',
+      'billDetail.compliance.noPintOm',
+      'billDetail.compliance.pendingInput',
+      'billDetail.compliance.noOriginal',
+    ])
   })
 })

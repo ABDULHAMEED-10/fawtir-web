@@ -1,227 +1,193 @@
+import type { BillRowDto } from '../api/expenditure/bills'
+import type { PaymentRunDto } from '../api/expenditure/paymentRuns'
+import type { SupplierDocumentDto, SupplierOverviewDto } from '../api/expenditure/supplierRecord'
+import type { SupplierDetailDto } from '../api/expenditure/suppliers'
+import { addDays } from './dates'
+import type { Band, Note } from './supplierRecord'
+
 /**
- * One supplier's record — Contacts › Suppliers › Detail (Figma 117:32564).
- *
- * The overview answers three questions in order: what do we owe them, what is that made of, and
- * is anything about the record going to stop a payment going out. The figures below are stated
- * once at bill level and everything above them — the ageing bands, the header total, the badge
- * on the payment run — is added up from those bills.
+ * The Overview tab of a supplier's record (Suppliers › Detail, Figma 163:26275), written from
+ * what the API holds. Each sentence the design prints under a figure is derived here from a
+ * field, and the ones nothing backs ("Yirgacheffe went up from 7.100 to 7.400 per KG in March",
+ * "Added by Hafidh Saif") are drawn as placeholders and listed in
+ * docs/frontend/EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md §7.
  */
-
-export type BillState = 'inRun' | 'paid' | 'onHold' | 'approved'
-
-export type SupplierBill = {
-  id: string
-  arrived: string
-  poRef: string
-  due: string
-  dueNote: string
-  /** Days until due; negative once late. Drives the ageing bands. */
-  dueInDays: number
-  state: BillState
-  whereKey: string
-  whereNoteKey: string
-  amount: number
-  /** An early-settlement discount available on this bill, when there is one. */
-  discountRate?: number
-  /** Credit sitting against this bill and not yet used. */
-  creditUnused?: number
-  actionKey: string
-}
-
-const BILLS: SupplierBill[] = [
-  {
-    id: 'MR-INV-8821',
-    arrived: '29 Jul',
-    poRef: 'PO-0031',
-    due: '28 Aug 2026',
-    dueNote: 'supplierDetail.dueIn',
-    dueInDays: 29,
-    state: 'inRun',
-    whereKey: 'supplierDetail.inRun',
-    whereNoteKey: 'supplierDetail.payingToTakeDiscount',
-    amount: 2354.31,
-    discountRate: 0.02,
-    actionKey: 'supplierDetail.openTheRun',
-  },
-  {
-    id: 'MR-INV-8790',
-    arrived: '21 Jul',
-    poRef: 'PO-0027',
-    due: '2 Aug 2026',
-    dueNote: 'supplierDetail.dueIn',
-    dueInDays: 3,
-    state: 'inRun',
-    whereKey: 'supplierDetail.inRun',
-    whereNoteKey: 'supplierDetail.mergedIntoOne',
-    amount: 404.79,
-    actionKey: 'supplierDetail.openTheRun',
-  },
-  {
-    id: 'MR-INV-8712',
-    arrived: '18 Jun',
-    poRef: 'PO-0021',
-    due: '18 Jul 2026',
-    dueNote: 'supplierDetail.paidOn',
-    dueInDays: -30,
-    state: 'paid',
-    whereKey: 'supplierDetail.paid',
-    whereNoteKey: 'supplierDetail.creditOutstanding',
-    amount: 1842.5,
-    creditUnused: 242.5,
-    actionKey: 'supplierDetail.useTheCredit',
-  },
-]
 
 const round3 = (value: number) => Math.round(value * 1000) / 1000
-const sum = (values: number[]) => round3(values.reduce((total, value) => total + value, 0))
 
-/** Bills still to be paid — the ones every figure on this screen is about. */
-const openBills = BILLS.filter((bill) => bill.state !== 'paid')
-
-/**
- * The four ageing bands across the top.
- *
- * Each bill falls into exactly one, so the bands always add up to the header total rather than
- * being three separate numbers that happen to agree.
- */
-const notDueYet = openBills.filter((bill) => bill.dueInDays > 7)
-const dueWithinSeven = openBills.filter((bill) => bill.dueInDays >= 0 && bill.dueInDays <= 7)
-const alreadyLate = openBills.filter((bill) => bill.dueInDays < 0)
-const onHold = openBills.filter((bill) => bill.state === 'onHold')
-
-export const SUPPLIER_DETAIL = {
-  slug: 'muscat-roastery',
-  name: 'Muscat Roastery Co',
-  initials: 'MR',
-  legalName: 'Muscat Roastery Co LLC',
-  tradingName: 'Muscat Roastery Company LLC',
-  vat: 'OM1100447102',
-  crNumber: '1104472',
-  address: 'Rusayl, Muscat',
-  since: '2 Sep 2024',
-  sinceShort: 'Sep 2024',
-  addedBy: 'Hafidh Saif',
-  category: 'supplierDetail.rawMaterials',
-
-  bills: BILLS,
-  openBills,
-
-  /** Everything owed, and what it is made of. */
-  owed: sum(openBills.map((bill) => bill.amount)),
-  bands: [
-    { id: 'notDueYet', total: sum(notDueYet.map((b) => b.amount)), bills: notDueYet },
-    { id: 'dueWithin7', total: sum(dueWithinSeven.map((b) => b.amount)), bills: dueWithinSeven },
-    { id: 'alreadyLate', total: sum(alreadyLate.map((b) => b.amount)), bills: alreadyLate },
-    { id: 'onHold', total: sum(onHold.map((b) => b.amount)), bills: onHold },
-  ],
-
-  /** Counts behind the tabs. */
-  counts: { bills: 31, payments: 28, orders: 12, documents: 4 },
-
-  paymentRun: 'PR-0014',
-  paymentRunDate: '3 Aug',
-
-  paying: {
-    terms: 'supplierDetail.net30Days',
-    earlySettlement: 'supplierDetail.twoPercentSeven',
-    bank: 'Bank Muscat',
-    iban: 'OM55 ··· 4471 2290',
-    bic: 'BMUSOMRX',
-    changedOn: '14 Jan 2026',
-  },
-
-  billing: {
-    peppolId: '0248:OM1100447102',
-    /** Every bill so far has found its purchase order. */
-    matched: 31,
-    matchedOf: 31,
-    selfBilling: false,
-  },
-
-  contacts: [
-    {
-      id: 'ahmed',
-      name: 'Ahmed Al Harthy',
-      detail: 'ahmed@muscatroastery.com',
-      tagKey: 'supplierDetail.main',
-      initials: 'AH',
-    },
-    {
-      id: 'fatma',
-      name: 'Fatma Al Riyami',
-      detail: '+968 9xxx 2290',
-      tagKey: 'supplierDetail.billing',
-      initials: 'FA',
-    },
-  ],
-
-  /** What we buy from them, over the last twelve months. */
-  purchases: [
-    {
-      id: 'yirgacheffe',
-      nameKey: 'supplierDetail.buy.yirgacheffe',
-      amount: 28400,
-      qty: '3,840 KG',
-    },
-    { id: 'houseBlend', nameKey: 'supplierDetail.buy.houseBlend', amount: 9720, qty: '1,280 KG' },
-    { id: 'roasting', nameKey: 'supplierDetail.buy.roasting', amount: 3940, qty: '938 batches' },
-    { id: 'jute', nameKey: 'supplierDetail.buy.jute', amount: 740, qty: '400 units' },
-  ],
-  priceNoteKey: 'supplierDetail.priceNote',
-
-  papers: [
-    {
-      id: 'agreement2',
-      titleKey: 'supplierDetail.papers.agreementV2',
-      metaKey: 'supplierDetail.papers.agreementV2Meta',
-      status: 'current' as const,
-    },
-    {
-      id: 'vatCert',
-      titleKey: 'supplierDetail.papers.vatCert',
-      metaKey: 'supplierDetail.papers.vatCertMeta',
-      status: 'onFile' as const,
-    },
-    {
-      id: 'priceList',
-      titleKey: 'supplierDetail.papers.priceList',
-      metaKey: 'supplierDetail.papers.priceListMeta',
-      status: 'current' as const,
-    },
-    {
-      id: 'agreement1',
-      titleKey: 'supplierDetail.papers.agreementV1',
-      metaKey: 'supplierDetail.papers.agreementV1Meta',
-      status: 'superseded' as const,
-    },
-  ],
+/** "supplier since Sep 2024": the month, not the day, as the design's identity line reads. */
+export function sinceLabel(date: string | null, language: string): string | null {
+  const match = date ? /^(\d{4})-(\d{2})/.exec(date) : null
+  if (!match) return null
+  return new Intl.DateTimeFormat(language === 'ar' ? 'ar-OM' : 'en', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1)))
 }
 
-/** The discount taken by paying the larger bill early, derived rather than printed. */
-export const EARLY_SETTLEMENT_SAVING = round3(
-  BILLS.filter((bill) => bill.discountRate).reduce(
-    (total, bill) => total + bill.amount * (bill.discountRate ?? 0),
-    0,
-  ),
-)
+/**
+ * The design's line under each ageing band: "1 bill · due 28 Aug", "Never been late with them",
+ * "Nothing in dispute". An empty late band reads from `everLate`; an empty hold band has nothing
+ * in dispute by definition.
+ */
+export function bandNote(band: Band, everLate: boolean): Note {
+  if (band.bills > 0) {
+    return band.nextDue
+      ? { key: 'supplierRecord.bandNote', values: { count: band.bills, date: band.nextDue } }
+      : { key: 'supplierRecord.bandCount', values: { count: band.bills } }
+  }
+  if (band.id === 'late') {
+    return {
+      key: everLate ? 'supplierDetail.bandNote.lateBefore' : 'supplierDetail.bandNote.alreadyLate',
+    }
+  }
+  if (band.id === 'onHold') return { key: 'supplierDetail.bandNote.onHold' }
+  return { key: 'supplierRecord.bandEmpty' }
+}
 
-/** Total spend over the twelve months, so the breakdown can show shares. */
-export const PURCHASE_TOTAL = sum(SUPPLIER_DETAIL.purchases.map((line) => line.amount))
+export type Discount = { percent: number; saves: number; by: string }
 
-export const DETAIL_TABS = [
-  { id: 'overview', labelKey: 'supplierDetail.tabs.overview' },
-  { id: 'bills', labelKey: 'supplierDetail.tabs.bills', count: SUPPLIER_DETAIL.counts.bills },
-  {
-    id: 'payments',
-    labelKey: 'supplierDetail.tabs.payments',
-    count: SUPPLIER_DETAIL.counts.payments,
-  },
-  { id: 'orders', labelKey: 'supplierDetail.tabs.orders', count: SUPPLIER_DETAIL.counts.orders },
-  {
-    id: 'documents',
-    labelKey: 'supplierDetail.tabs.documents',
-    count: SUPPLIER_DETAIL.counts.documents,
-  },
-] as const
+/**
+ * The early-settlement discount still open on a bill ("2% off · saves 47.090"): the supplier's
+ * offer, counted from the bill's issue date, while today is inside the window and something is
+ * still owed.
+ */
+export function discountOn(
+  row: BillRowDto,
+  profile: SupplierDetailDto['profile'],
+  today: string,
+): Discount | null {
+  const percent = profile.earlyPaymentDiscountPercent
+  const days = profile.earlyPaymentDiscountDays
+  if (percent === null || days === null || percent <= 0 || !row.issueDate) return null
+  if (
+    row.workflowState === 'PAID' ||
+    row.workflowState === 'REJECTED' ||
+    row.outstandingAmount <= 0
+  ) {
+    return null
+  }
+  const by = addDays(row.issueDate, days)
+  if (today > by) return null
+  return { percent, saves: round3((row.outstandingAmount * percent) / 100), by }
+}
 
-export type DetailTabId = (typeof DETAIL_TABS)[number]['id']
+/** The run a bill sits in, by its reference, when the runs are readable. */
+export function runOf(row: BillRowDto, runs: readonly PaymentRunDto[]): PaymentRunDto | null {
+  if (!row.paymentRunReference) return null
+  return runs.find((run) => run.reference === row.paymentRunReference) ?? null
+}
+
+/** The sentence under a bill's status chip: where it is, said from its own fields. */
+export function whereNote(row: BillRowDto, run: PaymentRunDto | null): Note | null {
+  switch (row.workflowState) {
+    case 'IN_PAYMENT_RUN':
+      return run?.paymentDate
+        ? { key: 'supplierDetail.where.paying', values: { date: run.paymentDate } }
+        : { key: 'supplierDetail.where.inRun' }
+    case 'AWAITING_APPROVAL':
+      return row.readiness.required > 1
+        ? {
+            key: 'supplierDetail.where.approvals',
+            values: { given: row.readiness.distinctApprovals, required: row.readiness.required },
+          }
+        : { key: 'supplierDetail.where.awaiting' }
+    case 'ON_HOLD':
+      return row.hold?.reason
+        ? { key: 'supplierDetail.where.held', values: { reason: row.hold.reason } }
+        : null
+    case 'MISMATCH':
+      return row.match?.purchaseOrderNumber
+        ? { key: 'supplierDetail.where.mismatch', values: { po: row.match.purchaseOrderNumber } }
+        : null
+    case 'PAID':
+      return row.paidOnTheSpot ? { key: 'supplierDetail.where.counter' } : null
+    case 'APPROVED':
+      return { key: 'supplierDetail.where.approved' }
+    case 'NEW':
+      return { key: 'supplierDetail.where.new' }
+    default:
+      return null
+  }
+}
+
+export type RowAction = { key: string; to: string } | { key: string; pay: true }
+
+/**
+ * The button at the end of a bill row. A bill in a run opens the run; an approved bill can be
+ * added to one when the reader may pay; anything else opens the bill.
+ */
+export function rowAction(row: BillRowDto, run: PaymentRunDto | null, canPay: boolean): RowAction {
+  if (row.workflowState === 'IN_PAYMENT_RUN') {
+    return {
+      key: 'supplierDetail.openTheRun',
+      to: run ? `/expenditure/payments/${run.id}` : '/expenditure/payments',
+    }
+  }
+  if (row.workflowState === 'APPROVED' && canPay)
+    return { key: 'supplierDetail.addToRun', pay: true }
+  return { key: 'supplierRecord.openBill', to: `/expenditure/bills/${row.id}` }
+}
+
+/**
+ * The paragraph under "You owe them": what the open bills are doing, from the latest bills and
+ * the runs they sit in, then whether they have ever been paid late.
+ */
+export function oweExplanation(
+  overview: SupplierOverviewDto,
+  latest: readonly BillRowDto[],
+  runs: readonly PaymentRunDto[],
+): Note {
+  if (overview.payables.total <= 0) return { key: 'supplierRecord.nothingOwed' }
+  const inRun = latest.filter((row) => row.workflowState === 'IN_PAYMENT_RUN')
+  if (inRun.length > 0) {
+    const run = runOf(inRun[0], runs)
+    const reference = inRun[0].paymentRunReference ?? ''
+    return run?.paymentDate
+      ? {
+          key: 'supplierDetail.oweInRunPaying',
+          values: { count: inRun.length, run: reference, date: run.paymentDate },
+        }
+      : { key: 'supplierDetail.oweInRun', values: { count: inRun.length, run: reference } }
+  }
+  return {
+    key: overview.payables.everLate ? 'supplierRecord.everLate' : 'supplierRecord.neverLate',
+  }
+}
+
+/** The run the open bills sit in, if one is known, for the "Open the run" button. */
+export function openRun(
+  latest: readonly BillRowDto[],
+  runs: readonly PaymentRunDto[],
+): PaymentRunDto | null {
+  for (const row of latest) {
+    const run = runOf(row, runs)
+    if (run) return run
+  }
+  return null
+}
+
+/**
+ * "Signed 14 Jan 2026 · sets the 2% early-settlement discount": how the paper reached the file,
+ * when, and the note it was filed with.
+ */
+export function documentLine(entry: SupplierDocumentDto): { note: Note; remark: string | null } {
+  const d = entry.document
+  const date = d.documentDate ?? d.uploadedAt.slice(0, 10)
+  const key = d.provenance
+    ? `supplierRecord.provenance.${d.provenance}`
+    : 'supplierRecord.documents.uploaded'
+  return { note: { key, values: { date } }, remark: d.note }
+}
+
+/** What the twelve-month purchases add up to, for the note under the breakdown. */
+export function purchasesSummary(lines: readonly { billCount: number; totalAmount: number }[]): {
+  bills: number
+  total: number
+} {
+  return {
+    bills: lines.reduce((sum, line) => sum + line.billCount, 0),
+    total: round3(lines.reduce((sum, line) => sum + line.totalAmount, 0)),
+  }
+}

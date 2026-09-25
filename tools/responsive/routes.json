@@ -147,6 +147,11 @@
   "/income/periodic/sch-8",
   "/income/credit-notes/crn-0003",
   "/expenditure/payments/new",
+  "/expenditure/bills/upload/i-sp-1151",
+  "/expenditure/bills/b-mr-8821",
+  "/expenditure/recurring-bills/rb-rent",
+  "/expenditure/credit-notes/cn-and-0442",
+  "/expenditure/debit-notes/dn-gcl-0091",
   "/customers/import",
   "/catalog/flat-white",
   "/catalog/bundles/ramadan-gift-box",
@@ -158,6 +163,5 @@
   "/console/erp/connections/cx-erpnext-salalah",
   "/console/tenants/muttrah-souq",
   "/console/incidents/inc-011",
-  "/console/erp/templates/tpl-odoo-16",
-  "/suppliers/muscat-roastery"
+  "/console/erp/templates/tpl-odoo-16"
 ]

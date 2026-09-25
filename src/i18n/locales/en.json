@@ -860,7 +860,7 @@
   },
   "payment": {
     "title": "Complete your subscription",
-    "description": "One last step. Choose how you would like to pay — your account is activated by the Fawtir team the moment your payment is confirmed.",
+    "description": "One last step. Choose how you would like to pay. Your account is activated by the Fawtir team the moment your payment is confirmed.",
     "card": {
       "title": "Card",
       "subtitle": "Debit or credit",
@@ -885,7 +885,7 @@
       "bank": "Bank",
       "reference": "Reference",
       "yourInvoice": "your invoice number",
-      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed — usually within one business day."
+      "note": "We email you the invoice with these details. The Fawtir team activates your account once the transfer is confirmed, usually within one business day."
     },
     "summary": {
       "title": "Order summary",
@@ -900,7 +900,7 @@
       "totalDue": "Total due today",
       "renewPrefix": "Renews on {{date}} at {{amount}}. We’ll remind you before. ",
       "cancelAnytime": "Cancel anytime",
-      "renewSuffix": " — access continues to period end.",
+      "renewSuffix": "access continues to period end.",
       "addonLine": "Automatic ERP extraction ({{cycle}})"
     },
     "payCta": "Pay {{amount}} & activate",
@@ -934,7 +934,7 @@
       "yourEmail": "your email"
     },
     "cash": {
-      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded — usually the same day."
+      "note": "Pay at Fawtir's office in Muscat or to your Fawtir representative. You get a receipt, and the Fawtir team activates your account once it is recorded, usually the same day."
     },
     "sendLinkCta": "Send me the payment link",
     "cashCta": "I'll pay in cash",
@@ -1531,7 +1531,7 @@
   "suppliersPage": {
     "title": "Suppliers",
     "subtitle": "Everyone who bills you. Their terms, bank details and Peppol status decide how bills arrive and how they get paid.",
-    "importFromExcel": "Import from a file",
+    "importFromExcel": "Import from Excel",
     "newSupplier": "New supplier",
     "searchPlaceholder": "Search here...",
     "filters": "Filters",
@@ -1554,7 +1554,7 @@
       "owe": "You owe them",
       "oweNote": "Across {{count}} open bills",
       "needsFix": "Records needing a fix",
-      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} bank details to confirm"
+      "needsFixNote": "{{bank}} with no bank details · {{vat}} missing VAT · {{account}} changed account"
     },
     "tabs": {
       "all": "All",
@@ -1620,7 +1620,9 @@
       "noVatNumber": "No VAT number",
       "notOnPeppol": "Not on Peppol",
       "switchedOff": "Switched off",
-      "bankChangedUnconfirmed": "Bank details to confirm"
+      "bankChangedUnconfirmed": "Bank details to confirm",
+      "bankChangedAgo_one": "Bank changed {{count}}d ago",
+      "bankChangedAgo_other": "Bank changed {{count}}d ago"
     },
     "recordNote": {
       "elevenOnTime": "11 of 11 paid on time",
@@ -1770,7 +1772,8 @@
     "notes": {
       "label": "Note about supplier",
       "placeholder": "Add optional internal instructions or payment details..."
-    }
+    },
+    "subtitle": "Who they are, how their bills reach you and how you pay them. VAT numbers and Peppol IDs are checked as you type."
   },
   "invoicesPage": {
     "title": "Invoices",
@@ -2769,7 +2772,7 @@
     "applied": "Applied to balance",
     "newBalance": "New balance",
     "refundDue": "Refund due",
-    "refundHint": "Customer overpaid — refund this amount separately.",
+    "refundHint": "Customer overpaid: refund this amount separately.",
     "footerNote": "Linked to {{id}} · draft until issued",
     "customAmount": "Amount to credit",
     "customMax": "Up to {{amount}} can still be credited on this invoice."
@@ -3285,7 +3288,7 @@
       "flatCharge": "Flat charge",
       "flatChargeHint": "One amount freight, surcharge or a late payment fee"
     },
-    "basisNote": "Only the difference is charged. {{invoice}}'s original lines stay exactly as they were issued — this note bills the shortfall.",
+    "basisNote": "Only the difference is charged. {{invoice}}'s original lines stay exactly as they were issued. This note bills the shortfall.",
     "amount": {
       "title": "Amount to charge",
       "increasesRevenue": "Increases recognised revenue",
@@ -3352,7 +3355,7 @@
       "nowDue": "Now due on the invoice"
     },
     "awaitingFrom": "Awaiting payment from {{customer}}",
-    "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due 29 Aug 2026 — in 30 days.",
+    "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due 29 Aug 2026, in 30 days.",
     "sections": {
       "details": "Details",
       "items": "Items",
@@ -4960,7 +4963,7 @@
   "scanToFill": {
     "button": "Scan to fill",
     "title": "Scan an invoice to fill this form",
-    "subtitle": "Upload a supplier invoice or a photo of one. We read it and pre-fill the fields — you review everything before it is applied.",
+    "subtitle": "Upload a supplier invoice or a photo of one. We read it and pre-fill the fields. You review everything before it is applied.",
     "drop": "Drop a file here, or click to choose",
     "dropHint": "PDF, JPG or PNG · up to 10 MB",
     "privacy": "The file is read to extract invoice fields and is not attached to this invoice unless you add it yourself.",
@@ -4968,7 +4971,7 @@
     "failed": "That file could not be read. Try a clearer scan, or enter the invoice by hand.",
     "tooLarge": "That file is over 10 MB. Please upload a smaller one.",
     "readCount": "Read {{fields}} fields and {{lines}} line items",
-    "checkFields": "{{count}} field(s) were unclear — please check them after filling.",
+    "checkFields": "{{count}} field(s) were unclear. Please check them after filling.",
     "check": "check",
     "fieldsFound": "Fields found",
     "linesFound": "Line items found",
@@ -5024,7 +5027,7 @@
   "invoiceReminder": {
     "title": "Reminder {{current}} of {{total}}",
     "goesOut": "goes out {{when}}",
-    "pausedNote": "paused — nothing will be sent",
+    "pausedNote": "paused: nothing will be sent",
     "allSent": "All reminders sent",
     "allSentNote": "nothing left in the sequence",
     "pause": "Pause",
@@ -5041,7 +5044,7 @@
   },
   "billsPage": {
     "title": "Bills",
-    "subtitle": "Everything your suppliers have billed you — matched, approved and paid.",
+    "subtitle": "Everything your suppliers have billed you: matched, approved and paid.",
     "uploadBill": "Upload a bill",
     "scanReceipt": "Scan a receipt",
     "searchPlaceholder": "Search supplier, bill number...",
@@ -5124,7 +5127,8 @@
       "nudge": "Nudge the approver",
       "checkAndSave": "Check and save",
       "viewDispute": "Two deliveries billed twice",
-      "approving": "Approving…"
+      "approving": "Approving…",
+      "viewHold": "See why"
     },
     "sortOptions": {
       "dueAsc": "Due: soonest first",
@@ -5173,7 +5177,13 @@
       "wasDue_one": "Was due {{count}} day ago",
       "wasDue_other": "Was due {{count}} days ago",
       "overdue": "Overdue",
-      "nothingOwed": "Nothing owed"
+      "nothingOwed": "Nothing owed",
+      "receipt": "Receipt {{number}}",
+      "read": "Read {{date}}",
+      "noDueDate": "No due date",
+      "noOrderNote": "No order behind it",
+      "noAmount": "No amount yet",
+      "queried": "Queried {{date}}"
     },
     "state": {
       "newNotReviewed": "New, not reviewed",
@@ -5191,7 +5201,8 @@
     "notice": {
       "drafts_one": "{{count}} uploaded or scanned bill is waiting for its details. It appears here once confirmed.",
       "drafts_other": "{{count}} uploaded or scanned bills are waiting for their details. They appear here once confirmed.",
-      "truncated": "This tab looks at the newest {{window}} bills only, so older ones may be missing."
+      "truncated": "This tab looks at the newest {{window}} bills only, so older ones may be missing.",
+      "nudgeUnavailable": "Nudging the approver is not wired up yet. Ask them directly for now."
     },
     "emptyLedger": "No bills yet. Bills from suppliers on Peppol arrive here by themselves.",
     "pages": "Pages",
@@ -5201,7 +5212,10 @@
       "discard": "Discard",
       "unnamed": "Untitled upload",
       "UPLOADED": "Uploaded {{date}}",
-      "SCANNED": "Scanned {{date}} — receipts are confirmed from Scan a receipt"
+      "SCANNED": "Scanned {{date}}: receipts are confirmed from Scan a receipt"
+    },
+    "rowMenu": {
+      "view": "View the bill"
     }
   },
   "billDetail": {
@@ -5224,7 +5238,7 @@
       "paid": "Paid",
       "arrivedOn": "{{date}}",
       "via": {
-        "PEPPOL": "Over Peppol",
+        "PEPPOL": "Peppol",
         "UPLOADED": "Uploaded",
         "SCANNED": "Scanned",
         "RECURRING": "Recurring",
@@ -5241,7 +5255,9 @@
       "inRun": "In run {{run}}",
       "paidOn": "Paid {{date}}",
       "dueOn": "Due {{date}}",
-      "automatically": "Automatically"
+      "automatically": "Automatically",
+      "arrivedVia": "{{date}} · {{source}}",
+      "notYet": "Not yet"
     },
     "match": {
       "ordered": "Ordered",
@@ -5256,7 +5272,18 @@
       "theirRefOnly": "The supplier wrote order {{reference}} on the bill, but it is not linked to one of yours.",
       "against": "Matched to {{order}}",
       "receipt": "receipt {{receipt}}",
-      "price": "Billed price"
+      "price": "Billed price",
+      "orderedTile": "You ordered",
+      "receivedTile": "You received",
+      "billedTile": "They billed",
+      "quantityUnit": "{{quantity}} {{unit}}",
+      "lineCount_one": "{{count}} line",
+      "lineCount_other": "{{count}} lines",
+      "perUnitText": "{{price}} per {{unit}}",
+      "onReceipt": "{{receipt}}",
+      "thisBill": "this bill",
+      "quantityUnitMore_one": "{{quantity}} {{unit}} + {{count}} line",
+      "quantityUnitMore_other": "{{quantity}} {{unit}} + {{count}} lines"
     },
     "lines": {
       "title": "What they're charging for",
@@ -5270,7 +5297,8 @@
       "vatRate": "VAT · {{rate}}",
       "theyreCharging": "They're charging",
       "none": "The supplier sent no lines with this bill.",
-      "vatOnly": "VAT"
+      "vatOnly": "VAT",
+      "receivedOn": "Received on {{receipt}}"
     },
     "linked": {
       "title": "Linked documents",
@@ -5279,7 +5307,13 @@
       "purchaseReceipt": "purchase receipt",
       "originalFile": "original file",
       "matchIt": "Match to an order",
-      "removeMatch": "Remove the match"
+      "removeMatch": "Remove the match",
+      "matchedOn": "Matched {{date}}",
+      "matchedByHandOn": "Matched by hand {{date}}",
+      "matchedToThisBill": "Matched to this bill",
+      "receiptAgainst": "Received against {{order}}",
+      "originalNote": "The original file as the supplier sent it",
+      "none": "Nothing is linked to this bill yet."
     },
     "activity": {
       "title": "Activity",
@@ -5310,21 +5344,32 @@
       "held": "On hold: “{{reason}}”. It stays out of every payment run until it is released.",
       "paid": "Paid in full.",
       "creditNote": "A credit note lowers what you owe. There is nothing to approve or pay on it.",
-      "release": "Release"
+      "release": "Release",
+      "queryIt": "Query it"
     },
     "compliance": {
       "title": "Compliance",
       "overPeppol": "Delivered over the Peppol network and verified",
-      "reportedBySupplier": "Reported to the Tax Authority by the supplier's provider — nothing to file from your side",
-      "reportedBySender": "Reported by the sender — nothing to file from your side",
-      "pendingInput": "No tax report from the supplier yet — compliance input pending",
-      "notApplicable": "Outside tax reporting"
+      "reportedBySupplier": "Reported to the Tax Authority by the supplier's provider: nothing to file from your side",
+      "reportedBySender": "Reported by the sender: nothing to file from your side",
+      "pendingInput": "No tax report from the supplier yet. Compliance input pending",
+      "notApplicable": "Outside tax reporting",
+      "notValidated": "Not validated: it did not come over Peppol",
+      "passedPintOm": "Passed PINT-OM validation",
+      "noPintOm": "No PINT-OM validation on an uploaded or scanned bill",
+      "originalKept": "Original kept on file for the retention period",
+      "noOriginal": "No original file on record"
     },
     "supplier": {
       "title": "Supplier",
       "name": "Name",
       "theirRef": "Their bill ref",
-      "vat": "VAT number"
+      "vat": "VAT number",
+      "openBills": "Open bills",
+      "openBillsValue": "{{count}} · ¤{{amount}}",
+      "paidOnTime": "Paid on time",
+      "alwaysOnTime": "Never paid late",
+      "paidLateBefore": "Paid late before"
     },
     "breadcrumbBill": "Bill",
     "supplierUnknown": "Supplier not named",
@@ -5344,7 +5389,7 @@
     },
     "reject": {
       "title": "Reject this bill",
-      "body": "The rejection is recorded in your books with its reason. Nothing is sent to the supplier — tell them yourself.",
+      "body": "The rejection is recorded in your books with its reason. Nothing is sent to the supplier. Tell them yourself.",
       "reason": "Reason",
       "confirm": "Reject the bill"
     },
@@ -5363,7 +5408,7 @@
     },
     "refused": {
       "alreadyApproved": "You have already approved this bill. It needs a different approver.",
-      "changed": "This bill changed after the page loaded. It has been refreshed — try again.",
+      "changed": "This bill changed after the page loaded. It has been refreshed. Try again.",
       "reasonRequired": "A rejection needs a reason.",
       "paidCannotHold": "A bill that is paid cannot be put on hold.",
       "notPayable": "Nothing is owed on this bill, so it cannot be put on hold.",
@@ -5376,12 +5421,28 @@
       "released": "Released from hold.",
       "matched": "Matched to the order.",
       "unmatched": "The match was removed."
+    },
+    "notStated": "Not stated",
+    "terms": {
+      "title": "Payment terms",
+      "due": "Due",
+      "terms": "Terms",
+      "earlyPayment": "Early payment",
+      "payTo": "Pay to",
+      "netDays_one": "Net {{count}} day",
+      "netDays_other": "Net {{count}} days",
+      "paidOnTheSpot": "Paid on the spot",
+      "earlyPaymentValue": "{{percent}}% before {{date}}",
+      "none": "None",
+      "bank": "Bank",
+      "noBank": "No bank details on file",
+      "saving": "Paying by {{date}} saves"
     }
   },
   "uploadBill": {
     "breadcrumb": "Upload a bill",
     "title": "Check what we read",
-    "subtitle": "Fawtir read the file for you. Anything it wasn't sure about is marked in amber — check those and correct anything wrong.",
+    "subtitle": "Fawtir read the e-invoice file for you. Check each field against the file and correct anything wrong.",
     "fileMeta": "{{pages}} page · {{size}} · read in {{seconds}} seconds · {{read}} of {{fields}} fields confident",
     "replaceFile": "Replace the file",
     "pageOf": "Page {{current}} of {{total}}",
@@ -5391,7 +5452,7 @@
     "billNumber": "Their bill number",
     "billDate": "Bill date",
     "paymentDue": "Payment due",
-    "noDueDate": "No due date printed. Taken from the \"within 10 days\" wording on the file — check it's right.",
+    "noDueDate": "No due date typed. If the bill says \"within 10 days\", work it out from the bill date.",
     "whatTheyCharged": "What they charged",
     "col": {
       "description": "Description",
@@ -5418,12 +5479,13 @@
     "leftUnlinked": "Left unlinked. You can match it to an order later from the bill itself.",
     "unlinkedHint": "Leave it unlinked for a counter purchase or a service with no order behind it.",
     "cancel": "Cancel",
-    "saveBill": "Save the bill"
+    "saveBill": "Save the bill",
+    "titleTyped": "Type in the bill"
   },
   "scanReceipts": {
     "breadcrumb": "Scan receipts",
     "title": "Work through the receipts",
-    "subtitle": "{{count}} photos went in. Fawtir read each one — confirm them one at a time. Anything it wasn't sure of is marked amber.",
+    "subtitle": "{{count}} photos went in. Fawtir read each one. Confirm them one at a time. Anything it wasn't sure of is marked amber.",
     "receiptOf": "Receipt {{current}} of {{total}}",
     "progressMeta": "{{saved}} saved · {{left}} still to check · OMR {{total}} confirmed so far",
     "percentDone": "{{percent}}% done",
@@ -5469,8 +5531,17 @@
       "card": "Card",
       "pettyCash": "Petty cash"
     },
-    "confirmNext": "Confirm & next",
-    "savedNext": "Saved — next"
+    "confirmNext": "Save and next",
+    "savedNext": "Saved, next",
+    "onYourList": "VAT {{vat}}: this supplier is on your list.",
+    "vatNotOnReceipt": "No VAT number on your list for this supplier.",
+    "pickCategory": "Pick what it was for.",
+    "footer": {
+      "toCheck_one": "{{count}} field to check",
+      "toCheck_other": "{{count}} fields to check",
+      "onThisOne": "on this one"
+    },
+    "discardThisOne": "Discard this one"
   },
   "paymentsPage": {
     "breadcrumb": "Payments",
@@ -5513,10 +5584,12 @@
     },
     "blocked": {
       "count": "{{count}} more bills can’t be paid yet",
-      "reason": "they haven't cleared approval",
-      "onHold": "On hold — two deliveries billed twice",
-      "mismatch": "Mismatch — 3 boxes more than we received",
-      "openDispute": "Open the dispute"
+      "reason": "they haven't cleared approval, or are held",
+      "onHold": "On hold: two deliveries billed twice",
+      "mismatch": "Mismatch: 3 boxes more than we received",
+      "openDispute": "Open the dispute",
+      "more_one": "{{count}} more bill can't be paid yet",
+      "more_other": "{{count}} more bills can't be paid yet"
     },
     "whenAndWhere": "When and from where",
     "paymentDate": "Payment date",
@@ -5543,12 +5616,14 @@
     "whoGetsPaid": "Who gets paid",
     "nobodyYet": "Nothing is ticked, so no transfers will be made.",
     "billsAsOneTransfer_one": "{{count}} bill · paid on its own",
-    "billsAsOneTransfer_other": "{{count}} bills · paid as one transfer"
+    "billsAsOneTransfer_other": "{{count}} bills · paid as one transfer",
+    "issued": "Issued {{date}}",
+    "savedEarly": "{{percent}}% saved by paying early"
   },
   "paymentsInvoices": {
     "breadcrumb": "Invoices",
     "title": "The invoices you're paying",
-    "subtitle": "Every bill in PR-0014 as the supplier sent it — flick through before you approve.",
+    "subtitle": "Every bill in {{reference}} as the supplier sent it, flick through before you approve.",
     "printAll": "Print all",
     "downloadAll": "Download all",
     "moreActions": "More actions",
@@ -5586,28 +5661,40 @@
     "payingInThisRun": "Paying in this run",
     "checks": {
       "matchesDocument": "Everything matches the document",
-      "matchedTo": "Matched to PO-0031 and GRN-0087",
+      "matchedTo": "Matched to {{order}}",
       "matchedTo8790": "Matched to PO-0027 and GRN-0081",
-      "matchedByHand": "Matched to PO-0031 by hand",
+      "matchedByHand": "Matched to {{order}} by hand",
       "readFromPhoto": "Read from a photo and confirmed",
-      "noOrder": "No order behind it — bought directly",
-      "approvedBy": "Approved by Hafidh on 30 Jul",
+      "noOrder": "No order behind it, bought directly",
+      "approvedBy": "Approved by {{who}} on {{date}}",
       "approvedBy21": "Approved by Hafidh on 21 Jul",
       "approvedBy26": "Approved by Hafidh on 26 Jul",
-      "approvedBy30": "Approved by Hafidh on 30 Jul"
+      "approvedBy30": "Approved by Hafidh on 30 Jul",
+      "peppolVerified": "Arrived over Peppol and verified",
+      "uploaded": "Uploaded and checked by hand",
+      "matchedToBoth": "Matched to {{order}} and {{receipt}}",
+      "mismatch": "Doesn't agree with {{order}}",
+      "approvedAutomatically": "Approved automatically",
+      "awaitingApproval": "Awaiting approval"
     },
-    "discountNote": "Paying on 3 Aug takes the 2% discount — OMR 47.090 less than the face value.",
+    "discountNote": "Paying on {{date}} takes the {{percent}}% discount, {{amount}} less than the face value.",
     "openFullBill": "Open the full bill",
     "takeOut": "Take out of this run",
     "previous": "Previous",
     "next": "Next",
-    "arrowHint": "Bill {{current}} of {{total}} · use the arrow keys to move through them."
+    "arrowHint": "Bill {{current}} of {{total}} · use the arrow keys to move through them.",
+    "issuedDue": "{{issued}} · due {{due}}",
+    "issuedOverdue": "{{issued}} · overdue",
+    "documentUnavailable": "The document could not be shown.",
+    "notRecorded": "Not recorded",
+    "onTime": "on time",
+    "viaPeppol": "Received over the Peppol network"
   },
   "recurringBills": {
     "title": "Recurring bills",
-    "subtitle": "The bills that come round again. Fawtir either watches for the supplier's bill and tells you when it is late or the amount has moved, or raises the bill itself.",
-    "add": "Set one up",
-    "searchPlaceholder": "Search what it is, the supplier or their reference",
+    "subtitle": "The bills you expect every month. Fawtir watches for them arriving, tells you when one is late, and flags an amount that has changed.",
+    "add": "Add a recurring bill",
+    "searchPlaceholder": "Search supplier, bill number...",
     "categoryFilter": "Category",
     "allCategories": "Every category",
     "narrowsThisPage": "Searching and the category narrow the page you are on.",
@@ -5646,31 +5733,37 @@
     },
     "kpi": {
       "expected": "Expected every month",
-      "expectedMeta": "{{count}} set up · {{active}} active",
+      "expectedMeta": "{{count}} recurring bills · {{active}} active",
       "late": "Late arriving",
       "noneLate": "Nothing is late.",
       "seeLate": "See the late ones",
       "next": "Arriving next",
-      "noneComing": "Nothing is expected yet."
+      "noneComing": "Nothing is expected yet.",
+      "chaseIt": "Chase it",
+      "nothing": "Nothing yet"
     },
     "state": {
       "paused": "Paused",
       "watching": "Watching",
       "late_one": "{{count}} day late",
       "late_other": "{{count}} days late",
-      "arrived": "Arrived as expected",
+      "arrived": "Arriving as expected",
       "outOfRange": "Arrived, {{percent}} on usual",
       "dueOn": "Due {{date}}",
       "willRaise": "Next raised {{date}}",
-      "noNextRun": "No next date"
+      "noNextRun": "No next date",
+      "dueToArrive": "Due to arrive"
     },
     "menu": {
       "edit": "Edit",
       "pause": "Pause",
-      "resume": "Resume"
+      "resume": "Resume",
+      "open": "Open it"
     },
     "actions": {
-      "chase": "Chase it"
+      "chase": "Chase the supplier",
+      "whyTheJump": "Why the jump?",
+      "resume": "Resume watching"
     },
     "chase": {
       "notExpecting": "Fawtir raises this bill itself, so there is nobody to chase.",
@@ -5685,38 +5778,83 @@
       "newTitle": "Set up a recurring bill",
       "editTitle": "Edit a recurring bill",
       "mode": "What should Fawtir do",
-      "whatIsIt": "What it is",
+      "whatIsIt": "What is it",
       "whatToCallIt": "What to call it",
       "category": "Category",
       "theirReference": "Their reference",
       "optional": "Optional",
-      "whenItArrives": "When it comes round",
+      "whenItArrives": "When it usually arrives",
       "howOften": "How often",
-      "arrivesAround": "Usually arrives on day",
+      "arrivesAround": "Arrives around",
       "arrivesAroundWeekday": "Usually arrives on weekday (1–7)",
       "startsOn": "First raised on",
       "watchingFrom": "Watching from",
       "endsOn": "Stops after",
       "paymentTerms": "Payment terms (days)",
       "paymentDueDay": "Payment due on day",
-      "whatItCosts": "What it costs",
-      "usualAmount": "Usual amount, VAT included",
+      "whatItCosts": "What it usually costs",
+      "usualAmount": "Usual amount",
       "vatAmount": "Of which VAT",
       "whenToTellYou": "When to tell you",
       "tolerance": "Tell me if it moves more than (%)",
       "lateAfter": "Late after (days)",
-      "autoApprove": "Approve it automatically when it arrives within range",
-      "autoApproveNote": "Recorded on the watch. Fawtir reports it but does not approve anything for you yet.",
+      "autoApprove": "Approve it automatically when it's within range",
+      "autoApproveNote": "Skips the approval step for a bill that looks exactly like every other month. Off by default.",
       "inPlainWords": "In plain words",
       "save": "Save the changes",
       "start": "Start watching",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "title": "Add a recurring bill",
+      "newCrumb": "New",
+      "editCrumb": "Edit",
+      "subtitle": "Tell Fawtir what to expect. It won't create anything: it watches for the real bill and tells you if it's late or the amount has moved.",
+      "preparedBy": "Prepared by",
+      "chooseCategory": "Choose a category",
+      "whenItIsRaised": "When it is raised",
+      "arrivesOn": "Arrives on",
+      "paymentDue": "Payment usually due",
+      "onArrival": "On arrival",
+      "ofNextMonth": "{{day}} of the next month",
+      "vatTreatment": "VAT treatment",
+      "tellMeIfItMoves": "Tell me if it moves more than",
+      "toleranceNote": "A bill between {{low}} and {{high}} passes without comment. Anything outside that gets flagged for you to look at.",
+      "decreaseTolerance": "Narrow the tolerance",
+      "increaseTolerance": "Widen the tolerance",
+      "ifNotArrived": "If it hasn't arrived",
+      "ifNotArrivedNote": "Fawtir waits past the expected date, then flags it on the list and notifies you",
+      "straightAway": "Straight away",
+      "afterDays_one": "After {{count}} day",
+      "afterDays_other": "After {{count}} days",
+      "ifOutsideRange": "If the amount is outside the range",
+      "ifOutsideRangeNote": "The bill still arrives normally, it's just marked so someone checks it before approving",
+      "whoGetsTold": "Who gets told",
+      "whoGetsToldNote": "Notifications go to this person, not the supplier",
+      "nobody": "Nobody named",
+      "someone": "Someone on the team",
+      "whatYoureSettingUp": "What you're setting up",
+      "timeline": {
+        "expected": "Expected",
+        "expectedNote": "Fawtir starts watching for it",
+        "flagged": "Flagged if absent",
+        "flaggedNote": "Marked late arriving, {{who}} notified",
+        "due": "Payment due",
+        "dueNote": "Appears in the payment run window"
+      },
+      "pastBills": "Past bills from this supplier",
+      "pickSupplierFirst": "Choose the supplier to see what they have sent before.",
+      "noPastBills": "Nothing on file from {{supplier}} yet.",
+      "pastBillsUnavailable": "Their past bills could not be read.",
+      "aboutFrom": "about {{amount}} from {{supplier}}",
+      "add": "Add recurring bill"
     },
     "plain": {
       "expect_one": "{{supplier}} sends {{description}} for about {{amount}}, usually on day {{day}}. Tell me if it moves more than {{tolerance}}%, or if it hasn't arrived {{count}} day after it was due.",
       "expect_other": "{{supplier}} sends {{description}} for about {{amount}}, usually on day {{day}}. Tell me if it moves more than {{tolerance}}%, or if it hasn't arrived {{count}} days after it was due.",
       "raise_one": "Fawtir raises {{description}} for {{supplier}}, {{amount}} each time.",
-      "raise_other": "Fawtir raises {{description}} for {{supplier}}, {{amount}} each time."
+      "raise_other": "Fawtir raises {{description}} for {{supplier}}, {{amount}} each time.",
+      "expect": "A bill of about {{amount}} from {{supplier}}, expected {{when}}. Tell {{who}} if it hasn't come by the {{flagDay}}, or if it's more than {{tolerance}}% out.",
+      "expectNoTolerance": "A bill of about {{amount}} from {{supplier}}, expected {{when}}. Tell {{who}} if it hasn't come by the {{flagDay}}.",
+      "raise": "Fawtir raises {{description}} for {{supplier}}, {{amount}} each time."
     },
     "error": {
       "arrivalDayRequired": "Say which day it usually arrives.",
@@ -5729,12 +5867,12 @@
       "vatExceedsTotal": "VAT can't be more than the whole amount."
     },
     "detail": {
-      "usually": "Usually",
+      "usually": "usually",
       "lastArrived": "Last arrived",
       "nothingYet": "Nothing yet",
       "variance": "{{percent}} on the usual amount",
       "nextExpected": "Next expected",
-      "watchedSince": "Watching since",
+      "watchedSince": "watched since {{since}}",
       "tolerance": "Tolerance",
       "lateAfter": "Late after",
       "paymentTerms": "Payment terms",
@@ -5746,7 +5884,100 @@
       "history": "Period by period",
       "historyNote": "One row per period, whether or not a bill arrived.",
       "noRuns": "Nothing has come round yet.",
-      "openBill": "Open the bill"
+      "openBill": "Open the bill",
+      "from": "From",
+      "lateArriving_one": "{{count}} day late arriving",
+      "lateArriving_other": "{{count}} days late arriving",
+      "pauseWatching": "Pause watching",
+      "resumeWatching": "Resume watching",
+      "alertTitle": "The {{month}} bill hasn't arrived",
+      "alertBody": "Expected around {{expected}}, nothing has come.",
+      "alertDue_one": "Payment is due on {{due}}, so there is {{count}} day to sort it out.",
+      "alertDue_other": "Payment is due on {{due}}, so there are {{count}} days to sort it out.",
+      "markReceived": "Mark as received",
+      "notYet": "Not available yet: this needs the backend.",
+      "whatItsCost": "What it's cost",
+      "last12": "Last 12 months",
+      "export": "Export",
+      "legend": {
+        "paid": "Arrived and paid",
+        "recent": "Most recent",
+        "expected": "Expected, not arrived"
+      },
+      "flatFor_one": "Flat at {{amount}} for {{count}} month",
+      "flatFor_other": "Flat at {{amount}} for {{count}} months",
+      "movedTimes_one": "The amount moved {{count}} time",
+      "movedTimes_other": "The amount moved {{count}} times",
+      "everyPeriod": "Every period so far",
+      "seeAll": "See all {{count}}",
+      "seeFewer": "See fewer",
+      "col": {
+        "month": "Period",
+        "bill": "Bill",
+        "arrived": "Arrived",
+        "amount": "Amount",
+        "paid": "Paid"
+      },
+      "expectedOn": "Expected {{date}}",
+      "arrivedChip": "Arrived",
+      "arrivedOff": "Arrived, {{percent}}",
+      "daysLate_one": "{{count}} day late",
+      "daysLate_other": "{{count}} days late",
+      "expectedAmount": "expected",
+      "sameAsUsual": "same as usual",
+      "onUsual": "{{percent}} on usual",
+      "dueOn": "Due {{date}}",
+      "onArrival": "On arrival",
+      "activityTitle": "Activity",
+      "activity": {
+        "flagged": "Flagged as late arriving",
+        "flaggedDetail": "Expected {{expected}}, nothing has come · {{who}} notified",
+        "arrived": "The bill arrived and matched",
+        "arrivedDetail": "Period {{when}}, expected {{expected}}",
+        "outOfRange": "Arrived outside the range",
+        "outOfRangeDetail": "Period {{when}}, {{percent}} on the usual amount",
+        "raised": "Raised by Fawtir",
+        "raisedDetail": "Written on {{when}}",
+        "started": "Started watching this bill",
+        "startedDetail": "Watching since {{date}}"
+      },
+      "whatExpects": "What Fawtir expects",
+      "howOften": "How often",
+      "theDay": "The {{day}}",
+      "nextRaised": "Next raised",
+      "paymentDue": "Payment due",
+      "flagIfOutside": "Flag if outside",
+      "doesNotCreate": "Fawtir doesn't create the bill. It waits for the real one and matches it.",
+      "doesCreate": "Fawtir writes this bill itself on the day, for the usual amount.",
+      "whenItTells": "When it tells you",
+      "ifNothingArrives": "If nothing arrives",
+      "ifAmountOff": "If the amount is off",
+      "approveAutomatically": "Approve automatically",
+      "on": "On",
+      "off": "Off",
+      "trackRecord": "Track record",
+      "billsMatched": "Bills matched",
+      "arrivedOnTime": "Arrived on time",
+      "ofPeriods": "{{count}} of {{total}}",
+      "everChanged": "Amount ever changed",
+      "never": "Never",
+      "times_one": "{{count}} time",
+      "times_other": "{{count}} times",
+      "paidThisYear": "Paid this year",
+      "costPerYear": "Cost per year",
+      "supplier": "Supplier",
+      "sendsBillsBy": "Sends bills by",
+      "channel": {
+        "peppol": "Peppol",
+        "email": "Email PDF",
+        "paper": "Paper",
+        "manual": "Typed in by hand"
+      },
+      "contact": "Contact",
+      "notOnFile": "Not on file",
+      "onPeppol": "On Peppol. Their bills arrive by themselves, verified.",
+      "notOnPeppol": "Not on Peppol. Asking them to join would remove the uploading and the chasing.",
+      "openSupplier": "Open the supplier"
     },
     "runCol": {
       "period": "Period",
@@ -5763,11 +5994,76 @@
       "ARRIVED": "Arrived",
       "ARRIVED_OUT_OF_RANGE": "Arrived, outside range",
       "LATE": "Never arrived"
+    },
+    "rowMenu": "Recurring bill actions",
+    "timing": {
+      "expected": "Expected",
+      "lastArrived": "Last arrived",
+      "nextRaised": "Next raised",
+      "paused": "Paused"
+    },
+    "rows": {
+      "nothingArrived": "Nothing has arrived",
+      "arrivedAndMatched": "Arrived and matched",
+      "inDays_one": "in {{count}} day",
+      "inDays_other": "in {{count}} days",
+      "nothingWatched": "Nothing is watched",
+      "resumeToWatch": "Resume to watch again",
+      "raisedByFawtir": "Fawtir writes it on the day",
+      "onTheLast": "{{percent}} on the last one",
+      "nextDue": "next due {{month}}",
+      "per": {
+        "WEEKLY": "per week",
+        "MONTHLY": "per month",
+        "QUARTERLY": "per quarter",
+        "ANNUALLY": "per year"
+      }
+    },
+    "cadence": {
+      "weekly": "Weekly, on {{weekday}}",
+      "monthly": "Monthly, around the {{day}}",
+      "quarterly": "Quarterly, around the {{day}}",
+      "yearly": "Yearly, in {{month}}"
+    },
+    "weekday": {
+      "sunday": "Sundays",
+      "monday": "Mondays",
+      "tuesday": "Tuesdays",
+      "wednesday": "Wednesdays",
+      "thursday": "Thursdays",
+      "friday": "Fridays",
+      "saturday": "Saturdays"
+    },
+    "categories": {
+      "premises": "Rent & premises",
+      "utilities": "Utilities",
+      "telecoms": "Telecoms",
+      "software": "Software & subscriptions",
+      "logistics": "Logistics",
+      "fees": "Professional fees"
+    },
+    "sortOptions": {
+      "natural": "As listed",
+      "amountDesc": "Amount: high to low",
+      "amountAsc": "Amount: low to high",
+      "titleAsc": "Name A to Z"
+    },
+    "vat": {
+      "standard": "Standard rate · 5%",
+      "zero": "Zero rated · 0%",
+      "exempt": "Exempt",
+      "outOfScope": "Out of scope"
+    },
+    "when": {
+      "WEEKLY": "every week on {{day}}",
+      "MONTHLY": "around the {{day}} of each month",
+      "QUARTERLY": "around the {{day}}, each quarter",
+      "ANNUALLY": "around the {{day}}, once a year"
     }
   },
   "supplierCreditNotes": {
     "title": "Credit Notes",
-    "subtitle": "Money your suppliers owe back — for short deliveries, damage, overcharges or returns. Each one lowers what you owe on a bill, or sits as credit until you use it.",
+    "subtitle": "Money your suppliers owe back for short deliveries, damage, overcharges or returns. Each one lowers what you owe on a bill, or sits as credit until you use it.",
     "allSuppliers": "All suppliers",
     "rowMenu": "Credit note actions",
     "empty": "No credit notes match these filters.",
@@ -5781,7 +6077,8 @@
       "recoveredQuarter": "Recovered this quarter",
       "topSupplier": "Most notes from",
       "topSupplierMeta": "{{count}} notes",
-      "noTopSupplier": "No supplier stands out"
+      "noTopSupplier": "No supplier stands out",
+      "noTopSupplierMeta": "No supplier has sent a credit note yet"
     },
     "tabs": {
       "all": "All",
@@ -5815,7 +6112,10 @@
       "unknownSupplier": "Supplier not matched",
       "theBill": "The bill it credits",
       "noReason": "No reason given",
-      "remaining": "{{amount}} left to use"
+      "remaining": "{{amount}} left to use",
+      "takenOff": "taken off the bill",
+      "paidBack": "paid back to you",
+      "reducedByThis": "Reduced by this note"
     },
     "why": {
       "threeBoxes": "3 boxes never delivered",
@@ -5837,7 +6137,8 @@
     "actions": {
       "setAgainst": "Set against the bill",
       "viewBill": "View the bill",
-      "seePayment": "See the payment"
+      "seePayment": "See the payment",
+      "openNote": "Open the note"
     },
     "sortOptions": {
       "creditDesc": "Credit: high to low",
@@ -5902,7 +6203,15 @@
       "sheetAgainst": "Against invoice",
       "sheetReason": "Reason",
       "sheetAmount": "Amount",
-      "choose": "Choose the supplier's credit note"
+      "choose": "Choose the supplier's credit note",
+      "fileMetaRead": "{{size}} · {{read}} · saved as a credit note",
+      "saveAndSet": "Save and set against the bill",
+      "setNowNoBill": "Set it against the bill now",
+      "setNowPick": "Choose the bill it corrects first.",
+      "savedHeld": "Saved. The credit is held until you set it against a bill.",
+      "savedApplied": "Saved and set against the bill.",
+      "footerLead": "Everything checked",
+      "footerNote": "uploaded notes aren't validated or reported like Peppol ones"
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -5920,7 +6229,7 @@
       "willPayNote": "due 27 Aug",
       "whyTitle": "Why they've credited you",
       "whyBody": "Three boxes short on the delivery of 27 July. Yusuf recorded 45 boxes against an ordered 48 on {{receipt}}, the bill charged for 48, and the mismatch was queried on 30 July.",
-      "whyQuote": "\"Short shipment on 27 Jul — 3 boxes of Khalas dates not loaded. Credited in full.\"",
+      "whyQuote": "\"Short shipment on 27 Jul, 3 boxes of Khalas dates not loaded. Credited in full.\"",
       "whatsCredited": "What's being credited",
       "col": {
         "item": "Item",
@@ -5939,7 +6248,7 @@
       "keepAsCredit": "Keep as credit",
       "askRefund": "Ask for a refund",
       "setDone": "Set against AND-INV-3382. The bill now shows OMR 849.000.",
-      "keptDone": "Kept as credit against Al Noor Dates LLC.",
+      "keptDone": "Kept as credit against {{supplier}}. Nothing changes until you set it against a bill.",
       "refundDone": "Refund requested. It will show once the supplier pays it back.",
       "undo": "Undo",
       "vatEffect": "Effect on your VAT",
@@ -5949,9 +6258,12 @@
       "vatNote": "Fawtir adjusts this in your VAT return for the period. Nothing to do by hand.",
       "complianceTitle": "Compliance",
       "compliance": {
-        "valid": "Valid credit note — references the original bill",
+        "valid": "Valid credit note: references the original bill",
         "pintOm": "Passed PINT-OM validation",
-        "tdd": "TDD filed with the OTA"
+        "tdd": "TDD filed with the OTA",
+        "noBill": "No original bill referenced",
+        "notValidated": "Uploaded outside Peppol: not validated",
+        "notReported": "Not reported to the OTA by the network"
       },
       "supplierTitle": "Supplier",
       "openBills": "Open bills",
@@ -5965,22 +6277,53 @@
         "receipt": "purchase receipt",
         "receiptDetail": "45 of 48 boxes checked in by Yusuf · 27 Jul",
         "original": "original file",
-        "originalDetail": "The original file as the supplier sent it"
+        "originalDetail": "The original file as the supplier sent it",
+        "billDetail": "Received {{date}} · {{state}} · due {{due}}",
+        "billNotOnFile": "Named on the note, not among this supplier's bills"
       },
       "activityTitle": "Activity",
       "activity": {
         "waiting": "Waiting to be set against the bill",
-        "waitingDetail": "Until it is, AND-INV-3382 still shows the full OMR 933.900",
+        "waitingDetail": "Until it is, {{bill}} still shows its full amount",
         "reported": "Reported to the Tax Authority",
-        "reportedDetail": "Receiver-side Tax Data Document filed and accepted · 30 Jul",
+        "reportedDetail": "Receiver-side Tax Data Document filed and accepted · {{date}}",
         "arrived": "Credit note arrived over Peppol",
-        "arrivedDetail": "Matched to AND-INV-3382 automatically · 30 Jul, 14:22",
+        "arrivedDetail": "Matched to {{bill}} · {{date}}",
         "queried": "Mismatch queried with the supplier",
-        "queriedDetail": "Yusuf Al Balushi flagged 3 boxes over-billed · 30 Jul, 09:40"
+        "queriedDetail": "Yusuf Al Balushi flagged 3 boxes over-billed · 30 Jul, 09:40",
+        "waitingNoBill": "OMR {{left}} of credit to use on a later bill",
+        "waitingBill": "Waiting for the bill it corrects",
+        "waitingBillDetail": "OMR {{amount}} of credit, held until the bill arrives",
+        "applied": "Set against the bill",
+        "appliedLinked": "{{bill}} is linked to this note and reduces it automatically",
+        "appliedDetail": "OMR {{amount}} taken off {{bill}}",
+        "appliedNoBill": "OMR {{amount}} taken off what you owed",
+        "refunded": "Refunded to you",
+        "refundedDetail": "OMR {{amount}} paid back by the supplier",
+        "settledApplied": "Used against a bill",
+        "settledAppliedDetail": "OMR {{amount}} on {{date}} · recorded {{when}}",
+        "settledRefunded": "Refund recorded",
+        "settledRefundedDetail": "OMR {{amount}} paid on {{date}} · recorded {{when}}",
+        "settledRefundedRef": "OMR {{amount}} paid on {{date}} · ref {{reference}} · recorded {{when}}",
+        "arrivedNoBill": "Issued {{date}} · no bill named"
       },
       "decisionTaken": "{{what}}",
       "supplierName": "Name",
-      "supplierVat": "VAT number"
+      "supplierVat": "VAT number",
+      "creditToUse": "OMR {{amount}} of credit to use",
+      "paidLessTitle": "You paid OMR {{amount}} less",
+      "refundedTitle": "OMR {{amount}} refunded to you",
+      "refundedBody": "The supplier paid the credit back rather than taking it off a bill.",
+      "paidLessBody": "The credit was set against {{bill}} and came off what you owed.",
+      "waitingBody": "The bill this corrects has not arrived yet. The credit waits for it.",
+      "billPaidNote": "The bill this corrects has already been paid, so ask for a refund or hold the credit for the next bill.",
+      "noBillNote": "No single bill carries this credit yet. Set it against one, or hold it for a later bill.",
+      "noBillTile": "No bill yet",
+      "dueOn": "due {{date}}",
+      "stillUnpaidOf": "{{amount}} still unpaid",
+      "reasonCode": "Reason code {{code}}",
+      "lineBilledOn": "Billed on {{bill}}",
+      "decisionNoteNoBill": "Choose the bill this credit reduces, keep it for a later bill, or record a refund."
     },
     "source": {
       "peppol": "Received over Peppol",
@@ -5989,13 +6332,13 @@
       "recurring": "Recurring",
       "selfBilled": "Self-billed"
     },
-    "excluded": "{{count}} not counted above — a different currency",
+    "excluded": "{{count}} not counted above: a different currency",
     "pageOnly": "Page {{page}}",
     "pageOf": "Page {{page}} of {{pages}}"
   },
   "supplierDebitNotes": {
     "title": "Debit Notes",
-    "subtitle": "Extra charges suppliers have added after the original bill — surcharges, price corrections, late fees. Each one raises what you owe, so check it before it's accepted.",
+    "subtitle": "Extra charges suppliers have added after the original bill: surcharges, price corrections, late fees. Each one raises what you owe, so check it before it's accepted.",
     "allSuppliers": "All suppliers",
     "empty": "No debit notes match what you are looking for.",
     "kpi": {
@@ -6034,7 +6377,8 @@
       "alreadyPaid": "Already paid",
       "outstanding": "{{amount}} outstanding",
       "overdue": "{{amount}} outstanding, late",
-      "disputed": "Refused — not treated as owed"
+      "disputed": "Refused: not treated as owed",
+      "overdueShort": "owed and late"
     },
     "why": {
       "outOfHours": "Out-of-hours delivery surcharge",
@@ -6048,7 +6392,8 @@
       "accepted": "Accepted by {{who}}",
       "acceptedPlain": "Accepted",
       "refused": "Refused",
-      "onHold": "On hold"
+      "onHold": "On hold",
+      "refusedWhy": "Refused · {{reason}}"
     },
     "outcome": {
       "youdPayMore": "you'd pay more",
@@ -6075,7 +6420,7 @@
       "cta": "Upload a debit note",
       "breadcrumb": "Upload a debit note",
       "title": "Check before you accept",
-      "subtitle": "A debit note raises what the supplier says you owe. Uploading records the charge; accepting or refusing it is a separate decision on the note itself.",
+      "subtitle": "A debit note raises what you owe. Nothing is added until you accept it, and you can refuse with a reason.",
       "fileMeta": "{{pages}} page · {{size}} · read in {{seconds}} seconds · recognised as a debit note",
       "whoSentIt": "Who sent it",
       "supplier": "Supplier",
@@ -6126,15 +6471,27 @@
       "doesNotAddUp": "The lines no longer add up to the {{printed}} printed on the file.",
       "decision": "Your decision",
       "accept": "Accept it",
-      "acceptNote": "OMR {{amount}} is added to {{bill}}, taking it to {{total}}. It joins the next payment run.",
+      "acceptNote": "OMR {{amount}} is recorded against {{bill}}, taking what you owe to OMR {{total}}.",
       "refuse": "Refuse it",
-      "refuseNote": "Nothing is added. Fawtir sends the supplier your reason, and the charge stays as refused.",
+      "refuseNote": "Nothing is added. Your reason is recorded and the charge stays refused.",
       "hold": "Put it on hold",
-      "holdNote": "Nothing added, nothing sent. Use this while you phone them.",
-      "reasonNote": "This wording goes to the supplier. Keep it factual — it becomes part of the record.",
+      "holdNote": "Nothing added, nothing recorded. Use this while you phone them.",
+      "reasonNote": "Keep it factual: it becomes part of the record.",
       "cancel": "Cancel",
-      "save": "Save the decision",
-      "choose": "Choose the supplier's debit note"
+      "save": "Save the debit note",
+      "choose": "Choose the supplier's debit note",
+      "fileMetaRead": "{{size}} · {{read}} · saved as a debit note",
+      "saveAndAccept": "Save and accept it",
+      "saveAndRefuse": "Save and refuse it",
+      "savedHeld": "Saved. Nothing is added until someone accepts it.",
+      "savedAccepted": "Saved and accepted.",
+      "savedRefused": "Saved and refused. Your reason is recorded.",
+      "footerLead_one": "{{count}} thing to check",
+      "footerLead_other": "{{count}} things to check",
+      "footerFine": "Nothing stands out",
+      "footerNote": "nothing is added to what you owe until you accept",
+      "noDecisionRight": "You can save the charge; accepting or refusing it needs approval rights.",
+      "acceptNoteNoBill": "OMR {{amount}} is recorded as owed to this supplier."
     },
     "refuse": {
       "notInRates": "Not in our agreed rates",
@@ -6221,19 +6578,43 @@
         "theBillDetail": "Received 25 Jul · approved 26 Jul · unpaid · due 25 Aug",
         "receipt": "purchase receipt",
         "receiptDetail": "Signed for at 07:40 by Yusuf Al Balushi · 25 Jul",
-        "rateCardDetail": "Flat OMR 96.000 per delivery, 06:00–18:00, no surcharges"
+        "rateCardDetail": "Flat OMR 96.000 per delivery, 06:00–18:00, no surcharges",
+        "billDetail": "Received {{date}} · {{state}} · due {{due}}",
+        "billNotOnFile": "Named on the note, not among this supplier's bills"
       },
       "activityTitle": "Activity",
       "activity": {
         "waiting": "Waiting for someone to decide",
-        "waitingDetail": "Sitting untouched for 4 days · Yusuf reminded on 29 Jul",
+        "waitingDetail": "Nothing is added to what you owe until someone accepts OMR {{amount}}",
         "checked": "Checked against the rate card",
         "checkedDetail": "Two problems found automatically · 26 Jul",
         "reported": "Reported to the Tax Authority",
-        "reportedDetail": "Receiver-side Tax Data Document filed · 26 Jul",
+        "reportedDetail": "Receiver-side Tax Data Document filed · {{date}}",
         "arrived": "Debit note arrived over Peppol",
-        "arrivedDetail": "Matched to GCL-2301 automatically · 26 Jul, 11:05"
-      }
+        "arrivedDetail": "Matched to {{bill}} · {{date}}",
+        "accepted": "Accepted",
+        "acceptedDetail": "OMR {{amount}} owed · {{when}}",
+        "acceptedSettled": "Settled · {{when}}",
+        "refused": "Refused",
+        "refusedDetail": "{{reason}} · {{when}}",
+        "refusedPlain": "Recorded {{when}}",
+        "decidedAccepted": "Accepted",
+        "decidedRefused": "Refused",
+        "decidedUnchecked": "Reopened",
+        "decidedWithReason": "{{reason}} · {{when}}",
+        "decidedAt": "{{when}}",
+        "arrivedNoBill": "Issued {{date}} · no bill named"
+      },
+      "acceptedTitle": "You'll pay OMR {{amount}} more",
+      "acceptedBody": "The charge was accepted and is owed, due {{date}}.",
+      "acceptedSettledBody": "The charge was accepted and has been settled.",
+      "refusedTitle": "OMR {{amount}} refused",
+      "refusedBody": "Nothing was added to what you owe. Your reason is recorded against the note.",
+      "billNotOnFile": "{{bill}} is not on file",
+      "lineAgainst": "Stated against {{bill}}",
+      "heldNote": "On hold. Nothing is added and nothing is recorded until you decide.",
+      "reasonRecorded": "Your reason is recorded against the note. It is not sent to the supplier from here.",
+      "rateCardMissing": "No rate card is on file for this supplier yet. When one is, the charge is read against it here."
     },
     "status": {
       "UNCHECKED": "Not checked yet",
@@ -6261,11 +6642,51 @@
     "decisionNote": "Accepting or refusing records your decision against this note. It is not sent to the supplier from here.",
     "reverseOnly": "Already {{status}}. Only the opposite decision can be recorded.",
     "historyTitle": "Decision history",
-    "noHistory": "Nobody has decided on this charge yet."
+    "noHistory": "Nobody has decided on this charge yet.",
+    "checks": {
+      "realBill": "It points at a real bill",
+      "realBillOpen": "{{bill}} is on file and OMR {{outstanding}} of it is unpaid.",
+      "realBillPaid": "{{bill}} is on file and has been paid in full.",
+      "billNotFound": "The bill it names is not on file",
+      "billNotFoundDetail": "{{bill}} is not among this supplier's bills. Check the number before accepting.",
+      "noBill": "It names no bill",
+      "noBillDetail": "The note does not say which bill it adds to.",
+      "noBillPick": "Choose the bill it adds to, so the charge lands on the right one.",
+      "supplierKnown": "The supplier is on your list",
+      "supplierKnownDetail": "{{supplier}} is a supplier you already buy from.",
+      "supplierUnknown": "The supplier is not on your list",
+      "supplierUnknownDetail": "\"{{supplier}}\" does not match a supplier you buy from.",
+      "validated": "Validated on the Peppol network",
+      "validatedDetail": "Received over Peppol, validated and reported to the Tax Authority.",
+      "notValidated": "Nobody has validated it",
+      "notValidatedDetail": "It arrived outside Peppol, so the figures are only what the file says.",
+      "vatAddsUp": "The VAT adds up",
+      "vatAddsUpDetail": "OMR {{vat}} of VAT, as the standard rate on the net comes to.",
+      "vatOdd": "The VAT does not add up",
+      "vatOddDetail": "OMR {{vat}} of VAT stated, where the standard rate on the net comes to OMR {{expected}}.",
+      "vatMissing": "No VAT stated",
+      "vatMissingDetail": "The note gives no VAT amount.",
+      "nothingRead": "Nothing was read from the file",
+      "nothingReadDetail": "A PDF or photo is not read. Check every figure against the file on the left.",
+      "addsUp": "The lines add up to the total on the file",
+      "addsUpDetail": "The e-invoice file states OMR {{printed}}, and the lines come to the same.",
+      "doesNotAddUp": "The lines do not add up to the total on the file",
+      "doesNotAddUpDetail": "The e-invoice file states OMR {{printed}}; the lines come to OMR {{lines}}.",
+      "notRepeat": "Not a repeat of an earlier charge",
+      "notRepeatOnSave": "Checked when you save: the same number from this supplier is refused as a duplicate.",
+      "summaryFine": "Nothing stands out.",
+      "summaryFineBody": "The checks Fawtir can run on this charge all passed.",
+      "summaryWorries_one": "One reason to look closer.",
+      "summaryWorries_other": "{{count}} reasons to look closer.",
+      "summaryWorriesBody": "Read the points marked Check before you accept the charge.",
+      "summaryBeforeAccept_one": "One thing worth a look before you accept.",
+      "summaryBeforeAccept_other": "{{count}} things worth a look before you accept.",
+      "summaryBeforeAcceptBody": "Read the points marked Check, then decide."
+    }
   },
   "expenditureReminders": {
     "title": "Reminders",
-    "subtitle": "When Fawtir should tell your team about money going out. These go to people here — never to a supplier.",
+    "subtitle": "When Fawtir should tell your team about money going out. These go to people here, never to a supplier.",
     "and": "and",
     "addPerson": "Add another person",
     "removePerson": "Remove from this reminder",
@@ -6296,7 +6717,9 @@
       "fiveDays": "5 days",
       "sevenDays": "7 days",
       "aWeek": "A week",
-      "recurringBills": "Recurring bills"
+      "recurringBills": "Recurring bills",
+      "nDays_one": "{{count}} day",
+      "nDays_other": "{{count}} days"
     },
     "rules": {
       "beforeDue": {
@@ -6305,7 +6728,7 @@
       },
       "whenLate": {
         "title": "Once a bill is late",
-        "note": "Keeps nagging until it's paid — a late supplier payment costs goodwill"
+        "note": "Keeps nagging until it's paid, a late supplier payment costs goodwill"
       },
       "discountExpiry": {
         "title": "Before an early-payment discount runs out",
@@ -6334,7 +6757,7 @@
       "daily": "One email a day",
       "dailyNote": "Everything in a single summary at {{time}}",
       "each": "Email as it happens",
-      "eachNote": "One email per reminder — noisier"
+      "eachNote": "One email per reminder, noisier"
     },
     "skipWeekends": "Skip weekends",
     "skipWeekendsNote": "Hold anything due on Friday or Saturday until Sunday morning",
@@ -6345,8 +6768,8 @@
       "oneEmail": "One email · {{time}} · to {{who}}",
       "eachEmail": "{{count}} emails · as they happen · to {{who}}",
       "inAppOnly": "In Fawtir only · no email",
-      "headline_one": "{{count}} reminder would go out on {{date}}",
-      "headline_other": "{{count}} reminders would go out on {{date}}",
+      "headline_one": "{{count}} thing needs attention this morning.",
+      "headline_other": "{{count}} things need attention this morning.",
       "nothing": "Nothing would go out today. Every rule that could fire is switched off.",
       "to": "to",
       "alNoor": "Al Noor Dates unpaid for {{days}} days",
@@ -6380,12 +6803,13 @@
     "unsaved_other": "{{count}} rules changed",
     "digestTime": "Send at",
     "digestTimeNote": "The sweep matches on the hour.",
-    "perRecurring": "This one is set on each recurring bill rather than here —",
+    "perRecurring": "This one is set on each recurring bill rather than here.",
     "onTheRecurringBill": "open a recurring bill",
     "someone": "Someone on the team",
     "derived": {
-      "APPROVAL_STALE": "The approvers who have not decided, then the owners when it escalates. No need to name anyone.",
-      "SCAN_UNCONFIRMED": "Whoever uploaded it. No need to name anyone."
+      "APPROVAL_STALE": "The approvers, then the owners",
+      "SCAN_UNCONFIRMED": "Whoever scanned it",
+      "RECURRING_LATE": "The person named on each"
     },
     "error": {
       "tooMany": "At most {{max}} days",
@@ -6404,6 +6828,17 @@
       "openBill": "Open the bill",
       "count_one": "{{count}} shown",
       "count_other": "{{count}} shown"
+    },
+    "footer": {
+      "rulesOn_one": "{{count}} rule on",
+      "rulesOn_other": "{{count}} rules on",
+      "IN_APP": "in Fawtir only",
+      "DAILY_DIGEST": "one daily email at {{time}}",
+      "IMMEDIATE_EMAIL": "an email as each one happens",
+      "weekendsSkipped": "weekends skipped",
+      "sendNow": "Send me today's now",
+      "notYet": "Not available yet: this needs the backend.",
+      "save": "Save changes"
     }
   },
   "documents": {
@@ -6902,7 +7337,8 @@
       "notDueYet": "{{count}} bill · due {{date}}",
       "dueWithin7": "{{count}} bill · due {{date}}",
       "alreadyLate": "Never been late with them",
-      "onHold": "Nothing in dispute"
+      "onHold": "Nothing in dispute",
+      "lateBefore": "Nothing late right now"
     },
     "openBills": "Open bills",
     "seeAll": "See all {{count}}",
@@ -6983,24 +7419,53 @@
     "address": "Address",
     "supplierSince": "Supplier since",
     "addedBy": "Added by",
-    "switchOff": "Switch this supplier off"
+    "switchOff": "Switch this supplier off",
+    "termsWithEarly": "{{terms}} with {{percent}}% for early settlement",
+    "where": {
+      "paying": "Paying {{date}}",
+      "inRun": "Waiting for the run's payment date",
+      "approvals": "{{given}} of {{required}} approvals so far",
+      "awaiting": "Waiting for someone to approve it",
+      "held": "On hold: {{reason}}",
+      "mismatch": "Differs from {{po}}",
+      "counter": "Paid at the counter",
+      "approved": "Approved, not in a run yet",
+      "new": "Not reviewed yet"
+    },
+    "addToRun": "Add to a run",
+    "arrived": "Arrived {{date}}",
+    "fewerLines": "Fewer lines",
+    "purchasesNote_one": "{{count}} bill over the last twelve months, {{amount}} in all. Price movements are not tracked yet.",
+    "purchasesNote_other": "{{count}} bills over the last twelve months, {{amount}} in all. Price movements are not tracked yet.",
+    "version": "version {{number}}",
+    "selfBillingOnNote": "You invoice on their behalf",
+    "oweInRun_one": "{{count}} bill is approved and already in draft run {{run}}.",
+    "oweInRun_other": "{{count}} bills are approved and already in draft run {{run}}.",
+    "oweInRunPaying_one": "{{count}} bill is approved and already in draft run {{run}}, paying {{date}}.",
+    "oweInRunPaying_other": "{{count}} bills are approved and already in draft run {{run}}, paying {{date}}."
   },
   "supplierPay": {
     "title": "Pay {{name}}",
     "whichBills": "Which bills",
     "selectAll": "Select all payable",
     "bill": {
-      "approvedNotInRun": "Approved 30 Jul · due 29 Aug · not in any run yet",
+      "approvedNotInRun": "Approved · issued {{issued}} · due {{due}}",
       "inDraftRun": "Already in draft run {{run}} · due {{due}}",
-      "waitingApproval": "Waiting for {{who}} to approve it · can't be paid yet",
+      "waitingApproval": "{{given}} of {{required}} approvals · can't be paid yet",
       "twoPercentBy6": "2% if paid by 6 Aug",
       "twoPercentBy5": "2% if paid by 5 Aug",
       "windowPassed": "Discount window passed",
-      "chaseApproval": "Chase the approval"
+      "chaseApproval": "Chase the approval",
+      "discountBy": "{{percent}}% if paid by {{date}}",
+      "noDiscount": "No early-settlement discount",
+      "onHold": "On hold · can't be paid yet",
+      "mismatch": "Doesn't match its order · can't be paid yet",
+      "rejected": "Rejected · can't be paid",
+      "openTheBill": "Open the bill"
     },
     "whichRun": "Which run",
     "addToDraft": "Add to draft run {{run}}",
-    "addToDraftNote": "Already holds {{bills}} bills across {{suppliers}} suppliers, {{amount}}, paying {{date}}. Two of theirs are in it — the third would join them in the same transfer.",
+    "addToDraftNote": "Already holds {{amount}}, paying {{date}}. Theirs would join the same transfer.",
     "startOwn": "Start a run just for them",
     "startOwnNote": "A separate run with only {{name}} in it. Useful when you want to pay one supplier early without moving everyone else.",
     "creditTheyOwe": "Credit they owe you",
@@ -7013,7 +7478,15 @@
     "footerNote": "· one transfer · run pays {{date}}",
     "cancel": "Cancel",
     "addToRun": "Add to {{run}}",
-    "startTheRun": "Start the run"
+    "startTheRun": "Start the run",
+    "addToScheduled": "Add to scheduled run {{run}}",
+    "addToDraftNoteNoDate": "Already holds {{amount}}. No payment date yet.",
+    "noCredit": "No unused credit note",
+    "noCreditNote": "A credit note they owe you would be taken off the transfer here.",
+    "nBills_one": "{{count}} bill",
+    "nBills_other": "{{count}} bills",
+    "oneTransferNoBank": "One transfer",
+    "footerNoteNoDate": "· one transfer · no payment date yet"
   },
   "supplierOff": {
     "title": "Switch off {{name}}",
@@ -7028,7 +7501,7 @@
       "pickersNote": "Can't be chosen on a new bill, order or payment run",
       "peppolHeld": "Incoming Peppol bills get held",
       "peppolHeldNote": "If they send one anyway it lands in Needs attention rather than being filed",
-      "searchable": "All {{count}} bills stay searchable",
+      "searchable": "All their bills stay searchable",
       "searchableNote": "Nothing leaves the archive, reports or your VAT figures",
       "recordOpen": "Their record stays open to read",
       "recordOpenNote": "Contract, price lists and the statement are all still there"
@@ -7045,7 +7518,12 @@
     "reversible": "Reversible",
     "reversibleNote": "- whenever you need.",
     "cancel": "Cancel",
-    "confirm": "Switch them off"
+    "confirm": "Switch them off",
+    "stillOpen_one": "{{count}} bill is still open with them",
+    "stillOpen_other": "{{count}} bills are still open with them",
+    "openBills_one": "{{count}} open bill, coming to",
+    "openBills_other": "{{count}} open bills, coming to",
+    "openRecord": "Open their record"
   },
   "supplierEdit": {
     "edit": "Edit",
@@ -7058,7 +7536,7 @@
     "tradingName": "Trading name",
     "commercialRegistration": "Commercial registration",
     "vatNumber": "VAT number",
-    "vatHint": "OM followed by ten digits, in the Oman VATIN format.",
+    "vatHint": "Twelve digits in the Oman VATIN format.",
     "country": "Country",
     "howBillsReach": "How their bills reach you",
     "onPeppol": "They are on the Peppol network",
@@ -7088,10 +7566,10 @@
     "newTag": "Tag {{n}}",
     "isComplete": "Is the record complete",
     "complete": {
-      "vat": "VAT number — you can reclaim their VAT",
-      "peppol": "Peppol ID — bills arrive as data",
-      "iban": "IBAN — they can go in a payment run",
-      "terms": "Terms — due dates work themselves out",
+      "vat": "VAT number - you can reclaim their VAT",
+      "peppol": "Peppol ID - bills arrive as data",
+      "iban": "IBAN - they can go in a payment run",
+      "terms": "Terms - due dates work themselves out",
       "secondContact": "A second contact for when {{name}} is away"
     },
     "whatItAffects": "What changing this affects",
@@ -7109,7 +7587,36 @@
       "contact": "Contact changed to Ahmed Al Harthy",
       "contactMeta": "{{who}} · {{on}}",
       "created": "Supplier created",
-      "createdMeta": "From their first Peppol bill · {{on}}"
+      "createdMeta": "From their first Peppol bill · {{on}}",
+      "bankConfirmed": "Bank details confirmed",
+      "switchedOff": "Supplier switched off"
+    },
+    "vatValid": "Twelve digits in the Oman VATIN format.",
+    "peppolValid": "Valid Peppol identifier, scheme and ID together.",
+    "earlyWithin": "% within",
+    "earlyDaysUnit": "days",
+    "bankPlaceholder": "e.g. Bank Muscat",
+    "emailHint": "Several addresses: separate them with commas.",
+    "addressPlaceholder": "Street and city, e.g. Rusayl Industrial Estate, Muscat",
+    "theContact": "the main contact",
+    "notAvailable": "Not available yet",
+    "noChanges": "Nothing recorded yet.",
+    "categories": {
+      "rawMaterials": "Raw materials",
+      "packaging": "Packaging",
+      "logistics": "Logistics",
+      "utilities": "Utilities",
+      "rent": "Rent",
+      "services": "Services",
+      "equipment": "Equipment",
+      "other": "Other"
+    },
+    "currencyName": {
+      "OMR": "Omani Rial",
+      "USD": "US Dollar",
+      "EUR": "Euro",
+      "AED": "UAE Dirham",
+      "SAR": "Saudi Riyal"
     }
   },
   "purchaseOrder": {
@@ -7157,21 +7664,25 @@
     "payableBy": "Payable by",
     "whatHappens": "What happens after this",
     "after": {
-      "approves": "{{who}} approves it",
-      "approvesNote": "Over the {{limit}} limit",
+      "approves": "An approver approves it",
+      "approvesNote": "Someone with purchase-order approval rights",
       "sent": "Sent to the supplier",
       "sentNote": "Over Peppol and by email",
       "goodsArrive": "Goods arrive, you check them in",
-      "goodsArriveNote": "Creates a receipt - {{grn}}",
+      "goodsArriveNote": "Creates a receipt against this order",
       "billTurnsUp": "Their bill turns up",
-      "billTurnsUpNote": "Matched against this order and the receipt automatically"
+      "billTurnsUpNote": "Matched against this order and the receipt automatically",
+      "sentBoth": "Over Peppol and by email",
+      "sentPeppol": "Over Peppol",
+      "sentEmail": "By email",
+      "sentYourself": "By your own means, then marked as sent"
     },
     "comparedWithLast": "Compared with the last one",
     "sameItems": "Same items",
     "quantity": "Quantity",
     "sackPrice": "Sack price",
     "inPlainWords": "In plain words",
-    "plainWords": "Ordering {{amount}} of beans and sacks from {{supplier}}, wanted by {{wanted}}, payable {{payable}} on Net 30.",
+    "plainWords": "Ordering {{amount}} from {{supplier}}, wanted by {{wanted}}, payable {{payable}} on {{terms}}.",
     "newTitle": "New purchase order",
     "supplier": "Supplier",
     "currency": "Currency",
@@ -7179,11 +7690,11 @@
     "description": "What it is",
     "unit": "Unit",
     "unitPrice": "Unit price",
-    "lineDescription": "Line {{line}} — what it is",
-    "lineQuantity": "Line {{line}} — quantity",
-    "lineUnit": "Line {{line}} — unit",
-    "lineUnitPrice": "Line {{line}} — unit price",
-    "lineVat": "Line {{line}} — VAT rate",
+    "lineDescription": "Line {{line}}: what it is",
+    "lineQuantity": "Line {{line}}: quantity",
+    "lineUnit": "Line {{line}}: unit",
+    "lineUnitPrice": "Line {{line}}: unit price",
+    "lineVat": "Line {{line}}: VAT rate",
     "gross": "Order value",
     "totalsNote": "Worked out here so you can see it. The order carries the figures the server computes.",
     "saveDraft": "Save the draft",
@@ -7239,6 +7750,47 @@
       "unitPrice": "Every line needs a unit price",
       "vatRate": "A VAT rate cannot be negative",
       "overBooked": "More than is still due on {{item}}"
+    },
+    "newCrumb": "New order",
+    "detailTitle": "Purchase order {{number}}",
+    "onPeppol": "On Peppol",
+    "notOnPeppol": "Not on Peppol",
+    "billsMatched_one": "{{count}} bill, {{matched}} of {{backed}} matched to an order",
+    "billsMatched_other": "{{count}} bills, {{matched}} of {{backed}} matched to an order",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "vatAt": "VAT · {{rate}}%",
+    "noBranches": "No branch to deliver to yet. Add one in Settings.",
+    "emailPdfNoContact": "No email address on their record yet",
+    "ofItems": "{{matched}} of {{total}}",
+    "movedBy": "{{percent}} {{item}}",
+    "unchanged": "Unchanged",
+    "priceUp": "up {{percent}}% on {{item}}",
+    "priceDown": "down {{percent}}% on {{item}}",
+    "noPrevious": "No earlier order to compare with.",
+    "stateNote": {
+      "DRAFT": "A draft. Nothing has been sent for approval yet.",
+      "AWAITING_APPROVAL": "Sent for approval. Nothing goes to the supplier until it is approved.",
+      "APPROVED": "Approved. Mark it as sent once the supplier has it.",
+      "SENT": "With the supplier. Book the goods in as they arrive.",
+      "PARTIALLY_RECEIVED": "Partly arrived. Book the rest in as it comes.",
+      "RECEIVED": "Everything arrived. Close the order once their bill is in.",
+      "CLOSED": "Closed. Ordered, received and billed.",
+      "CANCELLED": "Cancelled. Nothing more happens to it."
+    },
+    "where": {
+      "submittedAt": "Sent for approval {{when}}",
+      "notSubmitted": "Not sent for approval yet",
+      "notSent": "Not marked as sent yet",
+      "deliveries_one": "{{count}} delivery booked in",
+      "deliveries_other": "{{count}} deliveries booked in"
+    },
+    "whereItIs": "Where it is",
+    "nextNote": {
+      "submit": "Send it for approval. Nothing goes to the supplier until someone approves it.",
+      "approve": "Approve it, and it can be marked as sent.",
+      "send": "Once the supplier has the order, mark it as sent so goods can be booked in against it.",
+      "close": "Everything ordered has arrived. Close the order to finish it."
     }
   },
   "recordBill": {
@@ -7246,7 +7798,7 @@
     "subtitle": "Typing one in by hand. Nothing is owed until it's saved, and nothing is paid until someone approves it.",
     "discard": "Discard",
     "sendForApproval": "Send for approval",
-    "supplierNote": "VAT {{vat}} · on Peppol, so bills normally arrive on their own — this one did not",
+    "supplierNote": "VAT {{vat}} · on Peppol, so bills normally arrive on their own. This one did not",
     "terms": "Terms",
     "earlySettlement": "Early settlement",
     "openOrders": "Open orders",
@@ -7286,23 +7838,53 @@
     "theirVatNumber": "Their VAT number",
     "onFileValid": "On file, valid",
     "after": {
-      "approves": "{{who}} approves it",
+      "approves": "An approver approves it",
       "approvesNote": "Under the {{limit}} limit",
       "joinsRun": "Joins the next payment run",
-      "joinsRunNote": "Due {{due}} · early settlement by {{by}} saves OMR {{saves}}",
+      "joinsRunNote": "Due {{due}} · early settlement by {{by}} saves {{saves}}",
       "orderCloses": "{{order}} closes",
-      "orderClosesNote": "Ordered, received and billed all complete"
+      "orderClosesNote": "Ordered, received and billed all complete",
+      "approvesAny": "Every bill needs an approval before it is paid",
+      "approvesUnder": "Under the {{limit}} limit",
+      "approvesOver": "Over the {{limit}} limit",
+      "joinsRunPlain": "Due {{due}}",
+      "nothingMatched": "Nothing gets matched"
     },
-    "plainWords": "Recording {{amount}} from {{supplier}} against {{order}}, payable {{payable}}. Everything matches."
+    "plainWords": "Recording {{amount}} from {{supplier}} against {{order}}, payable {{payable}}.",
+    "crumb": "Record a bill",
+    "peppolNote": "On Peppol, so bills normally arrive on their own: this one did not",
+    "orderNote": {
+      "SENT": "Sent, goods wanted by {{date}}. Nothing has arrived yet.",
+      "PARTIALLY_RECEIVED": "Partly received. Some of it is still to come.",
+      "RECEIVED": "Received in full. Waiting for their bill."
+    },
+    "orderState": {
+      "SENT": "Not delivered",
+      "PARTIALLY_RECEIVED": "Partly delivered",
+      "RECEIVED": "Waiting for a bill"
+    },
+    "attached": "Attached: {{name}}",
+    "replaceFile": "Replace the file",
+    "needsFile": "Attach the bill's file first: a bill is saved from its file, so the copy is on record.",
+    "straightToApprovalAny": "Every bill needs an approval before it is paid",
+    "straightToApprovalUnder": "Under {{limit}}, so it can be approved without waiting",
+    "straightToApprovalOver": "Over {{limit}}, so it needs an approval before it is paid",
+    "nothingReceived": "Nothing booked in yet",
+    "receivedUnits": "{{units}} booked in",
+    "noneOfIt": "Nothing to reclaim",
+    "onFile": "On file",
+    "notOnFile": "Not on file",
+    "plainWordsNoOrder": "Recording {{amount}} from {{supplier}} with no order behind it, payable {{payable}}.",
+    "everythingMatches": "Everything matches."
   },
   "supplierStatement": {
     "title": "Statement",
     "subtitle": "Everything that has passed between you and this supplier over the period, in the order it happened.",
     "print": "Print",
     "period": {
-      "year": "This year",
-      "quarter": "This quarter",
-      "month": "This month",
+      "year": "Yearly",
+      "quarter": "Quarterly",
+      "month": "Monthly",
       "last90": "Last 90 days",
       "custom": "Custom dates"
     },
@@ -7347,8 +7929,8 @@
     "ageing": {
       "NOT_DUE": "Not due yet",
       "DUE_WITHIN_30": "Due within 30 days",
-      "LATE_30": "Late by up to 59 days",
-      "LATE_60_PLUS": "Late by 60 days or more"
+      "LATE_30": "Late by 30 days",
+      "LATE_60_PLUS": "Late by 60 or more"
     },
     "creditNote": "A rejected bill is not on this statement. A credit note that hasn't been applied to a bill lowers the balance here but not the bills above.",
     "nothing": "Nothing",
@@ -7371,7 +7953,9 @@
       "switchedOff": "This supplier is switched off, so nothing is sent to them.",
       "noAddress": "This supplier has no email address on file. Add one on their page.",
       "unavailable": "Email isn't switched on for this deployment. Download the statement and send it yourself."
-    }
+    },
+    "unusedCredits_one": "{{count}} credit note still unused",
+    "unusedCredits_other": "{{count}} credit notes still unused"
   },
   "activity": {
     "title": "Activity",
@@ -8915,7 +9499,7 @@
     "yourNextBill": "Your next bill",
     "inDays_one": "in {{count}} day",
     "inDays_other": "in {{count}} days",
-    "nothingExtra": "Nothing extra this month — you're within the plan on both documents and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
+    "nothingExtra": "Nothing extra this month. You're within the plan on both documents and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
     "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on the {{day}}.",
     "line": {
       "plan": "{{plan}} plan",
@@ -8994,11 +9578,11 @@
       "byWhatsApp": "WhatsApp on {{phone}}",
       "byEmail": "{{email}}",
       "linkArrives": "Your payment link arrives by {{to}} on {{date}}. Want it sooner?",
-      "linkSentNow": "Link sent by {{to}} — valid {{days}} days. Nothing is charged until you pay it.",
+      "linkSentNow": "Link sent by {{to}}. Valid {{days}} days. Nothing is charged until you pay it.",
       "payNow": "Send the link now",
       "next": {
-        "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives — usually within a business day.",
-        "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded — usually the same day.",
+        "bankTransfer": "Transfer the amount to the account on the right, quoting the invoice number. The Fawtir team activates the next period once it arrives, usually within a business day.",
+        "cash": "Pay at Fawtir's office or to your representative. You get a receipt, and the Fawtir team activates the next period once it is recorded, usually the same day.",
         "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
@@ -10104,7 +10688,7 @@
   "uploadMenu": {
     "breadcrumb": "Upload A Menu",
     "title": "Check what we read off your menu",
-    "subtitle": "Nothing is in your catalog yet. Correct anything that came out wrong, then add the ones you want — the rest are discarded.",
+    "subtitle": "Nothing is in your catalog yet. Correct anything that came out wrong, then add the ones you want. The rest are discarded.",
     "replaceWithOther": "Replace with other",
     "step": {
       "uploaded": "Menu uploaded",
@@ -10120,7 +10704,7 @@
       "headings": "Headings became groups",
       "headingsNote": "Your menu's sections map onto catalog groups."
     },
-    "yourMenu": "Your menu — page {{page}}",
+    "yourMenu": "Your menu: page {{page}}",
     "readClearly": "Read clearly",
     "needsChecking": "Needs checking",
     "tapLineToJump": "Tap a line to jump to it",
@@ -10146,7 +10730,7 @@
       "arabicOnly": "Arabic only. Add an English name too if your invoices go out in English.",
       "onRequest": "The menu says \"on request\" instead of a price. Put one in, or leave it."
     },
-    "footer": "{{ticked}} of {{total}} ticked · {{rate}}% VAT applied to all of them — prices read as {{currency}}",
+    "footer": "{{ticked}} of {{total}} ticked · {{rate}}% VAT applied to all of them. Prices read as {{currency}}",
     "discard": "Discard",
     "addItems": "Add {{count}} items",
     "added": "Added"
@@ -14809,11 +15393,17 @@
       "raw": "Terms {{code}}"
     },
     "unnumbered": "No number",
-    "vat": "VAT {{vat}}"
+    "vat": "VAT {{vat}}",
+    "provenance": {
+      "SIGNED": "Signed {{date}}",
+      "EMAILED": "Emailed {{date}}",
+      "RECEIVED": "Received {{date}}",
+      "UPLOADED": "Uploaded {{date}}"
+    }
   },
   "paymentRuns": {
     "title": "Payments",
-    "subtitle": "Payment runs group approved bills into one bank file per run.",
+    "subtitle": "Pick the bills to pay together. Fawtir groups them by supplier and builds one file for your bank.",
     "newRun": "New payment run",
     "all": "All",
     "none": "No payment runs yet.",
@@ -14926,7 +15516,32 @@
       "total": "Paying {{amount}}",
       "submit": "Add to the run"
     },
-    "totals": "Totals"
+    "totals": "Totals",
+    "newCrumb": "New",
+    "createdOn": "Started {{date}}",
+    "noDate": "No date yet",
+    "noFormat": "Not chosen yet",
+    "noReference": "No reference",
+    "nothingSent": "Nothing sent",
+    "downloadWhenScheduled": "Give the run a payment date first, then the file can be made.",
+    "menu": {
+      "thisRun": "This run",
+      "startAgain": "Start again",
+      "exportSheet": "Export as a spreadsheet",
+      "exportSheetNote": "Every bill and transfer as .xlsx",
+      "remittance": "Email remittance advice",
+      "remittanceNote": "Tells each supplier what you paid and for which bills",
+      "changeFormat": "Change the bank format",
+      "changeFormatNote": "Currently {{format}}",
+      "copyRun": "Copy into a new run",
+      "copyRunNote": "Same suppliers, fresh bills",
+      "reset": "Reset the selection",
+      "resetNote": "Untick everything and start over",
+      "resetTitle": "Reset {{reference}}?",
+      "resetBody": "Every bill is taken out of the run. The run stays, empty, for you to fill again.",
+      "delete": "Delete",
+      "notYet": "Not available yet: this needs the backend."
+    }
   },
   "billIntake": {
     "supplier": "Supplier",
@@ -14972,7 +15587,7 @@
     "linesDisagree": "The lines come to {{lines}} (VAT {{vat}}), not the total you typed.",
     "useLines": "Use the lines' figures",
     "order": "Order",
-    "letItMatch": "No order chosen — Fawtir looks for a matching one",
+    "letItMatch": "No order chosen: Fawtir looks for a matching one",
     "orderOption": "{{number}} · {{date}} · {{total}}",
     "matchedByHand": "The bill is matched to this order when you save.",
     "matcherLooks": "When you save, Fawtir looks for an open order from this supplier that matches the bill.",
@@ -14986,7 +15601,7 @@
         "SCANNED": "scanned"
       },
       "open": "Open that bill",
-      "different": "It's a different bill — save it"
+      "different": "It's a different bill. Save it"
     },
     "discard": "Discard",
     "saving": "Saving…",
@@ -15023,10 +15638,24 @@
       "saved": "Saved as a bill.",
       "typeIt": "Nothing is read from the photo. Type the receipt in from the picture on the left.",
       "vatWorkedOut": "Worked out from the total and the rate. Type over it if the receipt says otherwise.",
-      "owingNote": "It is recorded as a bill to pay later."
+      "owingNote": "It is recorded as a bill to pay later.",
+      "progressCounts": "{{saved}} saved · {{left}} still to check",
+      "confirmedSoFar": "{{total}} confirmed so far"
     },
     "keep": "Save for later",
-    "savedFilled": "The details saved earlier are filled in. Check them, then save the bill."
+    "savedFilled": "The details saved earlier are filled in. Check them, then save the bill.",
+    "file": {
+      "readFields": "{{read}} fields filled from the e-invoice",
+      "savedEarlier": "Details saved earlier",
+      "notRead": "PDF or photo, not read: type the bill in beside it",
+      "xmlNotRead": "XML, could not be read as an e-invoice"
+    },
+    "footer": {
+      "toCheck_one": "{{count}} field still to check",
+      "toCheck_other": "{{count}} fields still to check",
+      "notReported": "uploaded bills are not validated or reported like Peppol ones"
+    },
+    "noOpenOrders": "This supplier has no open orders to link to."
   },
   "salesNote": {
     "credit": {
@@ -15595,7 +16224,7 @@
     }
   },
   "stagedImport": {
-    "breadcrumb": "Import from a file",
+    "breadcrumb": "Import from Excel",
     "startOver": "Start over",
     "target": {
       "SUPPLIER": {
@@ -15604,7 +16233,9 @@
         "subtitle": "Upload your list, see what Fawtir makes of every row, then bring in the ones you keep.",
         "done_one": "{{count}} supplier brought in",
         "done_other": "{{count}} suppliers brought in",
-        "seeThem": "See your suppliers"
+        "seeThem": "See your suppliers",
+        "bringIn_one": "Bring in {{count}} supplier",
+        "bringIn_other": "Bring in {{count}} suppliers"
       },
       "CUSTOMER": {
         "list": "Customers",
@@ -15612,7 +16243,9 @@
         "subtitle": "Upload your list, see what Fawtir makes of every row, then bring in the ones you keep.",
         "done_one": "{{count}} customer brought in",
         "done_other": "{{count}} customers brought in",
-        "seeThem": "See your customers"
+        "seeThem": "See your customers",
+        "bringIn_one": "Bring in {{count}} customer",
+        "bringIn_other": "Bring in {{count}} customers"
       }
     },
     "step": {
@@ -15630,18 +16263,19 @@
       "size": "{{name}} is larger than 2 MB. Split it and import the parts."
     },
     "reviewTitle": "Check before importing",
-    "reviewSubtitle": "Nothing has been saved yet. Every row was read and checked the way the form checks one. Untick anything you don't want.",
+    "reviewSubtitle": "Nothing has been saved yet. Fawtir has read every row and checked it the same way the form does: fix what's wrong here.",
     "fileLine_one": "{{name}} · {{count}} row",
     "fileLine_other": "{{name}} · {{count}} rows",
     "unnamedFile": "Your file",
     "expires": "this review is kept until {{when}}",
     "card": {
       "ready": "Ready to bring in",
-      "readyNote": "Nothing to question in these rows.",
+      "readyNote": "Everything checks out.",
       "needsALook": "Worth a look",
-      "needsALookNote": "They will come in, but you may already have them.",
+      "needsALookNote": "Will import, but something's missing or already exists.",
       "cannotImport": "Can't import",
-      "cannotImportNote": "Download them, fix them in the file, and check it again."
+      "cannotImportNote": "Fix them here, or leave them out and add them later.",
+      "readyNotePeppol": "Everything checks out. {{count}} of them are on Peppol."
     },
     "tab": {
       "cannotImport": "Can't import",
@@ -15654,7 +16288,10 @@
       "row": "Row",
       "name": "Name",
       "verdict": "Verdict",
-      "whatsWrong": "What Fawtir found"
+      "whatsWrong": "What's wrong",
+      "suppliers": "Supplier",
+      "customers": "Customer",
+      "problemField": "The problem field"
     },
     "severity": {
       "READY": "Ready",
@@ -15663,7 +16300,7 @@
     },
     "bringInRow": "Bring in row {{row}}",
     "leftOutRow": "Left out",
-    "blank": "(no name)",
+    "blank": "(blank)",
     "noProblem": "Nothing to question.",
     "nothingHere": "Nothing in this list.",
     "problem": {
@@ -15687,13 +16324,16 @@
       "taxCategory": "Tax category",
       "country": "Country",
       "city": "City",
-      "street": "Street"
+      "street": "Street",
+      "iban": "IBAN",
+      "bic": "BIC / SWIFT",
+      "bankName": "Bank"
     },
-    "wouldComeIn": "{{coming}} of {{total}} coming in",
-    "leftOut_one": "· {{count}} left out",
-    "leftOut_other": "· {{count}} left out",
-    "downloadFailed_one": "Download the {{count}} that failed",
-    "downloadFailed_other": "Download the {{count}} that failed",
+    "wouldComeIn": "{{coming}} of {{total}} would come in",
+    "leftOut_one": "· {{count}} left out unless you fix it",
+    "leftOut_other": "· {{count}} left out unless you fix them",
+    "downloadFailed_one": "Download {{count}} that failed",
+    "downloadFailed_other": "Download {{count}} that failed",
     "bringIn_one": "Bring in {{count}}",
     "bringIn_other": "Bring in {{count}}",
     "bringingIn": "Bringing them in…",
@@ -15703,9 +16343,16 @@
       "cancelled": "This review was cancelled. Upload the file again to check it afresh."
     },
     "doneNote": "{{selected}} chosen, {{skipped}} left out.",
-    "doneStale_one": "{{count}} row could not be created after all — something changed since the check. Download the file and check it again.",
-    "doneStale_other": "{{count}} rows could not be created after all — something changed since the check. Download the file and check it again.",
-    "another": "Import another file"
+    "doneStale_one": "{{count}} row could not be created after all. Something changed since the check. Download the file and check it again.",
+    "doneStale_other": "{{count}} rows could not be created after all. Something changed since the check. Download the file and check it again.",
+    "another": "Import another file",
+    "action": {
+      "leaveOut": "Leave it out",
+      "bringInAnyway": "Bring in anyway",
+      "bringItIn": "Bring it in"
+    },
+    "typeAName": "Type a name",
+    "empty": "Empty"
   },
   "paymentReminders": {
     "backToHistory": "← Reminders sent",
@@ -15895,8 +16542,8 @@
     "reason": "Why the supplier credited",
     "credits": "Credits",
     "verified": "Network verified",
-    "verifiedYes": "Yes — validated and reported",
-    "verifiedNo": "No — supplied to us as a file",
+    "verifiedYes": "Yes: validated and reported",
+    "verifiedNo": "No: supplied to us as a file",
     "nothingLeft": "All of this credit has been used or refunded. Nothing is left to dispose of.",
     "historyTitle": "What has been done with it",
     "noHistory": "Nothing explicit yet. A note linked to a bill reduces it automatically.",
@@ -15937,7 +16584,7 @@
   },
   "approvalPolicy": {
     "title": "Bill approvals",
-    "subtitle": "Who must sign off a supplier's bill before it can be paid. This is the rule the Bills screen enforces — a bill that has not met it cannot be added to a payment run.",
+    "subtitle": "Who must sign off a supplier's bill before it can be paid. This is the rule the Bills screen enforces. A bill that has not met it cannot be added to a payment run.",
     "saved": "The approval rule was saved.",
     "notSaved": "NOT SAVED",
     "save": "Save the rule",
@@ -15956,7 +16603,7 @@
       "EVERY_BILL": "Every bill needs approval, whatever the amount",
       "BELOW_AMOUNT": "Bills under a set amount need no approval",
       "label": "Amount",
-      "boundary": "A bill of exactly {{amount}} still needs approval — only bills below it are let through.",
+      "boundary": "A bill of exactly {{amount}} still needs approval. Only bills below it are let through.",
       "removing": "This removes the {{amount}} threshold. Bills that needed no approval before will need one from now on."
     },
     "problem": {
@@ -16164,6 +16811,109 @@
       "removeUnavailable": "Files cannot be removed from here yet.",
       "issued": "Files can only be added or removed while the document is a draft.",
       "uploadUnavailable": "Uploading from here is not available yet: there is no attachment route."
+    }
+  },
+  "supplierNotes": {
+    "searchPlaceholder": "Search supplier, bill number...",
+    "sort": {
+      "natural": "As received",
+      "amountDesc": "Amount: high to low",
+      "amountAsc": "Amount: low to high",
+      "supplierAsc": "Supplier A to Z"
+    },
+    "pager": {
+      "nav": "Pages"
+    },
+    "channel": {
+      "peppol": "Over Peppol",
+      "uploaded": "Uploaded by hand",
+      "scanned": "Scanned",
+      "recurring": "From a recurring bill",
+      "selfBilled": "Self-billed"
+    },
+    "kind": {
+      "credit": {
+        "peppol": "Credit note · Peppol",
+        "uploaded": "Credit note · Uploaded",
+        "scanned": "Credit note · Scanned",
+        "recurring": "Credit note · Recurring",
+        "selfBilled": "Credit note · Self-billed"
+      },
+      "debit": {
+        "peppol": "Debit note · Peppol",
+        "uploaded": "Debit note · Uploaded",
+        "scanned": "Debit note · Scanned",
+        "recurring": "Debit note · Recurring",
+        "selfBilled": "Debit note · Self-billed"
+      }
+    },
+    "rows": {
+      "billed": "Billed {{date}}",
+      "due": "Due {{date}}"
+    },
+    "noLines": "The line detail is not on this note yet.",
+    "noLinked": "Nothing is linked to this note yet.",
+    "vatRow": "VAT",
+    "thisBill": "the bill",
+    "theBill": "the bill",
+    "thisSupplier": "this supplier",
+    "billState": {
+      "draft": "Draft",
+      "new": "New",
+      "mismatch": "Mismatch",
+      "awaitingApproval": "Awaiting approval",
+      "approved": "Approved",
+      "onHold": "On hold",
+      "rejected": "Rejected",
+      "inPaymentRun": "In a payment run",
+      "paid": "Paid"
+    },
+    "activity": {
+      "arrivedPeppol": "Credit note arrived over Peppol",
+      "arrivedUploaded": "Credit note uploaded by hand",
+      "arrivedScanned": "Credit note scanned in",
+      "arrivedRecurring": "Credit note created from a recurring bill",
+      "arrivedSelfBilled": "Self-billed credit note issued",
+      "arrivedPeppolDebit": "Debit note arrived over Peppol",
+      "arrivedUploadedDebit": "Debit note uploaded by hand",
+      "arrivedScannedDebit": "Debit note scanned in",
+      "arrivedRecurringDebit": "Debit note created from a recurring bill",
+      "arrivedSelfBilledDebit": "Self-billed debit note issued"
+    },
+    "error": {
+      "needLine": "Add at least one line so the note has a total.",
+      "needReason": "Choose a reason for refusing, or write one."
+    },
+    "savedButNot": "The note is saved, but the next step did not go through.",
+    "openSaved": "Open the note",
+    "file": {
+      "readXml": "fields read from the e-invoice file",
+      "notRead": "nothing is read from a PDF or photo"
+    },
+    "linesAsTyped": "Nothing was read from the file, so the figures are as you typed them.",
+    "billCard": "{{state}} · {{outstanding}} unpaid · due {{due}}",
+    "inRun": "in run {{run}}",
+    "billChosenByHand": "Chosen by hand. Check it against the reference printed on the file.",
+    "findBill": "Which bill",
+    "findBillPlaceholder": "Search by bill number",
+    "pickSupplierFirst": "Choose the supplier first"
+  },
+  "expenditureNotes": {
+    "reason": {
+      "SHORT_DELIVERY": "Short delivery",
+      "DAMAGED": "Goods damaged",
+      "OVERCHARGE": "Overcharged",
+      "RETURN": "Goods returned",
+      "PRICE_CORRECTION": "Price corrected",
+      "SURCHARGE": "Surcharge",
+      "LATE_FEE": "Late payment fee",
+      "DUPLICATE": "Charged twice",
+      "OTHER": "Other",
+      "QTY": "Quantity differs from the bill",
+      "VAL": "Price or value corrected",
+      "CAN": "Order cancelled",
+      "VAT": "VAT corrected",
+      "OTH": "Other reason"
     }
   }
 }

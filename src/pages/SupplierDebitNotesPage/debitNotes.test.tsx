@@ -3,7 +3,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { DebitNoteDecisionDto, DebitNoteRowDto, DebitNoteSummaryDto } from '../../api/expenditure/notes'
+import type {
+  DebitNoteDecisionDto,
+  DebitNoteRowDto,
+  DebitNoteSummaryDto,
+} from '../../api/expenditure/notes'
 import { toDebitNoteItem } from '../../lib/supplierNoteList'
 import { SupplierDebitNotesPage } from './SupplierDebitNotesPage'
 import { SupplierDebitNoteDetailPage } from '../SupplierDebitNoteDetailPage'
@@ -96,21 +100,39 @@ beforeEach(async () => {
   acceptCalls = 0
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
     if (url.startsWith(SUMMARY_URL)) return json(200, SUMMARY)
     if (url.includes(`/debit-notes/${NOTE_ID}/decisions`)) return json(200, decisions)
     if (url.includes(`/debit-notes/${NOTE_ID}/accept`)) {
       acceptCalls += 1
-      return json(200, { decision: 'ACCEPTED', reason: null, decidedBy: 'u-1', decidedAt: '2026-09-21T10:00:00Z' })
+      return json(200, {
+        decision: 'ACCEPTED',
+        reason: null,
+        decidedBy: 'u-1',
+        decidedAt: '2026-09-21T10:00:00Z',
+      })
     }
     if (url.includes(`/debit-notes/${NOTE_ID}/refuse`)) {
       refuseBody = JSON.parse(String(init?.body))
-      return json(200, { decision: 'REFUSED', reason: 'x', decidedBy: 'u-1', decidedAt: '2026-09-21T10:00:00Z' })
+      return json(200, {
+        decision: 'REFUSED',
+        reason: 'x',
+        decidedBy: 'u-1',
+        decidedAt: '2026-09-21T10:00:00Z',
+      })
     }
     if (url.includes(`/debit-notes/${NOTE_ID}`)) return json(200, notes[0])
     if (url.includes('/debit-notes')) {
-      return json(200, { items: notes, page: 0, pageSize: 20, count: notes.length, total: notes.length })
+      return json(200, {
+        items: notes,
+        page: 0,
+        pageSize: 20,
+        count: notes.length,
+        total: notes.length,
+      })
     }
     return json(404)
   })
@@ -137,18 +159,37 @@ const renderDetail = () =>
     </MemoryRouter>,
   )
 
+/** The decision card's buttons; the header repeats them, so the card's come last. */
+const cardButton = (name: string) => screen.getAllByRole('button', { name }).at(-1)!
+
 describe('Debit notes list, wired to the API', () => {
-  it('opens on what needs checking, and asks the server for it', async () => {
+  it('opens on All as the frame does, and asks the server for each tab', async () => {
     renderList()
     await screen.findByText('QMS-DN-1')
-    // The default tab is the work, not the archive: a charge nobody has looked at is the reason
-    // to open this screen.
-    expect(calls('/api/v1/debit-notes?')).toEqual(['/api/v1/debit-notes?status=UNCHECKED&page=0&page_size=20'])
+    // The frame's default tab is All; the charges nobody has checked are one click away on the
+    // highlighted card (below), which asks the server for them rather than filtering here.
+    expect(calls('/api/v1/debit-notes?')).toEqual([
+      '/api/v1/debit-notes?status=ALL&page=0&page_size=20',
+    ])
 
-    fireEvent.click(screen.getByRole('tab', { name: 'All' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Accepted' }))
     await waitFor(() =>
-      expect(calls('/api/v1/debit-notes?').at(-1)).toBe('/api/v1/debit-notes?status=ALL&page=0&page_size=20'),
+      expect(calls('/api/v1/debit-notes?').at(-1)).toBe(
+        '/api/v1/debit-notes?status=ACCEPTED&page=0&page_size=20',
+      ),
     )
+  })
+
+  it('reaches what needs checking from the highlighted card, as a server filter', async () => {
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    fireEvent.click(screen.getByRole('link', { name: /Needs checking/ }))
+    await waitFor(() =>
+      expect(calls('/api/v1/debit-notes?').at(-1)).toBe(
+        '/api/v1/debit-notes?status=UNCHECKED&page=0&page_size=20',
+      ),
+    )
+    expect(screen.getByRole('tab', { name: /Needs checking/ })).toBeTruthy()
   })
 
   it('shows the summary and what is outstanding on the row', async () => {
@@ -158,7 +199,9 @@ describe('Debit notes list, wired to the API', () => {
     expect(screen.getByText('640.000')).toBeTruthy()
     expect(screen.getByText('95.500')).toBeTruthy()
     expect(within(screen.getByRole('table')).getByText('75.500')).toBeTruthy()
-    expect(screen.getByText('75.500 outstanding')).toBeTruthy()
+    // An unchecked charge: the frame's "you'd pay more" under a plus figure.
+    expect(screen.getByText("you'd pay more")).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Accept or refuse' })).toBeTruthy()
   })
 
   it('does not present a refused charge as money owed', async () => {
@@ -169,7 +212,7 @@ describe('Debit notes list, wired to the API', () => {
     notes = [note({ status: 'REFUSED' })]
     renderList()
     await screen.findByText('QMS-DN-1')
-    expect(screen.getByText('Refused — not treated as owed')).toBeTruthy()
+    expect(screen.getByText('Refused: not treated as owed')).toBeTruthy()
     expect(screen.queryByText(/outstanding/)).toBeNull()
   })
 
@@ -178,7 +221,7 @@ describe('Debit notes list, wired to the API', () => {
     expect(toDebitNoteItem(note({ dueDate: '2020-01-01', overdue: false })).overdue).toBe(false)
     expect(toDebitNoteItem(note({ dueDate: '2099-01-01', overdue: true })).overdue).toBe(true)
 
-    notes = [note({ overdue: true })]
+    notes = [note({ status: 'ACCEPTED', overdue: true })]
     renderList()
     await screen.findByText('QMS-DN-1')
     expect(screen.getByText('75.500 outstanding, late')).toBeTruthy()
@@ -186,18 +229,34 @@ describe('Debit notes list, wired to the API', () => {
 })
 
 describe('One debit note', () => {
+  it('draws the frame: chips, the sand banner, the checks, and the side cards', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getByText('Debit note · Peppol')).toBeTruthy()
+    expect(screen.getByText(/They want/)).toBeTruthy()
+    expect(screen.getByText('Does this look right')).toBeTruthy()
+    expect(screen.getByText('Validated on the Peppol network')).toBeTruthy()
+    expect(screen.getByText('Against your rate card')).toBeTruthy()
+    expect(screen.getByText('Effect on your VAT')).toBeTruthy()
+    expect(
+      within(screen.getByRole('list', { name: 'Activity' })).getByText(
+        'Waiting for someone to decide',
+      ),
+    ).toBeTruthy()
+  })
+
   it('accepts the charge', async () => {
     renderDetail()
-    await screen.findByText('QMS-DN-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Accept it' }))
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    fireEvent.click(cardButton('Accept it'))
     await waitFor(() => expect(acceptCalls).toBe(1))
     expect(await screen.findByText(/The decision is recorded/)).toBeTruthy()
   })
 
   it('sends the chosen preset as the reason when refusing', async () => {
     renderDetail()
-    await screen.findByText('QMS-DN-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Refuse it' }))
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    fireEvent.click(cardButton('Refuse it'))
     fireEvent.click(screen.getByRole('radio', { name: 'Already charged' }))
     fireEvent.click(screen.getByRole('button', { name: 'Record the refusal' }))
     await waitFor(() => expect(refuseBody).toEqual({ reason: 'Already charged' }))
@@ -205,11 +264,14 @@ describe('One debit note', () => {
 
   it('will not send an empty free-text reason, which the server refuses anyway', async () => {
     renderDetail()
-    await screen.findByText('QMS-DN-1')
-    fireEvent.click(screen.getByRole('button', { name: 'Refuse it' }))
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    fireEvent.click(cardButton('Refuse it'))
     fireEvent.click(screen.getByRole('radio', { name: 'Other' }))
 
-    expect(screen.getByRole('button', { name: 'Record the refusal' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Record the refusal' })).toHaveProperty(
+      'disabled',
+      true,
+    )
 
     fireEvent.change(screen.getByPlaceholderText('Your reason, in one line'), {
       target: { value: 'We never ordered this' },
@@ -220,21 +282,34 @@ describe('One debit note', () => {
 
   it('offers only the opposite decision once one has been recorded', async () => {
     // Restating a decision is refused by the server and records nothing, so it is not offered.
-    // Reversing always is — that is why the history exists.
+    // Reversing always is: that is why the history exists.
     notes = [note({ status: 'ACCEPTED' })]
     renderDetail()
-    await screen.findByText('QMS-DN-1')
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
 
-    expect(screen.getByRole('button', { name: 'Accept it' })).toHaveProperty('disabled', true)
-    expect(screen.getByRole('button', { name: 'Refuse it' })).toHaveProperty('disabled', false)
+    for (const button of screen.getAllByRole('button', { name: 'Accept it' })) {
+      expect(button).toHaveProperty('disabled', true)
+    }
+    for (const button of screen.getAllByRole('button', { name: 'Refuse it' })) {
+      expect(button).toHaveProperty('disabled', false)
+    }
     expect(screen.getByText(/Only the opposite decision can be recorded/)).toBeTruthy()
+  })
+
+  it('holds the charge without a request, since an unchecked charge already is on hold', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Put on hold' }))
+    expect(screen.getByText(/On hold\. Nothing is added/)).toBeTruthy()
+    expect(acceptCalls).toBe(0)
+    expect(refuseBody).toBeNull()
   })
 
   it('claims nothing the server does not do', async () => {
     renderDetail()
-    await screen.findByText('QMS-DN-1')
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
     // Accepting records a decision. It does not message the supplier, move the charge onto a
-    // bill, or add it to a payment run — the prototype's copy said all three.
+    // bill, or add it to a payment run: the frame's copy said all three.
     expect(screen.getByText(/It is not sent to the supplier from here/)).toBeTruthy()
     // "Received over Peppol" is a true statement about how the document arrived, so the check is
     // for the claim that a DECISION travels that way, not for the word.
@@ -242,11 +317,8 @@ describe('One debit note', () => {
     expect(screen.queryByText(/sends the supplier your reason/)).toBeNull()
     expect(screen.queryByText(/payment run/)).toBeNull()
 
-    // The controls too, not only the prose around them. "Refuse and tell them", "Send the
-    // refusal" and a placeholder reading "Tell the supplier why" all survived the first sweep
-    // because it read body text and never looked at a button label.
-    expect(screen.getByRole('button', { name: 'Refuse it' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Refuse it' }))
+    // The controls too, not only the prose around them.
+    fireEvent.click(cardButton('Refuse it'))
     expect(screen.getByRole('button', { name: 'Record the refusal' })).toBeTruthy()
     fireEvent.click(screen.getByRole('radio', { name: 'Other' }))
     expect(screen.getByPlaceholderText('Your reason, in one line')).toBeTruthy()
@@ -257,23 +329,31 @@ describe('One debit note', () => {
 
   it('lists the decisions with their reasons, newest first as the server sends them', async () => {
     decisions = [
-      { decision: 'REFUSED', reason: 'Not in our agreed rates', decidedBy: 'u-1', decidedAt: '2026-09-20T10:00:00Z' },
+      {
+        decision: 'REFUSED',
+        reason: 'Not in our agreed rates',
+        decidedBy: 'u-1',
+        decidedAt: '2026-09-20T10:00:00Z',
+      },
       { decision: 'ACCEPTED', reason: null, decidedBy: 'u-1', decidedAt: '2026-09-18T09:00:00Z' },
     ]
     renderDetail()
-    await screen.findByText('QMS-DN-1')
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
 
-    const entries = screen.getAllByRole('listitem')
-    expect(entries).toHaveLength(2)
-    expect(within(entries[0]).getByText('Refused')).toBeTruthy()
-    expect(within(entries[0]).getByText('Not in our agreed rates')).toBeTruthy()
-    expect(within(entries[1]).getByText('Accepted')).toBeTruthy()
+    // The decisions sit in the Activity trail, after the state that stands and before the
+    // arrival, in the order the server sent them.
+    const entries = within(screen.getByRole('list', { name: 'Activity' })).getAllByRole('listitem')
+    const texts = entries.map((entry) => entry.textContent ?? '')
+    const refused = texts.findIndex((text) => text.includes('Not in our agreed rates'))
+    const accepted = texts.findIndex((text) => text.startsWith('Accepted'))
+    expect(refused).toBeGreaterThan(0)
+    expect(accepted).toBeGreaterThan(refused)
   })
 
   it('offers no decision to someone who may only read', async () => {
     who = READER
     renderDetail()
-    await screen.findByText('QMS-DN-1')
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
     expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Refuse it' })).toBeNull()
   })

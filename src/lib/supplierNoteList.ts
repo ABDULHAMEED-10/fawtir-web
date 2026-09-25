@@ -7,11 +7,13 @@ import type {
 } from '../api/expenditure/notes'
 
 /**
- * View models for the two supplier-note lists (E-15, E-16), written only from what a row carries.
+ * View models for the two supplier-note lists (E-15, E-16), written from what a row carries and
+ * shaped the way the Figma frames draw them (Credit notes 163:18691, Debit notes 163:21057).
  *
- * The prototype's per-row sentences — a channel line, a "why" sentence, a chased-on date — had no
- * field behind them. What the API does carry is a CL-02-OM reason CODE, which is shown as a code
- * unless a label for it exists, rather than a sentence invented here.
+ * The frames' tabs are All / Used / Refunded and All / Accepted / Rejected. The two statuses the
+ * server also filters on (credit nobody has used yet, charges nobody has checked) are reached from
+ * the highlighted KPI card, which is the frame's own signpost to them; while one of those is
+ * selected it appears in the strip so it can be cleared.
  */
 
 export type NoteSourceBadge = 'peppol' | 'uploaded' | 'scanned' | 'recurring' | 'selfBilled'
@@ -24,33 +26,124 @@ const SOURCE: Record<NoteSourceDto, NoteSourceBadge> = {
   SELF_BILLED: 'selfBilled',
 }
 
-// ─────────────────────────────────────────────────────────────── credit notes
+/** The toolbar's sort choices. The endpoint takes none, so they order the page in hand. */
+export type NoteSort = 'natural' | 'amountDesc' | 'amountAsc' | 'supplierAsc'
 
-export type CreditTabId = 'all' | 'unapplied' | 'waiting' | 'applied' | 'refunded'
+export const NOTE_SORTS: { value: NoteSort; labelKey: string }[] = [
+  { value: 'natural', labelKey: 'supplierNotes.sort.natural' },
+  { value: 'amountDesc', labelKey: 'supplierNotes.sort.amountDesc' },
+  { value: 'amountAsc', labelKey: 'supplierNotes.sort.amountAsc' },
+  { value: 'supplierAsc', labelKey: 'supplierNotes.sort.supplierAsc' },
+]
+
+export function isNoteSort(value: string | null): value is NoteSort {
+  return NOTE_SORTS.some((option) => option.value === value)
+}
+
+type Narrowable = {
+  number: string | null
+  supplier: string | null
+  againstBillNumber: string | null
+  amount: number | null
+}
 
 /**
- * Every tab is a status the server filters in SQL. The prototype offered All, Used and Refunded
- * and left the two that matter most — credit nobody has spent yet — reachable only by scrolling.
+ * The search box, supplier filter and sort the frame draws, applied to the rows on screen.
+ *
+ * TODO(backend): `GET /v1/credit-notes` and `/v1/debit-notes` take only `status` and paging, so
+ * these narrow the page that was fetched rather than the whole set. Ask: `q`, `supplier_id` and
+ * `sort` on both list endpoints (row 5.1 in EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md).
  */
-export const CREDIT_TABS: { id: CreditTabId; status: CreditNoteStatusDto | 'ALL'; labelKey: string }[] = [
-  { id: 'all', status: 'ALL', labelKey: 'supplierCreditNotes.tabs.all' },
-  { id: 'unapplied', status: 'UNAPPLIED', labelKey: 'supplierCreditNotes.tabs.unapplied' },
-  { id: 'waiting', status: 'WAITING_FOR_BILL', labelKey: 'supplierCreditNotes.tabs.waiting' },
-  { id: 'applied', status: 'APPLIED', labelKey: 'supplierCreditNotes.tabs.applied' },
-  { id: 'refunded', status: 'REFUNDED', labelKey: 'supplierCreditNotes.tabs.refunded' },
-]
+export function narrowNotes<T extends Narrowable>(
+  rows: T[],
+  { query, supplier, sort }: { query: string; supplier: string; sort: NoteSort },
+): T[] {
+  const needle = query.trim().toLowerCase()
+  const kept = rows.filter((row) => {
+    if (supplier !== 'all' && row.supplier !== supplier) return false
+    if (needle === '') return true
+    return [row.number, row.supplier, row.againstBillNumber].some((value) =>
+      (value ?? '').toLowerCase().includes(needle),
+    )
+  })
+  if (sort === 'natural') return kept
+  return [...kept].sort((a, b) => {
+    if (sort === 'supplierAsc') return (a.supplier ?? '').localeCompare(b.supplier ?? '')
+    const diff = (a.amount ?? 0) - (b.amount ?? 0)
+    return sort === 'amountAsc' ? diff : -diff
+  })
+}
+
+/** The suppliers on the page, for the filter menu. */
+export function supplierNames(rows: { supplier: string | null }[]): string[] {
+  return [...new Set(rows.map((row) => row.supplier).filter((name): name is string => !!name))]
+}
+
+// ─────────────────────────────────────────────────────────────── credit notes
+
+export type CreditTabId = 'all' | 'applied' | 'refunded' | 'unapplied' | 'waiting'
+
+export const CREDIT_TAB_STATUS: Record<CreditTabId, CreditNoteStatusDto | 'ALL'> = {
+  all: 'ALL',
+  applied: 'APPLIED',
+  refunded: 'REFUNDED',
+  unapplied: 'UNAPPLIED',
+  waiting: 'WAITING_FOR_BILL',
+}
+
+export const CREDIT_TAB_LABEL: Record<CreditTabId, string> = {
+  all: 'supplierCreditNotes.tabs.all',
+  applied: 'supplierCreditNotes.tabs.used',
+  refunded: 'supplierCreditNotes.tabs.refunded',
+  unapplied: 'supplierCreditNotes.tabs.unapplied',
+  waiting: 'supplierCreditNotes.tabs.waiting',
+}
+
+/** The strip as the frame draws it. `unapplied` and `waiting` join it only while selected. */
+export const CREDIT_TABS: CreditTabId[] = ['all', 'applied', 'refunded']
 
 export const DEFAULT_CREDIT_TAB: CreditTabId = 'all'
 
 export function isCreditTab(value: string | null): value is CreditTabId {
-  return CREDIT_TABS.some((tab) => tab.id === value)
+  return value !== null && value in CREDIT_TAB_STATUS
 }
 
-export const CREDIT_STATUS_CHIP: Record<CreditNoteStatusDto, 'usable' | 'waiting' | 'done' | 'refunded'> = {
+export type CreditChipTone = 'usable' | 'waiting' | 'done' | 'refunded'
+
+export const CREDIT_STATUS_CHIP: Record<CreditNoteStatusDto, CreditChipTone> = {
   UNAPPLIED: 'usable',
   WAITING_FOR_BILL: 'waiting',
   APPLIED: 'done',
   REFUNDED: 'refunded',
+}
+
+/** The chip's words, as the frame prints them. */
+export const CREDIT_STATUS_LABEL: Record<CreditNoteStatusDto, string> = {
+  UNAPPLIED: 'supplierCreditNotes.state.notUsed',
+  WAITING_FOR_BILL: 'supplierCreditNotes.state.waitingForBill',
+  APPLIED: 'supplierCreditNotes.state.used',
+  REFUNDED: 'supplierCreditNotes.state.refunded',
+}
+
+/** The one thing a row offers under its chip. */
+export const CREDIT_ROW_ACTION: Record<
+  CreditNoteStatusDto,
+  { labelKey: string; primary?: boolean; goesTo: 'bill' | 'note' }
+> = {
+  UNAPPLIED: { labelKey: 'supplierCreditNotes.actions.setAgainst', primary: true, goesTo: 'note' },
+  // The frame prints "View the bill" here, but a note waiting for a bill has none to view: the
+  // link opens the note instead.
+  WAITING_FOR_BILL: { labelKey: 'supplierCreditNotes.actions.openNote', goesTo: 'note' },
+  APPLIED: { labelKey: 'supplierCreditNotes.actions.viewBill', goesTo: 'bill' },
+  REFUNDED: { labelKey: 'supplierCreditNotes.actions.seePayment', goesTo: 'note' },
+}
+
+/** What the figure column says under the amount. */
+export const CREDIT_AMOUNT_NOTE: Record<CreditNoteStatusDto, string> = {
+  UNAPPLIED: 'supplierCreditNotes.rows.youdPayLess',
+  WAITING_FOR_BILL: 'supplierCreditNotes.rows.youdPayLess',
+  APPLIED: 'supplierCreditNotes.rows.takenOff',
+  REFUNDED: 'supplierCreditNotes.rows.paidBack',
 }
 
 export type CreditNoteItem = {
@@ -58,18 +151,24 @@ export type CreditNoteItem = {
   number: string | null
   issueDate: string | null
   supplier: string | null
+  supplierId: string | null
   source: NoteSourceBadge
   networkVerified: boolean
+  /** The Peppol delivery the document came in on, which is where its file is downloaded from. */
+  inboundDeliveryId: string | null
   /** The bill this credit actually reduces, when it reduces exactly one. */
   againstBillId: string | null
   againstBillNumber: string | null
+  againstBillIssueDate: string | null
   applied: boolean
   reasonCode: string | null
   status: CreditNoteStatusDto
   currency: string
   credited: number | null
+  /** `credited`, for the shared narrowing helpers. */
+  amount: number | null
   remaining: number
-  /** Whether any of the credit is still to be spent — what the "still usable" figure counts. */
+  /** Whether any of the credit is still to be spent: what the "still usable" figure counts. */
   usable: boolean
 }
 
@@ -79,15 +178,19 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     number: row.creditNoteNumber,
     issueDate: row.issueDate,
     supplier: row.supplierName,
+    supplierId: row.supplierId,
     source: SOURCE[row.source],
     networkVerified: row.networkVerified,
+    inboundDeliveryId: row.inboundDeliveryId,
     againstBillId: row.credits.billId,
     againstBillNumber: row.credits.billNumber,
+    againstBillIssueDate: row.credits.issueDate,
     applied: row.credits.applied,
     reasonCode: row.reasonCode,
     status: row.status,
     currency: row.currencyCode,
     credited: row.creditedAmount,
+    amount: row.creditedAmount,
     remaining: row.balance.remaining,
     usable: row.balance.remaining > 0,
   }
@@ -95,19 +198,44 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
 
 // ──────────────────────────────────────────────────────────────── debit notes
 
-export type DebitTabId = 'all' | 'unchecked' | 'accepted' | 'refused'
+export type DebitTabId = 'all' | 'accepted' | 'refused' | 'unchecked'
 
-export const DEBIT_TABS: { id: DebitTabId; status: DebitNoteStatusDto | 'ALL'; labelKey: string }[] = [
-  { id: 'all', status: 'ALL', labelKey: 'supplierDebitNotes.tabs.all' },
-  { id: 'unchecked', status: 'UNCHECKED', labelKey: 'supplierDebitNotes.tabs.unchecked' },
-  { id: 'accepted', status: 'ACCEPTED', labelKey: 'supplierDebitNotes.tabs.accepted' },
-  { id: 'refused', status: 'REFUSED', labelKey: 'supplierDebitNotes.tabs.refused' },
-]
+export const DEBIT_TAB_STATUS: Record<DebitTabId, DebitNoteStatusDto | 'ALL'> = {
+  all: 'ALL',
+  accepted: 'ACCEPTED',
+  refused: 'REFUSED',
+  unchecked: 'UNCHECKED',
+}
 
-export const DEFAULT_DEBIT_TAB: DebitTabId = 'unchecked'
+export const DEBIT_TAB_LABEL: Record<DebitTabId, string> = {
+  all: 'supplierDebitNotes.tabs.all',
+  accepted: 'supplierDebitNotes.tabs.accepted',
+  refused: 'supplierDebitNotes.tabs.rejected',
+  unchecked: 'supplierDebitNotes.tabs.unchecked',
+}
+
+/** The strip as the frame draws it. `unchecked` joins it only while selected. */
+export const DEBIT_TABS: DebitTabId[] = ['all', 'accepted', 'refused']
+
+export const DEFAULT_DEBIT_TAB: DebitTabId = 'all'
 
 export function isDebitTab(value: string | null): value is DebitTabId {
-  return DEBIT_TABS.some((tab) => tab.id === value)
+  return value !== null && value in DEBIT_TAB_STATUS
+}
+
+export const DEBIT_ROW_ACTION: Record<
+  DebitNoteStatusDto,
+  { labelKey: string; primary?: boolean; goesTo: 'bill' | 'note' }
+> = {
+  UNCHECKED: {
+    labelKey: 'supplierDebitNotes.actions.acceptOrRefuse',
+    primary: true,
+    goesTo: 'note',
+  },
+  ACCEPTED: { labelKey: 'supplierDebitNotes.actions.viewBill', goesTo: 'bill' },
+  // The frame prints "See the payment" on a refused charge; a refused charge is never paid, so
+  // the link opens the decision instead.
+  REFUSED: { labelKey: 'supplierDebitNotes.actions.seeDecision', goesTo: 'note' },
 }
 
 export type DebitNoteItem = {
@@ -115,19 +243,26 @@ export type DebitNoteItem = {
   number: string | null
   issueDate: string | null
   dueDate: string | null
-  /** The server's judgment. Never recomputed from the due date here — see the Bills list. */
+  /** The server's judgment. Never recomputed from the due date here: see the Bills list. */
   overdue: boolean
   supplier: string | null
+  supplierId: string | null
   source: NoteSourceBadge
   networkVerified: boolean
-  relatesToBillNumber: string | null
+  inboundDeliveryId: string | null
+  againstBillNumber: string | null
+  againstBillIssueDate: string | null
   reasonCode: string | null
   status: DebitNoteStatusDto
   decisionReason: string | null
   decidedAt: string | null
+  decidedBy: string | null
   currency: string
   total: number | null
+  /** `total`, for the shared narrowing helpers. */
+  amount: number | null
   outstanding: number
+  paid: number
   /**
    * Whether anything is still owed on it. A refused note owes nothing whatever the figure says:
    * the tenant has rejected the charge, so presenting it as a debt would chase money that is
@@ -144,18 +279,34 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     dueDate: row.dueDate,
     overdue: row.overdue,
     supplier: row.supplierName,
+    supplierId: row.supplierId,
     source: SOURCE[row.source],
     networkVerified: row.networkVerified,
-    relatesToBillNumber: row.relatesTo?.billNumber ?? null,
+    inboundDeliveryId: row.inboundDeliveryId,
+    againstBillNumber: row.relatesTo?.billNumber ?? null,
+    againstBillIssueDate: row.relatesTo?.issueDate ?? null,
     reasonCode: row.reasonCode,
     status: row.status,
     decisionReason: row.decisionReason,
     decidedAt: row.decidedAt,
+    decidedBy: row.decidedBy,
     currency: row.currencyCode,
     total: row.totalIncludingVat,
+    amount: row.totalIncludingVat,
     outstanding: row.outstandingAmount,
+    paid: row.paidAmount,
     owes: row.status !== 'REFUSED' && row.outstandingAmount > 0,
   }
+}
+
+/** What the figure column says under a charge: where the money has got to. */
+export function debitAmountNoteKey(item: DebitNoteItem): string {
+  if (item.status === 'REFUSED') return 'supplierDebitNotes.outcome.notOwed'
+  if (item.status === 'UNCHECKED') return 'supplierDebitNotes.outcome.youdPayMore'
+  if (item.outstanding <= 0 && item.paid > 0) return 'supplierDebitNotes.outcome.paidSeparately'
+  return item.overdue
+    ? 'supplierDebitNotes.rows.overdueShort'
+    : 'supplierDebitNotes.outcome.addedToBill'
 }
 
 /**

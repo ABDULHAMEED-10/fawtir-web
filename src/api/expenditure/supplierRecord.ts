@@ -128,7 +128,10 @@ export type NewSupplierDocument = {
 }
 
 /** `supplier.manage`; at most 10 MiB. A later document in the same series supersedes the earlier one. */
-export function uploadSupplierDocument(id: string, document: NewSupplierDocument): Promise<unknown> {
+export function uploadSupplierDocument(
+  id: string,
+  document: NewSupplierDocument,
+): Promise<unknown> {
   const form = new FormData()
   form.append('file', document.file)
   form.append('title', document.title.trim())
@@ -145,7 +148,9 @@ export function downloadSupplierDocument(id: string, documentId: string): Promis
 
 /** `supplier.manage`. Refused under a legal hold or inside the retention period. */
 export async function retireSupplierDocument(id: string, documentId: string): Promise<void> {
-  await apiRequest<unknown>(`${supplierDocumentsPath(id)}/${encodeURIComponent(documentId)}`, { method: 'DELETE' })
+  await apiRequest<unknown>(`${supplierDocumentsPath(id)}/${encodeURIComponent(documentId)}`, {
+    method: 'DELETE',
+  })
 }
 
 export type ContactPurpose = 'MAIN' | 'BILLING' | 'DELIVERY' | 'OTHER'
@@ -173,30 +178,54 @@ export function loadSupplierContacts(id: string): Promise<SupplierContactDto[]> 
 }
 
 /** `supplier.manage`. Only one MAIN: promote with {@link makeMainContact}, not by saving a second MAIN. */
-export function addSupplierContact(id: string, contact: ContactRequestDto): Promise<SupplierContactDto> {
+export function addSupplierContact(
+  id: string,
+  contact: ContactRequestDto,
+): Promise<SupplierContactDto> {
   return apiRequest<SupplierContactDto>(supplierContactsPath(id), { method: 'POST', body: contact })
 }
 
-export function updateSupplierContact(id: string, contactId: string, contact: ContactRequestDto): Promise<SupplierContactDto> {
-  return apiRequest<SupplierContactDto>(`${supplierContactsPath(id)}/${encodeURIComponent(contactId)}`, { method: 'PUT', body: contact })
+export function updateSupplierContact(
+  id: string,
+  contactId: string,
+  contact: ContactRequestDto,
+): Promise<SupplierContactDto> {
+  return apiRequest<SupplierContactDto>(
+    `${supplierContactsPath(id)}/${encodeURIComponent(contactId)}`,
+    { method: 'PUT', body: contact },
+  )
 }
 
 /** `supplier.manage`. The main contact cannot go while others remain (400). */
 export async function removeSupplierContact(id: string, contactId: string): Promise<void> {
-  await apiRequest<unknown>(`${supplierContactsPath(id)}/${encodeURIComponent(contactId)}`, { method: 'DELETE' })
+  await apiRequest<unknown>(`${supplierContactsPath(id)}/${encodeURIComponent(contactId)}`, {
+    method: 'DELETE',
+  })
 }
 
 /** One transaction: the old main takes this contact's purpose. Answers the contacts after the swap. */
-export function makeMainContact(id: string, contactId: string, version: number): Promise<SupplierContactDto[]> {
-  return apiRequest<SupplierContactDto[]>(`${supplierContactsPath(id)}/${encodeURIComponent(contactId)}/make-main`, {
-    method: 'POST',
-    body: { version },
-  })
+export function makeMainContact(
+  id: string,
+  contactId: string,
+  version: number,
+): Promise<SupplierContactDto[]> {
+  return apiRequest<SupplierContactDto[]>(
+    `${supplierContactsPath(id)}/${encodeURIComponent(contactId)}/make-main`,
+    {
+      method: 'POST',
+      body: { version },
+    },
+  )
 }
 
 export type StatementFormat = 'pdf' | 'xlsx' | 'csv'
 
-export function downloadSupplierStatement(id: string, format: StatementFormat, from: string, to: string): Promise<ApiDownload> {
+export function downloadSupplierStatement(
+  id: string,
+  format: StatementFormat,
+  from: string,
+  to: string,
+): Promise<ApiDownload> {
   return apiDownload(withQuery(`${supplierPath(id)}/statement.${format}`, { from, to }))
 }
 
@@ -231,10 +260,34 @@ export type SupplierStatementDto = {
   credits: number
   payments: number
   closing: number
-  entries: { date: string; kind: StatementEntryKind; documentId: string; reference: string | null; amount: number; runningBalance: number }[]
+  entries: {
+    date: string
+    kind: StatementEntryKind
+    documentId: string
+    reference: string | null
+    amount: number
+    runningBalance: number
+    /**
+     * The design's line under the reference ("Against PO-0021 · matched in full", "Bank transfer ·
+     * ref BM-4471-0916 · settled MR-INV-8712"). Not answered yet: backend ask 7.13.
+     */
+    detail?: string | null
+    /** What is still owed on a bill entry, so an open bill can be shaded. Backend ask 7.13. */
+    outstanding?: number | null
+  }[]
   ageing: { NOT_DUE: number; DUE_WITHIN_30: number; LATE_30: number; LATE_60_PLUS: number }
+  /** Bills and next due date behind each ageing figure (the design's "1 bill · due 28 Aug"). Backend ask 7.14. */
+  ageingDetail?: Partial<
+    Record<StatementAgeingBucket, { bills: number; nextDue: string | null }>
+  > | null
+  /** Whether any bill of theirs was ever paid late (the design's "Never been late with them"). Backend ask 7.14. */
+  everLate?: boolean | null
+  /** Credit notes on the statement not yet applied to a bill (the footer's "1 credit note still unused"). Backend ask 7.15. */
+  unusedCredits?: number | null
   issuer: StatementIssuerDto | null
 }
+
+export type StatementAgeingBucket = 'NOT_DUE' | 'DUE_WITHIN_30' | 'LATE_30' | 'LATE_60_PLUS'
 
 export function supplierStatementPath(id: string, from: string, to: string) {
   return withQuery(`${supplierPath(id)}/statement`, { from, to })
@@ -248,17 +301,33 @@ export function loadSupplierStatement(path: string): Promise<SupplierStatementDt
  * `supplier.manage`. Mails the statement's PDF to an address already on the supplier's record; the
  * server refuses any other, a switched-off supplier, and a deployment without e-mail delivery.
  */
-export function emailSupplierStatement(id: string, from: string, to: string, recipient: string): Promise<{ recipient: string }> {
-  return apiRequest<{ recipient: string }>(withQuery(`${supplierPath(id)}/statement/email`, { from, to }), {
-    method: 'POST',
-    body: { recipient },
-  })
+export function emailSupplierStatement(
+  id: string,
+  from: string,
+  to: string,
+  recipient: string,
+): Promise<{ recipient: string }> {
+  return apiRequest<{ recipient: string }>(
+    withQuery(`${supplierPath(id)}/statement/email`, { from, to }),
+    {
+      method: 'POST',
+      body: { recipient },
+    },
+  )
 }
 
 export type PurchaseOrderRowDto = {
   id: string
   number: string | null
-  state: 'DRAFT' | 'AWAITING_APPROVAL' | 'APPROVED' | 'SENT' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CLOSED' | 'CANCELLED'
+  state:
+    | 'DRAFT'
+    | 'AWAITING_APPROVAL'
+    | 'APPROVED'
+    | 'SENT'
+    | 'PARTIALLY_RECEIVED'
+    | 'RECEIVED'
+    | 'CLOSED'
+    | 'CANCELLED'
   orderDate: string | null
   wantedBy: string | null
   currency: string

@@ -4,7 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
-import { blankSupplierForm, placeSupplierErrors, supplierProblems, toSupplierRequest } from '../../lib/supplierForm'
+import {
+  blankSupplierForm,
+  placeSupplierErrors,
+  supplierProblems,
+  toSupplierRequest,
+} from '../../lib/supplierForm'
 import { NewSupplierPage } from './NewSupplierPage'
 import { EditSupplierPage } from '../EditSupplierPage'
 
@@ -97,7 +102,10 @@ let createResponse: () => Response
 let updateResponse: () => Response
 
 const calls = (method: string, url: string) =>
-  fetchMock.mock.calls.filter(([called, init]) => String(called) === url && ((init as RequestInit | undefined)?.method ?? 'GET') === method)
+  fetchMock.mock.calls.filter(
+    ([called, init]) =>
+      String(called) === url && ((init as RequestInit | undefined)?.method ?? 'GET') === method,
+  )
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
 
 beforeEach(async () => {
@@ -134,18 +142,19 @@ function renderAt(path: string) {
   )
 }
 
-const typeInto = (label: RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
+const typeInto = (label: RegExp, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 describe('a new supplier', () => {
   it('saves once with an idempotency key and the request the API reads, then opens the record', async () => {
     renderAt('/suppliers/new')
     await screen.findByRole('heading', { name: 'New supplier' })
-    typeInto(/Legal \/ registered name/, 'Sohar Steel LLC')
-    typeInto(/VAT registration number/, 'om1100447102')
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/^VAT number/, 'om1100447102')
     typeInto(/Peppol participant ID/, '0248:OM1100447102')
-    typeInto(/Contact person/, 'Laila Al Harthy')
-    typeInto(/Email/, 'ap@soharsteel.om, laila@soharsteel.om')
-    typeInto(/^Telephone/, '24000000')
+    typeInto(/Main contact/, 'Laila Al Harthy')
+    typeInto(/Their email/, 'ap@soharsteel.om, laila@soharsteel.om')
+    typeInto(/^Phone/, '24000000')
     typeInto(/^IBAN/, 'om81 0180 0000 1234 5678 901')
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
@@ -153,7 +162,9 @@ describe('a new supplier', () => {
     expect(await screen.findByText('Qalhat Marine Supplies LLC was added.')).toBeTruthy()
     expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1)
     const [post] = calls('POST', '/api/v1/suppliers')
-    expect((post[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': expect.stringMatching(/^supplier-.{16,}/) })
+    expect((post[1] as RequestInit).headers).toMatchObject({
+      'Idempotency-Key': expect.stringMatching(/^supplier-.{16,}/),
+    })
     expect(bodyOf(post)).toMatchObject({
       type: 'BUSINESS',
       legalName: 'Sohar Steel LLC',
@@ -168,7 +179,12 @@ describe('a new supplier', () => {
       mobilePhone: null,
       paymentTerms: 'NET30',
       receivingChannel: 'PEPPOL',
-      bankDetails: { beneficiaryName: null, iban: 'OM810180000012345678901', bic: null, bankName: null },
+      bankDetails: {
+        beneficiaryName: null,
+        iban: 'OM810180000012345678901',
+        bic: null,
+        bankName: null,
+      },
       // Nothing was typed into the address, so none is sent.
       invoiceAddress: null,
       sameAsInvoicingAddress: true,
@@ -180,62 +196,77 @@ describe('a new supplier', () => {
   it('says what is missing or wrong and sends nothing', async () => {
     renderAt('/suppliers/new')
     await screen.findByRole('heading', { name: 'New supplier' })
-    typeInto(/VAT registration number/, 'OM99')
+    typeInto(/^VAT number/, 'OM99')
     typeInto(/Peppol participant ID/, 'OM1100447102')
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
 
-    expect(await screen.findByText('Some fields need attention before the supplier can be saved.')).toBeTruthy()
+    expect(
+      await screen.findByText('Some fields need attention before the supplier can be saved.'),
+    ).toBeTruthy()
     expect(screen.getAllByText('This field is required')).toHaveLength(2)
     expect(screen.getByText('Use OM11 or OM12 followed by 8 digits')).toBeTruthy()
     expect(screen.getByText(/Use the scheme and ID together/)).toBeTruthy()
     expect(calls('POST', '/api/v1/suppliers')).toHaveLength(0)
   })
 
-  it('puts the server field refusals on their inputs, an address field included', async () => {
+  it('puts the server field refusals on their inputs, an address field on the one Address line', async () => {
     createResponse = () =>
       json(400, {
         type: 'https://api.fawtir.om/problems/validation-failed',
         status: 400,
-        errors: [{ field: 'invoiceAddress.cityName', code: 'TOO_LONG', message: 'Address city must be 150 characters or fewer' }],
+        errors: [
+          {
+            field: 'invoiceAddress.cityName',
+            code: 'TOO_LONG',
+            message: 'Address city must be 150 characters or fewer',
+          },
+        ],
       })
     renderAt('/suppliers/new')
     await screen.findByRole('heading', { name: 'New supplier' })
-    typeInto(/Legal \/ registered name/, 'Sohar Steel LLC')
-    typeInto(/VAT registration number/, 'OM1100447102')
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/^VAT number/, 'OM1100447102')
     typeInto(/Peppol participant ID/, '0248:OM1100447102')
-    typeInto(/Contact person/, 'Laila')
-    typeInto(/City \/ Governorate/, 'Sohar')
+    typeInto(/Main contact/, 'Laila')
+    typeInto(/^Address/, 'Sohar')
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
 
     const city = await screen.findByText('This is longer than allowed')
-    expect(city.closest('div')?.querySelector('input')?.id).toBe('supplier-billing-cityName')
+    expect(city.closest('div')?.querySelector('input')?.id).toBe('supplier-billing-address')
   })
 
   it('names a duplicate VAT number or Peppol ID on a new supplier', async () => {
-    createResponse = () => json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409 })
+    createResponse = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409 })
     renderAt('/suppliers/new')
     await screen.findByRole('heading', { name: 'New supplier' })
-    typeInto(/Legal \/ registered name/, 'Sohar Steel LLC')
-    typeInto(/VAT registration number/, 'OM1100447102')
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/^VAT number/, 'OM1100447102')
     typeInto(/Peppol participant ID/, '0248:OM1100447102')
-    typeInto(/Contact person/, 'Laila')
+    typeInto(/Main contact/, 'Laila')
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
 
-    expect(await screen.findByText('Another supplier or customer already uses this VAT number or Peppol ID.')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'Another supplier or customer already uses this VAT number or Peppol ID.',
+      ),
+    ).toBeTruthy()
   })
 })
 
 describe('an existing supplier', () => {
   it('opens with its record and saves its version without touching the bank account or the address parts it does not draw', async () => {
     renderAt(`/suppliers/${ID}/edit`)
-    expect(await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })).toBeTruthy()
-    expect((screen.getByLabelText(/Contact person/) as HTMLInputElement).value).toBe('Accounts team')
-    expect((screen.getByLabelText(/^Telephone/) as HTMLInputElement).value).toBe('24000000')
+    expect(
+      await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' }),
+    ).toBeTruthy()
+    expect((screen.getByLabelText(/Main contact/) as HTMLInputElement).value).toBe('Accounts team')
+    expect((screen.getByLabelText(/^Phone/) as HTMLInputElement).value).toBe('24000000')
 
-    typeInto(/Contact person/, 'Hamed Al Kindi')
+    typeInto(/Main contact/, 'Hamed Al Kindi')
     fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
 
     expect(await screen.findByText('Changes saved.')).toBeTruthy()
@@ -243,7 +274,11 @@ describe('an existing supplier', () => {
     expect(body.version).toBe(7)
     expect(body.contactPerson).toBe('Hamed Al Kindi')
     expect(body.bankDetails).toBeNull()
-    expect(body.invoiceAddress).toMatchObject({ cityName: 'Sur', countrySubentity: 'South Sharqiyah', buildingNumber: '1' })
+    expect(body.invoiceAddress).toMatchObject({
+      cityName: 'Sur',
+      countrySubentity: 'South Sharqiyah',
+      buildingNumber: '1',
+    })
     expect(body.earlyPaymentDiscountPercent).toBe(1.5)
   })
 
@@ -264,7 +299,9 @@ describe('an existing supplier', () => {
 
   it('confirms bank details that changed', async () => {
     renderAt(`/suppliers/${ID}/edit`)
-    expect(await screen.findByText(/The bank details changed and nobody has confirmed them/)).toBeTruthy()
+    expect(
+      await screen.findByText(/The bank details changed and nobody has confirmed them/),
+    ).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Confirm bank details' }))
 
     expect(await screen.findByText('Bank details confirmed.')).toBeTruthy()
@@ -283,18 +320,31 @@ describe('an existing supplier', () => {
 
 describe('supplier form rules', () => {
   it('asks for both halves of an early-payment discount, and a pickup address when it differs', () => {
-    const values = { ...blankSupplierForm(), legalName: 'X', contactPerson: 'Y', vatNumber: 'OM1100447102', peppolId: '0248:OM1100447102' }
+    const values = {
+      ...blankSupplierForm(),
+      legalName: 'X',
+      contactPerson: 'Y',
+      vatNumber: 'OM1100447102',
+      peppolId: '0248:OM1100447102',
+    }
     expect(supplierProblems(values, null)).toEqual({})
     expect(supplierProblems({ ...values, earlyPaymentDiscountPercent: '2' }, null)).toEqual({
       earlyPaymentDiscountDays: 'supplierForm.error.discountPair',
     })
-    expect(supplierProblems({ ...values, sameAsBilling: false }, null)).toEqual({ 'pickup.cityName': 'supplierForm.error.pickupRequired' })
+    expect(supplierProblems({ ...values, sameAsBilling: false }, null)).toEqual({
+      'pickup.cityName': 'supplierForm.error.pickupRequired',
+    })
     // A group VAT number is refused as a participant before the server says so.
-    expect(supplierProblems({ ...values, peppolId: '0248:OM1200447102' }, null)).toEqual({ peppolId: 'supplierForm.error.peppolVat' })
+    expect(supplierProblems({ ...values, peppolId: '0248:OM1200447102' }, null)).toEqual({
+      peppolId: 'supplierForm.error.peppolVat',
+    })
   })
 
   it('does not send an address whose only value is the default country', () => {
-    const request = toSupplierRequest({ ...blankSupplierForm(), legalName: 'X', contactPerson: 'Y' }, null)
+    const request = toSupplierRequest(
+      { ...blankSupplierForm(), legalName: 'X', contactPerson: 'Y' },
+      null,
+    )
     expect(request.invoiceAddress).toBeNull()
   })
 

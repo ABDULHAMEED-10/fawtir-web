@@ -1,4 +1,8 @@
-import type { ConfirmIntakeDto, IntakeCorrectionsDto, IntakeDto } from '../api/expenditure/billIntake'
+import type {
+  ConfirmIntakeDto,
+  IntakeCorrectionsDto,
+  IntakeDto,
+} from '../api/expenditure/billIntake'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 
 /**
@@ -33,7 +37,8 @@ export type BillForm = {
   purchaseOrderId: string
 }
 
-export type BillField = 'supplier' | 'billNumber' | 'issueDate' | 'dueDate' | 'currency' | 'vat' | 'total' | 'lines'
+export type BillField =
+  'supplier' | 'billNumber' | 'issueDate' | 'dueDate' | 'currency' | 'vat' | 'total' | 'lines'
 
 export type BillProblems = Partial<Record<BillField, string>>
 
@@ -61,7 +66,11 @@ export function blankBillForm(): BillForm {
 }
 
 const text = (value: string | null | undefined) => (value ?? '').trim()
-const amount = (value: number | null | undefined) => (value === null || value === undefined ? '' : String(value))
+const amount = (value: number | null | undefined) =>
+  value === null || value === undefined ? '' : String(value)
+/** Money as the form shows it: three decimals, so a saved 30.6 comes back as 30.600. */
+const money3 = (value: number | null | undefined) =>
+  value === null || value === undefined ? '' : value.toFixed(3)
 
 /**
  * What an XML bill carried, or what a person saved on the intake earlier, as starting values. A
@@ -72,20 +81,22 @@ export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()):
   if (!read) return base
   return {
     ...base,
-    supplierName: base.supplierId ? base.supplierName : text(read.supplierName) || base.supplierName,
+    supplierName: base.supplierId
+      ? base.supplierName
+      : text(read.supplierName) || base.supplierName,
     billNumber: text(read.billNumber) || base.billNumber,
     issueDate: read.issueDate ?? base.issueDate,
     dueDate: read.dueDate ?? base.dueDate,
     currency: read.currency ?? base.currency,
-    vat: amount(read.vat) || base.vat,
-    total: amount(read.total) || base.total,
+    vat: money3(read.vat) || base.vat,
+    total: money3(read.total) || base.total,
     lines:
       read.lines.length > 0
         ? read.lines.map((line) => ({
             ...blankLine(),
             description: text(line.description),
             quantity: amount(line.quantity) || '1',
-            unitPrice: amount(line.unitPrice),
+            unitPrice: money3(line.unitPrice),
             vatRate: amount(line.vatRate) || '0',
           }))
         : base.lines,
@@ -110,7 +121,9 @@ const plain = (value: bigint) => formatAtScale(value).replace(/,/g, '')
  * The lines' net, VAT and total through the invoice engine, so a bill's arithmetic is the same
  * audited arithmetic as an invoice's. Null when there are no lines to add up.
  */
-export function linesTotals(lines: BillLine[]): { net: string; vat: string; total: string; lineNets: string[] } | null {
+export function linesTotals(
+  lines: BillLine[],
+): { net: string; vat: string; total: string; lineNets: string[] } | null {
   if (lines.length === 0) return null
   const projected = projectInvoice(
     calculateInvoice(
@@ -150,21 +163,28 @@ export function totalDisagrees(form: BillForm): boolean {
  * What the server would refuse, said before sending. `needsNumber` is the bill pages' rule: a
  * supplier's bill always carries a number, and the duplicate check needs it. A receipt may not.
  */
-export function billProblems(form: BillForm, { needsNumber, partial = false }: { needsNumber: boolean; partial?: boolean }): BillProblems {
+export function billProblems(
+  form: BillForm,
+  { needsNumber, partial = false }: { needsNumber: boolean; partial?: boolean },
+): BillProblems {
   const problems: BillProblems = {}
   // A bill kept for later may be half typed; what it may not be is malformed, because the server
   // would refuse the figures and the person would only find out on coming back.
-  if (!partial && !form.supplierId && !form.supplierName.trim()) problems.supplier = 'billIntake.error.supplier'
-  if (!partial && needsNumber && !form.billNumber.trim()) problems.billNumber = 'validation.required'
+  if (!partial && !form.supplierId && !form.supplierName.trim())
+    problems.supplier = 'billIntake.error.supplier'
+  if (!partial && needsNumber && !form.billNumber.trim())
+    problems.billNumber = 'validation.required'
   if (!partial && !form.issueDate) problems.issueDate = 'validation.required'
-  if (form.issueDate && form.dueDate && form.dueDate < form.issueDate) problems.dueDate = 'billIntake.error.dueBeforeIssue'
+  if (form.issueDate && form.dueDate && form.dueDate < form.issueDate)
+    problems.dueDate = 'billIntake.error.dueBeforeIssue'
   if (!partial && !form.currency) problems.currency = 'validation.required'
   const total = form.total.trim()
   if (!total && !partial) problems.total = 'validation.required'
   else if (total && !MONEY.test(total)) problems.total = 'billIntake.error.amount'
   const vat = form.vat.trim()
   if (vat && !MONEY.test(vat)) problems.vat = 'billIntake.error.amount'
-  else if (vat && MONEY.test(total) && Number(vat) > Number(total)) problems.vat = 'billIntake.error.vatOverTotal'
+  else if (vat && MONEY.test(total) && Number(vat) > Number(total))
+    problems.vat = 'billIntake.error.vatOverTotal'
   const badLine = form.lines.some(
     (line) =>
       (!partial && !line.description.trim()) ||
@@ -225,7 +245,10 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
  * line arithmetic below off malformed input. The lines' nets come through the same engine as a
  * confirmation's.
  */
-export function toCorrections(form: BillForm, supplierVatNumber: string | null): IntakeCorrectionsDto {
+export function toCorrections(
+  form: BillForm,
+  supplierVatNumber: string | null,
+): IntakeCorrectionsDto {
   const totals = linesTotals(form.lines)
   const orNull = (value: string) => (value.trim() ? value.trim() : null)
   const money = (value: string) => (MONEY.test(value.trim()) ? Number(value.trim()) : null)
@@ -277,8 +300,13 @@ export type FileKind = 'pdf' | 'image' | 'xml'
 export function fileKindOf(file: { type: string; name: string }): FileKind {
   const type = file.type.toLowerCase()
   const name = file.name.toLowerCase()
-  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf'
-  if (type.includes('xml') || name.endsWith('.xml')) return 'xml'
+  // The declared type first, the name only when there is none: a stored file comes back with
+  // the type the server recorded, and an SVG ("image/svg+xml") is a picture, not an e-invoice.
+  if (type === 'application/pdf') return 'pdf'
+  if (type.startsWith('image/')) return 'image'
+  if (type.includes('xml')) return 'xml'
+  if (name.endsWith('.pdf')) return 'pdf'
+  if (name.endsWith('.xml')) return 'xml'
   return 'image'
 }
 

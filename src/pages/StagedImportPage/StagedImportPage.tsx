@@ -3,7 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { FileDropzone, RowsView } from '../../components/ui'
-import { ApiReadFailure, LoadingNotice, Notice, PermissionDeniedNotice } from '../../components/feedback/ApiNotice'
+import {
+  ApiReadFailure,
+  LoadingNotice,
+  Notice,
+  PermissionDeniedNotice,
+} from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
   IMPORT_MAX_BYTES,
@@ -50,19 +55,17 @@ const SEVERITY_ROW: Record<ImportSeverity, string> = {
   CANNOT_IMPORT: 'bg-[#fdf4f2]',
 }
 
-const SEVERITY_CHIP: Record<ImportSeverity, string> = {
-  READY: 'bg-success-100 text-[#3d5648]',
-  NEEDS_A_LOOK: 'bg-pending-100 text-pending-700',
-  CANNOT_IMPORT: 'bg-[#f7e0da] text-warning-700',
-}
-
 /**
- * Importing counterparties from a file, for suppliers and for customers alike (E-06).
+ * Importing counterparties from a file, for suppliers and for customers alike (Figma 163:28227,
+ * "Suppliers > Import a list from Excel"; the customer routes draw the same page).
  *
  * The three steps are the API's own: the file is checked and staged without creating anything, the
- * review keeps or leaves out each row, and the commit brings the kept ones in. Nothing here edits
- * a row — the API stages a verdict and cannot take a correction — so a refused row is fixed in the
- * file and checked again, which is what the failed-rows download is for.
+ * review keeps or leaves out each row, and the commit brings the kept ones in. The frame corrects a
+ * row in place ("Fix all 3 like this", "Yes, Net 30", "Update instead"); the API stages a verdict
+ * and cannot yet take a correction, so the field box is drawn as the frame draws it and a typed
+ * value stays on the screen (TODO(backend): a per-row correction that re-checks the row, and an
+ * "update the existing record" choice for a duplicate). A refused row is fixed in the file and
+ * checked again, which is what the failed-rows download is for.
  *
  * The batch id lives in the address, so a reload during the review returns to the same batch
  * rather than to an upload box.
@@ -85,11 +88,17 @@ function StagedImport({ target }: { target: ImportTarget }) {
   const [seeded, setSeeded] = useState<string | null>(null)
   const [tab, setTab] = useState<ImportTabId>('cannotImport')
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<{ key: string; values?: Record<string, string | number> } | { body: string } | null>(null)
+  const [notice, setNotice] = useState<
+    { key: string; values?: Record<string, string | number> } | { body: string } | null
+  >(null)
   const [result, setResult] = useState<ImportCommitResultDto | null>(null)
   const routes = IMPORT_ROUTES[target]
+  const kind = target === 'SUPPLIER' ? 'suppliers' : 'customers'
 
-  const read = useApiRead<ImportBatchDto>(batchId ? importBatchPath(target, batchId) : null, batchId ? () => loadImportBatch(target, batchId) : undefined)
+  const read = useApiRead<ImportBatchDto>(
+    batchId ? importBatchPath(target, batchId) : null,
+    batchId ? () => loadImportBatch(target, batchId) : undefined,
+  )
   const batch = read.read.status === 'ready' ? read.read.data : null
   const blocker = useMemo(() => (batch ? batchBlocker(batch, new Date()) : null), [batch])
 
@@ -110,7 +119,11 @@ function StagedImport({ target }: { target: ImportTarget }) {
   const failed = (error: unknown) => {
     const message = describeApiFailure(error)
     const body = t(message.key, message.values)
-    setNotice({ body: message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body })
+    setNotice({
+      body: message.reference
+        ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+        : body,
+    })
   }
 
   const upload = async (file: File) => {
@@ -129,7 +142,10 @@ function StagedImport({ target }: { target: ImportTarget }) {
   const template = async () => {
     setNotice(null)
     try {
-      saveDownload(await downloadImportTemplate(target), `fawtir-${target.toLowerCase()}-template.csv`)
+      saveDownload(
+        await downloadImportTemplate(target),
+        `fawtir-${target.toLowerCase()}-template.csv`,
+      )
     } catch (error) {
       failed(error)
     }
@@ -139,7 +155,10 @@ function StagedImport({ target }: { target: ImportTarget }) {
     if (!batch) return
     setNotice(null)
     try {
-      saveDownload(await downloadFailedRows(target, batch.id), `${target.toLowerCase()}-rows-that-failed.csv`)
+      saveDownload(
+        await downloadFailedRows(target, batch.id),
+        `${target.toLowerCase()}-rows-that-failed.csv`,
+      )
     } catch (error) {
       failed(error)
     }
@@ -165,21 +184,28 @@ function StagedImport({ target }: { target: ImportTarget }) {
     setParams({}, { replace: true })
   }
 
+  const reviewing = Boolean(batch) && !result
+
   const header = (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <Link to={routes.list} className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700">
+          <Link
+            to={routes.list}
+            className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700"
+          >
             {t(`stagedImport.target.${target}.list`)}
           </Link>
           <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
-          <span className="text-2xl font-medium leading-[1.2] text-text-primary">{t('stagedImport.breadcrumb')}</span>
+          <span className="text-2xl font-medium leading-[1.2] text-text-primary">
+            {t('stagedImport.breadcrumb')}
+          </span>
         </div>
         <h1 className="mt-1 text-[32px] font-medium leading-[1.2] text-text-primary">
-          {t(batch && !result ? 'stagedImport.reviewTitle' : `stagedImport.target.${target}.title`)}
+          {t(reviewing ? 'stagedImport.reviewTitle' : `stagedImport.target.${target}.title`)}
         </h1>
         <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
-          {t(batch && !result ? 'stagedImport.reviewSubtitle' : `stagedImport.target.${target}.subtitle`)}
+          {t(reviewing ? 'stagedImport.reviewSubtitle' : `stagedImport.target.${target}.subtitle`)}
         </p>
       </div>
       {batchId ? (
@@ -194,23 +220,41 @@ function StagedImport({ target }: { target: ImportTarget }) {
     </div>
   )
 
+  // The frame numbers the steps 1, 3, 4; they run in sequence here.
   const steps = (
     <section className="flex flex-wrap items-center gap-4 rounded-md bg-surface-card px-6 py-4">
       {(['upload', 'check', 'bring'] as const).map((step, index, all) => {
-        const done = (step === 'upload' && Boolean(batch)) || (step === 'check' && Boolean(result)) || (step === 'bring' && Boolean(result))
-        const current = (step === 'upload' && !batch) || (step === 'check' && Boolean(batch) && !result)
+        const done =
+          (step === 'upload' && Boolean(batch)) ||
+          (step === 'check' && Boolean(result)) ||
+          (step === 'bring' && Boolean(result))
+        const current =
+          (step === 'upload' && !batch) || (step === 'check' && Boolean(batch) && !result)
         return (
           <div key={step} className="flex flex-1 items-center gap-4">
             <span className="flex items-center gap-2.5">
               <span
                 className={[
                   'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                  done ? 'bg-success-700 text-white' : current ? 'bg-primary-700 text-white' : 'bg-surface-background text-text-quaternary',
+                  done
+                    ? 'bg-success-700 text-white'
+                    : current
+                      ? 'bg-primary-700 text-white'
+                      : 'bg-surface-background text-text-quaternary',
                 ].join(' ')}
               >
                 {done ? <img src={tickIcon} alt="" className="size-3.5" /> : index + 1}
               </span>
-              <span className={['whitespace-nowrap text-sm font-semibold', current ? 'text-primary-700' : done ? 'text-text-secondary' : 'text-text-quaternary'].join(' ')}>
+              <span
+                className={[
+                  'whitespace-nowrap text-sm font-semibold',
+                  current
+                    ? 'text-primary-700'
+                    : done
+                      ? 'text-text-secondary'
+                      : 'text-text-quaternary',
+                ].join(' ')}
+              >
                 {t(`stagedImport.step.${step}`)}
               </span>
             </span>
@@ -225,16 +269,25 @@ function StagedImport({ target }: { target: ImportTarget }) {
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-28">
       {header}
       {steps}
-      {notice ? <Notice body={'key' in notice ? t(notice.key, notice.values) : notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+      {notice ? (
+        <Notice
+          body={'key' in notice ? t(notice.key, notice.values) : notice.body}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
 
       {result ? (
         <section className="rounded-md bg-surface-card p-6">
-          <h2 className="text-xl font-medium leading-[1.2] text-text-primary">{t(`stagedImport.target.${target}.done`, { count: result.created })}</h2>
+          <h2 className="text-xl font-medium leading-[1.2] text-text-primary">
+            {t(`stagedImport.target.${target}.done`, { count: result.created })}
+          </h2>
           <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
             {t('stagedImport.doneNote', { selected: result.selected, skipped: result.skipped })}
           </p>
           {result.created < result.selected ? (
-            <p className="mt-2 text-sm font-medium leading-[1.5] text-warning-700">{t('stagedImport.doneStale', { count: result.selected - result.created })}</p>
+            <p className="mt-2 text-sm font-medium leading-[1.5] text-warning-700">
+              {t('stagedImport.doneStale', { count: result.selected - result.created })}
+            </p>
           ) : null}
           <div className="mt-4 flex flex-wrap gap-2.5">
             <Link
@@ -260,19 +313,27 @@ function StagedImport({ target }: { target: ImportTarget }) {
             accept=".csv"
             maxBytes={IMPORT_MAX_BYTES}
             onFiles={(files) => void upload(files[0])}
-            onReject={(reason, file) => setNotice({ key: `stagedImport.reject.${reason}`, values: { name: file.name } })}
+            onReject={(reason, file) =>
+              setNotice({ key: `stagedImport.reject.${reason}`, values: { name: file.name } })
+            }
             className="w-full"
           >
             {({ dragging }) => (
               <div
                 className={[
                   'flex flex-col items-center gap-3 rounded-md border border-dashed px-6 py-12 text-center transition-colors',
-                  dragging ? 'border-primary-700 bg-primary-25' : 'border-border-subtle bg-surface-background/40',
+                  dragging
+                    ? 'border-primary-700 bg-primary-25'
+                    : 'border-border-subtle bg-surface-background/40',
                 ].join(' ')}
               >
                 <img src={uploadIcon} alt="" className="size-8" />
-                <p className="text-base font-semibold text-text-primary">{busy ? t('stagedImport.checking') : t('stagedImport.dropHere')}</p>
-                <p className="text-sm font-medium text-text-quaternary">{t('stagedImport.fileRules')}</p>
+                <p className="text-base font-semibold text-text-primary">
+                  {busy ? t('stagedImport.checking') : t('stagedImport.dropHere')}
+                </p>
+                <p className="text-sm font-medium text-text-quaternary">
+                  {t('stagedImport.fileRules')}
+                </p>
               </div>
             )}
           </FileDropzone>
@@ -284,19 +345,25 @@ function StagedImport({ target }: { target: ImportTarget }) {
             >
               {t('stagedImport.downloadTemplate')}
             </button>
-            <p className="text-sm font-medium text-text-quaternary">{t('stagedImport.templateNote')}</p>
+            <p className="text-sm font-medium text-text-quaternary">
+              {t('stagedImport.templateNote')}
+            </p>
           </div>
         </section>
       ) : null}
 
       {batchId && read.read.status === 'loading' ? <LoadingNotice /> : null}
-      {batchId && read.read.status === 'failed' ? <ApiReadFailure error={read.read.error} retry={read.retry} /> : null}
+      {batchId && read.read.status === 'failed' ? (
+        <ApiReadFailure error={read.read.error} retry={read.retry} />
+      ) : null}
 
       {batch && !result ? (
         <>
           {blocker ? (
             <section className="rounded-sm border border-primary-300 bg-primary-25 p-4">
-              <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t(`stagedImport.blocked.${blocker}`)}</p>
+              <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+                {t(`stagedImport.blocked.${blocker}`)}
+              </p>
             </section>
           ) : null}
 
@@ -305,13 +372,37 @@ function StagedImport({ target }: { target: ImportTarget }) {
               name: batch.filename ?? t('stagedImport.unnamedFile'),
               count: batch.totalRows,
             })}
-            {batch.expiresAt ? ` · ${t('stagedImport.expires', { when: formatInstant(batch.expiresAt, language) })}` : ''}
+            {batch.expiresAt
+              ? ` · ${t('stagedImport.expires', { when: formatInstant(batch.expiresAt, language) })}`
+              : ''}
           </p>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <SummaryCard tone="ready" icon={checkIcon} title={t('stagedImport.card.ready')} value={batch.counts.ready} note={t('stagedImport.card.readyNote')} />
-            <SummaryCard tone="warning" icon={warnIcon} title={t('stagedImport.card.needsALook')} value={batch.counts.needsALook} note={t('stagedImport.card.needsALookNote')} />
-            <SummaryCard tone="blocked" icon={stopIcon} title={t('stagedImport.card.cannotImport')} value={batch.counts.cannotImport} note={t('stagedImport.card.cannotImportNote')} />
+            <SummaryCard
+              tone="ready"
+              icon={checkIcon}
+              title={t('stagedImport.card.ready')}
+              value={batch.counts.ready}
+              note={
+                typeof batch.counts.onPeppol === 'number'
+                  ? t('stagedImport.card.readyNotePeppol', { count: batch.counts.onPeppol })
+                  : t('stagedImport.card.readyNote')
+              }
+            />
+            <SummaryCard
+              tone="warning"
+              icon={warnIcon}
+              title={t('stagedImport.card.needsALook')}
+              value={batch.counts.needsALook}
+              note={t('stagedImport.card.needsALookNote')}
+            />
+            <SummaryCard
+              tone="blocked"
+              icon={stopIcon}
+              title={t('stagedImport.card.cannotImport')}
+              value={batch.counts.cannotImport}
+              note={t('stagedImport.card.cannotImportNote')}
+            />
           </div>
 
           <section className="rounded-md bg-surface-card">
@@ -325,31 +416,50 @@ function StagedImport({ target }: { target: ImportTarget }) {
                   onClick={() => setTab(entry)}
                   className={[
                     'inline-flex h-[54px] items-center gap-2 border-b-2 px-4 text-sm font-medium transition-colors',
-                    entry === tab ? 'border-primary-700 text-primary-700' : 'border-transparent text-text-quaternary hover:text-text-secondary',
+                    entry === tab
+                      ? 'border-primary-700 text-primary-700'
+                      : 'border-transparent text-text-quaternary hover:text-text-secondary',
                   ].join(' ')}
                 >
                   {t(`stagedImport.tab.${entry}`)}
-                  <span className={['text-xs font-semibold', entry === tab ? 'text-primary-700' : 'text-text-quaternary'].join(' ')}>{tabCount(batch, entry)}</span>
+                  <span
+                    className={[
+                      'text-xs font-semibold',
+                      entry === tab ? 'text-primary-700' : 'text-text-quaternary',
+                    ].join(' ')}
+                  >
+                    {tabCount(batch, entry)}
+                  </span>
                 </button>
               ))}
             </div>
 
             <RowsView>
-              <table className="w-full min-w-[900px] border-collapse">
+              <table className="w-full min-w-[980px] border-collapse">
                 <thead>
                   <tr className="border-b border-surface-background text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary">
-                    <th className="px-5 py-3 text-start font-semibold">{t('stagedImport.col.bringIn')}</th>
-                    {(['row', 'name', 'verdict', 'whatsWrong'] as const).map((key) => (
-                      <th key={key} className="px-5 py-3 text-start font-semibold">
-                        {t(`stagedImport.col.${key}`)}
-                      </th>
-                    ))}
+                    <th className="px-5 py-3 text-start font-semibold">
+                      {t('stagedImport.col.row')}
+                    </th>
+                    <th className="px-5 py-3 text-start font-semibold">
+                      {t(`stagedImport.col.${kind}`)}
+                    </th>
+                    <th className="px-5 py-3 text-start font-semibold">
+                      {t('stagedImport.col.problemField')}
+                    </th>
+                    <th className="px-5 py-3 text-start font-semibold">
+                      {t('stagedImport.col.whatsWrong')}
+                    </th>
+                    <th className="px-5 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {rowsInTab(batch, tab).length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-14 text-center text-sm font-medium text-text-quaternary">
+                      <td
+                        colSpan={5}
+                        className="py-14 text-center text-sm font-medium text-text-quaternary"
+                      >
                         {t('stagedImport.nothingHere')}
                       </td>
                     </tr>
@@ -379,7 +489,12 @@ function StagedImport({ target }: { target: ImportTarget }) {
           <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur">
             <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3 px-6 py-4">
               <p className="text-sm font-medium text-text-tertiary">
-                <span className="font-semibold text-text-primary">{t('stagedImport.wouldComeIn', { coming: comingIn(batch, keep), total: batch.totalRows })}</span>{' '}
+                <span className="font-semibold text-text-primary">
+                  {t('stagedImport.wouldComeIn', {
+                    coming: comingIn(batch, keep),
+                    total: batch.totalRows,
+                  })}
+                </span>{' '}
                 {t('stagedImport.leftOut', { count: batch.totalRows - comingIn(batch, keep) })}
               </p>
               <div className="flex flex-wrap items-center gap-2.5">
@@ -404,7 +519,9 @@ function StagedImport({ target }: { target: ImportTarget }) {
                   className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
                 >
                   <img src={tickIcon} alt="" className="size-4" />
-                  {busy ? t('stagedImport.bringingIn') : t('stagedImport.bringIn', { count: comingIn(batch, keep) })}
+                  {busy
+                    ? t('stagedImport.bringingIn')
+                    : t(`stagedImport.target.${target}.bringIn`, { count: comingIn(batch, keep) })}
                 </button>
               </div>
             </div>
@@ -415,42 +532,85 @@ function StagedImport({ target }: { target: ImportTarget }) {
   )
 }
 
-function ImportRow({ row, kept, disabled, onToggle }: { row: ImportBatchRowDto; kept: boolean; disabled: boolean; onToggle: () => void }) {
+const NAME_FIELDS = new Set(['legalRegisteredName', 'entityMinistryName', 'firstName', 'lastName'])
+
+function ImportRow({
+  row,
+  kept,
+  disabled,
+  onToggle,
+}: {
+  row: ImportBatchRowDto
+  kept: boolean
+  disabled: boolean
+  onToggle: () => void
+}) {
   const { t } = useTranslation()
   const field = fieldLabel(row.field)
   const note = problemNote(row)
   const canKeep = importable(row)
+  // TODO(backend): a correction typed here should re-check the row; until then it stays on screen.
+  const [typed, setTyped] = useState<string | null>(null)
+  const value = typed ?? row.value ?? ''
 
   return (
-    <tr className={['border-b border-surface-background last:border-0', canKeep && !kept ? 'opacity-50' : SEVERITY_ROW[row.severity]].join(' ')}>
-      <td className="px-5 py-4 align-top">
-        {canKeep ? (
-          <input
-            type="checkbox"
-            checked={kept}
-            disabled={disabled}
-            onChange={onToggle}
-            aria-label={t('stagedImport.bringInRow', { row: row.rowNumber })}
-            className="size-4 accent-primary-700"
-          />
-        ) : (
-          <span className="text-xs font-semibold uppercase text-warning-700">{t('stagedImport.leftOutRow')}</span>
-        )}
-      </td>
-      <td className="px-5 py-4 align-top text-sm font-medium text-text-quaternary tabular-nums">{row.rowNumber}</td>
-      <td className="px-5 py-4 align-top">
-        <p className={['text-sm font-semibold', row.displayName ? 'text-text-primary' : 'text-text-quaternary'].join(' ')}>{row.displayName || t('stagedImport.blank')}</p>
-        {field ? <p className="mt-1 text-xs font-medium text-text-quaternary">{'key' in field ? t(field.key) : field.text}</p> : null}
+    <tr
+      className={[
+        'border-b border-surface-background last:border-0',
+        canKeep && !kept ? 'opacity-50' : SEVERITY_ROW[row.severity],
+      ].join(' ')}
+    >
+      <td className="px-5 py-4 align-top text-sm font-medium text-text-quaternary tabular-nums">
+        {row.rowNumber}
       </td>
       <td className="px-5 py-4 align-top">
-        <span className={['inline-flex h-[24px] items-center rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]', SEVERITY_CHIP[row.severity]].join(' ')}>
-          {t(`stagedImport.severity.${row.severity}`)}
-        </span>
+        <p
+          className={[
+            'text-sm font-semibold',
+            row.displayName ? 'text-text-primary' : 'text-text-quaternary',
+          ].join(' ')}
+        >
+          {row.displayName || t('stagedImport.blank')}
+        </p>
+        {row.summary ? (
+          <p className="mt-1 text-xs font-medium text-text-quaternary">{row.summary}</p>
+        ) : null}
+      </td>
+      <td className="px-5 py-4 align-top">
+        {field ? (
+          <label className="block text-xs font-medium text-text-quaternary">
+            <span className="block">{'key' in field ? t(field.key) : field.text}</span>
+            <input
+              value={value}
+              disabled={disabled}
+              placeholder={
+                row.field && NAME_FIELDS.has(row.field)
+                  ? t('stagedImport.typeAName')
+                  : t('stagedImport.empty')
+              }
+              dir="auto"
+              onChange={(event) => setTyped(event.target.value)}
+              className={[
+                'mt-1 h-[42px] w-[190px] rounded-sm border bg-white px-3 text-sm font-medium text-text-secondary outline-none placeholder:text-text-placeholder focus:border-primary-700',
+                row.severity === 'READY' ? 'border-success-700' : 'border-primary-300',
+              ].join(' ')}
+            />
+          </label>
+        ) : null}
       </td>
       <td className="px-5 py-4 align-top">
         {note ? (
-          <p className={['flex max-w-[360px] items-start gap-2 text-sm font-medium leading-[1.5]', row.severity === 'CANNOT_IMPORT' ? 'text-warning-700' : 'text-pending-700'].join(' ')}>
-            <img src={row.severity === 'CANNOT_IMPORT' ? stopIcon : warnIcon} alt="" className="mt-0.5 size-4 shrink-0" />
+          <p
+            className={[
+              'flex max-w-[300px] items-start gap-2 text-sm font-medium leading-[1.5]',
+              row.severity === 'CANNOT_IMPORT' ? 'text-warning-700' : 'text-pending-700',
+            ].join(' ')}
+          >
+            <img
+              src={row.severity === 'CANNOT_IMPORT' ? stopIcon : warnIcon}
+              alt=""
+              className="mt-0.5 size-4 shrink-0"
+            />
             {'key' in note ? t(note.key) : note.text}
           </p>
         ) : (
@@ -460,11 +620,45 @@ function ImportRow({ row, kept, disabled, onToggle }: { row: ImportBatchRowDto; 
           </p>
         )}
       </td>
+      <td className="px-5 py-4 align-top text-end">
+        {canKeep ? (
+          <button
+            type="button"
+            disabled={disabled}
+            aria-pressed={!kept}
+            onClick={onToggle}
+            className="inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-40"
+          >
+            {kept
+              ? t('stagedImport.action.leaveOut')
+              : row.severity === 'NEEDS_A_LOOK'
+                ? t('stagedImport.action.bringInAnyway')
+                : t('stagedImport.action.bringItIn')}
+          </button>
+        ) : (
+          // The check refuses the row whatever is chosen; it comes back in through the file.
+          <span className="inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-quaternary">
+            {t('stagedImport.leftOutRow')}
+          </span>
+        )}
+      </td>
     </tr>
   )
 }
 
-function SummaryCard({ tone, icon, title, value, note }: { tone: 'ready' | 'warning' | 'blocked'; icon: string; title: string; value: number; note: string }) {
+function SummaryCard({
+  tone,
+  icon,
+  title,
+  value,
+  note,
+}: {
+  tone: 'ready' | 'warning' | 'blocked'
+  icon: string
+  title: string
+  value: number
+  note: string
+}) {
   const styles = {
     ready: 'border-[#cfe0d5] bg-[#eef5f0] text-[#3d5648]',
     warning: 'border-pending-200 bg-pending-100 text-pending-700',
