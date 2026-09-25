@@ -547,6 +547,14 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     body: string
     stale?: boolean
   } | null>(null)
+  // The notice renders above section 1, but "Create invoice" sits at the foot of a form long
+  // enough to scroll -- an error set from there was rendered off-screen with nothing to carry
+  // the reader to it (F1). Scoped to 'error' only: a save's own success notice appears right
+  // where the reader already is.
+  const noticeRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (notice?.tone === 'error') noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [notice])
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle' })
   const [issueDate, setIssueDate] = useState(muscatToday)
   const [dueDate, setDueDate] = useState(() => paymentTermOf('NET30')!.due(muscatToday()))
@@ -1151,14 +1159,16 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
         <Notice body={t('invoiceDraft.readOnly')} />
       ) : null}
       {notice ? (
-        <Notice
-          body={notice.body}
-          action={
-            notice.stale
-              ? { label: t('invoiceDraft.reload'), onClick: () => navigate(0) }
-              : { label: t('common.close'), onClick: () => setNotice(null) }
-          }
-        />
+        <div ref={noticeRef}>
+          <Notice
+            body={notice.body}
+            action={
+              notice.stale
+                ? { label: t('invoiceDraft.reload'), onClick: () => navigate(0) }
+                : { label: t('common.close'), onClick: () => setNotice(null) }
+            }
+          />
+        </div>
       ) : null}
 
       {/* 1 Customer + Summary */}
