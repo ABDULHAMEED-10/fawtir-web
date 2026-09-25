@@ -2,7 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, FilterMenu, RowsView, SortMenu } from '../../components/ui'
+import { ActionMenu, FilterMenu, Pager, RowsView, SortMenu } from '../../components/ui'
+import { useApiRead } from '../../hooks'
+import {
+  activitySummaryPath,
+  loadActivitySummary,
+  type ActivitySummaryDto,
+} from '../../api/compliance/activity'
+import { defaultReportRange } from '../../api/reports/reports'
 import {
   CALL_RESULTS,
   CALL_SORTS,
@@ -17,15 +24,23 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 import lockIcon from '../../assets/activity/lock.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import filterIcon from '../../assets/bills/filter.svg'
-import exportIcon from '../../assets/bill-capture/file.svg'
-import viewIcon from '../../assets/actions/view.svg'
+import retryIcon from '../../assets/catalog/menu-refresh.svg'
+import checkIcon from '../../assets/invoices/search.svg'
+import fileIcon from '../../assets/bill-capture/file.svg'
+import ackIcon from '../../assets/activity/ch-peppol.svg'
+import exportIcon from '../../assets/invoice-details/download.svg'
+import bellIcon from '../../assets/bills/act-bell.svg'
+import archiveIcon from '../../assets/documents/kpi-archive.svg'
+
+/** The page the design draws, as a page of the day's calls. */
+const CALLS_PER_PAGE = 7
 
 /** Each result tints its row and its status pill, so trouble is visible without reading. */
 const RESULT_STYLE: Record<CallResult, { row: string; pill: string; meaning: string }> = {
   ok: { row: '', pill: 'bg-success-100 text-[#3d5648]', meaning: 'text-text-tertiary' },
   pending: {
     row: 'bg-pending-100/40',
-    pill: 'bg-pending-100 text-pending-700',
+    pill: 'bg-surface-background text-text-tertiary',
     meaning: 'text-pending-500',
   },
   rejected: {
@@ -35,13 +50,33 @@ const RESULT_STYLE: Record<CallResult, { row: string; pill: string; meaning: str
   },
   noAnswer: {
     row: 'bg-[#fdf4f2]',
-    pill: 'bg-danger-100 text-danger-700',
+    pill: 'bg-pending-100 text-pending-700',
     meaning: 'text-pending-500',
   },
 }
 
+/**
+ * The OTA call log (Figma 154:110659) and its "⋮" menu (154:111516).
+ *
+ * TODO(backend): there is no call-log endpoint (asks row 2.20), so the calls, the four figures
+ * and the pager are the design's day. The menu's count of submissions still waiting is the
+ * ledger's own (the activity summary), and its entries go where the platform can take them.
+ */
 export function OtaCallLogPage() {
+  return (
+    <AppShell>
+      <CallLog />
+    </AppShell>
+  )
+}
+
+function CallLog() {
   const { t } = useTranslation()
+  const [page, setPage] = useState(1)
+  const range = defaultReportRange()
+  const summaryPath = activitySummaryPath(range.from, range.to)
+  const book = useApiRead<ActivitySummaryDto>(summaryPath, () => loadActivitySummary(summaryPath))
+  const waiting = book.read.status === 'ready' ? book.read.data.tdd_ack.none : null
   const [query, setQuery] = useState('')
   const [result, setResult] = useState('all')
   const [sort, setSort] = useState<CallSortKey>('newest')
@@ -61,8 +96,10 @@ export function OtaCallLogPage() {
 
   const summary = CALL_SUMMARY
 
+  const pageCount = Math.max(1, Math.ceil(summary.callsToday / CALLS_PER_PAGE))
+
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         {/* Breadcrumb + actions */}
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -90,18 +127,67 @@ export function OtaCallLogPage() {
           <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
             <ActionMenu
               variant="bordered"
+              wide
               label={t('callLog.more')}
               items={[
                 {
-                  id: 'export',
-                  labelKey: 'activityDetail.getZip',
-                  icon: exportIcon,
+                  id: 'retryWaiting',
+                  sectionKey: 'callLog.menu.putThingsRight',
+                  labelKey: 'callLog.menu.retryWaiting',
+                  descriptionKey: 'callLog.menu.retryWaitingNote',
+                  values: { count: waiting ?? 0 },
+                  hint: waiting === null ? undefined : String(waiting),
+                  icon: retryIcon,
+                  // Opens the rows still waiting rather than resending them: SPOG v1.0.0 §6.2
+                  // forbids a resend on silence alone, so the ledger offers one only where the
+                  // server put a link.
+                  to: '/compliance/activity?tab=waiting',
                 },
                 {
-                  id: 'submissions',
-                  labelKey: 'callLog.backToSubmissions',
-                  icon: viewIcon,
+                  id: 'checkPortal',
+                  labelKey: 'callLog.menu.checkPortal',
+                  descriptionKey: 'callLog.menu.checkPortalNote',
+                  icon: checkIcon,
                   to: '/compliance/activity',
+                },
+                {
+                  id: 'everyTdd',
+                  sectionKey: 'callLog.menu.takeACopy',
+                  labelKey: 'callLog.menu.everyTdd',
+                  descriptionKey: 'callLog.menu.everyTddNote',
+                  icon: fileIcon,
+                  // TODO(backend): no bulk TDD download yet (asks row 2.21); the report pack
+                  // carries the XML when its box is ticked.
+                  to: '/compliance/activity/report',
+                },
+                {
+                  id: 'acks',
+                  labelKey: 'callLog.menu.acks',
+                  descriptionKey: 'callLog.menu.acksNote',
+                  icon: ackIcon,
+                  to: '/compliance/activity/report',
+                },
+                {
+                  id: 'export',
+                  labelKey: 'callLog.menu.exportLog',
+                  descriptionKey: 'callLog.menu.exportLogNote',
+                  icon: exportIcon,
+                  // TODO(backend): no call-log export yet (asks row 2.20).
+                },
+                {
+                  id: 'who',
+                  sectionKey: 'callLog.menu.settings',
+                  labelKey: 'callLog.menu.whoHears',
+                  descriptionKey: 'callLog.menu.whoHearsNote',
+                  icon: bellIcon,
+                  to: '/settings/team',
+                },
+                {
+                  id: 'retention',
+                  labelKey: 'callLog.menu.retention',
+                  descriptionKey: 'callLog.menu.retentionNote',
+                  icon: archiveIcon,
+                  to: '/documents',
                 },
               ]}
             />
@@ -115,7 +201,7 @@ export function OtaCallLogPage() {
         </div>
 
         {/* Who can see this */}
-        <p className="flex items-start gap-2.5 rounded-sm bg-surface-background px-4 py-3.5 text-sm font-medium leading-[1.5] text-text-tertiary">
+        <p className="flex items-start gap-2.5 rounded-sm bg-[#e6e7eb] px-6 py-3.5 text-sm font-medium leading-[1.5] text-text-secondary">
           <img src={lockIcon} alt="" className="mt-0.5 size-4 shrink-0" />
           <span>
             <Trans
@@ -218,6 +304,15 @@ export function OtaCallLogPage() {
                       {t('callLog.empty')}
                     </td>
                   </tr>
+                ) : page > 1 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="py-12 text-center text-sm font-medium text-text-quaternary"
+                    >
+                      {t('callLog.notHeld')}
+                    </td>
+                  </tr>
                 ) : (
                   rows.map((call) => <CallRow key={call.id} call={call} />)
                 )}
@@ -225,15 +320,27 @@ export function OtaCallLogPage() {
             </table>
           </RowsView>
 
-          <p className="px-5 py-4 text-sm font-medium text-text-quaternary">
-            {t('callLog.showing', {
-              shown: rows.length,
-              total: summary.callsToday.toLocaleString('en-US'),
-            })}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <p className="text-sm font-medium text-text-secondary">
+              {t('callLog.showing', {
+                shown: page > 1 ? 0 : rows.length,
+                total: summary.callsToday.toLocaleString('en-US'),
+              })}
+            </p>
+            <Pager
+              page={page}
+              pageCount={pageCount}
+              onChange={setPage}
+              labels={{
+                nav: t('callLog.pagerNav'),
+                previous: t('common.previous'),
+                next: t('common.next'),
+              }}
+            />
+          </div>
         </section>
       </div>
-    </AppShell>
+    </>
   )
 }
 
@@ -246,7 +353,7 @@ function CallRow({ call }: { call: OtaCall }) {
       <td className="px-4 py-4 align-top">
         <Link
           to={`/compliance/activity/call-log/${call.id}`}
-          className="whitespace-nowrap text-sm font-semibold text-text-secondary tabular-nums hover:text-primary-700 hover:underline"
+          className="whitespace-nowrap font-mono text-sm text-text-secondary hover:text-primary-700 hover:underline"
         >
           {call.at}
         </Link>
@@ -269,7 +376,7 @@ function CallRow({ call }: { call: OtaCall }) {
 
       <td className="px-4 py-4 align-top">
         <Link
-          to={`/compliance/activity/${call.invoice}`}
+          to={`/compliance/activity?q=${call.invoice}`}
           className="text-sm font-semibold text-primary-700 hover:underline"
         >
           {call.invoice}

@@ -88,6 +88,7 @@ import {
   MakeRolePage,
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
+import { UploadDocumentPage } from './pages/UploadDocumentPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
 import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
@@ -338,6 +339,7 @@ function App() {
           <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
           <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
           <Route path="/compliance/documents" element={<DocumentsPage />} />
+          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
           <Route path="/compliance/documents/:id" element={<DocumentDetailPage />} />
           <Route
             path="/expenditure/payments/:runId/invoices"

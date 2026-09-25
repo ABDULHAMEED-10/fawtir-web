@@ -1,10 +1,19 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { RialText, withRial } from '../../components/ui'
-import { BUILT_REPORT, builtFigures, formatOmr, type RegisterRow } from '../../lib/complianceReport'
-import { ComplianceReportModal } from './ComplianceReportModal'
+import {
+  BUILT_REPORT,
+  builtFigures,
+  formatOmr,
+  periodRange,
+  type RegisterRow,
+} from '../../lib/complianceReport'
+import { ledgerExportPath } from '../../api/compliance/activity'
+import { downloadReport } from '../../api/reports/reports'
+import { saveDownload } from '../../lib/supplierRecord'
+import { ComplianceReportModal, type ReportRequest } from './ComplianceReportModal'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import printIcon from '../../assets/invoice-details/print.svg'
 import excelIcon from '../../assets/reports/list-catalog.svg'
@@ -19,7 +28,11 @@ const OUTCOME_CHIP: Record<RegisterRow['outcome'], string> = {
 }
 
 /**
- * The built compliance report — Compliance › Activity › Report (Figma 131:15307).
+ * The built compliance report: Compliance › Activity › Report (Figma 154:109471, "Build report").
+ *
+ * TODO(backend): there is no endpoint that builds, stores or returns a report (asks row 2.10), so
+ * the document is the design's Q2 pack. "Download Excel" is real: it is the ledger export for the
+ * report's quarter, the same file the dialog's Excel format produces.
  *
  * The left pane is the document itself, rendered rather than embedded, so it stays legible and
  * searchable in the browser; the right column is what you do with it. Every figure on the cover
@@ -29,7 +42,32 @@ export function ComplianceReportPage() {
   const { t } = useTranslation()
   const report = BUILT_REPORT
   const figures = builtFigures()
+  const navigate = useNavigate()
   const [rebuilding, setRebuilding] = useState(false)
+  const [excelBusy, setExcelBusy] = useState(false)
+  const [excelFailed, setExcelFailed] = useState(false)
+
+  const downloadExcel = async (range: { from: string; to: string }) => {
+    setExcelBusy(true)
+    setExcelFailed(false)
+    try {
+      const file = await downloadReport(
+        ledgerExportPath({ from: range.from, to: range.to }, 'xlsx'),
+      )
+      saveDownload(file, `fawtir-compliance-ledger-${range.from}-${range.to}.xlsx`)
+    } catch {
+      setExcelFailed(true)
+    } finally {
+      setExcelBusy(false)
+    }
+  }
+
+  const rebuild = (request: ReportRequest) => {
+    setRebuilding(false)
+    if (request.formats.includes('excel')) void downloadExcel(request)
+    if (request.formats.includes('pdf'))
+      navigate(`/compliance/activity/report?period=${request.period}`)
+  }
 
   return (
     <AppShell>
@@ -84,10 +122,12 @@ export function ComplianceReportPage() {
             </button>
             <button
               type="button"
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              disabled={excelBusy}
+              onClick={() => void downloadExcel(periodRange('quarter'))}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:text-text-tertiary"
             >
               <img src={excelIcon} alt="" className="size-5" />
-              {t('builtReport.downloadExcel')}
+              {excelBusy ? t('ledgerExport.working') : t('builtReport.downloadExcel')}
             </button>
             <button
               type="button"
@@ -99,9 +139,13 @@ export function ComplianceReportPage() {
           </div>
         </div>
 
+        {excelFailed ? (
+          <p className="text-sm font-medium text-danger-700">{t('ledgerExport.failed')}</p>
+        ) : null}
+
         <div className="flex flex-col gap-4 xl:flex-row">
           {/* The document */}
-          <article className="min-w-0 flex-1 rounded-md bg-surface-background p-5">
+          <article className="min-w-0 flex-1 rounded-md bg-[#e6e7eb] p-5 max-md:p-2">
             <div className="mx-auto max-w-[760px] rounded-sm bg-white p-8 shadow-card">
               <p className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
                 <span>{t('builtReport.pageOf', { page: 1, total: report.pages })}</span>
@@ -355,7 +399,9 @@ export function ComplianceReportPage() {
 
               <div className="mt-5 grid gap-5 sm:grid-cols-2">
                 <Field label={t('builtReport.preparedBy')}>
-                  <p className="text-sm font-semibold text-text-primary">{t('builtReport.asp')}</p>
+                  <p className="text-sm font-semibold text-text-primary">
+                    {t('builtReport.preparedByName')}
+                  </p>
                   <p className="mt-1 text-xs font-medium text-text-tertiary">
                     {t('builtReport.signedAutomatically', { at: report.builtAt })}
                   </p>
@@ -442,7 +488,7 @@ export function ComplianceReportPage() {
               </p>
               <div className="mt-4 flex flex-col gap-2.5">
                 <Link
-                  to={`/invoices/${report.unreported.invoice}`}
+                  to={`/compliance/activity?tab=rejected&q=${report.unreported.invoice}`}
                   className="inline-flex h-[42px] items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
                 >
                   {t('builtReport.putItRight', { invoice: report.unreported.invoice })}
@@ -488,13 +534,13 @@ export function ComplianceReportPage() {
       <ComplianceReportModal
         open={rebuilding}
         onClose={() => setRebuilding(false)}
-        onBuild={() => setRebuilding(false)}
+        onBuild={rebuild}
       />
     </AppShell>
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">

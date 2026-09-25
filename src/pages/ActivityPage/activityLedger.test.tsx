@@ -3,9 +3,26 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { ActivityItemDto, ActivitySummaryDto } from '../../api/compliance/activity'
-import { ACK_TONE, canResubmit, isFailure, shareOf, slaStateOf } from '../../lib/activityLedger'
+import type {
+  ActivityDetailDto,
+  ActivityItemDto,
+  ActivitySummaryDto,
+} from '../../api/compliance/activity'
+import {
+  ACK_TONE,
+  canResubmit,
+  customerAckOf,
+  flowOf,
+  formatDuration,
+  isFailure,
+  outcomeOf,
+  shareOf,
+  slaStateOf,
+  tabCount,
+} from '../../lib/activityLedger'
 import { ActivityPage } from './ActivityPage'
+import { ActivityEventPage } from './ActivityEventPage'
+import { TddResubmitPage } from './TddResubmitPage'
 import { ReportsCompliancePage } from '../ReportsCompliancePage'
 
 const UUID_A = 'a0000000-0000-0000-0000-000000000001'
@@ -48,7 +65,11 @@ function item(over: Partial<ActivityItemDto> = {}): ActivityItemDto {
       reason: null,
     },
     attention: false,
-    links: { document: '/api/v1/invoices/inv-1', tdd_xml: '/api/v1/invoices/inv-1/tdd', resubmit: null },
+    links: {
+      document: '/api/v1/invoices/inv-1',
+      tdd_xml: '/api/v1/invoices/inv-1/tdd',
+      resubmit: null,
+    },
     ...over,
   }
 }
@@ -76,6 +97,8 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let items: ActivityItemDto[]
 let resubmitted: string[]
+let summaryReply: ActivitySummaryDto
+let detailReply: ActivityDetailDto
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -83,9 +106,13 @@ beforeEach(async () => {
   who = SUBMITTER
   items = [item()]
   resubmitted = []
+  summaryReply = SUMMARY
+  detailReply = DETAIL
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.includes('/me/entitlements')) return json(200, who)
     if (url.includes('/tdd/resubmit') && init?.method === 'POST') {
       resubmitted.push(url)
@@ -97,7 +124,8 @@ beforeEach(async () => {
         headers: { 'Content-Type': 'text/csv', 'X-Fawtir-Export-Truncated': 'false' },
       })
     }
-    if (url.includes('/compliance/activity/summary')) return json(200, SUMMARY)
+    if (url.includes('/compliance/activity/summary')) return json(200, summaryReply)
+    if (url.includes('/compliance/activity/a0000000')) return json(200, detailReply)
     if (url.includes('/compliance/activity')) {
       return json(200, { items, page: 0, page_size: 25, has_more: false })
     }
@@ -146,7 +174,11 @@ describe('what an acknowledgement means', () => {
     // decides a resend is warranted.
     expect(canResubmit(item())).toBe(false)
     expect(canResubmit(item({ tdd_leg: { ...item().tdd_leg!, ack: 'NONE' } }))).toBe(false)
-    expect(canResubmit(item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } }))).toBe(true)
+    expect(
+      canResubmit(
+        item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } }),
+      ),
+    ).toBe(true)
   })
 })
 
@@ -155,13 +187,29 @@ describe('the deadline', () => {
 
   it('is pending inside the window and missed once it passes with nothing sent', () => {
     expect(slaStateOf(item(), now)).toBe('met')
-    expect(slaStateOf(item({ tdd_leg: { ...item().tdd_leg!, sla_met: false } }), now)).toBe('missed')
+    expect(slaStateOf(item({ tdd_leg: { ...item().tdd_leg!, sla_met: false } }), now)).toBe(
+      'missed',
+    )
 
     // Null while nothing has been submitted: inside its window a document has broken nothing.
-    const open = item({ tdd_leg: { ...item().tdd_leg!, sla_met: null, submitted_at: null, sla_deadline: '2026-09-20T09:00:00Z' } })
+    const open = item({
+      tdd_leg: {
+        ...item().tdd_leg!,
+        sla_met: null,
+        submitted_at: null,
+        sla_deadline: '2026-09-20T09:00:00Z',
+      },
+    })
     expect(slaStateOf(open, now)).toBe('pending')
 
-    const late = item({ tdd_leg: { ...item().tdd_leg!, sla_met: null, submitted_at: null, sla_deadline: '2026-09-20T08:15:00Z' } })
+    const late = item({
+      tdd_leg: {
+        ...item().tdd_leg!,
+        sla_met: null,
+        submitted_at: null,
+        sla_deadline: '2026-09-20T08:15:00Z',
+      },
+    })
     expect(slaStateOf(late, now)).toBe('missed')
 
     expect(slaStateOf(item({ tdd_leg: null }), now)).toBe('none')
@@ -177,40 +225,98 @@ describe('shares', () => {
   })
 })
 
+describe('one row, as the frame reads it', () => {
+  it('reads the four outcomes off the TDD leg, and superseded only from the server', () => {
+    expect(outcomeOf(item())).toBe('accepted')
+    expect(outcomeOf(item({ tdd_leg: { ...item().tdd_leg!, ack: 'RE' } }))).toBe('rejected')
+    // Silence is "Still waiting", never a rejection.
+    expect(outcomeOf(item({ tdd_leg: { ...item().tdd_leg!, ack: 'NONE' } }))).toBe('waiting')
+    expect(outcomeOf(item({ tdd_leg: { ...item().tdd_leg!, status: 'SUPERSEDED' } }))).toBe(
+      'superseded',
+    )
+    expect(outcomeOf(item({ tdd_leg: null }))).toBe('notOwed')
+  })
+
+  it('names the flow and what the customer did', () => {
+    expect(flowOf(item())).toBe('b2bDomestic')
+    expect(flowOf(item({ b2c: true }))).toBe('b2c')
+    expect(flowOf(item({ tdd_leg: { ...item().tdd_leg!, variant: 'EXPORT' } }))).toBe('export')
+    expect(customerAckOf(item())).toBe('received')
+    expect(customerAckOf(item({ b2c: true }))).toBe('noCustomer')
+    expect(customerAckOf(item({ scenario: { flow: 11, stand_in_id: '997770000097' } }))).toBe(
+      'notOnPeppol',
+    )
+    expect(customerAckOf(item({ invoice_leg: { ack: 'NONE', ack_at: null, reason: null } }))).toBe(
+      'waiting',
+    )
+  })
+
+  it('counts each tab from the summary', () => {
+    expect(tabCount(SUMMARY, 'all')).toBe(100)
+    expect(tabCount(SUMMARY, 'accepted')).toBe(70)
+    expect(tabCount(SUMMARY, 'rejected')).toBe(5)
+    expect(tabCount(SUMMARY, 'waiting')).toBe(25)
+    expect(tabCount(SUMMARY, 'attention')).toBe(6)
+    // Not on the wire yet: zero, not a guess.
+    expect(tabCount(SUMMARY, 'superseded')).toBe(0)
+  })
+
+  it('prints durations the way the frame does', () => {
+    expect(formatDuration(47)).toBe('47s')
+    expect(formatDuration(134)).toBe('2m 14s')
+    expect(formatDuration(13200)).toBe('3h 40m')
+  })
+})
+
+const openRowMenu = (number: string) =>
+  fireEvent.click(screen.getByRole('button', { name: `Actions for ${number}` }))
+
 describe('the ledger screen', () => {
   it('keeps the two legs in their own columns', async () => {
     renderLedger()
     await screen.findByText('INV-0001')
-    // Different parties acknowledging different things: one merged status would lose which spoke.
-    expect(screen.getByText("Buyer's Access Point")).toBeTruthy()
-    expect(screen.getByText('Tax Authority endpoint')).toBeTruthy()
+    // The Authority's leg and the buyer's are different parties: two columns, never one status.
+    const table = screen.getByRole('table')
+    expect(within(table).getByText('What the OTA said')).toBeTruthy()
+    expect(within(table).getByText('Customer')).toBeTruthy()
+    expect(within(table).getByText('Received it')).toBeTruthy()
   })
 
-  it('never reports a tax verdict', async () => {
+  it('draws the frame: its cards, its tabs and its columns', async () => {
     renderLedger()
     await screen.findByText('INV-0001')
-    // The OTA has no channel back to a service provider, so no screen may say it accepted or
-    // said anything. The prototype's wording is gone and a note says what the acks actually are.
-    expect(screen.queryByText(/Accepted by the OTA/)).toBeNull()
-    expect(screen.queryByText(/What the OTA said/)).toBeNull()
-    expect(screen.getByText(/transport acknowledgements, not tax decisions/)).toBeTruthy()
+    // The design's wording is back (product owner, 27 Sep 2026): the frame is the layout.
+    expect(screen.getByText('Accepted by the OTA')).toBeTruthy()
+    expect(screen.getByText('Waiting on you')).toBeTruthy()
+    for (const tab of [
+      'All',
+      'Needs attention',
+      'Accepted',
+      'Rejected',
+      'Still waiting',
+      'Superseded',
+    ]) {
+      expect(screen.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeTruthy()
+    }
+    expect(screen.getByText('TDD and Fawtara reference')).toBeTruthy()
   })
 
   it('shows what is merely waiting apart from what failed', async () => {
     items = [
       item({ tdd_leg: { ...item().tdd_leg!, ack: 'NONE', ack_at: null, sla_met: null } }),
-      item({ invoice_uuid: UUID_B, invoice_number: 'INV-0002', tdd_leg: { ...item().tdd_leg!, ack: 'RE', reason: 'Schema' } }),
+      item({
+        invoice_uuid: UUID_B,
+        invoice_number: 'INV-0002',
+        tdd_leg: { ...item().tdd_leg!, ack: 'RE', reason: 'Schema' },
+      }),
     ]
     renderLedger()
     await screen.findByText('INV-0001')
 
-    // "Rejected or failed" is also a tab, so the row chips are read from the table.
     const table = screen.getByRole('table')
-    expect(within(table).getAllByText('No acknowledgement yet').length).toBeGreaterThan(0)
-    expect(within(table).getByText('Rejected or failed')).toBeTruthy()
+    expect(within(table).getByText('Still waiting')).toBeTruthy()
+    expect(within(table).getByText('Rejected')).toBeTruthy()
     expect(within(table).getByText('Schema')).toBeTruthy()
-    // Silence is spelled out as not-a-failure where the count is shown.
-    expect(screen.getByText(/Nothing has gone wrong/)).toBeTruthy()
   })
 
   it('resubmits through the href the row carries', async () => {
@@ -218,10 +324,20 @@ describe('the ledger screen', () => {
     renderLedger()
     await screen.findByText('INV-0001')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Resubmit' }))
+    openRowMenu('INV-0001')
+    fireEvent.click(screen.getByRole('menuitem', { name: /Send the report again/ }))
     await waitFor(() => expect(resubmitted).toHaveLength(1))
     // The /api the catalogue states and the /api the client adds must not both be sent.
     expect(resubmitted[0]).toBe('/api/v1/invoices/inv-1/tdd/resubmit')
+  })
+
+  it('offers no resubmission on silence, even where a link might be expected', async () => {
+    items = [item({ tdd_leg: { ...item().tdd_leg!, ack: 'NONE', ack_at: null, sla_met: null } })]
+    renderLedger()
+    await screen.findByText('INV-0001')
+    openRowMenu('INV-0001')
+    expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /Put it right/ })).toBeNull()
   })
 
   it('offers no resubmission to someone who may not submit', async () => {
@@ -229,30 +345,40 @@ describe('the ledger screen', () => {
     items = [item({ links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' } })]
     renderLedger()
     await screen.findByText('INV-0001')
-    expect(screen.queryByRole('button', { name: 'Resubmit' })).toBeNull()
+    openRowMenu('INV-0001')
+    expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
   })
 
   it('asks the server for the tab rather than filtering a page', async () => {
     renderLedger()
     await screen.findByText('INV-0001')
-    fireEvent.click(screen.getByRole('tab', { name: 'Rejected or failed' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Rejected/ }))
     await waitFor(() => expect(calls('/compliance/activity?').at(-1)).toContain('tdd_ack=RE'))
+    fireEvent.click(screen.getByRole('tab', { name: /^Accepted/ }))
+    await waitFor(() => expect(calls('/compliance/activity?').at(-1)).toContain('tdd_ack=AP'))
+    fireEvent.click(screen.getByRole('tab', { name: /^Superseded/ }))
+    await waitFor(() =>
+      expect(calls('/compliance/activity?').at(-1)).toContain('tdd_status=SUPERSEDED'),
+    )
   })
 
   it('exports the LEDGER, not the summary, carrying the filters on screen', async () => {
     renderLedger()
     await screen.findByText('INV-0001')
-    fireEvent.click(screen.getByRole('tab', { name: 'Rejected or failed' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Rejected/ }))
     await waitFor(() => expect(calls('/compliance/activity?').at(-1)).toContain('tdd_ack=RE'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }))
+    // The frame's "Compliance report" dialog: its Excel format is the ledger, one row per document.
+    fireEvent.click(screen.getByRole('button', { name: 'Compliance report' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Build Report/ }))
 
     // /reports/ota is the per-document ledger. /reports/compliance is four counts and a median -
     // a file of that proves nothing about individual documents.
     await waitFor(() => {
       const asked = decodeURIComponent(calls('/reports/ota').at(-1) ?? '')
-      expect(asked).toContain('/reports/ota.csv')
+      expect(asked).toContain('/reports/ota.xlsx')
       expect(asked).toContain('tdd_ack=RE')
+      expect(asked).toMatch(/[?&]from=\d{4}-\d{2}-\d{2}/)
     })
     expect(calls('/reports/compliance')).toHaveLength(0)
   })
@@ -267,25 +393,146 @@ describe('the ledger screen', () => {
     expect(summary).toMatch(/[?&]from=\d{4}-\d{2}-\d{2}/)
     expect(summary).toMatch(/[?&]to=\d{4}-\d{2}-\d{2}/)
   })
+
+  it('shows the empty frame when the ledger holds nothing at all', async () => {
+    items = []
+    summaryReply = { ...SUMMARY, documents: 0 }
+    renderLedger()
+    expect(await screen.findByText('Nothing reported yet')).toBeTruthy()
+    expect(
+      screen.getByText("You're connected to the Tax Authority and ready to report"),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Compliance report' })).toBeNull()
+  })
+})
+
+const DETAIL: ActivityDetailDto = {
+  invoice_uuid: UUID_A,
+  summary: item({
+    invoice_number: 'INV-1993',
+    counterparty: 'Barka Beach Resort',
+    fawtara_reference: 'OM-2026-0083907',
+    tdd_uuid: '6c25-b840-1f97-5b02',
+  }),
+  tdd_lineage: [
+    {
+      id: 'o-1',
+      variant: 'B2B',
+      status: 'SUPERSEDED',
+      validated_at: '2026-09-08T07:20:04Z',
+      sla_deadline: null,
+      submitted_at: '2026-09-08T07:20:07Z',
+      sla_met: true,
+      failure_reason: 'The tax category did not match the rate.',
+      transmission_id: null,
+      tdd_uuid: '6c25-b840-1f97-4ae3',
+      error_code: 'OTA-E-1122',
+    },
+    {
+      id: 'o-2',
+      variant: 'B2B',
+      status: 'ACKNOWLEDGED',
+      validated_at: '2026-09-09T04:41:10Z',
+      sla_deadline: null,
+      submitted_at: '2026-09-09T04:41:12Z',
+      sla_met: true,
+      failure_reason: null,
+      transmission_id: null,
+      tdd_uuid: '6c25-b840-1f97-5b02',
+    },
+  ],
+  mls: [
+    {
+      channel: 'INVOICE',
+      ack: 'AP',
+      received_at: '2026-09-09T10:02:31Z',
+      sender: null,
+      sbdh_instance_identifier: null,
+      reason: null,
+    },
+  ],
+  transmissions: [],
+}
+
+describe("one document's record", () => {
+  const renderDetail = (path: string) =>
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/compliance/activity/:id" element={<ActivityEventPage />} />
+          <Route path="/compliance/activity/:id/resubmit" element={<TddResubmitPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+  it('reads the record from the ledger and tells both journeys', async () => {
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect(await screen.findByRole('heading', { level: 1, name: 'INV-1993' })).toBeTruthy()
+    expect(calls(`/compliance/activity/${UUID_A}`).length).toBeGreaterThan(0)
+    expect(screen.getByText('To the Tax Authority')).toBeTruthy()
+    expect(screen.getByText('Accepted on attempt 2')).toBeTruthy()
+    expect(screen.getByText('The tax category did not match the rate.')).toBeTruthy()
+    expect(screen.getAllByText('OM-2026-0083907').length).toBeGreaterThan(0)
+    // Accepted, and no link from the server: nothing to resend.
+    expect(screen.getByRole('button', { name: 'Nothing to resend' })).toBeTruthy()
+  })
+
+  it('sends the fix through the link the record carries', async () => {
+    detailReply = {
+      ...DETAIL,
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason: 'No Peppol ID' },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    fireEvent.click(await screen.findByRole('button', { name: /^Fix and send/ }))
+    await waitFor(() => expect(resubmitted).toEqual(['/api/v1/invoices/inv-1/tdd/resubmit']))
+  })
+
+  it('offers the fix only to someone who may submit', async () => {
+    who = READER
+    detailReply = {
+      ...DETAIL,
+      summary: {
+        ...DETAIL.summary,
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/x/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    await screen.findByText(/right and send it again/)
+    expect(screen.queryByRole('button', { name: /^Fix and send/ })).toBeNull()
+  })
 })
 
 describe('the compliance report', () => {
   it('reports what was sent and whether it was in time, and nothing about tax', async () => {
     renderCompliance()
+    // 70 of 100 documents acknowledged on the TDD leg.
+    // (the quarter rows repeat the share, so it is found more than once)
+    expect((await screen.findAllByText('70%')).length).toBeGreaterThan(0)
     // 70 of 75 decided deadlines were met; the 25 pending are not counted against it.
-    expect(await screen.findByText('93%')).toBeTruthy()
-    expect(screen.getByText('70%')).toBeTruthy()
-    expect(screen.getByText('3 min')).toBeTruthy()
-    expect(screen.getByText(/1 gave up after retries/)).toBeTruthy()
+    expect(screen.getByText('93.3%')).toBeTruthy()
+    // The median, 3.4 minutes, as the frame's clock.
+    expect(screen.getByText('3m 24s')).toBeTruthy()
     expect(screen.queryByText(/Accepted by the OTA/)).toBeNull()
   })
 
-  it('lists silence beside the rest rather than hiding it', async () => {
+  it('lists silence beside the rest rather than hiding it, and never asks without a window', async () => {
     renderCompliance()
-    await screen.findByText('93%')
-    // Both charts list it — the tax-authority leg and the buyer's — because in a healthy window
-    // it is most of the rows and folding it into a failure bucket would misreport the period.
-    expect(screen.getAllByText('No acknowledgement yet')).toHaveLength(2)
-    expect(screen.getAllByText('Rejected or failed')).toHaveLength(2)
+    await screen.findByText('3m 24s')
+    // Silence is its own part of "What happened to what you sent", never folded into failure.
+    expect(screen.getAllByText('No acknowledgement yet').length).toBeGreaterThan(0)
+    // One summary per trailing month plus the window and the one before it, each with a window:
+    // the summary answers 400 without one.
+    const summaries = calls('/compliance/activity/summary')
+    expect(summaries.length).toBeGreaterThanOrEqual(14)
+    for (const url of summaries) {
+      expect(url).toMatch(/[?&]from=\d{4}-\d{2}-\d{2}/)
+      expect(url).toMatch(/[?&]to=\d{4}-\d{2}-\d{2}/)
+    }
+    // The reasons card reads the rejected documents of the window.
+    expect(calls('/compliance/activity?').some((url) => url.includes('tdd_ack=RE'))).toBe(true)
   })
 })

@@ -6854,7 +6854,7 @@
     "subtitle": "Every document Fawtir sent or received, what it holds for each, and how long it must be kept. Oman VAT Law asks for ten years.",
     "ownPapers": "Agreements, certificates and price lists are filed against the supplier or customer they belong to.",
     "ownPapersLink": "Go to suppliers",
-    "searchPlaceholder": "Search by document number",
+    "searchPlaceholder": "Search here...",
     "allKinds": "Every kind",
     "allTdd": "Any reporting status",
     "allYears": "Every tax year",
@@ -6867,9 +6867,9 @@
     },
     "tab": {
       "all": "All",
-      "issued": "Sent",
-      "received": "Received",
-      "legalHold": "On legal hold"
+      "issued": "Sales invoices",
+      "received": "Bills received",
+      "legalHold": "Legal hold"
     },
     "col": {
       "document": "Document",
@@ -6924,7 +6924,7 @@
     "b2b": "To a business",
     "noNumber": "No number",
     "open": "Open the document",
-    "showingRows": "Showing {{from}}–{{to}}",
+    "showingRows": "Showing {{from}} to {{to}}",
     "showingNone": "Nothing on this page",
     "previousPage": "Previous",
     "nextPage": "Next",
@@ -6941,7 +6941,7 @@
     },
     "empty": {
       "title": "Nothing filed here yet",
-      "note": "This one looks after itself. The moment you send or receive a document, Fawtir keeps the signed file, the tax document and the rest together.",
+      "note": "This one looks after itself. The moment you issue your first document, Fawtir stores the signed XML, the tax document, the PDF and the QR code together.",
       "noHold": "No document is on legal hold."
     },
     "detail": {
@@ -6952,7 +6952,7 @@
       "tdd": "Reporting status",
       "ack": "Acknowledgement",
       "audience": "Sent to",
-      "uuid": "Document UUID",
+      "uuid": "Fawtara UUID",
       "kept": "How long it is kept",
       "retentionClass": "Retention",
       "keptUntil": "Kept until",
@@ -6966,7 +6966,349 @@
       "download": "Download",
       "openActivity": "Open the delivery record",
       "notServed": "Held, no download yet",
-      "noFiles": "Nothing is held for this document."
+      "noFiles": "The archive holds no file for this record.",
+      "print": "Print",
+      "zip": "All {{count}} as a zip",
+      "share": "Share securely",
+      "kindTo": {
+        "salesInvoice": "Sales invoice to",
+        "billReceived": "Bill received from",
+        "creditIssued": "Credit note to",
+        "creditReceived": "Credit note from",
+        "selfBilledInvoice": "Self-billed invoice from",
+        "selfBilledCredit": "Self-billed credit note from"
+      },
+      "issued": "issued {{date}}",
+      "keptChip": "Kept until {{date}}",
+      "filesInRecord_one": "{{count}} file in this record",
+      "filesInRecord_other": "{{count}} files in this record",
+      "everythingBelonging": "Everything belonging to {{number}}",
+      "fileNote": {
+        "xml": "The invoice sent over Peppol",
+        "tdd": "Filed with the OTA",
+        "pdf": "The readable invoice",
+        "qr": "Printed on the invoice",
+        "mls": "Delivery and OTA replies",
+        "delivery_notification": "The network's receipt"
+      },
+      "badge": {
+        "signed": "Signed PINT-OM",
+        "enAr": "EN & AR",
+        "image": "Image",
+        "messages_one": "{{count}} message",
+        "messages_other": "{{count}} messages",
+        "receipt": "Receipt"
+      },
+      "copy": "Copy",
+      "copied": "Copied",
+      "printFile": "Print",
+      "fullscreen": "Open full screen",
+      "taxInvoice": "Tax invoice {{number}}",
+      "creditNoteTitle": "Credit note {{number}}",
+      "laidOut": "The signed XML, laid out so you can read it",
+      "signatureValid": "Signature valid",
+      "invoiceNumber": "Invoice number",
+      "creditNumber": "Credit note number",
+      "type": "Type",
+      "commercialInvoice": "Commercial invoice",
+      "creditNote": "Credit note",
+      "typeCode": {
+        "261": "Self-billed credit note",
+        "380": "Commercial invoice",
+        "381": "Credit note",
+        "383": "Debit note",
+        "389": "Self-billed invoice"
+      },
+      "issuedOn": "Issued",
+      "paymentDue": "Payment due",
+      "currency": "Currency",
+      "whoSent": "Who sent it",
+      "whoReceived": "Who received it",
+      "business": "Business",
+      "vatNumber": "VAT number",
+      "peppolId": "Peppol ID",
+      "address": "Address",
+      "theirOrder": "Their order",
+      "ourOrder": "Our order",
+      "whatCharged": "What was charged",
+      "col": {
+        "item": "Item",
+        "qty": "Qty",
+        "unit": "Unit",
+        "vat": "VAT",
+        "amount": "Amount"
+      },
+      "net": "Net",
+      "vatRow": "VAT",
+      "vatRate": "VAT · {{rate}}%",
+      "total": "Total",
+      "howTravelled": "How it travelled",
+      "sentOver": "Sent over",
+      "profile": "Profile",
+      "deliveredAt": "Delivered at",
+      "validation": "Validation",
+      "allFiveLayers": "All five layers passed",
+      "mlsNote_one": "{{count}} message about this document's delivery is on the activity screen.",
+      "mlsNote_other": "{{count}} messages about this document's delivery are on the activity screen.",
+      "howLongKept": "How long it's kept",
+      "timeRemaining": "Time remaining",
+      "remaining": "{{years}} years {{months}} months",
+      "reason": "Reason",
+      "reasonClass": {
+        "STANDARD": "Oman VAT Law · 10 years",
+        "REAL_ESTATE": "Oman VAT Law · 15 years, property"
+      },
+      "legalHold": "Legal hold",
+      "notApplied": "Not applied",
+      "applied": "Applied",
+      "nobodyCanEdit": "Nobody can edit or delete this until {{year}}, including you.",
+      "placeHold": "Place a legal hold",
+      "holdNotYet": "Placing a hold from here is not available yet.",
+      "proofTitle": "Proof it hasn't changed",
+      "checkNow": "Check now",
+      "fingerprintTaken": "Fingerprint taken",
+      "lastChecked": "Last checked",
+      "matches": "matches",
+      "differs": "does not match",
+      "notRecorded": "Not recorded yet",
+      "shaOf": "SHA-256 of {{file}}",
+      "notServedYet": "The fingerprint is not served yet.",
+      "relatesTitle": "What it relates to",
+      "relationKind": {
+        "CUSTOMER": "Customer",
+        "SUPPLIER": "Supplier",
+        "ORDER": "Order",
+        "DELIVERY_NOTE": "Delivery note",
+        "INVOICE": "Invoice"
+      },
+      "nothingRelated": "Nothing linked to it yet.",
+      "tagsTitle": "Tags",
+      "addTag": "Add",
+      "newTagPlaceholder": "Tag name",
+      "removeTag": "Remove {{tag}}",
+      "opensTitle": "Who has opened it",
+      "fullLog": "Full log",
+      "log": {
+        "filed": "Filed automatically",
+        "byFawtir": "by Fawtir",
+        "opened": "{{name}} opened it",
+        "downloaded": "{{name}} downloaded {{file}}",
+        "sharedLink": "Opened by a shared link",
+        "someone": "Someone",
+        "aFile": "a file"
+      },
+      "logNote": "Every view, download and share is recorded, and the log can't be edited."
+    },
+    "subtitleFull": "Every file Fawtir has generated, received or been given, kept for the ten years Oman VAT Law requires, and fifteen for property. Nothing here can be edited or deleted while its retention runs.",
+    "subtitleEmpty": "Where every file Fawtir generates, receives or is given ends up, kept for as long as Oman VAT Law requires.",
+    "uploadCta": "Upload a document",
+    "searchLabel": "Search by document number",
+    "filters": "Filters",
+    "kpi": {
+      "kept": "Documents kept",
+      "keptNote_one": "Across {{formatted}} invoice or bill",
+      "keptNote_other": "Across {{formatted}} invoices and bills",
+      "notCounted": "Not counted yet",
+      "space": "Space used",
+      "spaceNote": "of {{quota}} GB on your plan",
+      "noQuota": "Plan allowance not known yet",
+      "integrity": "Integrity checks",
+      "allPassing": "All passing",
+      "someFailing": "Needs a look",
+      "integrityNote": "Last full sweep {{date}}",
+      "nothingAltered": "nothing altered",
+      "hold": "Under legal hold",
+      "holdNote": "{{reason}} · cannot be deleted",
+      "holdNoReason": "Held documents cannot be deleted",
+      "na": "N/A"
+    },
+    "sortOptions": {
+      "natural": "As filed",
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "keptSoonest": "Retention ending soonest",
+      "keptLatest": "Retention ending last"
+    },
+    "selected_one": "{{count}} record selected · {{files}} files",
+    "selected_other": "{{count}} records selected · {{files}} files",
+    "clearSelection": "Clear the selection",
+    "downloadZip": "Download zip",
+    "clear": "Clear",
+    "pick": "Select {{number}}",
+    "expand": "Show the files of {{number}}",
+    "collapse": "Hide the files of {{number}}",
+    "recordMeta": {
+      "salesInvoice": "Sales invoice · issued {{date}}",
+      "billReceived": "Bill received over Peppol · {{date}}",
+      "creditIssued": "Credit note issued · {{date}}",
+      "creditReceived": "Credit note received · {{date}}",
+      "selfBilledInvoice": "Self-billed invoice · {{date}}",
+      "selfBilledCredit": "Self-billed credit note · {{date}}"
+    },
+    "filesCount_one": "{{count}} file",
+    "filesCount_other": "{{count}} files",
+    "keptUntil": "Kept until",
+    "yearsLeft_one": "{{count}} year left",
+    "yearsLeft_other": "{{count}} years left",
+    "yearsMonthsLeft": "{{years}} years {{months}} months left",
+    "keptOnHold": "on hold",
+    "keptShort": {
+      "STANDARD": "10 years",
+      "REAL_ESTATE": "15 years · property"
+    },
+    "retentionOver": "Retention has run out",
+    "noFixedTerm": "Uploaded files have no fixed term",
+    "youDecide": "You decide",
+    "chip": {
+      "legalHold": "Legal hold",
+      "none": "Not reported",
+      "PENDING": "TDD waiting",
+      "SUBMITTED": "TDD sent",
+      "GENERATION_FAILED": "TDD not prepared",
+      "ACCEPTED": "TDD accepted",
+      "DELIVERED_UNCONFIRMED": "TDD not acknowledged",
+      "REJECTED": "TDD rejected",
+      "TO_DISREGARD": "Being withdrawn",
+      "DISREGARD_SUBMITTED": "Withdrawal sent",
+      "DEAD_LETTERED": "TDD given up on"
+    },
+    "fileNote": {
+      "xml": "The invoice as sent over Peppol",
+      "tdd": "Tax Data Document filed with the OTA",
+      "pdf": "The readable invoice, both languages in one file",
+      "qr": "The QR code printed on the invoice",
+      "mls": "Delivery acknowledged by the other side's access point, and the OTA's reply",
+      "delivery_notification": "The transport network's own receipt"
+    },
+    "verified": "Verified",
+    "viewFile": "View {{name}}",
+    "downloadFile": "Download {{name}}",
+    "notServed": "Held, no download yet",
+    "noMatch": {
+      "title": "Nothing matches",
+      "note": "No document fits these filters. Clear one to see more.",
+      "noHold": "No document is on legal hold."
+    },
+    "showingOf": "Showing {{shown}} of {{total}} records",
+    "pages": "Pages",
+    "share": {
+      "title": "Share {{number}} outside Fawtir",
+      "whichFiles": "Which files",
+      "qrImage": "QR image",
+      "mlsReplies": "MLS replies",
+      "whoFor": "Who it's for",
+      "email": "Email",
+      "emailPlaceholder": "name@company.om",
+      "howLong": "How long it works",
+      "durations": {
+        "day": "24 hours",
+        "week": "7 days",
+        "month": "30 days",
+        "custom": "Custom"
+      },
+      "customDate": "Expires on",
+      "protection": "Protection",
+      "password": "Password on the link",
+      "passwordNote": "Always on for tax documents, it can't be switched off",
+      "download": "Let them download",
+      "downloadNote": "Off means they can read it on screen but not save a copy",
+      "onePerson": "One person only",
+      "onePersonNote": "The link locks to the first device that opens it",
+      "ready": "Ready to send",
+      "theLink": "The link",
+      "thePassword": "The password",
+      "pending": "Made once secure sharing is switched on",
+      "copy": "Copy",
+      "fileCount_one": "{{count}} file",
+      "fileCount_other": "{{count}} files",
+      "footer": "expires {{date}} · every view logged",
+      "nothingPicked": "Pick at least one file to share.",
+      "notYet": "Secure links are not available yet.",
+      "copyLink": "Copy the link"
+    },
+    "upload": {
+      "breadcrumb": "Upload a document",
+      "title": "Add a document",
+      "subtitle": "For the paper that matters but doesn't come through Peppol: contracts, signed delivery notes, warranties, letters.",
+      "notAllowed": "Filing a paper needs permission to manage suppliers. Ask an administrator.",
+      "steps": {
+        "file": "The file",
+        "what": "What it is",
+        "belongs": "Who or what it belongs to"
+      },
+      "addMore": "Add More",
+      "replace": "Replace",
+      "fileMeta": "{{type}} · {{size}}",
+      "dropTitle": "Drop a file here, or choose one",
+      "dropNote": "PDF, image or XML · up to 10 MB",
+      "choose": "Choose",
+      "tooLarge": "That file is larger than 10 MB.",
+      "wrongType": "Choose a PDF, an image or an XML file.",
+      "name": "Name it",
+      "namePlaceholder": "Gulf Cold Logistics rate card",
+      "kind": "Kind of document",
+      "kinds": {
+        "AGREEMENT": "Contract",
+        "CERTIFICATE": "Certificate or warranty",
+        "PRICE_LIST": "Price list or rate card",
+        "CORRESPONDENCE": "Letter",
+        "OTHER": "Other"
+      },
+      "dateOn": "Date on the document",
+      "validUntil": "Valid until",
+      "optional": "optional",
+      "chooseOwner": "Choose a supplier",
+      "chooseOwnerNote": "The paper is filed on their profile",
+      "ownerNote": "Supplier",
+      "ownerNoteVat": "Supplier · VAT {{vat}}",
+      "noOwner": "Choose who it belongs to.",
+      "change": "Change",
+      "searchSupplier": "Search suppliers",
+      "searching": "Searching...",
+      "noSupplier": "No supplier by that name",
+      "supplierVat": "VAT {{vat}}",
+      "alsoAttach": "Also attach to",
+      "alsoAttachPlaceholder": "An invoice, order or catalog item...",
+      "tags": "Tags",
+      "addTag": "Add a tag",
+      "newTagPlaceholder": "Tag name",
+      "removeTag": "Remove {{tag}}",
+      "noteValidUntil": "Valid until {{date}}",
+      "noteTags": "Tags: {{tags}}",
+      "keepTitle": "How long to keep it",
+      "keep": {
+        "forever": "Keep it indefinitely",
+        "foreverNote": "Stays until someone deletes it. Right for contracts and agreements.",
+        "matchInvoice": "Match the invoice it's attached to",
+        "matchInvoiceNote": "Follows the ten-year rule and can't be deleted before then.",
+        "untilDate": "Until a date I choose",
+        "untilDateNote": "For things that stop mattering, like a quote that lapsed.",
+        "pickDate": "Delete after"
+      },
+      "onSaveTitle": "What happens on save",
+      "onSave": {
+        "fingerprint": "Fingerprint taken",
+        "yes": "Yes",
+        "version": "Version",
+        "versionValue": "{{current}} of {{total}}",
+        "first": "1 of 1",
+        "showsOn": "Shows on",
+        "supplierProfile": "Supplier profile",
+        "nothingYet": "Nothing yet",
+        "searchableBy": "Searchable by",
+        "searchableValue": "Name, tags, text",
+        "spaceUsed": "Space used"
+      },
+      "fileCount_one": "{{count}} file",
+      "fileCount_other": "{{count}} files",
+      "noFileYet": "No file yet",
+      "noFile": "Choose a file first.",
+      "save": "Save Document",
+      "saving": "Saving..."
+    },
+    "fileName": {
+      "mls": "MLS responses",
+      "delivery_notification": "Transport receipt"
     }
   },
   "reports": {
@@ -7023,7 +7365,12 @@
         "taxableNote": "Before VAT",
         "documents": "Documents issued",
         "documentsNote": "Every issued document in the range",
-        "documentsWithCancelled": "Plus {{count}} cancelled, which carry no amount"
+        "documentsWithCancelled": "Plus {{count}} cancelled, which carry no amount",
+        "invoicedNet": "Invoiced, net of VAT",
+        "vatRate": "{{rate}}% throughout",
+        "averageSame": "about the same as before",
+        "averageLarger": "larger invoices than before",
+        "averageSmaller": "smaller invoices than before"
       },
       "monthly": "Monthly",
       "quarterly": "Quarterly",
@@ -7056,11 +7403,15 @@
       "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
       "byGroupNote": "Largest first, over the range above.",
       "invoiced": "Invoiced",
-      "ungrouped": "Not grouped"
+      "ungrouped": "Not grouped",
+      "quarterlyAhead": "{{ahead}} of {{count}} quarters ahead of last year",
+      "invoicedIn": "Invoiced {{when}},",
+      "topShareCount": "Top {{count}} are {{percent}}% of revenue",
+      "noCustomers": "No customer was invoiced in this period."
     },
     "expenditure": {
       "title": "Expenditure",
-      "subtitle": "Bills, credit notes and debit notes you received, whatever way they reached you. Amounts are net of supplier credit notes.",
+      "subtitle": "Bills received over Peppol, uploaded and scanned are all counted together.",
       "kpi": {
         "vat": "VAT you were charged",
         "vatNote": "One total per bill — received bills carry no rate breakdown",
@@ -7069,7 +7420,15 @@
         "net": "Before VAT",
         "netNote": "Total less the VAT on it",
         "documents": "Documents received",
-        "documentsNote": "Bills, credit notes and debit notes alike"
+        "documentsNote": "Bills, credit notes and debit notes alike",
+        "billed": "Billed to you, net of VAT",
+        "reclaim": "VAT you can reclaim",
+        "reclaimRate": "{{rate}}% of the net",
+        "received": "Bills received",
+        "average": "Average bill",
+        "smallerMoreOften": "smaller, more often",
+        "smaller": "smaller than before",
+        "larger": "larger than before"
       },
       "groupBy": "Group by",
       "grouping": {
@@ -7098,29 +7457,59 @@
       "topShare": "{{name}} is {{percent}}% of spend",
       "uncategorised": "Uncategorised",
       "ungrouped": "Not grouped",
-      "empty": "Nothing was received in this range."
+      "empty": "Nothing was received in this range.",
+      "netBilled": "Net billed",
+      "heaviestMonth": "{{month}} was the heaviest month · <amount>{{value}}</amount>",
+      "topSuppliers": "Top suppliers",
+      "byCategory": "By category",
+      "howBillsReach": "How bills reach you",
+      "billedIn": "Billed {{when}},",
+      "peppolUp": "Peppol up <b>{{points}} points</b> since {{quarter}}",
+      "peppolDown": "Peppol down <b>{{points}} points</b> since {{quarter}}",
+      "peppolSteady": "Peppol steady since {{quarter}}",
+      "nothingBilled": "Nothing was billed in this period."
     },
     "cashFlow": {
       "title": "Cash flow",
-      "subtitle": "Payments received against your invoices, against payments you recorded on suppliers' bills.",
+      "subtitle": "Money in against money out, what it leaves you with, and what is already committed for the weeks ahead.",
       "kpi": {
         "in": "Money in",
-        "inNote": "Customer payments received, less any reversal",
+        "inNote": "customer payments received",
         "out": "Money out",
-        "outNote": "Supplier payments recorded, less any reversal",
+        "outNote": "supplier payments made",
         "kept": "Net",
-        "keptNote": "In less out, over the range above"
+        "keptNote": "In less out, over the range above",
+        "leftOver": "Left over",
+        "across": {
+          "yearly": "across the twelve months",
+          "quarterly": "across the three months",
+          "monthly": "across the month"
+        },
+        "dueOut": "Due out in 30 days",
+        "notForecast": "Not forecast yet",
+        "dueOutPending": "Waiting on bills and invoices due by date"
       },
       "monthlyInOut": "Monthly in and out",
-      "whatYouKept": "Net by period",
+      "whatYouKept": "What you kept",
       "moneyIn": "Money in",
       "moneyOut": "Money out",
-      "surplus": "Net",
+      "surplus": "Surplus,",
       "whatThisIs": "This is cash movement recorded in Fawtir — payments somebody entered against an invoice or a bill. It is not your bank balance and not a forecast: money that moved without a document, or that nobody recorded, is not here.",
       "monthlyInOutNote": "Bucketed on the payment date, not the invoice date.",
       "whatYouKeptNote": "In less out per period. A reversal counts in the period it was recorded.",
-      "reversalHeavy": "Reversals outweighed payments in {{periods}}, so those bars are not to scale — read the figures.",
-      "empty": "No payments were recorded in this range."
+      "reversalHeavy": "Reversals outweighed payments in {{periods}}, so those bars are not to scale. Read the figures.",
+      "empty": "No payments were recorded in this range.",
+      "bestMonth": "Best month · <amount>{{value}}</amount>",
+      "positiveEveryMonth": "Positive every month this year",
+      "positiveMonths": "Positive in {{count}} of {{total}} months",
+      "nextEightWeeks": "The next eight weeks",
+      "expectedIn": "Expected in",
+      "committedOut": "Committed out",
+      "forecastPending": "The weeks ahead need what is due in and out by date, which Fawtir does not report yet.",
+      "whereItWent": "Where it went",
+      "billedIn": "Billed {{when}},",
+      "topShare": "{{name}} is {{percent}}% of everything billed",
+      "everythingElse": "Everything else"
     },
     "vat": {
       "title": "VAT & Tax",
@@ -7135,11 +7524,18 @@
         "nextReturn": "Next return due",
         "nextReturnNote": "Q3 · 2 of 3 months in",
         "reclaim": "Reclaimable",
-        "reclaimNote": "Input exceeded output over this range"
+        "reclaimNote": "Input exceeded output over this range",
+        "over": {
+          "yearly": "over twelve months",
+          "quarterly": "over three months",
+          "monthly": "over the month"
+        },
+        "returnOpen": "Q{{quarter}} · {{months}} of 3 months in",
+        "returnClosed": "Q{{quarter}} has closed, its return is next"
       },
       "quarterlyPosition": "Quarterly position",
       "monthlyNetPayable": "Monthly net payable",
-      "byTreatment": "What you charged, by treatment",
+      "byTreatment": "By tax treatment",
       "reclaimBySupplier": "Reclaim by supplier",
       "collectedOnSales": "Collected on sales",
       "paidOnPurchases": "Paid on purchases",
@@ -7178,7 +7574,13 @@
         "L": "Special",
         "M": "Special",
         "ALL": "All purchases"
-      }
+      },
+      "gapNarrowing": "Gap narrowing over the year",
+      "netPayableComma": "Net VAT payable,",
+      "standardShare": "{{percent}}% of sales are standard rate",
+      "notSplit": "Not split by rate yet",
+      "reclaimableComma": "Reclaimable VAT,",
+      "reclaimShare": "{{name}} is {{percent}}% of what you reclaim"
     },
     "compliance": {
       "title": "Compliance",
@@ -7199,7 +7601,17 @@
         "onTime": "Reported in time",
         "onTimeNote": "{{missed}} missed · {{pending}} still inside the window",
         "median": "Median to acknowledgement",
-        "medianNote": "From validation to the acknowledgement arriving"
+        "medianNote": "From validation to the acknowledgement arriving",
+        "faster": {
+          "yearly": "faster than last year",
+          "quarterly": "faster than last quarter",
+          "monthly": "faster than last month"
+        },
+        "slower": {
+          "yearly": "slower than last year",
+          "quarterly": "slower than last quarter",
+          "monthly": "slower than last month"
+        }
       },
       "acceptedFirstTime": "Accepted first time",
       "whyRejected": "Why things get rejected",
@@ -7231,7 +7643,18 @@
       "invoiceAcks": "Buyer's Access Point",
       "acksNote": "Acknowledgements of the tax document. No acknowledgement yet is not a failure.",
       "invoiceAcksNote": "Acknowledgements of the invoice by the receiving Access Point.",
-      "deadLettered": "{{count}} gave up after retries and need looking at."
+      "deadLettered": "{{count}} gave up after retries and need looking at.",
+      "points": "{{value}}pt",
+      "seconds": "{{count}}s",
+      "clock": "{{minutes}}m {{seconds}}s",
+      "noClock": "Not yet",
+      "noneDecided": "None due yet",
+      "highRejections": "High rejections",
+      "lowRejections": "Low rejections",
+      "noReason": "No reason given",
+      "noRejections": "Nothing was rejected in this period.",
+      "outsideTheRule": "Some months took longer than 24 hours",
+      "failuresFalling": "Failures falling every quarter"
     },
     "lists": {
       "title": "Lists",
@@ -7239,7 +7662,8 @@
       "sections": {
         "sales": "Sales",
         "purchases": "Purchases",
-        "accountant": "For the accountant"
+        "accountant": "For the accountant",
+        "more": "More"
       },
       "rows": "{{formattedCount}} rows",
       "columns": "· {{count}} columns",
@@ -7257,7 +7681,7 @@
         },
         "catalogLines": {
           "title": "Catalog lines sold",
-          "detail": "Every line item across every invoice — quantity, unit price, discount and tax category."
+          "detail": "Every line item across every invoice: quantity, unit price, discount and tax category."
         },
         "paymentsReceived": {
           "title": "Payments received",
@@ -7298,7 +7722,10 @@
       },
       "empty": "No datasets are published.",
       "filters": "Filters: {{list}}",
-      "needsPermission": "Needs {{permission}}"
+      "needsPermission": "Needs {{permission}}",
+      "notPublished": "Not published yet",
+      "wholeList": "The whole list, no filters",
+      "pdfPending": "PDF is not available yet"
     },
     "controls": {
       "from": "From",
@@ -7312,7 +7739,38 @@
         "QUARTER": "Quarterly",
         "YEAR": "Yearly"
       }
-    }
+    },
+    "loadingChart": "Loading…",
+    "export": {
+      "pdf": "PDF",
+      "pdfHint": "Print this page or save it as a PDF",
+      "xlsx": "Excel",
+      "csv": "CSV",
+      "fileHint": "The figures behind this page, for the same period",
+      "truncated": "This file stopped at the row limit and is not the whole report. Choose a shorter period and export again."
+    },
+    "vsBefore": {
+      "yearly": "vs the year before",
+      "quarterly": "vs the quarter before",
+      "monthly": "vs the month before"
+    },
+    "moreThan": {
+      "yearly": "more than last year",
+      "quarterly": "more than last quarter",
+      "monthly": "more than last month"
+    },
+    "fewerThan": {
+      "yearly": "fewer than last year",
+      "quarterly": "fewer than last quarter",
+      "monthly": "fewer than last month"
+    },
+    "thisPeriod": {
+      "yearly": "this year",
+      "quarterly": "this quarter",
+      "monthly": "this month"
+    },
+    "quarterLabel": "Q{{quarter}} {{year}}",
+    "quarterSoFar": "Q{{quarter}} so far"
   },
   "supplierDetail": {
     "editSupplier": "Edit supplier",
@@ -7983,7 +8441,7 @@
       "timeToAcceptance": "Time to acceptance",
       "timeToAcceptanceNote": "Average this month, down from {{previous}}. Well inside the 24-hour rule.",
       "acknowledged": "Customer acknowledged",
-      "acknowledgedNote": "MLS came back in time on {{good}} of {{total}}",
+      "acknowledgedNote": "MLS came back on {{good}} of {{total}}",
       "documents": "Documents",
       "documentsNote": "In the ledger",
       "reported": "Acknowledged by the Tax Authority endpoint",
@@ -7991,7 +8449,15 @@
       "waiting": "Awaiting acknowledgement",
       "waitingNote": "Nothing has gone wrong. A document stays here until the other side speaks.",
       "onTime": "Reported in time",
-      "onTimeNote": "{{missed}} missed · {{pending}} still inside the window"
+      "onTimeNote": "{{missed}} missed · {{pending}} still inside the window",
+      "accepted": "Accepted by the OTA",
+      "acceptedCount": "{{n}} accepted",
+      "rejectedCount": "{{n}} rejected",
+      "waitingCount": "{{n}} still waiting",
+      "noTimeYet": "Not yet",
+      "timeToAcceptanceDown": "Typical this year, down from {{previous}}. Well inside the 24-hour rule.",
+      "timeToAcceptanceUp": "Typical this year, up from {{previous}}. Still inside the 24-hour rule.",
+      "timeToAcceptancePlain": "Typical this year. Well inside the 24-hour rule."
     },
     "tabs": {
       "all": "All",
@@ -7999,13 +8465,16 @@
       "accepted": "Accepted",
       "rejected": "Rejected",
       "waiting": "Still waiting",
-      "superseded": "Superseded"
+      "superseded": "Superseded",
+      "attention": "Needs attention"
     },
     "col": {
       "invoice": "Invoice",
       "flow": "Which flow",
       "sent": "Sent",
-      "customer": "Customer"
+      "customer": "Customer",
+      "reference": "TDD and Fawtara reference",
+      "otaSaid": "What the OTA said"
     },
     "flow": {
       "b2bDomestic": "B2B Domestic",
@@ -8014,28 +8483,38 @@
     },
     "route": {
       "bothOnPeppol": "Both on Peppol · flow {{flow}}",
-      "standIn": "Stand-in ID {{id}} · flow {{flow}}"
+      "standIn": "Stand-in ID {{id}} · flow {{flow}}",
+      "b2bDomestic": "Both on Peppol",
+      "b2c": "Stand-in ID",
+      "export": "Stand-in ID"
     },
     "ref": {
       "neverAccepted": "No Fawtara ref - never accepted",
       "waiting": "Waiting for the reference",
-      "replacedBy": "Replaced by {{id}}"
+      "replacedBy": "Replaced by {{id}}",
+      "noUuid": "No TDD UUID yet"
     },
     "fawtara": "Fawtara {{ref}}",
     "outcome": {
       "accepted": "Accepted",
       "rejected": "Rejected",
       "waiting": "Still waiting",
-      "superseded": "Superseded"
+      "superseded": "Superseded",
+      "notOwed": "No TDD owed"
     },
     "verdict": {
       "noPeppolId": "The customer has no Peppol ID on their record.",
       "totalMismatch": "The total doesn't equal the lines added up out by OMR {{amount}}.",
-      "noAnswerYet": "{{elapsed}} and no answer. Usually two minutes.",
-      "clearedNotDelivered": "Cleared in {{seconds}}s · reported, not delivered to anyone",
-      "disregarded": "The OTA disregarded when the corrected version was accepted.",
+      "noAnswerYet": "{{elapsed}} and no answer. Usually {{usual}}.",
+      "clearedNotDelivered": "Cleared in {{time}} · reported, not delivered to anyone",
+      "disregarded": "The OTA disregarded it when the corrected version was accepted.",
       "clearedZeroRated": "Cleared in {{time}} · zero-rated as an export",
-      "clearedIn": "Cleared in {{seconds}}s"
+      "clearedIn": "Cleared in {{time}}",
+      "rejectedNoReason": "Turned down. Open the record for the reason.",
+      "notOwed": "Nothing is reported for this document.",
+      "notDelivered": "Reported, not delivered to anyone",
+      "zeroRated": "Zero-rated as an export",
+      "accepted": "Accepted"
     },
     "ack": {
       "received": "Received it",
@@ -8044,7 +8523,9 @@
       "AP": "Delivered",
       "AB": "Delivered, unconfirmed",
       "RE": "Rejected or failed",
-      "NONE": "No acknowledgement yet"
+      "NONE": "No acknowledgement yet",
+      "waiting": "Not yet",
+      "refused": "Turned it down"
     },
     "today": "Today",
     "sortOptions": {
@@ -8055,18 +8536,22 @@
     "menu": {
       "openInvoice": "Open the invoice",
       "openInvoiceNote": "See the document this was reported from",
-      "resubmit": "Fix and resubmit",
-      "resubmitNote": "Correct the problem and send a new TDD",
-      "viewCall": "View the OTA call",
-      "viewCallNote": "The request and reply, exactly as they went",
+      "resubmit": "Put it right",
+      "resubmitNote": "Fix the problem, then send a new TDD",
+      "viewCall": "View the OTA calls",
+      "viewCallNote": "The requests and replies, exactly as they went",
       "copyUuid": "Copy the TDD UUID",
       "copyUuidNote": "For a support ticket with the Authority",
       "downloadXml": "Download the signed XML",
-      "downloadXmlNote": "What was actually sent, with its signature"
+      "downloadXmlNote": "What was actually sent, with its signature",
+      "openRecord": "Open the record",
+      "openRecordNote": "Where it went and what came back",
+      "sendAgain": "Send the report again",
+      "sendAgainNote": "Once the fix is saved, a new TDD goes to the OTA"
     },
     "emptyState": {
       "title": "Nothing reported yet",
-      "body": "This page fills itself. The moment you issue your first invoice, Fawtir builds the tax report, sends it to the Tax Authority, and shows you what came back — usually within a couple of minutes.",
+      "body": "This page fills itself. The moment you issue your first invoice, Fawtir builds the tax report, sends it to the Tax Authority, and shows you what came back, usually within a couple of minutes.",
       "action": "Create your first invoice"
     },
     "ready": {
@@ -8118,8 +8603,19 @@
       "met": "Met",
       "missed": "Missed",
       "pending": "Within the window",
-      "none": "—"
-    }
+      "none": "Not owed"
+    },
+    "directionFilter": {
+      "all": "All documents",
+      "ISSUED": "Sent by you",
+      "RECEIVED": "Received"
+    },
+    "showingFiltered": "Showing {{shown}} matching submissions",
+    "pager": {
+      "nav": "Pages of submissions"
+    },
+    "noCounterparty": "No counterparty",
+    "rowActionsFor": "Actions for {{number}}"
   },
   "activityEvent": {
     "copyXml": "Copy the XML",
@@ -8181,12 +8677,16 @@
       "sentOverPeppol": "Sent over Peppol",
       "accessPointTook": "Their access point took it",
       "confirmedReceipt": "They confirmed receipt",
-      "theyAccepted": "They accepted it"
+      "theyAccepted": "They accepted it",
+      "waitingOnOta": "Waiting on the OTA",
+      "waitingOnThem": "Waiting for their reply",
+      "theyRefused": "They turned it down"
     },
     "whyTurnedDown": "Why the first one was turned down",
     "rejection": {
       "headline": "The tax category didn't match the rate",
-      "body": "Two lines were marked <b>zero-rated</b> but carried VAT at 5% anyway. The Tax Authority won't accept a report where the category and the rate disagree, because it can't tell which one is right. The lines were set to <b>standard rate</b> and the report went through unchanged otherwise."
+      "body": "Two lines were marked <b>zero-rated</b> but carried VAT at 5% anyway. The Tax Authority won't accept a report where the category and the rate disagree, because it can't tell which one is right. The lines were set to <b>standard rate</b> and the report went through unchanged otherwise.",
+      "whatTheySaid": "What the Tax Authority objected to"
     },
     "seeWhatChanged": "See what changed",
     "otherInvoices": "Other invoices with this problem",
@@ -8198,7 +8698,12 @@
       "turnedDownOn": "Turned down {{at}}",
       "noReference": "no Fawtara reference issued",
       "v2Body": "This is the record the Tax Authority has for {{invoice}}. Sent by Hafidh Saif after the tax categories were corrected.",
-      "v1Body": "Withdrawn by the OTA on 9 June when the corrected report was accepted. Kept here because the archive can't lose anything, but it counts for nothing."
+      "v1Body": "Withdrawn by the OTA on 9 June when the corrected report was accepted. Kept here because the archive can't lose anything, but it counts for nothing.",
+      "sentOn": "Sent {{at}}",
+      "liveBody": "This is the record the Tax Authority has for {{invoice}}.",
+      "supersededBody": "Withdrawn by the OTA when the corrected report was accepted. Kept here because the archive can't lose anything, but it counts for nothing.",
+      "rejectedBody": "Turned down and not replaced yet. Until a corrected report is accepted, this sale isn't declared.",
+      "waitingBody": "Sent, and waiting for the OTA to answer."
     },
     "whichRoute": "Which route it took",
     "route": {
@@ -8210,7 +8715,17 @@
       "theirId": "Their participant ID",
       "standIn": "Stand-in ID used",
       "noStandIn": "None - they're registered, so their real ID was used",
-      "profile": "Profile"
+      "profile": "Profile",
+      "scenarioOf": {
+        "b2bDomestic": "domestic B2B, both sides on Peppol",
+        "b2c": "B2C, reported with a stand-in ID",
+        "export": "export, reported with a stand-in ID"
+      },
+      "flowN": "Flow {{flow}} - {{what}}",
+      "documentsWithMls_one": "Invoice, TDD, MLS",
+      "documentsWithMls_other": "Invoice, TDD, MLS ×{{count}}",
+      "documentsNoMls": "Invoice, TDD",
+      "notOnRecord": "Not on the record yet"
     },
     "checkItYourself": "Check it yourself",
     "fawtaraReference": "Fawtara reference",
@@ -8227,7 +8742,8 @@
       "reasonLabel": "Reason",
       "reason": "Oman VAT Law · 10 years",
       "integrity": "Integrity",
-      "checkedToday": "Checked today"
+      "checkedToday": "Checked today",
+      "yearsMonths": "{{years}} years {{months}} months"
     },
     "takeACopy": "Take a copy",
     "getZip": "Get ZIP",
@@ -8241,12 +8757,50 @@
       "replies": "The customer's replies",
       "repliesMeta": "Both MLS messages",
       "invoice": "The invoice",
-      "invoiceMeta": "Signed XML and the PDF"
+      "invoiceMeta": "Signed XML and the PDF",
+      "latest": "The latest report",
+      "xmlMeta": "TDD XML · version {{version}}",
+      "repliesMeta_one": "One MLS message",
+      "repliesMeta_other": "{{count}} MLS messages"
     },
     "sendItAgain": "Send it again",
     "resend": {
       "body": "Already accepted, so there's nothing to resend. If you correct this invoice later, a fresh report goes out and this one is withdrawn in the same way version 1 was.",
-      "nothing": "Nothing to resend"
+      "nothing": "Nothing to resend",
+      "possibleBody": "The Tax Authority turned this report down and a corrected one can go. Put the problem right first, then send.",
+      "acceptedBody": "Already accepted, so there's nothing to resend. If you correct this invoice later, a fresh report goes out and this one is withdrawn.",
+      "waitingBody": "Still waiting on the OTA. Nothing has gone wrong, and sending again before it answers would only use your allowance twice.",
+      "noneBody": "Nothing to resend for this document."
+    },
+    "record": "Record",
+    "status": {
+      "turnedDown": "Turned down by the OTA",
+      "waiting": "Waiting for the OTA",
+      "notOwed": "No TDD owed"
+    },
+    "to": "To",
+    "issuedOn": "issued {{date}}",
+    "reportedFirst": "reported on the first attempt",
+    "reportedOnAttempt": "reported on attempt {{count}}",
+    "noPeppolJourney": "Nothing travelled to a customer: a walk-in sale, or a buyer off Peppol, is reported to the Tax Authority only.",
+    "whyItWasTurnedDown": "Why it was turned down",
+    "versionState": {
+      "live": "Live at the OTA",
+      "superseded": "Superseded",
+      "rejected": "Turned down",
+      "waiting": "Waiting"
+    },
+    "noReferenceYet": "Not issued yet",
+    "notYet": "Not yet",
+    "theCustomer": "the customer",
+    "verdict": {
+      "accepted": "Accepted",
+      "acceptedOnTry": "Accepted on attempt {{count}}",
+      "turnedDown": "Turned down",
+      "waiting": "Still waiting",
+      "delivered": "Delivered",
+      "theyRefused": "Turned down by them",
+      "noReplyYet": "No reply yet"
     }
   },
   "callLog": {
@@ -8325,6 +8879,28 @@
       "newest": "Newest first",
       "slowest": "Slowest first",
       "problemsFirst": "Problems first"
+    },
+    "notHeld": "Only the first page of today's calls is held here for now.",
+    "pagerNav": "Pages of calls",
+    "menu": {
+      "putThingsRight": "Put things right",
+      "retryWaiting": "Retry everything still waiting",
+      "retryWaitingNote_one": "{{count}} submission · uses {{count}} from your quota",
+      "retryWaitingNote_other": "{{count}} submissions · uses {{count}} from your quota",
+      "checkPortal": "Check a record against the OTA portal",
+      "checkPortalNote": "Compare what Fawtir holds with what they hold",
+      "takeACopy": "Take a copy",
+      "everyTdd": "Download every TDD for a period",
+      "everyTddNote": "The raw XML, as one zip",
+      "acks": "Download OTA acknowledgements",
+      "acksNote": "Receipts and MLS replies, your proof for an audit",
+      "exportLog": "Export this log",
+      "exportLogNote": "CSV, for whoever is helping you debug",
+      "settings": "Settings",
+      "whoHears": "Who hears about compliance problems",
+      "whoHearsNote": "Owners and admins on your team",
+      "retention": "Retention and the archive",
+      "retentionNote": "Ten years, fifteen for property"
     }
   },
   "tddResubmit": {
@@ -8341,10 +8917,11 @@
       "sevenHours": "7 hours",
       "sameCause": "Same cause this week",
       "invoices_one": "{{count}} invoice",
-      "invoices_other": "{{count}} invoices"
+      "invoices_other": "{{count}} invoices",
+      "sameCauseOpen": "Same cause, still open"
     },
     "fixItWhere": "Fix it where it went wrong",
-    "customerNote": "VAT number is on file. The Peppol ID never was — the record was created in March.",
+    "customerNote": "VAT number is on file. The Peppol ID never was, since the record was created in March.",
     "openCustomer": "Open the customer",
     "peppolIdLabel": "Their Peppol participant ID",
     "peppolIdHint": "Oman uses scheme 0248 followed by the VAT number, so it's 0248:{{vat}}.",
@@ -8375,7 +8952,10 @@
       "salesUndeclared": "<b>{{amount}}</b> of sales stay undeclared across the three invoices.",
       "vatMissing": "<b>{{amount}}</b> of VAT won't appear on your Q3 return.",
       "unreported": "They'll show as unreported on any compliance report you produce.",
-      "futureFails": "Every future invoice to this customer fails the same way."
+      "futureFails": "Every future invoice to this customer fails the same way.",
+      "salesUndeclaredCount_one": "<b>{{amount}}</b> of sales stay undeclared.",
+      "salesUndeclaredCount_other": "<b>{{amount}}</b> of sales stay undeclared across the {{count}} invoices.",
+      "vatMissingQuarter": "<b>{{amount}}</b> of VAT won’t appear on your Q{{quarter}} return."
     },
     "thisAttempt": "This attempt",
     "attempt": {
@@ -8386,7 +8966,10 @@
       "fixingAlongside": "Fixing alongside",
       "moreInvoices": "{{count}} more invoices",
       "quotaAfter": "Quota after this",
-      "left": "{{count}} left"
+      "left": "{{count}} left",
+      "moreInvoicesCount_zero": "No other invoices",
+      "moreInvoicesCount_one": "{{count}} more invoice",
+      "moreInvoicesCount_other": "{{count}} more invoices"
     },
     "stopRecurring": "Stop it recurring",
     "stopRecurringBody": "This has cost you three rejections because a business customer can be saved without a Peppol ID. Making the field required would have caught it when the record was created.",
@@ -8396,7 +8979,12 @@
     "cancel": "Cancel",
     "saveOnly": "Save the fix, don't send yet",
     "fixAndSend": "Fix and send all three",
-    "fixAndSendOne": "Fix and send"
+    "fixAndSendOne": "Fix and send",
+    "stopRecurringCount_one": "This has cost you a rejection because a business customer can be saved without a Peppol ID. Making the field required would have caught it when the record was created.",
+    "stopRecurringCount_other": "This has cost you {{count}} rejections because a business customer can be saved without a Peppol ID. Making the field required would have caught it when the record was created.",
+    "footerCount_one": "1 invoice · 1 from your quota · nothing goes to the customer",
+    "footerCount_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer",
+    "fixAndSendAll": "Fix and send all {{count}}"
   },
   "complianceReport": {
     "title": "Compliance report",
@@ -8405,7 +8993,8 @@
       "thisMonth": "This month",
       "q2": "Q2 2026",
       "thisYear": "This year",
-      "custom": "Custom"
+      "custom": "Custom",
+      "quarter": "Q{{quarter}} {{year}}"
     },
     "whatGoesIn": "What goes in it",
     "always": "Always",
@@ -8419,7 +9008,7 @@
       "flows": "Which flow each invoice took",
       "flowsNote": "The document scenario and any stand-in participant ID used for B2C or export",
       "xml": "The TDD XML files themselves",
-      "xmlNote": "Adds a zip alongside the report — {{files}} files, about {{size}}",
+      "xmlNote": "Adds a zip alongside the report: {{files}} files, about {{size}}",
       "acks": "OTA acknowledgements and MLS replies",
       "acksNote": "Your evidence that each report was received and each invoice delivered"
     },
@@ -8461,7 +9050,9 @@
       "builtBy": "Built by",
       "coverage": "Coverage",
       "everyInvoice": "Every invoice in the period, with nothing filtered out"
-    }
+    },
+    "customFrom": "From",
+    "customTo": "To"
   },
   "builtReport": {
     "ready": "Ready",
@@ -8550,7 +9141,8 @@
     "sharedSoFar": "Shared so far",
     "nobody": "Nobody",
     "downloads": "Downloads",
-    "noneYet": "None yet"
+    "noneYet": "None yet",
+    "preparedByName": "Fawtir · Accredited Service Provider"
   },
   "callDetail": {
     "subtitle": "{{date}}, {{at}} · about {{invoice}} · answered in {{seconds}}",

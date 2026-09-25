@@ -1,122 +1,138 @@
-import { useSearchParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import { useMemo } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import {
   ChartCard,
   ChartGrid,
+  ChartPending,
   DivergingBars,
   HorizontalBars,
   KpiCard,
   KpiRow,
-  ReportControls,
+  OmrNote,
+  OmrSign,
+  PlainBars,
   ReportShell,
   SERIES,
+  useReportPeriod,
 } from '../../components/reports'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
-import { useApiRead } from '../../hooks'
+import { useApiRead, type ApiRead } from '../../hooks'
 import {
   cashFlowPath,
-  defaultReportRange,
+  expenditurePath,
   loadCashFlowReport,
+  loadExpenditureReport,
   reportExportPath,
   type CashFlowReportDto,
-  type ReportGranularity,
+  type ExpenditureReportDto,
 } from '../../api/reports/reports'
+import { periodsWithNegativeDirection } from '../../lib/cashFlowReport'
 import {
-  inAndOut,
-  netByPeriod,
-  periodsOfCashFlow,
-  periodsWithNegativeDirection,
-} from '../../lib/cashFlowReport'
-import { formatAmount } from '../../lib/format'
+  MONTH_IDS,
+  historyWindow,
+  indexOfMax,
+  monthIndexOf,
+  periodWindows,
+  seriesOver,
+  shareOfTotal,
+  sumByMonth,
+  sumOver,
+  topWithRest,
+  trailingMonths,
+  type ReportPeriod,
+} from '../../lib/reportPeriod'
+import { percentPill, wholeFigure } from '../../lib/reportFigures'
+import { formatAmount, formatCount } from '../../lib/format'
 
 /**
- * Reports › Cash flow — money in against money out.
+ * Reports › Cash flow (Figma 154:106465), money in against money out.
  *
- * **Cash movement recorded in Fawtir. Not a bank position and not a forecast.** It counts payments
- * somebody recorded against an invoice or a bill; it knows nothing about bank accounts, payments
- * nobody recorded, or money that moved without a document. The page says so in a line, because a
- * chart headed "Cash flow" that a reader takes for their balance is the same class of error as the
- * OTA verdict the Activity screen had to drop — a screen implying knowledge the platform does not
- * have.
+ * **Cash movement recorded in Fawtir, not a bank position.** It counts payments somebody recorded
+ * against an invoice or a bill, bucketed on the payment date rather than the issue date the other
+ * reports use.
  *
- * Buckets are on the payment date, not the issue date the other reports use, so an invoice issued
- * in January and settled in March appears in January on Income and in March here.
- *
- * Three things the prototype promised are gone rather than faked: "Due out in 30 days", "The next
- * eight weeks" and "Where it went". The first two are forecasts over commitments this endpoint
- * does not report, and the third needs a spend category the payment tables do not carry.
+ * The frame also looks forward ("Due out in 30 days", "The next eight weeks"). Nothing reports
+ * money due by date yet, so both keep their place and say so, rather than being dropped or filled
+ * with a guess (TODO(backend) in the asks doc, section 1). "Where it went" wants payments by what
+ * they paid for; payments carry no category, so the card ranks what was billed by category over
+ * the same window and says "billed", not "paid".
  */
 export function ReportsCashFlowPage() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const [params, setParams] = useSearchParams()
+  const [period] = useReportPeriod()
+  const today = useMemo(() => new Date(), [])
+  const windows = periodWindows(period, today)
+  const history = historyWindow(today)
 
-  const fallback = defaultReportRange()
-  const from = params.get('from') ?? fallback.from
-  const to = params.get('to') ?? fallback.to
-  const granularity = (params.get('granularity') as ReportGranularity | null) ?? 'MONTH'
-
-  const change = (next: Record<string, string | undefined>) =>
-    setParams(
-      (current) => {
-        const updated = new URLSearchParams(current)
-        for (const [key, value] of Object.entries(next)) {
-          if (!value) updated.delete(key)
-          else updated.set(key, value)
-        }
-        return updated
-      },
-      { replace: true },
-    )
-
-  const range = { from, to, granularity }
-  const path = cashFlowPath(range)
+  const path = cashFlowPath({ ...history, granularity: 'MONTH' })
   const report = useApiRead<CashFlowReportDto>(path, () => loadCashFlowReport(path))
-  const data = report.read.status === 'ready' ? report.read.data : null
+  // TODO(backend): payments by category. Billed by category stands in for "Where it went".
+  const categoryPath = expenditurePath(
+    { from: windows.current.from, to: windows.current.to, granularity: 'YEAR' },
+    'CATEGORY',
+  )
+  const categories = useApiRead<ExpenditureReportDto>(categoryPath, () =>
+    loadExpenditureReport(categoryPath),
+  )
+
+  const range = {
+    from: windows.current.from,
+    to: windows.current.to,
+    granularity: 'MONTH' as const,
+  }
 
   return (
-    <ReportShell titleKey="reports.cashFlow.title" subtitleKey="reports.cashFlow.subtitle">
-      <ReportControls
-        from={from}
-        to={to}
-        granularity={granularity}
-        onChange={change}
-        exports={{
-          csv: reportExportPath('cash-flow', 'csv', range),
-          xlsx: reportExportPath('cash-flow', 'xlsx', range),
+    <ReportShell
+      titleKey="reports.cashFlow.title"
+      subtitleKey="reports.cashFlow.subtitle"
+      downloads={[
+        {
+          format: 'xlsx',
+          path: reportExportPath('cash-flow', 'xlsx', range),
           name: 'cash-flow-report',
-        }}
-      />
-
-      <p className="rounded-md bg-surface-card p-3 text-sm font-medium text-text-quaternary">
-        {t('reports.cashFlow.whatThisIs')}
-      </p>
-
+        },
+        {
+          format: 'csv',
+          path: reportExportPath('cash-flow', 'csv', range),
+          name: 'cash-flow-report',
+        },
+      ]}
+    >
       {report.read.status === 'loading' ? <LoadingNotice /> : null}
-      {report.read.status === 'failed' ? <ApiReadFailure error={report.read.error} retry={report.retry} /> : null}
+      {report.read.status === 'failed' ? (
+        <ApiReadFailure error={report.read.error} retry={report.retry} />
+      ) : null}
 
-      {data ? <CashFlowBody report={data} language={language} t={t} /> : null}
+      {report.read.status === 'ready' ? (
+        <CashFlowBody
+          report={report.read.data}
+          categories={categories.read}
+          period={period}
+          today={today}
+          language={language}
+          t={t}
+        />
+      ) : null}
     </ReportShell>
   )
 }
 
 function CashFlowBody({
   report,
+  categories,
+  period,
+  today,
   language,
   t,
 }: {
   report: CashFlowReportDto
+  categories: ApiRead<ExpenditureReportDto>
+  period: ReportPeriod
+  today: Date
   language: string
   t: (key: string, values?: Record<string, unknown>) => string
 }) {
-  const totals = report.totals
-  const primary = totals[0]
-  const money = (value: number, currency = primary?.currency ?? 'OMR') => formatAmount(value, currency, language)
-  const periods = periodsOfCashFlow(report.rows)
-  const movement = inAndOut(report.rows, periods)
-  const net = netByPeriod(report.rows, periods)
-  const negative = periodsWithNegativeDirection(report.rows)
-
   if (report.rows.length === 0) {
     return (
       <p className="rounded-md bg-surface-card p-10 text-center text-sm font-medium text-text-quaternary">
@@ -125,32 +141,92 @@ function CashFlowBody({
     )
   }
 
+  const currency = report.totals[0]?.currency ?? report.rows[0].currency
+  const rows = report.rows.filter((row) => row.currency === currency)
+  const money = (value: number) => formatAmount(value, currency, language)
+  const whole = (value: number) => wholeFigure(value, language)
+  const { current, previous } = periodWindows(period, today)
+  const received = sumByMonth(rows, (row) => row.received)
+  const paidOut = sumByMonth(rows, (row) => row.paidOut)
+  const net = sumByMonth(rows, (row) => row.net)
+
+  const inNow = sumOver(received, current.months)
+  const outNow = sumOver(paidOut, current.months)
+  const netNow = sumOver(net, current.months)
+
+  const months = trailingMonths(today)
+  const monthLabels = months.map((key) => t(`reports.months.${MONTH_IDS[monthIndexOf(key)]}`))
+  const monthlyIn = seriesOver(received, months)
+  const monthlyOut = seriesOver(paidOut, months)
+  const monthlyNet = seriesOver(net, months)
+  const bestKept = indexOfMax(monthlyNet)
+  const positive = monthlyNet.filter((value) => value > 0).length
+  // A bar cannot be drawn below nothing, so a period where reversals outweighed payments is
+  // named in the footer rather than drawn as if it were a small positive.
+  const negative = periodsWithNegativeDirection(rows)
+
+  const categoryRows =
+    categories.status === 'ready'
+      ? topWithRest(
+          [
+            ...categories.data.rows
+              .filter((row) => row.currency === currency)
+              .reduce((totals, row) => {
+                const key = row.groupKey ?? ''
+                const found = totals.get(key) ?? {
+                  key,
+                  label: key ? row.groupLabel || key : t('reports.expenditure.uncategorised'),
+                  value: 0,
+                }
+                found.value += row.netAmount
+                return totals.set(key, found)
+              }, new Map<string, { key: string; label: string; value: number }>())
+              .values(),
+          ],
+          4,
+          t('reports.cashFlow.everythingElse'),
+        )
+      : []
+  const categoryTotal = categoryRows.reduce((sum, row) => sum + row.value, 0)
+
   return (
     <>
-      {totals.length > 1 ? (
+      {report.totals.length > 1 ? (
         <p className="rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
-          {t('reports.vat.mixedCurrency', { currencies: totals.map((entry) => entry.currency).join(', ') })}
+          {t('reports.vat.mixedCurrency', {
+            currencies: report.totals.map((entry) => entry.currency).join(', '),
+          })}
         </p>
       ) : null}
 
       <KpiRow>
         <KpiCard
           label={t('reports.cashFlow.kpi.in')}
-          value={money(primary?.received ?? 0)}
+          value={money(inNow)}
           currency
+          change={percentPill(inNow, sumOver(received, previous.months), language)}
           note={t('reports.cashFlow.kpi.inNote')}
         />
         <KpiCard
           label={t('reports.cashFlow.kpi.out')}
-          value={money(primary?.paidOut ?? 0)}
+          value={money(outNow)}
           currency
+          change={percentPill(outNow, sumOver(paidOut, previous.months), language)}
           note={t('reports.cashFlow.kpi.outNote')}
         />
         <KpiCard
-          label={t('reports.cashFlow.kpi.kept')}
-          value={money(primary?.net ?? 0)}
+          label={t('reports.cashFlow.kpi.leftOver')}
+          value={money(netNow)}
           currency
-          note={t('reports.cashFlow.kpi.keptNote')}
+          change={percentPill(netNow, sumOver(net, previous.months), language)}
+          note={t(`reports.cashFlow.kpi.across.${period}`)}
+        />
+        {/* TODO(backend): money due out and expected in over the next 30 days (asks 1.9). */}
+        <KpiCard
+          label={t('reports.cashFlow.kpi.dueOut')}
+          value={t('reports.cashFlow.kpi.notForecast')}
+          pending
+          note={t('reports.cashFlow.kpi.dueOutPending')}
         />
       </KpiRow>
 
@@ -162,31 +238,106 @@ function CashFlowBody({
             { label: t('reports.cashFlow.moneyOut'), color: SERIES.brown },
           ]}
           note={
-            // Named rather than drawn: neither chart can render a negative length, so a period
-            // where reversals outweighed payments would otherwise read as a small positive.
             negative.length > 0
               ? t('reports.cashFlow.reversalHeavy', { periods: negative.join(', ') })
-              : t('reports.cashFlow.monthlyInOutNote')
+              : positive === months.length
+                ? t('reports.cashFlow.positiveEveryMonth')
+                : t('reports.cashFlow.positiveMonths', { count: positive, total: months.length })
           }
         >
-          <DivergingBars data={movement} labels={periods} labelWidth={56} />
+          <DivergingBars
+            data={monthlyIn.map((value, index) => ({ up: value, down: monthlyOut[index] }))}
+            labels={monthLabels}
+            highlight={months.length - 1}
+          />
         </ChartCard>
 
         <ChartCard
-          // "Surplus" was the prototype's word for this and it was wrong the moment the figures
-          // were real: locally all three periods are deficits, and a legend promising a surplus
-          // over three negative numbers is the same overclaim as a 99.89% share printed as 100%.
           title={t('reports.cashFlow.whatYouKept')}
-          legend={[{ label: t('reports.cashFlow.surplus'), color: SERIES.strong }]}
-          note={t('reports.cashFlow.whatYouKeptNote')}
+          legend={[
+            {
+              label: (
+                <>
+                  {t('reports.cashFlow.surplus')}
+                  <OmrSign />
+                </>
+              ),
+              color: SERIES.green,
+            },
+          ]}
+          note={
+            monthlyNet[bestKept] > 0 ? (
+              <Trans
+                i18nKey="reports.cashFlow.bestMonth"
+                values={{ value: whole(monthlyNet[bestKept]) }}
+                components={{ amount: <OmrNote /> }}
+              />
+            ) : null
+          }
         >
-          <HorizontalBars
-            rows={periods.map((period, index) => ({
-              label: period,
-              value: net[index],
-              display: money(net[index]),
-            }))}
+          <PlainBars
+            values={monthlyNet}
+            labels={monthLabels}
+            highlight={bestKept}
+            color={SERIES.greenSoft}
+            highlightColor={SERIES.green}
           />
+        </ChartCard>
+
+        {/* TODO(backend): receivables and payables due, by week (asks 1.10). */}
+        <ChartCard
+          title={t('reports.cashFlow.nextEightWeeks')}
+          legend={[
+            { label: t('reports.cashFlow.expectedIn'), color: SERIES.green },
+            { label: t('reports.cashFlow.committedOut'), color: SERIES.brown },
+          ]}
+          note={null}
+        >
+          <ChartPending message={t('reports.cashFlow.forecastPending')} />
+        </ChartCard>
+
+        <ChartCard
+          title={t('reports.cashFlow.whereItWent')}
+          legend={[
+            {
+              label: (
+                <>
+                  {t('reports.cashFlow.billedIn', { when: t(`reports.thisPeriod.${period}`) })}
+                  <OmrSign />
+                </>
+              ),
+              color: SERIES.strong,
+            },
+          ]}
+          note={
+            categoryRows.length > 0 && categoryTotal > 0
+              ? t('reports.cashFlow.topShare', {
+                  name: categoryRows[0].label,
+                  percent: formatCount(
+                    shareOfTotal(categoryRows[0].value, categoryTotal),
+                    language,
+                  ),
+                })
+              : null
+          }
+        >
+          {categoryRows.length > 0 ? (
+            <HorizontalBars
+              rows={categoryRows.map((row) => ({
+                label: row.label,
+                value: row.value,
+                display: whole(row.value),
+              }))}
+            />
+          ) : (
+            <p className="w-full text-center text-sm font-medium text-text-quaternary">
+              {t(
+                categories.status === 'loading'
+                  ? 'reports.loadingChart'
+                  : 'reports.expenditure.nothingBilled',
+              )}
+            </p>
+          )}
         </ChartCard>
       </ChartGrid>
     </>

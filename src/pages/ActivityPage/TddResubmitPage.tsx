@@ -1,15 +1,24 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { RialText } from '../../components/ui'
+import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
+import { useApiRead } from '../../hooks'
 import {
-  QUOTA_LEFT,
-  TDD_RESUBMIT,
-  UNDECLARED_VAT,
-  formatOmr,
-  type ChangeRow,
-} from '../../lib/tddResubmit'
+  activityDetailPath,
+  activityListPath,
+  loadActivityDetail,
+  loadActivityList,
+  resubmitTdd,
+  type ActivityDetailDto,
+  type ActivityListDto,
+} from '../../api/compliance/activity'
+import { whenOf } from '../../lib/activityDetail'
+import { formatDuration, secondsBetween } from '../../lib/activityLedger'
+import { describeApiFailure } from '../../lib/apiFailure'
+import { can, useSession } from '../../lib/session/session'
+import { QUOTA_LEFT, TDD_RESUBMIT, formatOmr, type ChangeRow } from '../../lib/tddResubmit'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import warnIcon from '../../assets/activity/warn-danger.svg'
 import quotaWarnIcon from '../../assets/activity/warn-amber.svg'
@@ -17,19 +26,117 @@ import tickIcon from '../../assets/activity/check-filled.svg'
 import crossIcon from '../../assets/suppliers/consequence-stop.svg'
 import sendIcon from '../../assets/activity/ch-peppol.svg'
 
+/**
+ * Put a turned-down report right and send it again (Figma 154:108616), for the document at
+ * `/compliance/activity/:id/resubmit`.
+ *
+ * The record (`/v1/compliance/activity/{invoice_uuid}`) names the invoice, the customer, what the
+ * Authority said and when; "Fix and send" posts the resubmission through the link the server put
+ * on the record, and only for someone who may submit. The fix itself, the before-and-after table
+ * and the allowance are the design's until the backend describes them (asks rows 2.16 to 2.19).
+ */
 export function TddResubmitPage() {
-  const { t } = useTranslation()
-  const record = TDD_RESUBMIT
-  const invoice = record.invoice
-
-  const [peppolId, setPeppolId] = useState(record.fix.suggested)
-  const [required, setRequired] = useState(false)
-
-  const valid = record.fix.pattern.test(peppolId.trim())
-  const invoices = record.rejection.sameCauseCount
-
   return (
     <AppShell>
+      <ResubmitScreen />
+    </AppShell>
+  )
+}
+
+function ResubmitScreen() {
+  const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const session = useSession()
+  const { id = '' } = useParams()
+  const detail = useApiRead<ActivityDetailDto>(activityDetailPath(id), () => loadActivityDetail(id))
+  const rejectedPath = activityListPath({ tddAck: 'RE' }, 0, 100)
+  const rejected = useApiRead<ActivityListDto>(rejectedPath, () => loadActivityList(rejectedPath))
+  const [peppolId, setPeppolId] = useState(TDD_RESUBMIT.fix.suggested)
+  const [required, setRequired] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+
+  if (detail.read.status !== 'ready') {
+    return (
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+        {detail.read.status === 'loading' ? (
+          <LoadingNotice />
+        ) : (
+          <ApiReadFailure error={detail.read.error} retry={detail.retry} />
+        )}
+      </div>
+    )
+  }
+
+  const dto = detail.read.data
+  const item = dto.summary
+  const lineage = dto.tdd_lineage
+  const refusal =
+    [...lineage].reverse().find((entry) => entry.failure_reason) ?? lineage[lineage.length - 1]
+  const invoice = item.invoice_number ?? t('activity.unnumbered')
+  const customer = item.counterparty ?? t('activityDetail.theCustomer')
+  const turnedDownAt =
+    item.tdd_leg?.ack === 'RE' ? whenOf(item.tdd_leg.ack_at, i18n.language) : null
+  const undeclaredFor = secondsBetween(item.occurred_at, new Date().toISOString())
+  const record = {
+    ...TDD_RESUBMIT,
+    invoice,
+    customer,
+    customerLegal: customer,
+    customerInitials: customer
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((word) => word[0] ?? '')
+      .join('')
+      .toUpperCase(),
+    rejection: {
+      ...TDD_RESUBMIT.rejection,
+      code: refusal?.error_code ?? null,
+      reason: refusal?.failure_reason ?? item.tdd_leg?.reason ?? null,
+      turnedDownAt: turnedDownAt ?? t('activityDetail.notYet'),
+      attemptsSoFar: Math.max(1, lineage.length),
+      undeclaredFor: undeclaredFor === null ? null : formatDuration(undeclaredFor),
+    },
+  }
+  // The others turned down for the same reason, read off the ledger's rejected rows: the frame fixes
+  // them together. Only rows the server offered a resubmission for can go.
+  // TODO(backend): a same-cause grouping on the record would replace this match (asks row 2.19).
+  const sameCause =
+    rejected.read.status === 'ready' && record.rejection.reason
+      ? rejected.read.data.items.filter(
+          (row) =>
+            row.invoice_uuid !== dto.invoice_uuid &&
+            row.tdd_leg?.reason === record.rejection.reason &&
+            row.links.resubmit !== null,
+        )
+      : []
+  const group = [item, ...sameCause]
+  const invoices = group.length
+  const undeclaredTotal = group.reduce((sum, row) => sum + (row.amount ?? 0), 0)
+  const undeclaredVat = Math.round((undeclaredTotal - undeclaredTotal / 1.05) * 1000) / 1000
+  const mayResubmit = can(session, 'invoice.submit') && item.links.resubmit !== null
+  const valid = TDD_RESUBMIT.fix.pattern.test(peppolId.trim())
+
+  const send = async () => {
+    if (!item.links.resubmit) return
+    setSending(true)
+    setFailure(null)
+    try {
+      // TODO(backend): the Peppol ID typed above is not saved to the customer yet (asks row 2.16).
+      for (const row of group) {
+        if (row.links.resubmit) await resubmitTdd(row.links.resubmit)
+      }
+      navigate(`/compliance/activity/${dto.invoice_uuid}`)
+    } catch (error) {
+      const message = describeApiFailure(error)
+      setFailure(t(message.key, message.values))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-24">
         {/* Breadcrumb */}
         <div className="flex flex-wrap items-center gap-2">
@@ -41,7 +148,7 @@ export function TddResubmitPage() {
           </Link>
           <img src={chevronIcon} alt="" aria-hidden="true" className="size-5 rtl:rotate-180" />
           <Link
-            to={`/compliance/activity/${invoice}`}
+            to={`/compliance/activity/${dto.invoice_uuid}`}
             className="text-2xl font-medium leading-[1.2] text-text-quaternary hover:text-primary-700"
           >
             {invoice}
@@ -62,7 +169,7 @@ export function TddResubmitPage() {
             </p>
           </div>
           <Link
-            to={`/invoices/${invoice}`}
+            to={`/invoices/${dto.invoice_uuid}`}
             className="inline-flex h-[46px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
           >
             {t('tddResubmit.openInvoice')}
@@ -77,23 +184,18 @@ export function TddResubmitPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2.5">
-                <span className="text-lg font-semibold leading-[1.2] text-danger-700">
-                  {t(record.rejection.headlineKey)}
+                <span className="text-lg font-medium leading-[1.2] text-danger-700">
+                  {t('activityDetail.rejection.whatTheySaid')}
                 </span>
-                <span className="rounded-sm bg-white px-2 py-1 font-mono text-[11px] font-semibold text-danger-700">
-                  {record.rejection.code}
-                </span>
+                {record.rejection.code ? (
+                  <span className="rounded-sm bg-white px-2 py-1 font-mono text-[11px] font-semibold text-danger-700">
+                    {record.rejection.code}
+                  </span>
+                ) : null}
               </p>
               <p className="mt-2.5 text-sm font-medium leading-[1.6] text-text-secondary">
-                <Trans
-                  i18nKey={record.rejection.bodyKey}
-                  values={{ customer: record.customerLegal }}
-                  components={{ b: <span className="font-semibold text-text-primary" /> }}
-                />
+                {record.rejection.reason ?? t('activity.verdict.rejectedNoReason')}
               </p>
-              <pre className="mt-3 overflow-x-auto rounded-sm bg-white p-3 text-left font-mono text-[11px] leading-[1.6] text-text-tertiary">
-                {record.rejection.raw}
-              </pre>
 
               <dl className="mt-4 flex flex-wrap gap-x-10 gap-y-3">
                 <Stat
@@ -104,12 +206,14 @@ export function TddResubmitPage() {
                   label={t('tddResubmit.rejection.attemptsSoFar')}
                   value={String(record.rejection.attemptsSoFar)}
                 />
+                {record.rejection.undeclaredFor ? (
+                  <Stat
+                    label={t('tddResubmit.rejection.undeclaredFor')}
+                    value={record.rejection.undeclaredFor}
+                  />
+                ) : null}
                 <Stat
-                  label={t('tddResubmit.rejection.undeclaredFor')}
-                  value={t(record.rejection.undeclaredForKey)}
-                />
-                <Stat
-                  label={t('tddResubmit.rejection.sameCause')}
+                  label={t('tddResubmit.rejection.sameCauseOpen')}
                   value={t('tddResubmit.rejection.invoices', { count: invoices })}
                 />
               </dl>
@@ -123,7 +227,7 @@ export function TddResubmitPage() {
             <section className="rounded-md bg-surface-card p-5">
               <SectionTitle step={1} title={t('tddResubmit.fixItWhere')} />
 
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-sm border border-primary-300 bg-primary-25 p-4">
+              <div className="mt-4 flex items-center justify-between gap-4 rounded-sm border border-primary-300 bg-primary-25 p-4 max-md:flex-wrap">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-sm bg-white text-xs font-semibold text-primary-800">
                     {record.customerInitials}
@@ -267,9 +371,10 @@ export function TddResubmitPage() {
                 {[
                   <Trans
                     key="sales"
-                    i18nKey="tddResubmit.leaveIt.salesUndeclared"
+                    i18nKey="tddResubmit.leaveIt.salesUndeclaredCount"
                     values={{
-                      amount: `OMR ${formatOmr(record.ifYouLeaveIt.undeclaredInclusive)}`,
+                      amount: `OMR ${formatOmr(undeclaredTotal)}`,
+                      count: invoices,
                     }}
                     components={{
                       b: <RialText as="span" className="font-semibold text-text-primary" />,
@@ -277,8 +382,11 @@ export function TddResubmitPage() {
                   />,
                   <Trans
                     key="vat"
-                    i18nKey="tddResubmit.leaveIt.vatMissing"
-                    values={{ amount: `OMR ${formatOmr(UNDECLARED_VAT)}` }}
+                    i18nKey="tddResubmit.leaveIt.vatMissingQuarter"
+                    values={{
+                      amount: `OMR ${formatOmr(undeclaredVat)}`,
+                      quarter: Math.floor(new Date().getUTCMonth() / 3) + 1,
+                    }}
                     components={{
                       b: <RialText as="span" className="font-semibold text-text-primary" />,
                     }}
@@ -314,7 +422,7 @@ export function TddResubmitPage() {
                 />
                 <Row
                   label={t('tddResubmit.attempt.fixingAlongside')}
-                  value={t('tddResubmit.attempt.moreInvoices', { count: invoices - 1 })}
+                  value={t('tddResubmit.attempt.moreInvoicesCount', { count: invoices - 1 })}
                 />
                 <Row
                   label={t('tddResubmit.attempt.quotaAfter')}
@@ -329,7 +437,7 @@ export function TddResubmitPage() {
                 {t('tddResubmit.stopRecurring')}
               </h3>
               <p className="mt-2.5 text-sm font-medium leading-[1.6] text-text-tertiary">
-                {t('tddResubmit.stopRecurringBody')}
+                {t('tddResubmit.stopRecurringCount', { count: invoices })}
               </p>
               <button
                 type="button"
@@ -350,11 +458,21 @@ export function TddResubmitPage() {
         </div>
       </div>
 
+      {failure ? (
+        <div className="mx-auto w-full max-w-[1144px] pb-4">
+          <Notice
+            badge={t('supplierCreditNoteDetail.notDone')}
+            body={failure}
+            action={{ label: t('common.close'), onClick: () => setFailure(null) }}
+          />
+        </div>
+      ) : null}
+
       {/* Action bar */}
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-border-subtle bg-surface-card px-4 py-4">
         <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-text-tertiary">
-            {t('tddResubmit.footer', { invoices, quota: invoices })}
+            {t('tddResubmit.footerCount', { count: invoices })}
           </p>
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
@@ -370,18 +488,25 @@ export function TddResubmitPage() {
             >
               {t('tddResubmit.saveOnly')}
             </button>
-            <button
-              type="button"
-              disabled={!valid}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
-            >
-              <img src={sendIcon} alt="" className="size-4 brightness-0 invert" />
-              {invoices > 1 ? t('tddResubmit.fixAndSend') : t('tddResubmit.fixAndSendOne')}
-            </button>
+            {mayResubmit ? (
+              <button
+                type="button"
+                disabled={!valid || sending}
+                onClick={() => void send()}
+                className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
+              >
+                <img src={sendIcon} alt="" className="size-4 brightness-0 invert" />
+                {sending
+                  ? t('common.saving')
+                  : invoices > 1
+                    ? t('tddResubmit.fixAndSendAll', { count: invoices })
+                    : t('tddResubmit.fixAndSendOne')}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
-    </AppShell>
+    </>
   )
 }
 
