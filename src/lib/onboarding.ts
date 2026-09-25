@@ -87,8 +87,10 @@ export type IdentityPreview = {
   companyName: string
   crNumber: string
   vatin: string
+  /** The ISIC code chosen on the identity step, so Back restores it and the review shows it. */
+  industrialClassification: string
   accent: InvoiceAccent
-  /** A data URL, shown in the preview only — the backend has no anonymous logo upload. */
+  /** A data URL, shown in the preview only: the backend has no anonymous logo upload. */
   logoUrl: string | null
 }
 

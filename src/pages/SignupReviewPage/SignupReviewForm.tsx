@@ -13,6 +13,8 @@ import {
 } from '../../lib/onboarding'
 import { SUB_TYPES_BY_BUSINESS } from '../../lib/subBusinessTypes'
 import { toOmanE164 } from '../../lib/validation'
+import { findCode, nameOf } from '../../lib/codeLists/codeList'
+import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 
 type Row = { label: string; value: string }
 
@@ -46,10 +48,13 @@ function ReviewSection({ title, editTo, rows }: { title: string; editTo: string;
  * once the draft is with a reviewer (backend signup guide §10a).
  */
 export function SignupReviewForm() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const state = onboardingStateFrom(useLocation().state)
-  const { save, submitting, formError } = useOnboardingStep({ conflictKey: 'signupReview.conflict' })
+  const { save, submitting, formError } = useOnboardingStep({
+    conflictKey: 'signupReview.conflict',
+  })
+  const activity = findCode(ISIC_ACTIVITIES, state.identity?.industrialClassification)
   // Opened without this tab's answers (a typed URL): the steps are saved on the server, but there
   // is nothing honest to show for them, so each field says so instead of looking empty.
   const saved = t('signupReview.savedEarlier')
@@ -57,7 +62,9 @@ export function SignupReviewForm() {
   const optional = (value: string | undefined) => (address ? value || '—' : saved)
 
   const trade = state.businessType
-    ? SUB_TYPES_BY_BUSINESS[state.businessType].find((option) => option.id === state.subBusinessType)
+    ? SUB_TYPES_BY_BUSINESS[state.businessType].find(
+        (option) => option.id === state.subBusinessType,
+      )
     : undefined
   const { identity, address } = state
   const sizeKey = state.businessSize && BUSINESS_SIZE_LABEL_KEYS[state.businessSize]
@@ -94,6 +101,14 @@ export function SignupReviewForm() {
       rows: [
         { label: t('businessIdentity.companyNameLabel'), value: identity?.companyName ?? saved },
         { label: t('businessIdentity.crLabel'), value: identity?.crNumber ?? saved },
+        {
+          label: t('signupReview.fields.activity'),
+          value: identity
+            ? activity
+              ? `${activity.code} · ${nameOf(activity, i18n.language)}`
+              : '—'
+            : saved,
+        },
         { label: t('businessIdentity.vatinLabel'), value: identity?.vatin ?? saved },
         { label: t('businessIdentity.accentLabel'), value: shown(accentKey) },
       ],
@@ -133,7 +148,12 @@ export function SignupReviewForm() {
           </p>
         </div>
         {sections.map((section) => (
-          <ReviewSection key={section.key} title={section.title} editTo={section.editTo} rows={section.rows} />
+          <ReviewSection
+            key={section.key}
+            title={section.title}
+            editTo={section.editTo}
+            rows={section.rows}
+          />
         ))}
       </div>
 

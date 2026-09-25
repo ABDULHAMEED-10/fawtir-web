@@ -6,11 +6,16 @@ import {
   CameraIcon,
   ChevronRightIcon,
   CloseIcon,
+  Combobox,
   HashIcon,
   Input,
   UserIcon,
+  type SelectOption,
 } from '../../components/ui'
 import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { nameOf } from '../../lib/codeLists/codeList'
+import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
+import { isicForSubType } from '../../lib/codeLists/isicBySubType'
 import { focusFirstInvalid } from '../../lib/forms'
 import {
   BUSINESS_IDENTITY_FIELD_ORDER,
@@ -41,19 +46,28 @@ type BusinessIdentityFormProps = {
 }
 
 export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const state = onboardingStateFrom(useLocation().state)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isicRef = useRef<HTMLDivElement>(null)
 
   // Empty unless restored on Back. The prototype pre-filled a real-looking business, so pressing
   // Continue unedited would have registered someone else's CR number and VATIN.
   const [companyName, setCompanyName] = useState(state.identity?.companyName ?? '')
   const [crNumber, setCrNumber] = useState(state.identity?.crNumber ?? '')
   const [vatin, setVatin] = useState(state.identity?.vatin ?? '')
-  const [accent, setAccent] = useState<InvoiceAccent>(state.identity?.accent ?? INVOICE_ACCENTS[0].id)
+  // The specialty chosen two steps back suggests the activity; the registrant confirms or changes it.
+  const [industrialClassification, setIndustrialClassification] = useState(
+    state.identity?.industrialClassification ?? isicForSubType(state.subBusinessType)?.code ?? '',
+  )
+  const [accent, setAccent] = useState<InvoiceAccent>(
+    state.identity?.accent ?? INVOICE_ACCENTS[0].id,
+  )
   const [logoPreview, setLogoPreview] = useState<string | null>(state.identity?.logoUrl ?? null)
-  const [errors, setErrors] = useState<Partial<Record<BusinessIdentityField | 'logo', FieldError>>>({})
+  const [errors, setErrors] = useState<Partial<Record<BusinessIdentityField | 'logo', FieldError>>>(
+    {},
+  )
   const { save, submitting, formError } = useOnboardingStep<BusinessIdentityField>({
     serverFields: BUSINESS_IDENTITY_SERVER_FIELDS,
     conflictKey: 'businessIdentity.identifierTaken',
@@ -66,6 +80,18 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   // one at all (Fawtara SP#6), and the platform treats the Oman PID rule as pending authority.
   const peppolPending = t('businessIdentity.peppolPending')
   const category = registrableCategory(state.businessType)
+
+  // Searched by activity name; the code is the hint so a known code finds it too.
+  // TODO(backend): `GET /v1/code-lists/isic?q=` replaces the placeholder list.
+  const isicOptions = useMemo<SelectOption[]>(
+    () =>
+      ISIC_ACTIVITIES.map((activity) => ({
+        value: activity.code,
+        label: nameOf(activity, i18n.language),
+        hint: `ISIC ${activity.code}`,
+      })),
+    [i18n.language],
+  )
 
   const preview = useMemo<InvoicePreviewData>(
     () => ({
@@ -87,11 +113,17 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
-    const values = { companyName, crNumber, vatin, accent }
+    const values = { companyName, crNumber, vatin, industrialClassification, accent }
     const next = validateBusinessIdentity(values)
     setErrors(next)
     if (!isClean(next)) {
-      focusFirstInvalid(form, BUSINESS_IDENTITY_FIELD_ORDER, next)
+      // The activity picker is a button, not a named input, so it is focused by hand when it is
+      // the first thing wrong; the named inputs go through the shared helper.
+      if (!next.companyName && !next.crNumber && next.industrialClassification) {
+        isicRef.current?.querySelector('button')?.focus()
+      } else {
+        focusFirstInvalid(form, BUSINESS_IDENTITY_FIELD_ORDER, next)
+      }
       return
     }
 
@@ -108,6 +140,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
         companyName: request.legalCompanyName,
         crNumber: request.commercialRegistrationNumber,
         vatin: request.taxNumber,
+        industrialClassification,
         accent,
         logoUrl: logoPreview,
       },
@@ -247,6 +280,37 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               leadingIcon={<HashIcon size={14} />}
               hint={t('businessIdentity.crHint')}
             />
+
+            <div ref={isicRef} className="flex flex-col gap-1.5">
+              <span
+                id="business-activity-label"
+                className="flex items-center gap-1 text-sm font-medium leading-[1.2] text-text-primary"
+              >
+                {t('businessIdentity.isicLabel')}
+                <span className="text-xl leading-4 text-primary-700">*</span>
+              </span>
+              <Combobox
+                value={industrialClassification}
+                onChange={(code) => {
+                  setIndustrialClassification(code)
+                  clearError('industrialClassification')
+                }}
+                options={isicOptions}
+                placeholder={t('businessIdentity.isicPlaceholder')}
+                searchPlaceholder={t('businessIdentity.isicSearch')}
+                emptyText={t('businessIdentity.isicNone')}
+                ariaLabel={t('businessIdentity.isicLabel')}
+              />
+              {errors.industrialClassification ? (
+                <p className="text-xs font-medium text-text-danger" role="alert">
+                  {t(errors.industrialClassification)}
+                </p>
+              ) : (
+                <p className="text-xs font-medium leading-[1.2] text-text-tertiary">
+                  {t('businessIdentity.isicHint')}
+                </p>
+              )}
+            </div>
 
             <Input
               label={t('businessIdentity.vatinLabel')}

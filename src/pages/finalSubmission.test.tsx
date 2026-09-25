@@ -20,7 +20,14 @@ const COMPLETE: OnboardingState = {
   invoicingMethod: 'erp',
   businessType: 'food-beverage',
   subBusinessType: 'bakery',
-  identity: { companyName: 'Al Noor Bakery LLC', crNumber: 'CR-99', vatin: 'OM1200000001', accent: 'PURPLE', logoUrl: null },
+  identity: {
+    companyName: 'Al Noor Bakery LLC',
+    crNumber: 'CR-99',
+    vatin: 'OM1200000001',
+    industrialClassification: '107110',
+    accent: 'PURPLE',
+    logoUrl: null,
+  },
   address: {
     addressLine: 'Building 4, Way 2301',
     postalCode: '',
@@ -36,7 +43,11 @@ const COMPLETE: OnboardingState = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const noContent = () => new Response(null, { status: 204 })
-const conflict = () => json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', detail: 'This onboarding has already been submitted for review.' })
+const conflict = () =>
+  json(409, {
+    type: 'https://api.fawtir.om/problems/resource-conflict',
+    detail: 'This onboarding has already been submitted for review.',
+  })
 const status = (stage: string, extra: Record<string, unknown> = {}) =>
   json(200, {
     stage,
@@ -74,7 +85,8 @@ function renderAt(pathname: string, state?: unknown) {
 }
 
 const submit = () => document.querySelector<HTMLButtonElement>('form button[type="submit"]')!
-const valueOf = (labelKey: string) => (screen.getByLabelText(i18n.t(labelKey)) as HTMLInputElement).value
+const valueOf = (labelKey: string) =>
+  (screen.getByLabelText(i18n.t(labelKey)) as HTMLInputElement).value
 const requests = () =>
   (fetchMock.mock.calls as Array<[string, RequestInit]>).map(([url, init]) => ({
     url,
@@ -86,7 +98,10 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   sessionStorage.clear()
-  saveOnboardingSession({ onboardingToken: TOKEN, onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString() })
+  saveOnboardingSession({
+    onboardingToken: TOKEN,
+    onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+  })
   fetchMock = vi.fn().mockResolvedValue(noContent())
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -101,22 +116,31 @@ describe('Review and submit', () => {
 
     expect(valueOf('signupReview.fields.size')).toBe(i18n.t('aboutBusiness.size.elevenToFifty'))
     expect(valueOf('signupReview.fields.invoicing')).toBe(i18n.t('aboutBusiness.invoicing.erp'))
-    expect(valueOf('signupReview.fields.category')).toBe(i18n.t('businessType.options.foodBeverage'))
+    expect(valueOf('signupReview.fields.category')).toBe(
+      i18n.t('businessType.options.foodBeverage'),
+    )
     expect(valueOf('signupReview.fields.trade')).toBe(i18n.t('subBusinessType.options.bakery'))
     expect(valueOf('businessIdentity.companyNameLabel')).toBe('Al Noor Bakery LLC')
+    expect(valueOf('signupReview.fields.activity')).toBe('107110 · Manufacture of bakery products')
     expect(valueOf('businessIdentity.vatinLabel')).toBe('OM1200000001')
     expect(valueOf('businessIdentity.accentLabel')).toBe(i18n.t('businessIdentity.accents.PURPLE'))
     expect(valueOf('addressContact.governorate')).toBe(i18n.t('governorate.northBatinah'))
     expect(valueOf('addressContact.postalCode')).toBe('—')
     expect(valueOf('addressContact.phone')).toBe('+96891234567')
-    expect(screen.getByLabelText(i18n.t('addressContact.email')).hasAttribute('readonly')).toBe(true)
+    expect(screen.getByLabelText(i18n.t('addressContact.email')).hasAttribute('readonly')).toBe(
+      true,
+    )
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('offers each section for editing with the answers carried along', async () => {
     renderAt('/signup-review', COMPLETE)
     const edits = screen.getAllByRole('link', { name: i18n.t('signupReview.edit') })
-    expect(edits.map((link) => link.getAttribute('href'))).toEqual(['/about-business', '/business-identity', '/address-contact'])
+    expect(edits.map((link) => link.getAttribute('href'))).toEqual([
+      '/about-business',
+      '/business-identity',
+      '/address-contact',
+    ])
 
     await userEvent.setup({ delay: null }).click(edits[2])
     expect(screen.getByTestId('location').textContent).toBe('/address-contact')
@@ -128,7 +152,9 @@ describe('Review and submit', () => {
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('signupPending.received.title'))).toBeTruthy()
-    expect(requests()).toEqual([{ url: '/api/v1/auth/signup/final-submission', body: { onboardingToken: TOKEN } }])
+    expect(requests()).toEqual([
+      { url: '/api/v1/auth/signup/final-submission', body: { onboardingToken: TOKEN } },
+    ])
     expect(readOnboardingSession()?.submitted).toBe(true)
   })
 
@@ -158,7 +184,9 @@ describe('Review and submit', () => {
   })
 
   it('reports a VATIN or CR another business registered first, and stays editable', async () => {
-    fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(status('READY_FOR_SUBMISSION'))
+    fetchMock
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(status('READY_FOR_SUBMISSION'))
     renderAt('/signup-review', COMPLETE)
     await userEvent.setup({ delay: null }).click(submit())
 
@@ -176,7 +204,9 @@ describe('Review and submit', () => {
   })
 
   it('reports an ended session in words that do not send the registrant back to signup', async () => {
-    fetchMock.mockResolvedValue(json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }))
+    fetchMock.mockResolvedValue(
+      json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }),
+    )
     renderAt('/signup-review', COMPLETE)
     await userEvent.setup({ delay: null }).click(submit())
 
@@ -191,7 +221,9 @@ describe('Review and submit', () => {
 
     expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
     expect(valueOf('businessIdentity.vatinLabel')).toBe(i18n.t('signupReview.savedEarlier'))
-    expect(requests()).toEqual([{ url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } }])
+    expect(requests()).toEqual([
+      { url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } },
+    ])
   })
 
   it('is closed once this tab has submitted', async () => {
@@ -203,7 +235,9 @@ describe('Review and submit', () => {
 
   it('reads in Arabic, with no English server text', async () => {
     await i18n.changeLanguage('ar')
-    fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(status('READY_FOR_SUBMISSION'))
+    fetchMock
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(status('READY_FOR_SUBMISSION'))
     renderAt('/signup-review', COMPLETE)
     expect(valueOf('addressContact.governorate')).toBe(i18n.t('governorate.northBatinah'))
     await userEvent.setup({ delay: null }).click(submit())
@@ -239,7 +273,9 @@ describe('Waiting screen', () => {
     renderAt('/signup-pending')
     expect(await screen.findByText(i18n.t('signupPending.approved.title'))).toBeTruthy()
 
-    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: i18n.t('signupPending.approved.signIn') }))
+    await userEvent
+      .setup({ delay: null })
+      .click(screen.getByRole('button', { name: i18n.t('signupPending.approved.signIn') }))
     expect(screen.getByTestId('location').textContent).toBe('/login')
   })
 
@@ -248,7 +284,11 @@ describe('Waiting screen', () => {
     fetchMock.mockResolvedValue(status('READY_FOR_SUBMISSION', { verificationStatus: 'REJECTED' }))
     sessionStorage.setItem(
       'fawtir.signup.onboarding.v1',
-      JSON.stringify({ onboardingToken: TOKEN, onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(), submitted: false }),
+      JSON.stringify({
+        onboardingToken: TOKEN,
+        onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        submitted: false,
+      }),
     )
     renderAt('/signup-pending')
     expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
@@ -257,17 +297,29 @@ describe('Waiting screen', () => {
 
   it.each([
     ['no session at all', () => sessionStorage.clear()],
-    ['an expired session', () => saveOnboardingSession({ onboardingToken: TOKEN, onboardingTokenExpiresAt: new Date(Date.now() - 1).toISOString() })],
-  ])('with %s: explains the email decision, never "sign up again", with no request', (_label, arrange) => {
-    arrange()
-    renderAt('/signup-pending')
-    expect(screen.getByText(i18n.t('signupPending.ended.title'))).toBeTruthy()
-    expect(document.body.textContent).not.toMatch(/sign up again/i)
-    expect(fetchMock).not.toHaveBeenCalled()
-  })
+    [
+      'an expired session',
+      () =>
+        saveOnboardingSession({
+          onboardingToken: TOKEN,
+          onboardingTokenExpiresAt: new Date(Date.now() - 1).toISOString(),
+        }),
+    ],
+  ])(
+    'with %s: explains the email decision, never "sign up again", with no request',
+    (_label, arrange) => {
+      arrange()
+      renderAt('/signup-pending')
+      expect(screen.getByText(i18n.t('signupPending.ended.title'))).toBeTruthy()
+      expect(document.body.textContent).not.toMatch(/sign up again/i)
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
 
   it('treats a refused token as an ended session', async () => {
-    fetchMock.mockResolvedValue(json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }))
+    fetchMock.mockResolvedValue(
+      json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }),
+    )
     renderAt('/signup-pending')
     expect(await screen.findByText(i18n.t('signupPending.ended.title'))).toBeTruthy()
     expect(hasEndedOnboardingSession()).toBe(true)

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../i18n'
@@ -23,10 +23,17 @@ function noContent() {
 }
 
 function json(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
-const conflict = () => json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', detail: 'A tenant with this tax number already exists.' })
+const conflict = () =>
+  json(409, {
+    type: 'https://api.fawtir.om/problems/resource-conflict',
+    detail: 'A tenant with this tax number already exists.',
+  })
 
 function status(stage: string, complete: Partial<Record<string, boolean>> = {}) {
   return json(200, {
@@ -82,7 +89,14 @@ const AFTER_CATEGORY: OnboardingState = { ...AFTER_PROFILE, businessType: 'food-
 const AFTER_TYPE: OnboardingState = { ...AFTER_CATEGORY, subBusinessType: 'bakery' }
 const AFTER_IDENTITY: OnboardingState = {
   ...AFTER_TYPE,
-  identity: { companyName: 'Al Noor Bakery LLC', crNumber: '1234567', vatin: 'OM1100112233', accent: 'GREEN', logoUrl: null },
+  identity: {
+    companyName: 'Al Noor Bakery LLC',
+    crNumber: '1234567',
+    vatin: 'OM1100112233',
+    industrialClassification: '107110',
+    accent: 'GREEN',
+    logoUrl: null,
+  },
 }
 
 let fetchMock: ReturnType<typeof vi.fn>
@@ -90,7 +104,10 @@ let fetchMock: ReturnType<typeof vi.fn>
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   sessionStorage.clear()
-  saveOnboardingSession({ onboardingToken: TOKEN, onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString() })
+  saveOnboardingSession({
+    onboardingToken: TOKEN,
+    onboardingTokenExpiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+  })
   fetchMock = vi.fn().mockResolvedValue(noContent())
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -120,7 +137,11 @@ describe('About your business', () => {
 
   // Every combination, because the prototype branched on them: all sixteen must reach the
   // business-type step, since the backend refuses a draft without a category and a type.
-  it.each(SIZES.flatMap(([sizeKey, size]) => METHODS.map(([methodKey, method]) => [sizeKey, size, methodKey, method])))(
+  it.each(
+    SIZES.flatMap(([sizeKey, size]) =>
+      METHODS.map(([methodKey, method]) => [sizeKey, size, methodKey, method]),
+    ),
+  )(
     '%s (%s) with %s (%s) saves once and continues to the business type',
     async (sizeKey, size, methodKey, method) => {
       const user = userEvent.setup({ delay: null })
@@ -141,8 +162,12 @@ describe('About your business', () => {
 
   it('restores the previous answers on Back', () => {
     renderAt('/about-business', { businessSize: '11-50', invoicingMethod: 'erp' })
-    const pressed = screen.getAllByRole('button', { pressed: true }).map((button) => button.textContent)
-    expect(pressed.some((text) => text?.includes(i18n.t('aboutBusiness.size.elevenToFifty')))).toBe(true)
+    const pressed = screen
+      .getAllByRole('button', { pressed: true })
+      .map((button) => button.textContent)
+    expect(pressed.some((text) => text?.includes(i18n.t('aboutBusiness.size.elevenToFifty')))).toBe(
+      true,
+    )
     expect(pressed.some((text) => text?.includes(i18n.t('aboutBusiness.invoicing.erp')))).toBe(true)
   })
 
@@ -168,7 +193,10 @@ describe('Business type (the backend category)', () => {
 
     expect(await screen.findByText(i18n.t('subBusinessType.title'))).toBeTruthy()
     expect(requests()).toEqual([
-      { url: '/api/v1/auth/signup/business-category', body: { onboardingToken: TOKEN, businessCategory: 'FOOD_AND_BEVERAGE' } },
+      {
+        url: '/api/v1/auth/signup/business-category',
+        body: { onboardingToken: TOKEN, businessCategory: 'FOOD_AND_BEVERAGE' },
+      },
     ])
   })
 
@@ -192,13 +220,21 @@ describe('Business type (the backend category)', () => {
   })
 
   it('drops a trade chosen under a different category', async () => {
-    renderAt('/business-type', { ...AFTER_PROFILE, businessType: 'retail', subBusinessType: 'grocery' })
+    renderAt('/business-type', {
+      ...AFTER_PROFILE,
+      businessType: 'retail',
+      subBusinessType: 'grocery',
+    })
     const user = userEvent.setup({ delay: null })
-    await user.click(screen.getByRole('button', { name: i18n.t('businessType.options.foodBeverage') }))
+    await user.click(
+      screen.getByRole('button', { name: i18n.t('businessType.options.foodBeverage') }),
+    )
     await user.click(submit())
     await screen.findByText(i18n.t('subBusinessType.title'))
 
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe(i18n.t('subBusinessType.options.coffeeShop'))
+    expect(screen.getByRole('button', { pressed: true }).textContent).toBe(
+      i18n.t('subBusinessType.options.coffeeShop'),
+    )
   })
 })
 
@@ -219,13 +255,18 @@ describe('Sub business type (the backend type)', () => {
 
     expect(await screen.findByText(i18n.t('businessIdentity.title'))).toBeTruthy()
     expect(requests()).toEqual([
-      { url: '/api/v1/auth/signup/business-type', body: { onboardingToken: TOKEN, businessType: type } },
+      {
+        url: '/api/v1/auth/signup/business-type',
+        body: { onboardingToken: TOKEN, businessType: type },
+      },
     ])
   })
 
   it('restores the saved trade on Back', () => {
     renderAt('/sub-business-type', AFTER_TYPE)
-    expect(screen.getByRole('button', { pressed: true }).textContent).toBe(i18n.t('subBusinessType.options.bakery'))
+    expect(screen.getByRole('button', { pressed: true }).textContent).toBe(
+      i18n.t('subBusinessType.options.bakery'),
+    )
   })
 })
 
@@ -247,13 +288,34 @@ describe('Business identity', () => {
     expect(screen.getByText(i18n.t('validation.vatin'))).toBeTruthy()
   })
 
+  it('suggests the business activity from the specialty, and insists on one when there is none', async () => {
+    renderAt('/business-identity', AFTER_TYPE)
+    const picker = () => screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') })
+    expect(picker().textContent).toContain('Manufacture of bakery products')
+
+    cleanup()
+    renderAt('/business-identity', { ...AFTER_CATEGORY, subBusinessType: 'not-mapped' })
+    expect(picker().textContent).toContain(i18n.t('businessIdentity.isicPlaceholder'))
+    const user = userEvent.setup({ delay: null })
+    await user.type(field('companyName'), 'Al Noor Bakery LLC')
+    await user.type(field('crNumber'), 'cr-99')
+    await user.type(field('vatin'), 'om1200000001')
+    await user.click(submit())
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByText(i18n.t('validation.required'))).toBeTruthy()
+    expect(document.activeElement).toBe(picker())
+  })
+
   it('saves exactly the backend fields and carries the preview forward', async () => {
     const user = userEvent.setup({ delay: null })
     renderAt('/business-identity', AFTER_TYPE)
     await user.type(field('companyName'), 'Al Noor Bakery LLC')
     await user.type(field('crNumber'), 'cr-99')
     await user.type(field('vatin'), 'om1200000001')
-    await user.click(screen.getByRole('button', { name: i18n.t('businessIdentity.accents.PURPLE') }))
+    await user.click(
+      screen.getByRole('button', { name: i18n.t('businessIdentity.accents.PURPLE') }),
+    )
     await user.click(submit())
 
     expect(await screen.findByText(i18n.t('addressContact.title'))).toBeTruthy()
@@ -272,9 +334,15 @@ describe('Business identity', () => {
   })
 
   it('reports a registered VATIN or CR when the earlier steps are all saved', async () => {
-    fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(
-      status('BUSINESS_IDENTITY', { businessProfileComplete: true, businessCategoryComplete: true, businessTypeComplete: true }),
-    )
+    fetchMock
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(
+        status('BUSINESS_IDENTITY', {
+          businessProfileComplete: true,
+          businessCategoryComplete: true,
+          businessTypeComplete: true,
+        }),
+      )
     const user = userEvent.setup({ delay: null })
     renderAt('/business-identity', AFTER_TYPE)
     await user.type(field('companyName'), 'Al Noor Bakery LLC')
@@ -319,7 +387,11 @@ describe('Address and contact', () => {
     ])
     // Review exists to show these; submission sends none of the answers onward.
     const forwarded = JSON.parse(screen.getByTestId('state').textContent ?? '{}')
-    expect(forwarded.address).toMatchObject({ city: 'Sohar', governorate: 'northBatinah', email: 'salim@example.test' })
+    expect(forwarded.address).toMatchObject({
+      city: 'Sohar',
+      governorate: 'northBatinah',
+      email: 'salim@example.test',
+    })
   })
 
   it('shows the invoice preview from the identity step with localized governorate', async () => {
@@ -331,7 +403,9 @@ describe('Address and contact', () => {
   })
 
   it('goes back to the missing step when the server says one is', async () => {
-    fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(status('BUSINESS_IDENTITY', { businessProfileComplete: true }))
+    fetchMock
+      .mockResolvedValueOnce(conflict())
+      .mockResolvedValueOnce(status('BUSINESS_IDENTITY', { businessProfileComplete: true }))
     const user = userEvent.setup({ delay: null })
     renderAt('/address-contact', AFTER_IDENTITY)
     await user.type(field('addressLine'), 'Building 4')
@@ -347,7 +421,9 @@ describe('Address and contact', () => {
 
 describe('session and entry', () => {
   it('reports an ended session and keeps it marked as ended', async () => {
-    fetchMock.mockResolvedValue(json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }))
+    fetchMock.mockResolvedValue(
+      json(401, { type: 'https://api.fawtir.om/problems/authentication-failed' }),
+    )
     renderAt('/about-business')
     await userEvent.setup({ delay: null }).click(submit())
 
@@ -368,12 +444,17 @@ describe('session and entry', () => {
     renderAt('/business-identity')
 
     expect(await screen.findByText(i18n.t('aboutBusiness.title'))).toBeTruthy()
-    expect(requests()).toEqual([{ url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } }])
+    expect(requests()).toEqual([
+      { url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } },
+    ])
   })
 
   it('sends a tab whose session ended to the waiting screen, not to signup', async () => {
     sessionStorage.clear()
-    saveOnboardingSession({ onboardingToken: TOKEN, onboardingTokenExpiresAt: new Date(Date.now() - 1).toISOString() })
+    saveOnboardingSession({
+      onboardingToken: TOKEN,
+      onboardingTokenExpiresAt: new Date(Date.now() - 1).toISOString(),
+    })
     renderAt('/business-type', AFTER_PROFILE)
     expect((await screen.findByTestId('location')).textContent).toBe('/signup-pending')
     expect(fetchMock).not.toHaveBeenCalled()
@@ -387,7 +468,9 @@ describe('session and entry', () => {
   })
 
   it('opens a typed-in step that is already allowed', async () => {
-    fetchMock.mockResolvedValue(status('ADDRESS_CONTACT', { businessProfileComplete: true, businessIdentityComplete: true }))
+    fetchMock.mockResolvedValue(
+      status('ADDRESS_CONTACT', { businessProfileComplete: true, businessIdentityComplete: true }),
+    )
     renderAt('/business-identity')
     expect(await screen.findByText(i18n.t('businessIdentity.title'))).toBeTruthy()
   })
