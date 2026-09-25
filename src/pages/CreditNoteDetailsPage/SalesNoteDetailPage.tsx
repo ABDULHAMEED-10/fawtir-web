@@ -578,7 +578,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                 </h2>
                 <OmAmount
                   size="lg"
-                  amount={`${sign} ${money(total)}`}
+                  prefix={sign}
+                  amount={money(total)}
                   amountClassName={`text-[40px] font-semibold leading-none ${toneClass} tabular-nums`}
                   className="mt-3"
                 />
@@ -952,7 +953,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   </span>
                   <OmAmount
                     size="xs"
-                    amount={`${sign} ${money(data.totals.taxableAmount)}`}
+                    prefix={sign}
+                    amount={money(data.totals.taxableAmount)}
                     amountClassName={`text-base font-semibold ${toneClass}`}
                   />
                 </div>
@@ -962,7 +964,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   </span>
                   <OmAmount
                     size="xs"
-                    amount={`${sign} ${money(data.totals.vatAmount)}`}
+                    prefix={sign}
+                    amount={money(data.totals.vatAmount)}
                     amountClassName={`text-base font-semibold ${toneClass}`}
                   />
                 </div>
@@ -973,7 +976,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   </span>
                   <OmAmount
                     size="sm"
-                    amount={`${sign} ${money(data.totals.totalAmount)}`}
+                    prefix={sign}
+                    amount={money(data.totals.totalAmount)}
                     amountClassName={`text-xl font-semibold ${toneClass}`}
                   />
                 </div>

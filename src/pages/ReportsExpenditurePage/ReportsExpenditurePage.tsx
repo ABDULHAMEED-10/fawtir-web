@@ -218,12 +218,16 @@ function ExpenditureBody({
   )
   const shareNote = (ranked: Ranked[]) => {
     const total = ranked.reduce((sum, entry) => sum + entry.value, 0)
-    return ranked.length > 0 && total > 0
-      ? t('reports.expenditure.topShare', {
+    return ranked.length > 0 && total > 0 ? (
+      <Trans
+        i18nKey="reports.expenditure.topShare"
+        values={{
           name: ranked[0].label,
           percent: formatCount(shareOfTotal(ranked[0].value, total), language),
-        })
-      : null
+        }}
+        components={{ b: <b className="font-semibold text-text-secondary" /> }}
+      />
+    ) : null
   }
 
   // How bills reach you: each quarter's documents by source, as shares of that quarter.
@@ -285,7 +289,9 @@ function ExpenditureBody({
           label={t('reports.expenditure.kpi.received')}
           value={formatCount(billsNow, language)}
           change={countPill(billsNow, billsBefore, language)}
-          note={t(`reports.${billsNow >= billsBefore ? 'moreThan' : 'fewerThan'}.${period}`)}
+          note={t(
+            `reports.${billsNow === billsBefore ? 'sameAs' : billsNow > billsBefore ? 'moreThan' : 'fewerThan'}.${period}`,
+          )}
         />
         <KpiCard
           label={t('reports.expenditure.kpi.average')}

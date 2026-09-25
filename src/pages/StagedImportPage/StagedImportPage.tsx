@@ -486,8 +486,9 @@ function StagedImport({ target }: { target: ImportTarget }) {
             </RowsView>
           </section>
 
-          <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3 px-6 py-4">
+          {/* Over the content column only, as the frame draws it: from the sidebar edge, lined up with the page. */}
+          <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur lg:start-[248px]">
+            <div className="mx-auto flex w-full max-w-[1176px] flex-wrap items-center justify-between gap-3 px-4 py-4">
               <p className="text-sm font-medium text-text-tertiary">
                 <span className="font-semibold text-text-primary">
                   {t('stagedImport.wouldComeIn', {

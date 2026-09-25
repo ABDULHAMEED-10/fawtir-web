@@ -1183,7 +1183,7 @@
     "title": "Customers",
     "subtitle_one": "{{customers}} customer · OMR {{amount}} receivable",
     "subtitle_other": "{{customers}} customers · OMR {{amount}} receivable",
-    "bulkUpload": "Import from a file",
+    "bulkUpload": "Bulk upload",
     "export": "Export",
     "exporting": "Exporting…",
     "exportTruncated": "The file stops at the export limit, so it does not hold every customer. Narrow the list by type or search and export again.",
@@ -1264,7 +1264,9 @@
       "recent": "Recently updated"
     },
     "selectAll": "Select all customers on this page",
-    "selectRow": "Select {{name}}"
+    "selectRow": "Select {{name}}",
+    "filters": "Filters",
+    "filterAll": "All Peppol states"
   },
   "newCustomer": {
     "title": "New customer",
@@ -1349,7 +1351,16 @@
       "paymentTerms": "Payment terms",
       "paymentMethod": "Default payment method",
       "iban": "IBAN",
-      "bic": "BIC / SWIFT"
+      "bic": "BIC / SWIFT",
+      "currencyOption": "{{code}} - {{name}}",
+      "bicPlaceholder": "BIC",
+      "currencyName": {
+        "OMR": "Omani Rial",
+        "USD": "US Dollar",
+        "EUR": "Euro",
+        "AED": "UAE Dirham",
+        "SAR": "Saudi Riyal"
+      }
     },
     "sending": {
       "method": "Sending method",
@@ -2257,7 +2268,8 @@
       "po": "Purchase order reference",
       "paymentMethod": "Payment method",
       "paymentReference": "Payment reference",
-      "paymentDate": "Payment date"
+      "paymentDate": "Payment date",
+      "branchPlaceholder": "Choose a branch"
     },
     "values": {
       "net30": "Net 30 days",
@@ -2806,10 +2818,10 @@
       "notes": "Internal Notes & Comments"
     },
     "fields": {
-      "vat": "VAT or CBE NO.",
+      "vat": "VAT registration number",
       "corporateName": "Corporate Name",
       "directorFirst": "Director First Name",
-      "lastNameManager": "Last Name Manager",
+      "lastNameManager": "Director Last Name",
       "firstName": "First Name",
       "lastName": "Last Name",
       "email": "Email",
@@ -7384,7 +7396,7 @@
       "quarterlyNote": "Every quarter ahead of last year",
       "onTrack": "On track for <amount>{{value}}</amount>",
       "invoicedThisYear": "Invoiced this year",
-      "topShare": "Top 5 are {{percent}}% of revenue",
+      "topShare": "Top 5 are <b>{{percent}}%</b> of revenue",
       "empty": "Nothing was issued in this range.",
       "groupBy": "Group by",
       "grouping": {
@@ -7406,7 +7418,7 @@
       "ungrouped": "Not grouped",
       "quarterlyAhead": "{{ahead}} of {{count}} quarters ahead of last year",
       "invoicedIn": "Invoiced {{when}},",
-      "topShareCount": "Top {{count}} are {{percent}}% of revenue",
+      "topShareCount": "Top {{count}} are <b>{{percent}}%</b> of revenue",
       "noCustomers": "No customer was invoiced in this period."
     },
     "expenditure": {
@@ -7454,7 +7466,7 @@
       "byPeriod": "Spend by period",
       "byPeriodNote": "Net of corrections — a credit note subtracts from the period it falls in.",
       "byGroupNote": "Largest first, within the range above.",
-      "topShare": "{{name}} is {{percent}}% of spend",
+      "topShare": "{{name}} is <b>{{percent}}%</b> of spend",
       "uncategorised": "Uncategorised",
       "ungrouped": "Not grouped",
       "empty": "Nothing was received in this range.",
@@ -7508,7 +7520,7 @@
       "forecastPending": "The weeks ahead need what is due in and out by date, which Fawtir does not report yet.",
       "whereItWent": "Where it went",
       "billedIn": "Billed {{when}},",
-      "topShare": "{{name}} is {{percent}}% of everything billed",
+      "topShare": "{{name}} is <b>{{percent}}%</b> of everything billed",
       "everythingElse": "Everything else"
     },
     "vat": {
@@ -7770,7 +7782,12 @@
       "monthly": "this month"
     },
     "quarterLabel": "Q{{quarter}} {{year}}",
-    "quarterSoFar": "Q{{quarter}} so far"
+    "quarterSoFar": "Q{{quarter}} so far",
+    "sameAs": {
+      "yearly": "the same as last year",
+      "quarterly": "the same as last quarter",
+      "monthly": "the same as last month"
+    }
   },
   "supplierDetail": {
     "editSupplier": "Edit supplier",
@@ -16611,7 +16628,15 @@
         "overdue": "Overdue",
         "overdueMeta": "{{notes}} notes · {{days}} days late",
         "overdueNone": "Nothing overdue",
-        "unavailable": "Figures unavailable"
+        "unavailable": "Figures unavailable",
+        "creditedMeta_one": "{{notes}} credit note issued",
+        "creditedMeta_other": "{{notes}} credit notes issued",
+        "refundDueMeta_one": "{{notes}} refund to pay out",
+        "refundDueMeta_other": "{{notes}} refunds to pay out",
+        "chargedMeta_one": "{{notes}} debit note issued",
+        "chargedMeta_other": "{{notes}} debit notes issued",
+        "overdueMeta_one": "{{notes}} note · {{days}} days late",
+        "overdueMeta_other": "{{notes}} notes · {{days}} days late"
       },
       "search": "Search by number, invoice, customer...",
       "filters": "Filters",
@@ -17391,7 +17416,8 @@
       "net": "Net amount",
       "vat": "VAT · Standard 5%",
       "totalDue": "Total due",
-      "draft": "A draft is priced when it is issued."
+      "draft": "A draft is priced when it is issued.",
+      "settled": "Paid or credited"
     },
     "viewValidationReport": "View validation report",
     "validationReportUnavailable": "The validation report is not available yet: the platform answers none for a document.",

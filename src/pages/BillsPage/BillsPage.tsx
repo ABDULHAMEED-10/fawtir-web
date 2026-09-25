@@ -1016,17 +1016,37 @@ function BillTableRow({
       <td className="px-2 py-2.5 align-middle">
         <div className="flex items-center gap-1.5">
           {row.match.verdict === 'none' ? (
-            <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-              <span className="block h-[1.5px] w-3 rounded-full bg-text-quaternary" />
+            <span
+              aria-hidden="true"
+              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#e3e4ea]"
+            >
+              <span className="block h-[1.5px] w-2.5 rounded-full bg-text-quaternary" />
             </span>
           ) : (
-            <img
-              src={row.match.verdict === 'ok' ? matchOkIcon : matchWarnIcon}
-              alt=""
-              className="size-5 shrink-0"
-            />
+            <span
+              aria-hidden="true"
+              className={[
+                'flex size-6 shrink-0 items-center justify-center rounded-full',
+                row.match.verdict === 'ok' ? 'bg-success-100' : 'bg-pending-100',
+              ].join(' ')}
+            >
+              <img
+                src={row.match.verdict === 'ok' ? matchOkIcon : matchWarnIcon}
+                alt=""
+                className="size-[13px]"
+              />
+            </span>
           )}
-          <span className="text-sm font-semibold leading-[1.2] text-text-primary">
+          <span
+            className={[
+              'text-sm font-semibold leading-[1.2]',
+              row.match.verdict === 'ok'
+                ? 'text-[#3d5648]'
+                : row.match.verdict === 'none'
+                  ? 'text-[#494d56]'
+                  : 'text-pending-700',
+            ].join(' ')}
+          >
             {row.match.verdict === 'none'
               ? t('billsPage.rows.noOrder')
               : (row.match.order ?? t('billsPage.rows.noOrder'))}

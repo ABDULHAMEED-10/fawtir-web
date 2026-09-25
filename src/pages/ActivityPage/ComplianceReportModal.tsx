@@ -20,6 +20,7 @@ import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
 import excelIcon from '../../assets/reports/list-catalog.svg'
 import downloadIcon from '../../assets/invoice-details/download.svg'
+import reportShieldIcon from '../../assets/activity/report-shield.svg'
 
 /** What "Build Report" asks for: the period's window and the formats ticked. */
 export type ReportRequest = {
@@ -100,6 +101,7 @@ export function ComplianceReportModal({
       open={open}
       onClose={onClose}
       title={t('complianceReport.title')}
+      icon={reportShieldIcon}
       width={660}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">

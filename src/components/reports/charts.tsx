@@ -548,9 +548,11 @@ export function HorizontalBars({
     <ul className="flex w-full flex-col gap-[26px] py-1">
       {rows.map((row, index) => (
         <li key={index} className="flex items-center gap-4">
+          {/* dir=auto: a Latin name cut short on an Arabic page loses its end, not its start. */}
           <span
             title={row.label}
-            className="w-[120px] shrink-0 truncate text-xs font-medium leading-[1.3] text-text-secondary max-md:w-[92px]"
+            dir="auto"
+            className="w-[120px] shrink-0 truncate text-xs font-medium leading-[1.3] text-text-secondary max-md:w-[92px] rtl:text-right"
           >
             {row.label}
           </span>

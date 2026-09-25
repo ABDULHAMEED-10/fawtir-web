@@ -449,7 +449,7 @@ function DebitRow({
 
   return (
     <tr className="border-b border-[#f3f3f3] last:border-b-0">
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <Link
           to={detailTo}
           className="text-sm font-semibold leading-[1.2] text-primary-700 hover:underline"
@@ -463,7 +463,7 @@ function DebitRow({
         ) : null}
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <p className="text-sm font-semibold leading-[1.2] text-text-primary">
           {note.supplier ?? t('supplierCreditNotes.rows.unknownSupplier')}
         </p>
@@ -472,7 +472,7 @@ function DebitRow({
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <p className="text-sm font-semibold leading-[1.2] text-text-primary">
           {/* The API names the bill the supplier referenced but gives no id for it, so this is
               text rather than a link: a link built from a number we have not resolved would go
@@ -494,7 +494,7 @@ function DebitRow({
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <p className="text-sm font-medium leading-[1.3] text-text-tertiary">
           {reason
             ? t(reason.key, { defaultValue: reason.fallback })
@@ -502,10 +502,10 @@ function DebitRow({
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <span
           className={[
-            'inline-flex max-w-[220px] items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]',
+            'inline-flex max-w-[220px] items-center gap-2 rounded-sm px-3 py-1 text-sm font-semibold leading-[1.2]',
             chip.bg,
             chip.fg,
           ].join(' ')}
@@ -533,7 +533,7 @@ function DebitRow({
         </div>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         {note.total === null ? (
           <span className="text-base font-semibold text-text-quaternary">—</span>
         ) : (
@@ -569,7 +569,7 @@ function DebitRow({
         </p>
       </td>
 
-      <td className="px-2 py-4 align-top">
+      <td className="px-2 py-4 align-middle">
         <ActionMenu
           label={t('supplierDebitNotes.menu.rowActions')}
           floating

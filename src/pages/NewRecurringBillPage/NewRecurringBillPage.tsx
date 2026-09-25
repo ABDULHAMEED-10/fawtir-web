@@ -535,20 +535,22 @@ function RecurringBillForm({ id }: { id: string | null }) {
                     aria-label={t('recurringBills.form.decreaseTolerance')}
                     className="inline-flex size-11 items-center justify-center text-lg font-semibold text-text-tertiary transition-colors hover:bg-primary-25"
                   >
-                    -
+                    −
                   </button>
-                  <input
-                    value={form.tolerancePercent}
-                    inputMode="numeric"
-                    disabled={!form.flagOutsideRange}
-                    onFocus={selectAllOnFocus}
-                    onChange={(event) =>
-                      set({ tolerancePercent: event.target.value.replace(/[^\d.]/g, '') })
-                    }
-                    aria-label={t('recurringBills.form.tellMeIfItMoves')}
-                    className="w-14 border-0 bg-transparent text-center text-base font-semibold text-text-primary outline-none tabular-nums"
-                  />
-                  <span className="-ms-3 pe-2 text-base font-semibold text-text-primary">%</span>
+                  <span className="inline-flex h-11 w-[68px] items-center justify-center border-x border-border-subtle">
+                    <input
+                      value={form.tolerancePercent}
+                      inputMode="numeric"
+                      disabled={!form.flagOutsideRange}
+                      onFocus={selectAllOnFocus}
+                      onChange={(event) =>
+                        set({ tolerancePercent: event.target.value.replace(/[^\d.]/g, '') })
+                      }
+                      aria-label={t('recurringBills.form.tellMeIfItMoves')}
+                      className="w-8 border-0 bg-transparent text-end text-base font-semibold text-text-primary outline-none tabular-nums"
+                    />
+                    <span className="text-base font-semibold text-text-primary">%</span>
+                  </span>
                   <button
                     type="button"
                     disabled={!form.flagOutsideRange}

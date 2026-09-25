@@ -23,8 +23,8 @@ import brandIcon from '../../assets/brand/logo-mark.svg'
 
 const OUTCOME_CHIP: Record<RegisterRow['outcome'], string> = {
   accepted: 'bg-success-100 text-[#3d5648]',
-  corrected: 'bg-primary-50 text-primary-800',
-  notReported: 'bg-danger-100 text-danger-700',
+  corrected: 'bg-pending-100 text-pending-700',
+  notReported: 'bg-[#f5d5cf] text-danger-700',
 }
 
 /**
@@ -96,8 +96,8 @@ export function ComplianceReportPage() {
                 <span className="size-1.5 rounded-full bg-[#3d5648]" />
                 {t('builtReport.ready')}
               </span>
-              <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-surface-background px-2.5 text-xs font-medium text-text-quaternary">
-                <span className="size-1.5 rounded-full bg-text-quaternary" />
+              <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-[#e6e7eb] px-2.5 text-xs font-medium text-text-tertiary">
+                <span className="size-1.5 rounded-full bg-text-tertiary" />
                 {t('builtReport.fixedToVersion')}
               </span>
             </div>
@@ -111,7 +111,8 @@ export function ComplianceReportPage() {
             </p>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2.5 max-md:shrink">
+          {/* The frame lines the actions up with the title, not the breadcrumb. */}
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5 md:mt-[37px] max-md:shrink">
             <button
               type="button"
               onClick={() => window.print()}
@@ -206,7 +207,7 @@ export function ComplianceReportPage() {
               </div>
 
               {/* What was reported */}
-              <p className="mt-7 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
+              <p className="mt-7 border-b border-border-subtle pb-2 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-primary">
                 {t('builtReport.whatWasReported')}
               </p>
               <div className="mt-3 grid gap-x-5 gap-y-4 sm:grid-cols-3">
@@ -246,13 +247,13 @@ export function ComplianceReportPage() {
                   label={t('builtReport.stat.notInVatFigure')}
                   value={`OMR ${formatOmr(figures.vatOutside)}`}
                   note={t('builtReport.stat.fromUnreported')}
-                  tone="text-danger-700"
-                  rule="border-s-danger-700"
+                  tone="text-pending-500"
+                  rule="border-s-pending-500"
                 />
               </div>
 
               {/* Auditor note */}
-              <p className="mt-7 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
+              <p className="mt-7 border-b border-border-subtle pb-2 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-primary">
                 {t('builtReport.thingsAuditorShouldKnow')}
               </p>
               <div className="mt-3 rounded-sm border border-[#f0d4ce] bg-[#fdf4f2] p-4">
@@ -297,7 +298,7 @@ export function ComplianceReportPage() {
               </p>
 
               {/* Register */}
-              <p className="mt-7 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
+              <p className="mt-7 border-b border-border-subtle pb-2 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-primary">
                 {t('builtReport.registerFirstRows', { total: figures.invoices })}
               </p>
               <div className="mt-3 overflow-x-auto">

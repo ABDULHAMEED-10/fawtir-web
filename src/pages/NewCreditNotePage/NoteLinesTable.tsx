@@ -129,7 +129,8 @@ export function NoteLinesTable({
             <span className="text-base font-medium text-text-primary">{line.description}</span>
             <OmAmount
               size="sm"
-              amount={`${sign} ${money(totals.lines.get(line.lineNumber) ?? '0')}`}
+              prefix={sign}
+              amount={money(totals.lines.get(line.lineNumber) ?? '0')}
               amountClassName={`text-lg font-semibold ${colour} tabular-nums`}
               className="shrink-0"
             />

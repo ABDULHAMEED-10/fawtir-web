@@ -233,7 +233,9 @@ function IncomeBody({
           label={t('reports.income.kpi.sent')}
           value={formatCount(sentNow, language)}
           change={countPill(sentNow, sentBefore, language)}
-          note={t(`reports.${sentNow >= sentBefore ? 'moreThan' : 'fewerThan'}.${period}`)}
+          note={t(
+            `reports.${sentNow === sentBefore ? 'sameAs' : sentNow > sentBefore ? 'moreThan' : 'fewerThan'}.${period}`,
+          )}
         />
         <KpiCard
           label={t('reports.income.kpi.average')}
@@ -327,12 +329,16 @@ function IncomeBody({
             },
           ]}
           note={
-            top.length > 0
-              ? t('reports.income.topShareCount', {
+            top.length > 0 ? (
+              <Trans
+                i18nKey="reports.income.topShareCount"
+                values={{
                   count: top.length,
                   percent: formatCount(shareOfTotal(topTotal, customerTotal), language),
-                })
-              : null
+                }}
+                components={{ b: <b className="font-semibold text-text-secondary" /> }}
+              />
+            ) : null
           }
         >
           {top.length > 0 ? (

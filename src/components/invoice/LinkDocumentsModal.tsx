@@ -226,7 +226,8 @@ export function LinkDocumentsModal({
           <button
             type="button"
             onClick={() => onConfirm(LINK_PICKER_DOCS.filter((doc) => selected.includes(doc.id)))}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white"
+            disabled={selected.length === 0 && initialSelected.length === 0}
+            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white disabled:opacity-50"
           >
             <img src={linkIcon} alt="" className="size-5 brightness-0 invert" />
             {t('linkModal.confirm', { count: selected.length })}

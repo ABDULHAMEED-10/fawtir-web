@@ -1,7 +1,11 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
-import { createCustomer, newCustomerKey, type CustomerRecordDto } from '../../api/customers/customers'
+import {
+  createCustomer,
+  newCustomerKey,
+  type CustomerRecordDto,
+} from '../../api/customers/customers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   blankCustomerForm,
@@ -13,11 +17,11 @@ import {
   type PlacedCustomerError,
 } from '../../lib/customerForm'
 import { emailList } from '../../lib/supplierForm'
+import { Select } from '../ui'
 import closeIcon from '../../assets/add-customer/close.svg'
 import tickIcon from '../../assets/add-customer/tick.svg'
 import companyIcon from '../../assets/add-customer/company.svg'
 import privateIcon from '../../assets/add-customer/private.svg'
-import chevronIcon from '../../assets/add-customer/chevron.svg'
 import arrowIcon from '../../assets/add-customer/arrow.svg'
 import omanFlag from '../../assets/add-customer/oman-flag.svg'
 
@@ -92,6 +96,7 @@ function TextField({
   )
 }
 
+/** The app's listbox in the modal's field shell; a native select cannot take the frame's look. */
 function SelectField({
   label,
   value,
@@ -103,32 +108,25 @@ function SelectField({
   onChange: (value: string) => void
   options: { value: string; label: string }[]
 }) {
-  const id = useId()
   return (
     <div className="flex w-full flex-col">
-      <label htmlFor={id}>
-        <FieldLabel label={label} />
-      </label>
-      <div className="relative flex h-[50px] w-full items-center rounded-sm border border-primary-300 bg-surface-tab-bar">
-        <select
-          id={id}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className="h-full w-full appearance-none border-0 bg-transparent px-4 pe-10 text-sm font-medium text-text-secondary outline-none"
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <img src={chevronIcon} alt="" className="pointer-events-none absolute end-4 size-5 rotate-90 opacity-70" />
-      </div>
+      <FieldLabel label={label} />
+      <Select value={value} onChange={onChange} options={options} ariaLabel={label} highlighted />
     </div>
   )
 }
 
-function PhoneField({ label, value, onChange, error }: { label: string; value: string; onChange: (value: string) => void; error?: string }) {
+function PhoneField({
+  label,
+  value,
+  onChange,
+  error,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  error?: string
+}) {
   const id = useId()
   return (
     <div className="flex w-full flex-col">
@@ -142,7 +140,9 @@ function PhoneField({ label, value, onChange, error }: { label: string; value: s
         ].join(' ')}
       >
         <img src={omanFlag} alt="" className="size-5 shrink-0" />
-        <span className="shrink-0 text-sm font-medium tracking-[0.14px] text-text-secondary">+968</span>
+        <span className="shrink-0 text-sm font-medium tracking-[0.14px] text-text-secondary">
+          +968
+        </span>
         <input
           id={id}
           type="tel"
@@ -185,7 +185,11 @@ function SectionHeader({
         <h3 className="text-xl font-medium text-text-secondary">{title}</h3>
       </div>
       {collapsible ? (
-        <button type="button" onClick={onToggle} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-800">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="inline-flex items-center gap-1 text-sm font-semibold text-primary-800"
+        >
           <span className="inline-block h-px w-3 bg-primary-800" />
           {collapsed ? t('addCustomer.expand') : t('addCustomer.collapse')}
         </button>
@@ -198,7 +202,11 @@ function SectionHeader({
 type QuickValues = CustomerFormValues & { contactFirst: string; contactLast: string }
 
 function blankQuick(kind: CustomerProfileKind): QuickValues {
-  return { ...blankCustomerForm(kind === 'company' ? 'BUSINESS' : 'CONSUMER'), contactFirst: '', contactLast: '' }
+  return {
+    ...blankCustomerForm(kind === 'company' ? 'BUSINESS' : 'CONSUMER'),
+    contactFirst: '',
+    contactLast: '',
+  }
 }
 
 /**
@@ -207,7 +215,12 @@ function blankQuick(kind: CustomerProfileKind): QuickValues {
  * reached at its VAT number under Oman's 0248 scheme; the invoice goes out over Peppol when it is,
  * as an e-mailed PDF when there is an address to send it to, and as a QR receipt otherwise.
  */
-export function AddCustomerModal({ open, kind: initialKind = 'company', onClose, onCreated }: AddCustomerModalProps) {
+export function AddCustomerModal({
+  open,
+  kind: initialKind = 'company',
+  onClose,
+  onCreated,
+}: AddCustomerModalProps) {
   const { t } = useTranslation()
   const [kind, setKind] = useState<CustomerProfileKind>(initialKind)
   const [values, setValues] = useState<QuickValues>(() => blankQuick(initialKind))
@@ -248,16 +261,24 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
   const set = <F extends keyof QuickValues>(field: F, value: QuickValues[F]) => {
     setValues((current) => ({ ...current, [field]: value }))
     const path: CustomerField | undefined =
-      field === 'contactFirst' || field === 'contactLast' ? 'contactPerson' : (field as CustomerField)
+      field === 'contactFirst' || field === 'contactLast'
+        ? 'contactPerson'
+        : (field as CustomerField)
     setErrors((current) => (path && current[path] ? { ...current, [path]: undefined } : current))
   }
-  const setAddress = (field: 'attention' | 'countryCode' | 'cityName' | 'streetName' | 'poBox', value: string) => {
+  const setAddress = (
+    field: 'attention' | 'countryCode' | 'cityName' | 'streetName' | 'poBox',
+    value: string,
+  ) => {
     setValues((current) => ({ ...current, invoice: { ...current.invoice, [field]: value } }))
   }
-  const setBuilding = (value: string) => {
+  const setKept = (field: 'buildingNumber' | 'additionalStreetName', value: string) => {
     setValues((current) => ({
       ...current,
-      invoice: { ...current.invoice, kept: { ...current.invoice.kept, buildingNumber: value.trim() === '' ? null : value } },
+      invoice: {
+        ...current.invoice,
+        kept: { ...current.invoice.kept, [field]: value.trim() === '' ? null : value },
+      },
     }))
   }
   const errorText = (field: CustomerField) => {
@@ -288,7 +309,9 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
     const hasEmail = emailList(values.emails).length > 0
     return {
       ...values,
-      contactPerson: company ? `${values.contactFirst.trim()} ${values.contactLast.trim()}`.trim() : '',
+      contactPerson: company
+        ? `${values.contactFirst.trim()} ${values.contactLast.trim()}`.trim()
+        : '',
       registeredForVat: company,
       vatNumber: company ? vat : '',
       registeredOnPeppol: onPeppol,
@@ -304,7 +327,9 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
     // The Peppol ID is derived from the VAT number here, so its refusal belongs to that field.
     if (problems.peppolId && !problems.vatNumber) problems.vatNumber = problems.peppolId
     delete problems.peppolId
-    const placed = Object.fromEntries(Object.entries(problems).map(([field, messageKey]) => [field, { key: messageKey }]))
+    const placed = Object.fromEntries(
+      Object.entries(problems).map(([field, messageKey]) => [field, { key: messageKey }]),
+    )
     setErrors(placed)
     setFailure(null)
     if (Object.keys(placed).length > 0) return
@@ -325,7 +350,11 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
-        setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+        setFailure(
+          message.reference
+            ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+            : body,
+        )
       }
     } finally {
       inFlight.current = false
@@ -347,14 +376,19 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
       aria-labelledby="add-customer-title"
       onClick={onClose}
     >
-      <div className="my-4 flex w-full max-w-[720px] flex-col overflow-hidden rounded-sm bg-white shadow-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="my-4 flex w-full max-w-[720px] flex-col overflow-hidden rounded-sm bg-white shadow-card"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex max-h-[min(85dvh,900px)] flex-col overflow-y-auto p-6">
           <div className="mb-4 flex items-start gap-2">
             <div className="min-w-0 flex-1">
               <h2 id="add-customer-title" className="text-2xl font-medium text-text-primary">
                 {t('addCustomer.title')}
               </h2>
-              <p className="mt-0.5 text-sm font-medium text-text-quaternary">{t('addCustomer.subtitle')}</p>
+              <p className="mt-0.5 text-sm font-medium text-text-quaternary">
+                {t('addCustomer.subtitle')}
+              </p>
             </div>
             <button
               type="button"
@@ -367,7 +401,10 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
           </div>
 
           {failure ? (
-            <p role="alert" className="mb-4 rounded-sm border border-border-danger bg-white p-3 text-sm font-medium text-text-danger">
+            <p
+              role="alert"
+              className="mb-4 rounded-sm border border-border-danger bg-white p-3 text-sm font-medium text-text-danger"
+            >
               {failure}
             </p>
           ) : null}
@@ -375,8 +412,18 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
           <div className="mb-4 grid gap-4 sm:grid-cols-2">
             {(
               [
-                { id: 'company' as const, icon: companyIcon, titleKey: 'addCustomer.kinds.company', subKey: 'addCustomer.kinds.companySub' },
-                { id: 'private' as const, icon: privateIcon, titleKey: 'addCustomer.kinds.private', subKey: 'addCustomer.kinds.privateSub' },
+                {
+                  id: 'company' as const,
+                  icon: companyIcon,
+                  titleKey: 'addCustomer.kinds.company',
+                  subKey: 'addCustomer.kinds.companySub',
+                },
+                {
+                  id: 'private' as const,
+                  icon: privateIcon,
+                  titleKey: 'addCustomer.kinds.private',
+                  subKey: 'addCustomer.kinds.privateSub',
+                },
               ] as const
             ).map((option) => {
               const active = kind === option.id
@@ -388,14 +435,20 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
                   onClick={() => switchKind(option.id)}
                   className={[
                     'flex h-[65px] items-center justify-between rounded-sm p-4 text-start',
-                    active ? 'border-2 border-primary-500 bg-primary-50' : 'border border-border-default bg-white',
+                    active
+                      ? 'border-2 border-primary-500 bg-primary-50'
+                      : 'border border-border-default bg-white',
                   ].join(' ')}
                 >
                   <span className="flex items-center gap-2">
                     <img src={option.icon} alt="" className="size-6 shrink-0" />
                     <span>
-                      <span className="block text-base font-medium tracking-[0.16px] text-text-primary">{t(option.titleKey)}</span>
-                      <span className="block text-xs font-medium tracking-[0.12px] text-text-tertiary">{t(option.subKey)}</span>
+                      <span className="block text-base font-medium tracking-[0.16px] text-text-primary">
+                        {t(option.titleKey)}
+                      </span>
+                      <span className="block text-xs font-medium tracking-[0.12px] text-text-tertiary">
+                        {t(option.subKey)}
+                      </span>
                     </span>
                   </span>
                   {active ? <img src={tickIcon} alt="" className="size-[18px] shrink-0" /> : null}
@@ -405,7 +458,14 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
           </div>
 
           <div className="mb-4 flex flex-col gap-3">
-            <SectionHeader step={1} title={company ? t('addCustomer.sections.companyDetails') : t('addCustomer.sections.personalDetails')} />
+            <SectionHeader
+              step={1}
+              title={
+                company
+                  ? t('addCustomer.sections.companyDetails')
+                  : t('addCustomer.sections.personalDetails')
+              }
+            />
             <div className="h-px w-full bg-border-subtle" />
             {company ? (
               <>
@@ -444,18 +504,6 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
                     onChange={(next) => set('contactLast', next)}
                   />
                 </div>
-                <label className="flex items-center justify-between gap-3 rounded-sm border border-border-brand-subtle bg-primary-25 p-3">
-                  <span>
-                    <span className="block text-sm font-medium text-text-primary">{t('addCustomer.fields.onPeppol')}</span>
-                    <span className="block text-xs font-medium text-text-tertiary">{t('addCustomer.fields.onPeppolHint')}</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={values.registeredOnPeppol}
-                    onChange={(event) => set('registeredOnPeppol', event.target.checked)}
-                    className="size-5 accent-primary-700"
-                  />
-                </label>
               </>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
@@ -488,13 +536,25 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
               <SelectField
                 label={t('addCustomer.fields.language')}
                 value={values.preferredLanguage}
-                onChange={(next) => set('preferredLanguage', next as QuickValues['preferredLanguage'])}
+                onChange={(next) =>
+                  set('preferredLanguage', next as QuickValues['preferredLanguage'])
+                }
                 options={languageOptions}
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <PhoneField label={t('addCustomer.fields.telephone')} value={values.telephone} onChange={(next) => set('telephone', next)} error={errorText('telephone')} />
-              <PhoneField label={t('addCustomer.fields.mobile')} value={values.mobilePhone} onChange={(next) => set('mobilePhone', next)} error={errorText('mobilePhone')} />
+              <PhoneField
+                label={t('addCustomer.fields.telephone')}
+                value={values.telephone}
+                onChange={(next) => set('telephone', next)}
+                error={errorText('telephone')}
+              />
+              <PhoneField
+                label={t('addCustomer.fields.mobile')}
+                value={values.mobilePhone}
+                onChange={(next) => set('mobilePhone', next)}
+                error={errorText('mobilePhone')}
+              />
             </div>
           </div>
 
@@ -509,13 +569,21 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
             <div className="h-px w-full bg-border-subtle" />
             {addressOpen ? (
               <Grouped>
-                <TextField label={t('addCustomer.fields.attn')} maxLength={200} value={values.invoice.attention} onChange={(next) => setAddress('attention', next)} />
+                <TextField
+                  label={t('addCustomer.fields.attn')}
+                  maxLength={200}
+                  value={values.invoice.attention}
+                  onChange={(next) => setAddress('attention', next)}
+                />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <SelectField
                     label={t('addCustomer.fields.country')}
                     value={values.invoice.countryCode}
                     onChange={(next) => setAddress('countryCode', next)}
-                    options={COUNTRIES.map((code) => ({ value: code, label: t(`supplierForm.country.${code}`) }))}
+                    options={COUNTRIES.map((code) => ({
+                      value: code,
+                      label: t(`supplierForm.country.${code}`),
+                    }))}
                   />
                   <TextField
                     label={t('addCustomer.fields.city')}
@@ -525,7 +593,15 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
                     error={errorText('invoice.cityName')}
                   />
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                {/* Zone, street and building, as the frame draws them. The zone has no member of its own on
+                    the address, so it rides in the additional street line (UBL's district slot). */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <TextField
+                    label={t('addCustomer.fields.zone')}
+                    maxLength={100}
+                    value={values.invoice.kept.additionalStreetName ?? ''}
+                    onChange={(next) => setKept('additionalStreetName', next)}
+                  />
                   <TextField
                     label={t('addCustomer.fields.street')}
                     maxLength={150}
@@ -533,15 +609,31 @@ export function AddCustomerModal({ open, kind: initialKind = 'company', onClose,
                     onChange={(next) => setAddress('streetName', next)}
                     error={errorText('invoice.streetName')}
                   />
-                  <TextField label={t('addCustomer.fields.building')} maxLength={50} value={values.invoice.kept.buildingNumber ?? ''} onChange={setBuilding} />
+                  <TextField
+                    label={t('addCustomer.fields.building')}
+                    maxLength={50}
+                    value={values.invoice.kept.buildingNumber ?? ''}
+                    onChange={(next) => setKept('buildingNumber', next)}
+                  />
                 </div>
-                <TextField label={t('addCustomer.fields.poBox')} maxLength={30} value={values.invoice.poBox} onChange={(next) => setAddress('poBox', next)} />
+                <TextField
+                  label={t('addCustomer.fields.poBox')}
+                  maxLength={30}
+                  value={values.invoice.poBox}
+                  onChange={(next) => setAddress('poBox', next)}
+                />
               </Grouped>
             ) : null}
           </div>
 
           <div className="flex flex-col gap-3">
-            <SectionHeader step={3} title={t('addCustomer.sections.notes')} collapsible collapsed={!notesOpen} onToggle={() => setNotesOpen((v) => !v)} />
+            <SectionHeader
+              step={3}
+              title={t('addCustomer.sections.notes')}
+              collapsible
+              collapsed={!notesOpen}
+              onToggle={() => setNotesOpen((v) => !v)}
+            />
             <div className="h-px w-full bg-border-subtle" />
             {notesOpen ? (
               <div>

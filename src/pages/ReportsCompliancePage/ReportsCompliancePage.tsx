@@ -260,7 +260,8 @@ function ComplianceBody({
           label={t('reports.compliance.kpi.accepted')}
           value={`${shortPercent(accepted, language)}%`}
           change={
-            pointChange === null
+            // A change that rounds to nothing draws no pill.
+            pointChange === null || Math.round(Math.abs(pointChange) * 10) === 0
               ? null
               : {
                   text: t('reports.compliance.points', {
@@ -301,7 +302,7 @@ function ComplianceBody({
           // Fewer rejections point down, as the frame draws them.
           change={countPill(span.tdd_ack.re, before.tdd_ack.re, language)}
           note={t(
-            `reports.${span.tdd_ack.re > before.tdd_ack.re ? 'moreThan' : 'fewerThan'}.${period}`,
+            `reports.${span.tdd_ack.re === before.tdd_ack.re ? 'sameAs' : span.tdd_ack.re > before.tdd_ack.re ? 'moreThan' : 'fewerThan'}.${period}`,
           )}
         />
         <KpiCard

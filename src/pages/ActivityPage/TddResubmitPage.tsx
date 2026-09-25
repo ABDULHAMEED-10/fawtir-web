@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Trans, useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { RialText } from '../../components/ui'
+import { Rial, RialText } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -320,7 +320,7 @@ function ResubmitScreen() {
                   {t('tddResubmit.quotaHeadline')}
                 </p>
 
-                <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-white">
+                <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-border-default">
                   <span
                     className="bg-primary-700"
                     style={{ width: `${(record.quota.used / record.quota.allowance) * 100}%` }}
@@ -329,6 +329,7 @@ function ResubmitScreen() {
                     className="bg-[#4c6c5a]"
                     style={{
                       width: `${(record.quota.aboutToUse / record.quota.allowance) * 100}%`,
+                      minWidth: record.quota.aboutToUse > 0 ? 6 : 0,
                     }}
                   />
                 </div>
@@ -516,7 +517,12 @@ function ChangeTableRow({ row, peppolId }: { row: ChangeRow; peppolId: string })
   const changes = Boolean(row.after)
 
   return (
-    <tr className="border-b border-surface-background last:border-0">
+    <tr
+      className={[
+        'border-b border-surface-background last:border-0',
+        changes ? 'bg-surface-background' : '',
+      ].join(' ')}
+    >
       <td className="px-4 py-3.5 text-sm font-medium text-text-secondary">{t(row.fieldKey)}</td>
       <td className="px-4 py-3.5">
         {row.beforeEmpty ? (
@@ -530,7 +536,14 @@ function ChangeTableRow({ row, peppolId }: { row: ChangeRow; peppolId: string })
               row.mono ? 'font-mono text-xs' : 'font-medium',
             ].join(' ')}
           >
-            {row.before}
+            {row.money ? (
+              <span className="inline-flex items-baseline gap-1">
+                <Rial />
+                {row.before}
+              </span>
+            ) : (
+              row.before
+            )}
           </span>
         )}
       </td>

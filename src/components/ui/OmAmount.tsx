@@ -9,6 +9,8 @@ type OmAmountProps = {
   className?: string
   /** Invert icon for dark backgrounds */
   onDark?: boolean
+  /** A direction ("−", "+") drawn ahead of the sign, as the frames print "− <rial> 35.910". */
+  prefix?: ReactNode
 }
 
 /**
@@ -43,6 +45,7 @@ export function OmAmount({
   amountClassName = '',
   className = '',
   onDark = false,
+  prefix,
 }: OmAmountProps) {
   // The sign follows its amount's colour; beside a plain figure it keeps the ink every drawn copy
   // of it uses (#2C3342).
@@ -54,6 +57,7 @@ export function OmAmount({
       : 'text-text-secondary'
   return (
     <span className={['inline-flex items-center gap-1', className].filter(Boolean).join(' ')}>
+      {prefix ? <span className={amountClassName}>{prefix}</span> : null}
       <RialMark className={[ICON_SIZE[size], tone, iconClassName].filter(Boolean).join(' ')} />
       <span className={amountClassName}>{amount}</span>
     </span>

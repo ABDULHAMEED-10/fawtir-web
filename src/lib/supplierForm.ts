@@ -185,7 +185,9 @@ export function fromSupplierDetail(detail: SupplierDetailDto): {
     peppolId: text(p.participantId),
     contactPerson: text(p.contactPerson),
     roleTitle: text(p.roleTitle),
-    emails: (p.emailRecipients ?? []).join('\n'),
+    // One line with commas, as the hint says: a newline in an <input> is dropped and the
+    // addresses ran together.
+    emails: (p.emailRecipients ?? []).join(', '),
     telephone: nationalPhone(p.telephone),
     mobilePhone: nationalPhone(p.mobilePhone),
     preferredLanguage:

@@ -704,7 +704,7 @@ function SelfBillingKpiCards({
               supplier: first.row.customerName,
               count: daysBetween(today, first.agreement.effectiveTo!),
             })
-        : usable === null
+        : usable === null || (expiring ?? 0) > 0
           ? t('selfBilling.kpi.expiringMeta', { count: EXPIRING_WITHIN_DAYS })
           : t('selfBilling.usableAgreements', { count: usable }),
       danger: usable === 0 || (expiring ?? 0) > 0,

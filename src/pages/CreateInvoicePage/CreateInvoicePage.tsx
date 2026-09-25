@@ -88,6 +88,9 @@ import {
 } from '../../lib/invoiceMath'
 import { INDUSTRIAL_CLASSIFICATION } from '../../lib/settingsCompany'
 import { nameOf } from '../../lib/codeLists/codeList'
+import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
+import type { LinkedDoc } from '../../lib/linkedDocuments'
+import { LINK_PICKER_DOCS } from '../../lib/linkedDocuments'
 import backIcon from '../../assets/create-invoice/back.svg'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import consumerIcon from '../../assets/create-invoice/consumer.svg'
@@ -530,6 +533,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
 
   const [form, setForm] = useState<DraftForm>(() => blankDraftForm(reference?.taxCategories ?? []))
   const [exclVat, setExclVat] = useState(true)
+  // TODO(backend): linked order forms and delivery notes are held on the page only; the draft has
+  // no field for them and trade documents have no API yet (backend asks 3.5).
+  const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([])
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const linkedIds = useMemo(() => linkedDocs.map((doc) => doc.id), [linkedDocs])
   const [meta, setMeta] = useState<DraftMeta | null>(null)
   const [customer, setCustomer] = useState<CustomerDto | null>(null)
   const [walkIn, setWalkIn] = useState<WalkIn>({ name: '', contact: '' })
@@ -1371,7 +1379,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                 placeholder={
                   branches.read.status === 'failed'
                     ? t('invoiceDraft.branchesFailed')
-                    : t('appAccess.loading')
+                    : branches.read.status === 'ready'
+                      ? t('createInvoice.fields.branchPlaceholder')
+                      : t('appAccess.loading')
                 }
                 ariaLabel={t('createInvoice.fields.branch')}
               />
@@ -1766,22 +1776,13 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       {/* 4 Link related documents — business and government (Figma 154:162909) */}
       {consumer ? null : (
         <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <SectionTitle step={steps.linked!} title={t('createInvoice.sections.linked')} />
-            {/* TODO(backend): order forms and delivery notes have no API yet; nothing can be linked. */}
-            <button
-              type="button"
-              disabled
-              title={t('createInvoice.linked.pending')}
-              className="inline-flex h-11 items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
-            >
-              {t('createInvoice.linked.linkDocuments')}
-            </button>
-          </div>
-          <div className="h-px w-full bg-border-subtle" />
-          <p className="rounded-sm border border-dashed border-primary-300 px-4 py-5 text-center text-sm font-medium text-text-tertiary">
-            {t('createInvoice.linked.empty')}
-          </p>
+          <LinkedDocuments
+            titleSlot={<SectionTitle step={steps.linked!} title={t('createInvoice.sections.linked')} />}
+            docs={linkedDocs}
+            linkableCount={LINK_PICKER_DOCS.filter((doc) => !linkedIds.includes(doc.id)).length}
+            onLink={() => setLinkModalOpen(true)}
+            onRemove={(docId) => setLinkedDocs((cur) => cur.filter((doc) => doc.id !== docId))}
+          />
         </section>
       )}
 
@@ -2056,6 +2057,16 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           {t('invoiceDraft.discardBody')}
         </p>
       </Modal>
+      <LinkDocumentsModal
+        open={linkModalOpen}
+        customer={customer?.displayName ?? walkIn.name}
+        initialSelected={linkedIds}
+        onClose={() => setLinkModalOpen(false)}
+        onConfirm={(docs) => {
+          setLinkedDocs(docs)
+          setLinkModalOpen(false)
+        }}
+      />
     </div>
   )
 }

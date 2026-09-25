@@ -507,9 +507,11 @@ function SupplierTable({
   onSwitchOn: (supplier: SupplierListItem) => void
 }) {
   const { t } = useTranslation()
+  // Edge to edge in the card, as the frame draws it: a padded wrapper made the 1140px table
+  // scroll sideways at 1440.
   return (
-    <RowsView className="px-5">
-      <table className="w-full min-w-[1140px] border-collapse">
+    <RowsView className="max-md:px-5">
+      <table className="w-full min-w-[1100px] border-collapse">
         <thead>
           <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
             {(['supplier', 'howTheyBill', 'terms', 'youOwe', 'theirRecord'] as const).map(
@@ -584,7 +586,8 @@ function SupplierTableRow({
 }) {
   const { t } = useTranslation()
   const session = useSession()
-  const chip = CHANNEL_CHIP[supplier.channel]
+  // A switched-off row is drawn greyed out (Figma, Muttrah Roasters): name, chip and terms muted.
+  const chip = supplier.active ? CHANNEL_CHIP[supplier.channel] : CHANNEL_CHIP.manual
   const detail = `/suppliers/${supplier.id}`
 
   /** The row menu (Figma 163:28984): two titled groups, then the destructive item. */
@@ -664,7 +667,7 @@ function SupplierTableRow({
 
   return (
     <tr className="border-b border-surface-background last:border-0">
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-primary-50 text-xs font-semibold text-primary-800">
             {supplier.initials}
@@ -672,7 +675,10 @@ function SupplierTableRow({
           <div className="min-w-0">
             <Link
               to={detail}
-              className="whitespace-nowrap text-sm font-semibold text-text-primary hover:text-primary-700"
+              className={[
+                'whitespace-nowrap text-sm font-semibold hover:text-primary-700',
+                supplier.active ? 'text-text-primary' : 'text-text-quaternary',
+              ].join(' ')}
             >
               {supplier.name}
             </Link>
@@ -691,7 +697,7 @@ function SupplierTableRow({
         </div>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <span
           className={[
             'inline-flex h-[24px] items-center gap-1.5 rounded-sm px-2 text-[11px] font-semibold uppercase tracking-[0.4px]',
@@ -711,8 +717,14 @@ function SupplierTableRow({
         ) : null}
       </td>
 
-      <td className="px-4 py-4 align-top">
-        <p className="text-sm font-medium text-text-secondary" dir="auto">
+      <td className="px-4 py-4 align-middle">
+        <p
+          className={[
+            'text-sm font-medium',
+            supplier.active ? 'text-text-secondary' : 'text-text-quaternary',
+          ].join(' ')}
+          dir="auto"
+        >
           <NoteText note={supplier.terms} />
         </p>
         {supplier.termsNote ? (
@@ -722,7 +734,7 @@ function SupplierTableRow({
         ) : null}
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-4 py-4 align-middle text-end">
         <OmAmount
           size="xs"
           className="justify-end"
@@ -735,14 +747,14 @@ function SupplierTableRow({
         <p
           className={[
             'mt-1 whitespace-nowrap text-xs font-medium',
-            supplier.owedAlert ? 'text-warning-700' : 'text-text-quaternary',
+            supplier.owedAlert ? 'text-danger-700' : 'text-text-quaternary',
           ].join(' ')}
         >
           <NoteText note={supplier.owedNote} />
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <div className="flex items-center gap-2">
           <span className="flex items-center gap-[3px]" aria-hidden="true">
             {[0, 1, 2, 3].map((dot) => (
@@ -755,7 +767,12 @@ function SupplierTableRow({
               />
             ))}
           </span>
-          <span className="whitespace-nowrap text-sm font-medium text-text-secondary">
+          <span
+            className={[
+              'whitespace-nowrap text-sm font-medium',
+              supplier.active ? 'text-text-secondary' : 'text-text-quaternary',
+            ].join(' ')}
+          >
             <NoteText note={supplier.recordLabel} />
           </span>
         </div>
@@ -766,7 +783,7 @@ function SupplierTableRow({
         ) : null}
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         {supplier.issue === 'switchedOff' ? (
           // "Turn back on" does what it says rather than opening the record, and only for someone
           // allowed to do it.
@@ -782,7 +799,7 @@ function SupplierTableRow({
         )}
       </td>
 
-      <td className="px-4 py-4 align-top text-end">
+      <td className="px-4 py-4 align-middle text-end">
         {items.length > 0 ? (
           <ActionMenu wide floating label={t('suppliersPage.rowActions')} items={items} />
         ) : null}

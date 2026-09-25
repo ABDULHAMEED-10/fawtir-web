@@ -17,6 +17,7 @@ export function Modal({
   children,
   footer,
   width = 560,
+  icon,
 }: {
   open: boolean
   onClose: () => void
@@ -26,6 +27,8 @@ export function Modal({
   /** Pinned below the scrolling body, as the design's action bars are. */
   footer?: ReactNode
   width?: number
+  /** A tile beside the title, where the frame draws one. */
+  icon?: string
 }) {
   const { t } = useTranslation()
 
@@ -61,7 +64,12 @@ export function Modal({
         className="flex max-h-[90vh] w-full flex-col overflow-hidden rounded-md bg-white shadow-card"
       >
         <div className="flex items-start justify-between gap-4 border-b border-border-subtle px-6 py-5">
-          <div className="min-w-0">
+          {icon ? (
+            <span className="flex size-[42px] shrink-0 items-center justify-center rounded-sm bg-primary-50">
+              <img src={icon} alt="" className="size-5" />
+            </span>
+          ) : null}
+          <div className={['min-w-0', icon ? 'flex-1 self-center' : ''].join(' ')}>
             <h2 className="text-xl font-medium leading-[1.2] text-text-primary">{title}</h2>
             {subtitle ? (
               <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">

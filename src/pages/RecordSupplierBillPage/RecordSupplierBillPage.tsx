@@ -173,6 +173,8 @@ function RecordBill({ id }: { id: string }) {
   const vat = Number(totals?.vat ?? 0)
   const total = Number(totals?.total ?? 0)
   const money = (value: number) => formatAmount(value, currency, language)
+  // In sentences the code goes in front so `withRial` puts the sign there.
+  const sum = (value: number) => `${currency} ${money(value)}`
   const day = (value: string | null) => (value ? formatDate(value, language) : '—')
   const ordered = chosen?.totalGross ?? null
   const matches = ordered !== null && Math.abs(ordered - total) < 0.0005
@@ -556,13 +558,13 @@ function RecordBill({ id }: { id: string }) {
               {/* TODO(backend): the workflow state is the server's; the switch is kept on the client (§7.10). */}
               <ToggleRow
                 label={t('recordBill.straightToApproval')}
-                hint={
+                hint={withRial(
                   threshold === null
                     ? t('recordBill.straightToApprovalAny')
                     : underLimit
-                      ? t('recordBill.straightToApprovalUnder', { limit: money(threshold) })
-                      : t('recordBill.straightToApprovalOver', { limit: money(threshold) })
-                }
+                      ? t('recordBill.straightToApprovalUnder', { limit: sum(threshold) })
+                      : t('recordBill.straightToApprovalOver', { limit: sum(threshold) }),
+                )}
                 checked={straight}
                 onChange={setStraight}
               />
@@ -617,8 +619,8 @@ function RecordBill({ id }: { id: string }) {
                   threshold === null
                     ? t('recordBill.after.approvesAny')
                     : underLimit
-                      ? t('recordBill.after.approvesUnder', { limit: money(threshold) })
-                      : t('recordBill.after.approvesOver', { limit: money(threshold) }),
+                      ? t('recordBill.after.approvesUnder', { limit: sum(threshold) })
+                      : t('recordBill.after.approvesOver', { limit: sum(threshold) }),
                 ),
               },
               {
@@ -628,7 +630,7 @@ function RecordBill({ id }: { id: string }) {
                     ? t('recordBill.after.joinsRunNote', {
                         due: day(due || null),
                         by: day(discount.by),
-                        saves: money(discount.saves),
+                        saves: sum(discount.saves),
                       })
                     : t('recordBill.after.joinsRunPlain', { due: day(due || null) }),
                 ),
@@ -648,7 +650,7 @@ function RecordBill({ id }: { id: string }) {
           <PlainWords label={t('purchaseOrder.inPlainWords')}>
             {withRial(
               t(chosen ? 'recordBill.plainWords' : 'recordBill.plainWordsNoOrder', {
-                amount: money(total),
+                amount: sum(total),
                 supplier: profile.displayName,
                 order: orderLabel,
                 payable: day(due || null),

@@ -37,7 +37,7 @@ const CALLS_PER_PAGE = 7
 
 /** Each result tints its row and its status pill, so trouble is visible without reading. */
 const RESULT_STYLE: Record<CallResult, { row: string; pill: string; meaning: string }> = {
-  ok: { row: '', pill: 'bg-success-100 text-[#3d5648]', meaning: 'text-text-tertiary' },
+  ok: { row: '', pill: 'bg-success-100 text-[#3d5648]', meaning: 'text-text-secondary' },
   pending: {
     row: 'bg-pending-100/40',
     pill: 'bg-surface-background text-text-tertiary',
@@ -124,7 +124,8 @@ function CallLog() {
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
+          {/* The frame lines the actions up with the title, not the breadcrumb. */}
+          <div className="flex shrink-0 items-center gap-2.5 md:mt-[37px] max-md:shrink max-md:flex-wrap">
             <ActionMenu
               variant="bordered"
               wide
@@ -401,7 +402,15 @@ function CallRow({ call }: { call: OtaCall }) {
       </td>
 
       <td className="px-4 py-4 align-top">
-        <p className="whitespace-nowrap text-sm font-medium text-text-secondary tabular-nums">
+        <p
+          className={[
+            'whitespace-nowrap text-sm font-medium tabular-nums',
+            // A slow or timed-out call reads in the frame's amber; the rest stay plain.
+            call.speedKey === 'callLog.speed.slow' || call.speedKey === 'callLog.speed.timedOut'
+              ? 'text-pending-500'
+              : 'text-text-secondary',
+          ].join(' ')}
+        >
           {call.seconds.toFixed(1)}s
         </p>
         <p className="mt-1 whitespace-nowrap text-xs font-medium text-text-quaternary">

@@ -213,7 +213,7 @@ export function SendReminderModal({
       subtitle={t('reminders.send.subtitle')}
       width={685}
       footer={
-        <>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <button type="button" onClick={onClose} className={SECONDARY}>
             {t('common.cancel')}
           </button>
@@ -226,7 +226,7 @@ export function SendReminderModal({
             <img src={sendWhiteIcon} alt="" className="size-5" />
             {t(sending ? 'paymentReminders.invoice.sending' : 'reminders.send.sendNow')}
           </button>
-        </>
+        </div>
       }
     >
       {entry ? null : (
@@ -395,7 +395,7 @@ export function PauseRemindersModal({
       subtitle={t('reminders.pause.subtitle')}
       width={626}
       footer={
-        <>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <button type="button" onClick={onClose} className={SECONDARY}>
             {t('common.cancel')}
           </button>
@@ -405,7 +405,7 @@ export function PauseRemindersModal({
               date: formatDate(until, language).replace(/\s\d{4}$/, ''),
             })}
           </button>
-        </>
+        </div>
       }
     >
       <TargetStrip entry={entry} />
@@ -545,7 +545,7 @@ export function TemplateEditorModal({
       title={t(step.nameKey)}
       width={657}
       footer={
-        <>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
             disabled
@@ -557,7 +557,7 @@ export function TemplateEditorModal({
           <button type="button" disabled title={t('reminders.template.fixed')} className={PRIMARY}>
             {t('reminders.template.save')}
           </button>
-        </>
+        </div>
       }
     >
       <div className="flex items-center gap-4">

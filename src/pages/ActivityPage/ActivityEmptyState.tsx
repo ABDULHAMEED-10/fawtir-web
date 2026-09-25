@@ -56,7 +56,7 @@ export function ActivityEmptyState() {
         </div>
       </section>
 
-      <section className="flex min-h-[620px] flex-col items-center justify-center rounded-md bg-surface-card px-6 py-20 text-center">
+      <section className="flex min-h-[620px] flex-col items-center justify-center rounded-md bg-surface-card px-6 py-20 text-center md:min-h-[860px]">
         <img src={emptyIcon} alt="" className="h-auto w-[190px]" />
         <h2 className="mt-9 text-2xl font-medium leading-[1.2] text-text-primary">
           {t('activity.emptyState.title')}

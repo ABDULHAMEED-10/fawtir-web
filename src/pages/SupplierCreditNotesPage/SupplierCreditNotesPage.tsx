@@ -494,7 +494,7 @@ function CreditRow({
 
   return (
     <tr className="border-b border-[#f3f3f3] last:border-b-0">
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <Link
           to={detailTo}
           className="text-sm font-semibold leading-[1.2] text-primary-700 hover:underline"
@@ -510,7 +510,7 @@ function CreditRow({
         ) : null}
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <p className="text-sm font-semibold leading-[1.2] text-text-primary">
           {note.supplier ?? t('supplierCreditNotes.rows.unknownSupplier')}
         </p>
@@ -519,7 +519,7 @@ function CreditRow({
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         {billTo ? (
           <Link
             to={billTo}
@@ -547,7 +547,7 @@ function CreditRow({
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <p className="text-sm font-medium leading-[1.3] text-text-tertiary">
           {reason
             ? t(reason.key, { defaultValue: reason.fallback })
@@ -555,10 +555,10 @@ function CreditRow({
         </p>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         <span
           className={[
-            'inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]',
+            'inline-flex items-center gap-2 rounded-sm px-3 py-1 text-sm font-semibold leading-[1.2]',
             chip.bg,
             chip.fg,
           ].join(' ')}
@@ -588,7 +588,7 @@ function CreditRow({
         </div>
       </td>
 
-      <td className="px-4 py-4 align-top">
+      <td className="px-4 py-4 align-middle">
         {note.credited === null ? (
           <span className="text-base font-semibold text-text-quaternary">—</span>
         ) : (
@@ -607,7 +607,7 @@ function CreditRow({
         </p>
       </td>
 
-      <td className="px-2 py-4 align-top">
+      <td className="px-2 py-4 align-middle">
         <ActionMenu
           label={t('supplierCreditNotes.rowMenu')}
           floating

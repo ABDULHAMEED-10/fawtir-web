@@ -27,7 +27,6 @@ import stepFailedIcon from '../../assets/activity/step-failed.svg'
 import stepWaitingIcon from '../../assets/activity/ack-late.svg'
 import warnIcon from '../../assets/activity/warn-danger.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
-import shieldIcon from '../../assets/bill-detail/compliance.svg'
 import sendIcon from '../../assets/activity/ch-peppol.svg'
 import cardIcon from '../../assets/suppliers/kpi-owe.svg'
 
@@ -36,7 +35,7 @@ const JOURNEY_ICON: Record<Journey['id'], string> = { ota: otaIcon, peppol: pepp
 const COPY_ICON: Record<ActivityRecord['copies'][number]['id'], string> = {
   accepted: fileIcon,
   withdrawn: fileIcon,
-  ack: shieldIcon,
+  ack: otaIcon,
   replies: sendIcon,
   invoice: cardIcon,
 }
@@ -224,6 +223,7 @@ function Record({
                     </span>
                   ) : null}
                 </div>
+                {/* TODO(backend): the frame's cause title, validator line and "See what changed" (asks row 2.24). */}
                 <p className="mt-3 text-sm font-medium leading-[1.7] text-text-secondary">
                   {record.rejection.reason}
                 </p>

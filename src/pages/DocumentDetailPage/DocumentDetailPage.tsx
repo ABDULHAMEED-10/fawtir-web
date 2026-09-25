@@ -421,7 +421,9 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2">
-      <dt className="text-sm font-medium leading-[1.3] text-text-tertiary">{label}</dt>
+      <dt className="shrink-0 whitespace-nowrap text-sm font-medium leading-[1.3] text-text-tertiary">
+        {label}
+      </dt>
       <dd className={['text-end text-sm font-medium', tone].join(' ')}>{children}</dd>
     </div>
   )
@@ -671,7 +673,8 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
         <Field label={t('documents.detail.issuedOn')}>{date(sheet.issueDate)}</Field>
         <Field label={t('documents.detail.paymentDue')}>{date(sheet.dueDate)}</Field>
         <Field label={t('documents.detail.currency')}>
-          {currency === 'OMR' ? t('invoiceDetails.currencyOmr') : currency}
+          {/* The frame draws the sign here, not the code. */}
+          {currency === 'OMR' ? <Rial /> : currency}
         </Field>
         <Field label={t('documents.detail.uuid')}>
           {sheet.uuid ? <Code>{sheet.uuid}</Code> : null}

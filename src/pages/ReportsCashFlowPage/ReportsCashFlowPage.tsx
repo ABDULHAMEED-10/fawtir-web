@@ -310,15 +310,19 @@ function CashFlowBody({
             },
           ]}
           note={
-            categoryRows.length > 0 && categoryTotal > 0
-              ? t('reports.cashFlow.topShare', {
+            categoryRows.length > 0 && categoryTotal > 0 ? (
+              <Trans
+                i18nKey="reports.cashFlow.topShare"
+                values={{
                   name: categoryRows[0].label,
                   percent: formatCount(
                     shareOfTotal(categoryRows[0].value, categoryTotal),
                     language,
                   ),
-                })
-              : null
+                }}
+                components={{ b: <b className="font-semibold text-text-secondary" /> }}
+              />
+            ) : null
           }
         >
           {categoryRows.length > 0 ? (

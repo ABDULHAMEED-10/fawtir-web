@@ -19,7 +19,7 @@ export function BillStatusChip({ item, className = '' }: { item: Pick<BillListIt
   const style = STATUS_STYLES[item.status]
   return (
     <span
-      className={['inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]', style.bg, style.fg, className].join(' ')}
+      className={['inline-flex items-center gap-2 rounded-sm px-3 py-1 text-sm font-semibold leading-[1.2]', style.bg, style.fg, className].join(' ')}
     >
       <span className={['size-1.5 rounded-full', style.dot].join(' ')} />
       {t(statusLabelKey(item as BillListItem), item.statusValues)}

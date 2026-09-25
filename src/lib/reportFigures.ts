@@ -32,7 +32,8 @@ export function percentPill(
 
 /** A count difference pill ("↑ 212"), or null when both windows are empty. */
 export function countPill(current: number, previous: number, language: string): ChangePill | null {
-  if (current === 0 && previous === 0) return null
+  // No change draws no pill: an arrow over a nought reads as movement that did not happen.
+  if (current === previous) return null
   const diff = current - previous
   return { text: formatCount(Math.abs(diff), language), direction: diff >= 0 ? 'up' : 'down' }
 }

@@ -101,6 +101,7 @@ productCode, description, unitCode, quantity, unitPrice, discount, taxCategory{�
 | 4.14 | Note detail customer card: "VAT OM1100447102 · 0248:OM1100447102" | the customer's Peppol participant identifier on `GET /v1/customers/{id}` (only the VAT number is printed today) |
 | 4.15 | A note is always started against an issued invoice: the frames draw no standalone credit or debit | none: `createNote(kind, invoiceId, …)` fits. `/income/credit-notes/new` without `?invoice=` asks for the invoice on the page first |
 | 4.16 | The composer prints the note number before it is issued ("Credit note number CRN-0087", "Debit note number DBN-0043") | the draft has no number until `POST /invoice-drafts/{id}/issue` answers it, so the field reads "Assigned when issued". A reserved next number on the draft (or a `GET` for the next in the sequence) would let the page print it as drawn |
+| 4.17 | The lists print a draft note's amount ("- <rial> 3.200" on the Draft row of both frames) | the list row carries `totals: null` for a draft, so the Credit / Debit amount cell of a draft reads "—". Please price drafts on the list row (the draft is already priced by `POST /invoice-drafts/{id}/preview`) |
 
 ## 5. Periodic invoices (`/v1/periodic-invoices`)
 
@@ -164,6 +165,21 @@ the backend reaches it: self-billed invoices (list, detail, create), agreements 
 | 7.14 | The agreements list's frame (Figma 154:158069): a Coverage column ("All branches · OMR" with category chips), "Documents issued" as a count and a value, an "On Peppol" chip per supplier, and a banner naming the lapsed supplier's blocked drafts ("1 draft self-billed invoice for OMR 318.900 is blocked") with "Renew agreement" | an agreement scope (branches, currency, categories), document counts and values per agreement (7.9), and the drafts blocked by a lapsed agreement; the banner names the supplier and the day and opens a new agreement on that supplier |
 | 7.15 | The agreements list's pill reads the design's derived states (Expiring soon, Expired, Awaiting acceptance, Terminated) over the four stored ones, and its tabs are the frame's six | an `EXPIRED` and an "expiring" signal from the server would make these its words rather than the screen's |
 | 7.16 | The agreements page's blocker sentences and dialogs say "supplier", as the frame does, where the API's vocabulary is "seller" | none; wording only |
+
+## 8. Customers (`/v1/customers`, `/summary`, `/receivables`, `/import`)
+
+Frames: Customers 154:91007, New customer business 154:100734, consumer 154:101043, business with advanced fields 154:101337, quick add "New Customer - Company" 154:92812 and "- Private" 154:93035 (opened from the invoice composer's customer picker). No frame for a customer detail or import; the import follows the Suppliers import frame 163:28227.
+
+| # | The design shows | Ask |
+|---|---|---|
+| 8.1 | The list's tab counts and cards (All 342, Business 4, ...) | none: the counts come from `/customers/summary` and the cards from its receivables; the frame's own figures do not add up (tabs sum past "8 customers"), so the page prints the summary's |
+| 8.2 | **Filters** beside Sort on the list | the list endpoint has no Peppol-state or sending-method parameter. The menu (All, On Peppol, Not connected, QR receipt) narrows the page already loaded (`TODO(backend)` in `CustomersPage.tsx`); please add `peppolDelivery` (or `sendingMethod`) to `GET /v1/customers` so it filters the whole directory and the pager counts it |
+| 8.3 | The Receivable cell's third note, "awaiting send" (Bahla Fort Restaurant, 22.300) | the receivable has no delivery state; please add a count of issued-but-undelivered invoices (or their amount) to `CustomerReceivable` so the note can be printed |
+| 8.4 | "Company logo" tile at the top of Details on every customer form | the record stores `profile.logo` (`CustomerLogoDto`: object reference, type, size, sha256) but there is no upload that answers one. The tile previews the picked image on the page only; please add `POST /v1/customers/logo` (or a generic upload) returning the DTO |
+| 8.5 | Advanced fields: Commercial name and Commercial registration (CR) under the legal name, Website in Contact, IBAN and BIC / SWIFT in Billing & tax defaults | the customer profile has no member for any of the five; the inputs work on the page and are not sent (`TODO(backend)` in `CustomerFormPage.tsx`). Please add `details.commercialName`, `details.commercialRegistrationNumber`, `contact.website`, `billingDefaults.iban`, `billingDefaults.bic` |
+| 8.6 | Row menu View, Statement, Delete | no customer detail, statement or delete exists in the API or the frames; the menu offers New invoice and Edit only |
+| 8.7 | Quick add "Zone No." beside Street No. and Building No. | the address has no zone member; the field rides in `additionalStreetName` (UBL's district slot). Please confirm, or add a zone / district member |
+| 8.8 | Quick add has no Peppol switch | a company added from the invoice is sent as registered on Peppol at `0248:<VAT>` (as the full form defaults); Discovery then reports whether it answers (`peppolDelivery`), and "Not connected" shows until it does. Please confirm the server is happy to verify on create |
 
 ---
 

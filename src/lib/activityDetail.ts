@@ -247,6 +247,18 @@ function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null
       at: stampOf(item.occurred_at, language),
       state: 'done',
     },
+    // The frame's third step: the buyer's access point took the message (the AS4 receipt).
+    // TODO(backend): the item says only that transport finished, not when (asks row 2.23).
+    ...(item.transport_state && /^(SENT|DELIVERED)$/i.test(item.transport_state)
+      ? [
+          {
+            id: 'accessPoint',
+            labelKey: 'activityDetail.step.accessPointTook',
+            at: null,
+            state: 'done' as const,
+          },
+        ]
+      : []),
     ...replies.map((record, index) => ({
       id: `mls-${index}`,
       labelKey: MLS_STEP[record.ack].labelKey,
@@ -405,14 +417,12 @@ export function recordFromDetail(
             },
           ]
         : []),
-      ...lineage
-        .slice(0, -1)
-        .map((_, index) => ({
-          id: 'withdrawn' as const,
-          titleKey: 'activityDetail.copies.withdrawn',
-          metaKey: 'activityDetail.copies.xmlMeta',
-          values: { version: index + 1 },
-        })),
+      ...lineage.slice(0, -1).map((_, index) => ({
+        id: 'withdrawn' as const,
+        titleKey: 'activityDetail.copies.withdrawn',
+        metaKey: 'activityDetail.copies.xmlMeta',
+        values: { version: index + 1 },
+      })),
       ...(outcome === 'accepted'
         ? [
             {

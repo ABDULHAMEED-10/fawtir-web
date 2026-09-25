@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
-  Popover,
+  FilterMenu,
   RialMark,
   RowsView,
+  Select,
+  SortMenu,
   TableCheckbox,
   withRial,
   type ActionMenuItem,
@@ -55,7 +57,7 @@ import bulkUploadIcon from '../../assets/invoices/bulk-upload.svg'
 import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
-import sortIcon from '../../assets/invoices/sort.svg'
+import filterIcon from '../../assets/bills/filter.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import editIcon from '../../assets/actions/edit.svg'
@@ -68,7 +70,10 @@ const AVATAR_STYLES: Record<CustomerKind, string> = {
 }
 
 /** Peppol state renders as a dot pill, not bare text. */
-const PEPPOL_STYLES: Record<PeppolState, { bg: string; fg: string; dot: string; labelKey: string }> = {
+const PEPPOL_STYLES: Record<
+  PeppolState,
+  { bg: string; fg: string; dot: string; labelKey: string }
+> = {
   onPeppol: {
     bg: 'bg-success-100',
     fg: 'text-success-700',
@@ -88,6 +93,11 @@ const PEPPOL_STYLES: Record<PeppolState, { bg: string; fg: string; dot: string; 
     labelKey: 'customersPage.peppol.qrReceipt',
   },
 }
+
+type PeppolFilter = 'all' | PeppolState
+const PEPPOL_FILTERS: PeppolFilter[] = ['all', 'onPeppol', 'notConnected', 'qrReceipt']
+const isPeppolFilter = (value: string | null): value is PeppolFilter =>
+  PEPPOL_FILTERS.includes(value as PeppolFilter)
 
 const AMOUNT_STYLES: Record<ReceivableState, { amount: string; note: string }> = {
   overdue: { amount: 'text-danger-700', note: 'text-danger-700' },
@@ -122,11 +132,16 @@ function CustomersScreen() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const tab: CustomerTabId = isCustomerTab(params.get('tab')) ? (params.get('tab') as CustomerTabId) : 'all'
+  const tab: CustomerTabId = isCustomerTab(params.get('tab'))
+    ? (params.get('tab') as CustomerTabId)
+    : 'all'
   const sortKey: CustomerSortKey = isCustomerSort(params.get('sort'))
     ? (params.get('sort') as CustomerSortKey)
     : 'nameAsc'
   const query = params.get('q') ?? ''
+  const peppolFilter: PeppolFilter = isPeppolFilter(params.get('peppol'))
+    ? (params.get('peppol') as PeppolFilter)
+    : 'all'
   const size = customerPageSizeOf(params.get('size'))
   const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
 
@@ -150,7 +165,10 @@ function CustomersScreen() {
   useEffect(() => setTyped(query), [query])
   useEffect(() => {
     if (typed === query) return
-    const timer = window.setTimeout(() => update({ q: typed.trim() || null, page: null }), SEARCH_DELAY_MS)
+    const timer = window.setTimeout(
+      () => update({ q: typed.trim() || null, page: null }),
+      SEARCH_DELAY_MS,
+    )
     return () => window.clearTimeout(timer)
     // Armed by typing only: `update` is a new function each render, and depending on it would
     // restart the pause on every render. It reads the params when it runs, so nothing goes stale.
@@ -169,7 +187,8 @@ function CustomersScreen() {
   const list = useApiRead<Page<CustomerDto>>(listPath, () => loadCustomerPage(listPath))
 
   // What the customers on this page owe, asked once the page is known: one grouped read per page.
-  const ids = list.read.status === 'ready' ? list.read.data.items.map((customer) => customer.id) : []
+  const ids =
+    list.read.status === 'ready' ? list.read.data.items.map((customer) => customer.id) : []
   const receivablesPath = ids.length > 0 ? customerReceivablesPath(ids) : null
   const receivables = useApiRead<CustomerReceivablesDto>(receivablesPath, () =>
     loadCustomerReceivables(receivablesPath!),
@@ -201,7 +220,9 @@ function CustomersScreen() {
   const header = (totals: CustomerSummaryDto | null) => (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('customersPage.title')}</h1>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+          {t('customersPage.title')}
+        </h1>
         {totals ? (
           <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">
             {withRial(
@@ -256,7 +277,9 @@ function CustomersScreen() {
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
   const owed = new Map<string, CustomerReceivableDto>(
-    receivables.read.status === 'ready' ? receivables.read.data.items.map((row) => [row.customerId, row]) : [],
+    receivables.read.status === 'ready'
+      ? receivables.read.data.items.map((row) => [row.customerId, row])
+      : [],
   )
 
   return (
@@ -282,19 +305,25 @@ function CustomersScreen() {
                 onClick={() => update({ tab: entry.id === 'all' ? null : entry.id, page: null })}
                 className={[
                   'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
-                  active ? 'font-semibold text-primary-800' : 'font-medium text-text-quaternary hover:text-text-secondary',
+                  active
+                    ? 'font-semibold text-primary-800'
+                    : 'font-medium text-text-quaternary hover:text-text-secondary',
                 ].join(' ')}
               >
                 {t(entry.labelKey)}
                 <span
                   className={[
                     'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
-                    active ? 'bg-primary-25 text-primary-800' : 'bg-primary-25 text-text-quaternary',
+                    active
+                      ? 'bg-primary-25 text-primary-800'
+                      : 'bg-primary-25 text-text-quaternary',
                   ].join(' ')}
                 >
                   {count(tabCount(totals, entry.id))}
                 </span>
-                {active ? <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" /> : null}
+                {active ? (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
+                ) : null}
               </button>
             )
           })}
@@ -313,7 +342,32 @@ function CustomersScreen() {
               className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
           </label>
-          <SortMenu value={sortKey} onChange={(value) => update({ sort: value === 'nameAsc' ? null : value, page: null })} />
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* TODO(backend): the list endpoint has no Peppol-state parameter, so the frame's
+                Filters narrows the page already loaded (INCOME asks 8.2). */}
+            <FilterMenu
+              label={t('customersPage.filters')}
+              value={peppolFilter}
+              defaultValue="all"
+              icon={filterIcon}
+              options={PEPPOL_FILTERS.map((value) => ({
+                value,
+                label:
+                  value === 'all' ? t('customersPage.filterAll') : t(PEPPOL_STYLES[value].labelKey),
+              }))}
+              onChange={(value) => update({ peppol: value === 'all' ? null : value })}
+            />
+            <SortMenu
+              value={sortKey}
+              options={CUSTOMER_SORTS.map((option) => ({
+                value: option.value,
+                labelKey: option.labelKey,
+              }))}
+              onChange={(value) => update({ sort: value === 'nameAsc' ? null : value, page: null })}
+              label={t('customersPage.sort')}
+              width={220}
+            />
+          </div>
         </div>
 
         {receivables.read.status === 'failed' ? (
@@ -329,9 +383,14 @@ function CustomersScreen() {
         ) : (
           <CustomerTable
             page={page}
+            peppolFilter={peppolFilter}
             owed={owed}
             owedReady={receivables.read.status === 'ready'}
-            currency={receivables.read.status === 'ready' ? receivables.read.data.currencyCode : totals.currencyCode}
+            currency={
+              receivables.read.status === 'ready'
+                ? receivables.read.data.currencyCode
+                : totals.currencyCode
+            }
             directoryEmpty={totals.total === 0}
             searching={query !== '' || tab !== 'all'}
           />
@@ -339,25 +398,28 @@ function CustomersScreen() {
 
         {page && page.items.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-            <label className="flex items-center gap-4">
-              <span className="text-sm font-medium text-text-muted">{t('customersPage.showResult')}</span>
-              <select
-                value={size}
-                onChange={(event) =>
-                  update({
-                    size: Number(event.target.value) === DEFAULT_CUSTOMER_PAGE_SIZE ? null : event.target.value,
-                    page: null,
-                  })
-                }
-                className="h-9 rounded-sm border border-border-subtle bg-white px-2 text-sm font-semibold text-text-secondary"
-              >
-                {CUSTOMER_PAGE_SIZES.map((option) => (
-                  <option key={option} value={option}>
-                    {count(option)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-text-muted">
+                {t('customersPage.showResult')}
+              </span>
+              <span className="w-[84px]">
+                <Select
+                  compact
+                  value={String(size)}
+                  ariaLabel={t('customersPage.showResult')}
+                  onChange={(next) =>
+                    update({
+                      size: Number(next) === DEFAULT_CUSTOMER_PAGE_SIZE ? null : next,
+                      page: null,
+                    })
+                  }
+                  options={CUSTOMER_PAGE_SIZES.map((option) => ({
+                    value: String(option),
+                    label: count(option),
+                  }))}
+                />
+              </span>
+            </div>
             {pageCountOf(page) > 1 ? (
               <PageNumbers
                 current={pageNumber}
@@ -435,13 +497,21 @@ function CustomerKpiCards({ totals }: { totals: CustomerSummaryDto }) {
         <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
           <div className="flex items-center gap-3.5">
             <img src={kpi.icon} alt="" className="size-11 shrink-0" />
-            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">{t(kpi.titleKey)}</h3>
+            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
+              {t(kpi.titleKey)}
+            </h3>
           </div>
           <div className="flex items-baseline gap-1">
-            {kpi.withCurrency ? <img src={omrIcon} alt="" className="h-auto w-8 shrink-0 self-center" /> : null}
-            <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">{kpi.figure}</p>
+            {kpi.withCurrency ? (
+              <img src={omrIcon} alt="" className="h-auto w-8 shrink-0 self-center" />
+            ) : null}
+            <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">
+              {kpi.figure}
+            </p>
             {kpi.suffix ? (
-              <span className="text-base font-semibold leading-[1.2] text-text-quaternary">{kpi.suffix}</span>
+              <span className="text-base font-semibold leading-[1.2] text-text-quaternary">
+                {kpi.suffix}
+              </span>
             ) : null}
           </div>
           <p className="text-sm font-medium leading-[1.2] text-text-tertiary">{kpi.meta}</p>
@@ -451,52 +521,9 @@ function CustomerKpiCards({ totals }: { totals: CustomerSummaryDto }) {
   )
 }
 
-function SortMenu({ value, onChange }: { value: CustomerSortKey; onChange: (value: CustomerSortKey) => void }) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const anchor = useRef<HTMLButtonElement>(null)
-  return (
-    <div>
-      <button
-        ref={anchor}
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
-      >
-        <img src={sortIcon} alt="" className="size-6" />
-        {t(CUSTOMER_SORTS.find((option) => option.value === value)?.labelKey ?? 'customersPage.sort')}
-      </button>
-      <Popover open={open} anchorRef={anchor} onClose={() => setOpen(false)} width={220} align="end">
-        <ul role="listbox" className="py-1">
-          {CUSTOMER_SORTS.map((option) => (
-            <li key={option.value}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={option.value === value}
-                onClick={() => {
-                  onChange(option.value)
-                  setOpen(false)
-                }}
-                className={[
-                  'w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-primary-25',
-                  option.value === value ? 'font-semibold text-primary-800' : 'font-medium text-text-secondary',
-                ].join(' ')}
-              >
-                {t(option.labelKey)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Popover>
-    </div>
-  )
-}
-
 function CustomerTable({
   page,
+  peppolFilter,
   owed,
   owedReady,
   currency,
@@ -504,6 +531,7 @@ function CustomerTable({
   searching,
 }: {
   page: Page<CustomerDto> | null
+  peppolFilter: PeppolFilter
   owed: Map<string, CustomerReceivableDto>
   owedReady: boolean
   currency: string
@@ -512,7 +540,13 @@ function CustomerTable({
 }) {
   const { t } = useTranslation()
   const session = useSession()
-  const rows = useMemo(() => (page ? page.items.map(toCustomerListItem) : []), [page])
+  const rows = useMemo(
+    () =>
+      (page ? page.items.map(toCustomerListItem) : []).filter(
+        (row) => peppolFilter === 'all' || row.peppol === peppolFilter,
+      ),
+    [page, peppolFilter],
+  )
   const [selected, setSelected] = useState<string[]>([])
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
@@ -521,10 +555,24 @@ function CustomerTable({
   // screen, which is not designed yet; an entry that goes nowhere is worse than none.
   const menuFor = (id: string): ActionMenuItem[] => [
     ...(can(session, 'invoice.draft')
-      ? [{ id: 'newInvoice', labelKey: 'rowActions.customer.newInvoice', icon: invoiceIcon, to: '/invoices/new' }]
+      ? [
+          {
+            id: 'newInvoice',
+            labelKey: 'rowActions.customer.newInvoice',
+            icon: invoiceIcon,
+            to: '/invoices/new',
+          },
+        ]
       : []),
     ...(can(session, 'customer.manage')
-      ? [{ id: 'edit', labelKey: 'customerForm.menuEdit', icon: editIcon, to: `/customers/${id}/edit` }]
+      ? [
+          {
+            id: 'edit',
+            labelKey: 'customerForm.menuEdit',
+            icon: editIcon,
+            to: `/customers/${id}/edit`,
+          },
+        ]
       : []),
   ]
 
@@ -556,40 +604,62 @@ function CustomerTable({
                 ariaLabel={t('customersPage.selectAll')}
               />
             </th>
-            {(['customer', 'contact', 'location', 'peppol', 'invoices', 'receivable'] as const).map((key) => (
-              <th key={key} className="px-2 py-2.5 text-start font-semibold">
-                {t(`customersPage.col.${key}`)}
-              </th>
-            ))}
+            {(['customer', 'contact', 'location', 'peppol', 'invoices', 'receivable'] as const).map(
+              (key) => (
+                <th key={key} className="px-2 py-2.5 text-start font-semibold">
+                  {t(`customersPage.col.${key}`)}
+                </th>
+              ),
+            )}
             <th className="w-12 px-2 py-2.5" />
           </tr>
         </thead>
         <tbody>
           {page === null ? (
             <tr>
-              <td colSpan={8} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td
+                colSpan={8}
+                role="status"
+                className="py-12 text-center text-sm font-medium text-text-quaternary"
+              >
                 {t('appAccess.loading')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
-            message(directoryEmpty && !searching ? 'customersPage.emptyDirectory' : 'customersPage.empty')
+            message(
+              directoryEmpty && !searching && peppolFilter === 'all'
+                ? 'customersPage.emptyDirectory'
+                : 'customersPage.empty',
+            )
           ) : (
             rows.map((row) => (
-              <tr key={row.id} className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60">
+              <tr
+                key={row.id}
+                className="h-16 border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
+              >
                 <td className="px-5 py-2.5">
                   <TableCheckbox
                     checked={selected.includes(row.id)}
                     onChange={() =>
                       setSelected((current) =>
-                        current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id],
+                        current.includes(row.id)
+                          ? current.filter((id) => id !== row.id)
+                          : [...current, row.id],
                       )
                     }
                     ariaLabel={t('customersPage.selectRow', { name: row.name })}
                   />
                 </td>
-                <CustomerRowCells row={row} receivable={owed.get(row.id)} owedReady={owedReady} currency={currency} />
+                <CustomerRowCells
+                  row={row}
+                  receivable={owed.get(row.id)}
+                  owedReady={owedReady}
+                  currency={currency}
+                />
                 <td className="px-2 py-2.5">
-                  {menuFor(row.id).length > 0 ? <ActionMenu items={menuFor(row.id)} label={t('customersPage.rowMenu')} /> : null}
+                  {menuFor(row.id).length > 0 ? (
+                    <ActionMenu items={menuFor(row.id)} label={t('customersPage.rowMenu')} />
+                  ) : null}
                 </td>
               </tr>
             ))
@@ -609,7 +679,9 @@ function locationOf(row: CustomerListItem, language: string, t: Translate): stri
   let country: string | null = null
   if (row.countryCode) {
     try {
-      country = new Intl.DisplayNames([language], { type: 'region' }).of(row.countryCode.toUpperCase()) ?? row.countryCode
+      country =
+        new Intl.DisplayNames([language], { type: 'region' }).of(row.countryCode.toUpperCase()) ??
+        row.countryCode
     } catch {
       country = row.countryCode
     }
@@ -649,7 +721,9 @@ function CustomerRowCells({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-semibold leading-[1.2] text-text-secondary">{row.name}</p>
+              <p className="truncate text-sm font-semibold leading-[1.2] text-text-secondary">
+                {row.name}
+              </p>
               <span className="inline-flex items-center rounded-sm bg-neutral-25 px-2.5 py-0.5 text-xs font-semibold text-text-secondary">
                 {t(`customersPage.kind.${row.kind}`)}
               </span>
@@ -657,7 +731,8 @@ function CustomerRowCells({
             <p className="truncate text-xs font-medium leading-[1.2] text-text-quaternary">
               {'parts' in row.subtitle ? (
                 <>
-                  <NoteText note={row.subtitle.parts[0]} /> · <NoteText note={row.subtitle.parts[1]} />
+                  <NoteText note={row.subtitle.parts[0]} /> ·{' '}
+                  <NoteText note={row.subtitle.parts[1]} />
                 </>
               ) : (
                 <NoteText note={row.subtitle} />
@@ -667,17 +742,23 @@ function CustomerRowCells({
         </div>
       </td>
       <td className="px-2 py-2.5">
-        <p className="text-sm font-semibold leading-[1.2] text-text-secondary">{row.contactName ?? '—'}</p>
+        <p className="text-sm font-semibold leading-[1.2] text-text-secondary">
+          {row.contactName ?? ''}
+        </p>
         {row.contactEmail ? (
-          <p className="text-xs font-medium leading-[1.2] text-text-quaternary">{row.contactEmail}</p>
+          <p className="text-xs font-medium leading-[1.2] text-text-quaternary">
+            {row.contactEmail}
+          </p>
         ) : null}
       </td>
-      <td className="px-2 py-2.5 text-sm font-medium text-text-primary">{location ?? '—'}</td>
+      <td className="px-2 py-2.5 text-sm font-medium text-text-primary">{location ?? ''}</td>
       <td className="px-2 py-2.5">
         <span
-          className={['inline-flex items-center gap-2 rounded-full px-3 py-[5px] text-sm font-semibold', peppol.bg, peppol.fg].join(
-            ' ',
-          )}
+          className={[
+            'inline-flex items-center gap-2 rounded-full px-3 py-[5px] text-sm font-semibold',
+            peppol.bg,
+            peppol.fg,
+          ].join(' ')}
         >
           <span className={['size-1.5 shrink-0 rounded-full', peppol.dot].join(' ')} />
           {t(peppol.labelKey)}
@@ -702,7 +783,12 @@ function CustomerRowCells({
               <>
                 <span className="inline-flex items-center gap-1">
                   <RialMark className={['w-6 shrink-0', amount.amount].join(' ')} />
-                  <span className={['text-base font-semibold leading-[1.2] tabular-nums', amount.amount].join(' ')}>
+                  <span
+                    className={[
+                      'text-base font-semibold leading-[1.2] tabular-nums',
+                      amount.amount,
+                    ].join(' ')}
+                  >
                     {formatAmount(view.amount, currency, i18n.language)}
                   </span>
                 </span>
@@ -714,7 +800,8 @@ function CustomerRowCells({
               </>
             ) : (
               <span className="text-base font-medium leading-[1.2] text-text-muted">
-                {view.invoices > 0 ? t('customersPage.note.settled') : '—'}
+                {/* Someone never invoiced owes nothing, but "Settled" would claim a history. */}
+                {view.invoices > 0 ? t('customersPage.note.settled') : ''}
               </span>
             )}
           </td>
@@ -738,7 +825,13 @@ function PageNumbers({
   const numbers = useMemo<(number | string)[]>(() => {
     if (pageCount <= 6) return Array.from({ length: pageCount }, (_, i) => i + 1)
     const near = [current - 1, current, current + 1].filter((n) => n > 1 && n < pageCount)
-    return [1, ...(near[0] > 2 ? ['…'] : []), ...near, ...(near.at(-1)! < pageCount - 1 ? ['…'] : []), pageCount]
+    return [
+      1,
+      ...(near[0] > 2 ? ['…'] : []),
+      ...near,
+      ...(near.at(-1)! < pageCount - 1 ? ['…'] : []),
+      pageCount,
+    ]
   }, [pageCount, current])
 
   return (

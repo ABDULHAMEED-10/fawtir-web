@@ -19,6 +19,8 @@ export type ChangeRow = {
   /** Only the field being corrected differs; the rest are carried over. */
   after?: string
   mono?: boolean
+  /** A rial figure: drawn with the sign. */
+  money?: boolean
 }
 
 export const TDD_RESUBMIT = {
@@ -65,8 +67,13 @@ export const TDD_RESUBMIT = {
       mono: true,
     },
     { id: 'lines', fieldKey: 'tddResubmit.field.linesAndQuantities', before: '4 lines' },
-    { id: 'total', fieldKey: 'tddResubmit.field.totalIncludingVat', before: '1,842.000' },
-    { id: 'tax', fieldKey: 'tddResubmit.field.vat', before: '87.714' },
+    {
+      id: 'total',
+      fieldKey: 'tddResubmit.field.totalIncludingVat',
+      before: '1,842.000',
+      money: true,
+    },
+    { id: 'tax', fieldKey: 'tddResubmit.field.vat', before: '87.714', money: true },
   ] satisfies ChangeRow[],
 
   /** The monthly submission allowance this attempt comes out of. */
