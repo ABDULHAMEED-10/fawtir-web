@@ -35,7 +35,8 @@ export function notYetStarted(agreement: AgreementDto, today: string): boolean {
  * `..._NOT_IN_FORCE`, then `SELF_BILLING_SELLER_NOT_VERIFIED`. Matching that order means the
  * screen names the same obstacle the server would, rather than a different true one.
  */
-export type Blocker = 'withdrawn' | 'pendingActivation' | 'suspended' | 'notYetStarted' | 'lapsed' | 'unverified'
+export type Blocker =
+  'withdrawn' | 'pendingActivation' | 'suspended' | 'notYetStarted' | 'lapsed' | 'unverified'
 
 export function blockerOf(agreement: AgreementDto, today: string): Blocker | null {
   if (agreement.status === 'WITHDRAWN') return 'withdrawn'
@@ -82,7 +83,32 @@ export function allowedActions(status: AgreementStatusDto): {
   }
 }
 
-export const AGREEMENT_TABS = ['all', 'active', 'waiting', 'ended'] as const
+/** An agreement ending within this many days is "expiring soon" (the design's card, tab and pill). */
+export const EXPIRING_WITHIN_DAYS = 30
+
+/** Whole days from `from` to `to`, both `YYYY-MM-DD`. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+
+export function expiringSoon(agreement: AgreementDto, today: string): boolean {
+  return (
+    agreement.effectiveTo !== null &&
+    agreement.status === 'ACTIVE' &&
+    inForce(agreement, today) &&
+    daysBetween(today, agreement.effectiveTo) <= EXPIRING_WITHIN_DAYS
+  )
+}
+
+/** The design's tabs (Figma 154:158069), in its order. */
+export const AGREEMENT_TABS = [
+  'all',
+  'active',
+  'waiting',
+  'expiringSoon',
+  'ended',
+  'terminated',
+] as const
 export type AgreementTabId = (typeof AGREEMENT_TABS)[number]
 
 /**
@@ -90,6 +116,8 @@ export type AgreementTabId = (typeof AGREEMENT_TABS)[number]
  *
  * "Active" means issuable — an ACTIVE agreement that has lapsed or whose seller is unverified is
  * not, and filing it under Active would be the screen telling the same lie the status alone does.
+ * "Awaiting acceptance" is everything not yet usable that can still become so; "Expired" has run
+ * out; "Terminated" was withdrawn.
  */
 export function matchesTab(agreement: AgreementDto, tab: AgreementTabId, today: string): boolean {
   switch (tab) {
@@ -98,9 +126,17 @@ export function matchesTab(agreement: AgreementDto, tab: AgreementTabId, today: 
     case 'active':
       return canIssueUnder(agreement, today)
     case 'waiting':
-      return agreement.status !== 'WITHDRAWN' && !canIssueUnder(agreement, today) && !lapsed(agreement, today)
+      return (
+        agreement.status !== 'WITHDRAWN' &&
+        !canIssueUnder(agreement, today) &&
+        !lapsed(agreement, today)
+      )
+    case 'expiringSoon':
+      return expiringSoon(agreement, today)
     case 'ended':
-      return agreement.status === 'WITHDRAWN' || lapsed(agreement, today)
+      return agreement.status !== 'WITHDRAWN' && lapsed(agreement, today)
+    case 'terminated':
+      return agreement.status === 'WITHDRAWN'
   }
 }
 
@@ -116,7 +152,9 @@ export function sortedForDisplay(agreements: AgreementDto[]): AgreementDto[] {
   return [...agreements].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))
 }
 
-export function agreementProblem(reference: string): 'referenceRequired' | 'referenceTooLong' | null {
+export function agreementProblem(
+  reference: string,
+): 'referenceRequired' | 'referenceTooLong' | null {
   const text = reference.trim()
   if (text === '') return 'referenceRequired'
   if (text.length > 100) return 'referenceTooLong'

@@ -6,7 +6,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { ProductDto } from '../../api/catalog/products'
-import { lineFromProduct, newProductFrom, suggestProductCode, taxCategoryOf } from '../../lib/productLine'
+import {
+  lineFromProduct,
+  newProductFrom,
+  suggestProductCode,
+  taxCategoryOf,
+} from '../../lib/productLine'
 import { SessionContext } from '../../lib/session/session'
 import { ProductPicker } from './ProductPicker'
 import { CreateInvoicePage } from '../../pages/CreateInvoicePage'
@@ -34,25 +39,41 @@ function json(status: number, body?: unknown) {
   })
 }
 
-const springPage = (content: ProductDto[]) => ({ content, page: 0, size: 20, totalElements: content.length })
+const springPage = (content: ProductDto[]) => ({
+  content,
+  page: 0,
+  size: 20,
+  totalElements: content.length,
+})
 
 let fetchMock: ReturnType<typeof vi.fn>
 let createResponse: () => Response
 
 const productCalls = () =>
-  fetchMock.mock.calls.map(([url, init]) => [String(url), (init as RequestInit | undefined)?.method ?? 'GET'] as const)
+  fetchMock.mock.calls
+    .map(
+      ([url, init]) => [String(url), (init as RequestInit | undefined)?.method ?? 'GET'] as const,
+    )
     .filter(([url]) => url.startsWith('/api/v1/products'))
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
-  createResponse = () => json(201, product({ id: 'p-new', code: 'T-1234', name: 'Karak Tea', defaultUnitPrice: 0.3 }))
+  createResponse = () =>
+    json(201, product({ id: 'p-new', code: 'T-1234', name: 'Karak Tea', defaultUnitPrice: 0.3 }))
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
     if (url.startsWith('/api/v1/products') && init?.method === 'POST') return createResponse()
     if (url.startsWith('/api/v1/products')) {
       const q = new URL(url, 'http://x').searchParams.get('q')
-      return json(200, springPage(q ? [product()].filter((p) => p.name.toLowerCase().includes(q)) : [product(), product({ id: 'p-2', code: 'ESP-1', name: 'Espresso' })]))
+      return json(
+        200,
+        springPage(
+          q
+            ? [product()].filter((p) => p.name.toLowerCase().includes(q))
+            : [product(), product({ id: 'p-2', code: 'ESP-1', name: 'Espresso' })],
+        ),
+      )
     }
     throw new Error(`unexpected request to ${url}`)
   })
@@ -76,12 +97,12 @@ const ADMIN: Entitlements = {
 function renderPicker(onPick = vi.fn(), permissions = ADMIN.permissions) {
   render(
     <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
-    <MemoryRouter>
-      <SessionContext.Provider value={{ ...ADMIN, permissions }}>
-        <ProductPicker productId={null} label="" onPick={onPick} />
-      </SessionContext.Provider>
-    </MemoryRouter>
-      </ReferenceDataContext.Provider>,
+      <MemoryRouter>
+        <SessionContext.Provider value={{ ...ADMIN, permissions }}>
+          <ProductPicker productId={null} label="" onPick={onPick} />
+        </SessionContext.Provider>
+      </MemoryRouter>
+    </ReferenceDataContext.Provider>,
   )
   return onPick
 }
@@ -95,8 +116,12 @@ describe('ProductPicker', () => {
     expect(await screen.findByRole('option', { name: /Espresso/ })).toBeTruthy()
     expect(productCalls()[0]).toEqual(['/api/v1/products?size=20', 'GET'])
 
-    fireEvent.change(screen.getByPlaceholderText('Search products by name or code'), { target: { value: 'flat' } })
-    await waitFor(() => expect(productCalls().at(-1)).toEqual(['/api/v1/products?q=flat&size=20', 'GET']))
+    fireEvent.change(screen.getByPlaceholderText('Search products by name or code'), {
+      target: { value: 'flat' },
+    })
+    await waitFor(() =>
+      expect(productCalls().at(-1)).toEqual(['/api/v1/products?q=flat&size=20', 'GET']),
+    )
     await waitFor(() => expect(screen.queryByRole('option', { name: /Espresso/ })).toBeNull())
 
     fireEvent.click(screen.getByRole('option', { name: /Flat White/ }))
@@ -106,7 +131,9 @@ describe('ProductPicker', () => {
   it('quick-creates a product from what was typed, and puts it on the line', async () => {
     const onPick = renderPicker()
     fireEvent.click(screen.getByRole('button', { name: 'Description' }))
-    fireEvent.change(await screen.findByPlaceholderText('Search products by name or code'), { target: { value: 'Karak Tea' } })
+    fireEvent.change(await screen.findByPlaceholderText('Search products by name or code'), {
+      target: { value: 'Karak Tea' },
+    })
     fireEvent.click(await screen.findByRole('button', { name: 'Create “Karak Tea” as a product' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'New product' })
@@ -115,8 +142,12 @@ describe('ProductPicker', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Price/), { target: { value: '0.300' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save and use' }))
 
-    await waitFor(() => expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-new' })))
-    const post = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST')!
+    await waitFor(() =>
+      expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-new' })),
+    )
+    const post = fetchMock.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+    )!
     expect(JSON.parse((post[1] as RequestInit).body as string)).toMatchObject({
       name: 'Karak Tea',
       defaultUnitCode: 'EA',
@@ -128,10 +159,17 @@ describe('ProductPicker', () => {
 
   it('says so on the code field when the code is taken', async () => {
     createResponse = () =>
-      new Response(JSON.stringify({ type: 'https://api.fawtir.om/problems/conflict', status: 409, code: 'PRODUCT_CODE_DUPLICATE' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/problem+json' },
-      })
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/conflict',
+          status: 409,
+          code: 'PRODUCT_CODE_DUPLICATE',
+        }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/problem+json' },
+        },
+      )
     const onPick = renderPicker()
     fireEvent.click(screen.getByRole('button', { name: 'Description' }))
     fireEvent.click(await screen.findByRole('button', { name: 'New product' }))
@@ -156,18 +194,25 @@ describe('the invoice line a product starts', () => {
   it('fills the description, price, unit and tax category from the product', async () => {
     render(
       <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
-      <MemoryRouter initialEntries={['/invoices/new']}>
-        <Routes>
-          <Route path="/invoices/new" element={<CreateInvoicePage />} />
-        </Routes>
-      </MemoryRouter>
+        <MemoryRouter initialEntries={['/invoices/new']}>
+          <Routes>
+            <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          </Routes>
+        </MemoryRouter>
       </ReferenceDataContext.Provider>,
     )
-    const [first] = await screen.findAllByRole('button', { name: 'Description' })
+    // The description is typed text now; the catalogue opens from the button at its end.
+    const [first] = await screen.findAllByRole('button', { name: /Pick from catalogue/ })
     fireEvent.click(first)
     fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Description' })[0].textContent).toContain('Flat White'))
-    expect((screen.getAllByRole('textbox', { name: 'Excl.' })[0] as HTMLInputElement).value).toBe('1.600')
+    await waitFor(() =>
+      expect(
+        (screen.getAllByRole('textbox', { name: 'Description' })[0] as HTMLInputElement).value,
+      ).toContain('Flat White'),
+    )
+    expect(
+      (screen.getAllByRole('textbox', { name: 'Price excl.' })[0] as HTMLInputElement).value,
+    ).toBe('1.600')
   })
 })
 
@@ -180,20 +225,46 @@ describe('product line mapping', () => {
   })
 
   it('prices the line inclusive of VAT when the line is being entered that way', () => {
-    expect(lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), true).unitPrice).toBe('10.000')
-    expect(lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), false).unitPrice).toBe('10.500')
-    expect(lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultTaxCategory: 'E', defaultTaxRate: null }), false)).toMatchObject({
+    expect(
+      lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), true).unitPrice,
+    ).toBe('10.000')
+    expect(
+      lineFromProduct(SEEDED_TAX_CATEGORIES, product({ defaultUnitPrice: 10 }), false).unitPrice,
+    ).toBe('10.500')
+    expect(
+      lineFromProduct(
+        SEEDED_TAX_CATEGORIES,
+        product({ defaultTaxCategory: 'E', defaultTaxRate: null }),
+        false,
+      ),
+    ).toMatchObject({
       vatRate: '0',
       taxCode: 'E0',
     })
   })
 
   it('stores exempt and out-of-scope products without a rate', () => {
-    expect(newProductFrom(SEEDED_TAX_CATEGORIES, { code: 'X', name: 'X', unit: 'EA', price: '2', taxCode: 'E0' })).toMatchObject({
+    expect(
+      newProductFrom(SEEDED_TAX_CATEGORIES, {
+        code: 'X',
+        name: 'X',
+        unit: 'EA',
+        price: '2',
+        taxCode: 'E0',
+      }),
+    ).toMatchObject({
       defaultTaxCategory: 'E',
       defaultTaxRate: null,
     })
-    expect(newProductFrom(SEEDED_TAX_CATEGORIES, { code: 'X', name: 'X', unit: 'EA', price: '2.5', taxCode: 'Z0' })).toMatchObject({
+    expect(
+      newProductFrom(SEEDED_TAX_CATEGORIES, {
+        code: 'X',
+        name: 'X',
+        unit: 'EA',
+        price: '2.5',
+        taxCode: 'Z0',
+      }),
+    ).toMatchObject({
       defaultTaxCategory: 'Z',
       defaultTaxRate: 0,
       defaultUnitPrice: 2.5,

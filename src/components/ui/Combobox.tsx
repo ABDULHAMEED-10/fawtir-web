@@ -21,6 +21,8 @@ export function Combobox({
   footer,
   renderTrigger,
   onSearch,
+  disabled,
+  compact,
 }: {
   value: string
   onChange: (value: string) => void
@@ -29,6 +31,9 @@ export function Combobox({
   searchPlaceholder?: string
   ariaLabel?: string
   emptyText?: string
+  disabled?: boolean
+  /** A shorter trigger (42px, as `Select`'s), for a field that sits under another. */
+  compact?: boolean
   /** A function receives the typed text and a close, for an action such as "Create “…”". */
   footer?: ReactNode | ((state: { query: string; close: () => void }) => ReactNode)
   /** Lets a caller keep a richer trigger (logo, badges) and reuse only the popup behaviour. */
@@ -72,13 +77,18 @@ export function Combobox({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
         className={
           renderTrigger
             ? 'w-full text-start'
-            : 'flex h-[50px] w-full items-center justify-between gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-start transition-colors hover:border-primary-500'
+            : [
+                'flex w-full items-center justify-between gap-2 rounded-sm border border-primary-300 bg-surface-tab-bar text-start transition-colors',
+                compact ? 'h-[42px] px-3' : 'h-[50px] px-4',
+                disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary-500',
+              ].join(' ')
         }
       >
         {renderTrigger ? (

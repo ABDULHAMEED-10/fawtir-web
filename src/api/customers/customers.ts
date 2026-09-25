@@ -13,7 +13,8 @@ export type CustomerTypeDto = 'BUSINESS' | 'GOVERNMENT' | 'CONSUMER'
 export type CustomerStatusDto = 'ACTIVE' | 'ARCHIVED'
 export type CustomerSendingMethod = 'EMAIL_PDF' | 'PEPPOL' | 'QR_RECEIPT'
 /** Derived on the server from the sending method and Discovery's verification; never stored. */
-export type CustomerPeppolDelivery = 'NOT_APPLICABLE' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'REJECTED'
+export type CustomerPeppolDelivery =
+  'NOT_APPLICABLE' | 'PENDING_VERIFICATION' | 'ACTIVE' | 'REJECTED'
 export type CustomerListSort = 'RECENT' | 'NAME_ASC' | 'NAME_DESC'
 
 /** `Customer`, only the members the list reads. */
@@ -22,9 +23,17 @@ export type CustomerDto = {
   type: CustomerTypeDto
   displayName: string
   profile: {
-    details: { vatRegistrationNumber: string | null } | null
+    details: {
+      vatRegistrationNumber: string | null
+      /** The Peppol participant id, shown beside the VAT number on the periodic composer's customer card. */
+      peppolParticipantId?: { scheme: string; value: string } | null
+    } | null
     contact: { contactPerson: string | null; emailRecipients: string[] | null } | null
-    deliveryPreferences: { sendingMethod: CustomerSendingMethod | null } | null
+    deliveryPreferences: {
+      sendingMethod: CustomerSendingMethod | null
+      /** The customer's own reminder switch, when the list carries it (the reminders page counts the muted). */
+      automaticPaymentReminders?: boolean
+    } | null
     invoiceAddress: { cityName: string | null; countryCode: string | null } | null
   }
   peppolDelivery: CustomerPeppolDelivery
@@ -136,9 +145,15 @@ export type CustomerExport = ApiDownload & {
 }
 
 /** The CSV of the customers the list is showing: the same type, search and status. */
-export async function exportCustomers(query: Pick<CustomerListQuery, 'type' | 'search'>): Promise<CustomerExport> {
+export async function exportCustomers(
+  query: Pick<CustomerListQuery, 'type' | 'search'>,
+): Promise<CustomerExport> {
   const file = await apiDownload(
-    withQuery(`${CUSTOMERS_PATH}/export`, { status: 'ACTIVE', type: query.type, search: query.search.trim() }),
+    withQuery(`${CUSTOMERS_PATH}/export`, {
+      status: 'ACTIVE',
+      type: query.type,
+      search: query.search.trim(),
+    }),
   )
   return { ...file, truncated: file.headers.get('X-Fawtir-Export-Truncated') === 'true' }
 }
@@ -157,7 +172,12 @@ export type CustomerAddressDto = {
   countrySubentityCode?: string | null
 }
 
-export type CustomerLogoDto = { objectReference: string; contentType: string; byteSize: number; sha256: string }
+export type CustomerLogoDto = {
+  objectReference: string
+  contentType: string
+  byteSize: number
+  sha256: string
+}
 
 export type CustomerDetailsDto = {
   firstName: string | null
@@ -211,16 +231,25 @@ export type CustomerProfileDto = {
 }
 
 /** `Customer` with its whole profile, as `GET /customers/{id}` and the writes answer. */
-export type CustomerRecordDto = Omit<CustomerDto, 'profile'> & { profile: CustomerProfileDto; version: number }
+export type CustomerRecordDto = Omit<CustomerDto, 'profile'> & {
+  profile: CustomerProfileDto
+  version: number
+}
 
 /**
  * `CreateCustomerRequest` / `UpdateCustomerRequest`. The request is flat — no `profile` wrapper —
  * and an update replaces the record, so it carries the logo and anything the form does not draw.
  */
-export type CustomerRequestDto = Omit<CustomerProfileDto, never> & { type: CustomerTypeDto; expectedVersion?: number }
+export type CustomerRequestDto = Omit<CustomerProfileDto, never> & {
+  type: CustomerTypeDto
+  expectedVersion?: number
+}
 
 /** `customer.manage`. The key is the form's, so a second click or a retry adds one customer. */
-export function createCustomer(idempotencyKey: string, body: CustomerRequestDto): Promise<CustomerRecordDto> {
+export function createCustomer(
+  idempotencyKey: string,
+  body: CustomerRequestDto,
+): Promise<CustomerRecordDto> {
   return apiRequest<CustomerRecordDto>(CUSTOMERS_PATH, {
     method: 'POST',
     body,
@@ -233,8 +262,14 @@ export function loadCustomerRecord(customerId: string): Promise<CustomerRecordDt
 }
 
 /** `customer.manage`. `expectedVersion` is the one the form was loaded at; a newer one is a 409. */
-export function updateCustomer(customerId: string, body: CustomerRequestDto & { expectedVersion: number }): Promise<CustomerRecordDto> {
-  return apiRequest<CustomerRecordDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`, { method: 'PUT', body })
+export function updateCustomer(
+  customerId: string,
+  body: CustomerRequestDto & { expectedVersion: number },
+): Promise<CustomerRecordDto> {
+  return apiRequest<CustomerRecordDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`, {
+    method: 'PUT',
+    body,
+  })
 }
 
 export function newCustomerKey(): string {

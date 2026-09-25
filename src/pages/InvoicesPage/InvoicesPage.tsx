@@ -21,14 +21,15 @@ import {
   invoiceListPath,
   loadInvoicePage,
   loadInvoiceSummary,
+  type InvoiceListFilter,
   type InvoiceRowDto,
   type InvoiceSummaryDto,
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
-import { discardDraft } from '../../api/invoices/drafts'
+import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
+import { cancelInvoice } from '../../api/invoices/detail'
 import {
   INVOICE_SORTS,
-  INVOICE_TABS,
   INVOICE_TYPES,
   PERIODS,
   isInvoiceSort,
@@ -36,17 +37,17 @@ import {
   isInvoiceType,
   isPeriod,
   listFilter,
+  periodRange,
   tabCount,
   toInvoiceListItem,
   type AuthoringChip,
   type InvoiceListItem,
   type InvoiceSortKey,
   type InvoiceTabId,
-  type Note,
   type PaymentChip,
+  type PeppolResponse,
   type PeriodId,
 } from '../../lib/invoiceList'
-import { NOTE_ROUTES } from '../../lib/salesNote'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
@@ -55,12 +56,17 @@ import paidIcon from '../../assets/invoices/kpi-paid.svg'
 import awaitingIcon from '../../assets/invoices/kpi-awaiting.svg'
 import overdueIcon from '../../assets/invoices/kpi-overdue.svg'
 import omrIcon from '../../assets/invoices/omr.svg'
+import bulkUploadIcon from '../../assets/invoices/bulk-upload.svg'
 import exportIcon from '../../assets/invoices/export.svg'
 import plusIcon from '../../assets/invoices/plus.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import sortIcon from '../../assets/invoices/sort.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
-import editIcon from '../../assets/actions/edit.svg'
+import viewIcon from '../../assets/actions/view.svg'
+import sendIcon from '../../assets/actions/send.svg'
+import duplicateIcon from '../../assets/actions/duplicate.svg'
+import creditNoteIcon from '../../assets/actions/credit-note.svg'
+import periodicIcon from '../../assets/actions/periodic.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
 
 type Chip = { bg: string; dot: string; text: string }
@@ -74,15 +80,59 @@ const AUTHORING_STYLES: Record<AuthoringChip, Chip> = {
 
 const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
   overdue: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
-  awaiting: { bg: 'bg-warning-100', dot: 'bg-warning-700', text: 'text-warning-700' },
-  partial: { bg: 'bg-warning-100', dot: 'bg-warning-700', text: 'text-warning-700' },
+  awaiting: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
+  partial: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
+  toSend: { bg: 'bg-primary-25', dot: 'bg-primary-800', text: 'text-primary-800' },
   paid: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
 }
 
-const DELIVERED_BY_HAND: Chip = { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' }
+/**
+ * The PEPPOL/OTA column, as the design prints it: the Peppol response code of the last delivery.
+ * A document sent by hand has no code, so it says so in a neutral pill; an undelivered one is blank.
+ */
+const DELIVERY_STYLES: Record<PeppolResponse | 'sentManually', Chip> = {
+  AB: { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' },
+  AP: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  RE: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
+  sentManually: { bg: 'bg-neutral-25', dot: 'bg-text-muted', text: 'text-text-tertiary' },
+}
+const DELIVERY_HINTS: Record<PeppolResponse, string> = {
+  AB: 'invoicesPage.transmission.acknowledgedHint',
+  AP: 'invoicesPage.transmission.acceptedHint',
+  RE: 'invoicesPage.transmission.rejectedHint',
+}
 
-const PAGE_SIZES = [10, 25, 50] as const
+/**
+ * The design's six tabs (Figma 154:172772). "To send" is issued documents not yet delivered.
+ * TODO(backend): the list has no delivery-state filter and the summary no `toSend` count, so the
+ * tab asks for every issued document and shows a count only when the summary carries one.
+ */
+type TabId = InvoiceTabId | 'toSend'
+const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
+  { id: 'all', labelKey: 'invoicesPage.tabs.all' },
+  { id: 'drafts', labelKey: 'invoicesPage.tabs.drafts' },
+  { id: 'toSend', labelKey: 'invoicesPage.tabs.toSend' },
+  { id: 'awaiting', labelKey: 'invoicesPage.tabs.awaiting' },
+  { id: 'overdue', labelKey: 'invoicesPage.tabs.overdue', danger: true },
+  { id: 'paid', labelKey: 'invoicesPage.tabs.paid' },
+]
+const isTab = (value: string | null): value is TabId => value === 'toSend' || isInvoiceTab(value)
+
+/** The design's Channel filter. TODO(backend): the list has no channel parameter; nothing is sent. */
+type ChannelId = 'all' | 'peppol' | 'email'
+const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
+const isChannel = (value: string | null): value is ChannelId =>
+  CHANNELS.includes(value as ChannelId)
+
+const PAGE_SIZES = [6, 10, 25, 50] as const
 const DEFAULT_PAGE_SIZE = 10
+/**
+ * The frame's period chip reads "This month" (Figma 154:172772), yet its rows include a draft and
+ * July documents: the chip is the mock's state, not a rule. A month filter by default would hide
+ * every draft (no issue date) and last month's overdue invoices, so the list opens on all time and
+ * "This month" is one choice away.
+ */
+const DEFAULT_PERIOD: PeriodId = 'all'
 
 /** How long typing pauses before the search is sent, so each keystroke is not a request. */
 const SEARCH_DELAY_MS = 300
@@ -111,10 +161,19 @@ function InvoicesScreen() {
   const language = i18n.language
   const [params, setParams] = useSearchParams()
 
-  const tab: InvoiceTabId = isInvoiceTab(params.get('tab')) ? (params.get('tab') as InvoiceTabId) : 'all'
-  const type: InvoiceTypeDto | null = isInvoiceType(params.get('type')) ? (params.get('type') as InvoiceTypeDto) : null
-  const period: PeriodId = isPeriod(params.get('period')) ? (params.get('period') as PeriodId) : 'all'
-  const sortKey: InvoiceSortKey = isInvoiceSort(params.get('sort')) ? (params.get('sort') as InvoiceSortKey) : 'updated'
+  const tab: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
+  const type: InvoiceTypeDto | null = isInvoiceType(params.get('type'))
+    ? (params.get('type') as InvoiceTypeDto)
+    : null
+  const period: PeriodId = isPeriod(params.get('period'))
+    ? (params.get('period') as PeriodId)
+    : DEFAULT_PERIOD
+  const channel: ChannelId = isChannel(params.get('channel'))
+    ? (params.get('channel') as ChannelId)
+    : 'all'
+  const sortKey: InvoiceSortKey = isInvoiceSort(params.get('sort'))
+    ? (params.get('sort') as InvoiceSortKey)
+    : 'updated'
   const query = params.get('q') ?? ''
   const sizeParam = Number(params.get('size'))
   const size = (PAGE_SIZES as readonly number[]).includes(sizeParam) ? sizeParam : DEFAULT_PAGE_SIZE
@@ -140,7 +199,10 @@ function InvoicesScreen() {
   useEffect(() => setTyped(query), [query])
   useEffect(() => {
     if (typed === query) return
-    const timer = window.setTimeout(() => update({ q: typed.trim() || null, page: null }), SEARCH_DELAY_MS)
+    const timer = window.setTimeout(
+      () => update({ q: typed.trim() || null, page: null }),
+      SEARCH_DELAY_MS,
+    )
     return () => window.clearTimeout(timer)
     // Armed by typing only: `update` is a new function each render, and depending on it would
     // restart the pause on every render. It reads the params when it runs, so nothing goes stale.
@@ -149,7 +211,18 @@ function InvoicesScreen() {
 
   const summary = useApiRead<InvoiceSummaryDto>(INVOICE_SUMMARY_PATH, loadInvoiceSummary)
   // The period counts back from the server's day, so the list waits for the summary to know it.
-  const filter = summary.read.status === 'ready' ? listFilter(tab, type, period, summary.read.data.asOf, query) : null
+  const filter: InvoiceListFilter | null =
+    summary.read.status === 'ready'
+      ? tab === 'toSend'
+        ? {
+            state: 'ISSUED',
+            payment: null,
+            type,
+            ...periodRange(period, summary.read.data.asOf),
+            search: query,
+          }
+        : listFilter(tab, type, period, summary.read.data.asOf, query)
+      : null
   const listPath = filter
     ? invoiceListPath({
         ...filter,
@@ -159,6 +232,15 @@ function InvoicesScreen() {
       })
     : null
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
+  // The design names the issuing branch under the customer; the row carries only its id.
+  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  const branchNames = useMemo(() => {
+    const names = new Map<string, string>()
+    if (branches.read.status === 'ready') {
+      for (const branch of branches.read.data) names.set(branch.id, branch.name)
+    }
+    return names
+  }, [branches.read])
 
   const [notice, setNotice] = useState<{ body: string } | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -202,17 +284,62 @@ function InvoicesScreen() {
     }
   }
 
+  // The design's row "Delete" on an issued document is the API's cancel, which needs a reason.
+  const [cancelling, setCancelling] = useState<InvoiceListItem | null>(null)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const closeCancel = () => {
+    setCancelling(null)
+    setReason('')
+  }
+  const onCancel = async () => {
+    if (!cancelling || reason.trim() === '') return
+    setBusy(true)
+    try {
+      await cancelInvoice(cancelling.id, cancelling.version, reason.trim())
+      closeCancel()
+      summary.retry()
+      list.retry()
+    } catch (error) {
+      setNotice({ body: failureText(t, error) })
+      closeCancel()
+      list.retry()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const count = (value: number) => formatCount(value, language)
 
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">{t('invoicesPage.title')}</h1>
-        <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">{t('invoicesPage.subtitleLive')}</p>
+        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+          {t('invoicesPage.title')}
+        </h1>
+        <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">
+          {t('invoicesPage.subtitle')}
+        </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
+        {can(session, 'invoice.draft') ? (
+          // TODO(backend): no bulk import endpoint exists; the button is the design's and says so.
+          <button
+            type="button"
+            onClick={() => setNotice({ body: t('invoicesPage.bulkUnavailable') })}
+            className={OUTLINE_BUTTON}
+          >
+            <img src={bulkUploadIcon} alt="" className="size-6" />
+            {t('invoicesPage.bulkUpload')}
+          </button>
+        ) : null}
         {can(session, 'invoice.export') ? (
-          <button type="button" onClick={onExport} disabled={exporting || !filter} className={OUTLINE_BUTTON}>
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={exporting || !filter}
+            className={OUTLINE_BUTTON}
+          >
             <img src={exportIcon} alt="" className="size-6 rotate-180" />
             {exporting ? t('invoicesPage.exporting') : t('invoicesPage.export')}
           </button>
@@ -245,21 +372,24 @@ function InvoicesScreen() {
 
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
-  const filtered = query !== '' || type !== null || period !== 'all'
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
       {header}
       {notice ? (
-        <Notice body={notice.body} action={{ label: t('common.close'), onClick: () => setNotice(null) }} />
+        <Notice
+          body={notice.body}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
       ) : null}
       <InvoiceKpiCards totals={totals} />
 
       <section className="overflow-hidden rounded-md bg-surface-card">
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
-          {INVOICE_TABS.map((entry) => {
+        <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-6">
+          {TABS.map((entry) => {
             const active = entry.id === tab
-            const tally = tabCount(totals, entry.id)
+            const tally =
+              entry.id === 'toSend' ? (totals.toSend ?? null) : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}
@@ -268,38 +398,44 @@ function InvoicesScreen() {
                 onClick={() => update({ tab: entry.id === 'all' ? null : entry.id, page: null })}
                 className={[
                   'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
-                  active ? 'font-semibold text-primary-800' : 'font-medium text-text-quaternary hover:text-text-secondary',
+                  active
+                    ? 'font-semibold text-primary-800'
+                    : 'font-medium text-text-quaternary hover:text-text-secondary',
                 ].join(' ')}
               >
                 {t(entry.labelKey)}
-                <span
-                  className={[
-                    'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
-                    entry.danger && tally > 0
-                      ? 'bg-danger-100 text-danger-700'
-                      : active
-                        ? 'bg-primary-25 text-primary-800'
-                        : 'bg-primary-25 text-text-quaternary',
-                  ].join(' ')}
-                >
-                  {count(tally)}
-                </span>
-                {active ? <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" /> : null}
+                {tally !== null ? (
+                  <span
+                    className={[
+                      'inline-flex h-[18px] items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                      entry.danger && tally > 0
+                        ? 'bg-danger-100 text-danger-700'
+                        : active
+                          ? 'bg-primary-25 text-primary-800'
+                          : 'bg-primary-25 text-text-quaternary',
+                    ].join(' ')}
+                  >
+                    {count(tally)}
+                  </span>
+                ) : null}
+                {active ? (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-700" />
+                ) : null}
               </button>
             )
           })}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 max-md:w-full max-md:flex-none">
-            <label className="flex h-11 w-full max-w-[280px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 max-md:w-full max-md:flex-none">
+            <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
               <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
                 type="search"
                 value={typed}
                 onChange={(event) => setTyped(event.target.value)}
-                placeholder={t('invoicesPage.searchLive')}
-                aria-label={t('invoicesPage.searchLive')}
+                placeholder={t('invoicesPage.searchPlaceholder')}
+                aria-label={t('invoicesPage.searchPlaceholder')}
                 maxLength={200}
                 className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
               />
@@ -307,22 +443,40 @@ function InvoicesScreen() {
             <FilterMenu
               label={t('invoicesPage.filters.period.all')}
               value={period}
-              defaultValue="all"
-              onChange={(value) => update({ period: value === 'all' ? null : value, page: null })}
+              defaultValue={DEFAULT_PERIOD}
+              onChange={(value) =>
+                update({ period: value === DEFAULT_PERIOD ? null : value, page: null })
+              }
               options={PERIODS.map((option) => ({ value: option.id, label: t(option.labelKey) }))}
             />
             <FilterMenu
-              label={t('invoicesPage.filters.documentType')}
+              label={t('invoicesPage.filters.docTypeLabel')}
               value={type ?? 'all'}
               defaultValue="all"
               onChange={(value) => update({ type: value === 'all' ? null : value, page: null })}
               options={[
                 { value: 'all', label: t('invoicesPage.filters.docType.all') },
-                ...INVOICE_TYPES.map((value) => ({ value, label: t(`invoicesPage.docType.${value}`) })),
+                ...INVOICE_TYPES.map((value) => ({
+                  value,
+                  label: t(`invoicesPage.docType.${value}`),
+                })),
               ]}
             />
+            <FilterMenu
+              label={t('invoicesPage.filters.channel')}
+              value={channel}
+              defaultValue="all"
+              onChange={(value) => update({ channel: value === 'all' ? null : value, page: null })}
+              options={CHANNELS.map((value) => ({
+                value,
+                label: t(`invoicesPage.filters.chan.${value}`),
+              }))}
+            />
           </div>
-          <SortMenu value={sortKey} onChange={(value) => update({ sort: value === 'updated' ? null : value, page: null })} />
+          <SortMenu
+            value={sortKey}
+            onChange={(value) => update({ sort: value === 'updated' ? null : value, page: null })}
+          />
         </div>
 
         {list.read.status === 'failed' ? (
@@ -332,38 +486,26 @@ function InvoicesScreen() {
         ) : (
           <InvoiceTable
             page={page}
-            nothingYet={totals.all === 0 && !filtered}
+            branchNames={branchNames}
+            nothingYet={totals.all === 0 && query === '' && type === null}
             onDiscard={setDiscarding}
+            onCancel={setCancelling}
+            onUnavailable={(key) => setNotice({ body: t(key) })}
           />
         )}
 
         {page && page.items.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-4">
-                <span className="text-sm font-medium text-text-muted">{t('invoicesPage.showResult')}</span>
-                <select
-                  value={size}
-                  onChange={(event) =>
-                    update({
-                      size: Number(event.target.value) === DEFAULT_PAGE_SIZE ? null : event.target.value,
-                      page: null,
-                    })
-                  }
-                  className="h-9 rounded-sm border border-border-subtle bg-white px-2 text-sm font-semibold text-text-secondary"
-                >
-                  {PAGE_SIZES.map((option) => (
-                    <option key={option} value={option}>
-                      {count(option)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {page.total !== null ? (
-                <span className="text-sm font-medium text-text-tertiary">
-                  {t('invoicesPage.resultTotal', { count: page.total, documents: count(page.total) })}
-                </span>
-              ) : null}
+              <span id="invoices-page-size" className="text-sm font-medium text-text-muted">
+                {t('invoicesPage.showResult')}
+              </span>
+              <PageSizeMenu
+                value={size}
+                onChange={(next) =>
+                  update({ size: next === DEFAULT_PAGE_SIZE ? null : String(next), page: null })
+                }
+              />
             </div>
             {pageCountOf(page) > 1 ? (
               <PageNumbers
@@ -399,7 +541,50 @@ function InvoicesScreen() {
           </div>
         }
       >
-        <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t('invoiceDraft.discardBody')}</p>
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {t('invoiceDraft.discardBody')}
+        </p>
+      </Modal>
+
+      <Modal
+        open={cancelling !== null}
+        onClose={closeCancel}
+        title={t('invoiceDetails.cancel.title')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={closeCancel}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={busy || reason.trim() === ''}
+              className="inline-flex h-11 items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {t('invoiceDetails.cancel.confirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {t('invoiceDetails.cancel.body')}
+        </p>
+        <label className="mt-4 block">
+          <span className="text-sm font-semibold text-text-secondary">
+            {t('invoiceDetails.cancel.reason')}
+          </span>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            maxLength={1000}
+            rows={3}
+            className="mt-1.5 w-full rounded-sm border border-border-subtle p-3 text-sm text-text-primary outline-none focus:border-primary-500"
+          />
+        </label>
       </Modal>
     </div>
   )
@@ -421,7 +606,9 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
   const language = i18n.language
   const count = (value: number) => formatCount(value, language)
   const money = (value: number) => formatAmount(value, totals.currencyCode, language)
-  const oldest = totals.oldestOverdueDueDate ? daysBetween(totals.oldestOverdueDueDate, totals.asOf) : null
+  const oldest = totals.oldestOverdueDueDate
+    ? daysBetween(totals.oldestOverdueDueDate, totals.asOf)
+    : null
   const cards = [
     {
       id: 'outstanding',
@@ -438,7 +625,10 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
       icon: paidIcon,
       titleKey: 'invoicesPage.kpi.paid',
       figure: money(totals.paidTotal),
-      meta: t('invoicesPage.kpi.paidLive', { count: totals.paidInvoices, invoices: count(totals.paidInvoices) }),
+      meta: t('invoicesPage.kpi.paidLive', {
+        count: totals.paidInvoices,
+        invoices: count(totals.paidInvoices),
+      }),
     },
     {
       id: 'awaiting',
@@ -473,12 +663,16 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
         <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
           <div className="flex items-center gap-3.5">
             <img src={kpi.icon} alt="" className="size-11 shrink-0" />
-            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">{t(kpi.titleKey)}</h3>
+            <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
+              {t(kpi.titleKey)}
+            </h3>
           </div>
           <div className="flex items-center gap-1">
             <img src={omrIcon} alt="" className="h-auto w-8 shrink-0" />
             <span className="sr-only">{totals.currencyCode}</span>
-            <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">{kpi.figure}</p>
+            <p className="text-[32px] font-semibold leading-[1.2] text-text-secondary tabular-nums">
+              {kpi.figure}
+            </p>
           </div>
           <p className="text-sm font-medium leading-[1.2] text-text-tertiary">{kpi.meta}</p>
         </article>
@@ -487,10 +681,17 @@ function InvoiceKpiCards({ totals }: { totals: InvoiceSummaryDto }) {
   )
 }
 
-function SortMenu({ value, onChange }: { value: InvoiceSortKey; onChange: (value: InvoiceSortKey) => void }) {
+function SortMenu({
+  value,
+  onChange,
+}: {
+  value: InvoiceSortKey
+  onChange: (value: InvoiceSortKey) => void
+}) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const anchor = useRef<HTMLButtonElement>(null)
+  const active = value !== 'updated'
   return (
     <div>
       <button
@@ -499,12 +700,28 @@ function SortMenu({ value, onChange }: { value: InvoiceSortKey; onChange: (value
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border border-border-subtle bg-surface-tab-bar px-3 text-sm font-semibold text-text-tertiary"
+        className={[
+          'inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-sm border px-3 text-sm font-semibold transition-colors',
+          active
+            ? 'border-primary-700 bg-primary-25 text-primary-800'
+            : 'border-border-subtle bg-surface-tab-bar text-text-tertiary',
+        ].join(' ')}
       >
         <img src={sortIcon} alt="" className="size-6" />
-        {t(INVOICE_SORTS.find((option) => option.value === value)?.labelKey ?? 'invoicesPage.filters.sort')}
+        {active
+          ? t(
+              INVOICE_SORTS.find((option) => option.value === value)?.labelKey ??
+                'invoicesPage.filters.sort',
+            )
+          : t('invoicesPage.filters.sort')}
       </button>
-      <Popover open={open} anchorRef={anchor} onClose={() => setOpen(false)} width={220} align="end">
+      <Popover
+        open={open}
+        anchorRef={anchor}
+        onClose={() => setOpen(false)}
+        width={220}
+        align="end"
+      >
         <ul role="listbox" className="py-1">
           {INVOICE_SORTS.map((option) => (
             <li key={option.value}>
@@ -518,7 +735,9 @@ function SortMenu({ value, onChange }: { value: InvoiceSortKey; onChange: (value
                 }}
                 className={[
                   'w-full px-4 py-2.5 text-start text-sm transition-colors hover:bg-primary-25',
-                  option.value === value ? 'font-semibold text-primary-800' : 'font-medium text-text-secondary',
+                  option.value === value
+                    ? 'font-semibold text-primary-800'
+                    : 'font-medium text-text-secondary',
                 ].join(' ')}
               >
                 {t(option.labelKey)}
@@ -531,14 +750,69 @@ function SortMenu({ value, onChange }: { value: InvoiceSortKey; onChange: (value
   )
 }
 
+/** The design's 55px "Show result" number box, a listbox rather than a native select. */
+function PageSizeMenu({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const { t, i18n } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const anchor = useRef<HTMLButtonElement>(null)
+  return (
+    <div>
+      <button
+        ref={anchor}
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={t('invoicesPage.showResult')}
+        className="inline-flex h-9 w-[55px] items-center justify-between rounded-sm border border-border-subtle px-3 text-sm font-semibold text-text-secondary"
+      >
+        {formatCount(value, i18n.language)}
+        <img src={chevronIcon} alt="" className="size-4 rotate-90 opacity-70" />
+      </button>
+      <Popover open={open} anchorRef={anchor} onClose={() => setOpen(false)} width={96}>
+        <ul role="listbox" className="py-1">
+          {PAGE_SIZES.map((option) => (
+            <li key={option}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={option === value}
+                onClick={() => {
+                  onChange(option)
+                  setOpen(false)
+                }}
+                className={[
+                  'w-full px-3 py-2 text-start text-sm transition-colors hover:bg-primary-25',
+                  option === value
+                    ? 'font-semibold text-primary-800'
+                    : 'font-medium text-text-secondary',
+                ].join(' ')}
+              >
+                {formatCount(option, i18n.language)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Popover>
+    </div>
+  )
+}
+
 function InvoiceTable({
   page,
+  branchNames,
   nothingYet,
   onDiscard,
+  onCancel,
+  onUnavailable,
 }: {
   page: Page<InvoiceRowDto> | null
+  branchNames: Map<string, string>
   nothingYet: boolean
   onDiscard: (item: InvoiceListItem) => void
+  onCancel: (item: InvoiceListItem) => void
+  /** An action the design offers and the API cannot yet do; the key names the sentence. */
+  onUnavailable: (key: string) => void
 }) {
   const { t } = useTranslation()
   const session = useSession()
@@ -549,32 +823,73 @@ function InvoiceTable({
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
   const canDraft = can(session, 'invoice.draft')
 
-  // Drafts only (D4): an issued invoice is corrected by a credit note, never deleted, and there is
-  // no route to duplicate one. The issued invoice's own screen is slice I-06; until it is wired an
-  // entry pointing at the mock detail page would show someone else's invoice.
-  const menuFor = (row: InvoiceListItem): ActionMenuItem[] =>
-    row.isDraft && canDraft
-      ? [
-          {
-            id: 'edit',
-            labelKey: 'invoicesPage.rowAction.edit',
-            icon: editIcon,
-            // A note draft carries a reason code the invoice composer does not edit; saving it there would drop it.
-            to: row.type === 'CREDIT_NOTE' || row.type === 'DEBIT_NOTE' ? `${NOTE_ROUTES[row.type]}/${row.id}/edit` : `/invoices/${row.id}/edit`,
-          },
-          {
-            id: 'discard',
-            labelKey: 'invoicesPage.rowAction.discard',
-            icon: deleteIcon,
-            danger: true,
-            onSelect: () => onDiscard(row),
-          },
-        ]
-      : []
+  /**
+   * The design's row menu (Figma "Actions" 154:173140): view, send, duplicate, credit note,
+   * periodic, delete. Send and duplicate have no endpoint yet (TODO(backend)) and say so when
+   * chosen; delete is a draft's discard, or an issued document's cancel with a reason.
+   */
+  const menuFor = (row: InvoiceListItem): ActionMenuItem[] => {
+    const issuedInvoice = row.authoring === 'issued' && row.type === 'INVOICE'
+    const items: ActionMenuItem[] = [
+      {
+        id: 'view',
+        labelKey: 'rowActions.invoice.view',
+        icon: viewIcon,
+        to: `/invoices/${row.id}`,
+      },
+      {
+        id: 'send',
+        labelKey: 'rowActions.invoice.send',
+        icon: sendIcon,
+        onSelect: () => onUnavailable('invoicesPage.sendUnavailable'),
+      },
+      {
+        id: 'duplicate',
+        labelKey: 'rowActions.invoice.duplicate',
+        icon: duplicateIcon,
+        onSelect: () => onUnavailable('invoicesPage.duplicateUnavailable'),
+      },
+    ]
+    if (issuedInvoice && can(session, 'creditnote.create')) {
+      items.push({
+        id: 'creditNote',
+        labelKey: 'rowActions.invoice.creditNote',
+        icon: creditNoteIcon,
+        to: `/income/credit-notes/new?invoice=${row.id}`,
+      })
+    }
+    if (issuedInvoice && can(session, 'invoice.draft')) {
+      // TODO(backend): the periodic composer picks its template itself; the id is passed for when it reads one.
+      items.push({
+        id: 'periodic',
+        labelKey: 'rowActions.invoice.periodic',
+        icon: periodicIcon,
+        to: `/income/periodic/new?template=${row.id}`,
+      })
+    }
+    if (row.isDraft && canDraft) {
+      items.push({
+        id: 'delete',
+        labelKey: 'rowActions.delete',
+        icon: deleteIcon,
+        danger: true,
+        onSelect: () => onDiscard(row),
+      })
+    } else if (row.authoring === 'issued' && can(session, 'invoice.cancel')) {
+      items.push({
+        id: 'delete',
+        labelKey: 'rowActions.delete',
+        icon: deleteIcon,
+        danger: true,
+        onSelect: () => onCancel(row),
+      })
+    }
+    return items
+  }
 
   const message = (key: string) => (
     <tr>
-      <td colSpan={8} className="py-12 text-center text-sm font-medium text-text-quaternary">
+      <td colSpan={9} className="py-12 text-center text-sm font-medium text-text-quaternary">
         {t(key)}
       </td>
     </tr>
@@ -582,7 +897,7 @@ function InvoiceTable({
 
   return (
     <RowsView>
-      <table className="w-full min-w-[960px] border-collapse text-start">
+      <table className="w-full min-w-[1040px] border-collapse text-start">
         <thead>
           <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
             <th className="w-10 px-5 py-2.5">
@@ -600,7 +915,9 @@ function InvoiceTable({
                 ariaLabel={t('invoicesPage.selectAll')}
               />
             </th>
-            {(['invoice', 'customer', 'issued', 'due', 'amount', 'status'] as const).map((key) => (
+            {(
+              ['invoice', 'customer', 'issued', 'due', 'amount', 'status', 'peppolOta'] as const
+            ).map((key) => (
               <th key={key} className="px-2 py-2.5 text-start font-semibold">
                 {t(`invoicesPage.col.${key}`)}
               </th>
@@ -611,7 +928,11 @@ function InvoiceTable({
         <tbody>
           {page === null ? (
             <tr>
-              <td colSpan={8} role="status" className="py-12 text-center text-sm font-medium text-text-quaternary">
+              <td
+                colSpan={9}
+                role="status"
+                className="py-12 text-center text-sm font-medium text-text-quaternary"
+              >
                 {t('appAccess.loading')}
               </td>
             </tr>
@@ -619,31 +940,36 @@ function InvoiceTable({
             message(nothingYet ? 'invoicesPage.nothingYet' : 'invoicesPage.noResults')
           ) : (
             rows.map((row) => {
-              const menu = menuFor(row)
               const editable = row.isDraft && canDraft
               return (
                 <tr
                   key={row.id}
-                  className={[
-                    'border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60',
-                    editable ? 'cursor-pointer' : '',
-                  ].join(' ')}
-                  onClick={editable ? () => navigate(`/invoices/${row.id}/edit`) : undefined}
+                  className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
+                  onClick={() =>
+                    navigate(editable ? `/invoices/${row.id}/edit` : `/invoices/${row.id}`)
+                  }
                 >
                   <td className="px-5 py-2.5" onClick={(event) => event.stopPropagation()}>
                     <TableCheckbox
                       checked={selected.includes(row.id)}
                       onChange={() =>
                         setSelected((current) =>
-                          current.includes(row.id) ? current.filter((id) => id !== row.id) : [...current, row.id],
+                          current.includes(row.id)
+                            ? current.filter((id) => id !== row.id)
+                            : [...current, row.id],
                         )
                       }
-                      ariaLabel={t('invoicesPage.selectRow', { id: row.number ?? t('invoicesPage.draftNumber') })}
+                      ariaLabel={t('invoicesPage.selectRow', {
+                        id: row.number ?? t('invoicesPage.draftNumber'),
+                      })}
                     />
                   </td>
-                  <InvoiceRowCells row={row} />
+                  <InvoiceRowCells
+                    row={row}
+                    branch={row.branchId ? branchNames.get(row.branchId) : undefined}
+                  />
                   <td className="px-2 py-2.5" onClick={(event) => event.stopPropagation()}>
-                    {menu.length > 0 ? <ActionMenu items={menu} label={t('invoicesPage.rowMenu')} floating /> : null}
+                    <ActionMenu items={menuFor(row)} label={t('invoicesPage.rowMenu')} floating />
                   </td>
                 </tr>
               )
@@ -655,29 +981,66 @@ function InvoiceTable({
   )
 }
 
-function NoteText({ note, currency }: { note: Note; currency: string }) {
-  const { t, i18n } = useTranslation()
-  const values = note.values ?? {}
-  const amount = typeof values.amount === 'number' ? formatAmount(values.amount, currency, i18n.language) : undefined
-  return <>{t(note.key, amount === undefined ? values : { ...values, amount })}</>
-}
-
-function StatusChip({ chip, label }: { chip: Chip; label: string }) {
+function StatusChip({ chip, label, title }: { chip: Chip; label: string; title?: string }) {
   return (
-    <span className={['inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium', chip.bg, chip.text].join(' ')}>
+    <span
+      title={title}
+      className={[
+        'inline-flex items-center gap-2 rounded-full px-3 py-[5px] text-sm font-medium leading-[1.5]',
+        chip.bg,
+        chip.text,
+      ].join(' ')}
+    >
       <span className={['size-1.5 shrink-0 rounded-full', chip.dot].join(' ')} />
       {label}
     </span>
   )
 }
 
-function InvoiceRowCells({ row }: { row: InvoiceListItem }) {
+function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string | undefined }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
+  // Under the customer the design names the issuing branch, else the subject or PO, else that a
+  // draft has not been issued.
+  const subline = branch ?? row.subtitle ?? (row.isDraft ? t('invoicesPage.notIssuedYet') : null)
+  // One pill, as the design draws it: what is owed once issued, the authoring state otherwise.
+  // An overdue pill says "Overdue"; how late it is sits in the tooltip.
+  const status =
+    row.payment && row.authoring === 'issued'
+      ? {
+          chip: PAYMENT_STYLES[row.payment],
+          label: t(`invoicesPage.payment.${row.payment}`),
+          title:
+            row.payment === 'overdue'
+              ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
+              : undefined,
+        }
+      : {
+          chip: AUTHORING_STYLES[row.authoring],
+          label: t(`invoicesPage.authoring.${row.authoring}`),
+          title: undefined,
+        }
+  // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
+  // is the one delivery fact recorded, and an undelivered document leaves the column blank.
+  const delivery = row.peppolResponse
+    ? {
+        chip: DELIVERY_STYLES[row.peppolResponse],
+        label: row.peppolResponse,
+        title: t(DELIVERY_HINTS[row.peppolResponse]),
+      }
+    : row.sentManually
+      ? {
+          chip: DELIVERY_STYLES.sentManually,
+          label: t('invoicesPage.delivery.sentManually'),
+          title: undefined,
+        }
+      : null
   return (
     <>
       <td className="px-2 py-2.5">
-        <p className="text-sm font-semibold text-text-quaternary">{row.number ?? t('invoicesPage.draftNumber')}</p>
+        <p className="text-sm font-semibold text-text-quaternary">
+          {row.number ?? t('invoicesPage.draftNumber')}
+        </p>
         {row.type !== 'INVOICE' ? (
           <span className="mt-0.5 inline-flex items-center rounded-sm bg-neutral-25 px-2 py-0.5 text-xs font-semibold text-text-secondary">
             {t(`invoicesPage.docType.${row.type}`)}
@@ -685,51 +1048,43 @@ function InvoiceRowCells({ row }: { row: InvoiceListItem }) {
         ) : null}
       </td>
       <td className="px-2 py-2.5">
-        <p className="text-sm font-semibold leading-[1.2] text-text-primary">{row.customer ?? '—'}</p>
-        {row.subtitle ? (
-          <p className="text-xs font-medium leading-[1.2] text-text-tertiary">{row.subtitle}</p>
+        <p className="text-sm font-semibold leading-[1.2] text-text-primary">
+          {row.customer ?? '—'}
+        </p>
+        {subline ? (
+          <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">{subline}</p>
         ) : null}
       </td>
-      <td className="px-2 py-2.5 text-sm font-medium text-text-tertiary">
+      <td className="px-2 py-2.5 text-sm font-medium whitespace-nowrap text-text-tertiary">
         {row.issueDate ? formatDate(row.issueDate, language) : '—'}
       </td>
-      <td className="px-2 py-2.5 text-sm font-medium text-text-tertiary">
+      <td className="px-2 py-2.5 text-sm font-medium whitespace-nowrap text-text-tertiary">
         {row.dueDate ? formatDate(row.dueDate, language) : '—'}
       </td>
       <td className="px-2 py-2.5">
         {row.amount !== null ? (
-          <>
-            <span className="inline-flex items-center gap-1">
-              <RialMark className="w-6 shrink-0 text-text-secondary" />
-              <span className="text-base font-bold leading-[1.5] text-text-secondary tabular-nums">
-                {formatAmount(row.amount, row.currency, language)}
-              </span>
+          <span
+            className="inline-flex items-center gap-1"
+            title={row.estimated ? t('invoicesPage.amountNote.estimate') : undefined}
+          >
+            <RialMark className="w-6 shrink-0 text-text-secondary" />
+            <span className="text-base font-semibold leading-[1.2] text-text-secondary tabular-nums">
+              {formatAmount(row.amount, row.currency, language)}
             </span>
-            {row.estimated ? (
-              <p className="text-xs font-medium leading-[1.2] text-text-muted">{t('invoicesPage.amountNote.estimate')}</p>
-            ) : row.amountNote ? (
-              <p className="text-xs font-semibold leading-[1.2] text-text-tertiary">
-                <NoteText note={row.amountNote} currency={row.currency} />
-              </p>
-            ) : null}
-          </>
+          </span>
         ) : (
           <span className="text-base font-medium text-text-muted">—</span>
         )}
       </td>
       <td className="px-2 py-2.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {row.payment === null || row.authoring !== 'issued' ? (
-            <StatusChip chip={AUTHORING_STYLES[row.authoring]} label={t(`invoicesPage.authoring.${row.authoring}`)} />
-          ) : null}
-          {row.payment ? (
-            <StatusChip
-              chip={PAYMENT_STYLES[row.payment]}
-              label={t(`invoicesPage.payment.${row.payment}`, row.paymentValues)}
-            />
-          ) : null}
-          {row.sentManually ? <StatusChip chip={DELIVERED_BY_HAND} label={t('invoicesPage.delivery.sentManually')} /> : null}
-        </div>
+        <StatusChip chip={status.chip} label={status.label} title={status.title} />
+      </td>
+      <td className="px-2 py-2.5">
+        {delivery ? (
+          <StatusChip chip={delivery.chip} label={delivery.label} title={delivery.title} />
+        ) : (
+          <span className="text-sm font-medium text-text-muted">—</span>
+        )}
       </td>
     </>
   )
@@ -749,7 +1104,13 @@ function PageNumbers({
   const numbers = useMemo<(number | string)[]>(() => {
     if (pageCount <= 6) return Array.from({ length: pageCount }, (_, i) => i + 1)
     const near = [current - 1, current, current + 1].filter((n) => n > 1 && n < pageCount)
-    return [1, ...(near[0] > 2 ? ['…'] : []), ...near, ...(near.at(-1)! < pageCount - 1 ? ['…'] : []), pageCount]
+    return [
+      1,
+      ...(near[0] > 2 ? ['…'] : []),
+      ...near,
+      ...(near.at(-1)! < pageCount - 1 ? ['…'] : []),
+      pageCount,
+    ]
   }, [pageCount, current])
 
   return (

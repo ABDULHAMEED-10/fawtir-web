@@ -35,6 +35,7 @@ type PaymentState = {
   plan?: string
   paymentMethod?: SignupPaymentMethod
   linkVia?: 'now' | 'whatsapp' | 'email'
+  addon?: boolean
 }
 
 /** How the new account chose to pay, carried from the payment step; absent on a direct visit. */
@@ -60,6 +61,11 @@ function SubscriptionNote() {
         {t('fawtaraStatus.subscription.awaiting', { plan: planName })}
       </p>
       <p className="mt-1 text-sm font-medium leading-[1.5] text-text-tertiary">{body}</p>
+      {state.addon ? (
+        <p className="mt-2 text-sm font-medium leading-[1.5] text-text-tertiary">
+          {t('fawtaraStatus.subscription.addon')}
+        </p>
+      ) : null}
     </div>
   )
 }

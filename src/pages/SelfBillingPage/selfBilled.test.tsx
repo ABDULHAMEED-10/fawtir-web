@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -71,7 +71,8 @@ let who: Entitlements
 let rows: InvoiceRowDto[]
 let agreements: AgreementDto[]
 
-const listCalls = () => fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(LIST_URL))
+const listCalls = () =>
+  fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(LIST_URL))
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -81,12 +82,17 @@ beforeEach(async () => {
   agreements = [agreement()]
 
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
     if (url.startsWith('/api/v1/self-billing-agreements')) return json(200, agreements)
     if (url.startsWith(LIST_URL)) {
-      const asked = (new URL(url, 'http://x').searchParams.get('type') ?? '').split(',').filter(Boolean)
-      const matching = asked.length === 0 ? rows : rows.filter((entry) => asked.includes(entry.type))
+      const asked = (new URL(url, 'http://x').searchParams.get('type') ?? '')
+        .split(',')
+        .filter(Boolean)
+      const matching =
+        asked.length === 0 ? rows : rows.filter((entry) => asked.includes(entry.type))
       return json(200, { content: matching, page: 0, size: 25, totalElements: matching.length })
     }
     return json(404)
@@ -124,12 +130,44 @@ describe('the self-billed documents list', () => {
     expect(screen.getByText('SBCN-1')).toBeTruthy()
   })
 
-  it('says the tenant is the buyer, because the row looks exactly like a receivable otherwise', async () => {
+  it('names these as supplier invoices, because the row looks exactly like a receivable otherwise', async () => {
     renderPage()
     await screen.findByText('SB-0001')
-    expect(screen.getByText(/you are the buyer/i)).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: 'You owe' })).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: 'Seller' })).toBeTruthy()
+    // The frame's title and subtitle (Figma 154:157643).
+    expect(screen.getByRole('heading', { level: 1, name: 'Self-billed invoices' })).toBeTruthy()
+    expect(screen.getByText(/your supplier invoices via Peppol/i)).toBeTruthy()
+    // The design's columns: the counterparty is the supplier, the figure the amount.
+    expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: 'Supplier' })).toBeTruthy()
+    // The frame's tabs, in its order.
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'All1',
+      'Drafts',
+      'To send',
+      'Awaiting confirmation',
+      'Disputed',
+      'Confirmed',
+      'Paid',
+    ])
+  })
+
+  it('draws the two tabs no state answers as empty and says why, asking the server for nothing', async () => {
+    renderPage()
+    await screen.findByText('SB-0001')
+    fireEvent.click(screen.getByRole('tab', { name: 'Disputed' }))
+    expect(await screen.findByText(/Supplier confirmations are not reported/)).toBeTruthy()
+    expect(listCalls()).toHaveLength(1)
+  })
+
+  it('names what the agreement on file permits under each supplier', async () => {
+    agreements = [agreement({ effectiveTo: '2026-12-31' })]
+    renderPage()
+    expect(await screen.findByText(/Agreement valid to/)).toBeTruthy()
+
+    cleanup()
+    agreements = []
+    renderPage()
+    expect(await screen.findByText('No signed agreement: cannot be issued')).toBeTruthy()
   })
 
   it('switches type by asking the server again rather than sifting a page', async () => {
@@ -137,9 +175,13 @@ describe('the self-billed documents list', () => {
     renderPage()
     await screen.findByText('SB-0001')
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Credit notes' }))
+    // The type is the design's "Filters" menu, not a second row of tabs.
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Credit notes' }))
     await waitFor(() =>
-      expect(decodeURIComponent(listCalls().at(-1) ?? '')).toContain('type=SELF_BILLED_CREDIT_NOTE&'),
+      expect(decodeURIComponent(listCalls().at(-1) ?? '')).toContain(
+        'type=SELF_BILLED_CREDIT_NOTE&',
+      ),
     )
     expect(await screen.findByText('SBCN-1')).toBeTruthy()
     expect(screen.queryByText('SB-0001')).toBeNull()
@@ -160,33 +202,53 @@ describe('the self-billed documents list', () => {
     ]
     renderPage()
     // Three agreements, one issuable: an unverified or suspended one authorises nothing.
-    expect(await screen.findByText(/1 seller can be self-billed today/)).toBeTruthy()
+    expect(await screen.findByText(/1 supplier can be self-billed today/)).toBeTruthy()
   })
 
   it('warns when nothing can be self-billed at all', async () => {
     agreements = [agreement({ sellerIdentityAssurance: 'UNVERIFIED' })]
     renderPage()
-    expect(await screen.findByText(/No seller can be self-billed today/)).toBeTruthy()
+    expect(await screen.findByText(/No supplier can be self-billed today/)).toBeTruthy()
   })
 
-  it('offers no create button, because the composer is not wired', async () => {
+  it("names the supplier whose agreement ends soonest on the frame's fourth card", async () => {
+    // Ends in 9 days from the row's issue date... the card counts from today.
+    const soon = new Date()
+    soon.setUTCDate(soon.getUTCDate() + 9)
+    agreements = [agreement({ effectiveTo: soon.toISOString().slice(0, 10) })]
+    renderPage()
+    expect(await screen.findByText('Muscat Roastery Co expires in 9 days')).toBeTruthy()
+  })
+
+  it('offers the create button only to someone who may self-bill', async () => {
     renderPage()
     await screen.findByText('SB-0001')
-    expect(screen.queryByRole('link', { name: /new self|create|raise/i })).toBeNull()
-    expect(screen.queryByRole('button', { name: /new self|create|raise/i })).toBeNull()
+    // invoice.draft is not enough: writing on someone else's behalf is a different authority.
+    expect(screen.queryByRole('link', { name: /create self-billing invoice/i })).toBeNull()
+
+    cleanup()
+    forgetEntitlements()
+    who = { ...USER, permissions: [...USER.permissions, 'selfbilling.create'] }
+    renderPage()
+    await screen.findByText('SB-0001')
+    expect(
+      screen.getByRole('link', { name: /create self-billing invoice/i }).getAttribute('href'),
+    ).toBe('/income/self-billing/new')
   })
 
   it('draws no tab counts, because the summary counts every document type', async () => {
     renderPage()
     await screen.findByText('SB-0001')
     // A figure here would be the whole ledger's, not self-billing's.
-    expect(fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.includes('/summary'))).toBe(false)
+    expect(
+      fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.includes('/summary')),
+    ).toBe(false)
   })
 
-  it('links a row to the document it is', async () => {
+  it('links a row to its own detail page', async () => {
     renderPage()
     const link = await screen.findByRole('link', { name: 'SB-0001' })
-    expect(link.getAttribute('href')).toBe('/invoices/i-1')
+    expect(link.getAttribute('href')).toBe('/income/self-billing/i-1')
   })
 
   it('shows an empty state per type rather than one that could mislead', async () => {

@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { DraftResponse } from '../../api/invoices/drafts'
+import { ReferenceDataContext } from '../../lib/reference/referenceData'
+import { SEEDED_REFERENCE } from '../../testing/referenceData'
 import { CreateInvoicePage, SelfBilledComposerPage } from './CreateInvoicePage'
 
 const SELF_BILLER: Entitlements = {
@@ -11,7 +13,13 @@ const SELF_BILLER: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['invoice.read', 'selfbilling.create', 'customer.read', 'product.read', 'branch.read'],
+  permissions: [
+    'invoice.read',
+    'selfbilling.create',
+    'customer.read',
+    'product.read',
+    'branch.read',
+  ],
   scopes: [],
   featureFlags: {},
 }
@@ -120,7 +128,9 @@ let who: Entitlements
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
-    ([url, init]) => ((init as RequestInit | undefined)?.method ?? 'GET') === method && String(url).startsWith(prefix),
+    ([url, init]) =>
+      ((init as RequestInit | undefined)?.method ?? 'GET') === method &&
+      String(url).startsWith(prefix),
   )
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
 
@@ -131,13 +141,20 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
-    if (url === '/api/v1/branches') return json(200, [{ id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' }])
-    if (url.startsWith('/api/v1/customers?')) return json(200, { content: [CUSTOMER], page: 0, size: 20, totalElements: 1, totalPages: 1 })
+    if (url === '/api/v1/branches')
+      return json(200, [
+        { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
+      ])
+    if (url.startsWith('/api/v1/customers?'))
+      return json(200, { content: [CUSTOMER], page: 0, size: 20, totalElements: 1, totalPages: 1 })
     if (url === '/api/v1/customers/c-1') return json(200, CUSTOMER)
-    if (url.startsWith('/api/v1/products')) return json(200, { content: [PRODUCT], page: 0, size: 20, totalElements: 1 })
+    if (url.startsWith('/api/v1/products'))
+      return json(200, { content: [PRODUCT], page: 0, size: 20, totalElements: 1 })
     if (url === '/api/v1/self-billed-invoice-drafts' && method === 'POST') return json(201, draft())
-    if (url === '/api/v1/invoice-drafts/sb-1' && method === 'GET') return json(200, draft({ version: 3 }))
-    if (url === '/api/v1/invoice-drafts/sb-1' && method === 'PUT') return json(200, draft({ version: 4 }))
+    if (url === '/api/v1/invoice-drafts/sb-1' && method === 'GET')
+      return json(200, draft({ version: 3 }))
+    if (url === '/api/v1/invoice-drafts/sb-1' && method === 'PUT')
+      return json(200, draft({ version: 4 }))
     if (url === '/api/v1/invoice-drafts/sb-1/preview') return json(200, PREVIEW)
     throw new Error(`unexpected ${method} ${url}`)
   })
@@ -148,22 +165,26 @@ afterEach(() => vi.unstubAllGlobals())
 
 function renderAt(path: string) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/income/self-billing/new" element={<SelfBilledComposerPage />} />
-        <Route path="/income/self-billing/:id/edit" element={<SelfBilledComposerPage />} />
-        <Route path="/invoices/new" element={<CreateInvoicePage />} />
-        <Route path="/income/self-billing" element={<p>self-billing list</p>} />
-      </Routes>
-    </MemoryRouter>,
+    <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/income/self-billing/new" element={<SelfBilledComposerPage />} />
+          <Route path="/income/self-billing/:id/edit" element={<SelfBilledComposerPage />} />
+          <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          <Route path="/income/self-billing" element={<p>self-billing list</p>} />
+        </Routes>
+      </MemoryRouter>
+    </ReferenceDataContext.Provider>,
   )
 }
 
 async function fillOneLine() {
   fireEvent.click(await screen.findByRole('button', { name: 'Select customer' }))
   fireEvent.click(await screen.findByRole('option', { name: /Sohar Port Logistics/ }))
-  fireEvent.click(screen.getByRole('button', { name: 'Description' }))
+  // The description is free text; the catalogue beside it fills the line with a product.
+  fireEvent.click(screen.getByRole('button', { name: /Pick from catalogue/ }))
   fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
+  expect(screen.getByRole('textbox', { name: 'Description' })).toHaveProperty('value', 'Flat White')
   fireEvent.change(screen.getByRole('textbox', { name: 'Quantity' }), { target: { value: '12' } })
 }
 
@@ -176,7 +197,9 @@ describe('the self-billed composer', () => {
     await waitFor(() => expect(calls('POST', '/api/v1/self-billed-invoice-drafts')).toHaveLength(1))
     // Not the ordinary draft route, and not the {type, draft} wrapper that route takes.
     // Exact, because the draft PREVIEW is also a POST under /api/v1/invoice-drafts.
-    expect(calls('POST', '/api/v1/invoice-drafts').filter(([url]) => url === '/api/v1/invoice-drafts')).toHaveLength(0)
+    expect(
+      calls('POST', '/api/v1/invoice-drafts').filter(([url]) => url === '/api/v1/invoice-drafts'),
+    ).toHaveLength(0)
     const body = bodyOf(calls('POST', '/api/v1/self-billed-invoice-drafts')[0])
     expect(body.draft).toBeUndefined()
     expect(body).toMatchObject({ customerId: 'c-1', branchId: 'b-1', vatMode: 'EXCLUSIVE' })
@@ -187,8 +210,12 @@ describe('the self-billed composer', () => {
   it('sends IBT-010 and IBT-012, which only a self-billed document may carry', async () => {
     renderAt('/income/self-billing/new')
     await fillOneLine()
-    fireEvent.change(screen.getByRole('textbox', { name: 'Your reference' }), { target: { value: 'PO-7781' } })
-    fireEvent.change(screen.getByRole('textbox', { name: 'Contract reference' }), { target: { value: 'CTR-2026-14' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your reference' }), {
+      target: { value: 'PO-7781' },
+    })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Contract reference' }), {
+      target: { value: 'CTR-2026-14' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
     await waitFor(() => expect(calls('POST', '/api/v1/self-billed-invoice-drafts')).toHaveLength(1))
@@ -218,8 +245,14 @@ describe('the self-billed composer', () => {
     renderAt('/income/self-billing/sb-1/edit')
 
     // Left out of the read, the next save would clear them - the server's own DTO says so.
-    expect(await screen.findByRole('textbox', { name: 'Your reference' })).toHaveProperty('value', 'PO-7781')
-    expect(screen.getByRole('textbox', { name: 'Contract reference' })).toHaveProperty('value', 'CTR-2026-14')
+    expect(await screen.findByRole('textbox', { name: 'Your reference' })).toHaveProperty(
+      'value',
+      'PO-7781',
+    )
+    expect(screen.getByRole('textbox', { name: 'Contract reference' })).toHaveProperty(
+      'value',
+      'CTR-2026-14',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/sb-1')).toHaveLength(1))
@@ -232,7 +265,9 @@ describe('the self-billed composer', () => {
   it('says whose invoice this is, and that issuing can still be refused', async () => {
     renderAt('/income/self-billing/new')
     expect(await screen.findByText(/writing this invoice on the seller's behalf/)).toBeTruthy()
-    expect(screen.getByText(/refused unless an agreement with that seller is in force/)).toBeTruthy()
+    expect(
+      screen.getByText(/refused unless an agreement with that seller is in force/),
+    ).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Seller' })).toBeTruthy()
   })
 

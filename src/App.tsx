@@ -89,9 +89,10 @@ import {
 } from './pages/SettingsPage'
 import { DocumentDetailPage } from './pages/DocumentDetailPage'
 import { PaymentRunInvoicesPage } from './pages/PaymentRunInvoicesPage'
-import { CreateInvoicePage, SelfBilledComposerPage } from './pages/CreateInvoicePage'
+import { CreateInvoicePage } from './pages/CreateInvoicePage'
 import { InvoiceDetailsPage } from './pages/InvoiceDetailsPage'
 import { SelfBillingPage } from './pages/SelfBillingPage'
+import { NewSelfBillPage } from './pages/NewSelfBillPage'
 import { DebitNotesPage } from './pages/DebitNotesPage'
 import {
   PosPage,
@@ -445,12 +446,12 @@ function App() {
               </PlanGated>
             }
           />
-          {/* The composer, in self-billed mode — not a second editor. */}
+          {/* The design's dedicated composer (Figma 154:161180), writing a self-billed draft. */}
           <Route
             path="/income/self-billing/new"
             element={
               <PlanGated feature="selfBilling">
-                <SelfBilledComposerPage />
+                <NewSelfBillPage />
               </PlanGated>
             }
           />
@@ -458,7 +459,7 @@ function App() {
             path="/income/self-billing/:id/edit"
             element={
               <PlanGated feature="selfBilling">
-                <SelfBilledComposerPage />
+                <NewSelfBillPage />
               </PlanGated>
             }
           />

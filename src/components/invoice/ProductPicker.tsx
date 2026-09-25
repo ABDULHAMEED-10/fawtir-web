@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react'
+import { selectAllOnFocus } from './numericInput'
 import { useTranslation } from 'react-i18next'
-import { taxCategoryOptions, unitOptions, useReferenceData } from '../../lib/reference/referenceData'
+import {
+  taxCategoryOptions,
+  unitOptions,
+  useReferenceData,
+} from '../../lib/reference/referenceData'
+import { unitOptions as lineUnitOptions } from './unitOptions'
 import { Combobox, Input, Modal, Select, type SelectOption } from '../ui'
 import { useApiRead } from '../../hooks'
 import type { Page } from '../../api'
@@ -62,8 +68,14 @@ export function ProductPicker({
       code: product.code,
       price: formatAmount(product.defaultUnitPrice, 'OMR', i18n.language),
       unit: product.defaultUnitCode,
-      tax: taxLabel(taxCategoryOf(reference?.taxCategories ?? [], product.defaultTaxCategory, product.defaultTaxRate)?.code)
-        ?? product.defaultTaxCategory,
+      tax:
+        taxLabel(
+          taxCategoryOf(
+            reference?.taxCategories ?? [],
+            product.defaultTaxCategory,
+            product.defaultTaxRate,
+          )?.code,
+        ) ?? product.defaultTaxCategory,
     }),
   }))
 
@@ -116,8 +128,12 @@ export function ProductPicker({
                   }}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm font-semibold text-primary-800 transition-colors hover:bg-primary-25"
                 >
-                  <span aria-hidden="true" className="text-lg leading-none">+</span>
-                  {text.trim() ? t('productPicker.createNamed', { name: text.trim() }) : t('productPicker.create')}
+                  <span aria-hidden="true" className="text-lg leading-none">
+                    +
+                  </span>
+                  {text.trim()
+                    ? t('productPicker.createNamed', { name: text.trim() })
+                    : t('productPicker.create')}
                 </button>
               )
             : undefined
@@ -160,14 +176,19 @@ function QuickCreateProduct({
   const [saving, setSaving] = useState(false)
   const [failure, setFailure] = useState<{ field: 'code' | null; message: string } | null>(null)
 
-  const valid = name.trim() !== '' && code.trim() !== '' && price.trim() !== '' && Number(price) >= 0
+  const valid =
+    name.trim() !== '' && code.trim() !== '' && price.trim() !== '' && Number(price) >= 0
 
   const save = async () => {
     if (!valid || saving) return
     setSaving(true)
     setFailure(null)
     try {
-      onCreated(await createProduct(newProductFrom(reference?.taxCategories ?? [], { code, name, unit, price, taxCode })))
+      onCreated(
+        await createProduct(
+          newProductFrom(reference?.taxCategories ?? [], { code, name, unit, price, taxCode }),
+        ),
+      )
     } catch (error) {
       if (error instanceof ApiError && error.code === 'PRODUCT_CODE_DUPLICATE') {
         setFailure({ field: 'code', message: t('productPicker.codeTaken') })
@@ -207,7 +228,14 @@ function QuickCreateProduct({
       }
     >
       <div className="flex flex-col gap-4">
-        <Input bordered label={t('productPicker.name')} requiredMark value={name} maxLength={500} onChange={(event) => setName(event.target.value)} />
+        <Input
+          bordered
+          label={t('productPicker.name')}
+          requiredMark
+          value={name}
+          maxLength={500}
+          onChange={(event) => setName(event.target.value)}
+        />
         <Input
           bordered
           label={t('productPicker.code')}
@@ -224,16 +252,32 @@ function QuickCreateProduct({
             label={t('productPicker.price')}
             requiredMark
             inputMode="decimal"
+            onFocus={selectAllOnFocus}
             value={price}
             onChange={(event) => setPrice(event.target.value)}
           />
           <label className="flex flex-col gap-1 text-sm font-medium text-text-primary">
             {t('productPicker.unit')}
-            <Select value={unit} onChange={setUnit} options={unitOptions(reference, t)} ariaLabel={t('productPicker.unit')} />
+            <Select
+              value={unit}
+              onChange={setUnit}
+              options={
+                // The platform's unit list; the composer's goods list (with Other) until it answers.
+                reference?.units.length
+                  ? unitOptions(reference, t)
+                  : lineUnitOptions('goods', t, unit)
+              }
+              ariaLabel={t('productPicker.unit')}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-text-primary">
             {t('productPicker.tax')}
-            <Select value={taxCode} onChange={setTaxCode} options={taxCategoryOptions(reference, t)} ariaLabel={t('productPicker.tax')} />
+            <Select
+              value={taxCode}
+              onChange={setTaxCode}
+              options={taxCategoryOptions(reference, t)}
+              ariaLabel={t('productPicker.tax')}
+            />
           </label>
         </div>
         {failure && failure.field === null ? (

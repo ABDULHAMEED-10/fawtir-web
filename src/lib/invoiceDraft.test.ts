@@ -6,6 +6,7 @@ import {
   blankDraftLine,
   fromDraftResponse,
   placeFieldErrors,
+  problemsBeforeIssue,
   problemsBeforeSave,
   toDraftRequest,
   type DraftForm,
@@ -39,7 +40,11 @@ describe('the draft a form saves', () => {
       currency: 'OMR',
       vatMode: 'EXCLUSIVE',
       headerDiscount: { type: 'PERCENTAGE', value: 0 },
-      details: { transactionType: 'FULL_TAX', paymentTerms: { code: 'NET30', label: 'Net 30 days' }, internalNote: '' },
+      details: {
+        transactionType: 'FULL_TAX',
+        paymentTerms: { code: 'NET30', label: 'Net 30 days' },
+        internalNote: '',
+      },
     })
     expect(request.lines[0]).toEqual({
       lineNumber: 1,
@@ -52,28 +57,71 @@ describe('the draft a form saves', () => {
       discount: { type: 'PERCENTAGE', value: 0 },
       taxCategory: { code: 'S5', en16931Category: 'S', rate: 5, exemptionReason: null },
     })
-    expect(toDraftRequest(SEEDED_REFERENCE, form({ customerType: 'consumer' }), true).details.transactionType).toBe('SIMPLIFIED')
+    expect(
+      toDraftRequest(SEEDED_REFERENCE, form({ customerType: 'consumer' }), true).details
+        .transactionType,
+    ).toBe('SIMPLIFIED')
+  })
+
+  it('sends the terms the design offers by code, labelled, even where the platform list lacks them', () => {
+    // End of month is one of the design's terms; the catalogue seeds NET0..NET60 only.
+    expect(
+      toDraftRequest(SEEDED_REFERENCE, form({ paymentTerms: 'EOM' }), true).details.paymentTerms,
+    ).toEqual({ code: 'EOM', label: 'End of month' })
+    expect(
+      toDraftRequest(SEEDED_REFERENCE, form({ paymentTerms: 'NET14' }), true).details.paymentTerms,
+    ).toEqual({ code: 'NET14', label: 'NET14' })
+    // A code neither list knows keeps the label the loaded draft carried.
+    expect(
+      toDraftRequest(
+        SEEDED_REFERENCE,
+        form({ paymentTerms: 'NET90', paymentTermsLabel: 'Net 90 days' }),
+        true,
+      ).details.paymentTerms,
+    ).toEqual({ code: 'NET90', label: 'Net 90 days' })
   })
 
   it('strips VAT out of a price entered inclusive, since the server prices exclusive only', () => {
-    const request = toDraftRequest(SEEDED_REFERENCE, form({ lines: [{ ...form().lines[0], unitPrice: '1.05' }] }), false)
+    const request = toDraftRequest(
+      SEEDED_REFERENCE,
+      form({ lines: [{ ...form().lines[0], unitPrice: '1.05' }] }),
+      false,
+    )
     expect(request.lines[0].unitPrice).toBe(1)
   })
 
   it('sends a reason only where the category needs one', () => {
-    const exempt = { ...form().lines[0], taxCode: 'E0', vatRate: '0', exemptionReason: '  Financial service  ' }
-    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [exempt] }), true).lines[0].taxCategory).toEqual({
+    const exempt = {
+      ...form().lines[0],
+      taxCode: 'E0',
+      vatRate: '0',
+      exemptionReason: '  Financial service  ',
+    }
+    expect(
+      toDraftRequest(SEEDED_REFERENCE, form({ lines: [exempt] }), true).lines[0].taxCategory,
+    ).toEqual({
       code: 'E0',
       en16931Category: 'E',
       rate: 0,
       exemptionReason: 'Financial service',
     })
-    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [{ ...exempt, taxCode: 'S5', vatRate: '5' }] }), true).lines[0].taxCategory.exemptionReason).toBeNull()
+    expect(
+      toDraftRequest(
+        SEEDED_REFERENCE,
+        form({ lines: [{ ...exempt, taxCode: 'S5', vatRate: '5' }] }),
+        true,
+      ).lines[0].taxCategory.exemptionReason,
+    ).toBeNull()
   })
 
   it('leaves the internal note out when this person cannot read it, so the server keeps it', () => {
-    expect('internalNote' in toDraftRequest(SEEDED_REFERENCE, form({ internalNote: null }), true).details).toBe(false)
-    expect(toDraftRequest(SEEDED_REFERENCE, form({ internalNote: '' }), true).details.internalNote).toBe('')
+    expect(
+      'internalNote' in
+        toDraftRequest(SEEDED_REFERENCE, form({ internalNote: null }), true).details,
+    ).toBe(false)
+    expect(
+      toDraftRequest(SEEDED_REFERENCE, form({ internalNote: '' }), true).details.internalNote,
+    ).toBe('')
   })
 })
 
@@ -125,25 +173,71 @@ describe('a saved draft back into the form', () => {
       headerDiscountValue: '5',
       internalNote: null,
     })
-    expect(restored.lines[0]).toMatchObject({ unitPrice: '1.8', taxCode: 'E0', exemptionReason: 'Financial service', discountValue: '10' })
+    expect(restored.lines[0]).toMatchObject({
+      unitPrice: '1.800',
+      taxCode: 'E0',
+      exemptionReason: 'Financial service',
+      discountValue: '10',
+    })
     const again = toDraftRequest(SEEDED_REFERENCE, restored, true)
-    expect(again.lines[0]).toMatchObject({ unitPrice: 1.8, taxCategory: { code: 'E0', en16931Category: 'E', exemptionReason: 'Financial service' } })
+    expect(again.lines[0]).toMatchObject({
+      unitPrice: 1.8,
+      taxCategory: { code: 'E0', en16931Category: 'E', exemptionReason: 'Financial service' },
+    })
     expect(again.headerDiscount).toEqual({ type: 'FIXED_AMOUNT', value: 5 })
   })
 })
 
 describe('checks before saving', () => {
   it('names each gap and the line it is on', () => {
-    const blank = { ...blankDraftForm(SEEDED_TAX_CATEGORIES), lines: [blankDraftLine(SEEDED_TAX_CATEGORIES), { ...blankDraftLine(SEEDED_TAX_CATEGORIES, 'E0'), productId: 'p', unitPrice: '1', quantity: '0' }] }
-    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, blank).map((problem) => `${problem.field}${problem.line ?? ''}`)).toEqual([
-      'customer',
-      'branch',
-      'product0',
-      'unitPrice0',
-      'quantity1',
-      'exemptionReason1',
-    ])
+    const blank = {
+      ...blankDraftForm(SEEDED_TAX_CATEGORIES),
+      lines: [
+        { ...blankDraftLine(SEEDED_TAX_CATEGORIES), unitPrice: '' },
+        {
+          ...blankDraftLine(SEEDED_TAX_CATEGORIES, 'E0'),
+          description: 'Advice',
+          unitPrice: '1',
+          quantity: '0',
+        },
+      ],
+    }
+    expect(
+      problemsBeforeSave(SEEDED_TAX_CATEGORIES, blank).map(
+        (problem) => `${problem.field}${problem.line ?? ''}`,
+      ),
+    ).toEqual(['customer', 'branch', 'description0', 'unitPrice0', 'quantity1', 'exemptionReason1'])
     expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, form())).toEqual([])
+  })
+
+  it('wants an HS code on goods lines and a service type on service lines, except for a consumer', () => {
+    const goods = form().lines[0]
+    const service = {
+      ...blankDraftLine(SEEDED_TAX_CATEGORIES),
+      description: 'Barista training',
+      itemType: 'service' as const,
+      unit: 'HUR',
+      unitPrice: '15.000',
+      quantity: '2',
+    }
+    const unclassified = form({ lines: [goods, service] })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, unclassified)).toEqual([])
+    expect(
+      problemsBeforeIssue(unclassified).map((problem) => `${problem.field}${problem.line}`),
+    ).toEqual(['hsCode0', 'serviceType1'])
+    expect(problemsBeforeIssue({ ...unclassified, customerType: 'government' })).toHaveLength(2)
+    expect(problemsBeforeIssue({ ...unclassified, customerType: 'consumer' })).toEqual([])
+    const classified = form({
+      lines: [
+        { ...goods, hsCode: '000000000000' },
+        { ...service, serviceType: '92900' },
+      ],
+    })
+    expect(problemsBeforeIssue(classified)).toEqual([])
+    // Neither code reaches the draft request: it refuses members the API does not know.
+    const sent = toDraftRequest(SEEDED_REFERENCE, classified, true).lines
+    expect('hsCode' in sent[0]).toBe(false)
+    expect('serviceType' in sent[1]).toBe(false)
   })
 
   it('puts the server field errors on their lines and keeps the rest', () => {
@@ -152,7 +246,10 @@ describe('checks before saving', () => {
       { field: 'draft.lines[0].productId', message: 'must not be null' },
       { field: 'draft.branchId', message: 'must not be null' },
     ])
-    expect(placed.lines).toEqual({ 1: { unitPrice: 'must be greater than or equal to 0.0' }, 0: { product: 'must not be null' } })
+    expect(placed.lines).toEqual({
+      1: { unitPrice: 'must be greater than or equal to 0.0' },
+      0: { product: 'must not be null' },
+    })
     expect(placed.other).toEqual(['branchId: must not be null'])
   })
 })

@@ -11,11 +11,7 @@ export const INVOICES_PATH = '/v1/authored-invoices'
 export const INVOICE_SUMMARY_PATH = `${INVOICES_PATH}/summary`
 
 export type InvoiceTypeDto =
-  | 'INVOICE'
-  | 'CREDIT_NOTE'
-  | 'DEBIT_NOTE'
-  | 'SELF_BILLED_INVOICE'
-  | 'SELF_BILLED_CREDIT_NOTE'
+  'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
 export type InvoiceStateDto = 'DRAFT' | 'ISSUED' | 'CANCELLED' | 'DISCARDED'
 export type InvoiceListPayment = 'AWAITING' | 'OVERDUE' | 'PAID'
 export type InvoiceListSort =
@@ -54,12 +50,24 @@ export type InvoiceRowDto = {
   authoringState: InvoiceStateDto
   /** `SENT_MANUALLY` is a recorded fact; anything else is not yet a real delivery status (B4). */
   deliveryState: string
+  /**
+   * TODO(backend): the design's PEPPOL/OTA column prints the Peppol response code of the last
+   * delivery (AB acknowledged, AP accepted, RE rejected). Not answered today; drawn when present.
+   */
+  peppolResponse?: 'AB' | 'AP' | 'RE' | null
   customerId: string
   currency: string
   invoiceNumber: string | null
   issueDate: string | null
   dueDate: string | null
-  details: { subject: string | null; purchaseOrderReference: string | null } | null
+  details: {
+    subject: string | null
+    purchaseOrderReference: string | null
+    /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. */
+    correctionReasonCode?: string | null
+  } | null
+  /** The issuing branch; the notes list names it under the customer. */
+  branchId?: string | null
   headerDiscount?: DiscountDto | null
   lines: InvoiceRowLineDto[]
   /** Null until the document is issued: a draft is priced only then. */
@@ -78,6 +86,8 @@ export type InvoiceSummaryDto = {
   asOf: string
   all: number
   drafts: number
+  /** TODO(backend): the design's "To send" tab count — issued, undelivered documents. Not answered today. */
+  toSend?: number
   awaiting: number
   overdue: number
   paid: number
@@ -136,7 +146,12 @@ function filterParams(filter: InvoiceListFilter) {
 
 /** The request for one page of the list. Also its identity: the same query is the same key. */
 export function invoiceListPath(query: InvoiceListQuery): string {
-  return withQuery(INVOICES_PATH, { ...filterParams(query), sort: query.sort, page: query.page, size: query.size })
+  return withQuery(INVOICES_PATH, {
+    ...filterParams(query),
+    sort: query.sort,
+    page: query.page,
+    size: query.size,
+  })
 }
 
 export async function loadInvoicePage(path: string): Promise<Page<InvoiceRowDto>> {

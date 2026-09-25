@@ -1,12 +1,22 @@
 import { useState, type FormEvent } from 'react'
+import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { useTranslation } from 'react-i18next'
 import { paymentMethodOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { DateField, Input, Modal, Rial, Select } from '../../components/ui'
 import { Notice } from '../../components/feedback/ApiNotice'
-import { Field, ModalFooter, focusFirstInvalidField } from '../ConsolePage/subscriptions/modalFields'
+import {
+  Field,
+  ModalFooter,
+  focusFirstInvalidField,
+} from '../ConsolePage/subscriptions/modalFields'
 import { ApiError } from '../../api'
 import { newPaymentKey, recordPayment } from '../../api/invoices/detail'
-import { PAYMENT_REFUSALS, paymentProblems, type PaymentField, type PaymentForm } from '../../lib/invoiceDetail'
+import {
+  PAYMENT_REFUSALS,
+  paymentProblems,
+  type PaymentField,
+  type PaymentForm,
+} from '../../lib/invoiceDetail'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount } from '../../lib/format'
 
@@ -77,7 +87,8 @@ export function RecordPaymentModal({
       })
       onRecorded()
     } catch (error) {
-      const refusal = error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+      const refusal =
+        error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
       if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
@@ -85,7 +96,11 @@ export function RecordPaymentModal({
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
-        setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+        setFailure(
+          message.reference
+            ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+            : body,
+        )
       }
     } finally {
       setBusy(false)
@@ -102,7 +117,14 @@ export function RecordPaymentModal({
         number: invoiceNumber ?? '—',
         amount: outstanding === null ? '—' : formatAmount(outstanding, currency, i18n.language),
       })}
-      footer={<ModalFooter formId={FORM_ID} onCancel={onClose} submitLabel={t('invoiceDetails.pay.submit')} disabled={busy} />}
+      footer={
+        <ModalFooter
+          formId={FORM_ID}
+          onCancel={onClose}
+          submitLabel={t('invoiceDetails.pay.submit')}
+          disabled={busy}
+        />
+      }
     >
       <form id={FORM_ID} noValidate onSubmit={submit} className="flex flex-col gap-4">
         {failure ? <Notice body={failure} /> : null}
@@ -115,6 +137,7 @@ export function RecordPaymentModal({
               label={t('invoiceDetails.pay.amount')}
               requiredMark
               inputMode="decimal"
+              onFocus={selectAllOnFocus}
               autoComplete="off"
               leadingIcon={<Rial className="text-text-secondary" />}
               value={form.amount}
@@ -132,7 +155,10 @@ export function RecordPaymentModal({
             <Select
               value={form.methodCode}
               onChange={(value) => change('methodCode', value)}
-              options={paymentMethodOptions(reference, t).map((option) => ({ ...option, label: t(`invoiceDetails.pay.means.${option.value}`) }))}
+              options={paymentMethodOptions(reference, t).map((option) => ({
+                ...option,
+                label: t(`invoiceDetails.pay.means.${option.value}`),
+              }))}
               ariaLabel={t('invoiceDetails.pay.method')}
             />
           </Field>

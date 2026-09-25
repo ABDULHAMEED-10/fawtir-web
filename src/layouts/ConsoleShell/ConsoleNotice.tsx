@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
 import { commonFailureMessage } from '../../lib/identity/errors'
 
-type NoticeAction = { label: string } & ({ onClick: () => void; to?: never } | { to: string; onClick?: never })
+type NoticeAction = { label: string } & (
+  { onClick: () => void; to?: never } | { to: string; onClick?: never }
+)
 
 type ConsoleNoticeProps = {
   /** Already translated. Omitted for a plain message such as a loading line. */
@@ -25,23 +27,36 @@ const ACTION_CLASS =
  * part of the same product; a failure is an alert, progress a polite status.
  */
 export function ConsoleNotice({ badge, body, action, busy = false }: ConsoleNoticeProps) {
+  // A wait is centred in the space the content will take, so the page does not jump when it
+  // arrives; a failure keeps the card's reading position at the start, where the text begins.
   return (
     <section
       role={busy ? 'status' : 'alert'}
-      className="flex flex-col items-start gap-3 rounded-md bg-surface-card p-8"
+      className={
+        busy
+          ? 'flex min-h-[280px] flex-col items-center justify-center gap-4 rounded-md bg-surface-card p-8 text-center'
+          : 'flex flex-col items-start gap-3 rounded-md bg-surface-card p-8'
+      }
     >
       {busy ? (
-        <span
-          aria-hidden="true"
-          className="size-8 animate-spin rounded-full border-2 border-primary-25 border-t-primary-700"
-        />
+        <span aria-hidden="true" className="relative flex size-12 items-center justify-center">
+          <span className="absolute inset-0 rounded-full border-[3px] border-primary-50" />
+          <span className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-primary-700" />
+        </span>
       ) : null}
       {badge ? (
         <span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-primary-50 px-2.5 text-xs font-semibold uppercase tracking-[0.04em] text-primary-800">
           {badge}
         </span>
       ) : null}
-      <p className="max-w-[560px] text-sm font-medium leading-[1.6] text-text-tertiary">{body}</p>
+      <p
+        className={[
+          'max-w-[560px] text-sm font-medium leading-[1.6]',
+          busy ? 'text-text-quaternary' : 'text-text-tertiary',
+        ].join(' ')}
+      >
+        {body}
+      </p>
       {action?.to ? (
         <Link to={action.to} className={ACTION_CLASS}>
           {action.label}
@@ -63,7 +78,12 @@ export function ConsoleNotice({ badge, body, action, busy = false }: ConsoleNoti
 export function ConsoleReadFailure({ error, retry }: { error: unknown; retry: () => void }) {
   const { t } = useTranslation()
   if (error instanceof ApiError && error.status === 403) {
-    return <ConsoleNotice badge={t('console.access.noAccess')} body={t('console.access.missingPermission')} />
+    return (
+      <ConsoleNotice
+        badge={t('console.access.noAccess')}
+        body={t('console.access.missingPermission')}
+      />
+    )
   }
   const message = commonFailureMessage(error)
   return (

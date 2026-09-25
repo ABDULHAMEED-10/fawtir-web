@@ -25,7 +25,12 @@ export type DraftLineRequest = {
   /** Always exclusive of VAT: the engine refuses INCLUSIVE until its discount ordering is approved. */
   unitPrice: number
   discount: DiscountDto
-  taxCategory: { code: string; en16931Category: string; rate: number; exemptionReason: string | null }
+  taxCategory: {
+    code: string
+    en16931Category: string
+    rate: number
+    exemptionReason: string | null
+  }
 }
 
 /** `InvoiceDraftRequest`. Unknown fields are refused, so this carries only what the API reads. */
@@ -79,7 +84,8 @@ export type DraftResponse = {
     buyerReference?: string | null
     contractReference?: string | null
   }
-  type?: 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
+  type?:
+    'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE' | 'SELF_BILLED_INVOICE' | 'SELF_BILLED_CREDIT_NOTE'
   correctionOfInvoiceId?: string | null
   headerDiscount: DiscountDto
   lines: {
@@ -96,6 +102,12 @@ export type DraftResponse = {
     en16931Category: string
     taxRate: number
     exemptionReason: string | null
+    /**
+     * TODO(backend): the line's classification (PINT_OM_LINE_CLASSIFICATION.md §7.3). Read when
+     * present so a stored value comes back onto the composer; the request does not carry them yet.
+     */
+    hsCode?: string | null
+    serviceType?: string | null
   }[]
 }
 
@@ -122,7 +134,13 @@ export type DraftPreview = {
   }
 }
 
-export type BranchDto = { id: string; code: string; name: string; type: string; city: string | null }
+export type BranchDto = {
+  id: string
+  code: string
+  name: string
+  type: string
+  city: string | null
+}
 
 const draftPath = (id: string) => `${INVOICE_DRAFTS_PATH}/${encodeURIComponent(id)}`
 
@@ -157,28 +175,46 @@ export type NoteKind = 'CREDIT_NOTE' | 'DEBIT_NOTE'
  * A credit or debit note draft against an issued invoice (`creditnote.create` / `debitnote.create`).
  * The body is the ordinary draft content: the server copies nothing from the invoice.
  */
-export function createNote(kind: NoteKind, invoiceId: string, idempotencyKey: string, draft: DraftRequest): Promise<DraftResponse> {
+export function createNote(
+  kind: NoteKind,
+  invoiceId: string,
+  idempotencyKey: string,
+  draft: DraftRequest,
+): Promise<DraftResponse> {
   const route = kind === 'CREDIT_NOTE' ? 'credit-notes' : 'debit-notes'
-  return apiRequest<DraftResponse>(`/v1/authored-invoices/${encodeURIComponent(invoiceId)}/${route}`, {
-    method: 'POST',
-    body: draft,
-    headers: { 'Idempotency-Key': idempotencyKey },
-  })
+  return apiRequest<DraftResponse>(
+    `/v1/authored-invoices/${encodeURIComponent(invoiceId)}/${route}`,
+    {
+      method: 'POST',
+      body: draft,
+      headers: { 'Idempotency-Key': idempotencyKey },
+    },
+  )
 }
 
 export function loadDraft(id: string): Promise<DraftResponse> {
   return apiRequest<DraftResponse>(draftPath(id))
 }
 
-export function saveDraft(id: string, expectedVersion: number, draft: DraftRequest): Promise<DraftResponse> {
-  return apiRequest<DraftResponse>(draftPath(id), { method: 'PUT', body: { expectedVersion, draft } })
+export function saveDraft(
+  id: string,
+  expectedVersion: number,
+  draft: DraftRequest,
+): Promise<DraftResponse> {
+  return apiRequest<DraftResponse>(draftPath(id), {
+    method: 'PUT',
+    body: { expectedVersion, draft },
+  })
 }
 
 /** A lifecycle step to DISCARDED, not a physical delete; the audit trail keeps it. */
 export function discardDraft(id: string, expectedVersion: number): Promise<DraftResponse> {
-  return apiRequest<DraftResponse>(withQuery(draftPath(id), { expected_version: expectedVersion }), {
-    method: 'DELETE',
-  })
+  return apiRequest<DraftResponse>(
+    withQuery(draftPath(id), { expected_version: expectedVersion }),
+    {
+      method: 'DELETE',
+    },
+  )
 }
 
 export function previewDraft(id: string): Promise<DraftPreview> {
@@ -187,7 +223,9 @@ export function previewDraft(id: string): Promise<DraftPreview> {
 
 /** Only for someone with `invoice.internal-note.read`; the draft read never carries the note. */
 export function loadInternalNote(id: string): Promise<{ internalNote: string | null }> {
-  return apiRequest<{ internalNote: string | null }>(`/v1/authored-invoices/${encodeURIComponent(id)}/internal-note`)
+  return apiRequest<{ internalNote: string | null }>(
+    `/v1/authored-invoices/${encodeURIComponent(id)}/internal-note`,
+  )
 }
 
 export function loadBranches(): Promise<BranchDto[]> {
@@ -213,7 +251,11 @@ export type IssueDraftRequest = {
  * `NOT_SUBMITTED`. The key is the confirmation's, so a second click, or a retry after a lost
  * response, issues once.
  */
-export function issueDraft(id: string, idempotencyKey: string, request: IssueDraftRequest): Promise<InvoiceDetailDto> {
+export function issueDraft(
+  id: string,
+  idempotencyKey: string,
+  request: IssueDraftRequest,
+): Promise<InvoiceDetailDto> {
   return apiRequest<InvoiceDetailDto>(`${draftPath(id)}/issue`, {
     method: 'POST',
     body: request,

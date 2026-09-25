@@ -1,9 +1,6 @@
-import { InvoiceDetailsPage } from '../InvoiceDetailsPage'
+import { SalesNoteDetailPage } from './SalesNoteDetailPage'
 
-/**
- * A credit note is an authored document like an invoice, read from the same endpoints; the invoice
- * page already shows its type, lines, totals and timeline, so a note's page is that page.
- */
+/** Income › a credit note, opened: the "Credit notes details" frame. */
 export function CreditNoteDetailsPage() {
-  return <InvoiceDetailsPage />
+  return <SalesNoteDetailPage kind="CREDIT_NOTE" />
 }

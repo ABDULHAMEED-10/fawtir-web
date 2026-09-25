@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -10,6 +10,8 @@ import { AgreementsPage } from './AgreementsPage'
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const AGREEMENTS_URL = '/api/v1/self-billing-agreements'
 const TODAY = '2026-09-21'
+/** The design's row menu, named for the supplier the row is about. */
+const ROW_MENU = 'Actions for Muscat Roastery Co'
 
 const MANAGER: Entitlements = {
   userId: 'u-1',
@@ -64,12 +66,14 @@ beforeEach(async () => {
   refuseWith = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
     if (url.startsWith('/api/v1/customers')) {
       // The customers list is a Spring page (content/size/totalElements), not an items page.
       return json(200, {
-        content: [{ id: 'c-1', displayName: 'Muscat Roastery Co' }],
+        content: [{ id: 'c-1', type: 'BUSINESS', displayName: 'Muscat Roastery Co' }],
         page: 0,
         size: 200,
         totalElements: 1,
@@ -126,7 +130,9 @@ describe('what an agreement permits', () => {
     expect(blockerOf(hopeless, TODAY)).toBe('withdrawn')
     expect(blockerOf(agreement({ status: 'SUSPENDED' }), TODAY)).toBe('suspended')
     expect(blockerOf(agreement({ effectiveTo: '2026-09-20' }), TODAY)).toBe('lapsed')
-    expect(blockerOf(agreement({ sellerIdentityAssurance: 'UNVERIFIED' }), TODAY)).toBe('unverified')
+    expect(blockerOf(agreement({ sellerIdentityAssurance: 'UNVERIFIED' }), TODAY)).toBe(
+      'unverified',
+    )
     expect(blockerOf(agreement(), TODAY)).toBeNull()
   })
 
@@ -152,7 +158,34 @@ describe('the agreements screen', () => {
 
   it('says issuing is possible when it is', async () => {
     renderPage()
-    expect(await screen.findByText(/You can issue self-billed invoices to this seller/)).toBeTruthy()
+    expect(
+      await screen.findByText(/You can issue self-billed invoices to this supplier/),
+    ).toBeTruthy()
+  })
+
+  it("draws the frame's header, tabs and columns", async () => {
+    renderPage()
+    await screen.findByText('Muscat Roastery Co')
+    expect(screen.getByRole('heading', { level: 1, name: 'Agreements' })).toBeTruthy()
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'All1',
+      'Active1',
+      'Awaiting acceptance0',
+      'Expiring soon0',
+      'Expired0',
+      'Terminated0',
+    ])
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual([
+      '',
+      'Supplier',
+      'Kind',
+      'Coverage',
+      'Valid',
+      'Documents issued',
+      'Status',
+      '',
+    ])
+    expect(screen.getByText('On Peppol')).toBeTruthy()
   })
 
   it('offers no verify button, because no tenant can ever hold that permission', async () => {
@@ -163,14 +196,24 @@ describe('the agreements screen', () => {
     expect(screen.queryByRole('button', { name: /verify/i })).toBeNull()
   })
 
-  it('calls a lapsed agreement lapsed, which the server never will', async () => {
+  it('calls a lapsed agreement expired, which the server never will', async () => {
     rows = [agreement({ effectiveTo: '2026-09-20' })]
     renderPage()
 
-    // Status is still ACTIVE on the wire; there is no EXPIRED state anywhere.
-    expect(await screen.findByText('Active')).toBeTruthy()
-    expect(screen.getByText('LAPSED')).toBeTruthy()
+    // Status is still ACTIVE on the wire; there is no EXPIRED state anywhere. The frame's pill
+    // and banner say it anyway, and "Renew agreement" opens a new one on that supplier.
+    expect(
+      await screen.findByText("Muscat Roastery Co's agreement expired on 20 Sept 2026"),
+    ).toBeTruthy()
+    expect(screen.getByText('Ended 20 Sept 2026')).toBeTruthy()
+    expect(screen.getByText('Expired 1 day ago')).toBeTruthy()
     expect(screen.getByText(/so issuing is now refused/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Renew agreement' }))
+    expect(await screen.findByText(/cannot be changed afterwards/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Supplier' }).textContent).toContain(
+      'Muscat Roastery Co',
+    )
   })
 
   it('offers only the lifecycle actions the server would accept', async () => {
@@ -182,31 +225,41 @@ describe('the agreements screen', () => {
     renderPage()
     await screen.findAllByText('Muscat Roastery Co')
 
-    const items = screen.getAllByRole('listitem')
-    // Newest effectiveFrom first: a-3 (Mar), a-2 (Feb), a-1 (Jan).
-    expect(within(items[2]).getByRole('button', { name: 'Activate' })).toBeTruthy()
-    expect(within(items[2]).queryByRole('button', { name: 'Suspend' })).toBeNull()
-    expect(within(items[1]).getByRole('button', { name: 'Suspend' })).toBeTruthy()
-    expect(within(items[1]).queryByRole('button', { name: 'Activate' })).toBeNull()
-    // Withdrawn is terminal: nothing acts on it.
-    expect(within(items[0]).queryByRole('button', { name: 'Withdraw' })).toBeNull()
-    expect(within(items[0]).queryByRole('button', { name: 'Activate' })).toBeNull()
+    // The design's row menu. Newest effectiveFrom first: a-3 (Mar), a-2 (Feb), a-1 (Jan), and
+    // withdrawn is terminal, so a-3 has no menu at all: nothing acts on it.
+    const menus = screen.getAllByRole('button', { name: ROW_MENU })
+    expect(menus).toHaveLength(2)
+
+    fireEvent.click(menus[1])
+    expect(await screen.findByRole('menuitem', { name: 'Activate' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Suspend' })).toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(menus[0])
+    expect(await screen.findByRole('menuitem', { name: 'Suspend' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Activate' })).toBeNull()
   })
 
   it('activates through the lifecycle route', async () => {
     rows = [agreement({ status: 'PENDING_ACTIVATION' })]
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Activate' }))
+    fireEvent.click(await screen.findByRole('button', { name: ROW_MENU }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Activate' }))
 
-    await waitFor(() => expect(posted.at(-1)?.url).toContain('/self-billing-agreements/a-1/activation'))
+    await waitFor(() =>
+      expect(posted.at(-1)?.url).toContain('/self-billing-agreements/a-1/activation'),
+    )
   })
 
   it('warns that withdrawal is terminal before it writes, and sends the reason', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }))
+    fireEvent.click(await screen.findByRole('button', { name: ROW_MENU }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Withdraw' }))
 
     expect(await screen.findByText(/This cannot be undone/)).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Reason (optional)'), { target: { value: 'Contract ended' } })
+    fireEvent.change(screen.getByLabelText('Reason (optional)'), {
+      target: { value: 'Contract ended' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Withdraw it' }))
 
     await waitFor(() => {
@@ -217,7 +270,8 @@ describe('the agreements screen', () => {
 
   it('sends an explicit null reason rather than an absent body, which the route requires', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }))
+    fireEvent.click(await screen.findByRole('button', { name: ROW_MENU }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Withdraw' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Withdraw it' }))
 
     await waitFor(() => expect(posted.at(-1)?.body).toEqual({ reason: null }))
@@ -225,26 +279,34 @@ describe('the agreements screen', () => {
 
   it('says the reference and dates are fixed before opening one', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open an agreement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'New agreement' }))
     expect(await screen.findByText(/cannot be changed afterwards/)).toBeTruthy()
   })
 
   it('refuses a range the server would refuse, and never asks it', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open an agreement' }))
-    fireEvent.change(await screen.findByLabelText('In force from'), { target: { value: '2026-05-01' } })
-    fireEvent.change(screen.getByLabelText('Until'), { target: { value: '2026-04-01' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'New agreement' }))
+    // "From" opens on today (21 Sep); an end date picked in August is before it.
+    fireEvent.click(await screen.findByRole('button', { name: 'Until' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Previous month' }))
+    fireEvent.click(screen.getByRole('button', { name: '15' }))
 
     expect(await screen.findByText('The end date is before the start date.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Open the agreement' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Open the agreement' })).toHaveProperty(
+      'disabled',
+      true,
+    )
     expect(posted).toHaveLength(0)
   })
 
   it('opens one with an open-ended end date sent as null', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open an agreement' }))
-    fireEvent.change(await screen.findByLabelText('Seller'), { target: { value: 'c-1' } })
-    fireEvent.change(screen.getByLabelText('Your reference for the agreement'), { target: { value: 'SBA-9' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'New agreement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Supplier' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Muscat Roastery Co' }))
+    fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
+      target: { value: 'SBA-9' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
 
     await waitFor(() =>
@@ -261,12 +323,15 @@ describe('the agreements screen', () => {
     // Seven self-billing codes answer Conflict; the generic 409 sentence would be false here.
     refuseWith = { code: 'SELF_BILLING_AGREEMENT_ALREADY_EXISTS', status: 409 }
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Open an agreement' }))
-    fireEvent.change(await screen.findByLabelText('Seller'), { target: { value: 'c-1' } })
-    fireEvent.change(screen.getByLabelText('Your reference for the agreement'), { target: { value: 'SBA-9' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'New agreement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Supplier' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Muscat Roastery Co' }))
+    fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
+      target: { value: 'SBA-9' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
 
-    expect(await screen.findByText(/already a live agreement with this seller/)).toBeTruthy()
+    expect(await screen.findByText(/already a live agreement with this supplier/)).toBeTruthy()
     expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
   })
 
@@ -274,6 +339,10 @@ describe('the agreements screen', () => {
     who = READER
     renderPage()
     expect(await screen.findByText(/doesn't have access to this part of Fawtir/)).toBeTruthy()
-    expect(fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.startsWith(AGREEMENTS_URL))).toBe(false)
+    expect(
+      fetchMock.mock.calls
+        .map(([url]) => String(url))
+        .some((url) => url.startsWith(AGREEMENTS_URL)),
+    ).toBe(false)
   })
 })

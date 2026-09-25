@@ -1,6 +1,6 @@
-import { InvoiceDetailsPage } from '../InvoiceDetailsPage'
+import { SalesNoteDetailPage } from '../CreditNoteDetailsPage/SalesNoteDetailPage'
 
-/** A debit note is its own receivable, so its page is the invoice page: payments, balance and timeline included. */
+/** Income › a debit note, opened: the frame named "Credit note detail" in Figma draws DBN-0043. */
 export function DebitNoteDetailPage() {
-  return <InvoiceDetailsPage />
+  return <SalesNoteDetailPage kind="DEBIT_NOTE" />
 }
