@@ -35,10 +35,13 @@ import {
 import { loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import {
+  REMINDER_SCHEDULE_PATH,
   loadReminderPreview,
+  loadReminderSchedule,
   reminderPreviewPath,
   sendReminderNow,
   type ReminderPreviewDto,
+  type ReminderScheduleDto,
 } from '../../api/invoices/reminders'
 import type { Page } from '../../api'
 import { NOTE_ROUTES } from '../../lib/salesNote'
@@ -61,7 +64,6 @@ import {
   REMINDER_REFUSALS,
   VERDICT_NOTE,
   canSendByHand,
-  rungNote,
   rungToday,
 } from '../../lib/paymentReminders'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -185,12 +187,11 @@ function InvoiceScreen() {
     document ? `${invoicePath(id)}/history` : null,
     () => loadHistory(id),
   )
-  // Reading the internal note writes an audit event on the server. Loading it with the page made
-  // every visit a "note read" — the trail filled with reads nobody made — so it is fetched only
-  // when someone asks to see it.
-  const [noteWanted, setNoteWanted] = useState(false)
+  // The design shows the internal note in its box (Figma 154:163406), so it is read with the page.
+  // TODO(backend): reading it writes an audit event, so every visit now records a "note read";
+  // please stop auditing the read, or answer the note on the detail itself.
   const internalNote = useApiRead<{ internalNote: string | null }>(
-    document && noteWanted && can(session, 'invoice.internal-note.read')
+    document && can(session, 'invoice.internal-note.read')
       ? `${invoicePath(id)}/internal-note`
       : null,
     () => loadInternalNote(id),
@@ -241,6 +242,11 @@ function InvoiceScreen() {
   const previewPath = chaseable ? reminderPreviewPath(id, rungToday(today, document.dueDate)) : null
   const reminder = useApiRead<ReminderPreviewDto>(previewPath, () =>
     loadReminderPreview(previewPath!),
+  )
+  // The ladder, so the banner can say "Reminder 2 of 4" and when the next one goes out.
+  const schedule = useApiRead<ReminderScheduleDto>(
+    chaseable ? REMINDER_SCHEDULE_PATH : null,
+    loadReminderSchedule,
   )
   const [remindersOpen, setRemindersOpen] = useState(false)
   const [sendingReminder, setSendingReminder] = useState(false)
@@ -324,6 +330,12 @@ function InvoiceScreen() {
     ? t(`invoiceDetails.titleNote.${noteType}`, { id: data.invoiceNumber ?? '' })
     : t('invoiceDetails.title', { id: data.invoiceNumber ?? '' })
   const shownReminder = reminder.read.status === 'ready' ? reminder.read.data : null
+  const ladder = reminderLadder(
+    schedule.read.status === 'ready' ? schedule.read.data.offsets : null,
+    data.dueDate,
+    today,
+    shownReminder?.verdict === 'SEND',
+  )
   const canRemind =
     chaseable &&
     can(session, 'invoice.payment.manage') &&
@@ -572,9 +584,11 @@ function InvoiceScreen() {
           {!draft ? (
             <>
               <span className="font-medium text-text-quaternary">
-                {data.deliveryState === 'SENT_MANUALLY'
-                  ? t('invoiceDetails.sentManually')
-                  : t('invoiceDetails.notSentYet')}
+                {data.peppolResponse
+                  ? t('invoiceDetails.sentViaPeppol')
+                  : data.deliveryState === 'SENT_MANUALLY'
+                    ? t('invoiceDetails.sentManually')
+                    : t('invoiceDetails.notSentYet')}
               </span>
               <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
             </>
@@ -607,29 +621,31 @@ function InvoiceScreen() {
                 <BellIcon />
                 <p className="min-w-0 flex-1 text-sm font-medium leading-[1.3] text-text-secondary max-md:basis-[calc(100%-32px)]">
                   <span className="font-semibold text-text-primary">
-                    {t('invoiceDetails.reminder.title')}
+                    {ladder
+                      ? t('invoiceDetails.reminder.ofLadder', {
+                          n: ladder.number,
+                          total: ladder.total,
+                        })
+                      : t('invoiceDetails.reminder.title')}
                   </span>{' '}
-                  {shownReminder ? (
-                    <>
+                  {ladder?.next ? (
+                    <span className="text-text-quaternary">
+                      {t(ladder.next.key, ladder.next.values)}
+                    </span>
+                  ) : shownReminder ? (
+                    <span className="text-text-quaternary">
                       {t(VERDICT_NOTE[shownReminder.verdict])}
-                      {shownReminder.rung !== null ? (
-                        <span className="text-text-quaternary">
-                          {' · '}
-                          {t(rungNote(shownReminder.rung).key, rungNote(shownReminder.rung).values)}
-                        </span>
-                      ) : null}
-                    </>
+                    </span>
                   ) : (
                     '…'
                   )}
                 </p>
                 <div className="flex items-center gap-2 max-md:w-full max-md:justify-end">
-                  {/* TODO(backend): reminders pause per tenant only (the ladder's switch), never per invoice. */}
+                  {/* TODO(backend): reminders pause per tenant only (the ladder's switch), never per invoice; the design's Pause says so when pressed. */}
                   <button
                     type="button"
-                    disabled
-                    title={t('invoiceDetails.reminder.pauseUnavailable')}
-                    className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
+                    onClick={() => setNotice({ key: 'invoiceDetails.reminder.pauseUnavailable' })}
+                    className="inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary"
                   >
                     {t('invoiceDetails.reminder.pause')}
                   </button>
@@ -748,16 +764,25 @@ function InvoiceScreen() {
                 </div>
               </div>
 
-              {/* TODO(backend): no Peppol delivery event exists (B4); the bar reports the one delivery fact recorded. */}
+              {/* TODO(backend): no Peppol delivery event exists (B4); the bar reads `peppolResponse` and `deliveredAt` when answered, else the one delivery fact recorded. */}
               <div className="mt-4 flex items-center gap-2 rounded-sm bg-surface-background px-3 py-2.5">
-                <DeliveryIcon sent={data.deliveryState === 'SENT_MANUALLY'} />
+                <DeliveryIcon
+                  sent={!!data.peppolResponse || data.deliveryState === 'SENT_MANUALLY'}
+                />
                 <p className="text-xs font-medium leading-[1.3] text-text-tertiary">
-                  {data.deliveryState === 'SENT_MANUALLY'
-                    ? t('invoiceDetails.delivered.sentManually', {
+                  {data.peppolResponse
+                    ? t('invoiceDetails.delivered.peppol', {
                         customer: customerName,
-                        when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
+                        when: data.deliveredAt
+                          ? formatInstant(data.deliveredAt, language)
+                          : day(data.issueDate),
                       })
-                    : t('invoiceDetails.delivered.notSent', { customer: customerName })}
+                    : data.deliveryState === 'SENT_MANUALLY'
+                      ? t('invoiceDetails.delivered.sentManually', {
+                          customer: customerName,
+                          when: sentAt ? formatInstant(sentAt, language) : day(data.issueDate),
+                        })
+                      : t('invoiceDetails.delivered.notSent', { customer: customerName })}
                 </p>
               </div>
             </section>
@@ -787,11 +812,18 @@ function InvoiceScreen() {
                     {customer.read.data.displayName}
                   </p>
                   <p className="truncate text-xs font-medium text-text-quaternary">
-                    {customer.read.data.profile.details?.vatRegistrationNumber
-                      ? t('invoiceDetails.vatNumber', {
-                          number: customer.read.data.profile.details.vatRegistrationNumber,
-                        })
-                      : t('invoiceDetails.noVat')}
+                    {[
+                      customer.read.data.profile.details?.vatRegistrationNumber
+                        ? t('invoiceDetails.vatNumber', {
+                            number: customer.read.data.profile.details.vatRegistrationNumber,
+                          })
+                        : t('invoiceDetails.noVat'),
+                      customer.read.data.profile.details?.peppolParticipantId
+                        ? `${customer.read.data.profile.details.peppolParticipantId.scheme}:${customer.read.data.profile.details.peppolParticipantId.value}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
                   </p>
                 </div>
                 {onPeppol ? (
@@ -900,12 +932,12 @@ function InvoiceScreen() {
               </div>
             </div>
             <div className="mb-3 h-px w-full bg-border-subtle" />
-            <div className="max-h-[560px] overflow-auto rounded-sm bg-surface-background p-3">
+            <div
+              title={t('invoiceDetails.pdf.previewNote')}
+              className="max-h-[560px] overflow-auto rounded-sm bg-surface-background p-3"
+            >
               <div style={{ zoom }}>{preview}</div>
             </div>
-            <p className="mt-2 text-[11px] font-medium leading-[1.3] text-text-quaternary">
-              {t('invoiceDetails.pdf.previewNote')}
-            </p>
           </section>
         </aside>
       </div>
@@ -1048,26 +1080,13 @@ function InvoiceScreen() {
                 </span>
               </p>
               <div className="min-h-[64px] rounded-sm border border-border-subtle bg-surface-tab-bar px-3 py-2.5">
-                {noteWanted ? (
-                  <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
-                    {internalNote.read.status === 'ready'
-                      ? (internalNote.read.data.internalNote ?? '—')
+                <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
+                  {internalNote.read.status === 'ready'
+                    ? (internalNote.read.data.internalNote ?? '—')
+                    : internalNote.read.status === 'failed'
+                      ? t('invoiceDetails.notes.unavailable')
                       : '…'}
-                  </p>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setNoteWanted(true)}
-                      className="text-sm font-semibold text-primary-800 hover:text-primary-700"
-                    >
-                      {t('invoiceDetails.notes.show')}
-                    </button>
-                    <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {t('invoiceDetails.notes.showHint')}
-                    </p>
-                  </>
-                )}
+                </p>
               </div>
             </div>
           ) : null}
@@ -1091,8 +1110,10 @@ function InvoiceScreen() {
                     <p className="truncate text-base font-medium leading-[1.2] text-text-primary">
                       {file.filename}
                     </p>
+                    {/* TODO(backend): the design names the document kind and the uploader; the file type stands in for the kind. */}
                     <p className="mt-1.5 truncate text-sm font-medium leading-[1.2] text-text-tertiary">
                       {t('invoiceDetails.attachments.meta', {
+                        kind: fileKind(file),
                         size: formatFileSize(file.byteSize),
                         date: formatDate(file.attachedAt.slice(0, 10), language),
                       })}
@@ -1130,22 +1151,28 @@ function InvoiceScreen() {
                 : t('invoiceDetails.attachments.none')}
             </p>
           ) : null}
-          {/* TODO(backend): no upload route exists; the design's drop zone is drawn and explains itself. */}
-          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 opacity-70">
-            <img src={uploadIcon} alt="" className="size-5" />
-            <p className="text-sm font-medium text-text-secondary">
-              {t('invoiceDetails.attachments.drop')}
-            </p>
-            <p className="text-xs font-medium text-text-muted">
-              {t(
-                draft
-                  ? 'invoiceDetails.attachments.draftNote'
+          {/* TODO(backend): no upload route exists; the design's drop zone is drawn and says so when used. */}
+          <button
+            type="button"
+            onClick={() =>
+              setNotice({
+                key: draft
+                  ? 'invoiceDetails.attachments.uploadUnavailable'
                   : noteType
                     ? 'salesNote.detail.attachmentsIssued'
                     : 'invoiceDetails.attachments.issuedNote',
-              )}
-            </p>
-          </div>
+              })
+            }
+            className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 transition-colors hover:bg-primary-25"
+          >
+            <img src={uploadIcon} alt="" className="size-5" />
+            <span className="text-sm font-medium text-text-secondary">
+              {t('invoiceDetails.attachments.drop')}
+            </span>
+            <span className="text-xs font-medium text-text-muted">
+              {t('invoiceDetails.attachments.hint')}
+            </span>
+          </button>
         </div>
       </SectionCard>
 
@@ -1163,7 +1190,7 @@ function InvoiceScreen() {
                 <span aria-hidden="true" className="text-xl leading-none">
                   +
                 </span>
-                {t('invoiceDetails.pay.open')}
+                {t('invoiceDetails.payments.add')}
               </button>
             ) : undefined
           }
@@ -1188,20 +1215,26 @@ function InvoiceScreen() {
                             defaultValue: row.methodCode,
                           })
                         : t('invoiceDetails.payments.title')}
-                      {' — '}
-                      <span className={row.reversed ? 'line-through' : ''}>
-                        {money(row.amount)}
-                      </span>
                     </p>
-                    <p className="mt-1.5 truncate text-sm font-medium leading-[1.2] text-text-tertiary">
-                      {[
-                        day(row.paymentDate),
-                        row.reference
-                          ? t('invoiceDetails.payments.ref', { reference: row.reference })
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
+                    {/* The design's second line: date · reference · a note. The amount takes the note's place. */}
+                    <p className="mt-1.5 flex flex-wrap items-center gap-1 text-sm font-medium leading-[1.2] text-text-tertiary">
+                      <span>{day(row.paymentDate)}</span>
+                      {row.reference ? (
+                        <span>
+                          {' · '}
+                          {t('invoiceDetails.payments.ref', { reference: row.reference })}
+                        </span>
+                      ) : null}
+                      <span>{' · '}</span>
+                      <OmAmount
+                        size="xs"
+                        amount={money(row.amount)}
+                        amountClassName={
+                          row.reversed
+                            ? 'font-semibold text-text-quaternary line-through'
+                            : 'font-semibold text-text-primary'
+                        }
+                      />
                     </p>
                   </div>
                   {row.reversed ? (
@@ -1313,13 +1346,40 @@ function InvoiceScreen() {
       <SectionCard title={t('invoiceDetails.timeline.title')}>
         {history.read.status === 'ready' ? (
           <ol className="flex flex-col">
+            {/* The design heads the trail with where the balance stands now (Figma 154:163406). */}
+            {owed && owed.paymentState !== 'NOT_APPLICABLE' && !draft ? (
+              <li className="flex gap-3">
+                <div className="flex w-7 shrink-0 flex-col items-center">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-700">
+                    <CheckIcon />
+                  </span>
+                  <span className="my-1 w-0.5 flex-1 bg-success-700" />
+                </div>
+                <div className="pb-5">
+                  <p className="text-base font-medium leading-[1.2] text-text-primary">
+                    {t(status.key, { count: 0 })}
+                  </p>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-1 text-sm font-medium leading-[1.2] text-text-tertiary">
+                    {t('invoiceDetails.outstanding')}{' '}
+                    <OmAmount
+                      size="xs"
+                      amount={money(owed.outstandingAmount)}
+                      amountClassName="font-semibold text-text-primary"
+                    />
+                    {due ? <span>{` · ${t(due.key, due.values).toLowerCase()}`}</span> : null}
+                  </p>
+                </div>
+              </li>
+            ) : null}
             {timelineOf(history.read.data, session?.userId ?? null).map((event, index, all) => (
               <li key={`${event.key}-${event.at}-${index}`} className="flex gap-3">
                 <div className="flex w-7 shrink-0 flex-col items-center">
                   <span
                     className={[
                       'flex size-7 shrink-0 items-center justify-center rounded-full',
-                      index === 0 ? 'bg-primary-700' : 'bg-success-700',
+                      index === 0 && (!owed || owed.paymentState === 'NOT_APPLICABLE' || draft)
+                        ? 'bg-primary-700'
+                        : 'bg-success-700',
                     ].join(' ')}
                   >
                     <CheckIcon />
@@ -1734,6 +1794,46 @@ function Breadcrumb({ type }: { type?: InvoiceDetailDto['type'] }) {
       </Link>
     </div>
   )
+}
+
+/** The design's "Purchase order · 248 KB": the file's type stands in for a kind the API lacks. */
+function fileKind(file: InvoiceAttachmentDto): string {
+  const extension = file.filename.split('.').pop()
+  if (extension && extension.length <= 5 && extension !== file.filename)
+    return extension.toUpperCase()
+  return file.contentType.split('/').pop()?.toUpperCase() ?? ''
+}
+
+/**
+ * Where this invoice is on the reminder ladder: which rung today's reminder would be, how many
+ * rungs there are, and when the next one goes out (the server sends at 09:00 Muscat time).
+ */
+function reminderLadder(
+  offsets: number[] | null,
+  dueDate: string | null,
+  today: string,
+  sendsToday: boolean,
+): { number: number; total: number; next: ViewNote | null } | null {
+  if (!offsets || offsets.length === 0 || !dueDate) return null
+  const rungs = [...offsets].sort((a, b) => a - b)
+  const todayRung = rungToday(today, dueDate)
+  if (todayRung === null) return null
+  const passed = rungs.filter((rung) => rung < todayRung).length
+  const number = Math.min(rungs.length, passed + 1)
+  const upcoming = rungs.find((rung) => (sendsToday ? rung >= todayRung : rung > todayRung))
+  if (upcoming === undefined)
+    return { number, total: rungs.length, next: { key: 'invoiceDetails.reminder.none' } }
+  const daysAway = upcoming - todayRung
+  const next: ViewNote =
+    daysAway === 0
+      ? { key: 'invoiceDetails.reminder.today' }
+      : daysAway === 1
+        ? { key: 'invoiceDetails.reminder.tomorrow' }
+        : {
+            key: 'invoiceDetails.reminder.onDay',
+            values: { count: daysAway },
+          }
+  return { number, total: rungs.length, next }
 }
 
 function refusalText(t: Translate, error: unknown): string {

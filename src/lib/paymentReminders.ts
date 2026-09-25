@@ -1,4 +1,9 @@
-import type { ReminderLogDto, ReminderOutcome, ReminderScheduleDto, ReminderVerdict } from '../api/invoices/reminders'
+import type {
+  ReminderLogDto,
+  ReminderOutcome,
+  ReminderScheduleDto,
+  ReminderVerdict,
+} from '../api/invoices/reminders'
 
 /**
  * Payment reminders (I-14, decisions of 2026-09-18).
@@ -61,7 +66,11 @@ export function normaliseOffsets(offsets: number[]): number[] {
   return [...new Set(offsets)].sort((a, b) => a - b)
 }
 
-export function scheduleChanged(saved: ReminderScheduleDto, offsets: number[], enabled: boolean): boolean {
+export function scheduleChanged(
+  saved: ReminderScheduleDto,
+  offsets: number[],
+  enabled: boolean,
+): boolean {
   if (saved.enabled !== enabled) return true
   const next = normaliseOffsets(offsets)
   const previous = normaliseOffsets(saved.offsets)
@@ -152,3 +161,116 @@ export const REMINDER_REFUSALS: Record<string, string> = {
 export function rangeProblem(from: string, to: string): boolean {
   return Boolean(from && to && from > to)
 }
+
+/* ------------------------------------------------------------ the queue (design 159:17137) */
+
+/**
+ * The design's reminders page is a **queue**: what is about to go out, per invoice, with a step
+ * name and a tone. The API has no queue, but it has everything the queue is made of: the ladder,
+ * the unpaid invoices with their due dates, and the log of rungs already spent. So the queue is
+ * worked out here, invoice by invoice: the first rung on or after today that has not fired yet.
+ * TODO(backend): a queue endpoint would replace this derivation (and add cancel, hold and
+ * per-invoice pause, which nothing here can do).
+ */
+
+export type ReminderTone = 'polite' | 'direct' | 'firm'
+
+/** The design's step names, by position on the ladder: first, in between, last. */
+export function stepOf(
+  offsets: number[],
+  offset: number,
+): {
+  index: number
+  tone: ReminderTone
+  nameKey: string
+} {
+  const sorted = normaliseOffsets(offsets)
+  const position = sorted.indexOf(offset)
+  const index = position === -1 ? 0 : position + 1
+  if (position === -1) return { index, tone: 'direct', nameKey: 'reminders.steps.followUp' }
+  if (position === 0) return { index, tone: 'polite', nameKey: 'reminders.steps.friendly' }
+  if (position === sorted.length - 1)
+    return { index, tone: 'firm', nameKey: 'reminders.steps.finalNotice' }
+  return { index, tone: 'direct', nameKey: 'reminders.steps.followUp' }
+}
+
+export function addDays(date: string, days: number): string {
+  const next = new Date(`${date}T00:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + days)
+  return next.toISOString().slice(0, 10)
+}
+
+/** What the queue needs to know about one unpaid invoice. */
+export type QueueInvoice = {
+  id: string
+  invoiceNumber: string | null
+  customerId: string
+  customerName: string | null
+  dueDate: string | null
+  currency: string
+  outstanding: number | null
+  overdue: boolean
+  daysOverdue: number | null
+  paid: boolean
+}
+
+export type QueueReason = 'noDueDate' | 'noRungs' | 'ladderSpent' | 'noRecipient'
+
+export type QueueEntry = {
+  invoice: QueueInvoice
+  email: string | null
+  /** The next rung to fire, or null with the reason under `reason`. */
+  next: { offset: number; date: string } | null
+  reason: QueueReason | null
+  /** The rungs already spent on this invoice, newest first. */
+  spent: ReminderLogDto[]
+}
+
+export function buildQueue(
+  invoices: QueueInvoice[],
+  offsets: number[],
+  log: ReminderLogDto[],
+  emailOf: (customerId: string) => string | null,
+  today: string,
+): QueueEntry[] {
+  const ladder = normaliseOffsets(offsets)
+  return invoices
+    .filter((invoice) => !invoice.paid)
+    .map((invoice) => {
+      const spent = log
+        .filter((row) => row.invoiceId === invoice.id)
+        .sort((a, b) => b.firedOn.localeCompare(a.firedOn))
+      const used = new Set(spent.map((row) => row.daysFromDue))
+      const email = emailOf(invoice.customerId)
+      if (!invoice.dueDate) return { invoice, email, next: null, reason: 'noDueDate', spent }
+      if (ladder.length === 0) return { invoice, email, next: null, reason: 'noRungs', spent }
+      const dueDate = invoice.dueDate
+      const candidate = ladder
+        .filter((offset) => !used.has(offset))
+        .map((offset) => ({ offset, date: addDays(dueDate, offset) }))
+        .find((rung) => rung.date >= today)
+      if (!candidate) return { invoice, email, next: null, reason: 'ladderSpent', spent }
+      if (!email) return { invoice, email, next: null, reason: 'noRecipient', spent }
+      return { invoice, email, next: candidate, reason: null, spent }
+    })
+}
+
+/** The rows the log says were paid after a reminder went out, in the last `days` days. */
+export function paidAfterReminder(
+  invoices: QueueInvoice[],
+  log: ReminderLogDto[],
+  today: string,
+  days = 30,
+): { paid: number; sent: number } {
+  const since = addDays(today, -days)
+  const recent = log.filter((row) => row.firedOn >= since && row.outcome === 'SENT')
+  const chased = new Set(recent.map((row) => row.invoiceId))
+  return {
+    paid: invoices.filter((invoice) => invoice.paid && chased.has(invoice.id)).length,
+    sent: recent.length,
+  }
+}
+
+export type QueueTabId = 'scheduled' | 'sent' | 'paused' | 'notSending'
+
+export const QUEUE_TABS: QueueTabId[] = ['scheduled', 'sent', 'paused', 'notSending']

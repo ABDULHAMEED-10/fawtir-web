@@ -204,7 +204,7 @@ describe('the invoice line a product starts', () => {
         (screen.getAllByRole('textbox', { name: 'Description' })[0] as HTMLInputElement).value,
       ).toContain('Flat White'),
     )
-    expect((screen.getAllByRole('textbox', { name: 'Excl.' })[0] as HTMLInputElement).value).toBe(
+    expect((screen.getAllByRole('textbox', { name: 'Price excl.' })[0] as HTMLInputElement).value).toBe(
       '1.600',
     )
   })

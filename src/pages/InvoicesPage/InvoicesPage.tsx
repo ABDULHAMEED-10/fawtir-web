@@ -26,7 +26,7 @@ import {
   type InvoiceSummaryDto,
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
-import { discardDraft } from '../../api/invoices/drafts'
+import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { cancelInvoice } from '../../api/invoices/detail'
 import {
   INVOICE_SORTS,
@@ -45,6 +45,7 @@ import {
   type InvoiceSortKey,
   type InvoiceTabId,
   type PaymentChip,
+  type PeppolResponse,
   type PeriodId,
 } from '../../lib/invoiceList'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -81,13 +82,24 @@ const PAYMENT_STYLES: Record<PaymentChip, Chip> = {
   overdue: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
   awaiting: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
   partial: { bg: 'bg-warning-100', dot: 'bg-[#6d5a39]', text: 'text-[#6d5a39]' },
+  toSend: { bg: 'bg-primary-25', dot: 'bg-primary-800', text: 'text-primary-800' },
   paid: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
 }
 
-/** The PEPPOL/OTA column: the only delivery fact the API records is "sent by hand". */
-const DELIVERY_STYLES: Record<'sentManually' | 'notSent', Chip> = {
-  sentManually: { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' },
-  notSent: { bg: 'bg-neutral-25', dot: 'bg-text-muted', text: 'text-text-muted' },
+/**
+ * The PEPPOL/OTA column, as the design prints it: the Peppol response code of the last delivery.
+ * A document sent by hand has no code, so it says so in a neutral pill; an undelivered one is blank.
+ */
+const DELIVERY_STYLES: Record<PeppolResponse | 'sentManually', Chip> = {
+  AB: { bg: 'bg-primary-25', dot: 'bg-primary-700', text: 'text-primary-700' },
+  AP: { bg: 'bg-success-100', dot: 'bg-success-700', text: 'text-success-700' },
+  RE: { bg: 'bg-danger-100', dot: 'bg-danger-700', text: 'text-danger-700' },
+  sentManually: { bg: 'bg-neutral-25', dot: 'bg-text-muted', text: 'text-text-tertiary' },
+}
+const DELIVERY_HINTS: Record<PeppolResponse, string> = {
+  AB: 'invoicesPage.transmission.acknowledgedHint',
+  AP: 'invoicesPage.transmission.acceptedHint',
+  RE: 'invoicesPage.transmission.rejectedHint',
 }
 
 /**
@@ -112,8 +124,15 @@ const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
 const isChannel = (value: string | null): value is ChannelId =>
   CHANNELS.includes(value as ChannelId)
 
-const PAGE_SIZES = [10, 25, 50] as const
+const PAGE_SIZES = [6, 10, 25, 50] as const
 const DEFAULT_PAGE_SIZE = 10
+/**
+ * The frame's period chip reads "This month" (Figma 154:172772), yet its rows include a draft and
+ * July documents: the chip is the mock's state, not a rule. A month filter by default would hide
+ * every draft (no issue date) and last month's overdue invoices, so the list opens on all time and
+ * "This month" is one choice away.
+ */
+const DEFAULT_PERIOD: PeriodId = 'all'
 
 /** How long typing pauses before the search is sent, so each keystroke is not a request. */
 const SEARCH_DELAY_MS = 300
@@ -148,7 +167,7 @@ function InvoicesScreen() {
     : null
   const period: PeriodId = isPeriod(params.get('period'))
     ? (params.get('period') as PeriodId)
-    : 'all'
+    : DEFAULT_PERIOD
   const channel: ChannelId = isChannel(params.get('channel'))
     ? (params.get('channel') as ChannelId)
     : 'all'
@@ -213,6 +232,15 @@ function InvoicesScreen() {
       })
     : null
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath!))
+  // The design names the issuing branch under the customer; the row carries only its id.
+  const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
+  const branchNames = useMemo(() => {
+    const names = new Map<string, string>()
+    if (branches.read.status === 'ready') {
+      for (const branch of branches.read.data) names.set(branch.id, branch.name)
+    }
+    return names
+  }, [branches.read])
 
   const [notice, setNotice] = useState<{ body: string } | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -344,7 +372,6 @@ function InvoicesScreen() {
 
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
-  const filtered = query !== '' || type !== null || period !== 'all'
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -416,8 +443,10 @@ function InvoicesScreen() {
             <FilterMenu
               label={t('invoicesPage.filters.period.all')}
               value={period}
-              defaultValue="all"
-              onChange={(value) => update({ period: value === 'all' ? null : value, page: null })}
+              defaultValue={DEFAULT_PERIOD}
+              onChange={(value) =>
+                update({ period: value === DEFAULT_PERIOD ? null : value, page: null })
+              }
               options={PERIODS.map((option) => ({ value: option.id, label: t(option.labelKey) }))}
             />
             <FilterMenu
@@ -457,7 +486,8 @@ function InvoicesScreen() {
         ) : (
           <InvoiceTable
             page={page}
-            nothingYet={totals.all === 0 && !filtered}
+            branchNames={branchNames}
+            nothingYet={totals.all === 0 && query === '' && type === null}
             onDiscard={setDiscarding}
             onCancel={setCancelling}
             onUnavailable={(key) => setNotice({ body: t(key) })}
@@ -476,14 +506,6 @@ function InvoicesScreen() {
                   update({ size: next === DEFAULT_PAGE_SIZE ? null : String(next), page: null })
                 }
               />
-              {page.total !== null ? (
-                <span className="text-sm font-medium text-text-tertiary">
-                  {t('invoicesPage.resultTotal', {
-                    count: page.total,
-                    documents: count(page.total),
-                  })}
-                </span>
-              ) : null}
             </div>
             {pageCountOf(page) > 1 ? (
               <PageNumbers
@@ -778,12 +800,14 @@ function PageSizeMenu({ value, onChange }: { value: number; onChange: (value: nu
 
 function InvoiceTable({
   page,
+  branchNames,
   nothingYet,
   onDiscard,
   onCancel,
   onUnavailable,
 }: {
   page: Page<InvoiceRowDto> | null
+  branchNames: Map<string, string>
   nothingYet: boolean
   onDiscard: (item: InvoiceListItem) => void
   onCancel: (item: InvoiceListItem) => void
@@ -940,7 +964,10 @@ function InvoiceTable({
                       })}
                     />
                   </td>
-                  <InvoiceRowCells row={row} />
+                  <InvoiceRowCells
+                    row={row}
+                    branch={row.branchId ? branchNames.get(row.branchId) : undefined}
+                  />
                   <td className="px-2 py-2.5" onClick={(event) => event.stopPropagation()}>
                     <ActionMenu items={menuFor(row)} label={t('invoicesPage.rowMenu')} floating />
                   </td>
@@ -954,9 +981,10 @@ function InvoiceTable({
   )
 }
 
-function StatusChip({ chip, label }: { chip: Chip; label: string }) {
+function StatusChip({ chip, label, title }: { chip: Chip; label: string; title?: string }) {
   return (
     <span
+      title={title}
       className={[
         'inline-flex items-center gap-2 rounded-full px-3 py-[5px] text-sm font-medium leading-[1.5]',
         chip.bg,
@@ -969,26 +997,43 @@ function StatusChip({ chip, label }: { chip: Chip; label: string }) {
   )
 }
 
-function InvoiceRowCells({ row }: { row: InvoiceListItem }) {
+function InvoiceRowCells({ row, branch }: { row: InvoiceListItem; branch: string | undefined }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const subline = row.subtitle ?? (row.isDraft ? t('invoicesPage.notIssuedYet') : null)
+  // Under the customer the design names the issuing branch, else the subject or PO, else that a
+  // draft has not been issued.
+  const subline = branch ?? row.subtitle ?? (row.isDraft ? t('invoicesPage.notIssuedYet') : null)
   // One pill, as the design draws it: what is owed once issued, the authoring state otherwise.
+  // An overdue pill says "Overdue"; how late it is sits in the tooltip.
   const status =
     row.payment && row.authoring === 'issued'
       ? {
           chip: PAYMENT_STYLES[row.payment],
-          label: t(`invoicesPage.payment.${row.payment}`, row.paymentValues),
+          label: t(`invoicesPage.payment.${row.payment}`),
+          title:
+            row.payment === 'overdue'
+              ? t('invoicesPage.payment.overdueDays', { count: row.paymentValues?.count ?? 0 })
+              : undefined,
         }
       : {
           chip: AUTHORING_STYLES[row.authoring],
           label: t(`invoicesPage.authoring.${row.authoring}`),
+          title: undefined,
         }
-  // TODO(backend): no Peppol or OTA status exists; the column shows the one delivery fact recorded.
-  const delivery = row.sentManually
-    ? { chip: DELIVERY_STYLES.sentManually, label: t('invoicesPage.delivery.sentManually') }
-    : row.authoring === 'issued'
-      ? { chip: DELIVERY_STYLES.notSent, label: t('invoicesPage.delivery.notSent') }
+  // TODO(backend): no Peppol response is answered yet (list.ts `peppolResponse`); a manual send
+  // is the one delivery fact recorded, and an undelivered document leaves the column blank.
+  const delivery = row.peppolResponse
+    ? {
+        chip: DELIVERY_STYLES[row.peppolResponse],
+        label: row.peppolResponse,
+        title: t(DELIVERY_HINTS[row.peppolResponse]),
+      }
+    : row.sentManually
+      ? {
+          chip: DELIVERY_STYLES.sentManually,
+          label: t('invoicesPage.delivery.sentManually'),
+          title: undefined,
+        }
       : null
   return (
     <>
@@ -1032,11 +1077,11 @@ function InvoiceRowCells({ row }: { row: InvoiceListItem }) {
         )}
       </td>
       <td className="px-2 py-2.5">
-        <StatusChip chip={status.chip} label={status.label} />
+        <StatusChip chip={status.chip} label={status.label} title={status.title} />
       </td>
       <td className="px-2 py-2.5">
         {delivery ? (
-          <StatusChip chip={delivery.chip} label={delivery.label} />
+          <StatusChip chip={delivery.chip} label={delivery.label} title={delivery.title} />
         ) : (
           <span className="text-sm font-medium text-text-muted">—</span>
         )}

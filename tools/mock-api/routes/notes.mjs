@@ -198,8 +198,8 @@ const INVOICES = [
     po: 'PO-88213',
     subject: 'Ramadan 2026 supply',
     lines: [
-      line(1, 'Cappuccino — Large', 'EA', 12, 1.8, 0, 'p-cap-l'),
-      line(2, 'Coffee Beans 1kg — H Blend', 'KGM', 4, 9.5, 10, 'p-beans-h'),
+      line(1, 'Cappuccino, Large', 'EA', 12, 1.8, 0, 'p-cap-l'),
+      line(2, 'Coffee Beans 1kg, House Blend', 'KGM', 4, 9.5, 10, 'p-beans-h'),
     ],
     paid: 30,
     credited: 35.91,
@@ -213,8 +213,8 @@ const INVOICES = [
     dueDate: '2026-09-17',
     po: 'PO-88240',
     lines: [
-      line(1, 'Cappuccino — Large', 'EA', 12, 1.8, 0, 'p-cap-l'),
-      line(2, 'Coffee Beans 1kg — House Blend', 'KGM', 4, 9.5, 10, 'p-beans-house'),
+      line(1, 'Cappuccino, Large', 'EA', 12, 1.8, 0, 'p-cap-l'),
+      line(2, 'Coffee Beans 1kg, House Blend', 'KGM', 4, 9.5, 10, 'p-beans-house'),
     ],
     paid: 30,
   }),
@@ -226,7 +226,7 @@ const INVOICES = [
     branchId: 'b-seeb',
     issueDate: '2026-07-02',
     dueDate: '2026-08-01',
-    lines: [line(1, 'Cappuccino — Large', 'EA', 40, 1.8, 0, 'p-cap-l')],
+    lines: [line(1, 'Cappuccino, Large', 'EA', 40, 1.8, 0, 'p-cap-l')],
     paid: 75.6,
   }),
   doc({
@@ -257,7 +257,7 @@ const INVOICES = [
     customerId: 'c-nsc',
     issueDate: '2026-07-05',
     dueDate: '2026-08-04',
-    lines: [line(1, 'Event catering — coffee bar', 'HUR', 8, 2.975, 0, 'p-catering')],
+    lines: [line(1, 'Event catering, coffee bar', 'HUR', 8, 2.975, 0, 'p-catering')],
     paid: 24.99,
   }),
   doc({
@@ -267,7 +267,7 @@ const INVOICES = [
     customerId: 'c-sbr',
     issueDate: '2026-07-04',
     dueDate: '2026-08-03',
-    lines: [line(1, 'Coffee Beans 1kg — H Blend', 'KGM', 10, 9.5, 0, 'p-beans-h')],
+    lines: [line(1, 'Coffee Beans 1kg, House Blend', 'KGM', 10, 9.5, 0, 'p-beans-h')],
     paid: 99.75,
   }),
   doc({
@@ -296,7 +296,7 @@ const CREDIT_NOTES = [
     subject: 'RMA-0142',
     po: 'PO-88213',
     note: '4 kg of H Blend returned on 22 Sep due to a quality issue. Credited in full including VAT.',
-    lines: [line(1, 'Coffee Beans 1kg — H Blend', 'KGM', 4, 9.5, 10, 'p-beans-h')],
+    lines: [line(1, 'Coffee Beans 1kg, House Blend', 'KGM', 4, 9.5, 10, 'p-beans-h')],
   }),
   doc({
     id: 'crn-0086',
@@ -319,7 +319,7 @@ const CREDIT_NOTES = [
     issueDate: '2026-09-14',
     dueDate: '2026-09-14',
     reason: 'CAN',
-    lines: [line(1, 'Event catering — coffee bar', 'HUR', 4, 2.975, 0, 'p-catering')],
+    lines: [line(1, 'Event catering, coffee bar', 'HUR', 4, 2.975, 0, 'p-catering')],
   }),
   doc({
     id: 'crn-0084',
@@ -341,7 +341,7 @@ const CREDIT_NOTES = [
     issueDate: '2026-09-11',
     dueDate: '2026-09-11',
     reason: 'QTY',
-    lines: [line(1, 'Cappuccino — Large', 'EA', 5, 1.7, 0, 'p-cap-l')],
+    lines: [line(1, 'Cappuccino, Large', 'EA', 5, 1.7, 0, 'p-cap-l')],
   }),
   doc({
     id: 'crn-0082',
@@ -376,7 +376,7 @@ const CREDIT_NOTES = [
       issueDate: `2026-08-${String(24 - index * 3).padStart(2, '0')}`,
       dueDate: `2026-08-${String(24 - index * 3).padStart(2, '0')}`,
       reason: ['VAL', 'QTY', 'OTH'][index % 3],
-      lines: [line(1, 'Cappuccino — Large', 'EA', 2 + index, 1.8, 0, 'p-cap-l')],
+      lines: [line(1, 'Cappuccino, Large', 'EA', 2 + index, 1.8, 0, 'p-cap-l')],
     }),
   ),
 ]
@@ -395,7 +395,7 @@ const DEBIT_NOTES = [
     subject: 'CA-2026-03',
     po: 'PO-88240',
     note: 'House Blend was invoiced at the old contract rate of 9.500/kg. The rate agreed from 1 September is 10.250/kg, so this note charges the 0.750/kg difference on 4 kg.',
-    lines: [line(1, 'Coffee Beans 1kg — House Blend', 'KGM', 4, 0.75, 0, 'p-beans-house')],
+    lines: [line(1, 'Coffee Beans 1kg, House Blend', 'KGM', 4, 0.75, 0, 'p-beans-house')],
   }),
   doc({
     id: 'dbn-0041',
@@ -407,7 +407,7 @@ const DEBIT_NOTES = [
     issueDate: '2026-09-18',
     dueDate: '2026-10-18',
     reason: 'QTY',
-    lines: [line(1, 'Additional delivery — beans', 'KGM', 10, 0.85, 0, 'p-beans-h')],
+    lines: [line(1, 'Additional delivery, beans', 'KGM', 10, 0.85, 0, 'p-beans-h')],
   }),
   doc({
     id: 'dbn-0040',
@@ -430,7 +430,7 @@ const DEBIT_NOTES = [
     issueDate: '2026-08-20',
     dueDate: '2026-09-19',
     reason: 'VAT',
-    lines: [line(1, 'VAT correction — standard rate applied', 'EA', 1, 2.4)],
+    lines: [line(1, 'VAT correction, standard rate applied', 'EA', 1, 2.4)],
     paid: 2.52,
   }),
   doc({
@@ -454,7 +454,7 @@ const DEBIT_NOTES = [
     correctionOf: 'inv-2041',
     state: 'DRAFT',
     reason: 'VAL',
-    lines: [line(1, 'Price escalation — cold brew', 'LTR', 8, 0.4, 0, 'p-cold-brew')],
+    lines: [line(1, 'Price escalation, cold brew', 'LTR', 8, 0.4, 0, 'p-cold-brew')],
   }),
   doc({
     id: 'dbn-0036',
@@ -478,7 +478,7 @@ const DEBIT_NOTES = [
       issueDate: `2026-07-${String(28 - index * 3).padStart(2, '0')}`,
       dueDate: `2026-08-${String(27 - index * 3).padStart(2, '0')}`,
       reason: ['VAL', 'QTY', 'OTH'][index % 3],
-      lines: [line(1, 'Surcharge — weekend delivery', 'EA', 1 + index, 1.5)],
+      lines: [line(1, 'Surcharge, weekend delivery', 'EA', 1 + index, 1.5)],
       paid: round3((1 + index) * 1.5 * 1.05),
     }),
   ),

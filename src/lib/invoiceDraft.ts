@@ -1,7 +1,7 @@
 import type { DraftRequest, DraftResponse } from '../api/invoices/drafts'
 import type { ProblemFieldError } from '../api/errors'
 import { TAX_CATEGORIES } from './catalogues'
-import { parseAmount, toExclusivePrice, type DiscountType } from './invoiceMath'
+import { formatAmount, parseAmount, toExclusivePrice, type DiscountType } from './invoiceMath'
 import { taxCategoryOf } from './productLine'
 
 /**
@@ -28,8 +28,13 @@ export type DraftLine = {
   description: string
   /** Goods or service. Not a draft field yet: kept on the client, read back from the unit. */
   itemType: ItemType
-  /** ISIC division (BTOM-033) for a business or government invoice; empty for a consumer's. */
-  classification: string
+  /**
+   * The product's HS code (Oman's 12 digits, IBR-079-OM) on a goods line of a business or
+   * government invoice; `000000000000` is "Other". A consumer's invoice never carries one.
+   */
+  hsCode?: string
+  /** The CL-12-OM service type (IBR-155-OM) on a service line of a business or government invoice. */
+  serviceType?: string
   unitPrice: string
   vatRate: string
   taxCode: string | null
@@ -183,7 +188,6 @@ export function blankDraftLine(taxCode = 'S5'): DraftLine {
     productCode: null,
     description: '',
     itemType: 'goods',
-    classification: '',
     unitPrice: '0.000',
     vatRate: tax.rate,
     taxCode: tax.code,
@@ -233,8 +237,11 @@ export function toDraftRequest(form: DraftForm, exclVat: boolean): DraftRequest 
     vatMode: 'EXCLUSIVE',
     lines: form.lines.map((line, index) => {
       const tax = taxOptionOf(line)
-      // TODO(backend): `itemType` (goods/service) and `classification` (ISIC) have no draft field;
-      // `InvoiceDraftRequest` refuses unknown members, so they stay on the client until it has them.
+      // TODO(backend): `itemType` (goods/service), `hsCode` and `serviceType` have no draft field
+      // and `InvoiceDraftRequest` refuses unknown members, so the line's classification stays on
+      // the client until the API carries `lines[].itemType`, `lines[].hsCode` and
+      // `lines[].serviceType` (PINT_OM_LINE_CLASSIFICATION.md §7.3). The industrial classification
+      // is never sent: the backend copies the tenant's setting onto every line.
       return {
         lineNumber: index + 1,
         productId: line.productId ?? '',
@@ -302,9 +309,11 @@ export function fromDraftResponse(draft: DraftResponse, customerType: CustomerKi
         productCode: line.productCode || null,
         description: line.description,
         itemType: itemTypeOfUnit(line.unitCode),
-        classification: '',
-        // Number() drops the scale-10 zeros ("1.8000000000" → 1.8) without rounding anything.
-        unitPrice: String(Number(line.unitPrice)),
+        // Read when the response carries them (a backend ask); a draft saved today has neither.
+        hsCode: line.hsCode ?? undefined,
+        serviceType: line.serviceType ?? undefined,
+        // Three decimals as typed ("1.8" reloads as "1.800"), no thousands separators.
+        unitPrice: formatAmount(parseAmount(String(line.unitPrice)), 3).replace(/,/g, ''),
         vatRate: tax?.rate ?? String(Number(line.taxRate)),
         taxCode: tax?.code ?? null,
         exemptionReason: line.exemptionReason ?? '',
@@ -318,7 +327,10 @@ export function fromDraftResponse(draft: DraftResponse, customerType: CustomerKi
 }
 
 export type FormProblem = {
-  /** `customer`, `branch`, or a line field: `description`, `quantity`, `unitPrice`, `discountValue`, `exemptionReason`. */
+  /**
+   * `customer`, `branch`, or a line field: `description`, `quantity`, `unitPrice`, `discountValue`,
+   * `exemptionReason`, `hsCode`, `serviceType`.
+   */
   field: string
   /** Zero-based, for a line field. */
   line?: number
@@ -347,6 +359,26 @@ export function problemsBeforeSave(form: DraftForm): FormProblem[] {
         line: index,
         key: 'invoiceDraft.problem.exemptionReason',
       })
+    }
+  })
+  return problems
+}
+
+/**
+ * What stops an issue, over and above a save: on a full tax invoice (business or government
+ * customer) every goods line names its product's HS code (IBR-079-OM) and every service line its
+ * service type (IBR-155-OM). A consumer's simplified invoice skips both. The server will refuse
+ * the same at `POST /issue` once it validates them; checking here points at the line first.
+ */
+export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
+  if (form.customerType === 'consumer') return []
+  const problems: FormProblem[] = []
+  form.lines.forEach((line, index) => {
+    if (line.itemType === 'goods' && !line.hsCode) {
+      problems.push({ field: 'hsCode', line: index, key: 'invoiceDraft.problem.hsCode' })
+    }
+    if (line.itemType === 'service' && !line.serviceType) {
+      problems.push({ field: 'serviceType', line: index, key: 'invoiceDraft.problem.serviceType' })
     }
   })
   return problems

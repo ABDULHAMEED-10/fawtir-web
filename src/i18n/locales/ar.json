@@ -1444,10 +1444,13 @@
       "dueSoonNote": "مسودات متوقعة في الشهر القادم."
     },
     "menu": {
-      "pause": "إيقاف مؤقت",
-      "resume": "استئناف",
-      "view": "فتح",
-      "edit": "تعديل"
+      "pause": "إيقاف السلسلة",
+      "resume": "استئناف السلسلة",
+      "view": "عرض الجدول",
+      "edit": "تعديل",
+      "generate": "إنشاء فاتورة",
+      "duplicate": "تكرار",
+      "delete": "حذف"
     },
     "done": {
       "paused": "أُوقف. لن تُنشأ مسودات حتى تستأنفه.",
@@ -1493,7 +1496,13 @@
       "generated": "أُنشئ هذا الشهر",
       "generatedMeta": "يُحسب في صفحة كل جدول",
       "attention": "يحتاج انتباهاً",
-      "attentionMeta": "{{paused}} متوقف · {{overdue}} متأخر"
+      "attentionMeta": "{{paused}} متوقف · {{onRequest}} عند الطلب",
+      "generatedIssued_zero": "لم تصدر فواتير",
+      "generatedIssued_one": "صدرت فاتورة واحدة",
+      "generatedIssued_two": "صدرت فاتورتان",
+      "generatedIssued_few": "صدرت {{count}} فواتير",
+      "generatedIssued_many": "صدرت {{count}} فاتورة",
+      "generatedIssued_other": "صدرت {{count}} فاتورة"
     },
     "status": {
       "active": "نشط",
@@ -1531,7 +1540,19 @@
     "resultTotal_other": "{{count}} جدول",
     "pages": "الصفحات",
     "prevPage": "الصفحة السابقة",
-    "nextPage": "الصفحة التالية"
+    "nextPage": "الصفحة التالية",
+    "notYet": {
+      "generate": "إنشاء فاتورة عند الطلب غير متاح بعد. تنشئ الدورة اليومية كل فاتورة في موعدها.",
+      "delete": "حذف الجدول غير متاح بعد. أوقفه مؤقتًا لإيقافه."
+    },
+    "issuedCount_zero": "لم تصدر",
+    "issuedCount_one": "صدرت واحدة",
+    "issuedCount_two": "صدرت اثنتان",
+    "issuedCount_few": "صدرت {{count}}",
+    "issuedCount_many": "صدرت {{count}}",
+    "issuedCount_other": "صدرت {{count}}",
+    "lastRun": "آخرها {{date}}",
+    "notIssued": "لم تصدر"
   },
   "suppliersPage": {
     "title": "الموردون",
@@ -1933,7 +1954,15 @@
       "overdue_two": "متأخر · يومان",
       "overdue_few": "متأخر · {{count}} أيام",
       "overdue_many": "متأخر · {{count}} يومًا",
-      "overdue_other": "متأخر · {{count}} يوم"
+      "overdue_other": "متأخر · {{count}} يوم",
+      "toSend": "بانتظار الإرسال",
+      "overdue": "متأخر",
+      "overdueDays_zero": "متأخر",
+      "overdueDays_one": "متأخر بيوم واحد",
+      "overdueDays_two": "متأخر بيومين",
+      "overdueDays_few": "متأخر {{count}} أيام",
+      "overdueDays_many": "متأخر {{count}} يومًا",
+      "overdueDays_other": "متأخر {{count}} يوم"
     },
     "delivery": {
       "sentManually": "أُرسلت يدويًا",
@@ -2033,16 +2062,19 @@
       "internal": "ملاحظة داخلية",
       "private": "خاصة",
       "show": "عرض الملاحظة الداخلية",
-      "showHint": "تُسجَّل قراءتها في النشاط."
+      "showHint": "تُسجَّل قراءتها في النشاط.",
+      "unavailable": "تعذّرت قراءة الملاحظة الداخلية."
     },
     "attachments": {
       "title": "المرفقات",
       "none": "لا توجد ملفات محفوظة مع هذه الفاتورة.",
       "draftNote": "يمكن إضافة الملفات أو إزالتها ما دامت مسودة.",
       "issuedNote": "لا يمكن إضافة الملفات أو إزالتها إلا ما دامت الفاتورة مسودة.",
-      "meta": "{{size}} · رُفع في {{date}}",
+      "meta": "{{kind}} · {{size}} · رُفع في {{date}}",
       "drop": "أفلت الملفات هنا أو انقر للرفع",
-      "removeUnavailable": "لا يمكن إزالة الملفات من هنا بعد."
+      "removeUnavailable": "لا يمكن إزالة الملفات من هنا بعد.",
+      "hint": "أوامر شراء، إشعارات تسليم، عقود · PDF، JPG، XLSX",
+      "uploadUnavailable": "الرفع من هنا غير متاح بعد: لا يوجد مسار للمرفقات."
     },
     "payments": {
       "title": "المدفوعات",
@@ -2051,7 +2083,8 @@
       "ref": "مرجع {{reference}}",
       "paid": "المدفوع",
       "of": "من",
-      "receiptUnavailable": "لا يُنشأ إيصال للدفعة بعد."
+      "receiptUnavailable": "لا يُنشأ إيصال للدفعة بعد.",
+      "add": "إضافة دفعة"
     },
     "timeline": {
       "title": "النشاط",
@@ -2174,20 +2207,31 @@
     "duplicateUnavailable": "النسخ غير متاح بعد: لا يوجد مسار لنسخ مستند.",
     "delivered": {
       "sentManually": "أُرسلت يدويًا إلى {{customer}} · {{when}}",
-      "notSent": "لم تُرسل بعد إلى {{customer}}"
+      "notSent": "لم تُرسل بعد إلى {{customer}}",
+      "peppol": "سُلّمت عبر Peppol إلى {{customer}} · {{when}}"
     },
     "reminder": {
       "title": "تذكير بالدفع",
       "pause": "إيقاف مؤقت",
       "pauseUnavailable": "لا يمكن إيقاف التذكيرات إلا لجميع الفواتير معًا من التذكيرات › الإعدادات.",
       "sendNow": "أرسل الآن",
-      "details": "تفاصيل التذكير"
+      "details": "تفاصيل التذكير",
+      "ofLadder": "التذكير {{n}} من {{total}}",
+      "today": "يُرسل اليوم الساعة 09:00",
+      "tomorrow": "يُرسل غدًا الساعة 09:00",
+      "onDay_zero": "يُرسل اليوم الساعة 09:00",
+      "onDay_one": "يُرسل بعد يوم واحد الساعة 09:00",
+      "onDay_two": "يُرسل بعد يومين الساعة 09:00",
+      "onDay_few": "يُرسل بعد {{count}} أيام الساعة 09:00",
+      "onDay_many": "يُرسل بعد {{count}} يومًا الساعة 09:00",
+      "onDay_other": "يُرسل بعد {{count}} يوم الساعة 09:00",
+      "none": "لا تذكيرات أخرى في السلّم"
     },
     "onPeppol": "على Peppol",
     "vatNumber": "الرقم الضريبي {{number}}",
     "currencyOmr": "OMR - ريال عُماني",
     "vat": {
-      "rate": "{{category}} · {{rate}}%",
+      "rate": "نسبة {{category}} · {{rate}}%",
       "mixed": "نسب متعددة"
     },
     "catalogRef": "الكتالوج #{{code}}",
@@ -2204,7 +2248,8 @@
       "from": "من",
       "totalDue": "الإجمالي المستحق"
     },
-    "you": "أنت"
+    "you": "أنت",
+    "sentViaPeppol": "أُرسلت عبر Peppol"
   },
   "createInvoice": {
     "breadcrumb": "الفواتير",
@@ -2283,7 +2328,7 @@
       "exclVat": "بدون ضريبة",
       "inclVat": "شامل الضريبة",
       "description": "الوصف",
-      "excl": "بدون",
+      "excl": "السعر دون الضريبة",
       "vat": "الضريبة (%)",
       "qty": "الكمية",
       "unit": "الوحدة",
@@ -2301,7 +2346,7 @@
       "discountType": "نوع الخصم",
       "omr": "ر.ع.",
       "descriptionPlaceholder": "اسم الصنف أو وصفه",
-      "incl": "شامل",
+      "incl": "السعر شامل الضريبة",
       "type": "النوع",
       "typeOfLine": "البند {{line}}: سلعة أم خدمة",
       "goods": "سلعة",
@@ -2311,7 +2356,15 @@
       "classificationSearch": "ابحث باسم النشاط",
       "classificationNone": "لا يوجد تصنيف مطابق",
       "pickFromCatalogue": "اختر من الكتالوج (اختياري)",
-      "netAmount": "المبلغ الصافي"
+      "netAmount": "المبلغ الصافي",
+      "hsCode": "رمز النظام المنسق",
+      "hsPlaceholder": "اختر رمز النظام المنسق",
+      "hsSearch": "ابحث باسم المنتج",
+      "hsNone": "لا يوجد رمز مطابق. اختر «أخرى».",
+      "serviceType": "نوع الخدمة",
+      "servicePlaceholder": "اختر نوع الخدمة",
+      "serviceSearch": "ابحث باسم الخدمة",
+      "serviceNone": "لا يوجد نوع خدمة مطابق"
     },
     "toggles": {
       "paid": "تعليم كمدفوع",
@@ -2501,7 +2554,8 @@
       "endBeforeStart": "لا تكون النهاية قبل أول مسودة.",
       "occurrences": "أدخل عددًا صحيحًا للدورات أو اتركه فارغًا.",
       "intervalRequired": "اختر عدد مرات التكرار.",
-      "notFound": "لم يعد هذا الجدول موجودًا."
+      "notFound": "لم يعد هذا الجدول موجودًا.",
+      "linesRequired": "أضف بندًا واحدًا على الأقل مع وصف."
     },
     "kind": "فاتورة متكررة",
     "nextShort": "التالية",
@@ -2596,6 +2650,33 @@
     },
     "done": {
       "saved": "تم الحفظ. يتبع التشغيل التالي الجدول الجديد."
+    },
+    "noCustomers": "لا عملاء بعد. أضف عميلًا من صفحة العملاء أولًا.",
+    "noVat": "لا رقم ضريبي مسجّل",
+    "subjectPlaceholder": "موضوع هذه الفاتورة",
+    "poPlaceholder": "PO-00000",
+    "projectPlaceholder": "اختياري",
+    "chooseBranch": "اختر فرعًا",
+    "repeat": {
+      "weekly": "كل {{weekday}}",
+      "monthly": "اليوم {{count}} من كل شهر",
+      "quarterly": "اليوم {{count}} من أول شهر في الربع",
+      "yearly": "في {{date}} من كل سنة"
+    },
+    "switchesPending": "يُحفظان مع الجدول. يعمل بهما فوتر عندما يدعمهما النظام الخلفي.",
+    "willIssueBefore": "سيصدر فوتر فاتورة بمبلغ",
+    "willIssueAfter": "{{every}} ويرسلها إلى {{customer}} تلقائيًا.",
+    "issuedMeta": "صدرت {{date}}",
+    "delivery": {
+      "SENT_MANUALLY": "أُرسلت يدويًا",
+      "NOT_SUBMITTED": "لم تُرسل بعد",
+      "SENT_PEPPOL": "أُرسلت عبر Peppol",
+      "other": "{{state}}"
+    },
+    "payment": {
+      "PAID": "مدفوعة",
+      "PARTIALLY_PAID": "مدفوعة جزئيًا",
+      "UNPAID": "غير مدفوعة"
     }
   },
   "creditNotesPage": {
@@ -2945,7 +3026,9 @@
     "rowMenu": "إجراءات الصف",
     "showResult": "عرض النتائج:",
     "prevPage": "الصفحة السابقة",
-    "nextPage": "الصفحة التالية"
+    "nextPage": "الصفحة التالية",
+    "selectAll": "تحديد كل الاتفاقيات في هذه الصفحة",
+    "selectRow": "تحديد {{supplier}}"
   },
   "newSelfBill": {
     "breadcrumb": "الفوترة الذاتية",
@@ -3037,7 +3120,11 @@
       "preview": "معاينة",
       "saveDraft": "حفظ كمسودة",
       "issue": "إصدار الفاتورة الذاتية"
-    }
+    },
+    "chooseSupplier": "اختر المورّد",
+    "agreementLocked": "يُملأ من اتفاقية المورّد",
+    "noAgreement": "بدون اتفاقية: فوترة ذاتية نظامية",
+    "supplierSearch": "ابحث عن مورّد"
   },
   "selfBillDetail": {
     "breadcrumbIncome": "الإيرادات",
@@ -4605,7 +4692,10 @@
       "day14": "14 days late",
       "day14Note": "Direct follow-up, owner copied",
       "day30": "30 days late",
-      "day30Note": "Final notice, then reminders stop"
+      "day30Note": "Final notice, then reminders stop",
+      "firstNote": "{{step}}: يفترض أن الفاتورة فاتت سهوًا",
+      "middleNote": "{{step}}: مباشر، يذكر مدة التأخير",
+      "lastNote": "{{step}}، ثم تتوقف التذكيرات"
     },
     "rightNowTitle": "الوضع الحالي",
     "viewQueue": "عرض القائمة",
@@ -4618,29 +4708,35 @@
     "stopTitle": "أوقف الإرسال عند",
     "stop": {
       "paid": "The invoice is paid in full",
-      "paidNote": "Reminders stop the moment payment is recorded",
+      "paidNote": "تتوقف التذكيرات لحظة تسوية الفاتورة",
       "partPayment": "A part payment arrives",
-      "partPaymentNote": "Pause and let someone decide, rather than chasing the balance automatically",
+      "partPaymentNote": "أوقف مؤقتًا ودع أحدًا يقرر بدل مطالبة الرصيد تلقائيًا",
       "creditNote": "A credit note is raised against it",
-      "creditNoteNote": "The amount is under correction, so chasing it would be wrong",
+      "creditNoteNote": "المبلغ قيد التصحيح، فمطالبته خطأ",
       "replies": "The customer replies to a reminder",
-      "repliesNote": "A conversation has started، the next step waits for you",
+      "repliesNote": "بدأت محادثة، فالخطوة التالية تنتظرك",
       "dispute": "The invoice is marked in dispute",
-      "disputeNote": "Off by default: turn on if your team uses the dispute flag"
+      "disputeNote": "موقوف افتراضيًا: فعّله إن كان فريقك يستخدم علامة النزاع",
+      "notYet": "غير موجود في الواجهة البرمجية بعد"
     },
     "sendingTitle": "الإرسال",
     "sending": {
       "sendFrom": "الإرسال من",
       "replyTo": "الرد إلى",
       "sendAt": "يُرسل في",
-      "attachPdf": "إرفاق ملف الفاتورة"
+      "attachPdf": "إرفاق ملف الفاتورة",
+      "notYet": "يُضبط للتثبيت كله",
+      "installation": "مرسل البريد الخاص بالتثبيت",
+      "sendAtValue": "08:00 · Asia/Muscat",
+      "attachValue": "لا يُرفق"
     },
     "beforeTitle": "قبل إرسال أي شيء",
     "before": {
       "hold": "Hold each reminder for 24 hours first",
-      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you، if you do nothing, it sends.",
+      "holdNote": "كانت التذكيرات ستنتظر يومًا في قائمة الانتظار قبل الإرسال لتلغي ما لا ينبغي إرساله. اليوم ترسل الدورة في اليوم نفسه.",
       "approveFinal": "Require approval for the final notice",
-      "approveFinalNote": "The firm step never sends on its own، someone has to press send. Useful when the relationship matters more than the invoice."
+      "approveFinalNote": "الخطوة الحازمة لا تُرسل تلقائيًا أبدًا: على أحد أن يضغط إرسال. مفيد عندما تهمّ العلاقة أكثر من الفاتورة.",
+      "notYet": "غير موجود في الواجهة البرمجية بعد"
     },
     "queue": {
       "title": "تذكيرات الدفع",
@@ -4667,7 +4763,22 @@
         "paid": "Paid after a reminder",
         "paidNote": "Last 30 days · 11 sent",
         "paused": "Paused",
-        "pausedNote": "1 customer, 1 invoice"
+        "pausedNote": "1 customer, 1 invoice",
+        "goingOutSweep": "تُرسل الساعة {{hour}} ما لم تُوقف",
+        "overdueAcross_zero": "لا فواتير",
+        "overdueAcross_one": "عبر فاتورة واحدة",
+        "overdueAcross_two": "عبر فاتورتين",
+        "overdueAcross_few": "عبر {{count}} فواتير",
+        "overdueAcross_many": "عبر {{count}} فاتورة",
+        "overdueAcross_other": "عبر {{count}} فاتورة",
+        "paidLast30": "آخر 30 يومًا · أُرسل {{count}}",
+        "pausedNone": "لا شيء موقوف",
+        "pausedAll_zero": "لا فواتير",
+        "pausedAll_one": "فاتورة واحدة، حتى تستأنف",
+        "pausedAll_two": "فاتورتان، حتى تستأنف",
+        "pausedAll_few": "{{count}} فواتير، حتى تستأنف",
+        "pausedAll_many": "{{count}} فاتورة، حتى تستأنف",
+        "pausedAll_other": "{{count}} فاتورة، حتى تستأنف"
       },
       "cols": {
         "sending": "الإرسال",
@@ -4675,7 +4786,8 @@
         "invoice": "الفاتورة",
         "whichReminder": "أي تذكير",
         "amount": "المبلغ",
-        "actions": "الإجراءات"
+        "actions": "الإجراءات",
+        "outcome": "ما الذي جرى"
       },
       "tomorrow": "غدًا",
       "in16Hours": "in 16 hours · 09:00",
@@ -4701,6 +4813,68 @@
         "resume": "استئناف",
         "cancel": "إلغاء",
         "pause": "إيقاف مؤقت"
+      },
+      "holdTitleOn": "تُرسل التذكيرات مع الدورة اليومية الساعة {{hour}}",
+      "holdNoteOn": "كل ما أدناه يُرسل في اليوم المبيّن. إيقاف الكل يوقف الجدول؛ لا يُلغى شيء.",
+      "holdTitleOff": "التذكيرات موقوفة مؤقتًا",
+      "holdNoteOff": "لا يُرسل شيء تلقائيًا حتى تستأنف. يبقى بإمكانك الإرسال يدويًا.",
+      "resumeEverything": "استئناف الكل",
+      "pausedAll": "أُوقف مؤقتًا. لا يُرسل شيء حتى تستأنف.",
+      "resumedAll": "استُؤنف. يكمل الجدول من حيث توقف.",
+      "noSchedule": "لا يقرأ جدول التذكيرات إلا مدير، لذا لا يمكن حساب قائمة الانتظار هنا. يعرض تبويب المُرسل ما تم إرساله.",
+      "today": "اليوم",
+      "inDays_zero": "اليوم",
+      "inDays_one": "بعد يوم واحد",
+      "inDays_two": "بعد يومين",
+      "inDays_few": "بعد {{count}} أيام",
+      "inDays_many": "بعد {{count}} يومًا",
+      "inDays_other": "بعد {{count}} يوم",
+      "overdueDays_zero": "متأخرة",
+      "overdueDays_one": "متأخرة يومًا واحدًا",
+      "overdueDays_two": "متأخرة يومين",
+      "overdueDays_few": "متأخرة {{count}} أيام",
+      "overdueDays_many": "متأخرة {{count}} يومًا",
+      "overdueDays_other": "متأخرة {{count}} يوم",
+      "dueOn": "تستحق {{date}}",
+      "sentOn": "أُرسل {{date}}",
+      "notSending": "لا يُرسل",
+      "untilResume": "حتى تستأنف",
+      "allSent_zero": "لم يُرسل تذكير",
+      "allSent_one": "أُرسل تذكير واحد",
+      "allSent_two": "أُرسل تذكيران",
+      "allSent_few": "أُرسلت {{count}} تذكيرات",
+      "allSent_many": "أُرسل {{count}} تذكيرًا",
+      "allSent_other": "أُرسل {{count}} تذكير",
+      "locale": {
+        "EN": "بالإنجليزية",
+        "AR": "بالعربية"
+      },
+      "reason": {
+        "noDueDate": "لا تاريخ استحقاق على الفاتورة",
+        "noRungs": "لا درجات في الجدول",
+        "ladderSpent": "أُرسلت كل الدرجات",
+        "noRecipient": "لا بريد إلكتروني مسجّل"
+      },
+      "filter": {
+        "allReminders": "كل التذكيرات",
+        "allOutcomes": "كل النتائج"
+      },
+      "sort": {
+        "soonest": "الإرسال، الأقرب",
+        "amount": "المبلغ، الأعلى",
+        "customer": "العميل"
+      },
+      "resultTotal_zero": "لا تذكيرات",
+      "resultTotal_one": "تذكير واحد",
+      "resultTotal_two": "تذكيران",
+      "resultTotal_few": "{{count}} تذكيرات",
+      "resultTotal_many": "{{count}} تذكيرًا",
+      "resultTotal_other": "{{count}} تذكير",
+      "empty": {
+        "scheduled": "لا شيء مقرر إرساله. كل فاتورة غير مدفوعة أخذت تذكيراتها، أو لا فواتير غير مدفوعة.",
+        "sent": "لم تُرسل تذكيرات بعد.",
+        "paused": "لا شيء موقوف.",
+        "notSending": "كل الفواتير غير المدفوعة تُطالَب."
       }
     },
     "pause": {
@@ -4725,7 +4899,11 @@
       "in7Days": "خلال ٧ أيام",
       "onADate": "في تاريخ محدد",
       "note": "ملاحظة",
-      "confirm": "إيقاف حتى {{date}}"
+      "confirm": "إيقاف حتى {{date}}",
+      "scopeInvoiceNoteFor": "تستمر مطالبة الفواتير الأخرى لـ {{customer}} كالمعتاد",
+      "scopeCustomerNoteFor": "لا يُرسل شيء إلى {{customer}} حتى تستأنف",
+      "notePlaceholder": "ما اتفقتم عليه ومتى تراجع مجددًا",
+      "notYet": "إيقاف فاتورة واحدة أو عميل واحد غير متاح بعد. إيقاف الكل يوقف الجدول كله."
     },
     "send": {
       "title": "إرسال تذكير الآن",
@@ -4756,8 +4934,17 @@
         "invoice": "Invoice",
         "issued": "Issued",
         "due": "Due",
-        "outstanding": "Amount outstanding"
-      }
+        "outstanding": "Amount outstanding",
+        "to": "إلى"
+      },
+      "whichInvoice": "أي فاتورة",
+      "chooseInvoice": "اختر فاتورة غير مدفوعة",
+      "noUnpaid": "لا فاتورة غير مدفوعة لمطالبتها.",
+      "noReminderYet": "لم يُرسل تذكير بعد",
+      "lastReminder": "آخر تذكير {{date}}",
+      "language": "بلغة {{language}}",
+      "noPreview": "تعذّرت قراءة الرسالة.",
+      "editNotYet": "نص الرسالة ثابت في الخادم حاليًا."
     },
     "template": {
       "friendlyDescription": "The first message a customer gets. Sent 7 days after the invoice was due.",
@@ -4767,8 +4954,20 @@
       "invoiceWord": "Invoice",
       "attached": "attached",
       "sendTest": "أرسل لي نسخة تجريبية",
-      "save": "حفظ الرسالة"
-    }
+      "save": "حفظ الرسالة",
+      "description": "{{step}}، يُرسل {{when}}.",
+      "fixed": "نص الرسالة ثابت في الخادم حاليًا، بالإنجليزية والعربية. اعرض الرسالة الفعلية من أي فاتورة غير مدفوعة.",
+      "fixedShort": "يحدده الخادم",
+      "previewFromInvoice": "افتح فاتورة غير مدفوعة واختر أرسل الآن لقراءة الرسالة كما ستُرسل."
+    },
+    "bannerTitleOff": "التذكيرات التلقائية متوقفة",
+    "bannerNoteOff": "لا يُرسل شيء تلقائيًا. يمكنك إرسال تذكير من الفاتورة أو من قائمة الانتظار.",
+    "daysEarly": "أيام قبل",
+    "dueDay": "يوم الاستحقاق",
+    "stepMeta": "بالإنجليزية أو العربية حسب تفضيل العميل · يُرسل إلى جهة اتصال الفوترة",
+    "savedJustNow": "حُفظ للتو",
+    "unsaved": "تغييرات غير محفوظة",
+    "testNotYet": "إرسال رسالة تجريبية يحتاج النظام الخلفي. اعرض الرسالة الفعلية من فاتورة."
   },
   "scanToFill": {
     "button": "مسح لتعبئة الحقول",
@@ -7766,7 +7965,7 @@
     "lockedNote": "تغييره يعني إعادة التسجيل في Peppol. راجع الدعم أولًا.",
     "vatRegisteredSince": "مسجّل ضريبيًا منذ",
     "whereYouAre": "أين أنت",
-    "whereYouAreNote": "العنوان المسجّل — وللفروع عناوينها",
+    "whereYouAreNote": "العنوان المسجّل، وللفروع عناوينها",
     "streetAddress": "عنوان الشارع",
     "townOrCity": "المدينة",
     "postalCode": "الرمز البريدي",
@@ -7790,7 +7989,7 @@
     "brandColourNote": "يُستخدم في عناوين الفاتورة",
     "logoWarning": "يُرسم الشعار على ملف PDF فقط. <b>لا يحمل ملف XML المرسل إلى هيئة الضرائب أي صورة</b>، لذا لا يؤثر تغيير الشعار على أي إرسال.",
     "defaults": "ما تبدأ به الفواتير",
-    "defaultsNote": "كل فاتورة جديدة تبدأ من هنا — ويمكن تغيير أي منها لكل عميل",
+    "defaultsNote": "كل فاتورة جديدة تبدأ من هنا، ويمكن تغيير أي منها لكل عميل",
     "language": "اللغة",
     "languageOption": {
       "both": "عربي وإنجليزي",
@@ -7803,7 +8002,7 @@
     },
     "paymentTerms": "شروط الدفع",
     "bottomNote": "ملاحظة أسفل كل فاتورة",
-    "bottomNoteHint": "تفاصيل البنك، شكر، شروط — ما تضيفه عادة بخط اليد",
+    "bottomNoteHint": "تفاصيل البنك، شكر، شروط، ما تضيفه عادة بخط اليد",
     "howItComesOut": "كيف تخرج",
     "livePreview": "معاينة حية",
     "updatesAsYouType": "تتحدث أثناء الكتابة",
@@ -7832,7 +8031,12 @@
     "undoTheChanges": "تراجع عن التغييرات",
     "save": "حفظ",
     "saved": "حُفظ",
-    "andJoin": " و"
+    "andJoin": " و",
+    "industrialClassification": "النشاط التجاري (ISIC)",
+    "industrialClassificationHint": "ينسخه النظام على كل سطر في الفاتورة؛ ولا يُطلب في نموذج الفاتورة",
+    "industrialClassificationPlaceholder": "اختر النشاط التجاري",
+    "industrialClassificationSearch": "ابحث باسم النشاط",
+    "industrialClassificationNone": "لا يوجد نشاط مطابق"
   },
   "branches": {
     "title": "الفروع",
@@ -13932,7 +14136,9 @@
       "unitPrice": "أدخل السعر.",
       "exemptionReason": "اذكر سبب عدم احتساب ضريبة على هذا البند.",
       "description": "أدخل وصفًا.",
-      "walkInName": "أدخل اسم العميل."
+      "walkInName": "أدخل اسم العميل.",
+      "hsCode": "اختر رمز النظام المنسق لسطر السلع هذا (IBR-079-OM).",
+      "serviceType": "اختر نوع الخدمة لسطر الخدمة هذا (IBR-155-OM)."
     },
     "lineError": "البند {{line}}: {{message}}",
     "exemptionReason": "سبب عدم احتساب الضريبة",
@@ -13982,7 +14188,10 @@
     "walkInOnFile": "عميل مسجل لديك بالفعل.",
     "walkInPermission": "لا يمكنك إضافة عملاء، فاختر عميلًا مسجلًا.",
     "walkInRefused": "تعذّرت إضافة العميل: {{reason}}",
-    "previewed": "حُفظت المسودة وسُعّرت. الأرقام من الخادم."
+    "previewed": "حُفظت المسودة وسُعّرت. الأرقام من الخادم.",
+    "businessActivity": "النشاط التجاري: {{code}} · {{name}}",
+    "businessActivityHint": "ينسخه النظام على كل سطر في الفاتورة (IBR-081-OM).",
+    "businessActivityLink": "إعدادات الشركة"
   },
   "invoiceIssue": {
     "action": "إصدار الفاتورة",
@@ -14593,7 +14802,8 @@
       "noLines": "حدّد بندًا واحدًا على الأقل.",
       "creditAmounts": "يحتاج كل بند محدد إلى كمية أكبر من صفر وسعر، لا يتجاوزان ما في الفاتورة.",
       "debitAmounts": "يحتاج كل بند محدد إلى كمية أكبر من صفر وسعر.",
-      "description": "كل بند يحتاج إلى وصف."
+      "description": "كل بند يحتاج إلى وصف.",
+      "noDifference": "أدخل الفرق في بند واحد على الأقل: سعرًا أكبر من صفر وكمية."
     },
     "refused": {
       "invoiceNotIssued": "هذه الفاتورة غير صادرة (أو أُلغيت)، لذا لا يمكن تصحيحها.",
@@ -14816,7 +15026,8 @@
         "stale": "تغيّر هذا الإشعار في مكان آخر؛ أعد تحميله وحاول مجدداً.",
         "notCancellable": "لم يعد بالإمكان إلغاء هذا الإشعار.",
         "delivered": "لا يمكن إلغاء إشعار سبق تسليمه."
-      }
+      },
+      "pendingUpload": "يبقى مع الصفحة حتى يتوفر الرفع"
     },
     "status": {
       "draft": "مسودة",
@@ -14924,7 +15135,7 @@
         "OVERDUE": "متأخرة"
       },
       "issuedOn": "صدرت في {{date}}",
-      "sentManually": "أُرسلت إلى العميل",
+      "sentManually": "أُرسلت عبر بيبول",
       "notSent": "لم تُرسل بعد",
       "invoiceTotal": "إجمالي الفاتورة",
       "alreadyCredited": "مقيّد سابقاً",
@@ -14978,7 +15189,8 @@
       "attachments": "المرفقات",
       "dropFiles": "أفلت الملفات أو انقر للرفع",
       "dropHint": "أوامر شراء، إشعارات تسليم، عقود · PDF, JPG, XLSX",
-      "removeFile": "إزالة"
+      "removeFile": "إزالة",
+      "pickInvoiceHint": "يصحّح الإشعار فاتورة صادرة. اختر الفاتورة المعنية، ويمكنك أيضًا بدء الإشعار من الفاتورة نفسها."
     },
     "mode": {
       "full": "الفاتورة كاملة",
@@ -15008,7 +15220,7 @@
       "kind": "سلعة / خدمة",
       "goods": "سلعة",
       "service": "خدمة",
-      "excl": "دون الضريبة",
+      "excl": "السعر دون الضريبة",
       "vat": "الضريبة (%)",
       "qty": "الكمية",
       "unit": "الوحدة",
@@ -15017,7 +15229,16 @@
       "onInvoice": "في {{invoice}}: {{qty}} × {{price}}",
       "addLine": "إضافة بند",
       "remove": "إزالة البند",
-      "untitled": "بند بلا عنوان"
+      "untitled": "بند بلا عنوان",
+      "hsCode": "رمز النظام المنسق",
+      "serviceType": "نوع الخدمة",
+      "hsPlaceholder": "ابحث عن المنتج بالاسم",
+      "servicePlaceholder": "ابحث عن الخدمة بالاسم",
+      "hsSearch": "اسم المنتج، مثل: بن",
+      "serviceSearch": "اسم الخدمة، مثل: تقديم الطعام",
+      "classificationNone": "لا توجد نتائج. اختر أخرى.",
+      "more": "زيادة واحدة",
+      "fewer": "نقصان واحد"
     },
     "amount": {
       "title": {
@@ -15050,6 +15271,19 @@
         "credit": "مقيّد على {{invoice}} · يعكس الضريبة المصرّح بها لدى هيئة الضرائب.",
         "debit": "مقيّد على {{invoice}} · يصرّح بالضريبة الإضافية لدى هيئة الضرائب."
       }
+    },
+    "reasonOptions": {
+      "returnedGoods": "بضاعة مرتجعة",
+      "priceCorrection": "تصحيح السعر",
+      "orderCancelled": "إلغاء الطلب",
+      "vatCorrection": "تصحيح ضريبة القيمة المضافة",
+      "goodwillDiscount": "خصم مجاملة",
+      "undercharged": "فوترة ناقصة",
+      "additionalDelivery": "توريد إضافي",
+      "freightOmitted": "شحن لم يُحتسب",
+      "latePaymentCharge": "غرامة تأخير السداد",
+      "priceEscalation": "زيادة في السعر",
+      "other": "أخرى"
     }
   },
   "stagedImport": {
@@ -15346,8 +15580,8 @@
     "inclVat": "شامل الضريبة",
     "col": {
       "description": "الوصف",
-      "excl": "قبل الضريبة",
-      "incl": "شامل الضريبة",
+      "excl": "السعر دون الضريبة",
+      "incl": "السعر شامل الضريبة",
       "vat": "الضريبة (%)",
       "qty": "الكمية",
       "unit": "الوحدة",
@@ -15363,6 +15597,20 @@
     "qtyUp": "زيادة واحدة",
     "qtyDown": "نقص واحد",
     "remove": "حذف البند",
-    "addLine": "إضافة بند"
+    "addLine": "إضافة بند",
+    "hsCode": "رمز النظام المنسق",
+    "serviceType": "نوع الخدمة",
+    "hsPlaceholder": "رمز النظام المنسق: ابحث باسم المنتج",
+    "servicePlaceholder": "نوع الخدمة: ابحث باسم الخدمة"
+  },
+  "classification": {
+    "hsCode": "رمز النظام المنسق",
+    "serviceType": "نوع الخدمة",
+    "hsPlaceholder": "اختر رمز النظام المنسق",
+    "hsSearch": "ابحث باسم المنتج",
+    "hsNone": "لا يوجد رمز مطابق. اختر «أخرى».",
+    "servicePlaceholder": "اختر نوع الخدمة",
+    "serviceSearch": "ابحث باسم الخدمة",
+    "serviceNone": "لا يوجد نوع خدمة مطابق"
   }
 }

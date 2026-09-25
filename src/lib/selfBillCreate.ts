@@ -46,9 +46,13 @@ export const NEW_SELF_BILL = {
     currency: 'OMR - Omani Rial',
     taxCategory: 'Standard rate - 5%',
     agreement: 'SBA-2026-004',
-    subject: 'Green bean supply & roasting — July batch',
+    subject: 'Green bean supply & roasting: July batch',
     poReference: 'PO-88317',
   },
+  // TODO(backend): the self-bill create request, when it exists, carries `lines[].itemType`,
+  // `lines[].hsCode` (goods) and `lines[].serviceType` (service) as the invoice draft asks
+  // (PINT_OM_LINE_CLASSIFICATION.md §7.3): a self-billed invoice is always business-to-business,
+  // so every line is classified on the page.
   items: [
     {
       id: '1',

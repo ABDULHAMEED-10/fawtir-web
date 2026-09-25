@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -17,6 +18,7 @@ import {
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { AddCustomerModal } from '../../components/AddCustomerModal'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
+import { ClassificationField } from '../../components/invoice/ClassificationField'
 import { useApiRead } from '../../hooks'
 import { apiRequest, type Page } from '../../api'
 import { ApiError } from '../../api/errors'
@@ -52,6 +54,7 @@ import {
   itemTypeOfUnit,
   paymentTermOf,
   placeFieldErrors,
+  problemsBeforeIssue,
   problemsBeforeSave,
   taxOptionOf,
   toDraftRequest,
@@ -79,7 +82,8 @@ import {
   toExclusivePrice,
   type DiscountType,
 } from '../../lib/invoiceMath'
-import { ISIC_DIVISIONS } from './classification'
+import { INDUSTRIAL_CLASSIFICATION } from '../../lib/settingsCompany'
+import { nameOf } from '../../lib/codeLists/codeList'
 import backIcon from '../../assets/create-invoice/back.svg'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import consumerIcon from '../../assets/create-invoice/consumer.svg'
@@ -262,7 +266,7 @@ function DiscountTypeToggle({
   return (
     <span
       role="group"
-      aria-label={`${label} — ${t('createInvoice.items.discountType')}`}
+      aria-label={`${label}, ${t('createInvoice.items.discountType')}`}
       className="inline-flex h-9 shrink-0 items-center rounded-sm border border-primary-300 bg-white p-0.5"
     >
       {options.map((option) => {
@@ -347,6 +351,7 @@ function DiscountField({
           value={value}
           onChange={(e) => onValueChange(e.target.value)}
           inputMode="decimal"
+          onFocus={selectAllOnFocus}
           aria-label={t('createInvoice.items.discount')}
           className="w-full min-w-0 border-0 bg-transparent px-1 text-sm font-medium text-text-secondary outline-none"
         />
@@ -628,10 +633,17 @@ function InvoiceComposer() {
     setForm((current) => ({ ...current, lines: [...current.lines, blankDraftLine(defaultTax)] }))
     setDirty(true)
   }
-  /** Goods or service: the unit follows when the current one does not belong to the new kind. */
+  /**
+   * Goods or service: the unit follows when the current one does not belong to the new kind, and
+   * the other kind's classification is cleared (an HS code means nothing on a service line).
+   */
   const setItemType = (line: DraftLine, itemType: ItemType) => {
     const units = unitsFor(itemType)
-    updateLine(line.id, { itemType, unit: units.includes(line.unit) ? line.unit : units[0] })
+    updateLine(line.id, {
+      itemType,
+      unit: units.includes(line.unit) ? line.unit : units[0],
+      ...(itemType === 'goods' ? { serviceType: undefined } : { hsCode: undefined }),
+    })
   }
   const fillFromProduct = (line: DraftLine, product: ProductDto) => {
     const patch = lineFromProduct(product, exclVat)
@@ -844,8 +856,18 @@ function InvoiceComposer() {
     if (await persist()) setNotice({ tone: 'success', body: t('invoiceDraft.previewed') })
   }
 
-  // Issuing is of the draft as stored, so what is on screen is saved first when it differs.
+  /**
+   * Issuing is of the draft as stored, so what is on screen is saved first when it differs. The
+   * line classification is checked here rather than at save: a draft may still lack it, an
+   * issued full tax invoice may not (IBR-079-OM, IBR-155-OM); a consumer's invoice skips it.
+   */
   const issue = async () => {
+    const missing = problemsBeforeIssue(form)
+    if (missing.length > 0) {
+      setProblems([...problemsBeforeSave(form), ...missing])
+      setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
+      return
+    }
     const savedMeta = meta && !dirty ? meta : await persist()
     if (savedMeta) setIssuing(savedMeta)
   }
@@ -948,11 +970,6 @@ function InvoiceComposer() {
       label: t(`createInvoice.units.${code}`, { defaultValue: code }),
     }))
   }
-  const classificationOptions: SelectOption[] = ISIC_DIVISIONS.map((division) => ({
-    value: division.code,
-    label: language.startsWith('ar') ? division.ar : division.en,
-    hint: `ISIC ${division.code}`,
-  }))
   const usage = usageForecast()
   const savedText = dirty
     ? t('createInvoice.header.unsaved')
@@ -968,8 +985,8 @@ function InvoiceComposer() {
             ),
           })
   const lineColumns = consumer
-    ? 'grid-cols-[minmax(220px,1fr)_124px_84px_66px_66px_106px_118px_100px]'
-    : 'grid-cols-[minmax(220px,1fr)_124px_152px_84px_66px_66px_106px_118px_100px]'
+    ? 'grid-cols-[minmax(220px,1fr)_124px_96px_66px_66px_106px_118px_100px]'
+    : 'grid-cols-[minmax(220px,1fr)_124px_156px_96px_66px_66px_106px_118px_100px]'
   const steps = consumer
     ? { items: 3, payment: 4, notes: 5 }
     : { items: 3, linked: 4, payment: 5, notes: 6 }
@@ -1306,6 +1323,25 @@ function InvoiceComposer() {
               </FieldShell>
             </div>
           </div>
+          {/* The issuer's ISIC activity is a company setting the backend copies onto every line
+              (IBR-081-OM); the composer shows it and never asks for it. */}
+          {consumer ? null : (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium leading-[1.3] text-text-tertiary">
+              <span className="text-text-secondary">
+                {t('invoiceDraft.businessActivity', {
+                  code: INDUSTRIAL_CLASSIFICATION.code,
+                  name: nameOf(INDUSTRIAL_CLASSIFICATION, language),
+                })}
+              </span>
+              <span>{t('invoiceDraft.businessActivityHint')}</span>
+              <Link
+                to="/settings/company"
+                className="font-semibold text-primary-800 hover:underline"
+              >
+                {t('invoiceDraft.businessActivityLink')}
+              </Link>
+            </p>
+          )}
         </section>
 
         {consumer ? (
@@ -1398,15 +1434,20 @@ function InvoiceComposer() {
                         onChange={(itemType) => setItemType(row, itemType)}
                         line={index + 1}
                       />
-                      {consumer ? null : (
-                        <Combobox
-                          value={row.classification}
-                          onChange={(classification) => updateLine(row.id, { classification })}
-                          options={classificationOptions}
-                          placeholder={t('createInvoice.items.classificationPlaceholder')}
-                          searchPlaceholder={t('createInvoice.items.classificationSearch')}
-                          emptyText={t('createInvoice.items.classificationNone')}
-                          ariaLabel={t('createInvoice.items.classification')}
+                      {/* One column, two lists: the HS code of a product, the type of a service. */}
+                      {consumer ? null : row.itemType === 'goods' ? (
+                        <ClassificationField
+                          kind="goods"
+                          value={row.hsCode ?? ''}
+                          onChange={(hsCode) => updateLine(row.id, { hsCode })}
+                          ariaLabel={t('classification.hsCode')}
+                        />
+                      ) : (
+                        <ClassificationField
+                          kind="service"
+                          value={row.serviceType ?? ''}
+                          onChange={(serviceType) => updateLine(row.id, { serviceType })}
+                          ariaLabel={t('classification.serviceType')}
                         />
                       )}
                       <FieldShell>
@@ -1417,6 +1458,7 @@ function InvoiceComposer() {
                             updateLine(row.id, { unitPrice: normalisePrice(e.target.value) })
                           }
                           inputMode="decimal"
+                          onFocus={selectAllOnFocus}
                           aria-label={t(
                             exclVat ? 'createInvoice.items.excl' : 'createInvoice.items.incl',
                           )}
@@ -1454,6 +1496,7 @@ function InvoiceComposer() {
                           value={row.quantity}
                           onChange={(e) => updateLine(row.id, { quantity: e.target.value })}
                           inputMode="decimal"
+                          onFocus={selectAllOnFocus}
                           aria-label={t('createInvoice.items.qty')}
                           className={INPUT}
                         />
@@ -1546,6 +1589,7 @@ function InvoiceComposer() {
                 value={form.headerDiscountValue}
                 onChange={(e) => change({ headerDiscountValue: e.target.value })}
                 inputMode="decimal"
+                onFocus={selectAllOnFocus}
                 placeholder="0"
                 aria-label={t('createInvoice.items.documentDiscount')}
                 className="h-9 min-w-0 flex-1 rounded-sm border border-primary-300 bg-white px-3 text-sm font-medium text-text-secondary outline-none"

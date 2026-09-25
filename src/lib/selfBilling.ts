@@ -158,7 +158,7 @@ export const SELF_BILL_ROWS: SelfBillRow[] = [
   {
     id: 'SB-0109',
     supplier: 'Salalah Coconut Traders',
-    agreementNote: 'No signed agreement — cannot be issued',
+    agreementNote: 'No signed agreement: cannot be issued',
     agreementTone: 'missing',
     issued: '18 Jul 2026',
     due: '—',

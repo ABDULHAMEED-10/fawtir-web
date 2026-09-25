@@ -43,9 +43,9 @@ import { formatAmount, formatDate } from '../../lib/format'
 import { issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
 import {
   NOTE_MODES,
+  NOTE_REASONS,
   NOTE_REFUSALS,
   NOTE_ROUTES,
-  REASON_CODES,
   addedLine,
   creditEffect,
   fromInvoice,
@@ -53,6 +53,7 @@ import {
   noteProblems,
   noteTotals,
   ownLines,
+  patchLine,
   toNoteRequest,
   visibleLines,
   withMode,
@@ -419,12 +420,10 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
   const lines = visibleLines(form)
 
   const setLine = (lineNumber: number, patch: Partial<NoteLine>) =>
-    setForm((current) => ({
-      ...current,
-      lines: current.lines.map((line) =>
-        line.lineNumber === lineNumber ? { ...line, ...patch } : line,
-      ),
-    }))
+    setForm((current) => patchLine(current, kind, lineNumber, patch))
+  // PINT-OM asks a goods line's HS code and a service line's type of business and government
+  // customers only; a consumer's simplified document carries neither.
+  const classified = customer?.type !== 'CONSUMER'
   const change = (patch: Partial<NoteForm>) => setForm((current) => ({ ...current, ...patch }))
   const changeDate = (patch: Partial<Pick<NoteForm, 'issueDate' | 'dueDate'>>) => {
     change(patch)
@@ -439,7 +438,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
       setNotice(t('salesNote.fixFirst'))
       return null
     }
-    const request = toNoteRequest(form, invoice)
+    const request = toNoteRequest(form, invoice, kind)
     const next = saved
       ? await saveDraft(saved.id, saved.version, request)
       : await createNote(kind, invoice.id, key, request)
@@ -625,6 +624,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                         })
                       : t('salesNote.draft')}
                     {' · '}
+                    {/* TODO(backend): the delivery channel (1.3); the frame says "sent via Peppol". */}
                     {t(
                       invoice.deliveryState === 'SENT_MANUALLY'
                         ? 'salesNote.compose.sentManually'
@@ -716,6 +716,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                   selectable={false}
                   editable={false}
                   growable={false}
+                  classified={classified}
                   tone={kindKey}
                   onChange={setLine}
                 />
@@ -733,9 +734,10 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                 totals={totals}
                 currency={invoice.currency}
                 invoiceNumber={invoiceNumber}
-                selectable={!own}
+                selectable={credit && !own}
                 editable
                 growable={form.mode === 'additionalItems'}
+                classified={classified}
                 tone={kindKey}
                 onChange={setLine}
                 onAdd={() =>
@@ -813,20 +815,18 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
               <Labelled
                 label={t('salesNote.reason')}
                 required
-                error={problems.reasonCode ? t(problems.reasonCode) : undefined}
+                error={problems.reason ? t(problems.reason) : undefined}
               >
                 <Select
-                  value={form.reasonCode}
-                  onChange={(reasonCode) =>
-                    change({ reasonCode: reasonCode as NoteForm['reasonCode'] })
-                  }
-                  options={REASON_CODES.map((code) => ({
-                    value: code,
-                    label: t(`salesNote.reasons.${code}`),
+                  value={form.reason}
+                  onChange={(reason) => change({ reason })}
+                  options={NOTE_REASONS[kind].map((reason) => ({
+                    value: reason.id,
+                    label: t(`salesNote.reasonOptions.${reason.id}`),
                   }))}
                   placeholder={t('salesNote.chooseReason')}
                   ariaLabel={t('salesNote.reason')}
-                  highlighted={form.reasonCode !== ''}
+                  highlighted={form.reason !== ''}
                 />
               </Labelled>
               <Labelled label={t('salesNote.compose.reference')}>

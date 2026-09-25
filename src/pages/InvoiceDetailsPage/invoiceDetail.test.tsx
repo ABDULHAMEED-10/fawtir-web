@@ -259,6 +259,8 @@ beforeEach(async () => {
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
       ])
     if (url === URL_BASE) return invoiceResponse()
+    if (url === '/api/v1/payment-reminders/schedule')
+      return json(200, { offsets: [-3, 0, 7, 14], enabled: true })
     // The notes that correct the invoice; none in these fixtures.
     if (url.startsWith('/api/v1/authored-invoices?'))
       return json(200, { content: [], page: 0, size: 50, totalElements: 0 })
@@ -299,8 +301,9 @@ describe('An invoice, wired to the API', () => {
     expect(screen.getAllByText('Head office').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Net 30 days').length).toBeGreaterThan(0)
 
-    // The headline figure, the "Outstanding" column and the payments footer are the same number, by design.
-    expect(screen.getAllByText('36.700')).toHaveLength(3)
+    // The headline figure, the "Outstanding" column, the payments footer and the activity's head
+    // entry are the same number, by design.
+    expect(screen.getAllByText('36.700')).toHaveLength(4)
     // The invoice total: the balance card, under the lines, the payments footer and the preview.
     expect(screen.getAllByText('56.700')).toHaveLength(4)
     // Paid on the balance card, and again as the payment itself.
@@ -312,13 +315,9 @@ describe('An invoice, wired to the API', () => {
     expect(screen.getAllByText('Thank you for your business.')).toHaveLength(2)
   })
 
-  it('reads the internal note only when asked, because reading it is audited', async () => {
+  it('shows the internal note in its box, as designed, and refreshes the trail its read is written to', async () => {
     renderInvoice()
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
-    expect(calls().some((call) => call.endsWith('/internal-note'))).toBe(false)
-    expect(screen.queryByText('Chase Hamed in September.')).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Show the internal note' }))
     expect(await screen.findByText('Chase Hamed in September.')).toBeTruthy()
     expect(calls().filter((call) => call.endsWith('/internal-note'))).toHaveLength(1)
     // The read is the audit event, so the timeline is fetched again once it has happened.
@@ -548,8 +547,10 @@ describe('A credit or debit note on the same page', () => {
     expect(screen.queryByText('Due date')).toBeNull()
     expect(screen.queryByText('Payments')).toBeNull()
     expect(screen.getByText('on the note')).toBeTruthy()
+    // The drop zone is drawn as designed; using it on an issued note says why nothing can be added.
+    fireEvent.click(screen.getByRole('button', { name: /Drop files or click to upload/ }))
     expect(
-      screen.getByText('Files can only be added or removed while a note is a draft.'),
+      await screen.findByText('Files can only be added or removed while a note is a draft.'),
     ).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     expect(screen.queryByRole('menuitem', { name: 'Cancel invoice' })).toBeNull()
@@ -651,7 +652,8 @@ describe('Recording and reversing payments', () => {
 
   it('records a payment for what is still owed, with its own idempotency key, and refreshes what it changes', async () => {
     renderInvoice()
-    fireEvent.click(await screen.findByRole('button', { name: 'Record payment' }))
+    // The card's action reads "Add payment", as the design draws it; the dialog records it.
+    fireEvent.click(await screen.findByRole('button', { name: 'Add payment' }))
     const amount = (await screen.findByRole('textbox', {
       name: /Amount received/,
     })) as HTMLInputElement
@@ -684,7 +686,7 @@ describe('Recording and reversing payments', () => {
         detail: 'no',
       })
     renderInvoice()
-    fireEvent.click(await screen.findByRole('button', { name: 'Record payment' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add payment' }))
     fireEvent.change(await screen.findByRole('textbox', { name: /Amount received/ }), {
       target: { value: '99.000' },
     })
@@ -735,7 +737,7 @@ describe('Recording and reversing payments', () => {
     }
     const { unmount } = renderInvoice()
     await screen.findByText('Reversed')
-    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add payment' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Reverse' })).toBeNull()
     unmount()
 
@@ -745,7 +747,7 @@ describe('Recording and reversing payments', () => {
     renderInvoice()
     // "Paid" is both the status pill and the balance card's column label; wait for the balance.
     await waitFor(() => expect(screen.getAllByText('Paid').length).toBeGreaterThan(1))
-    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add payment' })).toBeNull()
   })
 })
 

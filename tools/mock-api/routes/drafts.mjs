@@ -325,6 +325,9 @@ function toResponse(id, version, state, draft, extra = {}) {
       en16931Category: line.taxCategory.en16931Category,
       taxRate: line.taxCategory.rate,
       exemptionReason: line.taxCategory.exemptionReason,
+      // Backend ask (PINT_OM_LINE_CLASSIFICATION.md §7.3): the line's HS code or service type.
+      hsCode: line.hsCode ?? null,
+      serviceType: line.serviceType ?? null,
     })),
   }
 }
@@ -338,7 +341,9 @@ const draftLine = (
   quantity,
   unitPrice,
   discount = 0,
+  classification = {},
 ) => ({
+  ...classification,
   lineNumber,
   productId,
   productCode,
@@ -364,7 +369,9 @@ const DRAFTS = new Map([
         currency: 'OMR',
         vatMode: 'EXCLUSIVE',
         lines: [
-          draftLine(1, 'p-cap', 'CAP-L', 'Cappuccino - Large', 'EA', 12, 1.8, 0),
+          draftLine(1, 'p-cap', 'CAP-L', 'Cappuccino - Large', 'EA', 12, 1.8, 0, {
+            hsCode: '090121000000',
+          }),
           draftLine(
             2,
             'p-train',
@@ -374,12 +381,13 @@ const DRAFTS = new Map([
             4,
             9.5,
             10,
+            { serviceType: '92900' },
           ),
         ],
         headerDiscount: { type: 'PERCENTAGE', value: 0 },
         details: {
           deliveryDate: '2026-09-24',
-          subject: 'Monthly coffee supply & barista training — September',
+          subject: 'Monthly coffee supply & barista training, September',
           purchaseOrderReference: 'PO-88213',
           customerVisibleNote:
             'Thank you for your business. Please settle within 30 days by bank transfer using the reference above.',
@@ -389,8 +397,36 @@ const DRAFTS = new Map([
       },
     },
   ],
+  // A consumer's simplified invoice: no classification column, no HS code, no service type.
+  [
+    'd-2046',
+    {
+      version: 1,
+      state: 'DRAFT',
+      internalNote: null,
+      draft: {
+        customerId: 'c-aisha',
+        branchId: 'b-seeb',
+        currency: 'OMR',
+        vatMode: 'EXCLUSIVE',
+        lines: [
+          draftLine(1, 'p-flat', 'FLT-1', 'Flat White', 'EA', 2, 1.6, 0),
+          draftLine(2, 'p-beans', 'BEAN-HB', 'Coffee Beans 1kg - House Blend', 'KGM', 1, 9.5, 0),
+        ],
+        headerDiscount: { type: 'PERCENTAGE', value: 0 },
+        details: {
+          deliveryDate: null,
+          subject: null,
+          purchaseOrderReference: null,
+          customerVisibleNote: null,
+          paymentTerms: { code: 'NET0', label: 'Due on receipt' },
+          transactionType: 'SIMPLIFIED',
+        },
+      },
+    },
+  ],
 ])
-let nextDraft = 2045
+let nextDraft = 2047
 let nextCustomer = 1
 
 const DRAFT_ID = /^\/api\/v1\/invoice-drafts\/([^/]+)$/

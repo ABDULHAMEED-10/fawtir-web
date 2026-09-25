@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { selectAllOnFocus } from './numericInput'
 import { useTranslation } from 'react-i18next'
 import { Select, withRial } from '../ui'
 import { blankLine, convertLinePrices, type LineItem, type useLineTotals } from './lineItems'
@@ -64,7 +65,7 @@ function DiscountTypeToggle({
   return (
     <span
       role="group"
-      aria-label={`${label} — ${t('createInvoice.items.discountType')}`}
+      aria-label={`${label}, ${t('createInvoice.items.discountType')}`}
       className="inline-flex h-9 shrink-0 items-center rounded-sm border border-primary-300 bg-white p-0.5"
     >
       {options.map((option) => {
@@ -111,6 +112,7 @@ function DiscountField({
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
           inputMode="decimal"
+          onFocus={selectAllOnFocus}
           aria-label={t('createInvoice.items.discount')}
           className="w-full min-w-0 border-0 bg-transparent px-1 text-sm font-medium text-text-secondary outline-none"
         />
@@ -239,6 +241,7 @@ export function LineItemsTable({
                       value={row.unitPrice}
                       onChange={(event) => update(row.id, { unitPrice: event.target.value })}
                       inputMode="decimal"
+                      onFocus={selectAllOnFocus}
                       aria-label={t('createInvoice.items.excl')}
                       className="w-full border-0 bg-transparent text-sm font-medium text-text-secondary outline-none"
                     />
@@ -259,6 +262,7 @@ export function LineItemsTable({
                       value={row.quantity}
                       onChange={(event) => update(row.id, { quantity: event.target.value })}
                       inputMode="decimal"
+                      onFocus={selectAllOnFocus}
                       aria-label={t('createInvoice.items.qty')}
                       className="w-full border-0 bg-transparent text-sm font-medium text-text-secondary outline-none"
                     />

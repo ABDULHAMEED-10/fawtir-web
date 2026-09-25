@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
+  FileDropzone,
   Modal,
   OmAmount,
   RowsView,
@@ -48,7 +49,13 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { formatFileSize } from '../../lib/files'
 import { muscatToday } from '../../lib/invoiceIssue'
-import { NOTE_ROUTES, daysBetween, type NoteListStatus } from '../../lib/salesNote'
+import {
+  NOTE_ROUTES,
+  daysBetween,
+  reasonLabelKey,
+  unitLabel,
+  type NoteListStatus,
+} from '../../lib/salesNote'
 import { can, useSession } from '../../lib/session/session'
 import backIcon from '../../assets/invoice-details/back.svg'
 import chevronIcon from '../../assets/invoice-details/chevron.svg'
@@ -179,10 +186,10 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     document ? `${invoicePath(id)}/history` : null,
     () => loadHistory(id),
   )
-  // Reading the internal note is itself an audited event, so it is fetched only when asked for.
-  const [noteWanted, setNoteWanted] = useState(false)
+  // The frame prints the internal note with the page; reading it is an audited event, so the
+  // activity is re-read once it lands.
   const internalNote = useApiRead<{ internalNote: string | null }>(
-    document && noteWanted && can(session, 'invoice.internal-note.read')
+    document && can(session, 'invoice.internal-note.read')
       ? `${invoicePath(id)}/internal-note`
       : null,
     () => loadInternalNote(id),
@@ -219,6 +226,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   )
   const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState('')
+  const [pending, setPending] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const preview = useDocumentPreview()
 
@@ -315,6 +323,8 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     ? `${t(`salesNote.detail.category.${CATEGORY_WORDS[firstLine.en16931Category] ?? 'standard'}`)} · ${rates.size === 1 ? `${firstLine.taxRate ?? 0}%` : t('salesNote.detail.mixedRates')}`
     : '—'
   const reasonCode = data.details?.correctionReasonCode ?? null
+  const reasonKey = reasonLabelKey(kind, reasonCode)
+  const reasonLabel = reasonKey ? t(reasonKey) : (reasonCode ?? '—')
   const reference = data.details?.buyerReference ?? data.details?.subject ?? null
 
   const cancel = async () => {
@@ -446,9 +456,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
         : [{ label: t('salesNote.detail.preview.dueDate'), value: day(data.dueDate) }]),
       {
         label: t('salesNote.detail.preview.reason'),
-        value: reasonCode
-          ? t(`salesNote.reasons.${reasonCode}`, { defaultValue: reasonCode })
-          : '—',
+        value: reasonLabel,
       },
     ],
     lines: data.lines.map((line) => ({
@@ -838,9 +846,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   ].join(' ')}
                 >
                   <img src={credit ? returnIcon : increasesIcon} alt="" className="size-4" />
-                  {reasonCode
-                    ? t(`salesNote.reasons.${reasonCode}`, { defaultValue: reasonCode })
-                    : '—'}
+                  {reasonLabel}
                 </span>
                 {reference ? (
                   <span className="text-sm font-medium text-text-primary">{reference}</span>
@@ -920,7 +926,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                           {line.quantity}
                         </td>
                         <td className="py-3 text-base font-medium text-text-secondary">
-                          {line.unitCode}
+                          {unitLabel(line.unitCode)}
                         </td>
                         <td className="py-3 text-sm font-medium text-text-secondary">
                           {line.discountValue === 0
@@ -1000,26 +1006,9 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                     <span className="text-text-quaternary">{t('salesNote.detail.private')}</span>
                   </p>
                   <div className="min-h-[68px] rounded-sm border border-border-subtle px-4 py-3 text-sm font-medium leading-[1.5] text-text-secondary">
-                    {noteWanted ? (
-                      internalNote.read.status === 'ready' ? (
-                        (internalNote.read.data.internalNote ?? '—')
-                      ) : (
-                        '…'
-                      )
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setNoteWanted(true)}
-                          className="text-sm font-semibold text-primary-800 hover:text-primary-700"
-                        >
-                          {t('salesNote.detail.showInternal')}
-                        </button>
-                        <span className="ms-2 text-xs font-medium text-text-quaternary">
-                          {t('salesNote.detail.showInternalHint')}
-                        </span>
-                      </>
-                    )}
+                    {internalNote.read.status === 'ready'
+                      ? (internalNote.read.data.internalNote ?? '—')
+                      : '…'}
                   </div>
                 </div>
               ) : null}
@@ -1028,7 +1017,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               {t('salesNote.detail.supportingDocs')}
             </p>
             {attachments.read.status === 'ready' && attachments.read.data.length > 0 ? (
-              <ul className="flex flex-col gap-3">
+              <ul className="mb-3 flex flex-col gap-3">
                 {attachments.read.data.map((file) => (
                   <li
                     key={file.id}
@@ -1053,21 +1042,55 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                   </li>
                 ))}
               </ul>
-            ) : draft ? (
-              <div className="flex min-h-[132px] flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-primary-300 bg-surface-tab-bar px-4 py-6 text-center">
-                <img src={uploadIcon} alt="" className="size-6" />
-                <span className="text-base font-medium text-text-primary">
-                  {t('salesNote.compose.dropFiles')}
-                </span>
-                <span className="text-sm font-medium text-text-quaternary">
-                  {t('salesNote.compose.dropHint')}
-                </span>
-              </div>
-            ) : (
-              <p className="text-sm font-medium text-text-quaternary">
-                {t('salesNote.detail.attachmentsNone')}
-              </p>
-            )}
+            ) : null}
+            {/* TODO(backend): attachment upload on an issued note (2.3); the frame draws the dropzone on every note. */}
+            <FileDropzone
+              accept=".pdf,.jpg,.jpeg,.png,.xlsx"
+              multiple
+              onFiles={(picked) => setPending((current) => [...current, ...picked])}
+              className="block w-full"
+            >
+              {({ dragging }) => (
+                <div
+                  className={[
+                    'flex min-h-[132px] flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed bg-surface-tab-bar px-4 py-6 text-center',
+                    dragging ? 'border-primary-700' : 'border-primary-300',
+                  ].join(' ')}
+                >
+                  <img src={uploadIcon} alt="" className="size-6" />
+                  <span className="text-base font-medium text-text-primary">
+                    {t('salesNote.compose.dropFiles')}
+                  </span>
+                  <span className="text-sm font-medium text-text-quaternary">
+                    {t('salesNote.compose.dropHint')}
+                  </span>
+                </div>
+              )}
+            </FileDropzone>
+            {pending.length > 0 ? (
+              <ul className="mt-3 flex flex-col gap-2">
+                {pending.map((file, index) => (
+                  <li
+                    key={`${file.name}-${index}`}
+                    className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-3 py-2 text-sm font-medium text-text-secondary"
+                  >
+                    <span className="truncate">
+                      {file.name}
+                      <span className="ms-2 text-xs text-text-quaternary">
+                        {t('salesNote.detail.pendingUpload')}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPending((current) => current.filter((_, i) => i !== index))}
+                      className="text-xs font-semibold text-text-quaternary hover:text-danger-700"
+                    >
+                      {t('salesNote.compose.removeFile')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </SectionCard>
 
           {!draft ? (

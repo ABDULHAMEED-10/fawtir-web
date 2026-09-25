@@ -143,6 +143,10 @@ beforeEach(async () => {
     if (url === SUMMARY_URL) return summaryResponse()
     if (url.startsWith('/api/v1/authored-invoices/export.csv')) return exportResponse()
     if (url.startsWith('/api/v1/invoice-drafts/')) return discardResponse()
+    if (url === '/api/v1/branches')
+      return json(200, [
+        { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
+      ])
     if (url.startsWith('/api/v1/authored-invoices?')) {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
@@ -183,7 +187,7 @@ describe('Invoices list, wired to the API', () => {
     expect(within(screen.getByRole('button', { name: /^All\s?41$/ })).getByText('41')).toBeTruthy()
     expect(within(screen.getByRole('button', { name: /^Overdue/ })).getByText('5')).toBeTruthy()
     // The design's "To send" tab and PEPPOL/OTA column are drawn; the summary carries no count for
-    // the tab yet, and the column shows the one delivery fact the API records.
+    // the tab yet, and the column prints a Peppol response code only when the row carries one.
     expect(screen.getByRole('button', { name: /^To send/ })).toBeTruthy()
     expect(screen.getByText('PEPPOL/OTA')).toBeTruthy()
 
@@ -191,10 +195,52 @@ describe('Invoices list, wired to the API', () => {
     expect(within(row).getByText('August supply')).toBeTruthy()
     expect(within(row).getByText('1 Aug 2026')).toBeTruthy()
     expect(within(row).getByText('845.125')).toBeTruthy()
-    expect(within(row).getByText('Overdue · 15 days')).toBeTruthy()
-    expect(within(row).getByText('Not sent')).toBeTruthy()
+    // The pill reads "Overdue", as designed; how late it is sits in its tooltip.
+    expect(within(row).getByText('Overdue').closest('span[title]')?.getAttribute('title')).toBe(
+      '15 days overdue',
+    )
+    expect(within(row).queryByText('Not sent')).toBeNull()
 
     expect(listCalls()).toEqual([FIRST_PAGE])
+  })
+
+  it('names the issuing branch under the customer, and prints a Peppol response code when there is one', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          springPage(
+            [
+              issued({
+                branchId: 'b-1',
+                peppolResponse: 'AP',
+                payment: {
+                  state: 'UNPAID',
+                  overdue: false,
+                  daysOverdue: null,
+                  paidAmount: 0,
+                  creditedAmount: 0,
+                  outstandingAmount: 845.125,
+                },
+              }),
+              issued({
+                id: 'inv-2',
+                invoiceNumber: 'INV-2026-0043',
+                deliveryState: 'SENT_MANUALLY',
+              }),
+            ],
+            2,
+          ),
+        ),
+    ]
+    renderInvoices()
+    const row = (await screen.findByText('INV-2026-0042')).closest('tr')!
+    expect(await within(row).findByText('Head office')).toBeTruthy()
+    expect(within(row).getByText('Awaiting payment')).toBeTruthy()
+    expect(within(row).getByText('AP')).toBeTruthy()
+    const manual = screen.getByText('INV-2026-0043').closest('tr')!
+    expect(within(manual).getByText('Sent manually')).toBeTruthy()
+    expect(calls('/api/v1/branches')).toHaveLength(1)
   })
 
   it('prices a draft in the browser and says it is an estimate', async () => {
@@ -244,7 +290,8 @@ describe('Invoices list, wired to the API', () => {
         '/api/v1/authored-invoices?payment=OVERDUE&type=DEBIT_NOTE&from=2026-08-01&to=2026-08-31&q=sohar&sort=DUE_SOONEST&page=0&size=25',
       ),
     )
-  })
+    // Eight controls walked through role queries over the whole shell: slow in JSDOM, not stuck.
+  }, 30_000)
 
   it('pages with the total the server counted', async () => {
     listResponses = [
@@ -253,7 +300,8 @@ describe('Invoices list, wired to the API', () => {
     ]
     renderInvoices()
     await screen.findByText('INV-2026-0042')
-    expect(screen.getByText('41 documents')).toBeTruthy()
+    // 41 documents at 10 a page: five pages, the last one offered.
+    expect(screen.getByRole('button', { name: '5' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '3' }))
     expect(await screen.findByText('INV-2026-0009')).toBeTruthy()
     expect(listCalls().at(-1)).toBe(
@@ -367,11 +415,10 @@ describe('Invoices list, wired to the API', () => {
   it('reads in Arabic with Latin digits', async () => {
     await i18n.changeLanguage('ar')
     renderInvoices()
-    expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
-    expect(screen.getByText('متأخر · 15 يومًا')).toBeTruthy()
+    const row = (await screen.findByText('Sohar Port Logistics')).closest('tr')!
+    expect(within(row).getByText('متأخر')).toBeTruthy()
     expect(screen.getByText('845.125')).toBeTruthy()
     expect(screen.getByText('عبر 12 فاتورة غير مدفوعة')).toBeTruthy()
-    expect(screen.getByText('لم تُرسل')).toBeTruthy()
   })
 })
 
@@ -418,7 +465,7 @@ describe('invoice list mapping', () => {
     )
     expect(note).toMatchObject({ authoring: 'issued', payment: null, amountNote: null })
 
-    const awaiting = toInvoiceListItem(
+    const awaiting_row = () =>
       issued({
         payment: {
           state: 'UNPAID',
@@ -428,9 +475,17 @@ describe('invoice list mapping', () => {
           creditedAmount: 0,
           outstandingAmount: 845.125,
         },
-      }),
+      })
+    const awaiting = toInvoiceListItem(awaiting_row())
+    // Unpaid and never delivered: the design's "To be sent". Delivered by hand: awaiting payment.
+    expect(awaiting).toMatchObject({ payment: 'toSend', amountNote: null })
+    expect(toInvoiceListItem({ ...awaiting_row(), deliveryState: 'SENT_MANUALLY' }).payment).toBe(
+      'awaiting',
     )
-    expect(awaiting).toMatchObject({ payment: 'awaiting', amountNote: null })
+    expect(toInvoiceListItem({ ...awaiting_row(), peppolResponse: 'AB' })).toMatchObject({
+      payment: 'awaiting',
+      peppolResponse: 'AB',
+    })
     expect(
       toInvoiceListItem(issued({ authoringState: 'CANCELLED', payment: null })).authoring,
     ).toBe('cancelled')

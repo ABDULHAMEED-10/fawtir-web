@@ -131,11 +131,6 @@ function SelfBillingHeader() {
         >
           <img src={plusIcon} alt="" className="size-6" />
           {t('selfBilling.create')}
-          <img
-            src={chevronIcon}
-            alt=""
-            className="size-[18px] brightness-0 invert rtl:rotate-180"
-          />
         </Link>
       </div>
     </div>
@@ -405,7 +400,7 @@ function SelfBillingTable() {
       <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-text-muted">{t('selfBilling.showResult')}</span>
-          <div className="w-[88px]">
+          <div className="w-[72px]">
             <Select
               compact
               value={String(size)}

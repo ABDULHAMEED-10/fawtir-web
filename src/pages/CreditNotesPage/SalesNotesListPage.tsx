@@ -43,6 +43,7 @@ import {
   debitPaymentOf,
   noteMatchesTab,
   noteStatusOf,
+  reasonLabelKey,
   summariseNotes,
   type NoteListStatus,
   type NoteTab,
@@ -603,11 +604,9 @@ function NotesList({ kind }: { kind: NoteKind }) {
                             {number}
                           </Link>
                           <p className="text-xs font-medium leading-[1.2] text-text-tertiary">
-                            {row.details?.correctionReasonCode
-                              ? t(`salesNote.reasons.${row.details.correctionReasonCode}`, {
-                                  defaultValue: row.details.correctionReasonCode,
-                                })
-                              : '—'}
+                            {reasonLabelKey(kind, row.details?.correctionReasonCode)
+                              ? t(reasonLabelKey(kind, row.details?.correctionReasonCode)!)
+                              : (row.details?.correctionReasonCode ?? '—')}
                           </p>
                         </td>
                         <td className="px-2 py-3">

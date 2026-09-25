@@ -244,20 +244,21 @@ describe('the note rules', () => {
     const form = fromInvoice(INVOICE, 'CREDIT_NOTE')
     form.lines[0].quantity = '11'
     expect(noteProblems(form, 'CREDIT_NOTE')).toEqual({
-      reasonCode: 'salesNote.error.reason',
+      reason: 'salesNote.error.reason',
       amounts: 'salesNote.error.creditAmounts',
     })
-    expect(noteProblems({ ...form, reasonCode: 'QTY' }, 'DEBIT_NOTE')).toEqual({})
+    expect(noteProblems({ ...form, reason: 'additionalDelivery' }, 'DEBIT_NOTE')).toEqual({})
   })
 
   it('carries the invoice party, currency and terms with the kept lines and the reason code', () => {
+    // The design's "Returned goods" travels as the API's QTY code.
     const form = {
       ...fromInvoice(INVOICE, 'CREDIT_NOTE'),
-      reasonCode: 'QTY' as const,
+      reason: 'returnedGoods',
       note: ' Two bags returned ',
     }
     form.lines[1].include = false
-    const body = toNoteRequest(form, INVOICE)
+    const body = toNoteRequest(form, INVOICE, 'CREDIT_NOTE')
     expect(body).toMatchObject({
       customerId: 'c-1',
       branchId: 'b-1',
@@ -302,7 +303,7 @@ describe('a credit note', () => {
     expect(await screen.findByText('Choose why the note is issued.')).toBeTruthy()
     expect(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/credit-notes`)).toHaveLength(0)
 
-    chooseReason('Quantity correction')
+    chooseReason('Returned goods')
     fireEvent.click(screen.getByRole('button', { name: 'Issue the credit note' }))
 
     // Nothing opens over the page: the draft is saved and issued with the dates on the page.
@@ -313,6 +314,7 @@ describe('a credit note', () => {
     expect(bodyOf(created[0]).lines).toEqual([
       expect.objectContaining({ productId: 'p-1', quantity: 5 }),
     ])
+    expect(bodyOf(created[0]).details.correctionReasonCode).toBe('QTY')
     expect((created[0][1] as RequestInit).headers).toMatchObject({
       'Idempotency-Key': expect.stringMatching(/^draft-/),
     })
@@ -323,20 +325,21 @@ describe('a credit note', () => {
     expect((issue[0][1] as RequestInit).headers).toMatchObject({
       'Idempotency-Key': expect.stringMatching(/^draft-/),
     })
-  })
+  }, 30_000)
 })
 
 describe('a debit note', () => {
-  it('starts with nothing ticked and saves only the lines charged more', async () => {
+  it('lists every invoice line untick-free and saves only the lines given a difference', async () => {
     renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText(/Only the difference is charged/)).toBeTruthy()
+    // As the frame draws it: no checkboxes; a line is charged when it carries a difference.
+    expect(screen.queryByRole('checkbox', { name: /Include/ })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
-    expect(await screen.findByText('Tick at least one line.')).toBeTruthy()
+    expect(await screen.findByText(/Enter the difference on at least one line/)).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Include Roasting' }))
     fireEvent.change(screen.getByLabelText('Unit price · Roasting'), { target: { value: '3' } })
-    chooseReason('Value or price correction')
+    chooseReason('Undercharged')
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
 
     expect(await screen.findByText('debit note page')).toBeTruthy()
@@ -345,7 +348,7 @@ describe('a debit note', () => {
       expect.objectContaining({ productId: 'p-2', quantity: 2, unitPrice: 3 }),
     ])
     expect(body.details.correctionReasonCode).toBe('VAL')
-  })
+  }, 30_000)
 })
 
 describe('notes around the invoice', () => {

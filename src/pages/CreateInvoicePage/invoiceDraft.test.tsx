@@ -80,6 +80,9 @@ function draft(overrides: Partial<DraftResponse> = {}): DraftResponse {
         en16931Category: 'S',
         taxRate: 5,
         exemptionReason: null,
+        // A backend ask: a stored draft returning its goods line's HS code (IBR-079-OM).
+        hsCode: '090121000000',
+        serviceType: null,
       },
     ],
     ...overrides,
@@ -381,6 +384,40 @@ describe('issuing from the composer', () => {
       issueDate: today,
       dueDate: plusDays(today, 30),
     })
+  })
+
+  it('refuses a business invoice whose goods line has no HS code, naming the rule, until one is chosen', async () => {
+    who = ISSUER
+    loaded = draft({ lines: [{ ...draft().lines[0], hsCode: null }] })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(
+      await screen.findByText('Line 1: Choose an HS code for this goods line (IBR-079-OM).'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
+    expect(issueCalls()).toHaveLength(0)
+
+    // Searched by product name; the stored value is the 12-digit code, never sent to the draft
+    // (the request refuses unknown members) but enough to let the issue go ahead.
+    fireEvent.click(screen.getByRole('button', { name: 'HS code' }))
+    fireEvent.change(await screen.findByPlaceholderText('Search by product name'), {
+      target: { value: 'coffee, roasted' },
+    })
+    // "Other" stays offered whatever is typed, after the matches.
+    const options = await screen.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      '0901.21 · Coffee, roasted, not decaffeinated090121000000',
+      '0901.22 · Coffee, roasted, decaffeinated090122000000',
+      'Other000000000000',
+    ])
+    fireEvent.click(options[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
+    const body = bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0])
+    expect('hsCode' in body.draft.lines[0]).toBe(false)
   })
 
   it('saves unsaved changes first and issues the version that save returned', async () => {

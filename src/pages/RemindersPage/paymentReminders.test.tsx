@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -9,13 +9,17 @@ import type {
   ReminderScheduleDto,
 } from '../../api/invoices/reminders'
 import {
+  buildQueue,
   hasMorePages,
   normaliseOffsets,
+  paidAfterReminder,
   rangeProblem,
   rungNote,
   rungProblem,
   scheduleChanged,
   scheduleProblem,
+  stepOf,
+  type QueueInvoice,
 } from '../../lib/paymentReminders'
 import { RemindersPage } from './RemindersPage'
 import { PaymentRemindersPage } from '../PaymentRemindersPage/PaymentRemindersPage'
@@ -33,10 +37,14 @@ const ADMIN: Entitlements = {
 
 const READER: Entitlements = { ...ADMIN, permissions: ['invoice.read'] }
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const now = new Date()
-/** The calendar's "Today" is the browser's local day, as `DateField` writes it. */
-const LOCAL_TODAY = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+const MUSCAT_TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(
+  new Date(),
+)
+const plusDays = (days: number) => {
+  const date = new Date(`${MUSCAT_TODAY}T00:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
 
 const SCHEDULE: ReminderScheduleDto = { offsets: [-3, 0, 7], enabled: true }
 
@@ -67,16 +75,118 @@ const LOG: ReminderLogDto[] = [
 
 // Far enough from the due date that no rung of any sane ladder falls today — the ordinary case,
 // and the one where the message was previously unreachable. Three weeks out, whatever today is.
-const MUSCAT_TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(
-  new Date(),
-)
-const DUE_DATE = (() => {
-  const date = new Date(`${MUSCAT_TODAY}T00:00:00Z`)
-  date.setUTCDate(date.getUTCDate() + 21)
-  return date.toISOString().slice(0, 10)
-})()
+const DUE_DATE = plusDays(21)
 /** Today's distance from that due date, which is the rung the card previews at. */
 const RUNG_TODAY = -21
+
+const invoiceRow = (over: Record<string, unknown>) => ({
+  id: 'inv-1',
+  type: 'INVOICE',
+  version: 2,
+  authoringState: 'ISSUED',
+  deliveryState: 'SENT_MANUALLY',
+  customerId: 'cus-1',
+  currency: 'OMR',
+  invoiceNumber: 'INV-2026-000001',
+  issueDate: plusDays(-9),
+  dueDate: DUE_DATE,
+  details: null,
+  lines: [],
+  totals: { totalAmount: 120 },
+  customerName: 'Nizwa Souq Cafe',
+  payment: {
+    state: 'UNPAID',
+    overdue: false,
+    daysOverdue: null,
+    paidAmount: 0,
+    creditedAmount: 0,
+    outstandingAmount: 120,
+  },
+  ...over,
+})
+
+/** One invoice due in three weeks (the queue), one whose ladder is spent, one paid. */
+const INVOICES = {
+  content: [
+    invoiceRow({}),
+    invoiceRow({
+      id: 'inv-2',
+      invoiceNumber: 'INV-2026-000002',
+      customerId: 'cus-2',
+      customerName: 'Salalah Beach Resort',
+      dueDate: plusDays(-14),
+      payment: {
+        state: 'UNPAID',
+        overdue: true,
+        daysOverdue: 14,
+        paidAmount: 0,
+        creditedAmount: 0,
+        outstandingAmount: 1204.5,
+      },
+    }),
+    invoiceRow({
+      id: 'inv-3',
+      invoiceNumber: 'INV-2026-000003',
+      customerId: 'cus-1',
+      dueDate: plusDays(-30),
+      payment: {
+        state: 'PAID',
+        overdue: false,
+        daysOverdue: null,
+        paidAmount: 50,
+        creditedAmount: 0,
+        outstandingAmount: 0,
+      },
+    }),
+  ],
+  number: 0,
+  size: 100,
+  totalElements: 3,
+  totalPages: 1,
+}
+
+const CUSTOMERS = {
+  content: [
+    {
+      id: 'cus-1',
+      displayName: 'Nizwa Souq Cafe',
+      type: 'BUSINESS',
+      status: 'ACTIVE',
+      profile: { contact: { emailRecipients: ['khalid@nizwasouq.om'] } },
+    },
+    {
+      id: 'cus-2',
+      displayName: 'Salalah Beach Resort',
+      type: 'BUSINESS',
+      status: 'ACTIVE',
+      profile: { contact: { emailRecipients: ['finance@salalahbeach.om'] } },
+    },
+  ],
+  number: 0,
+  size: 100,
+  totalElements: 2,
+  totalPages: 1,
+}
+
+const SUMMARY = {
+  currencyCode: 'OMR',
+  asOf: MUSCAT_TODAY,
+  all: 3,
+  drafts: 0,
+  awaiting: 1,
+  overdue: 1,
+  paid: 1,
+  outstandingTotal: 1324.5,
+  outstandingInvoices: 2,
+  awaitingTotal: 120,
+  dueSoonInvoices: 0,
+  dueSoonDays: 7,
+  overdueTotal: 1204.5,
+  overdueInvoices: 6,
+  oldestOverdueDueDate: plusDays(-14),
+  paidTotal: 50,
+  paidInvoices: 1,
+}
 
 const PREVIEW: ReminderPreviewDto = {
   invoiceId: 'inv-1',
@@ -132,10 +242,11 @@ beforeEach(async () => {
     if (url.endsWith('/reminders/send')) return sendResponse()
     if (url.includes('/authored-invoices/') && url.endsWith('/reminders'))
       return json(200, [row({})])
+    if (url === '/api/v1/authored-invoices/summary') return json(200, SUMMARY)
+    if (url.startsWith('/api/v1/authored-invoices?')) return json(200, INVOICES)
+    if (url.startsWith('/api/v1/customers?')) return json(200, CUSTOMERS)
     if (url.startsWith('/api/v1/payment-reminders/log')) {
-      const page = Number(new URL(url, 'http://x').searchParams.get('page') ?? 0)
       const outcome = new URL(url, 'http://x').searchParams.get('outcome')
-      if (page > 0) return json(200, [])
       return json(200, outcome ? log.filter((entry) => entry.outcome === outcome) : log)
     }
     throw new Error(`unexpected request to ${method} ${url}`)
@@ -155,99 +266,127 @@ function renderAt(path: string) {
         <Route path="/income/reminders" element={<RemindersPage />} />
         <Route path="/income/reminders/settings" element={<PaymentRemindersPage />} />
         <Route path="/invoices/:id" element={<p>invoice page</p>} />
+        <Route path="/settings" element={<p>settings page</p>} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
 describe('Payment reminders, wired to the API', () => {
-  it('shows what actually fired, and says it is a history rather than a queue', async () => {
+  it('works the queue out from the ladder, the unpaid invoices and what already fired', async () => {
     renderAt('/income/reminders')
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Reminders sent' })).toBeTruthy()
-    expect(screen.getByText(/Fawtir keeps no queue of reminders still to come/)).toBeTruthy()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Payment reminders' })).toBeTruthy()
+    // The invoice due in three weeks has spent its first rung (the log says so), so the next one
+    // is the due date itself: the second step of a three-rung ladder.
+    const link = await screen.findByRole('link', { name: 'INV-2026-000001' })
+    expect(link.getAttribute('href')).toBe('/invoices/inv-1')
+    const queued = link.closest('tr') as HTMLElement
+    expect(within(queued).getByText('Follow-up')).toBeTruthy()
+    expect(within(queued).getByText('khalid@nizwasouq.om')).toBeTruthy()
+    expect(within(queued).getByRole('button', { name: 'Send now' })).toBeTruthy()
+    // The overdue invoice has spent every rung, so it is not being chased.
+    expect(screen.queryByRole('link', { name: 'INV-2026-000002' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /^Not sending/ }))
+    expect(await screen.findByRole('link', { name: 'INV-2026-000002' })).toBeTruthy()
+    expect(screen.getByText('Every rung has gone out')).toBeTruthy()
+  })
 
-    expect(
-      (await screen.findByRole('link', { name: 'INV-2026-000001' })).getAttribute('href'),
-    ).toBe('/invoices/inv-1')
+  it('shows what actually fired under Sent, and narrows it by outcome', async () => {
+    renderAt('/income/reminders')
+    await screen.findByRole('link', { name: 'INV-2026-000001' })
+
+    fireEvent.click(screen.getByRole('tab', { name: /^Sent/ }))
+    expect(await screen.findByText('Could not be sent: MailAuthenticationException')).toBeTruthy()
     expect(screen.getByText('3 days before due')).toBeTruthy()
-    expect(screen.getByText('Could not be sent: MailAuthenticationException')).toBeTruthy()
     // A skipped row must not invent a reason the server never stored.
     expect(screen.getByText(/Fawtir records that the rung was used, not why/)).toBeTruthy()
-  })
 
-  it('narrows by outcome and by date, and refuses a backwards range before asking the server', async () => {
-    renderAt('/income/reminders')
-    await screen.findByRole('link', { name: 'INV-2026-000001' })
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Failed' }))
-    await waitFor(() =>
-      expect(
-        calls('GET', '/api/v1/payment-reminders/log').some((call) =>
-          String(call[0]).includes('outcome=FAILED'),
-        ),
-      ).toBe(true),
-    )
+    // The design's Filters pill narrows the history the page already holds.
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Failed/ }))
     expect(await screen.findByRole('link', { name: 'INV-2026-000002' })).toBeTruthy()
-
-    // The dates are picked in the app's own calendar: today, then the first of last month.
-    fireEvent.click(screen.getByRole('button', { name: 'From' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Today' }))
-    await waitFor(() =>
-      expect(
-        calls('GET', '/api/v1/payment-reminders/log').some((call) =>
-          String(call[0]).includes(`from=${LOCAL_TODAY}`),
-        ),
-      ).toBe(true),
-    )
-    const before = calls('GET', '/api/v1/payment-reminders/log').length
-
-    fireEvent.click(screen.getByRole('button', { name: 'To' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Previous month' }))
-    fireEvent.click(screen.getAllByRole('button', { name: '1' })[0])
-
-    expect(await screen.findByRole('alert')).toBeTruthy()
-    // A range the server would refuse is never sent.
-    expect(calls('GET', '/api/v1/payment-reminders/log')).toHaveLength(before)
+    expect(screen.queryByRole('link', { name: 'INV-2026-000003' })).toBeNull()
   })
 
-  it('offers no paging when the page is not full, since a short page is the last one', async () => {
-    renderAt('/income/reminders')
-    await screen.findByRole('link', { name: 'INV-2026-000001' })
-
-    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull()
-  })
-
-  it('pages forward without pretending to know a total', async () => {
-    log = Array.from({ length: 20 }, (_, index) =>
+  it('pages the history the design way, from the page it holds', async () => {
+    log = Array.from({ length: 12 }, (_, index) =>
       row({ invoiceId: `inv-${index}`, invoiceNumber: `INV-2026-0000${index}` }),
     )
     renderAt('/income/reminders')
+    await screen.findByRole('heading', { level: 1, name: 'Payment reminders' })
+    fireEvent.click(screen.getByRole('tab', { name: /^Sent/ }))
 
-    await screen.findByRole('link', { name: 'INV-2026-00000' })
-    expect(screen.getByText(/the API sends no total, so there is no page count/)).toBeTruthy()
-
+    expect(await screen.findByRole('link', { name: 'INV-2026-00000' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'INV-2026-00005' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    expect(await screen.findByText('Nothing on this page. Go back a page.')).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'INV-2026-00005' })).toBeTruthy()
+  })
+
+  it('pauses everything through the schedule switch, the one pause the API has', async () => {
+    renderAt('/income/reminders')
+    await screen.findByRole('link', { name: 'INV-2026-000001' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause everything' }))
+    await waitFor(() => expect(calls('PUT', '/api/v1/payment-reminders/schedule')).toHaveLength(1))
+    expect(
+      JSON.parse(String(calls('PUT', '/api/v1/payment-reminders/schedule')[0][1]?.body)),
+    ).toEqual({
+      offsets: [-3, 0, 7],
+      enabled: false,
+    })
+    expect(await screen.findByRole('button', { name: 'Resume everything' })).toBeTruthy()
+  })
+
+  it('sends one now from the queue, at the rung the row is waiting on', async () => {
+    renderAt('/income/reminders')
+    const queued = (await screen.findByRole('link', { name: 'INV-2026-000001' })).closest(
+      'tr',
+    ) as HTMLElement
+    fireEvent.click(within(queued).getByRole('button', { name: 'Send now' }))
+
+    // The real message, previewed at that rung.
+    expect(await screen.findByText('Invoice INV-2026-000001 is overdue')).toBeTruthy()
+    await waitFor(() =>
+      expect(
+        calls('GET', '/api/v1/authored-invoices/inv-1/reminders/preview').some((call) =>
+          String(call[0]).includes('days_from_due=0'),
+        ),
+      ).toBe(true),
+    )
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send now' }))
+    await waitFor(() =>
+      expect(calls('POST', '/api/v1/authored-invoices/inv-1/reminders/send')).toHaveLength(1),
+    )
+    expect(
+      JSON.parse(
+        String(calls('POST', '/api/v1/authored-invoices/inv-1/reminders/send')[0][1]?.body),
+      ),
+    ).toEqual({ daysFromDue: 0 })
   })
 
   it('edits the ladder in days from the due date, and reads back what the server stored', async () => {
     renderAt('/income/reminders/settings')
-    await screen.findByRole('heading', { level: 1, name: 'When reminders go out' })
+    await screen.findByRole('heading', { level: 1, name: 'Payment reminders' })
 
-    expect(await screen.findByText('3 days before due')).toBeTruthy()
-    expect(screen.getByText('On the due date')).toBeTruthy()
+    // Each rung is named in its step card and again under "What a customer sees".
+    expect(await screen.findAllByText('3 days before due')).toHaveLength(2)
+    expect(screen.getAllByText('On the due date').length).toBeGreaterThan(0)
+    // The design's step names follow the ladder's positions.
+    expect(screen.getAllByText('Friendly nudge').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Final notice').length).toBeGreaterThan(0)
 
     fireEvent.change(screen.getByLabelText('Rung 1, days from the due date'), {
       target: { value: '400' },
     })
     expect(await screen.findByRole('alert')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveProperty('disabled', true)
 
     fireEvent.change(screen.getByLabelText('Rung 1, days from the due date'), {
       target: { value: '21' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
 
     await waitFor(() => expect(calls('PUT', '/api/v1/payment-reminders/schedule')).toHaveLength(1))
     // 21 was typed first but the server stores it last, and the page says so instead of
@@ -260,12 +399,12 @@ describe('Payment reminders, wired to the API', () => {
   it('refuses an enabled ladder with no rungs, in the server’s own words', async () => {
     schedule = { offsets: [7], enabled: true }
     renderAt('/income/reminders/settings')
-    await screen.findByText('7 days after due')
+    await screen.findAllByText('7 days after due')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete step' }))
 
     expect(await screen.findByText('Add a rung, or switch automatic reminders off.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toHaveProperty('disabled', true)
     expect(calls('PUT', '/api/v1/payment-reminders/schedule')).toHaveLength(0)
   })
 
@@ -397,5 +536,47 @@ describe('what the page works out for itself', () => {
     ).toBe(false)
     expect(rangeProblem('2026-09-30', '2026-09-01')).toBe(true)
     expect(rangeProblem('', '2026-09-01')).toBe(false)
+  })
+
+  it('names the steps by their place on the ladder, and works the queue out per invoice', () => {
+    expect(stepOf([-3, 0, 7, 14], -3)).toMatchObject({ index: 1, tone: 'polite' })
+    expect(stepOf([-3, 0, 7, 14], 7)).toMatchObject({ index: 3, tone: 'direct' })
+    expect(stepOf([-3, 0, 7, 14], 14)).toMatchObject({ index: 4, tone: 'firm' })
+
+    const unpaid: QueueInvoice = {
+      id: 'inv-1',
+      invoiceNumber: 'INV-1',
+      customerId: 'cus-1',
+      customerName: 'Nizwa',
+      dueDate: '2026-09-10',
+      currency: 'OMR',
+      outstanding: 120,
+      overdue: true,
+      daysOverdue: 15,
+      paid: false,
+    }
+    const spent = [row({ daysFromDue: -3 }), row({ daysFromDue: 0 }), row({ daysFromDue: 7 })]
+    const email = () => 'a@b.om'
+    // The first unspent rung on or after today: the 14 falls on 24 Sep.
+    expect(buildQueue([unpaid], [-3, 0, 7, 14], spent, email, '2026-09-20')[0].next).toEqual({
+      offset: 14,
+      date: '2026-09-24',
+    })
+    // A rung whose date has passed is skipped even when unspent; none left means not sending.
+    expect(buildQueue([unpaid], [-3, 0, 7, 14], spent, email, '2026-09-25')[0]).toMatchObject({
+      next: null,
+      reason: 'ladderSpent',
+    })
+    expect(buildQueue([unpaid], [-3, 0, 7, 14], [], () => null, '2026-09-20')[0].reason).toBe(
+      'noRecipient',
+    )
+    expect(buildQueue([{ ...unpaid, paid: true }], [7], [], email, '2026-09-20')).toEqual([])
+    expect(
+      paidAfterReminder(
+        [{ ...unpaid, paid: true }],
+        [row({ firedOn: '2026-09-15' })],
+        '2026-09-20',
+      ),
+    ).toEqual({ paid: 1, sent: 1 })
   })
 })

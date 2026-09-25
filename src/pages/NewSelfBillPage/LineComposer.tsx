@@ -1,57 +1,46 @@
 import { useState, type ReactNode } from 'react'
+import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { useTranslation } from 'react-i18next'
-import { Select, type SelectOption } from '../../components/ui'
-import { convertLinePrices, type LineItem, type useLineTotals } from '../../components/invoice'
+import { Select } from '../../components/ui'
+import {
+  ClassificationField,
+  convertLinePrices,
+  unitOptions,
+  type LineItem,
+  type useLineTotals,
+} from '../../components/invoice'
 import { formatAmount, formatAtScale, parseAmount } from '../../lib/invoiceMath'
+import { unitsFor } from '../../lib/invoiceDraft'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 /**
- * The line table the self-billed invoice and the periodic schedule draw (Figma 154:161180,
- * 154:164555), under the client's composer rules of 25 Sep 2026:
+ * The line table the self-billed invoice draws (Figma 154:161180), under the client's composer
+ * rules of 25 Sep 2026:
  *
  * - no product code, the description is free text;
- * - each line is goods or a service, and the unit's choices follow that;
+ * - each line is goods or a service, and the unit's choices follow that (the invoice draft's
+ *   UN/ECE lists, "Other" last);
  * - the price is ex-VAT, three decimals, never negative, 0 by default;
- * - the tax category is text only — it is the document's, not a per-line choice;
+ * - the tax category is text only: it is the document's, not a per-line choice;
+ * - a goods line carries an HS code, a service line a service type (PINT_OM_LINE_CLASSIFICATION.md),
+ *   searched by name through the shared `ClassificationField`; a self-billed invoice is always
+ *   business-to-business, so every line is asked;
  * - nothing opens a dialog.
  *
  * It sits beside `components/invoice/LineItemsTable` rather than replacing it: that table is the
- * invoice composer's own and carries a catalogue picker and per-line tax categories, which these
- * two screens are told not to have. The arithmetic is the same engine (`useLineTotals`).
+ * invoice composer's own and carries a catalogue picker and per-line tax categories, which this
+ * screen is told not to have. The arithmetic is the same engine (`useLineTotals`).
  */
 
 export type LineKind = 'goods' | 'service'
 
-export type ComposerLine = LineItem & { kind: LineKind }
-
-/** UN/ECE Rec 20 codes, split by what a line is. */
-const GOODS_UNITS: SelectOption[] = [
-  { value: 'EA', label: 'EA', hint: 'Each' },
-  { value: 'KGM', label: 'KG', hint: 'Kilogram' },
-  { value: 'LTR', label: 'L', hint: 'Litre' },
-  { value: 'BG', label: 'BG', hint: 'Bag' },
-  { value: 'BX', label: 'BX', hint: 'Box' },
-  { value: 'SA', label: 'SA', hint: 'Sack' },
-  { value: 'PK', label: 'PK', hint: 'Pack' },
-  { value: 'MTR', label: 'M', hint: 'Metre' },
-]
-
-const SERVICE_UNITS: SelectOption[] = [
-  { value: 'HUR', label: 'HR', hint: 'Hour' },
-  { value: 'DAY', label: 'DAY', hint: 'Day' },
-  { value: 'MON', label: 'MO', hint: 'Month' },
-  { value: 'E48', label: 'SVC', hint: 'Service unit' },
-]
-
-export const UNITS_BY_KIND: Record<LineKind, SelectOption[]> = {
-  goods: GOODS_UNITS,
-  service: SERVICE_UNITS,
-}
-
-/** A unit code says which kind of line it belongs to, when a line arrives without one. */
-export function kindOfUnit(unit: string): LineKind {
-  return SERVICE_UNITS.some((option) => option.value === unit) ? 'service' : 'goods'
+export type ComposerLine = LineItem & {
+  kind: LineKind
+  /** The Oman 12-digit HS code of a goods line (IBR-079-OM), from `lib/codeLists/hs`. */
+  hsCode?: string
+  /** The CL-12-OM service type of a service line (IBR-155-OM), from `lib/codeLists/serviceTypes`. */
+  serviceType?: string
 }
 
 export function blankComposerLine(id: string, vatRate = '5'): ComposerLine {
@@ -149,9 +138,9 @@ export function LineComposer({
   onExclVatChange: (next: boolean) => void
   totals: ReturnType<typeof useLineTotals>
   titleSlot: ReactNode
-  /** The document's tax category, printed on every line — never chosen per line. */
+  /** The document's tax category, printed on every line: never chosen per line. */
   taxLabel: string
-  /** Lines that come from somewhere else (a periodic schedule copies an invoice) are shown, not edited. */
+  /** Lines that come from somewhere else are shown, not edited. */
   readOnly?: boolean
   minLines?: number
   footer?: ReactNode
@@ -219,30 +208,49 @@ export function LineComposer({
           <div className="mt-3 flex flex-col gap-3">
             {lines.map((row, index) => {
               const amounts = totals.lines[index]
+              const goods = row.kind === 'goods'
               return (
                 <div
                   key={row.id}
                   className="grid grid-cols-[2fr_0.55fr_0.5fr_0.6fr_0.55fr_0.55fr_0.7fr] items-start gap-2"
                 >
-                  <FieldShell readOnly={readOnly}>
-                    <input
-                      value={row.description}
+                  <div className="flex flex-col gap-1.5">
+                    <FieldShell readOnly={readOnly}>
+                      <input
+                        value={row.description}
+                        disabled={readOnly}
+                        onChange={(event) => update(row.id, { description: event.target.value })}
+                        maxLength={1000}
+                        placeholder={t('lineComposer.descriptionPlaceholder')}
+                        aria-label={`${t('lineComposer.col.description')} ${index + 1}`}
+                        className={INPUT}
+                      />
+                      <KindToggle
+                        value={row.kind}
+                        disabled={readOnly}
+                        label={`${t('lineComposer.col.description')} ${index + 1}: ${t('lineComposer.kindLabel')}`}
+                        onChange={(kind) =>
+                          update(row.id, {
+                            kind,
+                            unit: unitsFor(kind)[0],
+                            hsCode: undefined,
+                            serviceType: undefined,
+                          })
+                        }
+                      />
+                    </FieldShell>
+                    {/* PINT-OM: the product's HS code or the service's type, searched by name; every self-bill is B2B. */}
+                    <ClassificationField
+                      kind={row.kind}
+                      compact
                       disabled={readOnly}
-                      onChange={(event) => update(row.id, { description: event.target.value })}
-                      maxLength={1000}
-                      placeholder={t('lineComposer.descriptionPlaceholder')}
-                      aria-label={t('lineComposer.col.description')}
-                      className={INPUT}
-                    />
-                    <KindToggle
-                      value={row.kind}
-                      disabled={readOnly}
-                      label={`${t('lineComposer.col.description')} ${index + 1} — ${t('lineComposer.kindLabel')}`}
-                      onChange={(kind) =>
-                        update(row.id, { kind, unit: UNITS_BY_KIND[kind][0].value })
+                      value={(goods ? row.hsCode : row.serviceType) ?? ''}
+                      onChange={(code) =>
+                        update(row.id, goods ? { hsCode: code } : { serviceType: code })
                       }
+                      ariaLabel={`${t(goods ? 'classification.hsCode' : 'classification.serviceType')} ${index + 1}`}
                     />
-                  </FieldShell>
+                  </div>
                   <FieldShell readOnly={readOnly}>
                     <input
                       value={row.unitPrice}
@@ -252,11 +260,12 @@ export function LineComposer({
                         update(row.id, { unitPrice: normalisePrice(event.target.value) })
                       }
                       inputMode="decimal"
-                      aria-label={t(exclVat ? 'lineComposer.col.excl' : 'lineComposer.col.incl')}
+                      onFocus={selectAllOnFocus}
+                      aria-label={`${t(exclVat ? 'lineComposer.col.excl' : 'lineComposer.col.incl')} ${index + 1}`}
                       className={INPUT}
                     />
                   </FieldShell>
-                  {/* The document's category, shown so the rate is never a surprise — not a per-line choice. */}
+                  {/* The document's category, shown so the rate is never a surprise: not a per-line choice. */}
                   <FieldShell readOnly>
                     <span
                       className="truncate text-sm font-medium text-text-secondary"
@@ -271,7 +280,8 @@ export function LineComposer({
                       disabled={readOnly}
                       onChange={(event) => update(row.id, { quantity: event.target.value })}
                       inputMode="decimal"
-                      aria-label={t('lineComposer.col.qty')}
+                      onFocus={selectAllOnFocus}
+                      aria-label={`${t('lineComposer.col.qty')} ${index + 1}`}
                       className={INPUT}
                     />
                     {readOnly ? null : (
@@ -299,8 +309,8 @@ export function LineComposer({
                     value={row.unit}
                     disabled={readOnly}
                     onChange={(unit) => update(row.id, { unit })}
-                    options={UNITS_BY_KIND[row.kind]}
-                    ariaLabel={t('lineComposer.col.unit')}
+                    options={unitOptions(row.kind, t, row.unit)}
+                    ariaLabel={`${t('lineComposer.col.unit')} ${index + 1}`}
                   />
                   <FieldShell readOnly={readOnly}>
                     <input
@@ -308,7 +318,8 @@ export function LineComposer({
                       disabled={readOnly}
                       onChange={(event) => update(row.id, { discountValue: event.target.value })}
                       inputMode="decimal"
-                      aria-label={t('lineComposer.col.discount')}
+                      onFocus={selectAllOnFocus}
+                      aria-label={`${t('lineComposer.col.discount')} ${index + 1}`}
                       className={INPUT}
                     />
                     <span className="text-xs font-semibold text-text-quaternary">%</span>
@@ -322,7 +333,7 @@ export function LineComposer({
                         type="button"
                         onClick={() => remove(row.id)}
                         className="inline-flex size-8 items-center justify-center rounded-sm border border-border-subtle hover:bg-neutral-25"
-                        aria-label={t('lineComposer.remove')}
+                        aria-label={`${t('lineComposer.remove')} ${index + 1}`}
                       >
                         <img src={deleteLineIcon} alt="" className="size-4" />
                       </button>

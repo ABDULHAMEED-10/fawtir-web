@@ -5,6 +5,7 @@ import {
   blankDraftLine,
   fromDraftResponse,
   placeFieldErrors,
+  problemsBeforeIssue,
   problemsBeforeSave,
   toDraftRequest,
   type DraftForm,
@@ -142,7 +143,7 @@ describe('a saved draft back into the form', () => {
       internalNote: null,
     })
     expect(restored.lines[0]).toMatchObject({
-      unitPrice: '1.8',
+      unitPrice: '1.800',
       taxCode: 'E0',
       exemptionReason: 'Financial service',
       discountValue: '10',
@@ -169,6 +170,36 @@ describe('checks before saving', () => {
       problemsBeforeSave(blank).map((problem) => `${problem.field}${problem.line ?? ''}`),
     ).toEqual(['customer', 'branch', 'description0', 'unitPrice0', 'quantity1', 'exemptionReason1'])
     expect(problemsBeforeSave(form())).toEqual([])
+  })
+
+  it('wants an HS code on goods lines and a service type on service lines, except for a consumer', () => {
+    const goods = form().lines[0]
+    const service = {
+      ...blankDraftLine(),
+      description: 'Barista training',
+      itemType: 'service' as const,
+      unit: 'HUR',
+      unitPrice: '15.000',
+      quantity: '2',
+    }
+    const unclassified = form({ lines: [goods, service] })
+    expect(problemsBeforeSave(unclassified)).toEqual([])
+    expect(
+      problemsBeforeIssue(unclassified).map((problem) => `${problem.field}${problem.line}`),
+    ).toEqual(['hsCode0', 'serviceType1'])
+    expect(problemsBeforeIssue({ ...unclassified, customerType: 'government' })).toHaveLength(2)
+    expect(problemsBeforeIssue({ ...unclassified, customerType: 'consumer' })).toEqual([])
+    const classified = form({
+      lines: [
+        { ...goods, hsCode: '000000000000' },
+        { ...service, serviceType: '92900' },
+      ],
+    })
+    expect(problemsBeforeIssue(classified)).toEqual([])
+    // Neither code reaches the draft request: it refuses members the API does not know.
+    const sent = toDraftRequest(classified, true).lines
+    expect('hsCode' in sent[0]).toBe(false)
+    expect('serviceType' in sent[1]).toBe(false)
   })
 
   it('puts the server field errors on their lines and keeps the rest', () => {

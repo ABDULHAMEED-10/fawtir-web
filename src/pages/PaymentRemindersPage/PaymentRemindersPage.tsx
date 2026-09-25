@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -10,13 +11,14 @@ import {
   PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
+import { saveReminderSchedule } from '../../api/invoices/reminders'
 import {
-  REMINDER_SCHEDULE_PATH,
-  loadReminderSchedule,
-  saveReminderSchedule,
-  type ReminderScheduleDto,
-} from '../../api/invoices/reminders'
+  INVOICE_SUMMARY_PATH,
+  loadInvoiceSummary,
+  type InvoiceSummaryDto,
+} from '../../api/invoices/list'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { formatCount } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import {
   MAX_OFFSET_DAYS,
@@ -27,29 +29,32 @@ import {
   rungProblem,
   scheduleChanged,
   scheduleProblem,
+  stepOf,
 } from '../../lib/paymentReminders'
-import bellIcon from '../../assets/reminders/kpi-going-out.svg'
-import sendIcon from '../../assets/reminders/send.svg'
+import { useReminderQueue } from '../RemindersPage/useReminderQueue'
+import { TemplateEditorModal, ToneChip } from '../RemindersPage/ReminderModals'
+import bellIcon from '../../assets/dashboard/bell.svg'
+import editIcon from '../../assets/reminders/edit-one.svg'
+import deleteIcon from '../../assets/periodic/delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
-import saveIcon from '../../assets/customers/save.svg'
+import tickIcon from '../../assets/customers/tick-circle.svg'
+import chevronIcon from '../../assets/invoices/chevron.svg'
+import clockIcon from '../../assets/periodic/clock.svg'
 
-const FIELD =
-  'h-[50px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-sm font-medium text-text-secondary outline-none focus:border-primary-500'
+const muscatToday = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
 /**
- * Income › Reminders › Settings (I-14).
+ * Settings › Payment reminders (I-14, Figma 159:16749).
  *
- * The whole model is a ladder of **days from the due date** and a switch. The design's "Reminder"
- * card (Figma 154:168196) draws that ladder as a stepper — invoice sent, then each rung in turn —
- * so the ladder is shown that way here above the rows that edit it. The tones, per-step subjects
- * and send hour the earlier design drew have nothing behind them: the message is fixed in the
- * server and the sweep's hour is a deployment setting. What a reminder actually says is shown by
- * **preview**, on the invoice itself.
+ * The API's whole model is a ladder of **days from the due date** and a switch, and that is what
+ * sections 1 and the banner edit. The rest of the design (stop rules, sending identity, the hold
+ * and the final-notice approval, editable messages) has nothing behind it yet: each section is
+ * drawn as designed and says so (TODO(backend)). The design numbers its last two sections 3 and
+ * 3; they are 3 and 4 here.
  */
 export function PaymentRemindersPage() {
-  // AppShell is what provides the session, so the permission gate has to sit INSIDE it: a
-  // `useSession()` called out here always reads null, and `can(null, …)` deliberately allows
-  // everything — the gate would silently never engage.
+  // AppShell provides the session, so the permission gate has to sit inside it.
   return (
     <AppShell>
       <ReminderSettings />
@@ -58,20 +63,22 @@ export function PaymentRemindersPage() {
 }
 
 function ReminderSettings() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
   const session = useSession()
   const canManage = can(session, 'admin.settings.manage')
+  const today = muscatToday()
 
-  const read = useApiRead<ReminderScheduleDto>(
-    canManage ? REMINDER_SCHEDULE_PATH : null,
-    loadReminderSchedule,
-  )
+  const data = useReminderQueue(canManage, today)
+  const summary = useApiRead<InvoiceSummaryDto>(INVOICE_SUMMARY_PATH, loadInvoiceSummary)
   const [rungs, setRungs] = useState<string[]>([])
   const [enabled, setEnabled] = useState(false)
   const [notice, setNotice] = useState<{ key: string } | { body: string } | null>(null)
   const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [editing, setEditing] = useState<number | null>(null)
 
-  const saved = read.read.status === 'ready' ? read.read.data : null
+  const saved = data.ladder
   useEffect(() => {
     if (saved) {
       setRungs(saved.offsets.map(String))
@@ -95,13 +102,13 @@ function ReminderSettings() {
     ),
   )
   const listProblem = scheduleProblem(numbers, enabled)
+  const changed = saved !== null && scheduleChanged(saved, numbers, enabled)
   const canSave =
     saved !== null &&
     problems.every((problem) => problem === null) &&
     listProblem === null &&
-    scheduleChanged(saved, numbers, enabled)
-  // The ladder as the server will hold it — sorted, without repeats — is what the stepper draws.
-  const ladder = normaliseOffsets(rungs.map(Number).filter((value) => Number.isInteger(value)))
+    changed
+  const ladder = normaliseOffsets(numbers)
 
   const save = async () => {
     setSaving(true)
@@ -110,15 +117,14 @@ function ReminderSettings() {
       const answer = await saveReminderSchedule({ offsets: normaliseOffsets(numbers), enabled })
       setRungs(answer.offsets.map(String))
       setEnabled(answer.enabled)
-      read.retry()
+      data.schedule.retry()
+      setSavedAt(new Date().toISOString())
       // The server deduplicates and sorts, so the page says when what it stored differs from the
       // order that was typed rather than quietly rearranging the rows under the cursor.
       const reordered =
         answer.offsets.length !== numbers.length ||
         answer.offsets.some((value, index) => value !== numbers[index])
-      setNotice({
-        key: reordered ? 'paymentReminders.done.savedAndSorted' : 'paymentReminders.done.saved',
-      })
+      if (reordered) setNotice({ key: 'paymentReminders.done.savedAndSorted' })
     } catch (error) {
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)
@@ -132,16 +138,43 @@ function ReminderSettings() {
     }
   }
 
+  const sentThisMonth = data.logRows.filter(
+    (row) => row.firedOn.startsWith(today.slice(0, 7)) && row.outcome === 'SENT',
+  ).length
+  const rightNow = [
+    {
+      key: 'overdue',
+      value:
+        summary.read.status === 'ready'
+          ? formatCount(summary.read.data.overdueInvoices, language)
+          : '—',
+    },
+    {
+      key: 'queued',
+      value: formatCount(data.queue.filter((entry) => entry.next).length, language),
+    },
+    { key: 'muted', value: formatCount(data.muted, language) },
+    { key: 'sent', value: formatCount(sentThisMonth, language) },
+  ]
+
+  const dayBox = (days: number) =>
+    days === 0
+      ? { number: '0', label: t('reminders.dueDay') }
+      : {
+          number: days > 0 ? `+${days}` : String(days),
+          label: t(days > 0 ? 'reminders.daysLate' : 'reminders.daysEarly'),
+        }
+
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
+    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-28">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/income/reminders"
+              to="/settings"
               className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
             >
-              {t('paymentReminders.history.title')}
+              {t('reminders.breadcrumb')}
             </Link>
             <img
               src={backIcon}
@@ -150,24 +183,23 @@ function ReminderSettings() {
               className="size-6 rotate-180 rtl:rotate-0"
             />
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('paymentReminders.settings.title')}
+              {t('reminders.title')}
             </h1>
           </div>
-          <p className="mt-1 text-sm font-medium leading-[1.4] text-[#8f8f8f]">
-            {t('paymentReminders.settings.subtitle')}
+          <p className="mt-1 max-w-[520px] text-sm font-medium leading-[1.4] text-[#8f8f8f]">
+            {t('reminders.subtitle')}
           </p>
         </div>
-        {saved ? (
-          <button
-            type="button"
-            disabled={!canSave || saving}
-            onClick={() => void save()}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
-          >
-            <img src={saveIcon} alt="" className="size-5 brightness-0 invert" />
-            {t(saving ? 'common.saving' : 'paymentReminders.settings.save')}
-          </button>
-        ) : null}
+        <span className="inline-flex items-center gap-1.5 text-sm font-medium text-text-tertiary">
+          {changed ? (
+            t('reminders.unsaved')
+          ) : savedAt ? (
+            <>
+              <img src={tickIcon} alt="" className="size-5" />
+              {t('reminders.savedJustNow')}
+            </>
+          ) : null}
+        </span>
       </div>
 
       {notice ? (
@@ -177,231 +209,442 @@ function ReminderSettings() {
         />
       ) : null}
 
-      {read.read.status === 'loading' ? <LoadingNotice /> : null}
-      {read.read.status === 'failed' ? (
-        <ApiReadFailure error={read.read.error} retry={read.retry} />
+      {data.schedule.read.status === 'loading' ? <LoadingNotice /> : null}
+      {data.schedule.read.status === 'failed' ? (
+        <ApiReadFailure error={data.schedule.read.error} retry={data.schedule.retry} />
       ) : null}
 
       {saved ? (
         <>
-          <section className="rounded-sm bg-surface-card p-4">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="max-w-[560px]">
-                <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                  {t('paymentReminders.settings.switchTitle')}
-                </h2>
-                <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">
-                  {t('paymentReminders.settings.switchNote')}
-                </p>
-              </div>
-              <label className="inline-flex items-center gap-3 text-sm font-semibold text-text-secondary">
-                <Switch
-                  checked={enabled}
-                  onChange={setEnabled}
-                  label={t('paymentReminders.settings.switchTitle')}
-                />
-                {t(enabled ? 'paymentReminders.settings.on' : 'paymentReminders.settings.off')}
-              </label>
-            </div>
-          </section>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-primary-75 bg-primary-25/60 p-4">
+            <span className="flex min-w-0 items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white">
+                <img src={bellIcon} alt="" className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-base font-medium leading-[1.2] text-text-primary">
+                  {t(enabled ? 'reminders.bannerTitle' : 'reminders.bannerTitleOff')}
+                </span>
+                <span className="mt-1 block text-sm font-medium leading-[1.2] text-text-tertiary">
+                  {t(enabled ? 'reminders.bannerNote' : 'reminders.bannerNoteOff')}
+                </span>
+              </span>
+            </span>
+            <Switch checked={enabled} onChange={setEnabled} label={t('reminders.bannerTitle')} />
+          </div>
 
-          <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
-            <div>
-              <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">
-                {t('paymentReminders.settings.ladderTitle')}
-              </h2>
-              <p className="mt-1 text-sm font-medium leading-[1.5] text-text-quaternary">
-                {t('paymentReminders.settings.ladderNote')}
-              </p>
-            </div>
-            <div className="h-px w-full bg-surface-background" />
-
-            {/* The ladder as the design's Reminder card draws it: the invoice, then each rung in turn. */}
-            <div className="flex flex-col gap-4 rounded-sm border border-primary-300 bg-primary-25 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-1">
-                  <span className="flex size-8 items-center justify-center rounded-[2px] bg-white">
-                    <img src={bellIcon} alt="" className="size-5" />
-                  </span>
-                  <p className="ms-1 text-base font-semibold text-text-primary">
-                    {t('paymentReminders.settings.ladderCount', { count: ladder.length })}
-                  </p>
-                  <p className="text-xs font-medium text-text-tertiary">
-                    {t(
-                      enabled
-                        ? 'paymentReminders.settings.ladderOn'
-                        : 'paymentReminders.settings.ladderOff',
-                    )}
-                  </p>
-                </div>
-                <Link
-                  to="/invoices"
-                  className="inline-flex h-[38px] items-center gap-1.5 rounded-sm border border-border-subtle bg-white ps-2.5 pe-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-                >
-                  <img src={sendIcon} alt="" className="size-6" />
-                  {t('paymentReminders.settings.sentFromInvoice')}
-                </Link>
-              </div>
-              <ol className="flex items-start gap-0 overflow-x-auto rounded-sm bg-white px-4 py-4">
-                <Step
-                  tone="done"
-                  glyph={<img src={sendIcon} alt="" className="size-5 brightness-0 invert" />}
-                  label={t('paymentReminders.settings.stepInvoice')}
-                  note={t('paymentReminders.settings.stepInvoiceNote')}
-                />
-                {ladder.map((days, index) => {
-                  return (
-                    <Step
-                      key={days}
-                      tone={index === 0 ? 'next' : 'later'}
-                      connector
-                      glyph={<span className="text-lg font-semibold">{index + 1}</span>}
-                      label={t('paymentReminders.settings.stepRung', { index: index + 1 })}
-                      note={t('paymentReminders.settings.stepDay', {
-                        day: days > 0 ? `+${days}` : String(days),
-                      })}
-                    />
-                  )
-                })}
-                {ladder.length === 0 ? (
-                  <li className="ps-4 text-sm font-medium text-text-quaternary">
-                    {t('paymentReminders.settings.noRungs')}
-                  </li>
-                ) : null}
-              </ol>
-            </div>
-
-            {rungs.length === 0 ? (
-              <div className="rounded-sm border border-dashed border-border-subtle p-6 text-center">
-                <p className="text-sm font-medium text-text-quaternary">
-                  {t('paymentReminders.settings.noRungs')}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setRungs(SUGGESTED_OFFSETS.map(String))}
-                  className="mt-3 inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
-                >
-                  {t('paymentReminders.settings.useSuggested')}
-                </button>
-              </div>
-            ) : (
-              <ul className="flex flex-col gap-3">
+          <div className="grid items-start gap-4 xl:grid-cols-[1fr_332px]">
+            <SectionCard
+              step={1}
+              title={t('reminders.scheduleTitle')}
+              hint={t('reminders.scheduleHint')}
+            >
+              <div className="flex flex-col gap-3">
                 {rungs.map((value, index) => {
                   const problem = problems[index]
                   const days = Number(value)
-                  const note = problem === null ? rungNote(days) : null
+                  const known = problem === null
+                  const found = known ? stepOf(numbers, days) : null
+                  const box = known ? dayBox(days) : { number: '', label: t('reminders.daysLate') }
+                  const note = known ? rungNote(days) : null
                   return (
-                    <li
+                    <div
                       key={index}
-                      className="grid items-start gap-3 md:grid-cols-[220px_1fr_auto]"
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border-subtle p-3"
                     >
-                      <label className="block">
-                        <span className="mb-1 block text-xs font-semibold text-text-quaternary">
-                          {t('paymentReminders.settings.rungLabel', { index: index + 1 })}
-                        </span>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={value}
-                          aria-label={t('paymentReminders.settings.rungLabel', {
-                            index: index + 1,
-                          })}
-                          aria-invalid={problem !== null}
-                          onChange={(event) =>
-                            setRungs(
-                              rungs.map((old, other) =>
-                                other === index ? event.target.value : old,
-                              ),
-                            )
-                          }
-                          className={FIELD}
-                        />
-                      </label>
-                      <p className="min-w-[200px] pt-7 text-sm font-medium text-text-tertiary">
-                        {note ? t(note.key, note.values) : null}
-                        {problem ? (
-                          <span role="alert" className="text-warning-700">
-                            {t(`paymentReminders.error.rung.${problem}`, { max: MAX_OFFSET_DAYS })}
+                      <span className="flex min-w-0 flex-1 items-center gap-4">
+                        {/* The day box is the editor: the offset is the one thing the API stores per step. */}
+                        <label className="flex h-[62px] w-[78px] shrink-0 flex-col items-center justify-center rounded-sm bg-surface-background">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            onFocus={selectAllOnFocus}
+                            value={value}
+                            aria-label={t('paymentReminders.settings.rungLabel', {
+                              index: index + 1,
+                            })}
+                            aria-invalid={problem !== null}
+                            onChange={(event) =>
+                              setRungs(
+                                rungs.map((old, other) =>
+                                  other === index ? event.target.value : old,
+                                ),
+                              )
+                            }
+                            className="w-full border-0 bg-transparent text-center text-xl font-semibold leading-[1.2] text-text-secondary outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <span className="text-[9px] font-semibold uppercase tracking-[0.04em] text-text-tertiary">
+                            {box.label}
                           </span>
-                        ) : null}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setRungs(rungs.filter((_, other) => other !== index))}
-                        className="mt-6 h-[46px] shrink-0 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-quaternary hover:text-warning-700"
-                      >
-                        {t('paymentReminders.settings.removeRung')}
-                      </button>
-                    </li>
+                        </label>
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-base font-medium leading-[1.2] text-text-primary">
+                              {found
+                                ? t(found.nameKey)
+                                : t('paymentReminders.settings.stepRung', { index: index + 1 })}
+                            </span>
+                            {found ? <ToneChip tone={found.tone} /> : null}
+                          </span>
+                          <span className="mt-1.5 block text-sm font-medium leading-[1.2] text-text-secondary">
+                            {note ? t(note.key, note.values) : ''}
+                            {problem ? (
+                              <span role="alert" className="text-warning-700">
+                                {t(`paymentReminders.error.rung.${problem}`, {
+                                  max: MAX_OFFSET_DAYS,
+                                })}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-1 block text-xs font-medium leading-[1.2] text-text-quaternary">
+                            {t('reminders.stepMeta')}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={!known}
+                          onClick={() => setEditing(days)}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary hover:bg-primary-25 disabled:opacity-50"
+                        >
+                          <img src={editIcon} alt="" className="size-4" />
+                          {t('reminders.editMessage')}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={t('reminders.deleteStep')}
+                          onClick={() => setRungs(rungs.filter((_, other) => other !== index))}
+                          className="flex size-9 items-center justify-center rounded-sm border border-border-subtle bg-white hover:bg-danger-100"
+                        >
+                          <img src={deleteIcon} alt="" className="size-4" />
+                        </button>
+                      </span>
+                    </div>
                   )
                 })}
-              </ul>
-            )}
+              </div>
 
-            {listProblem ? (
-              <p role="alert" className="text-sm font-medium text-warning-700">
-                {t(`paymentReminders.error.schedule.${listProblem}`, { max: MAX_RUNGS })}
-              </p>
-            ) : null}
+              {rungs.length === 0 ? (
+                <div className="mt-3 rounded-sm border border-dashed border-border-subtle p-6 text-center">
+                  <p className="text-sm font-medium text-text-quaternary">
+                    {t('paymentReminders.settings.noRungs')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRungs(SUGGESTED_OFFSETS.map(String))}
+                    className="mt-3 inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary hover:bg-primary-25"
+                  >
+                    {t('paymentReminders.settings.useSuggested')}
+                  </button>
+                </div>
+              ) : null}
 
-            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 disabled={rungs.length >= MAX_RUNGS}
-                onClick={() => setRungs([...rungs, ''])}
-                className="inline-flex h-[46px] items-center rounded-sm border border-dashed border-primary-300 px-4 text-sm font-semibold text-primary-800 disabled:opacity-50"
+                onClick={() => setRungs([...rungs, String((numbers.at(-1) ?? 0) + 7)])}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-primary-300 py-3 text-base font-semibold text-primary-700 disabled:opacity-50"
               >
-                + {t('paymentReminders.settings.addRung')}
+                <span className="text-xl leading-none">+</span>
+                {t('reminders.addStep')}
               </button>
-              <p className="text-xs font-medium text-text-quaternary">
-                {t('paymentReminders.settings.rungLimit', { count: MAX_RUNGS })}
-              </p>
+              {listProblem ? (
+                <p role="alert" className="mt-2 text-sm font-medium text-warning-700">
+                  {t(`paymentReminders.error.schedule.${listProblem}`, { max: MAX_RUNGS })}
+                </p>
+              ) : null}
+            </SectionCard>
+
+            <div className="flex flex-col gap-4">
+              <section className="rounded-sm bg-surface-card p-4">
+                <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+                  {t('reminders.customerSeesTitle')}
+                </h2>
+                <div className="mt-3 h-px w-full bg-border-subtle" />
+                <ol className="mt-4 flex flex-col gap-4">
+                  <SeesRow
+                    n="0"
+                    title={t('reminders.sees.dueDate')}
+                    note={t('reminders.sees.dueDateNote')}
+                  />
+                  {ladder.map((days, index) => {
+                    const found = stepOf(ladder, days)
+                    const note = rungNote(days)
+                    return (
+                      <SeesRow
+                        key={days}
+                        n={String(index + 1)}
+                        title={t(note.key, note.values)}
+                        note={t(
+                          index === 0
+                            ? 'reminders.sees.firstNote'
+                            : index === ladder.length - 1
+                              ? 'reminders.sees.lastNote'
+                              : 'reminders.sees.middleNote',
+                          { step: t(found.nameKey) },
+                        )}
+                      />
+                    )
+                  })}
+                </ol>
+              </section>
+
+              <section className="rounded-sm bg-surface-card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+                    {t('reminders.rightNowTitle')}
+                  </h2>
+                  <Link
+                    to="/income/reminders"
+                    className="inline-flex items-center gap-1 text-sm font-semibold text-primary-800"
+                  >
+                    {t('reminders.viewQueue')}
+                    <img src={chevronIcon} alt="" className="size-4 rtl:rotate-180" />
+                  </Link>
+                </div>
+                <div className="mt-3 h-px w-full bg-border-subtle" />
+                <dl className="mt-4 flex flex-col gap-3">
+                  {rightNow.map((row) => (
+                    <div key={row.key} className="flex items-center justify-between gap-3">
+                      <dt className="text-sm font-medium leading-[1.2] text-text-tertiary">
+                        {t(`reminders.now.${row.key}`)}
+                      </dt>
+                      <dd className="text-sm font-semibold leading-[1.2] text-text-secondary tabular-nums">
+                        {row.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
             </div>
-          </section>
+          </div>
+
+          {/* TODO(backend): stop rules. The server stops for a settled invoice and an opted-out customer; nothing else exists. */}
+          <SectionCard
+            step={2}
+            title={t('reminders.stopTitle')}
+            pending={t('reminders.stop.notYet')}
+          >
+            <div className="flex flex-col">
+              {(['paid', 'partPayment', 'creditNote', 'replies', 'dispute'] as const).map(
+                (rule) => (
+                  <RuleRow
+                    key={rule}
+                    title={t(`reminders.stop.${rule}`)}
+                    note={t(`reminders.stop.${rule}Note`)}
+                    checked={rule === 'paid'}
+                  />
+                ),
+              )}
+            </div>
+          </SectionCard>
+
+          {/* TODO(backend): sender, reply-to and attachment are the installation's, not the tenant's; the hour is a deployment setting. */}
+          <SectionCard
+            step={3}
+            title={t('reminders.sendingTitle')}
+            pending={t('reminders.sending.notYet')}
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <ReadField
+                label={t('reminders.sending.sendFrom')}
+                required
+                value={t('reminders.sending.installation')}
+              />
+              <ReadField
+                label={t('reminders.sending.replyTo')}
+                value={t('reminders.sending.installation')}
+              />
+              <ReadField
+                label={t('reminders.sending.sendAt')}
+                value={t('reminders.sending.sendAtValue')}
+                clock
+              />
+              <ReadField
+                label={t('reminders.sending.attachPdf')}
+                value={t('reminders.sending.attachValue')}
+              />
+            </div>
+          </SectionCard>
+
+          {/* TODO(backend): a hold before sending and an approval on the last rung. */}
+          <SectionCard
+            step={4}
+            title={t('reminders.beforeTitle')}
+            pending={t('reminders.before.notYet')}
+          >
+            <div className="flex flex-col gap-3">
+              <RuleRow
+                title={t('reminders.before.hold')}
+                note={t('reminders.before.holdNote')}
+                checked={false}
+                boxed
+              />
+              <RuleRow
+                title={t('reminders.before.approveFinal')}
+                note={t('reminders.before.approveFinalNote')}
+                checked={false}
+                boxed
+              />
+            </div>
+          </SectionCard>
 
           <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
             {t('paymentReminders.settings.sweepNote')}
           </p>
+
+          <div className="fixed bottom-0 end-0 start-0 z-30 border-t border-border-subtle bg-white px-4 py-3 md:start-[248px]">
+            <div className="mx-auto flex max-w-[1144px] flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled
+                title={t('reminders.testNotYet')}
+                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-6 text-base font-medium text-[#3a3a3a] disabled:opacity-50"
+              >
+                {t('reminders.sendMyselfTest')}
+              </button>
+              <button
+                type="button"
+                disabled={!canSave || saving}
+                onClick={() => void save()}
+                className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-6 text-base font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
+              >
+                {t(saving ? 'common.saving' : 'reminders.saveChanges')}
+              </button>
+            </div>
+          </div>
         </>
+      ) : null}
+
+      {editing !== null ? (
+        <TemplateEditorModal offsets={ladder} offset={editing} onClose={() => setEditing(null)} />
       ) : null}
     </div>
   )
 }
 
-/** One stop on the ladder: the invoice going out, or a rung. */
-function Step({
-  tone,
-  glyph,
-  label,
-  note,
-  connector,
+function SectionCard({
+  step,
+  title,
+  hint,
+  pending,
+  children,
 }: {
-  tone: 'done' | 'next' | 'later'
-  glyph: React.ReactNode
-  label: string
-  note: string
-  connector?: boolean
+  step: number
+  title: string
+  hint?: string
+  /** Said under the heading when the section is drawn ahead of the API. */
+  pending?: string
+  children: ReactNode
 }) {
-  const circle =
-    tone === 'done'
-      ? 'bg-primary-700 text-white'
-      : tone === 'next'
-        ? 'bg-success-100 text-success-700'
-        : 'border border-border-default text-text-secondary opacity-70'
   return (
-    <li className="flex shrink-0 items-start">
-      {connector ? <span className="mt-5 h-px w-12 shrink-0 bg-border-default max-md:w-6" /> : null}
-      <div className="flex w-[124px] flex-col items-center gap-1 text-center">
-        <span
-          className={['flex size-10 items-center justify-center rounded-full', circle].join(' ')}
-        >
-          {glyph}
+    <section className="rounded-sm bg-surface-card p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex size-6 items-center justify-center rounded-[5px] bg-surface-background text-[13px] font-extrabold leading-[1.2] text-primary-800">
+          {step}
         </span>
-        <span className="text-[10px] font-semibold uppercase leading-[1.5] tracking-[1.2px] text-text-tertiary">
-          {label}
-        </span>
-        <span className="text-[11px] font-medium leading-[1.2] text-text-tertiary">{note}</span>
+        <h2 className="text-xl font-medium leading-[1.2] text-text-secondary">{title}</h2>
+        {hint ? (
+          <span className="text-xs font-medium leading-[1.2] text-text-tertiary">{hint}</span>
+        ) : null}
+        {pending ? (
+          <span className="ms-auto rounded-full bg-pending-100 px-2.5 py-[3px] text-[11px] font-semibold text-pending-700">
+            {pending}
+          </span>
+        ) : null}
       </div>
+      <div className="mt-3 h-px w-full bg-border-subtle" />
+      <div className="mt-4">{children}</div>
+    </section>
+  )
+}
+
+/** A rule with its explanation, drawn as designed; nothing behind it yet, so it cannot be changed. */
+function RuleRow({
+  title,
+  note,
+  checked,
+  boxed,
+}: {
+  title: string
+  note: string
+  checked: boolean
+  boxed?: boolean
+}) {
+  return (
+    <label
+      className={[
+        'flex items-start gap-3',
+        boxed
+          ? [
+              'rounded-sm border p-3',
+              checked ? 'border-primary-700 bg-primary-25/60' : 'border-border-subtle',
+            ].join(' ')
+          : 'py-3',
+      ].join(' ')}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled
+        readOnly
+        aria-label={title}
+        className="mt-0.5 size-5 shrink-0 rounded-[4px] accent-primary-700"
+      />
+      <span className="min-w-0">
+        <span className="block text-base font-medium leading-[1.2] text-text-primary">{title}</span>
+        <span className="mt-1 block text-sm font-medium leading-[1.3] text-text-tertiary">
+          {note}
+        </span>
+      </span>
+    </label>
+  )
+}
+
+function ReadField({
+  label,
+  value,
+  required,
+  clock,
+}: {
+  label: string
+  value: string
+  required?: boolean
+  clock?: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary">
+        {label}
+        {required ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
+      </span>
+      <div className="flex h-[50px] w-full items-center justify-between gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-quaternary">
+          {value}
+        </span>
+        <img
+          src={clock ? clockIcon : chevronIcon}
+          alt=""
+          className={clock ? 'size-5 opacity-60' : 'size-5 rotate-90 opacity-40'}
+        />
+      </div>
+    </div>
+  )
+}
+
+function SeesRow({ n, title, note }: { n: string; title: string; note: string }) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-background text-xs font-semibold text-text-tertiary">
+        {n}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold leading-[1.2] text-text-primary">{title}</span>
+        <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-tertiary">
+          {note}
+        </span>
+      </span>
     </li>
   )
 }

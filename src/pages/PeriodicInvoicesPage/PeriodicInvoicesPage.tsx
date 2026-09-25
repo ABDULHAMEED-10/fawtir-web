@@ -33,6 +33,7 @@ import {
   PERIODIC_TABS,
   cadenceNote,
   countTab,
+  generatedThisMonth,
   monthlyEquivalent,
   narrowSchedules,
   periodicCounts,
@@ -57,9 +58,11 @@ import searchIcon from '../../assets/invoices/search.svg'
 import filterIcon from '../../assets/credit-notes/filter.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import viewIcon from '../../assets/actions/view.svg'
-import editIcon from '../../assets/actions/edit.svg'
+import generateIcon from '../../assets/actions/invoice.svg'
 import pauseIcon from '../../assets/actions/pause.svg'
 import resumeIcon from '../../assets/actions/periodic.svg'
+import duplicateIcon from '../../assets/actions/duplicate.svg'
+import deleteIcon from '../../assets/actions/delete.svg'
 
 /** The customers list refuses a page over 100, so names are read a hundred at a time. */
 const CUSTOMER_PAGE_SIZE = 100
@@ -261,6 +264,7 @@ export function PeriodicInvoicesPage() {
     URL.revokeObjectURL(url)
   }
 
+  /** The row menu as the design's Actions frame (154:166746) lists it. */
   const menuFor = (schedule: PeriodicScheduleDto): ActionMenuItem[] => [
     {
       id: 'view',
@@ -271,10 +275,11 @@ export function PeriodicInvoicesPage() {
     ...(canManage
       ? [
           {
-            id: 'edit',
-            labelKey: 'periodicList.menu.edit',
-            icon: editIcon,
-            to: `/income/periodic/${schedule.id}/edit`,
+            id: 'generate',
+            labelKey: 'periodicList.menu.generate',
+            icon: generateIcon,
+            // TODO(backend): a run-now route; the sweep is the only thing that raises a draft today.
+            onSelect: () => setNotice({ key: 'periodicList.notYet.generate' }),
           },
           schedule.active
             ? {
@@ -289,9 +294,26 @@ export function PeriodicInvoicesPage() {
                 icon: resumeIcon,
                 onSelect: () => void toggle(schedule),
               },
+          {
+            id: 'duplicate',
+            labelKey: 'periodicList.menu.duplicate',
+            icon: duplicateIcon,
+            to: `/income/periodic/new?copy=${schedule.id}`,
+          },
+          {
+            id: 'delete',
+            labelKey: 'periodicList.menu.delete',
+            icon: deleteIcon,
+            danger: true,
+            // TODO(backend): a delete route; pause is the only stop the API has.
+            onSelect: () => setNotice({ key: 'periodicList.notYet.delete' }),
+          },
         ]
       : []),
   ]
+
+  const generated = generatedThisMonth(rows, today, amountOf)
+  const onRequestCount = countTab(rows, 'onRequest')
 
   const kpis = [
     {
@@ -310,21 +332,26 @@ export function PeriodicInvoicesPage() {
       meta: t('periodicList.kpi.dueMeta', { count: counts.dueSoon }),
     },
     {
-      // TODO(backend): a summary with what the schedules raised this month; the runs are only
-      // readable one schedule at a time, so the figure cannot be counted here.
+      // TODO(backend): counted from each schedule's `lastRunDate` and per-invoice amount once the
+      // API carries them; until then the runs are only readable one schedule at a time.
       id: 'generated',
       icon: generatedIcon,
       title: t('periodicList.kpi.generated'),
-      amount: null,
-      meta: t('periodicList.kpi.generatedMeta'),
+      amount: generated ? formatAmount(generated.amount, 'OMR', language) : null,
+      meta: generated
+        ? t('periodicList.kpi.generatedIssued', { count: generated.count })
+        : t('periodicList.kpi.generatedMeta'),
     },
     {
       id: 'attention',
       icon: attentionIcon,
       title: t('periodicList.kpi.attention'),
-      count: counts.paused + counts.overdue,
-      meta: t('periodicList.kpi.attentionMeta', { paused: counts.paused, overdue: counts.overdue }),
-      danger: counts.paused + counts.overdue > 0,
+      count: counts.paused + onRequestCount,
+      meta: t('periodicList.kpi.attentionMeta', {
+        paused: counts.paused,
+        onRequest: onRequestCount,
+      }),
+      danger: false,
     },
   ]
 
@@ -675,13 +702,33 @@ export function PeriodicInvoicesPage() {
                             )}
                           </td>
                           <td className="px-2 py-2.5">
-                            {/* TODO(backend): a run count and a last-run date on the schedule; the runs are only readable one schedule at a time. */}
-                            <Link
-                              to={`/income/periodic/${schedule.id}`}
-                              className="text-xs font-medium leading-[1.2] text-text-tertiary hover:text-primary-700 hover:underline"
-                            >
-                              {t('periodicList.generatedOnPage')}
-                            </Link>
+                            {/* TODO(backend): `runCount` and `lastRunDate` on the schedule; the runs are only readable one schedule at a time. */}
+                            {schedule.runCount === undefined ? (
+                              <Link
+                                to={`/income/periodic/${schedule.id}`}
+                                className="text-xs font-medium leading-[1.2] text-text-tertiary hover:text-primary-700 hover:underline"
+                              >
+                                {t('periodicList.generatedOnPage')}
+                              </Link>
+                            ) : schedule.runCount === 0 || !schedule.lastRunDate ? (
+                              <p className="text-sm font-medium text-text-quaternary">
+                                {t('periodicList.notIssued')}
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-sm font-medium leading-[1.2] text-text-secondary">
+                                  {t('periodicList.issuedCount', { count: schedule.runCount })}
+                                </p>
+                                <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
+                                  {t('periodicList.lastRun', {
+                                    date: formatDate(schedule.lastRunDate, language).replace(
+                                      /\s\d{4}$/,
+                                      '',
+                                    ),
+                                  })}
+                                </p>
+                              </>
+                            )}
                           </td>
                           <td className="px-2 py-2.5">
                             <span

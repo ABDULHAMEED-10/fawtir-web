@@ -1,4 +1,5 @@
 import { apiRequest } from '../client'
+import type { DiscountDto, ReferenceDto } from './drafts'
 
 /**
  * Periodic invoices (I-13): a standing instruction that copies one invoice on a schedule.
@@ -16,11 +17,60 @@ export type RecurrenceInterval = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY'
 /** `DRAFTED` raised a draft; `FAILED` could not; `SKIPPED` was claimed and never completed. */
 export type PeriodicRunOutcome = 'DRAFTED' | 'FAILED' | 'SKIPPED'
 
+/**
+ * TODO(backend): a line of the schedule's own template. The design (154:164555) sets a schedule up
+ * from scratch, under the composer's line rules: free-text description, goods or service per line,
+ * unit, ex-VAT price, discount, the document's tax category; an HS code on goods lines and a
+ * service type on service lines (PINT_OM_LINE_CLASSIFICATION.md). Same shape as a draft line.
+ */
+export type PeriodicTemplateLineDto = {
+  lineNumber: number
+  description: string
+  itemType: 'GOODS' | 'SERVICE'
+  unitCode: string
+  quantity: number
+  /** Always exclusive of VAT, as a draft line is. */
+  unitPrice: number
+  discount: DiscountDto
+  taxCategory: {
+    code: string
+    en16931Category: string
+    rate: number
+    exemptionReason: string | null
+  }
+  hsCode: string | null
+  serviceType: string | null
+}
+
+/**
+ * TODO(backend): what a schedule sends, carried by the schedule itself rather than borrowed from an
+ * invoice. Sent on create and update, read back on the schedule. Until the API stores it, a
+ * schedule set up from scratch has nothing for its runs to copy: the backend should either keep
+ * this template or create the template draft from it when the schedule is saved.
+ */
+export type PeriodicTemplateDto = {
+  branchId: string
+  currency: string
+  vatMode: 'EXCLUSIVE' | 'INCLUSIVE'
+  /** The document's tax category, printed on every line (the composer never chooses one per line). */
+  taxCategoryCode: string
+  details: {
+    subject: string | null
+    purchaseOrderReference: string | null
+    paymentTerms: ReferenceDto | null
+    customerVisibleNote: string | null
+    internalNote: string | null
+  }
+  lines: PeriodicTemplateLineDto[]
+}
+
 export type PeriodicScheduleDto = {
   id: string
   customerId: string
-  /** The invoice each run copies. Fixed at creation, as is the customer. */
+  /** The invoice each run copies, when the schedule was set up from one. */
   templateInvoiceId: string | null
+  /** TODO(backend): the schedule's own template (see `PeriodicTemplateDto`). */
+  template?: PeriodicTemplateDto | null
   interval: RecurrenceInterval
   /** Derived from the interval (IBR-036-OM), so it is shown and never chosen. */
   transactionSubtype: 'SUMMARY' | 'CONTINUOUS_SUPPLY'
@@ -28,6 +78,15 @@ export type PeriodicScheduleDto = {
   endDate: string | null
   remainingOccurrences: number | null
   active: boolean
+  /** TODO(backend): the design's "Send automatically" switch — each run issues and delivers over Peppol. */
+  autoIssue?: boolean
+  /** TODO(backend): the design's "Notify me on each run" switch. */
+  notifyOnRun?: boolean
+  /** TODO(backend): how many invoices the schedule raised, and when it last ran (the list's "Generated" column). */
+  runCount?: number
+  lastRunDate?: string | null
+  /** TODO(backend): when the schedule was set up (the design's "Started"). */
+  createdAt?: string
 }
 
 export type PeriodicRunDto = {
@@ -40,15 +99,27 @@ export type PeriodicRunDto = {
   draftInvoice: string | null
   failureReason: string | null
   createdAt: string
+  /** TODO(backend): the raised document's number, amount, delivery and payment, as the design's run row shows them. */
+  invoiceNumber?: string | null
+  totalAmount?: number | null
+  deliveryState?: string | null
+  paymentState?: 'NOT_APPLICABLE' | 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | null
 }
 
 export type CreatePeriodicScheduleDto = {
   customerId: string
-  templateInvoiceId: string
+  /**
+   * The invoice copied as a pre-fill, when there was one. TODO(backend): null for a schedule set up
+   * from scratch, whose content travels in `template` (the route requires an id today).
+   */
+  templateInvoiceId: string | null
+  template?: PeriodicTemplateDto
   interval: RecurrenceInterval
   firstRunDate: string
   endDate: string | null
   occurrences: number | null
+  autoIssue?: boolean
+  notifyOnRun?: boolean
 }
 
 export type UpdatePeriodicScheduleDto = {
@@ -56,6 +127,11 @@ export type UpdatePeriodicScheduleDto = {
   nextRunDate: string
   endDate: string | null
   occurrences: number | null
+  /** TODO(backend): the design lets the customer and the content change on an existing schedule. */
+  customerId?: string
+  template?: PeriodicTemplateDto
+  autoIssue?: boolean
+  notifyOnRun?: boolean
 }
 
 export const PERIODIC_SCHEDULES_PATH = '/v1/periodic-invoice-schedules'
@@ -80,15 +156,23 @@ export function loadPeriodicRuns(path: string): Promise<PeriodicRunDto[]> {
   return apiRequest<PeriodicRunDto[]>(path)
 }
 
-export function createPeriodicSchedule(body: CreatePeriodicScheduleDto): Promise<PeriodicScheduleDto> {
+export function createPeriodicSchedule(
+  body: CreatePeriodicScheduleDto,
+): Promise<PeriodicScheduleDto> {
   return apiRequest<PeriodicScheduleDto>(PERIODIC_SCHEDULES_PATH, { method: 'POST', body })
 }
 
-export function updatePeriodicSchedule(id: string, body: UpdatePeriodicScheduleDto): Promise<PeriodicScheduleDto> {
+export function updatePeriodicSchedule(
+  id: string,
+  body: UpdatePeriodicScheduleDto,
+): Promise<PeriodicScheduleDto> {
   return apiRequest<PeriodicScheduleDto>(periodicSchedulePath(id), { method: 'PUT', body })
 }
 
 /** Pause is the only stop: there is no cancel and no delete, and the run log forbids removal. */
 export function setPeriodicActive(id: string, active: boolean): Promise<PeriodicScheduleDto> {
-  return apiRequest<PeriodicScheduleDto>(`${periodicSchedulePath(id)}/${active ? 'resume' : 'pause'}`, { method: 'POST', body: {} })
+  return apiRequest<PeriodicScheduleDto>(
+    `${periodicSchedulePath(id)}/${active ? 'resume' : 'pause'}`,
+    { method: 'POST', body: {} },
+  )
 }

@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
-import { Input, Select, withRial } from '../../components/ui'
+import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
 import { COMPANY } from '../../lib/settings'
+import { INDUSTRIAL_CLASSIFICATION } from '../../lib/settingsCompany'
+import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
+import { nameOf } from '../../lib/codeLists/codeList'
 import { PAYMENT_TERMS_OPTIONS } from '../../lib/catalogues'
 import companyLogo from '../../assets/dashboard/bahja-logo.svg'
 import infoIcon from '../../assets/settings/info.svg'
@@ -15,6 +18,8 @@ type Profile = {
   arabicName: string
   tradingAs: string
   commercialRegistration: string
+  /** ISIC Rev. 4, Oman's 6-digit code (IBR-081-OM); the backend copies it onto every invoice line. */
+  industrialClassification: string
   vatRegisteredSince: string
   street: string
   town: string
@@ -36,6 +41,7 @@ const INITIAL: Profile = {
   arabicName: COMPANY.arabicName,
   tradingAs: COMPANY.tradingAs,
   commercialRegistration: COMPANY.commercialRegistration,
+  industrialClassification: INDUSTRIAL_CLASSIFICATION.code,
   vatRegisteredSince: COMPANY.vatRegisteredSince,
   street: COMPANY.street,
   town: COMPANY.town,
@@ -71,9 +77,22 @@ const omr = (value: number) =>
  * before anything is saved. The footer counts what is actually different from what was stored.
  */
 export function CompanyProfilePage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [form, setForm] = useState(INITIAL)
   const [saved, setSaved] = useState(false)
+
+  // Searched by activity name; the code is the hint so a known code finds it too.
+  // TODO(backend): `GET /v1/code-lists/isic?q=` for the search, and the choice stored as
+  // `industrialClassification { code, name }` on `GET/PUT /v1/settings/company`.
+  const isicOptions = useMemo<SelectOption[]>(
+    () =>
+      ISIC_ACTIVITIES.map((activity) => ({
+        value: activity.code,
+        label: nameOf(activity, i18n.language),
+        hint: `ISIC ${activity.code}`,
+      })),
+    [i18n.language],
+  )
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -146,6 +165,21 @@ export function CompanyProfilePage() {
                   onChange={(event) => set('commercialRegistration', event.target.value)}
                 />
               </div>
+              <Field
+                label={t('companyProfile.industrialClassification')}
+                hint={t('companyProfile.industrialClassificationHint')}
+                required
+              >
+                <Combobox
+                  value={form.industrialClassification}
+                  onChange={(value) => set('industrialClassification', value)}
+                  options={isicOptions}
+                  placeholder={t('companyProfile.industrialClassificationPlaceholder')}
+                  searchPlaceholder={t('companyProfile.industrialClassificationSearch')}
+                  emptyText={t('companyProfile.industrialClassificationNone')}
+                  ariaLabel={t('companyProfile.industrialClassification')}
+                />
+              </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
                   bordered

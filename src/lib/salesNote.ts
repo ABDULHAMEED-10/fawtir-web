@@ -7,6 +7,7 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto } from '../api/invoices/list'
 import type { SelectOption } from '../components/ui/Select'
+import { itemTypeOfUnit } from './invoiceDraft'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 import { dueDateFor, issueProblems, muscatToday } from './invoiceIssue'
 
@@ -21,6 +22,50 @@ import { dueDateFor, issueProblems, muscatToday } from './invoiceIssue'
 
 export const REASON_CODES = ['CAN', 'VAT', 'VAL', 'QTY', 'OTH'] as const
 export type ReasonCode = (typeof REASON_CODES)[number]
+
+/**
+ * The reasons the design offers, per kind, each carried to the API as one of its five BTOM-032
+ * codes. Two reasons can share a code (a goodwill discount and a freight charge are both "other"),
+ * so a reopened draft shows the first reason of its code, and "Other" where the code is OTH.
+ * TODO(backend): a `correctionReasonDetail` beside the code, so the chosen reason survives a save.
+ */
+export type NoteReason = { id: string; code: ReasonCode }
+export const NOTE_REASONS: Record<NoteKind, NoteReason[]> = {
+  CREDIT_NOTE: [
+    { id: 'returnedGoods', code: 'QTY' },
+    { id: 'priceCorrection', code: 'VAL' },
+    { id: 'orderCancelled', code: 'CAN' },
+    { id: 'vatCorrection', code: 'VAT' },
+    { id: 'goodwillDiscount', code: 'OTH' },
+    { id: 'other', code: 'OTH' },
+  ],
+  DEBIT_NOTE: [
+    { id: 'undercharged', code: 'VAL' },
+    { id: 'additionalDelivery', code: 'QTY' },
+    { id: 'freightOmitted', code: 'OTH' },
+    { id: 'vatCorrection', code: 'VAT' },
+    { id: 'latePaymentCharge', code: 'OTH' },
+    { id: 'priceEscalation', code: 'VAL' },
+    { id: 'other', code: 'OTH' },
+  ],
+}
+
+/** The design's reason for an API code: the first of its kind with that code, "Other" for OTH. */
+export function reasonOfCode(kind: NoteKind, code: string | null | undefined): string {
+  if (!code) return ''
+  if (code === 'OTH') return 'other'
+  return NOTE_REASONS[kind].find((reason) => reason.code === code)?.id ?? ''
+}
+
+export function reasonCodeOf(kind: NoteKind, reason: string): ReasonCode | null {
+  return NOTE_REASONS[kind].find((entry) => entry.id === reason)?.code ?? null
+}
+
+/** The label key of a row's reason, from the code the list carries. */
+export function reasonLabelKey(kind: NoteKind, code: string | null | undefined): string | null {
+  const reason = reasonOfCode(kind, code)
+  return reason ? `salesNote.reasonOptions.${reason}` : null
+}
 
 export type NoteLineKind = 'goods' | 'service'
 export type CreditMode = 'full' | 'lines' | 'custom'
@@ -52,8 +97,17 @@ export const UNITS_BY_KIND: Record<NoteLineKind, SelectOption[]> = {
   ],
 }
 
+/** The unit as the frames print it ("KG" for KGM), the code itself when the list has no name for it. */
+export function unitLabel(unitCode: string): string {
+  return (
+    [...UNITS_BY_KIND.goods, ...UNITS_BY_KIND.service].find((unit) => unit.value === unitCode)
+      ?.label ?? unitCode
+  )
+}
+
+/** A line's kind, read from its unit as the invoice draft reads its lines (`ZZ` reads as goods). */
 export function kindOfUnit(unitCode: string): NoteLineKind {
-  return unitCode === 'HUR' || unitCode === 'DAY' ? 'service' : 'goods'
+  return itemTypeOfUnit(unitCode)
 }
 
 export type NoteLine = {
@@ -67,6 +121,8 @@ export type NoteLine = {
   description: string
   kind: NoteLineKind
   unitCode: string
+  /** Oman 12-digit HS code on a goods line, CL-12-OM service type on a service line; null until chosen. */
+  classification: string | null
   /** As on the invoice, the most a credit note should take for the line. Null on an added line. */
   invoiceQuantity: number | null
   invoiceUnitPrice: number | null
@@ -80,7 +136,8 @@ export type NoteLine = {
 
 export type NoteForm = {
   mode: NoteMode
-  reasonCode: ReasonCode | ''
+  /** One of `NOTE_REASONS[kind]` by id; the API code is derived at request time. */
+  reason: string
   /** The design's "Reference / RMA". */
   reference: string
   note: string
@@ -93,7 +150,7 @@ export type NoteForm = {
 }
 
 export type NoteProblems = Partial<
-  Record<'reasonCode' | 'lines' | 'amounts' | 'descriptions' | 'issueDate' | 'dueDate', string>
+  Record<'reason' | 'lines' | 'amounts' | 'descriptions' | 'issueDate' | 'dueDate', string>
 >
 
 const FIRST_ADDED_LINE = 1000
@@ -117,6 +174,7 @@ function invoiceLine(
     description: line.description,
     kind: kindOfUnit(line.unitCode),
     unitCode: line.unitCode,
+    classification: null,
     invoiceQuantity: line.quantity,
     invoiceUnitPrice: line.unitPrice,
     quantity: String(line.quantity),
@@ -149,6 +207,7 @@ export function addedLine(
     description: '',
     kind,
     unitCode: 'EA',
+    classification: null,
     invoiceQuantity: null,
     invoiceUnitPrice: null,
     quantity: '1',
@@ -179,14 +238,14 @@ export function fromInvoice(
   const credit = kind === 'CREDIT_NOTE'
   return {
     mode: credit ? 'full' : 'correctLines',
-    reasonCode: '',
+    reason: '',
     reference: '',
     note: '',
     issueDate: today,
     dueDate: credit ? today : dueDateFor(today, invoice.details?.paymentTerms?.code),
     sendPeppol: true,
     lines: invoice.lines.map((line) =>
-      invoiceLine(line, credit, credit ? String(line.unitPrice) : '0.000'),
+      invoiceLine(line, credit, credit ? money3(line.unitPrice) : '0.000'),
     ),
   }
 }
@@ -276,11 +335,7 @@ export function fromNoteDraft(
   return {
     ...form,
     mode,
-    reasonCode: (REASON_CODES as readonly string[]).includes(
-      draft.details.correctionReasonCode ?? '',
-    )
-      ? (draft.details.correctionReasonCode as ReasonCode)
-      : '',
+    reason: reasonOfCode(noteKind, draft.details.correctionReasonCode),
     reference: draft.details.subject ?? '',
     note: draft.details.customerVisibleNote ?? '',
   }
@@ -331,6 +386,28 @@ export function withMode(form: NoteForm, mode: NoteMode, invoice: InvoiceDetailD
           : [addedLine(base, invoice)]
       return { ...base, lines: [...base.lines, ...keep] }
     }
+  }
+}
+
+/**
+ * A change to one line. On a debit note the invoice's lines are not ticked, as the frame draws
+ * them: a line is charged when it carries a difference, so the price decides whether it goes.
+ */
+export function patchLine(
+  form: NoteForm,
+  kind: NoteKind,
+  lineNumber: number,
+  patch: Partial<NoteLine>,
+): NoteForm {
+  return {
+    ...form,
+    lines: form.lines.map((line) => {
+      if (line.lineNumber !== lineNumber) return line
+      const next = { ...line, ...patch }
+      if (kind === 'DEBIT_NOTE' && next.fromInvoice && !('include' in patch))
+        next.include = Number(next.unitPrice) > 0 && Number(next.quantity) > 0
+      return next
+    }),
   }
 }
 
@@ -400,9 +477,13 @@ export function noteTotals(form: NoteForm): NoteTotals {
  */
 export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday()): NoteProblems {
   const problems: NoteProblems = {}
-  if (!form.reasonCode) problems.reasonCode = 'salesNote.error.reason'
+  if (!reasonCodeOf(kind, form.reason)) problems.reason = 'salesNote.error.reason'
   const kept = form.lines.filter((line) => line.include)
-  if (kept.length === 0) problems.lines = 'salesNote.error.noLines'
+  if (kept.length === 0)
+    problems.lines =
+      kind === 'DEBIT_NOTE' && form.mode === 'correctLines'
+        ? 'salesNote.error.noDifference'
+        : 'salesNote.error.noLines'
   const badAmount = kept.some(
     (line) =>
       !QUANTITY.test(line.quantity.trim()) ||
@@ -428,7 +509,11 @@ export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday
 }
 
 /** The note's request: the invoice's party, branch, currency and terms, with the kept lines. */
-export function toNoteRequest(form: NoteForm, invoice: InvoiceDetailDto): DraftRequest {
+export function toNoteRequest(
+  form: NoteForm,
+  invoice: InvoiceDetailDto,
+  kind: NoteKind = 'CREDIT_NOTE',
+): DraftRequest {
   return {
     customerId: invoice.customerId,
     branchId: invoice.branchId,
@@ -443,6 +528,9 @@ export function toNoteRequest(form: NoteForm, invoice: InvoiceDetailDto): DraftR
         // they go empty until the API accepts product-less lines.
         productId: line.productId ?? '',
         productCode: line.productCode ?? '',
+        // TODO(backend): `lines[].itemType` (GOODS | SERVICE), `lines[].hsCode` and
+        // `lines[].serviceType` (PINT_OM_LINE_CLASSIFICATION.md); `line.kind` and
+        // `line.classification` stay on the page until the draft accepts them.
         description: line.description.trim(),
         unitCode: line.unitCode,
         quantity: Number(line.quantity.trim()),
@@ -461,7 +549,7 @@ export function toNoteRequest(form: NoteForm, invoice: InvoiceDetailDto): DraftR
       paymentTerms: invoice.details?.paymentTerms ?? null,
       transactionType:
         invoice.details?.transactionType === 'SIMPLIFIED' ? 'SIMPLIFIED' : 'FULL_TAX',
-      correctionReasonCode: form.reasonCode || null,
+      correctionReasonCode: reasonCodeOf(kind, form.reason),
     },
   }
 }

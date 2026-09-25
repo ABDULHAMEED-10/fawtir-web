@@ -134,7 +134,7 @@ export const SELF_BILL_DETAIL = {
       timestamp: '24 Jul 2026 · 09:44',
       tone: 'done' as TimelineTone,
       callout:
-        'AB means accepted with warnings. The document arrived and is valid. Their system flagged that the delivery address on line 1 differs from the one they hold — nothing you need to fix.',
+        'AB means accepted with warnings. The document arrived and is valid. Their system flagged that the delivery address on line 1 differs from the one they hold: nothing you need to fix.',
     },
     {
       id: 'e2',
@@ -162,7 +162,7 @@ export const SELF_BILL_DETAIL = {
     {
       id: 'a2',
       kind: 'jpg' as const,
-      name: 'Signed delivery note — 18 Jul.jpg',
+      name: 'Signed delivery note - 18 Jul.jpg',
       meta: 'Delivery note · 1.2 MB · Uploaded 18 Jul 2026',
     },
   ],

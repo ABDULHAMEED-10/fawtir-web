@@ -1411,10 +1411,13 @@
       "dueSoonNote": "Drafts expected in the next month."
     },
     "menu": {
-      "pause": "Pause",
-      "resume": "Resume",
-      "view": "Open",
-      "edit": "Edit"
+      "pause": "Pause series",
+      "resume": "Resume series",
+      "view": "View schedule",
+      "edit": "Edit",
+      "generate": "Generate invoice",
+      "duplicate": "Duplicate",
+      "delete": "Delete"
     },
     "done": {
       "paused": "Paused. No drafts will be raised until you resume it.",
@@ -1448,7 +1451,9 @@
       "generated": "Generated this month",
       "generatedMeta": "Counted on each schedule's page",
       "attention": "Needs attention",
-      "attentionMeta": "{{paused}} paused · {{overdue}} overdue"
+      "attentionMeta": "{{paused}} paused · {{onRequest}} on request",
+      "generatedIssued_one": "{{count}} invoice issued",
+      "generatedIssued_other": "{{count}} invoices issued"
     },
     "status": {
       "active": "Active",
@@ -1488,7 +1493,15 @@
     "resultTotal_other": "{{count}} schedules",
     "pages": "Pages",
     "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "nextPage": "Next page",
+    "notYet": {
+      "generate": "Generating an invoice on demand is not available yet. The daily sweep raises each one on its date.",
+      "delete": "Deleting a schedule is not available yet. Pause it to stop it."
+    },
+    "issuedCount_one": "{{count}} issued",
+    "issuedCount_other": "{{count}} issued",
+    "lastRun": "last {{date}}",
+    "notIssued": "Not issued"
   },
   "suppliersPage": {
     "title": "Suppliers",
@@ -1866,7 +1879,11 @@
       "partial": "Partially paid",
       "paid": "Paid",
       "overdue_one": "Overdue · {{count}} day",
-      "overdue_other": "Overdue · {{count}} days"
+      "overdue_other": "Overdue · {{count}} days",
+      "toSend": "To be sent",
+      "overdue": "Overdue",
+      "overdueDays_one": "{{count}} day overdue",
+      "overdueDays_other": "{{count}} days overdue"
     },
     "delivery": {
       "sentManually": "Sent manually",
@@ -1966,16 +1983,19 @@
       "internal": "Internal note",
       "private": "private",
       "show": "Show the internal note",
-      "showHint": "Reading it is recorded in the activity."
+      "showHint": "Reading it is recorded in the activity.",
+      "unavailable": "The internal note could not be read."
     },
     "attachments": {
       "title": "Attachments",
       "none": "No files are kept with this invoice.",
       "draftNote": "Files can be added or removed while this is a draft.",
       "issuedNote": "Files can only be added or removed while an invoice is a draft.",
-      "meta": "{{size}} · Uploaded {{date}}",
+      "meta": "{{kind}} · {{size}} · Uploaded {{date}}",
       "drop": "Drop files or click to upload",
-      "removeUnavailable": "Files cannot be removed from here yet."
+      "removeUnavailable": "Files cannot be removed from here yet.",
+      "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
+      "uploadUnavailable": "Uploading from here is not available yet: there is no attachment route."
     },
     "payments": {
       "title": "Payments",
@@ -1984,7 +2004,8 @@
       "ref": "Ref {{reference}}",
       "paid": "Paid",
       "of": "of",
-      "receiptUnavailable": "No receipt is rendered for a payment yet."
+      "receiptUnavailable": "No receipt is rendered for a payment yet.",
+      "add": "Add payment"
     },
     "timeline": {
       "title": "Activity",
@@ -2095,20 +2116,27 @@
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
     "delivered": {
       "sentManually": "Sent manually to {{customer}} · {{when}}",
-      "notSent": "Not yet sent to {{customer}}"
+      "notSent": "Not yet sent to {{customer}}",
+      "peppol": "Delivered on Peppol to {{customer}} · {{when}}"
     },
     "reminder": {
       "title": "Payment reminder",
       "pause": "Pause",
       "pauseUnavailable": "Reminders can only be paused for every invoice at once, from Reminders › Settings.",
       "sendNow": "Send now",
-      "details": "Reminder details"
+      "details": "Reminder details",
+      "ofLadder": "Reminder {{n}} of {{total}}",
+      "today": "goes out today at 09:00",
+      "tomorrow": "goes out tomorrow at 09:00",
+      "onDay_one": "goes out in {{count}} day at 09:00",
+      "onDay_other": "goes out in {{count}} days at 09:00",
+      "none": "no further reminders on the ladder"
     },
     "onPeppol": "On Peppol",
     "vatNumber": "VAT {{number}}",
     "currencyOmr": "OMR - Omani Rial",
     "vat": {
-      "rate": "{{category}} · {{rate}}%",
+      "rate": "{{category}} rate · {{rate}}%",
       "mixed": "Mixed rates"
     },
     "catalogRef": "Catalog #{{code}}",
@@ -2125,7 +2153,8 @@
       "from": "From",
       "totalDue": "Total due"
     },
-    "you": "You"
+    "you": "You",
+    "sentViaPeppol": "Sent via Peppol"
   },
   "createInvoice": {
     "breadcrumb": "Invoices",
@@ -2204,7 +2233,7 @@
       "exclVat": "Excl. VAT",
       "inclVat": "Incl. VAT",
       "description": "Description",
-      "excl": "Excl.",
+      "excl": "Price excl.",
       "vat": "VAT (%)",
       "qty": "Quantity",
       "unit": "Unit",
@@ -2222,7 +2251,7 @@
       "discountType": "discount type",
       "omr": "OMR",
       "descriptionPlaceholder": "Item name or description",
-      "incl": "Incl.",
+      "incl": "Price incl.",
       "type": "Type",
       "typeOfLine": "Line {{line}}: goods or service",
       "goods": "Goods",
@@ -2232,7 +2261,15 @@
       "classificationSearch": "Search by activity name",
       "classificationNone": "No classification matches",
       "pickFromCatalogue": "Pick from catalogue (optional)",
-      "netAmount": "Net amount"
+      "netAmount": "Net amount",
+      "hsCode": "HS code",
+      "hsPlaceholder": "Choose an HS code",
+      "hsSearch": "Search by product name",
+      "hsNone": "No HS code matches. Choose Other.",
+      "serviceType": "Service type",
+      "servicePlaceholder": "Choose a service type",
+      "serviceSearch": "Search by service name",
+      "serviceNone": "No service type matches"
     },
     "toggles": {
       "paid": "Mark as paid",
@@ -2418,7 +2455,8 @@
       "endBeforeStart": "The end can't be before the first draft.",
       "occurrences": "Give a whole number of runs, or leave it empty.",
       "intervalRequired": "Choose how often it runs.",
-      "notFound": "This schedule no longer exists."
+      "notFound": "This schedule no longer exists.",
+      "linesRequired": "Add at least one line with a description."
     },
     "kind": "Recurring invoice",
     "nextShort": "Next",
@@ -2502,6 +2540,33 @@
     },
     "done": {
       "saved": "Saved. The next run follows the new schedule."
+    },
+    "noCustomers": "No customers yet. Add one from Customers first.",
+    "noVat": "No VAT number on file",
+    "subjectPlaceholder": "What this invoice is for",
+    "poPlaceholder": "PO-00000",
+    "projectPlaceholder": "Optional",
+    "chooseBranch": "Choose a branch",
+    "repeat": {
+      "weekly": "Every {{weekday}}",
+      "monthly": "Day {{count}} of each month",
+      "quarterly": "Day {{count}} of the quarter's first month",
+      "yearly": "On {{date}} each year"
+    },
+    "switchesPending": "Saved with the schedule. Fawtir acts on them once the backend supports them.",
+    "willIssueBefore": "Fawtir will issue an invoice for",
+    "willIssueAfter": "{{every}} and send it to {{customer}} automatically.",
+    "issuedMeta": "Issued {{date}}",
+    "delivery": {
+      "SENT_MANUALLY": "sent manually",
+      "NOT_SUBMITTED": "not sent yet",
+      "SENT_PEPPOL": "sent via Peppol",
+      "other": "{{state}}"
+    },
+    "payment": {
+      "PAID": "Paid",
+      "PARTIALLY_PAID": "Partially paid",
+      "UNPAID": "Unpaid"
     }
   },
   "creditNotesPage": {
@@ -2791,7 +2856,7 @@
   },
   "agreements": {
     "breadcrumbIncome": "Income",
-    "breadcrumbSelfBilled": "Self -billed",
+    "breadcrumbSelfBilled": "Self-billed",
     "title": "Agreements",
     "subtitle": "Your permission to invoice on each supplier's behalf. A supplier must have an active agreement here before you can raise a self-billed invoice for them.",
     "export": "Export",
@@ -2851,7 +2916,9 @@
     "rowMenu": "Row actions",
     "showResult": "Show result:",
     "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "nextPage": "Next page",
+    "selectAll": "Select all agreements on this page",
+    "selectRow": "Select {{supplier}}"
   },
   "newSelfBill": {
     "breadcrumb": "Self-billed",
@@ -2943,7 +3010,11 @@
       "preview": "Preview",
       "saveDraft": "Save draft",
       "issue": "Issue self-billed invoice"
-    }
+    },
+    "chooseSupplier": "Choose a supplier",
+    "agreementLocked": "Filled from the supplier's agreement",
+    "noAgreement": "No agreement: statutory self-bill",
+    "supplierSearch": "Search suppliers"
   },
   "selfBillDetail": {
     "breadcrumbIncome": "Income",
@@ -4511,7 +4582,10 @@
       "day14": "14 days late",
       "day14Note": "Direct follow-up, owner copied",
       "day30": "30 days late",
-      "day30Note": "Final notice, then reminders stop"
+      "day30Note": "Final notice, then reminders stop",
+      "firstNote": "{{step}}: assumes the invoice was simply missed",
+      "middleNote": "{{step}}: direct, states how late it is",
+      "lastNote": "{{step}}, then reminders stop"
     },
     "rightNowTitle": "Right now",
     "viewQueue": "View the queue",
@@ -4524,29 +4598,35 @@
     "stopTitle": "Stop sending when",
     "stop": {
       "paid": "The invoice is paid in full",
-      "paidNote": "Reminders stop the moment payment is recorded",
+      "paidNote": "Reminders stop the moment the invoice is settled",
       "partPayment": "A part payment arrives",
       "partPaymentNote": "Pause and let someone decide, rather than chasing the balance automatically",
       "creditNote": "A credit note is raised against it",
       "creditNoteNote": "The amount is under correction, so chasing it would be wrong",
       "replies": "The customer replies to a reminder",
-      "repliesNote": "A conversation has started, the next step waits for you",
+      "repliesNote": "A conversation has started, so the next step waits for you",
       "dispute": "The invoice is marked in dispute",
-      "disputeNote": "Off by default: turn on if your team uses the dispute flag"
+      "disputeNote": "Off by default: turn on if your team uses the dispute flag",
+      "notYet": "Not in the API yet"
     },
     "sendingTitle": "Sending",
     "sending": {
       "sendFrom": "Send from",
       "replyTo": "Reply-to",
       "sendAt": "Send at",
-      "attachPdf": "Attach the invoice PDF"
+      "attachPdf": "Attach the invoice PDF",
+      "notYet": "Set for the whole installation",
+      "installation": "The installation's mail sender",
+      "sendAtValue": "08:00 · Asia/Muscat",
+      "attachValue": "Not attached"
     },
     "beforeTitle": "Before anything is sent",
     "before": {
       "hold": "Hold each reminder for 24 hours first",
-      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you, if you do nothing, it sends.",
+      "holdNote": "Reminders would sit in the queue for a day before going out, so you could cancel one that should not go. Today the sweep sends on the day.",
       "approveFinal": "Require approval for the final notice",
-      "approveFinalNote": "The firm step never sends on its own, someone has to press send. Useful when the relationship matters more than the invoice."
+      "approveFinalNote": "The firm step would never send on its own: someone has to press send. Useful when the relationship matters more than the invoice.",
+      "notYet": "Not in the API yet"
     },
     "queue": {
       "title": "Payment reminders",
@@ -4573,7 +4653,14 @@
         "paid": "Paid after a reminder",
         "paidNote": "Last 30 days · 11 sent",
         "paused": "Paused",
-        "pausedNote": "1 customer, 1 invoice"
+        "pausedNote": "1 customer, 1 invoice",
+        "goingOutSweep": "Sent at {{hour}} unless paused",
+        "overdueAcross_one": "Across {{count}} invoice",
+        "overdueAcross_other": "Across {{count}} invoices",
+        "paidLast30": "Last 30 days · {{count}} sent",
+        "pausedNone": "Nothing is paused",
+        "pausedAll_one": "{{count}} invoice, until you resume",
+        "pausedAll_other": "{{count}} invoices, until you resume"
       },
       "cols": {
         "sending": "Sending",
@@ -4581,7 +4668,8 @@
         "invoice": "Invoice",
         "whichReminder": "Which reminder",
         "amount": "Amount",
-        "actions": "Actions"
+        "actions": "Actions",
+        "outcome": "What happened"
       },
       "tomorrow": "Tomorrow",
       "in16Hours": "in 16 hours · 09:00",
@@ -4607,6 +4695,53 @@
         "resume": "Resume",
         "cancel": "Cancel",
         "pause": "Pause"
+      },
+      "holdTitleOn": "Reminders go out with the daily sweep at {{hour}}",
+      "holdNoteOn": "Anything below goes out on the day shown. Pause everything stops the schedule; nothing is cancelled.",
+      "holdTitleOff": "Reminders are paused",
+      "holdNoteOff": "Nothing goes out on its own until you resume. You can still send one by hand.",
+      "resumeEverything": "Resume everything",
+      "pausedAll": "Paused. Nothing goes out until you resume.",
+      "resumedAll": "Resumed. The schedule picks up where it left off.",
+      "noSchedule": "Only an administrator can read the reminder schedule, so the queue cannot be worked out here. The Sent tab shows what has gone out.",
+      "today": "Today",
+      "inDays_zero": "today",
+      "inDays_one": "in {{count}} day",
+      "inDays_other": "in {{count}} days",
+      "overdueDays_one": "{{count}} day overdue",
+      "overdueDays_other": "{{count}} days overdue",
+      "dueOn": "Due {{date}}",
+      "sentOn": "Sent {{date}}",
+      "notSending": "Not sending",
+      "untilResume": "until you resume",
+      "allSent_one": "{{count}} reminder sent",
+      "allSent_other": "{{count}} reminders sent",
+      "locale": {
+        "EN": "In English",
+        "AR": "In Arabic"
+      },
+      "reason": {
+        "noDueDate": "No due date on the invoice",
+        "noRungs": "The schedule has no rungs",
+        "ladderSpent": "Every rung has gone out",
+        "noRecipient": "No e-mail address on file"
+      },
+      "filter": {
+        "allReminders": "All reminders",
+        "allOutcomes": "All outcomes"
+      },
+      "sort": {
+        "soonest": "Sending, soonest",
+        "amount": "Amount, highest",
+        "customer": "Customer"
+      },
+      "resultTotal_one": "{{count}} reminder",
+      "resultTotal_other": "{{count}} reminders",
+      "empty": {
+        "scheduled": "Nothing is due to go out. Every unpaid invoice has had its reminders, or none is unpaid.",
+        "sent": "No reminders have gone out yet.",
+        "paused": "Nothing is paused.",
+        "notSending": "Every unpaid invoice is being chased."
       }
     },
     "pause": {
@@ -4631,7 +4766,11 @@
       "in7Days": "In 7 days",
       "onADate": "On a date",
       "note": "Note",
-      "confirm": "Pause until {{date}}"
+      "confirm": "Pause until {{date}}",
+      "scopeInvoiceNoteFor": "Other invoices for {{customer}} keep being chased as normal",
+      "scopeCustomerNoteFor": "Nothing goes to {{customer}} until you resume",
+      "notePlaceholder": "What you agreed, and when to check again",
+      "notYet": "Pausing one invoice or one customer is not available yet. Pause everything stops the whole schedule."
     },
     "send": {
       "title": "Send a reminder now",
@@ -4662,8 +4801,17 @@
         "invoice": "Invoice",
         "issued": "Issued",
         "due": "Due",
-        "outstanding": "Amount outstanding"
-      }
+        "outstanding": "Amount outstanding",
+        "to": "To"
+      },
+      "whichInvoice": "Which invoice",
+      "chooseInvoice": "Choose an unpaid invoice",
+      "noUnpaid": "No unpaid invoice to chase.",
+      "noReminderYet": "no reminder sent yet",
+      "lastReminder": "last reminder {{date}}",
+      "language": "in {{language}}",
+      "noPreview": "The message could not be read.",
+      "editNotYet": "The message is fixed in the server for now."
     },
     "template": {
       "friendlyDescription": "The first message a customer gets. Sent 7 days after the invoice was due.",
@@ -4673,8 +4821,20 @@
       "invoiceWord": "Invoice",
       "attached": "attached",
       "sendTest": "Send myself a test",
-      "save": "Save message"
-    }
+      "save": "Save message",
+      "description": "{{step}}, sent {{when}}.",
+      "fixed": "The wording is fixed in the server for now, in English and Arabic. Preview the real message from any unpaid invoice.",
+      "fixedShort": "Set by the server",
+      "previewFromInvoice": "Open an unpaid invoice and choose Send now to read the message as it would go out."
+    },
+    "bannerTitleOff": "Automatic reminders are off",
+    "bannerNoteOff": "Nothing goes out on its own. You can still send a reminder from an invoice or from the queue.",
+    "daysEarly": "days early",
+    "dueDay": "due date",
+    "stepMeta": "English or Arabic, as the customer prefers · sent to the billing contact",
+    "savedJustNow": "Saved just now",
+    "unsaved": "Unsaved changes",
+    "testNotYet": "Sending a test needs the backend. Preview the real message from an invoice."
   },
   "scanToFill": {
     "button": "Scan to fill",
@@ -7613,7 +7773,7 @@
     "lockedNote": "Changing this means re-registering on Peppol. Talk to support first.",
     "vatRegisteredSince": "VAT registered since",
     "whereYouAre": "Where you are",
-    "whereYouAreNote": "the registered address — branches have their own",
+    "whereYouAreNote": "the registered address; branches have their own",
     "streetAddress": "Street address",
     "townOrCity": "Town or city",
     "postalCode": "Postal code",
@@ -7637,7 +7797,7 @@
     "brandColourNote": "used on invoice headings",
     "logoWarning": "The logo is drawn onto the PDF only. <b>The XML sent to the Tax Authority carries no image</b>, so a logo change never affects a submission.",
     "defaults": "What invoices default to",
-    "defaultsNote": "every new invoice starts here — any of it can be changed per customer",
+    "defaultsNote": "every new invoice starts here; any of it can be changed per customer",
     "language": "Language",
     "languageOption": {
       "both": "Arabic and English",
@@ -7650,7 +7810,7 @@
     },
     "paymentTerms": "Payment terms",
     "bottomNote": "Note at the bottom of every invoice",
-    "bottomNoteHint": "bank details, thanks, terms — whatever you'd normally add by hand",
+    "bottomNoteHint": "bank details, thanks, terms, whatever you would normally add by hand",
     "howItComesOut": "How it comes out",
     "livePreview": "Live preview",
     "updatesAsYouType": "updates as you type",
@@ -7679,7 +7839,12 @@
     "undoTheChanges": "Undo the changes",
     "save": "Save",
     "saved": "Saved",
-    "andJoin": " and "
+    "andJoin": " and ",
+    "industrialClassification": "Business activity (ISIC)",
+    "industrialClassificationHint": "Copied onto every invoice line by the backend; never asked on the invoice",
+    "industrialClassificationPlaceholder": "Choose your business activity",
+    "industrialClassificationSearch": "Search by activity name",
+    "industrialClassificationNone": "No activity matches"
   },
   "branches": {
     "title": "Branches",
@@ -13507,7 +13672,9 @@
       "unitPrice": "Enter a price.",
       "exemptionReason": "Say why no VAT is charged on this line.",
       "description": "Enter a description.",
-      "walkInName": "Enter the customer's name."
+      "walkInName": "Enter the customer's name.",
+      "hsCode": "Choose an HS code for this goods line (IBR-079-OM).",
+      "serviceType": "Choose a service type for this service line (IBR-155-OM)."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",
@@ -13557,7 +13724,10 @@
     "walkInOnFile": "Already one of your customers.",
     "walkInPermission": "You can't add customers, so choose one already on file.",
     "walkInRefused": "The customer could not be added: {{reason}}",
-    "previewed": "Draft saved and priced. The figures are the server's."
+    "previewed": "Draft saved and priced. The figures are the server's.",
+    "businessActivity": "Business activity: {{code}} · {{name}}",
+    "businessActivityHint": "Copied onto every line by the backend (IBR-081-OM).",
+    "businessActivityLink": "Company settings"
   },
   "invoiceIssue": {
     "action": "Issue invoice",
@@ -14132,7 +14302,8 @@
       "noLines": "Tick at least one line.",
       "creditAmounts": "Each ticked line needs a quantity above zero and a price, no more than on the invoice.",
       "debitAmounts": "Each ticked line needs a quantity above zero and a price.",
-      "description": "Every line needs a description."
+      "description": "Every line needs a description.",
+      "noDifference": "Enter the difference on at least one line: a price above zero and a quantity."
     },
     "refused": {
       "invoiceNotIssued": "This invoice is not issued (or was cancelled), so it cannot be corrected.",
@@ -14355,7 +14526,8 @@
         "stale": "This note changed elsewhere; reload it and try again.",
         "notCancellable": "This note can no longer be cancelled.",
         "delivered": "A note that was already delivered cannot be cancelled."
-      }
+      },
+      "pendingUpload": "kept with the page until upload is available"
     },
     "status": {
       "draft": "Draft",
@@ -14463,7 +14635,7 @@
         "OVERDUE": "Overdue"
       },
       "issuedOn": "Issued {{date}}",
-      "sentManually": "sent to the customer",
+      "sentManually": "sent via Peppol",
       "notSent": "not sent yet",
       "invoiceTotal": "Invoice total",
       "alreadyCredited": "Already credited",
@@ -14517,7 +14689,8 @@
       "attachments": "Attachments",
       "dropFiles": "Drop files or click to upload",
       "dropHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
-      "removeFile": "Remove"
+      "removeFile": "Remove",
+      "pickInvoiceHint": "A note corrects an issued invoice. Choose the invoice it concerns; you can also start one from the invoice itself."
     },
     "mode": {
       "full": "Full invoice",
@@ -14547,7 +14720,7 @@
       "kind": "Goods / service",
       "goods": "Goods",
       "service": "Service",
-      "excl": "Excl.",
+      "excl": "Price excl.",
       "vat": "VAT (%)",
       "qty": "Quantity",
       "unit": "Unit",
@@ -14556,7 +14729,16 @@
       "onInvoice": "On {{invoice}}: {{qty}} × {{price}}",
       "addLine": "Add a line",
       "remove": "Remove line",
-      "untitled": "untitled line"
+      "untitled": "untitled line",
+      "hsCode": "HS code",
+      "serviceType": "Service type",
+      "hsPlaceholder": "Search the product by name",
+      "servicePlaceholder": "Search the service by name",
+      "hsSearch": "Product name, e.g. coffee",
+      "serviceSearch": "Service name, e.g. catering",
+      "classificationNone": "Nothing matches. Choose Other.",
+      "more": "One more",
+      "fewer": "One fewer"
     },
     "amount": {
       "title": {
@@ -14589,6 +14771,19 @@
         "credit": "Filed against {{invoice}} · reverses declared VAT with the OTA.",
         "debit": "Filed against {{invoice}} · declares the additional VAT with the OTA."
       }
+    },
+    "reasonOptions": {
+      "returnedGoods": "Returned goods",
+      "priceCorrection": "Price correction",
+      "orderCancelled": "Order cancelled",
+      "vatCorrection": "VAT correction",
+      "goodwillDiscount": "Goodwill discount",
+      "undercharged": "Undercharged",
+      "additionalDelivery": "Additional delivery",
+      "freightOmitted": "Freight omitted",
+      "latePaymentCharge": "Late payment charge",
+      "priceEscalation": "Price escalation",
+      "other": "Other"
     }
   },
   "stagedImport": {
@@ -14845,8 +15040,8 @@
     "inclVat": "Incl. VAT",
     "col": {
       "description": "Description",
-      "excl": "Excl.",
-      "incl": "Incl.",
+      "excl": "Price excl.",
+      "incl": "Price incl.",
       "vat": "VAT (%)",
       "qty": "Quantity",
       "unit": "Unit",
@@ -14862,6 +15057,20 @@
     "qtyUp": "One more",
     "qtyDown": "One fewer",
     "remove": "Remove line",
-    "addLine": "Add line item"
+    "addLine": "Add line item",
+    "hsCode": "HS code",
+    "serviceType": "Service type",
+    "hsPlaceholder": "HS code: search by product name",
+    "servicePlaceholder": "Service type: search by service name"
+  },
+  "classification": {
+    "hsCode": "HS code",
+    "serviceType": "Service type",
+    "hsPlaceholder": "Choose an HS code",
+    "hsSearch": "Search by product name",
+    "hsNone": "No HS code matches. Choose Other.",
+    "servicePlaceholder": "Choose a service type",
+    "serviceSearch": "Search by service name",
+    "serviceNone": "No service type matches"
   }
 }

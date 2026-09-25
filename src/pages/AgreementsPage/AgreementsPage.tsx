@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu, RowsView, withRial } from '../../components/ui'
+import { ActionMenu, RowsView, TableCheckbox, withRial } from '../../components/ui'
 import { agreementRowActions } from '../../lib/rowActions'
 import {
   AGREEMENT_KPI,
@@ -133,11 +133,6 @@ function AgreementsHeader() {
         >
           <img src={plusIcon} alt="" className="size-6" />
           {t('agreements.newAgreement')}
-          <img
-            src={chevronIcon}
-            alt=""
-            className="size-[18px] brightness-0 invert rtl:rotate-180"
-          />
         </button>
       </div>
     </div>
@@ -320,6 +315,8 @@ function AgreementsTable() {
     [activeTab, query],
   )
   const [page, setPage] = useState(2)
+  const [selected, setSelected] = useState<string[]>([])
+  const allSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -393,7 +390,19 @@ function AgreementsTable() {
           <thead>
             <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
               <th className="w-10 px-5 py-2.5">
-                <span className="block size-[15px] rounded-sm border border-border-default bg-transparent" />
+                <TableCheckbox
+                  checked={allSelected}
+                  indeterminate={!allSelected && rows.some((row) => selected.includes(row.id))}
+                  disabled={rows.length === 0}
+                  onChange={() =>
+                    setSelected((current) =>
+                      allSelected
+                        ? current.filter((id) => !rows.some((row) => row.id === id))
+                        : [...new Set([...current, ...rows.map((row) => row.id)])],
+                    )
+                  }
+                  ariaLabel={t('agreements.selectAll')}
+                />
               </th>
               <th className="px-2 py-2.5 text-start font-semibold">
                 {t('agreements.col.supplier')}
@@ -417,7 +426,17 @@ function AgreementsTable() {
                 className="border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
               >
                 <td className="px-5 py-3 align-top">
-                  <span className="mt-1 block size-[15px] rounded-sm border border-border-default" />
+                  <TableCheckbox
+                    checked={selected.includes(row.id)}
+                    onChange={() =>
+                      setSelected((current) =>
+                        current.includes(row.id)
+                          ? current.filter((id) => id !== row.id)
+                          : [...current, row.id],
+                      )
+                    }
+                    ariaLabel={t('agreements.selectRow', { supplier: row.supplier })}
+                  />
                 </td>
                 <AgreementRowCells row={row} />
                 <td className="px-2 py-3 align-top">

@@ -42,7 +42,10 @@ export function isInvoiceTab(value: string | null): value is InvoiceTabId {
  * What each tab asks for. "All" names its three states rather than asking for everything, because
  * a discarded draft is gone from the user's point of view and the summary does not count it.
  */
-export function tabFilter(tab: InvoiceTabId): { state: string | null; payment: InvoiceListPayment | null } {
+export function tabFilter(tab: InvoiceTabId): {
+  state: string | null
+  payment: InvoiceListPayment | null
+} {
   switch (tab) {
     case 'all':
       return { state: 'DRAFT,ISSUED,CANCELLED', payment: null }
@@ -122,7 +125,10 @@ const dayKey = (year: number, month: number, day: number) => {
  * The issue dates a period covers, both ends inclusive, counted from `today` — the summary's
  * `asOf`, the Muscat day the server reads, never the browser's clock.
  */
-export function periodRange(period: PeriodId, today: string): { from: string | null; to: string | null } {
+export function periodRange(
+  period: PeriodId,
+  today: string,
+): { from: string | null; to: string | null } {
   const [year, month] = today.split('-').map(Number)
   switch (period) {
     case 'all':
@@ -149,7 +155,9 @@ export function listFilter(
 }
 
 export type AuthoringChip = 'draft' | 'issued' | 'cancelled' | 'discarded'
-export type PaymentChip = 'awaiting' | 'partial' | 'overdue' | 'paid'
+/** `toSend` is the design's "To be sent": issued, nothing paid yet, and not delivered by any means. */
+export type PaymentChip = 'toSend' | 'awaiting' | 'partial' | 'overdue' | 'paid'
+export type PeppolResponse = 'AB' | 'AP' | 'RE'
 
 export type InvoiceListItem = {
   id: string
@@ -169,6 +177,10 @@ export type InvoiceListItem = {
   payment: PaymentChip | null
   paymentValues?: Record<string, number>
   sentManually: boolean
+  /** The Peppol response code of the last delivery, when the row carries one. */
+  peppolResponse: PeppolResponse | null
+  /** The issuing branch, named under the customer once the branches are known. */
+  branchId: string | null
   isDraft: boolean
 }
 
@@ -179,12 +191,23 @@ const AUTHORING: Record<InvoiceStateDto, AuthoringChip> = {
   DISCARDED: 'discarded',
 }
 
+/**
+ * One pill per row, as the design draws it (Figma 154:172772): overdue, paid, partially paid,
+ * "To be sent" while an unpaid document has not been delivered by any means, else awaiting.
+ */
 function paymentOf(row: InvoiceRowDto): Pick<InvoiceListItem, 'payment' | 'paymentValues'> {
   const payment = row.payment
   if (!payment || payment.state === 'NOT_APPLICABLE') return { payment: null }
-  if (payment.overdue) return { payment: 'overdue', paymentValues: { count: payment.daysOverdue ?? 0 } }
+  if (payment.overdue)
+    return { payment: 'overdue', paymentValues: { count: payment.daysOverdue ?? 0 } }
   if (payment.state === 'PAID') return { payment: 'paid' }
-  return { payment: payment.state === 'PARTIALLY_PAID' ? 'partial' : 'awaiting' }
+  if (payment.state === 'PARTIALLY_PAID') return { payment: 'partial' }
+  return { payment: delivered(row) ? 'awaiting' : 'toSend' }
+}
+
+/** Delivered by hand, or with a Peppol response on record. `NOT_SUBMITTED` and the like are not. */
+function delivered(row: InvoiceRowDto): boolean {
+  return row.deliveryState === 'SENT_MANUALLY' || !!row.peppolResponse
 }
 
 /** The draft's lines through the same engine the composer uses, at the currency's scale. */
@@ -211,10 +234,16 @@ function amountNoteOf(row: InvoiceRowDto, payment: PaymentChip | null): Note | n
   const figures = row.payment
   if (!figures || payment === null) return null
   if (payment === 'partial' || (payment === 'overdue' && (figures.paidAmount ?? 0) > 0)) {
-    return { key: 'invoicesPage.amountNote.outstanding', values: { amount: figures.outstandingAmount ?? 0 } }
+    return {
+      key: 'invoicesPage.amountNote.outstanding',
+      values: { amount: figures.outstandingAmount ?? 0 },
+    }
   }
   if (payment === 'paid' && (figures.creditedAmount ?? 0) > 0) {
-    return { key: 'invoicesPage.amountNote.credited', values: { amount: figures.creditedAmount ?? 0 } }
+    return {
+      key: 'invoicesPage.amountNote.credited',
+      values: { amount: figures.creditedAmount ?? 0 },
+    }
   }
   return null
 }
@@ -239,6 +268,8 @@ export function toInvoiceListItem(row: InvoiceRowDto): InvoiceListItem {
     authoring: AUTHORING[row.authoringState],
     ...payment,
     sentManually: row.deliveryState === 'SENT_MANUALLY',
+    peppolResponse: row.peppolResponse ?? null,
+    branchId: row.branchId ?? null,
     isDraft,
   }
 }

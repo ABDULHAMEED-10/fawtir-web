@@ -47,6 +47,12 @@ export type InvoiceDetailDto = {
   /** Only `NOT_SUBMITTED` or `SENT_MANUALLY` exist today; there is no Peppol delivery state (B4). */
   deliveryState: string
   deliveryBlocker: string | null
+  /**
+   * TODO(backend): the design's header and delivery bar say "Sent via Peppol" and "Delivered on
+   * Peppol to … · when". Neither the response code nor the delivery time is answered today.
+   */
+  peppolResponse?: 'AB' | 'AP' | 'RE' | null
+  deliveredAt?: string | null
   customerId: string
   branchId: string
   currency: string
@@ -156,7 +162,11 @@ export function downloadAttachment(invoiceId: string, attachmentId: string): Pro
 }
 
 /** ISSUED only, and refused once the invoice was delivered — a credit note is the remedy then. */
-export function cancelInvoice(invoiceId: string, expectedVersion: number, reason: string): Promise<InvoiceDetailDto> {
+export function cancelInvoice(
+  invoiceId: string,
+  expectedVersion: number,
+  reason: string,
+): Promise<InvoiceDetailDto> {
   return apiRequest<InvoiceDetailDto>(`${path(invoiceId)}/cancel`, {
     method: 'POST',
     body: { expectedVersion, reason },
@@ -176,7 +186,11 @@ export type RecordPaymentRequest = {
  * A payment against an issued invoice. The Idempotency-Key is the modal's, minted once when it
  * opens: a double click or a retry after a lost response records the payment once, not twice.
  */
-export function recordPayment(invoiceId: string, idempotencyKey: string, payment: RecordPaymentRequest): Promise<InvoicePaymentDto> {
+export function recordPayment(
+  invoiceId: string,
+  idempotencyKey: string,
+  payment: RecordPaymentRequest,
+): Promise<InvoicePaymentDto> {
   return apiRequest<InvoicePaymentDto>(`${path(invoiceId)}/payments`, {
     method: 'POST',
     body: payment,
@@ -185,11 +199,18 @@ export function recordPayment(invoiceId: string, idempotencyKey: string, payment
 }
 
 /** Nothing is deleted: a reversal is a new, dated row that cancels the payment it names. */
-export function reversePayment(invoiceId: string, paymentId: string, idempotencyKey: string): Promise<InvoicePaymentDto> {
-  return apiRequest<InvoicePaymentDto>(`${path(invoiceId)}/payments/${encodeURIComponent(paymentId)}/reverse`, {
-    method: 'POST',
-    headers: { 'Idempotency-Key': idempotencyKey },
-  })
+export function reversePayment(
+  invoiceId: string,
+  paymentId: string,
+  idempotencyKey: string,
+): Promise<InvoicePaymentDto> {
+  return apiRequest<InvoicePaymentDto>(
+    `${path(invoiceId)}/payments/${encodeURIComponent(paymentId)}/reverse`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+    },
+  )
 }
 
 /** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
