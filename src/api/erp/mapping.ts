@@ -317,7 +317,14 @@ export function archiveGuidedMapping(format: MappingFormat): Promise<void> {
 /* ----------------------------------------------------------------- dry run */
 
 export type MappingDryRunRequest = {
-  /** The tenant-native sample payload, carried verbatim — the same shape a real submission sends. */
+  /**
+   * The tenant-native payload, carried verbatim — the same shape a real submission sends.
+   *
+   * The representation follows the format: an object for `JSON`, and for `XML` a **string**
+   * holding the markup itself, which is what reaches the stylesheet byte for byte. An object
+   * under `XML` is refused by name. Every mapping screen is `JSON` today
+   * (`GUIDED_MAPPING_FORMAT`), so only an `XML` caller needs the string form.
+   */
   document: unknown
   /** An unsaved expression to test. Omit to run the tenant's stored active profile. */
   content?: string
@@ -506,6 +513,14 @@ export function loadCertificationHistory(
  */
 export type MappingCertificationRunRequest = {
   format?: MappingFormat
+  /**
+   * The tenant-native payload, carried verbatim — the same shape a real submission sends.
+   *
+   * The representation follows the format: an object for `JSON`, and for `XML` a **string**
+   * holding the markup itself, which is what reaches the stylesheet byte for byte. An object
+   * under `XML` is refused by name. Every mapping screen is `JSON` today
+   * (`GUIDED_MAPPING_FORMAT`), so only an `XML` caller needs the string form.
+   */
   document: unknown
   document_kind?: MappingDocumentKind
   supplement: {
@@ -516,6 +531,11 @@ export type MappingCertificationRunRequest = {
     preceding_invoice_date?: string | null
     preceding_invoice_uuid?: string | null
     credit_note_reason_code?: string | null
+    /**
+     * BTOM-020. Optional — absent means an ordinary invoice, which is what the certification
+     * modal sends. No screen offers the profit-margin variant yet, so that variant cannot be
+     * certified from the UI.
+     */
     profit_margin?: boolean
   }
 }
