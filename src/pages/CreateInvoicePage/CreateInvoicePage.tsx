@@ -302,7 +302,7 @@ function ItemTypeToggle({
     <span
       role="group"
       aria-label={t('createInvoice.items.typeOfLine', { line })}
-      className="inline-flex h-[50px] w-full items-center rounded-sm border border-primary-300 bg-surface-tab-bar p-1"
+      className="inline-flex h-[50px] w-full items-center overflow-hidden rounded-sm border border-primary-300 bg-surface-tab-bar p-1"
     >
       {options.map((option) => {
         const active = option === value
@@ -313,7 +313,7 @@ function ItemTypeToggle({
             onClick={() => onChange(option)}
             aria-pressed={active}
             className={[
-              'inline-flex h-full flex-1 items-center justify-center rounded-[3px] px-2 text-xs font-semibold transition-colors',
+              'inline-flex h-[40px] min-w-0 flex-1 items-center justify-center rounded-[3px] px-1.5 text-xs font-semibold transition-colors',
               active ? 'bg-primary-700 text-white' : 'text-text-tertiary hover:text-text-secondary',
             ].join(' ')}
           >
@@ -467,7 +467,7 @@ type PaymentState = {
 /**
  * The invoice composer, for a new draft (`/invoices/new`) or a saved one (`/invoices/:id/edit`).
  *
- * What a draft holds is saved. The design's payment block, linked documents, project and
+ * What a draft holds is saved. The design's payment block, linked documents and
  * attachments are drawn and wait for their fields (each marked TODO(backend)). Issuing saves first,
  * then confirms.
  */
@@ -939,10 +939,6 @@ function InvoiceComposer() {
     label: t(`createInvoice.taxCategories.${category.code}`),
     hint: `EN 16931 · ${category.categoryId}`,
   }))
-  const vatModeOptions: SelectOption[] = [
-    { value: 'EXCLUSIVE', label: t('createInvoice.vatMode.exclusive') },
-    { value: 'INCLUSIVE', label: t('createInvoice.vatMode.inclusive') },
-  ]
   const unitOptions = (line: DraftLine): SelectOption[] => {
     const codes = [...unitsFor(line.itemType)]
     // A product's unit may be one the short list does not carry; it is shown rather than dropped.
@@ -972,8 +968,8 @@ function InvoiceComposer() {
             ),
           })
   const lineColumns = consumer
-    ? 'grid-cols-[minmax(220px,1fr)_108px_84px_66px_66px_106px_118px_100px]'
-    : 'grid-cols-[minmax(220px,1fr)_108px_164px_84px_66px_66px_106px_118px_100px]'
+    ? 'grid-cols-[minmax(220px,1fr)_124px_84px_66px_66px_106px_118px_100px]'
+    : 'grid-cols-[minmax(220px,1fr)_124px_152px_84px_66px_66px_106px_118px_100px]'
   const steps = consumer
     ? { items: 3, payment: 4, notes: 5 }
     : { items: 3, linked: 4, payment: 5, notes: 6 }
@@ -1284,21 +1280,19 @@ function InvoiceComposer() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <FieldLabel label={t('createInvoice.fields.project')} />
-              {/* TODO(backend): no project field on a draft; drawn as the design has it. */}
-              <FieldShell tone="text">
+              <FieldLabel label={t('createInvoice.fields.po')} />
+              <FieldShell>
                 <input
-                  value=""
-                  readOnly
-                  disabled
-                  placeholder={t('createInvoice.values.projectPending')}
-                  aria-label={t('createInvoice.fields.project')}
+                  value={form.purchaseOrder}
+                  onChange={(e) => change({ purchaseOrder: e.target.value })}
+                  maxLength={200}
+                  aria-label={t('createInvoice.fields.po')}
                   className={INPUT}
                 />
               </FieldShell>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4">
             <div className="flex flex-col gap-1">
               <FieldLabel label={t('createInvoice.fields.subject')} />
               <FieldShell>
@@ -1307,18 +1301,6 @@ function InvoiceComposer() {
                   onChange={(e) => change({ subject: e.target.value })}
                   maxLength={500}
                   aria-label={t('createInvoice.fields.subject')}
-                  className={INPUT}
-                />
-              </FieldShell>
-            </div>
-            <div className="flex flex-col gap-1">
-              <FieldLabel label={t('createInvoice.fields.po')} />
-              <FieldShell>
-                <input
-                  value={form.purchaseOrder}
-                  onChange={(e) => change({ purchaseOrder: e.target.value })}
-                  maxLength={200}
-                  aria-label={t('createInvoice.fields.po')}
                   className={INPUT}
                 />
               </FieldShell>
@@ -1346,18 +1328,28 @@ function InvoiceComposer() {
       <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle step={steps.items} title={t('createInvoice.sections.items')} />
-          <label className="flex items-center gap-2 text-sm font-medium text-text-tertiary">
-            <span>{t('createInvoice.vatMode.label')}</span>
-            <span className="w-[190px]">
-              <Select
-                value={exclVat ? 'EXCLUSIVE' : 'INCLUSIVE'}
-                onChange={(mode) => switchVatMode(mode === 'EXCLUSIVE')}
-                options={vatModeOptions}
-                compact
-                ariaLabel={t('createInvoice.vatMode.label')}
-              />
-            </span>
-          </label>
+          <div
+            role="group"
+            aria-label={t('createInvoice.vatMode.label')}
+            className="inline-flex rounded-md border border-border-subtle p-0.5"
+          >
+            {[true, false].map((exclusive) => (
+              <button
+                key={String(exclusive)}
+                type="button"
+                onClick={() => switchVatMode(exclusive)}
+                aria-pressed={exclVat === exclusive}
+                className={[
+                  'whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors',
+                  exclVat === exclusive ? 'bg-primary-50 text-primary-800' : 'text-text-quaternary',
+                ].join(' ')}
+              >
+                {t(
+                  exclusive ? 'createInvoice.vatMode.exclShort' : 'createInvoice.vatMode.inclShort',
+                )}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="h-px w-full bg-border-subtle" />
 

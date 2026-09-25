@@ -67,8 +67,43 @@ export const NEEDS_EXEMPTION_REASON = new Set(['E', 'AE', 'G', 'O'])
 /* ------------------------------------------------------------------ units */
 
 /** UN/ECE Recommendation 20 codes, split by what a line is; labels are `createInvoice.units.<code>`. */
-export const GOODS_UNITS = ['EA', 'H87', 'KGM', 'LTR', 'BX', 'MTR', 'PK', 'BG'] as const
-export const SERVICE_UNITS = ['HUR', 'DAY', 'MON', 'E48', 'C62'] as const
+/** UN/ECE Rec. 20 codes, the way PINT-OM carries them; `ZZ` is "Other" (mutually defined). */
+export const GOODS_UNITS = [
+  'EA',
+  'H87',
+  'KGM',
+  'GRM',
+  'TNE',
+  'LTR',
+  'MLT',
+  'MTR',
+  'CMT',
+  'MTK',
+  'MTQ',
+  'BX',
+  'CT',
+  'PK',
+  'BG',
+  'BO',
+  'CA',
+  'DZN',
+  'SET',
+  'PR',
+  'RO',
+  'ZZ',
+] as const
+export const SERVICE_UNITS = [
+  'HUR',
+  'DAY',
+  'WEE',
+  'MON',
+  'ANN',
+  'E48',
+  'C62',
+  'LS',
+  'KMT',
+  'ZZ',
+] as const
 
 export function unitsFor(type: ItemType): readonly string[] {
   return type === 'service' ? SERVICE_UNITS : GOODS_UNITS
@@ -76,7 +111,10 @@ export function unitsFor(type: ItemType): readonly string[] {
 
 /** A saved line's kind, read back from its unit: a draft stores no goods/service flag yet. */
 export function itemTypeOfUnit(unitCode: string): ItemType {
-  return (SERVICE_UNITS as readonly string[]).includes(unitCode) ? 'service' : 'goods'
+  // `ZZ` (Other) sits on both lists and reads back as goods until the draft carries the flag.
+  return unitCode !== 'ZZ' && (SERVICE_UNITS as readonly string[]).includes(unitCode)
+    ? 'service'
+    : 'goods'
 }
 
 /* --------------------------------------------------------------- terms */

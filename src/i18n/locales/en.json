@@ -1434,8 +1434,8 @@
       "amountHighest": "Amount, highest"
     },
     "emptyTab": {
-      "onRequest": "No schedule runs on request yet — every schedule has a cadence for now.",
-      "draft": "No draft schedules — a schedule starts the moment it is set up."
+      "onRequest": "No schedule runs on request yet. Every schedule has a cadence for now.",
+      "draft": "No draft schedules: a schedule starts the moment it is set up."
     },
     "kpi": {
       "revenue": "Recurring revenue",
@@ -1736,7 +1736,7 @@
   },
   "invoicesPage": {
     "title": "Invoices",
-    "subtitle": "Every document you’ve issued — validated, signed and reported to the Oman Tax Authority.",
+    "subtitle": "Every document you’ve issued: validated, signed and reported to the Oman Tax Authority.",
     "bulkUpload": "Bulk upload",
     "export": "Export",
     "createInvoice": "Create Invoice",
@@ -1816,7 +1816,7 @@
       "acknowledged": "Accepted",
       "acknowledgedHint": "Accepted, but the Tax Authority has not confirmed it yet.",
       "rejected": "Rejected",
-      "rejectedHint": "Refused by the Tax Authority — correct the invoice and send it again."
+      "rejectedHint": "Refused by the Tax Authority. Correct the invoice and send it again."
     },
     "status": {
       "overdue": "Overdue",
@@ -1845,7 +1845,7 @@
       "failed": "Failed",
       "summary": "{{imported}} imported, {{failed}} failed."
     },
-    "subtitleLive": "Invoices, credit notes and debit notes — drafts and issued documents in one list.",
+    "subtitleLive": "Invoices, credit notes and debit notes: drafts and issued documents in one list.",
     "searchLive": "Search by number or customer",
     "exporting": "Exporting…",
     "exportTruncated": "The file stops at 10,000 documents. Narrow the filters to export the rest.",
@@ -2029,7 +2029,7 @@
       "confirm": "Cancel the invoice"
     },
     "refused": {
-      "stale": "This invoice changed after the page loaded. It has been refreshed — try again.",
+      "stale": "This invoice changed after the page loaded. It has been refreshed. Try again.",
       "notCancellable": "Only an issued invoice can be cancelled.",
       "delivered": "This invoice was already delivered, so it cannot be cancelled. Issue a credit note instead."
     },
@@ -2195,7 +2195,7 @@
       "currency": "OMR - Omani Rial",
       "tax": "Standard rate - 5%",
       "project": "Ramadan 2026 supply",
-      "subject": "Monthly coffee supply & barista training — July",
+      "subject": "Monthly coffee supply & barista training, July",
       "bankTransfer": "Bank transfer",
       "numberOnIssue": "Assigned when the invoice is issued",
       "projectPending": "Not available yet"
@@ -2221,24 +2221,24 @@
       "documentDiscountHint": "Applied after line discounts and shared across lines in proportion to what each is worth.",
       "discountType": "discount type",
       "omr": "OMR",
-      "descriptionPlaceholder": "Describe what you are billing for",
+      "descriptionPlaceholder": "Item name or description",
       "incl": "Incl.",
       "type": "Type",
-      "typeOfLine": "Line {{line}} — goods or service",
+      "typeOfLine": "Line {{line}}: goods or service",
       "goods": "Goods",
       "service": "Service",
       "classification": "Classification",
       "classificationPlaceholder": "Choose a classification",
       "classificationSearch": "Search by activity name",
       "classificationNone": "No classification matches",
-      "pickFromCatalogue": "Pick from catalogue",
+      "pickFromCatalogue": "Pick from catalogue (optional)",
       "netAmount": "Net amount"
     },
     "toggles": {
       "paid": "Mark as paid",
       "paidHint": "Records the payment and updates the receivables total.",
       "sent": "Mark as sent manually",
-      "sentHint": "Usually automatic once submitted to Peppol — use this only for offline delivery."
+      "sentHint": "Usually automatic once submitted to Peppol. Use this only for offline delivery."
     },
     "notes": {
       "toCustomer": "Note to customer",
@@ -2302,7 +2302,25 @@
       "DAY": "Day",
       "MON": "Month",
       "E48": "Job",
-      "C62": "Unit"
+      "C62": "Unit",
+      "GRM": "Gram",
+      "TNE": "Tonne",
+      "MLT": "Millilitre",
+      "CMT": "Centimetre",
+      "MTK": "Square metre",
+      "MTQ": "Cubic metre",
+      "CT": "Carton",
+      "BO": "Bottle",
+      "CA": "Can",
+      "DZN": "Dozen",
+      "SET": "Set",
+      "PR": "Pair",
+      "RO": "Roll",
+      "WEE": "Week",
+      "ANN": "Year",
+      "LS": "Lump sum",
+      "KMT": "Kilometre",
+      "ZZ": "Other"
     },
     "taxCategories": {
       "S5": "Standard rate - 5%",
@@ -2322,7 +2340,9 @@
     "vatMode": {
       "label": "VAT mode",
       "exclusive": "Exclusive of VAT",
-      "inclusive": "Inclusive of VAT"
+      "inclusive": "Inclusive of VAT",
+      "exclShort": "Excl. VAT",
+      "inclShort": "Incl. VAT"
     }
   },
   "periodicInvoice": {
@@ -2331,10 +2351,10 @@
     "editTitle": "Edit the schedule",
     "edit": "Edit",
     "whatItDoes": "What it sends",
-    "whatItDoesNote": "Each run copies the invoice below — its lines, currency and terms — and leaves a draft for someone to check and issue. Fawtir never issues one for you.",
+    "whatItDoesNote": "Each run copies the invoice below, its lines, currency and terms, and leaves a draft for someone to check and issue. Fawtir never issues one for you.",
     "whatToSend": "What to send",
     "whatToSendNote": "A schedule copies an invoice you already have. Pick the customer, then one of their invoices to copy.",
-    "fixedAfterCreation": "The customer and the invoice being copied are fixed once a schedule exists — a series that changed what it sends would rewrite its own history. Set up a new schedule to change either.",
+    "fixedAfterCreation": "The customer and the invoice being copied are fixed once a schedule exists. A series that changed what it sends would rewrite its own history. Set up a new schedule to change either.",
     "whenToSend": "When to send it",
     "fields": {
       "customer": "Customer",
@@ -2437,7 +2457,7 @@
       "inDays_zero": "today",
       "inDays_one": "in {{count}} day",
       "inDays_other": "in {{count}} days",
-      "overdue": "overdue — the next sweep raises it"
+      "overdue": "overdue: the next sweep raises it"
     },
     "frequency": "Frequency",
     "repeatsOn": "Repeats on",
@@ -2461,7 +2481,7 @@
     },
     "willRaiseBefore": "Fawtir will raise a draft for",
     "willRaiseAfter": "{{every}} for {{customer}}, ready for you to check and issue.",
-    "linesFrom": "The lines are copied from {{number}} — edit that invoice to change them.",
+    "linesFrom": "The lines are copied from {{number}}. Edit that invoice to change them.",
     "theCustomer": "the customer",
     "chooseTemplateForLines": "Choose the invoice to copy to see its lines here.",
     "pill": {
@@ -4473,7 +4493,7 @@
     },
     "steps": {
       "friendly": "Friendly nudge",
-      "friendlySubject": "Subject: Invoice {number} — just a reminder",
+      "friendlySubject": "Subject: Invoice {number}: just a reminder",
       "friendlyMeta": "English and Arabic · sent to the billing contact",
       "followUp": "Follow-up",
       "followUpSubject": "Subject: Invoice {number} is now 14 days overdue",
@@ -4485,7 +4505,7 @@
     "customerSeesTitle": "What a customer sees",
     "sees": {
       "dueDate": "Due date",
-      "dueDateNote": "Nothing sent — the invoice is simply due",
+      "dueDateNote": "Nothing sent: the invoice is simply due",
       "day7": "7 days late",
       "day7Note": "Friendly nudge with the PDF attached",
       "day14": "14 days late",
@@ -4510,9 +4530,9 @@
       "creditNote": "A credit note is raised against it",
       "creditNoteNote": "The amount is under correction, so chasing it would be wrong",
       "replies": "The customer replies to a reminder",
-      "repliesNote": "A conversation has started — the next step waits for you",
+      "repliesNote": "A conversation has started, the next step waits for you",
       "dispute": "The invoice is marked in dispute",
-      "disputeNote": "Off by default — turn on if your team uses the dispute flag"
+      "disputeNote": "Off by default: turn on if your team uses the dispute flag"
     },
     "sendingTitle": "Sending",
     "sending": {
@@ -4524,9 +4544,9 @@
     "beforeTitle": "Before anything is sent",
     "before": {
       "hold": "Hold each reminder for 24 hours first",
-      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you — if you do nothing, it sends.",
+      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you, if you do nothing, it sends.",
       "approveFinal": "Require approval for the final notice",
-      "approveFinalNote": "The firm step never sends on its own — someone has to press send. Useful when the relationship matters more than the invoice."
+      "approveFinalNote": "The firm step never sends on its own, someone has to press send. Useful when the relationship matters more than the invoice."
     },
     "queue": {
       "title": "Payment reminders",
@@ -4591,7 +4611,7 @@
     },
     "pause": {
       "title": "Pause reminders",
-      "subtitle": "Stop chasing for now. Nothing is cancelled — the schedule picks up where it left off.",
+      "subtitle": "Stop chasing for now. Nothing is cancelled, the schedule picks up where it left off.",
       "targetMeta": "21 days overdue · reminder 2 due tomorrow",
       "whatToPause": "What to pause",
       "scopeInvoice": "Just this invoice",
@@ -14195,7 +14215,7 @@
       "refundBanner": "Refund due to {{customer}}",
       "refundBannerHint": "{{invoice}} is settled in full; the credit exceeds it by this amount.",
       "awaitingBanner": "Awaiting payment from {{customer}}",
-      "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due {{date}} — {{when}}.",
+      "awaitingHint": "The charge joined {{invoice}}'s balance, so the customer settles one figure. Due {{date}}, {{when}}.",
       "dueIn": "in {{count}} days",
       "dueToday": "due today",
       "dueLate": "{{count}} days late",
@@ -14285,7 +14305,7 @@
       "refunds": "Refunds",
       "payments": "Payments",
       "refundPending": "refund pending",
-      "refundNone": "— nothing to refund",
+      "refundNone": "nothing to refund",
       "refundPendingHint": "The credit clears {{invoice}}'s balance and leaves a refund owed. Record it here once the money is sent back.",
       "refundNoneHint": "The credit was applied to {{invoice}}'s balance; no money goes back to the customer.",
       "refundNotWired": "Refunds are not recorded in Fawtir yet. Pay it outside Fawtir and keep the reference on the internal note.",
@@ -14484,7 +14504,7 @@
       "concerning": "Concerning invoice",
       "currency": "Currency",
       "currencyName": {
-        "OMR": "OMR — Omani Rial"
+        "OMR": "OMR, Omani Rial"
       },
       "taxCategory": "Default tax category",
       "standardRate": "Standard rate · {{rate}}%",
@@ -14515,9 +14535,9 @@
     },
     "banner": {
       "full": "This cancels the whole invoice. Every line on {{invoice}} will be reversed in full.",
-      "lines": "Untick what you are not crediting, or lower a line's quantity or price — never above what {{invoice}} charged.",
+      "lines": "Untick what you are not crediting, or lower a line's quantity or price, never above what {{invoice}} charged.",
       "custom": "One amount, excluding VAT. VAT is reversed at the invoice's rate.",
-      "correctLines": "Only the difference is charged. {{invoice}}'s original lines stay exactly as they were issued — this note bills the shortfall.",
+      "correctLines": "Only the difference is charged. {{invoice}}'s original lines stay exactly as they were issued, this note bills the shortfall.",
       "additionalItems": "These lines were not on {{invoice}}; they are charged in full, with VAT at the invoice's rate.",
       "flatCharge": "One amount, excluding VAT. VAT is added at the invoice's rate."
     },
@@ -14688,7 +14708,7 @@
     "backToHistory": "← Reminders sent",
     "history": {
       "title": "Reminders sent",
-      "subtitle": "Every payment reminder that went out, or was tried. Fawtir keeps no queue of reminders still to come — what would go out today is shown on the invoice itself.",
+      "subtitle": "Every payment reminder that went out, or was tried. Fawtir keeps no queue of reminders still to come. What would go out today is shown on the invoice itself.",
       "settings": "When reminders go out",
       "from": "From",
       "to": "To",
@@ -14720,7 +14740,7 @@
       "ladderCount_one": "Reminder ladder · {{count}} rung",
       "ladderCount_other": "Reminder ladder · {{count}} rungs",
       "ladderOn": "goes out on its own",
-      "ladderOff": "switched off — sent by hand only",
+      "ladderOff": "switched off: sent by hand only",
       "sentFromInvoice": "Send now, from an invoice",
       "stepInvoice": "Invoice sent",
       "stepInvoiceNote": "Day 0 is the due date",

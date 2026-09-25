@@ -196,7 +196,7 @@ describe('the invoice line a product starts', () => {
       </MemoryRouter>,
     )
     // The description is typed text now; the catalogue opens from the button at its end.
-    const [first] = await screen.findAllByRole('button', { name: 'Pick from catalogue' })
+    const [first] = await screen.findAllByRole('button', { name: /Pick from catalogue/ })
     fireEvent.click(first)
     fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
     await waitFor(() =>

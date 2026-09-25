@@ -1471,8 +1471,8 @@
       "amountHighest": "المبلغ، الأعلى"
     },
     "emptyTab": {
-      "onRequest": "لا يوجد جدول يعمل عند الطلب بعد — لكل جدول تكرار حالياً.",
-      "draft": "لا توجد جداول مسودة — يبدأ الجدول لحظة إعداده."
+      "onRequest": "لا يوجد جدول يعمل عند الطلب بعد، لكل جدول تكرار حالياً.",
+      "draft": "لا توجد جداول مسودة، يبدأ الجدول لحظة إعداده."
     },
     "kpi": {
       "revenue": "الإيراد المتكرر",
@@ -1779,7 +1779,7 @@
   },
   "invoicesPage": {
     "title": "الفواتير",
-    "subtitle": "كل مستند أصدرته — تم التحقق منه وتوقيعه والإبلاغ عنه إلى جهاز الضرائب العُماني.",
+    "subtitle": "كل مستند أصدرته: تم التحقق منه وتوقيعه والإبلاغ عنه إلى جهاز الضرائب العُماني.",
     "bulkUpload": "رفع جماعي",
     "export": "تصدير",
     "createInvoice": "إنشاء فاتورة",
@@ -1875,7 +1875,7 @@
       "acknowledged": "مقبولة",
       "acknowledgedHint": "مقبولة، لكن جهاز الضرائب لم يؤكدها بعد.",
       "rejected": "مرفوضة",
-      "rejectedHint": "مرفوضة من جهاز الضرائب — صحّح الفاتورة وأعد إرسالها."
+      "rejectedHint": "مرفوضة من جهاز الضرائب، صحّح الفاتورة وأعد إرسالها."
     },
     "status": {
       "overdue": "متأخر",
@@ -1904,7 +1904,7 @@
       "failed": "فشل",
       "summary": "تم استيراد {{imported}}، وفشل {{failed}}."
     },
-    "subtitleLive": "الفواتير والإشعارات الدائنة والمدينة — المسودات والمستندات الصادرة في قائمة واحدة.",
+    "subtitleLive": "الفواتير والإشعارات الدائنة والمدينة، المسودات والمستندات الصادرة في قائمة واحدة.",
     "searchLive": "ابحث برقم المستند أو اسم العميل",
     "exporting": "جارٍ التصدير…",
     "exportTruncated": "يتوقف الملف عند 10,000 مستند. ضيّق عوامل التصفية لتصدير الباقي.",
@@ -2108,7 +2108,7 @@
       "confirm": "إلغاء الفاتورة"
     },
     "refused": {
-      "stale": "تغيّرت هذه الفاتورة بعد تحميل الصفحة. تم تحديثها — حاول مرة أخرى.",
+      "stale": "تغيّرت هذه الفاتورة بعد تحميل الصفحة. تم تحديثها، حاول مرة أخرى.",
       "notCancellable": "لا يمكن إلغاء سوى فاتورة صادرة.",
       "delivered": "سُلّمت هذه الفاتورة بالفعل فلا يمكن إلغاؤها. أصدر إشعارًا دائنًا بدلًا من ذلك."
     },
@@ -2274,7 +2274,7 @@
       "currency": "OMR - الريال العماني",
       "tax": "المعدل القياسي - 5%",
       "project": "توريد رمضان 2026",
-      "subject": "توريد القهوة الشهري وتدريب الباريستا — يوليو",
+      "subject": "توريد القهوة الشهري وتدريب الباريستا، يوليو",
       "bankTransfer": "تحويل بنكي",
       "numberOnIssue": "يُخصَّص عند إصدار الفاتورة",
       "projectPending": "غير متاح بعد"
@@ -2300,24 +2300,24 @@
       "documentDiscountHint": "يُطبَّق بعد خصومات البنود ويُوزَّع على البنود بنسبة قيمة كل بند.",
       "discountType": "نوع الخصم",
       "omr": "ر.ع.",
-      "descriptionPlaceholder": "صف ما تفوتره",
+      "descriptionPlaceholder": "اسم الصنف أو وصفه",
       "incl": "شامل",
       "type": "النوع",
-      "typeOfLine": "البند {{line}} — سلعة أم خدمة",
+      "typeOfLine": "البند {{line}}: سلعة أم خدمة",
       "goods": "سلعة",
       "service": "خدمة",
       "classification": "التصنيف",
       "classificationPlaceholder": "اختر التصنيف",
       "classificationSearch": "ابحث باسم النشاط",
       "classificationNone": "لا يوجد تصنيف مطابق",
-      "pickFromCatalogue": "اختر من الكتالوج",
+      "pickFromCatalogue": "اختر من الكتالوج (اختياري)",
       "netAmount": "المبلغ الصافي"
     },
     "toggles": {
       "paid": "تعليم كمدفوع",
       "paidHint": "يسجّل الدفع ويحدّث إجمالي المستحقات.",
       "sent": "تعليم كمرسل يدويًا",
-      "sentHint": "عادةً تلقائي بعد الإرسال إلى Peppol — استخدمه فقط للتسليم دون اتصال."
+      "sentHint": "عادةً تلقائي بعد الإرسال إلى Peppol، استخدمه فقط للتسليم دون اتصال."
     },
     "notes": {
       "toCustomer": "ملاحظة للعميل",
@@ -2381,7 +2381,25 @@
       "DAY": "يوم",
       "MON": "شهر",
       "E48": "مهمة",
-      "C62": "وحدة"
+      "C62": "وحدة",
+      "GRM": "غرام",
+      "TNE": "طن",
+      "MLT": "مليلتر",
+      "CMT": "سنتيمتر",
+      "MTK": "متر مربع",
+      "MTQ": "متر مكعب",
+      "CT": "كرتون",
+      "BO": "زجاجة",
+      "CA": "علبة",
+      "DZN": "دزينة",
+      "SET": "طقم",
+      "PR": "زوج",
+      "RO": "لفة",
+      "WEE": "أسبوع",
+      "ANN": "سنة",
+      "LS": "مبلغ مقطوع",
+      "KMT": "كيلومتر",
+      "ZZ": "أخرى"
     },
     "taxCategories": {
       "S5": "النسبة الأساسية - 5%",
@@ -2401,7 +2419,9 @@
     "vatMode": {
       "label": "وضع الضريبة",
       "exclusive": "غير شامل الضريبة",
-      "inclusive": "شامل الضريبة"
+      "inclusive": "شامل الضريبة",
+      "exclShort": "دون الضريبة",
+      "inclShort": "شامل الضريبة"
     }
   },
   "periodicInvoice": {
@@ -2410,10 +2430,10 @@
     "editTitle": "تعديل الجدول",
     "edit": "تعديل",
     "whatItDoes": "ما الذي يُرسل",
-    "whatItDoesNote": "كل دورة تنسخ الفاتورة أدناه — بنودها وعملتها وشروطها — وتترك مسودة يراجعها أحد ويصدرها. لا يصدر فوتر شيئًا نيابة عنك.",
+    "whatItDoesNote": "كل دورة تنسخ الفاتورة أدناه، بنودها وعملتها وشروطها، وتترك مسودة يراجعها أحد ويصدرها. لا يصدر فوتر شيئًا نيابة عنك.",
     "whatToSend": "ما الذي يُرسل",
     "whatToSendNote": "الجدول ينسخ فاتورة لديك. اختر العميل، ثم إحدى فواتيره لنسخها.",
-    "fixedAfterCreation": "العميل والفاتورة المنسوخة يثبتان بعد إنشاء الجدول — فالسلسلة التي تغيّر ما ترسله تعيد كتابة تاريخها. أنشئ جدولًا جديدًا لتغيير أيٍّ منهما.",
+    "fixedAfterCreation": "العميل والفاتورة المنسوخة يثبتان بعد إنشاء الجدول، فالسلسلة التي تغيّر ما ترسله تعيد كتابة تاريخها. أنشئ جدولًا جديدًا لتغيير أيٍّ منهما.",
     "whenToSend": "متى تُرسل",
     "fields": {
       "customer": "العميل",
@@ -2527,7 +2547,7 @@
       "inDays_few": "بعد {{count}} أيام",
       "inDays_many": "بعد {{count}} يوماً",
       "inDays_other": "بعد {{count}} يوم",
-      "overdue": "متأخرة — تُنشئها الدورة التالية"
+      "overdue": "متأخرة: تُنشئها الدورة التالية"
     },
     "frequency": "التكرار",
     "repeatsOn": "يتكرر في",
@@ -2551,7 +2571,7 @@
     },
     "willRaiseBefore": "سينشئ فوتر مسودة بمبلغ",
     "willRaiseAfter": "{{every}} لصالح {{customer}}، جاهزة لمراجعتك وإصدارها.",
-    "linesFrom": "البنود منسوخة من {{number}} — عدّل تلك الفاتورة لتغييرها.",
+    "linesFrom": "البنود منسوخة من {{number}}، عدّل تلك الفاتورة لتغييرها.",
     "theCustomer": "العميل",
     "chooseTemplateForLines": "اختر الفاتورة المراد نسخها لعرض بنودها هنا.",
     "pill": {
@@ -4567,7 +4587,7 @@
     },
     "steps": {
       "friendly": "Friendly nudge",
-      "friendlySubject": "Subject: Invoice {number} — just a reminder",
+      "friendlySubject": "Subject: Invoice {number}: just a reminder",
       "friendlyMeta": "English and Arabic · sent to the billing contact",
       "followUp": "Follow-up",
       "followUpSubject": "Subject: Invoice {number} is now 14 days overdue",
@@ -4579,7 +4599,7 @@
     "customerSeesTitle": "ما يراه العميل",
     "sees": {
       "dueDate": "Due date",
-      "dueDateNote": "Nothing sent — the invoice is simply due",
+      "dueDateNote": "Nothing sent: the invoice is simply due",
       "day7": "7 days late",
       "day7Note": "Friendly nudge with the PDF attached",
       "day14": "14 days late",
@@ -4604,9 +4624,9 @@
       "creditNote": "A credit note is raised against it",
       "creditNoteNote": "The amount is under correction, so chasing it would be wrong",
       "replies": "The customer replies to a reminder",
-      "repliesNote": "A conversation has started — the next step waits for you",
+      "repliesNote": "A conversation has started، the next step waits for you",
       "dispute": "The invoice is marked in dispute",
-      "disputeNote": "Off by default — turn on if your team uses the dispute flag"
+      "disputeNote": "Off by default: turn on if your team uses the dispute flag"
     },
     "sendingTitle": "الإرسال",
     "sending": {
@@ -4618,9 +4638,9 @@
     "beforeTitle": "قبل إرسال أي شيء",
     "before": {
       "hold": "Hold each reminder for 24 hours first",
-      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you — if you do nothing, it sends.",
+      "holdNote": "Reminders sit in the queue for a day before going out, so you can cancel one that shouldn't. Nothing is required from you، if you do nothing, it sends.",
       "approveFinal": "Require approval for the final notice",
-      "approveFinalNote": "The firm step never sends on its own — someone has to press send. Useful when the relationship matters more than the invoice."
+      "approveFinalNote": "The firm step never sends on its own، someone has to press send. Useful when the relationship matters more than the invoice."
     },
     "queue": {
       "title": "تذكيرات الدفع",
@@ -4685,7 +4705,7 @@
     },
     "pause": {
       "title": "إيقاف التذكيرات مؤقتًا",
-      "subtitle": "أوقف المتابعة الآن. لا شيء يُلغى — يستأنف الجدول من حيث توقف.",
+      "subtitle": "أوقف المتابعة الآن. لا شيء يُلغى، يستأنف الجدول من حيث توقف.",
       "targetMeta": "21 days overdue · reminder 2 due tomorrow",
       "whatToPause": "ما الذي سيتوقف",
       "scopeInvoice": "هذه الفاتورة فقط",
@@ -14656,7 +14676,7 @@
       "refundBanner": "استرداد مستحق لـ {{customer}}",
       "refundBannerHint": "سُوّيت {{invoice}} بالكامل؛ يتجاوزها التقييد بهذا المبلغ.",
       "awaitingBanner": "بانتظار الدفع من {{customer}}",
-      "awaitingHint": "انضم المبلغ إلى رصيد {{invoice}}، فيسدّد العميل رقماً واحداً. يستحق {{date}} — {{when}}.",
+      "awaitingHint": "انضم المبلغ إلى رصيد {{invoice}}، فيسدّد العميل رقماً واحداً. يستحق {{date}}، {{when}}.",
       "dueIn": "خلال {{count}} يوماً",
       "dueToday": "يستحق اليوم",
       "dueLate": "متأخر {{count}} يوماً",
@@ -14746,7 +14766,7 @@
       "refunds": "الاستردادات",
       "payments": "الدفعات",
       "refundPending": "استرداد معلّق",
-      "refundNone": "— لا شيء للاسترداد",
+      "refundNone": "لا شيء للاسترداد",
       "refundPendingHint": "يصفّي التقييد رصيد {{invoice}} ويترك استرداداً مستحقاً. سجّله هنا بعد إعادة المال.",
       "refundNoneHint": "طُبّق التقييد على رصيد {{invoice}}؛ لا يعود مال إلى العميل.",
       "refundNotWired": "لا تُسجَّل الاستردادات في فوتر بعد. ادفعه خارج فوتر واحفظ المرجع في الملاحظة الداخلية.",
@@ -14945,7 +14965,7 @@
       "concerning": "الفاتورة المعنية",
       "currency": "العملة",
       "currencyName": {
-        "OMR": "OMR — ريال عماني"
+        "OMR": "OMR: ريال عماني"
       },
       "taxCategory": "الفئة الضريبية الافتراضية",
       "standardRate": "النسبة الأساسية · {{rate}}%",
@@ -14976,9 +14996,9 @@
     },
     "banner": {
       "full": "هذا يلغي الفاتورة بأكملها. سيُعكس كل بند في {{invoice}} بالكامل.",
-      "lines": "ألغِ تحديد ما لا تقيّده، أو خفّض كمية البند أو سعره — دون تجاوز ما حُمّل في {{invoice}}.",
+      "lines": "ألغِ تحديد ما لا تقيّده، أو خفّض كمية البند أو سعره، دون تجاوز ما حُمّل في {{invoice}}.",
       "custom": "مبلغ واحد دون الضريبة. تُعكس الضريبة بنسبة الفاتورة.",
-      "correctLines": "يُحمَّل الفرق فقط. تبقى بنود {{invoice}} الأصلية كما صدرت — هذا الإشعار يفوتر النقص.",
+      "correctLines": "يُحمَّل الفرق فقط. تبقى بنود {{invoice}} الأصلية كما صدرت، هذا الإشعار يفوتر النقص.",
       "additionalItems": "هذه البنود لم تكن في {{invoice}}؛ تُحمَّل بالكامل مع الضريبة بنسبة الفاتورة.",
       "flatCharge": "مبلغ واحد دون الضريبة. تُضاف الضريبة بنسبة الفاتورة."
     },
@@ -15177,7 +15197,7 @@
     "backToHistory": "← التذكيرات المرسلة",
     "history": {
       "title": "التذكيرات المرسلة",
-      "subtitle": "كل تذكير دفع أُرسل أو حاول فوتر إرساله. لا يحتفظ فوتر بقائمة تذكيرات قادمة — وما سيُرسل اليوم يظهر في صفحة الفاتورة نفسها.",
+      "subtitle": "كل تذكير دفع أُرسل أو حاول فوتر إرساله. لا يحتفظ فوتر بقائمة تذكيرات قادمة، وما سيُرسل اليوم يظهر في صفحة الفاتورة نفسها.",
       "settings": "متى تُرسل التذكيرات",
       "from": "من",
       "to": "إلى",
@@ -15213,7 +15233,7 @@
       "ladderCount_many": "سلّم التذكير · {{count}} درجة",
       "ladderCount_other": "سلّم التذكير · {{count}} درجة",
       "ladderOn": "يُرسل تلقائياً",
-      "ladderOff": "متوقف — يُرسل يدوياً فقط",
+      "ladderOff": "متوقف: يُرسل يدوياً فقط",
       "sentFromInvoice": "أرسل الآن من فاتورة",
       "stepInvoice": "أُرسلت الفاتورة",
       "stepInvoiceNote": "اليوم 0 هو تاريخ الاستحقاق",

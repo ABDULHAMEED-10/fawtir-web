@@ -33,7 +33,6 @@ To render the integrated screens without a backend, fixtures live in `tools/mock
 | 2.1 | Delivery bar "Sent to … over Peppol · time" and OTA state | transmission status with timestamps (see 1.3) |
 | 2.2 | **Invoice PDF** pane with download and print; payment receipts | rendered PDF endpoint; receipt per payment |
 | 2.3 | Attachments with uploader and kind; add / remove on an issued document | attachment upload/remove routes; uploader name and document kind |
-| 2.4 | **Project** field | `project` on the document |
 | 2.5 | Reminder banner with **Pause** and "next reminder on …" | per-invoice reminder pause; next scheduled reminder |
 | 2.6 | Branch name | branch name on the detail (only `branchId` today) |
 | 2.7 | Row menu **Periodic invoice** | the periodic composer reading `?template=<invoiceId>` (front end sends it) |
@@ -44,7 +43,9 @@ The product owner's final line-row and header rules are implemented on the page:
 free-text description (no product code), goods / service toggle per line, unit on the row whose
 options follow the toggle, price excluding VAT to three decimals (non-negative, default 0), tax
 category as text only; header with payment terms, branch pre-filled, payment method, VAT mode;
-classification hidden for consumers and searched by name for business and government; no popups.
+HS code search on goods lines and service type search on service lines for business and
+government customers (hidden for consumers); the industrial classification lives in Company
+settings, not on the line; no popups.
 
 What the page sends today (unchanged shapes): `customerId, branchId, currency, vatMode,
 headerDiscount, details{deliveryDate, subject, purchaseOrderReference, customerVisibleNote,
@@ -53,11 +54,11 @@ productCode, description, unitCode, quantity, unitPrice, discount, taxCategory{�
 
 | # | The design or rule needs | Ask |
 |---|---|---|
-| 3.1 | Goods / service per line; ISIC classification per line | `lines[].itemType` (GOODS \| SERVICE), `lines[].classification` (ISIC code); an ISIC lookup endpoint (the page ships the 88 divisions until then) |
+| 3.1 | Goods / service per line; HS code on goods lines; service type on service lines; the issuer's industrial classification (ISIC, 6-digit) as a company setting | `lines[].itemType`, `lines[].hsCode`, `lines[].serviceType`; company-level `industrialClassification`; search endpoints for the three code lists. See **PINT_OM_LINE_CLASSIFICATION.md** for the rules (IBR-078/079/080/081/155-OM, CL-12-OM), the XML binding and the code list sources |
 | 3.2 | Lines typed without a catalogue product | accept `productId` / `productCode` empty (decision D7 says a line names a product — please relax) |
 | 3.3 | Payment terms Due on receipt / Net 15 / Net 30 / Net 60 / End of month / Advance payment | codes NET0, NET15, NET30, NET60, EOM, ADVANCE (the server stores code + label, so likely fine) |
 | 3.4 | Payment method, reference, date; mark as paid; mark as sent manually | draft-level `paymentMethod` (UNCL4461), `paymentReference`, `paymentDate`, `markAsPaid`, `markAsSent` |
-| 3.5 | Project; supporting documents; linked trade documents | `project`; attachment upload on drafts; links to quotations / order forms / delivery notes |
+| 3.5 | Supporting documents; linked trade documents | attachment upload on drafts; links to quotations / order forms / delivery notes |
 | 3.6 | Header quota meter "880 / 1,000 used" | per-tenant document quota and usage |
 | 3.7 | Consumer quick-create from the name field | needs `customer.manage`; a one-word name is sent as first = last name |
 

@@ -823,11 +823,6 @@ function InvoiceScreen() {
               />
               <MetaField label={t('invoiceDetails.fields.vatTreatment')} value={vatTreatment} />
               <MetaField label={t('invoiceDetails.fields.branch')} value={branchName ?? '—'} />
-              {/* TODO(backend): the document carries no project; the design's field is drawn empty. */}
-              <MetaField
-                label={t('invoiceDetails.fields.project')}
-                value={data.details?.contractReference ?? '—'}
-              />
               <MetaField
                 label={t('invoiceDetails.fields.poReference')}
                 value={data.details?.purchaseOrderReference ?? '—'}

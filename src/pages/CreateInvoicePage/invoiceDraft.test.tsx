@@ -185,7 +185,7 @@ async function chooseCustomerAndProduct() {
   fireEvent.click(await screen.findByRole('button', { name: 'Select customer' }))
   fireEvent.click(await screen.findByRole('option', { name: /Sohar Port Logistics/ }))
   // The description is free text; the catalogue beside it fills the line with a product.
-  fireEvent.click(screen.getByRole('button', { name: 'Pick from catalogue' }))
+  fireEvent.click(screen.getByRole('button', { name: /Pick from catalogue/ }))
   fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
   expect(screen.getByRole('textbox', { name: 'Description' })).toHaveProperty('value', 'Flat White')
   fireEvent.change(screen.getByRole('textbox', { name: 'Quantity' }), { target: { value: '12' } })

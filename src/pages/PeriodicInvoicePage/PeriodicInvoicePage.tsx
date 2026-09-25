@@ -650,13 +650,12 @@ function ScheduleComposer({ id }: { id: string | null }) {
                 required
                 select
               />
-              {/* TODO(backend): the invoice carries a branch id and no name, and no project at all. */}
+              {/* TODO(backend): the invoice carries a branch id and no name. */}
               <ReadField
                 label={t('periodicInvoice.fields.branch')}
                 value={templateDoc?.branchId}
                 select
               />
-              <ReadField label={t('periodicInvoice.fields.project')} value={null} />
             </div>
           </Card>
 

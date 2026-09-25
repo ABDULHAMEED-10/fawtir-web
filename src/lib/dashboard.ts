@@ -73,7 +73,6 @@ export const TRADE_DOCUMENT_PATHS = [
   '/trade-documents/quotations',
   '/trade-documents/order-forms',
   '/trade-documents/delivery-notes',
-  '/trade-documents/projects',
 ] as const
 
 export const DASHBOARD_NAV: NavGroup[] = [
@@ -192,11 +191,6 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'deliveryNotes',
             labelKey: 'dashboard.nav.tradeDocumentChildren.deliveryNotes',
             to: '/trade-documents/delivery-notes',
-          },
-          {
-            id: 'projects',
-            labelKey: 'dashboard.nav.tradeDocumentChildren.projects',
-            to: '/trade-documents/projects',
           },
         ],
       },
