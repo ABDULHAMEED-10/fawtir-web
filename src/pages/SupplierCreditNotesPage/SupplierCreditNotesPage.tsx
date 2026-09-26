@@ -128,7 +128,7 @@ function CreditNotesScreen() {
    * The frame prints a count on every tab. The server reports a total only for the tab that was
    * asked for, so each tab remembers the last total it was opened with; the others fill in as
    * they are visited. TODO(backend): per-status counts on `GET /v1/credit-notes/summary`, as the
-   * Bills summary already carries `tabs` (row 5.2 in EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md).
+   * Bills summary already carries `tabs` (row 5.2 in docs/backend-guides/EXPENDITURE.md).
    */
   const [tabTotals, setTabTotals] = useState<Partial<Record<CreditTabId, number>>>({})
   useEffect(() => {

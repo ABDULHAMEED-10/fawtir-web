@@ -20,7 +20,7 @@ import {
  *
  * TODO(backend): `relatesTo.billId` on `GET /v1/debit-notes` rows, and `credits.billId` on a
  * credit note whose bill is on file but not yet applied, would make this a single read (row 5.5
- * in EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md).
+ * in docs/backend-guides/EXPENDITURE.md).
  */
 export function useNoteBill({
   billId,

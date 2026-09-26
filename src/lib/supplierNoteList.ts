@@ -52,7 +52,7 @@ type Narrowable = {
  *
  * TODO(backend): `GET /v1/credit-notes` and `/v1/debit-notes` take only `status` and paging, so
  * these narrow the page that was fetched rather than the whole set. Ask: `q`, `supplier_id` and
- * `sort` on both list endpoints (row 5.1 in EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md).
+ * `sort` on both list endpoints (row 5.1 in docs/backend-guides/EXPENDITURE.md).
  */
 export function narrowNotes<T extends Narrowable>(
   rows: T[],

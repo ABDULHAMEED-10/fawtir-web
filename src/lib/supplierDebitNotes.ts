@@ -61,7 +61,7 @@ function standardVatOf(total: number): number {
  * TODO(backend): the frame also reads the charge against the supplier's rate card (agreed price,
  * normal hours, surcharges listed) and the goods receipt's sign-in time, and looks for a repeat of
  * the same charge in the last twelve months. None of that is answered by any endpoint yet: rows
- * 5.9 and 5.10 in EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md.
+ * 5.9 and 5.10 in docs/backend-guides/EXPENDITURE.md.
  */
 export function debitNoteChecks(
   row: DebitNoteRowDto,

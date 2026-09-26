@@ -867,7 +867,7 @@ function Preview({ delivery, time }: { delivery: ReminderSettingsDto['delivery']
  *
  * The Reminders frame does not draw an inbox (its "In Fawtir" card says the count sits on the
  * bell), so this is not mounted on the page. It is kept, with its read and its acknowledge, for
- * the bell to take up; see EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md.
+ * the bell to take up; see docs/backend-guides/EXPENDITURE.md.
  */
 export function ReminderInbox() {
   const { t, i18n } = useTranslation()

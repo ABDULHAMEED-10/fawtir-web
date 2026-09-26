@@ -77,7 +77,7 @@ export type ActivityItemDto = {
   /*
    * TODO(backend): the Activity frame (Figma 154:109992) draws these and the ledger does not carry
    * them yet. Optional so today's wire still reads; the row falls back where each is absent. See
-   * docs/frontend/COMPLIANCE_REPORTS_DESIGN_REALIGNMENT_BACKEND_ASKS.md, section 2.
+   * docs/backend-guides/ACTIVITY.md, section 2.
    */
   /** The document's total including VAT, for "Customer - amount" under the number. */
   amount?: number | null

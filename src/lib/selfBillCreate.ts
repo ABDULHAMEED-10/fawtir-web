@@ -15,7 +15,7 @@ import { blockerOf, canIssueUnder, type Blocker } from './selfBillingAgreements'
  * The buyer raises the document on the supplier's behalf, so the money flows *out*. The wire shape
  * is the ordinary `InvoiceDraftRequest`, created on `/self-billed-invoice-drafts` and edited on the
  * shared draft routes; `customerId` names the **seller**. What the frame draws and the draft cannot
- * carry stays on the page behind a `TODO(backend)` (see INCOME_DESIGN_REALIGNMENT_BACKEND_ASKS.md
+ * carry stays on the page behind a `TODO(backend)` (see docs/backend-guides/INCOME.md
  * §7).
  */
 
@@ -241,7 +241,7 @@ export function toSelfBilledDraftRequest(
       ),
       discount: { type: line.discountType, value: number(line.discountValue) },
       // TODO(backend): `itemType`, `hsCode` and `serviceType` have no draft field yet
-      // (PINT_OM_LINE_CLASSIFICATION.md §7.3); a self-billed invoice is always B2B, so every line
+      // (docs/backend-guides/INCOME.md §C7.3); a self-billed invoice is always B2B, so every line
       // is classified on the page and the codes wait for the request to carry them.
       taxCategory: {
         code: tax.code,

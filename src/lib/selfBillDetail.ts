@@ -14,7 +14,7 @@ import { lapsed } from './selfBillingAgreements'
  * over Peppol, whether the Tax Authority accepted it, and whether the supplier has confirmed it.
  * The platform answers only the first (`deliveryState`, and the response code when it is
  * reported). TODO(backend): no OTA verdict and no supplier confirmation or dispute exist on any
- * response (INCOME_DESIGN_REALIGNMENT_BACKEND_ASKS.md §7.2), so those two tracks, the status
+ * response (docs/backend-guides/INCOME.md §7.2), so those two tracks, the status
  * pill's "Awaiting confirmation" and the open item at the top of the history are drawn as the
  * design draws them, from the delivery facts, until the states arrive.
  */

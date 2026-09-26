@@ -335,7 +335,7 @@ export function toDraftRequest(
       // TODO(backend): `itemType` (goods/service), `hsCode` and `serviceType` have no draft field
       // and `InvoiceDraftRequest` refuses unknown members, so the line's classification stays on
       // the client until the API carries `lines[].itemType`, `lines[].hsCode` and
-      // `lines[].serviceType` (PINT_OM_LINE_CLASSIFICATION.md §7.3). The industrial classification
+      // `lines[].serviceType` (docs/backend-guides/INCOME.md §C7.3). The industrial classification
       // is never sent: the backend copies the tenant's setting onto every line.
       return {
         lineNumber: index + 1,
