@@ -23,3 +23,12 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
       dispatchEvent: () => false,
     }) as MediaQueryList
 }
+
+// jsdom implements no layout, so it has nothing to scroll and leaves
+// `Element.prototype.scrollIntoView` entirely undefined rather than a no-op. A component that
+// calls it unguarded when an error banner needs carrying into view (CreateInvoicePage's F1 fix)
+// throws "is not a function" from inside a passive effect, and the failure is reported against
+// an unrelated assertion elsewhere in the same test run rather than the effect that threw.
+if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => {}
+}
