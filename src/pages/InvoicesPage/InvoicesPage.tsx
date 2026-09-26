@@ -118,7 +118,7 @@ const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
 ]
 const isTab = (value: string | null): value is TabId => value === 'toSend' || isInvoiceTab(value)
 
-/** The design's Channel filter. TODO(backend): the list has no channel parameter; nothing is sent. */
+/** The design's Channel filter: the list reads the customer's sending method. */
 type ChannelId = 'all' | 'peppol' | 'email'
 const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
 const isChannel = (value: string | null): value is ChannelId =>
@@ -211,17 +211,21 @@ function InvoicesScreen() {
 
   const summary = useApiRead<InvoiceSummaryDto>(INVOICE_SUMMARY_PATH, loadInvoiceSummary)
   // The period counts back from the server's day, so the list waits for the summary to know it.
+  const channelFilter = channel === 'all' ? null : channel === 'peppol' ? 'PEPPOL' : 'EMAIL'
   const filter: InvoiceListFilter | null =
     summary.read.status === 'ready'
-      ? tab === 'toSend'
-        ? {
-            state: 'ISSUED',
-            payment: null,
-            type,
-            ...periodRange(period, summary.read.data.asOf),
-            search: query,
-          }
-        : listFilter(tab, type, period, summary.read.data.asOf, query)
+      ? {
+          ...(tab === 'toSend'
+            ? {
+                state: 'ISSUED',
+                payment: null,
+                type,
+                ...periodRange(period, summary.read.data.asOf),
+                search: query,
+              }
+            : listFilter(tab, type, period, summary.read.data.asOf, query)),
+          channel: channelFilter,
+        }
       : null
   const listPath = filter
     ? invoiceListPath({

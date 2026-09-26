@@ -293,6 +293,24 @@ describe('Invoices list, wired to the API', () => {
     // Eight controls walked through role queries over the whole shell: slow in JSDOM, not stuck.
   }, 30_000)
 
+  it('asks the server for the channel the reader picked, and drops it again for all channels', async () => {
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    expect(listCalls().at(-1)).not.toContain('channel=')
+
+    fireEvent.click(screen.getByRole('button', { name: /Channel/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Peppol network' }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('channel=PEPPOL'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Channel|Peppol network/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Email' }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('channel=EMAIL'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Channel|Email/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'All channels' }))
+    await waitFor(() => expect(listCalls().at(-1)).not.toContain('channel='))
+  }, 30_000)
+
   it('pages with the total the server counted', async () => {
     listResponses = [
       () => json(200, springPage([issued()], 41)),
