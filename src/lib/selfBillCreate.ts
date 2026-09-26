@@ -38,7 +38,7 @@ export type LineKind = 'goods' | 'service'
 
 export type ComposerLine = LineItem & {
   kind: LineKind
-  /** The Oman 12-digit HS code of a goods line (IBR-079-OM), from `lib/codeLists/hs`. */
+  /** The Oman 12-digit HS code of a goods line (IBR-079-OM), chosen from the published list, searched on the server. */
   hsCode?: string
   /** The CL-12-OM service type of a service line (IBR-155-OM), from `lib/codeLists/serviceTypes`. */
   serviceType?: string
@@ -240,9 +240,22 @@ export function toSelfBilledDraftRequest(
         exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', tax.rate),
       ),
       discount: { type: line.discountType, value: number(line.discountValue) },
-      // TODO(backend): `itemType`, `hsCode` and `serviceType` have no draft field yet
-      // (docs/backend-guides/INCOME.md §C7.3); a self-billed invoice is always B2B, so every line
-      // is classified on the page and the codes wait for the request to carry them.
+      // A self-billed invoice is never simplified (IBR-149-OM), so every line is classified: a
+      // goods line by its HS code, a services line as services. The industrial classification is
+      // never sent; the backend copies the company's onto the line. A service type is passed on
+      // only when it is an official eight-digit code.
+      ...(line.kind === 'goods' && line.hsCode
+        ? { classification: { goodsOrService: 'G' as const, hsCode: line.hsCode } }
+        : line.kind === 'service'
+          ? {
+              classification: {
+                goodsOrService: 'S' as const,
+                ...(line.serviceType && /^\d{8}$/.test(line.serviceType)
+                  ? { serviceTypeCode: line.serviceType }
+                  : {}),
+              },
+            }
+          : {}),
       taxCategory: {
         code: tax.code,
         en16931Category: tax.en16931Category,
@@ -273,7 +286,13 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
   const blank = blankSelfBillForm(today, draft.branchId)
   const lines: ComposerLine[] = draft.lines.map((line, index) => ({
     id: String(index + 1),
-    kind: itemTypeOfUnit(line.unitCode),
+    // The stored goods/service flag wins over the unit's guess when the line carries one.
+    kind:
+      line.classification?.goodsOrService === 'S'
+        ? 'service'
+        : line.classification?.goodsOrService === 'G'
+          ? 'goods'
+          : itemTypeOfUnit(line.unitCode),
     description: line.description,
     unitPrice: normalisePrice(String(line.unitPrice)),
     vatRate: String(line.taxRate),
@@ -282,7 +301,11 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     discountType: line.discountType,
     discountValue: String(line.discountValue),
     hsCode: line.classification?.hsCode ?? undefined,
-    serviceType: line.classification?.serviceTypeCode ?? undefined,
+    // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
+    serviceType:
+      line.classification?.serviceTypeCode && line.classification.serviceTypeCode !== '00000000'
+        ? line.classification.serviceTypeCode
+        : undefined,
   }))
   return {
     ...blank,
