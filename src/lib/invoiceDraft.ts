@@ -437,6 +437,9 @@ export function fromDraftResponse(
   }
 }
 
+/** The largest line amount the server accepts (twelve integer digits, three decimals). */
+const MAX_LINE_AMOUNT = '999999999999.999'
+
 export type FormProblem = {
   /**
    * `customer`, `branch`, or a line field: `description`, `quantity`, `unitPrice`, `discountValue`,
@@ -460,6 +463,13 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
       problems.push({ field: 'quantity', line: index, key: 'invoiceDraft.problem.quantity' })
     if (line.unitPrice.trim() === '' || parseAmount(line.unitPrice) < 0n) {
       problems.push({ field: 'unitPrice', line: index, key: 'invoiceDraft.problem.unitPrice' })
+    }
+    // The server refuses a line past twelve integer digits (LINE_AMOUNT_TOO_LARGE).
+    if (
+      parseAmount(line.quantity) * parseAmount(line.unitPrice) >
+      parseAmount(MAX_LINE_AMOUNT) * parseAmount('1')
+    ) {
+      problems.push({ field: 'unitPrice', line: index, key: 'invoiceDraft.problem.lineAmount' })
     }
     if (
       NEEDS_EXEMPTION_REASON.has(taxOptionOf(categories, line).en16931Category) &&

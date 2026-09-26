@@ -236,6 +236,16 @@ describe('checks before saving', () => {
     expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, form())).toEqual([])
   })
 
+  it('refuses a line whose amount the server cannot hold, and allows the bound itself', () => {
+    const line = form().lines[0]
+    const over = form({ lines: [{ ...line, quantity: '1000000000', unitPrice: '99999999999.000' }] })
+    expect(
+      problemsBeforeSave(SEEDED_TAX_CATEGORIES, over).map((problem) => problem.key),
+    ).toEqual(['invoiceDraft.problem.lineAmount'])
+    const atBound = form({ lines: [{ ...line, quantity: '1', unitPrice: '999999999999.999' }] })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, atBound)).toEqual([])
+  })
+
   it('wants an HS code on goods lines and a service type on service lines, except for a consumer', () => {
     const goods = form().lines[0]
     const service = {

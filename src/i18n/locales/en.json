@@ -2413,7 +2413,8 @@
       "ANN": "Year",
       "LS": "Lump sum",
       "KMT": "Kilometre",
-      "ZZ": "Other"
+      "ZZ": "Other",
+      "SA": "Sack"
     },
     "taxCategories": {
       "S5": "Standard rate - 5%",
@@ -15688,7 +15689,8 @@
       "description": "Enter a description.",
       "walkInName": "Enter the customer's name.",
       "hsCode": "Choose an HS code for this goods line (IBR-079-OM).",
-      "serviceType": "Choose a service type for this service line (IBR-155-OM)."
+      "serviceType": "Choose a service type for this service line (IBR-155-OM).",
+      "lineAmount": "This line's amount is too large."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",
