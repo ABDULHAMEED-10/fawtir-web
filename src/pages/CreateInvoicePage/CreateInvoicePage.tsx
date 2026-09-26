@@ -1675,34 +1675,6 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                             </span>
                           </span>
                         </FieldShell>
-                        {CODED_REASON.has(tax.en16931Category) ? (
-                          <Select
-                            small
-                            panelWidth={340}
-                            value={row.exemptionReasonCode ?? ''}
-                            onChange={(exemptionReasonCode) =>
-                              updateLine(row.id, { exemptionReasonCode })
-                            }
-                            options={(taxReasonsFor(tax.en16931Category) ?? []).map((reason) => ({
-                              value: reason.code,
-                              label: nameOf(reason, language),
-                              hint: reason.code,
-                            }))}
-                            placeholder={t('invoiceDraft.exemptionReason')}
-                            ariaLabel={t('invoiceDraft.exemptionReason')}
-                          />
-                        ) : NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
-                          <input
-                            value={row.exemptionReason}
-                            onChange={(e) =>
-                              updateLine(row.id, { exemptionReason: e.target.value })
-                            }
-                            maxLength={500}
-                            placeholder={t('invoiceDraft.exemptionReason')}
-                            aria-label={t('invoiceDraft.exemptionReason')}
-                            className="h-9 w-full rounded-sm border border-primary-300 bg-white px-2 text-xs font-medium text-text-secondary outline-none"
-                          />
-                        ) : null}
                       </div>
                       <FieldShell>
                         <input
@@ -1739,6 +1711,47 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         </button>
                       </div>
                     </div>
+                    {/* The reason a zero-rated or exempt line carries no VAT: its own row, wide enough
+                        to read the chosen reason, never squeezed under the VAT box. */}
+                    {CODED_REASON.has(tax.en16931Category) ||
+                    NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 ps-1">
+                        <span className="text-xs font-medium text-text-tertiary">
+                          {t('invoiceDraft.exemptionReason')}
+                          <span className="ms-0.5 text-danger-700">*</span>
+                        </span>
+                        <div className="w-full max-w-[560px]">
+                          {CODED_REASON.has(tax.en16931Category) ? (
+                            <Select
+                              value={row.exemptionReasonCode ?? ''}
+                              onChange={(exemptionReasonCode) =>
+                                updateLine(row.id, { exemptionReasonCode })
+                              }
+                              options={(taxReasonsFor(tax.en16931Category) ?? []).map((reason) => ({
+                                value: reason.code,
+                                label: nameOf(reason, language),
+                                hint: reason.code,
+                              }))}
+                              placeholder={t('invoiceDraft.exemptionReasonChoose')}
+                              ariaLabel={t('invoiceDraft.exemptionReason')}
+                            />
+                          ) : (
+                            <FieldShell>
+                              <input
+                                value={row.exemptionReason}
+                                onChange={(e) =>
+                                  updateLine(row.id, { exemptionReason: e.target.value })
+                                }
+                                maxLength={500}
+                                placeholder={t('invoiceDraft.exemptionReasonType')}
+                                aria-label={t('invoiceDraft.exemptionReason')}
+                                className={INPUT}
+                              />
+                            </FieldShell>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                     {messages.length > 0 ? (
                       <div
                         className="flex flex-col gap-0.5 ps-1"

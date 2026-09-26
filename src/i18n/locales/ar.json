@@ -16415,7 +16415,9 @@
     "businessActivityHint": "ينسخه النظام على كل سطر في الفاتورة (IBR-081-OM).",
     "businessActivityLink": "إعدادات الشركة",
     "businessActivityUnset": "لم يُحدَّد النشاط التجاري. لا يمكن إنشاء فواتير الشركات والجهات الحكومية بدونه.",
-    "businessActivityCodeOnly": "النشاط التجاري: {{code}}"
+    "businessActivityCodeOnly": "النشاط التجاري: {{code}}",
+    "exemptionReasonChoose": "اختر سبب عدم احتساب الضريبة",
+    "exemptionReasonType": "اكتب سبب عدم احتساب الضريبة"
   },
   "invoiceIssue": {
     "action": "إصدار الفاتورة",
