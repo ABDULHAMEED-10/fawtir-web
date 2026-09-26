@@ -2306,7 +2306,7 @@
       "documentDiscountHint": "Applied after line discounts and shared across lines in proportion to what each is worth.",
       "discountType": "discount type",
       "omr": "OMR",
-      "descriptionPlaceholder": "Item name or description",
+      "descriptionPlaceholder": "Type name or description",
       "incl": "Price incl.",
       "type": "Type",
       "typeOfLine": "Line {{line}}: goods or service",

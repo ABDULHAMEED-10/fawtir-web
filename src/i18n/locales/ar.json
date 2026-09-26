@@ -2405,7 +2405,7 @@
       "documentDiscountHint": "يُطبَّق بعد خصومات البنود ويُوزَّع على البنود بنسبة قيمة كل بند.",
       "discountType": "نوع الخصم",
       "omr": "ر.ع.",
-      "descriptionPlaceholder": "اسم الصنف أو وصفه",
+      "descriptionPlaceholder": "اكتب الاسم أو الوصف",
       "incl": "السعر شامل الضريبة",
       "type": "النوع",
       "typeOfLine": "البند {{line}}: سلعة أم خدمة",
