@@ -9,7 +9,7 @@ import type { CodeListEntry } from './codeList'
  * a valid value and is always in the list, so a product nobody can classify still issues.
  *
  * TODO(backend): replace with `GET /v1/code-lists/hs?q=coffee` (searched by product name, paged,
- * English and Arabic names, "Other" always findable); see PINT_OM_LINE_CLASSIFICATION.md §7.
+ * English and Arabic names, "Other" always findable); see docs/backend-guides/INCOME.md §C7.
  */
 export type HsCode = CodeListEntry
 

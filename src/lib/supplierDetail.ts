@@ -10,7 +10,7 @@ import type { Band, Note } from './supplierRecord'
  * what the API holds. Each sentence the design prints under a figure is derived here from a
  * field, and the ones nothing backs ("Yirgacheffe went up from 7.100 to 7.400 per KG in March",
  * "Added by Hafidh Saif") are drawn as placeholders and listed in
- * docs/frontend/EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md §7.
+ * docs/backend-guides/EXPENDITURE.md §7.
  */
 
 const round3 = (value: number) => Math.round(value * 1000) / 1000

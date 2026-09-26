@@ -23,7 +23,7 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
  *   UN/ECE lists, "Other" last);
  * - the price is ex-VAT, three decimals, never negative, 0 by default;
  * - the tax category is text only: it is the document's, not a per-line choice;
- * - a goods line carries an HS code, a service line a service type (PINT_OM_LINE_CLASSIFICATION.md),
+ * - a goods line carries an HS code, a service line a service type (docs/backend-guides/INCOME.md (part C)),
  *   both searched by name through the shared `ClassificationField` and hidden for consumers;
  * - nothing opens a dialog.
  *

@@ -10,7 +10,7 @@ import type { CodeListEntry } from './codeList'
  *
  * TODO(backend): replace with `GET /v1/code-lists/isic?q=restaurant` (searched by activity name,
  * English and Arabic names) and store the choice on `GET/PUT /v1/settings/company` as
- * `industrialClassification { code, name }`; see PINT_OM_LINE_CLASSIFICATION.md §7.
+ * `industrialClassification { code, name }`; see docs/backend-guides/INCOME.md §C7.
  */
 export type IsicActivity = CodeListEntry
 

@@ -325,7 +325,7 @@ function toResponse(id, version, state, draft, extra = {}) {
       en16931Category: line.taxCategory.en16931Category,
       taxRate: line.taxCategory.rate,
       exemptionReason: line.taxCategory.exemptionReason,
-      // Backend ask (PINT_OM_LINE_CLASSIFICATION.md §7.3): the line's HS code or service type.
+      // Backend ask (docs/backend-guides/INCOME.md §C7.3): the line's HS code or service type.
       hsCode: line.hsCode ?? null,
       serviceType: line.serviceType ?? null,
     })),

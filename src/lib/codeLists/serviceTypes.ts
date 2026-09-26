@@ -9,7 +9,7 @@ import type { CodeListEntry } from './codeList'
  * CL-12-OM values replace them when the backend serves the list.
  *
  * TODO(backend): replace with `GET /v1/code-lists/service-types?q=training` (searched by service
- * name, English and Arabic names); see PINT_OM_LINE_CLASSIFICATION.md §7.
+ * name, English and Arabic names); see docs/backend-guides/INCOME.md §C7.
  */
 export type ServiceType = CodeListEntry
 

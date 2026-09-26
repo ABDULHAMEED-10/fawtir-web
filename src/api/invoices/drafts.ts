@@ -103,7 +103,7 @@ export type DraftResponse = {
     taxRate: number
     exemptionReason: string | null
     /**
-     * TODO(backend): the line's classification (PINT_OM_LINE_CLASSIFICATION.md §7.3). Read when
+     * TODO(backend): the line's classification (docs/backend-guides/INCOME.md §C7.3). Read when
      * present so a stored value comes back onto the composer; the request does not carry them yet.
      */
     hsCode?: string | null

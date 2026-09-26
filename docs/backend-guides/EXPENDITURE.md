@@ -1,11 +1,31 @@
-# Expenditure and Suppliers: design realignment, backend asks
+# Expenditure and Suppliers: backend guide
 
-The product owner's ruling (26 Sep 2026): the Figma frames are the source of truth and the backend
-adapts to them. Each screen was put back on its frame; where the API does not carry what the frame
-draws, the screen draws it from the best value the data allows (or a marked placeholder behind a
-`// TODO(backend)` comment) and the gap is listed here. One section per screen group; rows are
-`| n.m | what the UI draws | what the backend must add |`. Append only.
+**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, and suppliers. **Last updated:** 27 September 2026.
 
+This is the single guide for this area. It lists every place where a screen draws something the
+API does not provide yet, and what to add. It replaces the older per-pass "design realignment,
+backend asks" documents.
+
+## How to use this guide
+
+- **The rule.** The product owner ruled that the Figma design is the source of truth. Each screen
+  follows its frame; where the API does not carry what the frame draws, the screen draws it from
+  the best value it has, or shows a marked placeholder, and the gap is a row below. The backend
+  adapts to the screen; the front end then re-tests the integration by hand.
+- **Nothing existing was removed.** Every call, request shape, idempotency key and permission check
+  the integration added is still there, and the tests that assert them still pass.
+- **Rows.** Each row reads: number, what the screen shows, what the backend must add. A row that
+  says "none" records a decision, not a gap. Row numbers are stable ids: the code comments cite
+  them, so they are never renumbered, and new rows are appended at the end of their section.
+- **Finding it in the code.** Every gap is a `// TODO(backend)` comment naming its row. Search
+  for `TODO(backend)` in `src/pages/Bill*`, `src/pages/*PaymentRun*`, `src/pages/*Recurring*`, `src/pages/ExpenditureRemindersPage`, `src/pages/Supplier*`, `src/pages/Upload*Note*`, `src/components/debit`, `src/lib` and `src/api/expenditure`.
+- **Seeing the screens without a backend.** `tools/mock-api/routes/bills.mjs`, `paymentsRecurring.mjs`, `supplierNotes.mjs`, `suppliers.mjs`, `supplierRecord.mjs` answer the
+  routes with realistic data in the shapes the screens expect (`src/api/**` holds the DTOs). Run
+  `node tools/mock-api/server.mjs` and point the app at it; see `docs/LOCAL_SETUP.md`.
+
+**Screens in this guide:** Bills (list, upload, scan receipts, detail); Payments (runs, run composer, view their invoice); Recurring bills (list, add, detail); Reminders; Supplier credit notes and debit notes (lists, uploads, details); Suppliers (list, new, edit, import, detail, new purchase order, record a bill, statement).
+
+---
 ## 1. Bills (`GET /v1/bills`, `/summary`, `/intake`, `/{id}`, `/{id}/match`)
 
 | # | The design shows | Ask |

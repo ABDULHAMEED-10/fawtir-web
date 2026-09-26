@@ -21,7 +21,7 @@ export type PeriodicRunOutcome = 'DRAFTED' | 'FAILED' | 'SKIPPED'
  * TODO(backend): a line of the schedule's own template. The design (154:164555) sets a schedule up
  * from scratch, under the composer's line rules: free-text description, goods or service per line,
  * unit, ex-VAT price, discount, the document's tax category; an HS code on goods lines and a
- * service type on service lines (PINT_OM_LINE_CLASSIFICATION.md). Same shape as a draft line.
+ * service type on service lines (docs/backend-guides/INCOME.md (part C)). Same shape as a draft line.
  */
 export type PeriodicTemplateLineDto = {
   lineNumber: number

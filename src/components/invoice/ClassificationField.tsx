@@ -11,7 +11,7 @@ import { SERVICE_TYPES } from '../../lib/codeLists/serviceTypes'
  * (IBR-079-OM) or the CL-12-OM service type of a service line (IBR-155-OM), both searched by name
  * and stored as the code. "Other" (000000000000) stays at the end of the HS list whatever is
  * typed, so a product that fits no heading can still be classified. One list each, from
- * `lib/codeLists`; see docs/frontend/PINT_OM_LINE_CLASSIFICATION.md.
+ * `lib/codeLists`; see docs/backend-guides/INCOME.md (part C).
  */
 export function ClassificationField({
   kind,

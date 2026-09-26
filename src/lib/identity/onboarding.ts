@@ -284,7 +284,7 @@ export function buildBusinessIdentityRequest(
 ): BusinessIdentityRequest {
   // TODO(backend): `industrialClassification` (the 6-digit ISIC code chosen on this step) is not
   // sent: `SignupBusinessIdentityRequest` has no field for it yet. It travels in the onboarding
-  // state to the review page; see docs/frontend/PINT_OM_LINE_CLASSIFICATION.md §8.
+  // state to the review page; see docs/backend-guides/INCOME.md §C8.
   return {
     legalCompanyName: values.companyName.trim(),
     commercialRegistrationNumber: values.crNumber.trim().toUpperCase(),

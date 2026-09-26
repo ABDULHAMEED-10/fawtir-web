@@ -221,7 +221,7 @@ export function SupplierNoteIntake({
     try {
       // TODO(backend): `ConfirmRequest` has no place for the note's reason (BTOM-032, mandatory
       // under IBR-023-OM) nor for the bill it corrects; both are typed here and neither is
-      // sent (row 5.12 in EXPENDITURE_DESIGN_REALIGNMENT_BACKEND_ASKS.md).
+      // sent (row 5.12 in docs/backend-guides/EXPENDITURE.md).
       const note = await confirmIntake(
         intake.id,
         toConfirmation(submitted, {

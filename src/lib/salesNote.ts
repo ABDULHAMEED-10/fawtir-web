@@ -550,7 +550,7 @@ export function toNoteRequest(
         productId: line.productId ?? '',
         productCode: line.productCode ?? '',
         // TODO(backend): `lines[].itemType` (GOODS | SERVICE), `lines[].hsCode` and
-        // `lines[].serviceType` (PINT_OM_LINE_CLASSIFICATION.md); `line.kind` and
+        // `lines[].serviceType` (docs/backend-guides/INCOME.md (part C)); `line.kind` and
         // `line.classification` stay on the page until the draft accepts them.
         description: line.description.trim(),
         unitCode: line.unitCode,
