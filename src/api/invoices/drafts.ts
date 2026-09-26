@@ -39,6 +39,8 @@ export type DraftLineRequest = {
     en16931Category: string
     rate: number
     exemptionReason: string | null
+    /** IBT-121: `VATZR-OM-nn` for a zero-rated line, `VATEX-OM-nn` for an exempt one. */
+    exemptionReasonCode?: string | null
   }
   classification?: LineClassificationDto
 }
@@ -112,6 +114,7 @@ export type DraftResponse = {
     en16931Category: string
     taxRate: number
     exemptionReason: string | null
+    exemptionReasonCode?: string | null
     /** `null` when the line states no classification. */
     classification?: LineClassificationDto | null
   }[]
@@ -167,7 +170,10 @@ export function createDraft(idempotencyKey: string, draft: DraftRequest): Promis
  * route rather than the body. Editing afterwards goes through the shared draft routes: there is
  * one draft store, and a second edit path would eventually disagree with the first.
  */
-export function createSelfBilledDraft(idempotencyKey: string, draft: DraftRequest): Promise<DraftResponse> {
+export function createSelfBilledDraft(
+  idempotencyKey: string,
+  draft: DraftRequest,
+): Promise<DraftResponse> {
   return apiRequest<DraftResponse>('/v1/self-billed-invoice-drafts', {
     method: 'POST',
     body: draft,

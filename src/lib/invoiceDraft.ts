@@ -39,6 +39,8 @@ export type DraftLine = {
   vatRate: string
   taxCode: string | null
   exemptionReason: string
+  /** IBT-121 on a zero-rated (VATZR-OM-nn) or exempt (VATEX-OM-nn) line, chosen from its list. */
+  exemptionReasonCode?: string
   quantity: string
   unit: string
   discountType: DiscountType
@@ -115,6 +117,8 @@ export const DESIGN_REFERENCE: ReferenceDataDto = {
 
 /** Categories the server prices only with a reason (`TaxCategoryInput`, `EXEMPTION_REASON_REQUIRED`). */
 export const NEEDS_EXEMPTION_REASON = new Set(['E', 'AE', 'G', 'O'])
+/** The categories whose reason is a code from their own list (IBT-121): zero-rated and exempt. */
+export const CODED_REASON = new Set(['Z', 'E'])
 
 /* ------------------------------------------------------------------ units */
 
@@ -352,7 +356,9 @@ export function toDraftRequest(
             : undefined
       return {
         lineNumber: index + 1,
-        ...(line.productId ? { productId: line.productId, productCode: line.productCode ?? '' } : {}),
+        ...(line.productId
+          ? { productId: line.productId, productCode: line.productCode ?? '' }
+          : {}),
         description: line.description.trim(),
         unitCode: line.unit,
         quantity: number(line.quantity),
@@ -364,8 +370,14 @@ export function toDraftRequest(
           code: tax.code,
           en16931Category: tax.en16931Category,
           rate: Number(tax.rate),
-          exemptionReason: NEEDS_EXEMPTION_REASON.has(tax.en16931Category)
-            ? text(line.exemptionReason)
+          // Z and E state their reason as a code, never as text; AE, G and O still give text.
+          exemptionReason:
+            NEEDS_EXEMPTION_REASON.has(tax.en16931Category) &&
+            !CODED_REASON.has(tax.en16931Category)
+              ? text(line.exemptionReason)
+              : null,
+          exemptionReasonCode: CODED_REASON.has(tax.en16931Category)
+            ? line.exemptionReasonCode || null
             : null,
         },
         ...(classification ? { classification } : {}),
@@ -447,6 +459,7 @@ export function fromDraftResponse(
         vatRate: tax?.rate ?? String(Number(line.taxRate)),
         taxCode: tax?.code ?? null,
         exemptionReason: line.exemptionReason ?? '',
+        exemptionReasonCode: line.exemptionReasonCode ?? undefined,
         quantity: String(Number(line.quantity)),
         unit: line.unitCode,
         discountType: line.discountType,
@@ -490,10 +503,12 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
     ) {
       problems.push({ field: 'unitPrice', line: index, key: 'invoiceDraft.problem.lineAmount' })
     }
-    if (
-      NEEDS_EXEMPTION_REASON.has(taxOptionOf(categories, line).en16931Category) &&
-      line.exemptionReason.trim() === ''
-    ) {
+    const category = taxOptionOf(categories, line).en16931Category
+    // A zero-rated or exempt line needs its reason code; the other categories still need text.
+    const reasonMissing = CODED_REASON.has(category)
+      ? !line.exemptionReasonCode
+      : NEEDS_EXEMPTION_REASON.has(category) && line.exemptionReason.trim() === ''
+    if (reasonMissing) {
       problems.push({
         field: 'exemptionReason',
         line: index,

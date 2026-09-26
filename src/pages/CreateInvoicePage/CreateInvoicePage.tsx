@@ -49,6 +49,7 @@ import {
 } from '../../api/invoices/drafts'
 import {
   DESIGN_REFERENCE,
+  CODED_REASON,
   NEEDS_EXEMPTION_REASON,
   PAYMENT_TERMS,
   blankDraftForm,
@@ -91,6 +92,7 @@ import {
   readIndustrialClassification,
 } from '../../api/company/industrialClassification'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
+import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
 import { findCode } from '../../lib/codeLists/codeList'
 import { nameOf } from '../../lib/codeLists/codeList'
 import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
@@ -1673,7 +1675,23 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                             </span>
                           </span>
                         </FieldShell>
-                        {NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
+                        {CODED_REASON.has(tax.en16931Category) ? (
+                          <Select
+                            small
+                            panelWidth={340}
+                            value={row.exemptionReasonCode ?? ''}
+                            onChange={(exemptionReasonCode) =>
+                              updateLine(row.id, { exemptionReasonCode })
+                            }
+                            options={(taxReasonsFor(tax.en16931Category) ?? []).map((reason) => ({
+                              value: reason.code,
+                              label: nameOf(reason, language),
+                              hint: reason.code,
+                            }))}
+                            placeholder={t('invoiceDraft.exemptionReason')}
+                            ariaLabel={t('invoiceDraft.exemptionReason')}
+                          />
+                        ) : NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
                           <input
                             value={row.exemptionReason}
                             onChange={(e) =>
