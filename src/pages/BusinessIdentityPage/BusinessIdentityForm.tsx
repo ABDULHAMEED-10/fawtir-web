@@ -290,7 +290,6 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
                 className="flex items-center gap-1 text-sm font-medium leading-[1.2] text-text-primary"
               >
                 {t('businessIdentity.isicLabel')}
-                <span className="text-xl leading-4 text-primary-700">*</span>
               </span>
               <Combobox
                 value={industrialClassification}

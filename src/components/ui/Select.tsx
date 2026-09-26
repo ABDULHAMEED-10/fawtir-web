@@ -33,6 +33,8 @@ export function Select({
   unsure,
   compact,
   footer,
+  panelWidth,
+  small,
 }: {
   value: string
   onChange: (value: string) => void
@@ -47,6 +49,10 @@ export function Select({
   compact?: boolean
   /** Rendered under the list, e.g. an "Add new…" action. */
   footer?: ReactNode
+  /** The list's width in px when the trigger is too narrow for what it lists. */
+  panelWidth?: number
+  /** 36px with tight padding and small text: a dropdown standing in for a small input inside a table cell. */
+  small?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -102,9 +108,10 @@ export function Select({
         aria-expanded={open}
         aria-label={ariaLabel}
         className={[
-          'flex w-full items-center justify-between gap-2 rounded-sm border px-4 text-start transition-colors',
+          'flex w-full items-center justify-between rounded-sm border text-start transition-colors',
+          small ? 'h-9 gap-1 px-2' : 'gap-2 px-4',
           unsure ? 'border-[#d8c9a8]' : 'border-primary-300',
-          compact ? 'h-[42px]' : 'h-[50px]',
+          small ? '' : compact ? 'h-[42px]' : 'h-[50px]',
           unsure ? 'bg-[#faf5ea]' : highlighted ? 'bg-primary-25' : 'bg-surface-tab-bar',
           disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-primary-500',
         ].join(' ')}
@@ -113,7 +120,8 @@ export function Select({
           {selected?.icon ? <img src={selected.icon} alt="" className="size-5 shrink-0" /> : null}
           <span
             className={[
-              'min-w-0 flex-1 truncate text-sm font-medium',
+              'min-w-0 flex-1 truncate font-medium',
+              small ? 'text-xs' : 'text-sm',
               selected ? 'text-text-secondary' : 'text-text-placeholder',
             ].join(' ')}
           >
@@ -125,13 +133,13 @@ export function Select({
           alt=""
           aria-hidden="true"
           className={[
-            'size-6 shrink-0 transition-transform',
+            small ? 'size-4 shrink-0 transition-transform' : 'size-6 shrink-0 transition-transform',
             open ? '-rotate-90' : 'rotate-90',
           ].join(' ')}
         />
       </button>
 
-      <Popover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)}>
+      <Popover open={open} anchorRef={triggerRef} onClose={() => setOpen(false)} width={panelWidth}>
         <ul role="listbox" className="max-h-[240px] overflow-y-auto py-1">
           {options.map((option, index) => {
             const isSelected = option.value === value

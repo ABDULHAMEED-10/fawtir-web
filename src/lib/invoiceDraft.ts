@@ -39,6 +39,8 @@ export type DraftLine = {
   vatRate: string
   taxCode: string | null
   exemptionReason: string
+  /** IBT-121 on a zero-rated (VATZR-OM-nn) or exempt (VATEX-OM-nn) line, chosen from its list. */
+  exemptionReasonCode?: string
   quantity: string
   unit: string
   discountType: DiscountType
@@ -115,6 +117,8 @@ export const DESIGN_REFERENCE: ReferenceDataDto = {
 
 /** Categories the server prices only with a reason (`TaxCategoryInput`, `EXEMPTION_REASON_REQUIRED`). */
 export const NEEDS_EXEMPTION_REASON = new Set(['E', 'AE', 'G', 'O'])
+/** The categories whose reason is a code from their own list (IBT-121): zero-rated and exempt. */
+export const CODED_REASON = new Set(['Z', 'E'])
 
 /* ------------------------------------------------------------------ units */
 
@@ -334,16 +338,27 @@ export function toDraftRequest(
       const tax = taxOptionOf(reference?.taxCategories ?? [], line)
       // A goods line of a business or government invoice carries its HS code (IBR-079-OM); the
       // industrial classification is never sent, the backend copies the tenant's setting onto
-      // every line. A services line is not sent yet: the CL-12-OM service types the composer
-      // offers are a placeholder list the backend would refuse, so it stays unclassified until
-      // the official list is served (docs/backend-guides/INCOME.md §C7).
+      // every line. A services line of such an invoice states only that it is services (BTOM-019):
+      // IBR-155-OM asks for a service type on an export of services alone, and the backend fills
+      // CL-12-OM's "not applicable" code otherwise. A service type is passed on only when it is an
+      // official eight-digit code, never one of the composer's placeholder codes. A consumer's
+      // simplified invoice carries none of it.
       const classification =
         line.itemType === 'goods' && line.hsCode
           ? { goodsOrService: 'G' as const, hsCode: line.hsCode }
-          : undefined
+          : line.itemType === 'service' && form.customerType !== 'consumer'
+            ? {
+                goodsOrService: 'S' as const,
+                ...(line.serviceType && /^\d{8}$/.test(line.serviceType)
+                  ? { serviceTypeCode: line.serviceType }
+                  : {}),
+              }
+            : undefined
       return {
         lineNumber: index + 1,
-        ...(line.productId ? { productId: line.productId, productCode: line.productCode ?? '' } : {}),
+        ...(line.productId
+          ? { productId: line.productId, productCode: line.productCode ?? '' }
+          : {}),
         description: line.description.trim(),
         unitCode: line.unit,
         quantity: number(line.quantity),
@@ -355,8 +370,14 @@ export function toDraftRequest(
           code: tax.code,
           en16931Category: tax.en16931Category,
           rate: Number(tax.rate),
-          exemptionReason: NEEDS_EXEMPTION_REASON.has(tax.en16931Category)
-            ? text(line.exemptionReason)
+          // Z and E state their reason as a code, never as text; AE, G and O still give text.
+          exemptionReason:
+            NEEDS_EXEMPTION_REASON.has(tax.en16931Category) &&
+            !CODED_REASON.has(tax.en16931Category)
+              ? text(line.exemptionReason)
+              : null,
+          exemptionReasonCode: CODED_REASON.has(tax.en16931Category)
+            ? line.exemptionReasonCode || null
             : null,
         },
         ...(classification ? { classification } : {}),
@@ -420,14 +441,25 @@ export function fromDraftResponse(
         productId: line.productId || null,
         productCode: line.productCode || null,
         description: line.description,
-        itemType: itemTypeOfUnit(line.unitCode),
+        // The stored goods/service flag wins over the unit's guess when the line carries one.
+        itemType:
+          line.classification?.goodsOrService === 'S'
+            ? 'service'
+            : line.classification?.goodsOrService === 'G'
+              ? 'goods'
+              : itemTypeOfUnit(line.unitCode),
         hsCode: line.classification?.hsCode ?? undefined,
-        serviceType: line.classification?.serviceTypeCode ?? undefined,
+        // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
+        serviceType:
+          line.classification?.serviceTypeCode && line.classification.serviceTypeCode !== '00000000'
+            ? line.classification.serviceTypeCode
+            : undefined,
         // Three decimals as typed ("1.8" reloads as "1.800"), no thousands separators.
         unitPrice: formatAmount(parseAmount(String(line.unitPrice)), 3).replace(/,/g, ''),
         vatRate: tax?.rate ?? String(Number(line.taxRate)),
         taxCode: tax?.code ?? null,
         exemptionReason: line.exemptionReason ?? '',
+        exemptionReasonCode: line.exemptionReasonCode ?? undefined,
         quantity: String(Number(line.quantity)),
         unit: line.unitCode,
         discountType: line.discountType,
@@ -436,6 +468,9 @@ export function fromDraftResponse(
     }),
   }
 }
+
+/** The largest line amount the server accepts (twelve integer digits, three decimals). */
+const MAX_LINE_AMOUNT = '999999999999.999'
 
 export type FormProblem = {
   /**
@@ -461,10 +496,19 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
     if (line.unitPrice.trim() === '' || parseAmount(line.unitPrice) < 0n) {
       problems.push({ field: 'unitPrice', line: index, key: 'invoiceDraft.problem.unitPrice' })
     }
+    // The server refuses a line past twelve integer digits (LINE_AMOUNT_TOO_LARGE).
     if (
-      NEEDS_EXEMPTION_REASON.has(taxOptionOf(categories, line).en16931Category) &&
-      line.exemptionReason.trim() === ''
+      parseAmount(line.quantity) * parseAmount(line.unitPrice) >
+      parseAmount(MAX_LINE_AMOUNT) * parseAmount('1')
     ) {
+      problems.push({ field: 'unitPrice', line: index, key: 'invoiceDraft.problem.lineAmount' })
+    }
+    const category = taxOptionOf(categories, line).en16931Category
+    // A zero-rated or exempt line needs its reason code; the other categories still need text.
+    const reasonMissing = CODED_REASON.has(category)
+      ? !line.exemptionReasonCode
+      : NEEDS_EXEMPTION_REASON.has(category) && line.exemptionReason.trim() === ''
+    if (reasonMissing) {
       problems.push({
         field: 'exemptionReason',
         line: index,
@@ -477,9 +521,10 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
 
 /**
  * What stops an issue, over and above a save: on a full tax invoice (business or government
- * customer) every goods line names its product's HS code (IBR-079-OM) and every service line its
- * service type (IBR-155-OM). A consumer's simplified invoice skips both. The server will refuse
- * the same at `POST /issue` once it validates them; checking here points at the line first.
+ * customer) every goods line names its product's HS code (IBR-079-OM). A service line needs no
+ * service type: IBR-155-OM asks for one on an export of services only. A consumer's simplified
+ * invoice skips the HS code too. The server will refuse the same at `POST /issue` once it
+ * validates it; checking here points at the line first.
  */
 export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
   if (form.customerType === 'consumer') return []
@@ -487,9 +532,6 @@ export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
   form.lines.forEach((line, index) => {
     if (line.itemType === 'goods' && !line.hsCode) {
       problems.push({ field: 'hsCode', line: index, key: 'invoiceDraft.problem.hsCode' })
-    }
-    if (line.itemType === 'service' && !line.serviceType) {
-      problems.push({ field: 'serviceType', line: index, key: 'invoiceDraft.problem.serviceType' })
     }
   })
   return problems

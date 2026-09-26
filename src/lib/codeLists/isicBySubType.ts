@@ -3,73 +3,39 @@ import { ISIC_ACTIVITIES, type IsicActivity } from './isic'
 /**
  * The sign-up "specialty" (sub-business type) pre-fills the business activity (ISIC Rev. 4,
  * Oman 6-digit) on the Business identity step, so most registrants confirm rather than search.
- * One activity per specialty: the closest class on the placeholder list; the registrant can pick
- * any other. TODO(backend): once `GET /v1/code-lists/isic` exists this table stays as the default.
+ * One activity per specialty, and only where the published PINT-OM list has a clear match by name
+ * (checked 2026-09-26): a specialty with several plausible activities, or none, pre-fills nothing
+ * and the registrant searches. The earlier table held codes that are not on the official list or
+ * that name a different activity (e.g. 141010 is "Manufacture of omani kimmah").
+ * TODO(backend): once `GET /v1/code-lists/isic` exists this table stays as the default.
  */
 const ISIC_BY_SUB_TYPE: Record<string, string> = {
-  // Food & beverage
-  'coffee-shop': '561020',
-  restaurant: '561010',
-  bakery: '107110',
-  'fast-food': '561010',
-  'juice-bar': '563010',
-  'dessert-shop': '561010',
-  catering: '562110',
-  // Retail
-  grocery: '471110',
-  electronics: '474110',
-  fashion: '477110',
-  'flower-shop': '477310',
-  'gift-shop': '477310',
-  bookstore: '476110',
-  'pet-shop': '477310',
-  'home-store': '475910',
-  // Beauty & wellness
-  'beauty-salon': '960210',
-  'barber-shop': '960210',
-  spa: '960910',
-  'nail-salon': '960210',
-  'massage-center': '960910',
-  'fitness-studio': '931110',
-  // Professional services
-  consultancy: '702010',
-  cleaning: '812110',
-  laundry: '960910',
-  tailoring: '141010',
-  printing: '181110',
-  repair: '951110',
-  maintenance: '331210',
-  'freelance-services': '741010',
-  // Healthcare
-  'medical-clinic': '862010',
-  'dental-clinic': '862010',
-  physiotherapy: '869010',
-  laboratory: '869010',
-  pharmacy: '477210',
-  'medical-supplies': '477210',
-  // Hospitality & travel
-  hotel: '551010',
-  resort: '551010',
-  'guest-house': '551010',
-  'travel-agency': '791110',
-  'tour-operator': '791210',
-  'car-rental': '771010',
-  'event-venue': '823010',
-  // Education
-  'training-center': '854910',
-  'tuition-center': '854910',
-  nursery: '851010',
-  school: '852110',
-  'driving-school': '854910',
-  'online-academy': '854910',
-  // Automotive
-  garage: '452010',
-  'car-wash': '452010',
-  detailing: '452010',
-  'tire-shop': '453010',
-  'spare-parts': '453010',
-  'battery-shop': '453010',
-  'vehicle-inspection': '712010',
+  'coffee-shop': '563001',
+  restaurant: '561001',
+  'fast-food': '561002',
+  'juice-bar': '563002',
+  'dessert-shop': '561003',
+  catering: '562901',
+  'flower-shop': '477305',
+  'gift-shop': '477304',
+  bookstore: '476103',
+  'home-store': '475901',
+  'beauty-salon': '960202',
+  'barber-shop': '960201',
+  'massage-center': '960902',
+  'fitness-studio': '931101',
+  consultancy: '702001',
+  laundry: '960104',
+  tailoring: '141009',
+  'medical-clinic': '862002',
+  'dental-clinic': '862003',
+  pharmacy: '477201',
+  hotel: '551001',
+  resort: '551001',
+  'guest-house': '551006',
+  'travel-agency': '791100',
+  'driving-school': '854903',
+  'car-wash': '452011',
 }
 
 /** The activity a specialty suggests, or nothing when the specialty is unknown. */

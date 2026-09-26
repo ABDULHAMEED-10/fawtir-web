@@ -7,21 +7,6 @@
 import { PLAN } from './plans'
 import { BOOK, COMPANY, TODAY, daysFrom, INVOICES_THIS_MONTH } from './settings'
 import { MEMBERS } from './settingsPeople'
-import { ISIC_ACTIVITIES, type IsicActivity } from './codeLists/isic'
-
-/* ------------------------------------------------------- industrial classification */
-
-/**
- * The company's business activity, ISIC Rev. 4 at Oman's 6-digit level (IBR-081-OM). Chosen once
- * in Settings › Company; the backend copies it onto every invoice line, so the composer only
- * shows it. Al Bahja Coffee is a chain of cafés.
- *
- * TODO(backend): read and write as `industrialClassification { code, name }` on
- * `GET/PUT /v1/settings/company`.
- */
-export const INDUSTRIAL_CLASSIFICATION: IsicActivity = ISIC_ACTIVITIES.find(
-  (activity) => activity.code === '561010',
-)!
 
 /* ------------------------------------------------------------------- branches */
 

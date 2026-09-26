@@ -162,6 +162,22 @@ function money3(value: number | string): string {
   return Number.isFinite(number) ? number.toFixed(3) : '0.000'
 }
 
+/** The kind the invoice states for a line (its goods/service flag), else the unit's guess. */
+function kindOfInvoiceLine(line: InvoiceDetailDto['lines'][number]): NoteLineKind {
+  const flag = line.classification?.goodsOrService
+  return flag === 'S' ? 'service' : flag === 'G' ? 'goods' : kindOfUnit(line.unitCode)
+}
+
+/** The code the note's line starts with: the invoice line's HS code, or its real service type. */
+function classificationOfInvoiceLine(line: InvoiceDetailDto['lines'][number]): string | null {
+  const c = line.classification
+  if (!c) return null
+  if (c.goodsOrService === 'S') {
+    return c.serviceTypeCode && c.serviceTypeCode !== '00000000' ? c.serviceTypeCode : null
+  }
+  return c.hsCode ?? null
+}
+
 function invoiceLine(
   line: InvoiceDetailDto['lines'][number],
   include: boolean,
@@ -174,9 +190,9 @@ function invoiceLine(
     productId: line.productId,
     productCode: line.productCode,
     description: line.description,
-    kind: kindOfUnit(line.unitCode),
+    kind: kindOfInvoiceLine(line),
     unitCode: line.unitCode,
-    classification: null,
+    classification: classificationOfInvoiceLine(line),
     invoiceQuantity: line.quantity,
     invoiceUnitPrice: line.unitPrice,
     quantity: String(line.quantity),
@@ -188,6 +204,24 @@ function invoiceLine(
       en16931Category: line.en16931Category,
       rate: line.taxRate ?? 0,
       exemptionReason: line.exemptionReason,
+      exemptionReasonCode: line.exemptionReasonCode ?? null,
+    },
+  }
+}
+
+/** What a note line states about its goods or service (BTOM-019, IBT-158, BTOM-034), if anything. */
+function classificationRequest(line: NoteLine): Pick<DraftLineRequest, 'classification'> {
+  if (line.kind === 'goods') {
+    return line.classification && /^\d{12}$/.test(line.classification)
+      ? { classification: { goodsOrService: 'G', hsCode: line.classification } }
+      : {}
+  }
+  return {
+    classification: {
+      goodsOrService: 'S',
+      ...(line.classification && /^\d{8}$/.test(line.classification)
+        ? { serviceTypeCode: line.classification }
+        : {}),
     },
   }
 }
@@ -222,6 +256,7 @@ export function addedLine(
           en16931Category: first.en16931Category,
           rate: first.taxRate ?? 0,
           exemptionReason: first.exemptionReason,
+          exemptionReasonCode: first.exemptionReasonCode ?? null,
         }
       : { code: 'S5', en16931Category: 'S', rate: 5, exemptionReason: null },
   }
@@ -300,7 +335,19 @@ export function fromNoteDraft(
       quantity: String(saved.quantity),
       unitPrice: money3(saved.unitPrice),
       unitCode: saved.unitCode,
-      kind: kindOfUnit(saved.unitCode),
+      kind:
+        saved.classification?.goodsOrService === 'S'
+          ? 'service'
+          : saved.classification?.goodsOrService === 'G'
+            ? 'goods'
+            : kindOfUnit(saved.unitCode),
+      classification:
+        saved.classification?.goodsOrService === 'S'
+          ? saved.classification.serviceTypeCode &&
+            saved.classification.serviceTypeCode !== '00000000'
+            ? saved.classification.serviceTypeCode
+            : null
+          : (saved.classification?.hsCode ?? line.classification),
       discountType: saved.discountType,
       discountValue: String(saved.discountValue),
     }
@@ -558,6 +605,7 @@ export function toNoteRequest(
         unitPrice: Number(line.unitPrice.trim()),
         discount: { type: line.discountType, value: Number(line.discountValue.trim()) || 0 },
         taxCategory: line.taxCategory,
+        ...classificationRequest(line),
       })),
     headerDiscount: { type: 'FIXED_AMOUNT', value: 0 },
     details: {

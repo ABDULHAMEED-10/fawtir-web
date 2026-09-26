@@ -1,56 +1,74 @@
 import type { CodeListEntry } from './codeList'
 
 /**
- * Service types, code list CL-12-OM, for the service line of a full tax invoice (IBR-155-OM;
- * `cac:CommodityClassification` with the service-type listID).
+ * Service types, code list CL-12-OM (IBR-155-OM; `cac:ItemSpecificationDocumentReference` with
+ * scheme MP). The 21 codes and English names of the published PINT-OM list ("ServiceType").
+ * 00000000 is "Other". A service line needs one only on an export of services; every other
+ * services line takes 00000000 from the backend. The Arabic names are translated from the
+ * English by the project (pending review).
  *
- * A placeholder subset of about thirty service kinds. The codes follow the CPC Ver. 2.1 group
- * numbering the Oman list is built on, so a search by name behaves as it will; the published
- * CL-12-OM values replace them when the backend serves the list.
- *
- * TODO(backend): replace with `GET /v1/code-lists/service-types?q=training` (searched by service
- * name, English and Arabic names); see docs/backend-guides/INCOME.md §C7.
+ * TODO(backend): replace with `GET /v1/code-lists/service-types?q=`.
  */
 export type ServiceType = CodeListEntry
 
-const s = (code: string, en: string, ar: string): ServiceType => ({ code, en, ar })
+const s = (code: string, en: string, ar: string = en): ServiceType => ({ code, en, ar })
 
 export const SERVICE_TYPES: ServiceType[] = [
-  s('63310', 'Restaurant and café meal service', 'خدمات تقديم الوجبات في المطاعم والمقاهي'),
-  s('63393', 'Event and contract catering', 'خدمات التموين للمناسبات والعقود'),
-  s('63399', 'Delivery of food and beverages', 'توصيل الأطعمة والمشروبات'),
-  s('88121', 'Coffee roasting and processing service', 'خدمات تحميص البن ومعالجته'),
-  s('92900', 'Training and courses (barista, staff)', 'التدريب والدورات (باريستا، موظفون)'),
-  s('92910', 'Education services, other', 'خدمات تعليمية، غيرها'),
-  s('83111', 'Management consulting', 'الاستشارات الإدارية'),
-  s('82210', 'Accounting and bookkeeping', 'المحاسبة ومسك الدفاتر'),
-  s('82310', 'Tax consulting and filing', 'الاستشارات الضريبية وتقديم الإقرارات'),
-  s('82110', 'Legal advisory', 'الاستشارات القانونية'),
-  s('83131', 'Software development and programming', 'تطوير البرمجيات والبرمجة'),
-  s('83132', 'IT support and maintenance', 'الدعم الفني وصيانة تقنية المعلومات'),
-  s('83151', 'Web hosting and cloud services', 'استضافة المواقع والخدمات السحابية'),
-  s('73311', 'Software licence and subscription', 'ترخيص البرمجيات والاشتراكات'),
-  s('83610', 'Advertising and marketing', 'الإعلان والتسويق'),
-  s('83911', 'Graphic and interior design', 'التصميم الجرافيكي والداخلي'),
-  s('83812', 'Photography and video production', 'التصوير الفوتوغرافي وإنتاج الفيديو'),
-  s('89121', 'Printing services', 'خدمات الطباعة'),
-  s('83910', 'Translation and interpretation', 'الترجمة التحريرية والشفوية'),
-  s('85310', 'Cleaning services', 'خدمات التنظيف'),
-  s('85230', 'Security and guarding', 'خدمات الأمن والحراسة'),
-  s('87159', 'Repair and maintenance of equipment', 'إصلاح وصيانة المعدات'),
-  s('87141', 'Vehicle repair and maintenance', 'إصلاح وصيانة المركبات'),
-  s('87320', 'Installation of equipment', 'تركيب المعدات'),
-  s('54100', 'Construction and building works', 'أعمال البناء والتشييد'),
-  s('83310', 'Architectural and engineering services', 'الخدمات المعمارية والهندسية'),
-  s('73121', 'Rental of machinery and equipment', 'تأجير الآلات والمعدات'),
-  s('72111', 'Rental of commercial property', 'تأجير العقارات التجارية'),
-  s('65111', 'Freight transport by road', 'نقل البضائع براً'),
-  s('64220', 'Passenger transport by road', 'نقل الركاب براً'),
-  s('67210', 'Storage and warehousing', 'التخزين والمستودعات'),
-  s('84110', 'Telecommunications services', 'خدمات الاتصالات'),
-  s('71610', 'Insurance brokerage', 'وساطة التأمين'),
-  s('85970', 'Event management', 'إدارة الفعاليات'),
-  s('93121', 'Medical and clinic services', 'الخدمات الطبية وخدمات العيادات'),
-  s('63110', 'Hotel and accommodation', 'الفنادق والإقامة'),
-  s('99000', 'Other services', 'خدمات أخرى'),
+  s('00000000', 'Other', 'أخرى'),
+  s(
+    '64000000',
+    'Financial Instruments, Products, Contracts and Agreements',
+    'الأدوات والمنتجات والعقود والاتفاقيات المالية',
+  ),
+  s(
+    '70000000',
+    'Farming, Fishing, Forestry and Wildlife Services',
+    'خدمات الزراعة وصيد الأسماك والحراجة والحياة البرية',
+  ),
+  s('71000000', 'Mining and Oil and Gas Services', 'خدمات التعدين والنفط والغاز'),
+  s(
+    '72000000',
+    'Building and Facility Construction and Maintenance Services',
+    'خدمات إنشاء وصيانة المباني والمرافق',
+  ),
+  s(
+    '73000000',
+    'Industrial Production and Manufacturing Services',
+    'خدمات الإنتاج الصناعي والتصنيع',
+  ),
+  s('76000000', 'Industrial Cleaning Services', 'خدمات التنظيف الصناعي'),
+  s('77000000', 'Environmental Services', 'الخدمات البيئية'),
+  s('78000000', 'Transportation, Storage and Mail Services', 'خدمات النقل والتخزين والبريد'),
+  s(
+    '80000000',
+    'Management, Business and Administrative Services',
+    'خدمات الإدارة والأعمال والخدمات الإدارية',
+  ),
+  s(
+    '81000000',
+    'Engineering, Research and Technology Services',
+    'الخدمات الهندسية وخدمات البحث والتكنولوجيا',
+  ),
+  s(
+    '82000000',
+    'Editorial, Design, Graphic and Fine Art Services',
+    'خدمات التحرير والتصميم والفنون الجرافيكية والجميلة',
+  ),
+  s(
+    '83000000',
+    'Public Utilities and Public Sector Services',
+    'خدمات المرافق العامة والقطاع العام',
+  ),
+  s('84000000', 'Financial and Insurance Services', 'الخدمات المالية وخدمات التأمين'),
+  s('85000000', 'Healthcare Services', 'خدمات الرعاية الصحية'),
+  s('86000000', 'Education and Training Services', 'خدمات التعليم والتدريب'),
+  s(
+    '90000000',
+    'Travel, Food, Lodging and Entertainment Services',
+    'خدمات السفر والأغذية والإقامة والترفيه',
+  ),
+  s('91000000', 'Personal and Domestic Services', 'الخدمات الشخصية والمنزلية'),
+  s('92000000', 'Defense, Security and Safety Services', 'خدمات الدفاع والأمن والسلامة'),
+  s('93000000', 'Politics and Civic Affairs Services', 'خدمات السياسة والشؤون المدنية'),
+  s('94000000', 'Organizations and Clubs', 'المنظمات والنوادي'),
 ]

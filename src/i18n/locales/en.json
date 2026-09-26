@@ -2413,7 +2413,8 @@
       "ANN": "Year",
       "LS": "Lump sum",
       "KMT": "Kilometre",
-      "ZZ": "Other"
+      "ZZ": "Other",
+      "SA": "Sack"
     },
     "taxCategories": {
       "S5": "Standard rate - 5%",
@@ -2505,6 +2506,7 @@
     "saving": "Saving…",
     "error": {
       "customerRequired": "Choose the customer this goes to.",
+      "reasonRequired": "Say why no VAT is charged on these lines.",
       "templateRequired": "Choose the invoice to copy.",
       "dateRequired": "Choose the date of the first draft.",
       "datePast": "That date has passed. Choose today or later.",
@@ -3229,7 +3231,8 @@
     "problems": {
       "supplier": "Choose the supplier you are billing for first.",
       "branch": "Choose the receiving branch first.",
-      "lines": "Add at least one line with a description and a quantity."
+      "lines": "Add at least one line with a description and a quantity.",
+      "reason": "Say why no VAT is charged on these lines."
     }
   },
   "debitNotes": {
@@ -9489,7 +9492,9 @@
     "industrialClassificationHint": "Copied onto every invoice line by the backend; never asked on the invoice",
     "industrialClassificationPlaceholder": "Choose your business activity",
     "industrialClassificationSearch": "Search by activity name",
-    "industrialClassificationNone": "No activity matches"
+    "industrialClassificationNone": "No activity matches",
+    "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
+    "industrialClassificationFailed": "The business activity was not saved. Check the code and try again."
   },
   "branches": {
     "title": "Branches",
@@ -15688,7 +15693,8 @@
       "description": "Enter a description.",
       "walkInName": "Enter the customer's name.",
       "hsCode": "Choose an HS code for this goods line (IBR-079-OM).",
-      "serviceType": "Choose a service type for this service line (IBR-155-OM)."
+      "serviceType": "Choose a service type for this service line (IBR-155-OM).",
+      "lineAmount": "This line's amount is too large."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",
@@ -15741,7 +15747,9 @@
     "previewed": "Draft saved and priced. The figures are the server's.",
     "businessActivity": "Business activity: {{code}} · {{name}}",
     "businessActivityHint": "Copied onto every line by the backend (IBR-081-OM).",
-    "businessActivityLink": "Company settings"
+    "businessActivityLink": "Company settings",
+    "businessActivityUnset": "Business activity not set. Business and government invoices cannot be created without it.",
+    "businessActivityCodeOnly": "Business activity: {{code}}"
   },
   "invoiceIssue": {
     "action": "Issue invoice",
@@ -15778,7 +15786,8 @@
       "productArchived": "A product on this invoice has been archived. Edit the line, then issue.",
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
-      "unavailable": "Issuing isn't available on this server yet."
+      "unavailable": "Issuing isn't available on this server yet.",
+      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice."
     },
     "creditNote": {
       "title": "Issue this credit note?",

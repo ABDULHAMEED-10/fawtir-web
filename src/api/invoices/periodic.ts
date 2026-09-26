@@ -37,6 +37,8 @@ export type PeriodicTemplateLineDto = {
     en16931Category: string
     rate: number
     exemptionReason: string | null
+    /** IBT-121 for a zero-rated (VATZR-OM-nn) or exempt (VATEX-OM-nn) line. */
+    exemptionReasonCode?: string | null
   }
   hsCode: string | null
   serviceType: string | null
@@ -54,6 +56,10 @@ export type PeriodicTemplateDto = {
   vatMode: 'EXCLUSIVE' | 'INCLUSIVE'
   /** The document's tax category, printed on every line (the composer never chooses one per line). */
   taxCategoryCode: string
+  /** The document's reason code when its category is zero-rated or exempt. */
+  exemptionReasonCode?: string | null
+  /** The written reason of a reverse-charge, export or out-of-scope document. */
+  exemptionReason?: string | null
   details: {
     subject: string | null
     purchaseOrderReference: string | null

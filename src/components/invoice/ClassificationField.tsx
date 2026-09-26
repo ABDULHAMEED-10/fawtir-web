@@ -1,18 +1,39 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Combobox, type SelectOption } from '../ui'
 import { nameOf } from '../../lib/codeLists/codeList'
-import { HS_CODES, OTHER_HS_CODE, hsHeading } from '../../lib/codeLists/hs'
 import { SERVICE_TYPES } from '../../lib/codeLists/serviceTypes'
+import { searchHs, type HsEntryDto } from '../../api/codeLists/hs'
 
 /**
  * The PINT-OM classification of one line, shared by every composer (invoice, credit and debit
  * note, periodic schedule, self-billed invoice): the Oman 12-digit HS code of a goods line
  * (IBR-079-OM) or the CL-12-OM service type of a service line (IBR-155-OM), both searched by name
- * and stored as the code. "Other" (000000000000) stays at the end of the HS list whatever is
- * typed, so a product that fits no heading can still be classified. One list each, from
- * `lib/codeLists`; see docs/backend-guides/INCOME.md (part C).
+ * and stored as the code.
+ *
+ * The HS list is the published one, 14,313 codes, so it is searched on the server as the person
+ * types (`GET /v1/code-lists/hs`); an option shows the last two levels of the heading path with
+ * the code beneath, so "Coffee cups" and "Coffee, roasted" are told apart. The service types are
+ * the published 21, held here. See docs/backend-guides/INCOME.md (part C).
  */
+const HS_DEBOUNCE_MS = 250
+
+/** The last two levels of a heading path: enough to tell one entry from its neighbours. */
+export function hsOptionLabel(name: string): string {
+  const levels = name.split(' > ')
+  return levels.slice(-2).join(' > ')
+}
+
+/** The option in the interface language: the Arabic name when it is Arabic and the server sent one. */
+const hsOption = (entry: HsEntryDto, language: string): SelectOption => ({
+  value: entry.code,
+  label: hsOptionLabel(language.startsWith('ar') && entry.nameAr ? entry.nameAr : entry.name),
+  hint: entry.code,
+})
+
+/** What has been seen for each code, so a chosen entry keeps its name while the list changes. */
+const SEEN = new Map<string, HsEntryDto>()
+
 export function ClassificationField({
   kind,
   value,
@@ -30,8 +51,51 @@ export function ClassificationField({
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
-  const [query, setQuery] = useState('')
   const goods = kind === 'goods'
+  const [query, setQuery] = useState('')
+  const [found, setFound] = useState<HsEntryDto[]>([])
+  const [seen, remember] = useState(0)
+
+  // The list follows what is typed, after a short pause; a slow answer never overwrites a newer one.
+  useEffect(() => {
+    if (!goods) return
+    const controller = new AbortController()
+    const id = window.setTimeout(
+      () => {
+        searchHs(query, 20, controller.signal).then(
+          (result) => {
+            result.items.forEach((entry) => SEEN.set(entry.code, entry))
+            setFound(result.items)
+          },
+          () => undefined,
+        )
+      },
+      query ? HS_DEBOUNCE_MS : 0,
+    )
+    return () => {
+      window.clearTimeout(id)
+      controller.abort()
+    }
+  }, [goods, query])
+
+  // A stored code (a reopened draft) is named by asking for it once.
+  useEffect(() => {
+    if (!goods || !value || SEEN.has(value)) return
+    let live = true
+    searchHs(value, 5).then(
+      (result) => {
+        const entry = result.items.find((item) => item.code === value)
+        if (entry && live) {
+          SEEN.set(value, entry)
+          remember((n) => n + 1)
+        }
+      },
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+  }, [goods, value])
 
   const options = useMemo<SelectOption[]>(() => {
     if (!goods) {
@@ -41,32 +105,20 @@ export function ClassificationField({
         hint: `CL-12-OM ${entry.code}`,
       }))
     }
-    const needle = query.trim().toLowerCase()
-    const matches = HS_CODES.filter((entry) => {
-      if (entry.code === OTHER_HS_CODE) return false
-      if (!needle) return true
-      return [entry.en, entry.ar, hsHeading(entry.code) ?? '', entry.code].some((part) =>
-        part.toLowerCase().includes(needle),
-      )
-    })
-    const other = HS_CODES.find((entry) => entry.code === OTHER_HS_CODE)!
-    return [...matches, other].map((entry) => {
-      const heading = hsHeading(entry.code)
-      const name = nameOf(entry, language)
-      return {
-        value: entry.code,
-        label: heading ? `${heading} · ${name}` : name,
-        hint: entry.code,
-      }
-    })
-  }, [goods, query, language])
+    const chosen = value ? SEEN.get(value) : undefined
+    const entries =
+      chosen && !found.some((entry) => entry.code === chosen.code) ? [chosen, ...found] : found
+    return entries.map((entry) => hsOption(entry, language))
+    // `seen` changes when a stored code has been named, so the list is rebuilt to include it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goods, found, value, language, seen])
 
   return (
     <Combobox
       value={value}
       onChange={onChange}
       options={options}
-      // The HS list keeps "Other" last whatever is typed, so it filters here; services filter in the box.
+      // The HS list is searched on the server as the person types; the services filter in the box.
       onSearch={goods ? setQuery : undefined}
       disabled={disabled}
       compact={compact}

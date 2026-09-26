@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SEEDED_REFERENCE, SEEDED_TAX_CATEGORIES } from '../testing/referenceData'
 import type { DraftResponse } from '../api/invoices/drafts'
+import { EXEMPT_REASONS, ZERO_RATED_REASONS, taxReasonsFor } from './codeLists/taxReasons'
 import {
   blankDraftForm,
   blankDraftLine,
@@ -55,7 +56,13 @@ describe('the draft a form saves', () => {
       quantity: 12,
       unitPrice: 1.6,
       discount: { type: 'PERCENTAGE', value: 0 },
-      taxCategory: { code: 'S5', en16931Category: 'S', rate: 5, exemptionReason: null },
+      taxCategory: {
+        code: 'S5',
+        en16931Category: 'S',
+        rate: 5,
+        exemptionReason: null,
+        exemptionReasonCode: null,
+      },
     })
     expect(
       toDraftRequest(SEEDED_REFERENCE, form({ customerType: 'consumer' }), true).details
@@ -64,7 +71,11 @@ describe('the draft a form saves', () => {
   })
 
   it('sends a free-text line with no product, and a goods line with its HS code', () => {
-    const free = { ...blankDraftLine(SEEDED_TAX_CATEGORIES), description: 'Consulting', unitPrice: '25.000' }
+    const free = {
+      ...blankDraftLine(SEEDED_TAX_CATEGORIES),
+      description: 'Consulting',
+      unitPrice: '25.000',
+    }
     const request = toDraftRequest(
       SEEDED_REFERENCE,
       form({ lines: [free, { ...free, description: 'Beans', hsCode: '090121000000' }] }),
@@ -76,17 +87,29 @@ describe('the draft a form saves', () => {
     expect(request.lines[1].classification).toEqual({ goodsOrService: 'G', hsCode: '090121000000' })
   })
 
-  it('leaves a services line unclassified until the official service types are served', () => {
+  it('states a services line as services, and passes a service type on only when it is an official code', () => {
     const service = {
       ...blankDraftLine(SEEDED_TAX_CATEGORIES),
       description: 'Catering',
       itemType: 'service' as const,
       unit: 'HUR',
-      serviceType: '63393',
     }
-    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [service] }), true).lines[0]).not.toHaveProperty(
-      'classification',
-    )
+    const lines = (over: object, customerType: 'business' | 'consumer' = 'business') =>
+      toDraftRequest(
+        SEEDED_REFERENCE,
+        form({ customerType, lines: [{ ...service, ...over }] }),
+        true,
+      ).lines[0]
+    // No service type: IBR-155-OM asks for one on an export of services alone.
+    expect(lines({}).classification).toEqual({ goodsOrService: 'S' })
+    // The composer's placeholder codes are five digits and the backend refuses them.
+    expect(lines({ serviceType: '63393' }).classification).toEqual({ goodsOrService: 'S' })
+    expect(lines({ serviceType: '83000000' }).classification).toEqual({
+      goodsOrService: 'S',
+      serviceTypeCode: '83000000',
+    })
+    // A consumer's simplified invoice carries no classification.
+    expect(lines({}, 'consumer')).not.toHaveProperty('classification')
   })
 
   it('sends the terms the design offers by code, labelled, even where the platform list lacks them', () => {
@@ -116,28 +139,41 @@ describe('the draft a form saves', () => {
     expect(request.lines[0].unitPrice).toBe(1)
   })
 
-  it('sends a reason only where the category needs one', () => {
-    const exempt = {
-      ...form().lines[0],
-      taxCode: 'E0',
-      vatRate: '0',
-      exemptionReason: '  Financial service  ',
-    }
+  it('sends a reason code for zero-rated and exempt lines, text for the other categories', () => {
+    const base = { ...form().lines[0], vatRate: '0' }
+    const request = (line: object) =>
+      toDraftRequest(SEEDED_REFERENCE, form({ lines: [{ ...base, ...line }] }), true).lines[0]
+        .taxCategory
+    // Exempt: a VATEX code, and no free text alongside it.
     expect(
-      toDraftRequest(SEEDED_REFERENCE, form({ lines: [exempt] }), true).lines[0].taxCategory,
+      request({ taxCode: 'E0', exemptionReason: 'left over', exemptionReasonCode: 'VATEX-OM-02' }),
     ).toEqual({
       code: 'E0',
       en16931Category: 'E',
       rate: 0,
-      exemptionReason: 'Financial service',
+      exemptionReason: null,
+      exemptionReasonCode: 'VATEX-OM-02',
     })
+    // Zero-rated: a VATZR code.
+    expect(request({ taxCode: 'Z0', exemptionReasonCode: 'VATZR-OM-09' })).toEqual({
+      code: 'Z0',
+      en16931Category: 'Z',
+      rate: 0,
+      exemptionReason: null,
+      exemptionReasonCode: 'VATZR-OM-09',
+    })
+    // Reverse charge still gives text, and no code.
+    expect(request({ taxCode: 'AE0', exemptionReason: '  Reverse charge  ' })).toMatchObject({
+      exemptionReason: 'Reverse charge',
+      exemptionReasonCode: null,
+    })
+    // Standard rate: neither.
     expect(
-      toDraftRequest(
-        SEEDED_REFERENCE,
-        form({ lines: [{ ...exempt, taxCode: 'S5', vatRate: '5' }] }),
-        true,
-      ).lines[0].taxCategory.exemptionReason,
-    ).toBeNull()
+      request({ taxCode: 'S5', vatRate: '5', exemptionReasonCode: 'VATZR-OM-09' }),
+    ).toMatchObject({
+      exemptionReason: null,
+      exemptionReasonCode: null,
+    })
   })
 
   it('leaves the internal note out when this person cannot read it, so the server keeps it', () => {
@@ -183,7 +219,8 @@ describe('a saved draft back into the form', () => {
         taxCategoryCode: 'E0',
         en16931Category: 'E',
         taxRate: 0,
-        exemptionReason: 'Financial service',
+        exemptionReason: null,
+        exemptionReasonCode: 'VATEX-OM-01',
       },
     ],
   }
@@ -202,19 +239,51 @@ describe('a saved draft back into the form', () => {
     expect(restored.lines[0]).toMatchObject({
       unitPrice: '1.800',
       taxCode: 'E0',
-      exemptionReason: 'Financial service',
+      exemptionReasonCode: 'VATEX-OM-01',
       discountValue: '10',
     })
     const again = toDraftRequest(SEEDED_REFERENCE, restored, true)
     expect(again.lines[0]).toMatchObject({
       unitPrice: 1.8,
-      taxCategory: { code: 'E0', en16931Category: 'E', exemptionReason: 'Financial service' },
+      taxCategory: { code: 'E0', en16931Category: 'E', exemptionReasonCode: 'VATEX-OM-01' },
     })
     expect(again.headerDiscount).toEqual({ type: 'FIXED_AMOUNT', value: 5 })
   })
 })
 
 describe('checks before saving', () => {
+  it('wants a reason code on a zero-rated or exempt line, and text on the other categories', () => {
+    const line = (taxCode: string, over: object = {}) => ({
+      ...form().lines[0],
+      taxCode,
+      vatRate: '0',
+      ...over,
+    })
+    const problems = (l: object) =>
+      problemsBeforeSave(SEEDED_TAX_CATEGORIES, form({ lines: [l as never] })).map((p) => p.field)
+    expect(problems(line('Z0'))).toEqual(['exemptionReason'])
+    expect(problems(line('Z0', { exemptionReasonCode: 'VATZR-OM-10' }))).toEqual([])
+    expect(problems(line('E0', { exemptionReason: 'typed text is not the code' }))).toEqual([
+      'exemptionReason',
+    ])
+    expect(problems(line('E0', { exemptionReasonCode: 'VATEX-OM-02' }))).toEqual([])
+    expect(problems(line('AE0'))).toEqual(['exemptionReason'])
+    expect(problems(line('AE0', { exemptionReason: 'Reverse charge' }))).toEqual([])
+  })
+
+  it('carries the 16 zero-rated and 12 exempt reason codes, never mixed', () => {
+    expect(ZERO_RATED_REASONS.map((r) => r.code)).toEqual(
+      Array.from({ length: 16 }, (_, i) => `VATZR-OM-${String(i + 1).padStart(2, '0')}`),
+    )
+    expect(EXEMPT_REASONS.map((r) => r.code)).toEqual(
+      Array.from({ length: 12 }, (_, i) => `VATEX-OM-${String(i + 1).padStart(2, '0')}`),
+    )
+    expect(taxReasonsFor('Z')).toBe(ZERO_RATED_REASONS)
+    expect(taxReasonsFor('E')).toBe(EXEMPT_REASONS)
+    expect(taxReasonsFor('S')).toBeUndefined()
+    expect(ZERO_RATED_REASONS.find((r) => r.code === 'VATZR-OM-09')?.en).toBe('Export of service')
+  })
+
   it('names each gap and the line it is on', () => {
     const blank = {
       ...blankDraftForm(SEEDED_TAX_CATEGORIES),
@@ -236,7 +305,19 @@ describe('checks before saving', () => {
     expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, form())).toEqual([])
   })
 
-  it('wants an HS code on goods lines and a service type on service lines, except for a consumer', () => {
+  it('refuses a line whose amount the server cannot hold, and allows the bound itself', () => {
+    const line = form().lines[0]
+    const over = form({
+      lines: [{ ...line, quantity: '1000000000', unitPrice: '99999999999.000' }],
+    })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, over).map((problem) => problem.key)).toEqual([
+      'invoiceDraft.problem.lineAmount',
+    ])
+    const atBound = form({ lines: [{ ...line, quantity: '1', unitPrice: '999999999999.999' }] })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, atBound)).toEqual([])
+  })
+
+  it('wants an HS code on goods lines, and no service type on service lines, except for a consumer', () => {
     const goods = form().lines[0]
     const service = {
       ...blankDraftLine(SEEDED_TAX_CATEGORIES),
@@ -250,8 +331,8 @@ describe('checks before saving', () => {
     expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, unclassified)).toEqual([])
     expect(
       problemsBeforeIssue(unclassified).map((problem) => `${problem.field}${problem.line}`),
-    ).toEqual(['hsCode0', 'serviceType1'])
-    expect(problemsBeforeIssue({ ...unclassified, customerType: 'government' })).toHaveLength(2)
+    ).toEqual(['hsCode0'])
+    expect(problemsBeforeIssue({ ...unclassified, customerType: 'government' })).toHaveLength(1)
     expect(problemsBeforeIssue({ ...unclassified, customerType: 'consumer' })).toEqual([])
     const classified = form({
       lines: [
@@ -260,7 +341,8 @@ describe('checks before saving', () => {
       ],
     })
     expect(problemsBeforeIssue(classified)).toEqual([])
-    // Neither code reaches the draft request: it refuses members the API does not know.
+    // Neither field reaches the draft request as a top-level member: it refuses members the API
+    // does not know. The codes travel inside `classification`.
     const sent = toDraftRequest(SEEDED_REFERENCE, classified, true).lines
     expect('hsCode' in sent[0]).toBe(false)
     expect('serviceType' in sent[1]).toBe(false)

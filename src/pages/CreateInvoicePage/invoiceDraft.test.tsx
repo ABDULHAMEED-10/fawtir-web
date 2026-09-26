@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SEEDED_REFERENCE } from '../../testing/referenceData'
 import { ReferenceDataContext } from '../../lib/reference/referenceData'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -83,7 +83,11 @@ function draft(overrides: Partial<DraftResponse> = {}): DraftResponse {
         taxRate: 5,
         exemptionReason: null,
         // A stored draft returns its goods line's HS code (IBR-079-OM).
-        classification: { goodsOrService: 'G', hsCode: '090121000000', serviceTypeCode: '00000000' },
+        classification: {
+          goodsOrService: 'G',
+          hsCode: '090121000000',
+          serviceTypeCode: '00000000',
+        },
       },
     ],
     ...overrides,
@@ -111,11 +115,26 @@ function json(status: number, body?: unknown) {
   })
 }
 
+/** Two entries of the published HS list, named by their whole heading path. */
+const HS_ENTRIES = [
+  {
+    code: '090121000000',
+    name: 'Coffee, whether or not roasted or decaffeinated > Roasted coffee > Not decaffeinated',
+    nameAr: 'البن، محمص أو غير محمص أو منزوع الكافيين > بن محمص > غير منزوع الكافيين',
+  },
+  {
+    code: '090122000000',
+    name: 'Coffee, whether or not roasted or decaffeinated > Roasted coffee > Decaffeinated',
+    nameAr: 'البن، محمص أو غير محمص أو منزوع الكافيين > بن محمص > منزوع الكافيين',
+  },
+]
+
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let putResponse: () => Response
 let loaded: DraftResponse
 let issueResponse: () => Response
+let activityCode: string | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -130,6 +149,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = WRITER
   loaded = draft()
+  activityCode = '561001'
   putResponse = () => json(200, draft({ version: 4 }))
   issueResponse = () =>
     json(200, {
@@ -139,6 +159,18 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
+    if (url.startsWith('/api/v1/code-lists/hs')) {
+      const q = new URL(url, 'http://x').searchParams.get('q') ?? ''
+      const items = HS_ENTRIES.filter(
+        (entry) =>
+          q === '' ||
+          entry.name.toLowerCase().includes(q.toLowerCase()) ||
+          entry.code.startsWith(q),
+      )
+      return json(200, { items, total: items.length })
+    }
+    if (url === '/api/v1/company-profile/industrial-classification')
+      return json(200, { code: activityCode })
     if (url === '/api/v1/branches')
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
@@ -175,15 +207,15 @@ function IssuedLanding() {
 function renderAt(path: string) {
   return render(
     <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/invoices/new" element={<CreateInvoicePage />} />
-        <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
-        <Route path="/invoices" element={<p>invoices list</p>} />
-        <Route path="/invoices/:id" element={<IssuedLanding />} />
-      </Routes>
-    </MemoryRouter>
-      </ReferenceDataContext.Provider>,
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
+          <Route path="/invoices" element={<p>invoices list</p>} />
+          <Route path="/invoices/:id" element={<IssuedLanding />} />
+        </Routes>
+      </MemoryRouter>
+    </ReferenceDataContext.Provider>,
   )
 }
 
@@ -243,6 +275,28 @@ describe('a new invoice draft', () => {
     expect(await screen.findByText('Choose a customer.')).toBeTruthy()
     expect(screen.getByText('Line 1: Enter a description.')).toBeTruthy()
     expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(0)
+  })
+
+  it('defaults a consumer to Due on receipt and puts business and government back on Net 30', async () => {
+    renderAt('/invoices/new')
+    const terms = async () =>
+      (await screen.findByRole('button', { name: 'Payment terms' })).textContent
+    expect(await terms()).toContain('Net 30 days')
+    fireEvent.click(screen.getByRole('button', { name: /Consumer/ }))
+    await waitFor(async () => expect(await terms()).toContain('Due on receipt'))
+    fireEvent.click(screen.getByRole('button', { name: /Government/ }))
+    await waitFor(async () => expect(await terms()).toContain('Net 30 days'))
+  })
+
+  it("shows the company's stored business activity, or warns that none is set", async () => {
+    renderAt('/invoices/new')
+    expect(await screen.findByText('Business activity: 561001 · Restaurants')).toBeTruthy()
+
+    cleanup()
+    activityCode = null
+    renderAt('/invoices/new')
+    expect(await screen.findByText(/Business activity not set/)).toBeTruthy()
+    expect(screen.queryByText(/Business activity: /)).toBeNull()
   })
 
   it('shows no invoice number before issue', async () => {
@@ -403,24 +457,66 @@ describe('issuing from the composer', () => {
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
     expect(issueCalls()).toHaveLength(0)
 
-    // Searched by product name; the stored value is the 12-digit code, never sent to the draft
+    // Searched by name on the server; each option shows the last two levels of its heading path
+    // with the code beneath. The stored value is the 12-digit code, never sent to the draft
     // (the request refuses unknown members) but enough to let the issue go ahead.
     fireEvent.click(screen.getByRole('button', { name: 'HS code' }))
     fireEvent.change(await screen.findByPlaceholderText('Search by product name'), {
-      target: { value: 'coffee, roasted' },
+      target: { value: 'roasted coffee' },
     })
-    // "Other" stays offered whatever is typed, after the matches.
+    await waitFor(async () => {
+      const found = await screen.findAllByRole('option')
+      expect(found.map((option) => option.textContent)).toEqual([
+        'Roasted coffee > Not decaffeinated090121000000',
+        'Roasted coffee > Decaffeinated090122000000',
+      ])
+    })
     const options = await screen.findAllByRole('option')
-    expect(options.map((option) => option.textContent)).toEqual([
-      '0901.21 · Coffee, roasted, not decaffeinated090121000000',
-      '0901.22 · Coffee, roasted, decaffeinated090122000000',
-      'Other000000000000',
-    ])
     fireEvent.click(options[0])
     fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
     expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
     const body = bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0])
     expect('hsCode' in body.draft.lines[0]).toBe(false)
+  })
+
+  it('names the HS code a reopened draft carries', async () => {
+    who = ISSUER
+    loaded = draft({
+      lines: [
+        {
+          ...draft().lines[0],
+          classification: {
+            goodsOrService: 'G',
+            hsCode: '090121000000',
+            serviceTypeCode: '00000000',
+          },
+        },
+      ],
+    })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+
+    expect(await screen.findByText('Roasted coffee > Not decaffeinated')).toBeTruthy()
+  })
+
+  it('names the HS code in Arabic when the interface is Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    who = ISSUER
+    loaded = draft({
+      lines: [
+        {
+          ...draft().lines[0],
+          classification: {
+            goodsOrService: 'G',
+            hsCode: '090122000000',
+            serviceTypeCode: '00000000',
+          },
+        },
+      ],
+    })
+    renderAt('/invoices/d-1/edit')
+
+    expect(await screen.findByText('بن محمص > منزوع الكافيين')).toBeTruthy()
   })
 
   it('saves unsaved changes first and issues the version that save returned', async () => {
@@ -460,6 +556,27 @@ describe('issuing from the composer', () => {
       ),
     ).toBeTruthy()
     expect(screen.queryByText(/invoice page for/)).toBeNull()
+  })
+
+  it('tells a company with no business activity where to set it, and keeps the confirmation open', async () => {
+    who = ISSUER
+    issueResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        status: 400,
+        code: 'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+      })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    expect(
+      await within(dialog).findByText(
+        'Set your business activity in Company settings before creating a business or government invoice.',
+      ),
+    ).toBeTruthy()
   })
 
   it('puts a closed-period refusal on the issue date', async () => {

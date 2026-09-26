@@ -250,6 +250,8 @@ export type BusinessIdentityRequest = {
   commercialRegistrationNumber: string
   taxNumber: string
   invoiceAccent: InvoiceAccent
+  /** BTOM-033, optional: the six-digit ISIC code of what the business does. Left out when skipped. */
+  industrialClassificationCode?: string
 }
 
 const LEGAL_NAME_MAX_LENGTH = 255
@@ -268,7 +270,9 @@ export function validateBusinessIdentity(
   return {
     companyName: required(values.companyName) ?? tooLong(values.companyName, LEGAL_NAME_MAX_LENGTH),
     crNumber: required(values.crNumber) ?? tooLong(values.crNumber, CR_MAX_LENGTH),
-    industrialClassification: required(values.industrialClassification),
+    // Skippable: issuing does not depend on it, only the Tax Authority submission does, and the
+    // company can set it later in Settings › Company (Abdul Hameed, 2026-09-26).
+    industrialClassification: undefined,
     vatin: vatin(values.vatin),
   }
 }
@@ -282,14 +286,16 @@ export function validateBusinessIdentity(
 export function buildBusinessIdentityRequest(
   values: BusinessIdentityValues,
 ): BusinessIdentityRequest {
-  // TODO(backend): `industrialClassification` (the 6-digit ISIC code chosen on this step) is not
-  // sent: `SignupBusinessIdentityRequest` has no field for it yet. It travels in the onboarding
-  // state to the review page; see docs/backend-guides/INCOME.md §C8.
+  // The business activity is optional: sent only when one was chosen, and stored on the company's
+  // settings when the registration is submitted (backend `feat/signup-business-activity`).
   return {
     legalCompanyName: values.companyName.trim(),
     commercialRegistrationNumber: values.crNumber.trim().toUpperCase(),
     taxNumber: values.vatin.trim().toUpperCase(),
     invoiceAccent: values.accent,
+    ...(values.industrialClassification.trim()
+      ? { industrialClassificationCode: values.industrialClassification.trim() }
+      : {}),
   }
 }
 

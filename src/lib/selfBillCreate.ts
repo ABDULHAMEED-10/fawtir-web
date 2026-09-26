@@ -3,7 +3,7 @@ import type { AgreementDto } from '../api/selfBilling/agreements'
 import type { CustomerDto } from '../api/customers/customers'
 import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import type { LineItem } from '../components/invoice'
-import { itemTypeOfUnit, unitsFor } from './invoiceDraft'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON, itemTypeOfUnit, unitsFor } from './invoiceDraft'
 import { formatAmount, parseAmount, toExclusivePrice } from './invoiceMath'
 import { plusDays } from './invoiceIssue'
 import { blockerOf, canIssueUnder, type Blocker } from './selfBillingAgreements'
@@ -38,7 +38,7 @@ export type LineKind = 'goods' | 'service'
 
 export type ComposerLine = LineItem & {
   kind: LineKind
-  /** The Oman 12-digit HS code of a goods line (IBR-079-OM), from `lib/codeLists/hs`. */
+  /** The Oman 12-digit HS code of a goods line (IBR-079-OM), chosen from the published list, searched on the server. */
   hsCode?: string
   /** The CL-12-OM service type of a service line (IBR-155-OM), from `lib/codeLists/serviceTypes`. */
   serviceType?: string
@@ -81,6 +81,10 @@ export type SelfBillForm = {
   currency: string
   /** The document's tax category; every line takes its rate (the composer rules). */
   taxCategory: string
+  /** The reason code (IBT-121) of a zero-rated or exempt document: every line carries it. */
+  exemptionReasonCode: string
+  /** The written reason of a reverse-charge, export or out-of-scope document (no code list). */
+  exemptionReason: string
   subject: string
   poReference: string
   /** TODO(backend): no draft field for the payment section or the two switches. */
@@ -139,6 +143,8 @@ export function blankSelfBillForm(today: string, branchId: string | null = null)
     branchId,
     currency: 'OMR',
     taxCategory: 'S5',
+    exemptionReasonCode: '',
+    exemptionReason: '',
     subject: '',
     poReference: '',
     paymentMethod: '30',
@@ -240,14 +246,34 @@ export function toSelfBilledDraftRequest(
         exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', tax.rate),
       ),
       discount: { type: line.discountType, value: number(line.discountValue) },
-      // TODO(backend): `itemType`, `hsCode` and `serviceType` have no draft field yet
-      // (docs/backend-guides/INCOME.md §C7.3); a self-billed invoice is always B2B, so every line
-      // is classified on the page and the codes wait for the request to carry them.
+      // A self-billed invoice is never simplified (IBR-149-OM), so every line is classified: a
+      // goods line by its HS code, a services line as services. The industrial classification is
+      // never sent; the backend copies the company's onto the line. A service type is passed on
+      // only when it is an official eight-digit code.
+      ...(line.kind === 'goods' && line.hsCode
+        ? { classification: { goodsOrService: 'G' as const, hsCode: line.hsCode } }
+        : line.kind === 'service'
+          ? {
+              classification: {
+                goodsOrService: 'S' as const,
+                ...(line.serviceType && /^\d{8}$/.test(line.serviceType)
+                  ? { serviceTypeCode: line.serviceType }
+                  : {}),
+              },
+            }
+          : {}),
       taxCategory: {
         code: tax.code,
         en16931Category: tax.en16931Category,
         rate: Number(tax.rate),
-        exemptionReason: null,
+        exemptionReason:
+          NEEDS_EXEMPTION_REASON.has(tax.en16931Category) &&
+          !CODED_REASON.has(tax.en16931Category)
+            ? text(form.exemptionReason)
+            : null,
+        exemptionReasonCode: CODED_REASON.has(tax.en16931Category)
+          ? form.exemptionReasonCode || null
+          : null,
       },
     })),
     headerDiscount: { type: 'PERCENTAGE', value: 0 },
@@ -273,7 +299,13 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
   const blank = blankSelfBillForm(today, draft.branchId)
   const lines: ComposerLine[] = draft.lines.map((line, index) => ({
     id: String(index + 1),
-    kind: itemTypeOfUnit(line.unitCode),
+    // The stored goods/service flag wins over the unit's guess when the line carries one.
+    kind:
+      line.classification?.goodsOrService === 'S'
+        ? 'service'
+        : line.classification?.goodsOrService === 'G'
+          ? 'goods'
+          : itemTypeOfUnit(line.unitCode),
     description: line.description,
     unitPrice: normalisePrice(String(line.unitPrice)),
     vatRate: String(line.taxRate),
@@ -282,7 +314,11 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     discountType: line.discountType,
     discountValue: String(line.discountValue),
     hsCode: line.classification?.hsCode ?? undefined,
-    serviceType: line.classification?.serviceTypeCode ?? undefined,
+    // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
+    serviceType:
+      line.classification?.serviceTypeCode && line.classification.serviceTypeCode !== '00000000'
+        ? line.classification.serviceTypeCode
+        : undefined,
   }))
   return {
     ...blank,
@@ -293,6 +329,8 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     paymentTerms: draft.details.paymentTerms?.code ?? blank.paymentTerms,
     currency: draft.currency,
     taxCategory: draft.lines[0]?.taxCategoryCode ?? blank.taxCategory,
+    exemptionReasonCode: draft.lines[0]?.exemptionReasonCode ?? '',
+    exemptionReason: draft.lines[0]?.exemptionReason ?? '',
     subject: draft.details.subject ?? '',
     poReference: draft.details.purchaseOrderReference ?? '',
     noteSupplier: draft.details.customerVisibleNote ?? '',
@@ -301,9 +339,12 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
 }
 
 /** Ordered as the page reads: the first problem is what the notice names. */
-export type SelfBillProblem = 'supplier' | 'branch' | 'lines'
+export type SelfBillProblem = 'supplier' | 'branch' | 'lines' | 'reason'
 
-export function problemsBeforeSave(form: SelfBillForm): SelfBillProblem[] {
+export function problemsBeforeSave(
+  form: SelfBillForm,
+  reference: ReferenceDataDto | null = null,
+): SelfBillProblem[] {
   const problems: SelfBillProblem[] = []
   if (!form.customerId) problems.push('supplier')
   if (!form.branchId) problems.push('branch')
@@ -311,6 +352,14 @@ export function problemsBeforeSave(form: SelfBillForm): SelfBillProblem[] {
     (line) => line.description.trim() !== '' && number(line.quantity) > 0,
   )
   if (usable.length === 0) problems.push('lines')
+  const category = taxCategoryOf(reference, form.taxCategory).en16931Category
+  if (
+    CODED_REASON.has(category)
+      ? !form.exemptionReasonCode
+      : NEEDS_EXEMPTION_REASON.has(category) && form.exemptionReason.trim() === ''
+  ) {
+    problems.push('reason')
+  }
   return problems
 }
 

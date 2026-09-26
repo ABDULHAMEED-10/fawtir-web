@@ -400,3 +400,19 @@ what to add so the answers are kept.
 |---|---|---|---|
 | S.1 | **Tell us about your business** (`/about-business`): third question "Will you use Fawtir POS?", one tick card, unticked by default | Held in the page state only. Ticked: the flow is unchanged (Business type, then Sub business type). Unticked: the page saves the profile, then silently posts `business-category = FOOD_AND_BEVERAGE` and `business-type = RESTAURANT` so the step guard and `submitForReview` accept the registration, and goes straight to Business identity. The placeholder is never shown to the user | A `usesPos` boolean on `POST /v1/auth/signup/business-profile`, and category and type made optional when it is false (both in the step order and in `submitForReview`). Until then, a non-POS tenant's stored category and type are placeholders, not facts: do not use them for reporting or defaults. The front end drops `recordNoPosDefaults` in `src/lib/identity/onboarding.ts` once this lands |
 | S.2 | **Your business identity** (`/business-identity`): "Business activity (ISIC)", required, searchable, pre-filled from the specialty for POS users, empty for the others | Kept in the page state and shown on the review page; not sent | `industrialClassification` (6-digit ISIC Rev. 4 code) on `POST /v1/auth/signup/business-identity`, stored on the tenant's company settings at approval; the full list behind `GET /v1/code-lists/isic?q=`. See part C §C7 and §C8 of this guide |
+
+## Update 2026-09-27: what the Create Invoice integration settled
+
+Append-only; the rows above keep their numbers. Where a row above says "placeholder" or "not sent", this is the current state.
+
+| Ref | Was | Now |
+|---|---|---|
+| 3.8 HS code | placeholder subset `codeLists/hs.ts`; refused by the request | **Server search.** `GET /v1/code-lists/hs?q=&limit=` (backend PR #364) over the published 14,313-code list; the picker shows the last two levels of the heading path with the code beneath. `hs.ts` is gone. The draft line carries `classification.goodsOrService / hsCode / serviceTypeCode`, and the backend refuses a code that is not on the list (`HS_CODE_UNKNOWN`) |
+| 3.8 Service type | required on every service line | **Export of services only** (IBR-155-OM; Abdul Hameed, 2026-09-26). A service line is sent as `goodsOrService: 'S'`; the backend fills 00000000. The picker holds the published 21 CL-12-OM codes |
+| 3.9 Business activity | placeholder, 561010 | `GET/PUT /v1/company-profile/industrial-classification` (backend #357), one per company. **A Business or Government invoice is refused at issue without it** (`INDUSTRIAL_CLASSIFICATION_REQUIRED`); Consumer invoices are not. The picker holds the published 1,819 codes and names; `GET /v1/code-lists/isic?q=` exists (#364) but the web still uses its bundled copy of the same list |
+| 3.14 / S.2 Sign-up activity | required, not sent | **Skippable, still not sent.** `SignupBusinessIdentityRequest` has no field for it. Dropped by Zain: a Business user is guided to Company settings |
+| tax reason | free text for Exempt only | **Coded.** Zero-rated takes `VATZR-OM-01..16` and Exempt `VATEX-OM-01..12` in `taxCategory.exemptionReasonCode` (backend #361); AE, G and O keep text. Credit and debit notes carry the invoice line's code. Self-billed and periodic composers have no reason field yet |
+| Consumer | address required | A Consumer needs no address (IBR-019-OM excludes simplified); the buyer country defaults to OM (backend #360) |
+| Units | 10 in reference data | 17: the Codes Master's 12 plus 5 already offered (backend #358) |
+| Amounts | unbounded | a line above 999,999,999,999.999 is refused (`LINE_AMOUNT_TOO_LARGE`); the composer flags it first |
+| Arabic | | Not published for any of these lists; English names stand in until they are |

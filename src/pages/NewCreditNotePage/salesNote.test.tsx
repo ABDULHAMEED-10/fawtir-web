@@ -275,6 +275,46 @@ describe('the note rules', () => {
     ])
   })
 
+  it("carries each kept line's classification and reason code from the invoice", () => {
+    const invoice: InvoiceDetailDto = {
+      ...INVOICE,
+      lines: [
+        {
+          ...line(1, 'Cement', 10, 4),
+          taxCategoryCode: 'Z0',
+          en16931Category: 'Z',
+          taxRate: 0,
+          exemptionReasonCode: 'VATZR-OM-10',
+          classification: {
+            goodsOrService: 'G',
+            hsCode: '090121000000',
+            serviceTypeCode: '00000000',
+          },
+        },
+        {
+          ...line(2, 'Advice', 1, 50),
+          unitCode: 'HUR',
+          classification: { goodsOrService: 'S', serviceTypeCode: '86000000' },
+        },
+        {
+          ...line(3, 'Delivery', 1, 5),
+          unitCode: 'HUR',
+          classification: { goodsOrService: 'S', serviceTypeCode: '00000000' },
+        },
+      ],
+    }
+    const form = { ...fromInvoice(invoice, 'CREDIT_NOTE'), reason: 'returnedGoods' }
+    const { lines } = toNoteRequest(form, invoice, 'CREDIT_NOTE')
+
+    expect(lines[0]).toMatchObject({
+      taxCategory: { code: 'Z0', exemptionReasonCode: 'VATZR-OM-10' },
+      classification: { goodsOrService: 'G', hsCode: '090121000000' },
+    })
+    expect(lines[1].classification).toEqual({ goodsOrService: 'S', serviceTypeCode: '86000000' })
+    // 00000000 is the backend's "not applicable": the note states services and no type.
+    expect(lines[2].classification).toEqual({ goodsOrService: 'S' })
+  })
+
   it('names the refund when a credit is more than is still owed', () => {
     expect(creditEffect(36.7, 10)).toEqual({ after: 26.7, refund: 0 })
     expect(creditEffect(0, 42)).toEqual({ after: 0, refund: 42 })

@@ -49,6 +49,7 @@ import {
 } from '../../api/invoices/drafts'
 import {
   DESIGN_REFERENCE,
+  CODED_REASON,
   NEEDS_EXEMPTION_REASON,
   PAYMENT_TERMS,
   blankDraftForm,
@@ -86,7 +87,13 @@ import {
   toExclusivePrice,
   type DiscountType,
 } from '../../lib/invoiceMath'
-import { INDUSTRIAL_CLASSIFICATION } from '../../lib/settingsCompany'
+import {
+  INDUSTRIAL_CLASSIFICATION_PATH,
+  readIndustrialClassification,
+} from '../../api/company/industrialClassification'
+import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
+import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
+import { findCode } from '../../lib/codeLists/codeList'
 import { nameOf } from '../../lib/codeLists/codeList'
 import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
 import type { LinkedDoc } from '../../lib/linkedDocuments'
@@ -561,7 +568,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   // where the reader already is.
   const noticeRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (notice?.tone === 'error') noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (notice?.tone === 'error')
+      noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [notice])
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle' })
   const [issueDate, setIssueDate] = useState(muscatToday)
@@ -816,6 +824,17 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
 
   const editable = canSave && (!meta || meta.state === 'DRAFT')
   const consumer = form.customerType === 'consumer'
+  // The company's business activity, which the backend stamps on every line at issue.
+  const activity = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
+  const activityEntry =
+    activity.status === 'ready'
+      ? findCode(ISIC_ACTIVITIES, activity.data.code ?? undefined)
+      : undefined
+  const activityName = activityEntry
+    ? nameOf(activityEntry, language)
+    : activity.status === 'ready'
+      ? (activity.data.code ?? '')
+      : ''
 
   /**
    * A walk-in consumer becomes a customer record first (the draft names one): name split into
@@ -992,7 +1011,13 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     if (kind === form.customerType) return
     // A customer of another kind cannot stay: the invoice's transaction type follows the tab.
     const keep = customer && KIND_OF[customer.type] === kind
-    change({ customerType: kind, customerId: keep ? form.customerId : null })
+    // A shop is paid at the counter, so a consumer defaults to Due on receipt; business and
+    // government stay on Net 30. Only the default moves: terms the person chose are left alone.
+    const defaultTerms = (type: CustomerKind) => (type === 'consumer' ? 'NET0' : 'NET30')
+    const paymentTerms =
+      form.paymentTerms === defaultTerms(form.customerType) ? defaultTerms(kind) : form.paymentTerms
+    if (paymentTerms !== form.paymentTerms) setDueDateTouched(false)
+    change({ customerType: kind, customerId: keep ? form.customerId : null, paymentTerms })
     if (!keep) setCustomer(null)
   }
 
@@ -1448,15 +1473,23 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           </div>
           {/* The issuer's ISIC activity is a company setting the backend copies onto every line
               (IBR-081-OM); the composer shows it and never asks for it. */}
-          {consumer ? null : (
+          {consumer || activity.status !== 'ready' ? null : (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium leading-[1.3] text-text-tertiary">
-              <span className="text-text-secondary">
-                {t('invoiceDraft.businessActivity', {
-                  code: INDUSTRIAL_CLASSIFICATION.code,
-                  name: nameOf(INDUSTRIAL_CLASSIFICATION, language),
-                })}
-              </span>
-              <span>{t('invoiceDraft.businessActivityHint')}</span>
+              {activity.data.code ? (
+                <>
+                  <span className="text-text-secondary">
+                    {activityEntry && activityName !== activity.data.code
+                      ? t('invoiceDraft.businessActivity', {
+                          code: activity.data.code,
+                          name: activityName,
+                        })
+                      : t('invoiceDraft.businessActivityCodeOnly', { code: activity.data.code })}
+                  </span>
+                  <span>{t('invoiceDraft.businessActivityHint')}</span>
+                </>
+              ) : (
+                <span className="text-warning-700">{t('invoiceDraft.businessActivityUnset')}</span>
+              )}
               <Link
                 to="/settings/company"
                 className="font-semibold text-primary-800 hover:underline"
@@ -1642,7 +1675,23 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                             </span>
                           </span>
                         </FieldShell>
-                        {NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
+                        {CODED_REASON.has(tax.en16931Category) ? (
+                          <Select
+                            small
+                            panelWidth={340}
+                            value={row.exemptionReasonCode ?? ''}
+                            onChange={(exemptionReasonCode) =>
+                              updateLine(row.id, { exemptionReasonCode })
+                            }
+                            options={(taxReasonsFor(tax.en16931Category) ?? []).map((reason) => ({
+                              value: reason.code,
+                              label: nameOf(reason, language),
+                              hint: reason.code,
+                            }))}
+                            placeholder={t('invoiceDraft.exemptionReason')}
+                            ariaLabel={t('invoiceDraft.exemptionReason')}
+                          />
+                        ) : NEEDS_EXEMPTION_REASON.has(tax.en16931Category) ? (
                           <input
                             value={row.exemptionReason}
                             onChange={(e) =>
