@@ -96,6 +96,14 @@ const dueSoon = (dueDate: string | null, today: string) =>
 
 const SMALL_BUTTON =
   'inline-flex h-[34px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-xs font-semibold text-text-secondary transition-colors hover:bg-primary-25'
+/** The frame prints the IBAN masked, "OM55 ··· 4471 2290": country and check digits, then the last eight. */
+function maskIban(iban: string): string {
+  const compact = iban.replace(/\s/g, '')
+  if (compact.length <= 12) return compact
+  const tail = compact.slice(-8)
+  return `${compact.slice(0, 4)} ··· ${tail.slice(0, 4)} ${tail.slice(4)}`
+}
+
 const SIDE_BUTTON =
   'inline-flex h-[40px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25'
 
@@ -329,7 +337,7 @@ function SupplierRecord({ id }: { id: string }) {
             className="inline-flex h-[42px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
           >
             {t('supplierDetail.statement')}
-            <img src={chevronDownIcon} alt="" className="size-4" />
+            <img src={chevronDownIcon} alt="" className="size-4 rotate-90" />
           </button>
           <Popover
             anchorRef={statementRef}
@@ -434,7 +442,7 @@ function SupplierRecord({ id }: { id: string }) {
             >
               {t(`supplierDetail.tabs.${entry}`)}
               {count !== null ? (
-                <span className="rounded-sm bg-surface-background px-1.5 py-0.5 text-[11px] font-semibold text-text-quaternary">
+                <span className="rounded-sm bg-border-subtle px-1.5 py-0.5 text-[11px] font-semibold text-text-quaternary">
                   {count}
                 </span>
               ) : null}
@@ -785,7 +793,8 @@ function SupplierRecord({ id }: { id: string }) {
           </div>
 
           <aside className="flex w-full flex-col gap-4 xl:w-[340px] xl:shrink-0">
-            <section className="rounded-md bg-surface-background p-5">
+            {/* The frame fills this card grey (#d0d2d5); the page background made it invisible. */}
+            <section className="rounded-md bg-[#d0d2d5] p-5">
               <p className="flex items-center gap-2 text-sm font-medium text-text-tertiary">
                 <img src={cardIcon} alt="" className="size-[18px]" />
                 {t('supplierDetail.youOweThem')}
@@ -826,7 +835,7 @@ function SupplierRecord({ id }: { id: string }) {
               />
               <DetailRow
                 label={t('supplierDetail.iban')}
-                value={profile.bankDetails?.iban ?? '—'}
+                value={profile.bankDetails?.iban ? maskIban(profile.bankDetails.iban) : '—'}
               />
               <DetailRow label={t('supplierDetail.bic')} value={profile.bankDetails?.bic ?? '—'} />
               <DetailRow

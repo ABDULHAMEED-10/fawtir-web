@@ -225,7 +225,7 @@ function SupplierStatement({ id }: { id: string }) {
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
           >
             {t(`supplierStatement.period.${period}`)}
-            <img src={chevronDownIcon} alt="" className="size-4 brightness-0 invert" />
+            <img src={chevronDownIcon} alt="" className="size-4 rotate-90 brightness-0 invert" />
           </button>
           <Popover anchorRef={periodRef} open={periodOpen} onClose={() => setPeriodOpen(false)}>
             <ul role="menu" className="w-[200px] py-1.5">
@@ -298,8 +298,8 @@ function SupplierStatement({ id }: { id: string }) {
 
       {statement.read.status === 'ready' ? body(statement.read.data) : null}
 
-      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur lg:start-[248px] lg:rtl:start-0 lg:rtl:end-[248px]">
-        <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3 px-6 py-4">
+      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur lg:start-[248px]">
+        <div className="mx-auto flex w-full max-w-[1176px] flex-wrap items-center justify-between gap-3 px-4 py-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-text-tertiary">
             {statement.read.status === 'ready' ? (
               <>
@@ -614,7 +614,7 @@ function SupplierStatement({ id }: { id: string }) {
                     amountClassName="text-xl font-semibold leading-[1.2] text-text-primary tabular-nums"
                   />
                 ) : (
-                  <p className="mt-1.5 text-xl font-semibold leading-[1.2] text-text-quaternary">
+                  <p className="mt-1.5 text-[15px] font-medium leading-[1.3] text-text-quaternary">
                     {t('supplierStatement.nothing')}
                   </p>
                 )}

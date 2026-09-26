@@ -439,14 +439,27 @@ export function BillIntakeForm({
                       </td>
                       {(['quantity', 'unitPrice', 'vatRate'] as const).map((key) => (
                         <td key={key} className="px-1 py-1.5">
-                          <input
-                            value={line[key]}
-                            inputMode="decimal"
-                            onFocus={selectAllOnFocus}
-                            onChange={(event) => setLine(line.id, { [key]: event.target.value })}
-                            aria-label={t(`billIntake.lineField.${key}`)}
-                            className={[LINE_INPUT, 'w-[72px]'].join(' ')}
-                          />
+                          <span className="relative block w-[72px]">
+                            <input
+                              value={line[key]}
+                              inputMode="decimal"
+                              onFocus={selectAllOnFocus}
+                              onChange={(event) => setLine(line.id, { [key]: event.target.value })}
+                              aria-label={t(`billIntake.lineField.${key}`)}
+                              className={[LINE_INPUT, 'w-full', key === 'vatRate' ? 'pe-5' : '']
+                                .filter(Boolean)
+                                .join(' ')}
+                            />
+                            {/* The frame writes the rate as "5%": the sign sits inside the box. */}
+                            {key === 'vatRate' ? (
+                              <span
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-y-0 end-2 flex items-center text-sm font-medium text-text-secondary"
+                              >
+                                %
+                              </span>
+                            ) : null}
+                          </span>
                         </td>
                       ))}
                       <td className="ps-1 py-1.5">

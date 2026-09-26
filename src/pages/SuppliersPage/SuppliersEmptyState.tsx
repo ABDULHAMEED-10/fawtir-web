@@ -27,7 +27,7 @@ export function SuppliersEmptyState() {
         </p>
       </div>
 
-      <section className="flex min-h-[560px] flex-col items-center justify-center rounded-md bg-surface-card px-6 py-20 text-center">
+      <section className="flex min-h-[max(560px,calc(100vh_-_220px))] flex-col items-center justify-center rounded-md bg-surface-card px-6 py-20 text-center">
         <img src={emptyIcon} alt="" className="h-auto w-[170px]" />
         <h2 className="mt-8 text-2xl font-medium leading-[1.2] text-text-primary">
           {t('suppliersPage.emptyState.title')}

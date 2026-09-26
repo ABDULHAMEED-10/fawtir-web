@@ -53,7 +53,7 @@ import peppolIcon from '../../assets/invoice-details/peppol-badge.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 const BAR_TONE = {
-  paid: 'bg-primary-150',
+  paid: 'bg-[#d5dcf1]',
   recent: 'bg-primary-700',
   expected: 'border border-dashed border-[#d8c9a8] bg-[#faf5ea]',
 } as const
@@ -300,35 +300,63 @@ function RecurringBill({ id }: { id: string }) {
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {bill.description}
-          </h1>
-          <span
-            className={[
-              'inline-flex h-[31px] items-center gap-2 rounded-full px-3 text-sm font-semibold',
-              PILL[tone],
-            ].join(' ')}
-          >
-            <span className="size-1.5 rounded-full bg-current" />
-            {t(
-              note.key === 'recurringBills.state.late'
-                ? 'recurringBills.detail.lateArriving'
-                : note.key,
-              note.values
-                ? {
-                    ...note.values,
-                    date: note.values.date ? day(String(note.values.date)) : undefined,
-                  }
-                : undefined,
-            )}
-          </span>
-          <span className="inline-flex h-[31px] items-center gap-1.5 rounded-full bg-surface-background px-3 text-xs font-semibold uppercase tracking-[0.5px] text-text-tertiary">
-            <img src={calSmallIcon} alt="" className="size-4" />
-            {cadenceText}
-          </span>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+                {bill.description}
+              </h1>
+              <span
+                className={[
+                  'inline-flex h-[31px] items-center gap-2 rounded-sm px-3 text-sm font-semibold',
+                  PILL[tone],
+                ].join(' ')}
+              >
+                <span className="size-1.5 rounded-full bg-current" />
+                {t(
+                  note.key === 'recurringBills.state.late'
+                    ? 'recurringBills.detail.lateArriving'
+                    : note.key,
+                  note.values
+                    ? {
+                        ...note.values,
+                        date: note.values.date ? day(String(note.values.date)) : undefined,
+                      }
+                    : undefined,
+                )}
+              </span>
+              <span className="inline-flex h-[31px] items-center gap-1.5 rounded-sm border border-border-subtle bg-surface-background px-3 text-xs font-semibold uppercase tracking-[0.5px] text-text-tertiary">
+                <img src={calSmallIcon} alt="" className="size-4" />
+                {cadenceText}
+              </span>
+            </div>
+
+            <p className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
+              <span className="font-medium text-text-quaternary">
+                {t('recurringBills.detail.from')}
+              </span>
+              <span className="font-semibold text-text-primary">{bill.supplierName}</span>
+              <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
+              <span className="font-medium text-text-quaternary">
+                {t('recurringBills.detail.usually')}
+              </span>
+              <span className="inline-flex items-center gap-1 font-semibold text-text-primary">
+                <Rial /> {money(bill.totalIncludingVat)}
+              </span>
+              {bill.watchingFrom ? (
+                <>
+                  <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
+                  <span className="font-medium text-text-quaternary">
+                    {t('recurringBills.detail.watchedSince', {
+                      since: monthYear(bill.watchingFrom, language),
+                    })}
+                  </span>
+                </>
+              ) : null}
+            </p>
+          </div>
           {canManage ? (
-            <div className="ms-auto flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 to={`/expenditure/recurring-bills/${bill.id}/edit`}
                 className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
@@ -360,30 +388,6 @@ function RecurringBill({ id }: { id: string }) {
             </div>
           ) : null}
         </div>
-
-        <p className="flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
-          <span className="font-medium text-text-quaternary">
-            {t('recurringBills.detail.from')}
-          </span>
-          <span className="font-semibold text-text-primary">{bill.supplierName}</span>
-          <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
-          <span className="font-medium text-text-quaternary">
-            {t('recurringBills.detail.usually')}
-          </span>
-          <span className="inline-flex items-center gap-1 font-semibold text-text-primary">
-            <Rial /> {money(bill.totalIncludingVat)}
-          </span>
-          {bill.watchingFrom ? (
-            <>
-              <span className="mx-1 size-1 rounded-full bg-text-quaternary" />
-              <span className="font-medium text-text-quaternary">
-                {t('recurringBills.detail.watchedSince', {
-                  since: monthYear(bill.watchingFrom, language),
-                })}
-              </span>
-            </>
-          ) : null}
-        </p>
       </div>
 
       {notice ? (
@@ -421,14 +425,6 @@ function RecurringBill({ id }: { id: string }) {
                 className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
               >
                 {t('recurringBills.detail.markReceived')}
-              </button>
-              <button
-                type="button"
-                onClick={() => void act('chase')}
-                disabled={busy || blocker !== null}
-                className="inline-flex h-[42px] items-center rounded-sm bg-pending-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-[#5b4a2f] disabled:opacity-50"
-              >
-                {t('recurringBills.actions.chase')}
               </button>
             </div>
           ) : null}

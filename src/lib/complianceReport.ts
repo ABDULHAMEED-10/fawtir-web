@@ -6,12 +6,66 @@
  * rather than printed, so changing the period moves the counts and the money together.
  */
 
-export const REPORT_PERIODS = [
+export type ReportPeriodId = 'month' | 'quarter' | 'year' | 'custom'
+
+export const REPORT_PERIODS: { id: ReportPeriodId; labelKey: string }[] = [
   { id: 'month', labelKey: 'complianceReport.period.thisMonth' },
-  { id: 'q2', labelKey: 'complianceReport.period.q2' },
+  { id: 'quarter', labelKey: 'complianceReport.period.quarter' },
   { id: 'year', labelKey: 'complianceReport.period.thisYear' },
   { id: 'custom', labelKey: 'complianceReport.period.custom' },
 ]
+
+export function isReportPeriod(value: string | null): value is ReportPeriodId {
+  return REPORT_PERIODS.some((entry) => entry.id === value)
+}
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10)
+
+/**
+ * A period's window, worked out from today rather than printed, and the label it goes by.
+ *
+ * "Quarter" is the last complete one, as the frame's "Q2 2026" is on a day in the quarter after.
+ * Custom takes the dates the reader picks, and starts on the quarter's window.
+ */
+export function periodRange(
+  period: ReportPeriodId,
+  today: Date = new Date(),
+  custom?: { from: string; to: string },
+): { from: string; to: string; labelKey: string; values?: Record<string, string | number> } {
+  const year = today.getUTCFullYear()
+  const month = today.getUTCMonth()
+  if (period === 'month') {
+    return {
+      from: isoDay(new Date(Date.UTC(year, month, 1))),
+      to: isoDay(today),
+      labelKey: 'complianceReport.period.thisMonth',
+    }
+  }
+  if (period === 'year') {
+    return {
+      from: `${year}-01-01`,
+      to: isoDay(today),
+      labelKey: 'complianceReport.period.thisYear',
+    }
+  }
+  const current = Math.floor(month / 3)
+  const lastYear = current === 0 ? year - 1 : year
+  const last = current === 0 ? 3 : current - 1
+  const quarter = {
+    from: isoDay(new Date(Date.UTC(lastYear, last * 3, 1))),
+    to: isoDay(new Date(Date.UTC(lastYear, last * 3 + 3, 0))),
+    labelKey: 'complianceReport.period.quarter',
+    values: { quarter: last + 1, year: lastYear },
+  }
+  if (period === 'custom') {
+    return {
+      from: custom?.from || quarter.from,
+      to: custom?.to || quarter.to,
+      labelKey: 'complianceReport.period.custom',
+    }
+  }
+  return quarter
+}
 
 /** What can go in the pack. The invoice register always does — it is the report. */
 export const REPORT_SECTIONS = [
@@ -73,7 +127,7 @@ const PERIOD_BOOKS: Record<
   { invoices: number; corrected: number; notReported: number; netInvoiced: number }
 > = {
   month: { invoices: 147, corrected: 2, notReported: 1, netInvoiced: 18_902.4 },
-  q2: { invoices: 412, corrected: 5, notReported: 1, netInvoiced: 52_418.9 },
+  quarter: { invoices: 412, corrected: 5, notReported: 1, netInvoiced: 52_418.9 },
   year: { invoices: 1_624, corrected: 39, notReported: 4, netInvoiced: 194_800 },
   custom: { invoices: 412, corrected: 5, notReported: 1, netInvoiced: 52_418.9 },
 }
@@ -84,7 +138,7 @@ const VAT_RATE = 0.05
 const round3 = (value: number) => Math.round(value * 1000) / 1000
 
 export function periodFigures(period: string) {
-  const book = PERIOD_BOOKS[period] ?? PERIOD_BOOKS.q2
+  const book = PERIOD_BOOKS[period] ?? PERIOD_BOOKS.quarter
   const accepted = book.invoices - book.corrected - book.notReported
   return {
     invoices: book.invoices,
@@ -121,7 +175,7 @@ export type RegisterRow = {
  */
 export const BUILT_REPORT = {
   reference: 'CR-2026-Q2-0004',
-  period: 'q2',
+  period: 'quarter' as ReportPeriodId,
   periodLabelKey: 'complianceReport.period.q2',
   range: '1 April – 30 June 2026',
   builtAt: '30 Jul, 09:58',

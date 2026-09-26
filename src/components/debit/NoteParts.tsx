@@ -44,8 +44,9 @@ export const TONE = {
     figure: 'text-pending-700',
     op: '+',
     currentDot: 'bg-pending-100',
-    decision: 'border-pending-200 bg-pending-100',
-    decisionTitle: 'text-pending-700',
+    // The frame draws the debit decision as a plain card: grey title, no sand tint.
+    decision: 'border-border-subtle bg-[#fafafa]',
+    decisionTitle: 'text-text-secondary',
   },
 } as const
 

@@ -19,7 +19,10 @@ const STEP_ICON: Record<string, string> = {
 }
 
 /**
- * One OTA call in full — Compliance › Activity › Call log › Detail (Figma 131:14844).
+ * One OTA call in full: Compliance › Activity › Call log › Detail (Figma 154:109008).
+ *
+ * TODO(backend): there is no call-log endpoint (asks row 2.20), so this is the design's call; the
+ * links out of it go to the ledger, searched for the invoice.
  *
  * Both halves of the exchange verbatim. When the Authority refuses a document, the request and
  * the reply are the only things that settle what actually happened, so they are shown as sent
@@ -103,7 +106,7 @@ export function OtaCallDetailPage() {
               {t('callDetail.downloadBoth')}
             </button>
             <Link
-              to={`/compliance/activity/${call.invoice}`}
+              to={`/compliance/activity?q=${call.invoice}`}
               className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
             >
               {t('callDetail.openInvoice', { invoice: call.invoice })}

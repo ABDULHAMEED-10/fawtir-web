@@ -1190,7 +1190,7 @@
     "subtitle_few": "{{customers}} عملاء · {{amount}} ر.ع. مستحقة",
     "subtitle_many": "{{customers}} عميلًا · {{amount}} ر.ع. مستحقة",
     "subtitle_other": "{{customers}} عميل · {{amount}} ر.ع. مستحقة",
-    "bulkUpload": "استيراد من ملف",
+    "bulkUpload": "رفع مجمّع",
     "export": "تصدير",
     "exporting": "جارٍ التصدير…",
     "exportTruncated": "توقف الملف عند حد التصدير، لذا لا يضم كل العملاء. ضيّق القائمة حسب النوع أو البحث ثم صدّر مرة أخرى.",
@@ -1285,7 +1285,9 @@
       "recent": "آخر تحديث"
     },
     "selectAll": "تحديد كل العملاء في هذه الصفحة",
-    "selectRow": "تحديد {{name}}"
+    "selectRow": "تحديد {{name}}",
+    "filters": "عوامل التصفية",
+    "filterAll": "كل حالات Peppol"
   },
   "newCustomer": {
     "title": "عميل جديد",
@@ -1370,7 +1372,16 @@
       "paymentTerms": "شروط الدفع",
       "paymentMethod": "طريقة الدفع الافتراضية",
       "iban": "رقم الآيبان",
-      "bic": "BIC / SWIFT"
+      "bic": "BIC / SWIFT",
+      "currencyOption": "{{code}} - {{name}}",
+      "bicPlaceholder": "BIC",
+      "currencyName": {
+        "OMR": "ريال عماني",
+        "USD": "دولار أمريكي",
+        "EUR": "يورو",
+        "AED": "درهم إماراتي",
+        "SAR": "ريال سعودي"
+      }
     },
     "sending": {
       "method": "طريقة الإرسال",
@@ -2356,7 +2367,8 @@
       "po": "مرجع أمر الشراء",
       "paymentMethod": "طريقة الدفع",
       "paymentReference": "مرجع الدفع",
-      "paymentDate": "تاريخ الدفع"
+      "paymentDate": "تاريخ الدفع",
+      "branchPlaceholder": "اختر فرعًا"
     },
     "values": {
       "net30": "صافي 30 يومًا",
@@ -2920,7 +2932,7 @@
       "notes": "ملاحظات وتعليقات داخلية"
     },
     "fields": {
-      "vat": "رقم الضريبة أو CBE",
+      "vat": "رقم التسجيل الضريبي",
       "corporateName": "الاسم التجاري",
       "directorFirst": "الاسم الأول للمدير",
       "lastNameManager": "اسم عائلة المدير",
@@ -4848,26 +4860,26 @@
       "firm": "حازم"
     },
     "steps": {
-      "friendly": "Friendly nudge",
-      "friendlySubject": "Subject: Invoice {number}: just a reminder",
-      "friendlyMeta": "English and Arabic · sent to the billing contact",
-      "followUp": "Follow-up",
-      "followUpSubject": "Subject: Invoice {number} is now 14 days overdue",
-      "followUpMeta": "English and Arabic · copies the account owner",
-      "finalNotice": "Final notice",
-      "finalNoticeSubject": "Subject: Final notice, invoice {number} outstanding",
-      "finalNoticeMeta": "English and Arabic · copies the account owner · last step"
+      "friendly": "تذكير لطيف",
+      "friendlySubject": "الموضوع: الفاتورة {number}: مجرد تذكير",
+      "friendlyMeta": "بالعربية والإنجليزية · يُرسل إلى جهة الفوترة",
+      "followUp": "متابعة",
+      "followUpSubject": "الموضوع: الفاتورة {number} متأخرة الآن 14 يومًا",
+      "followUpMeta": "بالعربية والإنجليزية · نسخة إلى مالك الحساب",
+      "finalNotice": "إشعار أخير",
+      "finalNoticeSubject": "الموضوع: إشعار أخير، الفاتورة {number} مستحقة",
+      "finalNoticeMeta": "بالعربية والإنجليزية · نسخة إلى مالك الحساب · الخطوة الأخيرة"
     },
     "customerSeesTitle": "ما يراه العميل",
     "sees": {
-      "dueDate": "Due date",
-      "dueDateNote": "Nothing sent: the invoice is simply due",
-      "day7": "7 days late",
-      "day7Note": "Friendly nudge with the PDF attached",
-      "day14": "14 days late",
-      "day14Note": "Direct follow-up, owner copied",
-      "day30": "30 days late",
-      "day30Note": "Final notice, then reminders stop",
+      "dueDate": "تاريخ الاستحقاق",
+      "dueDateNote": "لا يُرسل شيء: الفاتورة مستحقة فقط",
+      "day7": "متأخرة 7 أيام",
+      "day7Note": "تذكير لطيف مع ملف PDF مرفق",
+      "day14": "متأخرة 14 يومًا",
+      "day14Note": "متابعة مباشرة، مع نسخة للمالك",
+      "day30": "متأخرة 30 يومًا",
+      "day30Note": "إشعار أخير، ثم تتوقف التذكيرات",
       "firstNote": "{{step}}: يفترض أن الفاتورة فاتت سهوًا",
       "middleNote": "{{step}}: مباشر، يذكر مدة التأخير",
       "lastNote": "{{step}}، ثم تتوقف التذكيرات"
@@ -4875,22 +4887,22 @@
     "rightNowTitle": "الوضع الحالي",
     "viewQueue": "عرض القائمة",
     "now": {
-      "overdue": "Overdue invoices",
-      "queued": "Reminders queued",
-      "muted": "Customers muted",
-      "sent": "Sent this month"
+      "overdue": "فواتير متأخرة",
+      "queued": "تذكيرات في الانتظار",
+      "muted": "عملاء مكتومون",
+      "sent": "أُرسل هذا الشهر"
     },
     "stopTitle": "أوقف الإرسال عند",
     "stop": {
-      "paid": "The invoice is paid in full",
+      "paid": "دُفعت الفاتورة بالكامل",
       "paidNote": "تتوقف التذكيرات لحظة تسوية الفاتورة",
-      "partPayment": "A part payment arrives",
+      "partPayment": "وصل دفع جزئي",
       "partPaymentNote": "أوقف مؤقتًا ودع أحدًا يقرر بدل مطالبة الرصيد تلقائيًا",
-      "creditNote": "A credit note is raised against it",
+      "creditNote": "صدر إشعار دائن عليها",
       "creditNoteNote": "المبلغ قيد التصحيح، فمطالبته خطأ",
-      "replies": "The customer replies to a reminder",
+      "replies": "ردّ العميل على تذكير",
       "repliesNote": "بدأت محادثة، فالخطوة التالية تنتظرك",
-      "dispute": "The invoice is marked in dispute",
+      "dispute": "عُلّمت الفاتورة كمتنازع عليها",
       "disputeNote": "موقوف افتراضيًا: فعّله إن كان فريقك يستخدم علامة النزاع",
       "notYet": "غير موجود في الواجهة البرمجية بعد"
     },
@@ -4902,14 +4914,14 @@
       "attachPdf": "إرفاق ملف الفاتورة",
       "notYet": "يُضبط للتثبيت كله",
       "installation": "مرسل البريد الخاص بالتثبيت",
-      "sendAtValue": "08:00 · Asia/Muscat",
+      "sendAtValue": "08:00 · آسيا/مسقط",
       "attachValue": "لا يُرفق"
     },
     "beforeTitle": "قبل إرسال أي شيء",
     "before": {
-      "hold": "Hold each reminder for 24 hours first",
+      "hold": "احتجز كل تذكير 24 ساعة أولًا",
       "holdNote": "كانت التذكيرات ستنتظر يومًا في قائمة الانتظار قبل الإرسال لتلغي ما لا ينبغي إرساله. اليوم ترسل الدورة في اليوم نفسه.",
-      "approveFinal": "Require approval for the final notice",
+      "approveFinal": "اطلب الموافقة على الإشعار الأخير",
       "approveFinalNote": "الخطوة الحازمة لا تُرسل تلقائيًا أبدًا: على أحد أن يضغط إرسال. مفيد عندما تهمّ العلاقة أكثر من الفاتورة.",
       "notYet": "غير موجود في الواجهة البرمجية بعد"
     },
@@ -4922,8 +4934,8 @@
       "holdNote": "يمكن إلغاء أي عنصر أدناه يحمل عدًّا تنازليًا. إذا لم تفعل شيئًا، يُرسل في ٠٩:٠٠.",
       "pauseEverything": "إيقاف الكل مؤقتًا",
       "searchPlaceholder": "ابحث بالعميل أو الفاتورة...",
-      "selectAll": "Select all reminders",
-      "selectRow": "Select reminder for {{id}}",
+      "selectAll": "تحديد كل التذكيرات",
+      "selectRow": "تحديد تذكير {{id}}",
       "tabs": {
         "scheduled": "مجدولة",
         "sent": "مُرسلة",
@@ -4931,14 +4943,14 @@
         "notSending": "لن تُرسل"
       },
       "kpi": {
-        "goingOut": "Going out tomorrow",
-        "goingOutNote": "Still cancellable",
-        "overdue": "Overdue and chased",
-        "overdueNote": "Across 6 invoices",
-        "paid": "Paid after a reminder",
-        "paidNote": "Last 30 days · 11 sent",
-        "paused": "Paused",
-        "pausedNote": "1 customer, 1 invoice",
+        "goingOut": "تُرسل غدًا",
+        "goingOutNote": "ما زال يمكن إلغاؤها",
+        "overdue": "متأخرة وتمت متابعتها",
+        "overdueNote": "عبر 6 فواتير",
+        "paid": "دُفعت بعد تذكير",
+        "paidNote": "آخر 30 يومًا · أُرسل 11",
+        "paused": "موقوفة",
+        "pausedNote": "عميل واحد، فاتورة واحدة",
         "goingOutSweep": "تُرسل الساعة {{hour}} ما لم تُوقف",
         "overdueAcross_zero": "لا فواتير",
         "overdueAcross_one": "عبر فاتورة واحدة",
@@ -4965,18 +4977,18 @@
         "outcome": "ما الذي جرى"
       },
       "tomorrow": "غدًا",
-      "in16Hours": "in 16 hours · 09:00",
+      "in16Hours": "بعد 16 ساعة · 09:00",
       "aug4": "4 Aug",
-      "in5Days": "in 5 days",
+      "in5Days": "بعد 5 أيام",
       "aug11": "11 Aug",
-      "in12Days": "in 12 days",
+      "in12Days": "بعد 12 يومًا",
       "paused": "موقوف مؤقتًا",
-      "until15Aug": "until 15 Aug",
-      "promisedByPhone": "Payment promised by phone",
-      "overdue7": "7 days overdue",
-      "overdue14": "14 days overdue",
-      "overdue21": "21 days overdue",
-      "overdue30": "30 days overdue",
+      "until15Aug": "حتى 15 أغسطس",
+      "promisedByPhone": "وعد بالدفع هاتفيًا",
+      "overdue7": "متأخرة 7 أيام",
+      "overdue14": "متأخرة 14 يومًا",
+      "overdue21": "متأخرة 21 يومًا",
+      "overdue30": "متأخرة 30 يومًا",
       "due23Jul": "Due 23 Jul",
       "due16Jul": "Due 16 Jul",
       "due28Jul": "Due 28 Jul",
@@ -5055,20 +5067,20 @@
     "pause": {
       "title": "إيقاف التذكيرات مؤقتًا",
       "subtitle": "أوقف المتابعة الآن. لا شيء يُلغى، يستأنف الجدول من حيث توقف.",
-      "targetMeta": "21 days overdue · reminder 2 due tomorrow",
+      "targetMeta": "متأخرة 21 يومًا · التذكير 2 مستحق غدًا",
       "whatToPause": "ما الذي سيتوقف",
       "scopeInvoice": "هذه الفاتورة فقط",
-      "scopeInvoiceNote": "Other invoices for Al Mouj Marina Cafe keep being chased as normal",
+      "scopeInvoiceNote": "تستمر متابعة فواتير Al Mouj Marina Cafe الأخرى كالمعتاد",
       "scopeCustomer": "كل فواتير هذا العميل",
-      "scopeCustomerNote": "Nothing goes to Al Mouj Marina Cafe until you resume",
+      "scopeCustomerNote": "لن يُرسل شيء إلى Al Mouj Marina Cafe حتى تستأنف",
       "why": "السبب",
-      "whyHint": "so the next person knows",
+      "whyHint": "ليعرف الشخص التالي",
       "reasons": {
-        "promised": "Payment promised",
-        "dispute": "Invoice in dispute",
-        "correction": "Correction on the way",
-        "relationship": "Relationship - handle by hand",
-        "other": "Other"
+        "promised": "وعد بالدفع",
+        "dispute": "فاتورة متنازع عليها",
+        "correction": "تصحيح في الطريق",
+        "relationship": "العلاقة: تُدار يدويًا",
+        "other": "أخرى"
       },
       "resume": "الاستئناف",
       "in7Days": "خلال ٧ أيام",
@@ -5083,33 +5095,33 @@
     "send": {
       "title": "إرسال تذكير الآن",
       "subtitle": "يُرسل فورًا ويحل محل التذكير المجدول التالي لهذه الفاتورة.",
-      "targetMeta": "Due 23 Jul · 7 days overdue · no reminder sent yet",
-      "outstanding": "outstanding",
+      "targetMeta": "تستحق 23 يوليو · متأخرة 7 أيام · لم يُرسل تذكير بعد",
+      "outstanding": "مستحق",
       "whichMessage": "أي رسالة",
-      "friendlyHint": "Assume it was simply missed",
-      "followUpHint": "Direct, states the day overdue",
-      "finalNoticeHint": "Firm - use with care",
+      "friendlyHint": "افترض أنها فاتت سهوًا",
+      "followUpHint": "مباشر، يذكر أيام التأخير",
+      "finalNoticeHint": "حازم، استخدمه بحذر",
       "to": "إلى",
-      "toHint": "the customer's billing contact",
+      "toHint": "جهة الفوترة لدى العميل",
       "subject": "الموضوع",
       "sendNow": "إرسال الآن",
       "editJustThisOne": "تعديل هذه فقط",
       "editTemplate": "تعديل القالب",
       "preview": {
-        "label": "Preview",
-        "from": "From",
-        "repliesTo": "replies go to",
-        "dear": "Dear",
-        "body1": "I hope things are going well at the café. This is a gentle reminder that invoice",
-        "body2": "is still showing as unpaid on our side.",
-        "body3": "If it has already been paid, please ignore this note and accept our apologies. If there is a query on the invoice, just reply to this email and we will sort it out.",
-        "cta": "View and pay invoice",
-        "signOff": "Kind regards,",
-        "attached": "attached automatically",
-        "invoice": "Invoice",
-        "issued": "Issued",
+        "label": "معاينة",
+        "from": "من",
+        "repliesTo": "الردود تذهب إلى",
+        "dear": "عزيزي",
+        "body1": "نأمل أن تكون أموركم بخير. هذا تذكير لطيف بأن الفاتورة",
+        "body2": "ما زالت غير مدفوعة لدينا.",
+        "body3": "إذا كانت قد دُفعت، فيرجى تجاهل هذه الرسالة مع اعتذارنا. وإن كان لديكم استفسار عن الفاتورة، فما عليكم إلا الرد على هذه الرسالة وسنعالجه.",
+        "cta": "عرض الفاتورة ودفعها",
+        "signOff": "مع أطيب التحيات،",
+        "attached": "مرفق تلقائيًا",
+        "invoice": "الفاتورة",
+        "issued": "تاريخ الإصدار",
         "due": "Due",
-        "outstanding": "Amount outstanding",
+        "outstanding": "المبلغ المستحق",
         "to": "إلى"
       },
       "whichInvoice": "أي فاتورة",
@@ -5122,12 +5134,12 @@
       "editNotYet": "نص الرسالة ثابت في الخادم حاليًا."
     },
     "template": {
-      "friendlyDescription": "The first message a customer gets. Sent 7 days after the invoice was due.",
+      "friendlyDescription": "أول رسالة يتلقاها العميل. تُرسل بعد 7 أيام من استحقاق الفاتورة.",
       "subjectLine": "سطر الموضوع",
       "message": "الرسالة",
       "livePreview": "معاينة مباشرة",
-      "invoiceWord": "Invoice",
-      "attached": "attached",
+      "invoiceWord": "الفاتورة",
+      "attached": "مرفق",
       "sendTest": "أرسل لي نسخة تجريبية",
       "save": "حفظ الرسالة",
       "description": "{{step}}، يُرسل {{when}}.",
@@ -6475,7 +6487,14 @@
       "savedHeld": "حُفظ. يبقى الرصيد محتجزًا حتى تخصمه من فاتورة.",
       "savedApplied": "حُفظ وخُصم من الفاتورة.",
       "footerLead": "كل شيء مُراجع",
-      "footerNote": "الإشعارات المرفوعة لا تُتحقق ولا تُبلَّغ كإشعارات بيبول"
+      "footerNote": "الإشعارات المرفوعة لا تُتحقق ولا تُبلَّغ كإشعارات بيبول",
+      "holdNoteAny": "اتركه دون استخدام واخصمه من فاتورة لاحقة من هذا المورد.",
+      "footerToFill_zero": "لا حقول متبقية",
+      "footerToFill_one": "حقل واحد متبقٍ للتعبئة",
+      "footerToFill_two": "حقلان متبقيان للتعبئة",
+      "footerToFill_few": "{{count}} حقول متبقية للتعبئة",
+      "footerToFill_many": "{{count}} حقلًا متبقيًا للتعبئة",
+      "footerToFill_other": "{{count}} حقل متبقٍ للتعبئة"
     },
     "detail": {
       "creditNotePeppol": "إشعار دائن · Peppol",
@@ -6948,7 +6967,9 @@
       "summaryWorriesBody": "اقرأ النقاط المعلّمة بـ\"راجع\" قبل قبول الرسم.",
       "summaryBeforeAccept_one": "أمر واحد يستحق النظر قبل القبول.",
       "summaryBeforeAccept_other": "{{count}} أمور تستحق النظر قبل القبول.",
-      "summaryBeforeAcceptBody": "اقرأ النقاط المعلّمة بـ\"راجع\"، ثم قرر."
+      "summaryBeforeAcceptBody": "اقرأ النقاط المعلّمة بـ\"راجع\"، ثم قرر.",
+      "supplierNone": "لم يُختر مورد بعد",
+      "supplierNoneDetail": "اختر الجهة المرسلة ليُراجَع الرسم مقابل الحساب الصحيح."
     }
   },
   "expenditureReminders": {
@@ -7128,7 +7149,7 @@
     "subtitle": "كل مستند أرسله فوتر أو استلمه، وما يحتفظ به لكل منها، ومدة الحفظ. قانون ضريبة القيمة المضافة العماني يطلب عشر سنوات.",
     "ownPapers": "الاتفاقيات والشهادات وقوائم الأسعار تُحفظ على المورّد أو العميل الذي تخصّه.",
     "ownPapersLink": "اذهب إلى الموردين",
-    "searchPlaceholder": "ابحث برقم المستند",
+    "searchPlaceholder": "ابحث هنا...",
     "allKinds": "كل الأنواع",
     "allTdd": "أي حالة إبلاغ",
     "allYears": "كل السنوات الضريبية",
@@ -7141,9 +7162,9 @@
     },
     "tab": {
       "all": "الكل",
-      "issued": "مُرسلة",
-      "received": "مستلمة",
-      "legalHold": "تحت الحجز القانوني"
+      "issued": "فواتير المبيعات",
+      "received": "الفواتير المستلمة",
+      "legalHold": "حجز قانوني"
     },
     "col": {
       "document": "المستند",
@@ -7202,7 +7223,7 @@
     "b2b": "إلى منشأة",
     "noNumber": "بلا رقم",
     "open": "افتح المستند",
-    "showingRows": "يُعرض {{from}}–{{to}}",
+    "showingRows": "عرض {{from}} إلى {{to}}",
     "showingNone": "لا شيء في هذه الصفحة",
     "previousPage": "السابق",
     "nextPage": "التالي",
@@ -7218,8 +7239,8 @@
       "retention": "يجب حفظ هذا المستند حتى {{date}}، فلا يمكن حذفه قبل ذلك."
     },
     "empty": {
-      "title": "لا شيء محفوظ هنا بعد",
-      "note": "هذه الصفحة تعتني بنفسها. ما إن ترسل مستندًا أو تستلمه حتى يحفظ فوتر الملف الموقّع ومستند الضريبة وبقيتها معًا.",
+      "title": "لم يُحفظ شيء هنا بعد",
+      "note": "هذه الصفحة تعتني بنفسها. بمجرد أن تصدر أول مستند، يحفظ فواتير ملف XML الموقّع والمستند الضريبي وملف PDF ورمز QR معاً.",
       "noHold": "لا يوجد مستند تحت حجز قانوني."
     },
     "detail": {
@@ -7230,10 +7251,10 @@
       "tdd": "حالة الإبلاغ",
       "ack": "الإقرار",
       "audience": "أُرسل إلى",
-      "uuid": "معرّف المستند",
+      "uuid": "المعرّف الفريد في فوترة",
       "kept": "مدة الحفظ",
       "retentionClass": "الحفظ",
-      "keptUntil": "يُحفظ حتى",
+      "keptUntil": "محفوظ حتى",
       "canBeRemoved": "يمكن حذفه",
       "yes": "نعم",
       "no": "ليس بعد",
@@ -7242,9 +7263,387 @@
       "filesInRecord": "المحفوظ",
       "filesNote": "كل ملف أدناه يقدّمه فوتر نفسه. وما هو محفوظ دون عنوان يُذكر ولا يُعرض للتنزيل.",
       "download": "تنزيل",
-      "openActivity": "افتح سجل التسليم",
+      "openActivity": "فتح سجل التسليم",
       "notServed": "محفوظ، دون تنزيل بعد",
-      "noFiles": "لا شيء محفوظ لهذا المستند."
+      "noFiles": "لا يحفظ الأرشيف أي ملف لهذا السجل.",
+      "print": "طباعة",
+      "zip": "الكل ({{count}}) في ملف مضغوط",
+      "share": "مشاركة آمنة",
+      "kindTo": {
+        "salesInvoice": "فاتورة مبيعات إلى",
+        "billReceived": "فاتورة مستلمة من",
+        "creditIssued": "إشعار دائن إلى",
+        "creditReceived": "إشعار دائن من",
+        "selfBilledInvoice": "فاتورة ذاتية من",
+        "selfBilledCredit": "إشعار دائن ذاتي من"
+      },
+      "issued": "صدرت في {{date}}",
+      "keptChip": "محفوظ حتى {{date}}",
+      "filesInRecord_zero": "لا ملفات في هذا السجل",
+      "filesInRecord_one": "ملف واحد في هذا السجل",
+      "filesInRecord_two": "ملفان في هذا السجل",
+      "filesInRecord_few": "{{count}} ملفات في هذا السجل",
+      "filesInRecord_many": "{{count}} ملفاً في هذا السجل",
+      "filesInRecord_other": "{{count}} ملف في هذا السجل",
+      "everythingBelonging": "كل ما يخص {{number}}",
+      "fileNote": {
+        "xml": "الفاتورة المرسلة عبر بيبول",
+        "tdd": "مقدم إلى جهاز الضرائب",
+        "pdf": "الفاتورة المقروءة",
+        "qr": "مطبوع على الفاتورة",
+        "mls": "ردود التسليم وجهاز الضرائب",
+        "delivery_notification": "إيصال الشبكة"
+      },
+      "badge": {
+        "signed": "موقّع PINT-OM",
+        "enAr": "إنجليزي وعربي",
+        "image": "صورة",
+        "messages_zero": "لا رسائل",
+        "messages_one": "رسالة واحدة",
+        "messages_two": "رسالتان",
+        "messages_few": "{{count}} رسائل",
+        "messages_many": "{{count}} رسالة",
+        "messages_other": "{{count}} رسالة",
+        "receipt": "إيصال"
+      },
+      "copy": "نسخ",
+      "copied": "تم النسخ",
+      "printFile": "طباعة",
+      "fullscreen": "فتح بملء الشاشة",
+      "taxInvoice": "فاتورة ضريبية {{number}}",
+      "creditNoteTitle": "إشعار دائن {{number}}",
+      "laidOut": "ملف XML الموقّع، معروضاً لتسهل قراءته",
+      "signatureValid": "التوقيع صالح",
+      "invoiceNumber": "رقم الفاتورة",
+      "creditNumber": "رقم الإشعار الدائن",
+      "type": "النوع",
+      "commercialInvoice": "فاتورة تجارية",
+      "creditNote": "إشعار دائن",
+      "typeCode": {
+        "261": "إشعار دائن ذاتي",
+        "380": "فاتورة تجارية",
+        "381": "إشعار دائن",
+        "383": "إشعار مدين",
+        "389": "فاتورة ذاتية"
+      },
+      "issuedOn": "تاريخ الإصدار",
+      "paymentDue": "تاريخ استحقاق الدفع",
+      "currency": "العملة",
+      "whoSent": "من أرسله",
+      "whoReceived": "من استلمه",
+      "business": "المنشأة",
+      "vatNumber": "الرقم الضريبي",
+      "peppolId": "معرّف بيبول",
+      "address": "العنوان",
+      "theirOrder": "طلبهم",
+      "ourOrder": "طلبنا",
+      "whatCharged": "ما تم احتسابه",
+      "col": {
+        "item": "البند",
+        "qty": "الكمية",
+        "unit": "السعر",
+        "vat": "الضريبة",
+        "amount": "المبلغ"
+      },
+      "net": "الصافي",
+      "vatRow": "ضريبة القيمة المضافة",
+      "vatRate": "ضريبة القيمة المضافة · {{rate}}%",
+      "total": "الإجمالي",
+      "howTravelled": "كيف انتقل",
+      "sentOver": "أُرسل عبر",
+      "profile": "الملف التعريفي",
+      "deliveredAt": "وقت التسليم",
+      "validation": "التحقق",
+      "allFiveLayers": "اجتاز الطبقات الخمس كلها",
+      "mlsNote_zero": "لا رسائل عن تسليم هذا المستند.",
+      "mlsNote_one": "رسالة واحدة عن تسليم هذا المستند في شاشة النشاط.",
+      "mlsNote_two": "رسالتان عن تسليم هذا المستند في شاشة النشاط.",
+      "mlsNote_few": "{{count}} رسائل عن تسليم هذا المستند في شاشة النشاط.",
+      "mlsNote_many": "{{count}} رسالة عن تسليم هذا المستند في شاشة النشاط.",
+      "mlsNote_other": "{{count}} رسالة عن تسليم هذا المستند في شاشة النشاط.",
+      "howLongKept": "مدة الحفظ",
+      "timeRemaining": "الوقت المتبقي",
+      "remaining": "{{years}} سنة و{{months}} شهر",
+      "reason": "السبب",
+      "reasonClass": {
+        "STANDARD": "قانون ضريبة القيمة المضافة · 10 سنوات",
+        "REAL_ESTATE": "قانون ضريبة القيمة المضافة · 15 سنة، عقار"
+      },
+      "legalHold": "الحجز القانوني",
+      "notApplied": "غير مطبق",
+      "applied": "مطبق",
+      "nobodyCanEdit": "لا يمكن لأحد تعديل هذا المستند أو حذفه حتى {{year}}، بما في ذلك أنت.",
+      "placeHold": "وضع حجز قانوني",
+      "holdNotYet": "وضع الحجز من هنا غير متاح بعد.",
+      "proofTitle": "إثبات أنه لم يتغير",
+      "checkNow": "افحص الآن",
+      "fingerprintTaken": "أُخذت البصمة",
+      "lastChecked": "آخر فحص",
+      "matches": "مطابقة",
+      "differs": "غير مطابقة",
+      "notRecorded": "لم يُسجَّل بعد",
+      "shaOf": "SHA-256 للملف {{file}}",
+      "notServedYet": "البصمة غير متاحة بعد.",
+      "relatesTitle": "ما يرتبط به",
+      "relationKind": {
+        "CUSTOMER": "عميل",
+        "SUPPLIER": "مورّد",
+        "ORDER": "طلب",
+        "DELIVERY_NOTE": "إشعار تسليم",
+        "INVOICE": "فاتورة"
+      },
+      "nothingRelated": "لا شيء مرتبط به بعد.",
+      "tagsTitle": "الوسوم",
+      "addTag": "إضافة",
+      "newTagPlaceholder": "اسم الوسم",
+      "removeTag": "إزالة {{tag}}",
+      "opensTitle": "من فتحه",
+      "fullLog": "السجل الكامل",
+      "log": {
+        "filed": "حُفظ تلقائياً",
+        "byFawtir": "بواسطة فواتير",
+        "opened": "فتحه {{name}}",
+        "downloaded": "نزّل {{name}} {{file}}",
+        "sharedLink": "فُتح عبر رابط مشاركة",
+        "someone": "شخص ما",
+        "aFile": "ملفاً"
+      },
+      "logNote": "كل عرض وتنزيل ومشاركة يُسجَّل، ولا يمكن تعديل السجل."
+    },
+    "subtitleFull": "كل ملف أنشأه فواتير أو استلمه أو أُعطي له، محفوظ عشر سنوات كما يشترط قانون ضريبة القيمة المضافة العُماني، وخمس عشرة سنة للعقارات. لا يمكن تعديل أي شيء هنا أو حذفه ما دامت مدة حفظه سارية.",
+    "subtitleEmpty": "هنا ينتهي كل ملف ينشئه فواتير أو يستلمه أو يُعطى له، ويُحفظ طوال المدة التي يشترطها قانون ضريبة القيمة المضافة العُماني.",
+    "uploadCta": "رفع مستند",
+    "searchLabel": "البحث برقم المستند",
+    "filters": "عوامل التصفية",
+    "kpi": {
+      "kept": "المستندات المحفوظة",
+      "keptNote_zero": "عبر {{formatted}} فاتورة",
+      "keptNote_one": "عبر {{formatted}} فاتورة",
+      "keptNote_two": "عبر {{formatted}} فاتورة",
+      "keptNote_few": "عبر {{formatted}} فواتير",
+      "keptNote_many": "عبر {{formatted}} فاتورة",
+      "keptNote_other": "عبر {{formatted}} فاتورة",
+      "notCounted": "لم تُحصَ بعد",
+      "space": "المساحة المستخدمة",
+      "spaceNote": "من {{quota}} غيغابايت في خطتك",
+      "noQuota": "حصة الخطة غير معروفة بعد",
+      "integrity": "فحوص السلامة",
+      "allPassing": "كلها سليمة",
+      "someFailing": "تحتاج إلى مراجعة",
+      "integrityNote": "آخر فحص كامل {{date}}",
+      "nothingAltered": "لم يتغير شيء",
+      "hold": "تحت حجز قانوني",
+      "holdNote": "{{reason}} · لا يمكن حذفها",
+      "holdNoReason": "لا يمكن حذف المستندات المحجوزة",
+      "na": "غير متاح"
+    },
+    "sortOptions": {
+      "natural": "بترتيب الحفظ",
+      "newest": "الأحدث أولاً",
+      "oldest": "الأقدم أولاً",
+      "keptSoonest": "الأقرب انتهاءً لمدة الحفظ",
+      "keptLatest": "الأبعد انتهاءً لمدة الحفظ"
+    },
+    "selected_zero": "{{count}} سجل محدد · {{files}} ملفات",
+    "selected_one": "سجل واحد محدد · {{files}} ملفات",
+    "selected_two": "سجلان محددان · {{files}} ملفات",
+    "selected_few": "{{count}} سجلات محددة · {{files}} ملفات",
+    "selected_many": "{{count}} سجلاً محدداً · {{files}} ملفات",
+    "selected_other": "{{count}} سجل محدد · {{files}} ملفات",
+    "clearSelection": "إلغاء التحديد",
+    "downloadZip": "تنزيل ملف مضغوط",
+    "clear": "مسح",
+    "pick": "تحديد {{number}}",
+    "expand": "عرض ملفات {{number}}",
+    "collapse": "إخفاء ملفات {{number}}",
+    "recordMeta": {
+      "salesInvoice": "فاتورة مبيعات · صدرت في {{date}}",
+      "billReceived": "فاتورة مستلمة عبر بيبول · {{date}}",
+      "creditIssued": "إشعار دائن صادر · {{date}}",
+      "creditReceived": "إشعار دائن مستلم · {{date}}",
+      "selfBilledInvoice": "فاتورة ذاتية · {{date}}",
+      "selfBilledCredit": "إشعار دائن ذاتي · {{date}}"
+    },
+    "filesCount_zero": "لا ملفات",
+    "filesCount_one": "ملف واحد",
+    "filesCount_two": "ملفان",
+    "filesCount_few": "{{count}} ملفات",
+    "filesCount_many": "{{count}} ملفاً",
+    "filesCount_other": "{{count}} ملف",
+    "keptUntil": "محفوظ حتى",
+    "yearsLeft_zero": "أقل من سنة متبقية",
+    "yearsLeft_one": "سنة واحدة متبقية",
+    "yearsLeft_two": "سنتان متبقيتان",
+    "yearsLeft_few": "{{count}} سنوات متبقية",
+    "yearsLeft_many": "{{count}} سنة متبقية",
+    "yearsLeft_other": "{{count}} سنة متبقية",
+    "yearsMonthsLeft": "متبقٍ {{years}} سنة و{{months}} شهر",
+    "keptOnHold": "محجوز",
+    "keptShort": {
+      "STANDARD": "10 سنوات",
+      "REAL_ESTATE": "15 سنة · عقار"
+    },
+    "retentionOver": "انتهت مدة الحفظ",
+    "noFixedTerm": "الملفات المرفوعة بلا مدة محددة",
+    "youDecide": "أنت تقرر",
+    "chip": {
+      "legalHold": "حجز قانوني",
+      "none": "لم يُبلَّغ عنه",
+      "PENDING": "مستند ضريبي بانتظار الإرسال",
+      "SUBMITTED": "مستند ضريبي مُرسل",
+      "GENERATION_FAILED": "تعذّر إعداد المستند الضريبي",
+      "ACCEPTED": "مستند ضريبي مقبول",
+      "DELIVERED_UNCONFIRMED": "مستند ضريبي بلا إقرار",
+      "REJECTED": "مستند ضريبي مرفوض",
+      "TO_DISREGARD": "قيد السحب",
+      "DISREGARD_SUBMITTED": "أُرسل طلب السحب",
+      "DEAD_LETTERED": "توقفت محاولات الإرسال"
+    },
+    "fileNote": {
+      "xml": "الفاتورة كما أُرسلت عبر بيبول",
+      "tdd": "مستند البيانات الضريبية المقدم إلى جهاز الضرائب",
+      "pdf": "الفاتورة المقروءة، باللغتين في ملف واحد",
+      "qr": "رمز QR المطبوع على الفاتورة",
+      "mls": "إقرار الاستلام من نقطة وصول الطرف الآخر، ورد جهاز الضرائب",
+      "delivery_notification": "إيصال شبكة النقل نفسها"
+    },
+    "verified": "تم التحقق",
+    "viewFile": "عرض {{name}}",
+    "downloadFile": "تنزيل {{name}}",
+    "notServed": "محفوظ، ولا تنزيل له بعد",
+    "noMatch": {
+      "title": "لا نتائج مطابقة",
+      "note": "لا يوجد مستند يطابق عوامل التصفية هذه. أزل أحدها لترى المزيد.",
+      "noHold": "لا يوجد مستند تحت حجز قانوني."
+    },
+    "showingOf": "عرض {{shown}} من {{total}} سجلات",
+    "pages": "الصفحات",
+    "share": {
+      "title": "مشاركة {{number}} خارج فواتير",
+      "whichFiles": "أي الملفات",
+      "qrImage": "صورة رمز QR",
+      "mlsReplies": "ردود MLS",
+      "whoFor": "لمن",
+      "email": "البريد الإلكتروني",
+      "emailPlaceholder": "name@company.om",
+      "howLong": "مدة صلاحية الرابط",
+      "durations": {
+        "day": "24 ساعة",
+        "week": "7 أيام",
+        "month": "30 يوماً",
+        "custom": "مخصص"
+      },
+      "customDate": "ينتهي في",
+      "protection": "الحماية",
+      "password": "كلمة مرور على الرابط",
+      "passwordNote": "مفعّلة دائماً للمستندات الضريبية، ولا يمكن إيقافها",
+      "download": "السماح بالتنزيل",
+      "downloadNote": "عند الإيقاف يمكنهم القراءة على الشاشة دون حفظ نسخة",
+      "onePerson": "شخص واحد فقط",
+      "onePersonNote": "يُقفل الرابط على أول جهاز يفتحه",
+      "ready": "جاهز للإرسال",
+      "theLink": "الرابط",
+      "thePassword": "كلمة المرور",
+      "pending": "يُنشأ بمجرد تفعيل المشاركة الآمنة",
+      "copy": "نسخ",
+      "fileCount_zero": "لا ملفات",
+      "fileCount_one": "ملف واحد",
+      "fileCount_two": "ملفان",
+      "fileCount_few": "{{count}} ملفات",
+      "fileCount_many": "{{count}} ملفاً",
+      "fileCount_other": "{{count}} ملف",
+      "footer": "ينتهي في {{date}} · كل عرض يُسجَّل",
+      "nothingPicked": "اختر ملفاً واحداً على الأقل للمشاركة.",
+      "notYet": "الروابط الآمنة غير متاحة بعد.",
+      "copyLink": "نسخ الرابط"
+    },
+    "upload": {
+      "breadcrumb": "رفع مستند",
+      "title": "إضافة مستند",
+      "subtitle": "للأوراق المهمة التي لا تصل عبر بيبول: العقود وإشعارات التسليم الموقعة والضمانات والخطابات.",
+      "notAllowed": "حفظ ورقة يتطلب صلاحية إدارة الموردين. اطلبها من المسؤول.",
+      "steps": {
+        "file": "الملف",
+        "what": "ما هو",
+        "belongs": "لمن أو لماذا يعود"
+      },
+      "addMore": "إضافة المزيد",
+      "replace": "استبدال",
+      "fileMeta": "{{type}} · {{size}}",
+      "dropTitle": "أفلت ملفاً هنا، أو اختر واحداً",
+      "dropNote": "PDF أو صورة أو XML · حتى 10 ميغابايت",
+      "choose": "اختيار",
+      "tooLarge": "حجم هذا الملف أكبر من 10 ميغابايت.",
+      "wrongType": "اختر ملف PDF أو صورة أو ملف XML.",
+      "name": "سمّه",
+      "namePlaceholder": "قائمة أسعار الخليج للخدمات المبردة",
+      "kind": "نوع المستند",
+      "kinds": {
+        "AGREEMENT": "عقد",
+        "CERTIFICATE": "شهادة أو ضمان",
+        "PRICE_LIST": "قائمة أسعار",
+        "CORRESPONDENCE": "خطاب",
+        "OTHER": "أخرى"
+      },
+      "dateOn": "التاريخ على المستند",
+      "validUntil": "صالح حتى",
+      "optional": "اختياري",
+      "chooseOwner": "اختر مورّداً",
+      "chooseOwnerNote": "تُحفظ الورقة في ملفه",
+      "ownerNote": "مورّد",
+      "ownerNoteVat": "مورّد · الرقم الضريبي {{vat}}",
+      "noOwner": "اختر لمن تعود.",
+      "change": "تغيير",
+      "searchSupplier": "ابحث في الموردين",
+      "searching": "جارٍ البحث...",
+      "noSupplier": "لا يوجد مورّد بهذا الاسم",
+      "supplierVat": "الرقم الضريبي {{vat}}",
+      "alsoAttach": "إرفاقه أيضاً بـ",
+      "alsoAttachPlaceholder": "فاتورة أو طلب أو صنف في الكتالوج...",
+      "tags": "الوسوم",
+      "addTag": "إضافة وسم",
+      "newTagPlaceholder": "اسم الوسم",
+      "removeTag": "إزالة {{tag}}",
+      "noteValidUntil": "صالح حتى {{date}}",
+      "noteTags": "الوسوم: {{tags}}",
+      "keepTitle": "مدة الحفظ",
+      "keep": {
+        "forever": "احفظه دون حد",
+        "foreverNote": "يبقى حتى يحذفه أحد. مناسب للعقود والاتفاقيات.",
+        "matchInvoice": "طابق الفاتورة المرفق بها",
+        "matchInvoiceNote": "يتبع قاعدة السنوات العشر ولا يمكن حذفه قبلها.",
+        "untilDate": "حتى تاريخ أختاره",
+        "untilDateNote": "لما تنتهي أهميته، مثل عرض سعر انتهت مدته.",
+        "pickDate": "يُحذف بعد"
+      },
+      "onSaveTitle": "ما يحدث عند الحفظ",
+      "onSave": {
+        "fingerprint": "أخذ البصمة",
+        "yes": "نعم",
+        "version": "الإصدار",
+        "versionValue": "{{current}} من {{total}}",
+        "first": "1 من 1",
+        "showsOn": "يظهر في",
+        "supplierProfile": "ملف المورّد",
+        "nothingYet": "لا شيء بعد",
+        "searchableBy": "يمكن البحث بـ",
+        "searchableValue": "الاسم والوسوم والنص",
+        "spaceUsed": "المساحة المستخدمة"
+      },
+      "fileCount_zero": "لا ملفات",
+      "fileCount_one": "ملف واحد",
+      "fileCount_two": "ملفان",
+      "fileCount_few": "{{count}} ملفات",
+      "fileCount_many": "{{count}} ملفاً",
+      "fileCount_other": "{{count}} ملف",
+      "noFileYet": "لا ملف بعد",
+      "noFile": "اختر ملفاً أولاً.",
+      "save": "حفظ المستند",
+      "saving": "جارٍ الحفظ..."
+    },
+    "fileName": {
+      "mls": "ردود MLS",
+      "delivery_notification": "إيصال النقل"
     }
   },
   "reports": {
@@ -7301,7 +7700,12 @@
         "taxableNote": "قبل الضريبة",
         "documents": "المستندات الصادرة",
         "documentsNote": "كل مستند صادر في الفترة",
-        "documentsWithCancelled": "إضافة إلى {{count}} ملغاة لا تحمل مبلغًا"
+        "documentsWithCancelled": "إضافة إلى {{count}} ملغاة لا تحمل مبلغًا",
+        "invoicedNet": "المفوتر، دون الضريبة",
+        "vatRate": "{{rate}}٪ في كل الأحوال",
+        "averageSame": "قريب مما كان عليه",
+        "averageLarger": "فواتير أكبر من قبل",
+        "averageSmaller": "فواتير أصغر من قبل"
       },
       "monthly": "شهريًا",
       "quarterly": "ربع سنوي",
@@ -7315,7 +7719,7 @@
       "quarterlyNote": "كل ربع يتقدم على العام الماضي",
       "onTrack": "في الطريق إلى <amount>{{value}}</amount>",
       "invoicedThisYear": "المفوتر هذا العام",
-      "topShare": "أبرز ٥ عملاء يمثلون {{percent}}٪ من الإيرادات",
+      "topShare": "أبرز ٥ عملاء يمثلون <b>{{percent}}٪</b> من الإيرادات",
       "empty": "لم يصدر شيء في هذه الفترة.",
       "groupBy": "التجميع حسب",
       "grouping": {
@@ -7334,11 +7738,15 @@
       "byPeriodNote": "صافي التصحيحات — إشعار الدائن يُخصم من فترته.",
       "byGroupNote": "الأكبر أولًا، ضمن الفترة أعلاه.",
       "invoiced": "المفوتر",
-      "ungrouped": "بلا تجميع"
+      "ungrouped": "بلا تجميع",
+      "quarterlyAhead": "{{ahead}} من {{count}} أرباع تتقدم على العام الماضي",
+      "invoicedIn": "المفوتر {{when}}،",
+      "topShareCount": "أكبر {{count}} عملاء يمثلون <b>{{percent}}٪</b> من الإيرادات",
+      "noCustomers": "لم يُفوتر أي عميل في هذه الفترة."
     },
     "expenditure": {
       "title": "المصروفات",
-      "subtitle": "الفواتير وإشعارات الدائن والمدين التي استلمتها، بأي طريقة وصلت. المبالغ بعد خصم إشعارات الدائن من الموردين.",
+      "subtitle": "الفواتير المستلمة عبر Peppol والمرفوعة والممسوحة تُحتسب كلها معًا.",
       "kpi": {
         "vat": "الضريبة المحمّلة عليك",
         "vatNote": "إجمالي واحد لكل فاتورة — الفواتير الواردة لا تحمل تفصيلًا بالنِّسب",
@@ -7347,7 +7755,15 @@
         "net": "قبل الضريبة",
         "netNote": "الإجمالي ناقص الضريبة عليه",
         "documents": "المستندات المستلمة",
-        "documentsNote": "الفواتير وإشعارات الدائن والمدين معًا"
+        "documentsNote": "الفواتير وإشعارات الدائن والمدين معًا",
+        "billed": "المفوتر عليك، دون الضريبة",
+        "reclaim": "الضريبة القابلة للاسترداد",
+        "reclaimRate": "{{rate}}٪ من الصافي",
+        "received": "الفواتير المستلمة",
+        "average": "متوسط الفاتورة",
+        "smallerMoreOften": "أصغر، وأكثر تكرارًا",
+        "smaller": "أصغر من قبل",
+        "larger": "أكبر من قبل"
       },
       "groupBy": "التجميع حسب",
       "grouping": {
@@ -7373,32 +7789,62 @@
       "byPeriod": "الإنفاق حسب الفترة",
       "byPeriodNote": "صافي التصحيحات — إشعار الدائن يُخصم من الفترة التي يقع فيها.",
       "byGroupNote": "الأكبر أولًا، ضمن الفترة أعلاه.",
-      "topShare": "{{name}} يمثل {{percent}}٪ من الإنفاق",
+      "topShare": "{{name}} يمثل <b>{{percent}}٪</b> من الإنفاق",
       "uncategorised": "بلا فئة",
       "ungrouped": "بلا تجميع",
-      "empty": "لم يُستلم شيء في هذه الفترة."
+      "empty": "لم يُستلم شيء في هذه الفترة.",
+      "netBilled": "الصافي المفوتر",
+      "heaviestMonth": "{{month}} كان أثقل شهر · <amount>{{value}}</amount>",
+      "topSuppliers": "أكبر المورّدين",
+      "byCategory": "حسب الفئة",
+      "howBillsReach": "كيف تصلك الفواتير",
+      "billedIn": "المفوتر {{when}}،",
+      "peppolUp": "ارتفع Peppol <b>{{points}} نقطة</b> منذ {{quarter}}",
+      "peppolDown": "انخفض Peppol <b>{{points}} نقطة</b> منذ {{quarter}}",
+      "peppolSteady": "Peppol ثابت منذ {{quarter}}",
+      "nothingBilled": "لم يُفوتر شيء في هذه الفترة."
     },
     "cashFlow": {
       "title": "التدفق النقدي",
-      "subtitle": "المدفوعات المستلمة على فواتيرك، مقابل المدفوعات التي سجّلتها على فواتير المورّدين.",
+      "subtitle": "النقد الداخل مقابل الخارج، وما يتبقى لك، وما هو ملتزم به للأسابيع القادمة.",
       "kpi": {
         "in": "الداخل",
-        "inNote": "مدفوعات العملاء المستلمة، بعد خصم أي عكس",
+        "inNote": "مدفوعات العملاء المستلمة",
         "out": "الخارج",
-        "outNote": "مدفوعات المورّدين المسجّلة، بعد خصم أي عكس",
+        "outNote": "مدفوعات المورّدين المسددة",
         "kept": "الصافي",
-        "keptNote": "الداخل ناقص الخارج، ضمن الفترة أعلاه"
+        "keptNote": "الداخل ناقص الخارج، ضمن الفترة أعلاه",
+        "leftOver": "المتبقي",
+        "across": {
+          "yearly": "على مدى اثني عشر شهرًا",
+          "quarterly": "على مدى ثلاثة أشهر",
+          "monthly": "على مدى الشهر"
+        },
+        "dueOut": "المستحق خلال 30 يومًا",
+        "notForecast": "لا توقع بعد",
+        "dueOutPending": "بانتظار الفواتير المستحقة حسب التاريخ"
       },
       "monthlyInOut": "الداخل والخارج شهريًا",
-      "whatYouKept": "الصافي حسب الفترة",
+      "whatYouKept": "ما احتفظت به",
       "moneyIn": "النقد الداخل",
       "moneyOut": "النقد الخارج",
-      "surplus": "الصافي",
+      "surplus": "الفائض،",
       "whatThisIs": "هذه حركة نقد مسجّلة في فوترة — مدفوعات أدخلها أحد على فاتورة صادرة أو واردة. ليست رصيدك البنكي وليست توقعًا: المال الذي تحرّك دون مستند، أو لم يسجّله أحد، غير موجود هنا.",
       "monthlyInOutNote": "التجميع على تاريخ الدفع، لا تاريخ الفاتورة.",
       "whatYouKeptNote": "الداخل ناقص الخارج لكل فترة. العكس يُحتسب في الفترة التي سُجّل فيها.",
-      "reversalHeavy": "تجاوزت عمليات العكس المدفوعات في {{periods}}، لذا الأعمدة هناك ليست بالمقياس — اقرأ الأرقام.",
-      "empty": "لم تُسجَّل مدفوعات في هذه الفترة."
+      "reversalHeavy": "تجاوزت عمليات العكس المدفوعات في {{periods}}، لذا الأعمدة هناك ليست بالمقياس. اقرأ الأرقام.",
+      "empty": "لم تُسجَّل مدفوعات في هذه الفترة.",
+      "bestMonth": "أفضل شهر · <amount>{{value}}</amount>",
+      "positiveEveryMonth": "إيجابي في كل شهر هذا العام",
+      "positiveMonths": "إيجابي في {{count}} من {{total}} شهرًا",
+      "nextEightWeeks": "الأسابيع الثمانية القادمة",
+      "expectedIn": "الداخل المتوقع",
+      "committedOut": "الخارج الملتزم به",
+      "forecastPending": "تحتاج الأسابيع القادمة إلى المستحق دخولًا وخروجًا حسب التاريخ، وهو ما لا تعرضه فوترة بعد.",
+      "whereItWent": "أين ذهب",
+      "billedIn": "المفوتر {{when}}،",
+      "topShare": "{{name}} يمثل <b>{{percent}}٪</b> من كل ما فوتر",
+      "everythingElse": "كل ما عدا ذلك"
     },
     "vat": {
       "title": "الضريبة",
@@ -7413,11 +7859,18 @@
         "nextReturn": "الإقرار القادم",
         "nextReturnNote": "الربع الثالث · شهران من ثلاثة",
         "reclaim": "قابل للاسترداد",
-        "reclaimNote": "تجاوزت المدخلات المخرجات في هذه الفترة"
+        "reclaimNote": "تجاوزت المدخلات المخرجات في هذه الفترة",
+        "over": {
+          "yearly": "على مدى اثني عشر شهرًا",
+          "quarterly": "على مدى ثلاثة أشهر",
+          "monthly": "على مدى الشهر"
+        },
+        "returnOpen": "الربع {{quarter}} · {{months}} من 3 أشهر",
+        "returnClosed": "انتهى الربع {{quarter}}، وإقراره هو التالي"
       },
       "quarterlyPosition": "الوضع الربع سنوي",
       "monthlyNetPayable": "الصافي المستحق شهريًا",
-      "byTreatment": "ما حصّلته، حسب المعاملة",
+      "byTreatment": "حسب المعاملة الضريبية",
       "reclaimBySupplier": "الاسترداد حسب المورد",
       "collectedOnSales": "المحصّل على المبيعات",
       "paidOnPurchases": "المدفوع على المشتريات",
@@ -7456,7 +7909,13 @@
         "L": "خاص",
         "M": "خاص",
         "ALL": "كل المشتريات"
-      }
+      },
+      "gapNarrowing": "الفجوة تضيق خلال العام",
+      "netPayableComma": "صافي الضريبة المستحقة،",
+      "standardShare": "{{percent}}٪ من المبيعات بالنسبة الأساسية",
+      "notSplit": "غير مقسّمة حسب النسبة بعد",
+      "reclaimableComma": "الضريبة القابلة للاسترداد،",
+      "reclaimShare": "{{name}} يمثل {{percent}}٪ مما تسترده"
     },
     "compliance": {
       "title": "الامتثال",
@@ -7477,7 +7936,17 @@
         "onTime": "أُبلغ في الوقت",
         "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ضمن النافذة",
         "median": "وسيط زمن الإقرار",
-        "medianNote": "من التحقق حتى وصول الإقرار"
+        "medianNote": "من التحقق حتى وصول الإقرار",
+        "faster": {
+          "yearly": "أسرع من العام الماضي",
+          "quarterly": "أسرع من الربع الماضي",
+          "monthly": "أسرع من الشهر الماضي"
+        },
+        "slower": {
+          "yearly": "أبطأ من العام الماضي",
+          "quarterly": "أبطأ من الربع الماضي",
+          "monthly": "أبطأ من الشهر الماضي"
+        }
       },
       "acceptedFirstTime": "القبول من أول مرة",
       "whyRejected": "لماذا تُرفض",
@@ -7509,7 +7978,18 @@
       "invoiceAcks": "نقطة وصول المشتري",
       "acksNote": "إقرارات استلام المستند الضريبي. وغياب الإقرار ليس فشلًا.",
       "invoiceAcksNote": "إقرارات نقطة الوصول المستقبِلة باستلام الفاتورة.",
-      "deadLettered": "توقفت {{count}} بعد المحاولات وتحتاج مراجعة."
+      "deadLettered": "توقفت {{count}} بعد المحاولات وتحتاج مراجعة.",
+      "points": "{{value}} نقطة",
+      "seconds": "{{count}} ث",
+      "clock": "{{minutes}} د {{seconds}} ث",
+      "noClock": "ليس بعد",
+      "noneDecided": "لا شيء مستحق بعد",
+      "highRejections": "رفض مرتفع",
+      "lowRejections": "رفض منخفض",
+      "noReason": "لم يُذكر سبب",
+      "noRejections": "لم يُرفض شيء في هذه الفترة.",
+      "outsideTheRule": "بعض الأشهر استغرقت أكثر من 24 ساعة",
+      "failuresFalling": "الإخفاقات تتراجع كل ربع"
     },
     "lists": {
       "title": "الجداول",
@@ -7517,7 +7997,8 @@
       "sections": {
         "sales": "المبيعات",
         "purchases": "المشتريات",
-        "accountant": "للمحاسب"
+        "accountant": "للمحاسب",
+        "more": "المزيد"
       },
       "rows": "{{formattedCount}} صفًا",
       "columns": "· {{count}} عمودًا",
@@ -7535,7 +8016,7 @@
         },
         "catalogLines": {
           "title": "أسطر الكتالوج المباعة",
-          "detail": "كل بند في كل فاتورة — الكمية وسعر الوحدة والخصم والفئة الضريبية."
+          "detail": "كل بند في كل فاتورة: الكمية وسعر الوحدة والخصم والفئة الضريبية."
         },
         "paymentsReceived": {
           "title": "المدفوعات المستلمة",
@@ -7576,7 +8057,10 @@
       },
       "empty": "لا توجد مجموعات بيانات منشورة.",
       "filters": "المرشحات: {{list}}",
-      "needsPermission": "يتطلب {{permission}}"
+      "needsPermission": "يتطلب {{permission}}",
+      "notPublished": "غير منشورة بعد",
+      "wholeList": "القائمة كاملة، دون عوامل تصفية",
+      "pdfPending": "صيغة PDF غير متاحة بعد"
     },
     "controls": {
       "from": "من",
@@ -7590,6 +8074,42 @@
         "QUARTER": "ربع سنوي",
         "YEAR": "سنوي"
       }
+    },
+    "loadingChart": "جارٍ التحميل…",
+    "export": {
+      "pdf": "PDF",
+      "pdfHint": "اطبع هذه الصفحة أو احفظها بصيغة PDF",
+      "xlsx": "Excel",
+      "csv": "CSV",
+      "fileHint": "الأرقام وراء هذه الصفحة، للفترة نفسها",
+      "truncated": "توقف هذا الملف عند حد الصفوف وليس التقرير كاملًا. اختر فترة أقصر وصدّر مرة أخرى."
+    },
+    "vsBefore": {
+      "yearly": "مقارنة بالعام السابق",
+      "quarterly": "مقارنة بالربع السابق",
+      "monthly": "مقارنة بالشهر السابق"
+    },
+    "moreThan": {
+      "yearly": "أكثر من العام الماضي",
+      "quarterly": "أكثر من الربع الماضي",
+      "monthly": "أكثر من الشهر الماضي"
+    },
+    "fewerThan": {
+      "yearly": "أقل من العام الماضي",
+      "quarterly": "أقل من الربع الماضي",
+      "monthly": "أقل من الشهر الماضي"
+    },
+    "thisPeriod": {
+      "yearly": "هذا العام",
+      "quarterly": "هذا الربع",
+      "monthly": "هذا الشهر"
+    },
+    "quarterLabel": "الربع {{quarter}} {{year}}",
+    "quarterSoFar": "الربع {{quarter}} حتى الآن",
+    "sameAs": {
+      "yearly": "مثل العام الماضي",
+      "quarterly": "مثل الربع الماضي",
+      "monthly": "مثل الشهر الماضي"
     }
   },
   "supplierDetail": {
@@ -8305,7 +8825,7 @@
       "timeToAcceptance": "زمن القبول",
       "timeToAcceptanceNote": "المتوسط هذا الشهر، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
       "acknowledged": "أقرّ العميل بالاستلام",
-      "acknowledgedNote": "عاد الإشعار في الوقت المحدد في {{good}} من {{total}}",
+      "acknowledgedNote": "عاد الإشعار في {{good}} من {{total}}",
       "documents": "المستندات",
       "documentsNote": "في السجل",
       "reported": "أقرّت نقطة هيئة الضرائب باستلامه",
@@ -8313,7 +8833,15 @@
       "waiting": "بانتظار الإقرار",
       "waitingNote": "لم يحدث خطأ. يبقى المستند هنا حتى يتحدث الطرف الآخر.",
       "onTime": "أُبلغ في الوقت",
-      "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ما زالت ضمن النافذة"
+      "onTimeNote": "تجاوزت {{missed}} · و{{pending}} ما زالت ضمن النافذة",
+      "accepted": "قبلتها الهيئة",
+      "acceptedCount": "{{n}} مقبولة",
+      "rejectedCount": "{{n}} مرفوضة",
+      "waitingCount": "{{n}} بالانتظار",
+      "noTimeYet": "ليس بعد",
+      "timeToAcceptanceDown": "المعتاد هذا العام، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
+      "timeToAcceptanceUp": "المعتاد هذا العام، بارتفاع عن {{previous}}. ما زال ضمن قاعدة الـ٢٤ ساعة.",
+      "timeToAcceptancePlain": "المعتاد هذا العام. ضمن قاعدة الـ٢٤ ساعة بفارق مريح."
     },
     "tabs": {
       "all": "الكل",
@@ -8321,13 +8849,16 @@
       "accepted": "مقبولة",
       "rejected": "مرفوضة",
       "waiting": "بالانتظار",
-      "superseded": "مُستبدلة"
+      "superseded": "مُستبدلة",
+      "attention": "تحتاج انتباهًا"
     },
     "col": {
       "invoice": "الفاتورة",
       "flow": "المسار",
       "sent": "أُرسلت",
-      "customer": "العميل"
+      "customer": "العميل",
+      "reference": "مرجع المستند الضريبي وفوترة",
+      "otaSaid": "ماذا قالت الهيئة"
     },
     "flow": {
       "b2bDomestic": "محلي بين الشركات",
@@ -8336,28 +8867,38 @@
     },
     "route": {
       "bothOnPeppol": "كلاهما على Peppol · مسار {{flow}}",
-      "standIn": "معرّف بديل {{id}} · مسار {{flow}}"
+      "standIn": "معرّف بديل {{id}} · مسار {{flow}}",
+      "b2bDomestic": "كلاهما على Peppol",
+      "b2c": "معرّف بديل",
+      "export": "معرّف بديل"
     },
     "ref": {
       "neverAccepted": "لا مرجع فوترة - لم تُقبل قط",
       "waiting": "بانتظار المرجع",
-      "replacedBy": "استُبدلت بـ {{id}}"
+      "replacedBy": "استُبدلت بـ {{id}}",
+      "noUuid": "لا معرّف للمستند بعد"
     },
     "fawtara": "فوترة {{ref}}",
     "outcome": {
       "accepted": "مقبولة",
       "rejected": "مرفوضة",
       "waiting": "بالانتظار",
-      "superseded": "مُستبدلة"
+      "superseded": "مُستبدلة",
+      "notOwed": "لا مستند مستحق"
     },
     "verdict": {
       "noPeppolId": "لا يوجد معرّف Peppol للعميل في سجله.",
       "totalMismatch": "الإجمالي لا يساوي مجموع السطور بفارق {{amount}} ريال.",
-      "noAnswerYet": "{{elapsed}} دون رد. المعتاد دقيقتان.",
-      "clearedNotDelivered": "أُجيزت خلال {{seconds}} ثانية · بُلّغت ولم تُسلّم لأحد",
+      "noAnswerYet": "{{elapsed}} دون رد. المعتاد {{usual}}.",
+      "clearedNotDelivered": "أُجيزت خلال {{time}} · بُلّغت ولم تُسلّم لأحد",
       "disregarded": "أهملتها الهيئة عند قبول النسخة المصححة.",
       "clearedZeroRated": "أُجيزت خلال {{time}} · صفرية بوصفها تصديرًا",
-      "clearedIn": "أُجيزت خلال {{seconds}} ثانية"
+      "clearedIn": "أُجيزت خلال {{time}}",
+      "rejectedNoReason": "رُفضت. افتح السجل لمعرفة السبب.",
+      "notOwed": "لا يُبلَّغ عن هذا المستند.",
+      "notDelivered": "بُلّغت ولم تُسلّم لأحد",
+      "zeroRated": "صفرية بوصفها تصديرًا",
+      "accepted": "مقبولة"
     },
     "ack": {
       "received": "استلمها",
@@ -8366,7 +8907,9 @@
       "AP": "سُلّم",
       "AB": "سُلّم دون تأكيد",
       "RE": "مرفوض أو فشل",
-      "NONE": "بلا إقرار بعد"
+      "NONE": "بلا إقرار بعد",
+      "waiting": "ليس بعد",
+      "refused": "رفضها"
     },
     "today": "اليوم",
     "sortOptions": {
@@ -8377,18 +8920,22 @@
     "menu": {
       "openInvoice": "افتح الفاتورة",
       "openInvoiceNote": "اطّلع على المستند الذي بُلّغ عنه",
-      "resubmit": "صحّح وأعد الإرسال",
-      "resubmitNote": "صحّح المشكلة وأرسل مستندًا جديدًا",
-      "viewCall": "اعرض مكالمة الهيئة",
-      "viewCallNote": "الطلب والرد كما جريا تمامًا",
+      "resubmit": "صحّحها",
+      "resubmitNote": "صحّح المشكلة ثم أرسل مستندًا جديدًا",
+      "viewCall": "اعرض مكالمات الهيئة",
+      "viewCallNote": "الطلبات والردود كما جرت تمامًا",
       "copyUuid": "انسخ معرّف المستند",
       "copyUuidNote": "لفتح تذكرة دعم لدى الهيئة",
       "downloadXml": "نزّل ملف XML الموقّع",
-      "downloadXmlNote": "ما أُرسل فعلًا، مع توقيعه"
+      "downloadXmlNote": "ما أُرسل فعلًا، مع توقيعه",
+      "openRecord": "افتح السجل",
+      "openRecordNote": "أين ذهبت وماذا عاد",
+      "sendAgain": "أعد إرسال التقرير",
+      "sendAgainNote": "بعد حفظ التصحيح يذهب مستند جديد إلى الهيئة"
     },
     "emptyState": {
       "title": "لم يُبلَّغ عن شيء بعد",
-      "body": "تمتلئ هذه الصفحة تلقائيًا. بمجرد إصدار أول فاتورة، يبني فوتر التقرير الضريبي ويرسله إلى هيئة الضرائب ويعرض لك ما عاد به — عادةً خلال دقيقتين.",
+      "body": "تمتلئ هذه الصفحة تلقائيًا. بمجرد إصدار أول فاتورة، يبني فوتر التقرير الضريبي ويرسله إلى هيئة الضرائب ويعرض لك ما عاد به، عادةً خلال دقيقتين.",
       "action": "أنشئ أول فاتورة"
     },
     "ready": {
@@ -8440,8 +8987,19 @@
       "met": "ضمن المهلة",
       "missed": "تجاوزت المهلة",
       "pending": "ضمن النافذة",
-      "none": "—"
-    }
+      "none": "غير مستحق"
+    },
+    "directionFilter": {
+      "all": "كل المستندات",
+      "ISSUED": "صادرة منك",
+      "RECEIVED": "واردة"
+    },
+    "showingFiltered": "عرض {{shown}} إرسالًا مطابقًا",
+    "pager": {
+      "nav": "صفحات الإرسالات"
+    },
+    "noCounterparty": "لا طرف مقابل",
+    "rowActionsFor": "إجراءات {{number}}"
   },
   "activityEvent": {
     "copyXml": "انسخ ملف XML",
@@ -8503,12 +9061,16 @@
       "sentOverPeppol": "أُرسلت عبر Peppol",
       "accessPointTook": "استلمتها نقطة الوصول لديهم",
       "confirmedReceipt": "أكّدوا الاستلام",
-      "theyAccepted": "قبلوها"
+      "theyAccepted": "قبلوها",
+      "waitingOnOta": "بانتظار الهيئة",
+      "waitingOnThem": "بانتظار ردهم",
+      "theyRefused": "رفضوها"
     },
     "whyTurnedDown": "لماذا رُفضت المحاولة الأولى",
     "rejection": {
       "headline": "الفئة الضريبية لا تطابق النسبة",
-      "body": "وُسم سطران بأنهما <b>صفريان</b> لكنهما حملا ضريبة ٥٪ رغم ذلك. لا تقبل هيئة الضرائب تقريرًا تتعارض فيه الفئة مع النسبة، لأنها لا تستطيع تحديد أيهما الصحيح. ضُبط السطران على <b>النسبة القياسية</b> ومرّ التقرير دون تغيير فيما عدا ذلك."
+      "body": "وُسم سطران بأنهما <b>صفريان</b> لكنهما حملا ضريبة ٥٪ رغم ذلك. لا تقبل هيئة الضرائب تقريرًا تتعارض فيه الفئة مع النسبة، لأنها لا تستطيع تحديد أيهما الصحيح. ضُبط السطران على <b>النسبة القياسية</b> ومرّ التقرير دون تغيير فيما عدا ذلك.",
+      "whatTheySaid": "ما اعترضت عليه هيئة الضرائب"
     },
     "seeWhatChanged": "اعرض ما تغيّر",
     "otherInvoices": "فواتير أخرى بالمشكلة نفسها",
@@ -8520,7 +9082,12 @@
       "turnedDownOn": "رُفضت {{at}}",
       "noReference": "لم يصدر مرجع فوترة",
       "v2Body": "هذا هو السجل الذي تحتفظ به الهيئة لـ {{invoice}}. أرسله حافظ سيف بعد تصحيح الفئات الضريبية.",
-      "v1Body": "سحبتها الهيئة في ٩ يونيو عند قبول التقرير المصحح. تبقى هنا لأن الأرشيف لا يفقد شيئًا، لكنها لا تُحتسب."
+      "v1Body": "سحبتها الهيئة في ٩ يونيو عند قبول التقرير المصحح. تبقى هنا لأن الأرشيف لا يفقد شيئًا، لكنها لا تُحتسب.",
+      "sentOn": "أُرسلت {{at}}",
+      "liveBody": "هذا هو السجل الذي تحتفظ به هيئة الضرائب لـ {{invoice}}.",
+      "supersededBody": "سحبتها الهيئة عند قبول التقرير المصحح. محفوظة هنا لأن الأرشيف لا يفقد شيئًا، لكنها لا تُحتسب.",
+      "rejectedBody": "رُفضت ولم تُستبدل بعد. وحتى يُقبل تقرير مصحح، هذا البيع غير مُصرَّح به.",
+      "waitingBody": "أُرسلت، وبانتظار رد الهيئة."
     },
     "whichRoute": "أي مسار سلكت",
     "route": {
@@ -8532,7 +9099,17 @@
       "theirId": "معرّفهم في الشبكة",
       "standIn": "معرّف بديل مستخدم",
       "noStandIn": "لا يوجد - فهم مسجّلون، لذا استُخدم معرّفهم الحقيقي",
-      "profile": "الملف"
+      "profile": "الملف",
+      "scenarioOf": {
+        "b2bDomestic": "بين الشركات محليًا، والطرفان على Peppol",
+        "b2c": "للمستهلك، بُلّغت بمعرّف بديل",
+        "export": "تصدير، بُلّغت بمعرّف بديل"
+      },
+      "flowN": "المسار {{flow}} - {{what}}",
+      "documentsWithMls_one": "الفاتورة، المستند الضريبي، إشعار MLS",
+      "documentsWithMls_other": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}",
+      "documentsNoMls": "الفاتورة، المستند الضريبي",
+      "notOnRecord": "غير مسجل بعد"
     },
     "checkItYourself": "تحقق بنفسك",
     "fawtaraReference": "مرجع فوترة",
@@ -8549,7 +9126,8 @@
       "reasonLabel": "السبب",
       "reason": "قانون ضريبة القيمة المضافة العماني · ١٠ سنوات",
       "integrity": "السلامة",
-      "checkedToday": "فُحصت اليوم"
+      "checkedToday": "فُحصت اليوم",
+      "yearsMonths": "{{years}} سنوات و{{months}} أشهر"
     },
     "takeACopy": "احصل على نسخة",
     "getZip": "تنزيل ZIP",
@@ -8563,12 +9141,50 @@
       "replies": "ردود العميل",
       "repliesMeta": "رسالتا الحالة",
       "invoice": "الفاتورة",
-      "invoiceMeta": "XML الموقّع وملف PDF"
+      "invoiceMeta": "XML الموقّع وملف PDF",
+      "latest": "آخر تقرير",
+      "xmlMeta": "XML المستند الضريبي · النسخة {{version}}",
+      "repliesMeta_one": "إشعار MLS واحد",
+      "repliesMeta_other": "{{count}} إشعارات MLS"
     },
     "sendItAgain": "أعد الإرسال",
     "resend": {
       "body": "قُبلت بالفعل، فلا شيء لإعادة إرساله. إن صححت هذه الفاتورة لاحقًا، يخرج تقرير جديد وتُسحب هذه بالطريقة نفسها التي سُحبت بها النسخة الأولى.",
-      "nothing": "لا شيء لإعادة إرساله"
+      "nothing": "لا شيء لإعادة إرساله",
+      "possibleBody": "رفضت هيئة الضرائب هذا التقرير ويمكن إرسال تقرير مصحح. صحّح المشكلة أولًا ثم أرسل.",
+      "acceptedBody": "قُبلت بالفعل، فلا شيء لإعادة إرساله. إن صحّحت هذه الفاتورة لاحقًا يُرسل تقرير جديد ويُسحب هذا.",
+      "waitingBody": "ما زالت بانتظار الهيئة. لم يحدث خطأ، والإرسال مجددًا قبل ردها يستهلك من حصتك مرتين.",
+      "noneBody": "لا شيء لإعادة إرساله لهذا المستند."
+    },
+    "record": "السجل",
+    "status": {
+      "turnedDown": "رفضتها الهيئة",
+      "waiting": "بانتظار الهيئة",
+      "notOwed": "لا مستند مستحق"
+    },
+    "to": "إلى",
+    "issuedOn": "صدرت {{date}}",
+    "reportedFirst": "بُلّغت من المحاولة الأولى",
+    "reportedOnAttempt": "بُلّغت في المحاولة {{count}}",
+    "noPeppolJourney": "لم يُرسل شيء إلى عميل: البيع المباشر، أو المشتري غير المسجل على Peppol، يُبلَّغ عنه لهيئة الضرائب فقط.",
+    "whyItWasTurnedDown": "لماذا رُفضت",
+    "versionState": {
+      "live": "معتمدة لدى الهيئة",
+      "superseded": "مُستبدلة",
+      "rejected": "مرفوضة",
+      "waiting": "بالانتظار"
+    },
+    "noReferenceYet": "لم يصدر بعد",
+    "notYet": "ليس بعد",
+    "theCustomer": "العميل",
+    "verdict": {
+      "accepted": "مقبولة",
+      "acceptedOnTry": "قُبلت في المحاولة {{count}}",
+      "turnedDown": "مرفوضة",
+      "waiting": "بالانتظار",
+      "delivered": "سُلّمت",
+      "theyRefused": "رفضها العميل",
+      "noReplyYet": "لا رد بعد"
     }
   },
   "callLog": {
@@ -8607,7 +9223,16 @@
       "minutes_one": "قبل دقيقة",
       "minutes_other": "قبل {{count}} دقائق",
       "hours_one": "قبل ساعة",
-      "hours_other": "قبل {{count}} ساعات"
+      "hours_other": "قبل {{count}} ساعات",
+      "seconds_two": "قبل ثانيتين",
+      "seconds_few": "قبل {{count}} ثوانٍ",
+      "seconds_many": "قبل {{count}} ثانية",
+      "minutes_two": "قبل دقيقتين",
+      "minutes_few": "قبل {{count}} دقائق",
+      "minutes_many": "قبل {{count}} دقيقة",
+      "hours_two": "قبل ساعتين",
+      "hours_few": "قبل {{count}} ساعات",
+      "hours_many": "قبل {{count}} ساعة"
     },
     "purpose": {
       "askingDecided": "استفسار عمّا إذا بُتّ في {{invoice}}",
@@ -8647,6 +9272,31 @@
       "newest": "الأحدث أولًا",
       "slowest": "الأبطأ أولًا",
       "problemsFirst": "المشاكل أولًا"
+    },
+    "notHeld": "الصفحة الأولى فقط من مكالمات اليوم محفوظة هنا حاليًا.",
+    "pagerNav": "صفحات المكالمات",
+    "menu": {
+      "putThingsRight": "صحّح الأمور",
+      "retryWaiting": "أعد محاولة كل ما هو بالانتظار",
+      "retryWaitingNote_one": "إرسال واحد · يستهلك واحدًا من حصتك",
+      "retryWaitingNote_two": "إرسالان · يستهلكان اثنين من حصتك",
+      "retryWaitingNote_few": "{{count}} إرسالات · تستهلك {{count}} من حصتك",
+      "retryWaitingNote_many": "{{count}} إرسالًا · تستهلك {{count}} من حصتك",
+      "retryWaitingNote_other": "{{count}} إرسال · تستهلك {{count}} من حصتك",
+      "checkPortal": "طابق سجلًا مع بوابة الهيئة",
+      "checkPortalNote": "قارن ما يحتفظ به فوتر بما تحتفظ به الهيئة",
+      "takeACopy": "خذ نسخة",
+      "everyTdd": "نزّل كل المستندات الضريبية لفترة",
+      "everyTddNote": "ملفات XML الخام في ملف zip واحد",
+      "acks": "نزّل إقرارات الهيئة",
+      "acksNote": "الإيصالات وردود MLS، دليلك عند التدقيق",
+      "exportLog": "صدّر هذا السجل",
+      "exportLogNote": "ملف CSV لمن يساعدك في تتبع المشكلة",
+      "settings": "الإعدادات",
+      "whoHears": "من يُبلَّغ بمشكلات الامتثال",
+      "whoHearsNote": "المالكون والمشرفون في فريقك",
+      "retention": "الحفظ والأرشيف",
+      "retentionNote": "عشر سنوات، وخمس عشرة للعقارات"
     }
   },
   "tddResubmit": {
@@ -8663,10 +9313,11 @@
       "sevenHours": "٧ ساعات",
       "sameCause": "السبب نفسه هذا الأسبوع",
       "invoices_one": "فاتورة واحدة",
-      "invoices_other": "{{count}} فواتير"
+      "invoices_other": "{{count}} فواتير",
+      "sameCauseOpen": "السبب نفسه، ما زالت مفتوحة"
     },
     "fixItWhere": "صحّحها من حيث أخطأت",
-    "customerNote": "الرقم الضريبي مسجّل. أما معرّف Peppol فلم يُسجّل قط — أُنشئ السجل في مارس.",
+    "customerNote": "الرقم الضريبي مسجّل. أما معرّف Peppol فلم يُسجّل قط، منذ إنشاء السجل في مارس.",
     "openCustomer": "افتح العميل",
     "peppolIdLabel": "معرّف المشارك في Peppol لديهم",
     "peppolIdHint": "تستخدم عُمان النظام 0248 متبوعًا بالرقم الضريبي، أي 0248:{{vat}}.",
@@ -8697,7 +9348,13 @@
       "salesUndeclared": "تبقى مبيعات بقيمة <b>{{amount}}</b> غير مصرّح بها عبر الفواتير الثلاث.",
       "vatMissing": "لن تظهر ضريبة بقيمة <b>{{amount}}</b> في إقرار الربع الثالث.",
       "unreported": "ستظهر بوصفها غير مبلّغ عنها في أي تقرير امتثال تُخرجه.",
-      "futureFails": "وكل فاتورة مستقبلية لهذا العميل ستفشل بالطريقة نفسها."
+      "futureFails": "وكل فاتورة مستقبلية لهذا العميل ستفشل بالطريقة نفسها.",
+      "salesUndeclaredCount_one": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها.",
+      "salesUndeclaredCount_other": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير.",
+      "vatMissingQuarter": "<b>{{amount}}</b> من ضريبة القيمة المضافة لن تظهر في إقرار الربع {{quarter}}.",
+      "salesUndeclaredCount_two": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير.",
+      "salesUndeclaredCount_few": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير.",
+      "salesUndeclaredCount_many": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير."
     },
     "thisAttempt": "هذه المحاولة",
     "attempt": {
@@ -8708,7 +9365,13 @@
       "fixingAlongside": "تُصحَّح معها",
       "moreInvoices": "{{count}} فاتورتان أخريان",
       "quotaAfter": "الحصة بعد ذلك",
-      "left": "{{count}} متبقية"
+      "left": "{{count}} متبقية",
+      "moreInvoicesCount_zero": "لا فواتير أخرى",
+      "moreInvoicesCount_one": "فاتورة أخرى واحدة",
+      "moreInvoicesCount_other": "{{count}} فواتير أخرى",
+      "moreInvoicesCount_two": "فاتورتان أخريان",
+      "moreInvoicesCount_few": "{{count}} فواتير أخرى",
+      "moreInvoicesCount_many": "{{count}} فواتير أخرى"
     },
     "stopRecurring": "أوقف تكرارها",
     "stopRecurringBody": "كلّفك هذا ثلاث حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيمنع ذلك عند إنشاء السجل.",
@@ -8718,7 +9381,18 @@
     "cancel": "إلغاء",
     "saveOnly": "احفظ التصحيح دون إرسال",
     "fixAndSend": "صحّح وأرسل الثلاث",
-    "fixAndSendOne": "صحّح وأرسل"
+    "fixAndSendOne": "صحّح وأرسل",
+    "stopRecurringCount_one": "كلّفك هذا رفضًا واحدًا لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
+    "stopRecurringCount_other": "كلّفك هذا {{count}} حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
+    "footerCount_one": "فاتورة واحدة · واحدة من حصتك · لا شيء يذهب إلى العميل",
+    "footerCount_other": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+    "fixAndSendAll": "صحّح وأرسل الكل ({{count}})",
+    "stopRecurringCount_two": "كلّفك هذا {{count}} حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
+    "stopRecurringCount_few": "كلّفك هذا {{count}} حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
+    "stopRecurringCount_many": "كلّفك هذا {{count}} حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
+    "footerCount_two": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+    "footerCount_few": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+    "footerCount_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل"
   },
   "complianceReport": {
     "title": "تقرير الامتثال",
@@ -8727,7 +9401,8 @@
       "thisMonth": "هذا الشهر",
       "q2": "الربع الثاني ٢٠٢٦",
       "thisYear": "هذا العام",
-      "custom": "مخصصة"
+      "custom": "مخصصة",
+      "quarter": "الربع {{quarter}} {{year}}"
     },
     "whatGoesIn": "ماذا يتضمن",
     "always": "دائمًا",
@@ -8741,7 +9416,7 @@
       "flows": "أي مسار سلكته كل فاتورة",
       "flowsNote": "سيناريو المستند وأي معرّف بديل استُخدم للمستهلك أو للتصدير",
       "xml": "ملفات XML للمستندات نفسها",
-      "xmlNote": "تضيف ملف zip بجانب التقرير — {{files}} ملفًا، نحو {{size}}",
+      "xmlNote": "تضيف ملف zip بجانب التقرير: {{files}} ملفًا، نحو {{size}}",
       "acks": "إقرارات الهيئة وردود حالة الرسائل",
       "acksNote": "دليلك على استلام كل تقرير وتسليم كل فاتورة"
     },
@@ -8783,7 +9458,9 @@
       "builtBy": "أنشأه",
       "coverage": "التغطية",
       "everyInvoice": "كل فاتورة في الفترة، دون استبعاد شيء"
-    }
+    },
+    "customFrom": "من",
+    "customTo": "إلى"
   },
   "builtReport": {
     "ready": "جاهز",
@@ -8872,7 +9549,8 @@
     "sharedSoFar": "شورك مع",
     "nobody": "لا أحد",
     "downloads": "مرات التنزيل",
-    "noneYet": "لا شيء بعد"
+    "noneYet": "لا شيء بعد",
+    "preparedByName": "فوتر · مزوّد خدمة معتمد"
   },
   "callDetail": {
     "subtitle": "{{date}}، {{at}} · بشأن {{invoice}} · رُدّ خلال {{seconds}}",
@@ -16657,7 +17335,11 @@
         "overdue": "متأخر",
         "overdueMeta": "{{notes}} إشعارات · متأخرة {{days}} يوماً",
         "overdueNone": "لا شيء متأخر",
-        "unavailable": "الأرقام غير متاحة"
+        "unavailable": "الأرقام غير متاحة",
+        "creditedMeta_one": "إشعار دائن واحد صادر",
+        "chargedMeta_one": "إشعار مدين واحد صادر",
+        "refundDueMeta_one": "استرداد واحد للدفع",
+        "overdueMeta_one": "إشعار واحد · متأخر {{days}} يوماً"
       },
       "search": "ابحث بالرقم أو الفاتورة أو العميل...",
       "filters": "تصفية",
@@ -17492,7 +18174,8 @@
       "net": "الصافي",
       "vat": "الضريبة · ٥٪ قياسية",
       "totalDue": "الإجمالي المستحق",
-      "draft": "تُسعَّر المسودة عند إصدارها."
+      "draft": "تُسعَّر المسودة عند إصدارها.",
+      "settled": "مدفوع أو دائن"
     },
     "viewValidationReport": "عرض تقرير التحقق",
     "validationReportUnavailable": "تقرير التحقق غير متاح بعد: لا تُجيب المنصة بأي تقرير للمستند.",

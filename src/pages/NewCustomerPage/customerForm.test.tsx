@@ -4,7 +4,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CustomerRecordDto } from '../../api/customers/customers'
-import { blankCustomerForm, customerProblems, placeCustomerErrors, toCustomerRequest } from '../../lib/customerForm'
+import {
+  blankCustomerForm,
+  customerProblems,
+  placeCustomerErrors,
+  toCustomerRequest,
+} from '../../lib/customerForm'
 import { AddCustomerModal } from '../../components/AddCustomerModal'
 import { EditCustomerPage, NewCustomerPage } from '.'
 
@@ -27,7 +32,12 @@ function record(overrides: Partial<CustomerRecordDto> = {}): CustomerRecordDto {
     type: 'BUSINESS',
     displayName: 'Salalah Beach Resort',
     profile: {
-      logo: { objectReference: '44444444-4444-4444-4444-444444444444', contentType: 'image/png', byteSize: 1200, sha256: 'a'.repeat(64) },
+      logo: {
+        objectReference: '44444444-4444-4444-4444-444444444444',
+        contentType: 'image/png',
+        byteSize: 1200,
+        sha256: 'a'.repeat(64),
+      },
       details: {
         firstName: null,
         lastName: null,
@@ -43,9 +53,25 @@ function record(overrides: Partial<CustomerRecordDto> = {}): CustomerRecordDto {
         registeredOnPeppol: true,
         specialZoneLicenceNumber: 'SEZAD-7',
       },
-      contact: { contactPerson: 'Mariam Al Hinai', roleTitle: null, emailRecipients: ['mariam@salalahbeach.om'], telephone: '+96823000000', mobilePhone: null, preferredLanguage: 'ar' },
-      billingDefaults: { defaultCurrency: 'OMR', defaultTaxCategory: 'S5', paymentTerms: 'NET30', defaultPaymentMethod: '30' },
-      deliveryPreferences: { sendingMethod: 'PEPPOL', emailPdfCopy: true, automaticPaymentReminders: false },
+      contact: {
+        contactPerson: 'Mariam Al Hinai',
+        roleTitle: null,
+        emailRecipients: ['mariam@salalahbeach.om'],
+        telephone: '+96823000000',
+        mobilePhone: null,
+        preferredLanguage: 'ar',
+      },
+      billingDefaults: {
+        defaultCurrency: 'OMR',
+        defaultTaxCategory: 'S5',
+        paymentTerms: 'NET30',
+        defaultPaymentMethod: '30',
+      },
+      deliveryPreferences: {
+        sendingMethod: 'PEPPOL',
+        emailPdfCopy: true,
+        automaticPaymentReminders: false,
+      },
       invoiceAddress: {
         attention: null,
         countryCode: 'OM',
@@ -83,7 +109,10 @@ let who: Entitlements
 let createResponse: () => Response
 
 const calls = (method: string, url: string) =>
-  fetchMock.mock.calls.filter(([called, init]) => String(called) === url && ((init as RequestInit | undefined)?.method ?? 'GET') === method)
+  fetchMock.mock.calls.filter(
+    ([called, init]) =>
+      String(called) === url && ((init as RequestInit | undefined)?.method ?? 'GET') === method,
+  )
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
 
 beforeEach(async () => {
@@ -118,7 +147,8 @@ function renderAt(path: string) {
   )
 }
 
-const typeInto = (label: RegExp, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
+const typeInto = (label: RegExp, value: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 describe('a new customer', () => {
   it('saves a business with the nested request the API reads, then opens the record', async () => {
@@ -134,7 +164,9 @@ describe('a new customer', () => {
 
     expect(await screen.findByText('Salalah Beach Resort was added.')).toBeTruthy()
     const [post] = calls('POST', '/api/v1/customers')
-    expect((post[1] as RequestInit).headers).toMatchObject({ 'Idempotency-Key': expect.stringMatching(/^customer-.{16,}/) })
+    expect((post[1] as RequestInit).headers).toMatchObject({
+      'Idempotency-Key': expect.stringMatching(/^customer-.{16,}/),
+    })
     const body = bodyOf(post)
     expect(body).toMatchObject({
       type: 'BUSINESS',
@@ -149,7 +181,11 @@ describe('a new customer', () => {
         registeredOnPeppol: true,
       },
       contact: { contactPerson: 'Salim Al Farsi', emailRecipients: [] },
-      deliveryPreferences: { sendingMethod: 'PEPPOL', emailPdfCopy: false, automaticPaymentReminders: false },
+      deliveryPreferences: {
+        sendingMethod: 'PEPPOL',
+        emailPdfCopy: false,
+        automaticPaymentReminders: false,
+      },
       invoiceAddress: { countryCode: 'OM', cityName: 'Muscat' },
       sameAsInvoicingAddress: true,
       deliveryAddress: null,
@@ -168,7 +204,13 @@ describe('a new customer', () => {
 
     await waitFor(() => expect(calls('POST', '/api/v1/customers')).toHaveLength(1))
     const body = bodyOf(calls('POST', '/api/v1/customers')[0])
-    expect(body.details).toMatchObject({ firstName: 'Fatma', lastName: 'Al Busaidi', registeredForVat: null, registeredOnPeppol: null, peppolParticipantId: null })
+    expect(body.details).toMatchObject({
+      firstName: 'Fatma',
+      lastName: 'Al Busaidi',
+      registeredForVat: null,
+      registeredOnPeppol: null,
+      peppolParticipantId: null,
+    })
     expect(body.contact.contactPerson).toBeNull()
     expect(body.deliveryPreferences.sendingMethod).toBe('QR_RECEIPT')
   })
@@ -181,10 +223,14 @@ describe('a new customer', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save customer' })[0])
 
-    expect(await screen.findByText('Some fields need attention before the customer can be saved.')).toBeTruthy()
+    expect(
+      await screen.findByText('Some fields need attention before the customer can be saved.'),
+    ).toBeTruthy()
     // Entity name, buyer reference and contact person.
     expect(screen.getAllByText('This field is required').length).toBeGreaterThanOrEqual(3)
-    expect(screen.getByText('Enter at least one email address to send PDFs or reminders.')).toBeTruthy()
+    expect(
+      screen.getByText('Enter at least one email address to send PDFs or reminders.'),
+    ).toBeTruthy()
     expect(calls('POST', '/api/v1/customers')).toHaveLength(0)
   })
 
@@ -194,8 +240,16 @@ describe('a new customer', () => {
         type: 'https://api.fawtir.om/problems/validation-failed',
         status: 400,
         errors: [
-          { field: 'details.peppolParticipantId.value', code: 'INVALID_FORMAT', message: 'Invalid Peppol Participant ID: value' },
-          { field: 'invoiceAddress.cityName', code: 'TOO_LONG', message: 'Address city must be 150 characters or fewer' },
+          {
+            field: 'details.peppolParticipantId.value',
+            code: 'INVALID_FORMAT',
+            message: 'Invalid Peppol Participant ID: value',
+          },
+          {
+            field: 'invoiceAddress.cityName',
+            code: 'TOO_LONG',
+            message: 'Address city must be 150 characters or fewer',
+          },
         ],
       })
     renderAt('/customers/new')
@@ -212,7 +266,8 @@ describe('a new customer', () => {
   })
 
   it('names a duplicate VAT number or Peppol ID', async () => {
-    createResponse = () => json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409 })
+    createResponse = () =>
+      json(409, { type: 'https://api.fawtir.om/problems/resource-conflict', status: 409 })
     renderAt('/customers/new')
     await screen.findByRole('heading', { name: 'New customer' })
     typeInto(/Legal \/ registered name/, 'Qurum Business Center')
@@ -221,7 +276,9 @@ describe('a new customer', () => {
     typeInto(/Contact person/, 'Salim')
     fireEvent.click(screen.getAllByRole('button', { name: 'Save customer' })[0])
 
-    expect(await screen.findByText('Another customer already uses this VAT number or Peppol ID.')).toBeTruthy()
+    expect(
+      await screen.findByText('Another customer already uses this VAT number or Peppol ID.'),
+    ).toBeTruthy()
   })
 })
 
@@ -229,7 +286,9 @@ describe('an existing customer', () => {
   it('opens with its record and saves its version with what the form does not draw', async () => {
     renderAt(`/customers/${ID}/edit`)
     expect(await screen.findByRole('heading', { name: 'Edit Salalah Beach Resort' })).toBeTruthy()
-    expect((screen.getByLabelText(/Peppol participant ID/) as HTMLInputElement).value).toBe('0248:OM1100582341')
+    expect((screen.getByLabelText(/Peppol participant ID/) as HTMLInputElement).value).toBe(
+      '0248:OM1100582341',
+    )
 
     typeInto(/Contact person/, 'Hamed Al Kindi')
     fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
@@ -243,7 +302,11 @@ describe('an existing customer', () => {
     expect(body.details.specialZoneLicenceNumber).toBe('SEZAD-7')
     expect(body.invoiceAddress).toMatchObject({ countrySubentity: 'Dhofar', buildingNumber: '9' })
     expect(body.customerVisibleNote).toBe('Deliver to gate 3')
-    expect(body.deliveryPreferences).toEqual({ sendingMethod: 'PEPPOL', emailPdfCopy: true, automaticPaymentReminders: false })
+    expect(body.deliveryPreferences).toEqual({
+      sendingMethod: 'PEPPOL',
+      emailPdfCopy: true,
+      automaticPaymentReminders: false,
+    })
   })
 
   it('offers no save to someone who may only read customers', async () => {
@@ -260,10 +323,10 @@ describe('quick add from the invoice', () => {
     render(<AddCustomerModal open kind="company" onClose={() => {}} onCreated={created} />)
     const dialog = screen.getByRole('dialog')
     const field = (label: RegExp) => within(dialog).getByLabelText(label)
-    fireEvent.change(field(/VAT or CBE/), { target: { value: 'om1100447102' } })
+    fireEvent.change(field(/VAT registration number/), { target: { value: 'om1100447102' } })
     fireEvent.change(field(/Corporate Name/), { target: { value: 'Golden Tech WLL' } })
     fireEvent.change(field(/Director First Name/), { target: { value: 'Atiq' } })
-    fireEvent.change(field(/Last Name Manager/), { target: { value: 'Abdullah' } })
+    fireEvent.change(field(/Director Last Name/), { target: { value: 'Abdullah' } })
 
     fireEvent.click(within(dialog).getByRole('button', { name: /Save Customer Profile/ }))
 
@@ -294,20 +357,40 @@ describe('customer form rules', () => {
   it('keeps organisation flags off a consumer and asks a Peppol sender to be registered', () => {
     const consumer = { ...blankCustomerForm('CONSUMER'), firstName: 'A', lastName: 'B' }
     expect(customerProblems(consumer)).toEqual({})
-    expect(customerProblems({ ...consumer, sendingMethod: 'PEPPOL' })).toEqual({ sendingMethod: 'customerForm.error.consumerPeppol' })
-    const business = { ...blankCustomerForm('BUSINESS'), legalName: 'X', contactPerson: 'Y', vatNumber: 'OM1100447102', registeredOnPeppol: false }
-    expect(customerProblems(business)).toEqual({ sendingMethod: 'customerForm.error.peppolNotRegistered' })
+    expect(customerProblems({ ...consumer, sendingMethod: 'PEPPOL' })).toEqual({
+      sendingMethod: 'customerForm.error.consumerPeppol',
+    })
+    const business = {
+      ...blankCustomerForm('BUSINESS'),
+      legalName: 'X',
+      contactPerson: 'Y',
+      vatNumber: 'OM1100447102',
+      registeredOnPeppol: false,
+    }
+    expect(customerProblems(business)).toEqual({
+      sendingMethod: 'customerForm.error.peppolNotRegistered',
+    })
     expect(toCustomerRequest(consumer).details.registeredForVat).toBeNull()
   })
 
   it('places refusals by model path and keeps unknown ones for a notice', () => {
     const placed = placeCustomerErrors([
-      { field: 'contact.telephone', code: 'INVALID_FORMAT', message: 'Telephone must use international E.164 format' },
-      { field: 'deliveryAddress.countryCode', code: 'INVALID_FORMAT', message: 'Address country must contain 2 letters' },
+      {
+        field: 'contact.telephone',
+        code: 'INVALID_FORMAT',
+        message: 'Telephone must use international E.164 format',
+      },
+      {
+        field: 'deliveryAddress.countryCode',
+        code: 'INVALID_FORMAT',
+        message: 'Address country must contain 2 letters',
+      },
       { field: 'logo', code: 'INVALID_FORMAT', message: 'Logo content type is unsupported' },
     ])
     expect(placed.fields.telephone).toEqual({ key: 'supplierForm.error.phone' })
-    expect(placed.fields['delivery.countryCode']).toEqual({ text: 'Address country must contain 2 letters' })
+    expect(placed.fields['delivery.countryCode']).toEqual({
+      text: 'Address country must contain 2 letters',
+    })
     expect(placed.other).toEqual(['Logo content type is unsupported'])
   })
 })

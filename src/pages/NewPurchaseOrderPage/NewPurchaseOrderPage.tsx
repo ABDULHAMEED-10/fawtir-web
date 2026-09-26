@@ -141,6 +141,8 @@ function NewPurchaseOrder({ id }: { id: string }) {
   const payable = payableBy(wanted, Number.isFinite(netDays) ? netDays : null)
   const branch = branchList.find((entry) => entry.id === deliverTo) ?? branchList[0] ?? null
   const money = (value: number) => formatAmount(value, currency, language)
+  // In sentences the code goes in front so `withRial` puts the sign there (Figma "Ordering [sign] 3,140.550").
+  const sum = (value: number) => `${currency} ${money(value)}`
   const day = (value: string | null) => (value ? formatDate(value, language) : '—')
   const complete =
     problems.every((problem) => problem === null) && orderDate !== '' && wanted !== ''
@@ -502,7 +504,7 @@ function NewPurchaseOrder({ id }: { id: string }) {
           <PlainWords label={t('purchaseOrder.inPlainWords')}>
             {withRial(
               t('purchaseOrder.plainWords', {
-                amount: money(totals.gross),
+                amount: sum(totals.gross),
                 supplier: profile.displayName,
                 wanted: day(wanted || null),
                 payable: day(payable),

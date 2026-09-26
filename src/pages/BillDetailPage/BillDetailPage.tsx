@@ -48,8 +48,8 @@ import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../..
 import { can, useSession } from '../../lib/session/session'
 import stepIcon from '../../assets/bill-detail/step.svg'
 import hdrBtnIcon from '../../assets/bill-detail/hdr-btn.svg'
+import stepCurrentIcon from '../../assets/bill-detail/step-current.svg'
 import complianceIcon from '../../assets/bill-detail/tick.svg'
-import decisionIcon from '../../assets/bill-detail/decision.svg'
 import activityIcon from '../../assets/bill-detail/activity.svg'
 import matchOkIcon from '../../assets/bills/match-ok.svg'
 import matchWarnIcon from '../../assets/bills/match-warn.svg'
@@ -59,6 +59,7 @@ import clockIcon from '../../assets/invoice-details/clock.svg'
 import docOrderIcon from '../../assets/create-invoice/doc-order.svg'
 import docDeliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
+import fileIcon from '../../assets/bill-capture/file.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 /** Step circles: completed is a filled grey disc, the one you are on is brand blue. */
@@ -343,7 +344,7 @@ function BillScreen() {
                 >
                   {step.state === 'upcoming' ? null : (
                     <img
-                      src={step.state === 'current' ? hdrBtnIcon : stepIcon}
+                      src={step.state === 'current' ? stepCurrentIcon : stepIcon}
                       alt=""
                       className="size-[15px]"
                     />
@@ -556,7 +557,7 @@ function BillScreen() {
         <aside className="flex w-full shrink-0 flex-col gap-5 xl:w-[340px]">
           <section className="rounded-md border border-primary-300 bg-primary-25 p-5">
             <div className="flex items-center gap-2">
-              <img src={decisionIcon} alt="" className="size-4" />
+              <img src={activityIcon} alt="" className="size-4" />
               <h2 className="text-base font-semibold leading-[1.2] text-primary-800">
                 {t('billDetail.decision.title')}
               </h2>
@@ -1040,7 +1041,8 @@ function LinkedDocuments({
   if (originalName) {
     docs.push({
       id: 'file',
-      icon: pdfIcon,
+      // A PDF keeps its mark; an e-invoice XML is drawn with the plain file icon, as in the frame.
+      icon: /\.pdf$/i.test(originalName) ? pdfIcon : fileIcon,
       title: originalName,
       kindKey: 'billDetail.linked.originalFile',
       detail: t('billDetail.linked.originalNote'),

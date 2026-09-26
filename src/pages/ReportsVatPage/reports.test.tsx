@@ -3,9 +3,23 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { CashFlowReportDto, ExpenditureReportDto, ListsCatalogueDto, VatReportDto, VolumeReportDto, VatRowDto, VolumeRowDto } from '../../api/reports/reports'
+import type {
+  CashFlowReportDto,
+  ExpenditureReportDto,
+  ListsCatalogueDto,
+  VatReportDto,
+  VolumeReportDto,
+  VatRowDto,
+  VolumeRowDto,
+} from '../../api/reports/reports'
 import { catalogueHref } from '../../api/reports/reports'
-import { byPeriod, currenciesIn, outputByCategory, periodsOf, vatPosition } from '../../lib/vatReport'
+import {
+  byPeriod,
+  currenciesIn,
+  outputByCategory,
+  periodsOf,
+  vatPosition,
+} from '../../lib/vatReport'
 import { byGroup, byPeriodTotal, cancelledCount } from '../../lib/volumeReport'
 import { ReportsVatPage } from './ReportsVatPage'
 import { ReportsIncomePage } from '../ReportsIncomePage'
@@ -48,7 +62,9 @@ const VAT: VatReportDto = {
     vatRow({ category: 'Z', rate: null, taxableAmount: 400, vatAmount: 0 }),
     vatRow({ period: '2026-Q2', periodStart: '2026-04-01', taxableAmount: 2000, vatAmount: 100 }),
   ],
-  input: [vatRow({ side: 'INPUT', category: 'ALL', rate: null, taxableAmount: 600, vatAmount: 30 })],
+  input: [
+    vatRow({ side: 'INPUT', category: 'ALL', rate: null, taxableAmount: 600, vatAmount: 30 }),
+  ],
   net: [
     vatRow({ side: 'NET', category: 'ALL', rate: null, vatAmount: 20 }),
     vatRow({ side: 'NET', period: '2026-Q2', category: 'ALL', rate: null, vatAmount: 100 }),
@@ -78,7 +94,9 @@ const VOLUME: VolumeReportDto = {
   granularity: 'MONTH',
   groupBy: 'NONE',
   rows: [volumeRow(), volumeRow({ period: '2026-02', totalAmount: 2100, cancelled: 2 })],
-  totals: [{ currency: 'OMR', documents: 8, taxableAmount: 3000, vatAmount: 150, totalAmount: 3150 }],
+  totals: [
+    { currency: 'OMR', documents: 8, taxableAmount: 3000, vatAmount: 150, totalAmount: 3150 },
+  ],
 }
 
 const EXPENDITURE: ExpenditureReportDto = {
@@ -87,8 +105,30 @@ const EXPENDITURE: ExpenditureReportDto = {
   granularity: 'MONTH',
   groupBy: 'NONE',
   rows: [
-    { period: '2026-01', periodStart: '2026-01-01', periodEnd: '2026-01-31', groupKey: null, groupLabel: null, currency: 'OMR', documents: 4, netAmount: 1000, vatAmount: 50, totalAmount: 1050 },
-    { period: '2026-02', periodStart: '2026-02-01', periodEnd: '2026-02-28', groupKey: null, groupLabel: null, currency: 'OMR', documents: 3, netAmount: 1500, vatAmount: 75, totalAmount: 1575 },
+    {
+      period: '2026-01',
+      periodStart: '2026-01-01',
+      periodEnd: '2026-01-31',
+      groupKey: null,
+      groupLabel: null,
+      currency: 'OMR',
+      documents: 4,
+      netAmount: 1000,
+      vatAmount: 50,
+      totalAmount: 1050,
+    },
+    {
+      period: '2026-02',
+      periodStart: '2026-02-01',
+      periodEnd: '2026-02-28',
+      groupKey: null,
+      groupLabel: null,
+      currency: 'OMR',
+      documents: 3,
+      netAmount: 1500,
+      vatAmount: 75,
+      totalAmount: 1575,
+    },
   ],
   totals: [{ currency: 'OMR', documents: 7, netAmount: 2500, vatAmount: 125, totalAmount: 2625 }],
 }
@@ -99,8 +139,24 @@ const CASH_FLOW: CashFlowReportDto = {
   to: '2026-02-28',
   granularity: 'MONTH',
   rows: [
-    { period: '2026-01', periodStart: '2026-01-01', periodEnd: '2026-01-31', currency: 'OMR', received: 1500, paidOut: 400, net: 1100 },
-    { period: '2026-02', periodStart: '2026-02-01', periodEnd: '2026-02-28', currency: 'OMR', received: -200, paidOut: 300, net: -500 },
+    {
+      period: '2026-01',
+      periodStart: '2026-01-01',
+      periodEnd: '2026-01-31',
+      currency: 'OMR',
+      received: 1500,
+      paidOut: 400,
+      net: 1100,
+    },
+    {
+      period: '2026-02',
+      periodStart: '2026-02-01',
+      periodEnd: '2026-02-28',
+      currency: 'OMR',
+      received: -200,
+      paidOut: 300,
+      net: -500,
+    },
   ],
   totals: [{ currency: 'OMR', received: 1300, paidOut: 700, net: 600 }],
 }
@@ -142,10 +198,15 @@ const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
 
 beforeEach(async () => {
+  // The pages draw the twelve months ending today; the fixtures sit in 2026, so today does too.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 8, 25, 10))
   await i18n.changeLanguage('en')
   forgetEntitlements()
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.includes('/me/entitlements')) return json(200, READER)
     if (url.includes('/reports/vat')) return json(200, VAT)
     if (url.includes('/reports/volume')) return json(200, VOLUME)
@@ -157,7 +218,10 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', fetchMock)
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 const renderAt = (path: string, element: React.ReactNode) =>
   render(
@@ -199,7 +263,10 @@ describe('VAT arithmetic', () => {
 
   it('names every currency in the range', () => {
     expect(currenciesIn(VAT)).toEqual(['OMR'])
-    expect(currenciesIn({ ...VAT, input: [vatRow({ side: 'INPUT', currency: 'USD' })] })).toEqual(['OMR', 'USD'])
+    expect(currenciesIn({ ...VAT, input: [vatRow({ side: 'INPUT', currency: 'USD' })] })).toEqual([
+      'OMR',
+      'USD',
+    ])
   })
 })
 
@@ -231,28 +298,38 @@ describe('the catalogue href', () => {
   it('drops the base the client adds back, so a download is not asked for twice', () => {
     // The catalogue states absolute paths; the client prefixes /api. Left alone every download
     // would ask for /api/api/v1/...
-    expect(catalogueHref('/api/v1/reports/lists/payments-made.csv')).toBe('/v1/reports/lists/payments-made.csv')
+    expect(catalogueHref('/api/v1/reports/lists/payments-made.csv')).toBe(
+      '/v1/reports/lists/payments-made.csv',
+    )
     expect(catalogueHref('/v1/already-relative.csv')).toBe('/v1/already-relative.csv')
   })
 })
 
 describe('the VAT page', () => {
-  it('shows the position and asks the server for the bucket it is showing', async () => {
+  it('shows the position and asks the server for both buckets the frame draws', async () => {
     renderAt('/reports/vat-tax', <ReportsVatPage />)
     expect(await screen.findByText('150.000')).toBeTruthy()
     expect(screen.getByText('30.000')).toBeTruthy()
     expect(screen.getByText('120.000')).toBeTruthy()
-    expect(calls('/api/v1/reports/vat').at(-1)).toContain('granularity=QUARTER')
-
-    fireEvent.change(screen.getByLabelText('Bucket'), { target: { value: 'MONTH' } })
-    await waitFor(() => expect(calls('/api/v1/reports/vat').at(-1)).toContain('granularity=MONTH'))
+    // Quarterly position reads quarters and Monthly net payable reads months: the frame has no
+    // bucket picker, so both are asked for rather than one at a time.
+    const asked = calls('/api/v1/reports/vat')
+    expect(asked.some((url) => url.includes('granularity=QUARTER'))).toBe(true)
+    expect(asked.some((url) => url.includes('granularity=MONTH'))).toBe(true)
+    // Reclaim by supplier is the VAT on received bills, grouped by the server.
+    expect(
+      calls('/api/v1/reports/expenditure').some((url) => url.includes('group_by=SUPPLIER')),
+    ).toBe(true)
   })
 
   it('says when a range mixes currencies instead of adding across them', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
-      const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+      const url = String(
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+      )
       if (url.includes('/me/entitlements')) return json(200, READER)
-      if (url.includes('/reports/vat')) return json(200, { ...VAT, input: [vatRow({ side: 'INPUT', currency: 'USD' })] })
+      if (url.includes('/reports/vat'))
+        return json(200, { ...VAT, input: [vatRow({ side: 'INPUT', currency: 'USD' })] })
       return json(404)
     })
     renderAt('/reports/vat-tax', <ReportsVatPage />)
@@ -261,39 +338,67 @@ describe('the VAT page', () => {
 })
 
 describe('the income page', () => {
-  it('counts cancelled documents apart from the total', async () => {
+  it('shows net of VAT, the VAT on it and the documents sent', async () => {
     renderAt('/reports/income', <ReportsIncomePage />)
-    expect(await screen.findByText('3,150.000')).toBeTruthy()
-    expect(screen.getByText('Plus 2 cancelled, which carry no amount')).toBeTruthy()
+    expect(await screen.findByText('2,000.000')).toBeTruthy()
+    // Taxable and VAT are summed from the monthly rows, not the totals line.
+    expect(screen.getByText('100.000')).toBeTruthy()
+    expect(screen.getByText('Invoices sent')).toBeTruthy()
+    expect(screen.getByText('250.000')).toBeTruthy()
   })
 
-  it('asks the server to group rather than grouping a page in the browser', async () => {
+  it('asks the server to group by customer rather than grouping a page in the browser', async () => {
     renderAt('/reports/income', <ReportsIncomePage />)
-    await screen.findByText('3,150.000')
-    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'CUSTOMER' } })
-    await waitFor(() => expect(calls('/api/v1/reports/volume').at(-1)).toContain('group_by=CUSTOMER'))
+    await screen.findByText('2,000.000')
+    const asked = calls('/api/v1/reports/volume')
+    expect(asked.some((url) => url.includes('group_by=CUSTOMER'))).toBe(true)
+    expect(
+      asked.some((url) => url.includes('group_by=NONE') && url.includes('granularity=MONTH')),
+    ).toBe(true)
+  })
+
+  it('reads the window the period pill names', async () => {
+    renderAt('/reports/income', <ReportsIncomePage />)
+    await screen.findByText('2,000.000')
+    expect(calls('/api/v1/reports/volume').some((url) => url.includes('from=2025-10-01'))).toBe(
+      true,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Yearly' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Quarterly' }))
+    await waitFor(() =>
+      expect(
+        calls('/api/v1/reports/volume').some(
+          (url) => url.includes('group_by=CUSTOMER') && url.includes('from=2026-07-01'),
+        ),
+      ).toBe(true),
+    )
   })
 })
 
 describe('the expenditure page', () => {
-  it('shows what was spent, the VAT charged on it and the documents behind it, from the server\'s totals', async () => {
+  it('shows what was billed net of VAT, the VAT on it and the bills behind it', async () => {
     renderAt('/reports/expenditure', <ReportsExpenditurePage />)
-    expect(await screen.findByText('2,625.000')).toBeTruthy()
-    expect(screen.getByText('2,500.000')).toBeTruthy()
+    expect(await screen.findByText('2,500.000')).toBeTruthy()
     expect(screen.getByText('125.000')).toBeTruthy()
-    expect(screen.getByText('Documents received')).toBeTruthy()
-    expect(calls('/api/v1/reports/expenditure')).toHaveLength(1)
+    expect(screen.getByText('Bills received')).toBeTruthy()
+    // One read per shape the frame draws, each asked for once.
+    const asked = calls('/api/v1/reports/expenditure')
+    for (const groupBy of ['NONE', 'SUPPLIER', 'CATEGORY', 'SOURCE']) {
+      expect(asked.filter((url) => url.includes(`group_by=${groupBy}`))).toHaveLength(1)
+    }
   })
 
   it('asks the server to group, and names a bill without a category as such rather than dropping it', async () => {
-    renderAt('/reports/expenditure?group_by=CATEGORY', <ReportsExpenditurePage />)
-    // Once grouped, the total is on the card and in the group table alike.
-    await screen.findAllByText('2,625.000')
-    expect(calls('/api/v1/reports/expenditure').at(-1)).toContain('group_by=CATEGORY')
-    expect(screen.getAllByText('Uncategorised').length).toBeGreaterThan(0)
-
-    fireEvent.change(screen.getByLabelText('Group by'), { target: { value: 'SUPPLIER' } })
-    await waitFor(() => expect(calls('/api/v1/reports/expenditure').at(-1)).toContain('group_by=SUPPLIER'))
+    renderAt('/reports/expenditure', <ReportsExpenditurePage />)
+    await screen.findByText('2,500.000')
+    await waitFor(() => expect(screen.getAllByText('Uncategorised').length).toBeGreaterThan(0))
+    expect(
+      calls('/api/v1/reports/expenditure').some((url) => url.includes('group_by=CATEGORY')),
+    ).toBe(true)
+    expect(
+      calls('/api/v1/reports/expenditure').some((url) => url.includes('group_by=SUPPLIER')),
+    ).toBe(true)
   })
 })
 
@@ -312,7 +417,8 @@ describe('the cash flow page', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes('/me/entitlements')) return json(200, READER)
-      if (url.includes('/reports/cash-flow')) return json(200, { ...CASH_FLOW, rows: [], totals: [] })
+      if (url.includes('/reports/cash-flow'))
+        return json(200, { ...CASH_FLOW, rows: [], totals: [] })
       return json(404)
     })
     renderAt('/reports/cash-flow', <ReportsCashFlowPage />)
@@ -328,7 +434,7 @@ describe('the downloads page', () => {
     // invoice.export is held, so both formats are offered.
     const invoices = screen.getByText('Every invoice').closest('article')!
     expect(within(invoices).getByRole('button', { name: 'CSV' })).toBeTruthy()
-    expect(within(invoices).getByRole('button', { name: 'Excel' })).toBeTruthy()
+    expect(within(invoices).getByRole('button', { name: 'Download Excel' })).toBeTruthy()
     expect(within(invoices).getByText('Filters: state, type')).toBeTruthy()
 
     // compliance.read is not, so the dataset is still named — hiding it would leave someone

@@ -521,6 +521,27 @@ function SelfBillScreen() {
                   </span>
                   <Money amount={totals.vatAmount} className="font-semibold text-text-secondary" />
                 </div>
+                {owed && owed.paidAmount + owed.creditedAmount > 0 ? (
+                  // Total due is what is still owed, so what has already been settled is shown
+                  // above it and the column adds up.
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-text-secondary">
+                      {t('selfBillDetail.summary.settled')}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-text-secondary">
+                      −
+                      <OmAmount
+                        size="xs"
+                        amount={formatAmount(
+                          owed.paidAmount + owed.creditedAmount,
+                          'OMR',
+                          language,
+                        )}
+                        amountClassName="font-semibold text-text-secondary"
+                      />
+                    </span>
+                  </div>
+                ) : null}
                 <div className="h-px w-full bg-surface-background" />
                 <div className="flex items-center justify-between">
                   <span className="text-base font-medium text-text-primary">

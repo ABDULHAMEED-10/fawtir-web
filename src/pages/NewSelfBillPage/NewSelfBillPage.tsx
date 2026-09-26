@@ -65,6 +65,7 @@ import backIcon from '../../assets/invoice-details/back.svg'
 import savedIcon from '../../assets/create-invoice/tick.svg'
 import peppolIcon from '../../assets/periodic/peppol.svg'
 import customerLogo from '../../assets/periodic/customer-logo.svg'
+import { usageForecast } from '../../lib/settings'
 import eyeIcon from '../../assets/actions/view.svg'
 import saveDraftIcon from '../../assets/customers/save.svg'
 import arrowIcon from '../../assets/create-invoice/arrow.svg'
@@ -316,6 +317,7 @@ export function NewSelfBillPage() {
 function SelfBillComposer() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
+  const usage = usageForecast()
   const navigate = useNavigate()
   const { id: routeId } = useParams<{ id: string }>()
   const session = useSession()
@@ -575,18 +577,23 @@ function SelfBillComposer() {
             </span>
             {/*
               Quota: 189x11 track with a blue fill, per Figma.
-              TODO(backend): no endpoint reports the plan's document allowance or its use, so the
-              counter is drawn empty and says so.
+              TODO(backend): no endpoint reports the plan's document allowance or its use;
+              `lib/settings` stands in, as it does on the invoice composer.
             */}
-            <span className="flex flex-col gap-1.5" title={t('newSelfBill.quotaUnknown')}>
+            <span className="flex flex-col gap-1.5">
               <span className="flex items-baseline gap-1">
-                <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">—</span>
+                <span className="text-[22px] font-semibold leading-[1.2] text-text-primary">
+                  {usage.used.toLocaleString(language)}
+                </span>
                 <span className="text-[11px] font-medium leading-[1.2] text-text-primary">
-                  {t('newSelfBill.quotaOf', { total: '—' })}
+                  {t('newSelfBill.quotaOf', { total: usage.allowance.toLocaleString(language) })}
                 </span>
               </span>
               <span className="block h-[11px] w-[189px] overflow-hidden rounded-[2px] bg-white">
-                <span className="block h-full w-0 rounded-[2px] bg-primary-700" />
+                <span
+                  className="block h-full rounded-[2px] bg-primary-700"
+                  style={{ width: `${Math.min(100, usage.percent)}%` }}
+                />
               </span>
             </span>
           </div>
@@ -650,7 +657,13 @@ function SelfBillComposer() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-primary-300 bg-primary-25 px-2 py-3.5">
               <div className="flex min-w-0 items-center gap-2.5">
-                <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
+                {supplier ? (
+                  <img src={customerLogo} alt="" className="size-12 rounded-sm object-cover" />
+                ) : (
+                  <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-sm bg-white text-sm font-semibold text-primary-800">
+                    +
+                  </span>
+                )}
                 <div className="min-w-0">
                   <p className="truncate text-base font-medium leading-[1.2] text-text-primary">
                     {supplier?.name ?? t('newSelfBill.noSupplierYet')}

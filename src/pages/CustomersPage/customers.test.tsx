@@ -3,7 +3,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { CustomerDto, CustomerReceivableDto, CustomerSummaryDto } from '../../api/customers/customers'
+import type {
+  CustomerDto,
+  CustomerReceivableDto,
+  CustomerSummaryDto,
+} from '../../api/customers/customers'
 import { toCustomerListItem, toReceivableView } from '../../lib/customerList'
 import { CustomersPage } from './CustomersPage'
 
@@ -16,7 +20,13 @@ const ADMIN: Entitlements = {
   username: 'demo_admin',
   tenantId: 't-1',
   roles: [{ id: 'r-1', code: 'ADMIN', name: 'Administrator', systemRole: true }],
-  permissions: ['customer.read', 'customer.manage', 'customer.import', 'customer.export', 'invoice.draft'],
+  permissions: [
+    'customer.read',
+    'customer.manage',
+    'customer.import',
+    'customer.export',
+    'invoice.draft',
+  ],
   scopes: [],
   featureFlags: {},
 }
@@ -51,7 +61,10 @@ function customer(overrides: Partial<CustomerDto> = {}): CustomerDto {
     displayName: 'Sohar Port Logistics',
     profile: {
       details: { vatRegistrationNumber: 'OM1100999001' },
-      contact: { contactPerson: 'Laila Al Harthy', emailRecipients: ['ap@soharport.om', 'cfo@soharport.om'] },
+      contact: {
+        contactPerson: 'Laila Al Harthy',
+        emailRecipients: ['ap@soharport.om', 'cfo@soharport.om'],
+      },
       deliveryPreferences: { sendingMethod: 'PEPPOL' },
       invoiceAddress: { cityName: 'Sohar', countryCode: 'OM' },
     },
@@ -104,11 +117,15 @@ beforeEach(async () => {
   who = ADMIN
   summaryResponse = () => json(200, SUMMARY)
   listResponses = [() => json(200, springPage([customer()], 1))]
-  receivablesResponse = () => json(200, { currencyCode: 'OMR', asOf: '2026-09-15', items: [owing()] })
+  receivablesResponse = () =>
+    json(200, { currencyCode: 'OMR', asOf: '2026-09-15', items: [owing()] })
   exportResponse = () =>
     new Response('Type,Name\n', {
       status: 200,
-      headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="fawtir-customers.csv"' },
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="fawtir-customers.csv"',
+      },
     })
   fetchMock = vi.fn(async (url: string) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -168,7 +185,9 @@ describe('Customers list, wired to the API', () => {
     expect(screen.getByText('70 days overdue')).toBeTruthy()
 
     expect(listCalls()).toEqual([FIRST_PAGE])
-    expect(calls('/api/v1/customers/receivables')).toEqual([`/api/v1/customers/receivables?customer_id=${ID}`])
+    expect(calls('/api/v1/customers/receivables')).toEqual([
+      `/api/v1/customers/receivables?customer_id=${ID}`,
+    ])
   })
 
   it('asks the server for the tab, the search, the sort and the page size', async () => {
@@ -179,7 +198,9 @@ describe('Customers list, wired to the API', () => {
     // "… Business plan" and an unanchored /Business/ matches it as well as the tab.
     fireEvent.click(screen.getByRole('button', { name: /^Business/ }))
     await waitFor(() =>
-      expect(listCalls().at(-1)).toBe('/api/v1/customers?status=ACTIVE&type=BUSINESS&sort=NAME_ASC&page=0&size=10'),
+      expect(listCalls().at(-1)).toBe(
+        '/api/v1/customers?status=ACTIVE&type=BUSINESS&sort=NAME_ASC&page=0&size=10',
+      ),
     )
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sohar' } })
@@ -189,7 +210,7 @@ describe('Customers list, wired to the API', () => {
       ),
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Name A–Z' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sort' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Recently updated' }))
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe(
@@ -197,7 +218,8 @@ describe('Customers list, wired to the API', () => {
       ),
     )
 
-    fireEvent.change(await screen.findByRole('combobox', { name: 'Show result:' }), { target: { value: '25' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Show result:' }))
+    fireEvent.click(await screen.findByRole('option', { name: '25' }))
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe(
         '/api/v1/customers?status=ACTIVE&type=BUSINESS&search=sohar&sort=RECENT&page=0&size=25',
@@ -205,7 +227,7 @@ describe('Customers list, wired to the API', () => {
     )
   })
 
-  it('pages with the total the server counted, and asks for that page\'s receivables', async () => {
+  it("pages with the total the server counted, and asks for that page's receivables", async () => {
     listResponses = [
       () => json(200, springPage([customer()], 27)),
       () => json(200, springPage([customer({ id: '2', displayName: 'Nizwa Dates Co' })], 27, 2)),
@@ -215,7 +237,11 @@ describe('Customers list, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: '3' }))
     expect(await screen.findByText('Nizwa Dates Co')).toBeTruthy()
     expect(listCalls().at(-1)).toBe('/api/v1/customers?status=ACTIVE&sort=NAME_ASC&page=2&size=10')
-    await waitFor(() => expect(calls('/api/v1/customers/receivables').at(-1)).toBe('/api/v1/customers/receivables?customer_id=2'))
+    await waitFor(() =>
+      expect(calls('/api/v1/customers/receivables').at(-1)).toBe(
+        '/api/v1/customers/receivables?customer_id=2',
+      ),
+    )
   })
 
   it('tells settled, never-invoiced and part-paid customers apart', async () => {
@@ -236,7 +262,15 @@ describe('Customers list, wired to the API', () => {
         asOf: '2026-09-15',
         items: [
           owing({ overdue: 0, daysOverdue: null, oldestOverdueDueDate: null, outstanding: 40 }),
-          owing({ customerId: 'settled', outstanding: 0, overdue: 0, invoices: 2, openInvoices: 0, partlyPaidInvoices: 0, daysOverdue: null }),
+          owing({
+            customerId: 'settled',
+            outstanding: 0,
+            overdue: 0,
+            invoices: 2,
+            openInvoices: 0,
+            partlyPaidInvoices: 0,
+            daysOverdue: null,
+          }),
         ],
       })
     renderCustomers()
@@ -250,7 +284,8 @@ describe('Customers list, wired to the API', () => {
   })
 
   it('says the directory is empty, and separately that a search found no one', async () => {
-    summaryResponse = () => json(200, { ...SUMMARY, total: 0, byType: { business: 0, government: 0, consumer: 0 } })
+    summaryResponse = () =>
+      json(200, { ...SUMMARY, total: 0, byType: { business: 0, government: 0, consumer: 0 } })
     listResponses = [() => json(200, springPage([], 0))]
     const { unmount } = renderCustomers()
     expect(await screen.findByText(/No customers yet/)).toBeTruthy()
@@ -263,7 +298,8 @@ describe('Customers list, wired to the API', () => {
   })
 
   it('reads a refusal as "no access", not as an empty list', async () => {
-    summaryResponse = () => json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
+    summaryResponse = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
     renderCustomers()
     expect(await screen.findByText('No access')).toBeTruthy()
     expect(screen.queryByText(/No customers yet/)).toBeNull()
@@ -271,7 +307,11 @@ describe('Customers list, wired to the API', () => {
 
   it('offers a retry with the reference when the list fails', async () => {
     listResponses = [
-      () => json(500, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'corr-81' }),
+      () =>
+        json(500, {
+          type: 'https://api.fawtir.om/problems/internal-error',
+          correlationId: 'corr-81',
+        }),
       () => json(200, springPage([customer()], 1)),
     ]
     renderCustomers()
@@ -282,7 +322,8 @@ describe('Customers list, wired to the API', () => {
   })
 
   it('keeps the rows when only the receivables fail, and says so', async () => {
-    receivablesResponse = () => json(500, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'corr-82' })
+    receivablesResponse = () =>
+      json(500, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'corr-82' })
     renderCustomers()
     expect(await screen.findByText('Sohar Port Logistics')).toBeTruthy()
     const alert = await screen.findByRole('alert')
@@ -338,9 +379,13 @@ describe('Customers list, wired to the API', () => {
 describe('customer list mapping', () => {
   it('counts only verified capability as on Peppol, and consumers as QR receipts', () => {
     expect(toCustomerListItem(customer()).peppol).toBe('onPeppol')
-    expect(toCustomerListItem(customer({ peppolDelivery: 'PENDING_VERIFICATION' })).peppol).toBe('notConnected')
+    expect(toCustomerListItem(customer({ peppolDelivery: 'PENDING_VERIFICATION' })).peppol).toBe(
+      'notConnected',
+    )
     expect(toCustomerListItem(customer({ peppolDelivery: 'REJECTED' })).peppol).toBe('notConnected')
-    expect(toCustomerListItem(customer({ type: 'CONSUMER', peppolDelivery: 'NOT_APPLICABLE' })).peppol).toBe('qrReceipt')
+    expect(
+      toCustomerListItem(customer({ type: 'CONSUMER', peppolDelivery: 'NOT_APPLICABLE' })).peppol,
+    ).toBe('qrReceipt')
   })
 
   it('writes the channel under the name when there is no VAT number', () => {
@@ -351,7 +396,10 @@ describe('customer list mapping', () => {
       }),
     )
     expect(government.subtitle).toEqual({
-      parts: [{ key: 'customersPage.line.intent.b2g' }, { key: 'customersPage.line.channel.peppol' }],
+      parts: [
+        { key: 'customersPage.line.intent.b2g' },
+        { key: 'customersPage.line.channel.peppol' },
+      ],
     })
     const consumer = toCustomerListItem(
       customer({
@@ -365,15 +413,27 @@ describe('customer list mapping', () => {
         },
       }),
     )
-    expect(consumer).toMatchObject({ contactName: 'Ahmed Al Rawahi', contactEmail: null, city: null, initials: 'AA' })
+    expect(consumer).toMatchObject({
+      contactName: 'Ahmed Al Rawahi',
+      contactEmail: null,
+      city: null,
+      initials: 'AA',
+    })
   })
 
   it('shows an overdue note only for money that is late', () => {
     expect(toReceivableView(owing()).state).toBe('overdue')
-    expect(toReceivableView(owing({ overdue: 0, daysOverdue: null, partlyPaidInvoices: 0 }))).toMatchObject({
+    expect(
+      toReceivableView(owing({ overdue: 0, daysOverdue: null, partlyPaidInvoices: 0 })),
+    ).toMatchObject({
       state: 'attention',
       note: null,
     })
-    expect(toReceivableView(undefined)).toEqual({ invoices: 0, state: 'settled', amount: null, note: null })
+    expect(toReceivableView(undefined)).toEqual({
+      invoices: 0,
+      state: 'settled',
+      amount: null,
+      note: null,
+    })
   })
 })

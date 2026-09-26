@@ -1,19 +1,37 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Modal, withRial } from '../../components/ui'
+import { DateField, Modal, withRial } from '../../components/ui'
+import { useApiRead } from '../../hooks'
+import {
+  activitySummaryPath,
+  loadActivitySummary,
+  type ActivitySummaryDto,
+} from '../../api/compliance/activity'
+import { deliveredCount, shareOf1 } from '../../lib/activityLedger'
 import {
   REPORT_PERIODS,
   REPORT_SECTIONS,
   periodFigures,
+  periodRange,
   formatOmr,
+  type ReportPeriodId,
 } from '../../lib/complianceReport'
 import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
 import excelIcon from '../../assets/reports/list-catalog.svg'
 import downloadIcon from '../../assets/invoice-details/download.svg'
+import reportShieldIcon from '../../assets/activity/report-shield.svg'
+
+/** What "Build Report" asks for: the period's window and the formats ticked. */
+export type ReportRequest = {
+  period: ReportPeriodId
+  from: string
+  to: string
+  formats: ('pdf' | 'excel')[]
+}
 
 /**
- * "Compliance report" (Figma 131:17440).
+ * "Compliance report" (Figma 154:111604), opened from Activity's "Compliance report" button.
  *
  * Builds the pack an auditor or the Authority asks for. Everything in the summary follows from
  * the period chosen, so switching from a quarter to a year moves the counts and the money with
@@ -26,24 +44,48 @@ export function ComplianceReportModal({
 }: {
   open: boolean
   onClose: () => void
-  onBuild: () => void
+  onBuild: (request: ReportRequest) => void
 }) {
   const { t } = useTranslation()
-  const [period, setPeriod] = useState('q2')
+  const [period, setPeriod] = useState<ReportPeriodId>('quarter')
   const [sections, setSections] = useState<string[]>(
     REPORT_SECTIONS.filter((section) => section.defaultOn && !section.always).map((s) => s.id),
   )
-  const [formats, setFormats] = useState<string[]>(['pdf'])
+  // Both, as the frame opens: the signed PDF for the auditor and the ledger for whoever checks it.
+  const [formats, setFormats] = useState<('pdf' | 'excel')[]>(['pdf', 'excel'])
 
-  const figures = useMemo(() => periodFigures(period), [period])
-  const activePeriod = REPORT_PERIODS.find((entry) => entry.id === period) ?? REPORT_PERIODS[1]
+  const [custom, setCustom] = useState(() => {
+    const quarter = periodRange('quarter')
+    return { from: quarter.from, to: quarter.to }
+  })
+  const range = useMemo(() => periodRange(period, new Date(), custom), [period, custom])
+  // The period's counts come from the ledger summary for that window. TODO(backend): the
+  // corrected count, the total invoiced and the VAT are not on the summary (asks row 2.9), so
+  // those three stay the design's figures until they are.
+  const summaryPath = open ? activitySummaryPath(range.from, range.to) : null
+  const summary = useApiRead<ActivitySummaryDto>(summaryPath, () =>
+    loadActivitySummary(summaryPath as string),
+  )
+  const figures = useMemo(() => {
+    const base = periodFigures(period)
+    if (summary.read.status !== 'ready') return base
+    const book = summary.read.data
+    const accepted = deliveredCount(book.tdd_ack)
+    return {
+      ...base,
+      invoices: book.documents,
+      accepted,
+      acceptedRate: shareOf1(accepted, book.documents),
+      notReported: book.tdd_ack.re + book.tdd_ack.none,
+    }
+  }, [period, summary.read])
 
   const toggleSection = (id: string) =>
     setSections((current) =>
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
 
-  const toggleFormat = (id: string) =>
+  const toggleFormat = (id: 'pdf' | 'excel') =>
     setFormats((current) => {
       if (current.includes(id))
         return current.length > 1 ? current.filter((x) => x !== id) : current
@@ -59,11 +101,15 @@ export function ComplianceReportModal({
       open={open}
       onClose={onClose}
       title={t('complianceReport.title')}
+      icon={reportShieldIcon}
       width={660}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-text-tertiary">
-            <span className="font-semibold text-text-primary">{t(activePeriod.labelKey)}</span> ·{' '}
+            <span className="font-semibold text-text-primary">
+              {t(range.labelKey, range.values)}
+            </span>{' '}
+            ·{' '}
             <span className="font-semibold text-text-primary">
               {t('complianceReport.nInvoices', { count: figures.invoices })}
             </span>{' '}
@@ -71,7 +117,7 @@ export function ComplianceReportModal({
           </p>
           <button
             type="button"
-            onClick={onBuild}
+            onClick={() => onBuild({ period, from: range.from, to: range.to, formats })}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
           >
             <img src={downloadIcon} alt="" className="size-5 brightness-0 invert" />
@@ -100,11 +146,31 @@ export function ComplianceReportModal({
                   : 'border-border-subtle bg-white text-text-secondary hover:border-primary-300',
               ].join(' ')}
             >
-              {t(entry.labelKey)}
+              {entry.id === 'quarter'
+                ? t('complianceReport.period.quarter', periodRange('quarter').values)
+                : t(entry.labelKey)}
             </button>
           )
         })}
       </div>
+
+      {/* The frame draws no control for Custom; two date fields, only once it is chosen. */}
+      {period === 'custom' ? (
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+          <DateField
+            value={custom.from}
+            max={custom.to}
+            ariaLabel={t('complianceReport.customFrom')}
+            onChange={(from) => setCustom((current) => ({ ...current, from }))}
+          />
+          <DateField
+            value={custom.to}
+            min={custom.from}
+            ariaLabel={t('complianceReport.customTo')}
+            onChange={(to) => setCustom((current) => ({ ...current, to }))}
+          />
+        </div>
+      ) : null}
 
       {/* Sections */}
       <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.7px] text-text-quaternary">

@@ -168,6 +168,14 @@ export function SupplierNoteIntake({
         })
       : []
   const worries = checks.filter((check) => check.verdict === 'check').length
+  // The credit footer reads "Everything checked" in the frame; until the four required fields are
+  // filled it says how many are left, so an empty form never claims to be checked.
+  const toFill = [
+    form.supplierId || form.supplierName.trim(),
+    form.billNumber.trim(),
+    form.issueDate,
+    reason.trim(),
+  ].filter((value) => !value).length
 
   const refusalReason =
     preset === 'other' ? otherReason.trim() : t(`supplierDebitNotes.refuse.${preset}`)
@@ -733,9 +741,9 @@ export function SupplierNoteIntake({
                     {
                       id: 'hold' as const,
                       title: t('supplierCreditNotes.upload.hold'),
-                      note: t('supplierCreditNotes.upload.holdNote', {
-                        supplier: form.supplierName || t('supplierNotes.thisSupplier'),
-                      }),
+                      note: form.supplierName
+                        ? t('supplierCreditNotes.upload.holdNote', { supplier: form.supplierName })
+                        : t('supplierCreditNotes.upload.holdNoteAny'),
                       disabled: false,
                     },
                     {
@@ -955,7 +963,9 @@ export function SupplierNoteIntake({
           {kind === 'credit' ? (
             <>
               <span className="font-semibold text-text-primary">
-                {t('supplierCreditNotes.upload.footerLead')}
+                {toFill === 0
+                  ? t('supplierCreditNotes.upload.footerLead')
+                  : t('supplierCreditNotes.upload.footerToFill', { count: toFill })}
               </span>
               {' · '}
               {t('supplierCreditNotes.upload.footerNote')}

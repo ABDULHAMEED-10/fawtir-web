@@ -461,7 +461,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 <div
                   role="group"
                   aria-label={t('paymentsPage.dueWindow')}
-                  className="inline-flex items-center rounded-sm bg-surface-background p-1 max-md:flex max-md:w-full max-md:overflow-x-auto"
+                  className="inline-flex items-center rounded-sm border border-border-subtle bg-[#fafafa] p-0.5 max-md:flex max-md:w-full max-md:flex-wrap"
                 >
                   {DUE_WINDOWS.map((option) => (
                     <button
@@ -471,10 +471,10 @@ function RunBuilder({ runId }: { runId: string | null }) {
                       onClick={() => pickWindow(option)}
                       aria-pressed={window === option}
                       className={[
-                        'inline-flex h-9 items-center whitespace-nowrap rounded-sm px-2.5 text-sm font-medium transition-colors',
+                        'inline-flex h-[30px] items-center justify-center whitespace-nowrap rounded-sm border px-3 text-xs font-medium transition-colors max-md:basis-[calc(50%-2px)] max-md:grow',
                         window === option
-                          ? 'bg-primary-25 font-semibold text-primary-800 shadow-sm'
-                          : 'text-text-tertiary hover:text-text-secondary',
+                          ? 'border-border-subtle bg-primary-25 font-semibold text-primary-800'
+                          : 'border-transparent text-text-tertiary hover:text-text-secondary',
                       ].join(' ')}
                     >
                       {t(`paymentsPage.window.${option}`)}
@@ -598,7 +598,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                             </div>
                             <span
                               className={[
-                                'ms-auto inline-flex items-center rounded-full px-3 py-1 text-[10px] font-medium leading-[1.2]',
+                                'ms-auto inline-flex items-center rounded-sm px-3 py-1 text-[10px] font-medium leading-[1.2]',
                                 DUE_CHIP[due.tone],
                               ].join(' ')}
                             >
@@ -772,51 +772,6 @@ function RunBuilder({ runId }: { runId: string | null }) {
               </div>
             </div>
           </section>
-
-          {/* 3: how to send it */}
-          <section id="format" className="rounded-md bg-surface-card p-5">
-            <SectionTitle step={3} title={t('paymentsPage.howToSend')} />
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              {FORMATS.map((option) => {
-                const active = option.id === details.format
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    disabled={!editable || busy}
-                    onClick={() => change({ format: option.id })}
-                    aria-pressed={active}
-                    className={[
-                      'flex items-start gap-3 rounded-sm border p-4 text-start transition-colors disabled:cursor-default',
-                      active
-                        ? 'border-primary-700 bg-primary-25'
-                        : 'border-border-subtle bg-white hover:border-primary-300',
-                    ].join(' ')}
-                  >
-                    <img src={FORMAT_ICON[option.id]} alt="" className="mt-0.5 size-5 shrink-0" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-base font-medium leading-[1.2] text-text-primary">
-                        {t(option.titleKey)}
-                      </span>
-                      <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-quaternary">
-                        {t(option.noteKey)}
-                      </span>
-                    </span>
-                    {active ? (
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-700">
-                        <img src={tickIcon} alt="" className="size-3 brightness-0 invert" />
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })}
-            </div>
-            {details.format === 'PAIN_001' && !details.payerAccountId ? (
-              <p className="mt-3 text-xs font-medium text-pending-700">
-                {t('paymentRuns.painNeedsAccount')}
-              </p>
-            ) : null}
-          </section>
         </div>
 
         <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[340px]">
@@ -860,11 +815,16 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 </dd>
               </div>
             </dl>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-4">
+            <div className="mt-4 flex items-center justify-between gap-2 border-t border-border-subtle pt-4">
               <span className="text-base font-medium text-text-secondary">
                 {t('paymentsPage.leavingYourAccount')}
               </span>
-              <Amount value={run?.netTotal ?? 0} currency={currency} size="lg" />
+              <Amount
+                value={run?.netTotal ?? 0}
+                currency={currency}
+                size="lg"
+                className="whitespace-nowrap text-2xl font-semibold leading-[1.2] text-text-primary"
+              />
             </div>
           </section>
 
@@ -901,6 +861,51 @@ function RunBuilder({ runId }: { runId: string | null }) {
           </section>
         </aside>
       </div>
+
+      {/* 3: how to send it */}
+      <section id="format" className="rounded-md bg-surface-card p-5">
+        <SectionTitle step={3} title={t('paymentsPage.howToSend')} />
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {FORMATS.map((option) => {
+            const active = option.id === details.format
+            return (
+              <button
+                key={option.id}
+                type="button"
+                disabled={!editable || busy}
+                onClick={() => change({ format: option.id })}
+                aria-pressed={active}
+                className={[
+                  'flex items-start gap-3 rounded-sm border p-4 text-start transition-colors disabled:cursor-default',
+                  active
+                    ? 'border-primary-700 bg-primary-25'
+                    : 'border-border-subtle bg-white hover:border-primary-300',
+                ].join(' ')}
+              >
+                <img src={FORMAT_ICON[option.id]} alt="" className="mt-0.5 size-5 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-medium leading-[1.2] text-text-primary">
+                    {t(option.titleKey)}
+                  </span>
+                  <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-quaternary">
+                    {t(option.noteKey)}
+                  </span>
+                </span>
+                {active ? (
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-700">
+                    <img src={tickIcon} alt="" className="size-3 brightness-0 invert" />
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
+        </div>
+        {details.format === 'PAIN_001' && !details.payerAccountId ? (
+          <p className="mt-3 text-xs font-medium text-pending-700">
+            {t('paymentRuns.painNeedsAccount')}
+          </p>
+        ) : null}
+      </section>
 
       {addingAccount ? (
         <AddPayerAccountModal

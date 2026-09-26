@@ -46,7 +46,8 @@ export function toCustomerListItem(customer: CustomerDto): CustomerListItem {
   const profile = customer.profile
   const method = profile.deliveryPreferences?.sendingMethod ?? null
   const vat = profile.details?.vatRegistrationNumber?.trim() || null
-  const channel = method === 'PEPPOL' ? 'peppol' : method === 'QR_RECEIPT' ? 'qrReceipt' : 'emailPdf'
+  const channel =
+    method === 'PEPPOL' ? 'peppol' : method === 'QR_RECEIPT' ? 'qrReceipt' : 'emailPdf'
   return {
     id: customer.id,
     name: customer.displayName,
@@ -62,7 +63,8 @@ export function toCustomerListItem(customer: CustomerDto): CustomerListItem {
             ],
           },
     // A consumer is usually their own contact, as the design shows them.
-    contactName: profile.contact?.contactPerson?.trim() || (kind === 'consumer' ? customer.displayName : null),
+    contactName:
+      profile.contact?.contactPerson?.trim() || (kind === 'consumer' ? customer.displayName : null),
     contactEmail: profile.contact?.emailRecipients?.[0] ?? null,
     city: profile.invoiceAddress?.cityName?.trim() || null,
     countryCode: profile.invoiceAddress?.countryCode?.trim() || null,
@@ -84,8 +86,11 @@ function peppolStateOf(kind: CustomerKind, delivery: CustomerDto['peppolDelivery
 /**
  * The Receivable and Invoices cells. The design's third note, "awaiting send", needs the delivery
  * state of each invoice, which the list's figures do not carry, so it is not shown.
+ * TODO(backend): an issued-but-undelivered count on the receivable (INCOME asks 8.3).
  */
-export function toReceivableView(receivable: CustomerReceivableDto | undefined): CustomerReceivableView {
+export function toReceivableView(
+  receivable: CustomerReceivableDto | undefined,
+): CustomerReceivableView {
   if (!receivable || receivable.outstanding <= 0) {
     return { invoices: receivable?.invoices ?? 0, state: 'settled', amount: null, note: null }
   }
@@ -105,7 +110,11 @@ export function toReceivableView(receivable: CustomerReceivableDto | undefined):
   }
 }
 
-export const CUSTOMER_TABS: { id: CustomerTabId; labelKey: string; type: CustomerTypeDto | null }[] = [
+export const CUSTOMER_TABS: {
+  id: CustomerTabId
+  labelKey: string
+  type: CustomerTypeDto | null
+}[] = [
   { id: 'all', labelKey: 'customersPage.tabs.all', type: null },
   { id: 'business', labelKey: 'customersPage.tabs.business', type: 'BUSINESS' },
   { id: 'government', labelKey: 'customersPage.tabs.government', type: 'GOVERNMENT' },
@@ -127,7 +136,11 @@ export type CustomerSortKey = 'nameAsc' | 'nameDesc' | 'recent'
  * invoices"; those figures come from the income ledger, not the customer record the list pages
  * over, so they are left out rather than sorting one page and calling it the whole list.
  */
-export const CUSTOMER_SORTS: { value: CustomerSortKey; labelKey: string; sort: CustomerListSort }[] = [
+export const CUSTOMER_SORTS: {
+  value: CustomerSortKey
+  labelKey: string
+  sort: CustomerListSort
+}[] = [
   { value: 'nameAsc', labelKey: 'customersPage.sortOptions.nameAsc', sort: 'NAME_ASC' },
   { value: 'nameDesc', labelKey: 'customersPage.sortOptions.nameDesc', sort: 'NAME_DESC' },
   { value: 'recent', labelKey: 'customersPage.sortOptions.recent', sort: 'RECENT' },

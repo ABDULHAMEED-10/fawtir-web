@@ -25,12 +25,12 @@ import {
   refusalOf,
   supplierTile,
 } from '../../lib/paymentRuns'
-import spreadsheetIcon from '../../assets/actions/statement.svg'
-import emailIcon from '../../assets/payment/email.svg'
-import bankIcon from '../../assets/payment/bank.svg'
-import copyIcon from '../../assets/actions/duplicate.svg'
-import resetIcon from '../../assets/bill-capture/rotate.svg'
-import deleteIcon from '../../assets/actions/delete.svg'
+import spreadsheetIcon from '../../assets/payment-run-menu/sheet.svg'
+import emailIcon from '../../assets/payment-run-menu/email.svg'
+import bankIcon from '../../assets/payment-run-menu/format.svg'
+import copyIcon from '../../assets/payment-run-menu/copy.svg'
+import resetIcon from '../../assets/payment-run-menu/reset.svg'
+import deleteIcon from '../../assets/payment-run-menu/delete.svg'
 
 export const HEADER_BUTTON =
   'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'
@@ -38,7 +38,7 @@ export const PRIMARY_BUTTON =
   'inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
 
 const STATE_TONE: Record<PaymentRunState, string> = {
-  DRAFT: 'bg-[#e3e4ea] text-[#474a5e]',
+  DRAFT: 'border border-border-subtle bg-[#f4f5f7] text-[#474a5e]',
   SCHEDULED: 'bg-primary-50 text-primary-800',
   EXPORTED: 'bg-pending-100 text-pending-700',
   PAID: 'bg-success-100 text-success-700',
@@ -50,7 +50,7 @@ export function RunStatePill({ state }: { state: PaymentRunState }) {
   return (
     <span
       className={[
-        'inline-flex h-[31px] items-center gap-2 rounded-full px-3 text-sm font-semibold',
+        'inline-flex h-[31px] items-center gap-2 rounded-sm px-3 text-sm font-semibold',
         STATE_TONE[state],
       ].join(' ')}
     >

@@ -402,7 +402,8 @@ export function ToggleRow({
   name,
 }: {
   label: string
-  hint?: string
+  /** A node, so a sentence with an amount can carry the rial sign. */
+  hint?: ReactNode
   checked: boolean
   onChange: (next: boolean) => void
   name?: string

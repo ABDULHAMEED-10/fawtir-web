@@ -771,7 +771,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                   </span>
                   <OmAmount
                     size="xs"
-                    amount={`${sign} ${money(totals.net)}`}
+                    prefix={sign}
+                    amount={money(totals.net)}
                     amountClassName={`text-base font-semibold ${toneClass} tabular-nums`}
                   />
                 </div>
@@ -781,7 +782,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                   </span>
                   <OmAmount
                     size="xs"
-                    amount={`${sign} ${money(totals.vat)}`}
+                    prefix={sign}
+                    amount={money(totals.vat)}
                     amountClassName={`text-base font-semibold ${toneClass} tabular-nums`}
                   />
                 </div>
@@ -792,7 +794,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                   </span>
                   <OmAmount
                     size="sm"
-                    amount={`${sign} ${money(totals.total)}`}
+                    prefix={sign}
+                    amount={money(totals.total)}
                     amountClassName={`text-xl font-semibold ${toneClass} tabular-nums`}
                   />
                 </div>
@@ -999,7 +1002,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
             <div className="my-3 h-px w-full bg-border-subtle" />
             <OmAmount
               size="lg"
-              amount={`${sign} ${money(totals.total)}`}
+              prefix={sign}
+              amount={money(totals.total)}
               amountClassName={`text-[32px] font-semibold leading-none ${toneClass} tabular-nums`}
               className="mt-1"
             />
@@ -1022,7 +1026,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
               <dd>
                 <OmAmount
                   size="xs"
-                  amount={`${sign} ${money(totals.net)}`}
+                  prefix={sign}
+                  amount={money(totals.net)}
                   amountClassName={`font-semibold ${toneClass} tabular-nums`}
                 />
               </dd>
@@ -1034,7 +1039,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
               <dd>
                 <OmAmount
                   size="xs"
-                  amount={`${sign} ${money(totals.vat)}`}
+                  prefix={sign}
+                  amount={money(totals.vat)}
                   amountClassName={`font-semibold ${toneClass} tabular-nums`}
                 />
               </dd>
@@ -1061,7 +1067,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
               <dd>
                 <OmAmount
                   size="xs"
-                  amount={`${sign} ${money(credit ? (effect ? total - effect.refund : total) : total)}`}
+                  prefix={sign}
+                  amount={money(credit ? (effect ? total - effect.refund : total) : total)}
                   amountClassName={`font-semibold ${toneClass} tabular-nums`}
                 />
               </dd>

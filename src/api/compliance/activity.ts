@@ -51,7 +51,11 @@ export type TddLegDto = {
 }
 
 /** `resubmit` is present only when the server judges one possible — never inferred here. */
-export type ActivityLinksDto = { document: string | null; tdd_xml: string | null; resubmit: string | null }
+export type ActivityLinksDto = {
+  document: string | null
+  tdd_xml: string | null
+  resubmit: string | null
+}
 
 export type ActivityItemDto = {
   invoice_uuid: string
@@ -70,6 +74,22 @@ export type ActivityItemDto = {
   tdd_leg: TddLegDto | null
   attention: boolean
   links: ActivityLinksDto
+  /*
+   * TODO(backend): the Activity frame (Figma 154:109992) draws these and the ledger does not carry
+   * them yet. Optional so today's wire still reads; the row falls back where each is absent. See
+   * docs/frontend/COMPLIANCE_REPORTS_DESIGN_REALIGNMENT_BACKEND_ASKS.md, section 2.
+   */
+  /** The document's total including VAT, for "Customer - amount" under the number. */
+  amount?: number | null
+  currency_code?: string | null
+  /** The live TDD's own UUID, printed in the reference column. */
+  tdd_uuid?: string | null
+  /** The reference Fawtara issues once it takes the report. */
+  fawtara_reference?: string | null
+  /** The TDD that replaced this one, when this submission was superseded. */
+  superseded_by?: string | null
+  /** The Peppol scenario: its flow number, and the stand-in ID used when the buyer is not on Peppol. */
+  scenario?: { flow: number; stand_in_id: string | null } | null
 }
 
 export type ActivityListDto = {
@@ -92,6 +112,10 @@ export type ActivitySummaryDto = {
   attention: number
   sla: { met: number; missed: number; pending: number }
   median_minutes_to_tdd_ack: number | null
+  /** TODO(backend): the "Superseded" tab's count. */
+  superseded?: number
+  /** TODO(backend): the same median over the window before, for "down from". */
+  previous_median_minutes_to_tdd_ack?: number | null
 }
 
 export type TddObligationDto = {
@@ -105,6 +129,10 @@ export type TddObligationDto = {
   failure_reason: string | null
   transmission_id: string | null
   tdd_uuid: string | null
+  /** TODO(backend): the OTA's error code for a refusal (OTA-E-1122), drawn beside the reason. */
+  error_code?: string | null
+  /** TODO(backend): the reference Fawtara issued for this version, when it took it. */
+  fawtara_reference?: string | null
 }
 
 export type MlsRecordDto = {
@@ -164,7 +192,11 @@ export function ledgerExportPath(filters: ActivityFilters, format: 'csv' | 'xlsx
   })
 }
 
-export function activityListPath(filters: ActivityFilters, page: number, pageSize = ACTIVITY_PAGE_SIZE) {
+export function activityListPath(
+  filters: ActivityFilters,
+  page: number,
+  pageSize = ACTIVITY_PAGE_SIZE,
+) {
   return withQuery(ACTIVITY_PATH, {
     direction: filters.direction || null,
     attention: filters.attention || null,

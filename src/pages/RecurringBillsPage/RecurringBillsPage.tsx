@@ -551,7 +551,7 @@ function Row({
         </div>
       </div>
 
-      <div className="min-w-[150px]">
+      <div className="min-w-[150px] md:w-[220px]">
         <p className="text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.6px] text-text-quaternary">
           {t(timing.heading)}
         </p>
@@ -579,10 +579,10 @@ function Row({
         </p>
       </div>
 
-      <div className="flex min-w-[180px] flex-col items-start gap-2">
+      <div className="flex min-w-[180px] flex-col items-start gap-2 md:w-[250px]">
         <span
           className={[
-            'inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold leading-[1.2]',
+            'inline-flex items-center gap-2 rounded-sm px-3 py-1 text-sm font-semibold leading-[1.2]',
             pill,
           ].join(' ')}
         >

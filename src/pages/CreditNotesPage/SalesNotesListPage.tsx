@@ -388,11 +388,19 @@ function NotesList({ kind }: { kind: NoteKind }) {
                   {t(`salesNote.list.kpi.${kpi.id}`)}
                 </h3>
               </div>
-              <OmAmount
-                size="lg"
-                amount={figure ? `${kpi.id === 'charged' ? '+ ' : ''}${money(figure.amount)}` : '—'}
-                amountClassName={`text-[32px] font-semibold leading-[1.2] ${tone} tabular-nums`}
-              />
+              {/* As the frame draws it: "+ <rial> 69.060", the direction ahead of the sign. */}
+              <span className={`inline-flex items-center gap-2 ${tone}`}>
+                {kpi.id === 'charged' && figure ? (
+                  <span className="text-[32px] font-semibold leading-[1.2]" aria-hidden="true">
+                    +
+                  </span>
+                ) : null}
+                <OmAmount
+                  size="lg"
+                  amount={figure ? money(figure.amount) : '…'}
+                  amountClassName={`text-[32px] font-semibold leading-[1.2] ${tone} tabular-nums`}
+                />
+              </span>
               <p
                 className={[
                   'text-sm font-medium leading-[1.2]',
@@ -635,11 +643,22 @@ function NotesList({ kind }: { kind: NoteKind }) {
                         </td>
                         <td className="px-2 py-3">
                           {amount !== null ? (
-                            <OmAmount
-                              size="sm"
-                              amount={`${credit ? '−' : '+'} ${money(amount, row.currency)}`}
-                              amountClassName={`text-base font-bold leading-[1.5] ${credit ? 'text-danger-700' : 'text-success-700'} tabular-nums`}
-                            />
+                            // The frame puts the direction before the sign: "- <rial> 35.910".
+                            <span
+                              className={`inline-flex items-center gap-1 whitespace-nowrap ${credit ? 'text-danger-700' : 'text-success-700'}`}
+                            >
+                              <span
+                                className="text-base font-bold leading-[1.5]"
+                                aria-hidden="true"
+                              >
+                                {credit ? '−' : '+'}
+                              </span>
+                              <OmAmount
+                                size="sm"
+                                amount={money(amount, row.currency)}
+                                amountClassName={`text-base font-bold leading-[1.5] ${credit ? 'text-danger-700' : 'text-success-700'} tabular-nums`}
+                              />
+                            </span>
                           ) : (
                             <span className="text-base font-medium text-text-muted">—</span>
                           )}

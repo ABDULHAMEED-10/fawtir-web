@@ -430,7 +430,7 @@ function AddMore({
           t(reason === 'size' ? 'billIntake.upload.tooLarge' : 'billIntake.upload.wrongType'),
         )
       }
-      className="flex w-[116px] shrink-0 flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-border-default p-2 text-text-tertiary transition-colors hover:border-primary-300 hover:text-primary-700"
+      className="flex max-w-[116px] shrink-0 flex-col items-center justify-center gap-2 rounded-sm border-2 border-dashed border-border-default p-2 text-text-tertiary transition-colors hover:border-primary-300 hover:text-primary-700"
     >
       {() => (
         <>
@@ -581,7 +581,7 @@ function ReceiptEditor({
       className="flex flex-col gap-4"
     >
       <div className="flex flex-col gap-4 xl:flex-row">
-        <section className="flex w-full flex-col self-start overflow-hidden rounded-md bg-surface-card xl:w-[400px] xl:shrink-0">
+        <section className="flex w-full flex-col self-start overflow-hidden rounded-md border border-white bg-surface-card shadow-card xl:w-[400px] xl:shrink-0">
           <div className="flex min-h-[420px] flex-1 items-center justify-center overflow-auto bg-surface-background p-6">
             {url === null ? null : fileKindOf(receipt.file) === 'pdf' ? (
               <iframe
@@ -892,7 +892,10 @@ function ReceiptEditor({
                       type="button"
                       aria-pressed={receipt.paid === paid}
                       onClick={() => onChange({ ...receipt, paid })}
-                      className={choice(receipt.paid === paid)}
+                      className={[
+                        choice(receipt.paid === paid),
+                        'min-w-[96px] flex-auto whitespace-nowrap',
+                      ].join(' ')}
                     >
                       {receipt.paid === paid ? (
                         <img src={okCheckIcon} alt="" className="size-4" />
@@ -913,7 +916,10 @@ function ReceiptEditor({
                         disabled={disabled}
                         aria-pressed={!disabled && receipt.method === method}
                         onClick={() => onChange({ ...receipt, method })}
-                        className={choice(!disabled && receipt.method === method, disabled)}
+                        className={[
+                          choice(!disabled && receipt.method === method, disabled),
+                          'min-w-[96px] flex-auto whitespace-nowrap',
+                        ].join(' ')}
                       >
                         {t(`scanReceipts.paid.${method}`)}
                       </button>

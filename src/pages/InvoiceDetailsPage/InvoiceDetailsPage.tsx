@@ -664,7 +664,7 @@ function InvoiceScreen() {
                       disabled={sendingReminder}
                       className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-50"
                     >
-                      <img src={sendIcon} alt="" className="size-4" />
+                      <img src={sendIcon} alt="" className="size-4 brightness-0 opacity-70" />
                       {t(
                         sendingReminder
                           ? 'paymentReminders.invoice.sending'

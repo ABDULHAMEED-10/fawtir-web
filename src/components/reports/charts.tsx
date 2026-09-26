@@ -147,6 +147,8 @@ export function StackedBars({
       viewBox={`0 -${TOP_PAD} ${width} ${height + 26 + TOP_PAD}`}
       className="w-full"
       role="presentation"
+      // Time runs left to right in both languages; RTL would also flip every text anchor.
+      direction="ltr"
     >
       <GridLines
         width={width}
@@ -157,8 +159,8 @@ export function StackedBars({
       />
       {data.map((d, index) => {
         const x = labelWidth + band * index + (band - barWidth) / 2
-        const baseHeight = (d.base / max) * height
-        const topHeight = (d.top / max) * height
+        const baseHeight = Math.max(0, (d.base / max) * height)
+        const topHeight = Math.max(0, (d.top / max) * height)
         const current = index === highlight
         return (
           <g key={index}>
@@ -224,6 +226,8 @@ export function GroupedBars({
       viewBox={`0 -${TOP_PAD} ${width} ${height + 26 + TOP_PAD}`}
       className="w-full"
       role="presentation"
+      // Time runs left to right in both languages; RTL would also flip every text anchor.
+      direction="ltr"
     >
       <GridLines
         width={width}
@@ -234,8 +238,8 @@ export function GroupedBars({
       />
       {data.map((d, index) => {
         const centre = labelWidth + band * index + band / 2
-        const aHeight = (d.a / max) * height
-        const bHeight = (d.b / max) * height
+        const aHeight = Math.max(0, (d.a / max) * height)
+        const bHeight = Math.max(0, (d.b / max) * height)
         return (
           <g key={index}>
             <rect
@@ -293,6 +297,8 @@ export function PlainBars({
       viewBox={`0 -${TOP_PAD} ${width} ${height + 26 + TOP_PAD}`}
       className="w-full"
       role="presentation"
+      // Time runs left to right in both languages; RTL would also flip every text anchor.
+      direction="ltr"
     >
       <GridLines
         width={width}
@@ -302,7 +308,7 @@ export function PlainBars({
         ticks={compact ? COMPACT_TICKS : TICKS}
       />
       {values.map((value, index) => {
-        const barHeight = (value / max) * height
+        const barHeight = Math.max(0, (value / max) * height)
         return (
           <rect
             key={index}
@@ -370,6 +376,8 @@ export function DivergingBars({
       viewBox={`0 -${TOP_PAD} ${width} ${height + 26 + TOP_PAD}`}
       className="w-full"
       role="presentation"
+      // Time runs left to right in both languages; RTL would also flip every text anchor.
+      direction="ltr"
     >
       {steps.map((step) => {
         const y = (height / DIVERGING_TICKS) * step
@@ -401,8 +409,8 @@ export function DivergingBars({
       })}
       {data.map((d, index) => {
         const x = labelWidth + band * index + (band - barWidth) / 2
-        const upHeight = (d.up / max) * half
-        const downHeight = (d.down / max) * half
+        const upHeight = Math.max(0, (d.up / max) * half)
+        const downHeight = Math.max(0, (d.down / max) * half)
         const current = index === highlight
         return (
           <g key={index}>
@@ -474,6 +482,8 @@ export function LineChart({
       viewBox={`0 -${TOP_PAD} ${width} ${height + 26 + TOP_PAD}`}
       className="w-full"
       role="presentation"
+      // Time runs left to right in both languages; RTL would also flip every text anchor.
+      direction="ltr"
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -537,15 +547,20 @@ export function HorizontalBars({
   return (
     <ul className="flex w-full flex-col gap-[26px] py-1">
       {rows.map((row, index) => (
-        <li key={row.label} className="flex items-center gap-4">
-          <span className="w-[120px] shrink-0 truncate text-xs font-medium leading-[1.3] text-text-secondary">
+        <li key={index} className="flex items-center gap-4">
+          {/* dir=auto: a Latin name cut short on an Arabic page loses its end, not its start. */}
+          <span
+            title={row.label}
+            dir="auto"
+            className="w-[120px] shrink-0 truncate text-xs font-medium leading-[1.3] text-text-secondary max-md:w-[92px] rtl:text-right"
+          >
             {row.label}
           </span>
           <span className="flex min-w-0 flex-1 items-center">
             <span
               className="h-[18px] shrink-0 rounded-[3px]"
               style={{
-                width: `${(row.value / max) * BAR_SCALE}%`,
+                width: `${(Math.max(0, row.value) / max) * BAR_SCALE}%`,
                 backgroundColor: index === 0 ? SERIES.strong : SERIES.soft,
               }}
             />
@@ -567,35 +582,53 @@ export function StackedPercentRows({
   colors,
   minLabelWidth = 8,
 }: {
-  rows: { label: string; parts: number[] }[]
+  /**
+   * `pending` draws the row as one neutral bar carrying that text, for a row whose split the
+   * platform does not report yet; the row keeps its place rather than vanishing.
+   */
+  rows: { label: string; parts: number[]; pending?: string }[]
   colors: string[]
   /** Below this share a segment is too narrow for its own number. */
   minLabelWidth?: number
 }) {
   return (
     <ul className="flex w-full flex-col gap-[42px] py-2">
-      {rows.map((row) => (
-        <li key={row.label} className="flex items-center gap-4">
+      {rows.map((row, rowIndex) => (
+        <li key={rowIndex} className="flex items-center gap-4">
           <span className="w-[76px] shrink-0 text-xs font-medium leading-[1.3] text-text-secondary">
             {row.label}
           </span>
           <span className="flex h-[22px] min-w-0 flex-1 gap-[3px]">
-            {row.parts.map((part, index) => (
-              <span
-                key={index}
-                className="flex items-center justify-center rounded-[3px] text-[10px] font-semibold"
-                style={{
-                  width: `${part}%`,
-                  backgroundColor: colors[index],
-                  color: index === 1 ? '#5b606c' : '#ffffff',
-                }}
-              >
-                {part >= minLabelWidth ? `${part}%` : null}
+            {row.pending !== undefined ? (
+              <span className="flex w-full items-center justify-center rounded-[3px] bg-[#eceef2] text-[10px] font-semibold text-text-quaternary">
+                {row.pending}
               </span>
-            ))}
+            ) : null}
+            {(row.pending !== undefined ? [] : row.parts).map((part, index) =>
+              part <= 0 ? null : (
+                <span
+                  key={index}
+                  className="flex items-center justify-center rounded-[3px] text-[10px] font-semibold"
+                  style={{
+                    width: `${part}%`,
+                    backgroundColor: colors[index],
+                    color: isLight(colors[index]) ? '#5b606c' : '#ffffff',
+                  }}
+                >
+                  {part >= minLabelWidth ? `${part}%` : null}
+                </span>
+              ),
+            )}
           </span>
         </li>
       ))}
     </ul>
   )
+}
+
+/** Whether a segment's fill is pale enough to need dark text on it. */
+function isLight(hex: string) {
+  const value = hex.replace('#', '')
+  const [r, g, b] = [0, 2, 4].map((offset) => parseInt(value.slice(offset, offset + 2), 16))
+  return 0.299 * r + 0.587 * g + 0.114 * b > 170
 }

@@ -1,234 +1,460 @@
+import type {
+  ActivityDetailDto,
+  ActivityLinksDto,
+  MlsRecordDto,
+  TddObligationDto,
+} from '../api/compliance/activity'
+import { BUSINESS_TIME_ZONE } from './format'
+import { flowOf, outcomeOf, type RowFlow, type RowOutcome } from './activityLedger'
+
 /**
- * One invoice's reporting record — Compliance › Activity › Detail (Figma 131:16862).
+ * One document's reporting record: Compliance › Activity › Detail (Figma 154:111026, drawn for
+ * INV-1993), read from `/v1/compliance/activity/{invoice_uuid}`.
  *
  * A document takes two independent journeys and the screen shows both: the Tax Data Document to
- * the Authority via Fawtara, and the invoice itself to the customer over Peppol. Either can fail
- * without the other noticing, which is why they are drawn as two separate timelines rather than
- * one merged history.
+ * the Authority via Fawtara (the TDD lineage, oldest first), and the invoice itself to the customer
+ * over Peppol (the MLS replies). Either can fail without the other noticing, which is why they are
+ * drawn as two timelines rather than one merged history.
  *
- * INV-1993 is the interesting case — rejected once, corrected, accepted on the second attempt —
- * so the screen has to explain a rejection, show both versions, and say which one the Authority
- * actually holds.
+ * Everything here is worked out from the record. What the record does not carry yet (the time of
+ * a refusal, the plain-language explanation, file sizes, participant IDs, the integrity check) is
+ * left out or drawn from what is there, and listed in the backend asks doc, section 2.
  */
 
 /** How a step of a journey ended. */
-export type StepState = 'done' | 'failed'
+export type StepState = 'done' | 'failed' | 'waiting'
 
 export type JourneyStep = {
   id: string
   labelKey: string
-  /** When it happened, as the Authority and the network recorded it. */
-  at: string
-  /** A second line — who did it, or the reference it produced. */
-  noteKey?: string
+  /** When it happened, as `8 Jun · 11:20:04`; null when the record does not say. */
+  at: string | null
+  /** A second line: the reference it produced, the MLS code, the error code. */
   note?: string
   state: StepState
 }
 
+export type JourneyTone = 'good' | 'bad' | 'waiting'
+
 export type Journey = {
-  id: string
+  id: 'ota' | 'peppol'
   titleKey: string
   subtitleKey: string
   /** The badge on the right of the journey heading. */
   verdictKey: string
-  /** Whether that badge reads as a success. */
-  settled: boolean
+  verdictValues?: Record<string, string | number>
+  tone: JourneyTone
   steps: JourneyStep[]
 }
 
-const TDD_JOURNEY: Journey = {
-  id: 'ota',
-  titleKey: 'activityDetail.toTaxAuthority',
-  subtitleKey: 'activityDetail.toTaxAuthorityNote',
-  verdictKey: 'activityDetail.acceptedOnSecond',
-  settled: true,
-  steps: [
-    {
-      id: 'built',
-      labelKey: 'activityDetail.step.reportBuilt',
-      at: '8 Jun · 11:20:04',
-      state: 'done',
-    },
-    {
-      id: 'sent',
-      labelKey: 'activityDetail.step.sentToFawtara',
-      at: '8 Jun · 11:20:07',
-      state: 'done',
-    },
-    {
-      id: 'turnedDown',
-      labelKey: 'activityDetail.step.turnedDown',
-      at: '8 Jun · 11:22:31',
-      note: 'OTA-E-1122',
-      state: 'failed',
-    },
-    {
-      id: 'resent',
-      labelKey: 'activityDetail.step.correctedAndResent',
-      at: '9 Jun · 08:41:12',
-      noteKey: 'activityDetail.byPerson',
-      state: 'done',
-    },
-    {
-      id: 'accepted',
-      labelKey: 'activityDetail.step.accepted',
-      at: '9 Jun · 08:43:05',
-      note: 'OM-2026-0083907',
-      state: 'done',
-    },
-  ],
-}
-
-const PEPPOL_JOURNEY: Journey = {
-  id: 'peppol',
-  titleKey: 'activityDetail.toCustomer',
-  subtitleKey: 'activityDetail.toCustomerNote',
-  verdictKey: 'activityDetail.deliveredAccepted',
-  settled: true,
-  steps: [
-    { id: 'signed', labelKey: 'activityDetail.step.signed', at: '8 Jun · 11:20:04', state: 'done' },
-    {
-      id: 'sentPeppol',
-      labelKey: 'activityDetail.step.sentOverPeppol',
-      at: '8 Jun · 11:20:09',
-      state: 'done',
-    },
-    {
-      id: 'tookIt',
-      labelKey: 'activityDetail.step.accessPointTook',
-      at: '8 Jun · 11:21:16',
-      state: 'done',
-    },
-    {
-      id: 'confirmed',
-      labelKey: 'activityDetail.step.confirmedReceipt',
-      at: '8 Jun · 11:24:48',
-      note: 'MLS · AB',
-      state: 'done',
-    },
-    {
-      id: 'acceptedIt',
-      labelKey: 'activityDetail.step.theyAccepted',
-      at: '9 Jun · 14:02:31',
-      note: 'MLS · AP',
-      state: 'done',
-    },
-  ],
-}
-
-/** One version of the report as the Authority saw it. */
+/** One version of the report as the Authority saw it, newest first. */
 export type ReportVersion = {
   id: string
   version: string
+  state: 'live' | 'superseded' | 'rejected' | 'waiting'
   headlineKey: string
-  at: string
-  uuid: string
-  reference?: string
-  referenceNoteKey?: string
+  at: string | null
+  uuid: string | null
+  reference: string | null
   bodyKey: string
-  /** The version the Authority is actually holding. */
-  live: boolean
 }
 
-export const ACTIVITY_DETAIL = {
-  invoice: 'INV-1993',
-  customer: 'Barka Beach Resort',
-  issued: '8 Jun 2026',
-  amount: '1,842.000',
-  attempts: 2,
-  supersededCount: 1,
+export type ActivityRecord = {
+  invoiceUuid: string
+  invoice: string | null
+  customer: string | null
+  issued: string
+  amount: number | null
+  currency: string
+  outcome: RowOutcome
+  attempts: number
+  supersededCount: number
+  journeys: Journey[]
+  /** The refusal to explain, newest first: the one that matters. Null when none was refused. */
+  rejection: { code: string | null; reason: string; later: 'accepted' | 'open' } | null
+  versions: ReportVersion[]
+  proof: { reference: string | null; uuid: string | null; acceptedAt: string | null }
+  route: { flow: RowFlow; flowNumber: number | null; standIn: string | null; mlsCount: number }
+  /** Oman VAT Law keeps a tax document ten years from issue. */
+  retention: { keptUntil: string; years: number; months: number }
+  copies: {
+    id: 'accepted' | 'withdrawn' | 'ack' | 'replies' | 'invoice'
+    titleKey: string
+    metaKey: string
+    values?: Record<string, number>
+  }[]
+  /** "Send it again": only the server's link makes it possible. */
+  resend: 'possible' | 'accepted' | 'waiting' | 'none'
+  links: ActivityLinksDto
+}
 
-  journeys: [TDD_JOURNEY, PEPPOL_JOURNEY],
+const RETENTION_YEARS = 10
 
-  /** Why the first attempt failed. */
-  rejection: {
-    code: 'OTA-E-1122',
-    headlineKey: 'activityDetail.rejection.headline',
-    bodyKey: 'activityDetail.rejection.body',
-    raw: "TAX_CATEGORY_MISMATCH: cac:ClassifiedTaxCategory/cbc:ID = 'Z' with cbc:Percent = 5.00 at line 2, line 4",
-  },
+/** `8 Jun · 11:20:04` in the business's time zone. */
+export function stampOf(iso: string | null, language = 'en'): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  const ar = language.startsWith('ar')
+  const part = (options: Intl.DateTimeFormatOptions, locale = ar ? 'ar-OM' : 'en-GB') =>
+    new Intl.DateTimeFormat(locale, { timeZone: BUSINESS_TIME_ZONE, ...options }).format(date)
+  const month = part({ month: 'short' }, ar ? 'ar-OM' : 'en-US')
+  const time = part({ hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+  return `${part({ day: 'numeric' })} ${month} · ${time}`
+}
 
-  versions: [
-    {
-      id: 'v2',
-      version: 'V2',
-      headlineKey: 'activityDetail.versions.acceptedOn',
-      at: '9 Jun 2026, 08:43',
-      uuid: '6c25-b840-1f97-5b02',
-      reference: 'OM-2026-0083907',
-      bodyKey: 'activityDetail.versions.v2Body',
-      live: true,
-    },
-    {
-      id: 'v1',
-      version: 'V1',
-      headlineKey: 'activityDetail.versions.turnedDownOn',
-      at: '8 Jun 2026, 11:22',
-      uuid: '6c25-b840-1f97-4ae3',
-      referenceNoteKey: 'activityDetail.versions.noReference',
-      bodyKey: 'activityDetail.versions.v1Body',
-      live: false,
-    },
-  ] satisfies ReportVersion[],
+/** `9 Jun 2026, 08:43`. */
+export function whenOf(iso: string | null, language = 'en'): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  const ar = language.startsWith('ar')
+  const opts = (o: Intl.DateTimeFormatOptions) => ({ timeZone: BUSINESS_TIME_ZONE, ...o })
+  const day = new Intl.DateTimeFormat(ar ? 'ar-OM' : 'en-GB', opts({ day: 'numeric' })).format(date)
+  const month = new Intl.DateTimeFormat(ar ? 'ar-OM' : 'en-US', opts({ month: 'short' })).format(
+    date,
+  )
+  const year = new Intl.DateTimeFormat(ar ? 'ar-OM' : 'en-GB', opts({ year: 'numeric' })).format(
+    date,
+  )
+  const time = new Intl.DateTimeFormat(
+    ar ? 'ar-OM' : 'en-GB',
+    opts({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
+  ).format(date)
+  return `${day} ${month} ${year}, ${time}`
+}
 
-  /** Which Peppol scenario carried it. */
-  route: {
-    scenarioKey: 'activityDetail.route.flowOne',
-    documentsKey: 'activityDetail.route.documents',
-    ourId: '0248:OM1100392000',
-    theirId: '0248:OM1100558840',
-    standInKey: 'activityDetail.route.noStandIn',
-    profile: 'PINT-OM 1.0',
-  },
+/** `8 Jun 2026`. */
+function dayOf(iso: string, language: string): string {
+  return (whenOf(iso, language) ?? iso).split(',')[0]
+}
 
-  /** The Authority's own record, for checking outside Fawtir. */
-  proof: {
-    reference: 'OM-2026-0083907',
-    uuid: '6c25-b840-1f97-5b02',
-    acceptedAt: '9 Jun 2026, 08:43',
-  },
+const refused = (obligation: TddObligationDto) =>
+  Boolean(obligation.failure_reason) || obligation.status === 'REJECTED'
 
-  /** Oman VAT Law requires ten years; property would be fifteen. */
-  retention: {
-    keptUntil: '8 Jun 2036',
-    remainingKey: 'activityDetail.retention.remaining',
-    reasonKey: 'activityDetail.retention.reason',
-    integrityKey: 'activityDetail.retention.checkedToday',
-  },
-
-  copies: [
-    {
+function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: string): Journey | null {
+  const lineage = dto.tdd_lineage
+  const leg = dto.summary.tdd_leg
+  if (lineage.length === 0 && !leg) return null
+  const steps: JourneyStep[] = []
+  const first = lineage[0]
+  steps.push({
+    id: 'built',
+    labelKey: 'activityDetail.step.reportBuilt',
+    at: stampOf(first?.validated_at ?? leg?.validated_at ?? null, language),
+    state: 'done',
+  })
+  steps.push({
+    id: 'sent',
+    labelKey: 'activityDetail.step.sentToFawtara',
+    at: stampOf(first?.submitted_at ?? leg?.submitted_at ?? null, language),
+    state: 'done',
+  })
+  lineage.forEach((obligation, index) => {
+    const last = index === lineage.length - 1
+    if (index > 0) {
+      steps.push({
+        id: `resent-${obligation.id}`,
+        labelKey: 'activityDetail.step.correctedAndResent',
+        at: stampOf(obligation.submitted_at, language),
+        state: 'done',
+      })
+    }
+    // A refusal on the last attempt is told by the leg below, which knows when it came back.
+    if (refused(obligation) && !(last && leg?.ack === 'RE')) {
+      steps.push({
+        id: `refused-${obligation.id}`,
+        labelKey: 'activityDetail.step.turnedDown',
+        // TODO(backend): an obligation carries no refusal time (asks row 2.11).
+        at: null,
+        note: obligation.error_code ?? undefined,
+        state: 'failed',
+      })
+    }
+  })
+  const live = lineage[lineage.length - 1]
+  if (leg?.ack === 'AP' || leg?.ack === 'AB') {
+    steps.push({
       id: 'accepted',
-      titleKey: 'activityDetail.copies.accepted',
-      metaKey: 'activityDetail.copies.acceptedMeta',
-      size: '6 KB',
-    },
-    {
-      id: 'withdrawn',
-      titleKey: 'activityDetail.copies.withdrawn',
-      metaKey: 'activityDetail.copies.withdrawnMeta',
-      size: '6 KB',
-    },
-    {
-      id: 'ack',
-      titleKey: 'activityDetail.copies.ack',
-      metaKey: 'activityDetail.copies.ackMeta',
-      size: '3 KB',
-    },
-    {
-      id: 'replies',
-      titleKey: 'activityDetail.copies.replies',
-      metaKey: 'activityDetail.copies.repliesMeta',
-      size: '3 KB',
-    },
-    {
-      id: 'invoice',
-      titleKey: 'activityDetail.copies.invoice',
-      metaKey: 'activityDetail.copies.invoiceMeta',
-      size: '160 KB',
-    },
-  ],
+      labelKey: 'activityDetail.step.accepted',
+      at: stampOf(leg.ack_at, language),
+      note: dto.summary.fawtara_reference ?? live?.fawtara_reference ?? undefined,
+      state: 'done',
+    })
+  } else if (leg?.ack === 'RE') {
+    steps.push({
+      id: 'refused',
+      labelKey: 'activityDetail.step.turnedDown',
+      at: stampOf(leg.ack_at, language),
+      note: live?.error_code ?? undefined,
+      state: 'failed',
+    })
+  } else if (leg) {
+    steps.push({
+      id: 'waiting',
+      labelKey: 'activityDetail.step.waitingOnOta',
+      at: null,
+      state: 'waiting',
+    })
+  }
 
-  /** Nothing to resend while the accepted version stands. */
-  resend: { possible: false, bodyKey: 'activityDetail.resend.body' },
+  const attempts = Math.max(1, lineage.length)
+  const verdict: Pick<Journey, 'verdictKey' | 'verdictValues' | 'tone'> =
+    outcome === 'accepted'
+      ? attempts === 1
+        ? { verdictKey: 'activityDetail.verdict.accepted', tone: 'good' }
+        : {
+            verdictKey: 'activityDetail.verdict.acceptedOnTry',
+            verdictValues: { count: attempts },
+            tone: 'good',
+          }
+      : outcome === 'rejected' || outcome === 'superseded'
+        ? { verdictKey: 'activityDetail.verdict.turnedDown', tone: 'bad' }
+        : { verdictKey: 'activityDetail.verdict.waiting', tone: 'waiting' }
+
+  return {
+    id: 'ota',
+    titleKey: 'activityDetail.toTaxAuthority',
+    subtitleKey: 'activityDetail.toTaxAuthorityNote',
+    ...verdict,
+    steps,
+  }
+}
+
+const MLS_STEP: Record<string, { labelKey: string; state: StepState }> = {
+  AB: { labelKey: 'activityDetail.step.confirmedReceipt', state: 'done' },
+  AP: { labelKey: 'activityDetail.step.theyAccepted', state: 'done' },
+  RE: { labelKey: 'activityDetail.step.theyRefused', state: 'failed' },
+}
+
+function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null {
+  const item = dto.summary
+  // A walk-in sale or a buyer off Peppol is reported only: nothing travels to a customer.
+  if (item.b2c || item.scenario?.stand_in_id) return null
+  const replies = [...dto.mls]
+    .filter((record: MlsRecordDto) => record.ack !== 'NONE')
+    .sort((a, b) => (a.received_at ?? '').localeCompare(b.received_at ?? ''))
+  const steps: JourneyStep[] = [
+    {
+      id: 'signed',
+      labelKey: 'activityDetail.step.signed',
+      at: stampOf(item.validated_at, language),
+      state: 'done',
+    },
+    {
+      id: 'sentPeppol',
+      labelKey: 'activityDetail.step.sentOverPeppol',
+      at: stampOf(item.occurred_at, language),
+      state: 'done',
+    },
+    // The frame's third step: the buyer's access point took the message (the AS4 receipt).
+    // TODO(backend): the item says only that transport finished, not when (asks row 2.23).
+    ...(item.transport_state && /^(SENT|DELIVERED)$/i.test(item.transport_state)
+      ? [
+          {
+            id: 'accessPoint',
+            labelKey: 'activityDetail.step.accessPointTook',
+            at: null,
+            state: 'done' as const,
+          },
+        ]
+      : []),
+    ...replies.map((record, index) => ({
+      id: `mls-${index}`,
+      labelKey: MLS_STEP[record.ack].labelKey,
+      at: stampOf(record.received_at, language),
+      note: `MLS · ${record.ack}`,
+      state: MLS_STEP[record.ack].state,
+    })),
+  ]
+  if (replies.length === 0) {
+    steps.push({
+      id: 'noReply',
+      labelKey: 'activityDetail.step.waitingOnThem',
+      at: null,
+      state: 'waiting',
+    })
+  }
+  const last = replies[replies.length - 1]?.ack
+  const verdict: Pick<Journey, 'verdictKey' | 'tone'> =
+    last === 'AP'
+      ? { verdictKey: 'activityDetail.deliveredAccepted', tone: 'good' }
+      : last === 'AB'
+        ? { verdictKey: 'activityDetail.verdict.delivered', tone: 'good' }
+        : last === 'RE'
+          ? { verdictKey: 'activityDetail.verdict.theyRefused', tone: 'bad' }
+          : { verdictKey: 'activityDetail.verdict.noReplyYet', tone: 'waiting' }
+  return {
+    id: 'peppol',
+    titleKey: 'activityDetail.toCustomer',
+    subtitleKey: 'activityDetail.toCustomerNote',
+    ...verdict,
+    steps,
+  }
+}
+
+function versionsOf(
+  dto: ActivityDetailDto,
+  outcome: RowOutcome,
+  language: string,
+): ReportVersion[] {
+  const lineage = dto.tdd_lineage
+  const leg = dto.summary.tdd_leg
+  return lineage
+    .map((obligation, index): ReportVersion => {
+      const last = index === lineage.length - 1
+      const state: ReportVersion['state'] =
+        last && outcome === 'accepted'
+          ? 'live'
+          : obligation.status === 'SUPERSEDED'
+            ? 'superseded'
+            : refused(obligation) || (last && leg?.ack === 'RE')
+              ? 'rejected'
+              : 'waiting'
+      return {
+        id: obligation.id,
+        version: `V${index + 1}`,
+        state,
+        headlineKey:
+          state === 'live'
+            ? 'activityDetail.versions.acceptedOn'
+            : state === 'waiting'
+              ? 'activityDetail.versions.sentOn'
+              : 'activityDetail.versions.turnedDownOn',
+        at: whenOf(
+          last && state === 'live'
+            ? (leg?.ack_at ?? obligation.submitted_at)
+            : obligation.submitted_at,
+          language,
+        ),
+        uuid: obligation.tdd_uuid,
+        reference:
+          obligation.fawtara_reference ?? (last ? (dto.summary.fawtara_reference ?? null) : null),
+        bodyKey: `activityDetail.versions.${state}Body`,
+      }
+    })
+    .reverse()
+}
+
+export function recordFromDetail(
+  dto: ActivityDetailDto,
+  language = 'en',
+  now = new Date(),
+): ActivityRecord {
+  const item = dto.summary
+  const outcome = outcomeOf(item)
+  const lineage = dto.tdd_lineage
+  const journeys = [tddJourney(dto, outcome, language), peppolJourney(dto, language)].filter(
+    (journey): journey is Journey => journey !== null,
+  )
+
+  const refusals = lineage.filter(refused)
+  const lastRefusal = refusals[refusals.length - 1]
+  const reason =
+    lastRefusal?.failure_reason ?? (item.tdd_leg?.ack === 'RE' ? item.tdd_leg.reason : null)
+  const rejection = reason
+    ? {
+        code: lastRefusal?.error_code ?? null,
+        reason,
+        later: outcome === 'accepted' ? ('accepted' as const) : ('open' as const),
+      }
+    : null
+
+  const issuedAt = new Date(item.occurred_at)
+  const keptUntil = new Date(issuedAt)
+  keptUntil.setUTCFullYear(keptUntil.getUTCFullYear() + RETENTION_YEARS)
+  const monthsLeft = Math.max(
+    0,
+    (keptUntil.getUTCFullYear() - now.getUTCFullYear()) * 12 +
+      keptUntil.getUTCMonth() -
+      now.getUTCMonth(),
+  )
+
+  const supersededCount = lineage.filter((obligation) => obligation.status === 'SUPERSEDED').length
+  const live = lineage[lineage.length - 1]
+  const replies = dto.mls.filter((record) => record.ack !== 'NONE').length
+
+  return {
+    invoiceUuid: dto.invoice_uuid,
+    invoice: item.invoice_number,
+    customer: item.counterparty,
+    issued: dayOf(item.occurred_at, language),
+    amount: item.amount ?? null,
+    currency: item.currency_code ?? 'OMR',
+    outcome,
+    attempts: Math.max(1, lineage.length),
+    supersededCount,
+    journeys,
+    rejection,
+    versions: versionsOf(dto, outcome, language),
+    proof: {
+      reference: item.fawtara_reference ?? live?.fawtara_reference ?? null,
+      uuid: item.tdd_uuid ?? live?.tdd_uuid ?? null,
+      acceptedAt: outcome === 'accepted' ? whenOf(item.tdd_leg?.ack_at ?? null, language) : null,
+    },
+    route: {
+      flow: flowOf(item),
+      flowNumber: item.scenario?.flow ?? null,
+      standIn: item.scenario?.stand_in_id ?? null,
+      mlsCount: replies,
+    },
+    retention: {
+      keptUntil: dayOf(keptUntil.toISOString(), language),
+      years: Math.floor(monthsLeft / 12),
+      months: monthsLeft % 12,
+    },
+    copies: [
+      ...(live
+        ? [
+            {
+              id: 'accepted' as const,
+              titleKey:
+                outcome === 'accepted'
+                  ? 'activityDetail.copies.accepted'
+                  : 'activityDetail.copies.latest',
+              metaKey: 'activityDetail.copies.xmlMeta',
+              values: { version: lineage.length },
+            },
+          ]
+        : []),
+      ...lineage.slice(0, -1).map((_, index) => ({
+        id: 'withdrawn' as const,
+        titleKey: 'activityDetail.copies.withdrawn',
+        metaKey: 'activityDetail.copies.xmlMeta',
+        values: { version: index + 1 },
+      })),
+      ...(outcome === 'accepted'
+        ? [
+            {
+              id: 'ack' as const,
+              titleKey: 'activityDetail.copies.ack',
+              metaKey: 'activityDetail.copies.ackMeta',
+            },
+          ]
+        : []),
+      ...(replies > 0
+        ? [
+            {
+              id: 'replies' as const,
+              titleKey: 'activityDetail.copies.replies',
+              metaKey: 'activityDetail.copies.repliesMeta',
+              values: { count: replies },
+            },
+          ]
+        : []),
+      {
+        id: 'invoice' as const,
+        titleKey: 'activityDetail.copies.invoice',
+        metaKey: 'activityDetail.copies.invoiceMeta',
+      },
+    ],
+    resend: item.links.resubmit
+      ? 'possible'
+      : outcome === 'accepted'
+        ? 'accepted'
+        : outcome === 'waiting'
+          ? 'waiting'
+          : 'none',
+    links: item.links,
+  }
 }

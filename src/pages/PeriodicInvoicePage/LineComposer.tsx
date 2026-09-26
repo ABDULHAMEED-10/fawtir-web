@@ -37,7 +37,8 @@ export function normalisePrice(raw: string): string {
   return formatAmount(value < 0n ? 0n : value, 3).replace(/,/g, '')
 }
 
-const GRID = 'grid grid-cols-[2fr_0.55fr_0.5fr_0.6fr_0.55fr_0.55fr_0.7fr] gap-2'
+const GRID =
+  'grid grid-cols-[minmax(0,2fr)_minmax(0,0.55fr)_minmax(0,0.5fr)_minmax(0,0.6fr)_minmax(0,0.55fr)_minmax(0,0.55fr)_minmax(0,0.7fr)] gap-2'
 
 function FieldShell({ children, readOnly }: { children: ReactNode; readOnly?: boolean }) {
   return (
