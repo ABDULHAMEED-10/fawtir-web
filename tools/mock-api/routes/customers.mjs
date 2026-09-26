@@ -246,7 +246,7 @@ function record(summary, version = 1) {
       },
       billingDefaults: {
         defaultCurrency: 'OMR',
-        defaultTaxCategory: 'S',
+        defaultTaxCategory: 'S5',
         paymentTerms: 'NET30',
         defaultPaymentMethod: '30',
       },

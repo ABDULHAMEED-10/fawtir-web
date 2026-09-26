@@ -1777,7 +1777,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       {consumer ? null : (
         <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
           <LinkedDocuments
-            titleSlot={<SectionTitle step={steps.linked!} title={t('createInvoice.sections.linked')} />}
+            titleSlot={
+              <SectionTitle step={steps.linked!} title={t('createInvoice.sections.linked')} />
+            }
             docs={linkedDocs}
             linkableCount={LINK_PICKER_DOCS.filter((doc) => !linkedIds.includes(doc.id)).length}
             onLink={() => setLinkModalOpen(true)}

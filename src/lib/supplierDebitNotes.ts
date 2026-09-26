@@ -218,13 +218,21 @@ export function intakeChecks({
           values: { supplier: supplierName },
           verdict: 'fine',
         }
-      : {
-          id: 'supplier',
-          titleKey: 'supplierDebitNotes.checks.supplierUnknown',
-          detailKey: 'supplierDebitNotes.checks.supplierUnknownDetail',
-          values: { supplier: supplierName },
-          verdict: 'check',
-        },
+      : !supplierName.trim()
+        ? {
+            // Nothing chosen or typed yet: say so, rather than quote an empty name.
+            id: 'supplier',
+            titleKey: 'supplierDebitNotes.checks.supplierNone',
+            detailKey: 'supplierDebitNotes.checks.supplierNoneDetail',
+            verdict: 'check',
+          }
+        : {
+            id: 'supplier',
+            titleKey: 'supplierDebitNotes.checks.supplierUnknown',
+            detailKey: 'supplierDebitNotes.checks.supplierUnknownDetail',
+            values: { supplier: supplierName },
+            verdict: 'check',
+          },
   )
   if (printedTotal === null) {
     checks.push({

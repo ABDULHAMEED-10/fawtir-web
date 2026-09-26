@@ -298,7 +298,7 @@ function SupplierStatement({ id }: { id: string }) {
 
       {statement.read.status === 'ready' ? body(statement.read.data) : null}
 
-      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur lg:start-[248px] lg:rtl:start-0 lg:rtl:end-[248px]">
+      <div className="fixed bottom-0 end-0 start-0 z-20 border-t border-border-subtle bg-white/95 backdrop-blur lg:start-[248px]">
         <div className="mx-auto flex w-full max-w-[1176px] flex-wrap items-center justify-between gap-3 px-4 py-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-text-tertiary">
             {statement.read.status === 'ready' ? (

@@ -25,12 +25,12 @@ import {
   refusalOf,
   supplierTile,
 } from '../../lib/paymentRuns'
-import spreadsheetIcon from '../../assets/actions/statement.svg'
-import emailIcon from '../../assets/payment/email.svg'
-import bankIcon from '../../assets/payment/bank.svg'
-import copyIcon from '../../assets/actions/duplicate.svg'
-import resetIcon from '../../assets/bill-capture/rotate.svg'
-import deleteIcon from '../../assets/actions/delete.svg'
+import spreadsheetIcon from '../../assets/payment-run-menu/sheet.svg'
+import emailIcon from '../../assets/payment-run-menu/email.svg'
+import bankIcon from '../../assets/payment-run-menu/format.svg'
+import copyIcon from '../../assets/payment-run-menu/copy.svg'
+import resetIcon from '../../assets/payment-run-menu/reset.svg'
+import deleteIcon from '../../assets/payment-run-menu/delete.svg'
 
 export const HEADER_BUTTON =
   'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50'

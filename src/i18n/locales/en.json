@@ -6231,7 +6231,10 @@
       "savedHeld": "Saved. The credit is held until you set it against a bill.",
       "savedApplied": "Saved and set against the bill.",
       "footerLead": "Everything checked",
-      "footerNote": "uploaded notes aren't validated or reported like Peppol ones"
+      "footerNote": "uploaded notes aren't validated or reported like Peppol ones",
+      "holdNoteAny": "Leave it unused and apply it to a later bill from this supplier instead.",
+      "footerToFill_one": "{{count}} field still to fill",
+      "footerToFill_other": "{{count}} fields still to fill"
     },
     "detail": {
       "creditNotePeppol": "Credit note · Peppol",
@@ -6701,7 +6704,9 @@
       "summaryWorriesBody": "Read the points marked Check before you accept the charge.",
       "summaryBeforeAccept_one": "One thing worth a look before you accept.",
       "summaryBeforeAccept_other": "{{count}} things worth a look before you accept.",
-      "summaryBeforeAcceptBody": "Read the points marked Check, then decide."
+      "summaryBeforeAcceptBody": "Read the points marked Check, then decide.",
+      "supplierNone": "No supplier chosen yet",
+      "supplierNoneDetail": "Choose who sent it, so the charge is checked against the right account."
     }
   },
   "expenditureReminders": {

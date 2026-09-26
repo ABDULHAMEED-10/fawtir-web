@@ -258,6 +258,7 @@ function ReminderSettings() {
                           <input
                             type="number"
                             inputMode="numeric"
+                            dir="ltr"
                             onFocus={selectAllOnFocus}
                             value={value}
                             aria-label={t('paymentReminders.settings.rungLabel', {

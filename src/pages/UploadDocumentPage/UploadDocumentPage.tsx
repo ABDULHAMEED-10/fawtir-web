@@ -26,7 +26,8 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 import selectChevron from '../../assets/create-invoice/chevron.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
 import plusIcon from '../../assets/bill-capture/plus.svg'
-import checkIcon from '../../assets/bill-capture/ok-check.svg'
+// A tick, as the frame's Save button draws it (ok-check.svg is a file outline).
+import checkIcon from '../../assets/supplier-credit-notes/act-set.svg'
 import supplierIcon from '../../assets/documents/rec-contract.svg'
 
 /** The supplier documents endpoint takes at most 10 MiB a file. */
@@ -209,30 +210,34 @@ export function UploadDocumentPage() {
                           </p>
                         </div>
                       </div>
-                      <FileDropzone
-                        accept=".pdf,.png,.jpg,.jpeg,.xml"
-                        maxBytes={MAX_BYTES}
-                        onFiles={(picked) =>
-                          setFiles((current) =>
-                            current.map((entry, at) => (at === index ? picked[0] : entry)),
-                          )
-                        }
-                        onReject={(reason) =>
-                          setRejected(
-                            t(
-                              reason === 'size'
-                                ? 'documents.upload.tooLarge'
-                                : 'documents.upload.wrongType',
-                            ),
-                          )
-                        }
-                      >
-                        {() => (
-                          <span className="inline-flex h-[40px] shrink-0 cursor-pointer items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-white/70">
-                            {t('documents.upload.replace')}
-                          </span>
-                        )}
-                      </FileDropzone>
+                      {/* Beside the file, as the frame draws it: the dropzone's full-width button
+                          pushed "Replace" onto a line of its own. */}
+                      <div className="shrink-0 [&>button]:w-auto">
+                        <FileDropzone
+                          accept=".pdf,.png,.jpg,.jpeg,.xml"
+                          maxBytes={MAX_BYTES}
+                          onFiles={(picked) =>
+                            setFiles((current) =>
+                              current.map((entry, at) => (at === index ? picked[0] : entry)),
+                            )
+                          }
+                          onReject={(reason) =>
+                            setRejected(
+                              t(
+                                reason === 'size'
+                                  ? 'documents.upload.tooLarge'
+                                  : 'documents.upload.wrongType',
+                              ),
+                            )
+                          }
+                        >
+                          {() => (
+                            <span className="inline-flex h-[40px] shrink-0 cursor-pointer items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-white/70">
+                              {t('documents.upload.replace')}
+                            </span>
+                          )}
+                        </FileDropzone>
+                      </div>
                     </li>
                   ))}
                 </ul>

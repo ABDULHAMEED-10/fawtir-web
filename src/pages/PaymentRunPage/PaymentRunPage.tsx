@@ -461,7 +461,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                 <div
                   role="group"
                   aria-label={t('paymentsPage.dueWindow')}
-                  className="inline-flex items-center rounded-sm border border-border-subtle bg-[#fafafa] p-0.5 max-md:flex max-md:w-full max-md:overflow-x-auto"
+                  className="inline-flex items-center rounded-sm border border-border-subtle bg-[#fafafa] p-0.5 max-md:flex max-md:w-full max-md:flex-wrap"
                 >
                   {DUE_WINDOWS.map((option) => (
                     <button
@@ -471,7 +471,7 @@ function RunBuilder({ runId }: { runId: string | null }) {
                       onClick={() => pickWindow(option)}
                       aria-pressed={window === option}
                       className={[
-                        'inline-flex h-[30px] items-center whitespace-nowrap rounded-sm border px-3 text-xs font-medium transition-colors',
+                        'inline-flex h-[30px] items-center justify-center whitespace-nowrap rounded-sm border px-3 text-xs font-medium transition-colors max-md:basis-[calc(50%-2px)] max-md:grow',
                         window === option
                           ? 'border-border-subtle bg-primary-25 font-semibold text-primary-800'
                           : 'border-transparent text-text-tertiary hover:text-text-secondary',

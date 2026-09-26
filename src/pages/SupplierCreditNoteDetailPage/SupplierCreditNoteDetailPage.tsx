@@ -65,7 +65,7 @@ import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import downloadIcon from '../../assets/invoice-details/download.svg'
 import setIcon from '../../assets/supplier-credit-notes/act-set.svg'
-import decisionIcon from '../../assets/bill-detail/decision.svg'
+import decisionIcon from '../../assets/bill-detail/activity.svg'
 
 const CHIP: Record<'usable' | 'waiting' | 'done' | 'refunded', string> = {
   usable: 'bg-pending-100 text-pending-700',
@@ -551,27 +551,30 @@ function CreditNoteDetail() {
             {/*
               All four figures the balance carries, because three of them do not add up on
               their own: a refunded note shows credited 52.500, used 0.000 and left 40.000, and
-              the 12.500 that explains the gap is the one being left out.
+              the 12.500 that explains the gap is the one being left out. The frame draws a
+              fresh note, where nothing has moved yet, without them, so they wait for a movement.
             */}
-            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-primary-100 pt-3">
-              {(
-                [
-                  ['credited', row.creditedAmount ?? 0],
-                  ['applied', row.balance.applied],
-                  ['refunded', row.balance.refunded],
-                  ['remaining', row.balance.remaining],
-                ] as const
-              ).map(([key, value]) => (
-                <div key={key}>
-                  <dt className="text-[11px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-                    {t(`supplierCreditNoteDetail.${key}`)}
-                  </dt>
-                  <dd className="mt-0.5 text-sm font-semibold text-text-primary tabular-nums">
-                    {money(value)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+            {row.balance.applied > 0 || row.balance.refunded > 0 ? (
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-primary-100 pt-3">
+                {(
+                  [
+                    ['credited', row.creditedAmount ?? 0],
+                    ['applied', row.balance.applied],
+                    ['refunded', row.balance.refunded],
+                    ['remaining', row.balance.remaining],
+                  ] as const
+                ).map(([key, value]) => (
+                  <div key={key}>
+                    <dt className="text-[11px] font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+                      {t(`supplierCreditNoteDetail.${key}`)}
+                    </dt>
+                    <dd className="mt-0.5 text-sm font-semibold text-text-primary tabular-nums">
+                      <SignedAmount sign="" value={money(value)} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
             <p className="mt-3 text-sm font-medium leading-[1.5] text-text-tertiary">
               {kept
                 ? t('supplierCreditNotes.detail.keptDone', { supplier: item.supplier ?? '' })

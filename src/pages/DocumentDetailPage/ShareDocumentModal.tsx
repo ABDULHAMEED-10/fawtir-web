@@ -109,7 +109,7 @@ export function ShareDocumentModal({
             aria-label={t('common.close')}
             className="inline-flex size-9 shrink-0 items-center justify-center rounded-sm hover:bg-surface-background"
           >
-            <img src={closeIcon} alt="" className="size-5" />
+            <img src={closeIcon} alt="" className="size-4" />
           </button>
         </header>
 
@@ -126,7 +126,8 @@ export function ShareDocumentModal({
                   aria-checked={on}
                   onClick={() => toggle(file.id)}
                   className={[
-                    'inline-flex h-[34px] items-center gap-2.5 rounded-sm border px-3 text-sm font-medium transition-colors',
+                    // 13px and tighter padding: the frame fits all five files on one row.
+                    'inline-flex h-[34px] items-center gap-2 rounded-sm border px-2.5 text-[13px] font-medium transition-colors',
                     on
                       ? 'border-primary-700 bg-primary-25 text-primary-700'
                       : 'border-border-subtle bg-white text-text-tertiary hover:border-primary-300',
