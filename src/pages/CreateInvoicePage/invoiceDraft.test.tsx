@@ -83,7 +83,11 @@ function draft(overrides: Partial<DraftResponse> = {}): DraftResponse {
         taxRate: 5,
         exemptionReason: null,
         // A stored draft returns its goods line's HS code (IBR-079-OM).
-        classification: { goodsOrService: 'G', hsCode: '090121000000', serviceTypeCode: '00000000' },
+        classification: {
+          goodsOrService: 'G',
+          hsCode: '090121000000',
+          serviceTypeCode: '00000000',
+        },
       },
     ],
     ...overrides,
@@ -179,15 +183,15 @@ function IssuedLanding() {
 function renderAt(path: string) {
   return render(
     <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/invoices/new" element={<CreateInvoicePage />} />
-        <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
-        <Route path="/invoices" element={<p>invoices list</p>} />
-        <Route path="/invoices/:id" element={<IssuedLanding />} />
-      </Routes>
-    </MemoryRouter>
-      </ReferenceDataContext.Provider>,
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/invoices/new" element={<CreateInvoicePage />} />
+          <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
+          <Route path="/invoices" element={<p>invoices list</p>} />
+          <Route path="/invoices/:id" element={<IssuedLanding />} />
+        </Routes>
+      </MemoryRouter>
+    </ReferenceDataContext.Provider>,
   )
 }
 
@@ -260,11 +264,9 @@ describe('a new invoice draft', () => {
     await waitFor(async () => expect(await terms()).toContain('Net 30 days'))
   })
 
-  it('shows the company\'s stored business activity, or warns that none is set', async () => {
+  it("shows the company's stored business activity, or warns that none is set", async () => {
     renderAt('/invoices/new')
-    expect(
-      await screen.findByText('Business activity: 561001 · Restaurants'),
-    ).toBeTruthy()
+    expect(await screen.findByText('Business activity: 561001 · Restaurants')).toBeTruthy()
 
     cleanup()
     activityCode = null
@@ -488,6 +490,27 @@ describe('issuing from the composer', () => {
       ),
     ).toBeTruthy()
     expect(screen.queryByText(/invoice page for/)).toBeNull()
+  })
+
+  it('tells a company with no business activity where to set it, and keeps the confirmation open', async () => {
+    who = ISSUER
+    issueResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        status: 400,
+        code: 'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+      })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    expect(
+      await within(dialog).findByText(
+        'Set your business activity in Company settings before creating a business or government invoice.',
+      ),
+    ).toBeTruthy()
   })
 
   it('puts a closed-period refusal on the issue date', async () => {

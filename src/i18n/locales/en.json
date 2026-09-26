@@ -9491,7 +9491,7 @@
     "industrialClassificationPlaceholder": "Choose your business activity",
     "industrialClassificationSearch": "Search by activity name",
     "industrialClassificationNone": "No activity matches",
-    "industrialClassificationUnset": "Not set yet. Invoices still issue, but they cannot be sent to the Tax Authority until a business activity is set.",
+    "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again."
   },
   "branches": {
@@ -15746,7 +15746,7 @@
     "businessActivity": "Business activity: {{code}} · {{name}}",
     "businessActivityHint": "Copied onto every line by the backend (IBR-081-OM).",
     "businessActivityLink": "Company settings",
-    "businessActivityUnset": "Business activity not set. Invoices issue, but cannot be sent to the Tax Authority without it.",
+    "businessActivityUnset": "Business activity not set. Business and government invoices cannot be created without it.",
     "businessActivityCodeOnly": "Business activity: {{code}}"
   },
   "invoiceIssue": {
@@ -15784,7 +15784,8 @@
       "productArchived": "A product on this invoice has been archived. Edit the line, then issue.",
       "stale": "Someone changed this draft after you opened it. Reload, then issue.",
       "notDraft": "This invoice is no longer a draft.",
-      "unavailable": "Issuing isn't available on this server yet."
+      "unavailable": "Issuing isn't available on this server yet.",
+      "activityRequired": "Set your business activity in Company settings before creating a business or government invoice."
     },
     "creditNote": {
       "title": "Issue this credit note?",

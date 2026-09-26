@@ -41,9 +41,11 @@ export function issueProblems(form: IssueForm, today: string): Partial<Record<Is
   const problems: Partial<Record<IssueField, string>> = {}
   if (!form.issueDate) problems.issueDate = 'invoiceIssue.error.issueDateRequired'
   else if (form.issueDate > today) problems.issueDate = 'invoiceIssue.error.issueDateFuture'
-  else if (form.issueDate.slice(0, 4) !== today.slice(0, 4)) problems.issueDate = 'invoiceIssue.error.issueDateYear'
+  else if (form.issueDate.slice(0, 4) !== today.slice(0, 4))
+    problems.issueDate = 'invoiceIssue.error.issueDateYear'
   if (!form.dueDate) problems.dueDate = 'invoiceIssue.error.dueDateRequired'
-  else if (form.issueDate && form.dueDate < form.issueDate) problems.dueDate = 'invoiceIssue.error.dueDateBeforeIssue'
+  else if (form.issueDate && form.dueDate < form.issueDate)
+    problems.dueDate = 'invoiceIssue.error.dueDateBeforeIssue'
   return problems
 }
 
@@ -67,6 +69,7 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
   SELLER_PARTICIPANT_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.sellerParticipant' },
   SELLER_NOT_VERIFIED: { field: null, key: 'invoiceIssue.refused.companyPending' },
   CUSTOMER_NOT_INVOICE_ELIGIBLE: { field: null, key: 'invoiceIssue.refused.customerIncomplete' },
+  INDUSTRIAL_CLASSIFICATION_REQUIRED: { field: null, key: 'invoiceIssue.refused.activityRequired' },
   CUSTOMER_NOT_SELECTABLE: { field: null, key: 'invoiceIssue.refused.customerNotSelectable' },
   PAYMENT_TERMS_REQUIRED: { field: null, key: 'invoiceIssue.refused.termsRequired' },
   BRANCH_NOT_ACTIVE: { field: null, key: 'invoiceIssue.refused.branchInactive' },
@@ -84,7 +87,9 @@ export const ISSUE_REFUSALS: Record<string, { field: IssueField | null; key: str
 }
 
 /** A readiness 409 whose reason this build has no sentence for still says what kind of refusal it is. */
-export function issueRefusalOf(error: unknown): { field: IssueField | null; key: string; values?: Record<string, string> } | null {
+export function issueRefusalOf(
+  error: unknown,
+): { field: IssueField | null; key: string; values?: Record<string, string> } | null {
   if (!(error instanceof ApiError)) return null
   if (error.code && ISSUE_REFUSALS[error.code]) return ISSUE_REFUSALS[error.code]
   if (error.status === 409 && error.problemType === 'resource-conflict' && error.code) {

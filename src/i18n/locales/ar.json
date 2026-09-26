@@ -9885,7 +9885,7 @@
     "industrialClassificationPlaceholder": "اختر النشاط التجاري",
     "industrialClassificationSearch": "ابحث باسم النشاط",
     "industrialClassificationNone": "لا يوجد نشاط مطابق",
-    "industrialClassificationUnset": "لم يُحدَّد بعد. تصدر الفواتير، لكن لا يمكن إرسالها إلى هيئة الضرائب قبل تحديد النشاط التجاري.",
+    "industrialClassificationUnset": "لم يُحدَّد بعد. لا يمكن إنشاء فواتير الشركات والجهات الحكومية حتى يُحدَّد النشاط التجاري. فواتير المستهلكين غير متأثرة.",
     "industrialClassificationFailed": "لم يُحفظ النشاط التجاري. تحقق من الرمز وحاول مرة أخرى."
   },
   "branches": {
@@ -16412,7 +16412,7 @@
     "businessActivity": "النشاط التجاري: {{code}} · {{name}}",
     "businessActivityHint": "ينسخه النظام على كل سطر في الفاتورة (IBR-081-OM).",
     "businessActivityLink": "إعدادات الشركة",
-    "businessActivityUnset": "لم يُحدَّد النشاط التجاري. تصدر الفواتير، لكن لا يمكن إرسالها إلى هيئة الضرائب بدونه.",
+    "businessActivityUnset": "لم يُحدَّد النشاط التجاري. لا يمكن إنشاء فواتير الشركات والجهات الحكومية بدونه.",
     "businessActivityCodeOnly": "النشاط التجاري: {{code}}"
   },
   "invoiceIssue": {
@@ -16450,7 +16450,8 @@
       "productArchived": "أُرشف أحد المنتجات في هذه الفاتورة. عدّل البند ثم أصدرها.",
       "stale": "عدّل شخص آخر هذه المسودة بعد أن فتحتها. أعد التحميل ثم أصدرها.",
       "notDraft": "لم تعد هذه الفاتورة مسودة.",
-      "unavailable": "الإصدار غير متاح على هذا الخادم بعد."
+      "unavailable": "الإصدار غير متاح على هذا الخادم بعد.",
+      "activityRequired": "حدِّد النشاط التجاري في إعدادات الشركة قبل إنشاء فاتورة لشركة أو لجهة حكومية."
     },
     "creditNote": {
       "title": "إصدار هذا الإشعار الدائن؟",

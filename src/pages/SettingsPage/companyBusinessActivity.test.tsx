@@ -67,7 +67,9 @@ const put = () => fetchMock.mock.calls.filter(([, init]) => (init as RequestInit
 describe('Settings › Company: business activity', () => {
   it('warns while none is set, and stores the one that is chosen', async () => {
     renderPage()
-    expect(await screen.findByText(/Not set yet\. Invoices still issue/)).toBeTruthy()
+    expect(
+      await screen.findByText(/Not set yet\. Business and government invoices cannot be created/),
+    ).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Business activity (ISIC)' }))
     fireEvent.change(await screen.findByPlaceholderText('Search by activity name'), {
@@ -78,7 +80,11 @@ describe('Settings › Company: business activity', () => {
 
     await waitFor(() => expect(put()).toHaveLength(1))
     expect(JSON.parse((put()[0][1] as RequestInit).body as string)).toEqual({ code: '561001' })
-    await waitFor(() => expect(screen.queryByText(/Not set yet\. Invoices still issue/)).toBeNull())
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Not set yet\. Business and government invoices cannot be created/),
+      ).toBeNull(),
+    )
   })
 
   it('shows the stored activity and sends nothing when it is unchanged', async () => {
@@ -89,7 +95,9 @@ describe('Settings › Company: business activity', () => {
         screen.getByRole('button', { name: 'Business activity (ISIC)' }).textContent,
       ).toContain('Restaurants'),
     )
-    expect(screen.queryByText(/Not set yet\. Invoices still issue/)).toBeNull()
+    expect(
+      screen.queryByText(/Not set yet\. Business and government invoices cannot be created/),
+    ).toBeNull()
     expect(put()).toHaveLength(0)
   })
 })
