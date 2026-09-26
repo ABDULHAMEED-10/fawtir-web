@@ -332,15 +332,18 @@ export function toDraftRequest(
     vatMode: 'EXCLUSIVE',
     lines: form.lines.map((line, index) => {
       const tax = taxOptionOf(reference?.taxCategories ?? [], line)
-      // TODO(backend): `itemType` (goods/service), `hsCode` and `serviceType` have no draft field
-      // and `InvoiceDraftRequest` refuses unknown members, so the line's classification stays on
-      // the client until the API carries `lines[].itemType`, `lines[].hsCode` and
-      // `lines[].serviceType` (docs/backend-guides/INCOME.md §C7.3). The industrial classification
-      // is never sent: the backend copies the tenant's setting onto every line.
+      // A goods line of a business or government invoice carries its HS code (IBR-079-OM); the
+      // industrial classification is never sent, the backend copies the tenant's setting onto
+      // every line. A services line is not sent yet: the CL-12-OM service types the composer
+      // offers are a placeholder list the backend would refuse, so it stays unclassified until
+      // the official list is served (docs/backend-guides/INCOME.md §C7).
+      const classification =
+        line.itemType === 'goods' && line.hsCode
+          ? { goodsOrService: 'G' as const, hsCode: line.hsCode }
+          : undefined
       return {
         lineNumber: index + 1,
-        productId: line.productId ?? '',
-        productCode: line.productCode ?? '',
+        ...(line.productId ? { productId: line.productId, productCode: line.productCode ?? '' } : {}),
         description: line.description.trim(),
         unitCode: line.unit,
         quantity: number(line.quantity),
@@ -356,6 +359,7 @@ export function toDraftRequest(
             ? text(line.exemptionReason)
             : null,
         },
+        ...(classification ? { classification } : {}),
       }
     }),
     headerDiscount: { type: form.headerDiscountType, value: number(form.headerDiscountValue) },
@@ -417,9 +421,8 @@ export function fromDraftResponse(
         productCode: line.productCode || null,
         description: line.description,
         itemType: itemTypeOfUnit(line.unitCode),
-        // Read when the response carries them (a backend ask); a draft saved today has neither.
-        hsCode: line.hsCode ?? undefined,
-        serviceType: line.serviceType ?? undefined,
+        hsCode: line.classification?.hsCode ?? undefined,
+        serviceType: line.classification?.serviceTypeCode ?? undefined,
         // Three decimals as typed ("1.8" reloads as "1.800"), no thousands separators.
         unitPrice: formatAmount(parseAmount(String(line.unitPrice)), 3).replace(/,/g, ''),
         vatRate: tax?.rate ?? String(Number(line.taxRate)),

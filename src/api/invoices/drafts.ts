@@ -15,10 +15,19 @@ export const BRANCHES_PATH = '/v1/branches'
 export type DiscountDto = { type: 'PERCENTAGE' | 'FIXED_AMOUNT'; value: number }
 export type ReferenceDto = { code: string; label: string }
 
+/** `ItemClassificationRequest`: goods and a 12-digit HS code, or services and a CL-12-OM code. */
+export type LineClassificationDto = {
+  goodsOrService?: 'G' | 'S' | null
+  industrialClassificationCode?: string | null
+  hsCode?: string | null
+  serviceTypeCode?: string | null
+}
+
 export type DraftLineRequest = {
   lineNumber: number
-  productId: string
-  productCode: string
+  /** Both absent on a free-text line; a line that cites a catalogue product states both. */
+  productId?: string
+  productCode?: string
   description: string
   unitCode: string
   quantity: number
@@ -31,6 +40,7 @@ export type DraftLineRequest = {
     rate: number
     exemptionReason: string | null
   }
+  classification?: LineClassificationDto
 }
 
 /** `InvoiceDraftRequest`. Unknown fields are refused, so this carries only what the API reads. */
@@ -90,8 +100,8 @@ export type DraftResponse = {
   headerDiscount: DiscountDto
   lines: {
     lineNumber: number
-    productId: string
-    productCode: string
+    productId: string | null
+    productCode: string | null
     description: string
     unitCode: string
     quantity: number
@@ -102,12 +112,8 @@ export type DraftResponse = {
     en16931Category: string
     taxRate: number
     exemptionReason: string | null
-    /**
-     * TODO(backend): the line's classification (docs/backend-guides/INCOME.md §C7.3). Read when
-     * present so a stored value comes back onto the composer; the request does not carry them yet.
-     */
-    hsCode?: string | null
-    serviceType?: string | null
+    /** `null` when the line states no classification. */
+    classification?: LineClassificationDto | null
   }[]
 }
 

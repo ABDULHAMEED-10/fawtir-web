@@ -63,6 +63,32 @@ describe('the draft a form saves', () => {
     ).toBe('SIMPLIFIED')
   })
 
+  it('sends a free-text line with no product, and a goods line with its HS code', () => {
+    const free = { ...blankDraftLine(SEEDED_TAX_CATEGORIES), description: 'Consulting', unitPrice: '25.000' }
+    const request = toDraftRequest(
+      SEEDED_REFERENCE,
+      form({ lines: [free, { ...free, description: 'Beans', hsCode: '090121000000' }] }),
+      true,
+    )
+    expect(request.lines[0]).not.toHaveProperty('productId')
+    expect(request.lines[0]).not.toHaveProperty('productCode')
+    expect(request.lines[0]).not.toHaveProperty('classification')
+    expect(request.lines[1].classification).toEqual({ goodsOrService: 'G', hsCode: '090121000000' })
+  })
+
+  it('leaves a services line unclassified until the official service types are served', () => {
+    const service = {
+      ...blankDraftLine(SEEDED_TAX_CATEGORIES),
+      description: 'Catering',
+      itemType: 'service' as const,
+      unit: 'HUR',
+      serviceType: '63393',
+    }
+    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [service] }), true).lines[0]).not.toHaveProperty(
+      'classification',
+    )
+  })
+
   it('sends the terms the design offers by code, labelled, even where the platform list lacks them', () => {
     // End of month is one of the design's terms; the catalogue seeds NET0..NET60 only.
     expect(
