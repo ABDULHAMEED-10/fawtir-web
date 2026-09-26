@@ -120,10 +120,12 @@ const HS_ENTRIES = [
   {
     code: '090121000000',
     name: 'Coffee, whether or not roasted or decaffeinated > Roasted coffee > Not decaffeinated',
+    nameAr: 'البن، محمص أو غير محمص أو منزوع الكافيين > بن محمص > غير منزوع الكافيين',
   },
   {
     code: '090122000000',
     name: 'Coffee, whether or not roasted or decaffeinated > Roasted coffee > Decaffeinated',
+    nameAr: 'البن، محمص أو غير محمص أو منزوع الكافيين > بن محمص > منزوع الكافيين',
   },
 ]
 
@@ -495,6 +497,26 @@ describe('issuing from the composer', () => {
     expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
 
     expect(await screen.findByText('Roasted coffee > Not decaffeinated')).toBeTruthy()
+  })
+
+  it('names the HS code in Arabic when the interface is Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    who = ISSUER
+    loaded = draft({
+      lines: [
+        {
+          ...draft().lines[0],
+          classification: {
+            goodsOrService: 'G',
+            hsCode: '090122000000',
+            serviceTypeCode: '00000000',
+          },
+        },
+      ],
+    })
+    renderAt('/invoices/d-1/edit')
+
+    expect(await screen.findByText('بن محمص > منزوع الكافيين')).toBeTruthy()
   })
 
   it('saves unsaved changes first and issues the version that save returned', async () => {

@@ -24,14 +24,15 @@ export function hsOptionLabel(name: string): string {
   return levels.slice(-2).join(' > ')
 }
 
-const hsOption = (entry: HsEntryDto): SelectOption => ({
+/** The option in the interface language: the Arabic name when it is Arabic and the server sent one. */
+const hsOption = (entry: HsEntryDto, language: string): SelectOption => ({
   value: entry.code,
-  label: hsOptionLabel(entry.name),
+  label: hsOptionLabel(language.startsWith('ar') && entry.nameAr ? entry.nameAr : entry.name),
   hint: entry.code,
 })
 
 /** What has been seen for each code, so a chosen entry keeps its name while the list changes. */
-const SEEN = new Map<string, SelectOption>()
+const SEEN = new Map<string, HsEntryDto>()
 
 export function ClassificationField({
   kind,
@@ -52,7 +53,7 @@ export function ClassificationField({
   const language = i18n.language
   const goods = kind === 'goods'
   const [query, setQuery] = useState('')
-  const [found, setFound] = useState<SelectOption[]>([])
+  const [found, setFound] = useState<HsEntryDto[]>([])
   const [seen, remember] = useState(0)
 
   // The list follows what is typed, after a short pause; a slow answer never overwrites a newer one.
@@ -63,9 +64,8 @@ export function ClassificationField({
       () => {
         searchHs(query, 20, controller.signal).then(
           (result) => {
-            const options = result.items.map(hsOption)
-            options.forEach((option) => SEEN.set(option.value, option))
-            setFound(options)
+            result.items.forEach((entry) => SEEN.set(entry.code, entry))
+            setFound(result.items)
           },
           () => undefined,
         )
@@ -86,7 +86,7 @@ export function ClassificationField({
       (result) => {
         const entry = result.items.find((item) => item.code === value)
         if (entry && live) {
-          SEEN.set(value, hsOption(entry))
+          SEEN.set(value, entry)
           remember((n) => n + 1)
         }
       },
@@ -106,9 +106,9 @@ export function ClassificationField({
       }))
     }
     const chosen = value ? SEEN.get(value) : undefined
-    return chosen && !found.some((option) => option.value === chosen.value)
-      ? [chosen, ...found]
-      : found
+    const entries =
+      chosen && !found.some((entry) => entry.code === chosen.code) ? [chosen, ...found] : found
+    return entries.map((entry) => hsOption(entry, language))
     // `seen` changes when a stored code has been named, so the list is rebuilt to include it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goods, found, value, language, seen])

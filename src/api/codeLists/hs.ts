@@ -8,7 +8,8 @@ import { apiRequest } from '../client'
  */
 export const HS_SEARCH_PATH = '/v1/code-lists/hs'
 
-export type HsEntryDto = { code: string; name: string }
+/** `nameAr` is the Arabic name (translated from the English by the project); absent on an older server. */
+export type HsEntryDto = { code: string; name: string; nameAr?: string }
 export type HsSearchDto = { items: HsEntryDto[]; total: number }
 
 export function searchHs(query: string, limit = 20, signal?: AbortSignal): Promise<HsSearchDto> {
