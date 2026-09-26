@@ -23,6 +23,14 @@ export type InvoiceLineDto = {
   en16931Category: string
   taxRate: number | null
   exemptionReason: string | null
+  /** IBT-121: VATZR-OM-nn on a zero-rated line, VATEX-OM-nn on an exempt one. */
+  exemptionReasonCode?: string | null
+  /** The line's Oman classification, as the invoice carries it. */
+  classification?: {
+    goodsOrService?: 'G' | 'S' | null
+    hsCode?: string | null
+    serviceTypeCode?: string | null
+  } | null
 }
 
 export type InvoiceTotalsDto = {
@@ -173,10 +181,9 @@ export function uploadAttachment(invoiceId: string, file: File): Promise<Invoice
 
 /** `invoice.attachment.manage`. Refused under legal hold (`INVOICE_ATTACHMENT_NOT_REMOVABLE`). */
 export async function removeAttachment(invoiceId: string, attachmentId: string): Promise<void> {
-  await apiRequest<unknown>(
-    `${path(invoiceId)}/attachments/${encodeURIComponent(attachmentId)}`,
-    { method: 'DELETE' },
-  )
+  await apiRequest<unknown>(`${path(invoiceId)}/attachments/${encodeURIComponent(attachmentId)}`, {
+    method: 'DELETE',
+  })
 }
 
 /** ISSUED only, and refused once the invoice was delivered — a credit note is the remedy then. */
