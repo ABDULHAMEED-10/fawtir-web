@@ -372,6 +372,19 @@ describe('Business identity', () => {
     ])
   })
 
+  it('sends the business activity the registrant chose, and only then', async () => {
+    const user = userEvent.setup({ delay: null })
+    // A restaurant pre-fills 561001 ("Restaurants"); the registrant keeps it.
+    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'restaurant' })
+    await user.type(field('companyName'), 'Al Noor Bakery LLC')
+    await user.type(field('crNumber'), 'cr-99')
+    await user.type(field('vatin'), 'om1200000001')
+    await user.click(submit())
+
+    expect(await screen.findByText(i18n.t('addressContact.title'))).toBeTruthy()
+    expect(requests()[0].body).toMatchObject({ industrialClassificationCode: '561001' })
+  })
+
   it('reports a registered VATIN or CR when the earlier steps are all saved', async () => {
     fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(
       status('BUSINESS_IDENTITY', {

@@ -92,7 +92,7 @@ describe('business identity', () => {
     companyName: ' Al Noor Trading LLC ',
     crNumber: ' cr-1234567 ',
     vatin: ' om1100112233 ',
-    industrialClassification: '561010',
+    industrialClassification: '561001',
     accent: 'GREEN' as const,
   }
 
@@ -103,9 +103,15 @@ describe('business identity', () => {
       commercialRegistrationNumber: 'CR-1234567',
       taxNumber: 'OM1100112233',
       invoiceAccent: 'GREEN',
+      industrialClassificationCode: '561001',
     })
     expect(request).not.toHaveProperty('logoObjectReference')
     expect(request).not.toHaveProperty('peppolId')
+  })
+
+  it('sends no business activity when the registrant skipped it', () => {
+    const request = buildBusinessIdentityRequest({ ...valid, industrialClassification: '' })
+    expect(request).not.toHaveProperty('industrialClassificationCode')
   })
 
   it('checks CR length only, as the backend does', () => {
