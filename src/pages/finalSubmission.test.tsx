@@ -24,7 +24,7 @@ const COMPLETE: OnboardingState = {
     companyName: 'Al Noor Bakery LLC',
     crNumber: 'CR-99',
     vatin: 'OM1200000001',
-    industrialClassification: '141010',
+    industrialClassification: '561001',
     accent: 'PURPLE',
     logoUrl: null,
   },
@@ -121,7 +121,7 @@ describe('Review and submit', () => {
     )
     expect(valueOf('signupReview.fields.trade')).toBe(i18n.t('subBusinessType.options.bakery'))
     expect(valueOf('businessIdentity.companyNameLabel')).toBe('Al Noor Bakery LLC')
-    expect(valueOf('signupReview.fields.activity')).toBe('141010 · Manufacture of wearing apparel')
+    expect(valueOf('signupReview.fields.activity')).toBe('561001 · Restaurants')
     expect(valueOf('businessIdentity.vatinLabel')).toBe('OM1200000001')
     expect(valueOf('businessIdentity.accentLabel')).toBe(i18n.t('businessIdentity.accents.PURPLE'))
     expect(valueOf('addressContact.governorate')).toBe(i18n.t('governorate.northBatinah'))

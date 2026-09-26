@@ -131,7 +131,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = WRITER
   loaded = draft()
-  activityCode = '141010'
+  activityCode = '561001'
   putResponse = () => json(200, draft({ version: 4 }))
   issueResponse = () =>
     json(200, {
@@ -263,7 +263,7 @@ describe('a new invoice draft', () => {
   it('shows the company\'s stored business activity, or warns that none is set', async () => {
     renderAt('/invoices/new')
     expect(
-      await screen.findByText('Business activity: 141010 · Manufacture of wearing apparel'),
+      await screen.findByText('Business activity: 561001 · Restaurants'),
     ).toBeTruthy()
 
     cleanup()

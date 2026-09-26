@@ -94,7 +94,7 @@ const AFTER_IDENTITY: OnboardingState = {
     companyName: 'Al Noor Bakery LLC',
     crNumber: '1234567',
     vatin: 'OM1100112233',
-    industrialClassification: '141010',
+    industrialClassification: '561001',
     accent: 'GREEN',
     logoUrl: null,
   },
@@ -327,9 +327,9 @@ describe('Business identity', () => {
   })
 
   it('suggests the business activity from the specialty, and lets it be skipped', async () => {
-    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'tailoring' })
+    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'restaurant' })
     const picker = () => screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') })
-    expect(picker().textContent).toContain('Manufacture of wearing apparel')
+    expect(picker().textContent).toContain('Restaurants')
 
     cleanup()
     renderAt('/business-identity', { ...AFTER_CATEGORY, subBusinessType: 'not-mapped' })

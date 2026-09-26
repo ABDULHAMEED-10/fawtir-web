@@ -71,23 +71,23 @@ describe('Settings › Company: business activity', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Business activity (ISIC)' }))
     fireEvent.change(await screen.findByPlaceholderText('Search by activity name'), {
-      target: { value: 'wearing apparel' },
+      target: { value: 'Restaurants' },
     })
-    fireEvent.click(await screen.findByRole('option', { name: /Manufacture of wearing apparel/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Restaurants/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(put()).toHaveLength(1))
-    expect(JSON.parse((put()[0][1] as RequestInit).body as string)).toEqual({ code: '141010' })
+    expect(JSON.parse((put()[0][1] as RequestInit).body as string)).toEqual({ code: '561001' })
     await waitFor(() => expect(screen.queryByText(/Not set yet\. Invoices still issue/)).toBeNull())
   })
 
   it('shows the stored activity and sends nothing when it is unchanged', async () => {
-    stored = '141010'
+    stored = '561001'
     renderPage()
     await waitFor(() =>
       expect(
         screen.getByRole('button', { name: 'Business activity (ISIC)' }).textContent,
-      ).toContain('Manufacture of wearing apparel'),
+      ).toContain('Restaurants'),
     )
     expect(screen.queryByText(/Not set yet\. Invoices still issue/)).toBeNull()
     expect(put()).toHaveLength(0)
