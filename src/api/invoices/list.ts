@@ -122,6 +122,8 @@ export type InvoiceListFilter = {
   correctionOf?: string | null
   /** One customer's invoices — the periodic schedule's template picker asks for these. */
   customerId?: string | null
+  /** How the customer is sent to (`InvoiceListChannel`); no invoice records a channel of its own yet. */
+  channel?: 'PEPPOL' | 'EMAIL' | null
 }
 
 export type InvoiceListQuery = InvoiceListFilter & {
@@ -141,6 +143,7 @@ function filterParams(filter: InvoiceListFilter) {
     q: filter.search.trim(),
     correction_of_invoice_id: filter.correctionOf ?? undefined,
     customer_id: filter.customerId ?? undefined,
+    channel: filter.channel ?? undefined,
   }
 }
 
