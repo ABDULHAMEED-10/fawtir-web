@@ -392,8 +392,10 @@ function InvoicesScreen() {
         <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-6">
           {TABS.map((entry) => {
             const active = entry.id === tab
+            // TODO(backend): the summary has no `toSend` count yet (INCOME.md row 1.1). The owner
+            // asked for 0 rather than an empty badge until it arrives; the server's figure wins.
             const tally =
-              entry.id === 'toSend' ? (totals.toSend ?? null) : tabCount(totals, entry.id)
+              entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}
