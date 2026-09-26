@@ -281,8 +281,8 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     unit: line.unitCode,
     discountType: line.discountType,
     discountValue: String(line.discountValue),
-    hsCode: line.hsCode ?? undefined,
-    serviceType: line.serviceType ?? undefined,
+    hsCode: line.classification?.hsCode ?? undefined,
+    serviceType: line.classification?.serviceTypeCode ?? undefined,
   }))
   return {
     ...blank,
