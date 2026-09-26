@@ -31,8 +31,20 @@ const hsOption = (entry: HsEntryDto, language: string): SelectOption => ({
   hint: entry.code,
 })
 
+/**
+ * "Other" (000000000000): the published fallback for a product that fits no heading. It is always
+ * offered, at the foot of whatever the search found, so a person is never stuck for a code.
+ */
+export const HS_OTHER: HsEntryDto = { code: '000000000000', name: 'Other', nameAr: 'أخرى' }
+
+/** What the picker lists: the chosen entry kept in view, the search results, then "Other". */
+export function hsPickerEntries(found: HsEntryDto[], chosen?: HsEntryDto): HsEntryDto[] {
+  const entries = chosen && !found.some((entry) => entry.code === chosen.code) ? [chosen, ...found] : found
+  return entries.some((entry) => entry.code === HS_OTHER.code) ? entries : [...entries, HS_OTHER]
+}
+
 /** What has been seen for each code, so a chosen entry keeps its name while the list changes. */
-const SEEN = new Map<string, HsEntryDto>()
+const SEEN = new Map<string, HsEntryDto>([[HS_OTHER.code, HS_OTHER]])
 
 export function ClassificationField({
   kind,
@@ -106,9 +118,7 @@ export function ClassificationField({
       }))
     }
     const chosen = value ? SEEN.get(value) : undefined
-    const entries =
-      chosen && !found.some((entry) => entry.code === chosen.code) ? [chosen, ...found] : found
-    return entries.map((entry) => hsOption(entry, language))
+    return hsPickerEntries(found, chosen).map((entry) => hsOption(entry, language))
     // `seen` changes when a stored code has been named, so the list is rebuilt to include it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goods, found, value, language, seen])

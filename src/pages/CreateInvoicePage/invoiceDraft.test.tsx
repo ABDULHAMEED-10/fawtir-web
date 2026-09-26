@@ -469,6 +469,8 @@ describe('issuing from the composer', () => {
       expect(found.map((option) => option.textContent)).toEqual([
         'Roasted coffee > Not decaffeinated090121000000',
         'Roasted coffee > Decaffeinated090122000000',
+        // Always offered at the foot, whatever the search found.
+        'Other000000000000',
       ])
     })
     const options = await screen.findAllByRole('option')
