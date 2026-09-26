@@ -82,9 +82,8 @@ function draft(overrides: Partial<DraftResponse> = {}): DraftResponse {
         en16931Category: 'S',
         taxRate: 5,
         exemptionReason: null,
-        // A backend ask: a stored draft returning its goods line's HS code (IBR-079-OM).
-        hsCode: '090121000000',
-        serviceType: null,
+        // A stored draft returns its goods line's HS code (IBR-079-OM).
+        classification: { goodsOrService: 'G', hsCode: '090121000000', serviceTypeCode: '00000000' },
       },
     ],
     ...overrides,
@@ -392,7 +391,7 @@ describe('issuing from the composer', () => {
 
   it('refuses a business invoice whose goods line has no HS code, naming the rule, until one is chosen', async () => {
     who = ISSUER
-    loaded = draft({ lines: [{ ...draft().lines[0], hsCode: null }] })
+    loaded = draft({ lines: [{ ...draft().lines[0], classification: null }] })
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
 
