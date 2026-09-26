@@ -115,6 +115,18 @@ function json(status: number, body?: unknown) {
   })
 }
 
+/** Two entries of the published HS list, named by their whole heading path. */
+const HS_ENTRIES = [
+  {
+    code: '090121000000',
+    name: 'Coffee, whether or not roasted or decaffeinated > Roasted coffee > Not decaffeinated',
+  },
+  {
+    code: '090122000000',
+    name: 'Coffee, whether or not roasted or decaffeinated > Roasted coffee > Decaffeinated',
+  },
+]
+
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let putResponse: () => Response
@@ -145,6 +157,16 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
+    if (url.startsWith('/api/v1/code-lists/hs')) {
+      const q = new URL(url, 'http://x').searchParams.get('q') ?? ''
+      const items = HS_ENTRIES.filter(
+        (entry) =>
+          q === '' ||
+          entry.name.toLowerCase().includes(q.toLowerCase()) ||
+          entry.code.startsWith(q),
+      )
+      return json(200, { items, total: items.length })
+    }
     if (url === '/api/v1/company-profile/industrial-classification')
       return json(200, { code: activityCode })
     if (url === '/api/v1/branches')
@@ -433,24 +455,46 @@ describe('issuing from the composer', () => {
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
     expect(issueCalls()).toHaveLength(0)
 
-    // Searched by product name; the stored value is the 12-digit code, never sent to the draft
+    // Searched by name on the server; each option shows the last two levels of its heading path
+    // with the code beneath. The stored value is the 12-digit code, never sent to the draft
     // (the request refuses unknown members) but enough to let the issue go ahead.
     fireEvent.click(screen.getByRole('button', { name: 'HS code' }))
     fireEvent.change(await screen.findByPlaceholderText('Search by product name'), {
-      target: { value: 'coffee, roasted' },
+      target: { value: 'roasted coffee' },
     })
-    // "Other" stays offered whatever is typed, after the matches.
+    await waitFor(async () => {
+      const found = await screen.findAllByRole('option')
+      expect(found.map((option) => option.textContent)).toEqual([
+        'Roasted coffee > Not decaffeinated090121000000',
+        'Roasted coffee > Decaffeinated090122000000',
+      ])
+    })
     const options = await screen.findAllByRole('option')
-    expect(options.map((option) => option.textContent)).toEqual([
-      '0901.21 · Coffee, roasted, not decaffeinated090121000000',
-      '0901.22 · Coffee, roasted, decaffeinated090122000000',
-      'Other000000000000',
-    ])
     fireEvent.click(options[0])
     fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
     expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
     const body = bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0])
     expect('hsCode' in body.draft.lines[0]).toBe(false)
+  })
+
+  it('names the HS code a reopened draft carries', async () => {
+    who = ISSUER
+    loaded = draft({
+      lines: [
+        {
+          ...draft().lines[0],
+          classification: {
+            goodsOrService: 'G',
+            hsCode: '090121000000',
+            serviceTypeCode: '00000000',
+          },
+        },
+      ],
+    })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+
+    expect(await screen.findByText('Roasted coffee > Not decaffeinated')).toBeTruthy()
   })
 
   it('saves unsaved changes first and issues the version that save returned', async () => {
