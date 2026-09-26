@@ -86,7 +86,12 @@ import {
   toExclusivePrice,
   type DiscountType,
 } from '../../lib/invoiceMath'
-import { INDUSTRIAL_CLASSIFICATION } from '../../lib/settingsCompany'
+import {
+  INDUSTRIAL_CLASSIFICATION_PATH,
+  readIndustrialClassification,
+} from '../../api/company/industrialClassification'
+import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
+import { findCode } from '../../lib/codeLists/codeList'
 import { nameOf } from '../../lib/codeLists/codeList'
 import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
 import type { LinkedDoc } from '../../lib/linkedDocuments'
@@ -561,7 +566,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   // where the reader already is.
   const noticeRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (notice?.tone === 'error') noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (notice?.tone === 'error')
+      noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [notice])
   const [preview, setPreview] = useState<PreviewState>({ status: 'idle' })
   const [issueDate, setIssueDate] = useState(muscatToday)
@@ -816,6 +822,17 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
 
   const editable = canSave && (!meta || meta.state === 'DRAFT')
   const consumer = form.customerType === 'consumer'
+  // The company's business activity, which the backend stamps on every line at issue.
+  const activity = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
+  const activityEntry =
+    activity.status === 'ready'
+      ? findCode(ISIC_ACTIVITIES, activity.data.code ?? undefined)
+      : undefined
+  const activityName = activityEntry
+    ? nameOf(activityEntry, language)
+    : activity.status === 'ready'
+      ? (activity.data.code ?? '')
+      : ''
 
   /**
    * A walk-in consumer becomes a customer record first (the draft names one): name split into
@@ -1454,15 +1471,23 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           </div>
           {/* The issuer's ISIC activity is a company setting the backend copies onto every line
               (IBR-081-OM); the composer shows it and never asks for it. */}
-          {consumer ? null : (
+          {consumer || activity.status !== 'ready' ? null : (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium leading-[1.3] text-text-tertiary">
-              <span className="text-text-secondary">
-                {t('invoiceDraft.businessActivity', {
-                  code: INDUSTRIAL_CLASSIFICATION.code,
-                  name: nameOf(INDUSTRIAL_CLASSIFICATION, language),
-                })}
-              </span>
-              <span>{t('invoiceDraft.businessActivityHint')}</span>
+              {activity.data.code ? (
+                <>
+                  <span className="text-text-secondary">
+                    {activityEntry && activityName !== activity.data.code
+                      ? t('invoiceDraft.businessActivity', {
+                          code: activity.data.code,
+                          name: activityName,
+                        })
+                      : t('invoiceDraft.businessActivityCodeOnly', { code: activity.data.code })}
+                  </span>
+                  <span>{t('invoiceDraft.businessActivityHint')}</span>
+                </>
+              ) : (
+                <span className="text-warning-700">{t('invoiceDraft.businessActivityUnset')}</span>
+              )}
               <Link
                 to="/settings/company"
                 className="font-semibold text-primary-800 hover:underline"

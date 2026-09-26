@@ -268,7 +268,9 @@ export function validateBusinessIdentity(
   return {
     companyName: required(values.companyName) ?? tooLong(values.companyName, LEGAL_NAME_MAX_LENGTH),
     crNumber: required(values.crNumber) ?? tooLong(values.crNumber, CR_MAX_LENGTH),
-    industrialClassification: required(values.industrialClassification),
+    // Skippable: issuing does not depend on it, only the Tax Authority submission does, and the
+    // company can set it later in Settings › Company (Abdul Hameed, 2026-09-26).
+    industrialClassification: undefined,
     vatin: vatin(values.vatin),
   }
 }

@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
 import { COMPANY } from '../../lib/settings'
-import { INDUSTRIAL_CLASSIFICATION } from '../../lib/settingsCompany'
+import { useApiRead } from '../../hooks/useApiRead'
+import {
+  INDUSTRIAL_CLASSIFICATION_PATH,
+  readIndustrialClassification,
+  saveIndustrialClassification,
+} from '../../api/company/industrialClassification'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 import { nameOf } from '../../lib/codeLists/codeList'
 import companyLogo from '../../assets/dashboard/bahja-logo.svg'
@@ -41,7 +46,7 @@ const INITIAL: Profile = {
   arabicName: COMPANY.arabicName,
   tradingAs: COMPANY.tradingAs,
   commercialRegistration: COMPANY.commercialRegistration,
-  industrialClassification: INDUSTRIAL_CLASSIFICATION.code,
+  industrialClassification: '',
   vatRegisteredSince: COMPANY.vatRegisteredSince,
   street: COMPANY.street,
   town: COMPANY.town,
@@ -81,6 +86,21 @@ export function CompanyProfilePage() {
   const reference = useReferenceData()
   const [form, setForm] = useState(INITIAL)
   const [saved, setSaved] = useState(false)
+  // The business activity is the one field here that is stored on the server; the rest of the
+  // page still edits its sample company. `null` = not set yet, `undefined` = not known (loading,
+  // or the read failed, in which case no warning is shown).
+  const activityRead = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
+  const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
+  const [saveFailed, setSaveFailed] = useState(false)
+  useEffect(() => {
+    if (activityRead.status !== 'ready') return
+    setStoredActivity(activityRead.data.code)
+    setForm((current) => ({ ...current, industrialClassification: activityRead.data.code ?? '' }))
+  }, [activityRead])
+  const baseline = useMemo<Profile>(
+    () => ({ ...INITIAL, industrialClassification: storedActivity ?? '' }),
+    [storedActivity],
+  )
 
   // Searched by activity name; the code is the hint so a known code finds it too.
   // TODO(backend): `GET /v1/code-lists/isic?q=` for the search, and the choice stored as
@@ -102,8 +122,8 @@ export function CompanyProfilePage() {
 
   /** Which fields differ from what was stored — the footer names them rather than counting alone. */
   const dirty = useMemo(
-    () => (Object.keys(INITIAL) as (keyof Profile)[]).filter((key) => form[key] !== INITIAL[key]),
-    [form],
+    () => (Object.keys(INITIAL) as (keyof Profile)[]).filter((key) => form[key] !== baseline[key]),
+    [form, baseline],
   )
 
   const totals = useMemo(() => {
@@ -180,6 +200,16 @@ export function CompanyProfilePage() {
                   emptyText={t('companyProfile.industrialClassificationNone')}
                   ariaLabel={t('companyProfile.industrialClassification')}
                 />
+                {storedActivity === null && form.industrialClassification === '' ? (
+                  <p role="status" className="mt-1.5 text-xs font-medium text-warning-700">
+                    {t('companyProfile.industrialClassificationUnset')}
+                  </p>
+                ) : null}
+                {saveFailed ? (
+                  <p role="alert" className="mt-1.5 text-xs font-medium text-danger-700">
+                    {t('companyProfile.industrialClassificationFailed')}
+                  </p>
+                ) : null}
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
@@ -583,7 +613,7 @@ export function CompanyProfilePage() {
           <button
             type="button"
             disabled={dirty.length === 0}
-            onClick={() => setForm(INITIAL)}
+            onClick={() => setForm(baseline)}
             className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-40"
           >
             {t('companyProfile.undoTheChanges')}
@@ -591,7 +621,19 @@ export function CompanyProfilePage() {
           <button
             type="button"
             disabled={dirty.length === 0}
-            onClick={() => setSaved(true)}
+            onClick={async () => {
+              setSaveFailed(false)
+              if (form.industrialClassification !== baseline.industrialClassification) {
+                try {
+                  const stored = await saveIndustrialClassification(form.industrialClassification)
+                  setStoredActivity(stored.code)
+                } catch {
+                  setSaveFailed(true)
+                  return
+                }
+              }
+              setSaved(true)
+            }}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
             <img src={tickIcon} alt="" className="size-4" />

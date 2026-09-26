@@ -10,6 +10,7 @@ import {
   saveOnboardingSession,
 } from '../lib/identity/onboardingSession'
 import type { OnboardingState } from '../lib/onboarding'
+import { validateBusinessIdentity } from '../lib/identity/onboarding'
 import { AboutBusinessPage } from './AboutBusinessPage'
 import { AddressContactPage } from './AddressContactPage'
 import { BusinessIdentityPage } from './BusinessIdentityPage'
@@ -93,7 +94,7 @@ const AFTER_IDENTITY: OnboardingState = {
     companyName: 'Al Noor Bakery LLC',
     crNumber: '1234567',
     vatin: 'OM1100112233',
-    industrialClassification: '107110',
+    industrialClassification: '141010',
     accent: 'GREEN',
     logoUrl: null,
   },
@@ -325,23 +326,24 @@ describe('Business identity', () => {
     expect(screen.getByText(i18n.t('validation.vatin'))).toBeTruthy()
   })
 
-  it('suggests the business activity from the specialty, and insists on one when there is none', async () => {
-    renderAt('/business-identity', AFTER_TYPE)
+  it('suggests the business activity from the specialty, and lets it be skipped', async () => {
+    renderAt('/business-identity', { ...AFTER_TYPE, subBusinessType: 'tailoring' })
     const picker = () => screen.getByRole('button', { name: i18n.t('businessIdentity.isicLabel') })
-    expect(picker().textContent).toContain('Manufacture of bakery products')
+    expect(picker().textContent).toContain('Manufacture of wearing apparel')
 
     cleanup()
     renderAt('/business-identity', { ...AFTER_CATEGORY, subBusinessType: 'not-mapped' })
     expect(picker().textContent).toContain(i18n.t('businessIdentity.isicPlaceholder'))
-    const user = userEvent.setup({ delay: null })
-    await user.type(field('companyName'), 'Al Noor Bakery LLC')
-    await user.type(field('crNumber'), 'cr-99')
-    await user.type(field('vatin'), 'om1200000001')
-    await user.click(submit())
-
-    expect(fetchMock).not.toHaveBeenCalled()
-    expect(screen.getByText(i18n.t('validation.required'))).toBeTruthy()
-    expect(document.activeElement).toBe(picker())
+    // No activity chosen: the form is still valid, the company sets it later in Settings.
+    expect(
+      validateBusinessIdentity({
+        companyName: 'Al Noor Bakery LLC',
+        crNumber: 'CR-99',
+        vatin: 'OM1200000001',
+        industrialClassification: '',
+        accent: 'PURPLE',
+      }).industrialClassification,
+    ).toBeUndefined()
   })
 
   it('saves exactly the backend fields and carries the preview forward', async () => {

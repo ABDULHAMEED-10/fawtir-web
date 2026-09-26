@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SEEDED_REFERENCE } from '../../testing/referenceData'
 import { ReferenceDataContext } from '../../lib/reference/referenceData'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -116,6 +116,7 @@ let who: Entitlements
 let putResponse: () => Response
 let loaded: DraftResponse
 let issueResponse: () => Response
+let activityCode: string | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -130,6 +131,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = WRITER
   loaded = draft()
+  activityCode = '141010'
   putResponse = () => json(200, draft({ version: 4 }))
   issueResponse = () =>
     json(200, {
@@ -139,6 +141,8 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
+    if (url === '/api/v1/company-profile/industrial-classification')
+      return json(200, { code: activityCode })
     if (url === '/api/v1/branches')
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
@@ -254,6 +258,19 @@ describe('a new invoice draft', () => {
     await waitFor(async () => expect(await terms()).toContain('Due on receipt'))
     fireEvent.click(screen.getByRole('button', { name: /Government/ }))
     await waitFor(async () => expect(await terms()).toContain('Net 30 days'))
+  })
+
+  it('shows the company\'s stored business activity, or warns that none is set', async () => {
+    renderAt('/invoices/new')
+    expect(
+      await screen.findByText('Business activity: 141010 · Manufacture of wearing apparel'),
+    ).toBeTruthy()
+
+    cleanup()
+    activityCode = null
+    renderAt('/invoices/new')
+    expect(await screen.findByText(/Business activity not set/)).toBeTruthy()
+    expect(screen.queryByText(/Business activity: /)).toBeNull()
   })
 
   it('shows no invoice number before issue', async () => {

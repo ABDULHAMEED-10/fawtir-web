@@ -9490,7 +9490,9 @@
     "industrialClassificationHint": "Copied onto every invoice line by the backend; never asked on the invoice",
     "industrialClassificationPlaceholder": "Choose your business activity",
     "industrialClassificationSearch": "Search by activity name",
-    "industrialClassificationNone": "No activity matches"
+    "industrialClassificationNone": "No activity matches",
+    "industrialClassificationUnset": "Not set yet. Invoices still issue, but they cannot be sent to the Tax Authority until a business activity is set.",
+    "industrialClassificationFailed": "The business activity was not saved. Check the code and try again."
   },
   "branches": {
     "title": "Branches",
@@ -15743,7 +15745,9 @@
     "previewed": "Draft saved and priced. The figures are the server's.",
     "businessActivity": "Business activity: {{code}} · {{name}}",
     "businessActivityHint": "Copied onto every line by the backend (IBR-081-OM).",
-    "businessActivityLink": "Company settings"
+    "businessActivityLink": "Company settings",
+    "businessActivityUnset": "Business activity not set. Invoices issue, but cannot be sent to the Tax Authority without it.",
+    "businessActivityCodeOnly": "Business activity: {{code}}"
   },
   "invoiceIssue": {
     "action": "Issue invoice",
