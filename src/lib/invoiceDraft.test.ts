@@ -76,17 +76,26 @@ describe('the draft a form saves', () => {
     expect(request.lines[1].classification).toEqual({ goodsOrService: 'G', hsCode: '090121000000' })
   })
 
-  it('leaves a services line unclassified until the official service types are served', () => {
+  it('states a services line as services, and passes a service type on only when it is an official code', () => {
     const service = {
       ...blankDraftLine(SEEDED_TAX_CATEGORIES),
       description: 'Catering',
       itemType: 'service' as const,
       unit: 'HUR',
-      serviceType: '63393',
     }
-    expect(toDraftRequest(SEEDED_REFERENCE, form({ lines: [service] }), true).lines[0]).not.toHaveProperty(
-      'classification',
-    )
+    const lines = (over: object, customerType: 'business' | 'consumer' = 'business') =>
+      toDraftRequest(SEEDED_REFERENCE, form({ customerType, lines: [{ ...service, ...over }] }), true)
+        .lines[0]
+    // No service type: IBR-155-OM asks for one on an export of services alone.
+    expect(lines({}).classification).toEqual({ goodsOrService: 'S' })
+    // The composer's placeholder codes are five digits and the backend refuses them.
+    expect(lines({ serviceType: '63393' }).classification).toEqual({ goodsOrService: 'S' })
+    expect(lines({ serviceType: '83000000' }).classification).toEqual({
+      goodsOrService: 'S',
+      serviceTypeCode: '83000000',
+    })
+    // A consumer's simplified invoice carries no classification.
+    expect(lines({}, 'consumer')).not.toHaveProperty('classification')
   })
 
   it('sends the terms the design offers by code, labelled, even where the platform list lacks them', () => {
@@ -246,7 +255,7 @@ describe('checks before saving', () => {
     expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, atBound)).toEqual([])
   })
 
-  it('wants an HS code on goods lines and a service type on service lines, except for a consumer', () => {
+  it('wants an HS code on goods lines, and no service type on service lines, except for a consumer', () => {
     const goods = form().lines[0]
     const service = {
       ...blankDraftLine(SEEDED_TAX_CATEGORIES),
@@ -260,8 +269,8 @@ describe('checks before saving', () => {
     expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, unclassified)).toEqual([])
     expect(
       problemsBeforeIssue(unclassified).map((problem) => `${problem.field}${problem.line}`),
-    ).toEqual(['hsCode0', 'serviceType1'])
-    expect(problemsBeforeIssue({ ...unclassified, customerType: 'government' })).toHaveLength(2)
+    ).toEqual(['hsCode0'])
+    expect(problemsBeforeIssue({ ...unclassified, customerType: 'government' })).toHaveLength(1)
     expect(problemsBeforeIssue({ ...unclassified, customerType: 'consumer' })).toEqual([])
     const classified = form({
       lines: [
@@ -270,7 +279,8 @@ describe('checks before saving', () => {
       ],
     })
     expect(problemsBeforeIssue(classified)).toEqual([])
-    // Neither code reaches the draft request: it refuses members the API does not know.
+    // Neither field reaches the draft request as a top-level member: it refuses members the API
+    // does not know. The codes travel inside `classification`.
     const sent = toDraftRequest(SEEDED_REFERENCE, classified, true).lines
     expect('hsCode' in sent[0]).toBe(false)
     expect('serviceType' in sent[1]).toBe(false)

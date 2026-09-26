@@ -245,6 +245,17 @@ describe('a new invoice draft', () => {
     expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(0)
   })
 
+  it('defaults a consumer to Due on receipt and puts business and government back on Net 30', async () => {
+    renderAt('/invoices/new')
+    const terms = async () =>
+      (await screen.findByRole('button', { name: 'Payment terms' })).textContent
+    expect(await terms()).toContain('Net 30 days')
+    fireEvent.click(screen.getByRole('button', { name: /Consumer/ }))
+    await waitFor(async () => expect(await terms()).toContain('Due on receipt'))
+    fireEvent.click(screen.getByRole('button', { name: /Government/ }))
+    await waitFor(async () => expect(await terms()).toContain('Net 30 days'))
+  })
+
   it('shows no invoice number before issue', async () => {
     renderAt('/invoices/new')
     expect(await screen.findByText('Assigned when the invoice is issued')).toBeTruthy()

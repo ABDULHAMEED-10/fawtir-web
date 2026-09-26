@@ -334,13 +334,22 @@ export function toDraftRequest(
       const tax = taxOptionOf(reference?.taxCategories ?? [], line)
       // A goods line of a business or government invoice carries its HS code (IBR-079-OM); the
       // industrial classification is never sent, the backend copies the tenant's setting onto
-      // every line. A services line is not sent yet: the CL-12-OM service types the composer
-      // offers are a placeholder list the backend would refuse, so it stays unclassified until
-      // the official list is served (docs/backend-guides/INCOME.md §C7).
+      // every line. A services line of such an invoice states only that it is services (BTOM-019):
+      // IBR-155-OM asks for a service type on an export of services alone, and the backend fills
+      // CL-12-OM's "not applicable" code otherwise. A service type is passed on only when it is an
+      // official eight-digit code, never one of the composer's placeholder codes. A consumer's
+      // simplified invoice carries none of it.
       const classification =
         line.itemType === 'goods' && line.hsCode
           ? { goodsOrService: 'G' as const, hsCode: line.hsCode }
-          : undefined
+          : line.itemType === 'service' && form.customerType !== 'consumer'
+            ? {
+                goodsOrService: 'S' as const,
+                ...(line.serviceType && /^\d{8}$/.test(line.serviceType)
+                  ? { serviceTypeCode: line.serviceType }
+                  : {}),
+              }
+            : undefined
       return {
         lineNumber: index + 1,
         ...(line.productId ? { productId: line.productId, productCode: line.productCode ?? '' } : {}),
@@ -420,9 +429,19 @@ export function fromDraftResponse(
         productId: line.productId || null,
         productCode: line.productCode || null,
         description: line.description,
-        itemType: itemTypeOfUnit(line.unitCode),
+        // The stored goods/service flag wins over the unit's guess when the line carries one.
+        itemType:
+          line.classification?.goodsOrService === 'S'
+            ? 'service'
+            : line.classification?.goodsOrService === 'G'
+              ? 'goods'
+              : itemTypeOfUnit(line.unitCode),
         hsCode: line.classification?.hsCode ?? undefined,
-        serviceType: line.classification?.serviceTypeCode ?? undefined,
+        // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
+        serviceType:
+          line.classification?.serviceTypeCode && line.classification.serviceTypeCode !== '00000000'
+            ? line.classification.serviceTypeCode
+            : undefined,
         // Three decimals as typed ("1.8" reloads as "1.800"), no thousands separators.
         unitPrice: formatAmount(parseAmount(String(line.unitPrice)), 3).replace(/,/g, ''),
         vatRate: tax?.rate ?? String(Number(line.taxRate)),
@@ -487,9 +506,10 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
 
 /**
  * What stops an issue, over and above a save: on a full tax invoice (business or government
- * customer) every goods line names its product's HS code (IBR-079-OM) and every service line its
- * service type (IBR-155-OM). A consumer's simplified invoice skips both. The server will refuse
- * the same at `POST /issue` once it validates them; checking here points at the line first.
+ * customer) every goods line names its product's HS code (IBR-079-OM). A service line needs no
+ * service type: IBR-155-OM asks for one on an export of services only. A consumer's simplified
+ * invoice skips the HS code too. The server will refuse the same at `POST /issue` once it
+ * validates it; checking here points at the line first.
  */
 export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
   if (form.customerType === 'consumer') return []
@@ -497,9 +517,6 @@ export function problemsBeforeIssue(form: DraftForm): FormProblem[] {
   form.lines.forEach((line, index) => {
     if (line.itemType === 'goods' && !line.hsCode) {
       problems.push({ field: 'hsCode', line: index, key: 'invoiceDraft.problem.hsCode' })
-    }
-    if (line.itemType === 'service' && !line.serviceType) {
-      problems.push({ field: 'serviceType', line: index, key: 'invoiceDraft.problem.serviceType' })
     }
   })
   return problems

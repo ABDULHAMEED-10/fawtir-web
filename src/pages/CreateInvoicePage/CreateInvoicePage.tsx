@@ -992,7 +992,13 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     if (kind === form.customerType) return
     // A customer of another kind cannot stay: the invoice's transaction type follows the tab.
     const keep = customer && KIND_OF[customer.type] === kind
-    change({ customerType: kind, customerId: keep ? form.customerId : null })
+    // A shop is paid at the counter, so a consumer defaults to Due on receipt; business and
+    // government stay on Net 30. Only the default moves: terms the person chose are left alone.
+    const defaultTerms = (type: CustomerKind) => (type === 'consumer' ? 'NET0' : 'NET30')
+    const paymentTerms =
+      form.paymentTerms === defaultTerms(form.customerType) ? defaultTerms(kind) : form.paymentTerms
+    if (paymentTerms !== form.paymentTerms) setDueDateTouched(false)
+    change({ customerType: kind, customerId: keep ? form.customerId : null, paymentTerms })
     if (!keep) setCustomer(null)
   }
 
