@@ -519,7 +519,8 @@ describe('An invoice, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderInvoice()
     expect(await screen.findByText('الرصيد المستحق')).toBeTruthy()
-    expect(screen.getByText('سُجّل دفع')).toBeTruthy()
+    // The history is its own request, so wait for it rather than assume it beat the balance.
+    expect(await screen.findByText('سُجّل دفع')).toBeTruthy()
   })
 })
 
