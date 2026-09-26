@@ -2506,6 +2506,7 @@
     "saving": "Saving…",
     "error": {
       "customerRequired": "Choose the customer this goes to.",
+      "reasonRequired": "Say why no VAT is charged on these lines.",
       "templateRequired": "Choose the invoice to copy.",
       "dateRequired": "Choose the date of the first draft.",
       "datePast": "That date has passed. Choose today or later.",
@@ -3230,7 +3231,8 @@
     "problems": {
       "supplier": "Choose the supplier you are billing for first.",
       "branch": "Choose the receiving branch first.",
-      "lines": "Add at least one line with a description and a quantity."
+      "lines": "Add at least one line with a description and a quantity.",
+      "reason": "Say why no VAT is charged on these lines."
     }
   },
   "debitNotes": {

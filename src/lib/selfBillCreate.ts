@@ -3,7 +3,7 @@ import type { AgreementDto } from '../api/selfBilling/agreements'
 import type { CustomerDto } from '../api/customers/customers'
 import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import type { LineItem } from '../components/invoice'
-import { itemTypeOfUnit, unitsFor } from './invoiceDraft'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON, itemTypeOfUnit, unitsFor } from './invoiceDraft'
 import { formatAmount, parseAmount, toExclusivePrice } from './invoiceMath'
 import { plusDays } from './invoiceIssue'
 import { blockerOf, canIssueUnder, type Blocker } from './selfBillingAgreements'
@@ -81,6 +81,10 @@ export type SelfBillForm = {
   currency: string
   /** The document's tax category; every line takes its rate (the composer rules). */
   taxCategory: string
+  /** The reason code (IBT-121) of a zero-rated or exempt document: every line carries it. */
+  exemptionReasonCode: string
+  /** The written reason of a reverse-charge, export or out-of-scope document (no code list). */
+  exemptionReason: string
   subject: string
   poReference: string
   /** TODO(backend): no draft field for the payment section or the two switches. */
@@ -139,6 +143,8 @@ export function blankSelfBillForm(today: string, branchId: string | null = null)
     branchId,
     currency: 'OMR',
     taxCategory: 'S5',
+    exemptionReasonCode: '',
+    exemptionReason: '',
     subject: '',
     poReference: '',
     paymentMethod: '30',
@@ -260,7 +266,14 @@ export function toSelfBilledDraftRequest(
         code: tax.code,
         en16931Category: tax.en16931Category,
         rate: Number(tax.rate),
-        exemptionReason: null,
+        exemptionReason:
+          NEEDS_EXEMPTION_REASON.has(tax.en16931Category) &&
+          !CODED_REASON.has(tax.en16931Category)
+            ? text(form.exemptionReason)
+            : null,
+        exemptionReasonCode: CODED_REASON.has(tax.en16931Category)
+          ? form.exemptionReasonCode || null
+          : null,
       },
     })),
     headerDiscount: { type: 'PERCENTAGE', value: 0 },
@@ -316,6 +329,8 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     paymentTerms: draft.details.paymentTerms?.code ?? blank.paymentTerms,
     currency: draft.currency,
     taxCategory: draft.lines[0]?.taxCategoryCode ?? blank.taxCategory,
+    exemptionReasonCode: draft.lines[0]?.exemptionReasonCode ?? '',
+    exemptionReason: draft.lines[0]?.exemptionReason ?? '',
     subject: draft.details.subject ?? '',
     poReference: draft.details.purchaseOrderReference ?? '',
     noteSupplier: draft.details.customerVisibleNote ?? '',
@@ -324,9 +339,12 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
 }
 
 /** Ordered as the page reads: the first problem is what the notice names. */
-export type SelfBillProblem = 'supplier' | 'branch' | 'lines'
+export type SelfBillProblem = 'supplier' | 'branch' | 'lines' | 'reason'
 
-export function problemsBeforeSave(form: SelfBillForm): SelfBillProblem[] {
+export function problemsBeforeSave(
+  form: SelfBillForm,
+  reference: ReferenceDataDto | null = null,
+): SelfBillProblem[] {
   const problems: SelfBillProblem[] = []
   if (!form.customerId) problems.push('supplier')
   if (!form.branchId) problems.push('branch')
@@ -334,6 +352,14 @@ export function problemsBeforeSave(form: SelfBillForm): SelfBillProblem[] {
     (line) => line.description.trim() !== '' && number(line.quantity) > 0,
   )
   if (usable.length === 0) problems.push('lines')
+  const category = taxCategoryOf(reference, form.taxCategory).en16931Category
+  if (
+    CODED_REASON.has(category)
+      ? !form.exemptionReasonCode
+      : NEEDS_EXEMPTION_REASON.has(category) && form.exemptionReason.trim() === ''
+  ) {
+    problems.push('reason')
+  }
   return problems
 }
 

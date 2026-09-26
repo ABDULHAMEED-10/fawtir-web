@@ -9,7 +9,7 @@ import type {
 } from '../api/invoices/periodic'
 import type { InvoiceDetailDto, InvoiceLineDto } from '../api/invoices/detail'
 import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from './selfBillCreate'
-import { itemTypeOfUnit } from './invoiceDraft'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON, itemTypeOfUnit } from './invoiceDraft'
 import { toExclusivePrice, type DiscountType } from './invoiceMath'
 
 /**
@@ -393,6 +393,10 @@ export type PeriodicForm = {
   currency: string
   /** A tax category code (`TAX_CATEGORIES`): the document's, printed on every line. */
   taxCategory: string
+  /** The reason code (IBT-121) of a zero-rated or exempt document, printed on every line. */
+  exemptionReasonCode: string
+  /** The written reason of a reverse-charge, export or out-of-scope document. */
+  exemptionReason: string
   branchId: string
   customerNote: string
   internalNote: string
@@ -422,6 +426,8 @@ export function blankPeriodicForm(today: string): PeriodicForm {
     paymentTerms: 'NET30',
     currency: 'OMR',
     taxCategory: 'S5',
+    exemptionReasonCode: '',
+    exemptionReason: '',
     branchId: '',
     customerNote: '',
     internalNote: '',
@@ -459,6 +465,8 @@ export function formOfSchedule(schedule: PeriodicScheduleDto, today: string): Pe
           paymentTerms: template.details.paymentTerms?.code ?? 'NET30',
           currency: template.currency,
           taxCategory: template.taxCategoryCode,
+          exemptionReasonCode: template.exemptionReasonCode ?? '',
+          exemptionReason: template.exemptionReason ?? '',
           branchId: template.branchId,
           customerNote: template.details.customerVisibleNote ?? '',
           internalNote: template.details.internalNote ?? '',
@@ -482,6 +490,8 @@ export function formOfInvoice(
     paymentTerms: doc.details?.paymentTerms?.code ?? form.paymentTerms,
     currency: doc.currency || form.currency,
     taxCategory: doc.lines[0]?.taxCategoryCode ?? form.taxCategory,
+    exemptionReasonCode: doc.lines[0]?.exemptionReasonCode ?? '',
+    exemptionReason: doc.lines[0]?.exemptionReason ?? '',
     branchId: doc.branchId || form.branchId,
     customerNote: doc.details?.customerVisibleNote ?? '',
     internalNote: internalNote ?? '',
@@ -518,6 +528,13 @@ export function linesOfTemplate(template: PeriodicTemplateDto): PeriodicLine[] {
   }))
 }
 
+/** The written reason, only for the categories that state theirs as text (Z and E use a code). */
+function writtenReason(category: string | undefined, form: PeriodicForm): string | null {
+  return category && NEEDS_EXEMPTION_REASON.has(category) && !CODED_REASON.has(category)
+    ? form.exemptionReason.trim() || null
+    : null
+}
+
 /** The document half of the form, in the shape the schedule would carry it. Prices go out ex-VAT. */
 export function templateOfForm(
   form: PeriodicForm,
@@ -532,6 +549,10 @@ export function templateOfForm(
     currency: form.currency,
     vatMode: exclVat ? 'EXCLUSIVE' : 'INCLUSIVE',
     taxCategoryCode: form.taxCategory,
+    exemptionReasonCode: CODED_REASON.has(category?.en16931Category ?? '')
+      ? form.exemptionReasonCode || null
+      : null,
+    exemptionReason: writtenReason(category?.en16931Category, form),
     details: {
       subject: form.subject.trim() || null,
       purchaseOrderReference: form.purchaseOrderReference.trim() || null,
@@ -555,7 +576,10 @@ export function templateOfForm(
         code: form.taxCategory,
         en16931Category: category?.en16931Category ?? 'S',
         rate: Number(category?.rate ?? line.vatRate) || 0,
-        exemptionReason: null,
+        exemptionReason: writtenReason(category?.en16931Category, form),
+        exemptionReasonCode: CODED_REASON.has(category?.en16931Category ?? '')
+          ? form.exemptionReasonCode || null
+          : null,
       },
       hsCode: line.kind === 'goods' ? line.hsCode || null : null,
       serviceType: line.kind === 'service' ? line.serviceType || null : null,
@@ -580,6 +604,14 @@ export function periodicProblems(
   const problems: Partial<Record<PeriodicField, string>> = {}
   if (!form.customerId) problems.customerId = 'periodicInvoice.error.customerRequired'
   if (describedLines < 1) problems.lines = 'periodicInvoice.error.linesRequired'
+  const kind = TAX_CATEGORIES.find((entry) => entry.code === form.taxCategory)?.en16931Category ?? ''
+  if (
+    CODED_REASON.has(kind)
+      ? !form.exemptionReasonCode
+      : NEEDS_EXEMPTION_REASON.has(kind) && form.exemptionReason.trim() === ''
+  ) {
+    problems.exemptionReasonCode = 'periodicInvoice.error.reasonRequired'
+  }
   if (!form.firstRunDate) problems.firstRunDate = 'periodicInvoice.error.dateRequired'
   else if (form.firstRunDate < today) problems.firstRunDate = 'periodicInvoice.error.datePast'
   if (form.endDate && form.firstRunDate && form.endDate < form.firstRunDate)

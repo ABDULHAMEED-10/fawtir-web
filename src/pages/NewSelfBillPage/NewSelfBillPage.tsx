@@ -57,6 +57,9 @@ import {
 } from '../../components/ui'
 import { LineComposer } from './LineComposer'
 import { formatAtScale } from '../../lib/invoiceMath'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON } from '../../lib/invoiceDraft'
+import { nameOf } from '../../lib/codeLists/codeList'
+import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import statutoryIcon from '../../assets/customers/type-government.svg'
 import tickCircle from '../../assets/customers/tick-circle.svg'
@@ -418,6 +421,9 @@ function SelfBillComposer() {
   /* ------------------------------------------------------- derived */
 
   const totals = useLineTotals(form.lines, exclVat)
+  const categoryOfDocument = taxCategoryOf(reference, form.taxCategory).en16931Category
+  const reasonCategory = CODED_REASON.has(categoryOfDocument) ? categoryOfDocument : null
+  const reasonText = !reasonCategory && NEEDS_EXEMPTION_REASON.has(categoryOfDocument)
   const taxLabel = t(`createInvoice.taxCategories.${form.taxCategory}`, {
     defaultValue: form.taxCategory,
   })
@@ -442,7 +448,13 @@ function SelfBillComposer() {
   // The category is the document's: every line takes its rate.
   const onTaxCategory = (next: string) => {
     const rate = taxCategoryOf(reference, next).rate
-    patch({ taxCategory: next, lines: form.lines.map((line) => ({ ...line, vatRate: rate })) })
+    patch({
+      taxCategory: next,
+      // Zero-rated and exempt have separate reason lists, so a reason never outlives its category.
+      exemptionReasonCode: '',
+      exemptionReason: '',
+      lines: form.lines.map((line) => ({ ...line, vatRate: rate })),
+    })
   }
   const chooseSupplier = (option: SupplierOption) => {
     patch({
@@ -468,7 +480,7 @@ function SelfBillComposer() {
 
   const save = async (): Promise<DraftMeta | null> => {
     if (!editable) return null
-    const problems = problemsBeforeSave(form)
+    const problems = problemsBeforeSave(form, reference)
     if (problems.length > 0) {
       setNotice({ tone: 'error', body: t(`newSelfBill.problems.${problems[0]}`) })
       return null
@@ -1003,6 +1015,37 @@ function SelfBillComposer() {
               required
               disabled={!editable}
             />
+            {reasonCategory ? (
+              <div>
+                <FieldLabel label={t('invoiceDraft.exemptionReason')} required />
+                <Select
+                  value={form.exemptionReasonCode}
+                  onChange={(exemptionReasonCode) => patch({ exemptionReasonCode })}
+                  options={(taxReasonsFor(reasonCategory) ?? []).map((reason) => ({
+                    value: reason.code,
+                    label: nameOf(reason, language),
+                    hint: reason.code,
+                  }))}
+                  placeholder={t('invoiceDraft.exemptionReason')}
+                  ariaLabel={t('invoiceDraft.exemptionReason')}
+                  panelWidth={340}
+                  disabled={!editable}
+                />
+              </div>
+            ) : reasonText ? (
+              <div>
+                <FieldLabel label={t('invoiceDraft.exemptionReason')} required />
+                <input
+                  value={form.exemptionReason}
+                  onChange={(e) => patch({ exemptionReason: e.target.value })}
+                  maxLength={500}
+                  placeholder={t('invoiceDraft.exemptionReason')}
+                  aria-label={t('invoiceDraft.exemptionReason')}
+                  disabled={!editable}
+                  className="h-9 w-full rounded-sm border border-primary-300 bg-white px-2 text-xs font-medium text-text-secondary outline-none"
+                />
+              </div>
+            ) : null}
             <LockedField
               label={t('newSelfBill.fields.agreement')}
               value={form.agreementReference ?? (supplier ? t('newSelfBill.noAgreement') : '—')}

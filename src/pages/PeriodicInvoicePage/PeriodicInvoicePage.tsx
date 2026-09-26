@@ -50,6 +50,9 @@ import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
 import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from '../../lib/selfBillCreate'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON } from '../../lib/invoiceDraft'
+import { nameOf } from '../../lib/codeLists/codeList'
+import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
 import { PAYMENT_TERMS } from '../../lib/invoiceDraft'
 import { formatAtScale } from '../../lib/invoiceMath'
 import { can, useSession } from '../../lib/session/session'
@@ -268,6 +271,8 @@ function ScheduleComposer({ id }: { id: string | null }) {
   const currencyOptions: SelectOption[] = [
     { value: 'OMR', label: t('createInvoice.values.currency') },
   ]
+  const documentCategory =
+    TAX_CATEGORIES.find((category) => category.code === form.taxCategory)?.en16931Category ?? 'S'
   const taxLabel =
     taxOptions.find((option) => option.value === form.taxCategory)?.label ?? form.taxCategory
   const termsLabel =
@@ -304,7 +309,8 @@ function ScheduleComposer({ id }: { id: string | null }) {
   }
 
   const setTaxCategory = (taxCategory: string) => {
-    set({ taxCategory })
+    // Zero-rated and exempt have separate reason lists, so a reason never outlives its category.
+    set({ taxCategory, exemptionReasonCode: '', exemptionReason: '' })
     const rate = taxRateOf(taxCategory)
     setLines((current) => current.map((line) => ({ ...line, vatRate: rate })))
   }
@@ -691,6 +697,39 @@ function ScheduleComposer({ id }: { id: string | null }) {
                   options={taxOptions}
                   ariaLabel={t('periodicInvoice.fields.taxCategory')}
                 />
+                {CODED_REASON.has(documentCategory) ? (
+                  <div className="mt-2">
+                    <Select
+                      small
+                      panelWidth={340}
+                      value={form.exemptionReasonCode}
+                      disabled={locked}
+                      onChange={(exemptionReasonCode) => set({ exemptionReasonCode })}
+                      options={(taxReasonsFor(documentCategory) ?? []).map((reason) => ({
+                        value: reason.code,
+                        label: nameOf(reason, language),
+                        hint: reason.code,
+                      }))}
+                      placeholder={t('invoiceDraft.exemptionReason')}
+                      ariaLabel={t('invoiceDraft.exemptionReason')}
+                    />
+                  </div>
+                ) : NEEDS_EXEMPTION_REASON.has(documentCategory) ? (
+                  <input
+                    value={form.exemptionReason}
+                    disabled={locked}
+                    onChange={(e) => set({ exemptionReason: e.target.value })}
+                    maxLength={500}
+                    placeholder={t('invoiceDraft.exemptionReason')}
+                    aria-label={t('invoiceDraft.exemptionReason')}
+                    className="mt-2 h-9 w-full rounded-sm border border-primary-300 bg-white px-2 text-xs font-medium text-text-secondary outline-none"
+                  />
+                ) : null}
+                {errors.exemptionReasonCode ? (
+                  <p className="mt-1 text-xs font-medium text-danger-700">
+                    {t(errors.exemptionReasonCode)}
+                  </p>
+                ) : null}
               </div>
               <div>
                 <FieldLabel label={t('periodicInvoice.fields.branch')} />
