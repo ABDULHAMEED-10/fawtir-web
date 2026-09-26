@@ -2043,7 +2043,10 @@
       "drop": "Drop files or click to upload",
       "removeUnavailable": "Files cannot be removed from here yet.",
       "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
-      "uploadUnavailable": "Uploading from here is not available yet: there is no attachment route."
+      "uploadUnavailable": "Uploading from here is not available yet: there is no attachment route.",
+      "tooLarge": "{{name}} is over 10 MB and was not added.",
+      "wrongType": "{{name}} is not a supported file type.",
+      "uploading": "Uploading…"
     },
     "payments": {
       "title": "Payments",

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
+  FileDropzone,
   Modal,
   OmAmount,
   RialMark,
@@ -18,6 +19,8 @@ import { ApiError } from '../../api'
 import {
   cancelInvoice,
   downloadAttachment,
+  uploadAttachment,
+  removeAttachment,
   newPaymentKey,
   reversePayment,
   invoicePath,
@@ -52,6 +55,7 @@ import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
 import {
   PAYMENT_REFUSALS,
+  attachmentsEditable,
   dueNote,
   isDraft,
   isSelfBilled,
@@ -276,6 +280,8 @@ function InvoiceScreen() {
   const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [fullscreen, setFullscreen] = useState(false)
 
@@ -423,6 +429,7 @@ function InvoiceScreen() {
     (owed?.paymentState === 'UNPAID' || owed?.paymentState === 'PARTIALLY_PAID')
   const canReverse = data.authoringState === 'ISSUED' && can(session, 'invoice.payment.manage')
   const issuedInvoice = !draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED'
+  const canManageAttachments = attachmentsEditable(data, (permission) => can(session, permission))
 
   const download = async (file: InvoiceAttachmentDto) => {
     setNotice(null)
@@ -436,6 +443,34 @@ function InvoiceScreen() {
       URL.revokeObjectURL(url)
     } catch (error) {
       setNotice({ body: refusalText(t, error) })
+    }
+  }
+
+  const uploadFiles = async (files: File[]) => {
+    setNotice(null)
+    setUploadingAttachment(true)
+    try {
+      for (const file of files) {
+        await uploadAttachment(id, file)
+      }
+    } catch (error) {
+      setNotice({ body: refusalText(t, error) })
+    } finally {
+      attachments.retry()
+      setUploadingAttachment(false)
+    }
+  }
+
+  const removeFile = async (file: InvoiceAttachmentDto) => {
+    setNotice(null)
+    setRemovingAttachmentId(file.id)
+    try {
+      await removeAttachment(id, file.id)
+      attachments.retry()
+    } catch (error) {
+      setNotice({ body: refusalText(t, error) })
+    } finally {
+      setRemovingAttachmentId(null)
     }
   }
 
@@ -1138,15 +1173,19 @@ function InvoiceScreen() {
                   >
                     <img src={fileDownloadIcon} alt="" className="size-4" />
                   </button>
-                  {/* TODO(backend): no attachment removal route exists; the design's bin waits for it. */}
                   <button
                     type="button"
-                    disabled
-                    title={t(
-                      draft
-                        ? 'invoiceDetails.attachments.removeUnavailable'
-                        : 'invoiceDetails.attachments.issuedNote',
-                    )}
+                    disabled={!canManageAttachments || removingAttachmentId === file.id}
+                    onClick={canManageAttachments ? () => void removeFile(file) : undefined}
+                    title={
+                      canManageAttachments
+                        ? t('invoiceDetails.delete')
+                        : t(
+                            draft
+                              ? 'invoiceDetails.attachments.removeUnavailable'
+                              : 'invoiceDetails.attachments.issuedNote',
+                          )
+                    }
                     aria-label={t('invoiceDetails.delete')}
                     className={ICON_BUTTON}
                   >
@@ -1162,28 +1201,57 @@ function InvoiceScreen() {
                 : t('invoiceDetails.attachments.none')}
             </p>
           ) : null}
-          {/* TODO(backend): no upload route exists; the design's drop zone is drawn and says so when used. */}
-          <button
-            type="button"
-            onClick={() =>
-              setNotice({
-                key: draft
-                  ? 'invoiceDetails.attachments.uploadUnavailable'
-                  : noteType
-                    ? 'salesNote.detail.attachmentsIssued'
-                    : 'invoiceDetails.attachments.issuedNote',
-              })
-            }
-            className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 transition-colors hover:bg-primary-25"
-          >
-            <img src={uploadIcon} alt="" className="size-5" />
-            <span className="text-sm font-medium text-text-secondary">
-              {t('invoiceDetails.attachments.drop')}
-            </span>
-            <span className="text-xs font-medium text-text-muted">
-              {t('invoiceDetails.attachments.hint')}
-            </span>
-          </button>
+          {canManageAttachments ? (
+            <FileDropzone
+              accept=".pdf,.jpg,.jpeg,.xlsx"
+              multiple
+              maxBytes={10 * 1024 * 1024}
+              onFiles={(files) => void uploadFiles(files)}
+              onReject={(reason, file) =>
+                setNotice({
+                  key: `invoiceDetails.attachments.${reason === 'size' ? 'tooLarge' : 'wrongType'}`,
+                  values: { name: file.name },
+                })
+              }
+              className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 transition-colors hover:bg-primary-25"
+            >
+              {() => (
+                <>
+                  <img src={uploadIcon} alt="" className="size-5" />
+                  <span className="text-sm font-medium text-text-secondary">
+                    {uploadingAttachment
+                      ? t('invoiceDetails.attachments.uploading')
+                      : t('invoiceDetails.attachments.drop')}
+                  </span>
+                  <span className="text-xs font-medium text-text-muted">
+                    {t('invoiceDetails.attachments.hint')}
+                  </span>
+                </>
+              )}
+            </FileDropzone>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                setNotice({
+                  key: draft
+                    ? 'invoiceDetails.attachments.uploadUnavailable'
+                    : noteType
+                      ? 'salesNote.detail.attachmentsIssued'
+                      : 'invoiceDetails.attachments.issuedNote',
+                })
+              }
+              className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 transition-colors hover:bg-primary-25"
+            >
+              <img src={uploadIcon} alt="" className="size-5" />
+              <span className="text-sm font-medium text-text-secondary">
+                {t('invoiceDetails.attachments.drop')}
+              </span>
+              <span className="text-xs font-medium text-text-muted">
+                {t('invoiceDetails.attachments.hint')}
+              </span>
+            </button>
+          )}
         </div>
       </SectionCard>
 
