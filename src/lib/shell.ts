@@ -96,27 +96,6 @@ export const SEARCH_SUGGESTIONS = [
 
 /* -------------------------------------------------------- account and user */
 
-export type Branch = {
-  id: string
-  name: string
-  town: string
-  /** The plan the whole account is on — branches share it. */
-  planKey: string
-  current?: boolean
-}
-
-export const ACCOUNTS: Branch[] = [
-  {
-    id: 'nizwa',
-    name: 'Al Bahja Coffee',
-    town: 'Nizwa',
-    planKey: 'shell.plan.premium',
-    current: true,
-  },
-  { id: 'seeb', name: 'Al Bahja Coffee', town: 'Seeb', planKey: 'shell.plan.premium' },
-  { id: 'sohar', name: 'Al Bahja Roastery', town: 'Sohar', planKey: 'shell.plan.premium' },
-]
-
 export const USER_MENU = [
   { id: 'profile', labelKey: 'shell.user.profile', to: '/settings/team' },
   { id: 'settings', labelKey: 'shell.user.settings', to: '/settings' },

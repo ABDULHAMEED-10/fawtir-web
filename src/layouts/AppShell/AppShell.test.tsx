@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import { useCan, useSession } from '../../lib/session/session'
 import { AppShell } from './AppShell'
@@ -59,6 +60,10 @@ function renderAt(path: string) {
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
+  // AppShell now renders AccountSwitcher's own branches-overview read alongside entitlements;
+  // a read left mid-flight by one test would otherwise answer the next from a torn-down mock
+  // (`sharedRequest`'s own documented test-pollution gotcha).
+  resetSharedRequests()
   fetchMock = vi.fn()
   vi.stubGlobal('fetch', fetchMock)
 })
@@ -69,13 +74,15 @@ afterEach(() => {
 
 describe('AppShell session guard', () => {
   it('sends a reader without a session to sign in', async () => {
-    fetchMock.mockResolvedValue(json(401, { type: 'https://api.fawtir.om/problems/unauthenticated' }))
+    fetchMock.mockImplementation(async () =>
+      json(401, { type: 'https://api.fawtir.om/problems/unauthenticated' }),
+    )
     renderAt('/suppliers')
     expect(await screen.findByText('sign-in page')).toBeTruthy()
   })
 
   it('says it is checking, then shows the screen with the session', async () => {
-    fetchMock.mockResolvedValue(json(200, ACCOUNTANT))
+    fetchMock.mockImplementation(async () => json(200, ACCOUNTANT))
     renderAt('/suppliers')
     expect(screen.getByText('Checking your access…').closest('[role="status"]')).toBeTruthy()
     expect(await screen.findByText('screen for layla.accounts cannot manage')).toBeTruthy()
@@ -83,7 +90,7 @@ describe('AppShell session guard', () => {
   })
 
   it('shows the signed-in user and hides what they cannot open', async () => {
-    fetchMock.mockResolvedValue(json(200, ACCOUNTANT))
+    fetchMock.mockImplementation(async () => json(200, ACCOUNTANT))
     renderAt('/suppliers')
     await screen.findByText(/screen for/)
     expect(screen.getByText('layla.accounts')).toBeTruthy()
@@ -98,7 +105,7 @@ describe('AppShell session guard', () => {
   it('names the workspace the session belongs to, not a fixture', async () => {
     // The card used to read the first entry of a demo branch list, so every tenant saw the
     // same company. The name now comes from /me/entitlements.
-    fetchMock.mockResolvedValue(json(200, ACCOUNTANT))
+    fetchMock.mockImplementation(async () => json(200, ACCOUNTANT))
     renderAt('/suppliers')
     await screen.findByText(/screen for/)
     expect(screen.getByText('Nizwa Dates Trading')).toBeTruthy()
@@ -107,15 +114,18 @@ describe('AppShell session guard', () => {
 
   it('keeps the card readable when the server sends no workspace name', async () => {
     // Null is what the projection returns when row-level security hides the tenant row. A
-    // label is not worth an empty card, so the previous name stands.
-    fetchMock.mockResolvedValue(json(200, { ...ACCOUNTANT, tenantName: null }))
+    // generic label is honest here; a fabricated company name (this card's old fallback,
+    // "Al Bahja Coffee") is not.
+    fetchMock.mockImplementation(async () => json(200, { ...ACCOUNTANT, tenantName: null }))
     renderAt('/suppliers')
     await screen.findByText(/screen for/)
-    expect(screen.getByText('Al Bahja Coffee')).toBeTruthy()
+    expect(screen.getByText(i18n.t('shell.account.unnamed'))).toBeTruthy()
   })
 
   it('offers a retry when the session check itself fails', async () => {
-    fetchMock.mockResolvedValue(json(503, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'c-42' }))
+    fetchMock.mockImplementation(async () =>
+      json(503, { type: 'https://api.fawtir.om/problems/internal-error', correlationId: 'c-42' }),
+    )
     renderAt('/suppliers')
     const alert = await screen.findByRole('alert')
     expect(alert.textContent).toContain('Reference: c-42')

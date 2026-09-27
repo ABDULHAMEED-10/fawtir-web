@@ -1,10 +1,15 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Popover } from '../ui'
-import { ACCOUNTS, type Branch } from '../../lib/shell'
+import {
+  BRANCHES_OVERVIEW_PATH,
+  type BranchOverviewDto,
+  type BranchOverviewRow,
+} from '../../api/settings/branches'
+import { useApiRead } from '../../hooks/useApiRead'
 import { useSession } from '../../lib/session/session'
 import { useTenantPlan } from '../../lib/planAccess'
-import bahjaLogo from '../../assets/dashboard/bahja-logo.svg'
+import { CompanyAvatar } from './CompanyAvatar'
 import chevron from '../../assets/dashboard/chevron.svg'
 
 /**
@@ -14,21 +19,29 @@ import chevron from '../../assets/dashboard/chevron.svg'
  * follow whichever is chosen. The plan belongs to the account, so it does not change with the
  * branch — which is why it is stated once at the foot of the list rather than on every row.
  *
- * <p>The name on the card is the signed-in workspace's, from {@code /me/entitlements}. The branch
- * list below it is still design-time data, so picking one changes this label and nothing else.
+ * <p>The name and logo are the signed-in company's own (name from `/me/entitlements`, logo from
+ * company branding, an initial when there is none). The list below it is `/v1/branches/overview`
+ * — a brand-new company with one branch sees only that one row, honestly, rather than a second,
+ * fabricated one (browser gate, 27 September 2026: this card previously showed every tenant the
+ * same fixed three-row sample, "Al Bahja Coffee").
  */
 export function AccountSwitcher() {
   const { t } = useTranslation()
-  // The plan is the account's, read from the plan store so a switched plan shows here too.
+  // The plan is the account's; no subscription backend exists yet to read it from, so this stays
+  // the design's placeholder deliberately (owner, 2026-09-27) rather than a real read.
   const planLabel = t('shell.plan.named', { plan: t(`plan.planName.${useTenantPlan()}`) })
   const anchor = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
-  // Null until a branch is picked, so the card opens on the signed-in workspace rather than on
-  // a fixture. Before the name was served by /me/entitlements this read ACCOUNTS[0], which
-  // showed every tenant the same company (browser gate, 24 September 2026).
-  const [branch, setBranch] = useState<Branch | null>(null)
+  const [branch, setBranch] = useState<BranchOverviewRow | null>(null)
   const session = useSession()
-  const accountName = branch?.name ?? session?.tenantName ?? ACCOUNTS[0].name
+  // `tenantName` is null when RLS hides the tenant row; a blank card is worse than a generic
+  // label, and a fabricated company name (this card's old fallback) is worse than either.
+  const accountName = branch?.name ?? session?.tenantName ?? t('shell.account.unnamed')
+  // Loads once the popover is worth opening; failing silently (wrong role, or none yet) shows the
+  // signed-in company alone rather than an error on chrome every screen renders.
+  const { read } = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH)
+  const branches =
+    read.status === 'ready' && Array.isArray(read.data.branches) ? read.data.branches : []
 
   return (
     <>
@@ -41,7 +54,7 @@ export function AccountSwitcher() {
         className="flex w-full items-center justify-between rounded-sm border border-black/[0.06] bg-surface-tab-bar p-[9px] text-start transition-colors hover:border-primary-300"
       >
         <span className="flex min-w-0 items-center gap-[7px]">
-          <img src={bahjaLogo} alt="" className="size-[31px] shrink-0 rounded-full object-cover" />
+          <CompanyAvatar name={accountName} size={31} />
           <span className="min-w-0">
             <span className="block truncate text-sm font-medium leading-[1.2] text-[#3e443e]">
               {accountName}
@@ -59,31 +72,27 @@ export function AccountSwitcher() {
           {t('shell.account.branches')}
         </p>
         <ul role="listbox" className="pb-1">
-          {ACCOUNTS.map((account) => {
-            const chosen = account.id === branch?.id
+          {(branches.length > 0
+            ? branches
+            : [{ id: '', code: '', name: accountName } as BranchOverviewRow]
+          ).map((row) => {
+            const chosen = row.id === branch?.id
             return (
-              <li key={account.id}>
+              <li key={row.id || 'current'}>
                 <button
                   type="button"
                   role="option"
                   aria-selected={chosen}
                   onClick={() => {
-                    setBranch(account)
+                    if (row.id) setBranch(row)
                     setOpen(false)
                   }}
                   className="flex w-full items-center gap-2.5 px-3 py-2.5 text-start transition-colors hover:bg-primary-25"
                 >
-                  <img
-                    src={bahjaLogo}
-                    alt=""
-                    className="size-7 shrink-0 rounded-full object-cover"
-                  />
+                  <CompanyAvatar name={row.name} size={28} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-text-primary">
-                      {account.name}
-                    </span>
-                    <span className="block truncate text-xs font-medium text-text-quaternary">
-                      {account.town}
+                      {row.name}
                     </span>
                   </span>
                   {chosen ? <span className="shrink-0 text-primary-700">✓</span> : null}

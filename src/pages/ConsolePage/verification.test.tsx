@@ -135,6 +135,13 @@ const problem = (status: number, type: string) =>
 type Handler = () => Response | Promise<Response>
 let fetchMock: ReturnType<typeof vi.fn>
 
+/**
+ * The Participant ID card beside the decision panel reads this for every submitted company; none
+ * of this file's cases are about that card, so an unmocked read here answers "nothing filed yet"
+ * rather than failing loudly like a genuinely missed mock would.
+ */
+const PID_CURRENT_PATH = /^\/api\/v1\/platform\/peppol\/smp\/tenants\/[^/]+\/data-submissions\/current$/
+
 /** Answers each URL from its own handler; an unexpected URL fails the request loudly. */
 function answer(handlers: Record<string, Handler | Handler[]>) {
   const queues = Object.fromEntries(
@@ -146,8 +153,9 @@ function answer(handlers: Record<string, Handler | Handler[]>) {
   fetchMock.mockImplementation(async (url: string) => {
     const entry = queues[url]
     const handler = Array.isArray(entry) ? (entry.length > 1 ? entry.shift() : entry[0]) : entry
-    if (!handler) throw new Error(`unexpected request to ${url}`)
-    return handler()
+    if (handler) return handler()
+    if (PID_CURRENT_PATH.test(url)) return json(200, null)
+    throw new Error(`unexpected request to ${url}`)
   })
 }
 const callsTo = (url: string) => fetchMock.mock.calls.filter(([called]) => called === url)
