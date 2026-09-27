@@ -24,3 +24,8 @@ export const GOVERNORATES = Object.keys(GOVERNORATE_NAMES) as GovernorateId[]
 export function isGovernorateId(value: string): value is GovernorateId {
   return Object.hasOwn(GOVERNORATE_NAMES, value)
 }
+
+/** The id for a stored English name (IBT-054), for a form that edits a saved address. */
+export function governorateIdFor(name: string | null | undefined): GovernorateId | undefined {
+  return GOVERNORATES.find((id) => GOVERNORATE_NAMES[id] === name)
+}

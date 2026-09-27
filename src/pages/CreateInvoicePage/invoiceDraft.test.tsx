@@ -306,6 +306,36 @@ describe('a new invoice draft', () => {
   })
 })
 
+describe('the VAT summary label, now that the category is picked per line', () => {
+  it('names the one category every line shares, and says "mixed rates" once they differ', async () => {
+    loaded = draft({
+      lines: [
+        { ...draft().lines[0], lineNumber: 1 },
+        { ...draft().lines[0], lineNumber: 2, taxCategoryCode: 'S5', en16931Category: 'S' },
+      ],
+    })
+    renderAt('/invoices/d-1/edit')
+    expect((await screen.findAllByText('VAT · Standard rate - 5%')).length).toBeGreaterThan(0)
+
+    loaded = draft({
+      lines: [
+        { ...draft().lines[0], lineNumber: 1, taxCategoryCode: 'S5', en16931Category: 'S' },
+        {
+          ...draft().lines[0],
+          lineNumber: 2,
+          taxCategoryCode: 'Z0',
+          en16931Category: 'Z',
+          taxRate: 0,
+          exemptionReasonCode: 'VATZR-OM-01',
+        },
+      ],
+    })
+    cleanup()
+    renderAt('/invoices/d-1/edit')
+    expect((await screen.findAllByText('VAT · mixed rates')).length).toBeGreaterThan(0)
+  })
+})
+
 describe('an existing draft', () => {
   it('opens with its saved content and figures, and saves back without the note it cannot see', async () => {
     renderAt('/invoices/d-1/edit')

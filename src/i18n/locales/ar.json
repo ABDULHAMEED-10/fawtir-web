@@ -2354,6 +2354,8 @@
       "discount": "الخصم",
       "net": "صافي المبلغ",
       "vat": "ضريبة · قياسي 5%",
+      "vatOf": "الضريبة · {{category}}",
+      "mixedRates": "نسب مختلطة",
       "totalDue": "الإجمالي المستحق"
     },
     "fields": {
@@ -9905,7 +9907,10 @@
       "invoicesNote": "{{name}} يصدر {{share}} من كل ١٠",
       "included": "المشمولة في خطتك",
       "includedUnit": "فروع",
-      "includedNote": "لا رسوم إضافية حتى السادس"
+      "includedNote": "لا رسوم إضافية حتى السادس",
+      "openNoteGeneric": "بما في ذلك ما أغلقته",
+      "invoicesNoteGeneric": "عبر كل فرع مفتوح",
+      "peopleNoteGeneric": "عبر كل فرع"
     },
     "headOffice": "المكتب الرئيسي",
     "open": "مفتوح",
@@ -9946,6 +9951,12 @@
       "itsInvoices": "فواتيره",
       "copySettings": "انسخ إعداداته إلى فرع جديد",
       "closeBranch": "أغلق هذا الفرع"
+    },
+    "peopleCount_one": "شخص واحد",
+    "peopleCount_other": "{{count}} أشخاص",
+    "empty": {
+      "title": "أضف فرعك الأول",
+      "body": "ستحتاج فرعًا واحدًا على الأقل — من حيث تعمل — قبل أن تتمكن من إنشاء فاتورة."
     }
   },
   "addBranch": {
@@ -10030,7 +10041,9 @@
     "editTitle": "{{name}} — بياناته وكيف يفوتر",
     "editSubtitle": "عنوانه وترقيمه. الرقم الضريبي ومعرّف Peppol يأتيان من الشركة ولا يمكن تغييرهما هنا.",
     "saveChanges": "احفظ التغييرات",
-    "closeThisBranch": "أغلق هذا الفرع"
+    "closeThisBranch": "أغلق هذا الفرع",
+    "saving": "جارٍ الحفظ…",
+    "saveFailed": "تعذّر حفظ الفرع. حاول مرة أخرى."
   },
   "team": {
     "title": "أعضاء الفريق",
@@ -16377,7 +16390,8 @@
       "LINE_DISCOUNT_PERCENTAGE_INVALID": "خصم بند يتجاوز 100%",
       "HEADER_DISCOUNT_PERCENTAGE_INVALID": "خصم المستند يتجاوز 100%",
       "EXEMPTION_REASON_REQUIRED": "بند بلا ضريبة يحتاج إلى سبب",
-      "TAX_CATEGORY_METADATA_CONFLICT": "بندان بالنسبة نفسها بفئتين ضريبيتين مختلفتين"
+      "TAX_CATEGORY_METADATA_CONFLICT": "بندان بالنسبة نفسها بفئتين ضريبيتين مختلفتين",
+      "TAX_CATEGORY_REASON_CONFLICT": "بندان بنفس الفئة الضريبية والنسبة لهما سببان مختلفان — استخدم نفس السبب لهما، أو غيّر فئة أحد البندين أو نسبته"
     },
     "datesAtIssue": "يُحدد عند إصدار الفاتورة ولا يُحفظ في المسودة.",
     "notEditable": "هذه الفاتورة {{state}}. لا يمكن تعديل إلا المسودات.",

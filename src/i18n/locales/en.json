@@ -2255,6 +2255,8 @@
       "discount": "Discount",
       "net": "Net amount",
       "vat": "VAT · Standard 5%",
+      "vatOf": "VAT · {{category}}",
+      "mixedRates": "mixed rates",
       "totalDue": "Total due"
     },
     "fields": {
@@ -9511,7 +9513,10 @@
       "invoicesNote": "{{name}} raises {{share}} in every 10",
       "included": "Included in your plan",
       "includedUnit": "branches",
-      "includedNote": "No extra charge until the sixth"
+      "includedNote": "No extra charge until the sixth",
+      "openNoteGeneric": "Including any you've closed",
+      "invoicesNoteGeneric": "Across every open branch",
+      "peopleNoteGeneric": "Across every branch"
     },
     "headOffice": "Head office",
     "open": "Open",
@@ -9552,6 +9557,12 @@
       "itsInvoices": "Its invoices",
       "copySettings": "Copy its settings to a new branch",
       "closeBranch": "Close this branch"
+    },
+    "peopleCount_one": "{{count}} person",
+    "peopleCount_other": "{{count}} people",
+    "empty": {
+      "title": "Add your first branch",
+      "body": "You'll need at least one branch, where you trade from, before you can create an invoice."
     }
   },
   "addBranch": {
@@ -9636,7 +9647,9 @@
     "editTitle": "{{name}} — what it is and how it invoices",
     "editSubtitle": "Its address and numbering. The VAT number and Peppol ID come from the company and cannot be changed here.",
     "saveChanges": "Save the changes",
-    "closeThisBranch": "Close this branch"
+    "closeThisBranch": "Close this branch",
+    "saving": "Saving…",
+    "saveFailed": "Could not save the branch. Try again."
   },
   "team": {
     "title": "Team members",
@@ -15711,7 +15724,8 @@
       "LINE_DISCOUNT_PERCENTAGE_INVALID": "a line discount is over 100%",
       "HEADER_DISCOUNT_PERCENTAGE_INVALID": "the document discount is over 100%",
       "EXEMPTION_REASON_REQUIRED": "a line with no VAT needs a reason",
-      "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories"
+      "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories",
+      "TAX_CATEGORY_REASON_CONFLICT": "two lines at the same VAT category and rate have different reasons — give them the same reason, or change one line's category or rate"
     },
     "datesAtIssue": "Set when the invoice is issued; not stored on the draft.",
     "notEditable": "This invoice is {{state}}. Only drafts can be edited.",

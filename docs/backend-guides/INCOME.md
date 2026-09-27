@@ -416,3 +416,37 @@ Append-only; the rows above keep their numbers. Where a row above says "placehol
 | Units | 10 in reference data | 17: the 10 offered plus the Codes Master's 7 missing ones (backend #358) |
 | Amounts | unbounded | a line above 999,999,999,999.999 is refused (`LINE_AMOUNT_TOO_LARGE`); the composer flags it first |
 | Arabic | | The published lists carry English only. The Arabic names (ISIC, HS, service types, VAT reasons) are machine-translated and pending human review: HS and ISIC come from the server with `nameAr` (backend #370, one dictionary file to correct); the rest are bundled in the web. Without #370 the HS picker falls back to English |
+
+## Update 2026-09-27 (branches): a brand-new company could not create its first branch
+
+Found while testing onboarding through to Create Invoice for a fresh sign-up: Create Invoice's
+branch picker was empty, and Settings › Branches turned out to be entirely unwired design mockup
+(`src/lib/settingsCompany.ts`'s `BRANCHES`, a fictional "Al Bahja Coffee" with three branches) —
+every tenant saw the same fixed sample data, and there was no way to add a real one. A brand-new
+company could sign up and never be able to create an invoice.
+
+**The backend needed nothing.** `BranchManagementController` and `BranchDirectoryController`
+(create, list, get, update, head office, invoice prefix, and a purpose-built `/branches/overview`
+projection for exactly this screen's header cards and rows) were already complete, tested and on
+`main`, merged well before this was noticed.
+
+**Wired the frontend to it** (`src/api/settings/branches.ts`, `BranchesPage.tsx`,
+`AddBranchPage.tsx`): the overview and the create/edit form now call the real endpoints. The design
+draws a few facts the backend does not model per branch — its own javadoc says so — and those
+cells fall back rather than invent the figure:
+- Who manages a branch, and the roster's own initials — there is no branch-manager concept, and a
+  person has one home branch, not a roster; the cell shows a plain headcount.
+- Which branch most recently opened, and per-till usage recency — not tracked; the KPI notes and
+  the till cell drop the specific claim rather than state a wrong one.
+- The Arabic name, the opening date, staff assignment at creation, and the "behaviour" switches on
+  Add a branch — no backing field anywhere (a person's branch is set on their own profile, not
+  here). Those panels are unchanged and still shown, exactly as designed; they are just not sent.
+- `code`, which the design's form never asks for, is derived from the branch name (first letters,
+  upper-cased) since the database requires one, unique per tenant.
+- Creating a company's first-ever branch designates it head office automatically, since the design
+  always shows exactly one and there is no first-branch case in which the reader would pick
+  otherwise.
+
+The "What it inherits" and "Cost" panels on Add a branch, and the company switcher in the shell
+around every settings screen, are still the same unrelated mock company ("Al Bahja Coffee") — a
+separate, larger gap (the app shell's own company/plan data), not touched here.

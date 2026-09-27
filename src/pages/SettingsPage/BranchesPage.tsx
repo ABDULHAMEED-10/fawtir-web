@@ -2,17 +2,14 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { ActionMenu, Rial } from '../../components/ui'
-import { INVOICES_THIS_MONTH } from '../../lib/settings'
+import { useApiRead } from '../../hooks'
 import {
-  BRANCHES,
-  OPEN_BRANCHES,
-  BRANCHES_EVER,
-  PEOPLE_ACROSS_BRANCHES,
-  PEOPLE_AT_MORE_THAN_ONE,
-  BUSIEST_BRANCH,
-  BRANCH_PLAN,
-  type Branch,
-} from '../../lib/settingsCompany'
+  BRANCHES_OVERVIEW_PATH,
+  loadBranchOverview,
+  type BranchOverviewDto,
+  type BranchOverviewRow,
+} from '../../api/settings/branches'
+import { BRANCH_PLAN } from '../../lib/settingsCompany'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import plusBrandIcon from '../../assets/settings/plus-brand.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -26,13 +23,19 @@ import copySettingsIcon from '../../assets/settings/menu-copy.svg'
 import closeIcon from '../../assets/settings/menu-close.svg'
 
 /**
- * Settings › Branches (Figma 135:37541).
+ * Settings › Branches (Figma 135:37541), from `GET /v1/branches/overview`.
  *
- * Each branch reports its own numbering, month, roster and tills. The four figures at the top
- * are read off those rows rather than stated, so a branch's month always adds into the company's.
+ * The design draws a few facts the backend does not model per branch — who manages it, the
+ * roster's own initials, and how recently a till was used (`BranchOverview`'s own javadoc names
+ * the gaps: no branch-manager concept, a person has one home branch, no per-till usage log). Those
+ * cells fall back to a plain count instead; nothing here is invented. See
+ * docs/backend-guides/INCOME.md, "Update 2026-09-27 (branches)".
  */
 export function BranchesPage() {
   const { t } = useTranslation()
+  const overview = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH, () =>
+    loadBranchOverview(),
+  ).read
 
   return (
     <SettingsShell group="company">
@@ -50,37 +53,7 @@ export function BranchesPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          label={t('branches.kpi.open')}
-          value={String(OPEN_BRANCHES.length)}
-          unit={t('branches.kpi.openOf', { count: BRANCHES_EVER })}
-          note={t('branches.kpi.openNote', { name: 'Sohar', month: 'May' })}
-        />
-        <Kpi
-          label={t('branches.kpi.people')}
-          value={String(PEOPLE_ACROSS_BRANCHES)}
-          note={t('branches.kpi.peopleNote', { count: PEOPLE_AT_MORE_THAN_ONE })}
-        />
-        <Kpi
-          label={t('branches.kpi.invoices')}
-          value={INVOICES_THIS_MONTH.toLocaleString('en-US')}
-          note={t('branches.kpi.invoicesNote', {
-            name: BUSIEST_BRANCH.name,
-            share: BUSIEST_BRANCH.inEveryTen,
-          })}
-        />
-        <Kpi
-          label={t('branches.kpi.included')}
-          value={String(BRANCH_PLAN.included)}
-          unit={t('branches.kpi.includedUnit')}
-          note={t('branches.kpi.includedNote')}
-        />
-      </div>
-
-      {BRANCHES.map((branch) => (
-        <BranchCard key={branch.id} branch={branch} />
-      ))}
+      {overview.status === 'ready' ? <Content overview={overview.data} /> : null}
 
       <Link
         to="/settings/branches/new"
@@ -90,6 +63,54 @@ export function BranchesPage() {
         {t('branches.addBranch')}
       </Link>
     </SettingsShell>
+  )
+}
+
+function Content({ overview }: { overview: BranchOverviewDto }) {
+  const { t } = useTranslation()
+
+  if (overview.branches.length === 0) {
+    return (
+      <div className="rounded-md bg-surface-card p-8 text-center">
+        <h3 className="text-lg font-semibold text-text-primary">{t('branches.empty.title')}</h3>
+        <p className="mx-auto mt-1.5 max-w-md text-sm font-medium text-text-quaternary">
+          {t('branches.empty.body')}
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Kpi
+          label={t('branches.kpi.open')}
+          value={String(overview.openCount)}
+          unit={t('branches.kpi.openOf', { count: overview.everCount })}
+          note={t('branches.kpi.openNoteGeneric')}
+        />
+        <Kpi
+          label={t('branches.kpi.people')}
+          value={String(overview.peopleAcross)}
+          note={t('branches.kpi.peopleNoteGeneric')}
+        />
+        <Kpi
+          label={t('branches.kpi.invoices')}
+          value={overview.invoicesThisMonth.toLocaleString('en-US')}
+          note={t('branches.kpi.invoicesNoteGeneric')}
+        />
+        <Kpi
+          label={t('branches.kpi.included')}
+          value={BRANCH_PLAN.included === Infinity ? '—' : String(BRANCH_PLAN.included)}
+          unit={t('branches.kpi.includedUnit')}
+          note={t('branches.kpi.includedNote')}
+        />
+      </div>
+
+      {overview.branches.map((branch) => (
+        <BranchCard key={branch.id} branch={branch} />
+      ))}
+    </>
   )
 }
 
@@ -120,9 +141,9 @@ function Kpi({
   )
 }
 
-function BranchCard({ branch }: { branch: Branch }) {
+function BranchCard({ branch }: { branch: BranchOverviewRow }) {
   const { t } = useTranslation()
-  const closed = branch.state === 'closed'
+  const closed = !branch.active
 
   return (
     <section
@@ -141,7 +162,7 @@ function BranchCard({ branch }: { branch: Branch }) {
                 : 'bg-primary-50 text-primary-800',
           ].join(' ')}
         >
-          {branch.initials}
+          {branch.code}
         </span>
 
         <div className="min-w-[220px] flex-1">
@@ -160,17 +181,12 @@ function BranchCard({ branch }: { branch: Branch }) {
               </span>
             ) : null}
             <StatePill branch={branch} />
-            {branch.needsTill ? (
-              <span className="inline-flex h-[22px] items-center gap-1.5 rounded-[3px] bg-pending-100 px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-pending-700">
-                <span className="size-1.5 rounded-full bg-pending-500" />
-                {t('branches.needsATill')}
-              </span>
-            ) : null}
           </p>
-          <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {branch.address}
-            {branch.addressNoteKey ? ` · ${t(branch.addressNoteKey)}` : ''}
-          </p>
+          {branch.headOffice ? (
+            <p className="mt-1 text-sm font-medium leading-[1.4] text-text-quaternary">
+              {t('branches.theRegisteredAddress')}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -195,20 +211,20 @@ function BranchCard({ branch }: { branch: Branch }) {
                 id: 'who',
                 labelKey: 'branches.menu.whoWorksHere',
                 icon: peopleIcon,
-                hint: String(branch.staff.length),
+                hint: String(branch.people),
                 to: '/settings/team',
               },
               {
                 id: 'numbering',
                 labelKey: 'branches.menu.numbering',
                 icon: numberingIcon,
-                hint: branch.prefix ? `${branch.prefix}-INV` : 'INV',
+                hint: branch.invoicePrefix ? `${branch.invoicePrefix}-INV` : 'INV',
               },
               {
                 id: 'tills',
                 labelKey: 'branches.menu.tillDevices',
                 icon: deviceIcon,
-                hint: String(branch.tills),
+                hint: String(branch.devices),
               },
               {
                 id: 'trading',
@@ -221,7 +237,7 @@ function BranchCard({ branch }: { branch: Branch }) {
                 id: 'invoices',
                 labelKey: 'branches.menu.itsInvoices',
                 icon: invoiceIcon,
-                hint: (branch.closedInvoices ?? branch.invoicesThisMonth).toLocaleString('en-US'),
+                hint: branch.invoicesThisMonth.toLocaleString('en-US'),
                 to: '/invoices',
               },
               {
@@ -248,8 +264,8 @@ function BranchCard({ branch }: { branch: Branch }) {
             <span
               dangerouslySetInnerHTML={{
                 __html: t('branches.closedNote', {
-                  count: (branch.closedInvoices ?? 0).toLocaleString('en-US'),
-                  prefix: `${branch.prefix}-INV`,
+                  count: branch.invoicesThisMonth.toLocaleString('en-US'),
+                  prefix: `${branch.invoicePrefix ?? ''}-INV`,
                 }),
               }}
             />
@@ -265,10 +281,13 @@ function BranchCard({ branch }: { branch: Branch }) {
         <dl className="grid border-t border-surface-background sm:grid-cols-2 xl:grid-cols-4">
           <Cell label={t('branches.col.numbering')}>
             <p dir="ltr" className="text-left font-mono text-sm font-semibold text-text-primary">
-              {branch.prefix ? `${branch.prefix}-INV-####` : 'INV-####'}
+              {branch.invoicePrefix ? `${branch.invoicePrefix}-INV-####` : 'INV-####'}
             </p>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {t(branch.numberingKey)} · {t('branches.atNumber', { number: branch.nextNumber })}
+              {t(branch.invoicePrefix ? 'branches.ownSeries' : 'branches.noPrefix')}
+              {branch.nextNumber != null
+                ? ` · ${t('branches.atNumber', { number: branch.nextNumber })}`
+                : ''}
             </p>
           </Cell>
 
@@ -282,50 +301,43 @@ function BranchCard({ branch }: { branch: Branch }) {
               </span>
             </p>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
-              <Rial /> {branch.turnoverThisMonth}
-              {branch.turnoverNoteKey ? ` · ${t(branch.turnoverNoteKey)}` : ''}
+              <Rial /> {branch.invoicedThisMonth.toFixed(3)}
             </p>
           </Cell>
 
           <Cell label={t('branches.col.whoWorksHere')}>
-            <span className="flex items-center gap-1">
-              {branch.staff.map((initials) => (
-                <span
-                  key={initials}
-                  className="flex size-6 items-center justify-center rounded-full bg-primary-50 text-[9px] font-semibold text-primary-800"
-                >
-                  {initials}
+            <p className="flex items-baseline gap-1.5">
+              {branch.people === 0 ? (
+                <span className="text-lg font-semibold text-text-primary">
+                  {t('branches.none')}
                 </span>
-              ))}
-            </span>
-            <p className="mt-1.5 text-xs font-medium text-text-quaternary">
-              {t('branches.peopleManages', {
-                count: branch.staff.length,
-                who: branch.managedBy,
-              })}
+              ) : (
+                <span className="text-lg font-semibold text-text-primary tabular-nums">
+                  {t('branches.peopleCount', { count: branch.people })}
+                </span>
+              )}
             </p>
           </Cell>
 
           <Cell label={t('branches.col.till')}>
             <p className="flex items-baseline gap-1.5">
-              {branch.tills === 0 ? (
+              {branch.devices === 0 ? (
                 <span className="text-lg font-semibold text-text-primary">
                   {t('branches.none')}
                 </span>
               ) : (
                 <>
                   <span className="text-lg font-semibold text-text-primary tabular-nums">
-                    {branch.tills}
+                    {branch.devices}
                   </span>
                   <span className="text-xs font-medium text-text-quaternary">
-                    {t('branches.devices', { count: branch.tills })
-                      .replace(String(branch.tills), '')
+                    {t('branches.devices', { count: branch.devices })
+                      .replace(String(branch.devices), '')
                       .trim()}
                   </span>
                 </>
               )}
             </p>
-            <p className="mt-1 text-xs font-medium text-text-quaternary">{t(branch.tillNoteKey)}</p>
           </Cell>
         </dl>
       )}
@@ -333,13 +345,13 @@ function BranchCard({ branch }: { branch: Branch }) {
   )
 }
 
-function StatePill({ branch }: { branch: Branch }) {
+function StatePill({ branch }: { branch: BranchOverviewRow }) {
   const { t } = useTranslation()
-  if (branch.state === 'closed') {
+  if (!branch.active) {
     return (
       <span className="inline-flex h-[22px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
         <span className="size-1.5 rounded-full bg-[#a8abb2]" />
-        {t('branches.closedOn', { date: branch.closedOn })}
+        {branch.closedOn ? t('branches.closedOn', { date: branch.closedOn }) : t('branches.open')}
       </span>
     )
   }
