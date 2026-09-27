@@ -340,7 +340,6 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
               dir="auto"
               readOnly
               readOnlyAppearance
-              hint={t('businessIdentity.peppolHint')}
             />
           </div>
 
