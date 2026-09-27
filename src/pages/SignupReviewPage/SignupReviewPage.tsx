@@ -11,6 +11,7 @@ import {
 } from '../../lib/onboarding'
 import { BusinessIdentityHero } from '../BusinessIdentityPage/BusinessIdentityHero'
 import { SignupReviewForm } from './SignupReviewForm'
+import { candidateParticipantId } from '../../lib/peppolParticipant'
 
 export function SignupReviewPage() {
   const { t } = useTranslation()
@@ -23,7 +24,7 @@ export function SignupReviewPage() {
         companyName: identity.companyName,
         crNumber: identity.crNumber,
         vatin: identity.vatin,
-        peppolId: t('businessIdentity.peppolPending'),
+        peppolId: candidateParticipantId(identity.vatin) ?? t('businessIdentity.peppolPending'),
         initials: initialsOf(identity.companyName),
         accentColor: accentColor(identity.accent),
         logoUrl: identity.logoUrl,

@@ -37,6 +37,7 @@ import {
   type OnboardingState,
 } from '../../lib/onboarding'
 import { isClean, type FieldError } from '../../lib/validation'
+import { candidateParticipantId } from '../../lib/peppolParticipant'
 
 const LOGO_TYPES = ['image/png', 'image/svg+xml']
 const LOGO_MAX_BYTES = 2 * 1024 * 1024
@@ -76,9 +77,10 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
   const clearError = (field: BusinessIdentityField | 'logo') =>
     setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
-  // Not derived from the VATIN: signup assigns no Participant ID, an OM12 group VATIN may not be
-  // one at all (Fawtara SP#6), and the platform treats the Oman PID rule as pending authority.
-  const peppolPending = t('businessIdentity.peppolPending')
+  // Shown as `0248:` + the VAT number once that number is valid, never typed: it is a candidate
+  // Fawtir reviews with the registration, where an OM12 group VATIN (Fawtara SP#6) or an ID
+  // registered elsewhere is corrected by the reviewer, not here.
+  const peppolPending = candidateParticipantId(vatin) ?? t('businessIdentity.peppolPending')
   const category = registrableCategory(state.businessType)
 
   // Searched by activity name; the code is the hint so a known code finds it too.
@@ -335,6 +337,7 @@ export function BusinessIdentityForm({ onPreviewChange }: BusinessIdentityFormPr
             <Input
               label={t('businessIdentity.peppolLabel')}
               value={peppolPending}
+              dir="auto"
               readOnly
               readOnlyAppearance
               hint={t('businessIdentity.peppolHint')}
