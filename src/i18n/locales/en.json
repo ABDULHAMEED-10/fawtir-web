@@ -15711,7 +15711,8 @@
       "LINE_DISCOUNT_PERCENTAGE_INVALID": "a line discount is over 100%",
       "HEADER_DISCOUNT_PERCENTAGE_INVALID": "the document discount is over 100%",
       "EXEMPTION_REASON_REQUIRED": "a line with no VAT needs a reason",
-      "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories"
+      "TAX_CATEGORY_METADATA_CONFLICT": "two lines at the same rate have different tax categories",
+      "TAX_CATEGORY_REASON_CONFLICT": "two lines at the same VAT category and rate have different reasons — give them the same reason, or change one line's category or rate"
     },
     "datesAtIssue": "Set when the invoice is issued; not stored on the draft.",
     "notEditable": "This invoice is {{state}}. Only drafts can be edited.",

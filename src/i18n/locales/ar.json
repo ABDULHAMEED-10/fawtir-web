@@ -16377,7 +16377,8 @@
       "LINE_DISCOUNT_PERCENTAGE_INVALID": "خصم بند يتجاوز 100%",
       "HEADER_DISCOUNT_PERCENTAGE_INVALID": "خصم المستند يتجاوز 100%",
       "EXEMPTION_REASON_REQUIRED": "بند بلا ضريبة يحتاج إلى سبب",
-      "TAX_CATEGORY_METADATA_CONFLICT": "بندان بالنسبة نفسها بفئتين ضريبيتين مختلفتين"
+      "TAX_CATEGORY_METADATA_CONFLICT": "بندان بالنسبة نفسها بفئتين ضريبيتين مختلفتين",
+      "TAX_CATEGORY_REASON_CONFLICT": "بندان بنفس الفئة الضريبية والنسبة لهما سببان مختلفان — استخدم نفس السبب لهما، أو غيّر فئة أحد البندين أو نسبته"
     },
     "datesAtIssue": "يُحدد عند إصدار الفاتورة ولا يُحفظ في المسودة.",
     "notEditable": "هذه الفاتورة {{state}}. لا يمكن تعديل إلا المسودات.",

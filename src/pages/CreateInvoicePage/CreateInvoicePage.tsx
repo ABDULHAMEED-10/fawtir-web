@@ -144,6 +144,7 @@ const PREVIEW_REASONS = new Set([
   'HEADER_DISCOUNT_PERCENTAGE_INVALID',
   'EXEMPTION_REASON_REQUIRED',
   'TAX_CATEGORY_METADATA_CONFLICT',
+  'TAX_CATEGORY_REASON_CONFLICT',
 ])
 
 type Translate = (key: string, values?: Record<string, unknown>) => string
