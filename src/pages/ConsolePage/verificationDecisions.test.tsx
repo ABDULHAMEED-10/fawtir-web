@@ -403,44 +403,93 @@ describe('Language and privacy', () => {
 })
 
 describe('Peppol Participant ID', () => {
-  const participantInput = () =>
-    document.querySelector<HTMLInputElement>('input[name="participantId"]')!
+  const PID_URL = `/api/v1/platform/peppol/smp/tenants/${ID}/data-submissions/current`
+  const SUBMISSION_ID = '22222222-2222-4222-8222-222222222222'
+  const VERIFY_URL = `/api/v1/platform/peppol/smp/tenants/${ID}/data-submissions/${SUBMISSION_ID}/verify`
 
-  it('proposes 0248 and the VAT number, and records nothing while the backend has no route', async () => {
-    await openPending()
-
-    expect(
-      screen.getByRole('heading', { level: 2, name: i18n.t('console.verification.participant.title') }),
-    ).toBeTruthy()
-    expect(participantInput().value).toBe('0248:OM1100000001')
-    expect(button('console.verification.participant.approve').disabled).toBe(true)
-    expect(button('console.verification.participant.reject').disabled).toBe(true)
-    expect(screen.getByText(i18n.t('console.verification.participant.notConnected'))).toBeTruthy()
-
-    fireEvent.change(participantInput(), { target: { value: 'not an id' } })
-    fireEvent.blur(participantInput())
-    expect(screen.getByText(i18n.t('console.verification.participant.idInvalid'))).toBeTruthy()
-
-    // Only the three reads: the card sends nothing of its own.
-    expect(fetchMock.mock.calls.map(([url]) => url).sort()).toEqual(
-      [DETAIL_URL, ENTITLEMENTS_URL, HISTORY_URL].sort(),
-    )
+  const submission = (overrides: Record<string, unknown> = {}) => ({
+    id: SUBMISSION_ID,
+    tenantId: ID,
+    status: 'SUBMITTED',
+    candidatePidScheme: '0248',
+    candidatePidValue: 'OM1100000001',
+    verifiedPidScheme: null,
+    verifiedPidValue: null,
+    reasonCode: null,
+    createdBy: 'u-registrant',
+    submittedBy: 'u-registrant',
+    optimisticLockVersion: 3,
+    ...overrides,
   })
 
-  it('stays on a verified company, whose ID may still need review', async () => {
-    answer(reads(() => json(200, VERIFIED)))
+  async function openWithPid(pid: Handler | Handler[] = () => json(200, submission())) {
+    answer({ ...reads(), [PID_URL]: pid })
     renderDetail()
-    await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
+    await screen.findByRole('heading', { level: 2, name: i18n.t('console.verification.participant.title') })
+  }
 
-    expect(screen.getByText(i18n.t('console.verification.participant.title'))).toBeTruthy()
+  /** Scoped to this card alone: some of its status words (e.g. "Submitted for review") also
+   * appear in the History card's event log, which lists the same registration's own events. */
+  const participantCard = () =>
+    within(screen.getByText(i18n.t('console.verification.participant.title')).closest('section')!)
+
+  it('shows the tenant’s real candidate ID and status once submitted', async () => {
+    await openWithPid()
+
+    // The card's own read resolves after the heading (present in every state) mounts, so the
+    // first check waits for it; everything else here is stable once this one settles.
+    expect(await screen.findByText('0248:OM1100000001')).toBeTruthy()
+    // Scoped: "Submitted for review" is also the History card's own label for a PROFILE_SUBMITTED
+    // event on this same registration, so an unscoped query would find both.
+    expect(
+      participantCard().getByText(i18n.t('console.verification.participant.submissionStatus.SUBMITTED')),
+    ).toBeTruthy()
+    expect(button('console.verification.participant.approve').disabled).toBe(false)
+    expect(button('console.verification.participant.reject').disabled).toBe(false)
+  })
+
+  it('shows a plain "not submitted" state, with no actions, when there is no submission yet', async () => {
+    await openWithPid(() => json(200, null))
+
+    expect(await screen.findByText(i18n.t('console.verification.participant.notSubmitted'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('console.verification.participant.awaitingSubmission'))).toBeTruthy()
+    // The proposed 0248:VAT preview still shows, computed locally, since nothing was filed to show instead.
+    expect(screen.getByText('0248:OM1100000001')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
+  })
+
+  it('reports the operator has no access, distinctly from any other failure', async () => {
+    await openWithPid(() => problem(403, 'insufficient-permission'))
+
+    expect(await screen.findByText(i18n.t('console.access.missingPermission'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
+  })
+
+  it('shows the verified ID and offers no action once decided', async () => {
+    await openWithPid(() =>
+      json(200, submission({ status: 'VERIFIED', verifiedPidScheme: '0248', verifiedPidValue: 'OM1100000001' })),
+    )
+
+    expect(
+      await screen.findByText(i18n.t('console.verification.participant.submissionStatus.VERIFIED')),
+    ).toBeTruthy()
+    expect(screen.getByText(i18n.t('console.verification.participant.verifiedId'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
+  })
+
+  it('tells the submitter someone else must decide their own filing', async () => {
+    await openWithPid(() => json(200, submission({ createdBy: OPERATOR.userId, submittedBy: OPERATOR.userId })))
+
+    expect(await screen.findByText(i18n.t('console.verification.participant.ownSubmission'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
   })
 
   it('warns that a group VAT number may not be a Participant ID', async () => {
-    answer(reads(() => json(200, { ...PENDING, taxNumber: 'OM1200000009' })))
+    answer({ ...reads(() => json(200, { ...PENDING, taxNumber: 'OM1200000009' })), [PID_URL]: () => json(200, null) })
     renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
 
-    expect(screen.getByText(i18n.t('console.verification.participant.groupVat'))).toBeTruthy()
+    expect(await screen.findByText(i18n.t('console.verification.participant.groupVat'))).toBeTruthy()
   })
 
   it('is not shown before the registration is submitted', async () => {
@@ -449,5 +498,76 @@ describe('Peppol Participant ID', () => {
     await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
 
     expect(screen.queryByText(i18n.t('console.verification.participant.title'))).toBeNull()
+    // No PID read either: the card that would trigger it never mounts.
+    expect(fetchMock.mock.calls.some(([url]) => url === PID_URL)).toBe(false)
+  })
+
+  it('approves the candidate as filed, with a reason code, and re-reads the submission', async () => {
+    let release: (response: Response) => void = () => {}
+    answer({
+      ...reads(),
+      [PID_URL]: [
+        () => json(200, submission()),
+        () => json(200, submission({ status: 'VERIFIED', verifiedPidScheme: '0248', verifiedPidValue: 'OM1100000001' })),
+      ],
+      [VERIFY_URL]: () => new Promise<Response>((resolve) => (release = resolve)),
+    })
+    renderDetail()
+    const approve = await screen.findByRole('button', { name: i18n.t('console.verification.participant.approve') })
+
+    fireEvent.click(approve)
+    const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.participant.approveTitle') })
+    const confirm = within(dialog).getByRole('button', { name: i18n.t('console.verification.participant.approveConfirm') })
+    fireEvent.click(confirm)
+    expect(within(dialog).getByText(i18n.t('console.verification.participant.reasonRequired'))).toBeTruthy()
+    expect(callsTo(VERIFY_URL)).toHaveLength(0)
+
+    const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
+    fireEvent.change(reasonInput, { target: { value: 'verified_by_compliance' } })
+    expect(reasonInput.value).toBe('VERIFIED_BY_COMPLIANCE')
+    fireEvent.click(confirm)
+
+    expect(callsTo(VERIFY_URL)).toHaveLength(1)
+    expect(JSON.parse(initOf(VERIFY_URL).body as string)).toEqual({
+      expectedOptimisticLockVersion: 3,
+      approved: true,
+      reasonCode: 'VERIFIED_BY_COMPLIANCE',
+    })
+    await act(async () => release(json(200, submission({ status: 'VERIFIED' }))))
+    await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
+  })
+
+  it('rejects with a reason code the same way', async () => {
+    answer({ ...reads(), [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => json(200, submission({ status: 'REJECTED' })) })
+    renderDetail()
+    const reject = await screen.findByRole('button', { name: i18n.t('console.verification.participant.reject') })
+
+    fireEvent.click(reject)
+    const dialog = screen.getByRole('dialog', { name: i18n.t('console.verification.participant.rejectTitle') })
+    const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
+    fireEvent.change(reasonInput, { target: { value: 'MISSING_EVIDENCE' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('console.verification.participant.rejectConfirm') }))
+
+    await waitFor(() => expect(callsTo(VERIFY_URL)).toHaveLength(1))
+    expect(JSON.parse(initOf(VERIFY_URL).body as string)).toEqual({
+      expectedOptimisticLockVersion: 3,
+      approved: false,
+      reasonCode: 'MISSING_EVIDENCE',
+    })
+  })
+
+  it('on a moved case (409) explains it and reloads when asked', async () => {
+    answer({ ...reads(), [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => problem(409, 'resource-conflict') })
+    renderDetail()
+    const approve = await screen.findByRole('button', { name: i18n.t('console.verification.participant.approve') })
+
+    fireEvent.click(approve)
+    const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
+    fireEvent.change(reasonInput, { target: { value: 'VERIFIED_BY_COMPLIANCE' } })
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('console.verification.participant.approveConfirm') }))
+
+    expect(await screen.findByText(i18n.t('console.verification.participant.conflict'))).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('console.verification.decision.reload') }))
+    await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
   })
 })

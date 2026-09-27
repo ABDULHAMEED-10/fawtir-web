@@ -229,7 +229,9 @@ function CompanyView({
               onDecided={onDecided}
             />
           ) : null}
-          {submitted ? <ParticipantPanel company={company} /> : null}
+          {submitted ? (
+            <ParticipantPanel company={company} operatorId={peekEntitlements()?.userId ?? null} />
+          ) : null}
           <ReviewCard title={t('console.verification.detail.section.verification')}>
             <ReviewLine
               label={t('console.verification.detail.field.status')}

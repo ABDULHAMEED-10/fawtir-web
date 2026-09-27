@@ -11790,14 +11790,37 @@
         "vatNumber": "VAT number",
         "proposed": "Proposed ID",
         "status": "Status",
-        "notReviewed": "Not reviewed",
         "groupVat": "This is a group VAT number, which may not be a valid Participant ID. Enter the ID the company is registered under.",
-        "idLabel": "Participant ID to approve",
-        "idHint": "Scheme and identifier, for example 0248:OM1100000001.",
-        "idInvalid": "Enter a scheme of four digits, a colon, then the identifier.",
         "approve": "Approve ID",
         "reject": "Reject ID",
-        "notConnected": "Not connected yet: Fawtir's server has no route to record this decision."
+        "notSubmitted": "Not submitted yet",
+        "awaitingSubmission": "The company has not submitted a Participant ID for review yet.",
+        "ownSubmission": "You filed this submission. Another reviewer needs to decide it.",
+        "verifiedId": "Verified ID",
+        "submissionStatus": {
+          "DRAFT": "Draft, not yet submitted",
+          "SUBMITTED": "Submitted for review",
+          "PENDING_REVIEW": "Pending review",
+          "VERIFIED": "Verified",
+          "REJECTED": "Rejected",
+          "REVOKED": "Revoked",
+          "SUPERSEDED": "Superseded",
+          "RELEASED": "Released"
+        },
+        "approveTitle": "Approve this Participant ID?",
+        "rejectTitle": "Reject this Participant ID?",
+        "approveConfirm": "Approve",
+        "rejectConfirm": "Reject",
+        "approving": "Approving…",
+        "rejecting": "Rejecting…",
+        "approveBody": "The company can start issuing invoices over Peppol once this is approved.",
+        "rejectBody": "The company keeps its current ID status and must submit again.",
+        "reasonLabel": "Reason code",
+        "reasonHint": "Uppercase letters, digits, underscore or hyphen, 3–80 characters.",
+        "reasonRequired": "Enter a reason code.",
+        "reasonInvalid": "Use only uppercase letters, digits, underscore or hyphen, 3–80 characters.",
+        "conflict": "This submission changed or was already decided. Reload it and look again.",
+        "forbidden": "Fawtir refused this decision. Another reviewer may need to make it, or your account lacks access."
       }
     },
     "plans": {
@@ -13699,7 +13722,8 @@
     },
     "account": {
       "branches": "Branches",
-      "planNote": "All branches are on the {{plan}}."
+      "planNote": "All branches are on the {{plan}}.",
+      "unnamed": "Your company"
     },
     "plan": {
       "premium": "Premium plan",

@@ -470,3 +470,41 @@ disabled, and the card says the decision is not connected yet.
 | P.2 | Approve ID, with the ID the reviewer confirmed or typed | a route to approve (body: scheme, value, the revision it quotes), four-eyes like the company decision, starting SMP onboarding once verified |
 | P.3 | Reject ID, with a reason | a route to reject, with a reason list, emailing the registrant |
 | P.4 | The review in the company's history list | participant events in `verification-history` |
+
+## Update 2026-09-27 (Participant ID), later the same day: most of this already existed
+
+The rows above assumed nothing backed this card. Reading the actual SMP module
+(`peppol/smp/adapter/in/rest/SmpDataBlockerAdministrationController.java`,
+`SmpTenantDataSubmissionController.java`) found P.2 and P.3 already built, as one combined route:
+`POST /v1/platform/peppol/smp/tenants/{tenantId}/data-submissions/{submissionId}/verify` (body:
+`expectedOptimisticLockVersion`, `approved`, `reasonCode`) does the approval or the rejection,
+enforces four-eyes, validates the candidate against the active PID policy, and starts SMP
+auto-onboarding on approval — all of it already tested server-side. **It takes no reviewer-typed
+scheme or value.** The card's "type another ID" field never had anything to send it to; it is
+removed rather than left connected to nothing.
+
+P.1 was the one real gap: no platform-side read took a bare `tenantId`, only `(tenantId,
+submissionId)` once a submission id is already known. Added
+`GET /v1/platform/peppol/smp/tenants/{tenantId}/data-submissions/current` (same controller, same
+`platform.support` + `platform.smp.compliance.approve` gate the decision itself already required —
+not a softer view tier, since no weaker permission exists for this blocker type). `ParticipantPanel`
+now reads it, shows the tenant's own filed candidate and status for real, and Approve/Reject call
+the real `verify` route with a reason code the reviewer types (no fixed code list exists yet, so it
+is a free `[A-Z0-9_-]{3,80}` field, uppercased as typed). P.4 (history) is unconfirmed either way —
+not attempted here.
+
+**Still open, not solved by this**: the page (`VerificationCompanyPage`) is gated on
+`platform.tenants.manage`; the decision this card makes needs `platform.support` +
+`platform.smp.compliance.approve`, a deliberately separate role
+(`core/.../PlatformRoleCatalogue.java`). A reviewer who lacks the second pair now sees the read
+itself refused as "no access" — correct behaviour, not a bug, but it means "one reviewer handles
+both in one visit" is not actually true today unless that reviewer's account also holds
+`PLATFORM_SUPPORT`. That is Zain/Abdul's call, not a default this change makes.
+
+**Also still open**: nothing anywhere lets a tenant submit its own candidate Participant ID in the
+first place (`SmpTenantDataSubmissionController`'s `POST /v1/peppol/smp/data-submissions` has no
+frontend caller). `PeppolTaxPage.tsx` is the settings screen with "Peppol" in its name, but it is
+entirely mock data presenting an *already-live* identity (certificates, renewal, visibility toggles)
+— the wrong lifecycle stage for a first-time submission, and building a new screen for that stage
+has no Figma frame and no decision yet on where it belongs (onboarding vs. a new settings screen).
+Not started, on purpose, pending that decision.
