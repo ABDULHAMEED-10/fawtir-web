@@ -6,7 +6,8 @@
  *
  *   node tools/screenshot/shot.mjs <out.png> <url> [--width 1440] [--ar] [--wait ms]
  *        [--text "<button, tab or menu item text>"]... [--click "<css selector>"]...
- *        [--type "<css selector>" "<value>"]... [--file "<absolute path>"]...
+ *        [--contains "<text inside a button>"]... [--type "<css selector>" "<value>"]...
+ *        [--file "<absolute path>"]...
  *
  * Examples:
  *   node tools/screenshot/shot.mjs .design/sub/invoices.png http://localhost:4188/invoices
@@ -35,6 +36,7 @@ for (let i = 0; i < args.length; i += 1) {
   else if (a === '--wait') wait = Number(args[++i])
   else if (a === '--click') actions.push({ click: args[++i] })
   else if (a === '--text') actions.push({ text: args[++i] })
+  else if (a === '--contains') actions.push({ contains: args[++i] })
   else if (a === '--file') actions.push({ file: args[++i] })
   else if (a === '--type') actions.push({ type: args[++i], value: args[++i] })
 }
@@ -144,6 +146,11 @@ async function main() {
         expression: `(() => { const els = [...document.querySelectorAll('button, a, [role=menuitem], [role=option], [role=tab]')]; const el = els.find((e) => e.textContent.trim() === ${JSON.stringify(action.text)}); if (!el) return 'missing'; el.scrollIntoView({block:'center'}); el.click(); return 'ok' })()`,
       })
       if (r.result.value !== 'ok') console.error('text not found:', action.text)
+    } else if (action.contains) {
+      const r = await s('Runtime.evaluate', {
+        expression: `(() => { const els = [...document.querySelectorAll('button, a, [role=menuitem], [role=option], [role=tab]')]; const el = els.find((e) => e.textContent.includes(${JSON.stringify(action.contains)})); if (!el) return 'missing'; el.scrollIntoView({block:'center'}); el.click(); return 'ok' })()`,
+      })
+      if (r.result.value !== 'ok') console.error('text not found:', action.contains)
     } else if (action.type) {
       await s('Runtime.evaluate', {
         expression: `(() => { const el = document.querySelector(${JSON.stringify(action.type)}); if (!el) return 'missing'; const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(el, ${JSON.stringify(action.value)}); el.dispatchEvent(new Event('input', { bubbles: true })); return 'ok' })()`,

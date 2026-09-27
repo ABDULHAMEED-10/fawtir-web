@@ -752,6 +752,18 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     setDirty(true)
   }
 
+  /** One line's category; its no-VAT reason belongs to the old category, so it is cleared. */
+  const setLineTaxCategory = (line: DraftLine, code: string) => {
+    const tax = taxCategoryFor(reference, code)
+    if (!tax || tax.code === line.taxCode) return
+    updateLine(line.id, {
+      taxCode: tax.code,
+      vatRate: tax.rate,
+      exemptionReasonCode: '',
+      exemptionReason: '',
+    })
+  }
+
   /** INV-PD-019 option A — inclusive is an entry mode; flipping it converts the typed prices. */
   const switchVatMode = (toExclusive: boolean) => {
     if (toExclusive === exclVat) return
@@ -1086,6 +1098,14 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       label: taxLabel(t, category.code) ?? category.code,
       hint: `EN 16931 · ${category.en16931Category}`,
     }))
+  // The closed field reads "5% S" in a narrow column; the list names each category in full.
+  const lineTaxOptions: SelectOption[] = (reference?.taxCategories ?? [])
+    .filter((category) => category.active)
+    .map((category) => ({
+      value: category.code,
+      label: taxLabel(t, category.code) ?? category.code,
+      shortLabel: `${Number(category.rate)}% ${category.en16931Category}`,
+    }))
   const unitOptions = (line: DraftLine): SelectOption[] =>
     lineUnitOptions(line.itemType, t, line.unit, reference)
   // The platform's UNCL4461 means, the design's five until it answers; named as the design does.
@@ -1115,8 +1135,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             ),
           })
   const lineColumns = consumer
-    ? 'grid-cols-[minmax(220px,1fr)_124px_96px_66px_66px_106px_118px_100px]'
-    : 'grid-cols-[minmax(220px,1fr)_124px_156px_96px_66px_66px_106px_118px_100px]'
+    ? 'grid-cols-[minmax(212px,1fr)_124px_88px_84px_66px_106px_118px_100px]'
+    : 'grid-cols-[minmax(212px,1fr)_124px_156px_88px_84px_66px_106px_118px_100px]'
   const steps = consumer
     ? { items: 3, payment: 4, notes: 5 }
     : { items: 3, linked: 4, payment: 5, notes: 6 }
@@ -1663,18 +1683,16 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                         />
                       </FieldShell>
                       <div className="flex flex-col gap-1">
-                        {/* Read from the catalogue or the header default, never picked here (INV-FR-161/162). */}
-                        <FieldShell tone="text">
-                          <span
-                            className="block truncate text-sm font-medium text-text-secondary"
-                            title={taxLabel(t, tax.code)}
-                          >
-                            {tax.rate}%
-                            <span className="ms-1 text-xs font-medium text-text-quaternary">
-                              {tax.en16931Category}
-                            </span>
-                          </span>
-                        </FieldShell>
+                        {/* Each line takes its own category, so one invoice can mix standard-rated and
+                            zero-rated or exempt lines; the header sets the default for new lines. */}
+                        <Select
+                          value={tax.code}
+                          onChange={(code) => setLineTaxCategory(row, code)}
+                          options={lineTaxOptions}
+                          panelWidth={240}
+                          tight
+                          ariaLabel={`${t('createInvoice.items.vat')} ${index + 1}`}
+                        />
                       </div>
                       <FieldShell>
                         <input

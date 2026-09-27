@@ -31,18 +31,18 @@ catalogue, stock, point of sale, reports and the document archive.
 
 ### Where things are in the code
 
-| What | Where |
-|---|---|
-| One screen | `src/pages/<Name>Page/` with a barrel `index.ts` and its test beside it |
-| A screen's data, types and derivations | `src/lib/<screen>.ts` (never inline in the component) |
-| API calls and DTOs | `src/api/<area>/*.ts` |
-| Shared UI (Select, Combobox, DateField, FilterMenu, SortMenu, ActionMenu, Modal, OmAmount, Rial, Pager, ...) | `src/components/ui/` |
-| Invoice-form parts (ClassificationField, unitOptions, selectAllOnFocus, line tables) | `src/components/invoice/` |
-| Code lists (HS codes, service types, ISIC) | `src/lib/codeLists/` |
-| Translations | `src/i18n/locales/en.json` and `ar.json` |
-| Screen assets exported from Figma | `src/assets/<screen>/` |
-| Mock API for screenshots and demos | `tools/mock-api/server.mjs` and `tools/mock-api/routes/*.mjs` |
-| Backend guides (what each area still needs from the API) | `docs/backend-guides/` |
+| What                                                                                                         | Where                                                                   |
+| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| One screen                                                                                                   | `src/pages/<Name>Page/` with a barrel `index.ts` and its test beside it |
+| A screen's data, types and derivations                                                                       | `src/lib/<screen>.ts` (never inline in the component)                   |
+| API calls and DTOs                                                                                           | `src/api/<area>/*.ts`                                                   |
+| Shared UI (Select, Combobox, DateField, FilterMenu, SortMenu, ActionMenu, Modal, OmAmount, Rial, Pager, ...) | `src/components/ui/`                                                    |
+| Invoice-form parts (ClassificationField, unitOptions, selectAllOnFocus, line tables)                         | `src/components/invoice/`                                               |
+| Code lists (HS codes, service types, ISIC)                                                                   | `src/lib/codeLists/`                                                    |
+| Translations                                                                                                 | `src/i18n/locales/en.json` and `ar.json`                                |
+| Screen assets exported from Figma                                                                            | `src/assets/<screen>/`                                                  |
+| Mock API for screenshots and demos                                                                           | `tools/mock-api/server.mjs` and `tools/mock-api/routes/*.mjs`           |
+| Backend guides (what each area still needs from the API)                                                     | `docs/backend-guides/`                                                  |
 
 ---
 
@@ -113,20 +113,20 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
 
 Sections on page `0:1` (children are the frames; list them with `get_metadata` on the section):
 
-| Section | Node |
-|---|---|
-| Auth Screens (sign-in, sign-up, onboarding) | `154:79063` |
+| Section                                                                       | Node                                                              |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Auth Screens (sign-in, sign-up, onboarding)                                   | `154:79063`                                                       |
 | Income frames (invoices, notes, periodic, reminders, self-billing, customers) | top-level frames, e.g. Invoice `154:86625`, Customers `154:91007` |
-| Reports | `154:105574` |
-| TDD & OTA (shown in the app as **Activity**) | `154:108266` |
-| Super Admin | `154:111760` |
-| POS | `154:112770` |
-| Settings | `154:116156` |
-| Catalog | `154:122992` |
-| Expenditure | `154:131901` |
-| Documents | `154:139157` |
-| Suppliers | `154:141044` |
-| Notifications | `154:144757` |
+| Reports                                                                       | `154:105574`                                                      |
+| TDD & OTA (shown in the app as **Activity**)                                  | `154:108266`                                                      |
+| Super Admin                                                                   | `154:111760`                                                      |
+| POS                                                                           | `154:112770`                                                      |
+| Settings                                                                      | `154:116156`                                                      |
+| Catalog                                                                       | `154:122992`                                                      |
+| Expenditure                                                                   | `154:131901`                                                      |
+| Documents                                                                     | `154:139157`                                                      |
+| Suppliers                                                                     | `154:141044`                                                      |
+| Notifications                                                                 | `154:144757`                                                      |
 
 Frames that are named misleadingly in Figma: "Credit note detail" (`154:97418`) is the **debit**
 note detail; "Reminder" is the per-invoice reminder card, while the reminders pages are "Payment
@@ -172,7 +172,7 @@ These apply to every screen, every language and every width. Each one came from 
 - Line row: free-text description (a catalogue pick is optional), a **Goods / Service** toggle,
   unit of measure on the row whose options follow the toggle (full UN/ECE lists plus "Other" =
   `ZZ`), **"Price excl."** or "Price incl." at three decimals, never negative, default 0.000, the
-  tax category shown as text, **no product code**, no pop-ups for lines.
+  VAT category picked per line (an invoice may mix standard, zero-rated and exempt lines; the header "Default tax category" sets new lines and moves only lines still on the old default; a zero-rated or exempt line shows its own reason row), **no product code**, no pop-ups for lines.
 - **Classification** column for business and government customers only (hidden for consumers):
   HS code search on goods lines, service type search on service lines (section 5.2).
 - Header: payment terms dropdown (Due on receipt, Net 15, Net 30, Net 60, End of month, Advance),
@@ -210,6 +210,7 @@ looking at the rendered page.
 
    The script can also click (`--text "Create invoice"`), type and pick a file. It prints the page's
    `scrollWidth`; above the window width means the page scrolls sideways.
+
 5. `npm run responsive:sweep -- --no-build` renders every route at six widths and must report
    **0** routes bleeding sideways. After a deliberate desktop change, regenerate the baseline with
    `npm run responsive:baseline -- --no-build` and commit `tools/responsive/baseline-1440.json`;
@@ -322,7 +323,7 @@ the console plan are in `docs/erp-and-console-plan.md`.
   8 OMR on every plan; annual billing gives free months. Enterprise is Business Plus with
   negotiated limits. A **14-day trial** of the chosen plan (not on Enterprise). **Compliance
   features are never gated.** Plan gating is built but switched off (`PLAN_GATING_ENABLED =
-  false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an upgrade nudge,
+false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an upgrade nudge,
   never hidden.
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
   included), offered at payment and managed in Settings, Plan. White label was removed.
