@@ -401,3 +401,53 @@ describe('Language and privacy', () => {
     }
   })
 })
+
+describe('Peppol Participant ID', () => {
+  const participantInput = () =>
+    document.querySelector<HTMLInputElement>('input[name="participantId"]')!
+
+  it('proposes 0248 and the VAT number, and records nothing while the backend has no route', async () => {
+    await openPending()
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: i18n.t('console.verification.participant.title') }),
+    ).toBeTruthy()
+    expect(participantInput().value).toBe('0248:OM1100000001')
+    expect(button('console.verification.participant.approve').disabled).toBe(true)
+    expect(button('console.verification.participant.reject').disabled).toBe(true)
+    expect(screen.getByText(i18n.t('console.verification.participant.notConnected'))).toBeTruthy()
+
+    fireEvent.change(participantInput(), { target: { value: 'not an id' } })
+    fireEvent.blur(participantInput())
+    expect(screen.getByText(i18n.t('console.verification.participant.idInvalid'))).toBeTruthy()
+
+    // Only the three reads: the card sends nothing of its own.
+    expect(fetchMock.mock.calls.map(([url]) => url).sort()).toEqual(
+      [DETAIL_URL, ENTITLEMENTS_URL, HISTORY_URL].sort(),
+    )
+  })
+
+  it('stays on a verified company, whose ID may still need review', async () => {
+    answer(reads(() => json(200, VERIFIED)))
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
+
+    expect(screen.getByText(i18n.t('console.verification.participant.title'))).toBeTruthy()
+  })
+
+  it('warns that a group VAT number may not be a Participant ID', async () => {
+    answer(reads(() => json(200, { ...PENDING, taxNumber: 'OM1200000009' })))
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
+
+    expect(screen.getByText(i18n.t('console.verification.participant.groupVat'))).toBeTruthy()
+  })
+
+  it('is not shown before the registration is submitted', async () => {
+    answer(reads(() => json(200, { ...PENDING, submittedAt: null })))
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'Al Noor Bakery' })
+
+    expect(screen.queryByText(i18n.t('console.verification.participant.title'))).toBeNull()
+  })
+})

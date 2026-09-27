@@ -11783,6 +11783,21 @@
         "staleEvidence": "The company changed after this evidence was filed. Reload it and upload the evidence again.",
         "verified": "Company verified. The registrant can now sign in.",
         "rejected": "Registration rejected. The registrant has it back to correct."
+      },
+      "participant": {
+        "title": "Peppol Participant ID",
+        "intro": "A company can issue invoices only once its Participant ID is approved. This review is separate from the company verification.",
+        "vatNumber": "VAT number",
+        "proposed": "Proposed ID",
+        "status": "Status",
+        "notReviewed": "Not reviewed",
+        "groupVat": "This is a group VAT number, which may not be a valid Participant ID. Enter the ID the company is registered under.",
+        "idLabel": "Participant ID to approve",
+        "idHint": "Scheme and identifier, for example 0248:OM1100000001.",
+        "idInvalid": "Enter a scheme of four digits, a colon, then the identifier.",
+        "approve": "Approve ID",
+        "reject": "Reject ID",
+        "notConnected": "Not connected yet: Fawtir's server has no route to record this decision."
       }
     },
     "plans": {

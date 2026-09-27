@@ -21,6 +21,7 @@ import {
 import { countryName, formatDay, formatMoment, localeFor } from '../../lib/console/format'
 import { peekEntitlements } from '../../lib/identity/entitlements'
 import { DecisionPanel } from './verification/DecisionPanel'
+import { ParticipantPanel } from './verification/ParticipantPanel'
 import { ReviewCard, ReviewLine } from './verification/ReviewCard'
 import { VerificationStatusPill } from './verification/VerificationStatusPill'
 
@@ -228,6 +229,7 @@ function CompanyView({
               onDecided={onDecided}
             />
           ) : null}
+          {submitted ? <ParticipantPanel company={company} /> : null}
           <ReviewCard title={t('console.verification.detail.section.verification')}>
             <ReviewLine
               label={t('console.verification.detail.field.status')}
