@@ -17616,5 +17616,152 @@
       "VAT": "VAT corrected",
       "OTH": "Other reason"
     }
+  },
+  "landing": {
+    "nav": {
+      "label": "Main",
+      "home": "Home",
+      "pricing": "Pricing",
+      "features": "Features",
+      "partners": "For Partners",
+      "signUp": "Sign Up",
+      "contact": "Contact Us"
+    },
+    "cta": {
+      "demo": "Request For Demo"
+    },
+    "hero": {
+      "lead": "Every sale filed before the",
+      "word": "customer",
+      "tail": "leaves",
+      "body": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee, and the invoice is cleared before the cup is.",
+      "dashboardAlt": "The Fawtir dashboard: today's sales, receivables, payables, revenue and compliance health"
+    },
+    "overview": {
+      "titleLead": "One sale Everything",
+      "titleEm": "handled",
+      "tag": "-Overview",
+      "sub": "You sell. Fawtir does the paperwork.",
+      "owners": "Product Owners",
+      "s1": "Most software keeps them apart.",
+      "s2": "the till takes the money,",
+      "s3": "something else makes the invoice, something else again files it. Three systems,",
+      "s4": "three records, and a daily job of making them agree.",
+      "closing": "Fawtir does not join those steps together. It never separates them.",
+      "phoneAlt": "The Fawtir mobile app: total revenue, outstanding and overdue amounts and recent invoices"
+    },
+    "features": {
+      "titleLead": "Your till does more than",
+      "titleEm": "take payment",
+      "sub": "Every difference between the records is yours to find. An error surfaces days later, when the invoice is already wrong and already sent.",
+      "till": {
+        "lead": "Smart ",
+        "em": "till",
+        "body": "Three taps from open to paid. Split payments, tips, held tabs, refunds, and a cash-up.",
+        "alt": "The till's product grid"
+      },
+      "invoicing": {
+        "lead": "Instant ",
+        "em": "invoicing",
+        "body": "Every sale becomes the right invoice B2C at the counter, B2B with the company details, B2G with the buyer reference. Fawtir picks, you do not.",
+        "alt": "The invoices list with outstanding, paid, awaiting and overdue totals"
+      },
+      "filing": {
+        "lead": "Tax Authority ",
+        "em": "filing",
+        "body": "Signed, submitted and cleared as part of the sale. Every invoice keeps a filing record.",
+        "alt": "An invoice's filing record: drafted, validated, signed and sent over Peppol"
+      },
+      "stock": {
+        "lead": "Products ",
+        "em": "and",
+        "tail": " stock",
+        "body": "Prices, groups and barcodes in one place. Stock in days of cover, not counts milk runs out in 2 days.",
+        "alt": "Stock in days of cover, with the items running out first"
+      },
+      "dashboard": {
+        "lead": "Business ",
+        "em": "dashboard",
+        "body": "Sales by hour, product, branch or person. Your VAT position for the quarter. What is running low.",
+        "alt": "The business dashboard"
+      }
+    },
+    "steps": {
+      "titleLead": "Sell, Invoice, File,",
+      "titleEm": "Next customer",
+      "sub": "Steps two and three happen without anyone doing anything.",
+      "label": "From sale to next customer",
+      "tabs": {
+        "sale": "Sale",
+        "invoice": "Invoice",
+        "cleared": "Cleared",
+        "serve": "Serve"
+      },
+      "sale": {
+        "lead": "Make the ",
+        "em": "Sale",
+        "body": "Tap the items. Tap charge. Take the money."
+      },
+      "invoice": {
+        "lead": "The right ",
+        "em": "Invoice",
+        "body": "Made from the sale, for the buyer in front of you."
+      },
+      "cleared": {
+        "lead": "Filed and ",
+        "em": "Cleared",
+        "body": "Signed and sent to the Tax Authority as part of the sale."
+      },
+      "serve": {
+        "lead": "Serve the ",
+        "em": "Next customer",
+        "body": "The counter is free and the paperwork is done."
+      },
+      "photoAlt": "A laptop showing Fawtir's reports"
+    },
+    "counter": {
+      "titleLead": "For businesses that cannot",
+      "titleEm": "slow down",
+      "sub": "From the first order to the last receipt, Fawtir keeps the counter moving and the paperwork handled.",
+      "headLead": "Small baskets, fast queue, no time to think ",
+      "headEm": "about VAT",
+      "body": "Cash and card in the same line. Tables and tabs that survive a shift change. A cash-up that actually balances.",
+      "items": {
+        "taps": "Three taps from open to paid",
+        "tabs": "Held tabs, split bills and tips",
+        "cashUp": "Cash-up with denominations counted",
+        "offline": "Keeps selling when the signal drops"
+      },
+      "catalogAlt": "The till's catalogue on a phone, with the basket ready to charge",
+      "paidAlt": "A paid and filed sale with its QR code for the Tax Authority"
+    },
+    "showcase": {
+      "titleLead": "A Software You",
+      "titleEm": "will actually enjoy using",
+      "sub": "Designed for clarity, built for speed, and structured for real decision making",
+      "cta": "Explore Live Dashboard",
+      "dashboardAlt": "The income report: invoiced, VAT charged, invoices sent and monthly and quarterly charts"
+    },
+    "band": {
+      "title": "Sell more, File Less",
+      "em": "Your first invoice is about thirty minutes away.",
+      "start": "Get Started",
+      "demo": "Book A Demo"
+    },
+    "footer": {
+      "newsletter": "newsletter",
+      "note": "You read this far, might as well sign up",
+      "name": "Your Name",
+      "email": "Email",
+      "signUp": "Sign Up",
+      "links": {
+        "pricing": "pricing",
+        "features": "features",
+        "partners": "for partners",
+        "privacy": "privacy policy",
+        "terms": "terms of service"
+      },
+      "rights": "Fawtir © {{year}}. All rights reserved"
+    }
   }
 }
