@@ -35,6 +35,7 @@ export function Select({
   footer,
   panelWidth,
   small,
+  tight,
 }: {
   value: string
   onChange: (value: string) => void
@@ -53,6 +54,8 @@ export function Select({
   panelWidth?: number
   /** 36px with tight padding and small text: a dropdown standing in for a small input inside a table cell. */
   small?: boolean
+  /** Row height kept, padding and chevron trimmed: a narrow column such as a line's VAT rate. */
+  tight?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -109,7 +112,7 @@ export function Select({
         aria-label={ariaLabel}
         className={[
           'flex w-full items-center justify-between rounded-sm border text-start transition-colors',
-          small ? 'h-9 gap-1 px-2' : 'gap-2 px-4',
+          small ? 'h-9 gap-1 px-2' : tight ? 'gap-1 ps-3 pe-1.5' : 'gap-2 px-4',
           unsure ? 'border-[#d8c9a8]' : 'border-primary-300',
           small ? '' : compact ? 'h-[42px]' : 'h-[50px]',
           unsure ? 'bg-[#faf5ea]' : highlighted ? 'bg-primary-25' : 'bg-surface-tab-bar',
@@ -133,7 +136,11 @@ export function Select({
           alt=""
           aria-hidden="true"
           className={[
-            small ? 'size-4 shrink-0 transition-transform' : 'size-6 shrink-0 transition-transform',
+            small
+              ? 'size-4 shrink-0 transition-transform'
+              : tight
+                ? 'size-5 shrink-0 transition-transform'
+                : 'size-6 shrink-0 transition-transform',
             open ? '-rotate-90' : 'rotate-90',
           ].join(' ')}
         />

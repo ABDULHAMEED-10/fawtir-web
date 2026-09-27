@@ -28,7 +28,7 @@ anything.** This file is the short version.
 - No native `<select>` or date inputs (use `src/components/ui`). Figure inputs use
   `selectAllOnFocus`. Nothing may scroll sideways at 390 px. No "Project" field anywhere.
 - Invoice-type forms: free-text lines, Goods/Service toggle, units following it with "Other",
-  "Price excl." at three decimals, tax category as text, Classification (HS code or service type)
+  "Price excl." at three decimals, VAT category picked per line (header sets the default), Classification (HS code or service type)
   for business and government only, Excl. VAT | Incl. VAT toggle.
 
 ## Before saying anything works
