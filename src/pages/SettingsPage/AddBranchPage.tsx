@@ -1,19 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Input, Select, Switch, TableCheckbox, withRial } from '../../components/ui'
+import { useApiRead } from '../../hooks'
 import {
-  BRANCHES,
   NEW_BRANCH,
   GOVERNORATES,
   BRANCH_INHERITS,
   BRANCH_BEHAVIOUR,
   BRANCH_PLAN,
-  OPEN_BRANCHES,
   firstInvoiceFor,
 } from '../../lib/settingsCompany'
+import { governorateIdFor, GOVERNORATE_NAMES, type GovernorateId } from '../../lib/governorates'
 import { MEMBERS } from '../../lib/settingsPeople'
+import {
+  assignInvoicePrefix,
+  codeFromName,
+  createBranch,
+  designateHeadOffice,
+  loadBranch,
+  loadBranchOverview,
+  updateBranch,
+  branchPath,
+  BRANCHES_OVERVIEW_PATH,
+  type BranchDetailDto,
+  type BranchOverviewDto,
+} from '../../api/settings/branches'
 import tickIcon from '../../assets/settings/check-green.svg'
 import circleIcon from '../../assets/settings/minus-amber.svg'
 import tickWhiteIcon from '../../assets/settings/check-white.svg'
@@ -24,6 +37,12 @@ import tickWhiteIcon from '../../assets/settings/check-white.svg'
  * The prefix drives the first invoice number, the roster drives the readiness checklist, and the
  * footer restates the whole thing — all from one piece of state, so the screen cannot promise
  * SR-INV-0001 while the field says something else.
+ *
+ * `BranchAttributes` (`BranchManagementController`) has no field for the Arabic name, the opening
+ * date, the roster or the "behaviour" switches below — a person's branch is set on their own
+ * profile, not here, and the other three are not modeled anywhere yet. Those panels stay exactly
+ * as designed (nothing here is deleted) but are not sent; see docs/backend-guides/INCOME.md,
+ * "Update 2026-09-27 (branches)".
  */
 export function AddBranchPage() {
   const { t } = useTranslation()
@@ -31,28 +50,59 @@ export function AddBranchPage() {
   const { id } = useParams()
 
   /** Opening an existing branch fills the same form from what it already holds. */
-  const existing = BRANCHES.find((branch) => branch.id === id)
+  const existingRead = useApiRead<BranchDetailDto>(id ? branchPath(id) : null, () =>
+    loadBranch(id as string),
+  ).read
+  const existing = existingRead.status === 'ready' ? existingRead.data : undefined
+  const overview = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH, () =>
+    loadBranchOverview(),
+  ).read
+  const everCount = overview.status === 'ready' ? overview.data.everCount : 0
+  // The prefix is the overview's own figure (BranchDetail carries no invoicePrefix field).
+  const existingPrefix =
+    overview.status === 'ready'
+      ? (overview.data.branches.find((row) => row.id === id)?.invoicePrefix ?? null)
+      : null
 
   const [name, setName] = useState(existing?.name ?? NEW_BRANCH.name)
   const [arabicName, setArabicName] = useState(NEW_BRANCH.arabicName)
   const [street, setStreet] = useState(existing?.address ?? '')
-  const [town, setTown] = useState(existing?.name ?? NEW_BRANCH.town)
-  const [postalCode, setPostalCode] = useState(NEW_BRANCH.postalCode)
-  const [governorate, setGovernorate] = useState(NEW_BRANCH.governorate)
-  const [phone, setPhone] = useState('')
+  const [town, setTown] = useState(existing?.city ?? NEW_BRANCH.town)
+  const [postalCode, setPostalCode] = useState(existing?.postalCode ?? NEW_BRANCH.postalCode)
+  const [governorate, setGovernorate] = useState<GovernorateId | string>(
+    governorateIdFor(existing?.state) ?? NEW_BRANCH.governorate,
+  )
+  const [phone, setPhone] = useState(existing?.phone ?? '')
   const [opens, setOpens] = useState(NEW_BRANCH.opens)
-  const [numbering, setNumbering] = useState(
-    existing ? (existing.prefix ? 'own' : 'shared') : NEW_BRANCH.numbering,
+  const [numbering, setNumbering] = useState<'own' | 'shared'>(
+    existing ? (existingPrefix ? 'own' : 'shared') : (NEW_BRANCH.numbering as 'own' | 'shared'),
   )
-  const [prefix, setPrefix] = useState(existing?.prefix ?? NEW_BRANCH.prefix)
-  const [staff, setStaff] = useState<string[]>(() =>
-    existing
-      ? MEMBERS.filter((member) => existing.staff.includes(member.initials)).map((m) => m.id)
-      : ['salim'],
-  )
+  const [prefix, setPrefix] = useState(existing ? (existingPrefix ?? '') : NEW_BRANCH.prefix)
+  const [staff, setStaff] = useState<string[]>(['salim'])
   const [behaviour, setBehaviour] = useState(
     () => new Set(BRANCH_BEHAVIOUR.filter((row) => row.on).map((row) => row.id)),
   )
+  const [saving, setSaving] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
+
+  // A reopened branch fills once its real data arrives, not on every keystroke after. The loading
+  // gate below hides the form while the fetch is in flight; for one render after it resolves, a
+  // field can still show the "Sur" placeholder from before this effect runs. Keying the form by
+  // `existing?.id` would remove that frame at the cost of a bigger split; not done here.
+  const [filledFrom, setFilledFrom] = useState(() => existing?.id)
+  useEffect(() => {
+    if (!existing || existing.id === filledFrom) return
+    setName(existing.name)
+    setStreet(existing.address ?? '')
+    setTown(existing.city ?? '')
+    setPostalCode(existing.postalCode ?? '')
+    setGovernorate(governorateIdFor(existing.state) ?? NEW_BRANCH.governorate)
+    setPhone(existing.phone ?? '')
+    setNumbering(existingPrefix ? 'own' : 'shared')
+    setPrefix(existingPrefix ?? '')
+    setFilledFrom(existing.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing, existingPrefix])
 
   const firstInvoice = useMemo(
     () => (numbering === 'own' ? firstInvoiceFor(prefix) : 'INV-2048'),
@@ -76,9 +126,50 @@ export function AddBranchPage() {
   const prefixOk = numbering === 'shared' || prefix.trim().length > 0
   const hasManager = staff.length > 0
   const hasPhone = phone.trim().length > 0
-  const canAdd = named && prefixOk
+  const canAdd = named && prefixOk && !saving
 
-  const branchesUsed = OPEN_BRANCHES.length + 1
+  const branchesUsed = everCount + (existing ? 0 : 1)
+
+  const submit = async () => {
+    setSaveFailed(false)
+    setSaving(true)
+    try {
+      const attributes = {
+        code: existing?.code ?? codeFromName(name),
+        name,
+        type: existing?.type ?? ('STORE' as const),
+        address: street || null,
+        city: town || null,
+        state: GOVERNORATE_NAMES[governorate as GovernorateId] ?? null,
+        country: 'OM',
+        postalCode: postalCode || null,
+        phone: phone || null,
+        email: existing?.email ?? null,
+      }
+      const saved = existing
+        ? await updateBranch(existing.id, attributes, true, existing.version)
+        : await createBranch(attributes)
+      if (numbering === 'own' && prefix.trim()) {
+        await assignInvoicePrefix(saved.id, prefix.trim())
+      }
+      if (!existing && everCount === 0) {
+        await designateHeadOffice(saved.id)
+      }
+      navigate('/settings/branches')
+    } catch {
+      setSaveFailed(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (id && existingRead.status === 'loading') {
+    return (
+      <SettingsShell group="company">
+        <SettingsHeader title={t('addBranch.title')} subtitle={t('addBranch.subtitle')} />
+      </SettingsShell>
+    )
+  }
 
   return (
     <SettingsShell group="company">
@@ -224,7 +315,7 @@ export function AddBranchPage() {
                 <Select
                   ariaLabel={t('addBranch.numberingLabel')}
                   value={numbering}
-                  onChange={setNumbering}
+                  onChange={(value) => setNumbering(value as 'own' | 'shared')}
                   options={[
                     { value: 'own', label: t('addBranch.numberingOption.own') },
                     { value: 'shared', label: t('addBranch.numberingOption.shared') },
@@ -444,9 +535,15 @@ export function AddBranchPage() {
       {/* Footer */}
       <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle bg-white px-4 py-3">
         <p className="text-sm font-medium text-text-tertiary">
-          {canAdd
-            ? t('addBranch.footer', { name, date: opens, invoice: firstInvoice })
-            : t('addBranch.footerUnnamed')}
+          {saveFailed ? (
+            <span role="alert" className="text-danger-700">
+              {t('addBranch.saveFailed')}
+            </span>
+          ) : canAdd ? (
+            t('addBranch.footer', { name, date: opens, invoice: firstInvoice })
+          ) : (
+            t('addBranch.footerUnnamed')
+          )}
         </p>
         <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
           <Link
@@ -464,11 +561,15 @@ export function AddBranchPage() {
           <button
             type="button"
             disabled={!canAdd}
-            onClick={() => navigate('/settings/branches')}
+            onClick={submit}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-40"
           >
             <img src={tickWhiteIcon} alt="" className="size-4" />
-            {existing ? t('addBranch.saveChanges') : t('addBranch.addTheBranch')}
+            {saving
+              ? t('addBranch.saving')
+              : existing
+                ? t('addBranch.saveChanges')
+                : t('addBranch.addTheBranch')}
           </button>
         </div>
       </div>

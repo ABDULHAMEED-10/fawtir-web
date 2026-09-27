@@ -9907,7 +9907,10 @@
       "invoicesNote": "{{name}} يصدر {{share}} من كل ١٠",
       "included": "المشمولة في خطتك",
       "includedUnit": "فروع",
-      "includedNote": "لا رسوم إضافية حتى السادس"
+      "includedNote": "لا رسوم إضافية حتى السادس",
+      "openNoteGeneric": "بما في ذلك ما أغلقته",
+      "invoicesNoteGeneric": "عبر كل فرع مفتوح",
+      "peopleNoteGeneric": "عبر كل فرع"
     },
     "headOffice": "المكتب الرئيسي",
     "open": "مفتوح",
@@ -9948,6 +9951,12 @@
       "itsInvoices": "فواتيره",
       "copySettings": "انسخ إعداداته إلى فرع جديد",
       "closeBranch": "أغلق هذا الفرع"
+    },
+    "peopleCount_one": "شخص واحد",
+    "peopleCount_other": "{{count}} أشخاص",
+    "empty": {
+      "title": "أضف فرعك الأول",
+      "body": "ستحتاج فرعًا واحدًا على الأقل — من حيث تعمل — قبل أن تتمكن من إنشاء فاتورة."
     }
   },
   "addBranch": {
@@ -10032,7 +10041,9 @@
     "editTitle": "{{name}} — بياناته وكيف يفوتر",
     "editSubtitle": "عنوانه وترقيمه. الرقم الضريبي ومعرّف Peppol يأتيان من الشركة ولا يمكن تغييرهما هنا.",
     "saveChanges": "احفظ التغييرات",
-    "closeThisBranch": "أغلق هذا الفرع"
+    "closeThisBranch": "أغلق هذا الفرع",
+    "saving": "جارٍ الحفظ…",
+    "saveFailed": "تعذّر حفظ الفرع. حاول مرة أخرى."
   },
   "team": {
     "title": "أعضاء الفريق",
