@@ -2,8 +2,9 @@ import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { SETTINGS_TABS, COMPANY, type SettingsTab } from '../../lib/settings'
-import companyLogo from '../../assets/dashboard/bahja-logo.svg'
+import { SETTINGS_TABS, type SettingsTab } from '../../lib/settings'
+import { CompanyAvatar } from '../../components/shell/CompanyAvatar'
+import { useSession } from '../../lib/session/session'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 
 /**
@@ -89,13 +90,15 @@ export function SettingsShell({
 /** Which company the settings belong to. One account can hold more than one. */
 function CompanySwitcher() {
   const { t } = useTranslation()
+  const session = useSession()
+  const name = session?.tenantName ?? ''
   return (
     <button
       type="button"
       className="inline-flex h-[42px] shrink-0 items-center gap-2.5 rounded-sm border border-border-subtle bg-white px-3 text-sm font-medium text-text-primary transition-colors hover:bg-primary-25"
     >
-      <img src={companyLogo} alt="" className="size-6 rounded-full object-cover" />
-      {COMPANY.legalName}
+      <CompanyAvatar name={name} size={24} />
+      {name}
       <img
         src={chevronIcon}
         alt=""

@@ -147,6 +147,9 @@ beforeEach(async () => {
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
       ])
+    // The sidebar's own account switcher, unrelated to anything under test here.
+    if (url === '/api/v1/branches/overview')
+      return json(200, { openCount: 0, everCount: 0, peopleAcross: 0, invoicesThisMonth: 0, branches: [] })
     if (url.startsWith('/api/v1/authored-invoices?')) {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
@@ -240,7 +243,9 @@ describe('Invoices list, wired to the API', () => {
     expect(within(row).getByText('AP')).toBeTruthy()
     const manual = screen.getByText('INV-2026-0043').closest('tr')!
     expect(within(manual).getByText('Sent manually')).toBeTruthy()
-    expect(calls('/api/v1/branches')).toHaveLength(1)
+    // Exact match: the sidebar's own account switcher now also reads '/api/v1/branches/overview',
+    // which a plain prefix match would double-count alongside this screen's '/api/v1/branches'.
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/v1/branches')).toHaveLength(1)
   })
 
   it('prices a draft in the browser and says it is an estimate', async () => {

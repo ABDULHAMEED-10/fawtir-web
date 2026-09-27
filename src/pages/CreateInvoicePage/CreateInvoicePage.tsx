@@ -75,7 +75,6 @@ import { lineFromProduct, taxCategoryOf } from '../../lib/productLine'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { missingCustomerFields } from '../../lib/customerEligibility'
 import { formatAmount as formatMoney } from '../../lib/format'
-import { ACCOUNTS } from '../../lib/shell'
 import { usageForecast } from '../../lib/settings'
 import { can, useSession } from '../../lib/session/session'
 import {
@@ -168,21 +167,9 @@ function normalisePrice(raw: string): string {
   return formatAmount(value < 0n ? 0n : value, 3).replace(/,/g, '')
 }
 
-/**
- * The branch the account is working in (`lib/shell`), found among the tenant's branches by its
- * town, code or name; the head office, then the first branch, stand in when none matches.
- */
+/** A new draft's default branch: the head office, then whichever comes first. */
 function currentBranch(branches: BranchDto[]): BranchDto | undefined {
-  const current = ACCOUNTS.find((account) => account.current)
-  const town = current?.town.toLowerCase() ?? ''
-  const match =
-    town &&
-    branches.find((branch) =>
-      [branch.city, branch.code, branch.name, branch.id].some((part) =>
-        part?.toLowerCase().includes(town),
-      ),
-    )
-  return match || branches.find((branch) => branch.type === 'HEAD_OFFICE') || branches[0]
+  return branches.find((branch) => branch.type === 'HEAD_OFFICE') || branches[0]
 }
 
 function SectionTitle({ step, title }: { step: number; title: string }) {
