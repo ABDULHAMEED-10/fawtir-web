@@ -2255,6 +2255,8 @@
       "discount": "Discount",
       "net": "Net amount",
       "vat": "VAT · Standard 5%",
+      "vatOf": "VAT · {{category}}",
+      "mixedRates": "mixed rates",
       "totalDue": "Total due"
     },
     "fields": {

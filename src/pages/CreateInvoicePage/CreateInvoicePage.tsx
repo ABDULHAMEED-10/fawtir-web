@@ -834,6 +834,15 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       : meta
         ? t('invoiceDraft.figures.dirty')
         : t('invoiceDraft.figures.new')
+  // The VAT category moved to the line (2026-09-27): named when every line still shares one,
+  // "mixed rates" once they do not, rather than a category the document may no longer carry.
+  const lineTaxCodes = new Set(
+    form.lines.map((line) => line.taxCode).filter((code): code is string => Boolean(code)),
+  )
+  const singleTaxCode = lineTaxCodes.size === 1 ? lineTaxCodes.values().next().value : undefined
+  const vatLabel = t('createInvoice.summary.vatOf', {
+    category: taxLabel(t, singleTaxCode) ?? t('createInvoice.summary.mixedRates'),
+  })
 
   const editable = canSave && (!meta || meta.state === 'DRAFT')
   const consumer = form.customerType === 'consumer'
@@ -1344,9 +1353,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               <Money value={figures.taxable} />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-secondary">
-                {t('createInvoice.summary.vat')}
-              </span>
+              <span className="text-sm font-medium text-text-secondary">{vatLabel}</span>
               <Money value={figures.vat} />
             </div>
           </div>
@@ -1851,7 +1858,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             <Money value={figures.taxable} size="md" />
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-text-tertiary">{t('createInvoice.summary.vat')}</span>
+            <span className="font-medium text-text-tertiary">{vatLabel}</span>
             <Money value={figures.vat} size="md" />
           </div>
           <div className="h-px bg-border-subtle" />
