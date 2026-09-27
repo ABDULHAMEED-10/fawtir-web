@@ -36,6 +36,7 @@ import {
   type OnboardingState,
 } from '../../lib/onboarding'
 import { isClean, type FieldError } from '../../lib/validation'
+import { candidateParticipantId } from '../../lib/peppolParticipant'
 
 type AddressContactFormProps = {
   onPreviewChange: (preview: InvoicePreviewData) => void
@@ -68,7 +69,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   const clearError = (field: AddressContactField) =>
     setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current))
 
-  const peppolPending = t('businessIdentity.peppolPending')
+  const peppolPending =
+    candidateParticipantId(identity?.vatin) ?? t('businessIdentity.peppolPending')
   const governorateLabel = t(`governorate.${governorate}`)
 
   const preview = useMemo<InvoicePreviewData>(

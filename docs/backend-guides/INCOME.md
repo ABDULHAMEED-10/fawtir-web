@@ -470,3 +470,4 @@ disabled, and the card says the decision is not connected yet.
 | P.2 | Approve ID, with the ID the reviewer confirmed or typed | a route to approve (body: scheme, value, the revision it quotes), four-eyes like the company decision, starting SMP onboarding once verified |
 | P.3 | Reject ID, with a reason | a route to reject, with a reason list, emailing the registrant |
 | P.4 | The review in the company's history list | participant events in `verification-history` |
+| P.5 | Sign-up's Business identity step shows the candidate `0248:` + VAT number, read-only, and the registration carries it to the console (owner, 2026-09-27: submitted during onboarding, never typed) | on registration submit, store `0248:` + the VAT number as the company's pending Participant ID; backfill the same for companies registered before this |

@@ -110,7 +110,9 @@ export function BusinessIdentityHero({
                       </div>
                       <div className="flex items-center">
                         <span className="w-[67px] text-text-placeholder">Peppol</span>
-                        <span className="text-text-secondary">{preview.peppolId || '—'}</span>
+                        <span dir="auto" className="text-text-secondary">
+                          {preview.peppolId || '—'}
+                        </span>
                       </div>
                     </div>
                   </div>

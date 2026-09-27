@@ -309,6 +309,17 @@ describe('Sub business type (the backend type)', () => {
 })
 
 describe('Business identity', () => {
+  it('shows the Participant ID made from a valid VAT number, read-only', async () => {
+    renderAt('/business-identity', AFTER_TYPE)
+    const user = userEvent.setup({ delay: null })
+    await user.type(field('vatin'), 'om1100000001')
+
+    const derived = screen.getAllByDisplayValue('0248:OM1100000001')
+    expect(derived).toHaveLength(1)
+    expect((derived[0] as HTMLInputElement).readOnly).toBe(true)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('starts empty, shows no derived Participant ID, and validates locally first', async () => {
     renderAt('/business-identity', AFTER_TYPE)
     expect(field('companyName').value).toBe('')
