@@ -450,3 +450,23 @@ cells fall back rather than invent the figure:
 The "What it inherits" and "Cost" panels on Add a branch, and the company switcher in the shell
 around every settings screen, are still the same unrelated mock company ("Al Bahja Coffee") — a
 separate, larger gap (the app shell's own company/plan data), not touched here.
+
+## Update 2026-09-27 (Participant ID): the console review is drawn, not connected
+
+A company cannot issue until its Peppol Participant ID is verified (`SELLER_PARTICIPANT_NOT_VERIFIED`),
+and nothing in the web app could review one. The owner decided (2026-09-27) that an operator
+approves it on the same screen as the company: Console › Verification › the company
+(`VerificationCompanyPage`), in a "Peppol Participant ID" card beside the Verify / Reject panel
+(`src/pages/ConsolePage/verification/ParticipantPanel.tsx`). There is no Figma frame for it.
+
+The card shows the proposed ID (`0248:` + VAT number), a field to approve another
+ID (an OM12 group VAT number, or an ID already registered elsewhere), and Approve ID / Reject ID.
+Until the backend answers the rows below, the status reads "Not reviewed", both buttons are
+disabled, and the card says the decision is not connected yet.
+
+| Ref | Screen needs | Backend to add |
+|---|---|---|
+| P.1 | The company's Participant ID and its review status on the verification screen | `participantId` (scheme + value) and `participantStatus` (NOT_SUBMITTED / PENDING / VERIFIED / REJECTED, with the reason and who decided) on `GET /v1/platform/companies/{id}` |
+| P.2 | Approve ID, with the ID the reviewer confirmed or typed | a route to approve (body: scheme, value, the revision it quotes), four-eyes like the company decision, starting SMP onboarding once verified |
+| P.3 | Reject ID, with a reason | a route to reject, with a reason list, emailing the registrant |
+| P.4 | The review in the company's history list | participant events in `verification-history` |
