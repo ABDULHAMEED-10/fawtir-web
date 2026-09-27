@@ -17635,7 +17635,9 @@
       "word": "customer",
       "tail": "leaves",
       "body": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee, and the invoice is cleared before the cup is.",
-      "dashboardAlt": "The Fawtir dashboard: today's sales, receivables, payables, revenue and compliance health"
+      "dashboardAlt": "The Fawtir dashboard: today's sales, receivables, payables, revenue and compliance health",
+      "body1": "Fawtir is a till, an invoicing system and a Tax Authority filing service in one. Ring up a coffee,",
+      "body2": "and the invoice is cleared before the cup is."
     },
     "overview": {
       "titleLead": "One sale Everything",
@@ -17733,7 +17735,13 @@
         "offline": "Keeps selling when the signal drops"
       },
       "catalogAlt": "The till's catalogue on a phone, with the basket ready to charge",
-      "paidAlt": "A paid and filed sale with its QR code for the Tax Authority"
+      "paidAlt": "A paid and filed sale with its QR code for the Tax Authority",
+      "sub1": "From the first order to the last receipt, Fawtir keeps the counter moving",
+      "sub2": "and the paperwork handled.",
+      "headLine1": "Small baskets, fast queue, no time",
+      "headLine2": "to think",
+      "body1": "Cash and card in the same line. Tables and tabs that survive a shift change.",
+      "body2": "A cash-up that actually balances."
     },
     "showcase": {
       "titleLead": "A Software You",
