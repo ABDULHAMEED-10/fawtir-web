@@ -109,7 +109,10 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
   Expenditure and Suppliers (for example Expenditure is `163:16959` there and `154:131901` on page
   `0:1`). Both work with the MCP. **Node ids change when the designer re-uploads a frame:** find
   frames by name, then take the id.
-- **POS has no design.** It is the only screen where judgement decides; flag such decisions.
+- **Screens with no design:** POS, and the **invoice import dialog** (the Invoices list's Bulk
+  upload). On these judgement decides; flag such decisions. The import dialog is an owner-approved
+  exception (2026-09-28, on grounds of time, per the approved Invoice Import guide): it is built on
+  the existing theme and components only and changes no other screen.
 
 Sections on page `0:1` (children are the frames; list them with `get_metadata` on the section):
 

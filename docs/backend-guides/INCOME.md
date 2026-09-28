@@ -509,3 +509,25 @@ entirely mock data presenting an *already-live* identity (certificates, renewal,
 — the wrong lifecycle stage for a first-time submission, and building a new screen for that stage
 has no Figma frame and no decision yet on where it belongs (onboarding vs. a new settings screen).
 Not started, on purpose, pending that decision.
+
+## Update 2026-09-28 (invoice import)
+
+The Invoices list's **Bulk upload** button now opens the import dialog of the approved Invoice
+Import guide (owner, 2026-09-28): one dialog, four steps (prepare, validate, preview, result), a
+template per invoice kind, drafts only, the whole file or nothing. The frontend is
+`src/components/invoice/InvoiceImportModal.tsx`, its calls are `src/api/invoices/import.ts`. None
+of the routes exist; until they do, the dialog says the import is not available. No Figma frame:
+owner-approved exception (handbook 3.1).
+
+| #   | What the dialog needs | Backend |
+| --- | --- | --- |
+| I.1 | The template per kind, in the user's language, with the reference sheet and Excel data validation | `GET /v1/invoices/import/template?kind=CONSUMER\|BUSINESS\|GOVERNMENT&language=en\|ar`, an `.xlsx` |
+| I.2 | Check the whole file, create nothing | `POST /v1/invoices/import/check`, multipart `file`, `kind`, `language`; answers `InvoiceImportBatchDto`. Refuse above 2,000 rows or 10 MB before parsing. Messages in `language`, plain, by row (header included) and column, with a suggested correction where one can be inferred |
+| I.3 | Background work above 50 rows, with progress | `state` `CHECKING`/`CREATING` and `processedRows` of `totalRows`; the dialog reads `GET /v1/invoices/import/{id}` every 1.5 s until it settles |
+| I.4 | The preview | `summary` (invoices, lines, total, `byCustomer`), `inferred` (what was matched by name, for the user to check), `unresolved` (descriptions without a catalogue match on Business and Government files, once per distinct description with its `itemType`) |
+| I.5 | Create the drafts, with the codes chosen in the preview, stored against the description for next time | `POST /v1/invoices/import/{id}/commit`, body `{ classifications: [{ description, itemType, code }] }`; answers the batch, `CREATED` with `created: [{ reference, invoiceId, draftNumber, customerName, total }]` (or `CREATING` above 50 rows). Uses the existing draft route only, never issue |
+| I.6 | Cancel a checked file, leaving nothing | `DELETE /v1/invoices/import/{id}` |
+| I.7 | The downloadable report | `GET /v1/invoices/import/{id}/report` |
+| I.8 | Duplicate upload warning | hash the file; `duplicateOf: { batchId, uploadedAt, uploadedBy }` when the same hash was uploaded before. Keep the original file with who uploaded it and when |
+| I.9 | Consumer files create the walk-in customer from a name and optional contact; refuse without `customer.manage` (the dialog already hides the upload and names the permission). Blank unit: EA for goods, C62 for services. Blank branch: head office. Only OMR. A reason on every non-standard line: VATZR-OM / VATEX-OM codes, free text for reverse charge, export and outside scope. Store the Goods/Service flag on the draft line | server-side rules of the check |
+| I.10 | "See the drafts" opens the Drafts tab; filtering to this batch's drafts needs a list filter | optional `importBatchId` filter on `GET /v1/invoices`; a notification when a background import finishes |
