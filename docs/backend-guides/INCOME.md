@@ -566,3 +566,19 @@ or in the composer.
 Frontend (approved without a Figma frame, existing components only, no other screen touched; see
 the handbook's exceptions): the warning under the affected line, and a confirmation step in the
 issue dialog listing the lines. Not built yet.
+
+### Zero-rating check, phase 1: food only (owner, 2026-09-28)
+
+Phase 1 checks **`VATZR-OM-01` (food) only**. Rows Z.1 to Z.3, Z.5 and Z.6 apply to the food list;
+Z.4 (export hard stop) and Z.7 (catalogue check at product save) and reasons 02 and 03 come later.
+Estimate: about a day, most of it loading and checking the list.
+
+| #    | Phase 1 detail | Backend |
+| ---- | --- | --- |
+| Z.8  | The food list, with history | `zero_rated_food (hs_code char(12), name_ar, name_en, decision_ref, effective_from date, effective_to date null)`. Load the new list from the Arabic decision (owner's note: 807 codes, decision 225/2026, effective 2026-10-01; confirm the reference and counts against the PDF). The previous list (488 codes) stays with `effective_to = 2026-09-30`. If the decision lists any item at fewer than 12 digits, store the prefix and match by prefix |
+| Z.9  | The lookup | `invoice_date >= effective_from AND (effective_to IS NULL OR invoice_date <= effective_to)`; a plain `BETWEEN` never matches the current list, whose `effective_to` is null |
+| Z.10 | Which date | a draft at preview: today; at issue: the issue date; a credit or debit note: the **original invoice's** date, never `now()` |
+| Z.11 | The check, per goods line, at preview and again at issue | service line: skip. Category Z with reason `VATZR-OM-01` and HS code not listed for that date: warning `ZR_FOOD_NOT_LISTED`. Category **S** (standard) with an HS code listed for that date: warning `ZR_FOOD_CHARGED_STANDARD` (the business may be charging VAT that is not due). Any other category: skip |
+| Z.12 | Consumer lines | a consumer invoice prints no HS code, so the check uses the catalogue product's stored HS code when the line came from a product; a typed consumer line with no product is not checked |
+| Z.13 | The warning shape | in the preview response, per line: `{ line, code, severity: "warning", hsCode, effectiveFrom, message }`. The screen translates by `code` with `hsCode` and `effectiveFrom` (English and Arabic); `message` is a fallback only. Nothing is blocked |
+| Z.14 | The confirmation record | stored against the invoice: user, time, and per line the warning code with the line's HS code, category and reason as confirmed. A change to any of those after confirming voids that line's confirmation and it must be given again |
