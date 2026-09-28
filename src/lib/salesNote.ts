@@ -432,7 +432,6 @@ export function withMode(form: NoteForm, mode: NoteMode, invoice: InvoiceDetailD
     case 'lines':
     case 'correctLines':
       return { ...form, mode, lines: invoiceLines }
-    case 'custom':
     case 'flatCharge': {
       const base = {
         ...form,
@@ -442,6 +441,9 @@ export function withMode(form: NoteForm, mode: NoteMode, invoice: InvoiceDetailD
       const keep = added[0] ? { ...added[0], include: true } : addedLine(base, invoice, 'service')
       return { ...base, lines: [...base.lines, keep] }
     }
+    // A custom credit may need more than one line: an invoice mixing standard and zero-rated lines
+    // is credited at each rate, and a line carries one category (PINT-OM allows the mix).
+    case 'custom':
     case 'additionalItems': {
       const base = {
         ...form,
@@ -451,7 +453,7 @@ export function withMode(form: NoteForm, mode: NoteMode, invoice: InvoiceDetailD
       const keep =
         added.length > 0
           ? added.map((line) => ({ ...line, include: true }))
-          : [addedLine(base, invoice)]
+          : [addedLine(base, invoice, mode === 'custom' ? 'service' : 'goods')]
       return { ...base, lines: [...base.lines, ...keep] }
     }
   }

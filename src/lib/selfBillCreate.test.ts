@@ -5,8 +5,10 @@ import {
   blankSelfBillForm,
   fromSelfBilledDraft,
   problemsBeforeSave,
+  taxCategoryCodes,
   toSelfBilledDraftRequest,
 } from './selfBillCreate'
+import { omanTaxCategories } from './invoiceDraft'
 
 const form = (lines: ReturnType<typeof blankComposerLine>[]) => ({
   ...blankSelfBillForm('2026-09-27', 'b-1'),
@@ -109,7 +111,7 @@ describe('a tax category per line, on a self-billed draft', () => {
     expect(lines[1].taxCategory).toMatchObject({ code: 'S5', exemptionReasonCode: null })
   })
 
-  it('asks for the reason on the zero-rated line alone, and refuses outside scope mixed with taxed lines', () => {
+  it('asks for the reason on the zero-rated line alone, and allows outside scope beside taxed lines (PINT-OM has no BR-O-11)', () => {
     expect(
       problemsBeforeSave(form([{ ...rice, taxCode: 'Z0' }, advice]), SEEDED_REFERENCE),
     ).toContain('reason')
@@ -124,7 +126,7 @@ describe('a tax category per line, on a self-billed draft', () => {
         form([{ ...rice, taxCode: 'O0', exemptionReason: 'Not a supply' }, advice]),
         SEEDED_REFERENCE,
       ),
-    ).toContain('outsideScopeMix')
+    ).toEqual([])
   })
 
   it('reads each line category and reason back from a draft', () => {
@@ -142,5 +144,20 @@ describe('a tax category per line, on a self-billed draft', () => {
       ['Z0', 'VATZR-OM-01'],
       ['S5', ''],
     ])
+  })
+})
+
+describe('the VAT categories Oman allows', () => {
+  it('offers only S, Z, E and O: reverse charge and export are not PINT-OM categories (CL-04-OM)', () => {
+    expect(taxCategoryCodes(null)).toEqual(['S5', 'Z0', 'E0', 'O0'])
+    expect(
+      omanTaxCategories([
+        { code: 'S5', en16931Category: 'S', active: true },
+        { code: 'AE0', en16931Category: 'AE', active: true },
+        { code: 'G0', en16931Category: 'G', active: true },
+        { code: 'O0', en16931Category: 'O', active: true },
+        { code: 'Z0', en16931Category: 'Z', active: false },
+      ]).map((row) => row.code),
+    ).toEqual(['S5', 'O0'])
   })
 })

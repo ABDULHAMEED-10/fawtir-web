@@ -273,11 +273,34 @@ the console plan are in `docs/erp-and-console-plan.md`.
 
 ## 5. Oman compliance and PINT-OM decisions
 
+### 5.0 Where the rules are (read these before any Peppol or tax decision)
+
+The published PINT-OM specification is the authority. When a question is "is this allowed?",
+"which code?" or "is this field required?", answer it from these pages, cite the rule ID, and
+record the decision below or in the area's backend guide.
+
+| What | Link |
+|---|---|
+| Main page (PINT-OM overview, all specifications) | https://docs.peppol.eu/poac/om/ |
+| Billing (invoices, credit and debit notes) | https://docs.peppol.eu/poac/om/pint-om/ |
+| Self-billing | https://docs.peppol.eu/poac/om/pint-om-sb/ |
+| All Oman rules on one page (invoice) | https://docs.peppol.eu/poac/om/pint-om/trn-invoice/rule/PINT-jurisdiction-aligned-rules/ |
+| All Oman rules on one page (credit note) | https://docs.peppol.eu/poac/om/pint-om/trn-creditnote/rule/PINT-jurisdiction-aligned-rules/ |
+| Shared PINT rules (apply everywhere) | https://docs.peppol.eu/poac/om/pint-om/trn-invoice/rule/PINT-UBL-validation-preprocessed/ |
+| Code lists (VAT categories, VATZR / VATEX reasons, HS, service types, units) | https://docs.peppol.eu/poac/om/pint-om/trn-invoice/codelist/ |
+| Specification bundle (download) | https://docs.peppol.eu/poac/om/pint-om/resources.zip |
+
+Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
+`docs/backend-guides/INCOME.md`, "Update 2026-09-28 (checked against the published PINT-OM rules)".
+
 ### 5.1 Documents and money
 
-- Currency OMR with **three decimals**; VAT standard rate **5 %**. Tax categories used: S5
-  (standard 5 %), Z0 (zero-rated), E0 (exempt), O0 (out of scope), AE0 (reverse charge), G0
-  (export).
+- Currency OMR with **three decimals**; VAT standard rate **5 %**. Oman has **four VAT
+  categories only** (code list OMTaxCat, CL-04-OM): **S5** (standard 5 %), **Z0** (zero-rated,
+  with a VATZR-OM code), **E0** (exempt, with a VATEX-OM code), **O0** (outside scope). Reverse
+  charge (AE) and export (G) are **not** PINT-OM categories: an export is Z0 with VATZR-OM-09 to
+  -12, and reverse charge is a transaction type (BTOM-001). Every composer offers only these four
+  (`omanTaxCategories`). Outside-scope lines may sit beside taxed lines (no BR-O-11 in PINT-OM).
 - Document type codes: **380** invoice, **381** credit note, **383** debit note.
 - Credit and debit note reasons map to the Oman list **CL-02-OM**: QTY (quantity), VAL (value or
   price), CAN (cancellation), VAT, OTH (other). The forms offer the design's plain reasons
@@ -298,7 +321,9 @@ the console plan are in `docs/erp-and-console-plan.md`.
 - Goods lines carry an **HS code**, the 12-digit Oman code (IBR-079-OM), searched by product
   name. **"Other" is `000000000000`** and is always offered, so a user who cannot classify a
   product can still issue.
-- Service lines carry a **service type** from **CL-12-OM** (IBR-155-OM).
+- Service lines may carry a **service type** from **CL-12-OM**; it is **required only on an
+  export of services** (IBR-155-OM, with VATZR-OM-09). Otherwise the backend sends `00000000`
+  ("not applicable").
 - The issuer's **industrial classification (ISIC Rev. 4, Oman 6-digit)** is a company setting,
   never asked on a line; the backend copies it onto every line at submission (IBR-081-OM). It is
   set in Settings, Company profile, and asked once at sign-up (Business identity step).

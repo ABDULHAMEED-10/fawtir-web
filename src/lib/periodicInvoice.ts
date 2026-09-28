@@ -654,11 +654,9 @@ export function periodicProblems(
   if (lines) {
     const described = lines.filter((line) => line.description.trim())
     const kinds = described.map((line) => categoryOf(periodicLineTax(line, form.taxCategory)))
+    // PINT-OM has no EN 16931 BR-O-11 counterpart: an out-of-scope line may sit beside taxed ones.
     if (described.some((line, index) => missing(kinds[index], periodicLineReason(line, form)))) {
       problems.lines = 'periodicInvoice.error.reasonRequired'
-    } else if (kinds.includes('O') && kinds.some((kind) => kind !== 'O')) {
-      // EN 16931 BR-O-11 to BR-O-14: an out-of-scope line cannot share an invoice with taxed ones.
-      problems.lines = 'periodicInvoice.error.outsideScopeMix'
     }
   } else if (
     missing(categoryOf(form.taxCategory), {

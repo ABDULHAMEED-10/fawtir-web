@@ -390,6 +390,14 @@ describe('a debit note', () => {
     expect(body.details.correctionReasonCode).toBe('VAL')
   }, 30_000)
 
+  it('splits a custom credit over more than one line, each at its own VAT category', async () => {
+    renderAt(`/income/credit-notes/new?invoice=${INVOICE_ID}`)
+    fireEvent.click(await screen.findByRole('radio', { name: /Custom amount/ }))
+    expect(screen.getAllByRole('button', { name: /^VAT \(%\) · / })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: /Add a line/ }))
+    expect(screen.getAllByRole('button', { name: /^VAT \(%\) · / })).toHaveLength(2)
+  }, 30_000)
+
   it('lets a line added on a debit note pick its own VAT category, with its own reason', async () => {
     renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
     fireEvent.click(await screen.findByRole('radio', { name: /Additional items/ }))
