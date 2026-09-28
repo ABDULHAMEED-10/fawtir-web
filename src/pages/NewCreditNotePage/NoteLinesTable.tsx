@@ -2,7 +2,10 @@ import { useTranslation } from 'react-i18next'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { OmAmount, Select, TableCheckbox } from '../../components/ui'
 import { ClassificationField, unitOptions } from '../../components/invoice'
-import { unitsFor } from '../../lib/invoiceDraft'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON, unitsFor } from '../../lib/invoiceDraft'
+import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
+import { nameOf } from '../../lib/codeLists/codeList'
+import type { TaxCategoryDto } from '../../api/reference/referenceData'
 import { type NoteLine, type NoteLineKind, type NoteTotals } from '../../lib/salesNote'
 import { formatAmount } from '../../lib/format'
 import deleteLineIcon from '../../assets/create-invoice/delete.svg'
@@ -94,6 +97,7 @@ export function NoteLinesTable({
   onChange,
   onAdd,
   onRemove,
+  taxCategories,
 }: {
   lines: NoteLine[]
   totals: NoteTotals
@@ -111,6 +115,11 @@ export function NoteLinesTable({
   onChange: (lineNumber: number, patch: Partial<NoteLine>) => void
   onAdd?: () => void
   onRemove?: (lineNumber: number) => void
+  /**
+   * Offered on a line added on the note itself (an extra item, a charge): it picks its own tax
+   * category, as an invoice line does. A line copied from the invoice keeps the invoice's.
+   */
+  taxCategories?: TaxCategoryDto[]
 }) {
   const { t, i18n } = useTranslation()
   const money = (value: number | string) => formatAmount(value, currency, i18n.language)
@@ -241,12 +250,43 @@ export function NoteLinesTable({
                         className={`${INPUT} text-end tabular-nums`}
                       />
                     </div>
-                    {/* Text only, as the client asked: the rate is the invoice's, never typed. */}
-                    <div className={`${SHELL} bg-surface-tab-bar`}>
-                      <span className="text-sm font-medium text-text-secondary">
-                        {line.taxCategory.rate}%
-                      </span>
-                    </div>
+                    {/* A line from the invoice keeps the invoice's rate, shown as text. A line added on
+                        the note picks its own category, as an invoice line does. */}
+                    {!line.fromInvoice && taxCategories?.length ? (
+                      <Select
+                        value={line.taxCategory.code}
+                        disabled={off}
+                        onChange={(code) => {
+                          const tax = taxCategories.find((category) => category.code === code)
+                          if (!tax || tax.code === line.taxCategory.code) return
+                          onChange(line.lineNumber, {
+                            taxCategory: {
+                              code: tax.code,
+                              en16931Category: tax.en16931Category,
+                              rate: Number(tax.rate),
+                              exemptionReason: null,
+                              exemptionReasonCode: null,
+                            },
+                          })
+                        }}
+                        options={taxCategories.map((category) => ({
+                          value: category.code,
+                          label: t(`createInvoice.taxCategories.${category.code}`, {
+                            defaultValue: category.code,
+                          }),
+                          shortLabel: `${Number(category.rate)}% ${category.en16931Category}`,
+                        }))}
+                        panelWidth={240}
+                        tight
+                        ariaLabel={`${t('salesNote.lines.vat')} · ${name(line)}`}
+                      />
+                    ) : (
+                      <div className={`${SHELL} bg-surface-tab-bar`}>
+                        <span className="text-sm font-medium text-text-secondary">
+                          {line.taxCategory.rate}%
+                        </span>
+                      </div>
+                    )}
                     <div className={`${SHELL} gap-1 pe-1.5`}>
                       <input
                         value={line.quantity}
@@ -333,6 +373,58 @@ export function NoteLinesTable({
                           }
                           ariaLabel={`${classificationLabel} · ${name(line)}`}
                         />
+                      </div>
+                    </div>
+                  ) : null}
+                  {/* Why an added line carries no VAT: its own row, as on the invoice composer. */}
+                  {!line.fromInvoice &&
+                  !off &&
+                  taxCategories?.length &&
+                  (CODED_REASON.has(line.taxCategory.en16931Category) ||
+                    NEEDS_EXEMPTION_REASON.has(line.taxCategory.en16931Category)) ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 ps-1">
+                      <span className="shrink-0 text-xs font-medium text-text-tertiary">
+                        {t('invoiceDraft.exemptionReason')}
+                        <span className="ms-0.5 text-danger-700">*</span>
+                      </span>
+                      <div className="w-full max-w-[560px]">
+                        {CODED_REASON.has(line.taxCategory.en16931Category) ? (
+                          <Select
+                            value={line.taxCategory.exemptionReasonCode ?? ''}
+                            onChange={(exemptionReasonCode) =>
+                              onChange(line.lineNumber, {
+                                taxCategory: { ...line.taxCategory, exemptionReasonCode },
+                              })
+                            }
+                            options={(taxReasonsFor(line.taxCategory.en16931Category) ?? []).map(
+                              (reason) => ({
+                                value: reason.code,
+                                label: nameOf(reason, i18n.language),
+                                hint: reason.code,
+                              }),
+                            )}
+                            placeholder={t('invoiceDraft.exemptionReasonChoose')}
+                            ariaLabel={`${t('invoiceDraft.exemptionReason')} · ${name(line)}`}
+                          />
+                        ) : (
+                          <div className={SHELL}>
+                            <input
+                              value={line.taxCategory.exemptionReason ?? ''}
+                              onChange={(event) =>
+                                onChange(line.lineNumber, {
+                                  taxCategory: {
+                                    ...line.taxCategory,
+                                    exemptionReason: event.target.value,
+                                  },
+                                })
+                              }
+                              maxLength={500}
+                              placeholder={t('invoiceDraft.exemptionReasonType')}
+                              aria-label={`${t('invoiceDraft.exemptionReason')} · ${name(line)}`}
+                              className={INPUT}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : null}

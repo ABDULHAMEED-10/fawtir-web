@@ -361,6 +361,30 @@ export type PeriodicLine = {
   hsCode?: string
   /** The CL-12-OM service type of a service line (IBR-155-OM), from `lib/codeLists/serviceTypes`. */
   serviceType?: string
+  /** The line's own tax category; unset, it takes the form's default (`PeriodicForm.taxCategory`). */
+  taxCode?: string
+  /** IBT-121 on a zero-rated (VATZR-OM-nn) or exempt (VATEX-OM-nn) line. */
+  exemptionReasonCode?: string
+  /** The written reason of a reverse-charge, export or out-of-scope line (no code list). */
+  exemptionReason?: string
+}
+
+/** The category a line is charged at: its own, else the form's default. */
+export function periodicLineTax(line: PeriodicLine, defaultCode: string): string {
+  return line.taxCode || defaultCode
+}
+
+/**
+ * A line's no-VAT reason. A line with its own category keeps its own reason; a line still on the
+ * default reads the form's (schedules saved before the category moved onto the line).
+ */
+function periodicLineReason(line: PeriodicLine, form: PeriodicForm) {
+  return line.taxCode
+    ? { code: line.exemptionReasonCode ?? '', text: line.exemptionReason ?? '' }
+    : {
+        code: line.exemptionReasonCode || form.exemptionReasonCode,
+        text: line.exemptionReason || form.exemptionReason,
+      }
 }
 
 /** A line arriving without a kind is read from its unit, as the invoice draft reads its lines. */
@@ -368,9 +392,10 @@ export function kindOfUnit(unit: string): LineKind {
   return itemTypeOfUnit(unit)
 }
 
-export function blankPeriodicLine(id: string, vatRate: string): PeriodicLine {
+export function blankPeriodicLine(id: string, vatRate: string, taxCode?: string): PeriodicLine {
   return {
     id,
+    ...(taxCode ? { taxCode } : {}),
     kind: 'goods',
     description: '',
     unitPrice: '0.000',
@@ -391,11 +416,13 @@ export type PeriodicForm = {
   /** A payment terms code from the catalogue (`PAYMENT_TERMS_OPTIONS`). */
   paymentTerms: string
   currency: string
-  /** A tax category code (`TAX_CATEGORIES`): the document's, printed on every line. */
+  /**
+   * The header's "Default tax category" (`TAX_CATEGORIES`): new lines take it, and changing it moves
+   * only the lines still on the old default. Each line may carry its own (handbook 3.2).
+   */
   taxCategory: string
-  /** The reason code (IBT-121) of a zero-rated or exempt document, printed on every line. */
+  /** Read back from schedules saved before the reason moved onto the line; lines carry their own. */
   exemptionReasonCode: string
-  /** The written reason of a reverse-charge, export or out-of-scope document. */
   exemptionReason: string
   branchId: string
   customerNote: string
@@ -509,6 +536,9 @@ export function linesOfInvoice(lines: InvoiceLineDto[]): PeriodicLine[] {
     unit: line.unitCode,
     discountType: line.discountType,
     discountValue: String(line.discountValue),
+    taxCode: line.taxCategoryCode,
+    exemptionReasonCode: line.exemptionReasonCode ?? '',
+    exemptionReason: line.exemptionReason ?? '',
   }))
 }
 
@@ -525,13 +555,16 @@ export function linesOfTemplate(template: PeriodicTemplateDto): PeriodicLine[] {
     discountValue: String(line.discount.value),
     hsCode: line.hsCode ?? undefined,
     serviceType: line.serviceType ?? undefined,
+    taxCode: line.taxCategory.code,
+    exemptionReasonCode: line.taxCategory.exemptionReasonCode ?? '',
+    exemptionReason: line.taxCategory.exemptionReason ?? '',
   }))
 }
 
 /** The written reason, only for the categories that state theirs as text (Z and E use a code). */
-function writtenReason(category: string | undefined, form: PeriodicForm): string | null {
+function writtenReason(category: string | undefined, reason: string): string | null {
   return category && NEEDS_EXEMPTION_REASON.has(category) && !CODED_REASON.has(category)
-    ? form.exemptionReason.trim() || null
+    ? reason.trim() || null
     : null
 }
 
@@ -552,7 +585,7 @@ export function templateOfForm(
     exemptionReasonCode: CODED_REASON.has(category?.en16931Category ?? '')
       ? form.exemptionReasonCode || null
       : null,
-    exemptionReason: writtenReason(category?.en16931Category, form),
+    exemptionReason: writtenReason(category?.en16931Category, form.exemptionReason),
     details: {
       subject: form.subject.trim() || null,
       purchaseOrderReference: form.purchaseOrderReference.trim() || null,
@@ -562,28 +595,34 @@ export function templateOfForm(
       customerVisibleNote: form.customerNote.trim() || null,
       internalNote: form.internalNote.trim() || null,
     },
-    lines: kept.map((line, index): PeriodicTemplateLineDto => ({
-      lineNumber: index + 1,
-      description: line.description.trim(),
-      itemType: line.kind === 'service' ? 'SERVICE' : 'GOODS',
-      unitCode: line.unit,
-      quantity: Number(line.quantity) || 0,
-      unitPrice: Number(
-        exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', line.vatRate || '0'),
-      ),
-      discount: { type: line.discountType, value: Number(line.discountValue) || 0 },
-      taxCategory: {
-        code: form.taxCategory,
-        en16931Category: category?.en16931Category ?? 'S',
-        rate: Number(category?.rate ?? line.vatRate) || 0,
-        exemptionReason: writtenReason(category?.en16931Category, form),
-        exemptionReasonCode: CODED_REASON.has(category?.en16931Category ?? '')
-          ? form.exemptionReasonCode || null
-          : null,
-      },
-      hsCode: line.kind === 'goods' ? line.hsCode || null : null,
-      serviceType: line.kind === 'service' ? line.serviceType || null : null,
-    })),
+    lines: kept.map((line, index): PeriodicTemplateLineDto => {
+      const lineCategory = TAX_CATEGORIES.find(
+        (entry) => entry.code === periodicLineTax(line, form.taxCategory),
+      )
+      const reason = periodicLineReason(line, form)
+      return {
+        lineNumber: index + 1,
+        description: line.description.trim(),
+        itemType: line.kind === 'service' ? 'SERVICE' : 'GOODS',
+        unitCode: line.unit,
+        quantity: Number(line.quantity) || 0,
+        unitPrice: Number(
+          exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', line.vatRate || '0'),
+        ),
+        discount: { type: line.discountType, value: Number(line.discountValue) || 0 },
+        taxCategory: {
+          code: lineCategory?.code ?? form.taxCategory,
+          en16931Category: lineCategory?.en16931Category ?? 'S',
+          rate: Number(lineCategory?.rate ?? line.vatRate) || 0,
+          exemptionReason: writtenReason(lineCategory?.en16931Category, reason.text),
+          exemptionReasonCode: CODED_REASON.has(lineCategory?.en16931Category ?? '')
+            ? reason.code || null
+            : null,
+        },
+        hsCode: line.kind === 'goods' ? line.hsCode || null : null,
+        serviceType: line.kind === 'service' ? line.serviceType || null : null,
+      }
+    }),
   }
 }
 
@@ -600,15 +639,32 @@ export function periodicProblems(
   today: string,
   editing: boolean,
   describedLines = 1,
+  /** The composer's lines: when given, each described line's category and reason is checked. */
+  lines?: PeriodicLine[],
 ): Partial<Record<PeriodicField, string>> {
   const problems: Partial<Record<PeriodicField, string>> = {}
   if (!form.customerId) problems.customerId = 'periodicInvoice.error.customerRequired'
   if (describedLines < 1) problems.lines = 'periodicInvoice.error.linesRequired'
-  const kind = TAX_CATEGORIES.find((entry) => entry.code === form.taxCategory)?.en16931Category ?? ''
-  if (
+  const categoryOf = (code: string) =>
+    TAX_CATEGORIES.find((entry) => entry.code === code)?.en16931Category ?? ''
+  const missing = (kind: string, reason: { code: string; text: string }) =>
     CODED_REASON.has(kind)
-      ? !form.exemptionReasonCode
-      : NEEDS_EXEMPTION_REASON.has(kind) && form.exemptionReason.trim() === ''
+      ? !reason.code
+      : NEEDS_EXEMPTION_REASON.has(kind) && reason.text.trim() === ''
+  if (lines) {
+    const described = lines.filter((line) => line.description.trim())
+    const kinds = described.map((line) => categoryOf(periodicLineTax(line, form.taxCategory)))
+    if (described.some((line, index) => missing(kinds[index], periodicLineReason(line, form)))) {
+      problems.lines = 'periodicInvoice.error.reasonRequired'
+    } else if (kinds.includes('O') && kinds.some((kind) => kind !== 'O')) {
+      // EN 16931 BR-O-11 to BR-O-14: an out-of-scope line cannot share an invoice with taxed ones.
+      problems.lines = 'periodicInvoice.error.outsideScopeMix'
+    }
+  } else if (
+    missing(categoryOf(form.taxCategory), {
+      code: form.exemptionReasonCode,
+      text: form.exemptionReason,
+    })
   ) {
     problems.exemptionReasonCode = 'periodicInvoice.error.reasonRequired'
   }

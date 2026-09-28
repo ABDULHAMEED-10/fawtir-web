@@ -2468,7 +2468,7 @@
       "po": "PO reference",
       "paymentTerms": "Payment terms",
       "currency": "Currency",
-      "taxCategory": "Tax category",
+      "taxCategory": "Default tax category",
       "branch": "Branch",
       "project": "Project",
       "noteCustomer": "Note to customer",
@@ -2516,7 +2516,8 @@
       "occurrences": "Give a whole number of runs, or leave it empty.",
       "intervalRequired": "Choose how often it runs.",
       "notFound": "This schedule no longer exists.",
-      "linesRequired": "Add at least one line with a description."
+      "linesRequired": "Add at least one line with a description.",
+      "outsideScopeMix": "Outside-scope lines cannot share an invoice with taxed lines. Put them on their own schedule."
     },
     "kind": "Recurring invoice",
     "nextShort": "Next",
@@ -3150,7 +3151,8 @@
       "vat": "VAT · Standard 5%",
       "totalDue": "Total due",
       "vatOf": "VAT · {{category}}",
-      "serverPriced": "Priced by the server from the saved draft."
+      "serverPriced": "Priced by the server from the saved draft.",
+      "vatMixed": "VAT"
     },
     "fields": {
       "number": "Self-bill number",
@@ -3234,7 +3236,8 @@
       "supplier": "Choose the supplier you are billing for first.",
       "branch": "Choose the receiving branch first.",
       "lines": "Add at least one line with a description and a quantity.",
-      "reason": "Say why no VAT is charged on these lines."
+      "reason": "Say why no VAT is charged on these lines.",
+      "outsideScopeMix": "Outside-scope lines cannot share a self-billed invoice with taxed lines. Put them on their own invoice."
     }
   },
   "debitNotes": {
@@ -16430,7 +16433,8 @@
       "creditAmounts": "Each ticked line needs a quantity above zero and a price, no more than on the invoice.",
       "debitAmounts": "Each ticked line needs a quantity above zero and a price.",
       "description": "Every line needs a description.",
-      "noDifference": "Enter the difference on at least one line: a price above zero and a quantity."
+      "noDifference": "Enter the difference on at least one line: a price above zero and a quantity.",
+      "vatReason": "Say why no VAT is charged on the lines you added."
     },
     "refused": {
       "invoiceNotIssued": "This invoice is not issued (or was cancelled), so it cannot be corrected.",

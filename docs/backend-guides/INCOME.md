@@ -601,3 +601,24 @@ Z.15: the product was checked when it was saved, so the sale needs no check.
 and POS are not being worked on now, so **Z.15 is not part of phase 1**; it stays here as the plan
 for when that work starts. Phase 1 is B2B and B2G manual invoices only (Z.8 to Z.11, Z.13, Z.14,
 Z.16). B2C invoices, whether from a product or typed (Z.12, Z.17), get no check for now.
+
+## Update 2026-09-28 (VAT category per line on every composer)
+
+The handbook's invoice-form rule (VAT category picked per line, the header "Default tax category"
+setting new lines) now holds on every composer, not only Create Invoice:
+
+- **Self-billed invoice:** each line picks its category, and a zero-rated, exempt or other no-VAT
+  line carries its own reason. The draft request already takes `taxCategory` per line, so nothing
+  changes on the wire beyond lines now differing from each other.
+- **Periodic invoice:** the same on the template's lines. `PeriodicTemplateLineDto.taxCategory`
+  carries each line's own code and reason; the template-level `taxCategoryCode` and reason are the
+  header's default only.
+- **Debit note, lines added on the note** (additional items, a flat charge): the added line picks
+  its own category and reason instead of copying the invoice's first line. Lines copied from the
+  invoice keep the invoice's category, unchanged.
+
+| #   | What the screen now sends | Backend |
+| --- | --- | --- |
+| V.1 | Periodic template lines with different categories and per-line reasons | store `taxCategory` (code, rate, `exemptionReasonCode`, `exemptionReason`) per template line, and issue each run's invoice from the line's own category, not the template's default |
+| V.2 | Outside scope (O) never mixed with taxed lines on one document (EN 16931 BR-O-11 to BR-O-14) | the screens refuse it before saving; the backend should refuse it too, on drafts and templates |
+| V.3 | A debit note's added line at a category the invoice never used (e.g. a 5% delivery charge on a zero-rated invoice) | accept per-line categories on note lines that do not reference an invoice line |

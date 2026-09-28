@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useReferenceData } from '../../lib/reference/referenceData'
+import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
 import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
@@ -740,6 +741,10 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                 editable
                 growable={form.mode === 'additionalItems'}
                 classified={classified}
+                taxCategories={(reference?.taxCategories?.length
+                  ? reference.taxCategories
+                  : DESIGN_REFERENCE.taxCategories
+                ).filter((category) => category.active)}
                 tone={kindKey}
                 onChange={setLine}
                 onAdd={() =>

@@ -90,3 +90,57 @@ describe('the reason no VAT is charged, on a self-billed draft', () => {
     expect(fromSelfBilledDraft(draft, '2026-09-27').exemptionReasonCode).toBe('VATZR-OM-01')
   })
 })
+
+describe('a tax category per line, on a self-billed draft', () => {
+  const rice = { ...blankComposerLine('1'), description: 'Rice' }
+  const advice = { ...blankComposerLine('2'), description: 'Advice' }
+
+  it('sends each line at its own category and reason, the rest at the default', () => {
+    const lines = toSelfBilledDraftRequest(
+      form([{ ...rice, taxCode: 'Z0', exemptionReasonCode: 'VATZR-OM-01' }, advice]),
+      true,
+      SEEDED_REFERENCE,
+    ).lines
+    expect(lines[0].taxCategory).toMatchObject({
+      code: 'Z0',
+      exemptionReasonCode: 'VATZR-OM-01',
+      exemptionReason: null,
+    })
+    expect(lines[1].taxCategory).toMatchObject({ code: 'S5', exemptionReasonCode: null })
+  })
+
+  it('asks for the reason on the zero-rated line alone, and refuses outside scope mixed with taxed lines', () => {
+    expect(
+      problemsBeforeSave(form([{ ...rice, taxCode: 'Z0' }, advice]), SEEDED_REFERENCE),
+    ).toContain('reason')
+    expect(
+      problemsBeforeSave(
+        form([{ ...rice, taxCode: 'Z0', exemptionReasonCode: 'VATZR-OM-01' }, advice]),
+        SEEDED_REFERENCE,
+      ),
+    ).not.toContain('reason')
+    expect(
+      problemsBeforeSave(
+        form([{ ...rice, taxCode: 'O0', exemptionReason: 'Not a supply' }, advice]),
+        SEEDED_REFERENCE,
+      ),
+    ).toContain('outsideScopeMix')
+  })
+
+  it('reads each line category and reason back from a draft', () => {
+    const draft = {
+      ...form([]),
+      branchId: 'b-1',
+      details: {},
+      lines: [
+        { taxCategoryCode: 'Z0', exemptionReasonCode: 'VATZR-OM-01', unitCode: 'EA', taxRate: 0 },
+        { taxCategoryCode: 'S5', unitCode: 'EA', taxRate: 5 },
+      ],
+    } as unknown as Parameters<typeof fromSelfBilledDraft>[0]
+    const lines = fromSelfBilledDraft(draft, '2026-09-27').lines
+    expect(lines.map((line) => [line.taxCode, line.exemptionReasonCode])).toEqual([
+      ['Z0', 'VATZR-OM-01'],
+      ['S5', ''],
+    ])
+  })
+})

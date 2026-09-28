@@ -37,6 +37,8 @@ import {
   paymentTermCodes,
   problemsBeforeSave,
   supplierOptions,
+  FALLBACK_TAX_CATEGORIES,
+  lineTaxCode,
   taxCategoryCodes,
   taxCategoryOf,
   toSelfBilledDraftRequest,
@@ -57,9 +59,6 @@ import {
 } from '../../components/ui'
 import { LineComposer } from './LineComposer'
 import { formatAtScale } from '../../lib/invoiceMath'
-import { CODED_REASON, NEEDS_EXEMPTION_REASON } from '../../lib/invoiceDraft'
-import { nameOf } from '../../lib/codeLists/codeList'
-import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import statutoryIcon from '../../assets/customers/type-government.svg'
 import tickCircle from '../../assets/customers/tick-circle.svg'
@@ -421,12 +420,14 @@ function SelfBillComposer() {
   /* ------------------------------------------------------- derived */
 
   const totals = useLineTotals(form.lines, exclVat)
-  const categoryOfDocument = taxCategoryOf(reference, form.taxCategory).en16931Category
-  const reasonCategory = CODED_REASON.has(categoryOfDocument) ? categoryOfDocument : null
-  const reasonText = !reasonCategory && NEEDS_EXEMPTION_REASON.has(categoryOfDocument)
-  const taxLabel = t(`createInvoice.taxCategories.${form.taxCategory}`, {
-    defaultValue: form.taxCategory,
-  })
+  // The summary names the category when every line shares one; mixed lines read plain "VAT".
+  const lineCategories = new Set(form.lines.map((line) => lineTaxCode(line, form.taxCategory)))
+  const onlyCategory = lineCategories.size === 1 ? [...lineCategories][0] : null
+  const vatLabel = onlyCategory
+    ? t('newSelfBill.summary.vatOf', {
+        category: t(`createInvoice.taxCategories.${onlyCategory}`, { defaultValue: onlyCategory }),
+      })
+    : t('newSelfBill.summary.vatMixed')
   const isAgreed = form.kind === 'agreed'
   const editable = canSave && (meta === null || meta.state === 'DRAFT')
 
@@ -445,15 +446,25 @@ function SelfBillComposer() {
         : {}),
     })
   }
-  // The category is the document's: every line takes its rate.
+  // The header's default: new lines take it, and it moves only the lines still on the old default.
+  // A moved line's reason belonged to the old category, so it is cleared.
   const onTaxCategory = (next: string) => {
-    const rate = taxCategoryOf(reference, next).rate
+    const tax = taxCategoryOf(reference, next)
     patch({
       taxCategory: next,
-      // Zero-rated and exempt have separate reason lists, so a reason never outlives its category.
       exemptionReasonCode: '',
       exemptionReason: '',
-      lines: form.lines.map((line) => ({ ...line, vatRate: rate })),
+      lines: form.lines.map((line) =>
+        lineTaxCode(line, form.taxCategory) === form.taxCategory
+          ? {
+              ...line,
+              taxCode: tax.code,
+              vatRate: String(Number(tax.rate)),
+              exemptionReasonCode: '',
+              exemptionReason: '',
+            }
+          : line,
+      ),
     })
   }
   const chooseSupplier = (option: SupplierOption) => {
@@ -893,9 +904,7 @@ function SelfBillComposer() {
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-text-secondary">
-                    {t('newSelfBill.summary.vatOf', { category: taxLabel })}
-                  </span>
+                  <span className="font-medium text-text-secondary">{vatLabel}</span>
                   <OmAmount
                     size="xs"
                     amount={
@@ -1015,37 +1024,6 @@ function SelfBillComposer() {
               required
               disabled={!editable}
             />
-            {reasonCategory ? (
-              <div>
-                <FieldLabel label={t('invoiceDraft.exemptionReason')} required />
-                <Select
-                  value={form.exemptionReasonCode}
-                  onChange={(exemptionReasonCode) => patch({ exemptionReasonCode })}
-                  options={(taxReasonsFor(reasonCategory) ?? []).map((reason) => ({
-                    value: reason.code,
-                    label: nameOf(reason, language),
-                    hint: reason.code,
-                  }))}
-                  placeholder={t('invoiceDraft.exemptionReason')}
-                  ariaLabel={t('invoiceDraft.exemptionReason')}
-                  panelWidth={340}
-                  disabled={!editable}
-                />
-              </div>
-            ) : reasonText ? (
-              <div>
-                <FieldLabel label={t('invoiceDraft.exemptionReason')} required />
-                <input
-                  value={form.exemptionReason}
-                  onChange={(e) => patch({ exemptionReason: e.target.value })}
-                  maxLength={500}
-                  placeholder={t('invoiceDraft.exemptionReason')}
-                  aria-label={t('invoiceDraft.exemptionReason')}
-                  disabled={!editable}
-                  className="h-9 w-full rounded-sm border border-primary-300 bg-white px-2 text-xs font-medium text-text-secondary outline-none"
-                />
-              </div>
-            ) : null}
             <LockedField
               label={t('newSelfBill.fields.agreement')}
               value={form.agreementReference ?? (supplier ? t('newSelfBill.noAgreement') : '—')}
@@ -1077,7 +1055,11 @@ function SelfBillComposer() {
           exclVat={exclVat}
           onExclVatChange={setExclVat}
           totals={totals}
-          taxLabel={taxLabel}
+          taxCategories={(reference?.taxCategories?.length
+            ? reference.taxCategories
+            : FALLBACK_TAX_CATEGORIES
+          ).filter((category) => category.active)}
+          defaultTax={form.taxCategory}
           readOnly={!editable}
           titleSlot={<SectionTitle step={3} title={t('newSelfBill.sections.items')} />}
           footer={

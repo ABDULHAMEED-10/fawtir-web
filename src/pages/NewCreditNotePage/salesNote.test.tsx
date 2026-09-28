@@ -389,6 +389,21 @@ describe('a debit note', () => {
     ])
     expect(body.details.correctionReasonCode).toBe('VAL')
   }, 30_000)
+
+  it('lets a line added on a debit note pick its own VAT category, with its own reason', async () => {
+    renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
+    fireEvent.click(await screen.findByRole('radio', { name: /Additional items/ }))
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Delivery' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'VAT (%) · Delivery' }))
+    fireEvent.click(screen.getByRole('option', { name: /Zero-rated/ }))
+    expect(screen.getByRole('button', { name: 'Reason no VAT is charged · Delivery' })).toBeTruthy()
+
+    chooseReason('Undercharged')
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(await screen.findByText(/Say why no VAT is charged on the lines you added/)).toBeTruthy()
+    expect(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes`)).toHaveLength(0)
+  }, 30_000)
 })
 
 describe('notes around the invoice', () => {
