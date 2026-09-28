@@ -113,6 +113,10 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
   upload). On these judgement decides; flag such decisions. The import dialog is an owner-approved
   exception (2026-09-28, on grounds of time, per the approved Invoice Import guide): it is built on
   the existing theme and components only and changes no other screen.
+- **Zero-rating warning (approved 2026-09-28, same basis):** the line warning in the invoice composer
+  and the confirmation step before issuing (INCOME.md rows Z.1 to Z.7) have no Figma frame. Build
+  them with existing components only and touch no other screen. Manual invoices warn and never
+  block, except an export reason on an Omani customer; the catalogue checks at product save.
 
 Sections on page `0:1` (children are the frames; list them with `get_metadata` on the section):
 
