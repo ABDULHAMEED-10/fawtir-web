@@ -544,7 +544,9 @@ export function InvoiceImportModal({
                       className="text-sm font-medium leading-[1.5] text-text-tertiary"
                     >
                       {t('invoiceImport.preview.inferred', {
-                        rows: item.rowNumbers.map((row) => formatCount(row, language)).join(', '),
+                        rows: item.rowNumbers
+                          .map((row) => formatCount(row, language))
+                          .join(language.startsWith('ar') ? '، ' : ', '),
                         column: item.column,
                         value: item.value,
                         match: item.matchedTo,
