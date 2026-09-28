@@ -28,6 +28,7 @@ import {
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { cancelInvoice } from '../../api/invoices/detail'
+import { InvoiceImportModal } from '../../components/invoice/InvoiceImportModal'
 import {
   INVOICE_SORTS,
   INVOICE_TYPES,
@@ -248,6 +249,7 @@ function InvoicesScreen() {
 
   const [notice, setNotice] = useState<{ body: string } | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [importing, setImporting] = useState(false)
   const onExport = async () => {
     if (!filter) return
     setExporting(true)
@@ -327,10 +329,10 @@ function InvoicesScreen() {
       </div>
       <div className="flex flex-wrap items-center gap-3">
         {can(session, 'invoice.draft') ? (
-          // TODO(backend): no bulk import endpoint exists; the button is the design's and says so.
+          // The design's button opens the invoice import (drafts only); its routes are TODO(backend).
           <button
             type="button"
-            onClick={() => setNotice({ body: t('invoicesPage.bulkUnavailable') })}
+            onClick={() => setImporting(true)}
             className={OUTLINE_BUTTON}
           >
             <img src={bulkUploadIcon} alt="" className="size-6" />
@@ -358,6 +360,14 @@ function InvoicesScreen() {
           </Link>
         ) : null}
       </div>
+      <InvoiceImportModal
+        open={importing}
+        onClose={() => setImporting(false)}
+        onCreated={() => {
+          summary.retry()
+          list.retry()
+        }}
+      />
     </div>
   )
 
