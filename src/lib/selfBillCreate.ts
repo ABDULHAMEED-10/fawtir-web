@@ -3,7 +3,13 @@ import type { AgreementDto } from '../api/selfBilling/agreements'
 import type { CustomerDto } from '../api/customers/customers'
 import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import type { LineItem } from '../components/invoice'
-import { CODED_REASON, NEEDS_EXEMPTION_REASON, itemTypeOfUnit, unitsFor } from './invoiceDraft'
+import {
+  CODED_REASON,
+  NEEDS_EXEMPTION_REASON,
+  itemTypeOfUnit,
+  omanTaxCategories,
+  unitsFor,
+} from './invoiceDraft'
 import { formatAmount, parseAmount, toExclusivePrice } from './invoiceMath'
 import { plusDays } from './invoiceIssue'
 import { blockerOf, canIssueUnder, type Blocker } from './selfBillingAgreements'
@@ -132,7 +138,7 @@ export const FALLBACK_TAX_CATEGORIES: TaxCategoryDto[] = [
   { code: 'S5', en16931Category: 'S', rate: '5', exemptionReasonRequired: false, active: true },
   { code: 'Z0', en16931Category: 'Z', rate: '0', exemptionReasonRequired: false, active: true },
   { code: 'E0', en16931Category: 'E', rate: '0', exemptionReasonRequired: true, active: true },
-  { code: 'AE0', en16931Category: 'AE', rate: '0', exemptionReasonRequired: true, active: true },
+  { code: 'O0', en16931Category: 'O', rate: '0', exemptionReasonRequired: true, active: true },
 ]
 
 export const FALLBACK_TERMS = ['NET0', 'NET15', 'NET30', 'NET60'] as const
@@ -146,7 +152,7 @@ export function taxCategoryOf(reference: ReferenceDataDto | null, code: string):
 
 export function taxCategoryCodes(reference: ReferenceDataDto | null): string[] {
   const rows = reference?.taxCategories?.length ? reference.taxCategories : FALLBACK_TAX_CATEGORIES
-  return rows.filter((row) => row.active).map((row) => row.code)
+  return omanTaxCategories(rows).map((row) => row.code)
 }
 
 export function paymentTermCodes(reference: ReferenceDataDto | null): string[] {
@@ -373,7 +379,7 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
 }
 
 /** Ordered as the page reads: the first problem is what the notice names. */
-export type SelfBillProblem = 'supplier' | 'branch' | 'lines' | 'reason' | 'outsideScopeMix'
+export type SelfBillProblem = 'supplier' | 'branch' | 'lines' | 'reason'
 
 export function problemsBeforeSave(
   form: SelfBillForm,
@@ -396,11 +402,8 @@ export function problemsBeforeSave(
       ? !reason.code
       : NEEDS_EXEMPTION_REASON.has(category) && reason.text.trim() === ''
   })
+  // PINT-OM has no EN 16931 BR-O-11 counterpart: an out-of-scope line may sit beside taxed ones.
   if (reasonMissing) problems.push('reason')
-  // EN 16931 BR-O-11 to BR-O-14: an out-of-scope line cannot share an invoice with taxed ones.
-  if (categories.includes('O') && categories.some((category) => category !== 'O')) {
-    problems.push('outsideScopeMix')
-  }
   return problems
 }
 

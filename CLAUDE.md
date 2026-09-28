@@ -27,6 +27,8 @@ anything.** This file is the short version.
   `withRial`), never "OMR" beside a figure; three decimals always.
 - No native `<select>` or date inputs (use `src/components/ui`). Figure inputs use
   `selectAllOnFocus`. Nothing may scroll sideways at 390 px. No "Project" field anywhere.
+- Peppol and tax questions are answered from the published PINT-OM rules, never from memory:
+  links in the handbook, section 5.0 (start at https://docs.peppol.eu/poac/om/). Cite the rule ID.
 - Invoice-type forms: free-text lines, Goods/Service toggle, units following it with "Other",
   "Price excl." at three decimals, VAT category picked per line (header sets the default), Classification (HS code or service type)
   for business and government only, Excl. VAT | Incl. VAT toggle.

@@ -115,6 +115,21 @@ export const DESIGN_REFERENCE: ReferenceDataDto = {
   paymentMethods: ['30', '10', '20', '48', '68'].map((code) => ({ code, active: true })),
 }
 
+/**
+ * The VAT categories Oman allows: PINT-OM code list OMTaxCat, enforced by CL-04-OM on invoices,
+ * credit notes and self-billing alike. Reverse charge (AE) and export (G) are not in it: an export
+ * is zero-rated (Z) with a VATZR-OM export code (09 to 12), and reverse charge is a transaction
+ * type (BTOM-001), not a category.
+ */
+export const OMAN_VAT_CATEGORIES: ReadonlySet<string> = new Set(['S', 'Z', 'E', 'O'])
+
+/** The active categories a composer may offer: the platform's list, narrowed to Oman's four. */
+export function omanTaxCategories<T extends { en16931Category: string; active?: boolean }>(
+  rows: readonly T[],
+): T[] {
+  return rows.filter((row) => row.active !== false && OMAN_VAT_CATEGORIES.has(row.en16931Category))
+}
+
 /** Categories the server prices only with a reason (`TaxCategoryInput`, `EXEMPTION_REASON_REQUIRED`). */
 export const NEEDS_EXEMPTION_REASON = new Set(['E', 'AE', 'G', 'O'])
 /** The categories whose reason is a code from their own list (IBT-121): zero-rated and exempt. */

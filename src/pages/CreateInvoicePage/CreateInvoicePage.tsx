@@ -50,6 +50,7 @@ import {
 import {
   DESIGN_REFERENCE,
   CODED_REASON,
+  omanTaxCategories,
   NEEDS_EXEMPTION_REASON,
   PAYMENT_TERMS,
   blankDraftForm,
@@ -1088,21 +1089,21 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     termOptions.push({ value: form.paymentTerms, label: termLabel(form.paymentTerms) })
   }
   // The platform's categories (the rate it stores is derived from them), named as the design does.
-  const taxOptions: SelectOption[] = (reference?.taxCategories ?? [])
-    .filter((category) => category.active)
-    .map((category) => ({
+  const taxOptions: SelectOption[] = omanTaxCategories(reference?.taxCategories ?? []).map(
+    (category) => ({
       value: category.code,
       label: taxLabel(t, category.code) ?? category.code,
       hint: `EN 16931 · ${category.en16931Category}`,
-    }))
+    }),
+  )
   // The closed field reads "5% S" in a narrow column; the list names each category in full.
-  const lineTaxOptions: SelectOption[] = (reference?.taxCategories ?? [])
-    .filter((category) => category.active)
-    .map((category) => ({
+  const lineTaxOptions: SelectOption[] = omanTaxCategories(reference?.taxCategories ?? []).map(
+    (category) => ({
       value: category.code,
       label: taxLabel(t, category.code) ?? category.code,
       shortLabel: `${Number(category.rate)}% ${category.en16931Category}`,
-    }))
+    }),
+  )
   const unitOptions = (line: DraftLine): SelectOption[] =>
     lineUnitOptions(line.itemType, t, line.unit, reference)
   // The platform's UNCL4461 means, the design's five until it answers; named as the design does.

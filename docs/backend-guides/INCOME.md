@@ -622,3 +622,34 @@ setting new lines) now holds on every composer, not only Create Invoice:
 | V.1 | Periodic template lines with different categories and per-line reasons | store `taxCategory` (code, rate, `exemptionReasonCode`, `exemptionReason`) per template line, and issue each run's invoice from the line's own category, not the template's default |
 | V.2 | Outside scope (O) never mixed with taxed lines on one document (EN 16931 BR-O-11 to BR-O-14) | the screens refuse it before saving; the backend should refuse it too, on drafts and templates |
 | V.3 | A debit note's added line at a category the invoice never used (e.g. a 5% delivery charge on a zero-rated invoice) | accept per-line categories on note lines that do not reference an invoice line |
+
+## Update 2026-09-28 (checked against the published PINT-OM rules, PDK 1.4.4)
+
+Checked on docs.peppol.eu (PINT-OM billing and self-billing, invoice and credit note rules, code
+lists, shared PINT rules). Three corrections:
+
+1. **Only four VAT categories exist in Oman: S, Z, E, O** (code list OMTaxCat, rule CL-04-OM, the
+   same for invoices, credit notes and self-billing). **Reverse charge (AE) and export (G) are not
+   PINT-OM categories.** An export is zero-rated (Z) with VATZR-OM-09 (services), -10 (direct
+   export of goods), -11 (indirect) or -12 (re-export); reverse charge, import of services and
+   profit-margin schemes are transaction types in BTOM-001, not categories. Every composer now
+   offers only S, Z, E and O (`omanTaxCategories` in `lib/invoiceDraft.ts`); periodic invoices
+   gain Outside scope and lose Reverse charge.
+2. **Row V.2 is withdrawn.** PINT-OM has no counterpart of EN 16931 BR-O-11 to BR-O-14: an
+   out-of-scope line may sit on the same document as S, Z or E lines (ALIGNED-IBRP-O-01-OM only
+   asks for exactly one O breakdown). The screens no longer refuse the mix; the backend should not
+   either.
+3. **Reasons:** Z and E need a reason code (IBR-069-OM; CL-10-OM VATZR-OM-01..16, CL-05-OM
+   VATEX-OM-01..12). S may carry neither code nor text (ALIGNED-IBRP-S-10-OM). O must not carry a
+   code (IBR-070-OM) and no rule requires a text for it. The screens still ask for a written reason
+   on O because the reference data marks O0 `exemptionReasonRequired: true`.
+
+| #   | Ask | Backend |
+| --- | --- | --- |
+| V.4 | Stop serving AE0 and G0 as active tax categories, and refuse them on drafts, notes and templates | `GET /v1/reference-data` taxCategories: S5, Z0, E0, O0 only |
+| V.5 | Decide whether O needs a written reason at all | today O0 is `exemptionReasonRequired: true`; PINT-OM does not require IBT-120 for O. If it stays optional, set it false and the screens stop asking |
+| V.6 | A custom-amount credit note may now carry several lines, each at its own category, so a mixed invoice is credited at each rate | accept several added lines on a credit note (no PINT-OM rule limits a credit note to one category) |
+
+Also confirmed for credit and debit notes: preceding invoice reference, issue date and UUID are
+mandatory (IBR-032-OM), and the reason code BTOM-032 is one of CAN, VAT, VAL, QTY, OTH
+(IBR-023-OM, CL-02-OM), as the screens already send.

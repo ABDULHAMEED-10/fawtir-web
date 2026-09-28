@@ -58,6 +58,7 @@ import {
   type SelectOption,
 } from '../../components/ui'
 import { LineComposer } from './LineComposer'
+import { omanTaxCategories } from '../../lib/invoiceDraft'
 import { formatAtScale } from '../../lib/invoiceMath'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import statutoryIcon from '../../assets/customers/type-government.svg'
@@ -1055,10 +1056,9 @@ function SelfBillComposer() {
           exclVat={exclVat}
           onExclVatChange={setExclVat}
           totals={totals}
-          taxCategories={(reference?.taxCategories?.length
-            ? reference.taxCategories
-            : FALLBACK_TAX_CATEGORIES
-          ).filter((category) => category.active)}
+          taxCategories={omanTaxCategories(
+            reference?.taxCategories?.length ? reference.taxCategories : FALLBACK_TAX_CATEGORIES,
+          )}
           defaultTax={form.taxCategory}
           readOnly={!editable}
           titleSlot={<SectionTitle step={3} title={t('newSelfBill.sections.items')} />}

@@ -35,9 +35,9 @@ describe('the reason no VAT is charged, on a periodic template', () => {
     )
   })
 
-  it('sends the written reason of a reverse-charge document and nothing at standard rate', () => {
-    expect(sent(form('AE0', { exemptionReason: ' Export ' })).lines[0].taxCategory).toMatchObject({
-      exemptionReason: 'Export',
+  it('sends the written reason of an out-of-scope document and nothing at standard rate', () => {
+    expect(sent(form('O0', { exemptionReason: ' Not a supply ' })).lines[0].taxCategory).toMatchObject({
+      exemptionReason: 'Not a supply',
       exemptionReasonCode: null,
     })
     const standard = sent(form('S5', { exemptionReasonCode: 'VATZR-OM-01', exemptionReason: 'x' }))
@@ -49,7 +49,7 @@ describe('the reason no VAT is charged, on a periodic template', () => {
     const problem = (f: ReturnType<typeof form>) =>
       periodicProblems(f, '2026-09-27', false, 1).exemptionReasonCode
     expect(problem(form('Z0'))).toBe('periodicInvoice.error.reasonRequired')
-    expect(problem(form('AE0'))).toBe('periodicInvoice.error.reasonRequired')
+    expect(problem(form('O0'))).toBe('periodicInvoice.error.reasonRequired')
     expect(problem(form('Z0', { exemptionReasonCode: 'VATZR-OM-01' }))).toBeUndefined()
     expect(problem(form('S5'))).toBeUndefined()
   })
