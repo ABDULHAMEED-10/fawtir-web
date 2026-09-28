@@ -561,7 +561,7 @@ or in the composer.
 | Z.4 | The one hard stop on manual invoices | refuse an export zero-rating reason (e.g. `VATZR-OM-09`, and category G) when the customer's country is `OM`: `EXPORT_REASON_DOMESTIC_CUSTOMER` |
 | Z.5 | Confirmation before issuing, and who confirmed | issue refuses while unconfirmed warnings remain (`ZERO_RATING_UNCONFIRMED`) and accepts `{ confirmedWarnings: [codes per line] }`; store the confirming user and time on the invoice for audit, and show it in the invoice's history |
 | Z.6 | Check again at issue | re-run Z.2 to Z.4 when the draft is issued, against the issue date: a draft can sit for weeks and the list can change under it. A warning the user confirmed earlier but that no longer applies is dropped; a new one needs a new confirmation |
-| Z.7 | The catalogue's mandatory check | on product create and edit: a product with reason 01/02/03 whose HS code is not on that list (in force today) is refused (`PRODUCT_ZERO_RATING_HS_MISMATCH`); a product may not carry an export or transport reason as its default, since those belong to the sale. Lines filled from a product skip Z.3 unless the user changed the category or HS code on the line |
+| Z.7 | **Future plan, not now.** The catalogue's mandatory check | on product create and edit: a product with reason 01/02/03 whose HS code is not on that list (in force today) is refused (`PRODUCT_ZERO_RATING_HS_MISMATCH`); a product may not carry an export or transport reason as its default, since those belong to the sale. Lines filled from a product skip Z.3 unless the user changed the category or HS code on the line |
 
 Frontend (approved without a Figma frame, existing components only, no other screen touched; see
 the handbook's exceptions): the warning under the affected line, and a confirmation step in the
@@ -585,12 +585,12 @@ Estimate: about a day, most of it loading and checking the list.
 
 **Phase 1 amended (owner, 2026-09-28): where the food check runs.** A simplified (consumer)
 invoice carries no classification, but the catalogue product still has its HS code, so for B2C the
-check belongs at product setup, not at the sale. The catalogue check therefore moves **into phase
-1**, for the food list only.
+check belongs at product setup, not at the sale. **Future plan, not now:** the catalogue and POS
+check (Z.15) is deferred until that work starts; see the amendment below.
 
 | #    | Path | Where the check happens |
 | ---- | --- | --- |
-| Z.15 | POS and catalogue | **At product create and edit**: HS code against the food list in force that day. A product marked Zero-rated with `VATZR-OM-01` whose HS code is not listed is refused; a listed product set to Standard is warned. Every sale of the product then inherits its rate and is not checked again. When a new list takes effect (e.g. 2026-10-01), re-check the stored products against it and flag the ones whose rate no longer matches, since a product validated in September can be wrong in October |
+| Z.15 | **Future plan, not now.** POS and catalogue | **At product create and edit**: HS code against the food list in force that day. A product marked Zero-rated with `VATZR-OM-01` whose HS code is not listed is refused; a listed product set to Standard is warned. Every sale of the product then inherits its rate and is not checked again. When a new list takes effect (e.g. 2026-10-01), re-check the stored products against it and flag the ones whose rate no longer matches, since a product validated in September can be wrong in October |
 | Z.16 | B2B and B2G manual invoices | At draft preview and again at issue, per Z.9 to Z.14: the line carries its HS code |
 | Z.17 | B2C manual invoice, typed line | **No check, accepted.** A typed consumer line has no HS code and no product to match. Manual B2C invoices are rare (shops sell through the till), so the exposure is small. Matching the description against the annex's Arabic and English names was considered and rejected: fuzzy food-name matching gives both false warnings and missed ones |
 
