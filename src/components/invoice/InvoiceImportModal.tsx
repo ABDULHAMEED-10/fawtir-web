@@ -451,16 +451,16 @@ export function InvoiceImportModal({
               {t('invoiceImport.errorsNote')}
             </p>
             <div className="overflow-x-auto rounded-sm border border-border-subtle">
-              <table className="w-full min-w-[480px] text-sm">
+              <table className="w-full sm:min-w-[480px] text-sm">
                 <thead className="bg-surface-background text-start text-xs font-semibold text-text-tertiary">
                   <tr>
-                    <th scope="col" className="w-16 px-3 py-2 text-start">
+                    <th scope="col" className="w-10 px-2 sm:w-16 sm:px-3 py-2 text-start">
                       {t('invoiceImport.col.row')}
                     </th>
-                    <th scope="col" className="w-36 px-3 py-2 text-start">
+                    <th scope="col" className="w-24 px-2 sm:w-36 sm:px-3 py-2 text-start">
                       {t('invoiceImport.col.column')}
                     </th>
-                    <th scope="col" className="px-3 py-2 text-start">
+                    <th scope="col" className="px-2 py-2 sm:px-3 text-start">
                       {t('invoiceImport.col.message')}
                     </th>
                   </tr>
@@ -468,11 +468,15 @@ export function InvoiceImportModal({
                 <tbody>
                   {batch.errors.map((error, index) => (
                     <tr key={index} className="border-t border-border-subtle align-top">
-                      <td className="px-3 py-2 font-medium tabular-nums text-text-secondary">
+                      <td className="px-2 py-2 sm:px-3 font-medium tabular-nums text-text-secondary">
                         {formatCount(error.rowNumber, language)}
                       </td>
-                      <td className="px-3 py-2 font-medium text-text-secondary">{error.column}</td>
-                      <td className="px-3 py-2 font-medium text-text-primary">{error.message}</td>
+                      <td className="px-2 py-2 sm:px-3 font-medium text-text-secondary">
+                        {error.column}
+                      </td>
+                      <td className="px-2 py-2 sm:px-3 font-medium break-words text-text-primary">
+                        {error.message}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -496,16 +500,16 @@ export function InvoiceImportModal({
             </div>
 
             <div className="overflow-x-auto rounded-sm border border-border-subtle">
-              <table className="w-full min-w-[420px] text-sm">
+              <table className="w-full sm:min-w-[420px] text-sm">
                 <thead className="bg-surface-background text-xs font-semibold text-text-tertiary">
                   <tr>
-                    <th scope="col" className="px-3 py-2 text-start">
+                    <th scope="col" className="px-2 py-2 sm:px-3 text-start">
                       {t('invoiceImport.col.customer')}
                     </th>
-                    <th scope="col" className="w-24 px-3 py-2 text-end">
+                    <th scope="col" className="w-16 px-2 sm:w-24 sm:px-3 py-2 text-end">
                       {t('invoiceImport.col.invoices')}
                     </th>
-                    <th scope="col" className="w-40 px-3 py-2 text-end">
+                    <th scope="col" className="w-28 px-2 sm:w-40 sm:px-3 py-2 text-end">
                       {t('invoiceImport.col.total')}
                     </th>
                   </tr>
@@ -513,13 +517,13 @@ export function InvoiceImportModal({
                 <tbody>
                   {batch.summary.byCustomer.map((row) => (
                     <tr key={row.customerName} className="border-t border-border-subtle">
-                      <td className="px-3 py-2 font-medium text-text-primary">
+                      <td className="px-2 py-2 sm:px-3 font-medium break-words text-text-primary">
                         {row.customerName}
                       </td>
-                      <td className="px-3 py-2 text-end font-medium tabular-nums text-text-secondary">
+                      <td className="px-2 py-2 sm:px-3 text-end font-medium tabular-nums text-text-secondary">
                         {formatCount(row.invoices, language)}
                       </td>
-                      <td className="px-3 py-2 text-end font-medium tabular-nums text-text-secondary">
+                      <td className="px-2 py-2 sm:px-3 text-end font-medium tabular-nums text-text-secondary">
                         {amount(row.total)}
                       </td>
                     </tr>
@@ -617,19 +621,19 @@ export function InvoiceImportModal({
                   {t('invoiceImport.createdNote')}
                 </p>
                 <div className="overflow-x-auto rounded-sm border border-border-subtle">
-                  <table className="w-full min-w-[520px] text-sm">
+                  <table className="w-full sm:min-w-[520px] text-sm">
                     <thead className="bg-surface-background text-xs font-semibold text-text-tertiary">
                       <tr>
-                        <th scope="col" className="px-3 py-2 text-start">
+                        <th scope="col" className="px-2 py-2 sm:px-3 text-start">
                           {t('invoiceImport.col.reference')}
                         </th>
-                        <th scope="col" className="px-3 py-2 text-start">
+                        <th scope="col" className="px-2 py-2 sm:px-3 text-start">
                           {t('invoiceImport.col.draft')}
                         </th>
-                        <th scope="col" className="px-3 py-2 text-start">
+                        <th scope="col" className="px-2 py-2 sm:px-3 text-start">
                           {t('invoiceImport.col.customer')}
                         </th>
-                        <th scope="col" className="w-36 px-3 py-2 text-end">
+                        <th scope="col" className="w-24 px-2 sm:w-36 sm:px-3 py-2 text-end">
                           {t('invoiceImport.col.total')}
                         </th>
                       </tr>
@@ -637,10 +641,10 @@ export function InvoiceImportModal({
                     <tbody>
                       {batch.created.map((row) => (
                         <tr key={row.invoiceId} className="border-t border-border-subtle">
-                          <td className="px-3 py-2 font-medium text-text-secondary">
+                          <td className="px-2 py-2 sm:px-3 font-medium text-text-secondary">
                             {row.reference}
                           </td>
-                          <td className="px-3 py-2 font-medium">
+                          <td className="px-2 py-2 sm:px-3 font-medium">
                             <Link
                               to={`/invoices/${encodeURIComponent(row.invoiceId)}/edit`}
                               onClick={close}
@@ -649,10 +653,10 @@ export function InvoiceImportModal({
                               {row.draftNumber ?? t('invoiceImport.openDraft')}
                             </Link>
                           </td>
-                          <td className="px-3 py-2 font-medium text-text-primary">
+                          <td className="px-2 py-2 sm:px-3 font-medium break-words text-text-primary">
                             {row.customerName}
                           </td>
-                          <td className="px-3 py-2 text-end font-medium tabular-nums text-text-secondary">
+                          <td className="px-2 py-2 sm:px-3 text-end font-medium tabular-nums text-text-secondary">
                             {amount(row.total)}
                           </td>
                         </tr>
