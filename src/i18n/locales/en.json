@@ -9496,7 +9496,8 @@
     "industrialClassificationSearch": "Search by activity name",
     "industrialClassificationNone": "No activity matches",
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
-    "industrialClassificationFailed": "The business activity was not saved. Check the code and try again."
+    "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
+    "saveFailed": "That did not save. Check your connection and try again."
   },
   "branches": {
     "title": "Branches",

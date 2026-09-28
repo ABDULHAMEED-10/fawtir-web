@@ -10,6 +10,7 @@ API does not provide yet, and what to add.
 | Documents (the archive) | [DOCUMENTS.md](DOCUMENTS.md) |
 | Reports (the six report pages) | [REPORTS.md](REPORTS.md) |
 | Activity ("TDD & OTA" in Figma) | [ACTIVITY.md](ACTIVITY.md) |
+| Settings (Company profile) | [SETTINGS.md](SETTINGS.md) |
 
 Every gap is also a `// TODO(backend)` comment in the code, citing its row number here.
 

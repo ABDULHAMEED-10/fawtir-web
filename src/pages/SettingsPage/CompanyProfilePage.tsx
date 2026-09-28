@@ -1,21 +1,43 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Combobox, Input, Select, withRial, type SelectOption } from '../../components/ui'
 import { COMPANY } from '../../lib/settings'
 import { useApiRead } from '../../hooks/useApiRead'
+import { useSession } from '../../lib/session/session'
 import {
   INDUSTRIAL_CLASSIFICATION_PATH,
   readIndustrialClassification,
   saveIndustrialClassification,
 } from '../../api/company/industrialClassification'
+import {
+  BRANDING_PATH,
+  COMPANY_LOGO_URL,
+  loadBranding,
+  saveBranding,
+  uploadLogo,
+  removeLogo,
+} from '../../api/company/branding'
+import {
+  INVOICE_DEFAULTS_PATH,
+  loadInvoiceDefaults,
+  saveInvoiceDefaults,
+  type InvoiceDefaultsDto,
+} from '../../api/company/invoiceDefaults'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 import { nameOf } from '../../lib/codeLists/codeList'
-import companyLogo from '../../assets/dashboard/bahja-logo.svg'
 import infoIcon from '../../assets/settings/info.svg'
 import tickIcon from '../../assets/settings/check-white.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
+
+/** The screen's language values map onto `InvoiceDefaults.language` (V158's `AR`/`EN`/`AR_EN`). */
+const LANGUAGE_TO_API: Record<string, InvoiceDefaultsDto['language']> = {
+  both: 'AR_EN',
+  ar: 'AR',
+  en: 'EN',
+}
+const LANGUAGE_FROM_API: Record<string, string> = { AR_EN: 'both', AR: 'ar', EN: 'en' }
 
 /** The shape the form edits. Kept flat so a dirty-field diff is a plain key comparison. */
 type Profile = {
@@ -83,23 +105,71 @@ const omr = (value: number) =>
  */
 export function CompanyProfilePage() {
   const { t, i18n } = useTranslation()
+  const session = useSession()
   const reference = useReferenceData()
   const [form, setForm] = useState(INITIAL)
   const [saved, setSaved] = useState(false)
-  // The business activity is the one field here that is stored on the server; the rest of the
-  // page still edits its sample company. `null` = not set yet, `undefined` = not known (loading,
-  // or the read failed, in which case no warning is shown).
+  // The business activity, branding (logo + colour) and invoice defaults are the fields this
+  // screen actually stores; the identity fields below (name, address, contact...) still edit the
+  // sample company until Settings > Company profile's save path is wired for real, per the
+  // VERIFIED-tenant guard on PUT /company-profile (docs/backend-guides/SETTINGS.md row 1's
+  // sibling finding). `null` = not set yet, `undefined` = not known (loading, or the read failed,
+  // in which case no warning is shown).
   const activityRead = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
+  const brandingRead = useApiRead(BRANDING_PATH, loadBranding).read
+  const defaultsRead = useApiRead(INVOICE_DEFAULTS_PATH, loadInvoiceDefaults).read
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
+  const [storedBrandColour, setStoredBrandColour] = useState<string | undefined>(undefined)
+  // receiptMonochrome round-trips unchanged on save: the screen's own control for it
+  // (`receiptLogo`) isn't persisted yet (see the TODO(backend) beside it), so a colour-only save
+  // must not reset a value a reviewer or a prior save already set.
+  const [storedReceiptMonochrome, setStoredReceiptMonochrome] = useState(false)
+  const [storedDefaults, setStoredDefaults] = useState<InvoiceDefaultsDto | undefined>(undefined)
   const [saveFailed, setSaveFailed] = useState(false)
+  const [brandingSaveFailed, setBrandingSaveFailed] = useState(false)
+  const [defaultsSaveFailed, setDefaultsSaveFailed] = useState(false)
+  const [logoVersion, setLogoVersion] = useState(0)
+  const [logoBroken, setLogoBroken] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     if (activityRead.status !== 'ready') return
     setStoredActivity(activityRead.data.code)
     setForm((current) => ({ ...current, industrialClassification: activityRead.data.code ?? '' }))
   }, [activityRead])
+
+  useEffect(() => {
+    if (brandingRead.status !== 'ready') return
+    const colour = brandingRead.data.brandColour ?? INITIAL.brandColour
+    setStoredBrandColour(colour)
+    setStoredReceiptMonochrome(brandingRead.data.receiptMonochrome)
+    setForm((current) => ({ ...current, brandColour: colour }))
+  }, [brandingRead])
+
+  useEffect(() => {
+    if (defaultsRead.status !== 'ready') return
+    setStoredDefaults(defaultsRead.data)
+    setForm((current) => ({
+      ...current,
+      language: defaultsRead.data.language ? LANGUAGE_FROM_API[defaultsRead.data.language] : current.language,
+      currency: defaultsRead.data.currency ?? current.currency,
+      paymentTerms: defaultsRead.data.paymentTerms ?? current.paymentTerms,
+      footerNote: defaultsRead.data.footerNote ?? '',
+    }))
+  }, [defaultsRead])
+
   const baseline = useMemo<Profile>(
-    () => ({ ...INITIAL, industrialClassification: storedActivity ?? '' }),
-    [storedActivity],
+    () => ({
+      ...INITIAL,
+      industrialClassification: storedActivity ?? '',
+      brandColour: storedBrandColour ?? INITIAL.brandColour,
+      language: storedDefaults?.language ? LANGUAGE_FROM_API[storedDefaults.language] : INITIAL.language,
+      currency: storedDefaults?.currency ?? INITIAL.currency,
+      paymentTerms: storedDefaults?.paymentTerms ?? INITIAL.paymentTerms,
+      footerNote: storedDefaults?.footerNote ?? '',
+    }),
+    [storedActivity, storedBrandColour, storedDefaults],
   )
 
   // Searched by activity name; the code is the hint so a known code finds it too.
@@ -308,17 +378,49 @@ export function CompanyProfilePage() {
             title={t('companyProfile.yourLogo')}
             note={t('companyProfile.yourLogoNote')}
             action={
-              <button
-                type="button"
-                className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-              >
-                {t('companyProfile.removeIt')}
-              </button>
+              logoBroken ? null : (
+                <button
+                  type="button"
+                  disabled={logoBusy}
+                  onClick={async () => {
+                    setLogoBusy(true)
+                    setBrandingSaveFailed(false)
+                    try {
+                      await removeLogo()
+                      setLogoBroken(true)
+                      setLogoVersion((version) => version + 1)
+                    } catch {
+                      setBrandingSaveFailed(true)
+                    } finally {
+                      setLogoBusy(false)
+                    }
+                  }}
+                  className="text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800 disabled:opacity-40"
+                >
+                  {t('companyProfile.removeIt')}
+                </button>
+              )
             }
           >
             <div className="flex flex-wrap gap-5">
-              <div className="flex w-[180px] shrink-0 flex-col items-center gap-2 rounded-sm border border-dashed border-border-default p-4 text-center">
-                <img src={companyLogo} alt="" className="size-14" />
+              <button
+                type="button"
+                disabled={logoBusy}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex w-[180px] shrink-0 flex-col items-center gap-2 rounded-sm border border-dashed border-border-default p-4 text-center transition-colors hover:bg-primary-25 disabled:opacity-40"
+              >
+                {logoBroken ? (
+                  <span className="flex size-14 items-center justify-center rounded-sm bg-primary-100 text-lg font-semibold text-primary-800">
+                    {(session?.tenantName ?? '').trim().charAt(0).toUpperCase() || '?'}
+                  </span>
+                ) : (
+                  <img
+                    src={`${COMPANY_LOGO_URL}?v=${logoVersion}`}
+                    alt=""
+                    className="size-14 object-contain"
+                    onError={() => setLogoBroken(true)}
+                  />
+                )}
                 <p className="text-sm font-semibold text-primary-700">
                   {t('companyProfile.replaceTheLogo')}
                 </p>
@@ -327,7 +429,37 @@ export function CompanyProfilePage() {
                   <br />
                   {t('companyProfile.logoSize')}
                 </p>
-              </div>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/svg+xml"
+                className="hidden"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0] ?? null
+                  event.target.value = ''
+                  if (!file) return
+                  setBrandingSaveFailed(false)
+                  if (!['image/png', 'image/svg+xml'].includes(file.type)) {
+                    setBrandingSaveFailed(true)
+                    return
+                  }
+                  if (file.size > 2 * 1024 * 1024) {
+                    setBrandingSaveFailed(true)
+                    return
+                  }
+                  setLogoBusy(true)
+                  try {
+                    await uploadLogo(file)
+                    setLogoBroken(false)
+                    setLogoVersion((version) => version + 1)
+                  } catch {
+                    setBrandingSaveFailed(true)
+                  } finally {
+                    setLogoBusy(false)
+                  }
+                }}
+              />
 
               <div className="min-w-[280px] flex-1">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -335,6 +467,10 @@ export function CompanyProfilePage() {
                     label={t('companyProfile.onAReceipt')}
                     hint={t('companyProfile.onAReceiptNote')}
                   >
+                    {/* TODO(backend): docs/backend-guides/SETTINGS.md row 1 — the API's
+                        receiptMonochrome is a colour toggle on a logo it always draws; it has no
+                        way to represent "leave it off receipts" (this control's `none`), so this
+                        choice is not persisted yet. */}
                     <Select
                       ariaLabel={t('companyProfile.onAReceipt')}
                       value={form.receiptLogo}
@@ -372,6 +508,12 @@ export function CompanyProfilePage() {
                     </span>
                   </Field>
                 </div>
+
+                {brandingSaveFailed ? (
+                  <p role="alert" className="mt-3 text-xs font-medium text-danger-700">
+                    {t('companyProfile.saveFailed')}
+                  </p>
+                ) : null}
 
                 <p className="mt-3 flex items-start gap-2 text-xs font-medium leading-[1.6] text-text-quaternary">
                   <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
@@ -430,6 +572,11 @@ export function CompanyProfilePage() {
                   className="w-full resize-none rounded-sm border border-border-default bg-white px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
                 />
               </Field>
+              {defaultsSaveFailed ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {t('companyProfile.saveFailed')}
+                </p>
+              ) : null}
             </div>
           </Panel>
         </div>
@@ -454,7 +601,18 @@ export function CompanyProfilePage() {
               <div className="bg-white p-3">
                 <div className="flex items-start justify-between gap-3">
                   <span className="flex items-start gap-2">
-                    <img src={companyLogo} alt="" className="size-8 shrink-0" />
+                    {logoBroken ? (
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-primary-100 text-xs font-semibold text-primary-800">
+                        {(session?.tenantName ?? '').trim().charAt(0).toUpperCase() || '?'}
+                      </span>
+                    ) : (
+                      <img
+                        src={`${COMPANY_LOGO_URL}?v=${logoVersion}`}
+                        alt=""
+                        className="size-8 shrink-0 object-contain"
+                        onError={() => setLogoBroken(true)}
+                      />
+                    )}
                     <span
                       className="text-[13px] font-semibold leading-[1.25]"
                       style={{ color: form.brandColour }}
@@ -623,12 +781,42 @@ export function CompanyProfilePage() {
             disabled={dirty.length === 0}
             onClick={async () => {
               setSaveFailed(false)
+              setBrandingSaveFailed(false)
+              setDefaultsSaveFailed(false)
               if (form.industrialClassification !== baseline.industrialClassification) {
                 try {
                   const stored = await saveIndustrialClassification(form.industrialClassification)
                   setStoredActivity(stored.code)
                 } catch {
                   setSaveFailed(true)
+                  return
+                }
+              }
+              if (form.brandColour !== baseline.brandColour) {
+                try {
+                  const stored = await saveBranding(form.brandColour, storedReceiptMonochrome)
+                  setStoredBrandColour(stored.brandColour ?? INITIAL.brandColour)
+                } catch {
+                  setBrandingSaveFailed(true)
+                  return
+                }
+              }
+              const defaultsDirty =
+                form.language !== baseline.language ||
+                form.currency !== baseline.currency ||
+                form.paymentTerms !== baseline.paymentTerms ||
+                form.footerNote !== baseline.footerNote
+              if (defaultsDirty) {
+                try {
+                  const stored = await saveInvoiceDefaults({
+                    language: LANGUAGE_TO_API[form.language] ?? null,
+                    currency: form.currency || null,
+                    paymentTerms: form.paymentTerms || null,
+                    footerNote: form.footerNote || null,
+                  })
+                  setStoredDefaults(stored)
+                } catch {
+                  setDefaultsSaveFailed(true)
                   return
                 }
               }
