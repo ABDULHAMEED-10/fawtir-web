@@ -582,3 +582,17 @@ Estimate: about a day, most of it loading and checking the list.
 | Z.12 | Consumer lines | a consumer invoice prints no HS code, so the check uses the catalogue product's stored HS code when the line came from a product; a typed consumer line with no product is not checked |
 | Z.13 | The warning shape | in the preview response, per line: `{ line, code, severity: "warning", hsCode, effectiveFrom, message }`. The screen translates by `code` with `hsCode` and `effectiveFrom` (English and Arabic); `message` is a fallback only. Nothing is blocked |
 | Z.14 | The confirmation record | stored against the invoice: user, time, and per line the warning code with the line's HS code, category and reason as confirmed. A change to any of those after confirming voids that line's confirmation and it must be given again |
+
+**Phase 1 amended (owner, 2026-09-28): where the food check runs.** A simplified (consumer)
+invoice carries no classification, but the catalogue product still has its HS code, so for B2C the
+check belongs at product setup, not at the sale. The catalogue check therefore moves **into phase
+1**, for the food list only.
+
+| #    | Path | Where the check happens |
+| ---- | --- | --- |
+| Z.15 | POS and catalogue | **At product create and edit**: HS code against the food list in force that day. A product marked Zero-rated with `VATZR-OM-01` whose HS code is not listed is refused; a listed product set to Standard is warned. Every sale of the product then inherits its rate and is not checked again. When a new list takes effect (e.g. 2026-10-01), re-check the stored products against it and flag the ones whose rate no longer matches, since a product validated in September can be wrong in October |
+| Z.16 | B2B and B2G manual invoices | At draft preview and again at issue, per Z.9 to Z.14: the line carries its HS code |
+| Z.17 | B2C manual invoice, typed line | **No check, accepted.** A typed consumer line has no HS code and no product to match. Manual B2C invoices are rare (shops sell through the till), so the exposure is small. Matching the description against the annex's Arabic and English names was considered and rejected: fuzzy food-name matching gives both false warnings and missed ones |
+
+Z.12 (a consumer line filled from a catalogue product uses the product's HS code) is superseded by
+Z.15: the product was checked when it was saved, so the sale needs no check.
