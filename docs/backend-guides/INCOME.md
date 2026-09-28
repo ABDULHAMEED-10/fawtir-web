@@ -531,3 +531,38 @@ owner-approved exception (handbook 3.1).
 | I.8 | Duplicate upload warning | hash the file; `duplicateOf: { batchId, uploadedAt, uploadedBy }` when the same hash was uploaded before. Keep the original file with who uploaded it and when |
 | I.9 | Consumer files create the walk-in customer from a name and optional contact; refuse without `customer.manage` (the dialog already hides the upload and names the permission). Blank unit: EA for goods, C62 for services. Blank branch: head office. Only OMR. A reason on every non-standard line: VATZR-OM / VATEX-OM codes, free text for reverse charge, export and outside scope. Store the Goods/Service flag on the draft line | server-side rules of the check |
 | I.10 | "See the drafts" opens the Drafts tab; filtering to this batch's drafts needs a list filter | optional `importBatchId` filter on `GET /v1/invoices`; a notification when a background import finishes |
+
+## Update 2026-09-28 (zero-rating check against the item)
+
+Today nothing compares a line's HS code with its VAT category. A goods line can carry an HS code
+for an ordinary 5% product and still be sent as Zero-rated with a `VATZR-OM` reason; only the
+consistency rules are enforced (Z needs 0% and a VATZR code, E a VATEX code, never mixed). The
+owner approved the following on 2026-09-28. **Priority: after live OTA submission.**
+
+**The split.** Reasons with a published HS list can be checked against the item:
+`VATZR-OM-01` (food), `VATZR-OM-02` (medicines and medical equipment), `VATZR-OM-03` (investment
+gold, silver, platinum). Export and transport reasons depend on the sale, not the item, and are
+never checked against the HS code.
+
+**Manual invoice creation: warn, do not block.** The user types the line, HS code and category
+themselves, so this is where mistakes happen. The one hard stop is an export reason on a customer
+whose country is Oman: that is a fact, not a judgement.
+
+**Catalogue (and POS, which sells from it): a mandatory check when the product is saved.** The
+product carries its HS code and VAT category, validated once when it is created or edited, where
+the user has time to get it right. Lines filled from a product then need no warning, at the till
+or in the composer.
+
+| #   | What the screen needs | Backend |
+| --- | --- | --- |
+| Z.1 | The lists, each with its effective dates | a table of eligible HS codes per reason (`VATZR-OM-01`, `-02`, `-03`), every entry with `effectiveFrom` / `effectiveTo`. Owner's note: the food list grows from 488 to 807 codes effective 1 October; the figures and date are to be confirmed against the published decision when loading it |
+| Z.2 | Judge a line by the **invoice date**, never today's | the check reads the list in force on the invoice's issue date (the draft's intended date while a draft), so a September invoice is judged against the September list |
+| Z.3 | Line warnings in the composer (manual invoices, and the invoice import's preview) | the draft preview returns per-line warnings, not refusals: `ZERO_RATED_HS_NOT_LISTED` (Z with reason 01/02/03, HS code not on that reason's list), `LISTED_ITEM_CHARGED_STANDARD` (HS code on a zero-rated list, line at 5%). Each names the line, the reason and the list's date. Consumer lines carry no HS code and get no item check |
+| Z.4 | The one hard stop on manual invoices | refuse an export zero-rating reason (e.g. `VATZR-OM-09`, and category G) when the customer's country is `OM`: `EXPORT_REASON_DOMESTIC_CUSTOMER` |
+| Z.5 | Confirmation before issuing, and who confirmed | issue refuses while unconfirmed warnings remain (`ZERO_RATING_UNCONFIRMED`) and accepts `{ confirmedWarnings: [codes per line] }`; store the confirming user and time on the invoice for audit, and show it in the invoice's history |
+| Z.6 | Check again at issue | re-run Z.2 to Z.4 when the draft is issued, against the issue date: a draft can sit for weeks and the list can change under it. A warning the user confirmed earlier but that no longer applies is dropped; a new one needs a new confirmation |
+| Z.7 | The catalogue's mandatory check | on product create and edit: a product with reason 01/02/03 whose HS code is not on that list (in force today) is refused (`PRODUCT_ZERO_RATING_HS_MISMATCH`); a product may not carry an export or transport reason as its default, since those belong to the sale. Lines filled from a product skip Z.3 unless the user changed the category or HS code on the line |
+
+Frontend (approved without a Figma frame, existing components only, no other screen touched; see
+the handbook's exceptions): the warning under the affected line, and a confirmation step in the
+issue dialog listing the lines. Not built yet.
