@@ -596,3 +596,8 @@ check belongs at product setup, not at the sale. The catalogue check therefore m
 
 Z.12 (a consumer line filled from a catalogue product uses the product's HS code) is superseded by
 Z.15: the product was checked when it was saved, so the sale needs no check.
+
+**Phase 1 amended again (owner, 2026-09-28): the catalogue and POS check is deferred.** Catalogue
+and POS are not being worked on now, so **Z.15 is not part of phase 1**; it stays here as the plan
+for when that work starts. Phase 1 is B2B and B2G manual invoices only (Z.8 to Z.11, Z.13, Z.14,
+Z.16). B2C invoices, whether from a product or typed (Z.12, Z.17), get no check for now.
