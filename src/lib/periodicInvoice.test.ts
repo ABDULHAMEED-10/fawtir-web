@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { blankPeriodicForm, periodicProblems, templateOfForm } from './periodicInvoice'
+import {
+  blankPeriodicForm,
+  periodicProblems,
+  templateOfForm,
+  type PeriodicLine,
+} from './periodicInvoice'
 
 const line = {
   id: '1',
@@ -74,7 +79,7 @@ describe('a tax category per line, on a periodic template', () => {
   })
 
   it('asks for the reason on the zero-rated line alone', () => {
-    const check = (lines: (typeof line)[]) =>
+    const check = (lines: PeriodicLine[]) =>
       periodicProblems(form('S5'), '2026-09-27', false, lines.length, lines).lines
     expect(check([{ ...line, taxCode: 'Z0' }, service])).toBe(
       'periodicInvoice.error.reasonRequired',
