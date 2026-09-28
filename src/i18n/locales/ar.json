@@ -9890,7 +9890,9 @@
     "industrialClassificationSearch": "ابحث باسم النشاط",
     "industrialClassificationNone": "لا يوجد نشاط مطابق",
     "industrialClassificationUnset": "لم يُحدَّد بعد. لا يمكن إنشاء فواتير الشركات والجهات الحكومية حتى يُحدَّد النشاط التجاري. فواتير المستهلكين غير متأثرة.",
-    "industrialClassificationFailed": "لم يُحفظ النشاط التجاري. تحقق من الرمز وحاول مرة أخرى."
+    "industrialClassificationFailed": "لم يُحفظ النشاط التجاري. تحقق من الرمز وحاول مرة أخرى.",
+    "saveFailed": "لم يُحفظ ذلك. تحقق من اتصالك وحاول مرة أخرى.",
+    "identityLockedNote": "لا يمكن للشركات الموثّقة تعديل هذه التفاصيل هنا حاليًا. تواصل مع الدعم إذا احتجت إلى تصحيح شيء."
   },
   "branches": {
     "title": "الفروع",

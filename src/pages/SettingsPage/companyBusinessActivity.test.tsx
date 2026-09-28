@@ -18,6 +18,9 @@ const ADMIN: Entitlements = {
 }
 
 const PATH = '/api/v1/company-profile/industrial-classification'
+const BRANDING_PATH = '/api/v1/company-profile/branding'
+const INVOICE_DEFAULTS_PATH = '/api/v1/company-profile/invoice-defaults'
+const PROFILE_PATH = '/api/v1/company-profile'
 
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -36,6 +39,37 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
     if (url === '/api/v1/reference-data') return json(200, SEEDED_REFERENCE)
+    if (url === BRANDING_PATH && (init?.method ?? 'GET') === 'GET') {
+      return json(200, { logo: null, brandColour: null, receiptMonochrome: false })
+    }
+    if (url === INVOICE_DEFAULTS_PATH && (init?.method ?? 'GET') === 'GET') {
+      return json(200, { language: null, currency: null, paymentTerms: null, footerNote: null })
+    }
+    if (url === PROFILE_PATH && (init?.method ?? 'GET') === 'GET') {
+      return json(200, {
+        tenantId: 't-1',
+        tenantCode: 'T1',
+        tenantName: 'Test Co',
+        legalName: 'Test Co LLC',
+        legalNameAr: null,
+        tradingName: null,
+        taxNumber: 'OM1100000001',
+        commercialRegistrationNumber: '1234567',
+        country: 'OM',
+        registeredAddress: 'Muscat',
+        registeredAddressLine2: null,
+        registeredAddressLine3: null,
+        registeredCity: 'Muscat',
+        registeredPostalCode: null,
+        registeredCountrySubdivision: null,
+        registeredPoBox: null,
+        contactPersonName: null,
+        contactPhone: null,
+        contactEmail: null,
+        profileRevision: 1,
+        verificationStatus: 'PENDING_VERIFICATION',
+      })
+    }
     if (url === PATH && (init?.method ?? 'GET') === 'GET') return json(200, { code: stored })
     if (url === PATH && init?.method === 'PUT') {
       const code = JSON.parse(init.body as string).code as string
