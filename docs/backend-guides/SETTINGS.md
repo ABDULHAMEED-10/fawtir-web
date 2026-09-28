@@ -1,6 +1,6 @@
 # Settings: backend guide
 
-**For:** the backend team. **Covers:** Settings › Company profile. **Last updated:** 28 September 2026.
+**For:** the backend team. **Covers:** Settings › Company profile. **Last updated:** 28 September 2026 (evening).
 
 This is the single guide for this area. It lists every place where a screen draws something the
 API does not provide yet, and what to add.
@@ -23,18 +23,21 @@ API does not provide yet, and what to add.
 
 ---
 
-## 1. Company profile (`GET/PUT /v1/company-profile/branding`, `/branding/logo`, `/invoice-defaults`, `/industrial-classification`)
+## 1. Company profile (`GET/PUT /v1/company-profile`, `/branding`, `/branding/logo`, `/invoice-defaults`, `/industrial-classification`)
 
-Business activity, branding (logo, brand colour) and invoice defaults (language, currency, payment
-terms, footer note) are wired to these routes as of 2026-09-28. The identity fields (registered
-name, Arabic name, trading name, commercial registration, address, contact) still edit a sample
-company: `PUT /company-profile` throws once `companyVerificationStatus == VERIFIED`
-("Verified company profiles require an approved amendment workflow", which does not exist), so
-wiring a plain Save button for them would work in a demo and break for every real, live customer.
-Wiring those needs a product/compliance decision first (raise the "should editing re-trigger
-reverification" question), not a screen change — tracked in the workspace, not repeated here since
-it names no screen gap the API is missing.
+Business activity, branding (logo, brand colour), invoice defaults (language, currency, payment
+terms, footer note) and the identity fields (registered name, Arabic name, trading name, commercial
+registration, address, contact) are all wired as of 2026-09-28. **Decided by Zain, 2026-09-28**: the
+identity fields are editable and saveable while `verificationStatus` is `PENDING_VERIFICATION` or
+`REJECTED`, and read-only once `VERIFIED` — `PUT /company-profile` genuinely refuses any write once
+verified ("Verified company profiles require an approved amendment workflow", which does not
+exist), so the screen matches that rather than offering a Save that always fails for a live
+customer. Whether a verified company should ever be able to amend its identity (and whether that
+should re-trigger reverification) is a separate product/compliance question, not raised here since
+today's behavior is not a bug — it matches the API exactly.
 
 | # | The design shows | Ask |
 |---|---|---|
 | 1.1 | "On a receipt" (135:37013): "Use a plain black version" / "Leave it off receipts" | `CompanyBranding.receiptMonochrome` is a colour toggle on a logo the backend always draws; it cannot represent "leave it off receipts" (the second option). Either a third state (`omit`) on the same field, or a separate `showLogoOnReceipt` boolean alongside it. The screen keeps this control local-only (not saved) until then |
+| 1.2 | "Website" input under "Where you are" | `/company-profile` (`CompanyProfileResult`/`UpdateCompanyProfileRequest`) has no website field at all. The screen keeps it local-only (not saved) until one exists |
+| 1.3 | "VAT registered since" (a date) beside the locked VAT number | No such field on `/company-profile` or anywhere else in the company API. Local-only, pre-dates 2026-09-28's wiring |

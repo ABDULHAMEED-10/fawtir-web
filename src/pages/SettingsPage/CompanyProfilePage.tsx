@@ -25,6 +25,12 @@ import {
   saveInvoiceDefaults,
   type InvoiceDefaultsDto,
 } from '../../api/company/invoiceDefaults'
+import {
+  COMPANY_PROFILE_PATH,
+  loadCompanyProfile,
+  saveCompanyProfile,
+  type CompanyProfileDto,
+} from '../../api/company/companyProfile'
 import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
 import { nameOf } from '../../lib/codeLists/codeList'
 import infoIcon from '../../assets/settings/info.svg'
@@ -38,6 +44,10 @@ const LANGUAGE_TO_API: Record<string, InvoiceDefaultsDto['language']> = {
   en: 'EN',
 }
 const LANGUAGE_FROM_API: Record<string, string> = { AR_EN: 'both', AR: 'ar', EN: 'en' }
+
+/** The screen's country options are names; `/company-profile` stores an ISO-3166 alpha-2 code. */
+const COUNTRY_TO_API: Record<string, string> = { Oman: 'OM', 'United Arab Emirates': 'AE' }
+const COUNTRY_FROM_API: Record<string, string> = { OM: 'Oman', AE: 'United Arab Emirates' }
 
 /** The shape the form edits. Kept flat so a dirty-field diff is a plain key comparison. */
 type Profile = {
@@ -109,16 +119,19 @@ export function CompanyProfilePage() {
   const reference = useReferenceData()
   const [form, setForm] = useState(INITIAL)
   const [saved, setSaved] = useState(false)
-  // The business activity, branding (logo + colour) and invoice defaults are the fields this
-  // screen actually stores; the identity fields below (name, address, contact...) still edit the
-  // sample company until Settings > Company profile's save path is wired for real, per the
-  // VERIFIED-tenant guard on PUT /company-profile (docs/backend-guides/SETTINGS.md row 1's
-  // sibling finding). `null` = not set yet, `undefined` = not known (loading, or the read failed,
-  // in which case no warning is shown).
+  // `null` = not set yet, `undefined` = not known (loading, or the read failed, in which case no
+  // warning is shown).
   const activityRead = useApiRead(INDUSTRIAL_CLASSIFICATION_PATH, readIndustrialClassification).read
   const brandingRead = useApiRead(BRANDING_PATH, loadBranding).read
   const defaultsRead = useApiRead(INVOICE_DEFAULTS_PATH, loadInvoiceDefaults).read
+  const profileRead = useApiRead(COMPANY_PROFILE_PATH, loadCompanyProfile).read
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
+  const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
+  const [profileSaveFailed, setProfileSaveFailed] = useState(false)
+  // Once VERIFIED, PUT /company-profile refuses outright ("requires an approved amendment
+  // workflow", which does not exist) — the identity fields below go read-only rather than offer a
+  // save that always fails (Zain, 2026-09-28: wire what's safe, read-only once verified).
+  const verified = storedProfile?.verificationStatus === 'VERIFIED'
   const [storedBrandColour, setStoredBrandColour] = useState<string | undefined>(undefined)
   // receiptMonochrome round-trips unchanged on save: the screen's own control for it
   // (`receiptLogo`) isn't persisted yet (see the TODO(backend) beside it), so a colour-only save
@@ -159,6 +172,25 @@ export function CompanyProfilePage() {
     }))
   }, [defaultsRead])
 
+  useEffect(() => {
+    if (profileRead.status !== 'ready') return
+    setStoredProfile(profileRead.data)
+    const data = profileRead.data
+    setForm((current) => ({
+      ...current,
+      registeredName: data.legalName,
+      arabicName: data.legalNameAr ?? '',
+      tradingAs: data.tradingName ?? '',
+      commercialRegistration: data.commercialRegistrationNumber,
+      street: data.registeredAddress,
+      town: data.registeredCity ?? '',
+      postalCode: data.registeredPostalCode ?? '',
+      country: COUNTRY_FROM_API[data.country] ?? current.country,
+      phone: data.contactPhone ?? '',
+      email: data.contactEmail ?? '',
+    }))
+  }, [profileRead])
+
   const baseline = useMemo<Profile>(
     () => ({
       ...INITIAL,
@@ -168,8 +200,22 @@ export function CompanyProfilePage() {
       currency: storedDefaults?.currency ?? INITIAL.currency,
       paymentTerms: storedDefaults?.paymentTerms ?? INITIAL.paymentTerms,
       footerNote: storedDefaults?.footerNote ?? '',
+      ...(storedProfile
+        ? {
+            registeredName: storedProfile.legalName,
+            arabicName: storedProfile.legalNameAr ?? '',
+            tradingAs: storedProfile.tradingName ?? '',
+            commercialRegistration: storedProfile.commercialRegistrationNumber,
+            street: storedProfile.registeredAddress,
+            town: storedProfile.registeredCity ?? '',
+            postalCode: storedProfile.registeredPostalCode ?? '',
+            country: COUNTRY_FROM_API[storedProfile.country] ?? INITIAL.country,
+            phone: storedProfile.contactPhone ?? '',
+            email: storedProfile.contactEmail ?? '',
+          }
+        : {}),
     }),
-    [storedActivity, storedBrandColour, storedDefaults],
+    [storedActivity, storedBrandColour, storedDefaults, storedProfile],
   )
 
   // Searched by activity name; the code is the hint so a known code finds it too.
@@ -224,7 +270,12 @@ export function CompanyProfilePage() {
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           {/* Who you are */}
-          <Panel title={t('companyProfile.whoYouAre')} note={t('companyProfile.whoYouAreNote')}>
+          <Panel
+            title={t('companyProfile.whoYouAre')}
+            note={
+              verified ? t('companyProfile.identityLockedNote') : t('companyProfile.whoYouAreNote')
+            }
+          >
             <div className="grid gap-4">
               <Input
                 bordered
@@ -232,6 +283,8 @@ export function CompanyProfilePage() {
                 requiredMark
                 value={form.registeredName}
                 onChange={(event) => set('registeredName', event.target.value)}
+                readOnly={verified}
+                readOnlyAppearance={verified}
               />
               <Input
                 bordered
@@ -240,6 +293,8 @@ export function CompanyProfilePage() {
                 dir="rtl"
                 value={form.arabicName}
                 onChange={(event) => set('arabicName', event.target.value)}
+                readOnly={verified}
+                readOnlyAppearance={verified}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
@@ -248,12 +303,16 @@ export function CompanyProfilePage() {
                   hint={t('companyProfile.optional')}
                   value={form.tradingAs}
                   onChange={(event) => set('tradingAs', event.target.value)}
+                  readOnly={verified}
+                  readOnlyAppearance={verified}
                 />
                 <Input
                   bordered
                   label={t('companyProfile.commercialRegistration')}
                   value={form.commercialRegistration}
                   onChange={(event) => set('commercialRegistration', event.target.value)}
+                  readOnly={verified}
+                  readOnlyAppearance={verified}
                 />
               </div>
               <Field
@@ -293,7 +352,7 @@ export function CompanyProfilePage() {
                     </span>
                   }
                   hint={t('companyProfile.lockedNote')}
-                  value={COMPANY.vatNumber}
+                  value={storedProfile?.taxNumber ?? COMPANY.vatNumber}
                   readOnly
                   readOnlyAppearance
                 />
@@ -314,14 +373,23 @@ export function CompanyProfilePage() {
           </Panel>
 
           {/* Where you are */}
-          <Panel title={t('companyProfile.whereYouAre')} note={t('companyProfile.whereYouAreNote')}>
+          <Panel
+            title={t('companyProfile.whereYouAre')}
+            note={
+              verified ? t('companyProfile.identityLockedNote') : t('companyProfile.whereYouAreNote')
+            }
+          >
             <div className="grid gap-4">
               <Field label={t('companyProfile.streetAddress')} required>
                 <textarea
                   value={form.street}
                   onChange={(event) => set('street', event.target.value)}
                   rows={2}
-                  className="w-full resize-none rounded-sm border border-border-default bg-white px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
+                  readOnly={verified}
+                  className={[
+                    'w-full resize-none rounded-sm border border-border-default px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors',
+                    verified ? 'bg-surface-background text-text-tertiary' : 'bg-white focus:border-border-brand',
+                  ].join(' ')}
                 />
               </Field>
               <div className="grid gap-4 sm:grid-cols-3">
@@ -331,18 +399,23 @@ export function CompanyProfilePage() {
                   requiredMark
                   value={form.town}
                   onChange={(event) => set('town', event.target.value)}
+                  readOnly={verified}
+                  readOnlyAppearance={verified}
                 />
                 <Input
                   bordered
                   label={t('companyProfile.postalCode')}
                   value={form.postalCode}
                   onChange={(event) => set('postalCode', event.target.value)}
+                  readOnly={verified}
+                  readOnlyAppearance={verified}
                 />
                 <Field label={t('companyProfile.country')} required>
                   <Select
                     ariaLabel={t('companyProfile.country')}
                     value={form.country}
                     onChange={(value) => set('country', value)}
+                    disabled={verified}
                     options={[
                       { value: 'Oman', label: 'Oman' },
                       { value: 'United Arab Emirates', label: 'United Arab Emirates' },
@@ -356,13 +429,19 @@ export function CompanyProfilePage() {
                   label={t('companyProfile.phone')}
                   value={form.phone}
                   onChange={(event) => set('phone', event.target.value)}
+                  readOnly={verified}
+                  readOnlyAppearance={verified}
                 />
                 <Input
                   bordered
                   label={t('companyProfile.emailOnInvoices')}
                   value={form.email}
                   onChange={(event) => set('email', event.target.value)}
+                  readOnly={verified}
+                  readOnlyAppearance={verified}
                 />
+                {/* TODO(backend): docs/backend-guides/SETTINGS.md row 2 — /company-profile has no
+                    website field at all; this stays local-only until one exists. */}
                 <Input
                   bordered
                   label={t('companyProfile.website')}
@@ -370,6 +449,11 @@ export function CompanyProfilePage() {
                   onChange={(event) => set('website', event.target.value)}
                 />
               </div>
+              {profileSaveFailed ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {t('companyProfile.saveFailed')}
+                </p>
+              ) : null}
             </div>
           </Panel>
 
@@ -783,6 +867,48 @@ export function CompanyProfilePage() {
               setSaveFailed(false)
               setBrandingSaveFailed(false)
               setDefaultsSaveFailed(false)
+              setProfileSaveFailed(false)
+              const identityDirty =
+                !verified &&
+                storedProfile &&
+                (form.registeredName !== baseline.registeredName ||
+                  form.arabicName !== baseline.arabicName ||
+                  form.tradingAs !== baseline.tradingAs ||
+                  form.commercialRegistration !== baseline.commercialRegistration ||
+                  form.street !== baseline.street ||
+                  form.town !== baseline.town ||
+                  form.postalCode !== baseline.postalCode ||
+                  form.country !== baseline.country ||
+                  form.phone !== baseline.phone ||
+                  form.email !== baseline.email)
+              if (identityDirty && storedProfile) {
+                try {
+                  const stored = await saveCompanyProfile({
+                    expectedRevision: storedProfile.profileRevision,
+                    tenantName: storedProfile.tenantName,
+                    legalName: form.registeredName,
+                    legalNameAr: form.arabicName || null,
+                    tradingName: form.tradingAs || null,
+                    taxNumber: storedProfile.taxNumber,
+                    commercialRegistrationNumber: form.commercialRegistration,
+                    country: COUNTRY_TO_API[form.country] ?? storedProfile.country,
+                    registeredAddress: form.street,
+                    registeredAddressLine2: storedProfile.registeredAddressLine2,
+                    registeredAddressLine3: storedProfile.registeredAddressLine3,
+                    registeredCity: form.town || null,
+                    registeredPostalCode: form.postalCode || null,
+                    registeredCountrySubdivision: storedProfile.registeredCountrySubdivision,
+                    registeredPoBox: storedProfile.registeredPoBox,
+                    contactPersonName: storedProfile.contactPersonName,
+                    contactPhone: form.phone || null,
+                    contactEmail: form.email || null,
+                  })
+                  setStoredProfile(stored)
+                } catch {
+                  setProfileSaveFailed(true)
+                  return
+                }
+              }
               if (form.industrialClassification !== baseline.industrialClassification) {
                 try {
                   const stored = await saveIndustrialClassification(form.industrialClassification)
