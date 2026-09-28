@@ -7,7 +7,7 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto } from '../api/invoices/list'
 import type { SelectOption } from '../components/ui/Select'
-import { PAYMENT_TERMS, itemTypeOfUnit } from './invoiceDraft'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON, PAYMENT_TERMS, itemTypeOfUnit } from './invoiceDraft'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
 import { netDaysFor } from './reference/referenceData'
@@ -567,6 +567,15 @@ export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday
       kind === 'CREDIT_NOTE' ? 'salesNote.error.creditAmounts' : 'salesNote.error.debitAmounts'
   if (kept.some((line) => line.description.trim() === ''))
     problems.descriptions = 'salesNote.error.description'
+  // A line added on the note picks its own category, so it needs its own no-VAT reason.
+  const reasonMissing = kept.some((line) => {
+    if (line.fromInvoice) return false
+    const category = line.taxCategory.en16931Category
+    return CODED_REASON.has(category)
+      ? !line.taxCategory.exemptionReasonCode
+      : NEEDS_EXEMPTION_REASON.has(category) && !(line.taxCategory.exemptionReason ?? '').trim()
+  })
+  if (reasonMissing && !problems.lines) problems.lines = 'salesNote.error.vatReason'
   const dates = issueProblems(
     { issueDate: form.issueDate, dueDate: kind === 'CREDIT_NOTE' ? form.issueDate : form.dueDate },
     today,

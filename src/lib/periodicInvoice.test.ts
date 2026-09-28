@@ -49,3 +49,38 @@ describe('the reason no VAT is charged, on a periodic template', () => {
     expect(problem(form('S5'))).toBeUndefined()
   })
 })
+
+describe('a tax category per line, on a periodic template', () => {
+  const service = {
+    ...line,
+    id: '2',
+    kind: 'service' as const,
+    description: 'Delivery',
+    vatRate: '5',
+  }
+
+  it('sends each line at its own category and reason, the rest at the default', () => {
+    const template = templateOfForm(
+      form('S5'),
+      [{ ...line, taxCode: 'Z0', exemptionReasonCode: 'VATZR-OM-01' }, service],
+      true,
+      null,
+    )
+    expect(template.lines[0].taxCategory).toMatchObject({
+      code: 'Z0',
+      exemptionReasonCode: 'VATZR-OM-01',
+    })
+    expect(template.lines[1].taxCategory).toMatchObject({ code: 'S5', exemptionReasonCode: null })
+  })
+
+  it('asks for the reason on the zero-rated line alone', () => {
+    const check = (lines: (typeof line)[]) =>
+      periodicProblems(form('S5'), '2026-09-27', false, lines.length, lines).lines
+    expect(check([{ ...line, taxCode: 'Z0' }, service])).toBe(
+      'periodicInvoice.error.reasonRequired',
+    )
+    expect(check([{ ...line, taxCode: 'Z0', exemptionReasonCode: 'VATZR-OM-01' }, service])).toBe(
+      undefined,
+    )
+  })
+})

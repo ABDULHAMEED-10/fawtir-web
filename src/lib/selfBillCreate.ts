@@ -42,11 +42,39 @@ export type ComposerLine = LineItem & {
   hsCode?: string
   /** The CL-12-OM service type of a service line (IBR-155-OM), from `lib/codeLists/serviceTypes`. */
   serviceType?: string
+  /** The line's own tax category; unset, it takes the form's default (`SelfBillForm.taxCategory`). */
+  taxCode?: string
+  /** IBT-121 on a zero-rated (VATZR-OM-nn) or exempt (VATEX-OM-nn) line. */
+  exemptionReasonCode?: string
+  /** The written reason of a reverse-charge, export or out-of-scope line (no code list). */
+  exemptionReason?: string
 }
 
-export function blankComposerLine(id: string, vatRate = '5'): ComposerLine {
+/** The category a line is charged at: its own, else the form's default. */
+export function lineTaxCode(line: ComposerLine, defaultCode: string): string {
+  return line.taxCode || defaultCode
+}
+
+/**
+ * A line's no-VAT reason. A line with its own category keeps its own reason; a line still on the
+ * default reads the form's (drafts saved before the category moved onto the line).
+ */
+function lineReason(
+  line: ComposerLine,
+  form: { exemptionReasonCode: string; exemptionReason: string },
+) {
+  return line.taxCode
+    ? { code: line.exemptionReasonCode ?? '', text: line.exemptionReason ?? '' }
+    : {
+        code: line.exemptionReasonCode || form.exemptionReasonCode,
+        text: line.exemptionReason || form.exemptionReason,
+      }
+}
+
+export function blankComposerLine(id: string, vatRate = '5', taxCode?: string): ComposerLine {
   return {
     id,
+    ...(taxCode ? { taxCode } : {}),
     kind: 'goods',
     description: '',
     unitPrice: '0.000',
@@ -79,11 +107,13 @@ export type SelfBillForm = {
   paymentDue: string
   branchId: string | null
   currency: string
-  /** The document's tax category; every line takes its rate (the composer rules). */
+  /**
+   * The header's "Default tax category": new lines take it, and changing it moves only the lines
+   * still on the old default. Each line may carry its own (handbook 3.2, invoice-form rules).
+   */
   taxCategory: string
-  /** The reason code (IBT-121) of a zero-rated or exempt document: every line carries it. */
+  /** Read back from drafts saved before the reason moved onto the line; new lines carry their own. */
   exemptionReasonCode: string
-  /** The written reason of a reverse-charge, export or out-of-scope document (no code list). */
   exemptionReason: string
   subject: string
   poReference: string
@@ -225,7 +255,6 @@ export function toSelfBilledDraftRequest(
   reference: ReferenceDataDto | null,
   termLabel: (code: string) => string = (code) => code,
 ): DraftRequest {
-  const tax = taxCategoryOf(reference, form.taxCategory)
   const terms: ReferenceDto | null = form.paymentTerms
     ? { code: form.paymentTerms, label: termLabel(form.paymentTerms) }
     : null
@@ -234,48 +263,50 @@ export function toSelfBilledDraftRequest(
     branchId: form.branchId ?? '',
     currency: form.currency,
     vatMode: 'EXCLUSIVE',
-    lines: form.lines.map((line, index) => ({
-      lineNumber: index + 1,
-      // Free text: the composer rules name no catalogue product.
-      productId: '',
-      productCode: '',
-      description: line.description.trim(),
-      unitCode: line.unit,
-      quantity: number(line.quantity),
-      unitPrice: number(
-        exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', tax.rate),
-      ),
-      discount: { type: line.discountType, value: number(line.discountValue) },
-      // A self-billed invoice is never simplified (IBR-149-OM), so every line is classified: a
-      // goods line by its HS code, a services line as services. The industrial classification is
-      // never sent; the backend copies the company's onto the line. A service type is passed on
-      // only when it is an official eight-digit code.
-      ...(line.kind === 'goods' && line.hsCode
-        ? { classification: { goodsOrService: 'G' as const, hsCode: line.hsCode } }
-        : line.kind === 'service'
-          ? {
-              classification: {
-                goodsOrService: 'S' as const,
-                ...(line.serviceType && /^\d{8}$/.test(line.serviceType)
-                  ? { serviceTypeCode: line.serviceType }
-                  : {}),
-              },
-            }
-          : {}),
-      taxCategory: {
-        code: tax.code,
-        en16931Category: tax.en16931Category,
-        rate: Number(tax.rate),
-        exemptionReason:
-          NEEDS_EXEMPTION_REASON.has(tax.en16931Category) &&
-          !CODED_REASON.has(tax.en16931Category)
-            ? text(form.exemptionReason)
-            : null,
-        exemptionReasonCode: CODED_REASON.has(tax.en16931Category)
-          ? form.exemptionReasonCode || null
-          : null,
-      },
-    })),
+    lines: form.lines.map((line, index) => {
+      const tax = taxCategoryOf(reference, lineTaxCode(line, form.taxCategory))
+      const reason = lineReason(line, form)
+      return {
+        lineNumber: index + 1,
+        // Free text: the composer rules name no catalogue product.
+        productId: '',
+        productCode: '',
+        description: line.description.trim(),
+        unitCode: line.unit,
+        quantity: number(line.quantity),
+        unitPrice: number(
+          exclVat ? line.unitPrice : toExclusivePrice(line.unitPrice || '0', tax.rate),
+        ),
+        discount: { type: line.discountType, value: number(line.discountValue) },
+        // A self-billed invoice is never simplified (IBR-149-OM), so every line is classified: a
+        // goods line by its HS code, a services line as services. The industrial classification is
+        // never sent; the backend copies the company's onto the line. A service type is passed on
+        // only when it is an official eight-digit code.
+        ...(line.kind === 'goods' && line.hsCode
+          ? { classification: { goodsOrService: 'G' as const, hsCode: line.hsCode } }
+          : line.kind === 'service'
+            ? {
+                classification: {
+                  goodsOrService: 'S' as const,
+                  ...(line.serviceType && /^\d{8}$/.test(line.serviceType)
+                    ? { serviceTypeCode: line.serviceType }
+                    : {}),
+                },
+              }
+            : {}),
+        taxCategory: {
+          code: tax.code,
+          en16931Category: tax.en16931Category,
+          rate: Number(tax.rate),
+          exemptionReason:
+            NEEDS_EXEMPTION_REASON.has(tax.en16931Category) &&
+            !CODED_REASON.has(tax.en16931Category)
+              ? text(reason.text)
+              : null,
+          exemptionReasonCode: CODED_REASON.has(tax.en16931Category) ? reason.code || null : null,
+        },
+      }
+    }),
     headerDiscount: { type: 'PERCENTAGE', value: 0 },
     details: {
       deliveryDate: form.supplyDate || null,
@@ -313,6 +344,9 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     unit: line.unitCode,
     discountType: line.discountType,
     discountValue: String(line.discountValue),
+    taxCode: line.taxCategoryCode,
+    exemptionReasonCode: line.exemptionReasonCode ?? '',
+    exemptionReason: line.exemptionReason ?? '',
     hsCode: line.classification?.hsCode ?? undefined,
     // 00000000 is CL-12-OM's "not applicable", filled by the backend: nothing was chosen.
     serviceType:
@@ -339,7 +373,7 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
 }
 
 /** Ordered as the page reads: the first problem is what the notice names. */
-export type SelfBillProblem = 'supplier' | 'branch' | 'lines' | 'reason'
+export type SelfBillProblem = 'supplier' | 'branch' | 'lines' | 'reason' | 'outsideScopeMix'
 
 export function problemsBeforeSave(
   form: SelfBillForm,
@@ -352,13 +386,20 @@ export function problemsBeforeSave(
     (line) => line.description.trim() !== '' && number(line.quantity) > 0,
   )
   if (usable.length === 0) problems.push('lines')
-  const category = taxCategoryOf(reference, form.taxCategory).en16931Category
-  if (
-    CODED_REASON.has(category)
-      ? !form.exemptionReasonCode
-      : NEEDS_EXEMPTION_REASON.has(category) && form.exemptionReason.trim() === ''
-  ) {
-    problems.push('reason')
+  const categories = form.lines.map(
+    (line) => taxCategoryOf(reference, lineTaxCode(line, form.taxCategory)).en16931Category,
+  )
+  const reasonMissing = form.lines.some((line, index) => {
+    const category = categories[index]
+    const reason = lineReason(line, form)
+    return CODED_REASON.has(category)
+      ? !reason.code
+      : NEEDS_EXEMPTION_REASON.has(category) && reason.text.trim() === ''
+  })
+  if (reasonMissing) problems.push('reason')
+  // EN 16931 BR-O-11 to BR-O-14: an out-of-scope line cannot share an invoice with taxed ones.
+  if (categories.includes('O') && categories.some((category) => category !== 'O')) {
+    problems.push('outsideScopeMix')
   }
   return problems
 }
