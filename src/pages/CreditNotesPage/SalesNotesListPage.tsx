@@ -404,11 +404,19 @@ function NotesList({ kind }: { kind: NoteKind }) {
                     +
                   </span>
                 ) : null}
-                <OmAmount
-                  size="lg"
-                  amount={figure ? money(figure.amount) : '…'}
-                  amountClassName={`text-[32px] font-semibold leading-[1.2] ${tone} tabular-nums`}
-                />
+                {figure || !(figures.read.status === 'failed' || summary) ? (
+                  <OmAmount
+                    size="lg"
+                    amount={figure ? money(figure.amount) : '…'}
+                    amountClassName={`text-[32px] font-semibold leading-[1.2] ${tone} tabular-nums`}
+                  />
+                ) : (
+                  // A figure that is missing, not loading, reads as words: a rial sign before "…"
+                  // looked like an amount still on its way (owner, 2026-09-29).
+                  <span className={`text-[32px] font-semibold leading-[1.2] ${tone}`}>
+                    {t('salesNote.detail.notAvailableYet')}
+                  </span>
+                )}
               </span>
               <p
                 className={[

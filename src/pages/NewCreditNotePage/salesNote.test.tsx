@@ -965,8 +965,16 @@ describe('the credit notes list figures and tabs (4.1, 4.2, 4.3)', () => {
           /^9 credit notes · .*118\.281 credited this quarter$/.test(element.textContent ?? ''),
       ),
     ).toBeTruthy()
-    // Refund due and Refunded: no refund data, so no figure rather than a false 0.
+    // Refund due and Refunded: no refund data, so no figure rather than a false 0, and read as
+    // words, never a rial sign before "…".
     expect(screen.getAllByText('Figures unavailable')).toHaveLength(2)
+    expect(screen.getAllByText('Not available yet')).toHaveLength(2)
+    for (const name of ['Refund due', 'Refunded']) {
+      const tile = screen.getByRole('heading', { name }).closest('article') as HTMLElement
+      expect(within(tile).getByText('Not available yet')).toBeTruthy()
+      expect(within(tile).queryByText('OMR')).toBeNull()
+      expect(within(tile).queryByText('…')).toBeNull()
+    }
     expect(within(screen.getByRole('tab', { name: /All/ })).getByText('17')).toBeTruthy()
     expect(within(screen.getByRole('tab', { name: /Drafts/ })).getByText('1')).toBeTruthy()
     expect(within(screen.getByRole('tab', { name: /To send/ })).getByText('2')).toBeTruthy()
@@ -1002,6 +1010,7 @@ describe('the credit notes list figures and tabs (4.1, 4.2, 4.3)', () => {
         : undefined
     renderAt('/income/credit-notes')
     expect((await screen.findAllByText('Figures unavailable')).length).toBe(4)
+    expect(screen.getAllByText('Not available yet')).toHaveLength(4)
     expect(screen.getByText(/Credit notes reduce what a customer owes/)).toBeTruthy()
   })
 })
@@ -1233,35 +1242,36 @@ describe("the note's reason detail (4.9)", () => {
   })
 })
 
-describe("the credit note detail's refund (4.19)", () => {
-  it('reads "Not available yet" in place of a derived refund, and counts the note as applied', async () => {
-    const issuedNote: InvoiceDetailDto = {
-      ...INVOICE,
-      id: NOTE_ID,
-      type: 'CREDIT_NOTE',
-      correctionOfInvoiceId: INVOICE_ID,
-      deliveryState: 'SENT_MANUALLY',
-      invoiceNumber: 'CRN-3',
-      details: {
-        ...INVOICE.details!,
-        correctionReasonCode: 'OTH',
-        correctionReasonDetail: 'goodwillDiscount',
-      },
-      lines: [line(1, 'Green beans', 1, 10)],
-      totals: {
-        subtotal: 10,
-        itemLevelDiscount: 0,
-        headerDiscount: 0,
-        totalDiscount: 0,
-        taxableAmount: 10,
-        vatAmount: 0.5,
-        totalAmount: 10.5,
-        payableRoundingAmount: 0,
-        outputScale: 3,
-      } as InvoiceDetailDto['totals'],
-    }
-    // The invoice was paid in full, so it is overpaid by the credit: that is not this note's refund.
-    receivable = { ...RECEIVABLE, creditedAmount: 10.5 }
+describe("the credit note detail's refund and applied figures (4.19)", () => {
+  // A 35.910 note, as in the owner's example: the invoice owed 28.590 when it was credited.
+  const issuedNote: InvoiceDetailDto = {
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'CREDIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    deliveryState: 'SENT_MANUALLY',
+    invoiceNumber: 'CRN-3',
+    details: {
+      ...INVOICE.details!,
+      correctionReasonCode: 'OTH',
+      correctionReasonDetail: 'goodwillDiscount',
+    },
+    lines: [line(1, 'Green beans', 1, 34.2)],
+    totals: {
+      subtotal: 34.2,
+      itemLevelDiscount: 0,
+      headerDiscount: 0,
+      totalDiscount: 0,
+      taxableAmount: 34.2,
+      vatAmount: 1.71,
+      totalAmount: 35.91,
+      payableRoundingAmount: 0,
+      outputScale: 3,
+    } as InvoiceDetailDto['totals'],
+  }
+
+  const openWith = async (original: InvoiceReceivableDto) => {
+    receivable = original
     override = (url) => {
       if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, issuedNote)
       if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
@@ -1285,8 +1295,49 @@ describe("the credit note detail's refund (4.19)", () => {
       </MemoryRouter>,
     )
     expect(await screen.findByRole('heading', { name: 'CRN-3' })).toBeTruthy()
-    await vi.waitFor(() => expect(screen.getAllByText('Not available yet')).toHaveLength(2))
-    expect(screen.queryByText(/Refund due to Sohar Port Logistics/)).toBeNull()
+  }
+
+  it("as the invoice's only credit note, applies what was owed and refunds the rest", async () => {
+    // 100.000 invoice, 71.410 paid, so 28.590 owed; this note is its only credit (35.910).
+    await openWith({
+      ...RECEIVABLE,
+      documentTotal: 100,
+      paidAmount: 71.41,
+      creditedAmount: 35.91,
+      outstandingAmount: 0,
+    })
+    await vi.waitFor(() =>
+      expect(screen.getByText(/Refund due to Sohar Port Logistics/)).toBeTruthy(),
+    )
+    expect(screen.getAllByText('28.590').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('7.320').length).toBeGreaterThan(0)
+    expect(screen.getByText('Settled by this credit')).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /Record refund/ }).length).toBe(2)
+    expect(screen.queryByText('Not available yet')).toBeNull()
     expect(screen.getAllByText('Goodwill discount').length).toBeGreaterThan(0)
+  }, 30_000)
+
+  it('as the only credit note on an invoice still owed, applies the whole note', async () => {
+    await openWith({
+      ...RECEIVABLE,
+      documentTotal: 100,
+      paidAmount: 0,
+      creditedAmount: 35.91,
+      outstandingAmount: 64.09,
+      paymentState: 'UNPAID',
+    })
+    // Until the invoice's receivable answers, both figures read "Not available yet".
+    await vi.waitFor(() => expect(screen.queryByText('Not available yet')).toBeNull())
+    expect(screen.getAllByText('35.910').length).toBeGreaterThan(2)
+    expect(screen.getByText('nothing to refund', { exact: false })).toBeTruthy()
+    expect(screen.queryByText(/Refund due to/)).toBeNull()
+    expect(screen.queryByText('Settled by this credit')).toBeNull()
+  }, 30_000)
+
+  it('with more than one credit note on the invoice, reads "Not available yet" for both', async () => {
+    await openWith({ ...RECEIVABLE, documentTotal: 100, paidAmount: 71.41, creditedAmount: 50 })
+    await vi.waitFor(() => expect(screen.getAllByText('Not available yet')).toHaveLength(3))
+    expect(screen.queryByText(/Refund due to/)).toBeNull()
+    expect(screen.queryByText('Settled by this credit')).toBeNull()
   }, 30_000)
 })
