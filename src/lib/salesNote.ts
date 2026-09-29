@@ -892,11 +892,15 @@ export type DebitPaymentCell =
 export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): DebitPaymentCell {
   const status = noteStatusOf('DEBIT_NOTE', row)
   if (status === 'draft' || status === 'cancelled') return null
+  // Read from the payment, not from `status`: an undelivered note's status is "to send", and that
+  // hid a note already paid (or late) behind "Due ... added to invoice balance". Delivery only
+  // decides the added-to-invoice hint below.
+  const payment = row.payment
   // The paid date, when the row carries it (INCOME.md 4.7); absent, the cell reads "Paid".
   // TODO(backend): the method (`lastPaymentMethodCode`) has no drawn place in the cell yet (4.7).
-  if (status === 'paid') return { kind: 'paid', date: row.payment?.lastPaymentDate ?? null }
+  if (payment?.state === 'PAID') return { kind: 'paid', date: payment.lastPaymentDate ?? null }
   if (!row.dueDate) return null
-  if (status === 'overdue') {
+  if (payment?.overdue) {
     return {
       kind: 'late',
       date: row.dueDate,

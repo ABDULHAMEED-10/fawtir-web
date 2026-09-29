@@ -889,4 +889,21 @@ describe('a paid debit note row (4.7)', () => {
     ).toEqual({ kind: 'paid', date: '2026-09-20' })
     expect(debitPaymentOf(row({}))).toEqual({ kind: 'paid', date: null })
   })
+
+  it('reads a paid or late note from its payment even before it is delivered', () => {
+    const undelivered = (payment: Partial<NonNullable<InvoiceRowDto['payment']>>) =>
+      ({ ...row(payment), deliveryState: 'NOT_SUBMITTED' }) as InvoiceRowDto
+    expect(debitPaymentOf(undelivered({ lastPaymentDate: '2026-09-29' }))).toEqual({
+      kind: 'paid',
+      date: '2026-09-29',
+    })
+    expect(
+      debitPaymentOf(
+        undelivered({ state: 'UNPAID', overdue: true, daysOverdue: 4, outstandingAmount: 10 }),
+      ),
+    ).toEqual({ kind: 'late', date: '2026-10-01', days: 4 })
+    expect(
+      debitPaymentOf(undelivered({ state: 'UNPAID', outstandingAmount: 10 }), '2026-09-29'),
+    ).toEqual({ kind: 'due', date: '2026-10-01', addedToInvoice: true, daysLeft: null })
+  })
 })
