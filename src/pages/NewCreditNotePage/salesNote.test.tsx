@@ -808,6 +808,7 @@ const DEBIT_SUMMARY = {
   paidTotal: 48.195,
   paidInvoices: 8,
   issuedLast30Days: { count: 2, total: 69.06 },
+  issuedThisQuarter: { count: 11, total: 66.57 },
 }
 
 describe('the debit notes list figures (4.1)', () => {
@@ -823,12 +824,30 @@ describe('the debit notes list figures (4.1)', () => {
       calls('GET', '/api/v1/authored-invoices?').some(([url]) => String(url).includes('size=200')),
     ).toBe(false)
     expect(screen.getByText('2 debit notes issued')).toBeTruthy()
+    // The designed subtitle, from the quarter the summary answers.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /^11 debit notes · .*66\.570 charged this quarter$/.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
     expect(screen.getByText('12.075')).toBeTruthy()
     expect(screen.getByText('48.195')).toBeTruthy()
     // One overdue note, due 13 Sep, read on 25 Sep: 12 days late.
     expect(screen.getByText('1 note · 12 days late')).toBeTruthy()
     expect(within(screen.getByRole('tab', { name: /All/ })).getByText('13')).toBeTruthy()
     expect(within(screen.getByRole('tab', { name: /Paid/ })).getByText('8')).toBeTruthy()
+  })
+
+  it('reads the list description in the subtitle when the summary has no quarter', async () => {
+    const { issuedThisQuarter: _, ...withoutQuarter } = DEBIT_SUMMARY
+    override = (url) =>
+      url.startsWith('/api/v1/authored-invoices/summary') ? json(200, withoutQuarter) : undefined
+    renderAt('/income/debit-notes')
+    expect(await screen.findByText('69.060')).toBeTruthy()
+    expect(screen.getByText(/Debit notes charge a customer more on an issued invoice/)).toBeTruthy()
+    expect(screen.queryByText(/charged this quarter/)).toBeNull()
   })
 
   it('says the figures are unavailable when the summary fails', async () => {
@@ -838,6 +857,7 @@ describe('the debit notes list figures (4.1)', () => {
         : undefined
     renderAt('/income/debit-notes')
     expect((await screen.findAllByText('Figures unavailable')).length).toBe(4)
+    expect(screen.getByText(/Debit notes charge a customer more on an issued invoice/)).toBeTruthy()
   })
 })
 

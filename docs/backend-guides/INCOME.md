@@ -116,7 +116,7 @@ productCode, description, unitCode, quantity, unitPrice, discount, taxCategory{�
 | 4.15 | A note is always started against an issued invoice: the frames draw no standalone credit or debit | none: `createNote(kind, invoiceId, …)` fits. `/income/credit-notes/new` without `?invoice=` asks for the invoice on the page first |
 | 4.16 | The composer prints the note number before it is issued ("Credit note number CRN-0087", "Debit note number DBN-0043") | the draft has no number until `POST /invoice-drafts/{id}/issue` answers it, so the field reads "Assigned when issued". A reserved next number on the draft (or a `GET` for the next in the sequence) would let the page print it as drawn |
 | 4.17 | The lists print a draft note's amount ("- <rial> 3.200" on the Draft row of both frames) | the list row carries `totals: null` for a draft, so the Credit / Debit amount cell of a draft reads "—". Please price drafts on the list row (the draft is already priced by `POST /invoice-drafts/{id}/preview`) |
-| 4.18 | Debit notes list subtitle: "12 debit notes · <rial> 69.060 charged this quarter" | the list now reads its counts and cards from `GET /summary?type=DEBIT_NOTE` (4.1) and no longer makes the 200-row read the quarter was summed from, so the subtitle shows the list's description until the summary also answers an `issuedThisQuarter: {count, total}` |
+| 4.18 | Debit notes list subtitle: "12 debit notes · <rial> 69.060 charged this quarter" | `issuedThisQuarter: {count, total}` on `GET /summary?type=DEBIT_NOTE` (same basis as `issuedLast30Days`, from the first day of the current quarter); backend D1 provides it. Without it the subtitle shows the list's description |
 | 4.19 | Credit note detail: the Refund due figure | a per-note refund state and amount from the API (with 4.2). The figure used to be derived on the page (the smaller of the note's total and the invoice's overpayment), which is not this note's refund; it now reads "Not available yet" until the API says |
 
 ## 5. Periodic invoices (`/v1/periodic-invoices`)
@@ -666,8 +666,8 @@ this is what each now stands at.
   `issuedLast30Days`, Awaiting from `awaitingTotal` / `awaiting`, Collected from `paidTotal` /
   `paidInvoices`, Overdue from `overdueTotal` / `overdueInvoices`, its "days late" from
   `oldestOverdueDueDate` against `asOf`). The 200-row read is gone for debit notes. **Credit notes
-  still read their figures off the notes** (4.1 stays open for them). The subtitle's quarter is
-  row 4.18.
+  still read their figures off the notes** (4.1 stays open for them). The subtitle's quarter comes
+  from `issuedThisQuarter` (row 4.18, provided by D1).
 - **4.4, lines added on a note:** a line with no catalogue product now leaves `productId` and
   `productCode` out of the draft line instead of sending empty strings. Nothing to add.
 - **4.6, draft attachments:** files dropped on the composer are uploaded to the draft
