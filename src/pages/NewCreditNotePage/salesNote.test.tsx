@@ -834,7 +834,8 @@ describe('the debit notes list figures (4.1)', () => {
   })
 
   it('reads the list description in the subtitle when the summary has no quarter', async () => {
-    const { issuedThisQuarter: _, ...withoutQuarter } = DEBIT_SUMMARY
+    const withoutQuarter: Partial<typeof DEBIT_SUMMARY> = { ...DEBIT_SUMMARY }
+    delete withoutQuarter.issuedThisQuarter
     override = (url) =>
       url.startsWith('/api/v1/authored-invoices/summary') ? json(200, withoutQuarter) : undefined
     renderAt('/income/debit-notes')
