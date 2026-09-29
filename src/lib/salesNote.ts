@@ -11,10 +11,10 @@ import type { TFunction } from 'i18next'
 import {
   CATEGORY_REASON_CONFLICT,
   CODED_REASON,
-  NEEDS_EXEMPTION_REASON,
   PAYMENT_TERMS,
   categoryReasonConflicts,
   itemTypeOfUnit,
+  reasonRequired,
 } from './invoiceDraft'
 import {
   CALC_SCALE,
@@ -679,7 +679,7 @@ export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday
     const category = line.taxCategory.en16931Category
     return CODED_REASON.has(category)
       ? !line.taxCategory.exemptionReasonCode
-      : NEEDS_EXEMPTION_REASON.has(category) && !(line.taxCategory.exemptionReason ?? '').trim()
+      : reasonRequired(category) && !(line.taxCategory.exemptionReason ?? '').trim()
   })
   if (reasonMissing && !problems.lines) problems.lines = 'salesNote.error.vatReason'
   // One reason per VAT category and rate on the note (BR-CO-18, INCOME.md V.6): refused by the

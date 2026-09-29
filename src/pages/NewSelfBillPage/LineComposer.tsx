@@ -17,7 +17,7 @@ import {
   type ComposerLine,
   type LineKind,
 } from '../../lib/selfBillCreate'
-import { CODED_REASON, NEEDS_EXEMPTION_REASON } from '../../lib/invoiceDraft'
+import { CODED_REASON, NEEDS_EXEMPTION_REASON, reasonRequired } from '../../lib/invoiceDraft'
 import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
 import { nameOf } from '../../lib/codeLists/codeList'
 import type { TaxCategoryDto } from '../../api/reference/referenceData'
@@ -368,7 +368,9 @@ export function LineComposer({
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 ps-1">
                       <span className="text-xs font-medium text-text-tertiary">
                         {t('invoiceDraft.exemptionReason')}
-                        <span className="ms-0.5 text-danger-700">*</span>
+                        {reasonRequired(category) ? (
+                          <span className="ms-0.5 text-danger-700">*</span>
+                        ) : null}
                       </span>
                       <div className="w-full max-w-[560px]">
                         {coded ? (

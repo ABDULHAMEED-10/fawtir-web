@@ -101,9 +101,7 @@ export const DESIGN_REFERENCE: ReferenceDataDto = {
     { code: 'S5', en16931Category: 'S', rate: '5', exemptionReasonRequired: false, active: true },
     { code: 'Z0', en16931Category: 'Z', rate: '0', exemptionReasonRequired: false, active: true },
     { code: 'E0', en16931Category: 'E', rate: '0', exemptionReasonRequired: true, active: true },
-    { code: 'O0', en16931Category: 'O', rate: '0', exemptionReasonRequired: true, active: true },
-    { code: 'AE0', en16931Category: 'AE', rate: '0', exemptionReasonRequired: true, active: true },
-    { code: 'G0', en16931Category: 'G', rate: '0', exemptionReasonRequired: true, active: true },
+    { code: 'O0', en16931Category: 'O', rate: '0', exemptionReasonRequired: false, active: true },
   ],
   // Empty on purpose: the line's unit list is the design's own (GOODS_UNITS / SERVICE_UNITS).
   units: [],
@@ -130,8 +128,22 @@ export function omanTaxCategories<T extends { en16931Category: string; active?: 
   return rows.filter((row) => row.active !== false && OMAN_VAT_CATEGORIES.has(row.en16931Category))
 }
 
-/** Categories the server prices only with a reason (`TaxCategoryInput`, `EXEMPTION_REASON_REQUIRED`). */
+/** Categories that take a reason: its field is drawn and, unless coded, its text is sent. */
 export const NEEDS_EXEMPTION_REASON = new Set(['E', 'AE', 'G', 'O'])
+/**
+ * Of those, the ones whose reason may be left blank. Outside scope: no PINT-OM rule asks for
+ * IBT-120 on an O line (IBR-070-OM only forbids a code there), so the server no longer requires
+ * one (backend V210, INCOME.md row V.5). A typed reason is still sent and kept.
+ */
+export const REASON_OPTIONAL: ReadonlySet<string> = new Set(['O'])
+
+/** Whether a line of this category cannot be saved without its reason (`EXEMPTION_REASON_REQUIRED`). */
+export function reasonRequired(category: string): boolean {
+  return (
+    CODED_REASON.has(category) ||
+    (NEEDS_EXEMPTION_REASON.has(category) && !REASON_OPTIONAL.has(category))
+  )
+}
 /** The categories whose reason is a code from their own list (IBT-121): zero-rated and exempt. */
 export const CODED_REASON = new Set(['Z', 'E'])
 
@@ -562,7 +574,7 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
     // A zero-rated or exempt line needs its reason code; the other categories still need text.
     const reasonMissing = CODED_REASON.has(category)
       ? !line.exemptionReasonCode
-      : NEEDS_EXEMPTION_REASON.has(category) && line.exemptionReason.trim() === ''
+      : reasonRequired(category) && line.exemptionReason.trim() === ''
     if (reasonMissing) {
       problems.push({
         field: 'exemptionReason',

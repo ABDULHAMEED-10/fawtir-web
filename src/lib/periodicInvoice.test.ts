@@ -49,7 +49,8 @@ describe('the reason no VAT is charged, on a periodic template', () => {
     const problem = (f: ReturnType<typeof form>) =>
       periodicProblems(f, '2026-09-27', false, 1).exemptionReasonCode
     expect(problem(form('Z0'))).toBe('periodicInvoice.error.reasonRequired')
-    expect(problem(form('O0'))).toBe('periodicInvoice.error.reasonRequired')
+    // Outside scope takes an optional reason: no PINT-OM rule asks for one (backend V210).
+    expect(problem(form('O0'))).toBeUndefined()
     expect(problem(form('Z0', { exemptionReasonCode: 'VATZR-OM-01' }))).toBeUndefined()
     expect(problem(form('S5'))).toBeUndefined()
   })

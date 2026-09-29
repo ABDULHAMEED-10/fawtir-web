@@ -126,6 +126,8 @@ export type InvoiceAttachmentDto = {
   byteSize: number
   sha256: string
   attachedAt: string
+  /** The uploader's display name, read at request time; null when the user no longer exists. */
+  attachedByName?: string | null
 }
 
 /** `InvoiceAuditEntry`: what happened and when, with no amounts and no names. */
@@ -241,6 +243,16 @@ export function reversePayment(
       headers: { 'Idempotency-Key': idempotencyKey },
     },
   )
+}
+
+/**
+ * Records that the document reached its buyer outside Peppol (`InvoiceManualDeliveryController`).
+ * The server keeps one such fact per document, so marking twice answers the first.
+ */
+export function markSentManually(invoiceId: string): Promise<{ recordedAt: string }> {
+  return apiRequest<{ recordedAt: string }>(`${path(invoiceId)}/manual-delivery`, {
+    method: 'POST',
+  })
 }
 
 /** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires. */
