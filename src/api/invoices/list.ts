@@ -111,6 +111,11 @@ export type InvoiceSummaryDto = {
    * lists' "Charged · 30 days" / "Credited · 30 days" card. Absent from an API that predates it.
    */
   issuedLast30Days?: { count: number; total: number }
+  /**
+   * Documents issued since the first day of the current quarter up to `asOf`, same basis as
+   * `issuedLast30Days`: the notes lists' subtitle. Absent from an API that predates it.
+   */
+  issuedThisQuarter?: { count: number; total: number }
 }
 
 /** What a tab, the toolbar and the search ask the server for. */

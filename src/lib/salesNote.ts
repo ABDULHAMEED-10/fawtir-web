@@ -825,8 +825,8 @@ export function summariseNotes(
  * ?type=DEBIT_NOTE` (INCOME.md 4.1). The counts are the tabs' (every currency); the figures are
  * the cards' (in `currencyCode`). Overdue's "days late" is the oldest overdue note's, as the wide
  * read's largest `daysOverdue` was.
- * TODO(backend): the subtitle's "charged this quarter" (INCOME.md 4.18); until the summary says,
- * the subtitle reads as it does while the figures load.
+ * The subtitle's "charged this quarter" is `issuedThisQuarter` (INCOME.md 4.18); absent, the
+ * subtitle reads as it does while the figures load.
  */
 export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
   const counts: Record<string, number> = {
@@ -842,7 +842,9 @@ export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
     : 0
   return {
     counts,
-    quarter: null,
+    quarter: summary.issuedThisQuarter
+      ? { amount: summary.issuedThisQuarter.total, count: summary.issuedThisQuarter.count }
+      : null,
     cards: {
       ...(summary.issuedLast30Days
         ? {

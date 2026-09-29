@@ -688,6 +688,9 @@ function summaryReply(query) {
   const awaiting = unpaid.filter((d) => !d.payment.overdue)
   const overdue = unpaid.filter((d) => d.payment.overdue)
   const paid = issued.filter((d) => d.payment.state === 'PAID')
+  const month = Number(TODAY.slice(5, 7))
+  const quarterStart = `${TODAY.slice(0, 4)}-${String(Math.floor((month - 1) / 3) * 3 + 1).padStart(2, '0')}-01`
+  const quarter = issued.filter((d) => d.issueDate && d.issueDate >= quarterStart)
   const recent = issued.filter((d) => d.issueDate && daysBetween(d.issueDate, TODAY) <= 30)
   const sum = (list, of) => round3(list.reduce((total, d) => total + of(d), 0))
   const owed = (d) => d.payment.outstandingAmount ?? 0
@@ -711,6 +714,7 @@ function summaryReply(query) {
     paidTotal: sum(paid, (d) => d.payment.paidAmount ?? 0),
     paidInvoices: paid.length,
     issuedLast30Days: { count: recent.length, total: sum(recent, (d) => d.totals.totalAmount) },
+    issuedThisQuarter: { count: quarter.length, total: sum(quarter, (d) => d.totals.totalAmount) },
   }
 }
 
