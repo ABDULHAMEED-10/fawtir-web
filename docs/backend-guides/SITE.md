@@ -27,4 +27,4 @@ serves yet.
 
 | # | The design shows | Ask |
 |---|---|---|
-| 2.1 | Pricing: Business 49.000, Business Plus 89.000, Unlimited 149.000 a month; yearly is ten months; 500 / 3,000 / no invoice limit; 5 / 15 / unlimited people; 1 / 4 / unlimited branches | The app's plan catalogue (`src/lib/plans.ts`, and the mock) still carries Starter 35 / Business 80 / Business Plus 150 with 200 / 1,000 / 3,000 invoices. The owner decides which set is right; then serve the published catalogue (`GET /v1/public/plans`) so the page reads it instead of its own numbers |
+| 2.1 | Pricing: the plan cards, limits, comparison table and questions | Decided by the owner, 29 Sep 2026: the site shows the app's catalogue (`src/lib/plans.ts`: Starter, Business, Business Plus, Enterprise), the same one the sign-up plans screen reads, not the Figma frame's own figures. Serve the published catalogue publicly (`GET /v1/public/plans`, the console-edited `/platform/plans` without auth) so both read it instead of the file |

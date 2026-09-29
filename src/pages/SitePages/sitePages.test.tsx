@@ -6,6 +6,8 @@ import i18n from '../../i18n'
 import { ContactPage } from './ContactPage'
 import { FeaturesPage } from './FeaturesPage'
 import { PricingPage } from './PricingPage'
+import { CATALOGUE, annualMonthly } from '../../lib/plans'
+import { GROUPS, faqParams } from '../PlansPage/PlanComparison'
 
 let fetchMock: ReturnType<typeof vi.fn>
 
@@ -24,7 +26,7 @@ afterEach(() => {
 })
 
 describe('Pricing page', () => {
-  it('shows the three plans monthly, and ten months when yearly is chosen', () => {
+  it('prices every plan from the app catalogue, monthly and yearly', () => {
     renderPage(<PricingPage />)
     const nav = screen.getByRole('navigation', { name: i18n.t('landing.nav.label') })
     expect(
@@ -33,27 +35,36 @@ describe('Pricing page', () => {
         .getAttribute('aria-current'),
     ).toBe('page')
 
-    for (const figure of ['49.000', '89.000', '149.000']) {
-      expect(screen.getAllByText(figure).length).toBeGreaterThan(0)
+    for (const plan of CATALOGUE) {
+      expect(screen.getAllByText(plan.monthly.toFixed(3)).length).toBeGreaterThan(0)
+      expect(
+        screen.getByText(
+          i18n.t('site.pricing.limits.documents', {
+            documents: plan.documents.toLocaleString('en-US'),
+          }),
+        ),
+      ).toBeTruthy()
     }
+    expect(screen.getAllByText(i18n.t('plans.enterprise.price')).length).toBeGreaterThan(0)
+
     fireEvent.click(screen.getByRole('radio', { name: /Yearly/ }))
-    expect(screen.getByText('490.000')).toBeTruthy()
-    expect(screen.getByText('890.000')).toBeTruthy()
-    expect(screen.getByText('1,490.000')).toBeTruthy()
-    expect(document.body.textContent).not.toContain('OMR 4')
+    for (const plan of CATALOGUE) {
+      expect(screen.getAllByText(annualMonthly(plan).toFixed(3)).length).toBeGreaterThan(0)
+    }
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('compares every row and opens a question', () => {
+  it('compares the same rows as the sign-up plans screen and answers its questions', () => {
     renderPage(<PricingPage />)
-    expect(screen.getByRole('table')).toBeTruthy()
-    expect(
-      screen.getByRole('rowheader', { name: i18n.t('site.pricing.compare.rows.named') }),
-    ).toBeTruthy()
-    const question = screen.getByRole('button', { name: i18n.t('site.faq.items.cafe.q') })
+    for (const group of GROUPS) {
+      for (const row of group.rows) {
+        expect(screen.getAllByRole('rowheader', { name: i18n.t(row.labelKey) }).length).toBe(1)
+      }
+    }
+    const question = screen.getByRole('button', { name: i18n.t('plans.faq.q1') })
     fireEvent.click(question)
     expect(question.getAttribute('aria-expanded')).toBe('true')
-    expect(screen.getByText(i18n.t('site.faq.items.cafe.a'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('plans.faq.a1', faqParams()))).toBeTruthy()
   })
 })
 

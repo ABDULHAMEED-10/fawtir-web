@@ -23,14 +23,14 @@ import checkIcon from '../../assets/plans/check.svg'
  * feature cells match Business Plus and its limit cells say so.
  */
 
-type Cell =
+export type Cell =
   | { kind: 'check' }
   | { kind: 'dash' }
   | { kind: 'text'; key: string; params?: Record<string, unknown> }
   | { kind: 'money'; amount: number }
 
-type Row = { key: string; labelKey: string; cell: (plan: CataloguePlan | null) => Cell }
-type Group = { key: string; labelKey: string; rows: Row[] }
+export type Row = { key: string; labelKey: string; cell: (plan: CataloguePlan | null) => Cell }
+export type Group = { key: string; labelKey: string; rows: Row[] }
 
 const count = (value: number) => value.toLocaleString('en-US')
 const check: Cell = { kind: 'check' }
@@ -97,11 +97,13 @@ const FEATURE_TABLE: Group[] = FEATURE_GROUPS.map((group) => ({
   key: group.id,
   labelKey: `plan.featureGroup.${group.id}`,
   rows: [
-    ...group.features.map((feature): Row => ({
-      key: feature,
-      labelKey: `plan.featureName.${feature}`,
-      cell: (p) => flag(FEATURES[planId(p)][feature]),
-    })),
+    ...group.features.map(
+      (feature): Row => ({
+        key: feature,
+        labelKey: `plan.featureName.${feature}`,
+        cell: (p) => flag(FEATURES[planId(p)][feature]),
+      }),
+    ),
     ...(group.id === 'integration'
       ? [
           {
@@ -130,12 +132,13 @@ const SUPPORT_GROUP: Group = {
   ],
 }
 
-const GROUPS: Group[] = [...LIMIT_GROUPS, ...FEATURE_TABLE, SUPPORT_GROUP]
+/** Also read by the public pricing page, so both tables list the same rows. */
+export const GROUPS: Group[] = [...LIMIT_GROUPS, ...FEATURE_TABLE, SUPPORT_GROUP]
 
 /** Rial figures on the table read to three places, the way the bill will print them. */
 const rial = (amount: number) => amount.toFixed(3)
 
-const COLUMNS: (CataloguePlan | null)[] = [...CATALOGUE, null]
+export const COLUMNS: (CataloguePlan | null)[] = [...CATALOGUE, null]
 
 export function PlanComparison({ billing }: { billing: 'monthly' | 'annual' }) {
   const { t } = useTranslation()
@@ -248,20 +251,25 @@ export function PlanComparison({ billing }: { billing: 'monthly' | 'annual' }) {
   )
 }
 
-const FAQ_COUNT = 9
+export const FAQ_COUNT = 9
 
-export function PlanFaq() {
-  const { t } = useTranslation()
-  const base = useId()
-  const [open, setOpen] = useState<number | null>(0)
+/** The figures the answers quote, from the platform defaults. */
+export function faqParams() {
   const { notices, lifecycle } = DEFAULT_SETTINGS
-  const params = {
+  return {
     days: TRIAL.days,
     documents: TRIAL.documents,
     thresholds: notices.thresholds.join(', '),
     grace: lifecycle.graceDays,
     rate: SUBSCRIPTION_VAT * 100,
   }
+}
+
+export function PlanFaq() {
+  const { t } = useTranslation()
+  const base = useId()
+  const [open, setOpen] = useState<number | null>(0)
+  const params = faqParams()
 
   return (
     <div className="w-full max-w-[860px]">

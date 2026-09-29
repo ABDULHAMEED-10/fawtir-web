@@ -1,6 +1,8 @@
 import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RialMark } from '../../components/ui/Rial'
+import { CATALOGUE, TRIAL, annualMonthly, type CataloguePlan } from '../../lib/plans'
+import { COLUMNS, GROUPS, type Cell } from '../PlansPage/PlanComparison'
 import checkIcon from '../../assets/home/check.svg'
 import crossIcon from '../../assets/site/cross-red.svg'
 import '../HomePage/HomePage.css'
@@ -8,7 +10,6 @@ import {
   CheckList,
   ClosingBand,
   Cta,
-  DEMO_MAILTO,
   Faq,
   Footer,
   Heading,
@@ -21,29 +22,31 @@ import {
 import { useFaqItems } from './faq'
 
 /**
- * The public pricing page (Figma "Pricing", 191:13484): a billing switch, three plan cards, what
- * counts as an invoice, the full comparison and the questions, on the frame's own numbers.
+ * The public pricing page (Figma "Pricing", 191:13484): a billing switch, the plan cards, what
+ * counts as a document, the full comparison and the questions, drawn on the frame's own numbers.
  *
- * TODO(backend): SITE.md 2.1. The site's plans (Business 49, Business Plus 89, Unlimited 149 a month) are the
- * Figma's; the app's catalogue in `lib/plans.ts` still carries the older three (35 / 80 / 150). The
- * page should read the published catalogue once the two agree.
+ * Every price, limit and feature comes from the app's plan catalogue (`lib/plans.ts`), the same
+ * one the sign-up plans screen reads, and the comparison lists the same rows as that screen's
+ * table. The frame drew three plans with its own figures; the catalogue has four, so Enterprise
+ * takes a fourth card and the frame's figures are not used (owner, 29 Sep 2026).
+ *
+ * TODO(backend): SITE.md 2.1. Read the published catalogue once it is served publicly.
  */
 
-type PlanKey = 'business' | 'plus' | 'unlimited'
-
-/** Monthly prices in rials; a year is ten months ("2 months free"). */
-const PLANS: { key: PlanKey; monthly: number; each?: number; to?: string; href?: string }[] = [
-  { key: 'business', monthly: 49, each: 0.098, to: '/signup' },
-  { key: 'plus', monthly: 89, each: 0.03, to: '/signup' },
-  { key: 'unlimited', monthly: 149, href: DEMO_MAILTO },
-]
-const ITEMS = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+/** The sign-up screen's own key for each plan's card copy (`plans.<key>.*`). */
+const CARD_KEY = { starter: 'starter', business: 'premium', businessPlus: 'businessPlus' } as const
+/** How many of each card's feature lines the sign-up screen shows; the same here. */
+const FEATURE_LINES = { starter: 6, premium: 5, businessPlus: 5, enterprise: 3 } as const
+/** The plan the sign-up screen marks as the popular one, drawn as the frame's filled card. */
+const FEATURED = 'business'
 
 const money = (value: number) =>
   value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const count = (value: number) => value.toLocaleString('en-US')
 
 export function PricingPage() {
   const { t } = useTranslation()
+  const [yearly, setYearly] = useState(false)
   return (
     <div className={`landing min-h-screen overflow-x-clip bg-white ${INK}`}>
       <PageHero
@@ -59,9 +62,9 @@ export function PricingPage() {
         }
       />
       <main>
-        <Plans />
+        <Plans yearly={yearly} setYearly={setYearly} />
         <Counts />
-        <Compare />
+        <Compare yearly={yearly} />
         <Faq items={useFaqItems()} />
       </main>
       <ClosingBand />
@@ -72,9 +75,8 @@ export function PricingPage() {
 
 /* ------------------------------------------------------------------ plans */
 
-function Plans() {
+function Plans({ yearly, setYearly }: { yearly: boolean; setYearly: (on: boolean) => void }) {
   const { t } = useTranslation()
-  const [yearly, setYearly] = useState(false)
   const option = (on: boolean) =>
     on ? 'border-[#151c2d] bg-[#151c2d] text-white' : `border-[#e8e8ea] bg-white ${INK}`
 
@@ -108,22 +110,46 @@ function Plans() {
         </button>
       </div>
 
-      <div className="mt-8 grid grid-cols-3 gap-8 max-xl:grid-cols-1 max-xl:mx-auto max-xl:max-w-[560px]">
-        {PLANS.map((plan) => (
-          <PlanCard key={plan.key} plan={plan} yearly={yearly} />
+      <div className="mx-auto mt-8 grid max-w-[560px] grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-2 2xl:grid-cols-4">
+        {CATALOGUE.map((plan) => (
+          <PlanCard key={plan.id} plan={plan} yearly={yearly} />
         ))}
+        <PlanCard yearly={yearly} />
       </div>
+      <p className={`mx-auto mt-6 max-w-[860px] text-center text-base leading-6 ${SOFT}`}>
+        {t('plans.trialNote', { days: TRIAL.days, documents: TRIAL.documents })}
+      </p>
     </section>
   )
 }
 
-function PlanCard({ plan, yearly }: { plan: (typeof PLANS)[number]; yearly: boolean }) {
+/** One plan from the catalogue, or Enterprise when no plan is given. */
+function PlanCard({ plan, yearly }: { plan?: CataloguePlan; yearly: boolean }) {
   const { t } = useTranslation()
-  const featured = plan.key === 'plus'
-  const base = `site.pricing.plans.${plan.key}`
-  const price = yearly ? plan.monthly * 10 : plan.monthly
-  // The note carries a per-invoice price; the rial sign goes in where the figure is.
-  const [before, after] = t(`${base}.note`, { amount: '\u0000' }).split('\u0000')
+  const featured = plan?.id === FEATURED
+  const key = plan ? CARD_KEY[plan.id] : 'enterprise'
+  const soft = featured ? 'text-white/80' : SOFT
+
+  const limits = plan
+    ? [
+        t('site.pricing.limits.documents', { documents: count(plan.documents) }),
+        t('site.pricing.limits.people', { count: plan.people }),
+        plan.branches
+          ? t('site.pricing.limits.branches', { count: plan.branches })
+          : t('plans.unlimited'),
+      ]
+    : [t('plans.enterprise.features.f2')]
+  const features = Array.from(
+    { length: FEATURE_LINES[key] },
+    (_, i) => `plans.${key}.features.f${i + 1}`,
+  )
+    // Enterprise's second line is its limits, already listed first.
+    .filter((line) => line !== 'plans.enterprise.features.f2')
+    .map((line) => t(line))
+
+  // The note carries a price per document; the rial sign goes in where the figure is.
+  const [before, after] = t('site.pricing.each', { amount: '\u0000' }).split('\u0000')
+  const each = plan ? (yearly ? annualMonthly(plan) : plan.monthly) / plan.documents : 0
 
   return (
     <article
@@ -138,46 +164,46 @@ function PlanCard({ plan, yearly }: { plan: (typeof PLANS)[number]; yearly: bool
         }`}
       >
         <div className="flex flex-col gap-1">
-          <h2 className="text-[clamp(1.75rem,1.2rem+1.6vw,2.625rem)] font-medium leading-[normal]">
-            {t(`${base}.name`)}
+          <h2 className="text-[clamp(1.75rem,1.3rem+1.2vw,2.625rem)] font-medium leading-[normal]">
+            {plan ? t(plan.labelKey) : t('plan.planName.enterprise')}
           </h2>
-          <p
-            className={`landing-cap text-lg leading-[normal] ${featured ? 'text-white/80' : SOFT}`}
-          >
-            {t(`${base}.tag`)}
+          <p className={`text-lg leading-[normal] ${soft}`}>
+            {t(`plan.audience.${plan?.id ?? 'enterprise'}`)}
           </p>
         </div>
-        <p className="flex flex-wrap items-baseline gap-x-2">
-          <span className="flex items-baseline gap-2 text-[clamp(2rem,1.5rem+1.4vw,2.625rem)] font-semibold leading-none tabular-nums">
-            <RialMark className="w-8 self-center" />
-            {money(price)}
-          </span>
-          <span className={`text-xl leading-[normal] ${featured ? 'text-white/80' : SOFT}`}>
-            {t(yearly ? 'site.pricing.perYear' : 'site.pricing.perMonth')}
-          </span>
-        </p>
+        {plan ? (
+          <p className="flex flex-wrap items-baseline gap-x-2">
+            <span className="flex items-baseline gap-2 text-[clamp(2rem,1.5rem+1.4vw,2.625rem)] font-semibold leading-none tabular-nums">
+              <RialMark className="w-8 self-center" />
+              {money(yearly ? annualMonthly(plan) : plan.monthly)}
+            </span>
+            <span className={`text-xl leading-[normal] ${soft}`}>{t('site.pricing.perMonth')}</span>
+          </p>
+        ) : (
+          <p className="text-[clamp(2rem,1.5rem+1.4vw,2.625rem)] font-semibold leading-none">
+            {t('plans.enterprise.price')}
+          </p>
+        )}
         <p
-          className={`landing-cap flex flex-wrap items-center gap-x-1 text-lg leading-[normal] ${
+          className={`flex flex-wrap items-center gap-x-1 text-lg leading-[normal] ${
             featured ? 'text-white' : 'text-[#2c4eb7]'
           }`}
         >
-          {plan.each === undefined ? (
-            before
-          ) : (
+          {plan ? (
             <>
               {before.trimEnd()}
               <span className="inline-flex items-center gap-1 tabular-nums">
                 <RialMark className="w-3.5" />
-                {money(plan.each)}
+                {money(each)}
               </span>
               {after.trimStart()}
             </>
+          ) : (
+            t('plans.enterprise.billingNote')
           )}
         </p>
-        {yearly ? (
-          <p className={`text-sm leading-[normal] ${featured ? 'text-white/80' : SOFT}`}>
-            {t('site.pricing.yearlyNote')}
-          </p>
+        {plan && yearly ? (
+          <p className={`text-sm leading-[normal] ${soft}`}>{t('site.pricing.yearlyNote')}</p>
         ) : null}
       </div>
 
@@ -185,19 +211,18 @@ function PlanCard({ plan, yearly }: { plan: (typeof PLANS)[number]; yearly: bool
         <p className="text-xl font-semibold uppercase leading-[normal]">
           {t('site.pricing.whatYouGet')}
         </p>
-        <CheckList items={ITEMS.map((item) => t(`${base}.items.${item}`))} />
+        <CheckList items={[...limits, ...features]} />
       </div>
 
       <Cta
-        to={plan.to}
-        href={plan.href}
+        to={plan ? '/signup' : '/contact'}
         tone={featured ? 'brand' : 'light'}
         arrow={false}
         className={`relative w-full !py-5 text-xl font-semibold ${
           featured ? '' : 'border border-[#e8e8ea] !bg-white'
         }`}
       >
-        {t(`${base}.cta`)}
+        {plan ? t('plans.getStarted') : t('plans.talkToTeam')}
       </Cta>
     </article>
   )
@@ -272,140 +297,107 @@ function CountCard({
 
 /* ----------------------------------------------------------------- compare */
 
-/** A cell: included, not included, or a figure ("Unlimited", "No limit" as keys). */
-type Cell = true | false | string
-const COMPARE: { group: string; rows: [string, Cell, Cell, Cell][] }[] = [
-  {
-    group: 'selling',
-    rows: [
-      ['tillDevices', true, true, true],
-      ['tills', '1', '4', 'unlimited'],
-      ['tabs', true, true, true],
-      ['offline', true, true, true],
-      ['printer', true, true, true],
-    ],
-  },
-  {
-    group: 'invoicing',
-    rows: [
-      ['invoices', '500', '3,000', 'noLimit'],
-      ['filing', true, true, true],
-      ['peppol', true, true, true],
-      ['quotes', true, true, true],
-      ['fixes', true, true, true],
-    ],
-  },
-  {
-    group: 'buying',
-    rows: [
-      ['bills', true, true, true],
-      ['orders', false, true, true],
-      ['cover', false, true, true],
-    ],
-  },
-  {
-    group: 'people',
-    rows: [
-      ['people', '5', '15', 'unlimited'],
-      ['branches', '1', '4', 'unlimited'],
-      ['roles', true, true, true],
-    ],
-  },
-  {
-    group: 'reports',
-    rows: [
-      ['reports', true, true, true],
-      ['ai', false, true, true],
-      ['export', true, true, true],
-      ['api', false, true, true],
-    ],
-  },
-  {
-    group: 'support',
-    rows: [
-      ['help', true, true, true],
-      ['priority', false, true, true],
-      ['named', false, false, true],
-    ],
-  },
-]
-
-function Compare() {
+/** The sign-up screen's comparison rows, drawn in the frame's table style. */
+function Compare({ yearly }: { yearly: boolean }) {
   const { t } = useTranslation()
-  const c = 'site.pricing.compare'
   const cell = (value: Cell) => {
-    if (value === true)
-      return <img src={checkIcon} alt={t(`${c}.included`)} className="mx-auto size-4" />
-    if (value === false)
-      return (
-        <span
-          role="img"
-          aria-label={t(`${c}.notIncluded`)}
-          className="mx-auto block h-0.5 w-2.5 rounded-full bg-[#c4c6cb]"
-        />
-      )
-    return /^[a-z]/i.test(value) ? t(`${c}.${value}`) : value
+    switch (value.kind) {
+      case 'check':
+        return <img src={checkIcon} alt={t('plans.compare.included')} className="mx-auto size-4" />
+      case 'dash':
+        return (
+          <span
+            role="img"
+            aria-label={t('plans.compare.notIncluded')}
+            className="mx-auto block h-0.5 w-2.5 rounded-full bg-[#c4c6cb]"
+          />
+        )
+      case 'money':
+        return (
+          <span className="inline-flex items-center gap-1 tabular-nums">
+            <RialMark className="w-2.5" />
+            {money(value.amount)}
+          </span>
+        )
+      case 'text':
+        return t(value.key, value.params)
+    }
   }
-  const head = 'px-4 py-4 text-center align-bottom'
   return (
     <section className="mx-auto mt-[200px] w-full max-w-[1212px] px-4 max-md:mt-24">
       <h2 className="landing-title landing-cap text-center font-semibold leading-[normal]">
-        {t(`${c}.lead`)}{' '}
-        <span className={`landing-em font-light italic lowercase ${SOFT}`}>{t(`${c}.em`)}</span>
+        {t('site.pricing.compare.lead')}{' '}
+        <span className={`landing-em font-light italic lowercase ${SOFT}`}>
+          {t('site.pricing.compare.em')}
+        </span>
       </h2>
+      <p className={`mx-auto mt-6 max-w-[860px] text-center text-base leading-6 ${SOFT}`}>
+        {t('plans.compare.subtitle')}
+      </p>
       <div className="mt-[60px] overflow-x-auto rounded-lg border border-[#e8e8ea] max-md:mt-10">
-        <table className="w-full min-w-[560px] border-collapse text-[14.5px] leading-[normal]">
+        <table className="w-full min-w-[720px] border-collapse text-[14.5px] leading-[normal]">
           <thead>
             <tr className="bg-[#fafafa]">
-              <th scope="col" className="w-[46%] px-4 py-4 text-start">
-                <span className="sr-only">{t(`${c}.feature`)}</span>
+              <th scope="col" className="w-[34%] px-4 py-4 text-start align-bottom">
+                <span className="text-[11.5px] font-bold uppercase tracking-[0.06em] text-[#737781]">
+                  {t('plans.compare.columnFeature')}
+                </span>
               </th>
-              {PLANS.map((plan) => (
+              {COLUMNS.map((plan) => (
                 <th
-                  key={plan.key}
+                  key={plan?.id ?? 'enterprise'}
                   scope="col"
-                  className={`${head} ${plan.key === 'plus' ? 'bg-[#eaedf8]' : ''}`}
+                  className={`px-4 py-4 text-center align-bottom ${
+                    plan?.id === FEATURED ? 'bg-[#eaedf8]' : ''
+                  }`}
                 >
                   <span className="block text-[15px] font-semibold">
-                    {t(`site.pricing.plans.${plan.key}.name`)}
+                    {t(plan ? plan.labelKey : 'plan.planName.enterprise')}
                   </span>
                   <span
                     className={`mt-1 inline-flex items-center gap-1 text-[12.5px] font-normal tabular-nums ${
-                      plan.key === 'plus' ? 'text-[#2c4eb7]' : 'text-[#737781]'
+                      plan?.id === FEATURED ? 'text-[#2c4eb7]' : 'text-[#737781]'
                     }`}
                   >
-                    <RialMark className="w-2.5" />
-                    {money(plan.monthly)}
+                    {plan ? (
+                      <>
+                        <RialMark className="w-2.5" />
+                        {money(yearly ? annualMonthly(plan) : plan.monthly)}
+                        <span>{t('plans.perMonth')}</span>
+                      </>
+                    ) : (
+                      t('plans.enterprise.price')
+                    )}
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {COMPARE.map((section) => (
-              <Fragment key={section.group}>
+            {GROUPS.map((group) => (
+              <Fragment key={group.key}>
                 <tr className="bg-[#fafafa]">
                   <th
                     scope="colgroup"
-                    colSpan={4}
+                    colSpan={COLUMNS.length + 1}
                     className="px-4 py-2.5 text-start text-[11.5px] font-bold uppercase tracking-[0.06em] text-[#737781]"
                   >
-                    {t(`${c}.groups.${section.group}`)}
+                    {t(group.labelKey)}
                   </th>
                 </tr>
-                {section.rows.map(([key, ...values]) => (
-                  <tr key={key} className="border-t border-[#f0f0f2]">
+                {group.rows.map((row) => (
+                  <tr key={row.key} className="border-t border-[#f0f0f2]">
                     <th scope="row" className={`px-4 py-3.5 text-start font-medium ${SOFT}`}>
-                      {t(`${c}.rows.${key}`)}
+                      {t(row.labelKey)}
                     </th>
-                    {values.map((value, index) => (
+                    {COLUMNS.map((plan) => (
                       <td
-                        key={index}
+                        key={plan?.id ?? 'enterprise'}
                         className={`px-4 py-3.5 text-center font-semibold tabular-nums ${
-                          index === 1 ? 'bg-[#fafafa]' : ''
+                          plan?.id === FEATURED ? 'bg-[#fafafa]' : ''
                         }`}
                       >
-                        {cell(value)}
+                        {cell(row.cell(plan))}
                       </td>
                     ))}
                   </tr>
