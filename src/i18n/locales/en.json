@@ -16879,7 +16879,9 @@
       "serviceSearch": "Service name, e.g. catering",
       "classificationNone": "Nothing matches. Choose Other.",
       "more": "One more",
-      "fewer": "One fewer"
+      "fewer": "One fewer",
+      "vatShort": "{{rate}}% {{category}}",
+      "vatRate": "{{rate}}%"
     },
     "amount": {
       "title": {

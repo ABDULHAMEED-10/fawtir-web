@@ -84,6 +84,9 @@ function totalsOf(lines) {
   }
 }
 
+/** The day a document was paid: on its due date when that has passed, else 21 Sep. */
+const paidOn = (dueDate) => (dueDate && dueDate < TODAY ? dueDate : '2026-09-21')
+
 const daysBetween = (from, to) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 
@@ -168,6 +171,10 @@ function doc({
       paidAmount: receivableKind && issued ? paid : null,
       creditedAmount: receivableKind && issued ? credited : null,
       outstandingAmount: outstanding,
+      // The latest payment, as the list row answers it (INCOME.md 4.7); the same day and method
+      // the payments read below records.
+      lastPaymentDate: receivableKind && issued && paid > 0 ? paidOn(dueDate) : null,
+      lastPaymentMethodCode: receivableKind && issued && paid > 0 ? '30' : null,
     },
     // The receivable read, kept beside the document.
     _receivable: {
@@ -501,7 +508,7 @@ const PAYMENTS = new Map(
           currency: 'OMR',
           methodCode: '30',
           paymentReference: `TRF-${d.invoiceNumber}`,
-          paymentDate: d.dueDate && d.dueDate < TODAY ? d.dueDate : '2026-09-21',
+          paymentDate: paidOn(d.dueDate),
           occurredAt: '2026-09-21T09:12:00Z',
         },
       ],
@@ -662,6 +669,51 @@ function listReply(query) {
   }
 }
 
+/**
+ * `InvoiceListSummary` for the documents of the asked types (`?type=DEBIT_NOTE`, repeatable), plus
+ * `issuedLast30Days`. Counts are the tabs'; totals and the `*Invoices` counts are the cards'.
+ */
+function summaryReply(query) {
+  const types = query
+    .getAll('type')
+    .flatMap((t) => t.split(','))
+    .filter(Boolean)
+  const rows = [...DOCS.values()].filter(
+    (d) => d.authoringState !== 'DISCARDED' && (types.length === 0 || types.includes(d.type)),
+  )
+  const issued = rows.filter((d) => d.authoringState === 'ISSUED')
+  const unpaid = issued.filter(
+    (d) => d.payment.state === 'UNPAID' || d.payment.state === 'PARTIALLY_PAID',
+  )
+  const awaiting = unpaid.filter((d) => !d.payment.overdue)
+  const overdue = unpaid.filter((d) => d.payment.overdue)
+  const paid = issued.filter((d) => d.payment.state === 'PAID')
+  const recent = issued.filter((d) => d.issueDate && daysBetween(d.issueDate, TODAY) <= 30)
+  const sum = (list, of) => round3(list.reduce((total, d) => total + of(d), 0))
+  const owed = (d) => d.payment.outstandingAmount ?? 0
+  return {
+    currencyCode: 'OMR',
+    asOf: TODAY,
+    all: rows.length,
+    drafts: rows.filter((d) => d.authoringState === 'DRAFT').length,
+    toSend: issued.filter((d) => d.deliveryState !== 'SENT_MANUALLY').length,
+    awaiting: awaiting.length,
+    overdue: overdue.length,
+    paid: paid.length,
+    outstandingTotal: sum(unpaid, owed),
+    outstandingInvoices: unpaid.length,
+    awaitingTotal: sum(awaiting, owed),
+    dueSoonInvoices: awaiting.filter((d) => d.dueDate && daysBetween(TODAY, d.dueDate) <= 7).length,
+    dueSoonDays: 7,
+    overdueTotal: sum(overdue, owed),
+    overdueInvoices: overdue.length,
+    oldestOverdueDueDate: overdue.map((d) => d.dueDate).sort()[0] ?? null,
+    paidTotal: sum(paid, (d) => d.payment.paidAmount ?? 0),
+    paidInvoices: paid.length,
+    issuedLast30Days: { count: recent.length, total: sum(recent, (d) => d.totals.totalAmount) },
+  }
+}
+
 let nextDraft = 1
 let nextNumber = { CREDIT_NOTE: 88, DEBIT_NOTE: 44 }
 
@@ -750,7 +802,11 @@ export default [
         type: 'BUSINESS',
         displayName: c.name,
         profile: {
-          details: { vatRegistrationNumber: c.vat },
+          details: {
+            vatRegistrationNumber: c.vat,
+            // Oman's participant scheme: 0248 followed by the VAT number (INCOME.md 4.14).
+            peppolParticipantId: { scheme: '0248', value: c.vat },
+          },
           contact: null,
           deliveryPreferences: null,
           invoiceAddress: null,
@@ -762,6 +818,8 @@ export default [
     },
   },
   { match: '/api/v1/authored-invoices', reply: ({ query }) => listReply(query) },
+  // Before the detail route: its id pattern would otherwise swallow "summary".
+  { match: '/api/v1/authored-invoices/summary', reply: ({ query }) => summaryReply(query) },
   {
     match: /^\/api\/v1\/authored-invoices\/([^/]+)$/,
     reply: ({ params }) => {

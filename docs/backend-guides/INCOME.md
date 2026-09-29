@@ -116,6 +116,7 @@ productCode, description, unitCode, quantity, unitPrice, discount, taxCategory{�
 | 4.15 | A note is always started against an issued invoice: the frames draw no standalone credit or debit | none: `createNote(kind, invoiceId, …)` fits. `/income/credit-notes/new` without `?invoice=` asks for the invoice on the page first |
 | 4.16 | The composer prints the note number before it is issued ("Credit note number CRN-0087", "Debit note number DBN-0043") | the draft has no number until `POST /invoice-drafts/{id}/issue` answers it, so the field reads "Assigned when issued". A reserved next number on the draft (or a `GET` for the next in the sequence) would let the page print it as drawn |
 | 4.17 | The lists print a draft note's amount ("- <rial> 3.200" on the Draft row of both frames) | the list row carries `totals: null` for a draft, so the Credit / Debit amount cell of a draft reads "—". Please price drafts on the list row (the draft is already priced by `POST /invoice-drafts/{id}/preview`) |
+| 4.18 | Debit notes list subtitle: "12 debit notes · <rial> 69.060 charged this quarter" | the list now reads its counts and cards from `GET /summary?type=DEBIT_NOTE` (4.1) and no longer makes the 200-row read the quarter was summed from, so the subtitle shows the list's description until the summary also answers an `issuedThisQuarter: {count, total}` |
 
 ## 5. Periodic invoices (`/v1/periodic-invoices`)
 
@@ -653,3 +654,30 @@ lists, shared PINT rules). Three corrections:
 Also confirmed for credit and debit notes: preceding invoice reference, issue date and UUID are
 mandatory (IBR-032-OM), and the reason code BTOM-032 is one of CAN, VAT, VAL, QTY, OTH
 (IBR-023-OM, CL-02-OM), as the screens already send.
+
+## Update 2026-09-29 (debit notes: what the web now reads and sends)
+
+The debit notes screens were wired to what the API now answers. Rows above keep their numbers;
+this is what each now stands at.
+
+- **4.1, debit notes:** the Debit notes list reads its tab counts and four cards from
+  `GET /v1/authored-invoices/summary?type=DEBIT_NOTE` (Charged · 30 days from
+  `issuedLast30Days`, Awaiting from `awaitingTotal` / `awaiting`, Collected from `paidTotal` /
+  `paidInvoices`, Overdue from `overdueTotal` / `overdueInvoices`, its "days late" from
+  `oldestOverdueDueDate` against `asOf`). The 200-row read is gone for debit notes. **Credit notes
+  still read their figures off the notes** (4.1 stays open for them). The subtitle's quarter is
+  row 4.18.
+- **4.4, lines added on a note:** a line with no catalogue product now leaves `productId` and
+  `productCode` out of the draft line instead of sending empty strings. Nothing to add.
+- **4.6, draft attachments:** files dropped on the composer are uploaded to the draft
+  (`POST /v1/authored-invoices/{id}/attachments`, `invoice.attachment.manage`) after it is saved
+  and before it is issued; a failed upload leaves the draft saved, and a file is not sent twice.
+  The Peppol send switch (the other half of 4.6) is still open.
+- **4.7, paid date:** a paid debit note row prints "Paid <date>" from `payment.lastPaymentDate`.
+  The method (`payment.lastPaymentMethodCode`) is typed and read but has no drawn place in the
+  row yet; the row is otherwise unchanged.
+- **4.10, classification on note lines:** already sent as `lines[].classification`; a reopened
+  draft now keeps each added line's classification and its `exemptionReasonCode`, so it sends
+  back what it was saved with.
+- **4.14, participant id:** the note detail's customer card prints the Peppol participant id from
+  `profile.details.peppolParticipantId` beside the VAT number, when the record has one.
