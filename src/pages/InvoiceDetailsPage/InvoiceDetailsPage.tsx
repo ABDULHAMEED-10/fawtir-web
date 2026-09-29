@@ -259,11 +259,25 @@ function InvoiceScreen() {
   const [remindersOpen, setRemindersOpen] = useState(false)
   const [sendingReminder, setSendingReminder] = useState(false)
 
-  // Arriving from the composer's issue: the number it was given, said once.
-  const issuedNumber = (location.state as { issuedNumber?: string | null } | null)?.issuedNumber
+  // Arriving from the composer's issue: the number it was given, said once, with any of the
+  // composer's marks ("Mark as paid", "Mark as sent manually") the server refused after issue.
+  const arrival = location.state as {
+    issuedNumber?: string | null
+    marksFailed?: ('paid' | 'sent')[]
+  } | null
+  const issuedNumber = arrival?.issuedNumber
   const [notice, setNotice] = useState<
     { key: string; values?: Record<string, string> } | { body: string } | null
-  >(issuedNumber ? { key: 'invoiceIssue.done', values: { number: issuedNumber } } : null)
+  >(() =>
+    issuedNumber
+      ? {
+          body: [
+            t('invoiceIssue.done', { number: issuedNumber }),
+            ...(arrival?.marksFailed ?? []).map((mark) => t(`invoiceIssue.markFailed.${mark}`)),
+          ].join(' '),
+        }
+      : null,
+  )
   const [issuing, setIssuing] = useState(false)
   // Said once: a reload of this page is not another issue.
   useEffect(() => {
@@ -560,15 +574,23 @@ function InvoiceScreen() {
               </button>
             ) : null}
             {!draft && data.authoringState === 'ISSUED' && can(session, 'invoice.draft') ? (
-              // TODO(backend): there is no route to copy a document; the design's button says so when pressed.
-              <button
-                type="button"
-                onClick={() => setNotice({ key: 'invoiceDetails.duplicateUnavailable' })}
-                className={GHOST_BUTTON}
-              >
-                <img src={copyIcon} alt="" className="size-5" />
-                {t('invoiceDetails.actions.duplicate')}
-              </button>
+              // An invoice opens the composer filled from it (nothing is saved until the reader
+              // saves); the notes and self-billed documents have their own composers.
+              data.type === 'INVOICE' ? (
+                <Link to={`/invoices/new?duplicate=${data.id}`} className={GHOST_BUTTON}>
+                  <img src={copyIcon} alt="" className="size-5" />
+                  {t('invoiceDetails.actions.duplicate')}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setNotice({ key: 'invoiceDetails.duplicateUnavailable' })}
+                  className={GHOST_BUTTON}
+                >
+                  <img src={copyIcon} alt="" className="size-5" />
+                  {t('invoiceDetails.actions.duplicate')}
+                </button>
+              )
             ) : null}
             {issuedInvoice && can(session, 'invoice.draft') ? (
               <Link to={`/income/periodic/new?template=${data.id}`} className={GHOST_BUTTON}>
@@ -1156,13 +1178,19 @@ function InvoiceScreen() {
                     <p className="truncate text-base font-medium leading-[1.2] text-text-primary">
                       {file.filename}
                     </p>
-                    {/* TODO(backend): the design names the document kind and the uploader; the file type stands in for the kind. */}
+                    {/* TODO(backend): the design names the document kind; the file type stands in for it. */}
                     <p className="mt-1.5 truncate text-sm font-medium leading-[1.2] text-text-tertiary">
-                      {t('invoiceDetails.attachments.meta', {
-                        kind: fileKind(file),
-                        size: formatFileSize(file.byteSize),
-                        date: formatDate(file.attachedAt.slice(0, 10), language),
-                      })}
+                      {t(
+                        file.attachedByName
+                          ? 'invoiceDetails.attachments.metaBy'
+                          : 'invoiceDetails.attachments.meta',
+                        {
+                          kind: fileKind(file),
+                          size: formatFileSize(file.byteSize),
+                          date: formatDate(file.attachedAt.slice(0, 10), language),
+                          name: file.attachedByName ?? '',
+                        },
+                      )}
                     </p>
                   </div>
                   <button

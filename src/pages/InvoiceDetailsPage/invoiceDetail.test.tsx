@@ -199,6 +199,7 @@ let attachmentFiles: Array<{
   byteSize: number
   sha256: string
   attachedAt: string
+  attachedByName?: string | null
 }>
 let who: Entitlements
 
@@ -319,6 +320,42 @@ function renderInvoice() {
     </ReferenceDataContext.Provider>,
   )
 }
+
+describe('uploader, duplicate and the marks applied at issue', () => {
+  it('names who uploaded an attachment', async () => {
+    attachmentFiles = [{ ...attachmentFiles[0], attachedByName: 'Hafidh Saif' }]
+    renderInvoice()
+    expect(await screen.findByText(/Uploaded .* by Hafidh Saif/)).toBeTruthy()
+  })
+
+  it('duplicates an issued invoice by opening the composer filled from it', async () => {
+    renderInvoice()
+    const duplicate = await screen.findByRole('link', { name: 'Duplicate' })
+    expect(duplicate.getAttribute('href')).toBe(`/invoices/new?duplicate=${ID}`)
+  })
+
+  it('says which of the composer marks the server refused after issue', async () => {
+    render(
+      <ReferenceDataContext.Provider value={SEEDED_REFERENCE}>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: `/invoices/${ID}`,
+              state: { issuedNumber: 'INV-2026-0042', marksFailed: ['paid', 'sent'] },
+            },
+          ]}
+        >
+          <Routes>
+            <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ReferenceDataContext.Provider>,
+    )
+    expect(await screen.findByText(/Issued as INV-2026-0042\./)).toBeTruthy()
+    expect(screen.getByText(/The payment was not recorded\. Use Record payment on this invoice\./)).toBeTruthy()
+    expect(screen.getByText(/It was not marked as sent manually\./)).toBeTruthy()
+  })
+})
 
 describe('An invoice, wired to the API', () => {
   it('shows the document, its balance, its lines and the customer', async () => {

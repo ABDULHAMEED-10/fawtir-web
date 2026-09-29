@@ -9,7 +9,12 @@ import type {
 } from '../api/invoices/periodic'
 import type { InvoiceDetailDto, InvoiceLineDto } from '../api/invoices/detail'
 import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from './selfBillCreate'
-import { CODED_REASON, NEEDS_EXEMPTION_REASON, itemTypeOfUnit } from './invoiceDraft'
+import {
+  CODED_REASON,
+  NEEDS_EXEMPTION_REASON,
+  itemTypeOfUnit,
+  reasonRequired,
+} from './invoiceDraft'
 import { toExclusivePrice, type DiscountType } from './invoiceMath'
 
 /**
@@ -648,9 +653,7 @@ export function periodicProblems(
   const categoryOf = (code: string) =>
     TAX_CATEGORIES.find((entry) => entry.code === code)?.en16931Category ?? ''
   const missing = (kind: string, reason: { code: string; text: string }) =>
-    CODED_REASON.has(kind)
-      ? !reason.code
-      : NEEDS_EXEMPTION_REASON.has(kind) && reason.text.trim() === ''
+    CODED_REASON.has(kind) ? !reason.code : reasonRequired(kind) && reason.text.trim() === ''
   if (lines) {
     const described = lines.filter((line) => line.description.trim())
     const kinds = described.map((line) => categoryOf(periodicLineTax(line, form.taxCategory)))

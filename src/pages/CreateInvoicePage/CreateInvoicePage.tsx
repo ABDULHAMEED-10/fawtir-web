@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { taxCategoryFor, useReferenceData } from '../../lib/reference/referenceData'
 import { unitOptions as lineUnitOptions } from '../../components/invoice/unitOptions'
@@ -48,10 +48,21 @@ import {
   type DraftPreview,
 } from '../../api/invoices/drafts'
 import {
+  loadAttachments,
+  loadReceivable,
+  markSentManually,
+  newPaymentKey,
+  recordPayment,
+  removeAttachment,
+  uploadAttachment,
+  type InvoiceAttachmentDto,
+} from '../../api/invoices/detail'
+import {
   DESIGN_REFERENCE,
   CODED_REASON,
   omanTaxCategories,
   NEEDS_EXEMPTION_REASON,
+  reasonRequired,
   PAYMENT_TERMS,
   blankDraftForm,
   blankDraftLine,
@@ -497,7 +508,11 @@ type PreviewState =
 /** A consumer invoice names the person by name and one way to send the receipt. */
 type WalkIn = { name: string; contact: string }
 
-/** Payment & status. TODO(backend): no draft field carries any of these; kept on screen only. */
+/**
+ * Payment & status. The method is saved with the draft (IBT-081). Reference, date and the two marks
+ * have no draft field: they are applied when the invoice is issued, as the design's hints say
+ * ("Records the payment", "Use this only for offline delivery").
+ */
 type PaymentState = {
   method: string
   reference: string
@@ -509,9 +524,9 @@ type PaymentState = {
 /**
  * The invoice composer, for a new draft (`/invoices/new`) or a saved one (`/invoices/:id/edit`).
  *
- * What a draft holds is saved. The design's payment block, linked documents and
- * attachments are drawn and wait for their fields (each marked TODO(backend)). Issuing saves first,
- * then confirms.
+ * What a draft holds is saved, attachments included once the draft exists. The payment marks apply
+ * at issue; linked documents are drawn and wait for their fields (TODO(backend)). Issuing saves
+ * first, then confirms.
  */
 function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const { id } = useParams()
@@ -572,8 +587,12 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     paid: false,
     sent: false,
   })
-  // TODO(backend): attachments need a draft to exist and an upload endpoint; held here until then.
+  // Files wait here until the draft exists, then go to its attachment route on save; the ones
+  // already stored with the draft are listed beside them.
   const [attachments, setAttachments] = useState<File[]>([])
+  const [storedFiles, setStoredFiles] = useState<InvoiceAttachmentDto[]>([])
+  const [searchParams] = useSearchParams()
+  const duplicateOf = id ? null : searchParams.get('duplicate')
   const [discardOpen, setDiscardOpen] = useState(false)
   /** The saved draft being confirmed for issue. */
   const [issuing, setIssuing] = useState<DraftMeta | null>(null)
@@ -628,7 +647,17 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
         }
         setMeta({ id: loaded.id, version: loaded.version, state: loaded.authoringState })
         setDirty(false)
-        if (loaded.authoringState === 'DRAFT') void runPreview(loaded.id)
+        const method = loaded.details.paymentMethod?.code
+        if (method) setPayment((current) => ({ ...current, method }))
+        if (loaded.authoringState === 'DRAFT') {
+          void runPreview(loaded.id)
+          // Storage may be off: the list is then simply empty, as the detail screen shows it.
+          loadAttachments(loaded.id)
+            .then((files) => {
+              if (!cancelled) setStoredFiles(files)
+            })
+            .catch(() => undefined)
+        }
       } catch (error) {
         if (!cancelled) setLoadError(error)
       } finally {
@@ -641,6 +670,51 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     // The note permission is fixed for the session; the draft id is what reloads the screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Duplicate (list row menu, invoice detail): a new, unsaved draft filled from another invoice.
+  // Nothing is created until the reader saves; dates, number and payments are never copied.
+  useEffect(() => {
+    if (!duplicateOf) return
+    let cancelled = false
+    setLoading(true)
+    setLoadError(null)
+    ;(async () => {
+      try {
+        const source = await loadDraft(duplicateOf)
+        const record = await apiRequest<CustomerDto>(
+          `/v1/customers/${encodeURIComponent(source.customerId)}`,
+        ).catch(() => null)
+        const kind: CustomerKind = record
+          ? KIND_OF[record.type]
+          : source.details.transactionType === 'SIMPLIFIED'
+            ? 'consumer'
+            : 'business'
+        const next = fromDraftResponse(reference?.taxCategories ?? [], source, kind)
+        // The note is the source's own business; a copy starts without one.
+        next.internalNote = canReadNote ? '' : null
+        if (cancelled) return
+        setForm(next)
+        setCustomer(record)
+        if (record && kind === 'consumer') {
+          setWalkIn({
+            name: record.displayName,
+            contact: record.profile.contact?.emailRecipients?.[0] ?? '',
+          })
+        }
+        const method = source.details.paymentMethod?.code
+        if (method) setPayment((current) => ({ ...current, method }))
+        setDirty(true)
+      } catch (error) {
+        if (!cancelled) setLoadError(error)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplicateOf])
 
   // A new draft starts on the branch the account is working in.
   useEffect(() => {
@@ -900,6 +974,80 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       }),
     })
 
+  /** The UNCL4461 means as the reader sees it; stored beside the code as a snapshot, like the terms. */
+  const methodLabel = (code: string) =>
+    t(`createInvoice.paymentMethods.${code}`, {
+      defaultValue: t(`reference.paymentMethod.${code}`, { defaultValue: code }),
+    })
+
+  /**
+   * Sends the files held on the page to the saved draft (its attachment route takes files only
+   * while it is a draft). A refused file stays listed, with the reason shown; the draft itself is
+   * saved either way.
+   */
+  const uploadPending = async (draftId: string) => {
+    for (const file of attachments) {
+      try {
+        const stored = await uploadAttachment(draftId, file)
+        setStoredFiles((current) => [...current, stored])
+        setAttachments((current) => current.filter((held) => held !== file))
+      } catch (error) {
+        setNotice({
+          tone: 'error',
+          body: t('createInvoice.notes.uploadFailed', {
+            name: file.name,
+            reason: failureText(t, error),
+          }),
+        })
+        return
+      }
+    }
+  }
+
+  const removeStored = async (file: InvoiceAttachmentDto) => {
+    if (!meta) return
+    try {
+      await removeAttachment(meta.id, file.id)
+      setStoredFiles((current) => current.filter((held) => held.id !== file.id))
+    } catch (error) {
+      setNotice({ tone: 'error', body: failureText(t, error) })
+    }
+  }
+
+  /**
+   * The design's two marks, applied once the invoice is issued: "Mark as paid" records a payment
+   * of what it owes, "Mark as sent manually" records the offline delivery. The invoice is issued
+   * whatever they answer; a refusal is reported on the invoice rather than lost.
+   */
+  const afterIssue = async (issued: { id: string; invoiceNumber: string | null }) => {
+    const failed: ('paid' | 'sent')[] = []
+    if (payment.paid) {
+      try {
+        const owed = await loadReceivable(issued.id)
+        if ((owed.outstandingAmount ?? 0) > 0) {
+          await recordPayment(issued.id, newPaymentKey(), {
+            amount: owed.outstandingAmount ?? 0,
+            methodCode: payment.method,
+            paymentReference: payment.reference.trim() || null,
+            paymentDate: payment.date || muscatToday(),
+          })
+        }
+      } catch {
+        failed.push('paid')
+      }
+    }
+    if (payment.sent) {
+      try {
+        await markSentManually(issued.id)
+      } catch {
+        failed.push('sent')
+      }
+    }
+    navigate(`/invoices/${issued.id}`, {
+      state: { issuedNumber: issued.invoiceNumber, marksFailed: failed },
+    })
+  }
+
   /** Saves the form as the draft and answers the saved draft, or null when it was refused. */
   const persist = async (): Promise<DraftMeta | null> => {
     let current = form
@@ -925,6 +1073,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     // The stored paymentTerms label is a snapshot of what the reader saw, so it has to be
     // the translated text rather than the bare code.
     const body = toDraftRequest(reference, current, exclVat, selfBilled, termLabel)
+    body.details.paymentMethod = payment.method
+      ? { code: payment.method, label: methodLabel(payment.method) }
+      : null
     try {
       const result = meta
         ? await saveDraft(meta.id, meta.version, body)
@@ -949,6 +1100,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
         )
       }
       void runPreview(result.id)
+      await uploadPending(result.id)
       return savedMeta
     } catch (error) {
       if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION') {
@@ -969,8 +1121,12 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     }
   }
 
+  // A file the save could not upload has already put its reason up; "saved" must not cover it.
+  const keepError = (body: string) =>
+    setNotice((current) => (current?.tone === 'error' ? current : { tone: 'success', body }))
+
   const save = async () => {
-    if (await persist()) setNotice({ tone: 'success', body: t('invoiceDraft.saved') })
+    if (await persist()) keepError(t('invoiceDraft.saved'))
   }
 
   /** The design's Preview: the draft saved and priced by the server, so the figures are real. */
@@ -980,7 +1136,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       setNotice({ tone: 'success', body: t('invoiceDraft.previewed') })
       return
     }
-    if (await persist()) setNotice({ tone: 'success', body: t('invoiceDraft.previewed') })
+    if (await persist()) keepError(t('invoiceDraft.previewed'))
   }
 
   /**
@@ -1113,9 +1269,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       : PAYMENT_METHODS
   ).map((code) => ({
     value: code,
-    label: t(`createInvoice.paymentMethods.${code}`, {
-      defaultValue: t(`reference.paymentMethod.${code}`, { defaultValue: code }),
-    }),
+    label: methodLabel(code),
     hint: `UNCL4461 · ${code}`,
   }))
   const usage = usageForecast()
@@ -1732,7 +1886,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 ps-1">
                         <span className="text-xs font-medium text-text-tertiary">
                           {t('invoiceDraft.exemptionReason')}
-                          <span className="ms-0.5 text-danger-700">*</span>
+                          {reasonRequired(tax.en16931Category) ? (
+                            <span className="ms-0.5 text-danger-700">*</span>
+                          ) : null}
                         </span>
                         <div className="w-full max-w-[560px]">
                           {CODED_REASON.has(tax.en16931Category) ? (
@@ -1878,7 +2034,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-4">
         <SectionTitle step={steps.payment} title={t('createInvoice.sections.payment')} />
         <div className="h-px w-full bg-border-subtle" />
-        {/* TODO(backend): payment method, reference, date and the two marks have no draft field. */}
+        {/* The method is saved with the draft; the rest applies at issue (see afterIssue). */}
         <div className="grid gap-4 md:grid-cols-3">
           <div className="flex flex-col gap-1">
             <FieldLabel label={t('createInvoice.fields.paymentMethod')} />
@@ -1990,7 +2146,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             accept={ATTACHMENT_TYPES}
             multiple
             maxBytes={ATTACHMENT_MAX_BYTES}
-            onFiles={(files) => setAttachments((current) => [...current, ...files])}
+            onFiles={(files) => {
+              setAttachments((current) => [...current, ...files])
+              // Held files go up with the next save, so issuing must save first.
+              setDirty(true)
+            }}
             onReject={(reason, file) =>
               setNotice({
                 tone: 'error',
@@ -2023,8 +2183,28 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               </span>
             )}
           </FileDropzone>
-          {attachments.length > 0 ? (
+          {attachments.length > 0 || storedFiles.length > 0 ? (
             <ul className="mt-2 flex flex-col gap-1">
+              {storedFiles.map((file) => (
+                <li
+                  key={file.id}
+                  className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 truncate font-medium text-text-secondary">
+                    {file.filename}
+                  </span>
+                  {editable ? (
+                    <button
+                      type="button"
+                      onClick={() => void removeStored(file)}
+                      aria-label={t('createInvoice.notes.removeFile', { name: file.filename })}
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-neutral-25"
+                    >
+                      <img src={deleteLineIcon} alt="" className="size-4" />
+                    </button>
+                  ) : null}
+                </li>
+              ))}
               {attachments.map((file, index) => (
                 <li
                   key={`${file.name}-${index}`}
@@ -2112,9 +2292,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           initialIssueDate={issueDate}
           initialDueDate={dueDate}
           onClose={() => setIssuing(null)}
-          onIssued={(issued) =>
-            navigate(`/invoices/${issued.id}`, { state: { issuedNumber: issued.invoiceNumber } })
-          }
+          onIssued={(issued) => void afterIssue(issued)}
         />
       ) : null}
 
