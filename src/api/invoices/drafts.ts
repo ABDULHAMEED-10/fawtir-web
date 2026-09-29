@@ -61,6 +61,8 @@ export type DraftRequest = {
     /** Left out, the server keeps the stored note; an empty string clears it. */
     internalNote?: string
     paymentTerms: ReferenceDto | null
+    /** UNCL4461 code with the label the reader saw (IBT-081); stored with the draft. */
+    paymentMethod?: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
     /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. Invoices send none. */
     correctionReasonCode?: string | null
@@ -90,6 +92,7 @@ export type DraftResponse = {
     purchaseOrderReference: string | null
     customerVisibleNote: string | null
     paymentTerms: ReferenceDto | null
+    paymentMethod?: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
     correctionReasonCode?: string | null
     /** Null on every document but a self-billed one. Read back so an edit can send them again. */

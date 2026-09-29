@@ -135,6 +135,9 @@ let putResponse: () => Response
 let loaded: DraftResponse
 let issueResponse: () => Response
 let activityCode: string | null
+let paymentResponse: () => Response
+let storedFiles: unknown[]
+let attachmentResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -151,6 +154,18 @@ beforeEach(async () => {
   loaded = draft()
   activityCode = '561001'
   putResponse = () => json(200, draft({ version: 4 }))
+  paymentResponse = () => json(201, { id: 'pay-1' })
+  storedFiles = []
+  attachmentResponse = () =>
+    json(201, {
+      id: 'att-1',
+      filename: 'po.pdf',
+      contentType: 'application/pdf',
+      byteSize: 4,
+      sha256: 'a'.repeat(64),
+      attachedAt: '2026-09-29T08:00:00Z',
+      attachedByName: 'Hafidh Saif',
+    })
   issueResponse = () =>
     json(200, {
       ...draft({ version: 5, authoringState: 'ISSUED' }),
@@ -190,6 +205,25 @@ beforeEach(async () => {
     if (url === '/api/v1/invoice-drafts/d-1/issue' && method === 'POST') return issueResponse()
     if (url === '/api/v1/authored-invoices/d-1/internal-note')
       return json(200, { internalNote: 'Call first' })
+    if (url === '/api/v1/authored-invoices/d-1/attachments' && method === 'GET')
+      return json(200, storedFiles)
+    if (url === '/api/v1/authored-invoices/d-1/attachments' && method === 'POST')
+      return attachmentResponse()
+    if (url === '/api/v1/authored-invoices/d-1/receivable')
+      return json(200, {
+        documentTotal: 20.16,
+        paidAmount: 0,
+        creditedAmount: 0,
+        outstandingAmount: 20.16,
+        currency: 'OMR',
+        paymentState: 'UNPAID',
+        overdue: false,
+        dueDate: null,
+      })
+    if (url === '/api/v1/authored-invoices/d-1/payments' && method === 'POST')
+      return paymentResponse()
+    if (url === '/api/v1/authored-invoices/d-1/manual-delivery' && method === 'POST')
+      return json(200, { recordedAt: '2026-09-29T08:00:00Z' })
     throw new Error(`unexpected ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -200,8 +234,13 @@ afterEach(() => {
 })
 
 function IssuedLanding() {
-  const state = useLocation().state as { issuedNumber?: string } | null
-  return <p>invoice page for {state?.issuedNumber}</p>
+  const state = useLocation().state as { issuedNumber?: string; marksFailed?: string[] } | null
+  return (
+    <p>
+      invoice page for {state?.issuedNumber}
+      {state?.marksFailed?.length ? ` (marks refused: ${state.marksFailed.join(', ')})` : ''}
+    </p>
+  )
 }
 
 function renderAt(path: string) {
@@ -630,5 +669,144 @@ describe('issuing from the composer', () => {
       'That date is in a closed accounting period. Reopen the period or choose another date.',
     )
     expect(alert.closest('[data-field]')?.getAttribute('data-field')).toBe('issueDate')
+  })
+})
+
+describe('payment, attachments and duplicate (INCOME.md 3.4, 3.5, 1.4)', () => {
+  const ISSUER: Entitlements = { ...WRITER, permissions: [...WRITER.permissions, 'invoice.issue'] }
+
+  it('saves the payment method with the draft, and reopens the one stored', async () => {
+    loaded = draft({
+      details: { ...draft().details, paymentMethod: { code: '48', label: 'Bank card' } },
+    })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Subject / about' }), {
+      target: { value: 'October supply' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+    await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1))
+    const method = bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0]).draft.details.paymentMethod
+    expect(method.code).toBe('48')
+    expect(method.label).toBe(i18n.t('createInvoice.paymentMethods.48'))
+  })
+
+  it('records the payment and the offline delivery once the invoice is issued', async () => {
+    who = ISSUER
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Payment reference' }), {
+      target: { value: 'TRF-77' },
+    })
+    fireEvent.click(screen.getByRole('switch', { name: 'Mark as paid' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Mark as sent manually' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    await within(dialog).findByText('20.160')
+    fireEvent.submit(dialog.querySelector('form')!)
+
+    expect(await screen.findByText('invoice page for INV-2026-000003')).toBeTruthy()
+    const [payment] = calls('POST', '/api/v1/authored-invoices/d-1/payments')
+    expect((payment[1] as RequestInit).headers).toMatchObject({
+      'Idempotency-Key': expect.stringMatching(/^payment-/),
+    })
+    expect(bodyOf(payment)).toEqual({
+      amount: 20.16,
+      methodCode: '30',
+      paymentReference: 'TRF-77',
+      paymentDate: muscatToday(),
+    })
+    expect(calls('POST', '/api/v1/authored-invoices/d-1/manual-delivery')).toHaveLength(1)
+  })
+
+  it('still lands on the issued invoice when a mark is refused, and says which', async () => {
+    who = ISSUER
+    paymentResponse = () => json(403, { type: 'about:blank', title: 'Forbidden', status: 403 })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('switch', { name: 'Mark as paid' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    await within(dialog).findByText('20.160')
+    fireEvent.submit(dialog.querySelector('form')!)
+
+    expect(
+      await screen.findByText('invoice page for INV-2026-000003 (marks refused: paid)'),
+    ).toBeTruthy()
+    expect(calls('POST', '/api/v1/authored-invoices/d-1/manual-delivery')).toHaveLength(0)
+  })
+
+  it('uploads a held file to the draft when it is saved, and lists it as stored', async () => {
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['%PDF'], 'po.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(screen.getByText('po.pdf')).toBeTruthy()
+    expect(calls('POST', '/api/v1/authored-invoices/d-1/attachments')).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() =>
+      expect(calls('POST', '/api/v1/authored-invoices/d-1/attachments')).toHaveLength(1),
+    )
+    const sent = (calls('POST', '/api/v1/authored-invoices/d-1/attachments')[0][1] as RequestInit)
+      .body as FormData
+    expect((sent.get('file') as File).name).toBe('po.pdf')
+    expect(await screen.findByText('Draft saved.')).toBeTruthy()
+    expect(screen.getAllByText('po.pdf')).toHaveLength(1)
+  })
+
+  it('does not issue while a file failed to upload, and sends only that file again', async () => {
+    who = ISSUER
+    attachmentResponse = () => json(503, { type: 'about:blank', title: 'Unavailable', status: 503 })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, {
+      target: { files: [new File(['%PDF'], 'po.pdf', { type: 'application/pdf' })] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(await screen.findByText(/po\.pdf was not uploaded/)).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Issue this invoice?' })).toBeNull()
+    expect(calls('POST', '/api/v1/invoice-drafts/d-1/issue')).toHaveLength(0)
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1)
+
+    // Storage is back: the held file goes up first, then the confirmation opens.
+    attachmentResponse = () =>
+      json(201, {
+        id: 'att-1',
+        filename: 'po.pdf',
+        contentType: 'application/pdf',
+        byteSize: 4,
+        sha256: 'a'.repeat(64),
+        attachedAt: '2026-09-29T08:00:00Z',
+      })
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
+    expect(calls('POST', '/api/v1/authored-invoices/d-1/attachments')).toHaveLength(2)
+  })
+
+  it('duplicates an invoice into a new draft, created only when saved', async () => {
+    loaded = draft({
+      authoringState: 'ISSUED',
+      invoiceNumber: 'INV-2026-000002',
+      details: { ...draft().details, deliveryDate: '2026-09-15' },
+    })
+    renderAt('/invoices/new?duplicate=d-1')
+    expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
+    expect(screen.getByDisplayValue('Flat White')).toBeTruthy()
+    expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() => expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(1))
+    const body = bodyOf(calls('POST', '/api/v1/invoice-drafts')[0])
+    expect(body.type).toBe('INVOICE')
+    expect(body.draft.details.subject).toBe('September supply')
+    expect(body.draft.lines[0].description).toBe('Flat White')
+    expect(body.draft.details.deliveryDate).toBeNull()
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
   })
 })

@@ -7,7 +7,7 @@ import type {
 } from '../api/invoices/drafts'
 import type { InvoiceListPayment, InvoiceRowDto, InvoiceSummaryDto } from '../api/invoices/list'
 import type { TFunction } from 'i18next'
-import { CODED_REASON, NEEDS_EXEMPTION_REASON, PAYMENT_TERMS, itemTypeOfUnit } from './invoiceDraft'
+import { CODED_REASON, PAYMENT_TERMS, itemTypeOfUnit, reasonRequired } from './invoiceDraft'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
 import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
 import { netDaysFor } from './reference/referenceData'
@@ -566,7 +566,7 @@ export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday
     const category = line.taxCategory.en16931Category
     return CODED_REASON.has(category)
       ? !line.taxCategory.exemptionReasonCode
-      : NEEDS_EXEMPTION_REASON.has(category) && !(line.taxCategory.exemptionReason ?? '').trim()
+      : reasonRequired(category) && !(line.taxCategory.exemptionReason ?? '').trim()
   })
   if (reasonMissing && !problems.lines) problems.lines = 'salesNote.error.vatReason'
   const dates = issueProblems(

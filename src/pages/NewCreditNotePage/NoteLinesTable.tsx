@@ -2,7 +2,12 @@ import { useTranslation } from 'react-i18next'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { OmAmount, Rial, Select, TableCheckbox } from '../../components/ui'
 import { ClassificationField, unitOptions } from '../../components/invoice'
-import { CODED_REASON, NEEDS_EXEMPTION_REASON, unitsFor } from '../../lib/invoiceDraft'
+import {
+  CODED_REASON,
+  NEEDS_EXEMPTION_REASON,
+  reasonRequired,
+  unitsFor,
+} from '../../lib/invoiceDraft'
 import { taxReasonsFor } from '../../lib/codeLists/taxReasons'
 import { nameOf } from '../../lib/codeLists/codeList'
 import type { TaxCategoryDto } from '../../api/reference/referenceData'
@@ -394,7 +399,9 @@ export function NoteLinesTable({
                     <div className="mt-2 flex flex-wrap items-center gap-2 ps-1">
                       <span className="shrink-0 text-xs font-medium text-text-tertiary">
                         {t('invoiceDraft.exemptionReason')}
-                        <span className="ms-0.5 text-danger-700">*</span>
+                        {reasonRequired(line.taxCategory.en16931Category) ? (
+                          <span className="ms-0.5 text-danger-700">*</span>
+                        ) : null}
                       </span>
                       <div className="w-full max-w-[560px]">
                         {CODED_REASON.has(line.taxCategory.en16931Category) ? (

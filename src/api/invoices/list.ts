@@ -138,6 +138,11 @@ export type InvoiceListFilter = {
   customerId?: string | null
   /** How the customer is sent to (`InvoiceListChannel`); no invoice records a channel of its own yet. */
   channel?: 'PEPPOL' | 'EMAIL' | null
+  /**
+   * `TO_SEND`: issued documents not yet delivered by any means, exactly what the summary's
+   * `toSend` counts (`InvoiceListDelivery`), so the tab's rows match its badge.
+   */
+  delivery?: 'TO_SEND' | null
 }
 
 export type InvoiceListQuery = InvoiceListFilter & {
@@ -158,6 +163,7 @@ function filterParams(filter: InvoiceListFilter) {
     correction_of_invoice_id: filter.correctionOf ?? undefined,
     customer_id: filter.customerId ?? undefined,
     channel: filter.channel ?? undefined,
+    delivery: filter.delivery ?? undefined,
   }
 }
 

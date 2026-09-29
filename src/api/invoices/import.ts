@@ -3,10 +3,10 @@ import { apiDownload, apiRequest, type ApiDownload } from '../client'
 /**
  * Invoice import (the Invoices list's Bulk upload dialog): a filled template in, drafts out.
  *
- * TODO(backend): none of these routes exist yet. The shapes follow the approved Invoice Import
- * guide (28 Sep 2026) and are listed in docs/backend-guides/INCOME.md, "Update 2026-09-28
- * (invoice import)", rows I.1 to I.10. Until they answer, the dialog says the import is not
- * available rather than pretending.
+ * The shapes follow the approved Invoice Import guide (28 Sep 2026), listed in
+ * docs/backend-guides/INCOME.md, "Update 2026-09-28 (invoice import)", rows I.1 to I.10, and served
+ * by the backend's `/v1/invoices/import/*` (fawtir-backend #382, #387). A route that answers 404
+ * still makes the dialog say the import is not available rather than pretend.
  *
  * Nothing here issues: the import creates drafts only, and issuing stays on the Invoices list.
  */

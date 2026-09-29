@@ -8,6 +8,9 @@
 export const SEED_ROUTES = [
   // Pre-login and onboarding. Already responsive; kept in so a regression here is caught.
   '/',
+  '/pricing',
+  '/features',
+  '/contact',
   '/login',
   '/signup',
   '/forgot-password',

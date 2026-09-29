@@ -104,9 +104,8 @@ const DELIVERY_HINTS: Record<PeppolResponse, string> = {
 }
 
 /**
- * The design's six tabs (Figma 154:172772). "To send" is issued documents not yet delivered.
- * TODO(backend): the list has no delivery-state filter and the summary no `toSend` count, so the
- * tab asks for every issued document and shows a count only when the summary carries one.
+ * The design's six tabs (Figma 154:172772). "To send" is issued documents not yet delivered by any
+ * means: the list's `delivery=TO_SEND` and the summary's `toSend` read the same definition.
  */
 type TabId = InvoiceTabId | 'toSend'
 const TABS: { id: TabId; labelKey: string; danger?: boolean }[] = [
@@ -219,6 +218,7 @@ function InvoicesScreen() {
           ...(tab === 'toSend'
             ? {
                 state: 'ISSUED',
+                delivery: 'TO_SEND' as const,
                 payment: null,
                 type,
                 ...periodRange(period, summary.read.data.asOf),
@@ -402,8 +402,7 @@ function InvoicesScreen() {
         <div className="flex flex-wrap items-center gap-x-[52px] gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:gap-x-6">
           {TABS.map((entry) => {
             const active = entry.id === tab
-            // TODO(backend): the summary has no `toSend` count yet (INCOME.md row 1.1). The owner
-            // asked for 0 rather than an empty badge until it arrives; the server's figure wins.
+            // The owner asked for 0 rather than an empty badge when the summary is unavailable.
             const tally =
               entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
             return (
@@ -841,8 +840,10 @@ function InvoiceTable({
 
   /**
    * The design's row menu (Figma "Actions" 154:173140): view, send, duplicate, credit note,
-   * periodic, delete. Send and duplicate have no endpoint yet (TODO(backend)) and say so when
-   * chosen; delete is a draft's discard, or an issued document's cancel with a reason.
+   * periodic, delete. Send has no endpoint yet (TODO(backend)) and says so when chosen. Duplicate
+   * opens the composer filled from an invoice, saved only when the reader saves; the notes and
+   * self-billed documents have their own composers, so for them it still says it is unavailable.
+   * Delete is a draft's discard, or an issued document's cancel with a reason.
    */
   const menuFor = (row: InvoiceListItem): ActionMenuItem[] => {
     const issuedInvoice = row.authoring === 'issued' && row.type === 'INVOICE'
@@ -859,12 +860,19 @@ function InvoiceTable({
         icon: sendIcon,
         onSelect: () => onUnavailable('invoicesPage.sendUnavailable'),
       },
-      {
-        id: 'duplicate',
-        labelKey: 'rowActions.invoice.duplicate',
-        icon: duplicateIcon,
-        onSelect: () => onUnavailable('invoicesPage.duplicateUnavailable'),
-      },
+      row.type === 'INVOICE' && canDraft
+        ? {
+            id: 'duplicate',
+            labelKey: 'rowActions.invoice.duplicate',
+            icon: duplicateIcon,
+            to: `/invoices/new?duplicate=${row.id}`,
+          }
+        : {
+            id: 'duplicate',
+            labelKey: 'rowActions.invoice.duplicate',
+            icon: duplicateIcon,
+            onSelect: () => onUnavailable('invoicesPage.duplicateUnavailable'),
+          },
     ]
     if (issuedInvoice && can(session, 'creditnote.create')) {
       items.push({
@@ -875,7 +883,7 @@ function InvoiceTable({
       })
     }
     if (issuedInvoice && can(session, 'invoice.draft')) {
-      // TODO(backend): the periodic composer picks its template itself; the id is passed for when it reads one.
+      // The periodic composer reads the template from `?template=` (PeriodicInvoicePage).
       items.push({
         id: 'periodic',
         labelKey: 'rowActions.invoice.periodic',

@@ -68,8 +68,11 @@ describe('Landing page', () => {
       screen.getAllByRole('link', { name: i18n.t('landing.nav.signUp') })[0].getAttribute('href'),
     ).toBe('/signup')
     expect(
-      screen.getByRole('link', { name: i18n.t('landing.nav.pricing') }).getAttribute('href'),
-    ).toBe('/plans')
+      screen.getAllByRole('link', { name: i18n.t('landing.nav.pricing') })[0].getAttribute('href'),
+    ).toBe('/pricing')
+    expect(
+      screen.getAllByRole('link', { name: i18n.t('landing.nav.contact') })[0].getAttribute('href'),
+    ).toBe('/contact')
     expect(
       screen.getAllByRole('link', { name: i18n.t('landing.cta.demo') })[0].getAttribute('href'),
     ).toContain('mailto:')
