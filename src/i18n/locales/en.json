@@ -2046,7 +2046,8 @@
       "uploadUnavailable": "Uploading from here is not available yet: there is no attachment route.",
       "tooLarge": "{{name}} is over 10 MB and was not added.",
       "wrongType": "{{name}} is not a supported file type.",
-      "uploading": "Uploading…"
+      "uploading": "Uploading…",
+      "metaBy": "{{kind}} · {{size}} · Uploaded {{date}} by {{name}}"
     },
     "payments": {
       "title": "Payments",
@@ -2347,7 +2348,8 @@
       "removeFile": "Remove {{name}}",
       "tooLarge": "{{name}} is over 10 MB and was not added.",
       "wrongType": "{{name}} is not a supported file type.",
-      "supportingDocuments": "Supporting documents"
+      "supportingDocuments": "Supporting documents",
+      "uploadFailed": "{{name}} was not uploaded: {{reason}}"
     },
     "actions": {
       "preview": "Preview",
@@ -15858,6 +15860,10 @@
       "subtitle": "Check the dates and the total before it takes its number.",
       "body": "Issuing gives the debit note its number and fixes its figures. The customer then owes it by its own due date. After that it can't be edited.",
       "submit": "Issue debit note"
+    },
+    "markFailed": {
+      "paid": "The payment was not recorded. Use Record payment on this invoice.",
+      "sent": "It was not marked as sent manually."
     }
   },
   "supplierForm": {

@@ -653,3 +653,36 @@ lists, shared PINT rules). Three corrections:
 Also confirmed for credit and debit notes: preceding invoice reference, issue date and UUID are
 mandatory (IBR-032-OM), and the reason code BTOM-032 is one of CAN, VAT, VAL, QTY, OTH
 (IBR-023-OM, CL-02-OM), as the screens already send.
+
+## Update 2026-09-29 (invoice screens: remaining gaps closed)
+
+Answered by the backend and wired here. The backend PRs are fawtir-backend #387 (import commit, report,
+background), #388 (V.4, V.5, NET15) and #389 (1.1 filter, 2.13 uploader). This web change needs
+all three merged first.
+
+- **1.1** The To send tab asks for `delivery=TO_SEND`. The summary's `toSend` reads the same
+  definition (issued, not delivered on Peppol, not marked as sent by hand), so the badge and the
+  rows agree.
+- **1.4 / 2.x Duplicate** An invoice's Duplicate (list row menu and detail action) opens
+  `/invoices/new?duplicate=<id>`: the composer is filled from that invoice and nothing is created
+  until the reader saves. Dates, number, payments and the internal note are not copied. Credit notes,
+  debit notes and self-billed documents keep the "not available" notice, because they have their own
+  composers. **1.4 Send** stays open: it waits for Peppol dispatch.
+- **2.3 / 2.13** An attachment row names its uploader (`attachedByName`). The document kind is
+  still open; the file type stands in for it.
+- **3.4** The payment method is saved with the draft (`details.paymentMethod`, IBT-081). "Mark as
+  paid" and "Mark as sent manually" apply when the invoice is issued:
+  - "Mark as paid" records a payment of what the invoice owes (`POST .../payments`), with the
+    reference and date typed in the composer.
+  - "Mark as sent manually" records the offline delivery (`POST .../manual-delivery`).
+  - A refused mark is named on the invoice page; the invoice is issued either way.
+  - Reference and date are not draft fields; this is recorded here, not asked.
+- **3.5 attachments** Files added in the composer upload to the draft when it is saved. Those
+  already stored are listed and can be removed while it is a draft. Linking trade documents is still
+  open.
+- **3.11** NET15 is in the platform's terms (V210). EOM and ADVANCE are not yet, by decision:
+  they are not "net N days".
+- **V.4** AE0 and G0 are served inactive (V210). The `DESIGN_REFERENCE` fallback no longer lists
+  them.
+- **V.5** Outside scope takes an optional reason: no required asterisk and no "reason missing"
+  check on any composer (`reasonRequired` in `lib/invoiceDraft.ts`). A typed reason is still sent.

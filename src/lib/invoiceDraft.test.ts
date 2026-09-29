@@ -269,6 +269,9 @@ describe('checks before saving', () => {
     expect(problems(line('E0', { exemptionReasonCode: 'VATEX-OM-02' }))).toEqual([])
     expect(problems(line('AE0'))).toEqual(['exemptionReason'])
     expect(problems(line('AE0', { exemptionReason: 'Reverse charge' }))).toEqual([])
+    // Outside scope: the reason is optional (no PINT-OM rule asks for IBT-120 on O; backend V210).
+    expect(problems(line('O0'))).toEqual([])
+    expect(problems(line('O0', { exemptionReason: 'Not a supply' }))).toEqual([])
   })
 
   it('carries the 16 zero-rated and 12 exempt reason codes, never mixed', () => {

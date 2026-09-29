@@ -6,6 +6,7 @@ import type { LineItem } from '../components/invoice'
 import {
   CODED_REASON,
   NEEDS_EXEMPTION_REASON,
+  reasonRequired,
   itemTypeOfUnit,
   omanTaxCategories,
   unitsFor,
@@ -400,7 +401,7 @@ export function problemsBeforeSave(
     const reason = lineReason(line, form)
     return CODED_REASON.has(category)
       ? !reason.code
-      : NEEDS_EXEMPTION_REASON.has(category) && reason.text.trim() === ''
+      : reasonRequired(category) && reason.text.trim() === ''
   })
   // PINT-OM has no EN 16931 BR-O-11 counterpart: an out-of-scope line may sit beside taxed ones.
   if (reasonMissing) problems.push('reason')
