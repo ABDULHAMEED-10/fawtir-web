@@ -690,8 +690,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             ? 'consumer'
             : 'business'
         const next = fromDraftResponse(reference?.taxCategories ?? [], source, kind)
-        // The note is the source's own business; a copy starts without one.
+        // The note is the source's own business; a copy starts without one. The delivery date
+        // belongs to the original supply, so the copy leaves it for the reader to set.
         next.internalNote = canReadNote ? '' : null
+        next.deliveryDate = ''
         if (cancelled) return
         setForm(next)
         setCustomer(record)
@@ -982,10 +984,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
 
   /**
    * Sends the files held on the page to the saved draft (its attachment route takes files only
-   * while it is a draft). A refused file stays listed, with the reason shown; the draft itself is
-   * saved either way.
+   * while it is a draft). A refused file stays listed, with the reason shown, and is the only one
+   * sent again next time; the draft itself is saved either way. Answers whether every file went up.
    */
-  const uploadPending = async (draftId: string) => {
+  const uploadPending = async (draftId: string): Promise<boolean> => {
     for (const file of attachments) {
       try {
         const stored = await uploadAttachment(draftId, file)
@@ -999,9 +1001,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
             reason: failureText(t, error),
           }),
         })
-        return
+        return false
       }
     }
+    return true
   }
 
   const removeStored = async (file: InvoiceAttachmentDto) => {
@@ -1048,8 +1051,12 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     })
   }
 
-  /** Saves the form as the draft and answers the saved draft, or null when it was refused. */
-  const persist = async (): Promise<DraftMeta | null> => {
+  /**
+   * Saves the form as the draft and answers the saved draft, or null when it was refused. For an
+   * issue, a file that failed to upload also answers null: the draft is saved, but it is not issued
+   * without the files the reader added (as the note composers do).
+   */
+  const persist = async ({ forIssue = false } = {}): Promise<DraftMeta | null> => {
     let current = form
     setServerLineErrors({})
     setProblems([])
@@ -1100,8 +1107,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
         )
       }
       void runPreview(result.id)
-      await uploadPending(result.id)
-      return savedMeta
+      const uploadsDone = await uploadPending(result.id)
+      return forIssue && !uploadsDone ? null : savedMeta
     } catch (error) {
       if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION') {
         setNotice({ tone: 'error', body: t('invoiceDraft.stale'), stale: true })
@@ -1151,7 +1158,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       setNotice({ tone: 'error', body: t('invoiceDraft.fixFirst') })
       return
     }
-    const savedMeta = meta && !dirty ? meta : await persist()
+    // Files still held (a failed upload leaves them) go up first, even when nothing else changed.
+    const savedMeta =
+      meta && !dirty && attachments.length === 0 ? meta : await persist({ forIssue: true })
     if (savedMeta) setIssuing(savedMeta)
   }
 

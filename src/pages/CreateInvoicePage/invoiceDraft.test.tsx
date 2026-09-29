@@ -137,6 +137,7 @@ let issueResponse: () => Response
 let activityCode: string | null
 let paymentResponse: () => Response
 let storedFiles: unknown[]
+let attachmentResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -155,6 +156,16 @@ beforeEach(async () => {
   putResponse = () => json(200, draft({ version: 4 }))
   paymentResponse = () => json(201, { id: 'pay-1' })
   storedFiles = []
+  attachmentResponse = () =>
+    json(201, {
+      id: 'att-1',
+      filename: 'po.pdf',
+      contentType: 'application/pdf',
+      byteSize: 4,
+      sha256: 'a'.repeat(64),
+      attachedAt: '2026-09-29T08:00:00Z',
+      attachedByName: 'Hafidh Saif',
+    })
   issueResponse = () =>
     json(200, {
       ...draft({ version: 5, authoringState: 'ISSUED' }),
@@ -197,15 +208,7 @@ beforeEach(async () => {
     if (url === '/api/v1/authored-invoices/d-1/attachments' && method === 'GET')
       return json(200, storedFiles)
     if (url === '/api/v1/authored-invoices/d-1/attachments' && method === 'POST')
-      return json(201, {
-        id: 'att-1',
-        filename: 'po.pdf',
-        contentType: 'application/pdf',
-        byteSize: 4,
-        sha256: 'a'.repeat(64),
-        attachedAt: '2026-09-29T08:00:00Z',
-        attachedByName: 'Hafidh Saif',
-      })
+      return attachmentResponse()
     if (url === '/api/v1/authored-invoices/d-1/receivable')
       return json(200, {
         documentTotal: 20.16,
@@ -755,8 +758,43 @@ describe('payment, attachments and duplicate (INCOME.md 3.4, 3.5, 1.4)', () => {
     expect(screen.getAllByText('po.pdf')).toHaveLength(1)
   })
 
+  it('does not issue while a file failed to upload, and sends only that file again', async () => {
+    who = ISSUER
+    attachmentResponse = () => json(503, { type: 'about:blank', title: 'Unavailable', status: 503 })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText('Figures from the saved draft.')).toBeTruthy()
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, {
+      target: { files: [new File(['%PDF'], 'po.pdf', { type: 'application/pdf' })] },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(await screen.findByText(/po\.pdf was not uploaded/)).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Issue this invoice?' })).toBeNull()
+    expect(calls('POST', '/api/v1/invoice-drafts/d-1/issue')).toHaveLength(0)
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1)
+
+    // Storage is back: the held file goes up first, then the confirmation opens.
+    attachmentResponse = () =>
+      json(201, {
+        id: 'att-1',
+        filename: 'po.pdf',
+        contentType: 'application/pdf',
+        byteSize: 4,
+        sha256: 'a'.repeat(64),
+        attachedAt: '2026-09-29T08:00:00Z',
+      })
+    fireEvent.click(screen.getByRole('button', { name: 'Create invoice' }))
+    expect(await screen.findByRole('dialog', { name: 'Issue this invoice?' })).toBeTruthy()
+    expect(calls('POST', '/api/v1/authored-invoices/d-1/attachments')).toHaveLength(2)
+  })
+
   it('duplicates an invoice into a new draft, created only when saved', async () => {
-    loaded = draft({ authoringState: 'ISSUED', invoiceNumber: 'INV-2026-000002' })
+    loaded = draft({
+      authoringState: 'ISSUED',
+      invoiceNumber: 'INV-2026-000002',
+      details: { ...draft().details, deliveryDate: '2026-09-15' },
+    })
     renderAt('/invoices/new?duplicate=d-1')
     expect(await screen.findByDisplayValue('September supply')).toBeTruthy()
     expect(screen.getByDisplayValue('Flat White')).toBeTruthy()
@@ -768,6 +806,7 @@ describe('payment, attachments and duplicate (INCOME.md 3.4, 3.5, 1.4)', () => {
     expect(body.type).toBe('INVOICE')
     expect(body.draft.details.subject).toBe('September supply')
     expect(body.draft.lines[0].description).toBe('Flat White')
+    expect(body.draft.details.deliveryDate).toBeNull()
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
   })
 })
