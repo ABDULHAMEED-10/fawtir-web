@@ -258,6 +258,22 @@ describe('Invoices list, wired to the API', () => {
     )
   })
 
+  it('asks for the To send tab by delivery state, so its rows are what its badge counts', async () => {
+    renderInvoices()
+    await screen.findByText('Sohar Port Logistics')
+    fireEvent.click(screen.getByRole('button', { name: /^To send/ }))
+    await waitFor(() => expect(listCalls().at(-1)).toContain('delivery=TO_SEND'))
+    expect(listCalls().at(-1)).toContain('state=ISSUED')
+  })
+
+  it('duplicates an invoice by opening the composer filled from it', async () => {
+    renderInvoices()
+    const row = (await screen.findByText('INV-2026-0042')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Invoice actions' }))
+    const duplicate = await screen.findByRole('menuitem', { name: 'Duplicate' })
+    expect(duplicate.getAttribute('href')).toBe('/invoices/new?duplicate=inv-1')
+  })
+
   it('asks the server for the tab, search, type, period, sort and page size', async () => {
     renderInvoices()
     await screen.findByText('Sohar Port Logistics')
