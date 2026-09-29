@@ -65,6 +65,11 @@ export type DraftRequest = {
     /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. Invoices send none. */
     correctionReasonCode?: string | null
     /**
+     * The composer's reason behind the code (`returnedGoods`, `freightOmitted`, …), so two reasons
+     * sharing a code stay apart (INCOME.md 4.9). Never in the UBL; absent before the API kept it.
+     */
+    correctionReasonDetail?: string | null
+    /**
      * IBT-010 and IBT-012 — the TENANT's own references as buyer, and **self-billed documents
      * only**. On every other path the buyer is the customer and both come from the customer
      * record, so a value here is refused with `BUYER_REFERENCES_NOT_SELF_BILLED` rather than
@@ -92,6 +97,11 @@ export type DraftResponse = {
     paymentTerms: ReferenceDto | null
     transactionType: 'FULL_TAX' | 'SIMPLIFIED'
     correctionReasonCode?: string | null
+    /**
+     * The composer's reason behind the code (`returnedGoods`, `freightOmitted`, …), so two reasons
+     * sharing a code stay apart (INCOME.md 4.9). Never in the UBL; absent before the API kept it.
+     */
+    correctionReasonDetail?: string | null
     /** Null on every document but a self-billed one. Read back so an edit can send them again. */
     buyerReference?: string | null
     contractReference?: string | null

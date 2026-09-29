@@ -3,8 +3,10 @@ import { SEEDED_REFERENCE, SEEDED_TAX_CATEGORIES } from '../testing/referenceDat
 import type { DraftResponse } from '../api/invoices/drafts'
 import { EXEMPT_REASONS, ZERO_RATED_REASONS, taxReasonsFor } from './codeLists/taxReasons'
 import {
+  CATEGORY_REASON_CONFLICT,
   blankDraftForm,
   blankDraftLine,
+  categoryReasonConflicts,
   fromDraftResponse,
   placeFieldErrors,
   problemsBeforeIssue,
@@ -359,5 +361,58 @@ describe('checks before saving', () => {
       0: { product: 'must not be null' },
     })
     expect(placed.other).toEqual(['branchId: must not be null'])
+  })
+})
+
+describe('one reason per VAT category and rate (V.6, BR-CO-18)', () => {
+  const zeroRated = (code: string, description: string) => ({
+    ...blankDraftLine(SEEDED_TAX_CATEGORIES, 'Z0'),
+    description,
+    unitPrice: '10.000',
+    exemptionReasonCode: code,
+  })
+
+  it('refuses a second zero-rated line with another reason code, on that line', () => {
+    const conflicting = form({
+      lines: [
+        zeroRated('VATZR-OM-10', 'Export, goods'),
+        zeroRated('VATZR-OM-09', 'Export, services'),
+      ],
+    })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, conflicting)).toEqual([
+      { field: 'exemptionReason', line: 1, key: CATEGORY_REASON_CONFLICT },
+    ])
+  })
+
+  it('lets the same category and rate share a reason, and different categories differ', () => {
+    const same = form({
+      lines: [zeroRated('VATZR-OM-10', 'A'), zeroRated('VATZR-OM-10', 'B')],
+    })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, same)).toEqual([])
+    const exempt = {
+      ...blankDraftLine(SEEDED_TAX_CATEGORIES, 'E0'),
+      description: 'Exempt',
+      exemptionReasonCode: 'VATEX-OM-02',
+    }
+    const mixed = form({ lines: [zeroRated('VATZR-OM-10', 'A'), exempt] })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, mixed)).toEqual([])
+  })
+
+  it('compares the written reason on outside-scope lines', () => {
+    expect(
+      categoryReasonConflicts([
+        { code: 'O0', rate: 0, en16931Category: 'O', exemptionReason: 'Not a supply' },
+        { code: 'O0', rate: '0', en16931Category: 'O', exemptionReason: ' Not a supply ' },
+        { code: 'O0', rate: 0, en16931Category: 'O', exemptionReason: 'Disbursement' },
+        { code: 'S5', rate: 5, en16931Category: 'S' },
+      ]),
+    ).toEqual([2])
+  })
+
+  it('tells a line missing its reason that first, not the conflict', () => {
+    const missing = form({ lines: [zeroRated('VATZR-OM-10', 'A'), zeroRated('', 'B')] })
+    expect(problemsBeforeSave(SEEDED_TAX_CATEGORIES, missing).map((p) => p.key)).toEqual([
+      'invoiceDraft.problem.exemptionReason',
+    ])
   })
 })

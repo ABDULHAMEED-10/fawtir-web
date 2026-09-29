@@ -7,21 +7,28 @@ import type { InvoiceDetailDto, InvoiceReceivableDto } from '../../api/invoices/
 import type { DraftRequest, DraftResponse } from '../../api/invoices/drafts'
 import type { InvoiceRowDto } from '../../api/invoices/list'
 import {
+  NOTE_REFUSALS,
   addedLine,
   creditEffect,
   debitPaymentOf,
   fromInvoice,
   fromNoteDraft,
+  noteHeaderDiscount,
   noteProblems,
+  noteTotals,
   participantIdText,
+  patchLine,
+  reasonLabelKey,
   toNoteRequest,
   withMode,
 } from '../../lib/salesNote'
+import { CATEGORY_REASON_CONFLICT } from '../../lib/invoiceDraft'
 import { NewCreditNotePage } from './NewCreditNotePage'
 import { NewDebitNotePage } from '../NewDebitNotePage'
 import { CreditNotesPage } from '../CreditNotesPage'
 import { DebitNotesPage } from '../DebitNotesPage'
 import { InvoiceDetailsPage } from '../InvoiceDetailsPage'
+import { CreditNoteDetailsPage } from '../CreditNoteDetailsPage'
 
 const INVOICE_ID = '11111111-1111-1111-1111-111111111111'
 const NOTE_ID = '22222222-2222-2222-2222-222222222222'
@@ -868,4 +875,380 @@ describe('a paid debit note row (4.7)', () => {
     ).toEqual({ kind: 'paid', date: '2026-09-20' })
     expect(debitPaymentOf(row({}))).toEqual({ kind: 'paid', date: null })
   })
+})
+
+const CREDIT_SUMMARY = {
+  currencyCode: 'OMR',
+  asOf: '2026-09-25',
+  all: 17,
+  drafts: 1,
+  toSend: 2,
+  awaiting: 0,
+  overdue: 0,
+  paid: 0,
+  outstandingTotal: 0,
+  outstandingInvoices: 0,
+  awaitingTotal: 0,
+  dueSoonInvoices: 0,
+  dueSoonDays: 7,
+  overdueTotal: 0,
+  overdueInvoices: 0,
+  oldestOverdueDueDate: null,
+  paidTotal: 0,
+  paidInvoices: 0,
+  issuedLast30Days: { count: 6, total: 97.137 },
+  issuedTotal: { count: 14, total: 144.831 },
+  issuedThisQuarter: { count: 9, total: 118.281 },
+}
+
+describe('the credit notes list figures and tabs (4.1, 4.2, 4.3)', () => {
+  const summaryReply = (body: unknown) => (url: string) =>
+    url.startsWith('/api/v1/authored-invoices/summary') ? json(200, body) : undefined
+  const listCalls = () => calls('GET', '/api/v1/authored-invoices?')
+
+  it('reads the tabs, the subtitle and the figures from the summary by type, not a wide read', async () => {
+    override = summaryReply(CREDIT_SUMMARY)
+    renderAt('/income/credit-notes')
+    expect(await screen.findByText('97.137')).toBeTruthy()
+    const summaries = calls('GET', '/api/v1/authored-invoices/summary')
+    expect(summaries).toHaveLength(1)
+    expect(summaries[0][0]).toBe('/api/v1/authored-invoices/summary?type=CREDIT_NOTE')
+    // The 200-row read is gone: the list refuses a size above 100.
+    expect(listCalls().some(([url]) => String(url).includes('size=200'))).toBe(false)
+    expect(listCalls()).toHaveLength(1)
+    expect(screen.getByText('6 credit notes issued')).toBeTruthy()
+    // Applied to invoices: every issued credit note, as no refund is recorded.
+    expect(screen.getByText('144.831')).toBeTruthy()
+    expect(screen.getByText('14 offset, no cash out')).toBeTruthy()
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /^9 credit notes · .*118\.281 credited this quarter$/.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
+    // Refund due and Refunded: no refund data, so no figure rather than a false 0.
+    expect(screen.getAllByText('Figures unavailable')).toHaveLength(2)
+    expect(within(screen.getByRole('tab', { name: /All/ })).getByText('17')).toBeTruthy()
+    expect(within(screen.getByRole('tab', { name: /Drafts/ })).getByText('1')).toBeTruthy()
+    expect(within(screen.getByRole('tab', { name: /To send/ })).getByText('2')).toBeTruthy()
+    expect(within(screen.getByRole('tab', { name: /Applied/ })).getByText('14')).toBeTruthy()
+    // The refund tabs stay drawn, with no count.
+    expect(screen.getByRole('tab', { name: 'Refund due' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Refunded' })).toBeTruthy()
+  })
+
+  it('asks the server for issued notes on Applied, and shows each row it answers', async () => {
+    override = summaryReply(CREDIT_SUMMARY)
+    renderAt('/income/credit-notes?tab=applied')
+    // The only row is issued but not sent yet: it is still applied to its invoice.
+    const row = (await screen.findByRole('link', { name: 'CRN-1' })).closest('tr') as HTMLElement
+    expect(within(row).getByText('To be sent')).toBeTruthy()
+    expect(listCalls()).toHaveLength(1)
+    expect(listCalls()[0][0]).toContain('state=ISSUED')
+    expect(listCalls()[0][0]).toContain('type=CREDIT_NOTE')
+  })
+
+  it('shows the refund tabs empty without asking the list', async () => {
+    override = summaryReply(CREDIT_SUMMARY)
+    renderAt('/income/credit-notes?tab=refundDue')
+    expect(await screen.findByText('97.137')).toBeTruthy()
+    expect(screen.getByText(i18n.t('salesNote.list.noResults'))).toBeTruthy()
+    expect(listCalls()).toHaveLength(0)
+  })
+
+  it('says every figure is unavailable when the summary fails, and keeps the description', async () => {
+    override = (url) =>
+      url.startsWith('/api/v1/authored-invoices/summary')
+        ? json(500, { title: 'Boom', status: 500 })
+        : undefined
+    renderAt('/income/credit-notes')
+    expect((await screen.findAllByText('Figures unavailable')).length).toBe(4)
+    expect(screen.getByText(/Credit notes reduce what a customer owes/)).toBeTruthy()
+  })
+})
+
+describe("a credit note's document discount (W-2)", () => {
+  // 20 × 1.800 = 36.000, and 5 × 9.500 less 10% = 42.750: 78.750 after line discounts.
+  const discounted = (headerDiscount: InvoiceDetailDto['headerDiscount']): InvoiceDetailDto => ({
+    ...INVOICE,
+    headerDiscount,
+    lines: [
+      line(1, 'Cappuccino, Large', 20, 1.8),
+      { ...line(2, 'Coffee Beans 1kg', 5, 9.5), discountValue: 10 },
+    ],
+  })
+  const creditLineTwo = (invoice: InvoiceDetailDto) => {
+    const form = withMode(
+      { ...fromInvoice(invoice, 'CREDIT_NOTE'), reason: 'returnedGoods' },
+      'lines',
+      invoice,
+    )
+    return patchLine(form, 'CREDIT_NOTE', 1, { include: false })
+  }
+
+  it('copies the invoice discount as it is when the whole invoice is credited', () => {
+    for (const discount of [
+      { type: 'FIXED_AMOUNT' as const, value: 5 },
+      { type: 'PERCENTAGE' as const, value: 10 },
+    ]) {
+      const invoice = discounted(discount)
+      const form = { ...fromInvoice(invoice, 'CREDIT_NOTE'), reason: 'orderCancelled' }
+      expect(toNoteRequest(form, invoice, 'CREDIT_NOTE').headerDiscount).toEqual(discount)
+    }
+    // The whole invoice, credited, is what it charged: 78.750 - 5.000 = 73.750, and 5% VAT.
+    const invoice = discounted({ type: 'FIXED_AMOUNT', value: 5 })
+    const form = fromInvoice(invoice, 'CREDIT_NOTE')
+    expect(noteTotals(form, noteHeaderDiscount(form, invoice, 'CREDIT_NOTE'))).toMatchObject({
+      net: '73.750',
+      vat: '3.688',
+      total: '77.438',
+    })
+  })
+
+  it('sends the same percentage on some of the lines, and prices the note with it', () => {
+    const invoice = discounted({ type: 'PERCENTAGE', value: 10 })
+    const form = creditLineTwo(invoice)
+    const header = noteHeaderDiscount(form, invoice, 'CREDIT_NOTE')
+    expect(header).toEqual({ type: 'PERCENTAGE', value: 10 })
+    expect(toNoteRequest(form, invoice, 'CREDIT_NOTE').headerDiscount).toEqual(header)
+    // 42.750 less 10% = 38.475; VAT 1.924.
+    expect(noteTotals(form, header)).toMatchObject({ net: '38.475', vat: '1.924', total: '40.399' })
+  })
+
+  it('sends a fixed discount in proportion on some of the lines, following an edited quantity', () => {
+    const invoice = discounted({ type: 'FIXED_AMOUNT', value: 5 })
+    const form = creditLineTwo(invoice)
+    // 5.000 × 42.750 / 78.750 = 2.714285…, HALF_UP to 2.714.
+    const header = noteHeaderDiscount(form, invoice, 'CREDIT_NOTE')
+    expect(header).toEqual({ type: 'FIXED_AMOUNT', value: 2.714 })
+    expect(toNoteRequest(form, invoice, 'CREDIT_NOTE').headerDiscount).toEqual(header)
+    // What the customer was charged for the line, to within rounding: 40.036 and 2.002 VAT.
+    expect(noteTotals(form, header)).toMatchObject({ net: '40.036', vat: '2.002', total: '42.038' })
+
+    // Two of the five bags: 17.100 after the line discount, so 5.000 × 17.100 / 78.750 = 1.086.
+    const fewer = patchLine(form, 'CREDIT_NOTE', 2, { quantity: '2' })
+    expect(noteHeaderDiscount(fewer, invoice, 'CREDIT_NOTE')).toEqual({
+      type: 'FIXED_AMOUNT',
+      value: 1.086,
+    })
+    expect(noteTotals(fewer, noteHeaderDiscount(fewer, invoice, 'CREDIT_NOTE'))).toMatchObject({
+      net: '16.014',
+      total: '16.815',
+    })
+  })
+
+  it('sends no document discount on a custom amount, on a debit note, or when the invoice has none', () => {
+    const invoice = discounted({ type: 'FIXED_AMOUNT', value: 5 })
+    const custom = withMode(fromInvoice(invoice, 'CREDIT_NOTE'), 'custom', invoice)
+    expect(noteHeaderDiscount(custom, invoice, 'CREDIT_NOTE')).toEqual({
+      type: 'FIXED_AMOUNT',
+      value: 0,
+    })
+    const debit = patchLine(fromInvoice(invoice, 'DEBIT_NOTE'), 'DEBIT_NOTE', 2, {
+      unitPrice: '1.000',
+    })
+    expect(toNoteRequest(debit, invoice, 'DEBIT_NOTE').headerDiscount).toEqual({
+      type: 'FIXED_AMOUNT',
+      value: 0,
+    })
+    const plain = fromInvoice(INVOICE, 'CREDIT_NOTE')
+    expect(toNoteRequest(plain, INVOICE, 'CREDIT_NOTE').headerDiscount).toEqual({
+      type: 'FIXED_AMOUNT',
+      value: 0,
+    })
+  })
+})
+
+describe('one reason per VAT category and rate on a note (V.6)', () => {
+  const zeroRated = (code: string) => ({
+    code: 'Z0',
+    en16931Category: 'Z',
+    rate: 0,
+    exemptionReason: null,
+    exemptionReasonCode: code,
+  })
+
+  it('refuses two added lines at the same category and rate with different reasons', () => {
+    const start = withMode(
+      { ...fromInvoice(INVOICE, 'CREDIT_NOTE'), reason: 'priceCorrection' },
+      'custom',
+      INVOICE,
+    )
+    const [first] = start.lines.filter((l) => !l.fromInvoice)
+    const second = addedLine(start, INVOICE, 'goods')
+    const form = {
+      ...start,
+      lines: [
+        ...start.lines.filter((l) => l.fromInvoice),
+        {
+          ...first,
+          description: 'Export',
+          unitPrice: '5.000',
+          taxCategory: zeroRated('VATZR-OM-10'),
+        },
+        {
+          ...second,
+          description: 'Re-export',
+          unitPrice: '5.000',
+          taxCategory: zeroRated('VATZR-OM-12'),
+        },
+      ],
+    }
+    expect(noteProblems(form, 'CREDIT_NOTE')).toEqual({ lines: CATEGORY_REASON_CONFLICT })
+    form.lines[form.lines.length - 1].taxCategory = zeroRated('VATZR-OM-10')
+    expect(noteProblems(form, 'CREDIT_NOTE')).toEqual({})
+  })
+
+  it("reads the engine's refusal of it in the same words", () => {
+    expect(NOTE_REFUSALS.TAX_CATEGORY_REASON_CONFLICT).toBe(CATEGORY_REASON_CONFLICT)
+    expect(NOTE_REFUSALS.TAX_CATEGORY_METADATA_CONFLICT).toBe(CATEGORY_REASON_CONFLICT)
+  })
+})
+
+describe("the note's reason detail (4.9)", () => {
+  it('sends the chosen reason beside its code, and a reopened draft shows it', () => {
+    const form = { ...fromInvoice(INVOICE, 'CREDIT_NOTE'), reason: 'goodwillDiscount' }
+    const saved = toNoteRequest(form, INVOICE, 'CREDIT_NOTE')
+    expect(saved.details).toMatchObject({
+      correctionReasonCode: 'OTH',
+      correctionReasonDetail: 'goodwillDiscount',
+    })
+    const reopened = fromNoteDraft(draftOf(saved, 'CREDIT_NOTE'), INVOICE, 'CREDIT_NOTE')
+    expect(reopened.reason).toBe('goodwillDiscount')
+    expect(toNoteRequest(reopened, INVOICE, 'CREDIT_NOTE')).toEqual(saved)
+  })
+
+  it('reads the first reason of the code when a note has no detail, or one that does not pair', () => {
+    const draft = draftOf(
+      toNoteRequest({ ...fromInvoice(INVOICE, 'DEBIT_NOTE'), reason: '' }, INVOICE, 'DEBIT_NOTE'),
+      'DEBIT_NOTE',
+    )
+    const reasonFor = (details: Partial<DraftResponse['details']>) =>
+      fromNoteDraft({ ...draft, details: { ...draft.details, ...details } }, INVOICE, 'DEBIT_NOTE')
+        .reason
+    expect(reasonFor({ correctionReasonCode: 'VAL', correctionReasonDetail: null })).toBe(
+      'undercharged',
+    )
+    expect(
+      reasonFor({ correctionReasonCode: 'VAL', correctionReasonDetail: 'priceEscalation' }),
+    ).toBe('priceEscalation')
+    // A credit key on a debit note, or a key of another code, is not this note's reason.
+    expect(
+      reasonFor({ correctionReasonCode: 'OTH', correctionReasonDetail: 'goodwillDiscount' }),
+    ).toBe('other')
+    expect(reasonFor({ correctionReasonCode: 'QTY', correctionReasonDetail: 'undercharged' })).toBe(
+      'additionalDelivery',
+    )
+    expect(noteProblems({ ...fromInvoice(INVOICE, 'DEBIT_NOTE') }, 'DEBIT_NOTE').reason).toBe(
+      'salesNote.error.reason',
+    )
+  })
+
+  it('labels the list row and the detail with the detail when there is one', () => {
+    expect(reasonLabelKey('CREDIT_NOTE', 'OTH', 'goodwillDiscount')).toBe(
+      'salesNote.reasonOptions.goodwillDiscount',
+    )
+    expect(reasonLabelKey('CREDIT_NOTE', 'OTH')).toBe('salesNote.reasonOptions.other')
+    expect(reasonLabelKey('CREDIT_NOTE', 'OTH', null)).toBe('salesNote.reasonOptions.other')
+  })
+
+  it('prints the stored reason on the credit notes list row', async () => {
+    override = (url) => {
+      if (url.startsWith('/api/v1/authored-invoices/summary')) return json(200, CREDIT_SUMMARY)
+      if (!url.startsWith('/api/v1/authored-invoices?')) return undefined
+      return json(200, {
+        content: [
+          {
+            id: NOTE_ID,
+            type: 'CREDIT_NOTE',
+            version: 1,
+            authoringState: 'ISSUED',
+            deliveryState: 'SENT_MANUALLY',
+            customerId: 'c-1',
+            currency: 'OMR',
+            invoiceNumber: 'CRN-2',
+            issueDate: '2026-09-10',
+            dueDate: '2026-09-10',
+            details: {
+              subject: null,
+              purchaseOrderReference: null,
+              correctionReasonCode: 'OTH',
+              correctionReasonDetail: 'goodwillDiscount',
+            },
+            lines: [],
+            totals: { totalAmount: 3 },
+            customerName: 'Sohar Port Logistics',
+            payment: null,
+            correctionOfInvoiceId: INVOICE_ID,
+            correctionOfInvoiceNumber: 'INV-2026-0042',
+          },
+        ],
+        page: 0,
+        size: 10,
+        totalElements: 1,
+      })
+    }
+    renderAt('/income/credit-notes')
+    const row = (await screen.findByRole('link', { name: 'CRN-2' })).closest('tr') as HTMLElement
+    expect(within(row).getByText('Goodwill discount')).toBeTruthy()
+  })
+})
+
+describe("the credit note detail's refund (4.19)", () => {
+  it('reads "Not available yet" in place of a derived refund, and counts the note as applied', async () => {
+    const issuedNote: InvoiceDetailDto = {
+      ...INVOICE,
+      id: NOTE_ID,
+      type: 'CREDIT_NOTE',
+      correctionOfInvoiceId: INVOICE_ID,
+      deliveryState: 'SENT_MANUALLY',
+      invoiceNumber: 'CRN-3',
+      details: {
+        ...INVOICE.details!,
+        correctionReasonCode: 'OTH',
+        correctionReasonDetail: 'goodwillDiscount',
+      },
+      lines: [line(1, 'Green beans', 1, 10)],
+      totals: {
+        subtotal: 10,
+        itemLevelDiscount: 0,
+        headerDiscount: 0,
+        totalDiscount: 0,
+        taxableAmount: 10,
+        vatAmount: 0.5,
+        totalAmount: 10.5,
+        payableRoundingAmount: 0,
+        outputScale: 3,
+      } as InvoiceDetailDto['totals'],
+    }
+    // The invoice was paid in full, so it is overpaid by the credit: that is not this note's refund.
+    receivable = { ...RECEIVABLE, creditedAmount: 10.5 }
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, issuedNote)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
+        return json(404, { status: 404 })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    render(
+      <MemoryRouter initialEntries={[`/income/credit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/credit-notes/:id" element={<CreditNoteDetailsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'CRN-3' })).toBeTruthy()
+    await vi.waitFor(() => expect(screen.getAllByText('Not available yet')).toHaveLength(2))
+    expect(screen.queryByText(/Refund due to Sohar Port Logistics/)).toBeNull()
+    expect(screen.getAllByText('Goodwill discount').length).toBeGreaterThan(0)
+  }, 30_000)
 })
