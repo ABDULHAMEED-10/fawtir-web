@@ -6,6 +6,7 @@ import { BusinessIdentityPage } from './pages/BusinessIdentityPage'
 import { BusinessTypePage } from './pages/BusinessTypePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HomePage } from './pages/HomePage'
+import { ContactPage, FeaturesPage, PricingPage } from './pages/SitePages'
 import { LoginPage } from './pages/LoginPage'
 import { LoginCodePage } from './pages/LoginCodePage'
 import { NewPasswordPage } from './pages/NewPasswordPage'
@@ -185,6 +186,9 @@ function App() {
         <PlanFromQuery />
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/mfa" element={<LoginCodePage />} />
           <Route path="/signup" element={<SignupPage />} />

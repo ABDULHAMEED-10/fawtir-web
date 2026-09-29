@@ -17858,5 +17858,329 @@
     "createdNote": "Review the drafts, then select and issue them from the Invoices list.",
     "openDraft": "Open draft",
     "unavailable": "Invoice import is not available yet: the server does not offer it."
+  },
+  "site": {
+    "faq": {
+      "lead": "Questions &",
+      "em": "answers",
+      "items": {
+        "cafe": {
+          "q": "Which plan does a café need?",
+          "a": "Every sale at the till is an invoice. Business covers 500 a month, about 16 sales a day at one counter. Most cafés sell more than that, and Business Plus covers 3,000 a month, about 100 a day, across up to four branches."
+        },
+        "over": {
+          "q": "What happens if I go over?",
+          "a": "You keep selling and filing: nothing is blocked. We tell you as you get close, and suggest the next plan if it keeps happening."
+        },
+        "change": {
+          "q": "Can I change plan later?",
+          "a": "Yes, up or down at any time from Settings. The new plan applies from your next billing period."
+        },
+        "setup": {
+          "q": "Is there a setup fee?",
+          "a": "No. You sign up, verify your company and issue your first invoice on the same plan price."
+        },
+        "vat": {
+          "q": "What about VAT on the subscription?",
+          "a": "Prices are shown without VAT. Oman's 5% VAT is added to your Fawtir invoice, and you can claim it back like any other purchase."
+        },
+        "stop": {
+          "q": "What if I stop paying?",
+          "a": "Your account turns read-only. You can still see and export everything, including the files sent to the Tax Authority, which are kept for the ten years the law requires."
+        }
+      }
+    },
+    "pricing": {
+      "hero": {
+        "lead": "Compliance is not",
+        "word": "the upsell",
+        "tail": "It is the point",
+        "body1": "Every plan files to the Tax Authority, delivers over Peppol, sells offline and speaks both languages.",
+        "body2": "What changes is how much you sell and how many of you there are."
+      },
+      "billing": {
+        "label": "Billing period",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "free": "2 months free"
+      },
+      "perMonth": "/ a month",
+      "perYear": "/ a year",
+      "whatYouGet": "What you get",
+      "yearlyNote": "Billed yearly · 2 months free",
+      "plans": {
+        "business": {
+          "name": "Business",
+          "tag": "One shop, one till",
+          "note": "500 invoices · about {{amount}} each",
+          "cta": "Start free",
+          "items": {
+            "a": "500 invoices a month",
+            "b": "5 people",
+            "c": "1 branch",
+            "d": "Till, catalog and stock",
+            "e": "Filing and Peppol delivery",
+            "f": "Offline selling",
+            "g": "Arabic and English"
+          }
+        },
+        "plus": {
+          "name": "Business Plus",
+          "tag": "A busy counter, or a few branches",
+          "note": "3,000 invoices · about {{amount}} each",
+          "cta": "Get started",
+          "items": {
+            "a": "3,000 invoices a month",
+            "b": "15 people",
+            "c": "4 branches",
+            "d": "API and webhooks",
+            "e": "Purchase orders and stock cover",
+            "f": "AI insight and rejection analysis",
+            "g": "Priority support"
+          }
+        },
+        "unlimited": {
+          "name": "Unlimited",
+          "tag": "High volume, or many sites",
+          "note": "No invoice limit",
+          "cta": "Talk to us",
+          "items": {
+            "a": "No invoice limit",
+            "b": "Unlimited people",
+            "c": "Unlimited branches",
+            "d": "A named contact",
+            "e": "Onboarding help",
+            "f": "Custom data retention",
+            "g": "Arabic and English"
+          }
+        }
+      },
+      "counts": {
+        "lead": "What actually counts",
+        "em": "as an invoice",
+        "body1": "Plans are metered by invoices filed with the Tax Authority, not by sales, not by customers,",
+        "body2": "not by users. Here is exactly what is counted.",
+        "usesOne": "Uses one",
+        "usesNothing": "Uses nothing",
+        "one": {
+          "a": "A sale at the till",
+          "b": "An invoice you raise by hand",
+          "c": "A credit note or refund",
+          "d": "A resubmission after you fix a rejection",
+          "e": "A debit note"
+        },
+        "nothing": {
+          "a": "A quotation, until it is accepted",
+          "b": "A rejected invoice: the failed attempt is free",
+          "c": "A supplier bill you photograph",
+          "d": "A held tab that is never charged",
+          "e": "A statement or a reminder",
+          "f": "Reprinting or resending anything"
+        }
+      },
+      "compare": {
+        "lead": "Everything,",
+        "em": "compared",
+        "included": "Included",
+        "notIncluded": "Not included",
+        "unlimited": "Unlimited",
+        "noLimit": "No limit",
+        "feature": "Feature",
+        "groups": {
+          "selling": "Selling",
+          "invoicing": "Invoicing and filing",
+          "buying": "Buying and stock",
+          "people": "People and places",
+          "reports": "Reports and data",
+          "support": "Support"
+        },
+        "rows": {
+          "tillDevices": "Till on phone, tablet and web",
+          "tills": "Tills at once",
+          "tabs": "Held tabs, split payments, tips",
+          "offline": "Works offline",
+          "printer": "Bluetooth printer and scanner",
+          "invoices": "Invoices a month",
+          "filing": "Filing to the Tax Authority",
+          "peppol": "Peppol delivery",
+          "quotes": "Quotations and credit notes",
+          "fixes": "Plain-language rejection fixes",
+          "bills": "Photograph a supplier bill",
+          "orders": "Purchase orders",
+          "cover": "Stock in days of cover",
+          "people": "People",
+          "branches": "Branches",
+          "roles": "Roles and permissions",
+          "reports": "All ten reports",
+          "ai": "AI insight and root causes",
+          "export": "Export everything, any time",
+          "api": "API and webhooks",
+          "help": "Help centre and email",
+          "priority": "Priority support",
+          "named": "A named contact"
+        }
+      }
+    },
+    "features": {
+      "hero": {
+        "lead": "Six things, and",
+        "word": "they are all",
+        "tail": "The same thing",
+        "body": "Fawtir is not six features in a bundle. It is one record of one sale, looked at six different ways."
+      },
+      "tabs": {
+        "label": "Features",
+        "till": "Smart Till",
+        "invoicing": "Invoicing",
+        "filing": "Tax Filing",
+        "stock": "Stock",
+        "transactions": "Transactions",
+        "dashboard": "Dashboard"
+      },
+      "till": {
+        "lead": "A till that finishes in",
+        "em": "three taps",
+        "body": "Open, tap the items, tap charge. The charge button completes the sale: it does not open another screen to confirm what you already decided.",
+        "alt": "The till: a product grid, the ticket and the charge button",
+        "items": {
+          "a": "Split payments, tips and rounding",
+          "b": "Held tabs that survive a shift change",
+          "c": "Refunds and credit notes from the same place",
+          "d": "Cash-up with denominations counted",
+          "e": "Bluetooth receipt printer and barcode scanner"
+        }
+      },
+      "invoicing": {
+        "lead": "Right invoice, without being",
+        "em": "asked which",
+        "body": "A walk-in gets a simplified receipt. A company gets a full B2B invoice over Peppol. A ministry gets the buyer reference it requires. Fawtir works out which and does it.",
+        "alt": "A business invoice with its lines, VAT and total",
+        "items": {
+          "a": "B2B, B2C and B2G handled automatically",
+          "b": "Peppol where registered, email where not",
+          "c": "Customer price lists and discounts applied",
+          "d": "Quotations that convert in one tap",
+          "e": "A customer signature taken on the phone"
+        }
+      },
+      "filing": {
+        "lead": "Proof you can hand to",
+        "em": "an auditor",
+        "body": "Every invoice keeps its whole history, signed, submitted, accepted and delivered, with the references underneath in plain language. Nothing to assemble later.",
+        "alt": "An invoice's filing history, step by step",
+        "items": {
+          "a": "Signed and submitted as part of the sale",
+          "b": "Every step timestamped and referenced",
+          "c": "Rejections explained, with a one-tap fix",
+          "d": "The original files kept for ten years",
+          "e": "A file fingerprint, checked daily"
+        }
+      },
+      "stock": {
+        "lead": "Stock in days,",
+        "em": "not counts",
+        "body": "Nine bags sounds low and forty boxes sounds fine, until you know one lasts nine days and the other four. Fawtir measures cover, not quantity.",
+        "alt": "Stock measured in days of cover",
+        "items": {
+          "a": "Days of cover against your actual rate",
+          "b": "Your next delivery drawn on the chart",
+          "c": "Build a catalog by photographing a menu",
+          "d": "Bulk price changes with a preview",
+          "e": "Purchase orders filled in from what is short"
+        }
+      },
+      "transactions": {
+        "lead": "Find any sale,",
+        "em": "from any day",
+        "body": "By number, by customer, by day, or point the camera at a customer's receipt and Fawtir finds it. Refunds start from here, not from a screen that has gone.",
+        "alt": "Today's sales, searchable by number, customer or receipt",
+        "items": {
+          "a": "Scan a receipt QR to find the sale",
+          "b": "Full and partial refunds with credit notes",
+          "c": "Discounts carried into the refund correctly",
+          "d": "Every change kept in the record",
+          "e": "Export to PDF or spreadsheet any time"
+        }
+      },
+      "dashboard": {
+        "lead": "The numbers, and",
+        "em": "what they mean",
+        "body": "Ten reports, one period picker, and every figure compared against the period before. A flat total hides a group falling and a group rising.",
+        "alt": "A sales report compared against the month before",
+        "items": {
+          "a": "Sales by product, branch, person or hour",
+          "b": "VAT position for the quarter, running",
+          "c": "Who owes you, aged, with payment patterns",
+          "d": "Rejection root causes, not just counts",
+          "e": "One tap to export anything"
+        }
+      },
+      "parts": {
+        "lead": "The parts nobody puts on",
+        "em": "a feature list",
+        "offline": {
+          "title": "Sells with no signal",
+          "body": "Files when you are back, and tells you what is still waiting."
+        },
+        "languages": {
+          "title": "Arabic and English",
+          "body": "Throughout, including the invoices you send, not just the buttons."
+        },
+        "phone": {
+          "title": "One phone per person",
+          "body": "A lost phone is recovered with a code, or freed from the web portal."
+        },
+        "branches": {
+          "title": "Branch by branch",
+          "body": "Or all together. Prices, staff and figures follow the branch you are in."
+        },
+        "patterns": {
+          "title": "It notices patterns",
+          "body": "Four rejections from one missing Peppol ID. A supplier creeping up on price."
+        },
+        "signatures": {
+          "title": "Signatures on the phone",
+          "body": "A customer signs for the work, and it travels with the invoice."
+        },
+        "bills": {
+          "title": "Photograph a bill",
+          "body": "Read, checked, matched to your order, and the photo kept for ten years."
+        },
+        "leave": {
+          "title": "Leave whenever",
+          "body": "Export everything, including the original files sent to the Tax Authority."
+        }
+      }
+    },
+    "contact": {
+      "hero": {
+        "lead": "Contact",
+        "word": "us",
+        "body1": "Send us a message with this contact form. Enter your details and our team will get back to you",
+        "body2": "as soon as possible, usually within 24 to 48 hours."
+      },
+      "section": {
+        "lead": "Get in touch",
+        "em": "with us",
+        "body1": "We are always here to help. If you are facing an issue or want to talk with us,",
+        "body2": "here are our contact details."
+      },
+      "form": {
+        "title": "Write a message",
+        "name": "Your name",
+        "email": "Email address",
+        "phone": "Phone number",
+        "message": "Message",
+        "send": "Send message",
+        "sent": "Your email app should open with the message ready to send. If it does not, write to us at {{email}}."
+      },
+      "info": {
+        "questionTitle": "Have any question?",
+        "emailTitle": "Our email",
+        "addressTitle": "Our address",
+        "address": "Al Rusayl 124, Sultanate of Oman",
+        "phone": "Toll free {{number}}"
+      }
+    }
   }
 }
