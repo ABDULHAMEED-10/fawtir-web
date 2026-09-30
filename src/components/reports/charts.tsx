@@ -268,6 +268,9 @@ export function GroupedBars({
 
 /* -------------------------------------------------------------- plain bars */
 
+/** How tall the dashed "no data" outline stands: visible, and plainly not a measured bar. */
+const MISSING_HEIGHT = 14
+
 /** One bar per month — "What you kept", "Monthly net payable", "Time to clear the OTA". */
 export function PlainBars({
   values,
@@ -277,18 +280,22 @@ export function PlainBars({
   highlightColor = SERIES.strong,
   height = 210,
   labelWidth = 46,
+  missingLabel,
 }: {
-  values: number[]
+  /** `null` is a month with no data: drawn as an empty dashed outline, never as a zero bar. */
+  values: (number | null)[]
   labels: string[]
   highlight?: number
   color?: string
   highlightColor?: string
   height?: number
   labelWidth?: number
+  /** Tooltip on a month with no data. */
+  missingLabel?: string
 }) {
   const compact = useCompact()
   const width = compact ? COMPACT_WIDTH : 500
-  const max = axisMax(values)
+  const max = axisMax(values.filter((value): value is number => value !== null))
   const band = (width - labelWidth) / values.length
   const barWidth = Math.min(band * 0.52, 22)
 
@@ -308,6 +315,24 @@ export function PlainBars({
         ticks={compact ? COMPACT_TICKS : TICKS}
       />
       {values.map((value, index) => {
+        if (value === null) {
+          return (
+            <rect
+              key={index}
+              x={labelWidth + band * index + (band - barWidth) / 2 + 0.5}
+              y={height - MISSING_HEIGHT}
+              width={barWidth - 1}
+              height={MISSING_HEIGHT - 0.5}
+              fill="none"
+              stroke={AXIS_TEXT}
+              strokeWidth={1}
+              strokeDasharray="3 2"
+              rx={2}
+            >
+              {missingLabel ? <title>{missingLabel}</title> : null}
+            </rect>
+          )
+        }
         const barHeight = Math.max(0, (value / max) * height)
         return (
           <rect
@@ -455,7 +480,11 @@ export function LineChart({
   showDots = true,
   fromZero = true,
 }: {
-  values: number[]
+  /**
+   * `null` is a point with no data (a month nothing was sent in): the line breaks there and no
+   * dot is drawn, rather than the line dropping to zero or holding the month before.
+   */
+  values: (number | null)[]
   labels: string[]
   height?: number
   labelWidth?: number
@@ -466,16 +495,30 @@ export function LineChart({
   const compact = useCompact()
   const width = compact ? COMPACT_WIDTH : 500
   const gradientId = useId()
-  const max = fromZero ? axisMax(values, 1.275) : Math.max(...values) * 1.02
+  const known = values.filter((value): value is number => value !== null)
+  const max = fromZero ? axisMax(known, 1.275) : Math.max(...known, 0) * 1.02 || 1
   const plotWidth = width - labelWidth
   const step = values.length > 1 ? plotWidth / (values.length - 1) : 0
+  const xAt = (index: number) => labelWidth + step * index
   const pointAt = (value: number, index: number) => ({
-    x: labelWidth + step * index,
+    x: xAt(index),
     y: height - (value / max) * height,
   })
-  const points = values.map(pointAt)
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')
-  const area = `${line} L${points[points.length - 1].x} ${height} L${points[0].x} ${height} Z`
+  // Runs of consecutive points with data; each is drawn as its own line and fill.
+  const runs: { x: number; y: number }[][] = []
+  values.forEach((value, index) => {
+    if (value === null) return
+    const previous = index > 0 ? values[index - 1] : null
+    if (index === 0 || previous === null) runs.push([])
+    runs[runs.length - 1].push(pointAt(value, index))
+  })
+  const points = runs.flat()
+  const lineOf = (run: { x: number; y: number }[]) =>
+    run.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')
+  const line = runs.map(lineOf).join(' ')
+  const area = runs
+    .map((run) => `${lineOf(run)} L${run[run.length - 1].x} ${height} L${run[0].x} ${height} Z`)
+    .join(' ')
 
   return (
     <svg
@@ -517,7 +560,7 @@ export function LineChart({
         {labels.map((label, index) => (
           <text
             key={label + index}
-            x={pointAt(values[index], index).x}
+            x={xAt(index)}
             y={height + 18}
             textAnchor={index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}
             fontSize={11}

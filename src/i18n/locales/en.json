@@ -7519,7 +7519,8 @@
         "average": "Average bill",
         "smallerMoreOften": "smaller, more often",
         "smaller": "smaller than before",
-        "larger": "larger than before"
+        "larger": "larger than before",
+        "reclaimRateUnconfirmed": "{{rate}}% of the net, reclaim not confirmed"
       },
       "groupBy": "Group by",
       "grouping": {
@@ -7573,7 +7574,7 @@
         "leftOver": "Left over",
         "across": {
           "yearly": "across the twelve months",
-          "quarterly": "across the three months",
+          "quarterly": "across this tax period",
           "monthly": "across the month"
         },
         "dueOut": "Due out in 30 days",
@@ -7600,7 +7601,8 @@
       "whereItWent": "Where it went",
       "billedIn": "Billed {{when}},",
       "topShare": "{{name}} is <b>{{percent}}%</b> of everything billed",
-      "everythingElse": "Everything else"
+      "everythingElse": "Everything else",
+      "topShareInclVat": "{{name}} is <b>{{percent}}%</b> of everything billed, VAT included"
     },
     "vat": {
       "title": "VAT & Tax",
@@ -7618,11 +7620,20 @@
         "reclaimNote": "Input exceeded output over this range",
         "over": {
           "yearly": "over twelve months",
-          "quarterly": "over three months",
+          "quarterly": "over this tax period",
           "monthly": "over the month"
         },
         "returnOpen": "Q{{quarter}} · {{months}} of 3 months in",
-        "returnClosed": "Q{{quarter}} has closed, its return is next"
+        "returnClosed": "Q{{quarter}} has closed, its return is next",
+        "collectedNoteReverse": "output VAT, reverse charge included",
+        "paidNoteUnconfirmed": "input VAT, reclaim not confirmed",
+        "paidNoteConfirmed": "input VAT, {{percent}}% confirmed reclaimable",
+        "overUnconfirmed": {
+          "yearly": "over twelve months, reclaim not confirmed",
+          "quarterly": "over this tax period, reclaim not confirmed",
+          "monthly": "over the month, reclaim not confirmed"
+        },
+        "reclaimNoteUnconfirmed": "Input exceeded output, reclaim not confirmed"
       },
       "quarterlyPosition": "Quarterly position",
       "monthlyNetPayable": "Monthly net payable",
@@ -7671,7 +7682,10 @@
       "standardShare": "{{percent}}% of sales are standard rate",
       "notSplit": "Not split by rate yet",
       "reclaimableComma": "Reclaimable VAT,",
-      "reclaimShare": "{{name}} is {{percent}}% of what you reclaim"
+      "reclaimShare": "{{name}} is {{percent}}% of what you reclaim",
+      "notSplitCategory": "Not split by category yet",
+      "inputVatComma": "Input VAT,",
+      "inputShare": "{{name}} is {{percent}}% of input VAT, reclaim not confirmed"
     },
     "compliance": {
       "title": "Compliance",
@@ -7702,7 +7716,9 @@
           "yearly": "slower than last year",
           "quarterly": "slower than last quarter",
           "monthly": "slower than last month"
-        }
+        },
+        "acceptedAll": "Accepted",
+        "medianToClear": "Median time to clear"
       },
       "acceptedFirstTime": "Accepted first time",
       "whyRejected": "Why things get rejected",
@@ -7745,7 +7761,15 @@
       "noReason": "No reason given",
       "noRejections": "Nothing was rejected in this period.",
       "outsideTheRule": "Some months took longer than 24 hours",
-      "failuresFalling": "Failures falling every quarter"
+      "failuresFalling": "Failures falling every quarter",
+      "acceptedByMonth": "Accepted, by month",
+      "acceptedSeries": "Accepted, % of sent",
+      "bestMonthNoData": "Best month {{percent}}% · no data in {{months}}",
+      "medianSeconds": "Median seconds to acknowledgement",
+      "acceptedPart": "Accepted",
+      "rejectedPart": "Rejected",
+      "onRetryPending": "On retry, not counted yet",
+      "rejectionsFalling": "Rejections falling every quarter"
     },
     "lists": {
       "title": "Lists",
@@ -7866,7 +7890,8 @@
       "yearly": "the same as last year",
       "quarterly": "the same as last quarter",
       "monthly": "the same as last month"
-    }
+    },
+    "noData": "No data"
   },
   "supplierDetail": {
     "editSupplier": "Edit supplier",

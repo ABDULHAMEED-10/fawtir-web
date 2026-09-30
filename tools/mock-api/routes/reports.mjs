@@ -177,9 +177,14 @@ function volume(query) {
       groupBy === 'CUSTOMER'
         ? CUSTOMERS.map(([key, label, share]) => [key, label, share])
         : groupBy === 'TYPE'
-          ? [
-              ['380', 'Invoice', 1.03],
+          ? // Invoices, debit notes and credit notes, and the tenant's own self-billed documents
+            // (issued as the buyer, so purchases). The shares still add up to the whole.
+            [
+              ['380', 'Invoice', 0.99],
+              ['383', 'Debit note', 0.02],
               ['381', 'Credit note', -0.03],
+              ['389', 'Self-billed invoice', 0.03],
+              ['261', 'Self-billed credit note', -0.01],
             ]
           : groupBy === 'BRANCH'
             ? [

@@ -15,12 +15,23 @@ import type {
 import { catalogueHref } from '../../api/reports/reports'
 import {
   byPeriod,
+  categoryAmounts,
   currenciesIn,
   outputByCategory,
   periodsOf,
+  vatMonths,
   vatPosition,
 } from '../../lib/vatReport'
-import { byGroup, byPeriodTotal, cancelledCount } from '../../lib/volumeReport'
+import {
+  byGroup,
+  byPeriodTotal,
+  cancelledCount,
+  invoicesSent,
+  salesAmount,
+  selfBilledVat,
+} from '../../lib/volumeReport'
+import { periodWindows } from '../../lib/reportPeriod'
+import { LineChart, PlainBars } from '../../components/reports/charts'
 import { ReportsVatPage } from './ReportsVatPage'
 import { ReportsIncomePage } from '../ReportsIncomePage'
 import { ReportsListsPage } from '../ReportsListsPage'
@@ -96,6 +107,22 @@ const VOLUME: VolumeReportDto = {
   rows: [volumeRow(), volumeRow({ period: '2026-02', totalAmount: 2100, cancelled: 2 })],
   totals: [
     { currency: 'OMR', documents: 8, taxableAmount: 3000, vatAmount: 150, totalAmount: 3150 },
+  ],
+}
+
+/**
+ * The same two months by document type. Invoices are the NONE fixture's figures; beside them a
+ * credit note, a debit note and one of the tenant's own self-billed invoices, which is a purchase.
+ */
+const VOLUME_TYPES: VolumeReportDto = {
+  ...VOLUME,
+  groupBy: 'TYPE',
+  rows: [
+    volumeRow({ groupKey: '380' }),
+    volumeRow({ groupKey: '380', period: '2026-02', periodStart: '2026-02-01' }),
+    volumeRow({ groupKey: '381', documents: 1, taxableAmount: -200, vatAmount: -10 }),
+    volumeRow({ groupKey: '383', documents: 1, taxableAmount: 100, vatAmount: 5 }),
+    volumeRow({ groupKey: '389', documents: 2, taxableAmount: 500, vatAmount: 25 }),
   ],
 }
 
@@ -209,6 +236,8 @@ beforeEach(async () => {
     )
     if (url.includes('/me/entitlements')) return json(200, READER)
     if (url.includes('/reports/vat')) return json(200, VAT)
+    if (url.includes('/reports/volume') && url.includes('group_by=TYPE'))
+      return json(200, VOLUME_TYPES)
     if (url.includes('/reports/volume')) return json(200, VOLUME)
     if (url.includes('/reports/lists')) return json(200, CATALOGUE)
     if (url.includes('/reports/expenditure')) return json(200, EXPENDITURE)
@@ -294,6 +323,113 @@ describe('volume arithmetic', () => {
   })
 })
 
+describe('what counts as a sale', () => {
+  it('adds invoices and debit notes, takes credit notes away, and leaves self-billing out', () => {
+    const net = VOLUME_TYPES.rows.reduce(
+      (sum, row) => sum + salesAmount(row, (entry) => entry.taxableAmount),
+      0,
+    )
+    // 1000 + 1000 invoiced, less a 200 credit note, plus a 100 debit note. The tenant issued the
+    // 389 as the buyer, so its 500 is a purchase and not in sales.
+    expect(net).toBe(1900)
+    // Only invoices are "invoices sent".
+    expect(VOLUME_TYPES.rows.reduce((sum, row) => sum + invoicesSent(row), 0)).toBe(8)
+    expect(VOLUME_TYPES.rows.reduce((sum, row) => sum + selfBilledVat(row), 0)).toBe(25)
+  })
+
+  it('reads a credit note as a subtraction whichever way the server signed it', () => {
+    const credit = volumeRow({ groupKey: 'CREDIT_NOTE', taxableAmount: 200 })
+    expect(salesAmount(credit, (row) => row.taxableAmount)).toBe(-200)
+    const debit = volumeRow({ groupKey: 'DEBIT_NOTE', taxableAmount: -100 })
+    expect(salesAmount(debit, (row) => row.taxableAmount)).toBe(100)
+  })
+})
+
+describe('the VAT figures by month', () => {
+  const monthly: VatReportDto = {
+    from: '2026-01-01',
+    to: '2026-01-31',
+    granularity: 'MONTH',
+    output: [
+      vatRow({ period: '2026-01', category: 'S', taxableAmount: 1000, vatAmount: 50 }),
+      vatRow({ period: '2026-01', category: 'Z', rate: 0, taxableAmount: 300, vatAmount: 0 }),
+      vatRow({ period: '2026-01', category: 'E', rate: null, taxableAmount: 200, vatAmount: 0 }),
+      vatRow({ period: '2026-01', category: 'O', rate: null, taxableAmount: 100, vatAmount: 0 }),
+    ],
+    input: [
+      vatRow({ side: 'INPUT', period: '2026-01', category: 'ALL', rate: null, vatAmount: 20 }),
+    ],
+    net: [vatRow({ side: 'NET', period: '2026-01', category: 'ALL', rate: null, vatAmount: 30 })],
+  }
+
+  it('states the server figures as they are when there is nothing to correct', () => {
+    const figures = vatMonths(monthly, 'OMR')
+    expect(figures.output.get('2026-01')).toBe(50)
+    expect(figures.input.get('2026-01')).toBe(20)
+    expect(figures.net.get('2026-01')).toBe(30)
+  })
+
+  it("takes the tenant's own self-billed VAT out of output and net", () => {
+    const figures = vatMonths(monthly, 'OMR', new Map([['2026-01', 5]]))
+    expect(figures.output.get('2026-01')).toBe(45)
+    expect(figures.net.get('2026-01')).toBe(25)
+  })
+
+  it('confirms nothing reclaimable until the server says which bills are', () => {
+    expect(vatMonths(monthly, 'OMR').reclaimable).toBeNull()
+    const confirmed = {
+      ...monthly,
+      input: monthly.input.map((row) => ({ ...row, reclaimableVatAmount: 4 })),
+    }
+    expect(vatMonths(confirmed, 'OMR').reclaimable?.get('2026-01')).toBe(4)
+  })
+
+  it('keeps exempt and outside scope apart, and does not split input it cannot', () => {
+    expect(categoryAmounts(monthly.output, ['2026-01'])).toEqual([1000, 300, 200, 100])
+    // INPUT rows say ALL: not split rather than guessed.
+    expect(categoryAmounts(monthly.input, ['2026-01'])).toBeNull()
+  })
+})
+
+describe('the Quarterly pill', () => {
+  it('is the tax period to date, not the last three months', () => {
+    const { current, previous } = periodWindows('quarterly', new Date(2026, 7, 10))
+    // Calendar quarters stand in for the company's tax period (REPORTS.md row 1.24).
+    expect(current.from).toBe('2026-07-01')
+    expect(current.months).toEqual(['2026-07', '2026-08'])
+    expect(previous.from).toBe('2026-04-01')
+    expect(previous.to).toBe('2026-06-30')
+  })
+
+  it("follows the company's own tax period when there is one", () => {
+    const { current } = periodWindows('quarterly', new Date(2026, 7, 10), {
+      months: ['2026-06', '2026-07', '2026-08'],
+    })
+    expect(current.from).toBe('2026-06-01')
+  })
+})
+
+describe('a month with no data', () => {
+  it('is drawn as no data, not as a zero bar', () => {
+    const { container } = render(
+      <PlainBars values={[120, null, 90]} labels={['Jan', 'Feb', 'Mar']} missingLabel="No data" />,
+    )
+    const dashed = container.querySelectorAll('rect[stroke-dasharray]')
+    expect(dashed).toHaveLength(1)
+    expect(dashed[0].querySelector('title')?.textContent).toBe('No data')
+  })
+
+  it('breaks the line rather than dropping it to zero', () => {
+    const { container } = render(
+      <LineChart values={[90, null, 95, 96]} labels={['Jan', 'Feb', 'Mar', 'Apr']} />,
+    )
+    // One dot per month with data, and the line starts again after the gap.
+    expect(container.querySelectorAll('circle')).toHaveLength(3)
+    const line = container.querySelectorAll('path')[1].getAttribute('d') ?? ''
+    expect(line.match(/M/g)).toHaveLength(2)
+  })
+})
+
 describe('the catalogue href', () => {
   it('drops the base the client adds back, so a download is not asked for twice', () => {
     // The catalogue states absolute paths; the client prefixes /api. Left alone every download
@@ -308,9 +444,10 @@ describe('the catalogue href', () => {
 describe('the VAT page', () => {
   it('shows the position and asks the server for both buckets the frame draws', async () => {
     renderAt('/reports/vat-tax', <ReportsVatPage />)
-    expect(await screen.findByText('150.000')).toBeTruthy()
+    // Output and net less the 25 on the tenant's own self-billed invoice (a purchase).
+    expect(await screen.findByText('125.000')).toBeTruthy()
     expect(screen.getByText('30.000')).toBeTruthy()
-    expect(screen.getByText('120.000')).toBeTruthy()
+    expect(screen.getByText('95.000')).toBeTruthy()
     // Quarterly position reads quarters and Monthly net payable reads months: the frame has no
     // bucket picker, so both are asked for rather than one at a time.
     const asked = calls('/api/v1/reports/vat')
@@ -320,6 +457,17 @@ describe('the VAT page', () => {
     expect(
       calls('/api/v1/reports/expenditure').some((url) => url.includes('group_by=SUPPLIER')),
     ).toBe(true)
+  })
+
+  it("takes the tenant's own self-billed VAT out of output, and does not call input reclaimable", async () => {
+    renderAt('/reports/vat-tax', <ReportsVatPage />)
+    // 150 charged, less the 25 on the self-billed invoice the tenant issued as the buyer.
+    expect(await screen.findByText('125.000')).toBeTruthy()
+    expect(screen.getByText('95.000')).toBeTruthy()
+    expect(screen.getByText('input VAT, reclaim not confirmed')).toBeTruthy()
+    expect(screen.queryByText('input VAT, reclaimable')).toBeNull()
+    expect(screen.getAllByText('Not split by category yet').length).toBe(1)
+    expect(screen.getByText('Outside scope')).toBeTruthy()
   })
 
   it('says when a range mixes currencies instead of adding across them', async () => {
@@ -340,16 +488,24 @@ describe('the VAT page', () => {
 describe('the income page', () => {
   it('shows net of VAT, the VAT on it and the documents sent', async () => {
     renderAt('/reports/income', <ReportsIncomePage />)
-    expect(await screen.findByText('2,000.000')).toBeTruthy()
+    // Sales by document type: invoices and the debit note, less the credit note; the tenant's
+    // own self-billed invoice is a purchase and is left out.
+    expect(await screen.findByText('1,900.000')).toBeTruthy()
     // Taxable and VAT are summed from the monthly rows, not the totals line.
-    expect(screen.getByText('100.000')).toBeTruthy()
+    expect(screen.getByText('95.000')).toBeTruthy()
     expect(screen.getByText('Invoices sent')).toBeTruthy()
+    // Invoices over invoices: 2,000 over 8.
     expect(screen.getByText('250.000')).toBeTruthy()
+    expect(
+      calls('/api/v1/reports/volume').some(
+        (url) => url.includes('group_by=TYPE') && url.includes('granularity=MONTH'),
+      ),
+    ).toBe(true)
   })
 
   it('asks the server to group by customer rather than grouping a page in the browser', async () => {
     renderAt('/reports/income', <ReportsIncomePage />)
-    await screen.findByText('2,000.000')
+    await screen.findByText('1,900.000')
     const asked = calls('/api/v1/reports/volume')
     expect(asked.some((url) => url.includes('group_by=CUSTOMER'))).toBe(true)
     expect(
@@ -359,7 +515,7 @@ describe('the income page', () => {
 
   it('reads the window the period pill names', async () => {
     renderAt('/reports/income', <ReportsIncomePage />)
-    await screen.findByText('2,000.000')
+    await screen.findByText('1,900.000')
     expect(calls('/api/v1/reports/volume').some((url) => url.includes('from=2025-10-01'))).toBe(
       true,
     )

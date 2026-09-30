@@ -7837,7 +7837,8 @@
         "average": "متوسط الفاتورة",
         "smallerMoreOften": "أصغر، وأكثر تكرارًا",
         "smaller": "أصغر من قبل",
-        "larger": "أكبر من قبل"
+        "larger": "أكبر من قبل",
+        "reclaimRateUnconfirmed": "{{rate}}٪ من الصافي، الاسترداد غير مؤكد"
       },
       "groupBy": "التجميع حسب",
       "grouping": {
@@ -7891,7 +7892,7 @@
         "leftOver": "المتبقي",
         "across": {
           "yearly": "على مدى اثني عشر شهرًا",
-          "quarterly": "على مدى ثلاثة أشهر",
+          "quarterly": "على مدى هذه الفترة الضريبية",
           "monthly": "على مدى الشهر"
         },
         "dueOut": "المستحق خلال 30 يومًا",
@@ -7918,7 +7919,8 @@
       "whereItWent": "أين ذهب",
       "billedIn": "المفوتر {{when}}،",
       "topShare": "{{name}} يمثل <b>{{percent}}٪</b> من كل ما فوتر",
-      "everythingElse": "كل ما عدا ذلك"
+      "everythingElse": "كل ما عدا ذلك",
+      "topShareInclVat": "{{name}} يمثل <b>{{percent}}٪</b> من كل ما فوتر، شاملًا الضريبة"
     },
     "vat": {
       "title": "الضريبة",
@@ -7936,11 +7938,20 @@
         "reclaimNote": "تجاوزت المدخلات المخرجات في هذه الفترة",
         "over": {
           "yearly": "على مدى اثني عشر شهرًا",
-          "quarterly": "على مدى ثلاثة أشهر",
+          "quarterly": "على مدى هذه الفترة الضريبية",
           "monthly": "على مدى الشهر"
         },
         "returnOpen": "الربع {{quarter}} · {{months}} من 3 أشهر",
-        "returnClosed": "انتهى الربع {{quarter}}، وإقراره هو التالي"
+        "returnClosed": "انتهى الربع {{quarter}}، وإقراره هو التالي",
+        "collectedNoteReverse": "ضريبة المخرجات، شاملة الاحتساب العكسي",
+        "paidNoteUnconfirmed": "ضريبة المدخلات، الاسترداد غير مؤكد",
+        "paidNoteConfirmed": "ضريبة المدخلات، {{percent}}٪ مؤكد استردادها",
+        "overUnconfirmed": {
+          "yearly": "على مدى اثني عشر شهرًا، الاسترداد غير مؤكد",
+          "quarterly": "على مدى هذه الفترة الضريبية، الاسترداد غير مؤكد",
+          "monthly": "على مدى الشهر، الاسترداد غير مؤكد"
+        },
+        "reclaimNoteUnconfirmed": "تجاوزت المدخلات المخرجات، الاسترداد غير مؤكد"
       },
       "quarterlyPosition": "الوضع الربع سنوي",
       "monthlyNetPayable": "الصافي المستحق شهريًا",
@@ -7989,7 +8000,10 @@
       "standardShare": "{{percent}}٪ من المبيعات بالنسبة الأساسية",
       "notSplit": "غير مقسّمة حسب النسبة بعد",
       "reclaimableComma": "الضريبة القابلة للاسترداد،",
-      "reclaimShare": "{{name}} يمثل {{percent}}٪ مما تسترده"
+      "reclaimShare": "{{name}} يمثل {{percent}}٪ مما تسترده",
+      "notSplitCategory": "غير مقسّمة حسب الفئة بعد",
+      "inputVatComma": "ضريبة المدخلات،",
+      "inputShare": "{{name}} يمثل {{percent}}٪ من ضريبة المدخلات، الاسترداد غير مؤكد"
     },
     "compliance": {
       "title": "الامتثال",
@@ -8020,7 +8034,9 @@
           "yearly": "أبطأ من العام الماضي",
           "quarterly": "أبطأ من الربع الماضي",
           "monthly": "أبطأ من الشهر الماضي"
-        }
+        },
+        "acceptedAll": "مقبولة",
+        "medianToClear": "وسيط زمن الإجازة"
       },
       "acceptedFirstTime": "القبول من أول مرة",
       "whyRejected": "لماذا تُرفض",
@@ -8063,7 +8079,15 @@
       "noReason": "لم يُذكر سبب",
       "noRejections": "لم يُرفض شيء في هذه الفترة.",
       "outsideTheRule": "بعض الأشهر استغرقت أكثر من 24 ساعة",
-      "failuresFalling": "الإخفاقات تتراجع كل ربع"
+      "failuresFalling": "الإخفاقات تتراجع كل ربع",
+      "acceptedByMonth": "المقبولة، حسب الشهر",
+      "acceptedSeries": "المقبولة، ٪ من المرسل",
+      "bestMonthNoData": "أفضل شهر {{percent}}٪ · لا توجد بيانات في {{months}}",
+      "medianSeconds": "وسيط الثواني حتى الإقرار",
+      "acceptedPart": "مقبولة",
+      "rejectedPart": "مرفوضة",
+      "onRetryPending": "بعد إعادة المحاولة، لم تُحتسب بعد",
+      "rejectionsFalling": "حالات الرفض تتراجع كل ربع"
     },
     "lists": {
       "title": "الجداول",
@@ -8184,7 +8208,8 @@
       "yearly": "مثل العام الماضي",
       "quarterly": "مثل الربع الماضي",
       "monthly": "مثل الشهر الماضي"
-    }
+    },
+    "noData": "لا توجد بيانات"
   },
   "supplierDetail": {
     "editSupplier": "تعديل المورد",
