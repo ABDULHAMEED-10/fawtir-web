@@ -375,10 +375,14 @@ describe('A self-billed invoice through its own door', () => {
     const open = screen.getByRole('button', { name: 'Record payment' })
     await waitFor(() => expect(open).toHaveProperty('disabled', false))
     fireEvent.click(open)
+    // The money goes to the supplier here, so the dialog says paid, not received.
     const amount = (await screen.findByRole('textbox', {
-      name: /Amount received/,
+      name: /Amount paid/,
     })) as HTMLInputElement
     expect(amount.value).toBe('38.590')
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Paid on')).toBeTruthy()
+    expect(within(dialog).queryByText(/Amount received|Received on/)).toBeNull()
     fireEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }),
     )
@@ -419,7 +423,7 @@ describe('A self-billed invoice through its own door', () => {
     const open = screen.getByRole('button', { name: 'Record payment' })
     await waitFor(() => expect(open).toHaveProperty('disabled', false))
     fireEvent.click(open)
-    await screen.findByRole('textbox', { name: /Amount received/ })
+    await screen.findByRole('textbox', { name: /Amount paid/ })
     fireEvent.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }),
     )

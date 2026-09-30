@@ -24,16 +24,23 @@ import {
 import { saveDownload } from '../../lib/supplierRecord'
 import {
   artefactFileName,
+  correctsInvoice,
   counterpartyLabel,
   formatBytes,
   frozenNote,
   heldArtefacts,
+  issueDateOf,
+  pdfBadge,
   recordBytes,
   recordKind,
+  reportsAsReceiver,
+  signatureBadge,
   statusChip,
   timeLeft,
+  validationLine,
   CHIP_TONE,
   type ArtefactId,
+  type BadgeTone,
 } from '../../lib/documentArchive'
 import { profileLabel, readArchiveXml, type ArchiveSheet } from '../../lib/archiveXml'
 import { ShareDocumentModal } from './ShareDocumentModal'
@@ -54,7 +61,7 @@ import plusIcon from '../../assets/bill-capture/plus.svg'
 const muscatToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
-const BADGE_TONE = {
+const BADGE_TONE: Record<BadgeTone, string> = {
   blue: 'bg-primary-50 text-primary-700',
   green: 'bg-success-100 text-[#3d5648]',
   red: 'bg-warning-100 text-warning-700',
@@ -139,6 +146,7 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
   const bytes = recordBytes(item)
   const party = counterpartyLabel(item)
   const kind = recordKind(item)
+  const dated = issueDateOf(item)
 
   const failure = (error: unknown) => {
     const message = describeApiFailure(error)
@@ -222,7 +230,11 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
             {t(`documents.detail.kindTo.${kind}`)}{' '}
             {party ? <span className="font-medium text-text-primary">{party}</span> : null}
             {' · '}
-            {t('documents.detail.issued', { date: formatInstantDay(item.occurred_at, language) })}
+            {/* TODO(backend): the document's own issue date (DOCUMENTS.md row 3.18); without it a
+                received record says when it arrived rather than calling that "issued". */}
+            {t(dated.received ? 'documents.detail.received' : 'documents.detail.issued', {
+              date: formatInstantDay(dated.date, language),
+            })}
             {' · '}
             <span className="font-medium text-text-primary">
               {t('documents.filesCount', { count: held.length })}
@@ -309,7 +321,13 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
                       </span>
                     </span>
                     <span className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                      {t(`documents.detail.fileNote.${artefact.id}`)}
+                      {t(
+                        reportsAsReceiver(item) && artefact.id === 'tdd'
+                          ? 'documents.detail.fileNote.tddReceived'
+                          : item.direction === 'RECEIVED' && artefact.id === 'pdf'
+                            ? 'documents.detail.fileNote.pdfReceived'
+                            : `documents.detail.fileNote.${artefact.id}`,
+                      )}
                     </span>
                     <span
                       className={[
@@ -357,14 +375,18 @@ function ArchivedDocument({ invoiceUuid }: { invoiceUuid: string }) {
   )
 }
 
-/** The small tag under each file ("SIGNED PINT-OM", "ACCEPTED", "EN & AR", "IMAGE", "2 MESSAGES"). */
+/**
+ * The small tag under each file ("SIGNED PINT-OM", "ACCEPTED", "EN & AR", "IMAGE", "2 MESSAGES"),
+ * each tied to the field that proves it; a missing field reads "not confirmed" in a neutral tone.
+ */
 function fileBadge(
   item: ArchiveItemDto,
   artefact: Held,
-): { key: string; values?: Record<string, unknown>; tone: keyof typeof BADGE_TONE } {
+): { key: string; values?: Record<string, unknown>; tone: BadgeTone } {
   switch (artefact.id) {
     case 'xml':
-      return { key: 'documents.detail.badge.signed', tone: 'blue' }
+      // TODO(backend): `signature_valid`, DOCUMENTS.md rows 3.9 and 3.24.
+      return signatureBadge(item)
     case 'tdd': {
       const status = item.tdd.status
       const tone =
@@ -376,7 +398,8 @@ function fileBadge(
       return { key: status ? `documents.tdd.${status}` : 'documents.tdd.none', tone }
     }
     case 'pdf':
-      return { key: 'documents.detail.badge.enAr', tone: 'red' }
+      // TODO(backend): the PDF's languages, DOCUMENTS.md row 3.20.
+      return pdfBadge(item)
     case 'qr':
       return { key: 'documents.detail.badge.image', tone: 'grey' }
     case 'mls':
@@ -635,6 +658,14 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
   const date = (value: string | null) => (value ? formatDate(value, language) : null)
   const received = item.direction === 'RECEIVED'
   const profile = profileLabel(sheet.profile)
+  // The invoice a credit or debit note corrects (PINT-OM IBR-032-OM for credit notes): from the
+  // signed XML's BillingReference first, then from the archive item.
+  const corrected =
+    correctsInvoice(recordKind({ ...item, type_code: item.type_code ?? sheet.typeCode })) ||
+    sheet.preceding
+      ? precedingInvoice(item, sheet)
+      : null
+  const validation = validationLine(item)
   const typeLabel = sheet.typeCode
     ? `${t(`documents.detail.typeCode.${sheet.typeCode}`, { defaultValue: t(sheet.isCredit ? 'documents.detail.creditNote' : 'documents.detail.commercialInvoice') })} · ${sheet.typeCode}`
     : null
@@ -645,7 +676,11 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
         <div>
           <h2 className="text-xl font-medium leading-[1.2] text-text-primary">
             {t(
-              sheet.isCredit ? 'documents.detail.creditNoteTitle' : 'documents.detail.taxInvoice',
+              sheet.isCredit
+                ? 'documents.detail.creditNoteTitle'
+                : sheet.typeCode === '383'
+                  ? 'documents.detail.debitNoteTitle'
+                  : 'documents.detail.taxInvoice',
               { number: sheet.number ?? item.invoice_number },
             )}
           </h2>
@@ -653,12 +688,29 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
             {t('documents.detail.laidOut')}
           </p>
         </div>
-        {item.signature_valid ? (
-          <span className="inline-flex h-[28px] items-center gap-1.5 rounded-sm bg-success-100 px-2.5 text-xs font-medium text-[#3d5648]">
+        {/* TODO(backend): `signature_valid` (DOCUMENTS.md rows 3.9 and 3.24). The designed badge
+            stays; without the check it reads "not checked yet" in a neutral tone. */}
+        <span
+          className={[
+            'inline-flex h-[28px] items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium',
+            item.signature_valid === true
+              ? 'bg-success-100 text-[#3d5648]'
+              : item.signature_valid === false
+                ? 'bg-warning-100 text-warning-700'
+                : 'bg-surface-background text-text-tertiary',
+          ].join(' ')}
+        >
+          {item.signature_valid === true ? (
             <img src={verifiedIcon} alt="" className="size-3.5" />
-            {t('documents.detail.signatureValid')}
-          </span>
-        ) : null}
+          ) : null}
+          {t(
+            item.signature_valid === true
+              ? 'documents.detail.signatureValid'
+              : item.signature_valid === false
+                ? 'documents.detail.signatureFailed'
+                : 'documents.detail.signatureUnconfirmed',
+          )}
+        </span>
       </header>
 
       <Block title={t('documents.detail.theDocument')}>
@@ -679,6 +731,27 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
         <Field label={t('documents.detail.uuid')}>
           {sheet.uuid ? <Code>{sheet.uuid}</Code> : null}
         </Field>
+        {corrected ? (
+          <Field label={t('documents.detail.corrects')}>
+            <Link to={corrected.to} className="text-primary-700 hover:underline">
+              {corrected.number}
+            </Link>
+            <span className="mt-1 block text-xs text-text-quaternary">
+              {corrected.issueDate
+                ? t('documents.detail.issued', { date: formatDate(corrected.issueDate, language) })
+                : t('documents.detail.notGivenYet')}
+            </span>
+            <span className="mt-1 block">
+              {corrected.uuid ? (
+                <Code>{corrected.uuid}</Code>
+              ) : (
+                <span className="text-xs text-text-quaternary">
+                  {t('documents.detail.correctsNoUuid')}
+                </span>
+              )}
+            </span>
+          </Field>
+        ) : null}
       </Block>
 
       <Block title={t('documents.detail.whoSent')}>
@@ -796,19 +869,45 @@ function Sheet({ item, sheet }: { item: ArchiveItemDto; sheet: ArchiveSheet }) {
         <Field label={t('documents.detail.deliveredAt')}>
           {formatInstant(item.delivered_at ?? item.occurred_at, language)}
         </Field>
+        {/* TODO(backend): the validation layers' results (DOCUMENTS.md row 3.19). "All five
+            layers passed" is said only when the archive reports it. */}
         <Field
           label={t('documents.detail.validation')}
-          tone={item.tdd.status === 'ACCEPTED' ? 'text-[#3d5648]' : 'text-text-primary'}
+          tone={
+            validation.tone === 'green'
+              ? 'text-[#3d5648]'
+              : validation.tone === 'red'
+                ? 'text-warning-700'
+                : 'text-text-tertiary'
+          }
         >
-          {item.tdd.status === 'ACCEPTED'
-            ? t('documents.detail.allFiveLayers')
-            : item.tdd.status
-              ? t(`documents.tdd.${item.tdd.status}`)
-              : t('documents.tdd.none')}
+          {t(validation.key, validation.values)}
         </Field>
       </Block>
     </div>
   )
+}
+
+/**
+ * The corrected invoice's number, issue date and UUID, and where it opens: its archive record when
+ * the UUID is known, else the archive searched by its number.
+ * TODO(backend): `against_issue_date` and `against_uuid`, DOCUMENTS.md row 3.16.
+ */
+function precedingInvoice(
+  item: ArchiveItemDto,
+  sheet?: ArchiveSheet | null,
+): { number: string; issueDate: string | null; uuid: string | null; to: string } | null {
+  const number = sheet?.preceding?.number ?? item.against_number ?? null
+  if (!number) return null
+  const uuid = item.against_uuid ?? sheet?.preceding?.uuid ?? null
+  return {
+    number,
+    issueDate: sheet?.preceding?.issueDate ?? item.against_issue_date ?? null,
+    uuid,
+    to: item.against_uuid
+      ? `/compliance/documents/${encodeURIComponent(item.against_uuid)}`
+      : `/compliance/documents?number=${encodeURIComponent(number)}`,
+  }
 }
 
 /** UN/ECE Rec 20 codes as the sheet prints them ("24 KG", "18 EA"). */
@@ -963,7 +1062,7 @@ function Integrity({
 }
 
 function Relates({ item }: { item: ArchiveItemDto }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const party = counterpartyLabel(item)
   // TODO(backend): the records this one belongs to (ask 3.10). Until then, the other party alone.
   const relations: ArchiveRelation[] =
@@ -978,6 +1077,21 @@ function Relates({ item }: { item: ArchiveItemDto }) {
           },
         ]
       : [])
+  // A credit or debit note always shows the invoice it corrects (PINT-OM IBR-032-OM), linked to
+  // its archive record, unless `related` already names it.
+  const corrected = correctsInvoice(recordKind(item)) ? precedingInvoice(item) : null
+  const correctedRow =
+    corrected && !relations.some((relation) => relation.label === corrected.number)
+      ? {
+          label: corrected.number,
+          to: corrected.to,
+          note: corrected.issueDate
+            ? t('documents.detail.correctsIssued', {
+                date: formatDate(corrected.issueDate, i18n.language),
+              })
+            : t('documents.detail.corrects'),
+        }
+      : null
 
   return (
     <Card title={t('documents.detail.relatesTitle')}>
@@ -1015,7 +1129,30 @@ function Relates({ item }: { item: ArchiveItemDto }) {
             </li>
           )
         })}
-        {relations.length === 0 ? (
+        {correctedRow ? (
+          <li
+            className={[
+              'flex items-center gap-3 py-3',
+              relations.length > 0 ? 'border-t border-surface-background' : '',
+            ].join(' ')}
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-surface-background">
+              <img src={RELATES_ICON.INVOICE} alt="" className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <Link
+                to={correctedRow.to}
+                className="text-sm font-medium leading-[1.3] text-primary-700 hover:underline"
+              >
+                {correctedRow.label}
+              </Link>
+              <p className="mt-0.5 text-xs font-medium leading-[1.3] text-text-quaternary">
+                {correctedRow.note}
+              </p>
+            </div>
+          </li>
+        ) : null}
+        {relations.length === 0 && !correctedRow ? (
           <li className="py-3 text-sm font-medium text-text-quaternary">
             {t('documents.detail.nothingRelated')}
           </li>
@@ -1148,7 +1285,9 @@ function Opens({ item, language }: { item: ArchiveItemDto; language: string }) {
       </ul>
       <p className="mt-3 flex items-start gap-2 rounded-sm bg-surface-background p-3 text-xs font-medium leading-[1.5] text-text-tertiary">
         <img src={infoIcon} alt="" className="mt-px size-4 shrink-0" />
-        {t('documents.detail.logNote')}
+        {/* TODO(backend): the access log (DOCUMENTS.md rows 3.12 and 3.25). "The log can't be
+            edited" is said only once there is a log. */}
+        {t(item.access_log ? 'documents.detail.logNote' : 'documents.detail.logNoteUnconfirmed')}
       </p>
     </Card>
   )

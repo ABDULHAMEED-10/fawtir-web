@@ -19,14 +19,14 @@ const STEP_ICON: Record<string, string> = {
 }
 
 /**
- * One OTA call in full: Compliance › Activity › Call log › Detail (Figma 154:109008).
+ * One message in full: Compliance › Activity › Call log › Detail (Figma 154:109008).
  *
- * TODO(backend): there is no call-log endpoint (asks row 2.20), so this is the design's call; the
- * links out of it go to the ledger, searched for the invoice.
+ * TODO(backend): there is no message-log endpoint (asks row 2.20), so this is the design's day;
+ * the links out of it go to the ledger, searched for the invoice.
  *
- * Both halves of the exchange verbatim. When the Authority refuses a document, the request and
- * the reply are the only things that settle what actually happened, so they are shown as sent
- * rather than summarised.
+ * The layout is the frame's two halves: what we sent over Peppol (the TDD, with its routing
+ * details; the signed XML itself is kept with the record) and the MLS message that answered it.
+ * A TDD is not a REST call to an OTA server, so no HTTP request or reply is drawn.
  */
 export function OtaCallDetailPage() {
   const { t } = useTranslation()
@@ -67,7 +67,7 @@ export function OtaCallDetailPage() {
           <div>
             <p dir="ltr" className="flex flex-wrap items-center gap-2.5 text-left">
               <span className="inline-flex h-[24px] items-center rounded-[3px] bg-surface-background px-2 font-mono text-[11px] font-semibold uppercase text-text-tertiary">
-                {call.method}
+                {t(call.directionKey)}
               </span>
               <span className="font-mono text-[28px] font-semibold leading-[1.2] text-text-primary">
                 {call.path}
@@ -91,13 +91,13 @@ export function OtaCallDetailPage() {
               type="button"
               onClick={() =>
                 copy(
-                  'curl',
-                  `curl -X ${call.method} ${call.request.headers[0].value} \\\n  -H 'Content-Type: application/xml'`,
+                  'ids',
+                  `${call.references.requestId}\n${call.references.traceId}\n${call.references.documentUuid}`,
                 )
               }
               className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
             >
-              {copied === 'curl' ? t('callDetail.copied') : t('callDetail.copyCurl')}
+              {copied === 'ids' ? t('callDetail.copied') : t('callDetail.copyIds')}
             </button>
             <button
               type="button"
@@ -123,9 +123,14 @@ export function OtaCallDetailPage() {
               titleKey="callDetail.whatFawtirSent"
               noteKey="callDetail.theTaxDataDocument"
               headers={call.request.headers}
-              body={call.request.body}
+              body={[t('callDetail.xmlKeptWithRecord', { invoice: call.invoice })]}
               faultLine={call.request.faultLine}
-              onCopy={() => copy('request', call.request.body.join('\n'))}
+              onCopy={() =>
+                copy(
+                  'request',
+                  call.request.headers.map((row) => `${row.key}: ${row.value}`).join('\n'),
+                )
+              }
               copied={copied === 'request'}
             />
 
@@ -137,7 +142,7 @@ export function OtaCallDetailPage() {
               note={t('callDetail.secondsLater', { seconds: formatSeconds(CALL_TOTAL_MS) })}
               headers={call.response.headers}
               body={call.response.body}
-              highlight={['OTA-E-2041', 'false', 'REJECTED']}
+              highlight={['OTA-E-2041', 'RE ']}
               onCopy={() => copy('response', call.response.body.join('\n'))}
               copied={copied === 'response'}
             />

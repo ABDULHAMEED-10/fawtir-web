@@ -19,6 +19,11 @@ export type ArchiveArtefact = {
   byte_size?: number | null
   /** Whether the stored fingerprint still matches the bytes ("Verified"). Backend ask 3.5. */
   verified?: boolean | null
+  /**
+   * The languages a PDF is written in (`['en', 'ar']` for "EN & AR"). A supplier's PDF is theirs,
+   * so the badge says only what this field says. Backend ask 3.20.
+   */
+  languages?: string[] | null
 }
 
 export type ArchiveArtefacts = {
@@ -61,6 +66,22 @@ export type ArchiveItemDto = {
   currency?: string | null
   /** The document a credit or debit note is against ("AND-INV-3382"). Backend ask 3.3. */
   against_number?: string | null
+  /**
+   * The rest of the preceding invoice reference a credit note must carry (PINT-OM IBR-032-OM):
+   * its issue date and its UUID, which is also its archive id. Backend ask 3.16.
+   */
+  against_issue_date?: string | null
+  against_uuid?: string | null
+  /**
+   * The UNCL1001 document type code (380 invoice, 381 credit note, 383 debit note, 386 prepayment,
+   * 389 self-billed invoice, 261 self-billed credit note). `document_kind` cannot tell a debit
+   * note or a prepayment from an invoice. Backend ask 3.17.
+   */
+  type_code?: string | null
+  /** The document's own issue date (`cbc:IssueDate`); `occurred_at` is when we received it. Backend ask 3.18. */
+  issue_date?: string | null
+  /** How many validation layers the document passed, of how many run. Backend ask 3.19. */
+  validation?: { passed: number; total: number } | null
   /** The fingerprint of the signed XML and when it was last checked. Backend ask 3.5. */
   integrity?: ArchiveIntegrity | null
   /** When the network delivered it, and whether its signature verified. Backend ask 3.9. */

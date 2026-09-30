@@ -58,6 +58,10 @@ import { formatAmount, formatCount } from '../../lib/format'
  * adds, so every figure is net of corrections. A bill with no category comes back under the empty
  * key and is shown as "Uncategorised", never dropped: dropping it would leave most of the spend
  * out of a spend report.
+ *
+ * Self-billed documents here (source SELF_BILLED, 389/261) are the tenant's own, issued as the
+ * buyer, so they are purchases and belong here. TODO(backend): REPORTS.md row 1.22, a self-billed
+ * document a customer issued to the tenant is a sale and must never be counted on this side.
  */
 export function ReportsExpenditurePage() {
   const { t, i18n } = useTranslation()
@@ -177,6 +181,9 @@ function ExpenditureBody({
   const net = sumByMonth(rows, (row) => row.netAmount)
   const vat = sumByMonth(rows, (row) => row.vatAmount)
   const bills = sumByMonth(rows, (row) => row.documents)
+  const reclaimable = rows.every((row) => typeof row.reclaimableVatAmount === 'number')
+    ? sumByMonth(rows, (row) => row.reclaimableVatAmount ?? 0)
+    : null
 
   const netNow = sumOver(net, current.months)
   const netBefore = sumOver(net, previous.months)
@@ -276,14 +283,30 @@ function ExpenditureBody({
           change={percentPill(netNow, netBefore, language)}
           note={t(`reports.vsBefore.${period}`)}
         />
+        {/* Only VAT on approved bills whose receipt was reported can be reclaimed. Until the
+            server says which (TODO(backend): REPORTS.md row 1.25) the card shows the VAT charged
+            and says reclaim is not confirmed, rather than calling it all reclaimable. */}
         <KpiCard
-          label={t('reports.expenditure.kpi.reclaim')}
-          value={money(vatNow)}
+          label={t(reclaimable ? 'reports.expenditure.kpi.reclaim' : 'reports.expenditure.kpi.vat')}
+          value={money(reclaimable ? sumOver(reclaimable, current.months) : vatNow)}
           currency
-          change={percentPill(vatNow, vatBefore, language)}
-          note={t('reports.expenditure.kpi.reclaimRate', {
-            rate: shortPercent(netNow === 0 ? 0 : (vatNow / netNow) * 100, language),
-          })}
+          change={
+            reclaimable
+              ? percentPill(
+                  sumOver(reclaimable, current.months),
+                  sumOver(reclaimable, previous.months),
+                  language,
+                )
+              : percentPill(vatNow, vatBefore, language)
+          }
+          note={t(
+            reclaimable
+              ? 'reports.expenditure.kpi.reclaimRate'
+              : 'reports.expenditure.kpi.reclaimRateUnconfirmed',
+            {
+              rate: shortPercent(netNow === 0 ? 0 : (vatNow / netNow) * 100, language),
+            },
+          )}
         />
         <KpiCard
           label={t('reports.expenditure.kpi.received')}

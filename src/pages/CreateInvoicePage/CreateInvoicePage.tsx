@@ -108,7 +108,7 @@ import { findCode } from '../../lib/codeLists/codeList'
 import { nameOf } from '../../lib/codeLists/codeList'
 import { LinkDocumentsModal, LinkedDocuments } from '../../components/invoice'
 import type { LinkedDoc } from '../../lib/linkedDocuments'
-import { LINK_PICKER_DOCS } from '../../lib/linkedDocuments'
+import { invoicePrefill, linkableDocsFor } from '../../lib/tradeConvert'
 import backIcon from '../../assets/create-invoice/back.svg'
 import businessIcon from '../../assets/create-invoice/business.svg'
 import consumerIcon from '../../assets/create-invoice/consumer.svg'
@@ -545,7 +545,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
   const [form, setForm] = useState<DraftForm>(() => blankDraftForm(reference?.taxCategories ?? []))
   const [exclVat, setExclVat] = useState(true)
   // TODO(backend): linked order forms and delivery notes are held on the page only; the draft has
-  // no field for them and trade documents have no API yet (backend asks 3.5).
+  // no field for them and trade documents have no API yet (backend asks 3.5; TRADE_DOCUMENTS.md
+  // rows T.11, T.12 and T.17).
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([])
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const linkedIds = useMemo(() => linkedDocs.map((doc) => doc.id), [linkedDocs])
@@ -670,6 +671,68 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     // The note permission is fixed for the session; the draft id is what reloads the screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  // Convert to invoice (a quotation, order form or delivery note): a new, unsaved draft filled
+  // from the trade document. Its lines keep their goods/service flag, unit, price, VAT category
+  // and classification; its customer's order number goes in as IBT-013; the order and delivery
+  // note it settles are linked in section 4. The sales order (IBT-014), despatch (IBT-016),
+  // receiving advice (IBT-015) and contract (IBT-012) references, and each line's delivery note,
+  // have no draft field yet. TODO(backend): TRADE_DOCUMENTS.md rows T.10 to T.12.
+  const fromTrade = id || duplicateOf ? null : searchParams.get('from')
+  useEffect(() => {
+    if (!fromTrade) return
+    const prefill = invoicePrefill(fromTrade)
+    if (!prefill) {
+      setNotice({ tone: 'error', body: t('createInvoice.fromTrade.notFound', { id: fromTrade }) })
+      return
+    }
+    const categories = reference?.taxCategories ?? []
+    const lines = prefill.lines.map((line) => ({
+      ...blankDraftLine(categories, line.taxCode),
+      description: line.description,
+      itemType: line.itemType,
+      unit: line.unitCode,
+      unitPrice: line.unitPrice.toFixed(3),
+      quantity: String(line.qty),
+      discountType: 'PERCENTAGE' as const,
+      discountValue: String(line.discountPct),
+      hsCode: line.itemType === 'goods' ? line.hsCode : undefined,
+      serviceType: line.itemType === 'service' ? line.serviceType : undefined,
+      exemptionReasonCode: line.exemptionReasonCode,
+    }))
+    setForm((current) => ({
+      ...current,
+      customerType: 'business',
+      subject: prefill.subject ?? current.subject,
+      purchaseOrder: prefill.references.purchaseOrder ?? current.purchaseOrder,
+      deliveryDate: prefill.deliveryDate ?? current.deliveryDate,
+      lines: lines.length > 0 ? lines : current.lines,
+    }))
+    setLinkedDocs(prefill.linked)
+    setDirty(true)
+    if (!prefill.customerId) return
+    let cancelled = false
+    apiRequest<CustomerDto>(`/v1/customers/${encodeURIComponent(prefill.customerId)}`)
+      .then((record) => {
+        if (cancelled) return
+        setCustomer(record)
+        setForm((current) => ({
+          ...current,
+          customerId: record.id,
+          customerType: KIND_OF[record.type],
+        }))
+      })
+      // Unknown to the API: the reader picks the customer, and the lines stay filled.
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+    // The address is what fills the form; the reference data only prices the lines.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromTrade])
+
+  // Only the chosen customer's order forms and delivery notes can be linked.
+  const linkable = useMemo(() => linkableDocsFor(customer?.id ?? null), [customer])
 
   // Duplicate (list row menu, invoice detail): a new, unsaved draft filled from another invoice.
   // Nothing is created until the reader saves; dates, number and payments are never copied.
@@ -1456,6 +1519,8 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               onPick={(picked) => {
                 setCustomer(picked)
                 change({ customerId: picked.id })
+                // Another customer's order or delivery note cannot settle this invoice.
+                setLinkedDocs((cur) => cur.filter((doc) => doc.customerId === picked.id))
               }}
             />
           )}
@@ -2032,7 +2097,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               <SectionTitle step={steps.linked!} title={t('createInvoice.sections.linked')} />
             }
             docs={linkedDocs}
-            linkableCount={LINK_PICKER_DOCS.filter((doc) => !linkedIds.includes(doc.id)).length}
+            linkableCount={linkable.filter((doc) => !linkedIds.includes(doc.id)).length}
             onLink={() => setLinkModalOpen(true)}
             onRemove={(docId) => setLinkedDocs((cur) => cur.filter((doc) => doc.id !== docId))}
           />
@@ -2335,10 +2400,14 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       <LinkDocumentsModal
         open={linkModalOpen}
         customer={customer?.displayName ?? walkIn.name}
+        docs={linkable}
         initialSelected={linkedIds}
+        initialPo={form.purchaseOrder}
         onClose={() => setLinkModalOpen(false)}
-        onConfirm={(docs) => {
+        onConfirm={(docs, purchaseOrder) => {
           setLinkedDocs(docs)
+          // The customer's order number typed in the picker is the invoice's IBT-013.
+          if (purchaseOrder !== form.purchaseOrder) change({ purchaseOrder })
           setLinkModalOpen(false)
         }}
       />
