@@ -19,6 +19,7 @@ const SELF_BILLER: Entitlements = {
     'selfbilling.agreement.manage',
     'customer.read',
     'branch.read',
+    'invoice.attachment.manage',
   ],
   scopes: [],
   featureFlags: {},
@@ -129,6 +130,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let agreements: AgreementDto[]
+let draftRead: DraftResponse
+let storedFiles: unknown[]
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -143,6 +146,8 @@ beforeEach(async () => {
   forgetEntitlements()
   who = SELF_BILLER
   agreements = [agreement()]
+  draftRead = draft({ version: 3 })
+  storedFiles = []
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
@@ -159,10 +164,23 @@ beforeEach(async () => {
     if (url.startsWith('/api/v1/self-billing-agreements')) return json(200, agreements)
     if (url === '/api/v1/self-billed-invoice-drafts' && method === 'POST') return json(201, draft())
     if (url === '/api/v1/invoice-drafts/sb-1' && method === 'GET')
-      return json(200, draft({ version: 3 }))
+      return json(200, draftRead)
     if (url === '/api/v1/invoice-drafts/sb-1' && method === 'PUT')
       return json(200, draft({ version: 4 }))
     if (url === '/api/v1/invoice-drafts/sb-1/preview') return json(200, PREVIEW)
+    if (url === '/api/v1/authored-invoices/sb-1/attachments' && method === 'GET')
+      return json(200, storedFiles)
+    if (url === '/api/v1/authored-invoices/sb-1/attachments' && method === 'POST')
+      return json(201, {
+        id: 'f-2',
+        filename: 'delivery-note.pdf',
+        contentType: 'application/pdf',
+        byteSize: 1200,
+        sha256: 'x',
+        attachedAt: '2026-09-30T08:00:00Z',
+      })
+    if (url === '/api/v1/authored-invoices/sb-1/attachments/f-1' && method === 'DELETE')
+      return json(204)
     return json(404)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -227,8 +245,6 @@ describe('the dedicated self-billed composer', () => {
     expect(body.lines).toHaveLength(1)
     expect(body.lines[0]).toMatchObject({
       lineNumber: 1,
-      productId: '',
-      productCode: '',
       description: 'Cappuccino - Large',
       unitCode: 'EA',
       quantity: 12,
@@ -243,8 +259,85 @@ describe('the dedicated self-billed composer', () => {
       purchaseOrderReference: 'PO-88317',
       transactionType: 'FULL_TAX',
     })
+    // Omitted, as the invoice composer omits them on a free-text line, rather than sent empty.
+    expect(body.lines[0]).not.toHaveProperty('productId')
+    expect(body.lines[0]).not.toHaveProperty('productCode')
+    // IBT-081: the method the form opens on, with the label the reader saw.
+    expect(body.details.paymentMethod).toEqual({ code: '30', label: 'Bank transfer' })
 
     expect(await screen.findByRole('heading', { name: 'Edit self-billed invoice' })).toBeTruthy()
+  })
+
+  it('reads the payment method back and sends it again on the next save', async () => {
+    draftRead = draft({
+      version: 3,
+      details: { ...draft().details, paymentMethod: { code: '10', label: 'Cash' } },
+    })
+    renderAt('/income/self-billing/sb-1/edit')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Payment method' }).textContent).toContain('Cash'),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/sb-1')).toHaveLength(1))
+    const body = bodyOf(calls('PUT', '/api/v1/invoice-drafts/sb-1')[0])
+    expect(body.draft.details.paymentMethod).toEqual({ code: '10', label: 'Cash' })
+  })
+
+  it('lists the draft files, and sends a dropped file to the saved draft on save', async () => {
+    storedFiles = [
+      {
+        id: 'f-1',
+        filename: 'contract.pdf',
+        contentType: 'application/pdf',
+        byteSize: 900,
+        sha256: 'y',
+        attachedAt: '2026-09-29T08:00:00Z',
+      },
+    ]
+    renderAt('/income/self-billing/sb-1/edit')
+    expect(await screen.findByText('contract.pdf')).toBeTruthy()
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['%PDF'], 'delivery-note.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(await screen.findByText('delivery-note.pdf')).toBeTruthy()
+    // Held until the save: nothing goes up on the drop.
+    expect(calls('POST', '/api/v1/authored-invoices/sb-1/attachments')).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() =>
+      expect(calls('POST', '/api/v1/authored-invoices/sb-1/attachments')).toHaveLength(1),
+    )
+    const sent = calls('POST', '/api/v1/authored-invoices/sb-1/attachments')[0][1] as RequestInit
+    expect((sent.body as FormData).get('file')).toBeInstanceOf(File)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove contract.pdf' }))
+    await waitFor(() =>
+      expect(calls('DELETE', '/api/v1/authored-invoices/sb-1/attachments/f-1')).toHaveLength(1),
+    )
+    await waitFor(() => expect(screen.queryByText('contract.pdf')).toBeNull())
+  })
+
+  it('names a counterparty refusal instead of the generic message', async () => {
+    renderAt('/income/self-billing/sb-1/edit')
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Self-bill number/)).toHaveProperty('value', 'SB-0115'),
+    )
+    fetchMock.mockImplementationOnce(async () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/request-rejected',
+        title: 'Request rejected',
+        status: 400,
+        code: 'COUNTERPARTY_VATIN_MISSING',
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(
+      await screen.findByText(
+        'This supplier has no VAT registration number on its record. Add it, then issue.',
+      ),
+    ).toBeTruthy()
   })
 
   it('reads a saved draft back and saves it through the shared draft route', async () => {

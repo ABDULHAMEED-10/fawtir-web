@@ -319,6 +319,26 @@ describe('the agreements screen', () => {
     )
   })
 
+  it('counts the day in Muscat, not in UTC, on the page and in the dialog', async () => {
+    // 21:00 UTC on the 21st is already the 22nd in Muscat: an agreement ending on the 21st has
+    // lapsed there, and a new one starts on the 22nd.
+    vi.setSystemTime(new Date(`${TODAY}T21:00:00Z`))
+    rows = [agreement({ effectiveTo: TODAY })]
+    renderPage()
+    expect(
+      await screen.findByText("Muscat Roastery Co's agreement expired on 21 Sept 2026"),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'New agreement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Supplier' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Muscat Roastery Co' }))
+    fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
+      target: { value: 'SBA-10' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+    await waitFor(() => expect(posted.at(-1)?.body).toMatchObject({ effectiveFrom: '2026-09-22' }))
+  })
+
   it('names a 409 refusal instead of telling the reader to reload', async () => {
     // Seven self-billing codes answer Conflict; the generic 409 sentence would be false here.
     refuseWith = { code: 'SELF_BILLING_AGREEMENT_ALREADY_EXISTS', status: 409 }

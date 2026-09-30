@@ -54,6 +54,7 @@ import {
 } from '../../lib/selfBillingAgreements'
 import { LIST_PAGE_SIZES, ListPager } from '../SelfBillingPage/ListPager'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { muscatToday } from '../../lib/invoiceIssue'
 import { formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import activeIcon from '../../assets/agreements/kpi-active.svg'
@@ -186,7 +187,8 @@ function Agreements() {
   }, [customers.read])
   const nameOf = (id: string) => customerOf(id)?.displayName ?? null
 
-  const today = new Date().toISOString().slice(0, 10)
+  // The Oman calendar day: the backend judges "in force" against the tenant's business day.
+  const today = muscatToday()
   const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -930,7 +932,7 @@ function OpenAgreementDialog({
   const { t } = useTranslation()
   const [customerId, setCustomerId] = useState(initialCustomerId ?? '')
   const [reference, setReference] = useState('')
-  const [from, setFrom] = useState(new Date().toISOString().slice(0, 10))
+  const [from, setFrom] = useState(() => muscatToday())
   const [to, setTo] = useState('')
   const [saving, setSaving] = useState(false)
 

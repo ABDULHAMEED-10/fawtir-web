@@ -44,6 +44,44 @@ describe('a self-billed draft request', () => {
   })
 })
 
+describe('what a self-billed draft sends besides its lines', () => {
+  const line = { ...blankComposerLine('1'), description: 'Rice' }
+
+  it('leaves both product members out of a free-text line, as the invoice composer does', () => {
+    const request = first([line])
+    expect(request).not.toHaveProperty('productId')
+    expect(request).not.toHaveProperty('productCode')
+  })
+
+  it('sends the payment method with the label the reader saw, and reads it back', () => {
+    const request = toSelfBilledDraftRequest(
+      { ...form([line]), paymentMethod: '10' },
+      true,
+      SEEDED_REFERENCE,
+      undefined,
+      (code) => (code === '10' ? 'Cash' : code),
+    )
+    expect(request.details.paymentMethod).toEqual({ code: '10', label: 'Cash' })
+    expect(
+      toSelfBilledDraftRequest({ ...form([line]), paymentMethod: '' }, true, SEEDED_REFERENCE)
+        .details.paymentMethod,
+    ).toBeNull()
+
+    const draft = {
+      customerId: 'c-1',
+      branchId: 'b-1',
+      currency: 'OMR',
+      details: { paymentMethod: { code: '48', label: 'Card payment' } },
+      lines: [],
+    } as unknown as Parameters<typeof fromSelfBilledDraft>[0]
+    expect(fromSelfBilledDraft(draft, '2026-09-27').paymentMethod).toBe('48')
+    // A draft saved without one opens on the form's default.
+    expect(
+      fromSelfBilledDraft({ ...draft, details: {} } as typeof draft, '2026-09-27').paymentMethod,
+    ).toBe('30')
+  })
+})
+
 describe('the reason no VAT is charged, on a self-billed draft', () => {
   const line = { ...blankComposerLine('1'), description: 'Rice' }
   const withTax = (taxCategory: string, more: object) => ({

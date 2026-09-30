@@ -187,6 +187,12 @@ describe('the self-billed documents list', () => {
     expect(screen.queryByText('SB-0001')).toBeNull()
   })
 
+  it('asks the server for what is still to send, rather than every issued document', async () => {
+    renderPage('/income/self-billing?tab=toSend')
+    await waitFor(() => expect(listCalls().at(-1)).toContain('delivery=TO_SEND'))
+    expect(listCalls().at(-1)).toContain('state=ISSUED')
+  })
+
   it('asks the server for the status tab too', async () => {
     renderPage()
     await screen.findByText('SB-0001')

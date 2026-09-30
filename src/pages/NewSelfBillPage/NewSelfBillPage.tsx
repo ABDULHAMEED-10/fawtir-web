@@ -23,6 +23,12 @@ import {
   type AgreementDto,
 } from '../../api/selfBilling/agreements'
 import { customerListPath, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
+import {
+  loadAttachments,
+  removeAttachment,
+  uploadAttachment,
+  type InvoiceAttachmentDto,
+} from '../../api/invoices/detail'
 import { muscatToday, plusDays } from '../../lib/invoiceIssue'
 import { netDaysFor, useReferenceData } from '../../lib/reference/referenceData'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -50,6 +56,7 @@ import { useLineTotals } from '../../components/invoice'
 import { IssueInvoiceModal } from '../../components/invoice/IssueInvoiceModal'
 import {
   DateField,
+  FileDropzone,
   LockIcon,
   OmAmount,
   Popover,
@@ -74,6 +81,7 @@ import saveDraftIcon from '../../assets/customers/save.svg'
 import arrowIcon from '../../assets/create-invoice/arrow.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 import signedIcon from '../../assets/agreements/signed.svg'
+import deleteIcon from '../../assets/create-invoice/delete.svg'
 
 /**
  * New self-billed invoice (Figma 154:161180), the dedicated screen the design draws for writing
@@ -85,9 +93,10 @@ import signedIcon from '../../assets/agreements/signed.svg'
  * joined to the agreements on file, so the page says per seller whether issuing would be refused
  * and why, in the server's own order.
  *
- * Every field the frame shows is a real control. What the draft cannot carry yet stays on the
- * page behind a `TODO(backend)`: the payment section and its two switches, the attachments, the
- * "agreed / statutory" kind, the line kind and its HS code / service type, and the plan quota.
+ * Every field the frame shows is a real control. The payment method is saved on the draft, and
+ * files dropped on the page go to the saved draft through the invoice attachment routes. What the
+ * draft cannot carry yet stays on the page behind a `TODO(backend)`: the payment reference and the
+ * two switches, the "agreed / statutory" kind, and the plan quota.
  */
 
 const KIND_ICONS: Record<SelfBillKind, string> = {
@@ -96,6 +105,10 @@ const KIND_ICONS: Record<SelfBillKind, string> = {
 }
 
 const CURRENCIES: SelectOption[] = [{ value: 'OMR', label: 'OMR - Omani Rial' }]
+
+/** What the attachment route takes: the invoice composer's list and limit. */
+const ATTACHMENT_TYPES = '.pdf,.jpg,.jpeg,.png,.xlsx'
+const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
 
 type DraftMeta = { id: string; version: number; state: DraftResponse['authoringState'] }
 
@@ -332,6 +345,7 @@ function SelfBillComposer() {
   const canSave = can(session, 'selfbilling.create')
   const canReadInternalNote = can(session, 'invoice.internal-note.read')
   const canSeeAgreements = can(session, 'selfbilling.agreement.manage')
+  const canAttach = can(session, 'invoice.attachment.manage')
 
   const [form, setForm] = useState<SelfBillForm>(() => blankSelfBillForm(today))
   const [exclVat, setExclVat] = useState(true)
@@ -342,6 +356,9 @@ function SelfBillComposer() {
   const [issuing, setIssuing] = useState<DraftMeta | null>(null)
   const [priced, setPriced] = useState<DraftPreview | null>(null)
   const [pickingSupplier, setPickingSupplier] = useState(false)
+  // Files dropped before the draft is saved wait here; the save sends them up.
+  const [heldFiles, setHeldFiles] = useState<File[]>([])
+  const [storedFiles, setStoredFiles] = useState<InvoiceAttachmentDto[]>([])
   const changeRef = useRef<HTMLButtonElement>(null)
 
   const patch = (changes: Partial<SelfBillForm>) =>
@@ -394,6 +411,15 @@ function SelfBillComposer() {
       version: draft.read.data.version,
       state: draft.read.data.authoringState,
     })
+    if (draft.read.data.authoringState === 'DRAFT') {
+      // Storage may be off: the list is then simply empty, as on the invoice composer.
+      const draftId = draft.read.data.id
+      loadAttachments(draftId)
+        .then((files) => {
+          if (filledFrom.current === draftId) setStoredFiles(files)
+        })
+        .catch(() => undefined)
+    }
   }, [routeId, draft.read, today])
 
   // The branch is pre-filled (the head office), as the frame draws it.
@@ -478,6 +504,12 @@ function SelfBillComposer() {
 
   /* --------------------------------------------------------- writes */
 
+  /** The payment method as the reader sees it; stored beside the code as a snapshot, like the terms. */
+  const methodLabel = (code: string) =>
+    t(`reference.paymentMethod.${code}`, {
+      defaultValue: t(`createInvoice.paymentMethods.${code}`, { defaultValue: code }),
+    })
+
   const failureText = (error: unknown): string => {
     const named = selfBillingMessageKey(error)
     if (named) return t(named)
@@ -490,7 +522,43 @@ function SelfBillComposer() {
       : body
   }
 
-  const save = async (): Promise<DraftMeta | null> => {
+  /**
+   * Sends the held files to the saved draft (the route takes files only while it is a draft). A
+   * refused file stays held, with the reason shown, and is sent again next time. Answers whether
+   * every file went up.
+   */
+  const uploadHeld = async (draftId: string): Promise<boolean> => {
+    for (const file of heldFiles) {
+      try {
+        const stored = await uploadAttachment(draftId, file)
+        setStoredFiles((current) => [...current, stored])
+        setHeldFiles((current) => current.filter((held) => held !== file))
+      } catch (error) {
+        setNotice({
+          tone: 'error',
+          body: t('newSelfBill.attachments.uploadFailed', {
+            name: file.name,
+            reason: failureText(error),
+          }),
+        })
+        return false
+      }
+    }
+    return true
+  }
+
+  const removeStored = async (file: InvoiceAttachmentDto) => {
+    if (!meta) return
+    try {
+      await removeAttachment(meta.id, file.id)
+      setStoredFiles((current) => current.filter((held) => held.id !== file.id))
+    } catch (error) {
+      setNotice({ tone: 'error', body: failureText(error) })
+    }
+  }
+
+  /** For an issue, a file that failed to upload answers null: the draft is saved but not issued. */
+  const save = async ({ forIssue = false } = {}): Promise<DraftMeta | null> => {
     if (!editable) return null
     const problems = problemsBeforeSave(form, reference)
     if (problems.length > 0) {
@@ -500,10 +568,15 @@ function SelfBillComposer() {
     setSaving(true)
     setNotice(null)
     // The stored terms label is a snapshot of what the reader saw: the translated text, not the code.
-    const body = toSelfBilledDraftRequest(form, exclVat, reference, (code) =>
-      t(`reference.paymentTerm.${code}`, {
-        defaultValue: t(`createInvoice.terms.${code}`, { defaultValue: code }),
-      }),
+    const body = toSelfBilledDraftRequest(
+      form,
+      exclVat,
+      reference,
+      (code) =>
+        t(`reference.paymentTerm.${code}`, {
+          defaultValue: t(`createInvoice.terms.${code}`, { defaultValue: code }),
+        }),
+      methodLabel,
     )
     try {
       const result = meta
@@ -521,7 +594,8 @@ function SelfBillComposer() {
         filledFrom.current = result.id
         navigate(`/income/self-billing/${result.id}/edit`, { replace: true })
       }
-      return saved
+      const uploadsDone = await uploadHeld(result.id)
+      return forIssue && !uploadsDone ? null : saved
     } catch (error) {
       setNotice({ tone: 'error', body: failureText(error) })
       return null
@@ -542,7 +616,7 @@ function SelfBillComposer() {
   }
 
   const issue = async () => {
-    const saved = await save()
+    const saved = await save({ forIssue: true })
     if (saved) setIssuing(saved)
   }
 
@@ -557,6 +631,17 @@ function SelfBillComposer() {
 
   const supplierLine = (option: SupplierOption) =>
     [option.vat ? `VAT ${option.vat}` : null, option.participant].filter(Boolean).join(' · ')
+
+  // The design's drop zone, unchanged; it takes files once the reader may attach them.
+  const dropZone = (
+    <div className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar py-8">
+      <img src={uploadIcon} alt="" className="size-8" />
+      <p className="text-base font-medium text-text-secondary">
+        {t('newSelfBill.attachments.drop')}
+      </p>
+      <p className="text-sm font-medium text-text-muted">{t('newSelfBill.attachments.hint')}</p>
+    </div>
+  )
 
   const savedNote =
     savedAt === null
@@ -1099,7 +1184,10 @@ function SelfBillComposer() {
           }
         />
 
-        {/* 4 Payment to supplier. TODO(backend): no draft field carries any of it. */}
+        {/*
+          4 Payment to supplier. The method is saved on the draft (IBT-081).
+          TODO(backend): no draft field carries the reference or the two switches.
+        */}
         <Card>
           <SectionTitle step={4} title={t('newSelfBill.sections.payment')} />
           <div className="h-px w-full bg-surface-background" />
@@ -1110,9 +1198,7 @@ function SelfBillComposer() {
               onChange={(paymentMethod) => patch({ paymentMethod })}
               options={paymentMethodCodes(reference).map((code) => ({
                 value: code,
-                label: t(`reference.paymentMethod.${code}`, {
-                  defaultValue: t(`createInvoice.paymentMethods.${code}`, { defaultValue: code }),
-                }),
+                label: methodLabel(code),
               }))}
               disabled={!editable}
             />
@@ -1166,19 +1252,73 @@ function SelfBillComposer() {
               disabled={!editable || !canReadInternalNote}
             />
           </div>
-          {/* TODO(backend): a draft takes no attachments; the drop zone is the design's and says so. */}
-          <div
-            title={t('newSelfBill.attachments.unavailable')}
-            className="flex flex-col items-center justify-center gap-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar py-8"
-          >
-            <img src={uploadIcon} alt="" className="size-8" />
-            <p className="text-base font-medium text-text-secondary">
-              {t('newSelfBill.attachments.drop')}
-            </p>
-            <p className="text-sm font-medium text-text-muted">
-              {t('newSelfBill.attachments.hint')}
-            </p>
-          </div>
+          {editable && canAttach ? (
+            <FileDropzone
+              accept={ATTACHMENT_TYPES}
+              multiple
+              maxBytes={ATTACHMENT_MAX_BYTES}
+              onFiles={(files) => setHeldFiles((current) => [...current, ...files])}
+              onReject={(reason, file) =>
+                setNotice({
+                  tone: 'error',
+                  body: t(
+                    reason === 'size'
+                      ? 'newSelfBill.attachments.tooLarge'
+                      : 'newSelfBill.attachments.wrongType',
+                    { name: file.name },
+                  ),
+                })
+              }
+            >
+              {() => dropZone}
+            </FileDropzone>
+          ) : (
+            dropZone
+          )}
+          {heldFiles.length > 0 || storedFiles.length > 0 ? (
+            <ul className="flex flex-col gap-1">
+              {storedFiles.map((file) => (
+                <li
+                  key={file.id}
+                  className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 truncate font-medium text-text-secondary">
+                    {file.filename}
+                  </span>
+                  {editable && canAttach ? (
+                    <button
+                      type="button"
+                      onClick={() => void removeStored(file)}
+                      aria-label={t('newSelfBill.attachments.remove', { name: file.filename })}
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-neutral-25"
+                    >
+                      <img src={deleteIcon} alt="" className="size-4" />
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+              {heldFiles.map((file, index) => (
+                <li
+                  key={`${file.name}-${index}`}
+                  className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle bg-white px-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 truncate font-medium text-text-secondary">
+                    {file.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHeldFiles((current) => current.filter((_, i) => i !== index))
+                    }
+                    aria-label={t('newSelfBill.attachments.remove', { name: file.name })}
+                    className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-neutral-25"
+                  >
+                    <img src={deleteIcon} alt="" className="size-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </Card>
       </div>
 
@@ -1198,7 +1338,7 @@ function SelfBillComposer() {
             <button
               type="button"
               disabled={!editable || saving}
-              onClick={save}
+              onClick={() => void save()}
               className="inline-flex h-[54px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary disabled:opacity-60"
             >
               <img src={saveDraftIcon} alt="" className="size-6" />
