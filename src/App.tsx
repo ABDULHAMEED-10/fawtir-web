@@ -127,6 +127,7 @@ import {
   ConnectionRecordsPage,
   ConnectionWriteBackPage,
   ConnectionSettingsPage,
+  ConnectionExtractionPage,
   ErpMappingGate,
 } from './pages/ErpPage'
 import { PaymentRemindersPage } from './pages/PaymentRemindersPage'
@@ -630,6 +631,14 @@ function App() {
             element={
               <PlanGated feature="erpMapping" shell="settings">
                 <ConnectionSettingsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/connections/:id/extraction"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ConnectionExtractionPage />
               </PlanGated>
             }
           />
