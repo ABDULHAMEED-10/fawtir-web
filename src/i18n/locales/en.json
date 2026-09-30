@@ -2441,6 +2441,9 @@
       "inclusive": "Inclusive of VAT",
       "exclShort": "Excl. VAT",
       "inclShort": "Incl. VAT"
+    },
+    "fromTrade": {
+      "notFound": "There is no quotation, sales order or delivery note {{id}} to fill this invoice from."
     }
   },
   "periodicInvoice": {
@@ -3461,7 +3464,11 @@
       "winRate": "Win rate",
       "winRateMeta": "Last 90 days, measured by value",
       "expiring": "Expiring soon",
-      "expiringMeta": "Staff training package in 2 days"
+      "expiringMeta": "Staff training package in 2 days",
+      "openMetaCount": "{{count}} awaiting a decision",
+      "acceptedMetaCount": "{{count}} turned into orders",
+      "expiringMetaNext": "{{subject}} in {{count}} days",
+      "expiringMetaNone": "Nothing expires in the next 7 days"
     },
     "tabs": {
       "all": "All",
@@ -3493,7 +3500,9 @@
       "delivering": "Delivering",
       "expiring": "Expiring",
       "declined": "Declined"
-    }
+    },
+    "subtitleCount": "{{count}} quotations · OMR {{amount}} open and awaiting a decision",
+    "empty": "Nothing to show in this tab."
   },
   "newQuotation": {
     "breadcrumb": "Quotations",
@@ -3501,7 +3510,7 @@
     "savedJustNow": "Saved just now",
     "customer": "Customer",
     "change": "Change",
-    "prospectHint": "Quoting someone new? A name and email is enough — VAT and Peppol details are only needed when the quote becomes an invoice.",
+    "prospectHint": "Quoting someone new? A name and email is enough: VAT and Peppol details are only needed when the quote becomes an invoice.",
     "addProspect": "Add a prospect",
     "summary": "Summary",
     "subtotal": "Subtotal",
@@ -3547,7 +3556,8 @@
     "dropFilesHint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
     "preview": "Preview",
     "saveDraft": "Save draft",
-    "sendQuotation": "Send quotation"
+    "sendQuotation": "Send quotation",
+    "leadTimePlaceholder": "e.g. subject to stock at time of order..."
   },
   "quotationDetail": {
     "breadcrumbParent": "Trade documents",
@@ -3597,7 +3607,16 @@
     "noteToCustomer": "Note to customer",
     "noteToCustomerHint": "on the quotation",
     "internalNote": "Internal note",
-    "internalNoteHint": "Private"
+    "internalNoteHint": "Private",
+    "validTo": "valid to {{date}}",
+    "decisionTitle": {
+      "draft": "Not sent to {{customer}} yet",
+      "sent": "Waiting on {{customer}}",
+      "expiring": "Waiting on {{customer}}",
+      "accepted": "Accepted by {{customer}}",
+      "delivering": "Accepted by {{customer}}",
+      "declined": "Declined by {{customer}}"
+    }
   },
   "orderForms": {
     "breadcrumbParent": "Trade documents",
@@ -3623,7 +3642,13 @@
       "delivered": "Delivered, not invoiced",
       "deliveredLink": "Invoice 4 orders",
       "received": "Received, not invoiced",
-      "receivedLink": "Review 3 orders"
+      "receivedLink": "Review 3 orders",
+      "salesAmount": "{{amount}} sales",
+      "purchaseAmount": "{{amount}} purchase",
+      "toDeliverAmount": "{{amount}} to deliver",
+      "toReceiveAmount": "{{amount}} to receive",
+      "invoiceCount": "Invoice {{count}} orders",
+      "reviewCount": "Review {{count}} orders"
     },
     "tabs": {
       "all": "All",
@@ -3675,7 +3700,8 @@
       "billed2090": "2,090.000 billed",
       "nothingInvoiced": "Nothing invoiced",
       "nothingBilled": "Nothing billed",
-      "fullyInvoiced": "Fully invoiced"
+      "fullyInvoiced": "Fully invoiced",
+      "invoicedAmount": "{{amount}} invoiced"
     },
     "note": {
       "toInvoice": "to invoice",
@@ -3770,7 +3796,7 @@
   "deliveryNotes": {
     "breadcrumbParent": "Trade documents",
     "title": "Delivery notes",
-    "subtitle": "Proof that goods changed hands — what you sent to customers, and what suppliers sent to you. Quantities only, never prices.",
+    "subtitle": "Proof that goods changed hands: what you sent to customers, and what suppliers sent to you. Quantities only, never prices.",
     "export": "Export",
     "newDeliveryNote": "New delivery note",
     "mode": {
@@ -3792,7 +3818,10 @@
       "notInvoicedNote": "Notes with no invoice raised against them",
       "notInvoicedLink": "Review",
       "short": "Short deliveries",
-      "shortNote": "This month · both on the purchase side"
+      "shortNote": "This month · both on the purchase side",
+      "moveOutCount": "{{count}} out",
+      "moveInCount": "{{count}} arriving",
+      "shortNoteCount": "This month · {{count}} on the purchase side"
     },
     "tabs": {
       "all": "All",
@@ -3814,7 +3843,8 @@
       "vsPo0029": "vs PO-0029",
       "standalone": "Standalone",
       "vsSo0068": "vs SO-0068",
-      "vsPo0028": "vs PO-0028"
+      "vsPo0028": "vs PO-0028",
+      "vsPo0030": "vs PO-0030"
     },
     "due": {
       "delivered0920": "Delivered 09:20",
@@ -3837,7 +3867,7 @@
       "nobodySigned": "Nobody signed",
       "leftAtReception": "Left at reception",
       "photoToDoor": "Photo to door",
-      "signedByAhmed": "Signed by ahmed 18 jul",
+      "signedByAhmed": "Signed by Ahmed · 18 Jul",
       "notArrived": "Not arrived",
       "awaitingVan": "Awaiting the van"
     },
@@ -4246,21 +4276,21 @@
         "orderConfirmed": "Order\nconfirmed",
         "orderConfirmedNote": "22 Jul",
         "delivered": "Delivered",
-        "deliveredNote": "60% · 2 notes",
+        "deliveredNote": "{{pct}}% · {{count}} notes",
         "invoiced": "Invoiced",
-        "invoicedNote": "40% · 1 invoice",
+        "invoicedNote": "{{pct}}% · {{count}} invoice",
         "paid": "Paid",
-        "paidNote": "40% collected"
+        "paidNote": "{{pct}}% collected"
       },
-      "lifecycleNote": "A standing order, so three stages run at once — you keep shipping, billing and collecting against the same commitment. OMR 248.000 has been delivered and not yet invoiced.",
+      "lifecycleNote": "A standing order, so three stages run at once: you keep shipping, billing and collecting against the same commitment. OMR {{amount}} has been delivered and not yet invoiced.",
       "fulfilmentTitle": "Fulfilment",
       "fulfilment": {
         "invoiced": "Invoiced",
-        "invoicedNote": "40% · 1 invoice, paid",
+        "invoicedNote": "{{pct}}% · {{count}} invoice, paid",
         "delivered": "Delivered, not invoiced",
-        "deliveredNote": "20% · shipped and unbilled",
+        "deliveredNote": "{{pct}}% · shipped and unbilled",
         "toDeliver": "Still to deliver",
-        "toDeliverNote": "40% · next drop 04 Aug"
+        "toDeliverNote": "{{pct}}% · next drop 04 Aug"
       },
       "legend": {
         "billed": "Billed",
@@ -4286,8 +4316,8 @@
         "nextDrop": "Next drop due 04 Aug",
         "nextDropNote": "32 KG beans, 24 roasting batches, 4 packs of cups still to ship",
         "paid": "INV-2041 paid",
-        "paidNote": "OMR 496.000 received by bank transfer · 29 Jul",
-        "issued": "INV-2041 issued for the first two drops",
+        "paidNote": "OMR {{amount}} received by bank transfer · 29 Jul",
+        "issued": "INV-2041 issued for the first drop, DN-0121",
         "issuedNote": "Sent over Peppol, TDD accepted by the OTA · 28 Jul",
         "delivered": "DN-0124 delivered and signed",
         "deliveredNote": "24 KG, 18 batches, 3 packs · received by Khalid at the café · 27 Jul",
@@ -4300,7 +4330,9 @@
         "dn0124": "DN-0124 · delivery note",
         "dn0124Note": "Delivered 27 Jul · signed · not yet invoiced",
         "inv2041": "INV-2041 · invoice",
-        "inv2041Note": "OMR 496.000 · issued 28 Jul · paid · TDD accepted"
+        "inv2041Note": "OMR {{amount}} · issued 28 Jul · paid · TDD accepted",
+        "dn0121": "DN-0121 · delivery note",
+        "dn0121Note": "Delivered 25 Jul · signed by Khalid Al Rashdi · invoiced on INV-2041"
       }
     },
     "purchase": {
@@ -4319,9 +4351,11 @@
         "theyBilled": "They billed",
         "theyBilledNote": "They billed",
         "youPaid": "You paid",
-        "youPaidNote": "Due 28 Aug"
+        "youPaidNote": "Due 28 Aug",
+        "poSentDate": "20 Jul",
+        "theyBilledDate": "29 Jul"
       },
-      "lifecycleNote": "Half the order has arrived and Al Noor Dates has invoiced. Their invoice doesn't match what we received — nothing should be paid until that's resolved.",
+      "lifecycleNote": "Half the order has arrived and Al Noor Dates has invoiced. Their invoice doesn't match what we received: nothing should be paid until that's resolved.",
       "matchTitle": "Order, delivery and invoice all agree",
       "viewTheirInvoice": "View their invoice",
       "match": {
@@ -4330,10 +4364,11 @@
         "received": "You received",
         "receivedNote": "Checked in 28 Jul · GRN-0087",
         "billed": "They billed",
-        "billedNote": "per KG · MR-INV-8821"
+        "billedNote": "per KG · MR-INV-8821",
+        "ordered": "You ordered"
       },
       "dueToPay": "Due to pay",
-      "dueNote": "On 28 Aug, Net 30 from MR-INV-8821. Nothing is blocking it — the invoice matched on arrival.",
+      "dueNote": "On 28 Aug, Net 30 from MR-INV-8821. Nothing is blocking it: the invoice matched on arrival.",
       "schedulePayment": "Schedule payment",
       "markAsPaid": "Mark as paid",
       "whatThisCosts": "What this costs",
@@ -4361,12 +4396,12 @@
         "dueNote": "OMR 2,354.310 · Net 30 from their invoice date",
         "matched": "MR-INV-8821 matched automatically",
         "matchedNote": "Quantities and prices agree with PO-0031 and GRN-0087 · 29 Jul",
-        "grn": "GRN-0087 recorded — everything arrived",
+        "grn": "GRN-0087 recorded: everything arrived",
         "grnNote": "300 KG and 12 sacks checked in at Main store · 28 Jul, 07:45",
         "poSent": "PO sent to Muscat Roastery",
         "poSentNote": "Required by 28 Jul · 20 Jul",
         "approved": "Approved by Hafidh Saif",
-        "approvedNote": "OMR 2,354.310 gross · above the OMR 2,000 limit · 19 Jul"
+        "approvedNote": "OMR 2,354.310 gross · above the OMR 2,000.000 limit · 19 Jul"
       },
       "documentsTitle": "Documents against this order",
       "files": {
@@ -4376,8 +4411,12 @@
         "grnNote": "Received 28 Jul · checked in by Yusuf Al Balushi",
         "invoice": "MR-INV-8821 · their invoice",
         "invoiceNote": "Arrived over Peppol 29 Jul · OMR 2,354.310 · matched"
-      }
-    }
+      },
+      "matchTitleOpen": "Order, delivery and bill"
+    },
+    "tailDue": "due {{date}}",
+    "tailRequired": "required by {{date}}",
+    "pctOnly": "{{pct}}%"
   },
   "deliveryDetail": {
     "breadcrumb": "Delivery notes",
@@ -4396,7 +4435,8 @@
       "onDate": "on 27 Jul 2026",
       "steps": {
         "deliveredNote": "This note · 27 Jul",
-        "invoicedNote": "Not yet"
+        "invoicedNote": "Not yet",
+        "invoicedOn": "On {{id}}"
       },
       "lifecycleNote": "The goods are with the customer and signed for. Nothing has been billed for this drop yet, the invoice is the next step, and the only one that goes to the Tax Authority.",
       "proofTitle": "Signed for on arrival",
@@ -4414,7 +4454,7 @@
       "convertToInvoice": "Convert to invoice",
       "progressTitle": "Progress on SO-0073",
       "thisDrop": "This drop",
-      "progressNote": "60% of the order delivered across 2 notes. 40% still to ship — next drop due 04 Aug.",
+      "progressNote": "{{pct}}% of the order delivered across {{count}} notes. {{left}}% still to ship; next drop due 04 Aug.",
       "noteDetails": "Note details",
       "noteNumber": "Note number",
       "dispatched": "Dispatched",
@@ -4457,7 +4497,7 @@
       "theirPaperwork": "Their paperwork",
       "theirPaperworkValue": "MR-DN-2290 · signed copy kept",
       "billedAndMatched": "Billed and matched",
-      "billedNote": "MR-INV-8821 covers exactly this delivery. Nothing to chase — payment is scheduled for 28 Aug.",
+      "billedNote": "MR-INV-8821 covers exactly this delivery. Nothing to chase: payment is scheduled for 28 Aug.",
       "viewTheirInvoice": "View their invoice",
       "progressTitle": "Progress on PO-0031",
       "receivedAfter": "Received after this note",
@@ -4478,7 +4518,7 @@
         "dueNote": "Net 30 from MR-INV-8821 · nothing blocking it",
         "matched": "MR-INV-8821 matched to this receipt",
         "matchedNote": "Quantities and prices agree with PO-0031 · 29 Jul",
-        "checkedIn": "Checked in — everything present",
+        "checkedIn": "Checked in: everything present",
         "checkedInNote": "Yusuf Al Balushi counted 300 KG and 12 sacks, 3 photos taken · 28 Jul, 07:45",
         "vanArrived": "Van arrived at Main store",
         "vanArrivedNote": "Muscat Roastery · their note MR-DN-2290 · 28 Jul, 07:20",
@@ -4487,8 +4527,12 @@
       },
       "linkedDocuments": "Linked documents",
       "filePo": "PO-0031",
-      "filePoNote": "Muscat Roastery Co · placed 20 Jul"
-    }
+      "filePoNote": "Muscat Roastery Co · placed 20 Jul",
+      "theirBill": "Their bill"
+    },
+    "progressOn": "Progress on {{id}}",
+    "onDateValue": "on {{date}}",
+    "standalone": "standalone note"
   },
   "linkModal": {
     "title": "Link related documents",
@@ -4507,14 +4551,20 @@
     },
     "docs": {
       "dn0131": "DN-0131 · delivery note",
-      "dn0131Meta": "Delivered 30 Jul · signed by Khalid Al Rashdi · 4 lines"
+      "dn0131Meta": "Delivered 30 Jul · signed by Khalid Al Rashdi · 4 lines",
+      "deliveryTitle": "{{id}} · delivery note",
+      "deliveryMeta": "Delivered {{date}} · {{lines}}",
+      "orderTitle": "{{id}} · order form",
+      "orderMeta": "Movement due {{due}}"
     },
     "closed": "Closed",
     "poNumber": "Their purchase order number",
     "poNumberHint": "type it in, it's the customer's own reference",
     "poPlaceholder": "e.g. NSC-PO-4471",
     "cancel": "Cancel",
-    "confirm": "Link {{count}} documents"
+    "confirm": "Link {{count}} documents",
+    "emptyForCustomer": "This customer has no order forms or delivery notes to link.",
+    "chooseCustomer": "Choose the customer first: only their own documents can be linked."
   },
   "tradeCreate": {
     "draft": "Draft",
@@ -4649,7 +4699,18 @@
       "onThisNote": "On this note",
       "effectOn": "Effect on SO-0073",
       "summaryNote": "4 packs of cups and 8 KG of beans will still be outstanding after this drop.",
-      "sendWithDriver": "Send with driver"
+      "sendWithDriver": "Send with driver",
+      "againstMetaPct": "Standing weekly order · {{pct}}% delivered so far · next drop due 04 Aug",
+      "effectOnOrder": "Effect on {{id}}",
+      "stillOutstanding": "Still outstanding after this drop: {{list}}.",
+      "nothingOutstanding": "Nothing will be outstanding after this drop.",
+      "moreThanOrderedCount": "{{count}} more than ordered",
+      "shipAllCount": "Ship all {{count}}",
+      "shipsTheRest": "Ships everything still owed",
+      "lineMeta": "{{ordered}} ordered · {{delivered}} already delivered",
+      "overshipWarningCount": "You're shipping {{count}} {{unit}} of {{item}} more than {{id}} covers.",
+      "overshipHintRefused": "The note cannot go out like this. Lower the quantity to what the order still owes, raise the order so the extra can be invoiced, or send it as a goodwill extra that won't be billed.",
+      "overshipRefused": "This note ships more than {{id}} still owes, so it cannot be sent. Lower the quantity first."
     },
     "receipt": {
       "title": "New purchase receipt",
@@ -4695,8 +4756,10 @@
       "internalNotes": "Internal notes",
       "takenIntoStock": "Taken into stock",
       "effectOn": "Effect on PO-0028",
-      "summaryNote": "3 kraft bags stay outstanding until the supplier replaces or credits them."
-    }
+      "summaryNote": "3 kraft bags stay outstanding until the supplier replaces or credits them.",
+      "driverVehiclePlaceholder": "e.g. Van 4 · 7841 MB"
+    },
+    "standardRate": "Standard rate · 5%"
   },
   "reminders": {
     "breadcrumb": "Settings",
@@ -18117,6 +18180,28 @@
         "address": "Al Rusayl 124, Sultanate of Oman",
         "phone": "Toll free {{number}}"
       }
+    }
+  },
+  "tradeDocs": {
+    "notAvailableYet": "Not available yet: trade documents are not connected to the server, so this action cannot be carried out.",
+    "notFound": "There is no {{kind}} {{id}}.",
+    "notRecorded": "Not recorded yet",
+    "notAvailableShort": "Not available yet",
+    "empty": "Nothing to show here.",
+    "kind": {
+      "quotation": "quotation",
+      "order": "order form",
+      "delivery": "delivery note"
+    },
+    "selfBill": {
+      "none": "Self-billing needs a signed, active self-billing agreement with this supplier. None is on record.",
+      "cannotCheck": "Self-billing needs a signed, active agreement with this supplier, and you cannot view self-billing agreements to check it.",
+      "withdrawn": "The self-billing agreement {{reference}} with this supplier was withdrawn.",
+      "pending": "The self-billing agreement {{reference}} is not active yet.",
+      "suspended": "The self-billing agreement {{reference}} is suspended.",
+      "notStarted": "The self-billing agreement {{reference}} has not started yet.",
+      "lapsed": "The self-billing agreement {{reference}} has ended.",
+      "unverified": "The self-billing agreement {{reference}} is waiting for Fawtir to verify the supplier."
     }
   }
 }
