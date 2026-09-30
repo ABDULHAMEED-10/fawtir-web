@@ -54,6 +54,7 @@ import {
   fromInvoice,
   fromNoteDraft,
   noteProblems,
+  noteHeaderDiscount,
   noteTotals,
   ownLines,
   patchLine,
@@ -408,7 +409,10 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
   const inFlight = useRef(false)
   const canAttach = can(session, 'invoice.attachment.manage')
 
-  const totals = useMemo(() => noteTotals(form), [form])
+  const totals = useMemo(
+    () => noteTotals(form, noteHeaderDiscount(form, invoice, kind)),
+    [form, invoice, kind],
+  )
   const money = (value: number | string | null | undefined) =>
     value === null || value === undefined
       ? '—'

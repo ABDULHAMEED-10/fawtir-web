@@ -279,11 +279,20 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
   const perLine = lineTotals(data)
   const total = data.totals?.totalAmount ?? null
 
-  // What the note did to its invoice. The API keeps the invoice's receivable as a whole, so a
-  // refund is the invoice's overpayment attributed to this note, capped at the note's own total.
-  // TODO(backend): a per-note refund (state, amount, date).
+  // What the note did to its invoice. The API keeps the invoice's receivable as a whole, so the
+  // invoice's overpayment is this note's refund only when this is its sole credit note (the
+  // invoice's credited amount is this note's total). With several credit notes nobody knows which
+  // one refunds what, so refund and applied both read "not available yet" (owner, 2026-09-29;
+  // counting the whole note as applied showed 35.910 applied to an invoice that owed 28.590).
+  // TODO(backend): INCOME.md 4.19, a per-note refund state and amount (and 4.2).
+  const soleCredit =
+    credit &&
+    total !== null &&
+    origOwed !== null &&
+    origOwed !== undefined &&
+    Math.abs(origOwed.creditedAmount - total) < 0.0005
   const overpaid =
-    origOwed && origOwed.documentTotal !== null
+    soleCredit && origOwed && origOwed.documentTotal !== null
       ? Math.max(
           0,
           Math.round(
@@ -291,8 +300,14 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
           ) / 1000,
         )
       : 0
-  const refund = credit && total !== null ? Math.min(total, overpaid) : 0
-  const applied = credit && total !== null ? Math.round((total - refund) * 1000) / 1000 : null
+  const refund: number | null = !credit
+    ? 0
+    : soleCredit && total !== null
+      ? Math.min(total, overpaid)
+      : null
+  const applied: number | null =
+    credit && total !== null && refund !== null ? Math.round((total - refund) * 1000) / 1000 : null
+  const refunding = refund !== null && refund > 0
   const nowDue =
     !credit && total !== null
       ? Math.round(
@@ -307,7 +322,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
       : data.deliveryState !== 'SENT_MANUALLY'
         ? 'toSend'
         : credit
-          ? refund > 0
+          ? refunding
             ? 'refundDue'
             : 'applied'
           : owed?.overdue
@@ -324,7 +339,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
     ? `${t(`salesNote.detail.category.${CATEGORY_WORDS[firstLine.en16931Category] ?? 'standard'}`)} · ${rates.size === 1 ? `${firstLine.taxRate ?? 0}%` : t('salesNote.detail.mixedRates')}`
     : '—'
   const reasonCode = data.details?.correctionReasonCode ?? null
-  const reasonKey = reasonLabelKey(kind, reasonCode)
+  const reasonKey = reasonLabelKey(kind, reasonCode, data.details?.correctionReasonDetail)
   const reasonLabel = reasonKey ? t(reasonKey) : (reasonCode ?? '—')
   const reference = data.details?.buyerReference ?? data.details?.subject ?? null
 
@@ -614,26 +629,40 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                     invoice: invoiceNumber,
                   })}
                 </p>
-                <OmAmount
-                  size="sm"
-                  amount={money(credit ? applied : total)}
-                  className="mt-1"
-                  amountClassName="text-xl font-semibold text-text-primary"
-                />
+                {credit && applied === null ? (
+                  // TODO(backend): INCOME.md 4.19, the note's own applied amount.
+                  <p className="mt-1 text-xl font-semibold text-text-primary">
+                    {t('salesNote.detail.notAvailableYet')}
+                  </p>
+                ) : (
+                  <OmAmount
+                    size="sm"
+                    amount={money(credit ? applied : total)}
+                    className="mt-1"
+                    amountClassName="text-xl font-semibold text-text-primary"
+                  />
+                )}
               </div>
               <div>
                 <p className="text-sm font-medium text-[#727579]">
                   {t(credit ? 'salesNote.detail.refundDue' : 'salesNote.detail.nowDue')}
                 </p>
-                <OmAmount
-                  size="sm"
-                  amount={money(credit ? refund : nowDue)}
-                  className="mt-1"
-                  amountClassName={`text-xl font-semibold ${credit && refund > 0 ? 'text-success-700' : 'text-text-primary'}`}
-                />
+                {credit && refund === null ? (
+                  // TODO(backend): INCOME.md 4.19, the note's own refund amount.
+                  <p className="mt-1 text-xl font-semibold text-text-primary">
+                    {t('salesNote.detail.notAvailableYet')}
+                  </p>
+                ) : (
+                  <OmAmount
+                    size="sm"
+                    amount={money(credit ? refund : nowDue)}
+                    className="mt-1"
+                    amountClassName={`text-xl font-semibold ${credit && refunding ? 'text-success-700' : 'text-text-primary'}`}
+                  />
+                )}
               </div>
             </div>
-            {credit && refund > 0 ? (
+            {credit && refunding ? (
               <div className="mx-4 mb-4 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-success-100 px-4 py-3">
                 <div>
                   <p className="text-base font-medium text-text-primary">
@@ -737,7 +766,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                         <span className="size-1.5 rounded-full bg-current" />
                         {t(
                           credit
-                            ? refund > 0
+                            ? refunding
                               ? 'salesNote.detail.settled'
                               : 'salesNote.detail.balanceReduced'
                             : 'salesNote.detail.balanceIncreased',
@@ -1134,21 +1163,35 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                     <span className="flex size-14 items-center justify-center rounded-full bg-neutral-25">
                       <img src={cardIcon} alt="" className="size-6" />
                     </span>
-                    <OmAmount
-                      size="sm"
-                      amount={`${money(refund)} ${t(refund > 0 ? 'salesNote.detail.refundPending' : 'salesNote.detail.refundNone')}`}
-                      amountClassName="text-xl font-medium text-text-primary"
-                    />
-                    <p className="max-w-[360px] text-sm font-medium leading-[1.5] text-text-tertiary">
-                      {t(
-                        refund > 0
-                          ? 'salesNote.detail.refundPendingHint'
-                          : 'salesNote.detail.refundNoneHint',
-                        { invoice: invoiceNumber },
-                      )}
-                    </p>
+                    {/* TODO(backend): INCOME.md 4.19, the note's refund state and amount. */}
+                    {refund === null ? (
+                      <>
+                        <p className="text-xl font-medium text-text-primary">
+                          {t('salesNote.detail.notAvailableYet')}
+                        </p>
+                        <p className="max-w-[360px] text-sm font-medium leading-[1.5] text-text-tertiary">
+                          {t('salesNote.detail.refundNotWired')}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <OmAmount
+                          size="sm"
+                          amount={`${money(refund)} ${t(refunding ? 'salesNote.detail.refundPending' : 'salesNote.detail.refundNone')}`}
+                          amountClassName="text-xl font-medium text-text-primary"
+                        />
+                        <p className="max-w-[360px] text-sm font-medium leading-[1.5] text-text-tertiary">
+                          {t(
+                            refunding
+                              ? 'salesNote.detail.refundPendingHint'
+                              : 'salesNote.detail.refundNoneHint',
+                            { invoice: invoiceNumber },
+                          )}
+                        </p>
+                      </>
+                    )}
                     {/* TODO(backend): a refund endpoint for credit notes; the button is drawn as designed and says so when pressed. */}
-                    {refund > 0 ? (
+                    {refunding ? (
                       <button
                         type="button"
                         onClick={() => setNotice(t('salesNote.detail.refundNotWired'))}

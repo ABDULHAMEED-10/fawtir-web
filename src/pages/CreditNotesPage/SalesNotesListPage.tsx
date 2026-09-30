@@ -43,12 +43,12 @@ import {
   NOTE_ROUTES,
   NOTE_TABS,
   creditRefundOf,
+  creditSummaryOf,
   debitPaymentOf,
   debitSummaryOf,
   noteMatchesTab,
   noteStatusOf,
   reasonLabelKey,
-  summariseNotes,
   type NoteListStatus,
   type NoteTab,
 } from '../../lib/salesNote'
@@ -118,8 +118,6 @@ const SORT_OPTIONS: SortOption<SortKey>[] = SORTS.map((entry) => ({
 
 const PAGE_SIZES = [10, 25, 50] as const
 const DEFAULT_PAGE_SIZE = 10
-/** How many credit notes the tab counts and the four figures are read from (no credit summary yet). */
-const SUMMARY_SIZE = 200
 const SEARCH_DELAY_MS = 300
 
 const OUTLINE_BUTTON =
@@ -206,38 +204,23 @@ function NotesList({ kind }: { kind: NoteKind }) {
     page: pageNumber - 1,
     size,
   })
-  const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath))
-  // Debit notes: the tab counts and the four figures come from the summary by document type
-  // (INCOME.md 4.1). TODO(backend): credit notes still read them off the notes themselves (4.1).
-  const debitSummaryPath = credit ? null : invoiceSummaryPath('DEBIT_NOTE')
-  const debitSummary = useApiRead<InvoiceSummaryDto>(debitSummaryPath, () =>
-    loadInvoiceSummary('DEBIT_NOTE'),
+  // A tab no list can answer yet (a credit note's refunds) asks nothing and shows its empty state.
+  const list = useApiRead<Page<InvoiceRowDto>>(tab.none ? null : listPath, () =>
+    loadInvoicePage(listPath),
   )
-  const summaryPath = invoiceListPath({
-    state: 'DRAFT,ISSUED,CANCELLED',
-    payment: null,
-    type: kind,
-    from: null,
-    to: null,
-    search: '',
-    sort: 'UPDATED',
-    page: 0,
-    size: SUMMARY_SIZE,
-  })
-  const wide = useApiRead<Page<InvoiceRowDto>>(credit ? summaryPath : null, () =>
-    loadInvoicePage(summaryPath),
+  // The tab counts, the subtitle and the four figures come from the summary by document type
+  // (INCOME.md 4.1): `?type=CREDIT_NOTE` or `?type=DEBIT_NOTE`.
+  const figures = useApiRead<InvoiceSummaryDto>(invoiceSummaryPath(kind), () =>
+    loadInvoiceSummary(kind),
   )
-  const figures = credit ? wide : debitSummary
   const summary = useMemo(
     () =>
-      credit
-        ? wide.read.status === 'ready'
-          ? summariseNotes(kind, wide.read.data.items, today)
-          : null
-        : debitSummary.read.status === 'ready'
-          ? debitSummaryOf(debitSummary.read.data)
-          : null,
-    [credit, wide.read, debitSummary.read, kind, today],
+      figures.read.status === 'ready'
+        ? credit
+          ? creditSummaryOf(figures.read.data)
+          : debitSummaryOf(figures.read.data)
+        : null,
+    [credit, figures.read],
   )
   const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
   const branchName = (id: string | null | undefined) =>
@@ -287,12 +270,20 @@ function NotesList({ kind }: { kind: NoteKind }) {
 
   const count = (value: number) => formatCount(value, language)
   const money = (value: number, currency = 'OMR') => formatAmount(value, currency, language)
-  const page = list.read.status === 'ready' ? list.read.data : null
+  const page: Page<InvoiceRowDto> | null = tab.none
+    ? { items: [], page: 0, size, total: 0, hasMore: false, truncated: false }
+    : list.read.status === 'ready'
+      ? list.read.data
+      : null
   // Narrowed on the client where the API has no filter for the design's tab (delivery, refunds).
   const rows = page ? page.items.filter((row) => noteMatchesTab(kind, row, tab)) : []
   const [selected, setSelected] = useState<string[]>([])
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
+
+  // The row's reason as chosen, from its stored reason detail when it has one (INCOME.md 4.9).
+  const reasonKeyOf = (row: InvoiceRowDto) =>
+    reasonLabelKey(kind, row.details?.correctionReasonCode, row.details?.correctionReasonDetail)
 
   const menuFor = (row: InvoiceRowDto): ActionMenuItem[] => [
     {
@@ -413,11 +404,19 @@ function NotesList({ kind }: { kind: NoteKind }) {
                     +
                   </span>
                 ) : null}
-                <OmAmount
-                  size="lg"
-                  amount={figure ? money(figure.amount) : '…'}
-                  amountClassName={`text-[32px] font-semibold leading-[1.2] ${tone} tabular-nums`}
-                />
+                {figure || !(figures.read.status === 'failed' || summary) ? (
+                  <OmAmount
+                    size="lg"
+                    amount={figure ? money(figure.amount) : '…'}
+                    amountClassName={`text-[32px] font-semibold leading-[1.2] ${tone} tabular-nums`}
+                  />
+                ) : (
+                  // A figure that is missing, not loading, reads as words: a rial sign before "…"
+                  // looked like an amount still on its way (owner, 2026-09-29).
+                  <span className={`text-[32px] font-semibold leading-[1.2] ${tone}`}>
+                    {t('salesNote.detail.notAvailableYet')}
+                  </span>
+                )}
               </span>
               <p
                 className={[
@@ -433,7 +432,8 @@ function NotesList({ kind }: { kind: NoteKind }) {
                         notes: count(figure.count),
                         days: count(figure.days ?? 0),
                       })
-                  : figures.read.status === 'failed'
+                  : // Failed, or a figure the summary does not carry (a credit note's refunds, 4.2).
+                    figures.read.status === 'failed' || summary
                     ? t('salesNote.list.kpi.unavailable')
                     : '…'}
               </p>
@@ -630,8 +630,8 @@ function NotesList({ kind }: { kind: NoteKind }) {
                             {number}
                           </Link>
                           <p className="text-xs font-medium leading-[1.2] text-text-tertiary">
-                            {reasonLabelKey(kind, row.details?.correctionReasonCode)
-                              ? t(reasonLabelKey(kind, row.details?.correctionReasonCode)!)
+                            {reasonKeyOf(row)
+                              ? t(reasonKeyOf(row)!)
                               : (row.details?.correctionReasonCode ?? '—')}
                           </p>
                         </td>

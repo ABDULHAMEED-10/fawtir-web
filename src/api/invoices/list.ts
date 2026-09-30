@@ -69,6 +69,8 @@ export type InvoiceRowDto = {
     purchaseOrderReference: string | null
     /** BTOM-032, a credit or debit note's reason: CAN, VAT, VAL, QTY or OTH. */
     correctionReasonCode?: string | null
+    /** The composer's reason behind the code (INCOME.md 4.9); absent before the API kept it. */
+    correctionReasonDetail?: string | null
   } | null
   /** The issuing branch; the notes list names it under the customer. */
   branchId?: string | null
@@ -106,6 +108,11 @@ export type InvoiceSummaryDto = {
   oldestOverdueDueDate: string | null
   paidTotal: number
   paidInvoices: number
+  /**
+   * Every issued (not cancelled, not draft) document in scope, undated, in `currencyCode`: the
+   * credit notes list's "Applied to invoices" card. Absent from an API that predates it.
+   */
+  issuedTotal?: { count: number; total: number }
   /**
    * Documents issued in the 30 days up to `asOf`, and their total in `currencyCode`: the notes
    * lists' "Charged · 30 days" / "Credited · 30 days" card. Absent from an API that predates it.

@@ -57,25 +57,41 @@ function line(
   }
 }
 
-function totalsOf(lines) {
+/**
+ * A document's totals. A document (header) discount is spread over the lines by their amount after
+ * line discounts, as the engine does: a percentage of each, or a fixed amount in proportion.
+ */
+function totalsOf(lines, header = { type: 'PERCENTAGE', value: 0 }) {
   let subtotal = 0
   let discount = 0
-  let taxable = 0
-  let vat = 0
-  for (const l of lines) {
+  const nets = lines.map((l) => {
     const gross = round3(l.quantity * l.unitPrice)
     const off = round3(gross * (l.discountValue / 100))
-    const net = round3(gross - off)
     subtotal += gross
     discount += off
-    taxable += net
-    vat += round3(net * (l.taxRate / 100))
-  }
+    return round3(gross - off)
+  })
+  const base = nets.reduce((sum, net) => sum + net, 0)
+  const headerTotal =
+    header.type === 'FIXED_AMOUNT'
+      ? Math.min(header.value, base)
+      : round3(base * ((header.value ?? 0) / 100))
+  let taxable = 0
+  const byRate = new Map()
+  lines.forEach((l, index) => {
+    const share = base > 0 ? (headerTotal * nets[index]) / base : 0
+    const lineTaxable = nets[index] - share
+    taxable += lineTaxable
+    byRate.set(l.taxRate, (byRate.get(l.taxRate) ?? 0) + lineTaxable)
+  })
+  let vat = 0
+  for (const [rate, amount] of byRate) vat += round3(amount * (rate / 100))
+  taxable = round3(taxable)
   return {
     subtotal: round3(subtotal),
     itemLevelDiscount: round3(discount),
-    headerDiscount: 0,
-    totalDiscount: round3(discount),
+    headerDiscount: round3(headerTotal),
+    totalDiscount: round3(discount + headerTotal),
     taxableAmount: round3(taxable),
     vatAmount: round3(vat),
     totalAmount: round3(taxable + vat),
@@ -103,6 +119,8 @@ function doc({
   dueDate = null,
   lines,
   reason = null,
+  reasonDetail = null,
+  headerDiscount = { type: 'PERCENTAGE', value: 0 },
   subject = null,
   note = null,
   po = null,
@@ -112,7 +130,7 @@ function doc({
   terms = { code: 'NET30', label: 'Net 30 days' },
 }) {
   const issued = state !== 'DRAFT'
-  const totals = issued ? totalsOf(lines) : null
+  const totals = issued ? totalsOf(lines, headerDiscount) : null
   const receivableKind = type === 'INVOICE' || type === 'DEBIT_NOTE'
   const outstanding =
     totals && receivableKind ? Math.max(0, round3(totals.totalAmount - paid - credited)) : null
@@ -153,13 +171,15 @@ function doc({
       paymentTerms: terms,
       paymentMethod: null,
       correctionReasonCode: reason,
+      // The composer's reason behind the code (INCOME.md 4.9).
+      correctionReasonDetail: reasonDetail,
       buyerReference: null,
       contractReference: null,
       transactionType: 'FULL_TAX',
       transactionSubtypes: [],
       invoicingPeriod: null,
     },
-    headerDiscount: { type: 'PERCENTAGE', value: 0 },
+    headerDiscount,
     lines,
     totals,
     // Row-only members the list reads.
@@ -289,6 +309,25 @@ const INVOICES = [
   }),
 ]
 
+// An invoice with a fixed document discount, to credit some of its lines against (W-2).
+INVOICES.push(
+  doc({
+    id: 'inv-2048',
+    type: 'INVOICE',
+    number: 'INV-2048',
+    customerId: 'c-mgh',
+    issueDate: '2026-09-02',
+    dueDate: '2026-10-02',
+    po: 'PO-88311',
+    lines: [
+      line(1, 'Cappuccino, Large', 'EA', 20, 1.8, 0, 'p-cap-l'),
+      line(2, 'Coffee Beans 1kg, House Blend', 'KGM', 5, 9.5, 10, 'p-beans-h'),
+    ],
+    headerDiscount: { type: 'FIXED_AMOUNT', value: 5 },
+    paid: 0,
+  }),
+)
+
 const CREDIT_NOTES = [
   doc({
     id: 'crn-0087',
@@ -336,6 +375,7 @@ const CREDIT_NOTES = [
     correctionOf: 'inv-2037',
     state: 'DRAFT',
     reason: 'OTH',
+    reasonDetail: 'goodwillDiscount',
     lines: [line(1, 'Goodwill discount', 'EA', 1, 3.048)],
   }),
   doc({
@@ -715,6 +755,8 @@ function summaryReply(query) {
     paidInvoices: paid.length,
     issuedLast30Days: { count: recent.length, total: sum(recent, (d) => d.totals.totalAmount) },
     issuedThisQuarter: { count: quarter.length, total: sum(quarter, (d) => d.totals.totalAmount) },
+    // Every issued document of the types (the credit notes list's "Applied to invoices").
+    issuedTotal: { count: issued.length, total: sum(issued, (d) => d.totals.totalAmount) },
   }
 }
 
@@ -733,6 +775,8 @@ function draftFrom(kind, invoiceId, body) {
     state: 'DRAFT',
     correctionOf: invoiceId,
     reason: body.details?.correctionReasonCode ?? null,
+    reasonDetail: body.details?.correctionReasonDetail ?? null,
+    headerDiscount: body.headerDiscount ?? { type: 'FIXED_AMOUNT', value: 0 },
     subject: body.details?.subject ?? null,
     note: body.details?.customerVisibleNote ?? null,
     po: body.details?.purchaseOrderReference ?? null,
@@ -909,7 +953,7 @@ export default [
     reply: ({ params }) => {
       const d = DOCS.get(params[0])
       if (!d) return { status: 404 }
-      const totals = totalsOf(d.lines)
+      const totals = totalsOf(d.lines, d.headerDiscount)
       return { currency: 'OMR', lines: [], totals }
     },
   },
@@ -932,6 +976,8 @@ export default [
         dueDate: body?.dueDate ?? TODAY,
         correctionOf: current.correctionOfInvoiceId,
         reason: current.details.correctionReasonCode,
+        reasonDetail: current.details.correctionReasonDetail,
+        headerDiscount: current.headerDiscount,
         subject: current.details.subject,
         note: current.details.customerVisibleNote,
         po: current.details.purchaseOrderReference,
