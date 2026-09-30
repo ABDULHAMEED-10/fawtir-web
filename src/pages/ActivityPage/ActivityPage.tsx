@@ -29,6 +29,7 @@ import {
 import {
   ACTIVITY_SORTS,
   ACTIVITY_TABS,
+  belongsInTab,
   canResubmit,
   customerAckOf,
   deliveredCount,
@@ -39,6 +40,8 @@ import {
   isActivityTab,
   isDirectionFilter,
   outcomeOf,
+  routeOf,
+  rowRefusalKind,
   secondsBetween,
   shareOf1,
   sortItems,
@@ -86,6 +89,12 @@ const OUTCOME_STYLE: Record<RowOutcome, { chip: string; dot: string; body: strin
     chip: 'bg-danger-100 text-danger-700',
     dot: 'bg-danger-700',
     body: 'text-danger-700',
+  },
+  // Delivered without confirmation (MLS AB): its own label, never counted as accepted.
+  deliveredUnconfirmed: {
+    chip: 'bg-surface-background text-[#3d5648]',
+    dot: 'bg-[#4c6c5a]',
+    body: 'text-text-tertiary',
   },
   // Amber, as the frame draws it, and never red: silence is not a failure.
   waiting: {
@@ -201,7 +210,13 @@ function ActivityLedger() {
   // The summary refuses a call with no window (400, whatever the signature says the parameters
   // are). The ledger below is unwindowed and stays that way; only the counts above it need one.
   const summaryRange = defaultReportRange()
-  const summaryPath = activitySummaryPath(summaryRange.from, summaryRange.to)
+  // The figures follow the Direction filter, so sent and received are never mixed in one count.
+  // TODO(backend): ACTIVITY.md 2.33. The summary does not read `direction` yet.
+  const summaryPath = activitySummaryPath(
+    summaryRange.from,
+    summaryRange.to,
+    direction === 'all' ? '' : direction,
+  )
   const summary = useApiRead<ActivitySummaryDto>(summaryPath, () =>
     loadActivitySummary(summaryPath),
   )
@@ -345,10 +360,14 @@ function ActivityLedger() {
   if (isEmpty) return shell(<ActivityEmptyState />)
 
   const book = totals as ActivitySummaryDto
-  const accepted = deliveredCount(book.tdd_ack)
-  const decided = accepted + book.tdd_ack.re + book.tdd_ack.none
+  // Accepted is AP only; AB (delivered, unconfirmed) is counted apart. The summary counts the live
+  // report of each document, so a report we replaced is neither accepted nor rejected here.
+  const accepted = book.tdd_ack.ap
+  const unconfirmed = book.tdd_ack.ab
+  const decided = accepted + unconfirmed + book.tdd_ack.re + book.tdd_ack.none
   const bar = [
     { key: 'accepted', value: accepted, tone: 'bg-[#4c6c5a]' },
+    { key: 'unconfirmed', value: unconfirmed, tone: 'bg-success-100' },
     { key: 'rejected', value: book.tdd_ack.re, tone: 'bg-danger-700' },
     { key: 'waiting', value: book.tdd_ack.none, tone: 'bg-border-default' },
   ]
@@ -362,7 +381,7 @@ function ActivityLedger() {
     book.invoice_ack.ap + book.invoice_ack.ab + book.invoice_ack.re + book.invoice_ack.none
   const customerGood = deliveredCount(book.invoice_ack)
 
-  const rows = page ? sortItems(page.items, sort) : []
+  const rows = page ? sortItems(page.items, sort).filter((item) => belongsInTab(item, tab)) : []
   const tabTotal = tabCount(book, tab)
   const pageCount = Math.max(
     pageNumber + (page?.has_more ? 1 : 0),
@@ -392,6 +411,12 @@ function ActivityLedger() {
             <span className="text-[#3d5648]">
               {t('activity.kpi.acceptedCount', { count: accepted, n: count(accepted) })}
             </span>
+            {unconfirmed > 0 ? (
+              <>
+                {' - '}
+                {t('activity.kpi.unconfirmedCount', { n: count(unconfirmed) })}
+              </>
+            ) : null}
             {' - '}
             <span className="text-danger-700">
               {t('activity.kpi.rejectedCount', { n: count(book.tdd_ack.re) })}
@@ -666,7 +691,14 @@ function SubmissionRow({
   const flow = flowOf(item)
   const customer = customerAckOf(item)
   const leg = item.tdd_leg
-  const sent = sentParts(leg?.submitted_at ?? item.occurred_at, language, t)
+  const received = item.direction === 'RECEIVED'
+  // A received document was not sent by us: its moment is when it reached us (TDOM-04/05).
+  const sent = sentParts(
+    received ? (item.received_at ?? item.occurred_at) : (leg?.submitted_at ?? item.occurred_at),
+    language,
+    t,
+  )
+  const refusal = rowRefusalKind(item)
   const number = item.invoice_number ?? t('activity.unnumbered')
   const offerResubmit = canResubmit(item) && mayResubmit
   const detail = `/compliance/activity/${item.invoice_uuid}`
@@ -697,7 +729,9 @@ function SubmissionRow({
         })
       }
       case 'superseded':
-        return t('activity.verdict.disregarded')
+        return t('activity.verdict.replacedByUs')
+      case 'deliveredUnconfirmed':
+        return t('activity.verdict.deliveredUnconfirmed')
       case 'notOwed':
         return t('activity.verdict.notOwed')
       case 'accepted': {
@@ -716,11 +750,8 @@ function SubmissionRow({
     }
   })()
 
-  const route = item.scenario
-    ? item.scenario.stand_in_id
-      ? t('activity.route.standIn', { id: item.scenario.stand_in_id, flow: item.scenario.flow })
-      : t('activity.route.bothOnPeppol', { flow: item.scenario.flow })
-    : t(`activity.route.${flow}`)
+  const routeLine = routeOf(item)
+  const route = t(routeLine.key, routeLine.values)
 
   const menu: ActionMenuItem[] = [
     {
@@ -735,17 +766,26 @@ function SubmissionRow({
           {
             id: 'putRight',
             labelKey: 'activity.menu.resubmit',
-            descriptionKey: 'activity.menu.resubmitNote',
+            descriptionKey:
+              refusal === 'invoice'
+                ? 'activity.menu.resubmitInvoiceNote'
+                : 'activity.menu.resubmitNote',
             icon: menuResubmitIcon,
             to: `${detail}/resubmit`,
           },
-          {
-            id: 'sendAgain',
-            labelKey: busy ? 'common.saving' : 'activity.menu.sendAgain',
-            descriptionKey: 'activity.menu.sendAgainNote',
-            icon: menuSendIcon,
-            onSelect: onResubmit,
-          },
+          // An error in the invoice itself cannot be put right by resending: the TDD carries a
+          // copy of the invoice (TDT-012, IBR-TDD-57), so it takes a credit note and a new invoice.
+          ...(refusal === 'invoice'
+            ? []
+            : [
+                {
+                  id: 'sendAgain',
+                  labelKey: busy ? 'common.saving' : 'activity.menu.sendAgain',
+                  descriptionKey: 'activity.menu.sendAgainNote',
+                  icon: menuSendIcon,
+                  onSelect: onResubmit,
+                },
+              ]),
         ]
       : []),
     ...(item.links.document

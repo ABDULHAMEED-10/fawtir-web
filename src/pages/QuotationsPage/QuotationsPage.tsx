@@ -3,12 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu, RowsView, StepTracker, TableCheckbox, withRial } from '../../components/ui'
-import { quotationRowActions } from '../../lib/rowActions'
+import { quotationRowActions, type TradeRowAction } from '../../lib/rowActions'
+import { matchesSearch, pageNumbers } from '../../lib/tradeDocuments'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
 import {
-  QUOTATION_KPI,
-  QUOTATION_PAGE_NUMBERS,
+  QUOTATION_PAGE_SIZE,
   QUOTATION_ROWS,
   QUOTATION_TABS,
+  quotationSummary,
+  quotationTabCount,
+  quotationsInTab,
   type QuotationRow,
   type QuotationStatus,
   type QuotationTabId,
@@ -56,8 +60,9 @@ const VALID_NOTE_TONE = {
   danger: 'text-[#98140b] font-semibold',
 } as const
 
-function QuotationsHeader() {
+function QuotationsHeader({ onUnavailable }: { onUnavailable: () => void }) {
   const { t } = useTranslation()
+  const summary = quotationSummary(QUOTATION_ROWS)
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
@@ -76,12 +81,15 @@ function QuotationsHeader() {
           </h1>
         </div>
         <p className="mt-1 text-sm font-medium leading-[1.2] text-[#8f8f8f]">
-          {withRial(t('quotations.subtitle'))}
+          {withRial(
+            t('quotations.subtitleCount', { count: summary.count, amount: summary.openAmount }),
+          )}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
         >
           <img src={exportIcon} alt="" className="size-6" />
@@ -104,7 +112,7 @@ function QuotationKpiCards() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {QUOTATION_KPI.map((kpi) => {
+      {quotationSummary(QUOTATION_ROWS).kpis.map((kpi) => {
         const tile = KPI_TILES[kpi.icon]
         return (
           <article key={kpi.id} className="flex flex-col gap-2.5 rounded-md bg-surface-card p-5">
@@ -130,7 +138,9 @@ function QuotationKpiCards() {
               ) : null}
               <p className="text-[32px] font-semibold leading-[1.2] text-[#2c3342]">{kpi.amount}</p>
             </div>
-            <p className="text-sm font-medium leading-[1.2] text-[#444957]">{t(kpi.metaKey)}</p>
+            <p className="text-sm font-medium leading-[1.2] text-[#444957]">
+              {t(kpi.metaKey, kpi.metaValues)}
+            </p>
           </article>
         )
       })}
@@ -186,19 +196,31 @@ function QuotationRowCells({ row }: { row: QuotationRow }) {
   )
 }
 
-function QuotationsTable() {
+function QuotationsTable({
+  onUnavailable,
+  onAction,
+}: {
+  onUnavailable: () => void
+  onAction: TradeRowAction
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<QuotationTabId>('all')
   const [selected, setSelected] = useState<string[]>([])
+  const [search, setSearch] = useState('')
+  // TODO(backend): TRADE_DOCUMENTS.md rows T.1 and T.7: the rows are the page's own data.
+  const rows = quotationsInTab(QUOTATION_ROWS, activeTab).filter((row) =>
+    matchesSearch(search, row.id, row.subject, row.customer, row.branch),
+  )
+  const pages = pageNumbers(rows.length, QUOTATION_PAGE_SIZE)
 
   const toggleRow = (id: string) =>
     setSelected((current) =>
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
-  const allSelected = selected.length === QUOTATION_ROWS.length
-  const toggleAll = () => setSelected(allSelected ? [] : QUOTATION_ROWS.map((row) => row.id))
-  const [page, setPage] = useState(2)
+  const allSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
+  const toggleAll = () => setSelected(allSelected ? [] : rows.map((row) => row.id))
+  const [page, setPage] = useState(1)
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -210,7 +232,11 @@ function QuotationsTable() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setPage(1)
+              }}
+              aria-pressed={active}
               className="flex items-center gap-1"
             >
               <span
@@ -231,7 +257,7 @@ function QuotationsTable() {
                       : 'bg-[#f4f6fb] text-[#5b606c]',
                 ].join(' ')}
               >
-                {tab.count}
+                {quotationTabCount(QUOTATION_ROWS, tab.id)}
               </span>
             </button>
           )
@@ -244,6 +270,8 @@ function QuotationsTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={t('quotations.searchPlaceholder')}
             className="w-full bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-[#8a8e96]"
           />
@@ -251,6 +279,7 @@ function QuotationsTable() {
         <div className="flex items-center gap-4">
           <button
             type="button"
+            onClick={onUnavailable}
             className="inline-flex h-11 items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-3 text-sm font-semibold text-[#444957]"
           >
             <img src={filterIcon} alt="" className="size-6" />
@@ -258,6 +287,7 @@ function QuotationsTable() {
           </button>
           <button
             type="button"
+            onClick={onUnavailable}
             className="inline-flex h-11 items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-3 text-sm font-semibold text-[#444957]"
           >
             <img src={sortIcon} alt="" className="size-6" />
@@ -297,7 +327,14 @@ function QuotationsTable() {
             </tr>
           </thead>
           <tbody>
-            {QUOTATION_ROWS.map((row) => (
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-12 text-center text-sm font-medium text-[#737781]">
+                  {t('quotations.empty')}
+                </td>
+              </tr>
+            ) : null}
+            {rows.slice((page - 1) * QUOTATION_PAGE_SIZE, page * QUOTATION_PAGE_SIZE).map((row) => (
               <tr
                 key={row.id}
                 className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
@@ -312,7 +349,10 @@ function QuotationsTable() {
                 </td>
                 <QuotationRowCells row={row} />
                 <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
-                  <ActionMenu items={quotationRowActions(row.id)} label={t('quotations.rowMenu')} />
+                  <ActionMenu
+                    items={quotationRowActions(row.id, onAction)}
+                    label={t('quotations.rowMenu')}
+                  />
                 </td>
               </tr>
             ))}
@@ -325,7 +365,7 @@ function QuotationsTable() {
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-[#737781]">{t('quotations.showResult')}</span>
           <span className="inline-flex items-center gap-2.5 rounded-sm border border-[#e8e8ea] px-3 py-2 text-sm font-semibold text-[#2c3342]">
-            6
+            {QUOTATION_PAGE_SIZE}
             <img src={chevronDownIcon} alt="" className="size-4" />
           </span>
         </div>
@@ -338,7 +378,7 @@ function QuotationsTable() {
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rtl:rotate-180" />
           </button>
-          {QUOTATION_PAGE_NUMBERS.map((n, i) =>
+          {pages.map((n, i) =>
             n === '...' ? (
               <span
                 key={`gap-${i}`}
@@ -365,7 +405,7 @@ function QuotationsTable() {
           <button
             type="button"
             aria-label={t('quotations.nextPage')}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => setPage((p) => Math.min(pages.length, p + 1))}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
@@ -377,12 +417,22 @@ function QuotationsTable() {
 }
 
 export function QuotationsPage() {
+  const navigate = useNavigate()
+  const notice = useTradeNotice()
+  // "Convert to invoice" opens the invoice composer filled from the quote; the rest of the menu
+  // has no route yet (TRADE_DOCUMENTS.md row T.9).
+  const onAction: TradeRowAction = (itemId, documentId) =>
+    itemId === 'convert'
+      ? navigate(`/invoices/new?from=${encodeURIComponent(documentId)}`)
+      : notice.unavailable()
+
   return (
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
-        <QuotationsHeader />
+        <QuotationsHeader onUnavailable={notice.unavailable} />
+        {notice.node}
         <QuotationKpiCards />
-        <QuotationsTable />
+        <QuotationsTable onUnavailable={notice.unavailable} onAction={onAction} />
       </div>
     </AppShell>
   )

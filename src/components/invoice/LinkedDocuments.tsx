@@ -106,10 +106,10 @@ export function LinkedDocuments({
                   </span>
                   <div className="min-w-0">
                     <p className="text-base font-medium leading-[1.2] text-[#0c0d34]">
-                      {t(doc.titleKey)}
+                      {t(doc.titleKey, doc.titleValues)}
                     </p>
                     <p className="mt-[3px] text-xs font-medium leading-[1.2] text-[#444957]">
-                      {t(doc.metaKey)}
+                      {t(doc.metaKey, doc.metaValues)}
                     </p>
                   </div>
                   <span

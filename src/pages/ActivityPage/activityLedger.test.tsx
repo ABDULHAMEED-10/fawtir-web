@@ -16,10 +16,15 @@ import {
   formatDuration,
   isFailure,
   outcomeOf,
+  refusalCauseOf,
+  refusalKindOf,
+  routeOf,
+  rowRefusalKind,
   shareOf,
   slaStateOf,
   tabCount,
 } from '../../lib/activityLedger'
+import { numberingOf, periodFigures, vatInside } from '../../lib/complianceReport'
 import { ActivityPage } from './ActivityPage'
 import { ActivityEventPage } from './ActivityEventPage'
 import { TddResubmitPage } from './TddResubmitPage'
@@ -237,15 +242,29 @@ describe('one row, as the frame reads it', () => {
     expect(outcomeOf(item({ tdd_leg: null }))).toBe('notOwed')
   })
 
+  it('gives "delivered, unconfirmed" (AB) its own state, never accepted', () => {
+    expect(outcomeOf(item({ tdd_leg: { ...item().tdd_leg!, ack: 'AB' } }))).toBe(
+      'deliveredUnconfirmed',
+    )
+  })
+
   it('names the flow and what the customer did', () => {
     expect(flowOf(item())).toBe('b2bDomestic')
     expect(flowOf(item({ b2c: true }))).toBe('b2c')
     expect(flowOf(item({ tdd_leg: { ...item().tdd_leg!, variant: 'EXPORT' } }))).toBe('export')
     expect(customerAckOf(item())).toBe('received')
     expect(customerAckOf(item({ b2c: true }))).toBe('noCustomer')
-    expect(customerAckOf(item({ scenario: { flow: 11, stand_in_id: '997770000097' } }))).toBe(
-      'notOnPeppol',
-    )
+    // An export off Peppol is reported under TDD scope INP; 997770000099 is the only published
+    // stand-in ID (997770000097 is not in PINT-OM).
+    expect(customerAckOf(item({ tdd_scope: 'INP' }))).toBe('notOnPeppol')
+    expect(flowOf(item({ tdd_scope: 'INP' }))).toBe('export')
+    expect(routeOf(item({ tdd_scope: 'INP' }))).toEqual({
+      key: 'activity.route.exportScope',
+      values: { scope: 'INP' },
+    })
+    expect(
+      customerAckOf(item({ b2c: false, scenario: { flow: 7, stand_in_id: '997770000099' } })),
+    ).toBe('notOnPeppol')
     expect(customerAckOf(item({ invoice_leg: { ack: 'NONE', ack_at: null, reason: null } }))).toBe(
       'waiting',
     )
@@ -253,11 +272,37 @@ describe('one row, as the frame reads it', () => {
 
   it('says a document a supplier sent us was received by us', () => {
     expect(customerAckOf(item({ direction: 'RECEIVED' }))).toBe('youReceived')
+    // Reported by us as the receiver, never "flow 1" as if we sent it.
+    expect(
+      routeOf(item({ direction: 'RECEIVED', scenario: { flow: 1, stand_in_id: null } })).key,
+    ).toBe('activity.route.received')
+  })
+
+  it('tells an error in the invoice from an error in the report', () => {
+    expect(refusalCauseOf(null, 'The customer has no Peppol ID on their record.')).toBe(
+      'buyerPeppolId',
+    )
+    expect(refusalCauseOf(null, "The total doesn't equal the lines added up, out by 0.400.")).toBe(
+      'totals',
+    )
+    expect(refusalCauseOf('OTA-E-1122', null)).toBe('taxCategory')
+    expect(refusalCauseOf(null, 'The report signature could not be verified.')).toBe('report')
+    expect(refusalCauseOf(null, 'Something else')).toBe('unknown')
+    expect(refusalKindOf('totals')).toBe('invoice')
+    expect(refusalKindOf('report')).toBe('report')
+    expect(refusalKindOf('unknown')).toBe('unknown')
+    // The server's own word wins once it sends one.
+    expect(refusalKindOf('totals', 'REPORT')).toBe('report')
+    expect(
+      rowRefusalKind(item({ tdd_leg: { ...item().tdd_leg!, ack: 'RE', reason: 'No Peppol ID' } })),
+    ).toBe('invoice')
+    expect(rowRefusalKind(item())).toBeNull()
   })
 
   it('counts each tab from the summary', () => {
     expect(tabCount(SUMMARY, 'all')).toBe(100)
-    expect(tabCount(SUMMARY, 'accepted')).toBe(70)
+    // The Accepted tab lists AP, so it counts AP only: AB is not an acceptance.
+    expect(tabCount(SUMMARY, 'accepted')).toBe(60)
     expect(tabCount(SUMMARY, 'rejected')).toBe(5)
     expect(tabCount(SUMMARY, 'waiting')).toBe(25)
     expect(tabCount(SUMMARY, 'attention')).toBe(6)
@@ -351,6 +396,60 @@ describe('the ledger screen', () => {
     await screen.findByText('INV-0001')
     openRowMenu('INV-0001')
     expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
+  })
+
+  it('offers no plain resend when the invoice itself was refused', async () => {
+    items = [
+      item({
+        tdd_leg: { ...item().tdd_leg!, ack: 'RE', reason: "The total doesn't equal the lines." },
+        links: { ...item().links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      }),
+    ]
+    renderLedger()
+    await screen.findByText('INV-0001')
+    openRowMenu('INV-0001')
+    expect(screen.getByRole('menuitem', { name: /Put it right/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Send the report again/ })).toBeNull()
+  })
+
+  it('labels a received document as reported by us as receiver', async () => {
+    items = [item({ direction: 'RECEIVED', scenario: { flow: 1, stand_in_id: null } })]
+    renderLedger()
+    await screen.findByText('INV-0001')
+    expect(screen.getByText('Received, reported by us as receiver (role 02)')).toBeTruthy()
+    expect(screen.queryByText(/flow 1/)).toBeNull()
+  })
+
+  it('makes the figures follow the Direction filter', async () => {
+    render(
+      <MemoryRouter initialEntries={['/activity?dir=RECEIVED']}>
+        <Routes>
+          <Route path="/activity" element={<ActivityPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText('INV-0001')
+    expect(calls('/compliance/activity/summary').at(-1)).toContain('direction=RECEIVED')
+  })
+
+  it('lists only live reports under Rejected: a replaced one belongs to Superseded', async () => {
+    items = [
+      item({ tdd_leg: { ...item().tdd_leg!, ack: 'RE', reason: 'Schema' } }),
+      item({
+        invoice_uuid: UUID_B,
+        invoice_number: 'INV-0002',
+        tdd_leg: { ...item().tdd_leg!, ack: 'RE', status: 'SUPERSEDED' },
+      }),
+    ]
+    render(
+      <MemoryRouter initialEntries={['/activity?tab=rejected']}>
+        <Routes>
+          <Route path="/activity" element={<ActivityPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByText('INV-0001')
+    expect(screen.queryByText('INV-0002')).toBeNull()
   })
 
   it('asks the server for the tab rather than filtering a page', async () => {
@@ -520,11 +619,23 @@ describe("one document's record", () => {
   })
 
   it('sends the fix through the link the record carries', async () => {
+    // An error in the report itself: the one case a plain resend puts right.
     detailReply = {
       ...DETAIL,
+      tdd_lineage: [
+        {
+          ...DETAIL.tdd_lineage[1],
+          status: 'REJECTED',
+          failure_reason: 'The report signature could not be verified.',
+        },
+      ],
       summary: {
         ...DETAIL.summary,
-        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE', reason: 'No Peppol ID' },
+        tdd_leg: {
+          ...DETAIL.summary.tdd_leg!,
+          ack: 'RE',
+          reason: 'The report signature could not be verified.',
+        },
         links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
       },
     }
@@ -543,8 +654,59 @@ describe("one document's record", () => {
       },
     }
     renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
-    await screen.findByText(/right and send it again/)
+    // The record's refusal is a tax category: an error in the invoice itself.
+    await screen.findByText(/right with a credit note and a new invoice/)
     expect(screen.queryByRole('button', { name: /^Fix and send/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Issue a credit note/ })).toBeNull()
+  })
+
+  it('puts an invoice error right with a credit note, never a resend', async () => {
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [
+        {
+          ...DETAIL.tdd_lineage[1],
+          status: 'REJECTED',
+          failure_reason: "The total doesn't equal the lines added up, out by 0.400.",
+        },
+      ],
+      summary: {
+        ...DETAIL.summary,
+        invoice_number: 'INV-2039',
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE' },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    const link = await screen.findByRole('link', { name: /Issue a credit note/ })
+    expect(link.getAttribute('href')).toBe(`/income/credit-notes/new?invoice=${UUID_A}`)
+    expect(screen.queryByRole('button', { name: /^Fix and send/ })).toBeNull()
+    // Only the fix for the actual cause: no Peppol ID form for a totals error.
+    expect(screen.queryByLabelText(/Their Peppol participant ID/)).toBeNull()
+    expect(screen.getByRole('button', { name: /Save the fix/ })).toHaveProperty('disabled', true)
+    expect(resubmitted).toEqual([])
+  })
+
+  it('shows the Peppol ID form for a missing buyer ID, and cannot save it yet', async () => {
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [
+        {
+          ...DETAIL.tdd_lineage[1],
+          status: 'REJECTED',
+          failure_reason: 'The customer has no Peppol ID on their record.',
+        },
+      ],
+      summary: {
+        ...DETAIL.summary,
+        tdd_leg: { ...DETAIL.summary.tdd_leg!, ack: 'RE' },
+        links: { ...DETAIL.summary.links, resubmit: '/api/v1/invoices/inv-1/tdd/resubmit' },
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}/resubmit`)
+    const input = await screen.findByLabelText(/Their Peppol participant ID/)
+    fireEvent.change(input, { target: { value: '0248:OM1100558840' } })
+    expect(screen.getByRole('button', { name: /Save the fix/ })).toHaveProperty('disabled', true)
   })
 })
 
@@ -576,5 +738,30 @@ describe('the compliance report', () => {
     }
     // The reasons card reads the rejected documents of the window.
     expect(calls('/compliance/activity?').some((url) => url.includes('tdd_ack=RE'))).toBe(true)
+  })
+})
+
+describe('the compliance report figures', () => {
+  it('reads VAT inside a VAT-inclusive total, leaving unreported invoices out', () => {
+    // 5% of 52,418.900 would be 2,620.945; the VAT inside it is 2,496.138.
+    expect(vatInside(52_418.9)).toBe(2496.138)
+    // Less INV-1974 (761.040 inclusive, 36.240 VAT), never reported.
+    expect(periodFigures('quarter').vat).toBe(2459.898)
+    // A period whose unreported invoices are not known says so rather than guessing.
+    expect(periodFigures('year').vat).toBeNull()
+  })
+
+  it('works numbering gaps out from the numbers, and claims nothing without them', () => {
+    expect(numberingOf(['INV-0003', 'INV-0001', 'INV-0002'])).toEqual({
+      from: 'INV-0001',
+      to: 'INV-0003',
+      gaps: [],
+    })
+    expect(numberingOf(['INV-10', 'INV-13', null])).toEqual({
+      from: 'INV-10',
+      to: 'INV-13',
+      gaps: ['INV-11', 'INV-12'],
+    })
+    expect(numberingOf([])).toBeNull()
   })
 })

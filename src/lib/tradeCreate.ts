@@ -9,6 +9,8 @@
  *   New purchase receipt (Figma 68:43204)
  */
 
+import { quoteTotals, quoteItemTotal, formatRials } from './quotationDetail'
+
 export type OrderFormMode = 'sales' | 'purchase'
 
 export type OrderLine = {
@@ -33,50 +35,86 @@ export type OrderTotals = {
 
 /* ------------------------------------------------------- sales order */
 
+type PricedLine = {
+  id: string
+  description: string
+  unitPrice: number
+  qty: number
+  unit: string
+  discountPct: number
+  taxCode: 'S5' | 'Z0' | 'E0' | 'O0'
+}
+
+const SALES_LINES: PricedLine[] = [
+  {
+    id: '1',
+    description: 'Green beans, Yirgacheffe',
+    unitPrice: 10.25,
+    qty: 600,
+    unit: 'KG',
+    discountPct: 8,
+    taxCode: 'S5',
+  },
+  {
+    id: '2',
+    description: 'Roasting service, per batch',
+    unitPrice: 4.2,
+    qty: 180,
+    unit: 'EA',
+    discountPct: 0,
+    taxCode: 'S5',
+  },
+]
+
+const PURCHASE_LINES: PricedLine[] = [
+  {
+    id: '1',
+    description: 'Green beans, Yirgacheffe',
+    unitPrice: 7.4,
+    qty: 500,
+    unit: 'KG',
+    discountPct: 5,
+    taxCode: 'S5',
+  },
+  {
+    id: '2',
+    description: 'Jute sacks, 25 kg',
+    unitPrice: 1.85,
+    qty: 24,
+    unit: 'EA',
+    discountPct: 0,
+    taxCode: 'S5',
+  },
+]
+
+/** The form's display rows, with each line total computed, never typed. */
+function orderLines(lines: PricedLine[]): OrderLine[] {
+  return lines.map((line) => ({
+    id: line.id,
+    description: line.description,
+    unitPrice: line.unitPrice.toFixed(3),
+    vat: line.taxCode === 'S5' ? '5%' : '0%',
+    qty: String(line.qty),
+    unit: line.unit,
+    discount: line.discountPct ? `${line.discountPct}%` : '0',
+    total: formatRials(quoteItemTotal(line)),
+  }))
+}
+
 export const NEW_SALES_ORDER = {
   id: 'SO-0075',
   sourceTitle: 'QUO-0118 · accepted 29 Jul',
   sourceMetaKey: 'tradeCreate.sales.sourceMeta',
   customer: 'Muscat Grand Hotel LLC',
   customerVat: 'VAT OM1100447102 · 0248:OM1100447102',
-  lines: [
-    {
-      id: '1',
-      description: 'Green beans — Yirgacheffe',
-      unitPrice: '10.250',
-      vat: '5%',
-      qty: '600',
-      unit: 'KG',
-      discount: '8%',
-      total: '5,658.000',
-    },
-    {
-      id: '2',
-      description: 'Roasting service — per batch',
-      unitPrice: '4.200',
-      vat: '5%',
-      qty: '150',
-      unit: 'EA',
-      discount: '0',
-      total: '630.000',
-    },
-  ] satisfies OrderLine[],
-  totals: {
-    subtotal: '6,780.000',
-    discount: '492.000',
-    net: '6,288.000',
-    vat: '314.400',
-    total: '6,602.400',
-    totalLabelKey: 'tradeCreate.sales.quotedTotal',
-  } satisfies OrderTotals,
-  /** The summary rail totals differ from the line totals — quoted vs order value. */
+  // Roasting is 180 batches, as the note to the customer says it was raised to on 29 Jul; the
+  // design's line still read 150 while its summary rail had already been priced at 180.
+  lines: orderLines(SALES_LINES),
+  totals: { ...quoteTotals(SALES_LINES), totalLabelKey: 'tradeCreate.sales.quotedTotal' },
+  /** The rail repeats the order's own totals, computed from the same lines. */
   summary: {
     titleKey: 'tradeCreate.sales.orderValue',
-    subtotal: '6,906.000',
-    discount: '492.000',
-    net: '6,414.000',
-    vat: '320.700',
-    total: '6,734.700',
+    ...quoteTotals(SALES_LINES),
     totalLabelKey: 'tradeCreate.sales.orderTotal',
   },
   delivery: {
@@ -92,13 +130,13 @@ export const NEW_SALES_ORDER = {
     theirPo: 'MGH-PO-2027-014',
     theirPoHintKey: 'tradeCreate.sales.theirPoHint',
     paymentTerms: 'Net 30 days',
-    currency: 'OMR — Omani Rial',
-    branch: 'Al Bahja Coffee (Main',
+    currency: 'OMR - Omani Rial',
+    branch: 'Al Bahja Coffee (Main)',
   },
   noteToCustomer:
     'Prices held from QUO-0118. Roasting increased to 180 batches at your request on 29 Jul. Delivery in one drop before 16 August.',
   internalNote:
-    'Green bean stock covers 400 kg — order the balance from Muscat Roastery by 05 Aug to make the drop date.',
+    'Green bean stock covers 400 kg: order the balance from Muscat Roastery by 05 Aug to make the drop date.',
 }
 
 /* ---------------------------------------------------- purchase order */
@@ -107,52 +145,22 @@ export const NEW_PURCHASE_ORDER = {
   id: 'PO-0032',
   sourceTitle: 'Their quote MR-Q-4471 · received 27 Jul',
   sourceMetaKey: 'tradeCreate.purchase.sourceMeta',
-  supplier: 'Muscat Grand Hotel LLC',
+  // The design named the customer (Muscat Grand Hotel) as the supplier; the quote MR-Q-4471
+  // and this VAT number are Muscat Roastery's.
+  supplier: 'Muscat Roastery Co',
   supplierVat: 'VAT OM1100447102 · 0248:OM1100447102',
-  lines: [
-    {
-      id: '1',
-      description: 'Green beans — Yirgacheffe',
-      unitPrice: '7.400',
-      vat: '5%',
-      qty: '500',
-      unit: 'KG',
-      discount: '5%',
-      total: '3,515.000',
-    },
-    {
-      id: '2',
-      description: 'Jute sacks — 25 kg',
-      unitPrice: '1.850',
-      vat: '5%',
-      qty: '24',
-      unit: 'EA',
-      discount: '0',
-      total: '44.400',
-    },
-  ] satisfies OrderLine[],
-  totals: {
-    subtotal: '3,744.400',
-    discount: '185.000',
-    net: '3,559.400',
-    vat: '177.970',
-    total: '3,737.370',
-    totalLabelKey: 'tradeCreate.purchase.orderTotal',
-  } satisfies OrderTotals,
+  lines: orderLines(PURCHASE_LINES),
+  totals: { ...quoteTotals(PURCHASE_LINES), totalLabelKey: 'tradeCreate.purchase.orderTotal' },
   summary: {
     titleKey: 'tradeCreate.purchase.whatThisWillCost',
-    subtotal: '3,744.400',
-    discount: '185.000',
-    net: '3,559.400',
-    vat: '177.970',
-    total: '3,737.370',
+    ...quoteTotals(PURCHASE_LINES),
     totalLabelKey: 'tradeCreate.purchase.youWillOwe',
   },
   delivery: {
     optionId: 'one',
     dueLabelKey: 'tradeCreate.purchase.requiredBy',
     due: '12 Aug 2026',
-    deliverTo: 'Main store — Way 3025, Al Khuwair',
+    deliverTo: 'Main store · Way 3025, Al Khuwair',
     dispatchFrom: 'Sun–Thu, 07:00–13:00',
   },
   details: {
@@ -161,8 +169,8 @@ export const NEW_PURCHASE_ORDER = {
     theirPo: 'MR-Q-4471',
     theirPoHintKey: '',
     paymentTerms: 'Net 30 days',
-    currency: 'OMR — Omani Rial',
-    branch: 'Al Bahja Coffee (Main',
+    currency: 'OMR - Omani Rial',
+    branch: 'Al Bahja Coffee (Main)',
   },
   noteToCustomer:
     'Please deliver Sun–Thu mornings only and quote PO-0032 on your delivery note and invoice. Beans must be roasted no earlier than 7 days before delivery.',
@@ -193,7 +201,7 @@ export const NEW_DELIVERY_NOTE = {
   lines: [
     {
       id: '1',
-      name: 'Green beans — House Blend',
+      name: 'Green beans, House Blend',
       metaKey: 'tradeCreate.deliveryNote.line1Meta',
       remaining: '32 KG',
       remainingNoteKey: 'tradeCreate.deliveryNote.stillOwed',
@@ -205,7 +213,7 @@ export const NEW_DELIVERY_NOTE = {
     },
     {
       id: '2',
-      name: 'Roasting service — per batch',
+      name: 'Roasting service, per batch',
       metaKey: 'tradeCreate.deliveryNote.line2Meta',
       remaining: '24 EA',
       remainingNoteKey: 'tradeCreate.deliveryNote.stillOwed',
@@ -217,7 +225,7 @@ export const NEW_DELIVERY_NOTE = {
     },
     {
       id: '3',
-      name: 'Takeaway cups — 500 pack',
+      name: 'Takeaway cups, 500 pack',
       metaKey: 'tradeCreate.deliveryNote.line3Meta',
       remaining: '4 EA',
       remainingNoteKey: 'tradeCreate.deliveryNote.stillOwed',
@@ -235,10 +243,15 @@ export const NEW_DELIVERY_NOTE = {
     noteNumber: 'DN-0132',
     dispatchDate: '30 Jul 2026',
     dispatchTime: '06:30 PM',
-    deliverTo: 'Nizwa Souq Café — Souq Street, Nizwa',
+    deliverTo: 'Nizwa Souq Café · Souq Street, Nizwa',
     dispatchedFrom: 'Main store',
     driver: 'Salim Al Hinai',
-    taxCategory: 'Vehicle',
+    /**
+     * The design printed "Vehicle" under "Default tax category" (a label pasted from the driver
+     * row). The note carries no prices; the category is the default its lines take when the note
+     * becomes an invoice (each line may still change it there).
+     */
+    taxCategoryKey: 'tradeCreate.standardRate',
   },
   proofOptions: [
     {
@@ -276,9 +289,9 @@ export const NEW_DELIVERY_NOTE = {
     noteKey: 'tradeCreate.deliveryNote.summaryNote',
   },
   noteToCustomer:
-    'Bringing this week’s drop forward at your request. Beans roasted 29 Jul — please check seals on arrival and sign for the batch count.',
+    'Bringing this week’s drop forward at your request. Beans roasted 29 Jul: please check seals on arrival and sign for the batch count.',
   internalNote:
-    '2 extra roasting batches included — Hafidh approved as goodwill after last week’s late drop.',
+    '2 extra roasting batches included: Hafidh approved as goodwill after last week’s late drop.',
 }
 
 /* -------------------------------------------------- purchase receipt */
@@ -303,7 +316,7 @@ export const NEW_PURCHASE_RECEIPT = {
   lines: [
     {
       id: '1',
-      name: 'Takeaway cups — 500 pack',
+      name: 'Takeaway cups, 500 pack',
       metaKey: 'tradeCreate.receipt.line1Meta',
       expected: '60 EA',
       expectedNoteKey: 'tradeCreate.receipt.onTheOrder',
@@ -315,7 +328,7 @@ export const NEW_PURCHASE_RECEIPT = {
     },
     {
       id: '2',
-      name: 'Kraft paper bags — 1 kg',
+      name: 'Kraft paper bags, 1 kg',
       metaKey: 'tradeCreate.receipt.line2Meta',
       expected: '20 EA',
       expectedNoteKey: 'tradeCreate.receipt.onTheOrder',
@@ -327,7 +340,7 @@ export const NEW_PURCHASE_RECEIPT = {
     },
     {
       id: '3',
-      name: 'Cup lids — 500 pack',
+      name: 'Cup lids, 500 pack',
       metaKey: 'tradeCreate.receipt.line3Meta',
       expected: '40 EA',
       expectedNoteKey: 'tradeCreate.receipt.onTheOrder',
@@ -354,7 +367,8 @@ export const NEW_PURCHASE_RECEIPT = {
     theirNoteRef: 'SP-DN-11842',
     driverVehicle: '',
     driver: 'Salim Al Hinai',
-    taxCategory: 'Vehicle',
+    /** The design printed "Vehicle" here too; see the delivery note above. */
+    taxCategoryKey: 'tradeCreate.standardRate',
   },
   conditionOptions: [
     {
@@ -377,7 +391,7 @@ export const NEW_PURCHASE_RECEIPT = {
     },
   ],
   whatWasWrong:
-    '3 bags of the 1 kg kraft stock arrived crushed and water-marked at one end of the pallet. Photographed before unloading and set aside — not taken into stock.',
+    '3 bags of the 1 kg kraft stock arrived crushed and water-marked at one end of the pallet. Photographed before unloading and set aside, not taken into stock.',
   photosKey: 'tradeCreate.receipt.photosAttached',
   internalNote:
     'Driver acknowledged the damage and initialled our copy. Sohar Packaging to confirm whether they replace or credit the 3 bags before we settle the bill.',

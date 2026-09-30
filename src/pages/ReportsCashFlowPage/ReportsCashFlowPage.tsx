@@ -55,7 +55,7 @@ import { formatAmount, formatCount } from '../../lib/format'
  * money due by date yet, so both keep their place and say so, rather than being dropped or filled
  * with a guess (TODO(backend) in the asks doc, section 1). "Where it went" wants payments by what
  * they paid for; payments carry no category, so the card ranks what was billed by category over
- * the same window and says "billed", not "paid".
+ * the same window, VAT included like the payments it sits beside, and says "billed", not "paid".
  */
 export function ReportsCashFlowPage() {
   const { t, i18n } = useTranslation()
@@ -67,7 +67,8 @@ export function ReportsCashFlowPage() {
 
   const path = cashFlowPath({ ...history, granularity: 'MONTH' })
   const report = useApiRead<CashFlowReportDto>(path, () => loadCashFlowReport(path))
-  // TODO(backend): payments by category. Billed by category stands in for "Where it went".
+  // TODO(backend): payments by category (REPORTS.md rows 1.11 and 1.29). Billed by category,
+  // VAT included, stands in for "Where it went".
   const categoryPath = expenditurePath(
     { from: windows.current.from, to: windows.current.to, granularity: 'YEAR' },
     'CATEGORY',
@@ -178,7 +179,9 @@ function CashFlowBody({
                   label: key ? row.groupLabel || key : t('reports.expenditure.uncategorised'),
                   value: 0,
                 }
-                found.value += row.netAmount
+                // VAT included, the basis "Money out" is paid on, so the card and the figure
+                // above it are on one basis (REPORTS.md row 1.29).
+                found.value += row.totalAmount
                 return totals.set(key, found)
               }, new Map<string, { key: string; label: string; value: number }>())
               .values(),
@@ -312,7 +315,7 @@ function CashFlowBody({
           note={
             categoryRows.length > 0 && categoryTotal > 0 ? (
               <Trans
-                i18nKey="reports.cashFlow.topShare"
+                i18nKey="reports.cashFlow.topShareInclVat"
                 values={{
                   name: categoryRows[0].label,
                   percent: formatCount(
