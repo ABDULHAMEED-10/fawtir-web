@@ -41,6 +41,11 @@ export type ArchiveSheet = {
   vatPercent: string | null
   total: string | null
   isCredit: boolean
+  /**
+   * The invoice a credit or debit note corrects (`cac:BillingReference/cac:InvoiceDocumentReference`,
+   * required on a credit note by PINT-OM IBR-032-OM): its number, issue date and UUID if given.
+   */
+  preceding: { number: string; issueDate: string | null; uuid: string | null } | null
 }
 
 const children = (parent: Element | Document, name: string): Element[] =>
@@ -106,6 +111,8 @@ export function readArchiveXml(xml: string): ArchiveSheet | null {
     }
   })
   const rates = [...new Set(lines.map((line) => line.vatPercent).filter(Boolean))]
+  const reference = at(root, 'BillingReference', 'InvoiceDocumentReference')
+  const precedingNumber = text(reference, 'ID')
 
   return {
     number: text(root, 'ID'),
@@ -128,6 +135,13 @@ export function readArchiveXml(xml: string): ArchiveSheet | null {
       text(root, 'LegalMonetaryTotal', 'PayableAmount') ??
       text(root, 'LegalMonetaryTotal', 'TaxInclusiveAmount'),
     isCredit,
+    preceding: precedingNumber
+      ? {
+          number: precedingNumber,
+          issueDate: text(reference, 'IssueDate'),
+          uuid: text(reference, 'UUID'),
+        }
+      : null,
   }
 }
 

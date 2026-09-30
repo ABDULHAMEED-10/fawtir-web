@@ -11,6 +11,10 @@ import {
   SectionCard,
 } from '../../components/trade/TradeFormKit'
 import { NEW_DELIVERY_NOTE, NEW_PURCHASE_RECEIPT } from '../../lib/tradeCreate'
+import { orderProgress, overDeliveredLines } from '../../lib/tradeLedger'
+import { ORDER_ROWS } from '../../lib/orderForms'
+import { selectAllOnFocus } from '../../components/invoice'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
 import backIcon from '../../assets/trade-create/back.svg'
 import noteTextIcon from '../../assets/trade-create/note-text.svg'
 import linkIcon from '../../assets/trade-create/link.svg'
@@ -84,12 +88,14 @@ function ModePicker({ mode, onChange }: { mode: NoteMode; onChange: (m: NoteMode
 /** "Against which order" — or go standalone and match it to an invoice later. */
 function AgainstOrder({
   title,
-  metaKey,
+  meta,
   standaloneKey,
+  onUnavailable,
 }: {
   title: string
-  metaKey: string
+  meta: string
   standaloneKey: string
+  onUnavailable: () => void
 }) {
   const { t } = useTranslation()
 
@@ -105,12 +111,13 @@ function AgainstOrder({
               {title}
             </span>
             <span className="mt-1 block text-xs font-medium leading-[1.2] text-[#5b606c]">
-              {t(metaKey)}
+              {meta}
             </span>
           </span>
         </span>
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex h-10 items-center gap-1.5 rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
         >
           {t('tradeCreate.change')}
@@ -124,6 +131,7 @@ function AgainstOrder({
         </span>
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex items-center gap-1 text-sm font-semibold text-[#233e92]"
         >
           {t('tradeCreate.goStandalone')}
@@ -137,19 +145,19 @@ function AgainstOrder({
 function SummaryRail({
   titleKey,
   rows,
-  effectLabelKey,
+  effectLabel,
   beforePct,
   afterPct,
   percent,
-  noteKey,
+  note,
 }: {
   titleKey: string
   rows: { label: string; value: string; alert?: boolean }[]
-  effectLabelKey: string
+  effectLabel: string
   beforePct: string
   afterPct: string
   percent: number
-  noteKey: string
+  note: string
 }) {
   const { t } = useTranslation()
 
@@ -173,7 +181,7 @@ function SummaryRail({
         ))}
       </dl>
       <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#737781]">
-        {t(effectLabelKey)}
+        {effectLabel}
       </p>
       <div className="mt-2 flex items-center gap-3">
         <span className="text-2xl font-semibold leading-[1.2] text-[#2c3342]">{beforePct}</span>
@@ -183,27 +191,111 @@ function SummaryRail({
       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#e6efea]">
         <span className="block h-full rounded-full bg-[#3d5648]" style={{ width: `${percent}%` }} />
       </div>
-      <p className="mt-2.5 text-sm font-medium leading-[1.3] text-[#444957]">{t(noteKey)}</p>
+      <p className="mt-2.5 text-sm font-medium leading-[1.3] text-[#444957]">{note}</p>
     </section>
   )
 }
 
-function SalesDeliveryForm() {
+/** What the sales form is shipping: quantities per order line, and which lines are ticked. */
+type Shipment = { qty: Record<number, string>; checked: Record<number, boolean> }
+
+/** The quantities that actually go out: unticked lines ship nothing. */
+function shippedQty(shipment: Shipment): Record<number, number> {
+  return Object.fromEntries(
+    Object.entries(shipment.qty).map(([lineNo, value]) => [
+      Number(lineNo),
+      shipment.checked[Number(lineNo)] ? Number(value) || 0 : 0,
+    ]),
+  )
+}
+
+/** Short names for the summary rail, as the design printed them. */
+const shortName = (description: string) => description.split(',')[0]
+
+function SalesDeliveryForm({
+  orderId,
+  shipment,
+  setShipment,
+  onUnavailable,
+}: {
+  orderId: string
+  shipment: Shipment
+  setShipment: (next: Shipment) => void
+  onUnavailable: () => void
+}) {
   const { t } = useTranslation()
   const doc = NEW_DELIVERY_NOTE
   const [proof, setProof] = useState('signature')
+  // The order's lines and what each still owes come from the quantity ledger; an order the ledger
+  // does not hold has no lines here yet (TRADE_DOCUMENTS.md row T.13).
+  const progress = orderProgress(orderId)
+  const row = ORDER_ROWS.find((candidate) => candidate.id === orderId)
+  const party = progress?.order.party ?? row?.party ?? ''
+  const shipped = shippedQty(shipment)
+  const over = progress ? overDeliveredLines(orderId, shipped) : []
+  const firstOver = progress?.lines.find((line) => over.includes(line.lineNo))
+  const value = (qty: Record<number, number>) =>
+    (progress?.lines ?? []).reduce(
+      (total, line) => total + (qty[line.lineNo] ?? 0) * line.unitPrice,
+      0,
+    )
+  const pct = (amount: number) =>
+    progress && progress.net > 0 ? Math.min(100, Math.round((amount / progress.net) * 100)) : 0
+  const afterPct = pct((progress?.deliveredValue ?? 0) + value(shipped))
+  const outstanding = (progress?.lines ?? [])
+    .map((line) => ({ line, left: line.toDeliver - (shipped[line.lineNo] ?? 0) }))
+    .filter((entry) => entry.left > 0)
+    .map((entry) => `${entry.left} ${entry.line.unitLabel} ${shortName(entry.line.description)}`)
+
+  const setQty = (lineNo: number, value: string) =>
+    setShipment({ ...shipment, qty: { ...shipment.qty, [lineNo]: value } })
+  const toggle = (lineNo: number) =>
+    setShipment({
+      ...shipment,
+      checked: { ...shipment.checked, [lineNo]: !shipment.checked[lineNo] },
+    })
+  const fillAllRemaining = () => {
+    if (!progress) return
+    setShipment({
+      qty: Object.fromEntries(progress.lines.map((line) => [line.lineNo, String(line.toDeliver)])),
+      checked: Object.fromEntries(progress.lines.map((line) => [line.lineNo, line.toDeliver > 0])),
+    })
+  }
 
   return (
     <>
       <div className="grid items-start gap-4 xl:grid-cols-[1fr_332px]">
         <SectionCard step={1} title={t('tradeCreate.deliveryNote.againstTitle')}>
           <AgainstOrder
-            title={doc.against}
-            metaKey={doc.againstMetaKey}
+            title={`${orderId} · ${party}`}
+            meta={
+              progress
+                ? t('tradeCreate.deliveryNote.againstMetaPct', { pct: progress.deliveredPct })
+                : t('tradeDocs.notRecorded')
+            }
             standaloneKey="tradeCreate.deliveryNote.noOrder"
+            onUnavailable={onUnavailable}
           />
         </SectionCard>
-        <SummaryRail {...doc.summary} />
+        <SummaryRail
+          titleKey={doc.summary.titleKey}
+          rows={(progress?.lines ?? [])
+            .filter((line) => (shipped[line.lineNo] ?? 0) > 0)
+            .map((line) => ({
+              label: shortName(line.description),
+              value: `${shipped[line.lineNo]} ${line.unitLabel}`,
+              alert: over.includes(line.lineNo),
+            }))}
+          effectLabel={t('tradeCreate.deliveryNote.effectOnOrder', { id: orderId })}
+          beforePct={`${progress?.deliveredPct ?? 0}%`}
+          afterPct={`${afterPct}%`}
+          percent={afterPct}
+          note={
+            outstanding.length > 0
+              ? t('tradeCreate.deliveryNote.stillOutstanding', { list: outstanding.join(', ') })
+              : t('tradeCreate.deliveryNote.nothingOutstanding')
+          }
+        />
       </div>
 
       <SectionCard
@@ -211,7 +303,11 @@ function SalesDeliveryForm() {
         title={t('tradeCreate.deliveryNote.whatsGoingOut')}
         hint={t('tradeCreate.deliveryNote.quantitiesOnly')}
         action={
-          <button type="button" className="text-sm font-semibold text-[#233e92]">
+          <button
+            type="button"
+            onClick={fillAllRemaining}
+            className="text-sm font-semibold text-[#233e92]"
+          >
             {t('tradeCreate.deliveryNote.fillAllRemaining')}
           </button>
         }
@@ -221,87 +317,139 @@ function SalesDeliveryForm() {
           <span>{t('tradeCreate.deliveryNote.remaining')}</span>
           <span>{t('tradeCreate.deliveryNote.shippingNow')}</span>
         </div>
-        {doc.lines.map((line, index) => (
-          <div key={line.id}>
-            <div className="grid grid-cols-[1fr_140px_160px] max-md:grid-cols-[1fr_84px_96px] max-md:gap-2 items-start gap-3 border-b border-[#f3f3f3] py-4">
-              <label className="flex min-w-0 items-start gap-3">
-                <input
-                  type="checkbox"
-                  defaultChecked={line.checked}
-                  className="mt-1 size-5 shrink-0 rounded-[4px] accent-[#2c4eb7]"
-                />
-                <span className="min-w-0">
-                  <span className="block text-base font-medium leading-[1.2] text-[#151c2d]">
-                    {line.name}
-                  </span>
-                  <span className="mt-1 block text-sm font-medium leading-[1.2] text-[#5b606c]">
-                    {t(line.metaKey)}
-                  </span>
-                </span>
-              </label>
-              <div>
-                <p className="text-base font-semibold leading-[1.2] text-[#2c3342]">
-                  {line.remaining}
-                </p>
-                <p className="mt-1 text-xs font-medium leading-[1.2] text-[#737781]">
-                  {t(line.remainingNoteKey)}
-                </p>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-[42px] w-[62px] items-center justify-center rounded-sm border border-primary-300 bg-surface-tab-bar text-sm font-medium text-text-secondary">
-                    {line.shipping}
-                  </span>
-                  <span className="text-sm font-medium text-[#5b606c]">{line.unit}</span>
-                </div>
-                <p
-                  className={[
-                    'mt-1 text-xs font-medium leading-[1.2]',
-                    line.hintTone === 'link'
-                      ? 'text-[#233e92]'
-                      : line.hintTone === 'warn'
-                        ? 'text-[#6d5a39]'
-                        : 'text-[#737781]',
-                  ].join(' ')}
-                >
-                  {t(line.hintKey)}
-                </p>
-              </div>
-            </div>
-            {/* Shipping past what the order covers needs a decision before the note can go. */}
-            {index === 1 ? (
-              <div className="my-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-[#e2d8c2] bg-[#f7f1e6] p-3">
-                <span className="flex min-w-0 items-start gap-2">
-                  <img src={warningIcon} alt="" className="mt-0.5 size-5 shrink-0" />
+        {progress === null ? (
+          <p className="py-4 text-sm font-medium text-[#5b606c]">
+            {t('tradeDocs.notAvailableShort')}
+          </p>
+        ) : null}
+        {(progress?.lines ?? []).map((line) => {
+          const qty = shipped[line.lineNo] ?? 0
+          const isOver = over.includes(line.lineNo)
+          const hint =
+            !shipment.checked[line.lineNo] || qty === 0
+              ? { text: t('tradeCreate.deliveryNote.notOnThisDrop'), tone: 'muted' }
+              : isOver
+                ? {
+                    text: t('tradeCreate.deliveryNote.moreThanOrderedCount', {
+                      count: qty - line.toDeliver,
+                    }),
+                    tone: 'warn',
+                  }
+                : qty < line.toDeliver
+                  ? {
+                      text: t('tradeCreate.deliveryNote.shipAllCount', { count: line.toDeliver }),
+                      tone: 'link',
+                    }
+                  : { text: t('tradeCreate.deliveryNote.shipsTheRest'), tone: 'muted' }
+          return (
+            <div key={line.lineNo}>
+              <div className="grid grid-cols-[1fr_140px_160px] max-md:grid-cols-[1fr_84px_96px] max-md:gap-2 items-start gap-3 border-b border-[#f3f3f3] py-4">
+                <label className="flex min-w-0 items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(shipment.checked[line.lineNo])}
+                    onChange={() => toggle(line.lineNo)}
+                    className="mt-1 size-5 shrink-0 rounded-[4px] accent-[#2c4eb7]"
+                  />
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold leading-[1.2] text-[#6d5a39]">
-                      {t(doc.overshipWarningKey)}
+                    <span className="block text-base font-medium leading-[1.2] text-[#151c2d]">
+                      {line.description}
                     </span>
-                    <span className="mt-1 block text-xs font-medium leading-[1.2] text-[#6d5a39]">
-                      {t(doc.overshipHintKey)}
+                    <span className="mt-1 block text-sm font-medium leading-[1.2] text-[#5b606c]">
+                      {t('tradeCreate.deliveryNote.lineMeta', {
+                        ordered: `${line.ordered} ${line.unitLabel}`,
+                        delivered: line.delivered,
+                      })}
                     </span>
                   </span>
-                </span>
-                <span className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
+                </label>
+                <div>
+                  <p className="text-base font-semibold leading-[1.2] text-[#2c3342]">
+                    {line.toDeliver} {line.unitLabel}
+                  </p>
+                  <p className="mt-1 text-xs font-medium leading-[1.2] text-[#737781]">
+                    {t('tradeCreate.deliveryNote.stillOwed')}
+                  </p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      inputMode="numeric"
+                      value={shipment.qty[line.lineNo] ?? '0'}
+                      onFocus={selectAllOnFocus}
+                      onChange={(event) =>
+                        setQty(line.lineNo, event.target.value.replace(/[^0-9]/g, ''))
+                      }
+                      aria-label={t('tradeCreate.deliveryNote.shippingNow')}
+                      className={[
+                        'flex h-[42px] w-[62px] items-center justify-center rounded-sm border bg-surface-tab-bar text-center text-sm font-medium text-text-secondary outline-none',
+                        isOver ? 'border-[#b99a66]' : 'border-primary-300',
+                      ].join(' ')}
+                    />
+                    <span className="text-sm font-medium text-[#5b606c]">{line.unitLabel}</span>
+                  </div>
+                  <p
+                    className={[
+                      'mt-1 text-xs font-medium leading-[1.2]',
+                      hint.tone === 'link'
+                        ? 'text-[#233e92]'
+                        : hint.tone === 'warn'
+                          ? 'text-[#6d5a39]'
+                          : 'text-[#737781]',
+                    ].join(' ')}
                   >
-                    {t('tradeCreate.deliveryNote.raiseOrder')}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
-                  >
-                    {t('tradeCreate.deliveryNote.notBillable')}
-                  </button>
-                </span>
+                    {hint.text}
+                  </p>
+                </div>
               </div>
-            ) : null}
-          </div>
-        ))}
+              {/* Shipping past what the order covers must be resolved before the note can go. */}
+              {firstOver?.lineNo === line.lineNo ? (
+                <div
+                  role="alert"
+                  className="my-3 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-[#e2d8c2] bg-[#f7f1e6] p-3"
+                >
+                  <span className="flex min-w-0 items-start gap-2">
+                    <img src={warningIcon} alt="" className="mt-0.5 size-5 shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold leading-[1.2] text-[#6d5a39]">
+                        {t('tradeCreate.deliveryNote.overshipWarningCount', {
+                          count: qty - line.toDeliver,
+                          unit: line.unitLabel,
+                          item: shortName(line.description),
+                          id: orderId,
+                        })}
+                      </span>
+                      <span className="mt-1 block text-xs font-medium leading-[1.2] text-[#6d5a39]">
+                        {t('tradeCreate.deliveryNote.overshipHintRefused')}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    {/* TODO(backend): TRADE_DOCUMENTS.md row T.14 (raise the order, or ship the
+                        extra as a goodwill line that is never billed). */}
+                    <button
+                      type="button"
+                      onClick={onUnavailable}
+                      className="inline-flex h-9 items-center rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
+                    >
+                      {t('tradeCreate.deliveryNote.raiseOrder')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onUnavailable}
+                      className="inline-flex h-9 items-center rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
+                    >
+                      {t('tradeCreate.deliveryNote.notBillable')}
+                    </button>
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
         <button
           type="button"
+          onClick={onUnavailable}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-[#b6c2e4] py-3 text-base font-semibold text-[#2c4eb7]"
         >
           <img src={plusIcon} alt="" className="size-5" />
@@ -349,7 +497,7 @@ function SalesDeliveryForm() {
           <Field
             label={t('tradeCreate.defaultTaxCategory')}
             required
-            value={doc.movement.taxCategory}
+            value={t(doc.movement.taxCategoryKey)}
           />
         </div>
       </SectionCard>
@@ -379,7 +527,7 @@ function SalesDeliveryForm() {
   )
 }
 
-function PurchaseReceiptForm() {
+function PurchaseReceiptForm({ onUnavailable }: { onUnavailable: () => void }) {
   const { t } = useTranslation()
   const doc = NEW_PURCHASE_RECEIPT
   const [condition, setCondition] = useState('all')
@@ -390,11 +538,20 @@ function PurchaseReceiptForm() {
         <SectionCard step={1} title={t('tradeCreate.deliveryNote.againstTitle')}>
           <AgainstOrder
             title={doc.against}
-            metaKey={doc.againstMetaKey}
+            meta={t(doc.againstMetaKey)}
             standaloneKey="tradeCreate.receipt.noOrder"
+            onUnavailable={onUnavailable}
           />
         </SectionCard>
-        <SummaryRail {...doc.summary} />
+        <SummaryRail
+          titleKey={doc.summary.titleKey}
+          rows={doc.summary.rows}
+          effectLabel={t(doc.summary.effectLabelKey)}
+          beforePct={doc.summary.beforePct}
+          afterPct={doc.summary.afterPct}
+          percent={doc.summary.percent}
+          note={t(doc.summary.noteKey)}
+        />
       </div>
 
       <SectionCard
@@ -402,7 +559,11 @@ function PurchaseReceiptForm() {
         title={t('tradeCreate.receipt.whatArrived')}
         hint={t('tradeCreate.receipt.countBeforeSign')}
         action={
-          <button type="button" className="text-sm font-semibold text-[#233e92]">
+          <button
+            type="button"
+            onClick={onUnavailable}
+            className="text-sm font-semibold text-[#233e92]"
+          >
             {t('tradeCreate.receipt.acceptAll')}
           </button>
         }
@@ -487,6 +648,7 @@ function PurchaseReceiptForm() {
                 </span>
                 <button
                   type="button"
+                  onClick={onUnavailable}
                   className="inline-flex h-9 items-center rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
                 >
                   {t('tradeCreate.receipt.closeLineShort')}
@@ -497,6 +659,7 @@ function PurchaseReceiptForm() {
         ))}
         <button
           type="button"
+          onClick={onUnavailable}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-[#b6c2e4] py-3 text-base font-semibold text-[#2c4eb7]"
         >
           <img src={plusIcon} alt="" className="size-5" />
@@ -563,14 +726,14 @@ function PurchaseReceiptForm() {
           />
           <Field
             label={t('tradeCreate.receipt.driverVehicle')}
-            placeholder="e.g."
+            placeholder={t('tradeCreate.receipt.driverVehiclePlaceholder')}
             suffix="chevron"
           />
           <Field label={t('tradeCreate.deliveryNote.driver')} required value={doc.arrival.driver} />
           <Field
             label={t('tradeCreate.defaultTaxCategory')}
             required
-            value={doc.arrival.taxCategory}
+            value={t(doc.arrival.taxCategoryKey)}
           />
         </div>
       </SectionCard>
@@ -615,6 +778,28 @@ export function NewDeliveryNotePage() {
     params.get('type') === 'purchase' ? 'purchase' : 'sales',
   )
   const sales = mode === 'sales'
+  const notice = useTradeNotice()
+  // The order the note is against: the address names it (`?order=`), the design's SO-0073 else.
+  const orderId =
+    params.get('order') && params.get('type') !== 'purchase' ? params.get('order')! : 'SO-0073'
+  const initial = NEW_DELIVERY_NOTE.lines
+  const [shipment, setShipment] = useState<Shipment>(() =>
+    orderId === 'SO-0073'
+      ? {
+          qty: Object.fromEntries(initial.map((line) => [Number(line.id), line.shipping])),
+          checked: Object.fromEntries(initial.map((line) => [Number(line.id), line.checked])),
+        }
+      : { qty: {}, checked: {} },
+  )
+  // A note may not ship past what the order still owes (TRADE_DOCUMENTS.md row T.14).
+  const overDelivered =
+    sales &&
+    orderProgress(orderId) !== null &&
+    overDeliveredLines(orderId, shippedQty(shipment)).length > 0
+  const send = () => {
+    if (overDelivered) notice.show('tradeCreate.deliveryNote.overshipRefused', { id: orderId })
+    else notice.unavailable()
+  }
 
   return (
     <AppShell>
@@ -632,7 +817,7 @@ export function NewDeliveryNotePage() {
               {t(sales ? 'tradeCreate.deliveryNote.title' : 'tradeCreate.receipt.title')}
             </h1>
             <span className="text-sm font-medium text-[#8f8f8f]">
-              {sales ? NEW_DELIVERY_NOTE.id : NEW_PURCHASE_RECEIPT.id}
+              {sales ? NEW_DELIVERY_NOTE.displayId : NEW_PURCHASE_RECEIPT.id}
             </span>
           </div>
           <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5b606c]">
@@ -642,13 +827,24 @@ export function NewDeliveryNotePage() {
         </div>
 
         <ModePicker mode={mode} onChange={setMode} />
+        {notice.node}
 
-        {sales ? <SalesDeliveryForm /> : <PurchaseReceiptForm />}
+        {sales ? (
+          <SalesDeliveryForm
+            orderId={orderId}
+            shipment={shipment}
+            setShipment={setShipment}
+            onUnavailable={notice.unavailable}
+          />
+        ) : (
+          <PurchaseReceiptForm onUnavailable={notice.unavailable} />
+        )}
       </div>
 
       <FormFooter>
         <button
           type="button"
+          onClick={notice.unavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-white px-5 text-base font-medium text-[#3a3a3a]"
         >
           <img src={printIcon} alt="" className="size-5" />
@@ -656,6 +852,7 @@ export function NewDeliveryNotePage() {
         </button>
         <button
           type="button"
+          onClick={notice.unavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-white px-5 text-base font-medium text-[#3a3a3a]"
         >
           <img src={noteTextIcon} alt="" className="size-5" />
@@ -663,7 +860,12 @@ export function NewDeliveryNotePage() {
         </button>
         <button
           type="button"
-          className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white"
+          onClick={send}
+          aria-disabled={overDelivered || undefined}
+          className={[
+            'inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white',
+            overDelivered ? 'cursor-not-allowed opacity-50' : '',
+          ].join(' ')}
         >
           {t('tradeCreate.deliveryNote.sendWithDriver')}
           <img src={arrowNextIcon} alt="" className="size-5 brightness-0 invert rtl:rotate-180" />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { LinkedDoc } from '../../lib/linkedDocuments'
-import { LINK_FILTERS, LINK_PICKER_DOCS, type LinkFilterId } from '../../lib/linkedDocuments'
+import { LINK_FILTERS, inLinkFilter, type LinkFilterId } from '../../lib/linkedDocuments'
 import linkIcon from '../../assets/create-invoice/link.svg'
 import docDeliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import docOrderIcon from '../../assets/create-invoice/doc-order.svg'
@@ -13,8 +13,10 @@ import metaUserIcon from '../../assets/delivery-detail/meta-user.svg'
  * "Link related documents" picker (Figma 69:45570).
  *
  * Opened from section 4 of the invoice form. Only documents belonging to the invoice's customer
- * are listed — the banner at the top says whose. Selections carry onto the invoice, and the
- * references travel with it over Peppol.
+ * are listed (the banner at the top says whose). Selections carry onto the invoice, and so does
+ * the customer's purchase order number typed here (IBT-013, the draft's
+ * `purchaseOrderReference`). The order and delivery note references themselves have no draft
+ * field yet: TODO(backend): TRADE_DOCUMENTS.md rows T.11, T.12 and T.17.
  */
 
 const KIND_STYLES = {
@@ -31,23 +33,34 @@ const CHIP_STYLES = {
 export function LinkDocumentsModal({
   open,
   customer,
+  docs,
   initialSelected,
+  initialPo = '',
   onClose,
   onConfirm,
 }: {
   open: boolean
   customer: string
+  /** This customer's own order forms and delivery notes. */
+  docs: LinkedDoc[]
   initialSelected: string[]
+  /** The purchase order number already on the invoice. */
+  initialPo?: string
   onClose: () => void
-  onConfirm: (docs: LinkedDoc[]) => void
+  /** The chosen documents, and the purchase order number typed here (trimmed, maybe empty). */
+  onConfirm: (docs: LinkedDoc[], purchaseOrder: string) => void
 }) {
   const { t } = useTranslation()
   const [filter, setFilter] = useState<LinkFilterId>('notInvoiced')
   const [selected, setSelected] = useState<string[]>(initialSelected)
+  const [po, setPo] = useState(initialPo)
 
   useEffect(() => {
-    if (open) setSelected(initialSelected)
-  }, [open, initialSelected])
+    if (open) {
+      setSelected(initialSelected)
+      setPo(initialPo)
+    }
+  }, [open, initialSelected, initialPo])
 
   useEffect(() => {
     if (!open) return
@@ -60,12 +73,8 @@ export function LinkDocumentsModal({
 
   if (!open) return null
 
-  const visible = LINK_PICKER_DOCS.filter((doc) => {
-    if (filter === 'all') return true
-    if (filter === 'notInvoiced') return doc.chipTone === 'pending'
-    if (filter === 'deliveryNotes') return doc.kind === 'delivery'
-    return doc.kind === 'order'
-  })
+  const visible = inLinkFilter(docs, filter)
+  const firstPending = visible.find((doc) => doc.chipTone === 'pending')?.id
 
   const toggle = (id: string) =>
     setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
@@ -137,21 +146,26 @@ export function LinkDocumentsModal({
                   ].join(' ')}
                 >
                   {t(option.labelKey)}
-                  <span className="font-semibold">{option.count}</span>
+                  <span className="font-semibold">{inLinkFilter(docs, option.id).length}</span>
                 </button>
               )
             })}
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
+            {visible.length === 0 ? (
+              <p className="text-sm font-medium text-[#5b606c]">
+                {t(customer ? 'linkModal.emptyForCustomer' : 'linkModal.chooseCustomer')}
+              </p>
+            ) : null}
             {visible.map((doc) => {
               const style = KIND_STYLES[doc.kind]
               const checked = selected.includes(doc.id)
               return (
                 <div key={doc.id} className="flex flex-col gap-2">
-                  {doc.groupLabelKey ? (
+                  {doc.id === firstPending ? (
                     <p className="text-xs font-semibold uppercase leading-[1.2] tracking-[0.04em] text-[#5b606c]">
-                      {t(doc.groupLabelKey)}
+                      {t('linkModal.groups.deliveredNotInvoiced')}
                     </p>
                   ) : null}
                   <label
@@ -177,10 +191,10 @@ export function LinkDocumentsModal({
                       </span>
                       <span className="min-w-0">
                         <span className="block text-base font-medium leading-[1.2] text-[#0c0d34]">
-                          {t(doc.titleKey)}
+                          {t(doc.titleKey, doc.titleValues)}
                         </span>
                         <span className="mt-[3px] block text-xs font-medium leading-[1.2] text-[#444957]">
-                          {t(doc.metaKey)}
+                          {t(doc.metaKey, doc.metaValues)}
                         </span>
                       </span>
                     </span>
@@ -209,6 +223,10 @@ export function LinkDocumentsModal({
             </label>
             <input
               type="text"
+              value={po}
+              onChange={(event) => setPo(event.target.value)}
+              maxLength={200}
+              aria-label={t('linkModal.poNumber')}
               placeholder={t('linkModal.poPlaceholder')}
               className="mt-2 h-[50px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-4 text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
@@ -225,8 +243,13 @@ export function LinkDocumentsModal({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(LINK_PICKER_DOCS.filter((doc) => selected.includes(doc.id)))}
-            disabled={selected.length === 0 && initialSelected.length === 0}
+            onClick={() =>
+              onConfirm(
+                docs.filter((doc) => selected.includes(doc.id)),
+                po.trim(),
+              )
+            }
+            disabled={selected.length === 0 && initialSelected.length === 0 && po.trim() === ''}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white disabled:opacity-50"
           >
             <img src={linkIcon} alt="" className="size-5 brightness-0 invert" />

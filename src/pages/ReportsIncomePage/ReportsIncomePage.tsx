@@ -40,6 +40,7 @@ import {
 } from '../../lib/reportPeriod'
 import { countPill, percentPill, shortPercent, wholeFigure } from '../../lib/reportFigures'
 import { formatAmount, formatCount } from '../../lib/format'
+import { invoiceValue, invoicesSent, salesAmount } from '../../lib/volumeReport'
 
 /**
  * Reports › Income (Figma 154:105575).
@@ -49,9 +50,12 @@ import { formatAmount, formatCount } from '../../lib/format'
  * figures, the trailing twelve months, this year's quarters against last year's and the annual
  * line; the customer grouping over the pill's window draws Top customers.
  *
- * **Amounts are signed.** A credit note subtracts, so every figure is net of corrections, and
- * "net of VAT" is the report's taxable amount. "Invoices sent" is the report's document count;
- * cancelled documents carry no amount.
+ * **What counts as a sale** is read from a third call, the same history grouped by document type
+ * (`lib/volumeReport` `salesAmount`): invoices (380) and debit notes (383) add, credit notes (381)
+ * take away, and the tenant's own self-billed documents (389, 261) are purchases, so they count
+ * nothing here. "Invoices sent" counts invoices (380) alone, and "Average invoice" is their value
+ * over their number. "Net of VAT" is the taxable amount; cancelled documents carry no amount.
+ * The ungrouped history is still read: it decides the empty state and the currency notice.
  */
 export function ReportsIncomePage() {
   const { t, i18n } = useTranslation()
@@ -63,9 +67,13 @@ export function ReportsIncomePage() {
 
   const historyPath = volumePath({ ...history, granularity: 'MONTH' }, 'NONE')
   const report = useApiRead<VolumeReportDto>(historyPath, () => loadVolumeReport(historyPath))
+  // The same history by document type, so sales can be told from the rest (REPORTS.md row 1.22).
+  const typesPath = volumePath({ ...history, granularity: 'MONTH' }, 'TYPE')
+  const types = useApiRead<VolumeReportDto>(typesPath, () => loadVolumeReport(typesPath))
 
   // YEAR buckets: the card ranks customers over the whole window, so finer buckets would only
-  // be added back together here.
+  // be added back together here. TODO(backend): REPORTS.md row 1.22, the customer grouping still
+  // counts the tenant's own self-billed documents, which carry no type in this grouping.
   const customersPath = volumePath(
     { from: windows.current.from, to: windows.current.to, granularity: 'YEAR' },
     'CUSTOMER',
@@ -97,14 +105,19 @@ export function ReportsIncomePage() {
         },
       ]}
     >
-      {report.read.status === 'loading' ? <LoadingNotice /> : null}
+      {report.read.status === 'loading' || types.read.status === 'loading' ? (
+        <LoadingNotice />
+      ) : null}
       {report.read.status === 'failed' ? (
         <ApiReadFailure error={report.read.error} retry={report.retry} />
+      ) : types.read.status === 'failed' ? (
+        <ApiReadFailure error={types.read.error} retry={types.retry} />
       ) : null}
 
-      {report.read.status === 'ready' ? (
+      {report.read.status === 'ready' && types.read.status === 'ready' ? (
         <IncomeBody
           report={report.read.data}
+          types={types.read.data}
           customers={customers.read.status === 'ready' ? customers.read.data : null}
           period={period}
           today={today}
@@ -118,6 +131,7 @@ export function ReportsIncomePage() {
 
 function IncomeBody({
   report,
+  types,
   customers,
   period,
   today,
@@ -125,6 +139,7 @@ function IncomeBody({
   t,
 }: {
   report: VolumeReportDto
+  types: VolumeReportDto
   customers: VolumeReportDto | null
   period: ReportPeriod
   today: Date
@@ -133,10 +148,11 @@ function IncomeBody({
 }) {
   const currency = report.totals[0]?.currency ?? report.rows[0]?.currency ?? 'OMR'
   // Figures are plain sums, so only one currency is added up; the notice names the others.
-  const rows = report.rows.filter((row) => row.currency === currency)
-  const net = sumByMonth(rows, (row) => row.taxableAmount)
-  const vat = sumByMonth(rows, (row) => row.vatAmount)
-  const sent = sumByMonth(rows, (row) => row.documents)
+  const rows = types.rows.filter((row) => row.currency === currency)
+  const net = sumByMonth(rows, (row) => salesAmount(row, (entry) => entry.taxableAmount))
+  const vat = sumByMonth(rows, (row) => salesAmount(row, (entry) => entry.vatAmount))
+  const sent = sumByMonth(rows, invoicesSent)
+  const invoiced = sumByMonth(rows, invoiceValue)
   const { current, previous } = periodWindows(period, today)
 
   if (report.rows.length === 0) {
@@ -156,8 +172,10 @@ function IncomeBody({
   const vatBefore = sumOver(vat, previous.months)
   const sentNow = sumOver(sent, current.months)
   const sentBefore = sumOver(sent, previous.months)
-  const average = sentNow === 0 ? 0 : netNow / sentNow
-  const averageBefore = sentBefore === 0 ? 0 : netBefore / sentBefore
+  // Invoices over invoices: a credit or debit note is not an invoice, so neither is in the count
+  // or in the value it divides.
+  const average = sentNow === 0 ? 0 : sumOver(invoiced, current.months) / sentNow
+  const averageBefore = sentBefore === 0 ? 0 : sumOver(invoiced, previous.months) / sentBefore
   const averageChange = percentPill(average, averageBefore, language)
   const steady =
     averageChange !== null && Math.abs(average - averageBefore) / Math.abs(averageBefore) < 0.01

@@ -13,7 +13,10 @@ export type ReportPeriod = 'yearly' | 'quarterly' | 'monthly'
 
 export const REPORT_PERIODS: ReportPeriod[] = ['yearly', 'quarterly', 'monthly']
 
-/** Months in each period: the pill's window and the one it is compared with. */
+/**
+ * Months in each period: the pill's window and the one it is compared with. Quarterly is the
+ * tax period instead (`periodWindows`); its 3 here is only the calendar-quarter stand-in.
+ */
 const SPAN: Record<ReportPeriod, number> = { yearly: 12, quarterly: 3, monthly: 1 }
 
 /** i18n ids under `reports.months` / `reports.monthsLong`, January first. */
@@ -77,13 +80,48 @@ export function trailingMonths(today: Date, count = 12): string[] {
 export type ReportWindow = { from: string; to: string; months: string[] }
 
 /**
- * The pill's window (ending today) and the window of equal length just before it, which is what
- * every "vs the year before" pill compares with.
+ * A company's VAT tax period: the months one return covers, first month first.
+ *
+ * The OTA sets a company's tax periods when it registers, so they are the company's, not the
+ * calendar's. TODO(backend): REPORTS.md row 1.24, the company tax period. Until the API states
+ * it, calendar quarters (Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec) stand in, which is the common case.
+ */
+export type TaxPeriod = { months: string[] }
+
+/** The tax period that holds `today`, or the company's own when the API provides one. */
+export function taxPeriodOf(today: Date, companyPeriod?: TaxPeriod | null): TaxPeriod {
+  if (companyPeriod && companyPeriod.months.length > 0) return companyPeriod
+  return { months: quarterOf(currentMonth(today)).months }
+}
+
+/**
+ * The pill's window (ending today) and the window just before it, which is what every
+ * "vs the year before" pill compares with.
+ *
+ * "Quarterly" is the company's current tax period to date against the whole tax period before
+ * it, never the last three months: a VAT figure over a window no return covers matches nothing
+ * the reader files. Yearly and Monthly stay the trailing twelve months and the current month.
  */
 export function periodWindows(
   period: ReportPeriod,
   today: Date,
+  companyPeriod?: TaxPeriod | null,
 ): { current: ReportWindow; previous: ReportWindow } {
+  if (period === 'quarterly') {
+    const tax = taxPeriodOf(today, companyPeriod)
+    const now = currentMonth(today)
+    const months = tax.months.filter((key) => key <= now)
+    const length = tax.months.length
+    const before = tax.months.map((key) => addMonths(key, -length))
+    return {
+      current: { from: monthStart(tax.months[0]), to: isoDate(today), months },
+      previous: {
+        from: monthStart(before[0]),
+        to: monthEnd(before[before.length - 1]),
+        months: before,
+      },
+    }
+  }
   const span = SPAN[period]
   const months = trailingMonths(today, span)
   const before = months.map((key) => addMonths(key, -span))
@@ -174,8 +212,9 @@ export function yearProgress(today: Date): number {
  *
  * Oman's returns are quarterly and due within 30 days of the quarter's end. Until that date has
  * passed the closed quarter's return is the next one due; after it, the current quarter's.
- * TODO(backend): a tenant's own tax periods are assigned by the OTA and may not be calendar
- * quarters; the platform holds no filing calendar, so this assumes the common case.
+ * TODO(backend): REPORTS.md rows 1.13 and 1.24. A company's own tax periods are set by the OTA
+ * from its registration and may not be calendar quarters; the platform holds no filing
+ * calendar, so this assumes the common case, as `taxPeriodOf` does.
  */
 export function nextVatReturn(today: Date): {
   due: Date

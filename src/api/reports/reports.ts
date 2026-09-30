@@ -32,7 +32,11 @@ export type VolumeGroupBy = 'NONE' | 'TYPE' | 'CUSTOMER' | 'BRANCH'
  */
 export type ExpenditureGroupBy = 'NONE' | 'SUPPLIER' | 'SOURCE' | 'CATEGORY'
 
-export type ReportRange = { from?: string | null; to?: string | null; granularity?: ReportGranularity }
+export type ReportRange = {
+  from?: string | null
+  to?: string | null
+  granularity?: ReportGranularity
+}
 
 /**
  * One bucket. Amounts are **signed**: a credit note subtracts, so a row's total is net of
@@ -91,6 +95,12 @@ export type ExpenditureRowDto = {
   netAmount: number
   vatAmount: number
   totalAmount: number
+  /**
+   * TODO(backend): REPORTS.md row 1.25. The part of `vatAmount` on bills that were approved and
+   * whose receipt the tenant reported to the OTA, which is all that can be reclaimed. Absent
+   * today, so the pages say "reclaim not confirmed" rather than calling every bill reclaimable.
+   */
+  reclaimableVatAmount?: number | null
 }
 
 export type ExpenditureTotalDto = {
@@ -143,7 +153,14 @@ export type CashFlowReportDto = {
   totals: CashFlowTotalDto[]
 }
 
-/** `rate` is null on INPUT rows, and on E and O output rows where the rules forbid one. */
+/**
+ * `rate` is null on INPUT rows, and on E and O output rows where the rules forbid one.
+ *
+ * `category` on INPUT rows is `ALL` today (one VAT total per bill). TODO(backend): REPORTS.md row
+ * 1.23, the Oman categories (S, Z, E, O, CL-04-OM) on INPUT rows; the page splits them as soon as
+ * they arrive. Reverse charge is a transaction type (BTOM-001), not a category, and is not read
+ * from `category` (row 1.27).
+ */
 export type VatRowDto = {
   side: 'OUTPUT' | 'INPUT' | 'NET'
   period: string
@@ -155,6 +172,8 @@ export type VatRowDto = {
   documents: number
   taxableAmount: number
   vatAmount: number
+  /** TODO(backend): REPORTS.md row 1.25, on INPUT rows: VAT on approved, receipt-reported bills. */
+  reclaimableVatAmount?: number | null
 }
 
 export type VatReportDto = {
