@@ -112,13 +112,17 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
   Expenditure and Suppliers (for example Expenditure is `163:16959` there and `154:131901` on page
   `0:1`). Both work with the MCP. **Node ids change when the designer re-uploads a frame:** find
   frames by name, then take the id.
-- **Screens with no design:** POS, the **self-billed credit note** (below), and the **invoice import dialog** (the Invoices list's Bulk
+- **Screens with no design:** POS, the **self-billed credit note** and the **supplier business activity** dialogs (below), and the **invoice import dialog** (the Invoices list's Bulk
   upload). On these judgement decides; flag such decisions. The import dialog is an owner-approved
   exception (2026-09-28, on grounds of time, per the approved Invoice Import guide): it is built on
   the existing theme and components only and changes no other screen.
 - **Self-billed credit note (approved 2026-09-30):** a necessary screen with no Figma frame (PR
   #117). It reuses the credit-note composer and changes no other screen; its wording must fit a
   purchase document (supplier, input VAT), not the sales wording of the composer.
+- **Supplier business activity (approved 2026-09-30):** the ISIC field in the self-billing
+  agreement dialog and the "Set business activity" dialog from an agreement's row menu (PR #120)
+  have no Figma frame. Built with existing components only (Modal, Combobox); the code is saved on
+  the supplier's record and goes on every line of that supplier's self-billed documents (BTOM-033).
 - **Zero-rating warning (approved 2026-09-28, same basis):** the line warning in the invoice composer
   and the confirmation step before issuing (INCOME.md rows Z.1 to Z.7) have no Figma frame. Build
   them with existing components only and touch no other screen. Manual invoices warn and never
