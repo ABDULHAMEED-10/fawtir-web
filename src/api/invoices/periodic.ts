@@ -14,11 +14,15 @@ import type { DiscountDto, ReferenceDto } from './drafts'
 
 export type RecurrenceInterval = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY'
 
-/** `DRAFTED` raised a draft; `FAILED` could not; `SKIPPED` was claimed and never completed. */
-export type PeriodicRunOutcome = 'DRAFTED' | 'FAILED' | 'SKIPPED'
+/**
+ * `DRAFTED` raised a draft; `FAILED` could not; `SKIPPED` was claimed and never completed;
+ * `CLAIMED` is being raised right now; `DEAD_LETTERED` gave up after its attempts and waits for a
+ * retry (`retryable`).
+ */
+export type PeriodicRunOutcome = 'DRAFTED' | 'FAILED' | 'SKIPPED' | 'CLAIMED' | 'DEAD_LETTERED'
 
 /**
- * TODO(backend): a line of the schedule's own template. The design (154:164555) sets a schedule up
+ * A line of the schedule's own template. The design (154:164555) sets a schedule up
  * from scratch, under the composer's line rules: free-text description, goods or service per line,
  * unit, ex-VAT price, discount, the document's tax category; an HS code on goods lines and a
  * service type on service lines (docs/backend-guides/INCOME.md (part C)). Same shape as a draft line.
@@ -45,10 +49,8 @@ export type PeriodicTemplateLineDto = {
 }
 
 /**
- * TODO(backend): what a schedule sends, carried by the schedule itself rather than borrowed from an
- * invoice. Sent on create and update, read back on the schedule. Until the API stores it, a
- * schedule set up from scratch has nothing for its runs to copy: the backend should either keep
- * this template or create the template draft from it when the schedule is saved.
+ * What a schedule sends, carried by the schedule itself rather than borrowed from an invoice. Sent
+ * on create and update, which the API accepts, and read back on the schedule when present.
  */
 export type PeriodicTemplateDto = {
   branchId: string
@@ -75,7 +77,7 @@ export type PeriodicScheduleDto = {
   customerId: string
   /** The invoice each run copies, when the schedule was set up from one. */
   templateInvoiceId: string | null
-  /** TODO(backend): the schedule's own template (see `PeriodicTemplateDto`). */
+  /** The schedule's own template (see `PeriodicTemplateDto`). */
   template?: PeriodicTemplateDto | null
   interval: RecurrenceInterval
   /** Derived from the interval (IBR-036-OM), so it is shown and never chosen. */
@@ -84,14 +86,17 @@ export type PeriodicScheduleDto = {
   endDate: string | null
   remainingOccurrences: number | null
   active: boolean
-  /** TODO(backend): the design's "Send automatically" switch — each run issues and delivers over Peppol. */
+  /**
+   * TODO(backend): the design's "Send automatically" switch — each run issues and delivers over
+   * Peppol. The API accepts it on create and update and ignores it; nothing is stored.
+   */
   autoIssue?: boolean
-  /** TODO(backend): the design's "Notify me on each run" switch. */
+  /** TODO(backend): the design's "Notify me on each run" switch. Accepted and ignored, as `autoIssue`. */
   notifyOnRun?: boolean
-  /** TODO(backend): how many invoices the schedule raised, and when it last ran (the list's "Generated" column). */
+  /** How many invoices the schedule raised, and when it last ran (the list's "Generated" column). */
   runCount?: number
   lastRunDate?: string | null
-  /** TODO(backend): when the schedule was set up (the design's "Started"). */
+  /** When the schedule was set up (the design's "Started"). */
   createdAt?: string
 }
 
@@ -104,8 +109,17 @@ export type PeriodicRunDto = {
   /** A prebuilt API link; the page routes by the id instead. */
   draftInvoice: string | null
   failureReason: string | null
+  /** The refusal code behind a failed or dead-lettered run. */
+  failureCode?: string | null
+  attemptCount?: number
+  deadLetteredAt?: string | null
+  /** Only a `DEAD_LETTERED` run can be retried. */
+  retryable?: boolean
   createdAt: string
-  /** TODO(backend): the raised document's number, amount, delivery and payment, as the design's run row shows them. */
+  /**
+   * The raised document's number and amount. TODO(backend): its delivery and payment, as the
+   * design's run row shows them.
+   */
   invoiceNumber?: string | null
   totalAmount?: number | null
   deliveryState?: string | null
@@ -115,8 +129,8 @@ export type PeriodicRunDto = {
 export type CreatePeriodicScheduleDto = {
   customerId: string
   /**
-   * The invoice copied as a pre-fill, when there was one. TODO(backend): null for a schedule set up
-   * from scratch, whose content travels in `template` (the route requires an id today).
+   * The invoice copied as a pre-fill, when there was one; null for a schedule set up from scratch,
+   * whose content travels in `template`.
    */
   templateInvoiceId: string | null
   template?: PeriodicTemplateDto
@@ -124,7 +138,9 @@ export type CreatePeriodicScheduleDto = {
   firstRunDate: string
   endDate: string | null
   occurrences: number | null
+  /** TODO(backend): accepted and ignored; nothing acts on it yet. */
   autoIssue?: boolean
+  /** TODO(backend): accepted and ignored; nothing acts on it yet. */
   notifyOnRun?: boolean
 }
 
@@ -133,10 +149,12 @@ export type UpdatePeriodicScheduleDto = {
   nextRunDate: string
   endDate: string | null
   occurrences: number | null
-  /** TODO(backend): the design lets the customer and the content change on an existing schedule. */
+  /** The design lets the customer and the content change on an existing schedule. */
   customerId?: string
   template?: PeriodicTemplateDto
+  /** TODO(backend): accepted and ignored; nothing acts on it yet. */
   autoIssue?: boolean
+  /** TODO(backend): accepted and ignored; nothing acts on it yet. */
   notifyOnRun?: boolean
 }
 
@@ -175,10 +193,26 @@ export function updatePeriodicSchedule(
   return apiRequest<PeriodicScheduleDto>(periodicSchedulePath(id), { method: 'PUT', body })
 }
 
-/** Pause is the only stop: there is no cancel and no delete, and the run log forbids removal. */
+/** Pause stops a schedule and resume starts it again; delete (below) removes it for good. */
 export function setPeriodicActive(id: string, active: boolean): Promise<PeriodicScheduleDto> {
   return apiRequest<PeriodicScheduleDto>(
     `${periodicSchedulePath(id)}/${active ? 'resume' : 'pause'}`,
     { method: 'POST', body: {} },
   )
+}
+
+/**
+ * "Generate invoice": raises the schedule's next run now, as a draft, and moves the schedule on
+ * one interval. The run can still come back `FAILED` or `DEAD_LETTERED` when drafting was refused.
+ */
+export function runPeriodicNow(id: string): Promise<PeriodicRunDto> {
+  return apiRequest<PeriodicRunDto>(periodicRunsPath(id), { method: 'POST', body: {} })
+}
+
+/**
+ * Removes a schedule from the list. The runs and the drafts it raised are kept. Refused while a
+ * run is in progress or waiting to be retried (`PERIODIC_SCHEDULE_HAS_OPEN_RUN`).
+ */
+export function deletePeriodicSchedule(id: string): Promise<void> {
+  return apiRequest<void>(periodicSchedulePath(id), { method: 'DELETE' })
 }

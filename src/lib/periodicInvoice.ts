@@ -21,9 +21,9 @@ import { toExclusivePrice, type DiscountType } from './invoiceMath'
  * Periodic invoices (I-13, design 154:164555 and 154:159427, realigned 25 Sep 2026).
  *
  * The design sets a schedule up **from scratch**: the customer, the invoice details, the lines,
- * the schedule and the notes all live on the screen. The API knows only "copy invoice X on a
- * cadence", so the schedule fields go to the routes as they are and the rest travels as the
- * schedule's own template (`PeriodicTemplateDto`, marked TODO(backend)). An invoice can still be
+ * the schedule and the notes all live on the screen. The schedule fields go to the routes as they
+ * are and the rest travels as the schedule's own template (`PeriodicTemplateDto`), which the API
+ * accepts on create and update. An invoice can still be
  * the pre-fill (`?template=<id>` from the invoice pages) and is then named in `templateInvoiceId`.
  *
  * The API answers bare arrays: no paging, no totals, no filters, no summary. Every figure here is
@@ -278,9 +278,9 @@ export function periodicCounts(schedules: PeriodicScheduleDto[], today: string) 
 }
 
 /**
- * What this month's runs came to, from the schedules that say when they last ran. Null until the
- * API carries `lastRunDate` (TODO(backend)), so the card can say the figure is not known rather
- * than print a zero.
+ * What this month's runs came to, from the schedules that say when they last ran. Null when no
+ * schedule carries `lastRunDate`, so the card can say the figure is not known rather than print a
+ * zero.
  */
 export function generatedThisMonth(
   schedules: PeriodicScheduleDto[],
@@ -721,4 +721,8 @@ export const PERIODIC_REFUSALS: Record<string, string> = {
   PERIODIC_END_BEFORE_START: 'periodicInvoice.error.endBeforeStart',
   PERIODIC_OCCURRENCES_NEGATIVE: 'periodicInvoice.error.occurrences',
   PERIODIC_SCHEDULE_NOT_FOUND: 'periodicInvoice.error.notFound',
+  PERIODIC_RUN_ALREADY_RAISED: 'periodicInvoice.error.alreadyRaised',
+  PERIODIC_SCHEDULE_NOT_ACTIVE: 'periodicInvoice.error.notActive',
+  PERIODIC_RUN_IN_PROGRESS: 'periodicInvoice.error.runInProgress',
+  PERIODIC_SCHEDULE_HAS_OPEN_RUN: 'periodicInvoice.error.hasOpenRun',
 }

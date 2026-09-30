@@ -116,6 +116,9 @@ const RUN_PILL: Record<string, string> = {
   DRAFTED: 'bg-pending-100 text-pending-700',
   FAILED: 'bg-danger-100 text-danger-700',
   SKIPPED: 'bg-neutral-25 text-neutral-700',
+  // The two outcomes the run log added: shown as a failed and a skipped run are.
+  DEAD_LETTERED: 'bg-danger-100 text-danger-700',
+  CLAIMED: 'bg-neutral-25 text-neutral-700',
   PAID: 'bg-success-100 text-success-700',
   PARTIALLY_PAID: 'bg-pending-100 text-pending-700',
   UNPAID: 'bg-warning-100 text-warning-700',
@@ -132,9 +135,8 @@ const FIELD =
  * the lines below, then what it has raised and what is to come.
  *
  * The design sets a schedule up **from scratch**: customer, details, lines, schedule, notes. The
- * API knows only "copy invoice X on a cadence", so the schedule half goes to its routes as before
- * and the document half travels as the schedule's own template (TODO(backend), see
- * `PeriodicTemplateDto`). An invoice handed over as `?template=<id>` (from the invoice pages) or a
+ * schedule half goes to its routes as before and the document half travels as the schedule's own
+ * template (see `PeriodicTemplateDto`), which the API accepts on create and update. An invoice handed over as `?template=<id>` (from the invoice pages) or a
  * schedule as `?copy=<id>` (the list's Duplicate) is a pre-fill, never the only door.
  */
 export function PeriodicInvoicePage({ mode }: { mode: 'view' | 'create' | 'edit' }) {
@@ -903,7 +905,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
             </div>
           </section>
 
-          {/* TODO(backend): `autoIssue` and `notifyOnRun` are sent with the schedule; nothing acts on them yet. */}
+          {/* TODO(backend): `autoIssue` and `notifyOnRun` are sent with the schedule; the API accepts and ignores them, nothing is stored. */}
           <section className="flex flex-col gap-4 rounded-sm bg-surface-card p-4">
             <SwitchRow
               label={t('periodicInvoice.sendAuto')}

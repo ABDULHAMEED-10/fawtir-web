@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
   FilterMenu,
+  Modal,
   OmAmount,
   RowsView,
   Select,
@@ -16,19 +17,22 @@ import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback
 import { useApiRead } from '../../hooks'
 import {
   PERIODIC_SCHEDULES_PATH,
+  deletePeriodicSchedule,
   loadPeriodicSchedules,
+  runPeriodicNow,
   setPeriodicActive,
   type PeriodicScheduleDto,
   type RecurrenceInterval,
 } from '../../api/invoices/periodic'
 import { customerListPath, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
-import type { Page } from '../../api'
+import { ApiError, type Page } from '../../api'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import {
   PERIODIC_INTERVALS,
+  PERIODIC_REFUSALS,
   PERIODIC_SORTS,
   PERIODIC_TABS,
   cadenceNote,
@@ -42,6 +46,7 @@ import {
   scheduleStatus,
   scheduleTone,
   sortSchedules,
+  upcomingRuns,
   type PeriodicSortId,
   type PeriodicStatus,
   type PeriodicTabId,
@@ -211,6 +216,65 @@ export function PeriodicInvoicesPage() {
     change()
   }
 
+  const fail = (error: unknown) => {
+    const code = error instanceof ApiError ? error.code : null
+    if (code && PERIODIC_REFUSALS[code]) {
+      setNotice({ key: PERIODIC_REFUSALS[code] })
+      return
+    }
+    const message = describeApiFailure(error)
+    const body = t(message.key, message.values)
+    setNotice({
+      body: message.reference
+        ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+        : body,
+    })
+  }
+
+  /** "Generate invoice": raises the next run now; the schedule then moves on one interval. */
+  const generate = async (schedule: PeriodicScheduleDto) => {
+    setNotice(null)
+    setBusy(schedule.id)
+    try {
+      const run = await runPeriodicNow(schedule.id)
+      schedules.retry()
+      if (run.outcome !== 'DRAFTED') {
+        setNotice({ key: 'periodicList.done.generateFailed' })
+        return
+      }
+      // The run just raised was the schedule's next one; the one after it is now next.
+      const next = upcomingRuns(schedule, 2)[1]
+      setNotice(
+        next
+          ? { body: t('periodicList.done.generated', { date: formatDate(next, language) }) }
+          : { key: 'periodicList.done.generatedLast' },
+      )
+    } catch (error) {
+      fail(error)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const [deleting, setDeleting] = useState<PeriodicScheduleDto | null>(null)
+  const onDelete = async () => {
+    if (!deleting) return
+    const target = deleting
+    setDeleting(null)
+    setNotice(null)
+    setBusy(target.id)
+    try {
+      await deletePeriodicSchedule(target.id)
+      setSelected((current) => current.filter((selectedId) => selectedId !== target.id))
+      setNotice({ key: 'periodicList.done.deleted' })
+    } catch (error) {
+      fail(error)
+    } finally {
+      setBusy(null)
+      schedules.retry()
+    }
+  }
+
   const toggle = async (schedule: PeriodicScheduleDto) => {
     setNotice(null)
     setBusy(schedule.id)
@@ -227,13 +291,7 @@ export function PeriodicInvoicesPage() {
             },
       )
     } catch (error) {
-      const message = describeApiFailure(error)
-      const body = t(message.key, message.values)
-      setNotice({
-        body: message.reference
-          ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
-          : body,
-      })
+      fail(error)
     } finally {
       setBusy(null)
     }
@@ -278,8 +336,7 @@ export function PeriodicInvoicesPage() {
             id: 'generate',
             labelKey: 'periodicList.menu.generate',
             icon: generateIcon,
-            // TODO(backend): a run-now route; the sweep is the only thing that raises a draft today.
-            onSelect: () => setNotice({ key: 'periodicList.notYet.generate' }),
+            onSelect: () => void generate(schedule),
           },
           schedule.active
             ? {
@@ -305,8 +362,7 @@ export function PeriodicInvoicesPage() {
             labelKey: 'periodicList.menu.delete',
             icon: deleteIcon,
             danger: true,
-            // TODO(backend): a delete route; pause is the only stop the API has.
-            onSelect: () => setNotice({ key: 'periodicList.notYet.delete' }),
+            onSelect: () => setDeleting(schedule),
           },
         ]
       : []),
@@ -332,8 +388,7 @@ export function PeriodicInvoicesPage() {
       meta: t('periodicList.kpi.dueMeta', { count: counts.dueSoon }),
     },
     {
-      // TODO(backend): counted from each schedule's `lastRunDate` and per-invoice amount once the
-      // API carries them; until then the runs are only readable one schedule at a time.
+      // Counted from each schedule's `lastRunDate` and per-invoice amount, when the API carries them.
       id: 'generated',
       icon: generatedIcon,
       title: t('periodicList.kpi.generated'),
@@ -702,7 +757,7 @@ export function PeriodicInvoicesPage() {
                             )}
                           </td>
                           <td className="px-2 py-2.5">
-                            {/* TODO(backend): `runCount` and `lastRunDate` on the schedule; the runs are only readable one schedule at a time. */}
+                            {/* `runCount` and `lastRunDate` on the schedule, when present; otherwise the runs are read on the schedule's page. */}
                             {schedule.runCount === undefined ? (
                               <Link
                                 to={`/income/periodic/${schedule.id}`}
@@ -792,6 +847,34 @@ export function PeriodicInvoicesPage() {
           {t('periodicList.sweepNote')}
         </p>
       </div>
+
+      <Modal
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title={t('periodicList.deleteTitle')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setDeleting(null)}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void onDelete()}
+              className="inline-flex h-11 items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white"
+            >
+              {t('periodicList.deleteConfirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {t('periodicList.deleteBody')}
+        </p>
+      </Modal>
     </AppShell>
   )
 }

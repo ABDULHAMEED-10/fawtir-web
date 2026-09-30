@@ -216,6 +216,9 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let schedules: PeriodicScheduleDto[]
 let createResponse: () => Response
+let runNowResponse: () => Response
+let deleteResponse: () => Response
+let updateResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -233,6 +236,10 @@ beforeEach(async () => {
   who = DRAFTER
   schedules = [MONTHLY, LAPSED, PAUSED]
   createResponse = () => json(201, { ...MONTHLY, id: 'sch-new' })
+  runNowResponse = () =>
+    json(200, { ...RUNS[0], runDate: MONTHLY.nextRunDate, draftInvoiceId: 'inv-10' })
+  deleteResponse = () => new Response(null, { status: 204 })
+  updateResponse = () => json(200, { ...MONTHLY, interval: 'QUARTERLY' })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -245,11 +252,13 @@ beforeEach(async () => {
       return json(200, { internalNote: null })
     if (url.endsWith('/pause')) return json(200, { ...MONTHLY, active: false })
     if (url.endsWith('/resume')) return json(200, { ...PAUSED, active: true, nextRunDate: TODAY })
-    if (url.endsWith('/sch-1/runs')) return json(200, RUNS)
+    if (url.endsWith('/sch-1/runs')) return method === 'POST' ? runNowResponse() : json(200, RUNS)
     if (url === '/api/v1/periodic-invoice-schedules/sch-1')
       return method === 'PUT'
-        ? json(200, { ...MONTHLY, interval: 'QUARTERLY' })
-        : json(200, MONTHLY)
+        ? updateResponse()
+        : method === 'DELETE'
+          ? deleteResponse()
+          : json(200, MONTHLY)
     if (url === '/api/v1/periodic-invoice-schedules' && method === 'POST') return createResponse()
     if (url === '/api/v1/periodic-invoice-schedules') return json(200, schedules)
     throw new Error(`unexpected request to ${method} ${url}`)
@@ -276,6 +285,13 @@ function renderAt(path: string) {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+/** Opens a row's menu, read afresh since the list re-renders after each action. */
+async function chooseFromRow(customer: string, item: string) {
+  const row = (await screen.findByRole('link', { name: customer })).closest('tr') as HTMLElement
+  fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: item }))
 }
 
 describe('Periodic invoices, wired to the API', () => {
@@ -479,6 +495,58 @@ describe('Periodic invoices, wired to the API', () => {
         lines: [{ description: 'Cappuccino - Large' }, { description: 'Coffee Beans 1kg' }],
       },
     })
+  })
+
+  it('generates an invoice from the row menu, and says when the server refuses', async () => {
+    renderAt('/income/periodic')
+    await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    await waitFor(() =>
+      expect(calls('POST', '/api/v1/periodic-invoice-schedules/sch-1/runs')).toHaveLength(1),
+    )
+    expect(sentBody('POST', '/api/v1/periodic-invoice-schedules/sch-1/runs')).toEqual({})
+    expect(await screen.findByText(/Draft raised\. The next one is due/)).toBeTruthy()
+
+    runNowResponse = () =>
+      json(409, { title: 'Refused', status: 409, code: 'PERIODIC_RUN_IN_PROGRESS' })
+    await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    expect(await screen.findByText(/is being raised right now/)).toBeTruthy()
+
+    runNowResponse = () =>
+      json(200, { ...RUNS[1], outcome: 'DEAD_LETTERED', retryable: true, runDate: TODAY })
+    await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    expect(await screen.findByText(/The draft could not be raised/)).toBeTruthy()
+  })
+
+  it('deletes a schedule after asking, and says why when it has an open run', async () => {
+    renderAt('/income/periodic')
+    await chooseFromRow('Muscat Grand Hotel', 'Delete')
+    // Nothing is sent until the dialog is confirmed.
+    expect(await screen.findByText('Delete this schedule?')).toBeTruthy()
+    expect(calls('DELETE', '/api/v1/periodic-invoice-schedules/sch-1')).toHaveLength(0)
+
+    deleteResponse = () =>
+      json(409, { title: 'Refused', status: 409, code: 'PERIODIC_SCHEDULE_HAS_OPEN_RUN' })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText(/has a run in progress or waiting to be retried/)).toBeTruthy()
+
+    deleteResponse = () => new Response(null, { status: 204 })
+    const before = calls('GET', '/api/v1/periodic-invoice-schedules').length
+    await chooseFromRow('Muscat Grand Hotel', 'Delete')
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByText('Deleted. The drafts it raised are kept.')).toBeTruthy()
+    expect(calls('DELETE', '/api/v1/periodic-invoice-schedules/sch-1')).toHaveLength(2)
+    await waitFor(() =>
+      expect(calls('GET', '/api/v1/periodic-invoice-schedules').length).toBeGreaterThan(before),
+    )
+  })
+
+  it('asks for a reload when the schedule raised a draft since it was opened', async () => {
+    updateResponse = () =>
+      json(409, { title: 'Refused', status: 409, code: 'PERIODIC_RUN_ALREADY_RAISED' })
+    renderAt('/income/periodic/sch-1/edit')
+    await screen.findByDisplayValue('Cappuccino - Large')
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText(/This schedule changed since you opened it/)).toBeTruthy()
   })
 
   it('reads in Arabic', async () => {
