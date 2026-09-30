@@ -3043,7 +3043,8 @@
       "opening": "Opening…",
       "searchSeller": "Search suppliers",
       "noSellers": "No business suppliers on your customer list yet.",
-      "openEndedShort": "Open-ended"
+      "openEndedShort": "Open-ended",
+      "renewTitle": "Renew agreement"
     },
     "withdrawDialog": {
       "title": "Withdraw this agreement",
@@ -17774,7 +17775,9 @@
       "wrongType": "{{name}} is not a supported file type."
     },
     "pay": {
-      "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment."
+      "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.",
+      "amount": "Amount paid",
+      "date": "Paid on"
     }
   },
   "supplierNotes": {

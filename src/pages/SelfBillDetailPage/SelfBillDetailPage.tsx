@@ -935,6 +935,7 @@ function SelfBillScreen() {
           refusals={{
             BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'selfBillDetail.pay.notApproved' },
           }}
+          labelKeys={{ amount: 'selfBillDetail.pay.amount', date: 'selfBillDetail.pay.date' }}
           onClose={() => setPaying(false)}
           onRecorded={() => {
             setPaying(false)

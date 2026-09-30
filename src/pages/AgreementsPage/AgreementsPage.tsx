@@ -1015,7 +1015,12 @@ function OpenAgreementDialog({
     <Modal
       open
       onClose={onCancel}
-      title={t('agreements.openDialog.title')}
+      // "Renew" only while it renews: another supplier chosen here opens a new agreement instead.
+      title={t(
+        renewing !== null && renewing.customerId === customerId
+          ? 'agreements.openDialog.renewTitle'
+          : 'agreements.openDialog.title',
+      )}
       subtitle={t('agreements.openDialog.note')}
       width={560}
       footer={

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -410,6 +410,9 @@ describe('the agreements screen', () => {
     rows = [agreement({ effectiveTo: '2026-09-20' })]
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: 'Renew agreement' }))
+    // The dialog names what it does: renew, not open a new one.
+    expect(within(await screen.findByRole('dialog')).getByText('Renew agreement')).toBeTruthy()
+    expect(screen.queryByText('Open a self-billing agreement')).toBeNull()
     fireEvent.change(await screen.findByLabelText('Your reference for the agreement'), {
       target: { value: 'SBA-2027-004' },
     })

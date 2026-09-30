@@ -38,6 +38,7 @@ export function RecordPaymentModal({
   onRecorded,
   record,
   refusals,
+  labelKeys,
 }: {
   invoiceId: string
   invoiceNumber: string | null
@@ -55,6 +56,11 @@ export function RecordPaymentModal({
   record?: (idempotencyKey: string, payment: RecordPaymentRequest) => Promise<unknown>
   /** Refusals that route can add, named over {@link PAYMENT_REFUSALS}. */
   refusals?: Record<string, { field: PaymentField | null; key: string }>
+  /**
+   * The amount and date labels, when the money goes the other way: on a self-billed document the
+   * tenant pays its supplier, so "Amount paid" / "Paid on" rather than received.
+   */
+  labelKeys?: { amount: string; date: string }
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -148,7 +154,7 @@ export function RecordPaymentModal({
             <Input
               bordered
               name="amount"
-              label={t('invoiceDetails.pay.amount')}
+              label={t(labelKeys?.amount ?? 'invoiceDetails.pay.amount')}
               requiredMark
               inputMode="decimal"
               onFocus={selectAllOnFocus}
@@ -178,7 +184,7 @@ export function RecordPaymentModal({
           </Field>
           <Field
             name="paymentDate"
-            label={t('invoiceDetails.pay.date')}
+            label={t(labelKeys?.date ?? 'invoiceDetails.pay.date')}
             required
             error={errors.paymentDate ? t(errors.paymentDate) : undefined}
           >
@@ -187,7 +193,7 @@ export function RecordPaymentModal({
               onChange={(value) => change('paymentDate', value)}
               min={issueDate ?? undefined}
               max={today}
-              ariaLabel={t('invoiceDetails.pay.date')}
+              ariaLabel={t(labelKeys?.date ?? 'invoiceDetails.pay.date')}
             />
           </Field>
           <div data-field="reference">
