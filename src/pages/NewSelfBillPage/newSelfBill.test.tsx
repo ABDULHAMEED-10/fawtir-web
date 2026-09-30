@@ -163,8 +163,7 @@ beforeEach(async () => {
       return json(200, { content: [CUSTOMER], page: 0, size: 100, totalElements: 1 })
     if (url.startsWith('/api/v1/self-billing-agreements')) return json(200, agreements)
     if (url === '/api/v1/self-billed-invoice-drafts' && method === 'POST') return json(201, draft())
-    if (url === '/api/v1/invoice-drafts/sb-1' && method === 'GET')
-      return json(200, draftRead)
+    if (url === '/api/v1/invoice-drafts/sb-1' && method === 'GET') return json(200, draftRead)
     if (url === '/api/v1/invoice-drafts/sb-1' && method === 'PUT')
       return json(200, draft({ version: 4 }))
     if (url === '/api/v1/invoice-drafts/sb-1/preview') return json(200, PREVIEW)
@@ -403,6 +402,15 @@ describe('the dedicated self-billed composer', () => {
 
     expect(await screen.findByText(/Waiting on Fawtir to verify/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /verify/i })).toBeNull()
+  })
+
+  it('marks the self-bill number optional, as PINT-OM sets no rule for IBT-010', async () => {
+    renderAt('/income/self-billing/new')
+    await screen.findByRole('heading', { name: 'New self-billed invoice' })
+    const label = document.querySelector('label[for="sb-number"]')!
+    expect(label.textContent).not.toContain('*')
+    // The issue date beside it stays required.
+    expect(screen.getByText('Issue date').closest('label')!.textContent).toContain('*')
   })
 
   it('refuses to save without a supplier, and never asks the server', async () => {

@@ -7157,8 +7157,8 @@
         "380": "Commercial invoice",
         "381": "Credit note",
         "383": "Debit note",
-        "389": "Self-billed invoice",
-        "386": "Prepayment invoice"
+        "386": "Prepayment invoice",
+        "389": "Self-billed invoice"
       },
       "issuedOn": "Issued",
       "paymentDue": "Payment due",

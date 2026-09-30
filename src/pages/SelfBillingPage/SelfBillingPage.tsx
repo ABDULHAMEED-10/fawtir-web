@@ -638,7 +638,7 @@ const EMPTY_PAGE: Page<InvoiceRowDto> = {
 /**
  * The design's four cards (Raised this month, Input VAT claimed, Awaiting supplier, Agreements
  * expiring). The first three are the summary's (`issuedThisMonth`, `awaitingSupplier`); the
- * fourth is the value of the documents in view whose supplier's agreement ends within 30 days.
+ * fourth counts the agreements that end within 30 days.
  */
 function SelfBillingKpiCards({
   page,
@@ -674,7 +674,6 @@ function SelfBillingKpiCards({
         )
         .sort((a, b) => a.agreement.effectiveTo!.localeCompare(b.agreement.effectiveTo!))
     : []
-  const endingValue = ending.reduce((sum, entry) => sum + (entry.row.totals?.totalAmount ?? 0), 0)
   const first = ending[0]
   const money = (value: number) => formatAmount(value, currency, language)
   const count = (value: number) => formatCount(value, language)
@@ -713,8 +712,8 @@ function SelfBillingKpiCards({
       id: 'expiring',
       icon: expiringIcon,
       titleKey: 'selfBilling.kpi.expiring',
-      figure: expiring === null ? '—' : money(endingValue),
-      currency: expiring !== null,
+      figure: expiring === null ? '—' : count(expiring),
+      currency: false,
       meta: first
         ? daysBetween(today, first.agreement.effectiveTo!) === 0
           ? t('selfBilling.kpi.expiringToday', { supplier: first.row.customerName })
@@ -893,6 +892,7 @@ function SelfBilledTable({
                   </td>
                   <SelfBilledRowCells
                     row={row}
+                    to={editable ? draftEditPath(row) : `/income/self-billing/${row.id}`}
                     vat={byRow.get(row.id)?.vat ?? null}
                     note={noteFor(byRow.get(row.id)?.customerId ?? '')}
                   />
@@ -927,10 +927,13 @@ function StatusChip({ chip, label, title }: { chip: Chip; label: string; title?:
 
 function SelfBilledRowCells({
   row,
+  to,
   vat,
   note,
 }: {
   row: InvoiceListItem
+  /** Where the number goes: the row's own destination (a draft opens its editor). */
+  to: string
   vat: number | null
   note: AgreementNote | null
 }) {
@@ -987,7 +990,7 @@ function SelfBilledRowCells({
     <>
       <td className="px-2 py-2.5">
         <Link
-          to={`/income/self-billing/${row.id}`}
+          to={to}
           onClick={(event) => event.stopPropagation()}
           className="text-sm font-semibold text-text-quaternary hover:underline"
         >

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -111,7 +111,19 @@ beforeEach(async () => {
   vi.stubGlobal('fetch', fetchMock)
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
+
+/**
+ * The cards count days from Muscat's today; pin the clock mid-day so the UTC date the tests build
+ * from is the same day in Muscat whatever hour the suite runs.
+ */
+function pinMuscatMidday() {
+  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-25T09:00:00Z'))
+}
 
 function renderPage(path = '/income/self-billing') {
   return render(
@@ -229,12 +241,30 @@ describe('the self-billed documents list', () => {
   })
 
   it("names the supplier whose agreement ends soonest on the frame's fourth card", async () => {
+    pinMuscatMidday()
     // Ends in 9 days from the row's issue date... the card counts from today.
     const soon = new Date()
     soon.setUTCDate(soon.getUTCDate() + 9)
     agreements = [agreement({ effectiveTo: soon.toISOString().slice(0, 10) })]
     renderPage()
     expect(await screen.findByText('Muscat Roastery Co expires in 9 days')).toBeTruthy()
+  })
+
+  it('counts the agreements ending soon on the fourth card rather than pricing them', async () => {
+    pinMuscatMidday()
+    const soon = new Date()
+    soon.setUTCDate(soon.getUTCDate() + 9)
+    const ends = soon.toISOString().slice(0, 10)
+    agreements = [
+      agreement({ id: 'a-1', effectiveTo: ends }),
+      agreement({ id: 'a-2', customerId: 'c-2', effectiveTo: ends }),
+    ]
+    renderPage()
+    const card = (await screen.findByText('Agreements expiring')).closest('article')!
+    // Two agreements, drawn as a count: no rial sign, no three decimals.
+    expect(await within(card as HTMLElement).findByText('2')).toBeTruthy()
+    expect(card.textContent).not.toMatch(/\d\.\d{3}/)
+    expect(card.querySelectorAll('img')).toHaveLength(1)
   })
 
   it('offers the create button only to someone who may self-bill', async () => {
@@ -254,6 +284,7 @@ describe('the self-billed documents list', () => {
   })
 
   it('draws the first three cards from the summary of self-billed invoices, not from the page', async () => {
+    pinMuscatMidday()
     const oldest = new Date()
     oldest.setUTCDate(oldest.getUTCDate() - 4)
     summary = {
@@ -285,6 +316,30 @@ describe('the self-billed documents list', () => {
     renderPage()
     const link = await screen.findByRole('link', { name: 'SB-0001' })
     expect(link.getAttribute('href')).toBe('/income/self-billing/i-1')
+  })
+
+  it("sends a draft's number to the composer the row opens, not the detail page", async () => {
+    who = { ...USER, permissions: [...USER.permissions, 'selfbilling.create'] }
+    rows = [
+      row({
+        id: 'sbc-1',
+        type: 'SELF_BILLED_CREDIT_NOTE',
+        authoringState: 'DRAFT',
+        invoiceNumber: null,
+      }),
+      row({ id: 'sbi-1', authoringState: 'DRAFT', invoiceNumber: null }),
+      row({ id: 'i-1' }),
+    ]
+    renderPage()
+    await screen.findByRole('link', { name: 'SB-0001' })
+    const drafts = screen.getAllByRole('link', { name: 'Not numbered yet' })
+    expect(drafts.map((link) => link.getAttribute('href'))).toEqual([
+      '/income/self-billing/credit-notes/sbc-1/edit',
+      '/income/self-billing/sbi-1/edit',
+    ])
+    expect(screen.getByRole('link', { name: 'SB-0001' }).getAttribute('href')).toBe(
+      '/income/self-billing/i-1',
+    )
   })
 
   it('reopens a self-billed credit note draft in the credit-note composer it was written in', async () => {

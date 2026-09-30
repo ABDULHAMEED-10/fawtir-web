@@ -1035,13 +1035,12 @@ function SelfBillComposer() {
           <SectionTitle step={2} title={t('newSelfBill.sections.document')} />
           <div className="h-px w-full bg-surface-background" />
           <div className="grid gap-4 md:grid-cols-3">
-            {/* Required in the frame; the hint (IBT-010, numbered at issue) sits on the field's title. */}
+            {/* Optional: PINT-OM makes no rule for IBT-010; the hint sits on the field's title. */}
             <TextField
               id="sb-number"
               label={t('newSelfBill.fields.number')}
               value={form.number}
               onChange={(number) => patch({ number })}
-              required
               title={t('newSelfBill.fields.numberHint')}
               highlighted
               disabled={!editable}
@@ -1307,9 +1306,7 @@ function SelfBillComposer() {
                   </span>
                   <button
                     type="button"
-                    onClick={() =>
-                      setHeldFiles((current) => current.filter((_, i) => i !== index))
-                    }
+                    onClick={() => setHeldFiles((current) => current.filter((_, i) => i !== index))}
                     aria-label={t('newSelfBill.attachments.remove', { name: file.name })}
                     className="inline-flex size-8 shrink-0 items-center justify-center rounded-sm hover:bg-neutral-25"
                   >
