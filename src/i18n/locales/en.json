@@ -17571,7 +17571,8 @@
     },
     "pay": {
       "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment."
-    }
+    },
+    "creditNote": "Credit note"
   },
   "supplierNotes": {
     "searchPlaceholder": "Search supplier, bill number...",

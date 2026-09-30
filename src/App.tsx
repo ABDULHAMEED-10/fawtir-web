@@ -140,7 +140,7 @@ import { AgreementsPage } from './pages/AgreementsPage'
 import { SelfBillDetailPage } from './pages/SelfBillDetailPage'
 import { PeriodicInvoicesPage } from './pages/PeriodicInvoicesPage'
 import { PeriodicInvoicePage } from './pages/PeriodicInvoicePage'
-import { NewCreditNotePage } from './pages/NewCreditNotePage'
+import { NewCreditNotePage, NewSelfBilledCreditNotePage } from './pages/NewCreditNotePage'
 import { CreditNotesPage } from './pages/CreditNotesPage'
 import { CreditNoteDetailsPage } from './pages/CreditNoteDetailsPage'
 import { CustomersPage } from './pages/CustomersPage'
@@ -458,6 +458,23 @@ function App() {
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBillPage />
+              </PlanGated>
+            }
+          />
+          {/* A self-billed credit note, in the credit-note composer (D6), from an issued self-billed invoice. */}
+          <Route
+            path="/income/self-billing/credit-notes/new"
+            element={
+              <PlanGated feature="selfBilling">
+                <NewSelfBilledCreditNotePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/income/self-billing/credit-notes/:id/edit"
+            element={
+              <PlanGated feature="selfBilling">
+                <NewSelfBilledCreditNotePage />
               </PlanGated>
             }
           />

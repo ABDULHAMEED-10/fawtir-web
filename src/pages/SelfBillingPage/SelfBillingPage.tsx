@@ -77,6 +77,15 @@ import deleteIcon from '../../assets/actions/delete.svg'
 import { LIST_PAGE_SIZES as PAGE_SIZES, ListPager } from './ListPager'
 
 const DEFAULT_PAGE_SIZE = 6
+
+/**
+ * Where a draft reopens: a self-billed credit note in the credit-note composer it was written in
+ * (D6), a self-billed invoice in the self-bill composer.
+ */
+const draftEditPath = (row: { id: string; type: InvoiceTypeDto }) =>
+  row.type === 'SELF_BILLED_CREDIT_NOTE'
+    ? `/income/self-billing/credit-notes/${row.id}/edit`
+    : `/income/self-billing/${row.id}/edit`
 /**
  * The cards' figures: self-billed invoices only (a self-billed credit note would otherwise reduce
  * "Raised this month"), in the rial the cards draw.
@@ -793,7 +802,7 @@ function SelfBilledTable({
         id: 'edit',
         labelKey: 'rowActions.selfBill.edit',
         icon: editIcon,
-        to: `/income/self-billing/${row.id}/edit`,
+        to: draftEditPath(row),
       })
       items.push({
         id: 'delete',
@@ -864,11 +873,7 @@ function SelfBilledTable({
                   key={row.id}
                   className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
                   onClick={() =>
-                    navigate(
-                      editable
-                        ? `/income/self-billing/${row.id}/edit`
-                        : `/income/self-billing/${row.id}`,
-                    )
+                    navigate(editable ? draftEditPath(row) : `/income/self-billing/${row.id}`)
                   }
                 >
                   <td className="px-5 py-2.5" onClick={(event) => event.stopPropagation()}>

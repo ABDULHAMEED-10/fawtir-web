@@ -61,6 +61,7 @@ import fileJpgIcon from '../../assets/self-bill-detail/file-jpg.svg'
 import fileDownloadIcon from '../../assets/self-bill-detail/file-download.svg'
 import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
+import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 
 /** What the attachment route takes: the invoice composer's list and limit. */
@@ -340,6 +341,13 @@ function SelfBillScreen() {
     owed.paymentState !== 'NOT_APPLICABLE' &&
     owed.paymentState !== 'PAID'
 
+  // A self-billed credit note (261) corrects an ISSUED self-billed invoice only (decision D6: the
+  // credit-note composer, as the invoice page opens it). The create route asks selfbilling.create.
+  const canCredit =
+    data.type === 'SELF_BILLED_INVOICE' &&
+    data.authoringState === 'ISSUED' &&
+    can(session, 'selfbilling.create')
+
   const failureText = (error: unknown) => {
     const message = describeApiFailure(error)
     const body = t(message.key, message.values)
@@ -446,6 +454,15 @@ function SelfBillScreen() {
           >
             {t('selfBillDetail.sendReminder')}
           </button>
+          {canCredit ? (
+            <Link
+              to={`/income/self-billing/credit-notes/new?invoice=${encodeURIComponent(data.id)}`}
+              className={OUTLINE_BUTTON}
+            >
+              <img src={creditNoteIcon} alt="" className="size-5" />
+              {t('selfBillDetail.creditNote')}
+            </Link>
+          ) : null}
           <button
             type="button"
             disabled={!canPay}
