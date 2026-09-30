@@ -3044,7 +3044,13 @@
       "searchSeller": "Search suppliers",
       "noSellers": "No business suppliers on your customer list yet.",
       "openEndedShort": "Open-ended",
-      "renewTitle": "Renew agreement"
+      "renewTitle": "Renew agreement",
+      "isic": "Supplier's business activity (ISIC)",
+      "isicHint": "Goes on every line of the self-billed documents you issue for this supplier, as the seller's activity. Saved on the supplier's record.",
+      "isicPlaceholder": "Choose the supplier's business activity",
+      "isicRequired": "This supplier has no business activity on its record yet. Choose one: self-billed documents for this supplier cannot be issued without it.",
+      "isicRefused": "The supplier's business activity was not saved. Check the code and try again.",
+      "isicUnreadable": "The supplier's record could not be read, so its business activity is unknown. Close this and try again."
     },
     "withdrawDialog": {
       "title": "Withdraw this agreement",
@@ -15920,7 +15926,9 @@
       "counterpartyInactive": "This supplier is not active in your records. Reactivate it, then issue.",
       "counterpartyLegalName": "This supplier has no legal registered name on its record. Add it, then issue.",
       "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
-      "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue."
+      "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue.",
+      "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. Set it on the supplier's agreement in Self-billing, Agreements, then issue.",
+      "supplierIsicAction": "Go to agreements"
     }
   },
   "appAccess": {

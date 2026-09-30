@@ -6,6 +6,7 @@ import { Field, ModalFooter, focusFirstInvalidField } from '../../pages/ConsoleP
 import { issueDraft, newIdempotencyKey, previewDraft, type DraftPreview } from '../../api/invoices/drafts'
 import type { InvoiceDetailDto } from '../../api/invoices/detail'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { SELF_BILLING_AGREEMENTS_ROUTE, SUPPLIER_ISIC_MISSING_KEY, isSupplierIsicMissing } from '../../lib/selfBillingRefusals'
 import { formatAmount } from '../../lib/format'
 import { issueProblems, issueRefusalOf, muscatToday, type IssueField, type IssueForm } from '../../lib/invoiceIssue'
 
@@ -25,6 +26,7 @@ export function IssueInvoiceModal({
   initialIssueDate,
   initialDueDate,
   kind = 'INVOICE',
+  selfBilled = false,
   onClose,
   onIssued,
 }: {
@@ -38,6 +40,11 @@ export function IssueInvoiceModal({
    * sent as it.
    */
   kind?: 'INVOICE' | 'CREDIT_NOTE' | 'DEBIT_NOTE'
+  /**
+   * A self-billed document: its seller is the supplier, so a missing business activity (BTOM-033)
+   * is the supplier's, set on its agreement, not the company's.
+   */
+  selfBilled?: boolean
   onClose: () => void
   onIssued: (invoice: InvoiceDetailDto) => void
 }) {
@@ -49,6 +56,8 @@ export function IssueInvoiceModal({
   const [key, setKey] = useState(newIdempotencyKey)
   const [errors, setErrors] = useState<Partial<Record<IssueField, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
+  // Only the supplier's missing business activity carries a way out: the page where it is set.
+  const [failureLink, setFailureLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // Two clicks in one tick both run before `busy` renders the button disabled; the second would be
   // refused by the key (409, request in progress) and flash an error over a successful issue.
@@ -81,6 +90,7 @@ export function IssueInvoiceModal({
     const problems = issueProblems(sent, today)
     setErrors(problems)
     setFailure(null)
+    setFailureLink(null)
     if (Object.values(problems).some(Boolean)) {
       focusFirstInvalidField(target, ORDER, problems)
       return
@@ -93,7 +103,10 @@ export function IssueInvoiceModal({
       onIssued(issued)
     } catch (error) {
       const refusal = issueRefusalOf(error)
-      if (refusal?.field) {
+      if (selfBilled && isSupplierIsicMissing(error)) {
+        setFailure(t(SUPPLIER_ISIC_MISSING_KEY))
+        setFailureLink(SELF_BILLING_AGREEMENTS_ROUTE)
+      } else if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
         setFailure(t(refusal.key, refusal.values))
@@ -125,7 +138,12 @@ export function IssueInvoiceModal({
       footer={<ModalFooter formId={FORM_ID} onCancel={onClose} submitLabel={busy ? t('invoiceIssue.issuing') : t(`${copy}.submit`)} disabled={busy} />}
     >
       <form id={FORM_ID} noValidate onSubmit={submit} className="flex flex-col gap-4">
-        {failure ? <Notice body={failure} /> : null}
+        {failure ? (
+          <Notice
+            body={failure}
+            action={failureLink ? { label: t('apiErrors.selfBilling.supplierIsicAction'), to: failureLink } : undefined}
+          />
+        ) : null}
 
         <div className="flex items-baseline justify-between gap-3 rounded-sm bg-surface-tab-bar px-4 py-3">
           <span className="text-sm font-medium text-text-secondary">{t('invoiceIssue.total')}</span>

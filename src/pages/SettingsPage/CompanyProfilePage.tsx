@@ -31,8 +31,7 @@ import {
   saveCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
-import { ISIC_ACTIVITIES } from '../../lib/codeLists/isic'
-import { nameOf } from '../../lib/codeLists/codeList'
+import { isicOptions as isicOptionsFor } from '../../lib/codeLists/isic'
 import infoIcon from '../../assets/settings/info.svg'
 import tickIcon from '../../assets/settings/check-white.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -221,15 +220,7 @@ export function CompanyProfilePage() {
   // Searched by activity name; the code is the hint so a known code finds it too.
   // TODO(backend): `GET /v1/code-lists/isic?q=` for the search, and the choice stored as
   // `industrialClassification { code, name }` on `GET/PUT /v1/settings/company`.
-  const isicOptions = useMemo<SelectOption[]>(
-    () =>
-      ISIC_ACTIVITIES.map((activity) => ({
-        value: activity.code,
-        label: nameOf(activity, i18n.language),
-        hint: `ISIC ${activity.code}`,
-      })),
-    [i18n.language],
-  )
+  const isicOptions = useMemo<SelectOption[]>(() => isicOptionsFor(i18n.language), [i18n.language])
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => {
     setForm((current) => ({ ...current, [key]: value }))

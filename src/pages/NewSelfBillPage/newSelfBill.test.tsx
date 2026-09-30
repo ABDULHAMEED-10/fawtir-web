@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -338,6 +338,36 @@ describe('the dedicated self-billed composer', () => {
         'This supplier has no VAT registration number on its record. Add it, then issue.',
       ),
     ).toBeTruthy()
+  })
+
+  it("reads a missing business activity at issue as the supplier's, and links to where it is set", async () => {
+    // BTOM-033 is the seller's code; on a self-billed invoice the seller is the supplier, so the
+    // sales invoice's "set your business activity in Company settings" would send the reader to
+    // the wrong record.
+    renderAt('/income/self-billing/sb-1/edit')
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Self-bill number/)).toHaveProperty('value', 'SB-0115'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Issue self-billed invoice' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Issue this invoice?' })
+    // The dialog prices the draft first; the refusal is for the issue that follows.
+    await within(dialog).findByText(/22\.680/)
+    fetchMock.mockImplementationOnce(async () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        status: 400,
+        code: 'INDUSTRIAL_CLASSIFICATION_REQUIRED',
+      }),
+    )
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Issue invoice' }))
+
+    expect(
+      await within(dialog).findByText(/This supplier has no business activity \(ISIC code\)/),
+    ).toBeTruthy()
+    expect(within(dialog).queryByText(/Company settings/)).toBeNull()
+    expect(
+      within(dialog).getByRole('link', { name: 'Go to agreements' }).getAttribute('href'),
+    ).toBe('/income/self-billing/agreements')
   })
 
   it('reads a saved draft back and saves it through the shared draft route', async () => {

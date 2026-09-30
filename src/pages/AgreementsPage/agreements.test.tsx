@@ -54,6 +54,12 @@ let who: Entitlements
 let rows: AgreementDto[]
 let posted: { url: string; body: unknown }[]
 let refuseWith: { code: string; status: number } | null
+/** The supplier's stored business activity (BTOM-033); null for a supplier with none yet. */
+let storedIsic: string | null
+let patched: unknown[]
+let refusePatch: boolean
+/** Every write, in the order sent: the supplier's PATCH must come before the agreement's POST. */
+let writes: string[]
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -64,12 +70,40 @@ beforeEach(async () => {
   rows = [agreement()]
   posted = []
   refuseWith = null
+  storedIsic = '061000'
+  patched = []
+  refusePatch = false
+  writes = []
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
+    if (url === '/api/v1/customers/c-1') {
+      if (init?.method === 'PATCH') {
+        writes.push('PATCH customer')
+        patched.push(JSON.parse(String(init.body)))
+        if (refusePatch) {
+          // What the company's own activity answers for a code off the list: a bare 400.
+          return new Response(
+            JSON.stringify({
+              type: 'https://api.fawtir.om/problems/validation-failed',
+              status: 400,
+              detail: 'The business activity must be a six-digit code from the Oman ISIC list',
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+          )
+        }
+      }
+      return json(200, {
+        id: 'c-1',
+        type: 'BUSINESS',
+        displayName: 'Muscat Roastery Co',
+        version: 3,
+        profile: { details: { industrialClassificationCode: storedIsic } },
+      })
+    }
     if (url.startsWith('/api/v1/customers')) {
       // The customers list is a Spring page (content/size/totalElements), not an items page.
       return json(200, {
@@ -90,6 +124,7 @@ beforeEach(async () => {
     }
     if (url.startsWith(AGREEMENTS_URL)) {
       if (init?.method === 'POST') {
+        writes.push('POST agreement')
         posted.push({ url, body: init.body ? JSON.parse(String(init.body)) : null })
         if (refuseWith !== null) {
           return new Response(
@@ -124,6 +159,16 @@ function renderPage(path = '/income/self-billing/agreements') {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+/**
+ * Confirms the dialog once it can be: it waits for the chosen supplier's record, which says
+ * whether the supplier already has its business activity (BTOM-033).
+ */
+async function confirmOpen() {
+  const confirm = screen.getByRole('button', { name: 'Open the agreement' })
+  await waitFor(() => expect(confirm).toHaveProperty('disabled', false))
+  fireEvent.click(confirm)
 }
 
 describe('what an agreement permits', () => {
@@ -316,7 +361,7 @@ describe('the agreements screen', () => {
     fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
       target: { value: 'SBA-9' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+    await confirmOpen()
 
     await waitFor(() =>
       expect(posted.at(-1)?.body).toEqual({
@@ -344,7 +389,7 @@ describe('the agreements screen', () => {
     fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
       target: { value: 'SBA-10' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+    await confirmOpen()
     await waitFor(() => expect(posted.at(-1)?.body).toMatchObject({ effectiveFrom: '2026-09-22' }))
   })
 
@@ -358,7 +403,7 @@ describe('the agreements screen', () => {
     fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
       target: { value: 'SBA-9' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+    await confirmOpen()
 
     expect(await screen.findByText(/already a live agreement with this supplier/)).toBeTruthy()
     expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
@@ -416,7 +461,7 @@ describe('the agreements screen', () => {
     fireEvent.change(await screen.findByLabelText('Your reference for the agreement'), {
       target: { value: 'SBA-2027-004' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+    await confirmOpen()
 
     await waitFor(() => expect(posted.at(-1)?.url).toBe(`${AGREEMENTS_URL}/a-1/renewal`))
     expect(posted.at(-1)?.body).toEqual({
@@ -436,7 +481,7 @@ describe('the agreements screen', () => {
     fireEvent.change(await screen.findByLabelText('Your reference for the agreement'), {
       target: { value: 'SBA-2027-004' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+    await confirmOpen()
 
     expect(await screen.findByText(/This agreement was withdrawn/)).toBeTruthy()
     expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
@@ -451,5 +496,111 @@ describe('the agreements screen', () => {
         .map(([url]) => String(url))
         .some((url) => url.startsWith(AGREEMENTS_URL)),
     ).toBe(false)
+  })
+})
+
+describe("the supplier's business activity in the agreement dialog (BTOM-033)", () => {
+  const ISIC = "Supplier's business activity (ISIC)"
+
+  async function openFor(reference: string) {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'New agreement' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Supplier' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Muscat Roastery Co' }))
+    fireEvent.change(screen.getByLabelText('Your reference for the agreement'), {
+      target: { value: reference },
+    })
+  }
+
+  function pickIsic(code: string, name: RegExp) {
+    fireEvent.click(screen.getByRole('button', { name: ISIC }))
+    fireEvent.change(screen.getByPlaceholderText('Search by activity name'), {
+      target: { value: code },
+    })
+    fireEvent.click(screen.getByRole('option', { name }))
+  }
+
+  it("prefills the supplier's stored code and writes nothing to the supplier when it is kept", async () => {
+    await openFor('SBA-11')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: ISIC }).textContent).toContain(
+        'Extraction of crude petroleum',
+      ),
+    )
+    expect(screen.queryByText(/has no business activity on its record yet/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+
+    await waitFor(() => expect(writes).toEqual(['POST agreement']))
+    expect(patched).toHaveLength(0)
+  })
+
+  it('PATCHes a changed code onto the supplier, at its version, before opening the agreement', async () => {
+    await openFor('SBA-12')
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: ISIC }).hasAttribute('disabled')).toBe(false),
+    )
+    pickIsic('062000', /Extraction of natural gas/)
+    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+
+    await waitFor(() => expect(writes).toEqual(['PATCH customer', 'POST agreement']))
+    expect(patched).toEqual([
+      { details: { industrialClassificationCode: '062000' }, expectedVersion: 3 },
+    ])
+    expect(posted.at(-1)?.body).toMatchObject({ customerId: 'c-1', agreementReference: 'SBA-12' })
+  })
+
+  it('requires a code while the supplier has none, then saves it first', async () => {
+    storedIsic = null
+    await openFor('SBA-13')
+    expect(await screen.findByText(/has no business activity on its record yet/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open the agreement' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+
+    pickIsic('061000', /Extraction of crude petroleum/)
+    const confirm = screen.getByRole('button', { name: 'Open the agreement' })
+    expect(confirm).toHaveProperty('disabled', false)
+    fireEvent.click(confirm)
+
+    await waitFor(() => expect(writes).toEqual(['PATCH customer', 'POST agreement']))
+    expect(patched[0]).toEqual({
+      details: { industrialClassificationCode: '061000' },
+      expectedVersion: 3,
+    })
+  })
+
+  it('says a refused code on the field, keeps the dialog open, and opens no agreement', async () => {
+    storedIsic = null
+    refusePatch = true
+    await openFor('SBA-14')
+    await screen.findByText(/has no business activity on its record yet/)
+    pickIsic('061000', /Extraction of crude petroleum/)
+    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+
+    expect(
+      await screen.findByText(
+        "The supplier's business activity was not saved. Check the code and try again.",
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(writes).toEqual(['PATCH customer'])
+    expect(posted).toHaveLength(0)
+  })
+
+  it('asks for it on a renewal too, and saves it before renewing', async () => {
+    rows = [agreement({ effectiveTo: '2026-09-20' })]
+    storedIsic = null
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Renew agreement' }))
+    fireEvent.change(await screen.findByLabelText('Your reference for the agreement'), {
+      target: { value: 'SBA-2027-005' },
+    })
+    await screen.findByText(/has no business activity on its record yet/)
+    pickIsic('062000', /Extraction of natural gas/)
+    await confirmOpen()
+
+    await waitFor(() => expect(writes).toEqual(['PATCH customer', 'POST agreement']))
+    expect(posted.at(-1)?.url).toBe(`${AGREEMENTS_URL}/a-1/renewal`)
   })
 })

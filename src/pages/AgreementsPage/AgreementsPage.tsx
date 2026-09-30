@@ -35,8 +35,17 @@ import {
   type AgreementDto,
   type AgreementStatusDto,
 } from '../../api/selfBilling/agreements'
-import { customerListPath, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
-import type { Page } from '../../api'
+import {
+  CUSTOMERS_PATH,
+  customerListPath,
+  loadCustomerPage,
+  loadCustomerRecord,
+  patchCustomer,
+  type CustomerDto,
+  type CustomerRecordDto,
+} from '../../api/customers/customers'
+import { ApiError, type Page } from '../../api'
+import { isicOptions } from '../../lib/codeLists/isic'
 import {
   AGREEMENT_TABS,
   EXPIRING_WITHIN_DAYS,
@@ -962,6 +971,15 @@ function DialogActions({
  * dialog says so before it writes rather than leaving it to be discovered. Opened from "Renew
  * agreement" it renews that agreement (`POST …/{id}/renewal`): the lapsed one is withdrawn and its
  * successor opened in one step, where opening a second live agreement would be refused.
+ *
+ * **The supplier's business activity (BTOM-033) is asked here.** On a self-billed document the
+ * seller is the supplier, and IBR-081-OM puts the seller's ISIC code on every line, so it is the
+ * supplier's code, not the tenant's (Zain, 2026-09-30: one code, on the supplier's record, captured
+ * when the agreement is opened). The chosen supplier's record is read for it and for the version
+ * a change is written against. Required only while the supplier has none: a supplier that already
+ * has one is prefilled, and an agreement opened without one would only be refused at issue
+ * (`INDUSTRIAL_CLASSIFICATION_REQUIRED`). A changed code is PATCHed onto the supplier first, so the
+ * agreement is never opened on a code that failed to save.
  */
 function OpenAgreementDialog({
   customers,
@@ -978,21 +996,63 @@ function OpenAgreementDialog({
   onDone: (renewed: boolean) => void
   onFailure: (error: unknown) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [customerId, setCustomerId] = useState(renewing?.customerId ?? '')
   const [reference, setReference] = useState('')
   const [from, setFrom] = useState(() => muscatToday())
   const [to, setTo] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // The supplier's whole record: its stored ISIC code and the version a change must name.
+  const recordPath =
+    customerId === '' ? null : `${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`
+  const record = useApiRead<CustomerRecordDto>(recordPath, () => loadCustomerRecord(customerId))
+  const supplier =
+    record.read.status === 'ready' && record.read.data.id === customerId ? record.read.data : null
+  const storedIsic = supplier?.profile.details.industrialClassificationCode ?? ''
+  // The reader's pick, kept with the supplier it was made for, so switching supplier re-prefills.
+  const [isicPick, setIsicPick] = useState<{ customerId: string; code: string } | null>(null)
+  const isic = isicPick?.customerId === customerId ? isicPick.code : storedIsic
+  const [isicRefused, setIsicRefused] = useState(false)
+  const isicChoices = useMemo(() => isicOptions(i18n.language), [i18n.language])
+
   const referenceProblem = agreementProblem(reference)
   const datesProblem = rangeProblem(from, to)
-  const ready = customerId !== '' && referenceProblem === null && datesProblem === null
+  const ready =
+    customerId !== '' &&
+    supplier !== null &&
+    isic !== '' &&
+    referenceProblem === null &&
+    datesProblem === null
 
   const submit = async () => {
-    if (!ready) return
+    if (!ready || supplier === null) return
     setSaving(true)
+    setIsicRefused(false)
     try {
+      if (isic !== storedIsic) {
+        try {
+          await patchCustomer(customerId, {
+            details: { industrialClassificationCode: isic },
+            expectedVersion: supplier.version,
+          })
+        } catch (error) {
+          // The code itself refused (the same 400 the company's own activity gets): said on the
+          // field, and the dialog stays open to pick another. Anything else is the page's notice.
+          if (
+            error instanceof ApiError &&
+            error.status === 400 &&
+            (error.problemType === 'validation-failed' ||
+              error.fieldErrors.some((entry) =>
+                entry.field.endsWith('industrialClassificationCode'),
+              ))
+          ) {
+            setIsicRefused(true)
+            return
+          }
+          throw error
+        }
+      }
       const terms = {
         agreementReference: reference.trim(),
         effectiveFrom: from,
@@ -1051,6 +1111,43 @@ function OpenAgreementDialog({
             emptyText={t('agreements.openDialog.noSellers')}
           />
         </div>
+
+        {customerId !== '' ? (
+          <div>
+            <span className="mb-1 block text-sm font-medium text-text-primary">
+              {t('agreements.openDialog.isic')}
+            </span>
+            <Combobox
+              value={isic}
+              onChange={(code) => {
+                setIsicPick({ customerId, code })
+                setIsicRefused(false)
+              }}
+              options={isicChoices}
+              placeholder={t('agreements.openDialog.isicPlaceholder')}
+              searchPlaceholder={t('companyProfile.industrialClassificationSearch')}
+              emptyText={t('companyProfile.industrialClassificationNone')}
+              ariaLabel={t('agreements.openDialog.isic')}
+              disabled={supplier === null}
+            />
+            <span className="mt-1 block text-xs font-medium text-text-quaternary">
+              {t('agreements.openDialog.isicHint')}
+            </span>
+            {record.read.status === 'failed' ? (
+              <span role="alert" className="mt-1 block text-sm font-medium text-danger-700">
+                {t('agreements.openDialog.isicUnreadable')}
+              </span>
+            ) : isicRefused ? (
+              <span role="alert" className="mt-1 block text-sm font-medium text-danger-700">
+                {t('agreements.openDialog.isicRefused')}
+              </span>
+            ) : supplier !== null && storedIsic === '' && isic === '' ? (
+              <span role="status" className="mt-1 block text-sm font-medium text-pending-700">
+                {t('agreements.openDialog.isicRequired')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-text-primary">

@@ -32,7 +32,7 @@ import {
 import { muscatToday, plusDays } from '../../lib/invoiceIssue'
 import { netDaysFor, useReferenceData } from '../../lib/reference/referenceData'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { selfBillingMessageKey } from '../../lib/selfBillingRefusals'
+import { selfBilledIssueMessageKey } from '../../lib/selfBillingRefusals'
 import { can, useSession } from '../../lib/session/session'
 import { formatAmount } from '../../lib/format'
 import {
@@ -511,7 +511,7 @@ function SelfBillComposer() {
     })
 
   const failureText = (error: unknown): string => {
-    const named = selfBillingMessageKey(error)
+    const named = selfBilledIssueMessageKey(error)
     if (named) return t(named)
     if (error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION')
       return t('invoiceDraft.stale')
@@ -1369,6 +1369,7 @@ function SelfBillComposer() {
           version={issuing.version}
           initialIssueDate={form.issueDate || today}
           initialDueDate={form.paymentDue || form.issueDate || today}
+          selfBilled
           onClose={() => setIssuing(null)}
           onIssued={(invoice) => {
             setIssuing(null)

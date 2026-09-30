@@ -42,7 +42,7 @@ import {
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { selfBillingMessageKey } from '../../lib/selfBillingRefusals'
+import { selfBilledIssueMessageKey } from '../../lib/selfBillingRefusals'
 import { selfBillOwed } from '../../lib/selfBillDetail'
 import { formatAmount, formatDate } from '../../lib/format'
 import { issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
@@ -592,7 +592,7 @@ function NoteEditor({
     } catch (error) {
       // A self-billed note meets the agreement gates at issue (an agreement in force on the note's
       // issue date, a verified seller, a complete counterparty record): named before anything else.
-      const selfBilling = selfBilled ? selfBillingMessageKey(error) : null
+      const selfBilling = selfBilled ? selfBilledIssueMessageKey(error) : null
       if (selfBilling) {
         setNotice(t(selfBilling))
         return

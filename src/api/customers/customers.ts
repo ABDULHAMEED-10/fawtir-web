@@ -27,6 +27,8 @@ export type CustomerDto = {
       vatRegistrationNumber: string | null
       /** The Peppol participant id, shown beside the VAT number on the periodic composer's customer card. */
       peppolParticipantId?: { scheme: string; value: string } | null
+      /** BTOM-033 of a self-billing supplier; see `CustomerDetailsDto`. */
+      industrialClassificationCode?: string | null
     } | null
     contact: { contactPerson: string | null; emailRecipients: string[] | null } | null
     deliveryPreferences: {
@@ -193,6 +195,13 @@ export type CustomerDetailsDto = {
   peppolParticipantId: { scheme: string; value: string } | null
   registeredOnPeppol: boolean | null
   specialZoneLicenceNumber?: string | null
+  /**
+   * The customer's business activity: one ISIC Rev. 4 code at Oman's six-digit level (BTOM-033,
+   * CL-08-OM-ISIC). Read only where the customer is the **seller**, i.e. a self-billing supplier:
+   * BTOM-033 is the seller's code, so self-billed lines carry this one, not the tenant's. Optional,
+   * and absent from older responses.
+   */
+  industrialClassificationCode?: string | null
 }
 
 export type CustomerContactDto = {
@@ -268,6 +277,27 @@ export function updateCustomer(
 ): Promise<CustomerRecordDto> {
   return apiRequest<CustomerRecordDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`, {
     method: 'PUT',
+    body,
+  })
+}
+
+/**
+ * `PatchCustomerRequest`: only the members sent change (a null or absent one is kept), and `clear`
+ * names the optional ones to remove. Narrowed to what the web patches today.
+ */
+export type CustomerPatchDto = {
+  details?: { industrialClassificationCode?: string }
+  clear?: string[]
+  expectedVersion: number
+}
+
+/** `customer.manage`. A newer stored version than `expectedVersion` is a 409. */
+export function patchCustomer(
+  customerId: string,
+  body: CustomerPatchDto,
+): Promise<CustomerRecordDto> {
+  return apiRequest<CustomerRecordDto>(`${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`, {
+    method: 'PATCH',
     body,
   })
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api'
 import { describeApiFailure } from './apiFailure'
 import { issueRefusalOf } from './invoiceIssue'
-import { selfBillingMessageKey } from './selfBillingRefusals'
+import { selfBilledIssueMessageKey, selfBillingMessageKey } from './selfBillingRefusals'
 
 const refused = (status: number, code: string) =>
   new ApiError({ status, problemType: 'request-rejected', code })
@@ -25,5 +25,26 @@ describe('the counterparty refusals a self-billed issue can meet', () => {
   it('leaves other codes to their own handling', () => {
     expect(selfBillingMessageKey(refused(400, 'COUNTERPARTY_SOMETHING_ELSE'))).toBeNull()
     expect(selfBillingMessageKey(refused(409, 'CUSTOMER_NOT_SELECTABLE'))).toBeNull()
+  })
+})
+
+describe("the supplier's business activity on a self-billed issue (BTOM-033)", () => {
+  it("reads INDUSTRIAL_CLASSIFICATION_REQUIRED as the supplier's missing code on a self-billed issue", () => {
+    const error = refused(409, 'INDUSTRIAL_CLASSIFICATION_REQUIRED')
+    expect(selfBilledIssueMessageKey(error)).toBe('apiErrors.selfBilling.supplierIsicMissing')
+  })
+
+  it("leaves the sales invoice's reading of the same code alone: there it is the tenant's", () => {
+    const error = refused(409, 'INDUSTRIAL_CLASSIFICATION_REQUIRED')
+    expect(selfBillingMessageKey(error)).toBeNull()
+    expect(issueRefusalOf(error)?.key).toBe('invoiceIssue.refused.activityRequired')
+    expect(describeApiFailure(error).key).not.toBe('apiErrors.selfBilling.supplierIsicMissing')
+  })
+
+  it('still names the other self-billing refusals', () => {
+    expect(selfBilledIssueMessageKey(refused(400, 'COUNTERPARTY_VATIN_MISSING'))).toBe(
+      'apiErrors.selfBilling.counterpartyVat',
+    )
+    expect(selfBilledIssueMessageKey(refused(400, 'SOMETHING_ELSE'))).toBeNull()
   })
 })
