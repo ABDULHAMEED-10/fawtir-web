@@ -29,16 +29,18 @@ export type AddressValues = {
   poBox: string
   postalCode: string
   /**
-   * The parts the form does not draw (governorate, building number, …), carried through as they
-   * were loaded: an edit replaces the whole address, and dropping them would erase them.
+   * The governorate (IBT-054 / IBT-039 `cbc:CountrySubentity`), stored as its English name
+   * (`GOVERNORATE_NAMES`). With the street, city and post code it is what a self-billed invoice
+   * needs on the supplier as seller (PINT-OM IBR-019-OM).
+   */
+  countrySubentity: string
+  /**
+   * The parts the form does not draw (building number, …), carried through as they were loaded:
+   * an edit replaces the whole address, and dropping them would erase them.
    */
   kept: Pick<
     SupplierAddressDto,
-    | 'countrySubentity'
-    | 'buildingNumber'
-    | 'additionalStreetName'
-    | 'addressLine3'
-    | 'countrySubentityCode'
+    'buildingNumber' | 'additionalStreetName' | 'addressLine3' | 'countrySubentityCode'
   >
 }
 
@@ -93,7 +95,6 @@ export type LoadedBank = {
 } | null
 
 const NOTHING_KEPT: AddressValues['kept'] = {
-  countrySubentity: null,
   buildingNumber: null,
   additionalStreetName: null,
   addressLine3: null,
@@ -107,6 +108,7 @@ export const blankAddress = (): AddressValues => ({
   streetName: '',
   poBox: '',
   postalCode: '',
+  countrySubentity: '',
   kept: NOTHING_KEPT,
 })
 
@@ -160,8 +162,8 @@ export function addressValues(address: SupplierAddressDto | null): AddressValues
     streetName: text(address.streetName),
     poBox: text(address.poBox),
     postalCode: text(address.postalCode),
+    countrySubentity: text(address.countrySubentity),
     kept: {
-      countrySubentity: address.countrySubentity ?? null,
       buildingNumber: address.buildingNumber ?? null,
       additionalStreetName: address.additionalStreetName ?? null,
       addressLine3: address.addressLine3 ?? null,
@@ -205,7 +207,7 @@ export function fromSupplierDetail(detail: SupplierDetailDto): {
       p.earlyPaymentDiscountDays === null ? '' : String(p.earlyPaymentDiscountDays),
     receivingChannel: p.receivingChannel ?? 'MANUAL',
     requiresApprovalBeforePayment: p.requiresApprovalBeforePayment ?? false,
-    billing: addressValues(detail.invoiceAddress),
+    billing: legacyAddress(addressValues(detail.invoiceAddress)),
     sameAsBilling: detail.sameAsInvoicingAddress,
     pickup: addressValues(detail.deliveryAddress),
     notes: text(p.notes),
@@ -238,6 +240,7 @@ export function addressRequest(address: AddressValues): SupplierAddressDto | nul
     streetName: orNull(address.streetName),
     poBox: orNull(address.poBox),
     postalCode: orNull(address.postalCode),
+    countrySubentity: orNull(address.countrySubentity),
   }
   // The country select always holds a value, so a country alone is not an address anyone entered.
   const entered = Object.entries(request).some(
@@ -266,6 +269,16 @@ export function withAddressLine(address: AddressValues, line: string): AddressVa
   const streetName = cut < 0 ? line.trim() : line.slice(0, cut).trim()
   const cityName = cut < 0 ? '' : line.slice(cut + 1).trim()
   return { ...address, streetName, cityName }
+}
+
+/**
+ * An address saved as one line before the form drew its parts ("Rusayl Industrial Estate,
+ * Muscat" in the street, no city) opens split the way that line was read: the street before the
+ * last comma, the city after it. An address that already has a city is left as it is.
+ */
+export function legacyAddress(address: AddressValues): AddressValues {
+  if (address.cityName.trim() || !address.streetName.includes(',')) return address
+  return withAddressLine(address, address.streetName)
 }
 
 /**
@@ -346,6 +359,8 @@ export type SupplierProblems = Partial<Record<SupplierField, string>>
 const IBAN_SHAPE = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/
 const BIC_SHAPE = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/
 const OM_PARTICIPANT = /^OM11\d{8}$/
+/** Onboarding's limit on a CR number (`lib/identity/onboarding.ts`). */
+const CR_MAX_LENGTH = 20
 
 /**
  * What the server would refuse, said before the request goes. The server still decides: the SPIS
@@ -364,6 +379,13 @@ export function supplierProblems(
   if (values.vatNumber.trim()) {
     const vat = validate.vatin(values.vatNumber)
     if (vat) problems.vatNumber = vat
+  }
+  // As onboarding checks a CR number: any shape, at most 20 characters (optional here).
+  if (values.commercialRegistrationNumber.trim().length > CR_MAX_LENGTH)
+    problems.commercialRegistrationNumber = 'validation.tooLong'
+  if (values.billing.countryCode === 'OM' && values.billing.postalCode.trim()) {
+    const postal = validate.postalCode(values.billing.postalCode)
+    if (postal) problems['billing.postalCode'] = postal
   }
   if (values.registeredOnPeppol) {
     const [scheme, ...rest] = values.peppolId.trim().split(':')
@@ -485,7 +507,7 @@ export function placeSupplierErrors(errors: readonly ProblemFieldError[]): {
   const other: string[] = []
   for (const error of errors) {
     const address =
-      /^(invoiceAddress|deliveryAddress)\.(attention|countryCode|cityName|streetName|poBox|postalCode)$/.exec(
+      /^(invoiceAddress|deliveryAddress)\.(attention|countryCode|cityName|streetName|poBox|postalCode|countrySubentity)$/.exec(
         error.field,
       )
     const field: SupplierField | undefined = address

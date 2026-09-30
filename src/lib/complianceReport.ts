@@ -277,5 +277,13 @@ export function builtFigures() {
     /** VAT sitting on the invoice the Authority never took, so outside the figure above. */
     vatOutside: BUILT_REPORT.unreported.vat,
     creditNotes: 8,
+    /** TODO(backend): ACTIVITY.md 2.28. The report carries no debit-note count yet. */
+    debitNotes: null as number | null,
+    /**
+     * Bills and notes suppliers sent us, and how many of those our provider reported as received
+     * (PINT-OM TDD, TDT-010 = 02 Receiver). TODO(backend): ACTIVITY.md 2.29, not on the report yet.
+     */
+    receivedReported: null as number | null,
+    receivedTotal: null as number | null,
   }
 }

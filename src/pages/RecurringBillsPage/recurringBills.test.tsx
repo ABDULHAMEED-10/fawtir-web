@@ -441,6 +441,10 @@ describe('recurring bill helpers', () => {
       vatAmount: 4.762,
     })
     expect(toRecurringRequest({ ...form, vatTreatment: 'zero' }).vatAmount).toBe(0)
+    // The treatment goes as its PINT-OM category, so exempt and out of scope are not lost as 0%.
+    expect(watching.taxCategoryCode).toBe('S5')
+    expect(toRecurringRequest({ ...form, vatTreatment: 'exempt' }).taxCategoryCode).toBe('E0')
+    expect(toRecurringRequest({ ...form, vatTreatment: 'outOfScope' }).taxCategoryCode).toBe('O0')
     expect(toRecurringRequest({ ...form, flagOutsideRange: false }).tolerancePercent).toBeNull()
     const raising = toRecurringRequest({ ...form, mode: 'RAISE' })
     expect(raising).toMatchObject({
@@ -468,6 +472,9 @@ describe('recurring bill helpers', () => {
       flagOutsideRange: true,
     })
     expect(formOf(SOFTWARE, '2026-09-18')).toMatchObject({ mode: 'RAISE', arrivesAroundDay: '' })
+    // A category the server echoes wins over the zero VAT amount.
+    expect(formOf({ ...RENT, taxCategoryCode: 'E0' }, '2026-09-18').vatTreatment).toBe('exempt')
+    expect(formOf({ ...RENT, taxCategoryCode: 'O0' }, '2026-09-18').vatTreatment).toBe('outOfScope')
   })
 
   it('says why a chase cannot be sent, and reads the whole thing back in words', () => {

@@ -150,7 +150,7 @@ const isAnswer = (value) =>
   typeof value === 'object' &&
   !Array.isArray(value) &&
   typeof value.status === 'number' &&
-  Object.keys(value).every((k) => k === 'status' || k === 'body' || k === 'headers')
+  Object.keys(value).every((k) => k === 'status' || k === 'body' || k === 'raw' || k === 'headers')
 
 createServer(async (request, response) => {
   const url = new URL(request.url ?? '/', 'http://localhost')
@@ -161,7 +161,11 @@ createServer(async (request, response) => {
   if (found) {
     const body = method === 'GET' ? undefined : await readBody(request)
     const answer = found.route.reply({ params: found.params, query: url.searchParams, body })
-    if (isAnswer(answer)) {
+    if (isAnswer(answer) && typeof answer.raw === 'string') {
+      // A literal body (an XML file, a CSV): written as it is, under the route's own headers.
+      response.writeHead(answer.status, { 'Content-Type': 'text/plain', ...(answer.headers ?? {}) })
+      response.end(answer.raw)
+    } else if (isAnswer(answer)) {
       response.writeHead(answer.status, {
         'Content-Type': 'application/json',
         ...(answer.headers ?? {}),

@@ -165,6 +165,17 @@ export function recordBillPayment(
 
 export type BillMatchVerdict = 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
 
+/**
+ * The receiving side's own report of a document it received (om-tdd: a Tax Data Document with
+ * reporter role 02 Receiver and the receipt date and time), as the OTA last answered it.
+ * TODO(backend): EXPENDITURE.md R.1. Not on any response yet.
+ */
+export type ReceiptReportDto = {
+  status: 'ACCEPTED' | 'SUBMITTED' | 'REJECTED' | 'NOT_SUBMITTED'
+  reportedAt: string | null
+  tddUuid?: string | null
+}
+
 export type BillHoldDto = {
   id: string
   reason: string | null
@@ -200,6 +211,12 @@ export type BillDetailDto = {
     lineNet: number | null
     purchaseOrderLineId: string | null
     goodsReceiptId: string | null
+    /** IBT-151, CL-04-OM: S, Z, E or O. TODO(backend): EXPENDITURE.md R.2. */
+    taxCategoryCode?: string | null
+    /** IBT-121: VATZR-OM-nn on a Z line, VATEX-OM-nn on an E line. TODO(backend): EXPENDITURE.md R.2. */
+    exemptionReasonCode?: string | null
+    /** IBT-120: the reason as text, the only one an O line may carry. TODO(backend): EXPENDITURE.md R.2. */
+    exemptionReason?: string | null
   }[]
   readiness: BillRowDto['readiness']
   approvals: { id: string; decision: 'APPROVED' | 'REJECTED'; reason: string | null; decidedBy: string; decidedAt: string }[]
@@ -227,7 +244,13 @@ export type BillDetailDto = {
   }[]
   paymentRunReference: string | null
   intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
-  compliance: { source: BillSourceDto; networkVerified: boolean; obligation: BillDetailDto['bill']['complianceObligation'] }
+  compliance: {
+    source: BillSourceDto
+    networkVerified: boolean
+    obligation: BillDetailDto['bill']['complianceObligation']
+    /** Absent until the server reports it: the page then says the status is not known. */
+    receiptReport?: ReceiptReportDto | null
+  }
   activity: {
     at: string | null
     kind: 'ARRIVED' | 'CONFIRMED' | 'MATCHED' | 'APPROVED' | 'REJECTED' | 'HELD' | 'RELEASED' | 'PAID' | 'REVERSED'

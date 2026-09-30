@@ -13,7 +13,14 @@ export type RecurrenceInterval = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY'
 export type RecurringMode = 'RAISE' | 'EXPECT'
 export type RecurringListState = 'ACTIVE' | 'LATE' | 'PAUSED' | 'ALL'
 export type ExpectationState = 'DUE_TO_ARRIVE' | 'ARRIVED' | 'ARRIVED_OUT_OF_RANGE' | 'LATE'
-export type RunOutcome = 'RAISED' | 'FAILED' | 'SKIPPED' | 'EXPECTED' | 'ARRIVED' | 'ARRIVED_OUT_OF_RANGE' | 'LATE'
+export type RunOutcome =
+  | 'RAISED'
+  | 'FAILED'
+  | 'SKIPPED'
+  | 'EXPECTED'
+  | 'ARRIVED'
+  | 'ARRIVED_OUT_OF_RANGE'
+  | 'LATE'
 
 /** What the watch is saying today. Computed on read; `null` for a RAISE watch. */
 export type ExpectationDto = {
@@ -52,6 +59,12 @@ export type RecurringBillDto = {
   watchingFrom: string | null
   lastVariancePercent: number | null
   expectation: ExpectationDto | null
+  /**
+   * TODO(backend): EXPENDITURE.md M.3. The schedule's VAT category (S5, Z0, E0, O0). Absent
+   * today, when the treatment is inferred from `vatAmount` (and exempt or out of scope read back
+   * as zero-rated).
+   */
+  taxCategoryCode?: string | null
 }
 
 /** `count` is the rows on this page, never a total: a full page means there may be more. */
@@ -108,11 +121,17 @@ export type RecurringBillRequestDto = {
   autoApproveWithinRange: boolean | null
   notifyUserId: string | null
   watchingFrom: string | null
+  /** TODO(backend): EXPENDITURE.md M.3. S5, Z0, E0 or O0, from the VAT treatment picked. */
+  taxCategoryCode?: string | null
 }
 
 export const RECURRING_PAGE_SIZE = 50
 
-export function recurringListPath(state: RecurringListState, page: number, pageSize = RECURRING_PAGE_SIZE) {
+export function recurringListPath(
+  state: RecurringListState,
+  page: number,
+  pageSize = RECURRING_PAGE_SIZE,
+) {
   return withQuery('/v1/recurring-bills', { state, page, page_size: pageSize })
 }
 
@@ -148,17 +167,29 @@ export function createRecurringBill(request: RecurringBillRequestDto): Promise<R
   return apiRequest<RecurringBillDto>('/v1/recurring-bills', { method: 'POST', body: request })
 }
 
-export function updateRecurringBill(id: string, request: RecurringBillRequestDto): Promise<RecurringBillDto> {
+export function updateRecurringBill(
+  id: string,
+  request: RecurringBillRequestDto,
+): Promise<RecurringBillDto> {
   return apiRequest<RecurringBillDto>(recurringBillPath(id), { method: 'PUT', body: request })
 }
 
 /** `pause` and `resume` answer the watch; `chase` tells whoever is named, never the supplier. */
 export function setRecurringActive(id: string, active: boolean): Promise<RecurringBillDto> {
-  return apiRequest<RecurringBillDto>(`${recurringBillPath(id)}/${active ? 'resume' : 'pause'}`, { method: 'POST', body: {} })
+  return apiRequest<RecurringBillDto>(`${recurringBillPath(id)}/${active ? 'resume' : 'pause'}`, {
+    method: 'POST',
+    body: {},
+  })
 }
 
-export function chaseRecurringBill(id: string): Promise<{ recurringBillId: string; notifyUserId: string | null; expectedOn: string | null }> {
-  return apiRequest<{ recurringBillId: string; notifyUserId: string | null; expectedOn: string | null }>(`${recurringBillPath(id)}/chase`, {
+export function chaseRecurringBill(
+  id: string,
+): Promise<{ recurringBillId: string; notifyUserId: string | null; expectedOn: string | null }> {
+  return apiRequest<{
+    recurringBillId: string
+    notifyUserId: string | null
+    expectedOn: string | null
+  }>(`${recurringBillPath(id)}/chase`, {
     method: 'POST',
     body: {},
   })

@@ -206,10 +206,20 @@ export function flowOf(item: ActivityItemDto): RowFlow {
   return 'b2bDomestic'
 }
 
-/** The glyph and word in "Customer": did their Access Point acknowledge the invoice? */
-export type CustomerAck = 'received' | 'notOnPeppol' | 'noCustomer' | 'waiting' | 'refused'
+/**
+ * The glyph and word in "Customer": did their Access Point acknowledge the invoice? On a document
+ * a supplier sent us the customer is us, so the cell says we received it.
+ */
+export type CustomerAck =
+  | 'received'
+  | 'youReceived'
+  | 'notOnPeppol'
+  | 'noCustomer'
+  | 'waiting'
+  | 'refused'
 
 export function customerAckOf(item: ActivityItemDto): CustomerAck {
+  if (item.direction === 'RECEIVED') return 'youReceived'
   if (item.b2c) return 'noCustomer'
   if (item.scenario?.stand_in_id) return 'notOnPeppol'
   const ack = item.invoice_leg.ack

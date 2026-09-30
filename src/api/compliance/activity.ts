@@ -90,6 +90,15 @@ export type ActivityItemDto = {
   superseded_by?: string | null
   /** The Peppol scenario: its flow number, and the stand-in ID used when the buyer is not on Peppol. */
   scenario?: { flow: number; stand_in_id: string | null } | null
+  /**
+   * TODO(backend): ACTIVITY.md 2.25. When a RECEIVED document reached our access point, the
+   * receipt date and time the receiving side reports on its TDD (PINT-OM TDOM-04, TDOM-05).
+   */
+  received_at?: string | null
+  /** TODO(backend): ACTIVITY.md 2.26. The other side's Peppol participant ID (`0248:<VAT>`). */
+  counterparty_participant_id?: string | null
+  /** TODO(backend): ACTIVITY.md 2.27. The document's CustomizationID (its PINT-OM profile). */
+  customization_id?: string | null
 }
 
 export type ActivityListDto = {
