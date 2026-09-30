@@ -226,7 +226,27 @@ export function vatOf(total: number, treatment: VatTreatment): number | null {
   return Math.round((total - total / (1 + STANDARD_RATE / 100)) * 1000) / 1000
 }
 
-export function treatmentOf(vatAmount: number | null, total: number): VatTreatment {
+/** Each treatment as the PINT-OM category it stands for (OMTaxCat, CL-04-OM). */
+export const TREATMENT_CATEGORY: Record<VatTreatment, 'S5' | 'Z0' | 'E0' | 'O0'> = {
+  standard: 'S5',
+  zero: 'Z0',
+  exempt: 'E0',
+  outOfScope: 'O0',
+}
+
+/**
+ * The treatment a saved schedule carries: its category when the server echoes one, else read off
+ * the VAT amount as before (which cannot tell exempt or out of scope from zero-rated).
+ */
+export function treatmentOf(
+  vatAmount: number | null,
+  total: number,
+  taxCategoryCode?: string | null,
+): VatTreatment {
+  const named = (Object.keys(TREATMENT_CATEGORY) as VatTreatment[]).find(
+    (treatment) => TREATMENT_CATEGORY[treatment] === taxCategoryCode,
+  )
+  if (named) return named
   if (vatAmount === null) return 'standard'
   return vatAmount > 0 && total > 0 ? 'standard' : 'zero'
 }
@@ -307,7 +327,7 @@ export function formOf(bill: RecurringBillDto, today: string): RecurringForm {
     watchingFrom: bill.watchingFrom ?? today,
     endDate: bill.endDate ?? '',
     totalIncludingVat: String(bill.totalIncludingVat),
-    vatTreatment: treatmentOf(bill.vatAmount, bill.totalIncludingVat),
+    vatTreatment: treatmentOf(bill.vatAmount, bill.totalIncludingVat, bill.taxCategoryCode),
     tolerancePercent: bill.tolerancePercent === null ? '10' : String(bill.tolerancePercent),
     flagOutsideRange: bill.mode !== 'EXPECT' || bill.tolerancePercent !== null,
     lateAfterDays: bill.lateAfterDays === null ? '' : String(bill.lateAfterDays),
@@ -386,6 +406,8 @@ export function toRecurringRequest(form: RecurringForm, currency = 'OMR'): Recur
     autoApproveWithinRange: expecting ? form.autoApproveWithinRange : null,
     notifyUserId: form.notifyUserId,
     watchingFrom: expecting ? form.watchingFrom || null : null,
+    // TODO(backend): EXPENDITURE.md M.3. The treatment round-trips as its category.
+    taxCategoryCode: TREATMENT_CATEGORY[form.vatTreatment],
   }
 }
 

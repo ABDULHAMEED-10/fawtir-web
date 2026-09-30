@@ -5,17 +5,26 @@
  * design needs and the backend does not answer yet (backend asks 3.1 to 3.12), so the screens can
  * be seen as drawn.
  *
- * The signed XML is served as `{ status, raw, headers }`: the scratch server used for screenshots
- * writes `raw` as it is; the shared server JSON-encodes it, so there the preview falls back to text.
+ * The signed XML is served as `{ status, raw, headers }`: `server.mjs` writes `raw` as the literal
+ * response body, so the viewer gets the XML itself rather than a JSON wrapper.
  */
 
 const BY_ID = new Map()
-const art = (available, href = null, byte_size = null, verified = null) => ({
+const art = (available, href = null, byte_size = null, verified = null, languages) => ({
   available,
   href,
   byte_size,
   verified,
+  ...(languages !== undefined ? { languages } : {}),
 })
+
+/** UNCL1001 codes by `document_kind` when a fixture does not name its own (backend ask 3.17). */
+const TYPE_CODE = {
+  STANDARD_INVOICE: '380',
+  CREDIT_NOTE: '381',
+  SELF_BILLING_INVOICE: '389',
+  SELF_BILLING_CREDIT_NOTE: '261',
+}
 const KB = 1024
 
 function record(input) {
@@ -26,6 +35,9 @@ function record(input) {
     direction: input.direction,
     document_kind: input.kind ?? 'STANDARD_INVOICE',
     invoice_number: input.number,
+    type_code: input.typeCode ?? TYPE_CODE[input.kind ?? 'STANDARD_INVOICE'],
+    // The document's own issue date; a received one reached us later (backend ask 3.18).
+    issue_date: input.issued ?? input.at.slice(0, 10),
     counterparty: input.counterparty,
     counterparty_name: input.name,
     occurred_at: input.at,
@@ -35,6 +47,8 @@ function record(input) {
     total_amount: input.total,
     currency: 'OMR',
     against_number: input.against ?? null,
+    against_issue_date: input.againstIssued ?? null,
+    against_uuid: input.againstUuid ?? null,
     artefacts: {
       xml: art(
         a.includes('xml'),
@@ -48,6 +62,8 @@ function record(input) {
         `/api/v1/invoices/${sub}/pdf`,
         input.sizes?.pdf ?? 142 * KB,
         true,
+        // Our own PDFs are bilingual; a supplier's PDF is theirs and its languages are not read.
+        input.direction === 'ISSUED' ? ['en', 'ar'] : null,
       ),
       qr: art(a.includes('qr'), `/api/v1/invoices/${sub}/qr`, 4 * KB, true),
       mls: art(a.includes('mls'), `/api/v1/compliance/activity/${input.uuid}`, 3 * KB, true),
@@ -74,7 +90,13 @@ function record(input) {
       matches: true,
     },
     delivered_at: input.at,
-    signature_valid: true,
+    signature_valid: input.signature === undefined ? true : input.signature,
+    validation:
+      input.tdd === 'ACCEPTED'
+        ? { passed: 5, total: 5 }
+        : input.tdd === 'REJECTED'
+          ? { passed: 3, total: 5 }
+          : null,
     related: input.related ?? null,
     tags: input.tags ?? [],
     access_log: input.log ?? null,
@@ -163,6 +185,7 @@ const ITEMS = [
     counterparty: '0248:OM1100581904',
     name: 'Muscat Roastery Co',
     at: '2026-07-29T08:05:00Z',
+    issued: '2026-07-27',
     total: 2354.31,
     tdd: 'ACCEPTED',
     until: '2036-07-29',
@@ -177,7 +200,11 @@ const ITEMS = [
     name: 'Al Noor Dates LLC',
     at: '2026-07-30T09:20:00Z',
     total: 84.9,
+    issued: '2026-07-29',
     against: 'AND-INV-3382',
+    againstIssued: '2026-07-02',
+    // A supplier's credit note: its signature has not been checked yet.
+    signature: null,
     tdd: 'ACCEPTED',
     until: '2036-07-30',
     artefacts: ['xml', 'tdd', 'pdf'],
@@ -192,9 +219,27 @@ const ITEMS = [
     at: '2026-09-04T07:45:00Z',
     total: 42.5,
     against: 'INV-2038',
+    againstIssued: '2026-06-23',
+    againstUuid: '8f3c44a1-9d02-477b-be21-0a6c5d19e0f1',
     tdd: 'PENDING',
     until: '2036-09-04',
     artefacts: ['xml', 'pdf'],
+  }),
+  record({
+    uuid: '4b7e2d19-6a58-4c03-9e61-8d2f5a1c7b40',
+    number: 'DN-0031',
+    typeCode: '383',
+    direction: 'ISSUED',
+    counterparty: '0248:OM1100581904',
+    name: 'Muscat Roastery Co',
+    at: '2026-09-12T06:20:00Z',
+    total: 36.75,
+    against: 'INV-1993',
+    againstIssued: '2026-06-08',
+    againstUuid: '9a0f3c62-5e84-4b17-8d26-1c7b9e3a0f25',
+    tdd: 'SUBMITTED',
+    until: '2036-09-12',
+    artefacts: ['xml', 'tdd', 'pdf', 'qr'],
   }),
   record({
     uuid: '9a0f3c62-5e84-4b17-8d26-1c7b9e3a0f25',
@@ -316,6 +361,62 @@ const XML_2038 = `<?xml version="1.0" encoding="UTF-8"?>
 </Invoice>
 `
 
+/** Our own company, the supplier on what we issue and the customer on what we receive. */
+const OURS = {
+  endpoint: 'OM1100392000',
+  name: 'Al Bahja Coffee LLC',
+  address:
+    '<cac:PostalAddress><cbc:StreetName>Souq Street</cbc:StreetName><cbc:CityName>Nizwa</cbc:CityName></cac:PostalAddress>',
+}
+
+const party = (tag, { endpoint, name, address = '' }) =>
+  `<cac:${tag}><cac:Party>
+    <cbc:EndpointID schemeID="0248">${endpoint}</cbc:EndpointID>${address ? `\n    ${address}` : ''}
+    <cac:PartyTaxScheme><cbc:CompanyID>${endpoint}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>
+    <cac:PartyLegalEntity><cbc:RegistrationName>${name}</cbc:RegistrationName></cac:PartyLegalEntity>
+  </cac:Party></cac:${tag}>`
+
+const SUPPLIER_BLOCK = /<cac:AccountingSupplierParty>[\s\S]*?<\/cac:AccountingSupplierParty>/
+const CUSTOMER_BLOCK = /<cac:AccountingCustomerParty>[\s\S]*?<\/cac:AccountingCustomerParty>/
+
+/**
+ * The document XML for `sub-<number>`. On a RECEIVED document the counterparty is the seller
+ * (AccountingSupplierParty) and our company the buyer (AccountingCustomerParty); on an issued one
+ * it is the other way round.
+ */
+function documentXml(sub) {
+  const number = sub.slice(4).toUpperCase()
+  let xml = XML_2038.replace(/INV-2038/g, number)
+  const item = ITEMS.find((entry) => entry.invoice_number.toUpperCase() === number)
+  if (item) xml = xml.replace(/<cbc:IssueDate>[^<]*</, `<cbc:IssueDate>${item.issue_date}<`)
+  if (item?.against_number) {
+    // PINT-OM IBR-032-OM: a credit note names the invoice it corrects.
+    const reference = `<cac:BillingReference><cac:InvoiceDocumentReference><cbc:ID>${item.against_number}</cbc:ID>${item.against_issue_date ? `<cbc:IssueDate>${item.against_issue_date}</cbc:IssueDate>` : ''}</cac:InvoiceDocumentReference></cac:BillingReference>`
+    xml = xml.replace('</cac:OrderReference>', `</cac:OrderReference>\n  ${reference}`)
+  }
+  if (item?.document_kind === 'CREDIT_NOTE') {
+    xml = xml
+      .replace(
+        /<Invoice xmlns="[^"]*Invoice-2"/,
+        '<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"',
+      )
+      .replace('</Invoice>', '</CreditNote>')
+      .replace(
+        /<cbc:InvoiceTypeCode>380<\/cbc:InvoiceTypeCode>/,
+        '<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>',
+      )
+      .replace(/InvoiceLine>/g, 'CreditNoteLine>')
+      .replace(/InvoicedQuantity/g, 'CreditedQuantity')
+  } else if (item?.type_code && item.type_code !== '380') {
+    xml = xml.replace('<cbc:InvoiceTypeCode>380<', `<cbc:InvoiceTypeCode>${item.type_code}<`)
+  }
+  if (!item || item.direction !== 'RECEIVED') return xml
+  const them = { endpoint: item.counterparty.replace(/^0248:/, ''), name: item.counterparty_name }
+  return xml
+    .replace(SUPPLIER_BLOCK, party('AccountingSupplierParty', them))
+    .replace(CUSTOMER_BLOCK, party('AccountingCustomerParty', OURS))
+}
+
 export default [
   { match: '/api/v1/compliance/documents', reply: ({ query }) => list(query) },
   {
@@ -332,7 +433,7 @@ export default [
       status: 200,
       raw:
         params[1] === 'document'
-          ? XML_2038.replace(/INV-2038/g, params[0].slice(4).toUpperCase())
+          ? documentXml(params[0])
           : `<?xml version="1.0"?>\n<TaxDataDocument id="${params[0].slice(4).toUpperCase()}">\n  <Status>ACCEPTED</Status>\n</TaxDataDocument>\n`,
       headers: { 'Content-Type': 'application/xml' },
     }),

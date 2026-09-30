@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { DateField, Pager, RialText, Select, SortMenu, TableCheckbox } from '../../components/ui'
@@ -19,8 +19,8 @@ import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../l
 import { saveDownload } from '../../lib/supplierRecord'
 import {
   ARCHIVE_TABS,
-  DOCUMENT_KINDS,
   FORMAT_TAG,
+  KIND_CHOICES,
   TDD_STATUSES,
   artefactFileName,
   counterpartyLabel,
@@ -28,8 +28,13 @@ import {
   formatBytes,
   hasFilters,
   heldArtefacts,
+  issueDateOf,
+  kindQuery,
+  narrowByType,
+  narrowedOnPage,
   recordBytes,
   recordKind,
+  reportsAsReceiver,
   retentionShortKey,
   showingNote,
   statusChip,
@@ -39,6 +44,7 @@ import {
   visibleItems,
   type ArchiveTabId,
   type ArtefactId,
+  type KindChoice,
   type RecordKind,
 } from '../../lib/documentArchive'
 import kpiArchiveIcon from '../../assets/documents/kpi-archive.svg'
@@ -70,6 +76,10 @@ const KIND_ICON: Record<RecordKind, string> = {
   billReceived: recBillIcon,
   creditIssued: recCreditIcon,
   creditReceived: recCreditIcon,
+  debitIssued: recDebitIcon,
+  debitReceived: recDebitIcon,
+  prepaymentIssued: recInvoiceIcon,
+  prepaymentReceived: recBillIcon,
   selfBilledInvoice: recDebitIcon,
   selfBilledCredit: recCreditIcon,
 }
@@ -79,6 +89,10 @@ const KIND_TILE: Record<RecordKind, string> = {
   billReceived: 'bg-surface-background',
   creditIssued: 'bg-success-100',
   creditReceived: 'bg-success-100',
+  debitIssued: 'bg-pending-100',
+  debitReceived: 'bg-pending-100',
+  prepaymentIssued: 'bg-primary-50',
+  prepaymentReceived: 'bg-surface-background',
   selfBilledInvoice: 'bg-pending-100',
   selfBilledCredit: 'bg-success-100',
 }
@@ -111,7 +125,10 @@ const SORT_OPTIONS: { value: SortKey; labelKey: string }[] = [
   { value: 'keptLatest', labelKey: 'documents.sortOptions.keptLatest' },
 ]
 
-/** The archive has no sort parameter, so the page it was given is ordered here. */
+/**
+ * The archive has no sort parameter, so the page it was given is ordered here, and the footer
+ * says so. TODO(backend): a sort parameter on the list, DOCUMENTS.md row 3.22.
+ */
 function sortItems(items: ArchiveItemDto[], sort: SortKey): ArchiveItemDto[] {
   if (sort === 'natural') return items
   const kept = (item: ArchiveItemDto) => item.retention.retain_until ?? '9999-12-31'
@@ -138,7 +155,14 @@ export function DocumentsPage() {
   const today = muscatToday()
   const [tab, setTab] = useState<ArchiveTabId>('all')
   const [page, setPage] = useState(0)
-  const [filters, setFilters] = useState<ArchiveFilters>({})
+  const [params] = useSearchParams()
+  // A credit or debit note links here with `?number=` when the corrected invoice has no archive id.
+  const [filters, setFilters] = useState<ArchiveFilters>(() => {
+    const number = params.get('number')
+    return number ? { invoiceNumber: number } : {}
+  })
+  const [kindChoice, setKindChoice] = useState<KindChoice | ''>('')
+  const typeCode = kindQuery(kindChoice).typeCode
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('natural')
   const [selected, setSelected] = useState<string[]>([])
@@ -168,9 +192,11 @@ export function DocumentsPage() {
   }
 
   const items = useMemo(
-    () => (data ? sortItems(visibleItems(data.items, tab), sort) : []),
-    [data, tab, sort],
+    () => (data ? sortItems(narrowByType(visibleItems(data.items, tab), typeCode), sort) : []),
+    [data, tab, sort, typeCode],
   )
+  /** The legal-hold tab and a debit or prepayment kind narrow this page only. */
+  const pageOnly = narrowedOnPage(tab, typeCode)
   const filtered = hasFilters({ ...filters, direction: undefined } as Record<
     string,
     string | undefined
@@ -231,7 +257,10 @@ export function DocumentsPage() {
   }
 
   const showing = data ? showingNote(items.length, data.page, data.page_size) : null
-  const tabTotal = tabCount(tab)
+  // The totals count a whole tab, not what a filter or this page narrowed it to, so they are
+  // quoted only when nothing narrowed it. TODO(backend): totals under the filters, DOCUMENTS.md
+  // row 3.27.
+  const tabTotal = filtered || pageOnly ? null : tabCount(tab)
   const pageCount =
     tabTotal != null && data
       ? Math.max(1, Math.ceil(tabTotal / data.page_size))
@@ -248,6 +277,8 @@ export function DocumentsPage() {
               {t('documents.title')}
             </h1>
             <p className="mt-2 text-sm font-medium leading-[1.6] text-[#8f8f8f]">
+              {/* The no-edit, no-delete rule covers Peppol documents; uploads are filed on the
+                  supplier. TODO(backend): uploads in the archive, DOCUMENTS.md row 3.26. */}
               {t(archiveEmpty ? 'documents.subtitleEmpty' : 'documents.subtitleFull')}
             </p>
           </div>
@@ -341,6 +372,8 @@ export function DocumentsPage() {
                   alt=""
                   className="pointer-events-none absolute start-3.5 size-5 opacity-60"
                 />
+                {/* TODO(backend): search by the other party's name too (DOCUMENTS.md row 3.23);
+                    the archive filters by number only, and the placeholder says so. */}
                 <input
                   value={filters.invoiceNumber ?? ''}
                   onChange={(event) => set({ invoiceNumber: event.target.value })}
@@ -371,13 +404,16 @@ export function DocumentsPage() {
               <div className="grid gap-3 border-t border-surface-background px-4 py-4 md:grid-cols-3 xl:grid-cols-5">
                 <FilterField label={t('documents.filter.kind')}>
                   <Select
-                    value={filters.documentKind ?? ''}
-                    onChange={(documentKind) => set({ documentKind })}
+                    value={kindChoice}
+                    onChange={(choice) => {
+                      setKindChoice(choice as KindChoice | '')
+                      set({ documentKind: kindQuery(choice as KindChoice | '').documentKind })
+                    }}
                     ariaLabel={t('documents.filter.kind')}
                     compact
                     options={[
                       { value: '', label: t('documents.allKinds') },
-                      ...DOCUMENT_KINDS.map((kind) => ({
+                      ...KIND_CHOICES.map((kind) => ({
                         value: kind,
                         label: t(`documents.kind.${kind}`),
                       })),
@@ -480,7 +516,15 @@ export function DocumentsPage() {
                   {t('documents.noMatch.title')}
                 </p>
                 <p className="max-w-[440px] text-sm font-medium leading-[1.5] text-text-quaternary">
-                  {t(tab === 'legalHold' ? 'documents.noMatch.noHold' : 'documents.noMatch.note')}
+                  {t(
+                    tab === 'legalHold'
+                      ? data.has_more || data.page > 0 || filtered
+                        ? 'documents.noMatch.noHoldOnPage'
+                        : 'documents.noMatch.noHold'
+                      : typeCode && (data.has_more || data.page > 0)
+                        ? 'documents.noMatch.noTypeOnPage'
+                        : 'documents.noMatch.note',
+                  )}
                 </p>
               </div>
             ) : null}
@@ -507,13 +551,18 @@ export function DocumentsPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background px-5 py-4">
                 <p className="text-sm font-medium text-text-secondary">
                   {showing && showing.count > 0
-                    ? tabTotal != null
-                      ? t('documents.showingOf', {
-                          shown: formatCount(showing.count, language),
-                          total: formatCount(tabTotal, language),
-                        })
-                      : t('documents.showingRows', { from: showing.from, to: showing.to })
+                    ? pageOnly
+                      ? t('documents.showingOnPage', { count: showing.count })
+                      : tabTotal != null
+                        ? t('documents.showingOf', {
+                            shown: formatCount(showing.count, language),
+                            total: formatCount(tabTotal, language),
+                          })
+                        : t('documents.showingRows', { from: showing.from, to: showing.to })
                     : t('documents.showingNone')}
+                  {showing && showing.count > 1 && sort !== 'natural'
+                    ? ` · ${t('documents.sortedOnPage')}`
+                    : ''}
                 </p>
                 <Pager
                   page={data.page + 1}
@@ -711,12 +760,19 @@ function RecordRow({
   const left = retainUntil ? timeLeft(retainUntil, today) : null
   const hold = item.retention.legal_hold.held
 
+  const dated = issueDateOf(item)
   const meta = [
-    t(`documents.recordMeta.${kind}`, { date: formatInstantDay(item.occurred_at, language) }),
+    `${t(`documents.recordKindLabel.${kind}`)} · ${t(
+      dated.received ? 'documents.metaReceived' : 'documents.metaIssued',
+      { date: formatInstantDay(dated.date, language) },
+    )}`,
     item.total_amount != null
       ? `OMR ${formatAmount(item.total_amount, item.currency ?? 'OMR', language)}`
       : null,
-    item.against_number ?? null,
+    item.against_number
+      ? // Isolated so "INV-1993" keeps its order inside an Arabic line.
+        t('documents.metaCorrects', { number: `⁨${item.against_number}⁩` })
+      : null,
     t('documents.filesCount', { count: held.length }),
   ].filter(Boolean)
 
@@ -840,7 +896,10 @@ function RecordRow({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium leading-[1.3] text-text-primary">{name}</p>
                   <p className="mt-1 text-xs font-medium leading-[1.3] text-text-quaternary">
-                    {t(`documents.fileNote.${artefact.id}`)}
+                    {t(fileNoteKey(item, artefact.id))}
+                    {artefact.id === 'tdd'
+                      ? ` · ${t(item.tdd.status ? `documents.tdd.${item.tdd.status}` : 'documents.tdd.none')}`
+                      : ''}
                   </p>
                 </div>
                 {artefact.verified ? (
@@ -885,6 +944,13 @@ function RecordRow({
       ) : null}
     </li>
   )
+}
+
+/** A received record's tax document is ours as receiver (role 02), and its PDF is the supplier's. */
+function fileNoteKey(item: ArchiveItemDto, id: ArtefactId): string {
+  if (reportsAsReceiver(item) && id === 'tdd') return 'documents.fileNote.tddReceived'
+  if (item.direction === 'RECEIVED' && id === 'pdf') return 'documents.fileNote.pdfReceived'
+  return `documents.fileNote.${id}`
 }
 
 /** The space card reads in gigabytes: "2.8 GB", and "0 GB" for an empty archive. */

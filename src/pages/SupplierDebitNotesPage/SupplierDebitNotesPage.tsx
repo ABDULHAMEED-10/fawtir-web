@@ -417,7 +417,7 @@ function DebitRow({
   const navigate = useNavigate()
   const chip = CHIP[note.status]
   const action = DEBIT_ROW_ACTION[note.status]
-  const reason = reasonLabelKey(note.reasonCode)
+  const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const detailTo = `/expenditure/debit-notes/${note.id}`
   const money = (value: number) => formatAmount(value, note.currency, language)
 

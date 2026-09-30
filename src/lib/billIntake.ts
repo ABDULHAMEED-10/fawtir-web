@@ -3,7 +3,9 @@ import type {
   IntakeCorrectionsDto,
   IntakeDto,
 } from '../api/expenditure/billIntake'
+import type { ReferenceDataDto, TaxCategoryDto } from '../api/reference/referenceData'
 import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
+import { DESIGN_REFERENCE, omanTaxCategories } from './invoiceDraft'
 
 /**
  * The bill form behind Upload a bill, Record a bill and Scan receipts (E-10).
@@ -19,6 +21,54 @@ export type BillLine = {
   quantity: string
   unitPrice: string
   vatRate: string
+  /**
+   * The line's VAT category (S5, Z0, E0, O0): the rate above follows it. Optional because Record a
+   * bill builds its lines from the order table, which carries the rate only.
+   */
+  taxCategoryCode?: string
+  /** The unit chosen on the row (UN/ECE Rec 20), where the form offers one. */
+  unit?: string
+}
+
+/**
+ * The VAT categories a bill line may take: the platform's list narrowed to Oman's four
+ * (PINT-OM CL-04-OM), else the design's own S/Z/E/O while the list is loading or empty. A bill
+ * typed by hand is not sent over Peppol, so no exemption reason or HS code goes with it.
+ */
+export function billTaxCategories(reference: ReferenceDataDto | null): TaxCategoryDto[] {
+  const oman = omanTaxCategories(reference?.taxCategories ?? [])
+  return oman.length > 0 ? oman : DESIGN_REFERENCE.taxCategories
+}
+
+/**
+ * The category a supplier's bills and orders start on: its own default when Oman allows it, else
+ * standard rate. Reverse charge (AE) and export (G) are not OMTaxCat codes, so a supplier
+ * default of either falls back to S5 rather than reaching a line.
+ */
+export function supplierTaxCategory(
+  reference: ReferenceDataDto | null,
+  code: string | null | undefined,
+): TaxCategoryDto {
+  const allowed = billTaxCategories(reference)
+  return (
+    allowed.find((row) => row.code === (code ?? 'S5')) ??
+    allowed.find((row) => row.code === 'S5') ??
+    allowed[0]
+  )
+}
+
+/** The rate a category puts on a line, as the form types it ("5", "0"). */
+export function rateOfCategory(categories: readonly TaxCategoryDto[], code: string): string {
+  const found = categories.find((row) => row.code === code)
+  return found ? String(Number(found.rate)) : code === 'S5' ? '5' : '0'
+}
+
+/**
+ * The category a rate read from a file stands for when the file names none: 0% is zero-rated and
+ * anything else Oman's standard rate. Exempt and out of scope cannot be told from a rate.
+ */
+export function categoryOfRate(rate: number | string | null | undefined): string {
+  return rate !== null && rate !== undefined && rate !== '' && Number(rate) === 0 ? 'Z0' : 'S5'
 }
 
 export type BillForm = {
@@ -38,7 +88,14 @@ export type BillForm = {
 }
 
 export type BillField =
-  'supplier' | 'billNumber' | 'issueDate' | 'dueDate' | 'currency' | 'vat' | 'total' | 'lines'
+  | 'supplier'
+  | 'billNumber'
+  | 'issueDate'
+  | 'dueDate'
+  | 'currency'
+  | 'vat'
+  | 'total'
+  | 'lines'
 
 export type BillProblems = Partial<Record<BillField, string>>
 
@@ -47,7 +104,14 @@ export const CURRENCIES = ['OMR', 'USD', 'EUR', 'AED', 'SAR'] as const
 let lineSeed = 0
 export function blankLine(): BillLine {
   lineSeed += 1
-  return { id: `line-${lineSeed}`, description: '', quantity: '1', unitPrice: '', vatRate: '5' }
+  return {
+    id: `line-${lineSeed}`,
+    description: '',
+    quantity: '1',
+    unitPrice: '',
+    vatRate: '5',
+    taxCategoryCode: 'S5',
+  }
 }
 
 export function blankBillForm(): BillForm {
@@ -72,6 +136,8 @@ const amount = (value: number | null | undefined) =>
 const money3 = (value: number | null | undefined) =>
   value === null || value === undefined ? '' : value.toFixed(3)
 
+const DESIGN_CODES = new Set(DESIGN_REFERENCE.taxCategories.map((row) => row.code))
+
 /**
  * What an XML bill carried, or what a person saved on the intake earlier, as starting values. A
  * fresh PDF or photo has nothing, so the form stays blank.
@@ -92,13 +158,21 @@ export function fromIntake(intake: IntakeDto, base: BillForm = blankBillForm()):
     total: money3(read.total) || base.total,
     lines:
       read.lines.length > 0
-        ? read.lines.map((line) => ({
-            ...blankLine(),
-            description: text(line.description),
-            quantity: amount(line.quantity) || '1',
-            unitPrice: money3(line.unitPrice),
-            vatRate: amount(line.vatRate) || '0',
-          }))
+        ? read.lines.map((line) => {
+            // A category the file or an earlier save named wins; else 5% is S5 and 0% Z0.
+            const code =
+              line.taxCategoryCode && DESIGN_CODES.has(line.taxCategoryCode)
+                ? line.taxCategoryCode
+                : categoryOfRate(line.vatRate ?? 0)
+            return {
+              ...blankLine(),
+              description: text(line.description),
+              quantity: amount(line.quantity) || '1',
+              unitPrice: money3(line.unitPrice),
+              vatRate: rateOfCategory(DESIGN_REFERENCE.taxCategories, code),
+              taxCategoryCode: code,
+            }
+          })
         : base.lines,
   }
 }
@@ -207,6 +281,11 @@ export type ConfirmExtras = {
    * the same intake takes all three and the type is what decides which way the money points.
    */
   documentTypeCode?: ConfirmIntakeDto['documentTypeCode']
+  /**
+   * The whole document's VAT category, for a receipt typed without lines (its 5% / 0% / Exempt
+   * chips): sent only when given.
+   */
+  taxCategoryCode?: string | null
 }
 
 export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): ConfirmIntakeDto {
@@ -225,9 +304,12 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     lines: form.lines.map((line, index) => ({
       description: line.description.trim(),
       quantity: Number(line.quantity.trim()),
-      unit: null,
+      // TODO(backend): EXPENDITURE.md 7.11. The unit is sent; the server may still ignore it.
+      unit: line.unit?.trim() ? line.unit.trim() : null,
       unitPrice: Number(line.unitPrice.trim()),
       vatRate: Number(line.vatRate.trim()),
+      // TODO(backend): EXPENDITURE.md M.1. The line's category (S5, Z0, E0, O0) beside its rate.
+      taxCategoryCode: line.taxCategoryCode ?? null,
       lineNet: Number(totals!.lineNets[index]),
     })),
     purchaseOrderId: form.purchaseOrderId || null,
@@ -236,6 +318,8 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     category: extras.category ?? null,
     paidOnTheSpot: extras.paidOnTheSpot ?? null,
     notDuplicateOf: extras.notDuplicateOf ?? null,
+    // TODO(backend): EXPENDITURE.md M.2. A receipt's category: 0% zero-rated and exempt apart.
+    ...(extras.taxCategoryCode ? { taxCategoryCode: extras.taxCategoryCode } : {}),
   }
 }
 
@@ -267,6 +351,7 @@ export function toCorrections(
       quantity: QUANTITY.test(line.quantity.trim()) ? Number(line.quantity.trim()) : null,
       unitPrice: money(line.unitPrice),
       vatRate: RATE.test(line.vatRate.trim()) ? Number(line.vatRate.trim()) : null,
+      taxCategoryCode: line.taxCategoryCode ?? null,
       amount: totals ? Number(totals.lineNets[index]) : null,
     })),
   }

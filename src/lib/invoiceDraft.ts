@@ -510,6 +510,46 @@ export type FormProblem = {
   key: string
 }
 
+/** A line's VAT category as the draft sends it: what BR-CO-18 groups and compares. */
+export type CategoryReasonLine = {
+  code: string | null
+  rate: string | number
+  en16931Category: string
+  exemptionReasonCode?: string | null
+  exemptionReason?: string | null
+}
+
+/** The message a line gets when its reason differs from another line's at the same category and rate. */
+export const CATEGORY_REASON_CONFLICT = 'invoiceDraft.problem.categoryReasonConflict'
+
+/**
+ * The lines (by index) whose reason differs from an earlier line at the same VAT category code and
+ * rate: a different exemption reason code, or a different written reason. A document has one VAT
+ * breakdown per category and rate (BR-CO-18), carrying one reason, so the server refuses the pair
+ * at preview or issue (`TAX_CATEGORY_REASON_CONFLICT`, `TAX_CATEGORY_METADATA_CONFLICT`). Shared by
+ * every composer that checks its lines before saving (INCOME.md V.6).
+ */
+export function categoryReasonConflicts(lines: readonly CategoryReasonLine[]): number[] {
+  const trimmed = (value: string | null | undefined) => (value ?? '').trim()
+  const first = new Map<string, CategoryReasonLine>()
+  const conflicts: number[] = []
+  lines.forEach((line, index) => {
+    const key = `${line.code ?? ''}|${Number(line.rate)}`
+    const seen = first.get(key)
+    if (!seen) {
+      first.set(key, line)
+      return
+    }
+    if (
+      seen.en16931Category !== line.en16931Category ||
+      trimmed(seen.exemptionReasonCode) !== trimmed(line.exemptionReasonCode) ||
+      trimmed(seen.exemptionReason) !== trimmed(line.exemptionReason)
+    )
+      conflicts.push(index)
+  })
+  return conflicts
+}
+
 /** What stops a save before it is sent. The server re-checks everything; this only saves a round trip. */
 export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm): FormProblem[] {
   const problems: FormProblem[] = []
@@ -543,6 +583,26 @@ export function problemsBeforeSave(categories: TaxCategoryDto[], form: DraftForm
       })
     }
   })
+  // One reason per VAT category and rate (BR-CO-18), compared as `toDraftRequest` sends it: a
+  // code on a zero-rated or exempt line, text on the other no-VAT categories. A line already
+  // missing its reason is told that first.
+  const sent = form.lines.map((line) => {
+    const tax = taxOptionOf(categories, line)
+    const coded = CODED_REASON.has(tax.en16931Category)
+    return {
+      code: tax.code,
+      rate: tax.rate,
+      en16931Category: tax.en16931Category,
+      exemptionReasonCode: coded ? line.exemptionReasonCode || null : null,
+      exemptionReason:
+        NEEDS_EXEMPTION_REASON.has(tax.en16931Category) && !coded ? line.exemptionReason : null,
+    }
+  })
+  for (const index of categoryReasonConflicts(sent)) {
+    if (problems.some((problem) => problem.line === index && problem.field === 'exemptionReason'))
+      continue
+    problems.push({ field: 'exemptionReason', line: index, key: CATEGORY_REASON_CONFLICT })
+  }
   return problems
 }
 

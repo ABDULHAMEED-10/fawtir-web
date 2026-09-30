@@ -48,7 +48,24 @@ export type TddLegDto = {
   ack: MlsAckDto
   ack_at: string | null
   reason: string | null
+  /**
+   * TODO(backend): ACTIVITY.md 2.30. Which kind of error the refusal is: INVOICE when the invoice's
+   * own content was refused (its totals, the buyer's Peppol ID, a tax category), REPORT when only
+   * the TDD was at fault. The TDD carries a full copy of the invoice (TDT-012, IBR-TDD-57), so an
+   * INVOICE error is put right with a credit note and a new invoice, never by resending a changed
+   * report. Until it arrives the screens classify from the reason and the error code.
+   */
+  error_kind?: RefusalKindDto | null
 }
+
+/** Which kind of error caused a refusal (ACTIVITY.md 2.30). */
+export type RefusalKindDto = 'INVOICE' | 'REPORT'
+
+/** TODO(backend): ACTIVITY.md 2.31. The TDD type: S sent, R replacement, D deletion (cancellation). */
+export type TddTypeDto = 'S' | 'R' | 'D'
+
+/** TODO(backend): ACTIVITY.md 2.32. The TDD scope: D domestic, IP and INP the two export scopes. */
+export type TddScopeDto = 'D' | 'IP' | 'INP'
 
 /** `resubmit` is present only when the server judges one possible — never inferred here. */
 export type ActivityLinksDto = {
@@ -90,6 +107,25 @@ export type ActivityItemDto = {
   superseded_by?: string | null
   /** The Peppol scenario: its flow number, and the stand-in ID used when the buyer is not on Peppol. */
   scenario?: { flow: number; stand_in_id: string | null } | null
+  /**
+   * TODO(backend): ACTIVITY.md 2.25. When a RECEIVED document reached our access point, the
+   * receipt date and time the receiving side reports on its TDD (PINT-OM TDOM-04, TDOM-05).
+   */
+  received_at?: string | null
+  /** TODO(backend): ACTIVITY.md 2.26. The other side's Peppol participant ID (`0248:<VAT>`). */
+  counterparty_participant_id?: string | null
+  /** TODO(backend): ACTIVITY.md 2.27. The document's CustomizationID (its PINT-OM profile). */
+  customization_id?: string | null
+  /** TODO(backend): ACTIVITY.md 2.31. The live TDD's type (S, or R/D when we replaced or cancelled). */
+  tdd_type?: TddTypeDto | null
+  /**
+   * TODO(backend): ACTIVITY.md 2.32. Our role on the TDD (01 seller, 02 receiver; TDT-010) and the
+   * TDD scope code. An export is reported under scope IP or INP, not with a stand-in ID.
+   */
+  reporter_role?: '01' | '02' | null
+  tdd_scope?: TddScopeDto | null
+  /** TODO(backend): ACTIVITY.md 2.34. The invoice total VAT amount (IBT-110). */
+  tax_amount?: number | null
 }
 
 export type ActivityListDto = {
@@ -101,7 +137,13 @@ export type ActivityListDto = {
 
 export type AckCountsDto = { ap: number; ab: number; re: number; none: number }
 
-/** No rates on the wire: the screen divides, and zero stays zero. */
+/**
+ * No rates on the wire: the screen divides, and zero stays zero.
+ *
+ * TODO(backend): ACTIVITY.md 2.33. `tdd_ack` must count the live TDD of each document only: a
+ * report we replaced or cancelled (TDD type R or D) is not a rejection, and the Rejected figure
+ * and the acceptance rate count only what is live.
+ */
 export type ActivitySummaryDto = {
   from: string | null
   to: string | null
@@ -116,6 +158,12 @@ export type ActivitySummaryDto = {
   superseded?: number
   /** TODO(backend): the same median over the window before, for "down from". */
   previous_median_minutes_to_tdd_ack?: number | null
+  /**
+   * TODO(backend): ACTIVITY.md 2.35. The period's invoiced total and the VAT reported (the sum of
+   * IBT-110 over the reported invoices only), for the compliance report dialog.
+   */
+  invoiced_total?: number | null
+  vat_reported?: number | null
 }
 
 export type TddObligationDto = {
@@ -133,6 +181,10 @@ export type TddObligationDto = {
   error_code?: string | null
   /** TODO(backend): the reference Fawtara issued for this version, when it took it. */
   fawtara_reference?: string | null
+  /** TODO(backend): ACTIVITY.md 2.30. Which kind of error the refusal is. */
+  error_kind?: RefusalKindDto | null
+  /** TODO(backend): ACTIVITY.md 2.31. This version's TDD type (S, R or D). */
+  tdd_type?: TddTypeDto | null
 }
 
 export type MlsRecordDto = {
@@ -216,8 +268,20 @@ export function loadActivityList(path: string): Promise<ActivityListDto> {
   return apiRequest<ActivityListDto>(path)
 }
 
-export function activitySummaryPath(from?: string, to?: string) {
-  return withQuery(`${ACTIVITY_PATH}/summary`, { from: from || null, to: to || null })
+/**
+ * The summary for a window. `direction` makes the figures follow the ledger's Direction filter.
+ * TODO(backend): ACTIVITY.md 2.33. The summary does not take `direction` yet.
+ */
+export function activitySummaryPath(
+  from?: string,
+  to?: string,
+  direction?: ActivityDirectionDto | '',
+) {
+  return withQuery(`${ACTIVITY_PATH}/summary`, {
+    from: from || null,
+    to: to || null,
+    direction: direction || null,
+  })
 }
 
 export function loadActivitySummary(path: string): Promise<ActivitySummaryDto> {

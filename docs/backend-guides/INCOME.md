@@ -116,6 +116,8 @@ productCode, description, unitCode, quantity, unitPrice, discount, taxCategory{�
 | 4.15 | A note is always started against an issued invoice: the frames draw no standalone credit or debit | none: `createNote(kind, invoiceId, …)` fits. `/income/credit-notes/new` without `?invoice=` asks for the invoice on the page first |
 | 4.16 | The composer prints the note number before it is issued ("Credit note number CRN-0087", "Debit note number DBN-0043") | the draft has no number until `POST /invoice-drafts/{id}/issue` answers it, so the field reads "Assigned when issued". A reserved next number on the draft (or a `GET` for the next in the sequence) would let the page print it as drawn |
 | 4.17 | The lists print a draft note's amount ("- <rial> 3.200" on the Draft row of both frames) | the list row carries `totals: null` for a draft, so the Credit / Debit amount cell of a draft reads "—". Please price drafts on the list row (the draft is already priced by `POST /invoice-drafts/{id}/preview`) |
+| 4.18 | Debit notes list subtitle: "12 debit notes · <rial> 69.060 charged this quarter" | `issuedThisQuarter: {count, total}` on `GET /summary?type=DEBIT_NOTE` (same basis as `issuedLast30Days`, from the first day of the current quarter); backend D1 provides it. Without it the subtitle shows the list's description |
+| 4.19 | Credit note detail: the Refund due and Applied figures | a per-note refund state and amount from the API (with 4.2). Until then (owner, 2026-09-29): when the note is the invoice's only credit note (the invoice's `creditedAmount` equals the note's total) the page derives them exactly, refund = the invoice's overpayment capped at the note's total and applied = total − refund, with the refund banner, Record refund and "Settled by this credit". With more than one credit note on the invoice, both read "Not available yet". On the lists, a missing figure reads "Not available yet", without a rial sign |
 
 ## 5. Periodic invoices (`/v1/periodic-invoices`)
 
@@ -686,3 +688,72 @@ all three merged first.
   them.
 - **V.5** Outside scope takes an optional reason: no required asterisk and no "reason missing"
   check on any composer (`reasonRequired` in `lib/invoiceDraft.ts`). A typed reason is still sent.
+
+## Update 2026-09-29 (debit notes: what the web now reads and sends)
+
+The debit notes screens were wired to what the API now answers. Rows above keep their numbers;
+this is what each now stands at.
+
+- **4.1, debit notes:** the Debit notes list reads its tab counts and four cards from
+  `GET /v1/authored-invoices/summary?type=DEBIT_NOTE` (Charged · 30 days from
+  `issuedLast30Days`, Awaiting from `awaitingTotal` / `awaiting`, Collected from `paidTotal` /
+  `paidInvoices`, Overdue from `overdueTotal` / `overdueInvoices`, its "days late" from
+  `oldestOverdueDueDate` against `asOf`). The 200-row read is gone for debit notes. **Credit notes
+  still read their figures off the notes** (4.1 stays open for them). The subtitle's quarter comes
+  from `issuedThisQuarter` (row 4.18, provided by D1).
+- **4.4, lines added on a note:** a line with no catalogue product now leaves `productId` and
+  `productCode` out of the draft line instead of sending empty strings. Nothing to add.
+- **4.6, draft attachments:** files dropped on the composer are uploaded to the draft
+  (`POST /v1/authored-invoices/{id}/attachments`, `invoice.attachment.manage`) after it is saved
+  and before it is issued; a failed upload leaves the draft saved, and a file is not sent twice.
+  The Peppol send switch (the other half of 4.6) is still open.
+- **4.7, paid date:** a paid debit note row prints "Paid <date>" from `payment.lastPaymentDate`.
+  The method (`payment.lastPaymentMethodCode`) is typed and read but has no drawn place in the
+  row yet; the row is otherwise unchanged.
+- **4.10, classification on note lines:** already sent as `lines[].classification`; a reopened
+  draft now keeps each added line's classification and its `exemptionReasonCode`, so it sends
+  back what it was saved with.
+- **4.14, participant id:** the note detail's customer card prints the Peppol participant id from
+  `profile.details.peppolParticipantId` beside the VAT number, when the record has one.
+
+## Update 2026-09-29 (credit notes: what the web now reads and sends)
+
+The credit notes screens were wired the same way as the debit notes above. Rows keep their
+numbers; this is what each now stands at. Everything here needs backend D1 (summary by type) and
+C2 (`correctionReasonDetail`) merged first.
+
+- **4.1, credit notes:** the Credit notes list reads its tab counts, subtitle and cards from
+  `GET /v1/authored-invoices/summary?type=CREDIT_NOTE`: Credited · 30 days from
+  `issuedLast30Days`; Applied to invoices (card and tab count) from `issuedTotal`, because no
+  refund is recorded and every issued credit note is therefore applied against its invoice; the
+  subtitle "N credit notes · X credited this quarter" from `issuedThisQuarter`; All, Drafts and
+  To send counts from `all`, `drafts` and `toSend`. The 200-row read is gone for credit notes too
+  (the list refuses `size` above 100). The Refund due and Refunded cards read "Figures
+  unavailable" rather than 0, which would be a false figure (4.2).
+- **4.2 and 4.3, the tabs:** Applied now asks the server for `state=ISSUED` (every issued credit
+  note), so its pages and count are the server's. Refund due and Refunded stay drawn and show
+  their empty state without asking the server anything until refunds are recorded (4.2). To send
+  is unchanged: one page of issued notes narrowed on the page, until the list takes a delivery
+  filter (4.3).
+- **4.9, reason detail:** a note draft now sends `details.correctionReasonDetail`, the chosen
+  reason's key (`returnedGoods`, `goodwillDiscount`, `freightOmitted`, ...), beside
+  `correctionReasonCode`. A reopened draft shows the stored reason (the first reason of its code
+  when a note has none), and the list rows and the note detail print it. Refusals of the detail
+  (`CORRECTION_REASON_DETAIL_*`) read as "Choose why the note is issued." Nothing further to add.
+- **4.19:** the credit note detail's Refund due figure, and the Refunds card, read "Not available
+  yet"; the whole note shows as applied to its invoice. Record refund still says refunds are not
+  recorded in Fawtir yet.
+- **Document discount on a credit note (W-2):** a credit of the whole invoice sends the invoice's
+  `headerDiscount` as it is. A credit of some of its lines sends a percentage discount unchanged,
+  and a fixed discount in proportion: the invoice's fixed discount times the credited lines'
+  amount after line discounts over the invoice's, HALF_UP to three decimals. The engine spreads a
+  fixed discount over every line by that proportion, whatever the line's VAT category, so each
+  credited line gets back its own share, to within half a baisa. A custom amount and every debit
+  note send no document discount, as before. The composer's totals include it.
+- **V.6, one reason per VAT category and rate:** the invoice composer and both note composers now
+  refuse, before saving, two lines at the same VAT category code and rate with different reasons
+  (a different exemption reason code, or different written reason text), which the engine refuses
+  only at preview or issue (`TAX_CATEGORY_REASON_CONFLICT`, `TAX_CATEGORY_METADATA_CONFLICT`,
+  BR-CO-18: one VAT breakdown per category and rate). The notes map both refusal codes to the same
+  message. The self-billed and periodic composers have validation of their own and do not run this
+  check yet.

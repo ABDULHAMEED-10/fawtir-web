@@ -67,6 +67,12 @@ type Summaries = {
  * the figures read the pill's window and the one before it. TODO(backend): a bucketed summary
  * (asks 1.15) would make that one call. The reasons card ranks the reasons on the first
  * rejected documents of the window (asks 1.16).
+ *
+ * **Labels say what is computed** (REPORTS.md row 1.28). The share is every document the OTA
+ * endpoint acknowledged as delivered, retries included, so it is "Accepted", not "Accepted first
+ * time"; the time is a median, so it says "Median"; the red part of "What happened" is the OTA
+ * endpoint's rejections, so it says "Rejected", not "Delivery failed". A month nothing was sent in
+ * has no rate and no time, and is drawn as "no data", never as zero or as the month before.
  */
 export function ReportsCompliancePage() {
   const { t, i18n } = useTranslation()
@@ -192,22 +198,21 @@ function ComplianceBody({
     before.median_minutes_to_tdd_ack === null ? null : before.median_minutes_to_tdd_ack * 60
   const decided = span.sla.met + span.sla.missed
 
-  // A month with nothing sent has no rate; the line holds the last one rather than dropping to
-  // zero, which would read as every document failing.
-  let carried = 0
+  // A month with nothing sent has no rate and no time: it is drawn as no data, never as zero
+  // (every document failing) or as the month before (a rate nobody earned).
   const monthlyAccepted = summaries.months.map((summary) => {
     const share = acceptedShare(summary)
-    carried = share === null ? carried : share
-    return Math.round(carried * 10) / 10
+    return share === null ? null : Math.round(share * 10) / 10
   })
   const monthlySeconds = summaries.months.map((summary) =>
     summary.median_minutes_to_tdd_ack === null
-      ? 0
+      ? null
       : Math.round(summary.median_minutes_to_tdd_ack * 60),
   )
   const monthLabels = months.map((key) => t(`reports.months.${MONTH_IDS[monthIndexOf(key)]}`))
-  const bestMonth = Math.max(...monthlyAccepted)
-  const slowest = Math.max(...monthlySeconds)
+  const measured = monthlyAccepted.filter((value): value is number => value !== null)
+  const bestMonth = measured.length > 0 ? Math.max(...measured) : null
+  const emptyMonths = months.filter((_, index) => monthlyAccepted[index] === null)
 
   // What happened, by quarter, from the monthly counts that fall in it. "On retry" waits on the
   // TDD lineage being counted (asks 1.17); silence is its own grey part, never folded into a
@@ -216,6 +221,8 @@ function ComplianceBody({
     const counts = summaries.months.filter((_, index) => quarter.months.includes(months[index]))
     const sum = (pick: (summary: ActivitySummaryDto) => number) =>
       counts.reduce((total, summary) => total + pick(summary), 0)
+    // A quarter nothing was sent in (or one before the twelve months read) has no split.
+    if (sum((summary) => summary.documents) === 0) return null
     return roundShares([
       sum((summary) => deliveredCount(summary.tdd_ack)),
       0,
@@ -224,7 +231,7 @@ function ComplianceBody({
     ])
   })
   const failures = outcomes
-    .filter((parts) => parts.some((part) => part > 0))
+    .filter((parts): parts is number[] => parts !== null && parts.some((part) => part > 0))
     .map((parts) => parts[2])
   const failuresFalling =
     failures.length > 1 &&
@@ -257,7 +264,7 @@ function ComplianceBody({
     <>
       <KpiRow>
         <KpiCard
-          label={t('reports.compliance.kpi.accepted')}
+          label={t('reports.compliance.kpi.acceptedAll')}
           value={`${shortPercent(accepted, language)}%`}
           change={
             // A change that rounds to nothing draws no pill.
@@ -276,7 +283,7 @@ function ComplianceBody({
           })}
         />
         <KpiCard
-          label={t('reports.compliance.kpi.timeToClear')}
+          label={t('reports.compliance.kpi.medianToClear')}
           value={medianSeconds === null ? t('reports.compliance.noClock') : clock(medianSeconds, t)}
           change={
             medianSeconds === null || medianBefore === null || medianSeconds === medianBefore
@@ -321,11 +328,22 @@ function ComplianceBody({
 
       <ChartGrid>
         <ChartCard
-          title={t('reports.compliance.acceptedFirstTime')}
-          legend={[{ label: t('reports.compliance.acceptanceSeries'), color: SERIES.strong }]}
-          note={t('reports.compliance.bestMonthYet', {
-            percent: shortPercent(bestMonth, language),
-          })}
+          title={t('reports.compliance.acceptedByMonth')}
+          legend={[{ label: t('reports.compliance.acceptedSeries'), color: SERIES.strong }]}
+          note={
+            bestMonth === null
+              ? t('reports.noData')
+              : emptyMonths.length > 0
+                ? t('reports.compliance.bestMonthNoData', {
+                    percent: shortPercent(bestMonth, language),
+                    months: emptyMonths
+                      .map((key) => t(`reports.months.${MONTH_IDS[monthIndexOf(key)]}`))
+                      .join(', '),
+                  })
+                : t('reports.compliance.bestMonthYet', {
+                    percent: shortPercent(bestMonth, language),
+                  })
+          }
         >
           <LineChart values={monthlyAccepted} labels={monthLabels} labelWidth={38} />
         </ChartCard>
@@ -365,15 +383,14 @@ function ComplianceBody({
 
         <ChartCard
           title={t('reports.compliance.timeToClear')}
-          legend={[{ label: t('reports.compliance.secondsToAcceptance'), color: SERIES.green }]}
-          note={
-            slowest < 24 * 60 * 60
-              ? t('reports.compliance.insideTheRule')
-              : t('reports.compliance.outsideTheRule')
-          }
+          legend={[{ label: t('reports.compliance.medianSeconds'), color: SERIES.green }]}
+          // The "24-hour rule" copy is removed by the owner's decision: only a deadline the
+          // server returns may be shown, and this chart has none.
+          note={null}
         >
           <PlainBars
             values={monthlySeconds}
+            missingLabel={t('reports.noData')}
             labels={monthLabels}
             highlight={monthlySeconds.length - 1}
             color={SERIES.greenSoft}
@@ -385,18 +402,23 @@ function ComplianceBody({
         <ChartCard
           title={t('reports.compliance.whatHappened')}
           legend={[
-            { label: t('reports.compliance.firstTime'), color: SERIES.green },
+            // "First time" and "On retry" cannot be told apart until the TDD lineage is counted
+            // (asks 1.17), so the green part is every acceptance and says so, and "On retry"
+            // stays in its place at nothing.
+            { label: t('reports.compliance.acceptedPart'), color: SERIES.green },
             { label: t('reports.compliance.onRetry'), color: SERIES.brown },
-            { label: t('reports.compliance.deliveryFailed'), color: SERIES.rose },
+            { label: t('reports.compliance.rejectedPart'), color: SERIES.rose },
             { label: t('activity.ack.NONE'), color: SERIES.grey },
           ]}
-          note={failuresFalling ? t('reports.compliance.failuresFalling') : null}
+          note={failuresFalling ? t('reports.compliance.rejectionsFalling') : null}
         >
           <StackedPercentRows
-            rows={quarters.map((quarter, index) => ({
-              label: quarterLabel(quarter),
-              parts: outcomes[index],
-            }))}
+            rows={quarters.map((quarter, index) => {
+              const parts = outcomes[index]
+              return parts === null
+                ? { label: quarterLabel(quarter), parts: [], pending: t('reports.noData') }
+                : { label: quarterLabel(quarter), parts }
+            })}
             colors={[SERIES.green, SERIES.brown, SERIES.rose, SERIES.grey]}
             minLabelWidth={10}
           />

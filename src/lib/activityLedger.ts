@@ -3,6 +3,7 @@ import type {
   ActivitySummaryDto,
   AckCountsDto,
   MlsAckDto,
+  RefusalKindDto,
 } from '../api/compliance/activity'
 
 /**
@@ -129,7 +130,9 @@ export function tabCount(summary: ActivitySummaryDto, tab: ActivityTabId): numbe
     case 'attention':
       return summary.attention
     case 'accepted':
-      return deliveredCount(summary.tdd_ack)
+      // The tab lists `tdd_ack=AP`, so it counts AP only. "Delivered, unconfirmed" (AB) is its
+      // own state: it shows under All with its own label and is not counted as accepted.
+      return summary.tdd_ack.ap
     case 'rejected':
       return summary.tdd_ack.re
     case 'waiting':
@@ -178,13 +181,21 @@ export function sortItems(items: ActivityItemDto[], sort: ActivitySortKey): Acti
 /* ------------------------------------------------------------ one row, as the frame reads it */
 
 /** The pill in "What the OTA said". */
-export type RowOutcome = 'accepted' | 'rejected' | 'waiting' | 'superseded' | 'notOwed'
+export type RowOutcome =
+  | 'accepted'
+  | 'deliveredUnconfirmed'
+  | 'rejected'
+  | 'waiting'
+  | 'superseded'
+  | 'notOwed'
 
 /**
- * The frame's four outcomes, read off the TDD leg.
+ * The frame's four outcomes, read off the TDD leg, plus "Delivered, unconfirmed".
  *
- * Only the server decides a row is superseded (its status); a rejection is an RE, an
- * acknowledgement AP or AB. Silence stays "Still waiting": it is not a failure and never offers a
+ * Only the server decides a row is superseded (its status): it is a report WE replaced or
+ * cancelled by sending a TDD of type R or D, not something the OTA did. A rejection is an RE, an
+ * acceptance an AP. AB (delivered without confirmation) is neither: it gets its own label and is
+ * never counted as accepted. Silence stays "Still waiting": it is not a failure and never offers a
  * resend on its own (SPOG v1.0.0 §6.2); the resend is the server's link, as before.
  */
 export function outcomeOf(item: ActivityItemDto): RowOutcome {
@@ -192,8 +203,93 @@ export function outcomeOf(item: ActivityItemDto): RowOutcome {
   if (!leg) return 'notOwed'
   if (leg.status === 'SUPERSEDED' || item.superseded_by) return 'superseded'
   if (leg.ack === 'RE') return 'rejected'
-  if (leg.ack === 'AP' || leg.ack === 'AB') return 'accepted'
+  if (leg.ack === 'AP') return 'accepted'
+  if (leg.ack === 'AB') return 'deliveredUnconfirmed'
   return 'waiting'
+}
+
+/**
+ * Whether a row belongs in a tab that lists one acknowledgement. A report we replaced keeps the
+ * ack it had, but only the live report counts: it is listed under Superseded, never under
+ * Accepted, Rejected or Still waiting.
+ */
+export function belongsInTab(item: ActivityItemDto, tab: ActivityTabId): boolean {
+  if (tab === 'accepted' || tab === 'rejected' || tab === 'waiting') {
+    return outcomeOf(item) !== 'superseded'
+  }
+  return true
+}
+
+/* ------------------------------------------------------------ why a report was refused */
+
+/**
+ * What a refusal is about, and so how it is put right.
+ *
+ * The TDD carries a full copy of the invoice (TDT-012, IBR-TDD-57). When the refusal is about the
+ * invoice's own content (its totals, the buyer's Peppol ID, a tax category), a changed report
+ * would no longer match the invoice the buyer holds: the fix is a credit note and a new invoice.
+ * Only an error in the TDD itself is put right by sending the report again.
+ */
+export type RefusalKind = 'invoice' | 'report' | 'unknown'
+
+/** The causes the screens know how to explain. */
+export type RefusalCause =
+  | 'buyerPeppolId'
+  | 'totals'
+  | 'taxCategory'
+  | 'otherInvoice'
+  | 'report'
+  | 'unknown'
+
+/**
+ * The refusal codes seen so far. TODO(backend): ACTIVITY.md 2.30. Stand-in until the server says
+ * which kind each refusal is (`error_kind`); unknown codes fall through to the reason text.
+ */
+const CODE_CAUSE: Record<string, RefusalCause> = {
+  'OTA-E-2041': 'buyerPeppolId',
+  'OTA-E-1122': 'taxCategory',
+  MISSING_BUYER_ENDPOINT_ID: 'buyerPeppolId',
+  TAX_CATEGORY_MISMATCH: 'taxCategory',
+}
+
+const CAUSE_PATTERNS: [RegExp, RefusalCause][] = [
+  [/peppol id|participant id|endpoint ?id|buyer endpoint/i, 'buyerPeppolId'],
+  [/tax category|category and the rate|vat categor/i, 'taxCategory'],
+  [/total|added up|line amount|rounding|sum of/i, 'totals'],
+  [/signature|certificate|duplicate|tdd uuid|schema|envelope|sbdh|xml/i, 'report'],
+  [
+    /buyer|seller|customer|vat number|address|currency|issue date|invoice (number|line)/i,
+    'otherInvoice',
+  ],
+]
+
+export function refusalCauseOf(
+  code: string | null | undefined,
+  reason: string | null | undefined,
+): RefusalCause {
+  const known = code ? CODE_CAUSE[code.trim().toUpperCase()] : undefined
+  if (known) return known
+  const text = `${code ?? ''} ${reason ?? ''}`
+  for (const [pattern, cause] of CAUSE_PATTERNS) if (pattern.test(text)) return cause
+  return 'unknown'
+}
+
+export function refusalKindOf(
+  cause: RefusalCause,
+  fromServer?: RefusalKindDto | null,
+): RefusalKind {
+  if (fromServer === 'INVOICE') return 'invoice'
+  if (fromServer === 'REPORT') return 'report'
+  if (cause === 'report') return 'report'
+  if (cause === 'unknown') return 'unknown'
+  return 'invoice'
+}
+
+/** A ledger row's refusal kind, from its TDD leg. Null when the row was not refused. */
+export function rowRefusalKind(item: ActivityItemDto): RefusalKind | null {
+  const leg = item.tdd_leg
+  if (!leg || leg.ack !== 'RE') return null
+  return refusalKindOf(refusalCauseOf(null, leg.reason), leg.error_kind)
 }
 
 /** The chip in "Which flow". */
@@ -201,17 +297,58 @@ export type RowFlow = 'b2bDomestic' | 'b2c' | 'export'
 
 export function flowOf(item: ActivityItemDto): RowFlow {
   if (item.b2c) return 'b2c'
+  // An export is reported under TDD scope IP or INP (ACTIVITY.md 2.32).
+  if (item.tdd_scope === 'IP' || item.tdd_scope === 'INP') return 'export'
   const variant = (item.tdd_leg?.variant ?? '').toUpperCase()
   if (variant.includes('EXPORT') || item.scenario?.flow === 11) return 'export'
   return 'b2bDomestic'
 }
 
-/** The glyph and word in "Customer": did their Access Point acknowledge the invoice? */
-export type CustomerAck = 'received' | 'notOnPeppol' | 'noCustomer' | 'waiting' | 'refused'
+/**
+ * The line under the flow chip. A received document is reported by us as the receiver
+ * (TDT-010 = 02), so it never reads as a flow we sent. An export names its TDD scope (IP or INP);
+ * the only stand-in participant ID PINT-OM publishes is 997770000099.
+ */
+export function routeOf(item: ActivityItemDto): {
+  key: string
+  values?: Record<string, string | number>
+} {
+  if (item.direction === 'RECEIVED' || item.reporter_role === '02') {
+    return { key: 'activity.route.received' }
+  }
+  const flow = flowOf(item)
+  if (flow === 'export') {
+    return item.tdd_scope
+      ? { key: 'activity.route.exportScope', values: { scope: item.tdd_scope } }
+      : { key: 'activity.route.exportNoScope' }
+  }
+  if (item.scenario) {
+    return item.scenario.stand_in_id
+      ? {
+          key: 'activity.route.standIn',
+          values: { id: item.scenario.stand_in_id, flow: item.scenario.flow },
+        }
+      : { key: 'activity.route.bothOnPeppol', values: { flow: item.scenario.flow } }
+  }
+  return { key: `activity.route.${flow}` }
+}
+
+/**
+ * The glyph and word in "Customer": did their Access Point acknowledge the invoice? On a document
+ * a supplier sent us the customer is us, so the cell says we received it.
+ */
+export type CustomerAck =
+  | 'received'
+  | 'youReceived'
+  | 'notOnPeppol'
+  | 'noCustomer'
+  | 'waiting'
+  | 'refused'
 
 export function customerAckOf(item: ActivityItemDto): CustomerAck {
+  if (item.direction === 'RECEIVED') return 'youReceived'
   if (item.b2c) return 'noCustomer'
-  if (item.scenario?.stand_in_id) return 'notOnPeppol'
+  if (item.scenario?.stand_in_id || item.tdd_scope === 'INP') return 'notOnPeppol'
   const ack = item.invoice_leg.ack
   if (ack === 'AP' || ack === 'AB') return 'received'
   if (ack === 'RE') return 'refused'

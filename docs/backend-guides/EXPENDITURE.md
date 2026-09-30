@@ -1,6 +1,6 @@
 # Expenditure and Suppliers: backend guide
 
-**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, and suppliers. **Last updated:** 27 September 2026.
+**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, and suppliers. **Last updated:** 30 September 2026.
 
 This is the single guide for this area. It lists every place where a screen draws something the
 API does not provide yet, and what to add. It replaces the older per-pass "design realignment,
@@ -180,3 +180,32 @@ Frames: Suppliers > Detail 163:26275, Add to a payment run 163:29156, New purcha
 | 7.15 | Statement footer: "1 credit note still unused" | `unusedCredits` on `SupplierStatement` (typed optional) |
 | 7.16 | Statement header: "Prepared 30 July 2026, 09:14" | `preparedAt` on the statement; the browser's read time stands in |
 | 7.17 | Purchase order page, "Deliver to" reads a branch name | `deliverToBranchName` on `PurchaseOrder` (only the id today); the page reads `GET /v1/branches` to name it meanwhile |
+
+---
+
+## Update 2026-09-30: checked against the published PINT-OM rules (buyer side)
+
+Expenditure is the **buyer** side. A bill that arrives over Peppol carries the supplier's own VAT categories, reason codes and classification, validated by the sender; the screens show them and report the receipt. Manual bills (a photo, a bill typed in, a receipt) are not sent anywhere, so they ask for a VAT category but no reason code and no HS code. PINT-OM has no response message to the supplier, so "Refuse" and "Query it" stay internal ("nothing is sent to the supplier"). Sources: [PINT-OM billing](https://docs.peppol.eu/poac/om/pint-om/), [Oman rules](https://docs.peppol.eu/poac/om/pint-om/trn-invoice/rule/PINT-jurisdiction-aligned-rules/), [TDD](https://docs.peppol.eu/poac/om/om-tdd/bis/) (PDK 1.4.4).
+
+### R. Documents received over Peppol (detail pages)
+
+| # | The screen shows | Ask |
+|---|---|---|
+| R.1 | Bill detail Compliance card, the credit note Compliance line, the debit note "Validated on the Peppol network" check, and the "Reported to the Tax Authority" entry in both notes' Activity: "Receipt reported to the Tax Authority · {date}" / "Receipt report waiting for the Tax Authority" / "Receipt report turned down" / "Receipt not reported yet". Without the field: "Receipt report status not available yet", and no Activity entry. (Replaces the earlier "reported by the supplier's provider: nothing to file from your side", which contradicted the TDD spec.) | Our own receiver-side report of each document received over Peppol (TDD, reporter role TDT-010 = 02 Receiver, receipt date TDOM-04 and time TDOM-05), as `receiptReport: { status: 'ACCEPTED' \| 'SUBMITTED' \| 'REJECTED' \| 'NOT_SUBMITTED', reportedAt: instant \| null, tddUuid: string \| null } \| null` on `GET /v1/bills/{id}` (under `compliance`), `GET /v1/credit-notes/{id}` and `GET /v1/debit-notes/{id}`. Null for documents that did not come over Peppol |
+| R.2 | VAT column on bill and supplier note lines: "5%" on standard lines; "0% · Zero-rated" / "0% · Exempt" / "0% · Out of scope" with the reason code (VATZR-OM-nn, VATEX-OM-nn) or text beneath. Totals read "VAT" with no rate when categories mix | Per line on `GET /v1/bills/{id}` (which also serves the notes' lines): `taxCategoryCode` (IBT-151, CL-04-OM: S, Z, E or O), `exemptionReasonCode` (IBT-121: VATZR-OM-01..16 on Z, VATEX-OM-01..12 on E) and `exemptionReason` (IBT-120 text, the only reason an O line may carry) |
+| R.3 | "Why they've credited you": the friendly reason (e.g. "Short delivery") and under it the official code, e.g. "QTY · Quantity correction" | `reasonCode` (BTOM-032) on credit and debit notes carries only a CL-02-OM code (CAN, VAT, VAL, QTY, OTH; IBR-023-OM). A finer reason, if kept, goes in an optional `reasonDetail` (today's SHORT_DELIVERY, DAMAGED, RETURN, OVERCHARGE, PRICE_CORRECTION, SURCHARGE, LATE_FEE, DUPLICATE, OTHER) |
+| R.4 | Supplier card on bill and note details: VAT number and Peppol ID | The **document's** own seller VAT number (IBT-031) and endpoint ID (IBT-034, `0248:`…) on the bill and note responses, beside the supplier record's. The card still reads the supplier record today; when both are served it should show the document's and warn when they differ (a wrong supplier, or a document that is not what it claims) |
+| R.5 | Totals "VAT · 5%" on a bill that mixes categories | The VAT breakdown per category (IBG-23: category, rate, taxable amount, VAT amount, reason) on `GET /v1/bills/{id}`, so the totals can list each category as our own invoices do |
+| R.6 | Header chip "Arrived over Peppol" / "Credit note · Peppol" | The document type (IBT-003: 380, 381, 383, 386, 389, 261) and the transaction type bitmap (BTOM-001, CL-03-OM: e.g. Summary, Continuous supply, Prepayment) on the bill and note responses, so the chip can name a subtype such as "Prepayment" |
+| R.7 | Note lines: "The line detail is not on this note yet" | Same as 5.8: the note's own lines, read from its XML, with R.2's fields |
+
+### M. Documents entered by hand, and supplier records
+
+| # | The screen shows | Ask |
+|---|---|---|
+| M.1 | Upload a bill, upload a supplier credit or debit note, and Record a bill: each line's VAT is a category (S5 Standard 5%, Z0 Zero-rated 0%, E0 Exempt 0%, O0 Out of scope 0%); the rate follows it. AE0 and G0 can no longer be chosen | `taxCategoryCode` (S5/Z0/E0/O0) on `ConfirmRequest.lines[]` and `FieldsRequest.lines[]` (PUT intake), stored on the bill line and echoed on `ExtractedBillFields.lines[]` (read from a UBL line's `cac:ClassifiedTaxCategory/cbc:ID` when present). Today only `vatRate` is read, so zero-rated, exempt and out-of-scope lines cannot be told apart for the VAT return |
+| M.2 | Scan receipts: the 5% / 0% / Exempt chips | an optional header `taxCategoryCode` (S5/Z0/E0) on `ConfirmRequest` for a receipt confirmed without lines, stored on the bill; today 0% and Exempt send the same body |
+| M.3 | New and edit recurring bill: VAT treatment Standard / Zero-rated / Exempt / Out of scope | `taxCategoryCode` (S5/Z0/E0/O0) on `RecurringBillRequest`, echoed on `RecurringBillResponse` and carried onto each bill it raises; today the treatment is inferred from `vatAmount`, so exempt and out of scope reopen as zero-rated |
+| M.4 | Supplier form address: street, City, Governorate (Oman only), Postal code (3 digits); the Peppol ID prefilled as `0248:` + the VAT number | `street`, `city`, `countrySubentity` (governorate), `postalCode` stored as separate fields on `POST/PUT /v1/suppliers` and returned on `GET /v1/suppliers/{id}`. Needed before self-billing: on a self-billed invoice the supplier is the seller, and PINT-OM IBR-019-OM requires the address line, city and post code |
+| M.5 | Supplier form, a supplier whose country is not Oman | a reverse-charge marker on the supplier (or derived from the country), so buying from abroad can point to the statutory self-billed invoice (import of services RCM, import of goods; BTOM-001 bits 9 and 13, IBR-017-OM, IBR-160-OM). Drawn later, with the self-billing rounds |
+| M.6 | Record a bill: the unit chosen on each line is now sent (row 7.11) | none if the server stores `unit`; otherwise store it and return it on the bill lines |

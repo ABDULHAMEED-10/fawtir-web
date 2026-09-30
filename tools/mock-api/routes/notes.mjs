@@ -57,25 +57,41 @@ function line(
   }
 }
 
-function totalsOf(lines) {
+/**
+ * A document's totals. A document (header) discount is spread over the lines by their amount after
+ * line discounts, as the engine does: a percentage of each, or a fixed amount in proportion.
+ */
+function totalsOf(lines, header = { type: 'PERCENTAGE', value: 0 }) {
   let subtotal = 0
   let discount = 0
-  let taxable = 0
-  let vat = 0
-  for (const l of lines) {
+  const nets = lines.map((l) => {
     const gross = round3(l.quantity * l.unitPrice)
     const off = round3(gross * (l.discountValue / 100))
-    const net = round3(gross - off)
     subtotal += gross
     discount += off
-    taxable += net
-    vat += round3(net * (l.taxRate / 100))
-  }
+    return round3(gross - off)
+  })
+  const base = nets.reduce((sum, net) => sum + net, 0)
+  const headerTotal =
+    header.type === 'FIXED_AMOUNT'
+      ? Math.min(header.value, base)
+      : round3(base * ((header.value ?? 0) / 100))
+  let taxable = 0
+  const byRate = new Map()
+  lines.forEach((l, index) => {
+    const share = base > 0 ? (headerTotal * nets[index]) / base : 0
+    const lineTaxable = nets[index] - share
+    taxable += lineTaxable
+    byRate.set(l.taxRate, (byRate.get(l.taxRate) ?? 0) + lineTaxable)
+  })
+  let vat = 0
+  for (const [rate, amount] of byRate) vat += round3(amount * (rate / 100))
+  taxable = round3(taxable)
   return {
     subtotal: round3(subtotal),
     itemLevelDiscount: round3(discount),
-    headerDiscount: 0,
-    totalDiscount: round3(discount),
+    headerDiscount: round3(headerTotal),
+    totalDiscount: round3(discount + headerTotal),
     taxableAmount: round3(taxable),
     vatAmount: round3(vat),
     totalAmount: round3(taxable + vat),
@@ -83,6 +99,9 @@ function totalsOf(lines) {
     outputScale: 3,
   }
 }
+
+/** The day a document was paid: on its due date when that has passed, else 21 Sep. */
+const paidOn = (dueDate) => (dueDate && dueDate < TODAY ? dueDate : '2026-09-21')
 
 const daysBetween = (from, to) =>
   Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
@@ -100,6 +119,8 @@ function doc({
   dueDate = null,
   lines,
   reason = null,
+  reasonDetail = null,
+  headerDiscount = { type: 'PERCENTAGE', value: 0 },
   subject = null,
   note = null,
   po = null,
@@ -109,7 +130,7 @@ function doc({
   terms = { code: 'NET30', label: 'Net 30 days' },
 }) {
   const issued = state !== 'DRAFT'
-  const totals = issued ? totalsOf(lines) : null
+  const totals = issued ? totalsOf(lines, headerDiscount) : null
   const receivableKind = type === 'INVOICE' || type === 'DEBIT_NOTE'
   const outstanding =
     totals && receivableKind ? Math.max(0, round3(totals.totalAmount - paid - credited)) : null
@@ -150,13 +171,15 @@ function doc({
       paymentTerms: terms,
       paymentMethod: null,
       correctionReasonCode: reason,
+      // The composer's reason behind the code (INCOME.md 4.9).
+      correctionReasonDetail: reasonDetail,
       buyerReference: null,
       contractReference: null,
       transactionType: 'FULL_TAX',
       transactionSubtypes: [],
       invoicingPeriod: null,
     },
-    headerDiscount: { type: 'PERCENTAGE', value: 0 },
+    headerDiscount,
     lines,
     totals,
     // Row-only members the list reads.
@@ -168,6 +191,10 @@ function doc({
       paidAmount: receivableKind && issued ? paid : null,
       creditedAmount: receivableKind && issued ? credited : null,
       outstandingAmount: outstanding,
+      // The latest payment, as the list row answers it (INCOME.md 4.7); the same day and method
+      // the payments read below records.
+      lastPaymentDate: receivableKind && issued && paid > 0 ? paidOn(dueDate) : null,
+      lastPaymentMethodCode: receivableKind && issued && paid > 0 ? '30' : null,
     },
     // The receivable read, kept beside the document.
     _receivable: {
@@ -282,6 +309,25 @@ const INVOICES = [
   }),
 ]
 
+// An invoice with a fixed document discount, to credit some of its lines against (W-2).
+INVOICES.push(
+  doc({
+    id: 'inv-2048',
+    type: 'INVOICE',
+    number: 'INV-2048',
+    customerId: 'c-mgh',
+    issueDate: '2026-09-02',
+    dueDate: '2026-10-02',
+    po: 'PO-88311',
+    lines: [
+      line(1, 'Cappuccino, Large', 'EA', 20, 1.8, 0, 'p-cap-l'),
+      line(2, 'Coffee Beans 1kg, House Blend', 'KGM', 5, 9.5, 10, 'p-beans-h'),
+    ],
+    headerDiscount: { type: 'FIXED_AMOUNT', value: 5 },
+    paid: 0,
+  }),
+)
+
 const CREDIT_NOTES = [
   doc({
     id: 'crn-0087',
@@ -329,6 +375,7 @@ const CREDIT_NOTES = [
     correctionOf: 'inv-2037',
     state: 'DRAFT',
     reason: 'OTH',
+    reasonDetail: 'goodwillDiscount',
     lines: [line(1, 'Goodwill discount', 'EA', 1, 3.048)],
   }),
   doc({
@@ -501,7 +548,7 @@ const PAYMENTS = new Map(
           currency: 'OMR',
           methodCode: '30',
           paymentReference: `TRF-${d.invoiceNumber}`,
-          paymentDate: d.dueDate && d.dueDate < TODAY ? d.dueDate : '2026-09-21',
+          paymentDate: paidOn(d.dueDate),
           occurredAt: '2026-09-21T09:12:00Z',
         },
       ],
@@ -662,6 +709,57 @@ function listReply(query) {
   }
 }
 
+/**
+ * `InvoiceListSummary` for the documents of the asked types (`?type=DEBIT_NOTE`, repeatable), plus
+ * `issuedLast30Days`. Counts are the tabs'; totals and the `*Invoices` counts are the cards'.
+ */
+function summaryReply(query) {
+  const types = query
+    .getAll('type')
+    .flatMap((t) => t.split(','))
+    .filter(Boolean)
+  const rows = [...DOCS.values()].filter(
+    (d) => d.authoringState !== 'DISCARDED' && (types.length === 0 || types.includes(d.type)),
+  )
+  const issued = rows.filter((d) => d.authoringState === 'ISSUED')
+  const unpaid = issued.filter(
+    (d) => d.payment.state === 'UNPAID' || d.payment.state === 'PARTIALLY_PAID',
+  )
+  const awaiting = unpaid.filter((d) => !d.payment.overdue)
+  const overdue = unpaid.filter((d) => d.payment.overdue)
+  const paid = issued.filter((d) => d.payment.state === 'PAID')
+  const month = Number(TODAY.slice(5, 7))
+  const quarterStart = `${TODAY.slice(0, 4)}-${String(Math.floor((month - 1) / 3) * 3 + 1).padStart(2, '0')}-01`
+  const quarter = issued.filter((d) => d.issueDate && d.issueDate >= quarterStart)
+  const recent = issued.filter((d) => d.issueDate && daysBetween(d.issueDate, TODAY) <= 30)
+  const sum = (list, of) => round3(list.reduce((total, d) => total + of(d), 0))
+  const owed = (d) => d.payment.outstandingAmount ?? 0
+  return {
+    currencyCode: 'OMR',
+    asOf: TODAY,
+    all: rows.length,
+    drafts: rows.filter((d) => d.authoringState === 'DRAFT').length,
+    toSend: issued.filter((d) => d.deliveryState !== 'SENT_MANUALLY').length,
+    awaiting: awaiting.length,
+    overdue: overdue.length,
+    paid: paid.length,
+    outstandingTotal: sum(unpaid, owed),
+    outstandingInvoices: unpaid.length,
+    awaitingTotal: sum(awaiting, owed),
+    dueSoonInvoices: awaiting.filter((d) => d.dueDate && daysBetween(TODAY, d.dueDate) <= 7).length,
+    dueSoonDays: 7,
+    overdueTotal: sum(overdue, owed),
+    overdueInvoices: overdue.length,
+    oldestOverdueDueDate: overdue.map((d) => d.dueDate).sort()[0] ?? null,
+    paidTotal: sum(paid, (d) => d.payment.paidAmount ?? 0),
+    paidInvoices: paid.length,
+    issuedLast30Days: { count: recent.length, total: sum(recent, (d) => d.totals.totalAmount) },
+    issuedThisQuarter: { count: quarter.length, total: sum(quarter, (d) => d.totals.totalAmount) },
+    // Every issued document of the types (the credit notes list's "Applied to invoices").
+    issuedTotal: { count: issued.length, total: sum(issued, (d) => d.totals.totalAmount) },
+  }
+}
+
 let nextDraft = 1
 let nextNumber = { CREDIT_NOTE: 88, DEBIT_NOTE: 44 }
 
@@ -677,6 +775,8 @@ function draftFrom(kind, invoiceId, body) {
     state: 'DRAFT',
     correctionOf: invoiceId,
     reason: body.details?.correctionReasonCode ?? null,
+    reasonDetail: body.details?.correctionReasonDetail ?? null,
+    headerDiscount: body.headerDiscount ?? { type: 'FIXED_AMOUNT', value: 0 },
     subject: body.details?.subject ?? null,
     note: body.details?.customerVisibleNote ?? null,
     po: body.details?.purchaseOrderReference ?? null,
@@ -750,7 +850,11 @@ export default [
         type: 'BUSINESS',
         displayName: c.name,
         profile: {
-          details: { vatRegistrationNumber: c.vat },
+          details: {
+            vatRegistrationNumber: c.vat,
+            // Oman's participant scheme: 0248 followed by the VAT number (INCOME.md 4.14).
+            peppolParticipantId: { scheme: '0248', value: c.vat },
+          },
           contact: null,
           deliveryPreferences: null,
           invoiceAddress: null,
@@ -762,6 +866,8 @@ export default [
     },
   },
   { match: '/api/v1/authored-invoices', reply: ({ query }) => listReply(query) },
+  // Before the detail route: its id pattern would otherwise swallow "summary".
+  { match: '/api/v1/authored-invoices/summary', reply: ({ query }) => summaryReply(query) },
   {
     match: /^\/api\/v1\/authored-invoices\/([^/]+)$/,
     reply: ({ params }) => {
@@ -847,7 +953,7 @@ export default [
     reply: ({ params }) => {
       const d = DOCS.get(params[0])
       if (!d) return { status: 404 }
-      const totals = totalsOf(d.lines)
+      const totals = totalsOf(d.lines, d.headerDiscount)
       return { currency: 'OMR', lines: [], totals }
     },
   },
@@ -870,6 +976,8 @@ export default [
         dueDate: body?.dueDate ?? TODAY,
         correctionOf: current.correctionOfInvoiceId,
         reason: current.details.correctionReasonCode,
+        reasonDetail: current.details.correctionReasonDetail,
+        headerDiscount: current.headerDiscount,
         subject: current.details.subject,
         note: current.details.customerVisibleNote,
         po: current.details.purchaseOrderReference,

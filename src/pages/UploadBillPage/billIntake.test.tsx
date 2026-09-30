@@ -4,11 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
+import type { ReferenceDataDto } from '../../api/reference/referenceData'
 import {
   billProblems,
   blankBillForm,
+  fromIntake,
   linesTotals,
   savedDetails,
+  supplierTaxCategory,
   toConfirmation,
   toCorrections,
   vatIncluded,
@@ -265,7 +268,16 @@ describe('the bill form rules', () => {
       issueDate: '2026-09-01',
       total: '105.000',
       vat: '5',
-      lines: [{ id: 'l1', description: 'Beans', quantity: '2', unitPrice: '50', vatRate: '5' }],
+      lines: [
+        {
+          id: 'l1',
+          description: 'Beans',
+          quantity: '2',
+          unitPrice: '50',
+          vatRate: '5',
+          taxCategoryCode: 'S5',
+        },
+      ],
     }
     expect(linesTotals(form.lines)).toMatchObject({
       net: '100.000',
@@ -275,7 +287,15 @@ describe('the bill form rules', () => {
     })
     expect(billProblems(form, { needsNumber: true })).toEqual({})
     expect(toConfirmation(form).lines).toEqual([
-      { description: 'Beans', quantity: 2, unit: null, unitPrice: 50, vatRate: 5, lineNet: 100 },
+      {
+        description: 'Beans',
+        quantity: 2,
+        unit: null,
+        unitPrice: 50,
+        vatRate: 5,
+        taxCategoryCode: 'S5',
+        lineNet: 100,
+      },
     ])
   })
 
@@ -302,6 +322,64 @@ describe('the bill form rules', () => {
         { needsNumber: false },
       ),
     ).toEqual({})
+  })
+
+  it('reads a file’s rate as a category, and keeps a supplier’s default to Oman’s four', () => {
+    const line = {
+      description: 'x',
+      quantity: 1,
+      unitPrice: 1,
+      amount: 1,
+      confident: true,
+    }
+    const read = (lines: Record<string, unknown>[]) =>
+      fromIntake({
+        ...intake('i-x'),
+        extracted: { ...intake('i-x').extracted, lines },
+      } as IntakeDto).lines.map((row) => [row.taxCategoryCode, row.vatRate])
+    expect(
+      read([
+        { ...line, vatRate: 5 },
+        { ...line, vatRate: 0 },
+        { ...line, vatRate: 0, taxCategoryCode: 'E0' },
+      ]),
+    ).toEqual([
+      ['S5', '5'],
+      ['Z0', '0'],
+      ['E0', '0'],
+    ])
+    const reference: ReferenceDataDto = {
+      taxCategories: [
+        {
+          code: 'S5',
+          en16931Category: 'S',
+          rate: '5',
+          exemptionReasonRequired: false,
+          active: true,
+        },
+        {
+          code: 'AE0',
+          en16931Category: 'AE',
+          rate: '0',
+          exemptionReasonRequired: true,
+          active: true,
+        },
+        {
+          code: 'Z0',
+          en16931Category: 'Z',
+          rate: '0',
+          exemptionReasonRequired: false,
+          active: true,
+        },
+      ],
+      units: [],
+      paymentTerms: [],
+      paymentMethods: [],
+    }
+    // CL-04-OM: reverse charge is not a category a line may carry, so S5 stands in.
+    expect(supplierTaxCategory(reference, 'AE0').code).toBe('S5')
+    expect(supplierTaxCategory(reference, 'Z0').code).toBe('Z0')
+    expect(supplierTaxCategory(reference, null).code).toBe('S5')
   })
 
   it('works a receipt’s VAT out of a total that includes it', () => {
@@ -359,7 +437,15 @@ describe('upload a bill', () => {
     expect(
       within(warning).getByText(/A bill MR-INV-8821 from this supplier is already recorded/),
     ).toBeTruthy()
-    expect(within(warning).getByText(/105.000 OMR, received over Peppol/)).toBeTruthy()
+    // The figure keeps its rial sign (read out as "OMR"), not the letters as text.
+    expect(
+      within(warning).getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /105\.000\s+OMR, received over Peppol/.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
+    expect(warning.querySelector('svg')).toBeTruthy()
     expect(within(warning).getByRole('link', { name: 'Open that bill' }).getAttribute('href')).toBe(
       `/expenditure/bills/${ON_FILE}`,
     )
@@ -524,6 +610,7 @@ describe('scan receipts', () => {
       vat: 0.5,
       lines: [],
       paidOnTheSpot: { methodCode: '48' },
+      taxCategoryCode: 'S5',
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Supplier' }))
@@ -533,10 +620,13 @@ describe('scan receipts', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Use “Taxi” as written/ }))
     fireEvent.change(screen.getByLabelText(/Total paid/), { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Still owing' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Exempt' }))
     fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
 
     await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-2/confirm')).toHaveLength(1))
     expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-2/confirm')[0]).paidOnTheSpot).toBeNull()
+    // Exempt and 0% are both a zero rate; the category tells them apart.
+    expect(bodyOf(calls('POST', '/api/v1/bills/intake/r-2/confirm')[0]).taxCategoryCode).toBe('E0')
   })
 })
 

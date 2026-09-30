@@ -123,13 +123,28 @@ export function debitNoteChecks(
         },
   )
 
+  // Validated over Peppol is one fact; our own receipt report to the Tax Authority (om-tdd,
+  // reporter role 02 Receiver) is another, read only from `receiptReport`.
+  // TODO(backend): EXPENDITURE.md R.1. `receiptReport` on GET /v1/debit-notes/{id}.
+  const receipt = row.receiptReport ?? null
   checks.push(
     row.networkVerified
       ? {
           id: 'validated',
           titleKey: 'supplierDebitNotes.checks.validated',
-          detailKey: 'supplierDebitNotes.checks.validatedDetail',
-          verdict: 'fine',
+          detailKey: !receipt
+            ? 'supplierDebitNotes.checks.validatedReceipt.unavailable'
+            : receipt.status === 'ACCEPTED'
+              ? receipt.reportedAt
+                ? 'supplierDebitNotes.checks.validatedReceipt.accepted'
+                : 'supplierDebitNotes.checks.validatedReceipt.acceptedUndated'
+              : receipt.status === 'SUBMITTED'
+                ? 'supplierDebitNotes.checks.validatedReceipt.submitted'
+                : receipt.status === 'REJECTED'
+                  ? 'supplierDebitNotes.checks.validatedReceipt.rejected'
+                  : 'supplierDebitNotes.checks.validatedReceipt.notSubmitted',
+          values: { date: receipt?.reportedAt ? fmt.when(receipt.reportedAt) : '' },
+          verdict: receipt?.status === 'REJECTED' ? 'check' : 'fine',
         }
       : {
           id: 'validated',
@@ -335,12 +350,13 @@ export function debitActivity(
 
   const issued = row.issueDate ? fmt.date(row.issueDate) : ''
   const done: NoteActivity[] = [...history]
-  if (row.networkVerified) {
+  // Only an accepted receipt report is an event to list; validation over Peppol is not one.
+  if (row.receiptReport?.status === 'ACCEPTED') {
     done.push({
       id: 'reported',
       titleKey: 'supplierDebitNotes.detail.activity.reported',
       detailKey: 'supplierDebitNotes.detail.activity.reportedDetail',
-      values: { date: issued },
+      values: { date: row.receiptReport.reportedAt ? fmt.when(row.receiptReport.reportedAt) : '' },
       tone: 'done',
     })
   }

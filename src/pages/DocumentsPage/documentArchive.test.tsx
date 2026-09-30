@@ -10,12 +10,17 @@ import {
   directionOf,
   formatBytes,
   frozenNote,
+  issueDateOf,
+  kindQuery,
+  pdfBadge,
   recordBytes,
   recordKind,
   showingNote,
+  signatureBadge,
   statusChip,
   taxYears,
   timeLeft,
+  validationLine,
   visibleItems,
 } from '../../lib/documentArchive'
 import { profileLabel, readArchiveXml } from '../../lib/archiveXml'
@@ -103,6 +108,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let page: () => ArchiveListDto
 let refuse = false
+let extra: ArchiveItemDto[] = []
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.filter(([url]) => String(url).startsWith(prefix))
@@ -117,11 +123,12 @@ beforeEach(async () => {
   who = READER
   page = () => ({ items: [ISSUED, RECEIVED], page: 0, page_size: 20, has_more: true })
   refuse = false
+  extra = []
   fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.startsWith('/api/v1/compliance/documents/')) {
       const uuid = url.split('/').pop()
-      const found = [ISSUED, RECEIVED].find((item) => item.invoice_uuid === uuid)
+      const found = [ISSUED, RECEIVED, ...extra].find((item) => item.invoice_uuid === uuid)
       return found
         ? json(200, found)
         : json(404, { type: 'https://api.fawtir.om/problems/not-found' })
@@ -207,7 +214,7 @@ describe('The compliance archive, wired to the API', () => {
       ).toBe(true),
     )
 
-    fireEvent.change(screen.getByPlaceholderText('Search here...'), {
+    fireEvent.change(screen.getByPlaceholderText('Search by document number...'), {
       target: { value: 'INV-2026' },
     })
     await waitFor(() =>
@@ -222,6 +229,43 @@ describe('The compliance archive, wired to the API', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Legal hold' }))
     expect(await screen.findByRole('link', { name: 'SOHAR-1002' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'INV-2026-000004' })).toBeNull()
+    // ...and says it counted this page only.
+    expect(screen.getByText('Showing 1 on this page')).toBeTruthy()
+  })
+
+  it('never quotes a whole tab total beside a filtered page', async () => {
+    page = () => ({
+      items: [ISSUED],
+      page: 0,
+      page_size: 20,
+      has_more: false,
+      totals: { all: 6, issued: 4, received: 2, legal_hold: 1 },
+    })
+    renderArchive('/compliance/documents?number=INV-2026')
+    await screen.findByRole('link', { name: 'INV-2026-000004' })
+    // A credit note's link lands here searched by the corrected invoice's number.
+    expect(
+      calls('/api/v1/compliance/documents?').some((call) =>
+        String(call[0]).includes('invoice_number=INV-2026'),
+      ),
+    ).toBe(true)
+    expect(screen.getByText('Showing 1 to 1')).toBeTruthy()
+    expect(screen.queryByText(/of 6 records/)).toBeNull()
+  })
+
+  it('names a debit note by its type code, and the note it corrects', async () => {
+    const debit: ArchiveItemDto = {
+      ...ISSUED,
+      invoice_uuid: '33333333-3333-3333-3333-333333333333',
+      invoice_number: 'DN-0031',
+      type_code: '383',
+      against_number: 'INV-1993',
+    }
+    page = () => ({ items: [debit], page: 0, page_size: 20, has_more: false })
+    renderArchive()
+    const row = (await screen.findByRole('link', { name: 'DN-0031' })).closest('li') as HTMLElement
+    expect(within(row).getByText(/Debit note · issued/)).toBeTruthy()
+    expect(within(row).getByText(/corrects .?INV-1993/)).toBeTruthy()
   })
 
   it('pages with what the server gives it, having no total to count', async () => {
@@ -299,6 +343,44 @@ describe('The compliance archive, wired to the API', () => {
     expect(
       (await screen.findByRole('link', { name: 'Open the delivery record' })).getAttribute('href'),
     ).toBe('/compliance/activity')
+  })
+
+  it('says only what the record proves: no signature check, no log, no issue date', async () => {
+    renderArchive(`/compliance/documents/${ISSUED.invoice_uuid}`)
+    expect(await screen.findByText('Signature not confirmed')).toBeTruthy()
+    expect(screen.getByText('Languages not confirmed')).toBeTruthy()
+    expect(screen.queryByText('Signed PINT-OM')).toBeNull()
+    expect(screen.queryByText('EN & AR')).toBeNull()
+    expect(screen.getByText(/No access log is kept for this record yet/)).toBeTruthy()
+    expect(screen.queryByText(/the log can't be edited/)).toBeNull()
+  })
+
+  it('shows a received record as reported by us as receiver, dated when it arrived', async () => {
+    renderArchive(`/compliance/documents/${RECEIVED.invoice_uuid}`)
+    expect(await screen.findByText(/received 1 Sept 2026/)).toBeTruthy()
+    expect(screen.getByText('Filed with the OTA by us as receiver (role 02)')).toBeTruthy()
+    // The hold is the single chip; the reporting status stays in the tax document's own row.
+    expect(screen.getAllByText('Legal hold').length).toBeGreaterThan(0)
+    expect(screen.getByText('Not reported')).toBeTruthy()
+  })
+
+  it('links a credit note to the invoice it corrects', async () => {
+    const credit: ArchiveItemDto = {
+      ...ISSUED,
+      invoice_uuid: '44444444-4444-4444-4444-444444444444',
+      document_kind: 'CREDIT_NOTE',
+      invoice_number: 'CN-0107',
+      against_number: 'INV-2038',
+      against_issue_date: '2026-06-23',
+      against_uuid: '8f3c44a1-9d02-477b-be21-0a6c5d19e0f1',
+    }
+    extra = [credit]
+    renderArchive(`/compliance/documents/${credit.invoice_uuid}`)
+    const link = await screen.findByRole('link', { name: 'INV-2038' })
+    expect(link.getAttribute('href')).toBe(
+      '/compliance/documents/8f3c44a1-9d02-477b-be21-0a6c5d19e0f1',
+    )
+    expect(screen.getByText('Corrects invoice · issued 23 Jun 2026')).toBeTruthy()
   })
 
   it('shows a legal hold with its reason, and never offers to set one', async () => {
@@ -425,6 +507,54 @@ describe('the design reading of an archive row', () => {
     expect(sheet?.sender).toMatchObject({ name: 'Al Bahja Coffee LLC', endpoint: '0248:OM1' })
     expect(sheet?.lines[0]).toMatchObject({ item: 'Beans', quantity: '2', unitCode: 'KGM' })
     expect(profileLabel(sheet?.profile ?? null)).toBe('PINT-OM')
+    expect(sheet?.preceding).toBeNull()
     expect(readArchiveXml('not xml')).toBeNull()
+  })
+
+  it('reads the invoice a credit note corrects (IBR-032-OM)', () => {
+    const sheet =
+      readArchiveXml(`<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2" xmlns:cbc="c" xmlns:cac="a">
+      <cbc:ID>CN-1</cbc:ID><cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>
+      <cac:BillingReference><cac:InvoiceDocumentReference><cbc:ID>INV-9</cbc:ID><cbc:IssueDate>2026-06-23</cbc:IssueDate></cac:InvoiceDocumentReference></cac:BillingReference>
+    </CreditNote>`)
+    expect(sheet?.isCredit).toBe(true)
+    expect(sheet?.preceding).toEqual({ number: 'INV-9', issueDate: '2026-06-23', uuid: null })
+  })
+
+  it('ties each badge to its field, neutral when the field is missing', () => {
+    expect(signatureBadge(ISSUED).key).toBe('documents.detail.badge.signatureUnconfirmed')
+    expect(signatureBadge({ ...ISSUED, signature_valid: true }).key).toBe(
+      'documents.detail.badge.signed',
+    )
+    expect(signatureBadge({ ...ISSUED, signature_valid: false })).toEqual({
+      key: 'documents.detail.badge.signatureFailed',
+      tone: 'red',
+    })
+    expect(pdfBadge(ISSUED).tone).toBe('grey')
+    const bilingual = {
+      ...ISSUED,
+      artefacts: { ...ISSUED.artefacts, pdf: { ...ISSUED.artefacts.pdf, languages: ['en', 'ar'] } },
+    }
+    expect(pdfBadge(bilingual).key).toBe('documents.detail.badge.enAr')
+    // An accepted TDD alone no longer claims all five layers passed.
+    expect(validationLine(ISSUED).key).toBe('documents.detail.validationUnconfirmed')
+    expect(validationLine({ ...ISSUED, validation: { passed: 5, total: 5 } }).key).toBe(
+      'documents.detail.allFiveLayers',
+    )
+    expect(validationLine({ ...ISSUED, validation: { passed: 3, total: 5 } }).tone).toBe('red')
+    expect(validationLine({ ...ISSUED, tdd: { status: 'REJECTED', ack: 'RE' } }).tone).toBe('red')
+  })
+
+  it('names records by type code, falling back to the kind', () => {
+    expect(recordKind({ ...ISSUED, type_code: '383' })).toBe('debitIssued')
+    expect(recordKind({ ...RECEIVED, type_code: '386' })).toBe('prepaymentReceived')
+    expect(recordKind({ ...ISSUED, type_code: '389' })).toBe('selfBilledInvoice')
+    expect(kindQuery('DEBIT_NOTE')).toEqual({ documentKind: 'STANDARD_INVOICE', typeCode: '383' })
+    expect(kindQuery('CREDIT_NOTE')).toEqual({ documentKind: 'CREDIT_NOTE', typeCode: null })
+    expect(issueDateOf(RECEIVED)).toEqual({ date: RECEIVED.occurred_at, received: true })
+    expect(issueDateOf({ ...RECEIVED, issue_date: '2026-08-30' })).toEqual({
+      date: '2026-08-30',
+      received: false,
+    })
   })
 })

@@ -17,6 +17,8 @@ import {
   type ReportVersion,
 } from '../../lib/activityDetail'
 import { formatAmount } from '../../lib/format'
+import { COMPANY_PROFILE_PATH, loadCompanyProfile } from '../../api/company/companyProfile'
+import { candidateParticipantId } from '../../lib/peppolParticipant'
 import { can, useSession } from '../../lib/session/session'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import portalIcon from '../../assets/invoice-details/fullscreen.svg'
@@ -48,8 +50,10 @@ const TONE_PILL: Record<Journey['tone'], { pill: string; dot: string }> = {
 
 const STATUS_BADGE: Record<ActivityRecord['outcome'], { key: string; tone: Journey['tone'] }> = {
   accepted: { key: 'activityDetail.reportedAccepted', tone: 'good' },
+  deliveredUnconfirmed: { key: 'activityDetail.status.deliveredUnconfirmed', tone: 'waiting' },
   rejected: { key: 'activityDetail.status.turnedDown', tone: 'bad' },
-  superseded: { key: 'activityDetail.status.turnedDown', tone: 'bad' },
+  // Replaced or cancelled by a report we sent (TDD type R or D), not turned down.
+  superseded: { key: 'activityDetail.status.replaced', tone: 'waiting' },
   waiting: { key: 'activityDetail.status.waiting', tone: 'waiting' },
   notOwed: { key: 'activityDetail.status.notOwed', tone: 'waiting' },
 }
@@ -120,6 +124,11 @@ function Record({
   const [copied, setCopied] = useState(false)
   const number = record.invoice ?? t('activity.unnumbered')
   const status = STATUS_BADGE[record.outcome]
+  // Our participant ID is `0248:` and our VAT number (src/lib/peppolParticipant.ts). A profile the
+  // reader may not see, or one that fails to load, leaves the field "Not on the record yet".
+  // TODO(backend): ACTIVITY.md 2.26. The registered ID can differ from this candidate.
+  const profile = useApiRead(COMPANY_PROFILE_PATH, loadCompanyProfile).read
+  const ourId = profile.status === 'ready' ? candidateParticipantId(profile.data.taxNumber) : null
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -141,7 +150,7 @@ function Record({
           <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-sm font-medium leading-[1.4] text-text-tertiary">
             {record.customer ? (
               <span>
-                {t('activityDetail.to')}{' '}
+                {t(record.direction === 'RECEIVED' ? 'activityDetail.from' : 'activityDetail.to')}{' '}
                 <span className="text-text-primary">{record.customer}</span>
               </span>
             ) : null}
@@ -227,9 +236,13 @@ function Record({
                 <p className="mt-3 text-sm font-medium leading-[1.7] text-text-secondary">
                   {record.rejection.reason}
                 </p>
+                {/* How it is put right follows from what was refused (ACTIVITY.md 2.30). */}
+                <p className="mt-2 text-sm font-medium leading-[1.6] text-text-tertiary">
+                  {t(`activityDetail.refusalKind.${record.rejection.kind}`)}
+                </p>
                 <div className="mt-4 flex flex-wrap gap-2.5">
                   {record.rejection.later === 'open' &&
-                  record.resend === 'possible' &&
+                  (record.resend === 'possible' || record.resend === 'possibleInvoice') &&
                   mayResubmit ? (
                     <Link
                       to={`/compliance/activity/${record.invoiceUuid}/resubmit`}
@@ -271,12 +284,19 @@ function Record({
               <RouteField
                 label={t('activityDetail.route.scenario')}
                 value={
-                  record.route.flowNumber === null
-                    ? t(`activityDetail.route.scenarioOf.${record.route.flow}`)
-                    : t('activityDetail.route.flowN', {
-                        flow: record.route.flowNumber,
-                        what: t(`activityDetail.route.scenarioOf.${record.route.flow}`),
-                      })
+                  record.route.received
+                    ? // Reported by us as the receiver (TDT-010 = 02), never a flow we sent.
+                      t('activity.route.received')
+                    : record.route.flow === 'export'
+                      ? record.route.scope
+                        ? t('activity.route.exportScope', { scope: record.route.scope })
+                        : t('activity.route.exportNoScope')
+                      : record.route.flowNumber === null
+                        ? t(`activityDetail.route.scenarioOf.${record.route.flow}`)
+                        : t('activityDetail.route.flowN', {
+                            flow: record.route.flowNumber,
+                            what: t(`activityDetail.route.scenarioOf.${record.route.flow}`),
+                          })
                 }
               />
               <RouteField
@@ -287,15 +307,27 @@ function Record({
                     : t('activityDetail.route.documentsNoMls')
                 }
               />
-              {/* TODO(backend): neither participant ID is on the record (asks row 2.13). */}
-              <RouteField label={t('activityDetail.route.yourId')} value={null} />
-              <RouteField label={t('activityDetail.route.theirId')} value={null} />
+              {/* TODO(backend): neither participant ID is on the record (asks rows 2.13, 2.26). */}
+              <RouteField label={t('activityDetail.route.yourId')} value={ourId} mono />
+              <RouteField
+                label={t('activityDetail.route.theirId')}
+                value={record.route.theirId}
+                mono
+              />
               <RouteField
                 label={t('activityDetail.route.standIn')}
-                value={record.route.standIn ?? t('activityDetail.route.noStandIn')}
+                value={
+                  record.route.standIn ??
+                  t(
+                    record.route.flow === 'export'
+                      ? 'activityDetail.route.noStandInExport'
+                      : 'activityDetail.route.noStandIn',
+                  )
+                }
                 mono={record.route.standIn !== null}
               />
-              <RouteField label={t('activityDetail.route.profile')} value="PINT-OM 1.0" />
+              {/* TODO(backend): ACTIVITY.md 2.27. Billing 1.0.1 until the item carries its CustomizationID. */}
+              <RouteField label={t('activityDetail.route.profile')} value={record.route.profile} />
             </dl>
           </section>
         </div>
@@ -423,7 +455,8 @@ function Record({
             <p className="mt-3 text-sm font-medium leading-[1.6] text-text-tertiary">
               {t(`activityDetail.resend.${record.resend}Body`)}
             </p>
-            {record.resend === 'possible' && mayResubmit ? (
+            {(record.resend === 'possible' || record.resend === 'possibleInvoice') &&
+            mayResubmit ? (
               <Link
                 to={`/compliance/activity/${record.invoiceUuid}/resubmit`}
                 className="mt-4 inline-flex h-[34px] w-full items-center justify-center rounded-sm bg-primary-700 text-[13px] font-medium text-white transition-colors hover:bg-primary-800"

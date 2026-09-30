@@ -638,9 +638,11 @@ describe('Record a bill (Figma 163:27781)', () => {
       {
         description: 'Marine rope',
         quantity: 10,
-        unit: null,
+        // The unit chosen on the row goes with the line (EXPENDITURE.md 7.11).
+        unit: 'EA',
         unitPrice: 10,
         vatRate: 5,
+        taxCategoryCode: 'S5',
         lineNet: 100,
       },
     ])

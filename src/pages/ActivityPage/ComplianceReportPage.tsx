@@ -7,10 +7,17 @@ import {
   BUILT_REPORT,
   builtFigures,
   formatOmr,
+  numberingOf,
   periodRange,
   type RegisterRow,
 } from '../../lib/complianceReport'
-import { ledgerExportPath } from '../../api/compliance/activity'
+import {
+  activityListPath,
+  ledgerExportPath,
+  loadActivityList,
+  type ActivityListDto,
+} from '../../api/compliance/activity'
+import { useApiRead } from '../../hooks'
 import { downloadReport } from '../../api/reports/reports'
 import { saveDownload } from '../../lib/supplierRecord'
 import { ComplianceReportModal, type ReportRequest } from './ComplianceReportModal'
@@ -46,6 +53,21 @@ export function ComplianceReportPage() {
   const [rebuilding, setRebuilding] = useState(false)
   const [excelBusy, setExcelBusy] = useState(false)
   const [excelFailed, setExcelFailed] = useState(false)
+
+  // "Numbering runs unbroken" is worked out from the invoices we issued in the report's quarter,
+  // never printed. When the ledger cannot give the whole series in one read, or holds none, the
+  // report says "not confirmed". TODO(backend): ACTIVITY.md 2.36, the numbering check on the report.
+  const quarter = periodRange('quarter')
+  const numberingPath = activityListPath(
+    { direction: 'ISSUED', documentKind: 'INVOICE', from: quarter.from, to: quarter.to },
+    0,
+    100,
+  )
+  const issued = useApiRead<ActivityListDto>(numberingPath, () => loadActivityList(numberingPath))
+  const numbering =
+    issued.read.status === 'ready' && !issued.read.data.has_more
+      ? numberingOf(issued.read.data.items.map((item) => item.invoice_number))
+      : null
 
   const downloadExcel = async (range: { from: string; to: string }) => {
     setExcelBusy(true)
@@ -214,7 +236,14 @@ export function ComplianceReportPage() {
                 <Stat
                   label={t('builtReport.stat.invoicesIssued')}
                   value={String(figures.invoices)}
-                  note={t('builtReport.stat.includingCreditNotes', { count: figures.creditNotes })}
+                  note={
+                    figures.debitNotes === null
+                      ? t('builtReport.stat.includingCreditNotes', { count: figures.creditNotes })
+                      : t('builtReport.stat.includingCreditAndDebitNotes', {
+                          credit: figures.creditNotes,
+                          debit: figures.debitNotes,
+                        })
+                  }
                 />
                 <Stat
                   label={t('builtReport.stat.acceptedByOta')}
@@ -237,9 +266,15 @@ export function ComplianceReportPage() {
                   value={`OMR ${formatOmr(figures.netInvoiced)}`}
                   note={t('builtReport.stat.includingVat')}
                 />
+                {/* VAT inside the reported invoices only (5/105 of the inclusive total, less the
+                    unreported invoice's own VAT), not 5% of the inclusive total. */}
                 <Stat
                   label={t('builtReport.stat.vatReported')}
-                  value={`OMR ${formatOmr(figures.vat)}`}
+                  value={
+                    figures.vat === null
+                      ? t('complianceReport.notAvailableYet')
+                      : `OMR ${formatOmr(figures.vat)}`
+                  }
                   note={t('builtReport.stat.allStandard')}
                   rule="border-s-[#4c6c5a]"
                 />
@@ -251,6 +286,18 @@ export function ComplianceReportPage() {
                   rule="border-s-pending-500"
                 />
               </div>
+              {/* A line under the grid rather than a seventh cell, so the 3 x 2 grid stays as drawn. */}
+              <p className="mt-4 text-xs font-medium leading-[1.7] text-text-secondary">
+                {figures.receivedReported !== null && figures.receivedTotal !== null ? (
+                  <Trans
+                    i18nKey="builtReport.receivedReported"
+                    values={{ n: figures.receivedReported, m: figures.receivedTotal }}
+                    components={{ b: <span className="font-semibold text-text-primary" /> }}
+                  />
+                ) : (
+                  t('builtReport.receivedNotAvailable')
+                )}
+              </p>
 
               {/* Auditor note */}
               <p className="mt-7 border-b border-border-subtle pb-2 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-primary">
@@ -290,11 +337,27 @@ export function ComplianceReportPage() {
                 />
               </p>
               <p className="mt-2.5 text-xs font-medium leading-[1.7] text-text-secondary">
+                {/* TODO(backend): ACTIVITY.md 2.36. Nothing on our side can show that no invoice
+                    was issued outside Fawtir, so the claim reads "not confirmed". */}
                 <Trans
-                  i18nKey="builtReport.numberingNote"
-                  values={{ from: report.numberingFrom, to: report.numberingTo }}
+                  i18nKey="builtReport.outsideNotConfirmed"
                   components={{ b: <span className="font-semibold text-text-primary" /> }}
-                />
+                />{' '}
+                {numbering === null
+                  ? t('builtReport.numberingNotConfirmed')
+                  : numbering.gaps.length === 0
+                    ? t('builtReport.numberingUnbroken', {
+                        from: numbering.from,
+                        to: numbering.to,
+                      })
+                    : t('builtReport.numberingGaps', {
+                        from: numbering.from,
+                        to: numbering.to,
+                        count: numbering.gaps.length,
+                        gaps:
+                          numbering.gaps.slice(0, 5).join(', ') +
+                          (numbering.gaps.length > 5 ? ', …' : ''),
+                      })}
               </p>
 
               {/* Register */}

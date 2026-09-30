@@ -1,9 +1,17 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu, RowsView, StepTracker } from '../../components/ui'
 import { quotationRowActions } from '../../lib/rowActions'
-import { QUOTATION_DETAIL } from '../../lib/quotationDetail'
+import {
+  formatRials,
+  quotationById,
+  quoteItemTotal,
+  quoteTotals,
+  type QuotationDetail,
+} from '../../lib/quotationDetail'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
+import { Notice } from '../../components/feedback/ApiNotice'
 import backIcon from '../../assets/quotation-detail/back.svg'
 import downloadIcon from '../../assets/quotation-detail/download.svg'
 import customerLogo from '../../assets/quotation-detail/customer-logo.svg'
@@ -48,18 +56,25 @@ function Stat({
   tone,
 }: {
   label: string
-  value: string
+  value: string | null
   tone: keyof typeof STAT_TONE
 }) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col gap-[3px]">
       <span className="text-xs font-medium leading-[1.2] text-[#727579]">{label}</span>
-      <span className={['text-sm leading-[1.2]', STAT_TONE[tone]].join(' ')}>{value}</span>
+      <span className={['text-sm leading-[1.2]', STAT_TONE[tone]].join(' ')}>
+        {value ?? t('tradeDocs.notRecorded')}
+      </span>
     </div>
   )
 }
 
-function Amount({ value, size = 'md' }: { value: string; size?: 'md' | 'lg' }) {
+function Amount({ value, size = 'md' }: { value: string | null; size?: 'md' | 'lg' }) {
+  const { t } = useTranslation()
+  if (value === null) {
+    return <span className="text-sm font-medium text-[#5b606c]">{t('tradeDocs.notRecorded')}</span>
+  }
   const text = size === 'lg' ? 'text-2xl font-semibold' : 'text-[19px] font-semibold'
   const mark = size === 'lg' ? 'w-6' : 'w-5'
   return (
@@ -72,7 +87,38 @@ function Amount({ value, size = 'md' }: { value: string; size?: 'md' | 'lg' }) {
 
 export function QuotationDetailPage() {
   const { t } = useTranslation()
-  const doc = QUOTATION_DETAIL
+  const { id } = useParams()
+  const doc = quotationById(id)
+  if (!doc) {
+    return (
+      <AppShell>
+        <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+          <Notice
+            badge={t('appAccess.notFound')}
+            body={t('tradeDocs.notFound', { kind: t('tradeDocs.kind.quotation'), id })}
+            action={{
+              label: t('quotationDetail.breadcrumbQuotations'),
+              to: '/trade-documents/quotations',
+            }}
+          />
+        </div>
+      </AppShell>
+    )
+  }
+  return <QuotationDetailView doc={doc} />
+}
+
+function QuotationDetailView({ doc }: { doc: QuotationDetail }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const notice = useTradeNotice()
+  const unavailable = notice.unavailable
+  const totals = doc.items ? quoteTotals(doc.items) : null
+  // Convert opens the invoice composer filled from this quote (lines, customer, subject).
+  const convert = () => navigate(`/invoices/new?from=${encodeURIComponent(doc.id)}`)
+  const onAction = (itemId: string) => (itemId === 'convert' ? convert() : unavailable())
+  const statusKey =
+    doc.status === 'sent' ? 'quotationDetail.status.sent' : `quotations.status.${doc.status}`
 
   return (
     <AppShell>
@@ -95,7 +141,7 @@ export function QuotationDetailPage() {
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <h1 className="text-[32px] font-medium leading-[1.2] text-[#151c2d]">{doc.id}</h1>
               <span className="inline-flex items-center rounded-full border border-[#d5dcf1] bg-[#f4f6fb] px-3 py-[5px] text-sm font-semibold text-[#2c4eb7]">
-                {t(doc.statusKey)}
+                {t(statusKey)}
               </span>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-base leading-[1.2]">
@@ -104,17 +150,20 @@ export function QuotationDetailPage() {
               <span className="font-medium text-[#5b606c]">{t('quotationDetail.for')}</span>
               <span className="font-semibold text-[#151c2d]">{doc.customer}</span>
               <span className="font-medium text-[#5b606c]">·</span>
-              <span className="font-medium text-[#5b606c]">{doc.validTo}</span>
+              <span className="font-medium text-[#5b606c]">
+                {t('quotationDetail.validTo', { date: doc.validUntil })}
+              </span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <ActionMenu
-              items={quotationRowActions(doc.id)}
+              items={quotationRowActions(doc.id, onAction)}
               label={t('quotationDetail.moreActions')}
               variant="bordered"
             />
             <button
               type="button"
+              onClick={unavailable}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
             >
               <img src={downloadIcon} alt="" className="size-6" />
@@ -122,6 +171,7 @@ export function QuotationDetailPage() {
             </button>
             <button
               type="button"
+              onClick={unavailable}
               className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
             >
               {t('quotationDetail.sendReminder')}
@@ -133,41 +183,47 @@ export function QuotationDetailPage() {
         <Card className="flex flex-wrap items-center gap-6 px-6 py-4">
           <StepTracker steps={doc.steps} size="md" />
           <p className="min-w-[280px] flex-1 text-sm font-medium leading-[1.2] text-[#444957]">
-            {doc.chainNote}
+            {doc.chainNote ?? t('tradeDocs.notRecorded')}
           </p>
         </Card>
+        {notice.node}
 
         {/* Decision + Details (680) | Quotation PDF (448) */}
         <div className="grid gap-4 xl:grid-cols-[680fr_448px]">
           <div className="flex flex-col gap-4">
             <Card className="border border-[#f3f3f3]">
               <h2 className="text-2xl font-medium leading-[1.2] text-[#151c2d]">
-                {doc.decision.title}
+                {doc.decision.title ??
+                  t(`quotationDetail.decisionTitle.${doc.status}`, { customer: doc.customer })}
               </h2>
               <p className="mt-0.5 text-sm font-medium leading-[1.2] text-[#5b606c]">
-                {doc.decision.detail}
+                {doc.decision.detail ?? t('tradeDocs.notRecorded')}
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
+                  onClick={unavailable}
                   className="inline-flex h-[41px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
                 >
                   {t('quotationDetail.markAccepted')}
                 </button>
                 <button
                   type="button"
+                  onClick={unavailable}
                   className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
                 >
                   {t('quotationDetail.markDeclined')}
                 </button>
                 <button
                   type="button"
+                  onClick={unavailable}
                   className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
                 >
                   {t('quotationDetail.extendValidity')}
                 </button>
                 <button
                   type="button"
+                  onClick={unavailable}
                   className="inline-flex h-[41px] items-center rounded-sm border border-black/[0.06] bg-surface-tab-bar px-4 text-sm font-semibold text-[#3a3a3a]"
                 >
                   {t('quotationDetail.reviseResend')}
@@ -203,11 +259,9 @@ export function QuotationDetailPage() {
                   <img src={customerLogo} alt="" className="size-[39px]" />
                 </span>
                 <div className="flex flex-col gap-[3px]">
-                  <p className="text-sm font-medium leading-[1.2] text-[#151c2d]">
-                    {doc.customerCard.name}
-                  </p>
+                  <p className="text-sm font-medium leading-[1.2] text-[#151c2d]">{doc.customer}</p>
                   <p className="text-xs font-medium leading-[1.2] text-[#5b606c]">
-                    {doc.customerCard.vat}
+                    {doc.customerVat ?? t('tradeDocs.notRecorded')}
                   </p>
                 </div>
               </div>
@@ -253,33 +307,61 @@ export function QuotationDetailPage() {
               </span>
               <span className="flex items-center gap-6">
                 <span className="flex items-center gap-1.5">
-                  <button type="button" aria-label={t('quotationDetail.zoomOut')}>
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    aria-label={t('quotationDetail.zoomOut')}
+                  >
                     <img src={zoomOutIcon} alt="" className="size-6" />
                   </button>
                   <span className="text-xs font-medium leading-[1.2] text-[#444957]">100%</span>
-                  <button type="button" aria-label={t('quotationDetail.zoomIn')}>
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    aria-label={t('quotationDetail.zoomIn')}
+                  >
                     <img src={zoomInIcon} alt="" className="size-6" />
                   </button>
                 </span>
                 <span className="flex items-center gap-2.5">
-                  <button type="button" aria-label={t('quotationDetail.download')}>
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    aria-label={t('quotationDetail.download')}
+                  >
                     <img src={pdfDownloadIcon} alt="" className="size-6" />
                   </button>
-                  <button type="button" aria-label={t('quotationDetail.print')}>
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    aria-label={t('quotationDetail.print')}
+                  >
                     <img src={printIcon} alt="" className="size-6" />
                   </button>
-                  <button type="button" aria-label={t('quotationDetail.fullScreen')}>
+                  <button
+                    type="button"
+                    onClick={unavailable}
+                    aria-label={t('quotationDetail.fullScreen')}
+                  >
                     <img src={fullScreenIcon} alt="" className="size-6" />
                   </button>
                 </span>
               </span>
             </div>
             <div className="flex flex-1 justify-center overflow-hidden px-[38px] pt-[6px]">
-              <img
-                src={quotationPreview}
-                alt={t('quotationDetail.pdfTitle')}
-                className="w-full max-w-[370px] self-start object-contain object-top"
-              />
+              {/* The picture is the design's QUO-0118; any other quote has no rendered PDF until
+                  the server makes one. TODO(backend): TRADE_DOCUMENTS.md row T.8. */}
+              {doc.id === 'QUO-0118' ? (
+                <img
+                  src={quotationPreview}
+                  alt={t('quotationDetail.pdfTitle')}
+                  className="w-full max-w-[370px] self-start object-contain object-top"
+                />
+              ) : (
+                <p className="self-center text-sm font-medium text-[#5b606c]">
+                  {t('tradeDocs.notAvailableShort')}
+                </p>
+              )}
             </div>
           </aside>
         </div>
@@ -301,8 +383,16 @@ export function QuotationDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {doc.items.map((item) => (
-                  <tr key={item.id}>
+                {doc.items === null ? (
+                  // TODO(backend): TRADE_DOCUMENTS.md row T.1: the list does not carry the lines.
+                  <tr>
+                    <td colSpan={5} className="py-6 text-sm font-medium text-[#5b606c]">
+                      {t('tradeDocs.notAvailableShort')}
+                    </td>
+                  </tr>
+                ) : null}
+                {(doc.items ?? []).map((item) => (
+                  <tr key={item.lineNo}>
                     <td className="py-2">
                       <p className="text-base font-medium leading-[1.2] text-[#151c2d]">
                         {item.description}
@@ -311,11 +401,17 @@ export function QuotationDetailPage() {
                         {item.meta}
                       </p>
                     </td>
-                    <td className="py-2 text-sm font-medium text-[#2c3342]">{item.unitPrice}</td>
-                    <td className="py-2 text-base font-medium text-[#2c3342]">{item.qty}</td>
-                    <td className="py-2 text-sm font-medium text-[#2c3342]">{item.discount}</td>
+                    <td className="py-2 text-sm font-medium text-[#2c3342]">
+                      {item.unitPrice.toFixed(3)}
+                    </td>
+                    <td className="py-2 text-base font-medium text-[#2c3342]">
+                      {item.qty} {item.unitLabel}
+                    </td>
+                    <td className="py-2 text-sm font-medium text-[#2c3342]">
+                      {item.discountPct ? `${item.discountPct}%` : '—'}
+                    </td>
                     <td className="py-2 text-end text-xl font-semibold text-[#151c2d]/90">
-                      {item.total}
+                      {formatRials(quoteItemTotal(item))}
                     </td>
                   </tr>
                 ))}
@@ -327,26 +423,28 @@ export function QuotationDetailPage() {
               <div className="flex items-center justify-between gap-3 text-[#444957]">
                 <dt className="text-sm font-medium">{t('quotationDetail.subtotalExcl')}</dt>
                 <dd>
-                  <Amount value={doc.totals.subtotal} />
+                  <Amount value={totals?.subtotal ?? null} />
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3 text-[#444957]">
                 <dt className="text-sm font-medium">{t('quotationDetail.discount')}</dt>
                 <dd>
-                  <Amount value={doc.totals.discount} />
+                  <Amount value={totals?.discount ?? null} />
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-3 text-[#444957]">
                 <dt className="text-sm font-medium">{t('quotationDetail.vatLine')}</dt>
                 <dd>
-                  <Amount value={doc.totals.vat} />
+                  <Amount value={totals?.vat ?? null} />
                 </dd>
               </div>
               {/* Optional lines are quoted but not counted in the total until taken. */}
               <div className="flex items-center justify-between gap-3 text-[#444957]">
                 <dt className="text-sm font-medium">{t('quotationDetail.optionalItems')}</dt>
                 <dd>
-                  <Amount value={doc.totals.optional} />
+                  <Amount
+                    value={doc.optionalValue === null ? null : formatRials(doc.optionalValue)}
+                  />
                 </dd>
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">
@@ -354,7 +452,7 @@ export function QuotationDetailPage() {
                   {t('quotationDetail.quotedTotal')}
                 </dt>
                 <dd className="text-[#2c3342]">
-                  <Amount value={doc.totals.total} size="lg" />
+                  <Amount value={totals?.total ?? doc.listedTotal} size="lg" />
                 </dd>
               </div>
             </dl>
@@ -365,7 +463,10 @@ export function QuotationDetailPage() {
         <Card>
           <SectionTitle title={t('quotationDetail.activity')} />
           <ol className="flex flex-col">
-            {doc.activity.map((event, i) => (
+            {doc.activity === null ? (
+              <li className="text-sm font-medium text-[#5b606c]">{t('tradeDocs.notRecorded')}</li>
+            ) : null}
+            {(doc.activity ?? []).map((event, i) => (
               <li key={event.id} className="flex gap-5">
                 <span className="flex w-[52px] shrink-0 flex-col items-center">
                   <img
@@ -373,7 +474,7 @@ export function QuotationDetailPage() {
                     alt=""
                     className={event.tone === 'open' ? 'size-7' : 'size-[27px]'}
                   />
-                  {i < doc.activity.length - 1 ? (
+                  {i < (doc.activity?.length ?? 0) - 1 ? (
                     <span
                       aria-hidden="true"
                       className={[
@@ -408,7 +509,7 @@ export function QuotationDetailPage() {
                 </span>
               </div>
               <p className="min-h-[71px] rounded-sm border border-primary-300 bg-surface-tab-bar p-4 text-sm font-medium leading-[1.2] text-[#151c2d]">
-                {doc.notes.customer}
+                {doc.notes?.customer ?? t('tradeDocs.notRecorded')}
               </p>
             </div>
             <div>
@@ -421,7 +522,7 @@ export function QuotationDetailPage() {
                 </span>
               </div>
               <p className="min-h-[71px] rounded-sm border border-primary-300 bg-surface-tab-bar p-4 text-sm font-medium leading-[1.2] text-[#151c2d]">
-                {doc.notes.internal}
+                {doc.notes?.internal ?? t('tradeDocs.notRecorded')}
               </p>
             </div>
           </div>

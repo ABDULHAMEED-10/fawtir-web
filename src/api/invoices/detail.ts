@@ -77,6 +77,11 @@ export type InvoiceDetailDto = {
     paymentTerms: { code: string; label: string } | null
     paymentMethod: { code: string; label: string } | null
     correctionReasonCode: string | null
+    /**
+     * The composer's reason behind the code (`returnedGoods`, `freightOmitted`, …), so two reasons
+     * sharing a code stay apart (INCOME.md 4.9). Never in the UBL; absent before the API kept it.
+     */
+    correctionReasonDetail?: string | null
     buyerReference: string | null
     contractReference: string | null
     transactionType: string | null

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
 import {
   Amount,
   ChoiceCards,
@@ -94,7 +95,15 @@ function ModePicker({
   )
 }
 
-function LinesTable({ lines, totals }: { lines: OrderLine[]; totals: OrderTotals }) {
+function LinesTable({
+  lines,
+  totals,
+  onUnavailable,
+}: {
+  lines: OrderLine[]
+  totals: OrderTotals
+  onUnavailable: () => void
+}) {
   const { t } = useTranslation()
 
   return (
@@ -145,7 +154,11 @@ function LinesTable({ lines, totals }: { lines: OrderLine[]; totals: OrderTotals
                 </td>
                 <td className="py-1.5 pe-3 text-base font-semibold text-[#151c2d]">{line.total}</td>
                 <td className="py-1.5">
-                  <button type="button" aria-label={t('tradeCreate.removeLine')}>
+                  <button
+                    type="button"
+                    onClick={onUnavailable}
+                    aria-label={t('tradeCreate.removeLine')}
+                  >
                     <img src={deleteIcon} alt="" className="size-5" />
                   </button>
                 </td>
@@ -157,6 +170,7 @@ function LinesTable({ lines, totals }: { lines: OrderLine[]; totals: OrderTotals
 
       <button
         type="button"
+        onClick={onUnavailable}
         className="mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-[#b6c2e4] py-3 text-base font-semibold text-[#2c4eb7]"
       >
         <img src={plusIcon} alt="" className="size-5" />
@@ -209,6 +223,9 @@ export function NewOrderFormPage() {
 
   const sales = mode === 'sales'
   const doc = sales ? NEW_SALES_ORDER : NEW_PURCHASE_ORDER
+  // Nothing on this form can be saved yet (TRADE_DOCUMENTS.md rows T.1 and T.9).
+  const notice = useTradeNotice()
+  const onUnavailable = notice.unavailable
 
   const deliveryOptions = sales
     ? [
@@ -278,6 +295,7 @@ export function NewOrderFormPage() {
         </div>
 
         <ModePicker mode={mode} onChange={setMode} />
+        {notice.node}
 
         {/* 1 source + party (left) | value summary (right) */}
         <div className="grid items-start gap-4 xl:grid-cols-[1fr_332px]">
@@ -301,6 +319,7 @@ export function NewOrderFormPage() {
               </span>
               <button
                 type="button"
+                onClick={onUnavailable}
                 className="inline-flex h-10 items-center gap-1.5 rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#444957]"
               >
                 {t('tradeCreate.change')}
@@ -315,6 +334,7 @@ export function NewOrderFormPage() {
               </span>
               <button
                 type="button"
+                onClick={onUnavailable}
                 className="inline-flex items-center gap-1 text-sm font-semibold text-[#233e92]"
               >
                 {t('tradeCreate.startBlank')}
@@ -388,7 +408,7 @@ export function NewOrderFormPage() {
         </div>
 
         <SectionCard step={2} title={t('tradeCreate.whatsBeingOrdered')}>
-          <LinesTable lines={doc.lines} totals={doc.totals} />
+          <LinesTable lines={doc.lines} totals={doc.totals} onUnavailable={onUnavailable} />
         </SectionCard>
 
         <SectionCard step={3} title={t('tradeCreate.howDelivered')}>
@@ -469,6 +489,7 @@ export function NewOrderFormPage() {
       <FormFooter>
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-white px-5 text-base font-medium text-[#3a3a3a]"
         >
           <img src={eyeIcon} alt="" className="size-5" />
@@ -476,6 +497,7 @@ export function NewOrderFormPage() {
         </button>
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-white px-5 text-base font-medium text-[#3a3a3a]"
         >
           <img src={noteTextIcon} alt="" className="size-5" />
@@ -483,6 +505,7 @@ export function NewOrderFormPage() {
         </button>
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-6 text-base font-semibold text-white"
         >
           {t(sales ? 'tradeCreate.sales.confirm' : 'tradeCreate.purchase.confirm')}

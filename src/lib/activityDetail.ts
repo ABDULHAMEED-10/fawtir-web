@@ -1,11 +1,21 @@
 import type {
   ActivityDetailDto,
+  ActivityDirectionDto,
   ActivityLinksDto,
   MlsRecordDto,
   TddObligationDto,
 } from '../api/compliance/activity'
 import { BUSINESS_TIME_ZONE } from './format'
-import { flowOf, outcomeOf, type RowFlow, type RowOutcome } from './activityLedger'
+import {
+  flowOf,
+  outcomeOf,
+  refusalCauseOf,
+  refusalKindOf,
+  type RefusalCause,
+  type RefusalKind,
+  type RowFlow,
+  type RowOutcome,
+} from './activityLedger'
 
 /**
  * One document's reporting record: Compliance › Activity › Detail (Figma 154:111026, drawn for
@@ -61,6 +71,8 @@ export type ReportVersion = {
 
 export type ActivityRecord = {
   invoiceUuid: string
+  /** RECEIVED: a supplier sent it to us, so the counterparty is the seller and we report receipt. */
+  direction: ActivityDirectionDto
   invoice: string | null
   customer: string | null
   issued: string
@@ -70,11 +82,34 @@ export type ActivityRecord = {
   attempts: number
   supersededCount: number
   journeys: Journey[]
-  /** The refusal to explain, newest first: the one that matters. Null when none was refused. */
-  rejection: { code: string | null; reason: string; later: 'accepted' | 'open' } | null
+  /**
+   * The refusal to explain, newest first: the one that matters. Null when none was refused. `kind`
+   * says how it is put right: an error in the invoice itself takes a credit note and a new invoice,
+   * an error in the report alone is sent again.
+   */
+  rejection: {
+    code: string | null
+    reason: string
+    later: 'accepted' | 'open'
+    cause: RefusalCause
+    kind: RefusalKind
+  } | null
   versions: ReportVersion[]
   proof: { reference: string | null; uuid: string | null; acceptedAt: string | null }
-  route: { flow: RowFlow; flowNumber: number | null; standIn: string | null; mlsCount: number }
+  route: {
+    flow: RowFlow
+    /** We received it and reported it as the receiver (TDT-010 = 02). */
+    received: boolean
+    /** The TDD scope code (D, IP or INP) when the item carries it (ACTIVITY.md 2.32). */
+    scope: string | null
+    flowNumber: number | null
+    standIn: string | null
+    mlsCount: number
+    /** The other side's participant ID, when the record carries it (asks row 2.26). */
+    theirId: string | null
+    /** The PINT-OM specification the document was built to (asks row 2.27). */
+    profile: string
+  }
   /** Oman VAT Law keeps a tax document ten years from issue. */
   retention: { keptUntil: string; years: number; months: number }
   copies: {
@@ -84,11 +119,25 @@ export type ActivityRecord = {
     values?: Record<string, number>
   }[]
   /** "Send it again": only the server's link makes it possible. */
-  resend: 'possible' | 'accepted' | 'waiting' | 'none'
+  resend: 'possible' | 'possibleInvoice' | 'accepted' | 'received' | 'waiting' | 'none'
   links: ActivityLinksDto
 }
 
 const RETENTION_YEARS = 10
+
+/**
+ * The PINT-OM specification a document follows, from its CustomizationID. PINT-OM billing and
+ * self-billing are both at v1.0.1; a document that does not say is billing, the default profile.
+ */
+const PROFILES: Record<string, string> = {
+  'urn:peppol:pint:billing-1@om-1': 'PINT-OM billing 1.0.1',
+  'urn:peppol:pint:selfbilling-1@om-1': 'PINT-OM self-billing 1.0.1',
+}
+export const DEFAULT_PROFILE = PROFILES['urn:peppol:pint:billing-1@om-1']
+
+export function profileOf(customizationId: string | null | undefined): string {
+  return (customizationId && PROFILES[customizationId.trim()]) || DEFAULT_PROFILE
+}
 
 /** `8 Jun · 11:20:04` in the business's time zone. */
 export function stampOf(iso: string | null, language = 'en'): string | null {
@@ -176,7 +225,11 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
   if (leg?.ack === 'AP' || leg?.ack === 'AB') {
     steps.push({
       id: 'accepted',
-      labelKey: 'activityDetail.step.accepted',
+      // AB is delivered without confirmation, never "accepted".
+      labelKey:
+        leg.ack === 'AB'
+          ? 'activityDetail.step.deliveredUnconfirmed'
+          : 'activityDetail.step.accepted',
       at: stampOf(leg.ack_at, language),
       note: dto.summary.fawtara_reference ?? live?.fawtara_reference ?? undefined,
       state: 'done',
@@ -208,14 +261,23 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
             verdictValues: { count: attempts },
             tone: 'good',
           }
-      : outcome === 'rejected' || outcome === 'superseded'
-        ? { verdictKey: 'activityDetail.verdict.turnedDown', tone: 'bad' }
-        : { verdictKey: 'activityDetail.verdict.waiting', tone: 'waiting' }
+      : outcome === 'deliveredUnconfirmed'
+        ? { verdictKey: 'activityDetail.verdict.deliveredUnconfirmed', tone: 'waiting' }
+        : outcome === 'rejected'
+          ? { verdictKey: 'activityDetail.verdict.turnedDown', tone: 'bad' }
+          : outcome === 'superseded'
+            ? // We replaced or cancelled this report ourselves (TDD type R or D).
+              { verdictKey: 'activityDetail.verdict.replaced', tone: 'waiting' }
+            : { verdictKey: 'activityDetail.verdict.waiting', tone: 'waiting' }
 
   return {
     id: 'ota',
     titleKey: 'activityDetail.toTaxAuthority',
-    subtitleKey: 'activityDetail.toTaxAuthorityNote',
+    // The receiving side reports that it received the document (TDT-010 = 02 Receiver).
+    subtitleKey:
+      dto.summary.direction === 'RECEIVED'
+        ? 'activityDetail.receiptReportedNote'
+        : 'activityDetail.toTaxAuthorityNote',
     ...verdict,
     steps,
   }
@@ -227,10 +289,43 @@ const MLS_STEP: Record<string, { labelKey: string; state: StepState }> = {
   RE: { labelKey: 'activityDetail.step.theyRefused', state: 'failed' },
 }
 
+/**
+ * A document a supplier sent us: it arrived over Peppol and was validated here. The receipt moment
+ * is the one the receiving side reports on its TDD (PINT-OM TDOM-04 date, TDOM-05 time).
+ */
+function receivedJourney(dto: ActivityDetailDto, language: string): Journey {
+  const item = dto.summary
+  // TODO(backend): ACTIVITY.md 2.25. No receipt time on the item yet; the ledger's moment stands in.
+  const arrived = item.received_at ?? item.occurred_at
+  return {
+    id: 'peppol',
+    titleKey: 'activityDetail.fromSupplier',
+    subtitleKey: 'activityDetail.toCustomerNote',
+    verdictKey: 'activityDetail.verdict.received',
+    tone: 'good',
+    steps: [
+      {
+        id: 'arrived',
+        labelKey: 'activityDetail.step.arrivedOverPeppol',
+        at: stampOf(arrived, language),
+        state: 'done',
+      },
+      {
+        id: 'validated',
+        labelKey: 'activityDetail.step.validated',
+        at: stampOf(item.validated_at, language),
+        state: item.validated_at ? 'done' : 'waiting',
+      },
+    ],
+  }
+}
+
 function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null {
   const item = dto.summary
+  if (item.direction === 'RECEIVED') return receivedJourney(dto, language)
   // A walk-in sale or a buyer off Peppol is reported only: nothing travels to a customer.
-  if (item.b2c || item.scenario?.stand_in_id) return null
+  // An export to a buyer off Peppol is reported under TDD scope INP (ACTIVITY.md 2.32).
+  if (item.b2c || item.scenario?.stand_in_id || item.tdd_scope === 'INP') return null
   const replies = [...dto.mls]
     .filter((record: MlsRecordDto) => record.ack !== 'NONE')
     .sort((a, b) => (a.received_at ?? '').localeCompare(b.received_at ?? ''))
@@ -304,7 +399,7 @@ function versionsOf(
     .map((obligation, index): ReportVersion => {
       const last = index === lineage.length - 1
       const state: ReportVersion['state'] =
-        last && outcome === 'accepted'
+        last && (outcome === 'accepted' || outcome === 'deliveredUnconfirmed')
           ? 'live'
           : obligation.status === 'SUPERSEDED'
             ? 'superseded'
@@ -317,7 +412,9 @@ function versionsOf(
         state,
         headlineKey:
           state === 'live'
-            ? 'activityDetail.versions.acceptedOn'
+            ? outcome === 'deliveredUnconfirmed'
+              ? 'activityDetail.versions.deliveredOn'
+              : 'activityDetail.versions.acceptedOn'
             : state === 'waiting'
               ? 'activityDetail.versions.sentOn'
               : 'activityDetail.versions.turnedDownOn',
@@ -352,11 +449,18 @@ export function recordFromDetail(
   const lastRefusal = refusals[refusals.length - 1]
   const reason =
     lastRefusal?.failure_reason ?? (item.tdd_leg?.ack === 'RE' ? item.tdd_leg.reason : null)
+  const code = lastRefusal?.error_code ?? null
+  // TODO(backend): ACTIVITY.md 2.30. Classified from the code and the reason until the refusal
+  // carries its kind.
+  const cause = refusalCauseOf(code, reason)
+  const kind = refusalKindOf(cause, lastRefusal?.error_kind ?? item.tdd_leg?.error_kind)
   const rejection = reason
     ? {
-        code: lastRefusal?.error_code ?? null,
+        code,
         reason,
         later: outcome === 'accepted' ? ('accepted' as const) : ('open' as const),
+        cause,
+        kind,
       }
     : null
 
@@ -376,6 +480,7 @@ export function recordFromDetail(
 
   return {
     invoiceUuid: dto.invoice_uuid,
+    direction: item.direction,
     invoice: item.invoice_number,
     customer: item.counterparty,
     issued: dayOf(item.occurred_at, language),
@@ -394,9 +499,13 @@ export function recordFromDetail(
     },
     route: {
       flow: flowOf(item),
+      received: item.direction === 'RECEIVED' || item.reporter_role === '02',
+      scope: item.tdd_scope ?? null,
       flowNumber: item.scenario?.flow ?? null,
       standIn: item.scenario?.stand_in_id ?? null,
       mlsCount: replies,
+      theirId: item.counterparty_participant_id ?? null,
+      profile: profileOf(item.customization_id),
     },
     retention: {
       keptUntil: dayOf(keptUntil.toISOString(), language),
@@ -449,9 +558,14 @@ export function recordFromDetail(
       },
     ],
     resend: item.links.resubmit
-      ? 'possible'
-      : outcome === 'accepted'
-        ? 'accepted'
+      ? rejection?.kind === 'invoice'
+        ? 'possibleInvoice'
+        : 'possible'
+      : outcome === 'accepted' || outcome === 'deliveredUnconfirmed'
+        ? // A received document is the supplier's to correct, never ours to reissue.
+          item.direction === 'RECEIVED'
+          ? 'received'
+          : 'accepted'
         : outcome === 'waiting'
           ? 'waiting'
           : 'none',

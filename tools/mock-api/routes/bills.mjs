@@ -114,13 +114,22 @@ function bill(id, supplierId, number, issued, dueDays, lines, extra = {}) {
   }
 }
 
-const L = (description, quantity, unit, unitPrice, vatRate = 5) => ({
+const L = (description, quantity, unit, unitPrice, vatRate = 5, tax = null) => ({
   description,
   quantity,
   unit,
   unitPrice,
   vatRate,
+  // CL-04-OM category and its reason (VATZR-OM-nn on Z, VATEX-OM-nn on E): EXPENDITURE.md R.2.
+  taxCategoryCode: tax?.category ?? null,
+  exemptionReasonCode: tax?.code ?? null,
+  exemptionReason: tax?.text ?? null,
 })
+/** A zero-rated or exempt line at 0%, with the reason code it must carry. */
+const Z = (description, quantity, unit, unitPrice, code) =>
+  L(description, quantity, unit, unitPrice, 0, { category: 'Z', code })
+const E = (description, quantity, unit, unitPrice, code) =>
+  L(description, quantity, unit, unitPrice, 0, { category: 'E', code })
 const matched = (po, verdict = 'MATCHED', byHand = false) => ({
   verdict,
   purchaseOrderNumber: po,
@@ -236,7 +245,11 @@ const BILLS = [
     'AND-INV-3360',
     '2026-09-05',
     30,
-    [L('Fard dates, 3 kg box', 40, 'BX', 8.2)],
+    [
+      L('Fard dates, 3 kg box', 40, 'BX', 8.2),
+      Z('Fresh Khalas dates, loose', 25, 'KG', 1.6, 'VATZR-OM-01'),
+      E('Cargo insurance, Nizwa run', 1, 'EA', 6.5, 'VATEX-OM-01'),
+    ],
     {
       workflowState: 'APPROVED',
       match: matched('PO-0025'),
@@ -807,6 +820,9 @@ function detailReply(row) {
       unit: line.unit,
       unitPrice: line.unitPrice,
       vatRate: line.vatRate,
+      taxCategoryCode: line.taxCategoryCode ?? null,
+      exemptionReasonCode: line.exemptionReasonCode ?? null,
+      exemptionReason: line.exemptionReason ?? null,
       lineNet: round3(line.quantity * line.unitPrice),
       purchaseOrderLineId: order ? `${order.id}-l${index + 1}` : null,
       goodsReceiptId: order?.receipt.id ?? null,
@@ -871,6 +887,18 @@ function detailReply(row) {
       source: row.source,
       networkVerified: row.source === 'PEPPOL',
       obligation: row.source === 'PEPPOL' ? 'REPORTED_BY_SENDER' : 'PENDING_COMPLIANCE_INPUT',
+      // Our own receipt report (om-tdd, reporter role 02): EXPENDITURE.md R.1. One bill still
+      // waits on the Tax Authority so the screen shows that state too.
+      receiptReport:
+        row.source !== 'PEPPOL'
+          ? null
+          : row.id === 'b-and-3382'
+            ? { status: 'SUBMITTED', reportedAt: null, tddUuid: `tdd-${row.id}` }
+            : {
+                status: 'ACCEPTED',
+                reportedAt: `${row.issueDate}T08:14:00Z`,
+                tddUuid: `tdd-${row.id}`,
+              },
     },
     activity,
     _net: net,

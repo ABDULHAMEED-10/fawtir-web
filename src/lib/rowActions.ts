@@ -143,52 +143,87 @@ export function selfBillRowActions(documentId: string): ActionMenuItem[] {
   ]
 }
 
-export function quotationRowActions(documentId: string): ActionMenuItem[] {
-  return [
-    {
-      id: 'view',
-      labelKey: 'rowActions.quotation.view',
-      icon: viewIcon,
-      to: `/trade-documents/quotations/${documentId}`,
-    },
-    { id: 'send', labelKey: 'rowActions.quotation.send', icon: sendIcon },
-    { id: 'edit', labelKey: 'rowActions.quotation.edit', icon: editIcon },
-    { id: 'convert', labelKey: 'rowActions.quotation.convert', icon: invoiceIcon },
-    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
-    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
-  ]
+/**
+ * Trade documents have no API yet (TRADE_DOCUMENTS.md row T.9): every item that is not a plain
+ * link goes to `onAction`, which converts to an invoice where that works and otherwise says the
+ * action is not available yet. Without a handler the items stay inert, as before.
+ */
+export type TradeRowAction = (itemId: string, documentId: string) => void
+
+function withHandler(items: ActionMenuItem[], documentId: string, onAction?: TradeRowAction) {
+  if (!onAction) return items
+  return items.map((item) =>
+    item.to ? item : { ...item, onSelect: () => onAction(item.id, documentId) },
+  )
 }
 
-export function orderFormRowActions(documentId: string): ActionMenuItem[] {
-  return [
-    {
-      id: 'view',
-      labelKey: 'rowActions.orderForm.view',
-      icon: viewIcon,
-      to: `/trade-documents/order-forms/${documentId}`,
-    },
-    { id: 'edit', labelKey: 'rowActions.orderForm.edit', icon: editIcon },
-    { id: 'delivery', labelKey: 'rowActions.orderForm.delivery', icon: sendIcon },
-    { id: 'invoice', labelKey: 'rowActions.orderForm.invoice', icon: invoiceIcon },
-    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
-    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
-  ]
+export function quotationRowActions(
+  documentId: string,
+  onAction?: TradeRowAction,
+): ActionMenuItem[] {
+  return withHandler(
+    [
+      {
+        id: 'view',
+        labelKey: 'rowActions.quotation.view',
+        icon: viewIcon,
+        to: `/trade-documents/quotations/${documentId}`,
+      },
+      { id: 'send', labelKey: 'rowActions.quotation.send', icon: sendIcon },
+      { id: 'edit', labelKey: 'rowActions.quotation.edit', icon: editIcon },
+      { id: 'convert', labelKey: 'rowActions.quotation.convert', icon: invoiceIcon },
+      { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+      { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+    ],
+    documentId,
+    onAction,
+  )
 }
 
-export function deliveryNoteRowActions(documentId: string): ActionMenuItem[] {
-  return [
-    {
-      id: 'view',
-      labelKey: 'rowActions.deliveryNote.view',
-      icon: viewIcon,
-      to: `/trade-documents/delivery-notes/${documentId}`,
-    },
-    { id: 'edit', labelKey: 'rowActions.deliveryNote.edit', icon: editIcon },
-    { id: 'invoice', labelKey: 'rowActions.deliveryNote.invoice', icon: invoiceIcon },
-    { id: 'print', labelKey: 'rowActions.deliveryNote.print', icon: sendIcon },
-    { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
-    { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
-  ]
+export function orderFormRowActions(
+  documentId: string,
+  onAction?: TradeRowAction,
+): ActionMenuItem[] {
+  return withHandler(
+    [
+      {
+        id: 'view',
+        labelKey: 'rowActions.orderForm.view',
+        icon: viewIcon,
+        to: `/trade-documents/order-forms/${documentId}`,
+      },
+      { id: 'edit', labelKey: 'rowActions.orderForm.edit', icon: editIcon },
+      { id: 'delivery', labelKey: 'rowActions.orderForm.delivery', icon: sendIcon },
+      { id: 'invoice', labelKey: 'rowActions.orderForm.invoice', icon: invoiceIcon },
+      { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+      { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+    ],
+    documentId,
+    onAction,
+  )
+}
+
+export function deliveryNoteRowActions(
+  documentId: string,
+  onAction?: TradeRowAction,
+): ActionMenuItem[] {
+  return withHandler(
+    [
+      {
+        id: 'view',
+        labelKey: 'rowActions.deliveryNote.view',
+        icon: viewIcon,
+        to: `/trade-documents/delivery-notes/${documentId}`,
+      },
+      { id: 'edit', labelKey: 'rowActions.deliveryNote.edit', icon: editIcon },
+      { id: 'invoice', labelKey: 'rowActions.deliveryNote.invoice', icon: invoiceIcon },
+      { id: 'print', labelKey: 'rowActions.deliveryNote.print', icon: sendIcon },
+      { id: 'duplicate', labelKey: 'rowActions.invoice.duplicate', icon: duplicateIcon },
+      { id: 'delete', labelKey: 'rowActions.delete', icon: deleteIcon, danger: true },
+    ],
+    documentId,
+    onAction,
+  )
 }
 
 /** Bills row menu — open, take the file, or take it out of the payment run. */
@@ -233,7 +268,12 @@ export function posSaleRowActions(invoiceId: string): ActionMenuItem[] {
 
 /** The queue's states, spelt out here so this file stays free of the ledger module. */
 type SubscriptionRowState =
-  'trial' | 'awaitingPayment' | 'active' | 'grace' | 'suspended' | 'cancelled'
+  | 'trial'
+  | 'awaitingPayment'
+  | 'active'
+  | 'grace'
+  | 'suspended'
+  | 'cancelled'
 
 /**
  * The Subscriptions queue's row menu (docs/erp-and-console-plan.md §7.3). Every action is a deep

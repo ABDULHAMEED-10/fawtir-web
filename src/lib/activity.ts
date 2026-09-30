@@ -130,7 +130,8 @@ export const SUBMISSIONS: Submission[] = [
     sentDate: '8 Jun',
     sentTime: '11:20',
     outcome: 'superseded',
-    verdictKey: 'activity.verdict.disregarded',
+    // Replaced by the corrected report we sent (TDD type R), not something the OTA did.
+    verdictKey: 'activity.verdict.replacedByUs',
     acknowledgement: 'received',
   },
   {
@@ -141,8 +142,10 @@ export const SUBMISSIONS: Submission[] = [
     tddUuid: '0e94-af13-6d27-8850',
     fawtaraRef: 'OM-2026-0084201',
     flow: 'export',
-    routeKey: 'activity.route.standIn',
-    routeValues: { id: '997770000097', flow: '11' },
+    // An export is reported under TDD scope IP or INP. 997770000097 is not a PINT-OM stand-in ID;
+    // the only one published is 997770000099.
+    routeKey: 'activity.route.exportScope',
+    routeValues: { scope: 'INP' },
     sentDate: '14 Jun',
     sentTime: '10:02',
     outcome: 'accepted',
@@ -183,7 +186,7 @@ export const BOOK = {
   acceptedInvoices: 1_577,
   /** Submissions that are still open with the OTA. */
   waiting: 19,
-  /** Submissions the OTA disregarded because a corrected version replaced them. */
+  /** Reports we replaced or cancelled ourselves (TDD type R or D) with a corrected version. */
   superseded: 8,
   /** Rejections nobody has corrected yet — the only ones that need a person. */
   needsAttention: 4,
@@ -231,7 +234,12 @@ export const formatDuration = (seconds: number) =>
 /* --------------------------------------------------------------------- tabs */
 
 export type ActivityTabId =
-  'all' | 'needsAttention' | 'accepted' | 'rejected' | 'waiting' | 'superseded'
+  | 'all'
+  | 'needsAttention'
+  | 'accepted'
+  | 'rejected'
+  | 'waiting'
+  | 'superseded'
 
 export const ACTIVITY_TABS: { id: ActivityTabId; labelKey: string }[] = [
   { id: 'all', labelKey: 'activity.tabs.all' },
