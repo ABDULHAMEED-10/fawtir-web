@@ -84,6 +84,7 @@ import backIcon from '../../assets/invoice-details/back.svg'
 import playIcon from '../../assets/actions/send.svg'
 import pauseIcon from '../../assets/actions/pause.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import editIcon from '../../assets/actions/edit.svg'
 
 const DEFAULT_PAGE_SIZE = 6
 
@@ -209,6 +210,8 @@ function Agreements() {
   const [renewing, setRenewing] = useState<AgreementDto | null>(null)
   const [exporting, setExporting] = useState(false)
   const [withdrawing, setWithdrawing] = useState<AgreementDto | null>(null)
+  // The agreement whose supplier's business activity (BTOM-033) is being set.
+  const [settingIsic, setSettingIsic] = useState<AgreementDto | null>(null)
   const [selected, setSelected] = useState<string[]>([])
 
   const onFailure = (error: unknown) => {
@@ -314,6 +317,15 @@ function Agreements() {
         icon: pauseIcon,
         onSelect: () =>
           void run(row.id, () => suspendAgreement(row.id), 'agreements.done.suspended'),
+      })
+    }
+    // Every live agreement: suppliers agreed before the code was asked must still get one to issue.
+    if (row.status !== 'WITHDRAWN') {
+      items.push({
+        id: 'setIsic',
+        labelKey: 'agreements.action.setIsic',
+        icon: editIcon,
+        onSelect: () => setSettingIsic(row),
       })
     }
     if (actions.withdraw) {
@@ -909,6 +921,19 @@ function Agreements() {
         />
       ) : null}
 
+      {settingIsic ? (
+        <SupplierIsicDialog
+          agreement={settingIsic}
+          sellerName={nameOf(settingIsic.customerId)}
+          onCancel={() => setSettingIsic(null)}
+          onDone={() => {
+            setSettingIsic(null)
+            setNotice(t('agreements.done.isicSaved'))
+          }}
+          onFailure={onFailure}
+        />
+      ) : null}
+
       {withdrawing ? (
         <WithdrawDialog
           agreement={withdrawing}
@@ -996,63 +1021,30 @@ function OpenAgreementDialog({
   onDone: (renewed: boolean) => void
   onFailure: (error: unknown) => void
 }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [customerId, setCustomerId] = useState(renewing?.customerId ?? '')
   const [reference, setReference] = useState('')
   const [from, setFrom] = useState(() => muscatToday())
   const [to, setTo] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // The supplier's whole record: its stored ISIC code and the version a change must name.
-  const recordPath =
-    customerId === '' ? null : `${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`
-  const record = useApiRead<CustomerRecordDto>(recordPath, () => loadCustomerRecord(customerId))
-  const supplier =
-    record.read.status === 'ready' && record.read.data.id === customerId ? record.read.data : null
-  const storedIsic = supplier?.profile.details.industrialClassificationCode ?? ''
-  // The reader's pick, kept with the supplier it was made for, so switching supplier re-prefills.
-  const [isicPick, setIsicPick] = useState<{ customerId: string; code: string } | null>(null)
-  const isic = isicPick?.customerId === customerId ? isicPick.code : storedIsic
-  const [isicRefused, setIsicRefused] = useState(false)
-  const isicChoices = useMemo(() => isicOptions(i18n.language), [i18n.language])
+  const activity = useSupplierIsic(customerId)
 
   const referenceProblem = agreementProblem(reference)
   const datesProblem = rangeProblem(from, to)
   const ready =
     customerId !== '' &&
-    supplier !== null &&
-    isic !== '' &&
+    activity.supplier !== null &&
+    activity.isic !== '' &&
     referenceProblem === null &&
     datesProblem === null
 
   const submit = async () => {
-    if (!ready || supplier === null) return
+    if (!ready) return
     setSaving(true)
-    setIsicRefused(false)
     try {
-      if (isic !== storedIsic) {
-        try {
-          await patchCustomer(customerId, {
-            details: { industrialClassificationCode: isic },
-            expectedVersion: supplier.version,
-          })
-        } catch (error) {
-          // The code itself refused (the same 400 the company's own activity gets): said on the
-          // field, and the dialog stays open to pick another. Anything else is the page's notice.
-          if (
-            error instanceof ApiError &&
-            error.status === 400 &&
-            (error.problemType === 'validation-failed' ||
-              error.fieldErrors.some((entry) =>
-                entry.field.endsWith('industrialClassificationCode'),
-              ))
-          ) {
-            setIsicRefused(true)
-            return
-          }
-          throw error
-        }
-      }
+      // First, so the agreement is never opened on a code that failed to save.
+      if ((await activity.save()) === 'refused') return
       const terms = {
         agreementReference: reference.trim(),
         effectiveFrom: from,
@@ -1112,42 +1104,7 @@ function OpenAgreementDialog({
           />
         </div>
 
-        {customerId !== '' ? (
-          <div>
-            <span className="mb-1 block text-sm font-medium text-text-primary">
-              {t('agreements.openDialog.isic')}
-            </span>
-            <Combobox
-              value={isic}
-              onChange={(code) => {
-                setIsicPick({ customerId, code })
-                setIsicRefused(false)
-              }}
-              options={isicChoices}
-              placeholder={t('agreements.openDialog.isicPlaceholder')}
-              searchPlaceholder={t('companyProfile.industrialClassificationSearch')}
-              emptyText={t('companyProfile.industrialClassificationNone')}
-              ariaLabel={t('agreements.openDialog.isic')}
-              disabled={supplier === null}
-            />
-            <span className="mt-1 block text-xs font-medium text-text-quaternary">
-              {t('agreements.openDialog.isicHint')}
-            </span>
-            {record.read.status === 'failed' ? (
-              <span role="alert" className="mt-1 block text-sm font-medium text-danger-700">
-                {t('agreements.openDialog.isicUnreadable')}
-              </span>
-            ) : isicRefused ? (
-              <span role="alert" className="mt-1 block text-sm font-medium text-danger-700">
-                {t('agreements.openDialog.isicRefused')}
-              </span>
-            ) : supplier !== null && storedIsic === '' && isic === '' ? (
-              <span role="status" className="mt-1 block text-sm font-medium text-pending-700">
-                {t('agreements.openDialog.isicRequired')}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
+        {customerId !== '' ? <SupplierIsicField activity={activity} /> : null}
 
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-text-primary">
@@ -1205,6 +1162,163 @@ function OpenAgreementDialog({
           {t('agreements.openDialog.fixed')}
         </p>
       </div>
+    </Modal>
+  )
+}
+
+/**
+ * A self-billing supplier's business activity (BTOM-033): its record read for the stored code and
+ * the version a change is written against, the reader's pick, and the save.
+ *
+ * The code is the **seller's** (IBR-081-OM puts it on every line) and on a self-billed document the
+ * seller is the supplier, so it lives on the supplier's customer record (Zain, 2026-09-30), read at
+ * `profile.details.industrialClassificationCode`.
+ */
+function useSupplierIsic(customerId: string) {
+  const { i18n } = useTranslation()
+  const recordPath =
+    customerId === '' ? null : `${CUSTOMERS_PATH}/${encodeURIComponent(customerId)}`
+  const record = useApiRead<CustomerRecordDto>(recordPath, () => loadCustomerRecord(customerId))
+  const supplier =
+    record.read.status === 'ready' && record.read.data.id === customerId ? record.read.data : null
+  const storedIsic = supplier?.profile.details.industrialClassificationCode ?? ''
+  // The reader's pick, kept with the supplier it was made for, so switching supplier re-prefills.
+  const [pick, setPick] = useState<{ customerId: string; code: string } | null>(null)
+  const isic = pick?.customerId === customerId ? pick.code : storedIsic
+  const [refused, setRefused] = useState(false)
+  const choices = useMemo(() => isicOptions(i18n.language), [i18n.language])
+
+  const choose = (code: string) => {
+    setPick({ customerId, code })
+    setRefused(false)
+  }
+
+  /**
+   * PATCHes the code onto the supplier when it changed. A code the server refuses (the same bare
+   * 400 the company's own activity gets) is said on the field and answers `refused`; any other
+   * failure is thrown for the caller's notice.
+   */
+  const save = async (): Promise<'unchanged' | 'saved' | 'refused'> => {
+    setRefused(false)
+    if (supplier === null || isic === storedIsic) return 'unchanged'
+    try {
+      await patchCustomer(customerId, {
+        details: { industrialClassificationCode: isic },
+        expectedVersion: supplier.version,
+      })
+      return 'saved'
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 400 &&
+        (error.problemType === 'validation-failed' ||
+          error.fieldErrors.some((entry) => entry.field.endsWith('industrialClassificationCode')))
+      ) {
+        setRefused(true)
+        return 'refused'
+      }
+      throw error
+    }
+  }
+
+  return { record, supplier, storedIsic, isic, refused, choices, choose, save }
+}
+
+type SupplierIsic = ReturnType<typeof useSupplierIsic>
+
+/** The supplier's ISIC picker: the Company profile's list, prefilled from the supplier's record. */
+function SupplierIsicField({ activity }: { activity: SupplierIsic }) {
+  const { t } = useTranslation()
+  const { record, supplier, storedIsic, isic, refused } = activity
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-text-primary">
+        {t('agreements.openDialog.isic')}
+      </span>
+      <Combobox
+        value={isic}
+        onChange={activity.choose}
+        options={activity.choices}
+        placeholder={t('agreements.openDialog.isicPlaceholder')}
+        searchPlaceholder={t('companyProfile.industrialClassificationSearch')}
+        emptyText={t('companyProfile.industrialClassificationNone')}
+        ariaLabel={t('agreements.openDialog.isic')}
+        disabled={supplier === null}
+      />
+      <span className="mt-1 block text-xs font-medium text-text-quaternary">
+        {t('agreements.openDialog.isicHint')}
+      </span>
+      {record.read.status === 'failed' ? (
+        <span role="alert" className="mt-1 block text-sm font-medium text-danger-700">
+          {t('agreements.openDialog.isicUnreadable')}
+        </span>
+      ) : refused ? (
+        <span role="alert" className="mt-1 block text-sm font-medium text-danger-700">
+          {t('agreements.openDialog.isicRefused')}
+        </span>
+      ) : supplier !== null && storedIsic === '' && isic === '' ? (
+        <span role="status" className="mt-1 block text-sm font-medium text-pending-700">
+          {t('agreements.openDialog.isicRequired')}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+/**
+ * Setting the business activity of a supplier whose agreement is already live: without it, the
+ * suppliers agreed before the code was asked could never issue. Writes the supplier only; the
+ * agreement is not touched.
+ */
+function SupplierIsicDialog({
+  agreement,
+  sellerName,
+  onCancel,
+  onDone,
+  onFailure,
+}: {
+  agreement: AgreementDto
+  sellerName: string | null
+  onCancel: () => void
+  onDone: () => void
+  onFailure: (error: unknown) => void
+}) {
+  const { t } = useTranslation()
+  const activity = useSupplierIsic(agreement.customerId)
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    setSaving(true)
+    try {
+      if ((await activity.save()) === 'refused') return
+      onDone()
+    } catch (error) {
+      onFailure(error)
+      onCancel()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onCancel}
+      title={t('agreements.isicDialog.title')}
+      subtitle={sellerName ?? t('agreements.unknownSeller')}
+      width={520}
+      footer={
+        <DialogActions
+          confirmLabel={
+            saving ? t('agreements.isicDialog.saving') : t('agreements.isicDialog.save')
+          }
+          confirmDisabled={activity.supplier === null || activity.isic === '' || saving}
+          onConfirm={submit}
+          onCancel={onCancel}
+        />
+      }
+    >
+      <SupplierIsicField activity={activity} />
     </Modal>
   )
 }

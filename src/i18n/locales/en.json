@@ -3014,14 +3014,16 @@
     "action": {
       "activate": "Activate",
       "suspend": "Suspend",
-      "withdraw": "Withdraw"
+      "withdraw": "Withdraw",
+      "setIsic": "Set business activity"
     },
     "done": {
       "opened": "The agreement was opened.",
       "activated": "The agreement is active.",
       "suspended": "The agreement is suspended.",
       "withdrawn": "The agreement was withdrawn.",
-      "renewed": "The agreement was renewed. Activate the new one; Fawtir verifies the supplier again before you can issue under it."
+      "renewed": "The agreement was renewed. Activate the new one; Fawtir verifies the supplier again before you can issue under it.",
+      "isicSaved": "The supplier's business activity was saved."
     },
     "problem": {
       "referenceRequired": "Give the agreement a reference.",
@@ -3126,7 +3128,12 @@
     },
     "showResult": "Show result:",
     "prevPage": "Previous page",
-    "nextPage": "Next page"
+    "nextPage": "Next page",
+    "isicDialog": {
+      "title": "Supplier's business activity",
+      "save": "Save",
+      "saving": "Saving…"
+    }
   },
   "newSelfBill": {
     "breadcrumb": "Self-billed",
@@ -15927,7 +15934,7 @@
       "counterpartyLegalName": "This supplier has no legal registered name on its record. Add it, then issue.",
       "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
       "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue.",
-      "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. Set it on the supplier's agreement in Self-billing, Agreements, then issue.",
+      "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
       "supplierIsicAction": "Go to agreements"
     }
   },

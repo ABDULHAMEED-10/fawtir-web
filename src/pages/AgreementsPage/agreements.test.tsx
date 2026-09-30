@@ -603,4 +603,83 @@ describe("the supplier's business activity in the agreement dialog (BTOM-033)", 
     await waitFor(() => expect(writes).toEqual(['PATCH customer', 'POST agreement']))
     expect(posted.at(-1)?.url).toBe(`${AGREEMENTS_URL}/a-1/renewal`)
   })
+
+  describe('on an agreement already live, from its row menu', () => {
+    async function openSetter() {
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: ROW_MENU }))
+      fireEvent.click(await screen.findByRole('menuitem', { name: 'Set business activity' }))
+      return screen.findByRole('dialog')
+    }
+
+    async function save() {
+      const button = screen.getByRole('button', { name: 'Save' })
+      await waitFor(() => expect(button).toHaveProperty('disabled', false))
+      fireEvent.click(button)
+    }
+
+    it('prefills from profile.details of the whole customer record, and writes nothing when kept', async () => {
+      // The customer response is the whole record: the code sits at profile.details, not details.
+      await openSetter()
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: ISIC }).textContent).toContain(
+          'Extraction of crude petroleum',
+        ),
+      )
+      await save()
+      expect(await screen.findByText("The supplier's business activity was saved.")).toBeTruthy()
+      expect(writes).toEqual([])
+    })
+
+    it('PATCHes only the supplier, at its version, and never the agreement', async () => {
+      storedIsic = null
+      await openSetter()
+      await screen.findByText(/has no business activity on its record yet/)
+      pickIsic('062000', /Extraction of natural gas/)
+      await save()
+
+      expect(await screen.findByText("The supplier's business activity was saved.")).toBeTruthy()
+      expect(writes).toEqual(['PATCH customer'])
+      expect(patched).toEqual([
+        { details: { industrialClassificationCode: '062000' }, expectedVersion: 3 },
+      ])
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('keeps the dialog open on a refused code', async () => {
+      refusePatch = true
+      await openSetter()
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: ISIC }).hasAttribute('disabled')).toBe(false),
+      )
+      pickIsic('062000', /Extraction of natural gas/)
+      await save()
+
+      expect(
+        await screen.findByText(
+          "The supplier's business activity was not saved. Check the code and try again.",
+        ),
+      ).toBeTruthy()
+      expect(screen.getByRole('dialog')).toBeTruthy()
+      expect(posted).toHaveLength(0)
+    })
+
+    it('is offered on every live status, and not on a withdrawn agreement', async () => {
+      rows = [
+        agreement({ id: 'a-1', status: 'PENDING_ACTIVATION' }),
+        agreement({ id: 'a-2', status: 'SUSPENDED', effectiveFrom: '2026-02-01' }),
+        agreement({ id: 'a-3', status: 'WITHDRAWN', effectiveFrom: '2026-03-01' }),
+      ]
+      renderPage()
+      await screen.findAllByText('Muscat Roastery Co')
+      // Withdrawn has no menu at all; both live rows offer it.
+      const menus = screen.getAllByRole('button', { name: ROW_MENU })
+      expect(menus).toHaveLength(2)
+      for (const menu of menus) {
+        fireEvent.click(menu)
+        expect(await screen.findByRole('menuitem', { name: 'Set business activity' })).toBeTruthy()
+        fireEvent.keyDown(document, { key: 'Escape' })
+      }
+    })
+  })
 })
