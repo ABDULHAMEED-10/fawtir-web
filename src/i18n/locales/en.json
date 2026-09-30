@@ -7667,7 +7667,7 @@
       "rejections": "Rejections",
       "oneCause": "One cause is {{percent}}% of all of them",
       "secondsToAcceptance": "Seconds to acceptance",
-      "insideTheRule": "Well inside the 24-hour rule",
+      "insideTheRule": "Every month cleared within a day",
       "firstTime": "First time",
       "onRetry": "On retry",
       "deliveryFailed": "Delivery failed",
@@ -7698,7 +7698,7 @@
       "lowRejections": "Low rejections",
       "noReason": "No reason given",
       "noRejections": "Nothing was rejected in this period.",
-      "outsideTheRule": "Some months took longer than 24 hours",
+      "outsideTheRule": "Some months took longer than a day",
       "failuresFalling": "Failures falling every quarter"
     },
     "lists": {
@@ -8491,7 +8491,7 @@
       "waitingOnYou": "Waiting on you",
       "waitingOnYouNote": "Rejected and not yet corrected. Until they're fixed, those sales aren't reported.",
       "timeToAcceptance": "Time to acceptance",
-      "timeToAcceptanceNote": "Average this month, down from {{previous}}. Well inside the 24-hour rule.",
+      "timeToAcceptanceNote": "Average this month, down from {{previous}}.",
       "acknowledged": "Customer acknowledged",
       "acknowledgedNote": "MLS came back on {{good}} of {{total}}",
       "documents": "Documents",
@@ -8507,9 +8507,10 @@
       "rejectedCount": "{{n}} rejected",
       "waitingCount": "{{n}} still waiting",
       "noTimeYet": "Not yet",
-      "timeToAcceptanceDown": "Typical this year, down from {{previous}}. Well inside the 24-hour rule.",
-      "timeToAcceptanceUp": "Typical this year, up from {{previous}}. Still inside the 24-hour rule.",
-      "timeToAcceptancePlain": "Typical this year. Well inside the 24-hour rule."
+      "timeToAcceptanceDown": "Typical this year, down from {{previous}}.",
+      "timeToAcceptanceUp": "Typical this year, up from {{previous}}.",
+      "timeToAcceptancePlain": "Typical this year.",
+      "unconfirmedCount": "{{n}} delivered, unconfirmed"
     },
     "tabs": {
       "all": "All",
@@ -8538,7 +8539,10 @@
       "standIn": "Stand-in ID {{id}} · flow {{flow}}",
       "b2bDomestic": "Both on Peppol",
       "b2c": "Stand-in ID",
-      "export": "Stand-in ID"
+      "export": "Stand-in ID",
+      "received": "Received, reported by us as receiver (role 02)",
+      "exportScope": "Export · TDD scope {{scope}}",
+      "exportNoScope": "Export · TDD scope not on the record yet"
     },
     "ref": {
       "neverAccepted": "No Fawtara ref - never accepted",
@@ -8552,21 +8556,24 @@
       "rejected": "Rejected",
       "waiting": "Still waiting",
       "superseded": "Superseded",
-      "notOwed": "No TDD owed"
+      "notOwed": "No TDD owed",
+      "deliveredUnconfirmed": "Delivered, unconfirmed"
     },
     "verdict": {
       "noPeppolId": "The customer has no Peppol ID on their record.",
       "totalMismatch": "The total doesn't equal the lines added up out by OMR {{amount}}.",
       "noAnswerYet": "{{elapsed}} and no answer. Usually {{usual}}.",
       "clearedNotDelivered": "Cleared in {{time}} · reported, not delivered to anyone",
-      "disregarded": "The OTA disregarded it when the corrected version was accepted.",
+      "disregarded": "Replaced by a corrected report we sent.",
       "clearedZeroRated": "Cleared in {{time}} · zero-rated as an export",
       "clearedIn": "Cleared in {{time}}",
       "rejectedNoReason": "Turned down. Open the record for the reason.",
       "notOwed": "Nothing is reported for this document.",
       "notDelivered": "Reported, not delivered to anyone",
       "zeroRated": "Zero-rated as an export",
-      "accepted": "Accepted"
+      "accepted": "Accepted",
+      "replacedByUs": "Replaced by a corrected report we sent.",
+      "deliveredUnconfirmed": "Delivered without confirmation. Not counted as accepted."
     },
     "ack": {
       "received": "Received it",
@@ -8600,7 +8607,8 @@
       "openRecord": "Open the record",
       "openRecordNote": "Where it went and what came back",
       "sendAgain": "Send the report again",
-      "sendAgainNote": "Once the fix is saved, a new TDD goes to the OTA"
+      "sendAgainNote": "Once the fix is saved, a new TDD goes to the OTA",
+      "resubmitInvoiceNote": "The invoice itself was refused: a credit note and a new invoice"
     },
     "emptyState": {
       "title": "Nothing reported yet",
@@ -8735,7 +8743,8 @@
       "waitingOnThem": "Waiting for their reply",
       "theyRefused": "They turned it down",
       "arrivedOverPeppol": "Arrived over Peppol",
-      "validated": "Validated"
+      "validated": "Validated",
+      "deliveredUnconfirmed": "Delivered, unconfirmed"
     },
     "whyTurnedDown": "Why the first one was turned down",
     "rejection": {
@@ -8753,12 +8762,13 @@
       "turnedDownOn": "Turned down {{at}}",
       "noReference": "no Fawtara reference issued",
       "v2Body": "This is the record the Tax Authority has for {{invoice}}. Sent by Hafidh Saif after the tax categories were corrected.",
-      "v1Body": "Withdrawn by the OTA on 9 June when the corrected report was accepted. Kept here because the archive can't lose anything, but it counts for nothing.",
+      "v1Body": "Replaced on 9 June by the corrected report you sent. Kept here because the archive can't lose anything, but it counts for nothing.",
       "sentOn": "Sent {{at}}",
       "liveBody": "This is the record the Tax Authority has for {{invoice}}.",
-      "supersededBody": "Withdrawn by the OTA when the corrected report was accepted. Kept here because the archive can't lose anything, but it counts for nothing.",
+      "supersededBody": "Replaced by the corrected report you sent. Kept here because the archive can't lose anything, but it counts for nothing.",
       "rejectedBody": "Turned down and not replaced yet. Until a corrected report is accepted, this sale isn't declared.",
-      "waitingBody": "Sent, and waiting for the OTA to answer."
+      "waitingBody": "Sent, and waiting for the OTA to answer.",
+      "deliveredOn": "Delivered, unconfirmed {{at}}"
     },
     "whichRoute": "Which route it took",
     "route": {
@@ -8780,7 +8790,8 @@
       "documentsWithMls_one": "Invoice, TDD, MLS",
       "documentsWithMls_other": "Invoice, TDD, MLS ×{{count}}",
       "documentsNoMls": "Invoice, TDD",
-      "notOnRecord": "Not on the record yet"
+      "notOnRecord": "Not on the record yet",
+      "noStandInExport": "None: an export is reported under its TDD scope"
     },
     "checkItYourself": "Check it yourself",
     "fawtaraReference": "Fawtara reference",
@@ -8805,7 +8816,7 @@
     "copies": {
       "accepted": "The accepted report",
       "acceptedMeta": "TDD XML · version 2",
-      "withdrawn": "The withdrawn report",
+      "withdrawn": "The replaced report",
       "withdrawnMeta": "TDD XML · version 1",
       "ack": "The OTA's acknowledgement",
       "ackMeta": "Your proof it was accepted",
@@ -8820,18 +8831,22 @@
     },
     "sendItAgain": "Send it again",
     "resend": {
-      "body": "Already accepted, so there's nothing to resend. If you correct this invoice later, a fresh report goes out and this one is withdrawn in the same way version 1 was.",
+      "body": "Already accepted, so there's nothing to resend. If this invoice turns out to be wrong, it is corrected with a credit note and a new invoice.",
       "nothing": "Nothing to resend",
-      "possibleBody": "The Tax Authority turned this report down and a corrected one can go. Put the problem right first, then send.",
-      "acceptedBody": "Already accepted, so there's nothing to resend. If you correct this invoice later, a fresh report goes out and this one is withdrawn.",
+      "possibleBody": "The Tax Authority turned this report down. If the reason is about the report itself, put it right and send it again; if it is about the invoice, it takes a credit note and a new invoice.",
+      "acceptedBody": "Already accepted, so there's nothing to resend. If this invoice turns out to be wrong, it is corrected with a credit note and a new invoice.",
       "waitingBody": "Still waiting on the OTA. Nothing has gone wrong, and sending again before it answers would only use your allowance twice.",
-      "noneBody": "Nothing to resend for this document."
+      "noneBody": "Nothing to resend for this document.",
+      "possibleInvoiceBody": "Turned down because of the invoice itself. The report carries a copy of the invoice, so a changed report would not match what the customer holds: issue a credit note and a new invoice instead of resending.",
+      "receivedBody": "Reported as received. This is the supplier's invoice: if it is wrong, the supplier corrects it with a credit or debit note, which is reported the same way."
     },
     "record": "Record",
     "status": {
       "turnedDown": "Turned down by the OTA",
       "waiting": "Waiting for the OTA",
-      "notOwed": "No TDD owed"
+      "notOwed": "No TDD owed",
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "replaced": "Replaced by a later report"
     },
     "to": "To",
     "issuedOn": "issued {{date}}",
@@ -8856,15 +8871,22 @@
       "delivered": "Delivered",
       "theyRefused": "Turned down by them",
       "noReplyYet": "No reply yet",
-      "received": "Received"
+      "received": "Received",
+      "deliveredUnconfirmed": "Delivered, unconfirmed",
+      "replaced": "Replaced by us"
     },
     "from": "From",
     "fromSupplier": "From {{customer}}",
-    "receiptReportedNote": "Receipt reported, via Fawtara"
+    "receiptReportedNote": "Receipt reported, via Fawtara",
+    "refusalKind": {
+      "invoice": "This is about the invoice itself, so it is put right with a credit note and a new invoice, not by sending the report again.",
+      "report": "This is about the report only, not the invoice: once it is put right, the report can be sent again. Nothing goes to the customer.",
+      "unknown": "The refusal doesn't say whether it is about the invoice or the report. If it is about the invoice itself, it takes a credit note and a new invoice."
+    }
   },
   "callLog": {
     "title": "The OTA call log",
-    "subtitle": "Every request Fawtir has made to the Tax Authority on your account, with what came back.",
+    "subtitle": "Every report and invoice Fawtir sent over Peppol for your account, and every MLS message that came back.",
     "backToSubmissions": "Back to submissions",
     "more": "More",
     "privacy": "<b>Only owners and admins can see this page.</b> It shows technical detail about your own account's traffic - no invoice contents, and nothing from any other business.",
@@ -8872,21 +8894,21 @@
     "filters": "Filters",
     "sort": "Sort",
     "allResults": "All results",
-    "empty": "No calls match what you are looking for.",
-    "showing": "Showing {{shown}} of {{total}} calls today",
+    "empty": "No messages match what you are looking for.",
+    "showing": "Showing {{shown}} of {{total}} messages today",
     "kpi": {
-      "callsToday": "Calls today",
-      "callsTodayNote": "Submissions, status checks and acknowledgements",
-      "answered": "Answered normally",
-      "answeredNote": "{{good}} of {{total}} · {{failed}} timed out or errored",
-      "roundTrip": "Round trip, typical",
-      "roundTripNote": "Normally {{normal}}s. The OTA has been slow since {{since}}.",
+      "callsToday": "Messages today",
+      "callsTodayNote": "Reports and invoices sent over Peppol, and MLS messages received",
+      "answered": "Delivered normally",
+      "answeredNote": "{{good}} of {{total}} · {{failed}} not delivered or refused",
+      "roundTrip": "Time to an answer, typical",
+      "roundTripNote": "Normally {{normal}}s. Answers have been slow since {{since}}.",
       "slowest": "Slowest today",
-      "slowestNote": "At {{at}} · timed out and retried on its own"
+      "slowestNote": "At {{at}}"
     },
     "col": {
       "when": "When",
-      "call": "The call",
+      "call": "The message",
       "about": "What it was about",
       "cameBack": "Came back",
       "took": "Took",
@@ -8905,14 +8927,17 @@
       "reportingNewSale": "Reporting a new sale",
       "passingAck": "Passing on the customer's acknowledgement",
       "firstTry": "Reporting a new sale · first try",
-      "retry": "Reporting a new sale · retry"
+      "retry": "Reporting a new sale · retry",
+      "mlsAnswer": "MLS answer to the report on {{invoice}}",
+      "invoiceToCustomer": "The invoice to the customer, over Peppol"
     },
     "status": {
       "stillWithThem": "Still with them",
       "accepted": "Accepted",
       "recorded": "Recorded",
       "noAnswer": "No answer",
-      "takenIn": "Taken in"
+      "takenIn": "Taken in",
+      "receipt": "Access point receipt"
     },
     "speed": {
       "fast": "fast",
@@ -8922,25 +8947,29 @@
     },
     "result": {
       "ok": "Went through",
-      "pending": "Still deciding",
+      "pending": "No answer yet",
       "rejected": "Turned down",
-      "noAnswer": "No answer"
+      "noAnswer": "Not delivered"
     },
     "meaning": {
       "acceptedNoDecision": "Accepted for processing but no decision yet. Fawtir will keep asking every ten minutes.",
       "acceptedWithRef": "Accepted and given Fawtara reference {{ref}}.",
-      "noParticipantId": "The buyer has no participant identifier. Add a Peppol ID to {{customer}} and send it again.",
+      "noParticipantId": "The buyer has no participant identifier. That is in the invoice itself: add a Peppol ID to {{customer}}, then issue a credit note and a new invoice.",
       "deliveryConfirmed": "The customer's access point confirmed delivery, and the OTA has it on record.",
       "otaDidNotAnswer": "The OTA didn't answer in time. Nothing wrong at your end - Fawtir sent it again two minutes later and it went through.",
-      "takenNotDecided": "Taken in but not yet decided. This is the submission still waiting."
+      "takenNotDecided": "Taken in but not yet decided. This is the submission still waiting.",
+      "mlsAccepted": "Fawtara answered AP: the report was delivered and confirmed.",
+      "tddDelivered": "Taken by Fawtara's access point. The answer comes back as an MLS message.",
+      "noMlsYet": "Taken by Fawtara's access point, and no MLS yet. Silence is not a failure, and nothing is resent.",
+      "invoiceDelivered": "Taken by the customer's access point."
     },
     "sortOptions": {
       "newest": "Newest first",
       "slowest": "Slowest first",
       "problemsFirst": "Problems first"
     },
-    "notHeld": "Only the first page of today's calls is held here for now.",
-    "pagerNav": "Pages of calls",
+    "notHeld": "Only the first page of today's messages is held here for now.",
+    "pagerNav": "Pages of messages",
     "menu": {
       "putThingsRight": "Put things right",
       "retryWaiting": "Retry everything still waiting",
@@ -8960,6 +8989,10 @@
       "whoHearsNote": "Owners and admins on your team",
       "retention": "Retention and the archive",
       "retentionNote": "Ten years, fifteen for property"
+    },
+    "direction": {
+      "sent": "Sent",
+      "received": "Received"
     }
   },
   "tddResubmit": {
@@ -9028,7 +9061,8 @@
       "left": "{{count}} left",
       "moreInvoicesCount_zero": "No other invoices",
       "moreInvoicesCount_one": "{{count}} more invoice",
-      "moreInvoicesCount_other": "{{count}} more invoices"
+      "moreInvoicesCount_other": "{{count}} more invoices",
+      "onNewInvoice": "1st, on the new invoice"
     },
     "stopRecurring": "Stop it recurring",
     "stopRecurringBody": "This has cost you three rejections because a business customer can be saved without a Peppol ID. Making the field required would have caught it when the record was created.",
@@ -9043,7 +9077,34 @@
     "stopRecurringCount_other": "This has cost you {{count}} rejections because a business customer can be saved without a Peppol ID. Making the field required would have caught it when the record was created.",
     "footerCount_one": "1 invoice · 1 from your quota · nothing goes to the customer",
     "footerCount_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer",
-    "fixAndSendAll": "Fix and send all {{count}}"
+    "fixAndSendAll": "Fix and send all {{count}}",
+    "titleInvoice": "Put {{invoice}} right with a credit note and a new invoice",
+    "subtitleKind": {
+      "invoice": "The Tax Authority turned the report down because of the invoice itself. The report carries a full copy of the invoice, so a changed report would not match the invoice {{customer}} holds: correct it with a credit note and a new invoice.",
+      "report": "Only the report to the Tax Authority was turned down, not the invoice. Once the report is put right it can be sent again, and nothing goes to {{customer}}.",
+      "unknown": "The report to the Tax Authority was turned down, so the sale isn't declared yet. Check what was refused: if it is about the invoice itself, it takes a credit note and a new invoice rather than a resend."
+    },
+    "fixNote": {
+      "buyerPeppolId": "Add their Peppol participant ID to the customer record, then issue the credit note and the new invoice.",
+      "totals": "The invoice's total doesn't match its lines. Issue a credit note, then a new invoice with the lines corrected.",
+      "taxCategory": "A line's VAT category doesn't match its rate. Issue a credit note, then a new invoice with the category corrected.",
+      "otherInvoice": "The refusal is about the invoice itself. Issue a credit note, then a new invoice with it corrected.",
+      "report": "The refusal is about the report only. Fawtir builds the report again from the same invoice and sends it.",
+      "unknown": "Read what was refused above. If it is about the invoice itself, issue a credit note and a new invoice instead of sending again."
+    },
+    "peppolIdHintPlain": "Oman uses scheme 0248 followed by the VAT number, for example 0248:OM1100558840.",
+    "typedAbove": "As typed above",
+    "newInvoiceNumber": "A new invoice number",
+    "correctedOnNew": "Corrected on the new invoice",
+    "issueCreditNote": "Issue a credit note",
+    "footerKind": {
+      "invoice_one": "1 invoice · a credit note and a new invoice go to the customer",
+      "invoice_other": "{{count}} invoices · a credit note and a new invoice go to the customer for each",
+      "report_one": "1 invoice · 1 from your quota · nothing goes to the customer",
+      "report_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer",
+      "unknown_one": "1 invoice · 1 from your quota · nothing goes to the customer",
+      "unknown_other": "{{count}} invoices · {{count}} from your quota · nothing goes to the customer"
+    }
   },
   "complianceReport": {
     "title": "Compliance report",
@@ -9063,7 +9124,7 @@
       "rejections": "Rejections and how they were put right",
       "rejectionsNote": "What the OTA objected to, when it was corrected, and which resubmission was accepted",
       "superseded": "Superseded submissions",
-      "supersededNote": "Which TDDs the OTA disregarded, and which one is live for each invoice",
+      "supersededNote": "Which reports you replaced or cancelled with a later one, and which one is live for each invoice",
       "flows": "Which flow each invoice took",
       "flowsNote": "The document scenario and any stand-in participant ID used for B2C or export",
       "xml": "The TDD XML files themselves",
@@ -9088,7 +9149,8 @@
       "correctedAfterRejection": "Rejected then corrected",
       "stillNotReported": "Still not reported",
       "totalInvoiced": "Total invoiced",
-      "vatReported": "VAT reported"
+      "vatReported": "VAT reported",
+      "stillWaiting": "Sent, still waiting for an answer"
     },
     "nInvoices_one": "{{count}} invoice",
     "nInvoices_other": "{{count}} invoices",
@@ -9111,7 +9173,8 @@
       "everyInvoice": "Every invoice in the period, with nothing filtered out"
     },
     "customFrom": "From",
-    "customTo": "To"
+    "customTo": "To",
+    "notAvailableYet": "Not available yet"
   },
   "builtReport": {
     "ready": "Ready",
@@ -9150,7 +9213,7 @@
     "neverAcceptedHeadline": "One invoice was never accepted by the Tax Authority",
     "neverAcceptedBody": "<b>{{invoice}}</b>, issued {{issued}} to {{customer}} for <b>{{total}}</b>. The report was refused the same day under {{code}} because the tax category on one line disagreed with the rate applied. It has not been corrected or resubmitted, so <b>{{vat}} of VAT sits outside the figure above</b> and the sale is undeclared as at the date of this report.",
     "alsoWorthNoting": "Also worth noting",
-    "correctedNote": "<b>{{count}} invoices were refused once and accepted on a second attempt.</b> In each case the correction changed a tax category or a participant identifier: no amount, quantity or date was altered. The earlier reports were withdrawn by the OTA and the accepted versions are the live records. All five are listed on page 3.",
+    "correctedNote": "<b>{{count}} invoices were refused once and accepted on a later attempt.</b> The earlier reports were replaced by the corrected ones we sent and stay in the archive; the accepted versions are the live records. All are listed on page 3.",
     "numberingNote": "<b>No invoice was issued outside Fawtir during the period.</b> Numbering runs unbroken from {{from}} to {{to}} with no gaps.",
     "registerFirstRows": "The register · first rows of {{total}}",
     "col": {
@@ -9169,8 +9232,8 @@
     },
     "remainingRows": "The remaining {{count}} rows continue on pages {{from}} to {{to}}.",
     "attestation": "Attestation",
-    "attestationBody": "Fawtir has prepared this report from its own records of what was transmitted to and received from the Oman Tax Authority through the Fawtara platform. Every entry is supported by a stored Tax Data Document and, where accepted, by an acknowledgement carrying the Fawtara reference shown. <b>These records cannot be edited</b> and each file carries a fingerprint taken at the moment it was stored.",
-    "attestationLimits": "<b>What this report does not do.</b> It states what was reported, not whether the underlying invoices are correct. Fawtir does not audit the amounts, the tax treatment or the trade behind them. Figures here should agree with the Tax Authority's own records, which can be checked invoice by invoice using the Fawtara references above.",
+    "attestationBody": "Fawtir has prepared this report from its own records of what was sent over Peppol to the Oman Tax Authority's Fawtara endpoint and of the MLS messages that came back. Every entry is supported by a stored Tax Data Document and, where acknowledged, by the MLS message that answered it. <b>These records cannot be edited</b> and each file carries a fingerprint taken at the moment it was stored.",
+    "attestationLimits": "<b>What this report does not do.</b> It states what was reported, not whether the underlying invoices are correct. Fawtir does not audit the amounts, the tax treatment or the trade behind them. Figures here should agree with the Tax Authority's own records, which can be checked invoice by invoice using the TDD UUIDs.",
     "fingerprintLabel": "Fingerprint of this report ·",
     "preparedBy": "Prepared by",
     "signedAutomatically": "Signed automatically · {{at}}",
@@ -9190,11 +9253,11 @@
       "rejections": "Rejections and corrections",
       "corrected": "The five corrected invoices",
       "register": "The full register",
-      "withdrawn": "Withdrawn reports",
+      "withdrawn": "Replaced reports",
       "flows": "Which flow each invoice took"
     },
     "beforeYouSend": "Before you send it",
-    "beforeYouSendBody": "{{invoice}} still shows as unreported. If you correct and resubmit it, a new report would show the quarter fully declared.",
+    "beforeYouSendBody": "{{invoice}} still shows as unreported. It was refused because of the invoice itself, so it is put right with a credit note and a new invoice; a report built after that would show the quarter fully declared.",
     "putItRight": "Put {{invoice}} right",
     "rebuildOnceFixed": "Rebuild once it's fixed",
     "sendingItOut": "Sending it out",
@@ -9204,7 +9267,12 @@
     "noneYet": "None yet",
     "preparedByName": "Fawtir · Accredited Service Provider",
     "receivedReported": "Bills received · reported <b>{{n}} of {{m}}</b>",
-    "receivedNotAvailable": "Bills received · Not available yet"
+    "receivedNotAvailable": "Bills received · Not available yet",
+    "outsideNotConfirmed": "<b>Invoices issued outside Fawtir: not confirmed.</b>",
+    "numberingUnbroken": "Numbering runs unbroken from {{from}} to {{to}}.",
+    "numberingGaps_one": "Numbering runs from {{from}} to {{to}} with {{count}} gap: {{gaps}}.",
+    "numberingGaps_other": "Numbering runs from {{from}} to {{to}} with {{count}} gaps: {{gaps}}.",
+    "numberingNotConfirmed": "Unbroken numbering: not confirmed."
   },
   "callDetail": {
     "subtitle": "{{date}}, {{at}} · about {{invoice}} · answered in {{seconds}}",
@@ -9225,52 +9293,54 @@
     "step": {
       "built": "Report built and signed",
       "builtNote": "took 184ms · 4.8 KB",
-      "connected": "Connected to Fawtara",
-      "connectedNote": "handshake 96ms · certificate valid to Mar 2027",
+      "connected": "Handed to our Peppol access point",
+      "connectedNote": "96ms",
       "sent": "Sent",
-      "sentNote": "upload 41ms",
-      "waiting": "Waiting on the OTA",
+      "sentNote": "AS4 receipt in 41ms",
+      "waiting": "Waiting for the MLS",
       "waitingNote": "1.77s · all of the delay was on their side",
-      "refused": "Refused · {{status}}",
+      "refused": "MLS {{status}}: refused",
       "refusedNote": "one fatal rule broken",
-      "noRetry": "No retry attempted",
-      "noRetryNote": "The answer said retryable: false, so Fawtir stopped and raised it with you instead of using another submission."
+      "noRetry": "Not sent again",
+      "noRetryNote": "The refusal is about the invoice itself, so it is put right with a credit note and a new invoice, not by sending the report again."
     },
-    "theCall": "The call",
+    "theCall": "The message",
     "when": "When",
     "type": {
-      "submit": "Submit a report"
+      "submit": "A report, TDD type S"
     },
     "answer": {
       "refused": "refused"
     },
-    "roundTrip": "Round trip",
+    "roundTrip": "Time to the answer",
     "attempt": "Attempt",
     "attemptOf": "{{n}} of {{total}}",
     "quotaUsed": "Quota used",
     "whereTimeWent": "Where the time went",
     "phase": {
       "building": "Building it",
-      "connecting": "Connecting",
+      "connecting": "Handing over",
       "sending": "Sending",
       "theirSide": "Their side"
     },
     "referencesToQuote": "References to quote",
-    "requestId": "Request ID",
-    "traceId": "OTA trace ID",
+    "requestId": "SBDH instance ID",
+    "traceId": "MLS message ID",
     "documentUuid": "Document UUID",
     "copyAllThree": "Copy all three",
-    "relatedCalls": "Related calls",
+    "relatedCalls": "Related messages",
     "sameInvoice": "Same invoice",
     "sameErrorCode": "Same error code",
     "sameCustomer": "Same customer",
     "showAllThree": "Show all three",
-    "nCalls_one": "{{count}} call",
-    "nCalls_other": "{{count}} calls",
+    "nCalls_one": "{{count}} message",
+    "nCalls_other": "{{count}} messages",
     "nThisWeek": "{{n}} this week",
     "nRefused": "{{n}} refused",
     "typeLabel": "Type",
-    "answerLabel": "Answer"
+    "answerLabel": "Answer",
+    "copyIds": "Copy the IDs",
+    "xmlKeptWithRecord": "The signed TDD XML is kept with the record of {{invoice}}: download it there."
   },
   "settings": {
     "title": "Settings",
