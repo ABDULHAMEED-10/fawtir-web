@@ -12,6 +12,7 @@ import {
   draftedCount,
   formOfSchedule,
   narrowSchedules,
+  ownTemplateInfo,
   periodicCounts,
   periodicProblems,
   repeatValue,
@@ -532,7 +533,9 @@ describe('Periodic invoices, wired to the API', () => {
     deleteResponse = () => new Response(null, { status: 204 })
     const before = calls('GET', '/api/v1/periodic-invoice-schedules').length
     await chooseFromRow('Muscat Grand Hotel', 'Delete')
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }),
+    )
     expect(await screen.findByText('Deleted. The drafts it raised are kept.')).toBeTruthy()
     expect(calls('DELETE', '/api/v1/periodic-invoice-schedules/sch-1')).toHaveLength(2)
     await waitFor(() =>
@@ -652,6 +655,37 @@ describe('periodic schedule helpers', () => {
       endDate: null,
       occurrences: null,
     })
+  })
+
+  it('prices a schedule from its own template, as a run would draft it', () => {
+    const form = {
+      ...blankPeriodicForm(TODAY),
+      customerId: 'cus-1',
+      branchId: 'br-main',
+      subject: 'Coffee supply',
+    }
+    const line = { ...blankPeriodicLine('1', '5'), description: 'Cappuccino - Large' }
+    const small = templateOfForm(
+      form,
+      [{ ...line, unitPrice: '1.800', quantity: '12' }],
+      true,
+      null,
+    )
+    // 12 x 1.800 = 21.600, plus 5% VAT.
+    expect(ownTemplateInfo(small)).toMatchObject({
+      number: null,
+      subject: 'Coffee supply',
+      total: 22.68,
+      currency: 'OMR',
+    })
+    // Past a thousand the figure stays a number (no grouping separator in the way).
+    const large = templateOfForm(
+      form,
+      [{ ...line, unitPrice: '1250.000', quantity: '1' }],
+      true,
+      null,
+    )
+    expect(ownTemplateInfo(large).total).toBe(1312.5)
   })
 
   it('reopens a saved schedule in the form it was saved from', () => {

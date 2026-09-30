@@ -15,7 +15,12 @@ import {
   itemTypeOfUnit,
   reasonRequired,
 } from './invoiceDraft'
-import { toExclusivePrice, type DiscountType } from './invoiceMath'
+import {
+  calculateInvoice,
+  projectInvoice,
+  toExclusivePrice,
+  type DiscountType,
+} from './invoiceMath'
 
 /**
  * Periodic invoices (I-13, design 154:164555 and 154:159427, realigned 25 Sep 2026).
@@ -75,6 +80,36 @@ export type TemplateInfo = {
   /** Null while the template is a draft: a draft is priced only when issued. */
   total: number | null
   currency: string
+}
+
+/**
+ * What a schedule's own template says, for the list. Its lines are held ex-VAT with no header
+ * discount, so the total is the same figure the schedule page shows as "Each".
+ */
+export function ownTemplateInfo(template: PeriodicTemplateDto): TemplateInfo {
+  const totals = projectInvoice(
+    calculateInvoice(
+      template.lines.map((line) => ({
+        id: String(line.lineNumber),
+        lineNumber: line.lineNumber,
+        quantity: String(line.quantity),
+        unitPrice: String(line.unitPrice),
+        vatRate: String(line.taxCategory.rate),
+        discountType: line.discount.type,
+        discountValue: String(line.discount.value),
+      })),
+      'PERCENTAGE',
+      '0',
+    ),
+  )
+  return {
+    number: null,
+    subject: template.details.subject,
+    reference: template.details.purchaseOrderReference,
+    // Projected at scale 3: an integer count of baisa.
+    total: Number(totals.total) / 1000,
+    currency: template.currency,
+  }
 }
 
 /** The name a schedule goes by: the template's subject, else the customer. */

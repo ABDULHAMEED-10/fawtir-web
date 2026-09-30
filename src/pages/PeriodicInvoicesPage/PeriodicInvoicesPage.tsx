@@ -40,6 +40,7 @@ import {
   generatedThisMonth,
   monthlyEquivalent,
   narrowSchedules,
+  ownTemplateInfo,
   periodicCounts,
   scheduleName,
   scheduleNote,
@@ -178,8 +179,14 @@ export function PeriodicInvoicesPage() {
     [invoices.read],
   )
   const nameOf = (customerId: string) => names.get(customerId)
+  // The schedule's own template wins, as it does when a run drafts; the invoice is then only the
+  // pre-fill it started from.
   const templateOf = (schedule: PeriodicScheduleDto) =>
-    schedule.templateInvoiceId ? templates.get(schedule.templateInvoiceId) : undefined
+    schedule.template
+      ? ownTemplateInfo(schedule.template)
+      : schedule.templateInvoiceId
+        ? templates.get(schedule.templateInvoiceId)
+        : undefined
   const titleOf = (schedule: PeriodicScheduleDto) =>
     scheduleName(templateOf(schedule), nameOf(schedule.customerId)) ??
     t('periodicList.unknownCustomer')
