@@ -498,9 +498,23 @@ describe('Periodic invoices, wired to the API', () => {
     })
   })
 
-  it('generates an invoice from the row menu, and says when the server refuses', async () => {
+  it('generates an invoice from the row menu after asking, and says when the server refuses', async () => {
+    const confirmGenerate = async () =>
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Generate invoice' }),
+      )
     renderAt('/income/periodic')
+
+    // A mis-click sends nothing: the dialog names the date the schedule moves to, and Cancel stops.
     await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    expect(await screen.findByText('Raise the next invoice now?')).toBeTruthy()
+    expect(within(screen.getByRole('dialog')).getByText(/^The schedule moves to /)).toBeTruthy()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(calls('POST', '/api/v1/periodic-invoice-schedules/sch-1/runs')).toHaveLength(0)
+
+    await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    await confirmGenerate()
     await waitFor(() =>
       expect(calls('POST', '/api/v1/periodic-invoice-schedules/sch-1/runs')).toHaveLength(1),
     )
@@ -510,11 +524,13 @@ describe('Periodic invoices, wired to the API', () => {
     runNowResponse = () =>
       json(409, { title: 'Refused', status: 409, code: 'PERIODIC_RUN_IN_PROGRESS' })
     await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    await confirmGenerate()
     expect(await screen.findByText(/is being raised right now/)).toBeTruthy()
 
     runNowResponse = () =>
       json(200, { ...RUNS[1], outcome: 'DEAD_LETTERED', retryable: true, runDate: TODAY })
     await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    await confirmGenerate()
     expect(await screen.findByText(/The draft could not be raised/)).toBeTruthy()
   })
 

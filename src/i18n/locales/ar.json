@@ -1599,7 +1599,11 @@
     "issuedCount_many": "صدرت {{count}}",
     "issuedCount_other": "صدرت {{count}}",
     "lastRun": "آخرها {{date}}",
-    "notIssued": "لم تصدر"
+    "notIssued": "لم تصدر",
+    "generateTitle": "إنشاء الفاتورة القادمة الآن؟",
+    "generateBody": "ينتقل الجدول إلى {{date}}.",
+    "generateBodyLast": "هذه آخر فاتورة في الجدول. لن يُنشئ فواتير أخرى بعدها.",
+    "generateConfirm": "إنشاء فاتورة"
   },
   "suppliersPage": {
     "title": "الموردون",

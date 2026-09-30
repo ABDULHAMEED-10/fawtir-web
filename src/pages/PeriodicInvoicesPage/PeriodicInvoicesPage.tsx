@@ -263,6 +263,17 @@ export function PeriodicInvoicesPage() {
     }
   }
 
+  // Generate raises a real draft and moves the schedule on, so a mis-click is asked about first;
+  // a second click the same day is refused by the server, so no limit is kept here.
+  const [generating, setGenerating] = useState<PeriodicScheduleDto | null>(null)
+  const generatingNext = generating ? upcomingRuns(generating, 2)[1] : undefined
+  const onGenerate = () => {
+    if (!generating) return
+    const target = generating
+    setGenerating(null)
+    void generate(target)
+  }
+
   const [deleting, setDeleting] = useState<PeriodicScheduleDto | null>(null)
   const onDelete = async () => {
     if (!deleting) return
@@ -343,7 +354,7 @@ export function PeriodicInvoicesPage() {
             id: 'generate',
             labelKey: 'periodicList.menu.generate',
             icon: generateIcon,
-            onSelect: () => void generate(schedule),
+            onSelect: () => setGenerating(schedule),
           },
           schedule.active
             ? {
@@ -854,6 +865,36 @@ export function PeriodicInvoicesPage() {
           {t('periodicList.sweepNote')}
         </p>
       </div>
+
+      <Modal
+        open={generating !== null}
+        onClose={() => setGenerating(null)}
+        title={t('periodicList.generateTitle')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setGenerating(null)}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={onGenerate}
+              className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800"
+            >
+              {t('periodicList.generateConfirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {generatingNext
+            ? t('periodicList.generateBody', { date: formatDate(generatingNext, language) })
+            : t('periodicList.generateBodyLast')}
+        </p>
+      </Modal>
 
       <Modal
         open={deleting !== null}

@@ -1548,7 +1548,11 @@
     "issuedCount_one": "{{count}} issued",
     "issuedCount_other": "{{count}} issued",
     "lastRun": "last {{date}}",
-    "notIssued": "Not issued"
+    "notIssued": "Not issued",
+    "generateTitle": "Raise the next invoice now?",
+    "generateBody": "The schedule moves to {{date}}.",
+    "generateBodyLast": "This is the schedule's last invoice. It raises no more after this one.",
+    "generateConfirm": "Generate invoice"
   },
   "suppliersPage": {
     "title": "Suppliers",
