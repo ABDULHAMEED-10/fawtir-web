@@ -366,7 +366,7 @@ function CallRow({ call }: { call: OtaCall }) {
       <td className="px-4 py-4 align-top">
         <p className="flex flex-wrap items-center gap-2">
           <span className="inline-flex h-[20px] items-center rounded-[3px] bg-surface-background px-1.5 font-mono text-[10px] font-semibold uppercase text-text-tertiary">
-            {call.method}
+            {t(call.directionKey)}
           </span>
           <span className="font-mono text-sm text-text-primary">{call.path}</span>
         </p>

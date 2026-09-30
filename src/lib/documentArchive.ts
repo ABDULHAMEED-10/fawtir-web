@@ -76,6 +76,7 @@ export const ARCHIVE_TABS: ArchiveTabId[] = ['all', 'issued', 'received', 'legal
 /**
  * What a tab asks the server for. The archive filters by direction only; a legal hold is not a
  * filter it offers, so that tab narrows the page it was given and says as much.
+ * TODO(backend): a legal-hold filter on the list, DOCUMENTS.md row 3.21.
  */
 export function directionOf(tab: ArchiveTabId): 'ISSUED' | 'RECEIVED' | '' {
   if (tab === 'issued') return 'ISSUED'
@@ -142,11 +143,37 @@ export type RecordKind =
   | 'billReceived'
   | 'creditIssued'
   | 'creditReceived'
+  | 'debitIssued'
+  | 'debitReceived'
+  | 'prepaymentIssued'
+  | 'prepaymentReceived'
   | 'selfBilledInvoice'
   | 'selfBilledCredit'
 
-export function recordKind(item: Pick<ArchiveItemDto, 'document_kind' | 'direction'>): RecordKind {
+/**
+ * The record's kind, read from its UNCL1001 document type code first (380 invoice, 381 credit
+ * note, 383 debit note, 386 prepayment invoice, 389 self-billed invoice, 261 self-billed credit
+ * note). `document_kind` alone cannot tell a debit note or a prepayment from an invoice, so it
+ * is only the fallback. TODO(backend): `type_code` on the item, DOCUMENTS.md row 3.17.
+ */
+export function recordKind(
+  item: Pick<ArchiveItemDto, 'document_kind' | 'direction'> & { type_code?: string | null },
+): RecordKind {
   const received = item.direction === 'RECEIVED'
+  switch (item.type_code) {
+    case '380':
+      return received ? 'billReceived' : 'salesInvoice'
+    case '381':
+      return received ? 'creditReceived' : 'creditIssued'
+    case '383':
+      return received ? 'debitReceived' : 'debitIssued'
+    case '386':
+      return received ? 'prepaymentReceived' : 'prepaymentIssued'
+    case '389':
+      return 'selfBilledInvoice'
+    case '261':
+      return 'selfBilledCredit'
+  }
   switch (item.document_kind) {
     case 'CREDIT_NOTE':
       return received ? 'creditReceived' : 'creditIssued'
@@ -157,6 +184,144 @@ export function recordKind(item: Pick<ArchiveItemDto, 'document_kind' | 'directi
     default:
       return received ? 'billReceived' : 'salesInvoice'
   }
+}
+
+/** A credit or debit note corrects an earlier invoice (PINT-OM IBR-032-OM for credit notes). */
+export function correctsInvoice(kind: RecordKind): boolean {
+  return (
+    kind === 'creditIssued' ||
+    kind === 'creditReceived' ||
+    kind === 'debitIssued' ||
+    kind === 'debitReceived' ||
+    kind === 'selfBilledCredit'
+  )
+}
+
+/**
+ * The kind filter. The archive's `document_kind` parameter knows four kinds; a debit note and a
+ * prepayment are STANDARD_INVOICE there, so picking one asks the server for invoices and narrows
+ * the page it answers by type code. TODO(backend): a `type_code` filter, DOCUMENTS.md row 3.17.
+ */
+export const KIND_CHOICES = [
+  'STANDARD_INVOICE',
+  'CREDIT_NOTE',
+  'DEBIT_NOTE',
+  'PREPAYMENT_INVOICE',
+  'SELF_BILLING_INVOICE',
+  'SELF_BILLING_CREDIT_NOTE',
+] as const
+
+export type KindChoice = (typeof KIND_CHOICES)[number]
+
+const CHOICE_TYPE_CODE: Partial<Record<KindChoice, string>> = {
+  DEBIT_NOTE: '383',
+  PREPAYMENT_INVOICE: '386',
+}
+
+/** What a kind choice asks the server for, and the type code the page narrows by, if any. */
+export function kindQuery(choice: KindChoice | ''): {
+  documentKind: string
+  typeCode: string | null
+} {
+  if (!choice) return { documentKind: '', typeCode: null }
+  const typeCode = CHOICE_TYPE_CODE[choice] ?? null
+  return { documentKind: typeCode ? 'STANDARD_INVOICE' : choice, typeCode }
+}
+
+/** Only the rows of this page that carry the type code (a debit note, a prepayment). */
+export function narrowByType(items: ArchiveItemDto[], typeCode: string | null): ArchiveItemDto[] {
+  return typeCode ? items.filter((item) => item.type_code === typeCode) : items
+}
+
+/**
+ * The document's own issue date. A received record's `occurred_at` is when it reached us, so it
+ * is never called "issued": without `issue_date` the screen says "received" instead.
+ * TODO(backend): `issue_date` on the item, DOCUMENTS.md row 3.18.
+ */
+export function issueDateOf(item: ArchiveItemDto): { date: string; received: boolean } {
+  if (item.issue_date) return { date: item.issue_date, received: false }
+  return { date: item.occurred_at, received: item.direction === 'RECEIVED' }
+}
+
+/**
+ * A document we received is reported to the OTA by us as its receiver (reporter role 02 on the
+ * tax data document); one we issued, by us as its issuer. TODO(backend): `tdd.reporter_role` to
+ * confirm it, DOCUMENTS.md row 3.28.
+ */
+export function reportsAsReceiver(item: Pick<ArchiveItemDto, 'direction'>): boolean {
+  return item.direction === 'RECEIVED'
+}
+
+/**
+ * The page's rows are the whole answer only when the server did the narrowing. The legal-hold
+ * tab, a debit or prepayment kind, and any sort other than "as filed" work on this page alone.
+ * TODO(backend): server-side legal-hold filter, sort and name search, DOCUMENTS.md rows 3.21 to 3.23.
+ */
+export function narrowedOnPage(tab: ArchiveTabId, typeCode: string | null): boolean {
+  return tab === 'legalHold' || Boolean(typeCode)
+}
+
+export type BadgeTone = 'blue' | 'green' | 'red' | 'grey' | 'amber'
+
+/**
+ * The signed XML's badge ("Signed PINT-OM"), from `signature_valid` alone: a failed check says
+ * failed, and no check says it is not confirmed, in the same shape and a neutral tone.
+ * TODO(backend): `signature_valid` on the item, DOCUMENTS.md rows 3.9 and 3.24.
+ */
+export function signatureBadge(item: ArchiveItemDto): { key: string; tone: BadgeTone } {
+  if (item.signature_valid === true) return { key: 'documents.detail.badge.signed', tone: 'blue' }
+  if (item.signature_valid === false)
+    return { key: 'documents.detail.badge.signatureFailed', tone: 'red' }
+  return { key: 'documents.detail.badge.signatureUnconfirmed', tone: 'grey' }
+}
+
+/**
+ * The PDF's badge ("EN & AR"), from the languages the archive says it holds. A supplier's PDF is
+ * theirs, so nothing is assumed. TODO(backend): `languages` on the PDF artefact, DOCUMENTS.md row 3.20.
+ */
+export function pdfBadge(item: ArchiveItemDto): {
+  key: string
+  values?: Record<string, string>
+  tone: BadgeTone
+} {
+  const languages = (item.artefacts.pdf?.languages ?? []).map((code) => code.toLowerCase())
+  if (languages.includes('en') && languages.includes('ar'))
+    return { key: 'documents.detail.badge.enAr', tone: 'red' }
+  if (languages.length > 0)
+    return {
+      key: 'documents.detail.badge.language',
+      values: { languages: languages.map((code) => code.toUpperCase()).join(' & ') },
+      tone: 'red',
+    }
+  return { key: 'documents.detail.badge.languagesUnconfirmed', tone: 'grey' }
+}
+
+/**
+ * The "Validation" line on the sheet. "All five layers passed" is said only when the archive
+ * reports every layer passing; a failed layer or a failed report says so; otherwise it is not
+ * confirmed. TODO(backend): `validation` on the item, DOCUMENTS.md row 3.19.
+ */
+export function validationLine(item: ArchiveItemDto): {
+  key: string
+  values?: Record<string, number>
+  tone: 'green' | 'red' | 'grey'
+} {
+  const validation = item.validation
+  if (validation && validation.total > 0) {
+    if (validation.passed >= validation.total)
+      return validation.total === 5
+        ? { key: 'documents.detail.allFiveLayers', tone: 'green' }
+        : { key: 'documents.detail.allLayers', values: { total: validation.total }, tone: 'green' }
+    return {
+      key: 'documents.detail.someLayers',
+      values: { passed: validation.passed, total: validation.total },
+      tone: 'red',
+    }
+  }
+  const status = item.tdd.status
+  if (status === 'REJECTED' || status === 'GENERATION_FAILED' || status === 'DEAD_LETTERED')
+    return { key: `documents.tdd.${status}`, tone: 'red' }
+  return { key: 'documents.detail.validationUnconfirmed', tone: 'grey' }
 }
 
 /** The format tags beside a record ("XML TDD PDF QR MLS"); the delivery receipt reads as MDN. */

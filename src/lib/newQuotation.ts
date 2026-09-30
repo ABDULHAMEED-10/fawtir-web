@@ -1,10 +1,59 @@
 /**
  * Create quotation (Figma 13:42543).
  *
- * A quotation is not a tax document — nothing is reported to the OTA until it turns
- * into an invoice — so the customer step only needs a name and email, and the VAT /
- * Peppol details stay optional.
+ * A quotation is not a tax document (nothing is reported to the OTA until it turns into an
+ * invoice), so the customer step only needs a name and email, and the VAT / Peppol details stay
+ * optional.
+ *
+ * The totals are computed from the lines (`quoteTotals`), never typed. The design typed them and
+ * took the 8% discount off twice: it printed the discounted line total 6,780.000 as the subtotal
+ * and then subtracted 492.000 again. The lines give subtotal 7,272.000, discount 492.000, net
+ * 6,780.000, VAT 339.000 and total 7,119.000.
  */
+
+import { quoteTotals, type QuoteItem } from './quotationDetail'
+
+const ITEMS: (QuoteItem & { vat: string })[] = [
+  {
+    lineNo: 1,
+    description: 'Green beans, Yirgacheffe',
+    meta: '',
+    itemType: 'goods',
+    unitCode: 'KGM',
+    unitLabel: 'KG',
+    unitPrice: 10.25,
+    qty: 600,
+    discountPct: 8,
+    taxCode: 'S5',
+    vat: '5%',
+  },
+  {
+    lineNo: 2,
+    description: 'Roasting service, per batch',
+    meta: '',
+    itemType: 'service',
+    unitCode: 'C62',
+    unitLabel: 'EA',
+    unitPrice: 18,
+    qty: 24,
+    discountPct: 0,
+    taxCode: 'S5',
+    vat: '5%',
+  },
+  {
+    lineNo: 3,
+    description: 'Barista training, 2 day course',
+    meta: '',
+    itemType: 'service',
+    unitCode: 'C62',
+    unitLabel: 'EA',
+    unitPrice: 345,
+    qty: 2,
+    discountPct: 0,
+    taxCode: 'S5',
+    vat: '5%',
+  },
+]
 
 export const NEW_QUOTATION = {
   number: 'QUO-0119',
@@ -19,59 +68,22 @@ export const NEW_QUOTATION = {
     subject: 'Ramadan 2027 coffee supply & barista training',
     branch: 'Al Bahja Coffee (Main)',
   },
-  items: [
-    {
-      id: '1',
-      description: 'Green beans — Yirgacheffe',
-      unitPrice: '10.250',
-      vat: '5%',
-      qty: '600',
-      unit: 'KG',
-      discount: '8%',
-      total: '5,658.000',
-    },
-    {
-      id: '2',
-      description: 'Roasting service — per batch',
-      unitPrice: '18.000',
-      vat: '5%',
-      qty: '24',
-      unit: 'EA',
-      discount: '0%',
-      total: '432.000',
-    },
-    {
-      id: '3',
-      description: 'Barista training — 2 day course',
-      unitPrice: '345.000',
-      vat: '5%',
-      qty: '2',
-      unit: 'EA',
-      discount: '0%',
-      total: '690.000',
-    },
-  ],
-  totals: {
-    subtotal: '6,780.000',
-    discount: '492.000',
-    net: '6,288.000',
-    vat: '314.400',
-    total: '6,602.400',
-  },
+  items: ITEMS,
+  totals: quoteTotals(ITEMS),
   terms: {
     paymentTerms: 'Net 30 days',
     expectedDelivery: 'Within 14 days of order',
-    leadTimePlaceholder: 'e.g. subject to stock at time of order...',
+    leadTimePlaceholderKey: 'newQuotation.leadTimePlaceholder',
   },
   notes: {
     customer:
       'Prices held to 29 August 2026 and include delivery to Shatti Al Qurum. Barista training is optional and can be added when you confirm the order.',
     internal:
-      'Competing against Nizwa Roasters — 8% volume discount approved by Hafidh. Hold the line on the roasting rate.',
+      'Competing against Nizwa Roasters: 8% volume discount approved by Hafidh. Hold the line on the roasting rate.',
   },
 }
 
-/** The trade-chain tracker in the page header — a new quote sits on step 1 as a draft. */
+/** The trade-chain tracker in the page header: a new quote sits on step 1 as a draft. */
 export const NEW_QUOTATION_STEPS = [
   { labelKey: 'quotations.step.quote', state: 'draft' as const },
   { labelKey: 'quotations.step.order', state: 'future' as const },

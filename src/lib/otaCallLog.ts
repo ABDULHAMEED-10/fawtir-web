@@ -1,13 +1,16 @@
 /**
- * The OTA call log — Compliance › Activity › Call log (Figma 131:16495).
+ * The OTA call log: Compliance › Activity › Call log (Figma 154:110659).
  *
- * Every HTTP request Fawtir has made to the Tax Authority on this account, and what came back.
- * This is the engineer's view underneath the submissions table: when the Authority is slow or
- * silent it is the only place that says so, and it distinguishes "your document was wrong" from
- * "their service did not answer" — which look identical from the invoice screen.
+ * The traffic behind the submissions table, one row per message. A TDD does not go to the Tax
+ * Authority as a REST call: it travels over Peppol to the Authority's endpoint, and the answer
+ * comes back as an MLS (Message Level Status) message. So the rows are what we SENT over Peppol
+ * (TDDs and invoices, each confirmed by the receiving access point) and the MLS messages we
+ * RECEIVED. There is no status polling and nothing is "passed on" by us: an MLS is simply received.
+ *
+ * TODO(backend): ACTIVITY.md 2.20. The rows are the design's day until a message-log route exists.
  */
 
-/** How the Authority answered, grouped by what it means rather than by status code. */
+/** What became of a message, grouped by what it means rather than by code. */
 export type CallResult = 'ok' | 'pending' | 'rejected' | 'noAnswer'
 
 export type OtaCall = {
@@ -15,18 +18,20 @@ export type OtaCall = {
   at: string
   agoKey: string
   agoValues?: Record<string, string | number>
-  method: 'GET' | 'POST'
+  /** Sent by us over Peppol, or received (an MLS answer). */
+  directionKey: 'callLog.direction.sent' | 'callLog.direction.received'
+  /** The message: TDD, MLS or the invoice itself (380). */
   path: string
   purposeKey: string
-  /** The document the call was about. */
+  /** The document the message was about. */
   invoice: string
   tddUuid: string
-  /** HTTP status as the Authority returned it. */
-  status: number
-  /** The Authority's own error code, when it sent one. */
+  /** What came back: the access point's AS4 receipt on a send, the MLS response code on an MLS. */
+  status: string
+  /** The refusal code the MLS carried, when it carried one. */
   errorCode?: string
   statusLabelKey: string
-  /** Seconds the round trip took. */
+  /** Seconds to the receipt (a send) or since the report went (an MLS). */
   seconds: number
   speedKey: string
   result: CallResult
@@ -37,50 +42,49 @@ export type OtaCall = {
 export const OTA_CALLS: OtaCall[] = [
   {
     id: 'c1',
-    at: '09:52:11',
-    agoKey: 'callLog.ago.seconds',
-    agoValues: { count: 40 },
-    method: 'GET',
-    path: '/tdd/status',
-    purposeKey: 'callLog.purpose.askingDecided',
-    invoice: 'INV-2044',
-    tddUuid: '7f0c-4d91-b3a8-2065',
-    status: 202,
-    statusLabelKey: 'callLog.status.stillWithThem',
-    seconds: 6.8,
-    speedKey: 'callLog.speed.slow',
-    result: 'pending',
-    meaningKey: 'callLog.meaning.acceptedNoDecision',
+    at: '09:48:05',
+    agoKey: 'callLog.ago.minutes',
+    agoValues: { count: 4 },
+    directionKey: 'callLog.direction.received',
+    path: 'MLS',
+    purposeKey: 'callLog.purpose.mlsAnswer',
+    invoice: 'INV-2046',
+    tddUuid: 'c41b-7e08-92fd-1a37',
+    status: 'AP',
+    statusLabelKey: 'callLog.status.accepted',
+    seconds: 1.9,
+    speedKey: 'callLog.speed.normal',
+    result: 'ok',
+    meaningKey: 'callLog.meaning.mlsAccepted',
   },
   {
     id: 'c2',
     at: '09:48:03',
     agoKey: 'callLog.ago.minutes',
     agoValues: { count: 5 },
-    method: 'POST',
-    path: '/tdd/submit',
+    directionKey: 'callLog.direction.sent',
+    path: 'TDD',
     purposeKey: 'callLog.purpose.reportingNewSale',
     invoice: 'INV-2046',
     tddUuid: 'c41b-7e08-92fd-1a37',
-    status: 200,
-    statusLabelKey: 'callLog.status.accepted',
-    seconds: 1.9,
-    speedKey: 'callLog.speed.normal',
+    status: 'AS4',
+    statusLabelKey: 'callLog.status.receipt',
+    seconds: 0.8,
+    speedKey: 'callLog.speed.fast',
     result: 'ok',
-    meaningKey: 'callLog.meaning.acceptedWithRef',
-    meaningValues: { ref: 'OM-2026-0084451' },
+    meaningKey: 'callLog.meaning.tddDelivered',
   },
   {
     id: 'c3',
-    at: '09:41:27',
+    at: '09:41:29',
     agoKey: 'callLog.ago.minutes',
     agoValues: { count: 11 },
-    method: 'POST',
-    path: '/tdd/submit',
-    purposeKey: 'callLog.purpose.reportingNewSale',
+    directionKey: 'callLog.direction.received',
+    path: 'MLS',
+    purposeKey: 'callLog.purpose.mlsAnswer',
     invoice: 'INV-2041',
     tddUuid: '4b17-9ce2-8a04-31df',
-    status: 422,
+    status: 'RE',
     errorCode: 'OTA-E-2041',
     statusLabelKey: '',
     seconds: 2.1,
@@ -91,54 +95,54 @@ export const OTA_CALLS: OtaCall[] = [
   },
   {
     id: 'c4',
-    at: '09:40:55',
+    at: '09:41:27',
     agoKey: 'callLog.ago.minutes',
-    agoValues: { count: 12 },
-    method: 'POST',
-    path: '/mls/acknowledge',
-    purposeKey: 'callLog.purpose.passingAck',
-    invoice: 'INV-2040',
-    tddUuid: 'a8e3-15c6-4470-9bb2',
-    status: 200,
-    statusLabelKey: 'callLog.status.recorded',
+    agoValues: { count: 11 },
+    directionKey: 'callLog.direction.sent',
+    path: 'TDD',
+    purposeKey: 'callLog.purpose.reportingNewSale',
+    invoice: 'INV-2041',
+    tddUuid: '4b17-9ce2-8a04-31df',
+    status: 'AS4',
+    statusLabelKey: 'callLog.status.receipt',
     seconds: 0.7,
     speedKey: 'callLog.speed.fast',
     result: 'ok',
-    meaningKey: 'callLog.meaning.deliveryConfirmed',
+    meaningKey: 'callLog.meaning.tddDelivered',
   },
   {
     id: 'c5',
-    at: '06:14:02',
+    at: '06:12:44',
     agoKey: 'callLog.ago.hours',
     agoValues: { count: 3 },
-    method: 'POST',
-    path: '/tdd/submit',
-    purposeKey: 'callLog.purpose.firstTry',
+    directionKey: 'callLog.direction.sent',
+    path: 'TDD',
+    purposeKey: 'callLog.purpose.reportingNewSale',
     invoice: 'INV-2044',
     tddUuid: '7f0c-4d91-b3a8-2065',
-    status: 504,
-    statusLabelKey: 'callLog.status.noAnswer',
-    seconds: 31,
-    speedKey: 'callLog.speed.timedOut',
-    result: 'noAnswer',
-    meaningKey: 'callLog.meaning.otaDidNotAnswer',
+    status: 'AS4',
+    statusLabelKey: 'callLog.status.receipt',
+    seconds: 3.4,
+    speedKey: 'callLog.speed.slow',
+    result: 'pending',
+    meaningKey: 'callLog.meaning.noMlsYet',
   },
   {
     id: 'c6',
     at: '06:12:40',
     agoKey: 'callLog.ago.hours',
     agoValues: { count: 3 },
-    method: 'POST',
-    path: '/tdd/submit',
-    purposeKey: 'callLog.purpose.retry',
+    directionKey: 'callLog.direction.sent',
+    path: '380',
+    purposeKey: 'callLog.purpose.invoiceToCustomer',
     invoice: 'INV-2044',
     tddUuid: '7f0c-4d91-b3a8-2065',
-    status: 202,
-    statusLabelKey: 'callLog.status.takenIn',
-    seconds: 3.4,
+    status: 'AS4',
+    statusLabelKey: 'callLog.status.receipt',
+    seconds: 1.2,
     speedKey: 'callLog.speed.normal',
-    result: 'pending',
-    meaningKey: 'callLog.meaning.takenNotDecided',
+    result: 'ok',
+    meaningKey: 'callLog.meaning.invoiceDelivered',
   },
 ]
 
@@ -183,7 +187,7 @@ export const matchesCallQuery = (call: OtaCall, query: string) => {
     call.invoice.toLowerCase().includes(needle) ||
     call.tddUuid.toLowerCase().includes(needle) ||
     call.path.toLowerCase().includes(needle) ||
-    String(call.status).includes(needle)
+    call.status.toLowerCase().includes(needle)
   )
 }
 
@@ -193,18 +197,19 @@ export const matchesCallQuery = (call: OtaCall, query: string) => {
 export type TimingPhase = { id: string; ms: number }
 
 /**
- * One call in full — Compliance › Activity › Call log › Detail (Figma 131:14844).
+ * One message in full: Compliance › Activity › Call log › Detail (Figma 154:109008).
  *
- * Shows both halves of the exchange verbatim, because when the Authority refuses something the
- * only way to settle an argument is the actual bytes that went and came back.
+ * The report we sent over Peppol and the MLS message that answered it. The TDD XML itself is kept
+ * with the record (its signed copy is downloaded there), so it is not reproduced here.
  */
 export const CALL_DETAIL = {
   id: 'c3',
   at: '09:41:27',
   date: '30 July 2026',
-  method: 'POST' as const,
-  path: '/tdd/submit',
-  status: 422,
+  directionKey: 'callLog.direction.sent' as const,
+  path: 'TDD',
+  /** The MLS response code that came back. */
+  status: 'RE',
   invoice: 'INV-2041',
   attempt: 1,
   attemptsAllowed: 1,
@@ -222,71 +227,26 @@ export const CALL_DETAIL = {
 
   request: {
     headers: [
-      { key: 'Endpoint', value: 'https://fawtara.taxoman.gov.om/api/v1/tdd/submit' },
-      { key: 'Content-Type', value: 'application/xml; charset=utf-8' },
-      { key: 'X-Sender-ID', value: '0248:OM1100392000' },
-      { key: 'X-Request-ID', value: 'req_9f31c740ab82' },
-      { key: 'Authorization', value: 'Bearer ••••••••  · hidden' },
-      { key: 'Body size', value: '4.8 KB' },
+      { key: 'Transport', value: 'Peppol AS4' },
+      { key: 'Sender', value: '0248:OM1100392000' },
+      { key: 'Receiver', value: 'Fawtara' },
+      { key: 'Document', value: 'TDD · type S' },
+      { key: 'SBDH instance ID', value: 'sbdh-2041-1' },
+      { key: 'AS4 receipt', value: '09:41:27.335' },
     ],
-    /** The line the Authority objected to is marked so the viewer can highlight it. */
-    body: [
-      '<TaxDataDocument xmlns="urn:oman:ota:tdd:1.0">',
-      '  <cbc:ID>INV-2041</cbc:ID>',
-      '  <cbc:UUID>4b17-9ce2-8a04-31df</cbc:UUID>',
-      '  <cbc:IssueDate>2026-07-30</cbc:IssueDate>',
-      '  <cbc:DocumentCurrencyCode>OMR</cbc:DocumentCurrencyCode>',
-      '',
-      '  <cac:AccountingSupplierParty>',
-      '    <cbc:EndpointID schemeID="0248">OM1100392000</cbc:EndpointID>',
-      '    <cbc:CompanyID>OM1100392000</cbc:CompanyID>',
-      '  </cac:AccountingSupplierParty>',
-      '',
-      '  <cac:AccountingCustomerParty>',
-      '    <cbc:EndpointID schemeID=""></cbc:EndpointID>   <!-- empty -->',
-      '    <cbc:CompanyID>OM1100558840</cbc:CompanyID>',
-      '    <cbc:RegistrationName>Barka Beach Resort LLC</cbc:RegistrationName>',
-      '  </cac:AccountingCustomerParty>',
-      '',
-      '  <cac:TaxTotal>',
-      '    <cbc:TaxAmount currencyID="OMR">87.714</cbc:TaxAmount>',
-      '  </cac:TaxTotal>',
-      '',
-      '  <cac:LegalMonetaryTotal>',
-      '    <cbc:PayableAmount currencyID="OMR">1842.000</cbc:PayableAmount>',
-      '  </cac:LegalMonetaryTotal>',
-      '</TaxDataDocument>',
-    ],
-    /** 1-indexed line the Authority pointed at. */
-    faultLine: 13,
+    /** The TDD XML is not repeated here: it is kept with the record. */
+    body: [] as string[],
+    faultLine: undefined as number | undefined,
   },
 
   response: {
     headers: [
-      { key: 'Status', value: '422 Unprocessable Entity' },
-      { key: 'Content-Type', value: 'application/json' },
-      { key: 'X-OTA-Trace-ID', value: 'trc_5518d0c9e4a1' },
-      { key: 'Date', value: 'Thu, 30 Jul 2026 09:41:29 GMT' },
+      { key: 'Message', value: 'MLS (Message Level Status)' },
+      { key: 'Response code', value: 'RE' },
+      { key: 'Refers to', value: 'sbdh-2041-1' },
+      { key: 'Received', value: 'Thu, 30 Jul 2026 09:41:29 GMT' },
     ],
-    body: [
-      '{',
-      '  "status": "REJECTED",',
-      '  "traceId": "trc_5518d0c9e4a1",',
-      '  "documentUuid": "4b17-9ce2-8a04-31df",',
-      '  "fawtaraReference": null,',
-      '  "errors": [',
-      '    {',
-      '      "code": "OTA-E-2041",',
-      '      "rule": "MISSING_BUYER_ENDPOINT_ID",',
-      '      "path": "cac:AccountingCustomerParty/cbc:EndpointID",',
-      '      "messageEn": "Buyer endpoint identifier is mandatory.",',
-      '      "messageAr": "معرّف نقطة نهاية المشتري إلزامي.",',
-      '      "severity": "FATAL"',
-      '    }',
-      '  ],',
-      '  "retryable": false',
-      '}',
-    ],
+    body: ['RE · OTA-E-2041', 'Buyer endpoint identifier is mandatory.'],
   },
 
   /** What happened, in order, with the moment each step landed. */
@@ -310,12 +270,12 @@ export const CALL_DETAIL = {
   ] as { id: string; at: string; noteKey: string; state: 'done' | 'waiting' | 'failed' | 'idle' }[],
 
   references: {
-    requestId: 'req_9f31c740ab82',
-    traceId: 'trc_5518d0c9e4a1',
+    requestId: 'sbdh-2041-1',
+    traceId: 'mls-5518d0c9e4a1',
     documentUuid: '4b17-9ce2-8a04-31df',
   },
 
-  related: { sameInvoice: 1, sameErrorThisWeek: 3, sameCustomerRefused: 3 },
+  related: { sameInvoice: 2, sameErrorThisWeek: 3, sameCustomerRefused: 3 },
 }
 
 /** The round trip, added up from its phases rather than stated separately. */

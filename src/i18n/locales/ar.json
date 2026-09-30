@@ -2540,6 +2540,9 @@
       "inclusive": "شامل الضريبة",
       "exclShort": "دون الضريبة",
       "inclShort": "شامل الضريبة"
+    },
+    "fromTrade": {
+      "notFound": "لا يوجد عرض سعر أو أمر بيع أو إشعار تسليم برقم {{id}} لتعبئة هذه الفاتورة منه."
     }
   },
   "periodicInvoice": {
@@ -3617,7 +3620,11 @@
       "winRate": "نسبة الفوز",
       "winRateMeta": "آخر ٩٠ يوماً، محسوبة بالقيمة",
       "expiring": "تنتهي قريباً",
-      "expiringMeta": "باقة تدريب الموظفين خلال يومين"
+      "expiringMeta": "باقة تدريب الموظفين خلال يومين",
+      "openMetaCount": "{{count}} بانتظار القرار",
+      "acceptedMetaCount": "{{count}} تحولت إلى طلبات",
+      "expiringMetaNext": "{{subject}} خلال {{count}} أيام",
+      "expiringMetaNone": "لا ينتهي أي عرض خلال الأيام السبعة القادمة"
     },
     "tabs": {
       "all": "الكل",
@@ -3649,7 +3656,9 @@
       "delivering": "قيد التسليم",
       "expiring": "تنتهي قريباً",
       "declined": "مرفوضة"
-    }
+    },
+    "subtitleCount": "{{count}} عرض سعر · {{amount}} ر.ع. مفتوحة بانتظار القرار",
+    "empty": "لا شيء في هذا التبويب."
   },
   "newQuotation": {
     "breadcrumb": "عروض الأسعار",
@@ -3657,7 +3666,7 @@
     "savedJustNow": "تم الحفظ للتو",
     "customer": "العميل",
     "change": "تغيير",
-    "prospectHint": "تقدّم عرضاً لعميل جديد؟ الاسم والبريد الإلكتروني يكفيان — بيانات ضريبة القيمة المضافة و«بيبول» مطلوبة فقط عند تحويل العرض إلى فاتورة.",
+    "prospectHint": "تقدّم عرضاً لعميل جديد؟ الاسم والبريد الإلكتروني يكفيان: بيانات ضريبة القيمة المضافة و«بيبول» مطلوبة فقط عند تحويل العرض إلى فاتورة.",
     "addProspect": "إضافة عميل محتمل",
     "summary": "الملخص",
     "subtotal": "المجموع الفرعي",
@@ -3703,7 +3712,8 @@
     "dropFilesHint": "أوامر الشراء، إشعارات التسليم، العقود · PDF، JPG، XLSX",
     "preview": "معاينة",
     "saveDraft": "حفظ كمسودة",
-    "sendQuotation": "إرسال عرض السعر"
+    "sendQuotation": "إرسال عرض السعر",
+    "leadTimePlaceholder": "مثال: حسب توفر المخزون وقت الطلب..."
   },
   "quotationDetail": {
     "breadcrumbParent": "المستندات التجارية",
@@ -3753,7 +3763,16 @@
     "noteToCustomer": "ملاحظة للعميل",
     "noteToCustomerHint": "على عرض السعر",
     "internalNote": "ملاحظة داخلية",
-    "internalNoteHint": "خاصة"
+    "internalNoteHint": "خاصة",
+    "validTo": "صالح حتى {{date}}",
+    "decisionTitle": {
+      "draft": "لم يُرسل إلى {{customer}} بعد",
+      "sent": "بانتظار رد {{customer}}",
+      "expiring": "بانتظار رد {{customer}}",
+      "accepted": "قبله {{customer}}",
+      "delivering": "قبله {{customer}}",
+      "declined": "رفضه {{customer}}"
+    }
   },
   "orderForms": {
     "breadcrumbParent": "المستندات التجارية",
@@ -3779,7 +3798,13 @@
       "delivered": "تم التسليم، دون فوترة",
       "deliveredLink": "فوترة ٤ أوامر",
       "received": "تم الاستلام، دون فوترة",
-      "receivedLink": "مراجعة ٣ أوامر"
+      "receivedLink": "مراجعة ٣ أوامر",
+      "salesAmount": "{{amount}} بيع",
+      "purchaseAmount": "{{amount}} شراء",
+      "toDeliverAmount": "{{amount}} للتسليم",
+      "toReceiveAmount": "{{amount}} للاستلام",
+      "invoiceCount": "فوترة {{count}} أوامر",
+      "reviewCount": "مراجعة {{count}} أوامر"
     },
     "tabs": {
       "all": "الكل",
@@ -3831,7 +3856,8 @@
       "billed2090": "٢٬٠٩٠٫٠٠٠ مفوترة",
       "nothingInvoiced": "لا توجد فوترة",
       "nothingBilled": "لا توجد فوترة",
-      "fullyInvoiced": "مفوترة بالكامل"
+      "fullyInvoiced": "مفوترة بالكامل",
+      "invoicedAmount": "{{amount}} مفوترة"
     },
     "note": {
       "toInvoice": "للفوترة",
@@ -3926,7 +3952,7 @@
   "deliveryNotes": {
     "breadcrumbParent": "المستندات التجارية",
     "title": "إشعارات التسليم",
-    "subtitle": "إثبات انتقال البضائع — ما أرسلته إلى العملاء، وما أرسله الموردون إليك. الكميات فقط، دون أسعار.",
+    "subtitle": "إثبات انتقال البضائع: ما أرسلته إلى العملاء، وما أرسله الموردون إليك. الكميات فقط، دون أسعار.",
     "export": "تصدير",
     "newDeliveryNote": "إشعار تسليم جديد",
     "mode": {
@@ -3948,7 +3974,10 @@
       "notInvoicedNote": "إشعارات لم تُصدر لها فاتورة",
       "notInvoicedLink": "مراجعة",
       "short": "تسليمات ناقصة",
-      "shortNote": "هذا الشهر · كلاهما في جانب الشراء"
+      "shortNote": "هذا الشهر · كلاهما في جانب الشراء",
+      "moveOutCount": "{{count}} صادرة",
+      "moveInCount": "{{count}} واردة",
+      "shortNoteCount": "هذا الشهر · {{count}} في جانب الشراء"
     },
     "tabs": {
       "all": "الكل",
@@ -3970,7 +3999,8 @@
       "vsPo0029": "مقابل PO-0029",
       "standalone": "مستقل",
       "vsSo0068": "مقابل SO-0068",
-      "vsPo0028": "مقابل PO-0028"
+      "vsPo0028": "مقابل PO-0028",
+      "vsPo0030": "مقابل PO-0030"
     },
     "due": {
       "delivered0920": "تم التسليم ٠٩:٢٠",
@@ -3993,7 +4023,7 @@
       "nobodySigned": "لم يوقّع أحد",
       "leftAtReception": "تُرك في الاستقبال",
       "photoToDoor": "صورة عند الباب",
-      "signedByAhmed": "وقّعه أحمد ١٨ يوليو",
+      "signedByAhmed": "وقّعه أحمد · ١٨ يوليو",
       "notArrived": "لم يصل",
       "awaitingVan": "بانتظار الشاحنة"
     },
@@ -4402,21 +4432,21 @@
         "orderConfirmed": "تم تأكيد\nالأمر",
         "orderConfirmedNote": "22 Jul",
         "delivered": "تم التسليم",
-        "deliveredNote": "60% · 2 notes",
+        "deliveredNote": "{{pct}}٪ · {{count}} إشعارات",
         "invoiced": "تمت الفوترة",
-        "invoicedNote": "40% · 1 invoice",
+        "invoicedNote": "{{pct}}٪ · {{count}} فاتورة",
         "paid": "مدفوع",
-        "paidNote": "40% collected"
+        "paidNote": "تم تحصيل {{pct}}٪"
       },
-      "lifecycleNote": "A standing order, so three stages run at once — you keep shipping, billing and collecting against the same commitment. OMR 248.000 has been delivered and not yet invoiced.",
+      "lifecycleNote": "أمر دائم، لذا تجري ثلاث مراحل معاً: تواصل الشحن والفوترة والتحصيل مقابل الالتزام نفسه. تم تسليم {{amount}} ر.ع. ولم تُفوتر بعد.",
       "fulfilmentTitle": "التنفيذ",
       "fulfilment": {
         "invoiced": "Invoiced",
-        "invoicedNote": "40% · 1 invoice, paid",
+        "invoicedNote": "{{pct}}٪ · {{count}} فاتورة، مدفوعة",
         "delivered": "Delivered, not invoiced",
-        "deliveredNote": "20% · shipped and unbilled",
+        "deliveredNote": "{{pct}}٪ · شُحنت ولم تُفوتر",
         "toDeliver": "Still to deliver",
-        "toDeliverNote": "40% · next drop 04 Aug"
+        "toDeliverNote": "{{pct}}٪ · الدفعة التالية ٠٤ أغسطس"
       },
       "legend": {
         "billed": "Billed",
@@ -4442,8 +4472,8 @@
         "nextDrop": "Next drop due 04 Aug",
         "nextDropNote": "32 KG beans, 24 roasting batches, 4 packs of cups still to ship",
         "paid": "INV-2041 paid",
-        "paidNote": "OMR 496.000 received by bank transfer · 29 Jul",
-        "issued": "INV-2041 issued for the first two drops",
+        "paidNote": "تم استلام {{amount}} ر.ع. بتحويل بنكي · ٢٩ يوليو",
+        "issued": "صدرت INV-2041 عن الدفعة الأولى، DN-0121",
         "issuedNote": "Sent over Peppol, TDD accepted by the OTA · 28 Jul",
         "delivered": "DN-0124 delivered and signed",
         "deliveredNote": "24 KG, 18 batches, 3 packs · received by Khalid at the café · 27 Jul",
@@ -4456,7 +4486,9 @@
         "dn0124": "DN-0124 · delivery note",
         "dn0124Note": "Delivered 27 Jul · signed · not yet invoiced",
         "inv2041": "INV-2041 · invoice",
-        "inv2041Note": "OMR 496.000 · issued 28 Jul · paid · TDD accepted"
+        "inv2041Note": "{{amount}} ر.ع. · صدرت ٢٨ يوليو · مدفوعة · قُبلت وثيقة البيانات الضريبية",
+        "dn0121": "DN-0121 · إشعار تسليم",
+        "dn0121Note": "سُلّم ٢٥ يوليو · وقّعه خالد الراشدي · فوتر على INV-2041"
       }
     },
     "purchase": {
@@ -4475,9 +4507,11 @@
         "theyBilled": "فوتروا",
         "theyBilledNote": "They billed",
         "youPaid": "دفعت",
-        "youPaidNote": "Due 28 Aug"
+        "youPaidNote": "Due 28 Aug",
+        "poSentDate": "٢٠ يوليو",
+        "theyBilledDate": "٢٩ يوليو"
       },
-      "lifecycleNote": "Half the order has arrived and Al Noor Dates has invoiced. Their invoice doesn't match what we received — nothing should be paid until that's resolved.",
+      "lifecycleNote": "وصل نصف الأمر وأصدرت نور التمور فاتورتها. فاتورتهم لا تطابق ما استلمناه: لا يُدفع شيء حتى تُحل المشكلة.",
       "matchTitle": "الأمر والتسليم والفاتورة متطابقة",
       "viewTheirInvoice": "عرض فاتورتهم",
       "match": {
@@ -4486,10 +4520,11 @@
         "received": "You received",
         "receivedNote": "Checked in 28 Jul · GRN-0087",
         "billed": "They billed",
-        "billedNote": "per KG · MR-INV-8821"
+        "billedNote": "per KG · MR-INV-8821",
+        "ordered": "ما طلبته"
       },
       "dueToPay": "مستحق الدفع",
-      "dueNote": "On 28 Aug, Net 30 from MR-INV-8821. Nothing is blocking it — the invoice matched on arrival.",
+      "dueNote": "في ٢٨ أغسطس، صافي ٣٠ يوماً من MR-INV-8821. لا شيء يمنع الدفع: طابقت الفاتورة عند وصولها.",
       "schedulePayment": "جدولة الدفع",
       "markAsPaid": "تعليم كمدفوع",
       "whatThisCosts": "التكلفة",
@@ -4517,12 +4552,12 @@
         "dueNote": "OMR 2,354.310 · Net 30 from their invoice date",
         "matched": "MR-INV-8821 matched automatically",
         "matchedNote": "Quantities and prices agree with PO-0031 and GRN-0087 · 29 Jul",
-        "grn": "GRN-0087 recorded — everything arrived",
+        "grn": "سُجّل GRN-0087: وصل كل شيء",
         "grnNote": "300 KG and 12 sacks checked in at Main store · 28 Jul, 07:45",
         "poSent": "PO sent to Muscat Roastery",
         "poSentNote": "Required by 28 Jul · 20 Jul",
         "approved": "Approved by Hafidh Saif",
-        "approvedNote": "OMR 2,354.310 gross · above the OMR 2,000 limit · 19 Jul"
+        "approvedNote": "2,354.310 ر.ع. إجمالي · فوق حد 2,000.000 ر.ع. · ١٩ يوليو"
       },
       "documentsTitle": "المستندات المرتبطة بهذا الأمر",
       "files": {
@@ -4532,8 +4567,12 @@
         "grnNote": "Received 28 Jul · checked in by Yusuf Al Balushi",
         "invoice": "MR-INV-8821 · their invoice",
         "invoiceNote": "Arrived over Peppol 29 Jul · OMR 2,354.310 · matched"
-      }
-    }
+      },
+      "matchTitleOpen": "الأمر والتسليم والفاتورة"
+    },
+    "tailDue": "مستحق {{date}}",
+    "tailRequired": "مطلوب بحلول {{date}}",
+    "pctOnly": "{{pct}}٪"
   },
   "deliveryDetail": {
     "breadcrumb": "إشعارات التسليم",
@@ -4552,7 +4591,8 @@
       "onDate": "في ٢٧ يوليو ٢٠٢٦",
       "steps": {
         "deliveredNote": "This note · 27 Jul",
-        "invoicedNote": "Not yet"
+        "invoicedNote": "Not yet",
+        "invoicedOn": "على {{id}}"
       },
       "lifecycleNote": "The goods are with the customer and signed for. Nothing has been billed for this drop yet, the invoice is the next step, and the only one that goes to the Tax Authority.",
       "proofTitle": "تم التوقيع عند الاستلام",
@@ -4570,7 +4610,7 @@
       "convertToInvoice": "تحويل إلى فاتورة",
       "progressTitle": "Progress on SO-0073",
       "thisDrop": "هذه الشحنة",
-      "progressNote": "60% of the order delivered across 2 notes. 40% still to ship — next drop due 04 Aug.",
+      "progressNote": "تم تسليم {{pct}}٪ من الأمر عبر {{count}} إشعارات. يتبقى {{left}}٪ للشحن؛ الدفعة التالية مستحقة ٠٤ أغسطس.",
       "noteDetails": "تفاصيل الإشعار",
       "noteNumber": "رقم الإشعار",
       "dispatched": "تم الإرسال",
@@ -4613,7 +4653,7 @@
       "theirPaperwork": "مستنداتهم",
       "theirPaperworkValue": "MR-DN-2290 · signed copy kept",
       "billedAndMatched": "مفوتر ومطابق",
-      "billedNote": "MR-INV-8821 covers exactly this delivery. Nothing to chase — payment is scheduled for 28 Aug.",
+      "billedNote": "تغطي MR-INV-8821 هذا التسليم تماماً. لا شيء للمتابعة: الدفع مجدول في ٢٨ أغسطس.",
       "viewTheirInvoice": "عرض فاتورتهم",
       "progressTitle": "Progress on PO-0031",
       "receivedAfter": "المستلم بعد هذا الإشعار",
@@ -4634,7 +4674,7 @@
         "dueNote": "Net 30 from MR-INV-8821 · nothing blocking it",
         "matched": "MR-INV-8821 matched to this receipt",
         "matchedNote": "Quantities and prices agree with PO-0031 · 29 Jul",
-        "checkedIn": "Checked in — everything present",
+        "checkedIn": "تم الفحص: كل شيء موجود",
         "checkedInNote": "Yusuf Al Balushi counted 300 KG and 12 sacks, 3 photos taken · 28 Jul, 07:45",
         "vanArrived": "Van arrived at Main store",
         "vanArrivedNote": "Muscat Roastery · their note MR-DN-2290 · 28 Jul, 07:20",
@@ -4643,8 +4683,12 @@
       },
       "linkedDocuments": "المستندات المرتبطة",
       "filePo": "PO-0031",
-      "filePoNote": "Muscat Roastery Co · placed 20 Jul"
-    }
+      "filePoNote": "Muscat Roastery Co · placed 20 Jul",
+      "theirBill": "فاتورتهم"
+    },
+    "progressOn": "التقدم في {{id}}",
+    "onDateValue": "في {{date}}",
+    "standalone": "إشعار مستقل"
   },
   "linkModal": {
     "title": "ربط المستندات ذات الصلة",
@@ -4663,14 +4707,20 @@
     },
     "docs": {
       "dn0131": "DN-0131 · إشعار تسليم",
-      "dn0131Meta": "سُلّم ٣٠ يوليو · وقّعه خالد الراشدي · ٤ بنود"
+      "dn0131Meta": "سُلّم ٣٠ يوليو · وقّعه خالد الراشدي · ٤ بنود",
+      "deliveryTitle": "{{id}} · إشعار تسليم",
+      "deliveryMeta": "سُلّم {{date}} · {{lines}}",
+      "orderTitle": "{{id}} · نموذج طلب",
+      "orderMeta": "الحركة مستحقة {{due}}"
     },
     "closed": "مغلق",
     "poNumber": "رقم أمر الشراء الخاص بهم",
     "poNumberHint": "اكتبه، فهو مرجع العميل الخاص",
     "poPlaceholder": "مثال: NSC-PO-4471",
     "cancel": "إلغاء",
-    "confirm": "ربط {{count}} مستندات"
+    "confirm": "ربط {{count}} مستندات",
+    "emptyForCustomer": "لا توجد نماذج طلب أو إشعارات تسليم لهذا العميل لربطها.",
+    "chooseCustomer": "اختر العميل أولاً: لا يمكن ربط إلا مستنداته."
   },
   "tradeCreate": {
     "draft": "مسودة",
@@ -4805,7 +4855,18 @@
       "onThisNote": "On this note",
       "effectOn": "Effect on SO-0073",
       "summaryNote": "4 packs of cups and 8 KG of beans will still be outstanding after this drop.",
-      "sendWithDriver": "إرسال مع السائق"
+      "sendWithDriver": "إرسال مع السائق",
+      "againstMetaPct": "أمر أسبوعي دائم · تم تسليم {{pct}}٪ حتى الآن · الدفعة التالية ٠٤ أغسطس",
+      "effectOnOrder": "الأثر على {{id}}",
+      "stillOutstanding": "يبقى معلقاً بعد هذه الدفعة: {{list}}.",
+      "nothingOutstanding": "لن يبقى شيء معلقاً بعد هذه الدفعة.",
+      "moreThanOrderedCount": "{{count}} أكثر من المطلوب",
+      "shipAllCount": "شحن الكل {{count}}",
+      "shipsTheRest": "يشحن كل ما تبقى",
+      "lineMeta": "المطلوب {{ordered}} · تم تسليم {{delivered}}",
+      "overshipWarningCount": "تشحن {{count}} {{unit}} من {{item}} أكثر مما يغطيه {{id}}.",
+      "overshipHintRefused": "لا يمكن إرسال الإشعار بهذا الشكل. خفّض الكمية إلى ما تبقى في الأمر، أو ارفع كمية الأمر لفوترة الزيادة، أو أرسلها هدية لا تُفوتر.",
+      "overshipRefused": "يشحن هذا الإشعار أكثر مما تبقى في {{id}}، لذا لا يمكن إرساله. خفّض الكمية أولاً."
     },
     "receipt": {
       "title": "إيصال شراء جديد",
@@ -4851,8 +4912,10 @@
       "internalNotes": "Internal notes",
       "takenIntoStock": "Taken into stock",
       "effectOn": "Effect on PO-0028",
-      "summaryNote": "3 kraft bags stay outstanding until the supplier replaces or credits them."
-    }
+      "summaryNote": "3 kraft bags stay outstanding until the supplier replaces or credits them.",
+      "driverVehiclePlaceholder": "مثال: الشاحنة ٤ · 7841 MB"
+    },
+    "standardRate": "النسبة القياسية · ٥٪"
   },
   "reminders": {
     "breadcrumb": "الإعدادات",
@@ -7180,7 +7243,7 @@
     "subtitle": "كل مستند أرسله فوتر أو استلمه، وما يحتفظ به لكل منها، ومدة الحفظ. قانون ضريبة القيمة المضافة العماني يطلب عشر سنوات.",
     "ownPapers": "الاتفاقيات والشهادات وقوائم الأسعار تُحفظ على المورّد أو العميل الذي تخصّه.",
     "ownPapersLink": "اذهب إلى الموردين",
-    "searchPlaceholder": "ابحث هنا...",
+    "searchPlaceholder": "ابحث برقم المستند...",
     "allKinds": "كل الأنواع",
     "allTdd": "أي حالة إبلاغ",
     "allYears": "كل السنوات الضريبية",
@@ -7209,7 +7272,9 @@
       "STANDARD_INVOICE": "فاتورة",
       "CREDIT_NOTE": "إشعار دائن",
       "SELF_BILLING_INVOICE": "فاتورة ذاتية الإصدار",
-      "SELF_BILLING_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار"
+      "SELF_BILLING_CREDIT_NOTE": "إشعار دائن ذاتي الإصدار",
+      "DEBIT_NOTE": "إشعار مدين",
+      "PREPAYMENT_INVOICE": "فاتورة دفعة مقدمة"
     },
     "direction": {
       "ISSUED": "مُرسل",
@@ -7306,7 +7371,11 @@
         "creditIssued": "إشعار دائن إلى",
         "creditReceived": "إشعار دائن من",
         "selfBilledInvoice": "فاتورة ذاتية من",
-        "selfBilledCredit": "إشعار دائن ذاتي من"
+        "selfBilledCredit": "إشعار دائن ذاتي من",
+        "debitIssued": "إشعار مدين إلى",
+        "debitReceived": "إشعار مدين من",
+        "prepaymentIssued": "فاتورة دفعة مقدمة إلى",
+        "prepaymentReceived": "فاتورة دفعة مقدمة من"
       },
       "issued": "صدرت في {{date}}",
       "keptChip": "محفوظ حتى {{date}}",
@@ -7323,7 +7392,9 @@
         "pdf": "الفاتورة المقروءة",
         "qr": "مطبوع على الفاتورة",
         "mls": "ردود التسليم وجهاز الضرائب",
-        "delivery_notification": "إيصال الشبكة"
+        "delivery_notification": "إيصال الشبكة",
+        "tddReceived": "قدمناه إلى جهاز الضرائب بصفتنا المستلم (الدور 02)",
+        "pdfReceived": "النسخة المقروءة من المورّد"
       },
       "badge": {
         "signed": "موقّع PINT-OM",
@@ -7335,7 +7406,11 @@
         "messages_few": "{{count}} رسائل",
         "messages_many": "{{count}} رسالة",
         "messages_other": "{{count}} رسالة",
-        "receipt": "إيصال"
+        "receipt": "إيصال",
+        "signatureFailed": "فشل التوقيع",
+        "signatureUnconfirmed": "التوقيع غير مؤكد",
+        "languagesUnconfirmed": "اللغات غير مؤكدة",
+        "language": "{{languages}}"
       },
       "copy": "نسخ",
       "copied": "تم النسخ",
@@ -7355,6 +7430,7 @@
         "380": "فاتورة تجارية",
         "381": "إشعار دائن",
         "383": "إشعار مدين",
+        "386": "فاتورة دفعة مقدمة",
         "389": "فاتورة ذاتية"
       },
       "issuedOn": "تاريخ الإصدار",
@@ -7439,10 +7515,22 @@
         "someone": "شخص ما",
         "aFile": "ملفاً"
       },
-      "logNote": "كل عرض وتنزيل ومشاركة يُسجَّل، ولا يمكن تعديل السجل."
+      "logNote": "كل عرض وتنزيل ومشاركة يُسجَّل، ولا يمكن تعديل السجل.",
+      "received": "استُلم في {{date}}",
+      "debitNoteTitle": "إشعار مدين {{number}}",
+      "corrects": "يصحح الفاتورة",
+      "correctsIssued": "يصحح الفاتورة · صدرت في {{date}}",
+      "correctsNoUuid": "المعرّف الفريد غير متوفر بعد",
+      "notGivenYet": "غير متوفر بعد",
+      "signatureFailed": "فشل التحقق من التوقيع",
+      "signatureUnconfirmed": "لم يُتحقق من التوقيع بعد",
+      "allLayers": "اجتاز طبقات التحقق كلها ({{total}})",
+      "someLayers": "اجتاز {{passed}} من {{total}} طبقات",
+      "validationUnconfirmed": "غير مؤكد بعد",
+      "logNoteUnconfirmed": "لا يُحفظ سجل وصول لهذا المستند بعد، لذلك يظهر حفظه فقط."
     },
-    "subtitleFull": "كل ملف أنشأه فواتير أو استلمه أو أُعطي له، محفوظ عشر سنوات كما يشترط قانون ضريبة القيمة المضافة العُماني، وخمس عشرة سنة للعقارات. لا يمكن تعديل أي شيء هنا أو حذفه ما دامت مدة حفظه سارية.",
-    "subtitleEmpty": "هنا ينتهي كل ملف ينشئه فواتير أو يستلمه أو يُعطى له، ويُحفظ طوال المدة التي يشترطها قانون ضريبة القيمة المضافة العُماني.",
+    "subtitleFull": "كل مستند بيبول أرسله فواتير أو استلمه، محفوظ عشر سنوات كما يشترط قانون ضريبة القيمة المضافة العُماني، وخمس عشرة سنة للعقارات. لا يمكن تعديل هذه المستندات أو حذفها ما دامت مدة حفظها سارية. أما الأوراق التي ترفعها فتُحفظ في ملف المورّد، بمدة حفظ خاصة بها.",
+    "subtitleEmpty": "هنا ينتهي كل مستند بيبول يرسله فواتير أو يستلمه، ويُحفظ طوال المدة التي يشترطها قانون ضريبة القيمة المضافة العُماني.",
     "uploadCta": "رفع مستند",
     "searchLabel": "البحث برقم المستند",
     "filters": "عوامل التصفية",
@@ -7536,7 +7624,9 @@
       "pdf": "الفاتورة المقروءة، باللغتين في ملف واحد",
       "qr": "رمز QR المطبوع على الفاتورة",
       "mls": "إقرار الاستلام من نقطة وصول الطرف الآخر، ورد جهاز الضرائب",
-      "delivery_notification": "إيصال شبكة النقل نفسها"
+      "delivery_notification": "إيصال شبكة النقل نفسها",
+      "tddReceived": "مستند البيانات الضريبية الذي قدمناه إلى جهاز الضرائب بصفتنا المستلم (الدور 02)",
+      "pdfReceived": "النسخة المقروءة من المورّد"
     },
     "verified": "تم التحقق",
     "viewFile": "عرض {{name}}",
@@ -7545,7 +7635,9 @@
     "noMatch": {
       "title": "لا نتائج مطابقة",
       "note": "لا يوجد مستند يطابق عوامل التصفية هذه. أزل أحدها لترى المزيد.",
-      "noHold": "لا يوجد مستند تحت حجز قانوني."
+      "noHold": "لا يوجد مستند تحت حجز قانوني.",
+      "noHoldOnPage": "لا يوجد مستند تحت حجز قانوني في هذه الصفحة. السجلات المحجوزة في الصفحات الأخرى لا تظهر هنا بعد.",
+      "noTypeOnPage": "لا يوجد مستند من هذا النوع في هذه الصفحة. جرّب الصفحة التالية."
     },
     "showingOf": "عرض {{shown}} من {{total}} سجلات",
     "pages": "الصفحات",
@@ -7591,7 +7683,7 @@
     "upload": {
       "breadcrumb": "رفع مستند",
       "title": "إضافة مستند",
-      "subtitle": "للأوراق المهمة التي لا تصل عبر بيبول: العقود وإشعارات التسليم الموقعة والضمانات والخطابات.",
+      "subtitle": "للأوراق المهمة التي لا تصل عبر بيبول: العقود وإشعارات التسليم الموقعة والضمانات والخطابات. تُحفظ الورقة المرفوعة في ملف المورّد، منفصلة عن أرشيف بيبول، بمدة حفظ خاصة بها.",
       "notAllowed": "حفظ ورقة يتطلب صلاحية إدارة الموردين. اطلبها من المسؤول.",
       "steps": {
         "file": "الملف",
@@ -7675,7 +7767,24 @@
     "fileName": {
       "mls": "ردود MLS",
       "delivery_notification": "إيصال النقل"
-    }
+    },
+    "recordKindLabel": {
+      "salesInvoice": "فاتورة مبيعات",
+      "billReceived": "فاتورة مستلمة عبر بيبول",
+      "creditIssued": "إشعار دائن",
+      "creditReceived": "إشعار دائن مستلم",
+      "debitIssued": "إشعار مدين",
+      "debitReceived": "إشعار مدين مستلم",
+      "prepaymentIssued": "فاتورة دفعة مقدمة",
+      "prepaymentReceived": "فاتورة دفعة مقدمة مستلمة",
+      "selfBilledInvoice": "فاتورة ذاتية",
+      "selfBilledCredit": "إشعار دائن ذاتي"
+    },
+    "metaIssued": "صدر في {{date}}",
+    "metaReceived": "استُلم في {{date}}",
+    "metaCorrects": "يصحح {{number}}",
+    "showingOnPage": "عرض {{count}} في هذه الصفحة",
+    "sortedOnPage": "مرتبة داخل هذه الصفحة"
   },
   "reports": {
     "title": "التقارير",
@@ -7794,7 +7903,8 @@
         "average": "متوسط الفاتورة",
         "smallerMoreOften": "أصغر، وأكثر تكرارًا",
         "smaller": "أصغر من قبل",
-        "larger": "أكبر من قبل"
+        "larger": "أكبر من قبل",
+        "reclaimRateUnconfirmed": "{{rate}}٪ من الصافي، الاسترداد غير مؤكد"
       },
       "groupBy": "التجميع حسب",
       "grouping": {
@@ -7848,7 +7958,7 @@
         "leftOver": "المتبقي",
         "across": {
           "yearly": "على مدى اثني عشر شهرًا",
-          "quarterly": "على مدى ثلاثة أشهر",
+          "quarterly": "على مدى هذه الفترة الضريبية",
           "monthly": "على مدى الشهر"
         },
         "dueOut": "المستحق خلال 30 يومًا",
@@ -7875,7 +7985,8 @@
       "whereItWent": "أين ذهب",
       "billedIn": "المفوتر {{when}}،",
       "topShare": "{{name}} يمثل <b>{{percent}}٪</b> من كل ما فوتر",
-      "everythingElse": "كل ما عدا ذلك"
+      "everythingElse": "كل ما عدا ذلك",
+      "topShareInclVat": "{{name}} يمثل <b>{{percent}}٪</b> من كل ما فوتر، شاملًا الضريبة"
     },
     "vat": {
       "title": "الضريبة",
@@ -7893,11 +8004,20 @@
         "reclaimNote": "تجاوزت المدخلات المخرجات في هذه الفترة",
         "over": {
           "yearly": "على مدى اثني عشر شهرًا",
-          "quarterly": "على مدى ثلاثة أشهر",
+          "quarterly": "على مدى هذه الفترة الضريبية",
           "monthly": "على مدى الشهر"
         },
         "returnOpen": "الربع {{quarter}} · {{months}} من 3 أشهر",
-        "returnClosed": "انتهى الربع {{quarter}}، وإقراره هو التالي"
+        "returnClosed": "انتهى الربع {{quarter}}، وإقراره هو التالي",
+        "collectedNoteReverse": "ضريبة المخرجات، شاملة الاحتساب العكسي",
+        "paidNoteUnconfirmed": "ضريبة المدخلات، الاسترداد غير مؤكد",
+        "paidNoteConfirmed": "ضريبة المدخلات، {{percent}}٪ مؤكد استردادها",
+        "overUnconfirmed": {
+          "yearly": "على مدى اثني عشر شهرًا، الاسترداد غير مؤكد",
+          "quarterly": "على مدى هذه الفترة الضريبية، الاسترداد غير مؤكد",
+          "monthly": "على مدى الشهر، الاسترداد غير مؤكد"
+        },
+        "reclaimNoteUnconfirmed": "تجاوزت المدخلات المخرجات، الاسترداد غير مؤكد"
       },
       "quarterlyPosition": "الوضع الربع سنوي",
       "monthlyNetPayable": "الصافي المستحق شهريًا",
@@ -7946,7 +8066,10 @@
       "standardShare": "{{percent}}٪ من المبيعات بالنسبة الأساسية",
       "notSplit": "غير مقسّمة حسب النسبة بعد",
       "reclaimableComma": "الضريبة القابلة للاسترداد،",
-      "reclaimShare": "{{name}} يمثل {{percent}}٪ مما تسترده"
+      "reclaimShare": "{{name}} يمثل {{percent}}٪ مما تسترده",
+      "notSplitCategory": "غير مقسّمة حسب الفئة بعد",
+      "inputVatComma": "ضريبة المدخلات،",
+      "inputShare": "{{name}} يمثل {{percent}}٪ من ضريبة المدخلات، الاسترداد غير مؤكد"
     },
     "compliance": {
       "title": "الامتثال",
@@ -7977,7 +8100,9 @@
           "yearly": "أبطأ من العام الماضي",
           "quarterly": "أبطأ من الربع الماضي",
           "monthly": "أبطأ من الشهر الماضي"
-        }
+        },
+        "acceptedAll": "مقبولة",
+        "medianToClear": "وسيط زمن الإجازة"
       },
       "acceptedFirstTime": "القبول من أول مرة",
       "whyRejected": "لماذا تُرفض",
@@ -7988,7 +8113,7 @@
       "rejections": "حالات الرفض",
       "oneCause": "سبب واحد يمثل {{percent}}٪ منها جميعًا",
       "secondsToAcceptance": "ثوانٍ حتى القبول",
-      "insideTheRule": "ضمن قاعدة الـ٢٤ ساعة بفارق مريح",
+      "insideTheRule": "كل شهر اكتمل خلال يوم",
       "firstTime": "من أول مرة",
       "onRetry": "بعد إعادة المحاولة",
       "deliveryFailed": "فشل التسليم",
@@ -8019,8 +8144,16 @@
       "lowRejections": "رفض منخفض",
       "noReason": "لم يُذكر سبب",
       "noRejections": "لم يُرفض شيء في هذه الفترة.",
-      "outsideTheRule": "بعض الأشهر استغرقت أكثر من 24 ساعة",
-      "failuresFalling": "الإخفاقات تتراجع كل ربع"
+      "outsideTheRule": "بعض الأشهر استغرقت أكثر من يوم",
+      "failuresFalling": "الإخفاقات تتراجع كل ربع",
+      "acceptedByMonth": "المقبولة، حسب الشهر",
+      "acceptedSeries": "المقبولة، ٪ من المرسل",
+      "bestMonthNoData": "أفضل شهر {{percent}}٪ · لا توجد بيانات في {{months}}",
+      "medianSeconds": "وسيط الثواني حتى الإقرار",
+      "acceptedPart": "مقبولة",
+      "rejectedPart": "مرفوضة",
+      "onRetryPending": "بعد إعادة المحاولة، لم تُحتسب بعد",
+      "rejectionsFalling": "حالات الرفض تتراجع كل ربع"
     },
     "lists": {
       "title": "الجداول",
@@ -8141,7 +8274,8 @@
       "yearly": "مثل العام الماضي",
       "quarterly": "مثل الربع الماضي",
       "monthly": "مثل الشهر الماضي"
-    }
+    },
+    "noData": "لا توجد بيانات"
   },
   "supplierDetail": {
     "editSupplier": "تعديل المورد",
@@ -8856,7 +8990,7 @@
       "waitingOnYou": "بانتظارك",
       "waitingOnYouNote": "مرفوضة ولم تُصحَّح بعد. وحتى تُصحَّح لا تُبلَّغ تلك المبيعات.",
       "timeToAcceptance": "زمن القبول",
-      "timeToAcceptanceNote": "المتوسط هذا الشهر، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
+      "timeToAcceptanceNote": "المتوسط هذا الشهر، بانخفاض عن {{previous}}.",
       "acknowledged": "أقرّ العميل بالاستلام",
       "acknowledgedNote": "عاد الإشعار في {{good}} من {{total}}",
       "documents": "المستندات",
@@ -8872,9 +9006,10 @@
       "rejectedCount": "{{n}} مرفوضة",
       "waitingCount": "{{n}} بالانتظار",
       "noTimeYet": "ليس بعد",
-      "timeToAcceptanceDown": "المعتاد هذا العام، بانخفاض عن {{previous}}. ضمن قاعدة الـ٢٤ ساعة بفارق مريح.",
-      "timeToAcceptanceUp": "المعتاد هذا العام، بارتفاع عن {{previous}}. ما زال ضمن قاعدة الـ٢٤ ساعة.",
-      "timeToAcceptancePlain": "المعتاد هذا العام. ضمن قاعدة الـ٢٤ ساعة بفارق مريح."
+      "timeToAcceptanceDown": "المعتاد هذا العام، بانخفاض عن {{previous}}.",
+      "timeToAcceptanceUp": "المعتاد هذا العام، بارتفاع عن {{previous}}.",
+      "timeToAcceptancePlain": "المعتاد هذا العام.",
+      "unconfirmedCount": "{{n}} سُلّمت دون تأكيد"
     },
     "tabs": {
       "all": "الكل",
@@ -8903,7 +9038,10 @@
       "standIn": "معرّف بديل {{id}} · مسار {{flow}}",
       "b2bDomestic": "كلاهما على Peppol",
       "b2c": "معرّف بديل",
-      "export": "معرّف بديل"
+      "export": "معرّف بديل",
+      "received": "مستلمة، أبلغنا عنها بصفتنا المستلم (الدور 02)",
+      "exportScope": "تصدير · نطاق المستند {{scope}}",
+      "exportNoScope": "تصدير · نطاق المستند غير مسجل بعد"
     },
     "ref": {
       "neverAccepted": "لا مرجع فوترة - لم تُقبل قط",
@@ -8917,21 +9055,24 @@
       "rejected": "مرفوضة",
       "waiting": "بالانتظار",
       "superseded": "مُستبدلة",
-      "notOwed": "لا مستند مستحق"
+      "notOwed": "لا مستند مستحق",
+      "deliveredUnconfirmed": "سُلّم دون تأكيد"
     },
     "verdict": {
       "noPeppolId": "لا يوجد معرّف Peppol للعميل في سجله.",
       "totalMismatch": "الإجمالي لا يساوي مجموع السطور بفارق {{amount}} ريال.",
       "noAnswerYet": "{{elapsed}} دون رد. المعتاد {{usual}}.",
       "clearedNotDelivered": "أُجيزت خلال {{time}} · بُلّغت ولم تُسلّم لأحد",
-      "disregarded": "أهملتها الهيئة عند قبول النسخة المصححة.",
+      "disregarded": "استُبدلت بتقرير مصحح أرسلناه.",
       "clearedZeroRated": "أُجيزت خلال {{time}} · صفرية بوصفها تصديرًا",
       "clearedIn": "أُجيزت خلال {{time}}",
       "rejectedNoReason": "رُفضت. افتح السجل لمعرفة السبب.",
       "notOwed": "لا يُبلَّغ عن هذا المستند.",
       "notDelivered": "بُلّغت ولم تُسلّم لأحد",
       "zeroRated": "صفرية بوصفها تصديرًا",
-      "accepted": "مقبولة"
+      "accepted": "مقبولة",
+      "replacedByUs": "استُبدلت بتقرير مصحح أرسلناه.",
+      "deliveredUnconfirmed": "سُلّم دون تأكيد. لا يُحتسب مقبولًا."
     },
     "ack": {
       "received": "استلمها",
@@ -8965,7 +9106,8 @@
       "openRecord": "افتح السجل",
       "openRecordNote": "أين ذهبت وماذا عاد",
       "sendAgain": "أعد إرسال التقرير",
-      "sendAgainNote": "بعد حفظ التصحيح يذهب مستند جديد إلى الهيئة"
+      "sendAgainNote": "بعد حفظ التصحيح يذهب مستند جديد إلى الهيئة",
+      "resubmitInvoiceNote": "رُفضت الفاتورة نفسها: إشعار دائن وفاتورة جديدة"
     },
     "emptyState": {
       "title": "لم يُبلَّغ عن شيء بعد",
@@ -9100,7 +9242,8 @@
       "waitingOnThem": "بانتظار ردهم",
       "theyRefused": "رفضوها",
       "arrivedOverPeppol": "وصلت عبر Peppol",
-      "validated": "تم التحقق منها"
+      "validated": "تم التحقق منها",
+      "deliveredUnconfirmed": "سُلّم دون تأكيد"
     },
     "whyTurnedDown": "لماذا رُفضت المحاولة الأولى",
     "rejection": {
@@ -9118,12 +9261,13 @@
       "turnedDownOn": "رُفضت {{at}}",
       "noReference": "لم يصدر مرجع فوترة",
       "v2Body": "هذا هو السجل الذي تحتفظ به الهيئة لـ {{invoice}}. أرسله حافظ سيف بعد تصحيح الفئات الضريبية.",
-      "v1Body": "سحبتها الهيئة في ٩ يونيو عند قبول التقرير المصحح. تبقى هنا لأن الأرشيف لا يفقد شيئًا، لكنها لا تُحتسب.",
+      "v1Body": "استُبدل في 9 يونيو بالتقرير المصحح الذي أرسلته. محفوظ هنا لأن الأرشيف لا يفقد شيئًا، لكنه لا يُحتسب.",
       "sentOn": "أُرسلت {{at}}",
       "liveBody": "هذا هو السجل الذي تحتفظ به هيئة الضرائب لـ {{invoice}}.",
-      "supersededBody": "سحبتها الهيئة عند قبول التقرير المصحح. محفوظة هنا لأن الأرشيف لا يفقد شيئًا، لكنها لا تُحتسب.",
+      "supersededBody": "استُبدل بالتقرير المصحح الذي أرسلته. محفوظ هنا لأن الأرشيف لا يفقد شيئًا، لكنه لا يُحتسب.",
       "rejectedBody": "رُفضت ولم تُستبدل بعد. وحتى يُقبل تقرير مصحح، هذا البيع غير مُصرَّح به.",
-      "waitingBody": "أُرسلت، وبانتظار رد الهيئة."
+      "waitingBody": "أُرسلت، وبانتظار رد الهيئة.",
+      "deliveredOn": "سُلّم دون تأكيد {{at}}"
     },
     "whichRoute": "أي مسار سلكت",
     "route": {
@@ -9145,7 +9289,8 @@
       "documentsWithMls_one": "الفاتورة، المستند الضريبي، إشعار MLS",
       "documentsWithMls_other": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}",
       "documentsNoMls": "الفاتورة، المستند الضريبي",
-      "notOnRecord": "غير مسجل بعد"
+      "notOnRecord": "غير مسجل بعد",
+      "noStandInExport": "لا يوجد: يُبلَّغ عن التصدير ضمن نطاق مستنده"
     },
     "checkItYourself": "تحقق بنفسك",
     "fawtaraReference": "مرجع فوترة",
@@ -9170,7 +9315,7 @@
     "copies": {
       "accepted": "التقرير المقبول",
       "acceptedMeta": "XML المستند · النسخة ٢",
-      "withdrawn": "التقرير المسحوب",
+      "withdrawn": "التقرير المستبدَل",
       "withdrawnMeta": "XML المستند · النسخة ١",
       "ack": "إقرار الهيئة",
       "ackMeta": "إثباتك بأنه قُبل",
@@ -9185,18 +9330,22 @@
     },
     "sendItAgain": "أعد الإرسال",
     "resend": {
-      "body": "قُبلت بالفعل، فلا شيء لإعادة إرساله. إن صححت هذه الفاتورة لاحقًا، يخرج تقرير جديد وتُسحب هذه بالطريقة نفسها التي سُحبت بها النسخة الأولى.",
+      "body": "قُبل بالفعل، فلا شيء لإعادة إرساله. وإن تبيّن أن هذه الفاتورة خاطئة، تُصحَّح بإشعار دائن وفاتورة جديدة.",
       "nothing": "لا شيء لإعادة إرساله",
-      "possibleBody": "رفضت هيئة الضرائب هذا التقرير ويمكن إرسال تقرير مصحح. صحّح المشكلة أولًا ثم أرسل.",
-      "acceptedBody": "قُبلت بالفعل، فلا شيء لإعادة إرساله. إن صحّحت هذه الفاتورة لاحقًا يُرسل تقرير جديد ويُسحب هذا.",
+      "possibleBody": "رفضت هيئة الضرائب هذا التقرير. إن كان السبب في التقرير نفسه فصحّحه وأعد إرساله؛ وإن كان في الفاتورة فيلزم إشعار دائن وفاتورة جديدة.",
+      "acceptedBody": "قُبل بالفعل، فلا شيء لإعادة إرساله. وإن تبيّن أن هذه الفاتورة خاطئة، تُصحَّح بإشعار دائن وفاتورة جديدة.",
       "waitingBody": "ما زالت بانتظار الهيئة. لم يحدث خطأ، والإرسال مجددًا قبل ردها يستهلك من حصتك مرتين.",
-      "noneBody": "لا شيء لإعادة إرساله لهذا المستند."
+      "noneBody": "لا شيء لإعادة إرساله لهذا المستند.",
+      "possibleInvoiceBody": "رُفض بسبب الفاتورة نفسها. يحمل التقرير نسخة من الفاتورة، فالتقرير المعدَّل لن يطابق ما لدى العميل: أصدر إشعارًا دائنًا وفاتورة جديدة بدل إعادة الإرسال.",
+      "receivedBody": "أُبلغ عنها بصفتها مستلمة. هذه فاتورة المورد: إن كانت خاطئة يصحّحها المورد بإشعار دائن أو مدين، ويُبلَّغ عنه بالطريقة نفسها."
     },
     "record": "السجل",
     "status": {
       "turnedDown": "رفضتها الهيئة",
       "waiting": "بانتظار الهيئة",
-      "notOwed": "لا مستند مستحق"
+      "notOwed": "لا مستند مستحق",
+      "deliveredUnconfirmed": "سُلّم دون تأكيد",
+      "replaced": "استُبدل بتقرير لاحق"
     },
     "to": "إلى",
     "issuedOn": "صدرت {{date}}",
@@ -9221,15 +9370,22 @@
       "delivered": "سُلّمت",
       "theyRefused": "رفضها العميل",
       "noReplyYet": "لا رد بعد",
-      "received": "استُلمت"
+      "received": "استُلمت",
+      "deliveredUnconfirmed": "سُلّم دون تأكيد",
+      "replaced": "استبدلناه"
     },
     "from": "من",
     "fromSupplier": "من {{customer}}",
-    "receiptReportedNote": "أُبلغ عن الاستلام، عبر فوترة"
+    "receiptReportedNote": "أُبلغ عن الاستلام، عبر فوترة",
+    "refusalKind": {
+      "invoice": "السبب في الفاتورة نفسها، فتُصحَّح بإشعار دائن وفاتورة جديدة، لا بإعادة إرسال التقرير.",
+      "report": "السبب في التقرير وحده لا في الفاتورة: بعد تصحيحه يمكن إعادة إرساله. ولا شيء يذهب إلى العميل.",
+      "unknown": "لا يوضح الرفض إن كان السبب في الفاتورة أم في التقرير. إن كان في الفاتورة نفسها فيلزم إشعار دائن وفاتورة جديدة."
+    }
   },
   "callLog": {
     "title": "سجل مكالمات الهيئة",
-    "subtitle": "كل طلب أرسله فوتر إلى هيئة الضرائب على حسابك، وما عاد به.",
+    "subtitle": "كل تقرير وفاتورة أرسلها فوتر عبر Peppol لحسابك، وكل رسالة MLS عادت.",
     "backToSubmissions": "العودة إلى الإرسالات",
     "more": "المزيد",
     "privacy": "<b>يمكن للمالكين والمشرفين وحدهم رؤية هذه الصفحة.</b> تعرض تفاصيل تقنية عن حركة حسابك أنت - دون محتويات الفواتير، ودون أي شيء من أي نشاط آخر.",
@@ -9237,21 +9393,21 @@
     "filters": "عوامل التصفية",
     "sort": "ترتيب",
     "allResults": "كل النتائج",
-    "empty": "لا توجد مكالمات تطابق بحثك.",
-    "showing": "عرض {{shown}} من {{total}} مكالمة اليوم",
+    "empty": "لا توجد رسائل تطابق ما تبحث عنه.",
+    "showing": "عرض {{shown}} من {{total}} رسالة اليوم",
     "kpi": {
-      "callsToday": "مكالمات اليوم",
-      "callsTodayNote": "إرسالات وفحوص حالة وإقرارات",
-      "answered": "رُدّ عليها بشكل طبيعي",
-      "answeredNote": "{{good}} من {{total}} · {{failed}} انتهت مهلتها أو أخفقت",
-      "roundTrip": "زمن الرحلة المعتاد",
-      "roundTripNote": "المعتاد {{normal}} ثانية. الهيئة بطيئة منذ {{since}}.",
+      "callsToday": "رسائل اليوم",
+      "callsTodayNote": "تقارير وفواتير أُرسلت عبر Peppol، ورسائل MLS مستلمة",
+      "answered": "سُلّمت بشكل طبيعي",
+      "answeredNote": "{{good}} من {{total}} · {{failed}} لم تُسلَّم أو رُفضت",
+      "roundTrip": "الوقت حتى الرد، المعتاد",
+      "roundTripNote": "عادةً {{normal}} ث. الردود بطيئة منذ {{since}}.",
       "slowest": "الأبطأ اليوم",
-      "slowestNote": "عند {{at}} · انتهت مهلتها وأُعيدت تلقائيًا"
+      "slowestNote": "عند {{at}}"
     },
     "col": {
       "when": "الوقت",
-      "call": "المكالمة",
+      "call": "الرسالة",
       "about": "عمّاذا كانت",
       "cameBack": "ما عاد",
       "took": "استغرقت",
@@ -9279,14 +9435,17 @@
       "reportingNewSale": "تبليغ عن بيع جديد",
       "passingAck": "تمرير إقرار العميل",
       "firstTry": "تبليغ عن بيع جديد · المحاولة الأولى",
-      "retry": "تبليغ عن بيع جديد · إعادة"
+      "retry": "تبليغ عن بيع جديد · إعادة",
+      "mlsAnswer": "رد MLS على تقرير {{invoice}}",
+      "invoiceToCustomer": "الفاتورة إلى العميل عبر Peppol"
     },
     "status": {
       "stillWithThem": "ما زالت لديهم",
       "accepted": "قُبلت",
       "recorded": "سُجّلت",
       "noAnswer": "لا رد",
-      "takenIn": "استُلمت"
+      "takenIn": "استُلمت",
+      "receipt": "إيصال نقطة الوصول"
     },
     "speed": {
       "fast": "سريع",
@@ -9296,25 +9455,29 @@
     },
     "result": {
       "ok": "نجحت",
-      "pending": "قيد البت",
+      "pending": "لا رد بعد",
       "rejected": "رُفضت",
-      "noAnswer": "لا رد"
+      "noAnswer": "لم تُسلَّم"
     },
     "meaning": {
       "acceptedNoDecision": "قُبلت للمعالجة دون بتٍّ بعد. سيواصل فوتر السؤال كل عشر دقائق.",
       "acceptedWithRef": "قُبلت وأُعطيت مرجع فوترة {{ref}}.",
-      "noParticipantId": "لا يوجد معرّف مشارك للمشتري. أضف معرّف Peppol إلى {{customer}} وأعد الإرسال.",
+      "noParticipantId": "لا يوجد معرّف مشارك للمشتري. هذا في الفاتورة نفسها: أضف معرّف Peppol إلى {{customer}}، ثم أصدر إشعارًا دائنًا وفاتورة جديدة.",
       "deliveryConfirmed": "أكّدت نقطة الوصول لدى العميل التسليم، والهيئة سجّلت ذلك.",
       "otaDidNotAnswer": "لم تردّ الهيئة في الوقت المحدد. لا خطأ من جانبك - أعاد فوتر الإرسال بعد دقيقتين فنجح.",
-      "takenNotDecided": "استُلمت ولم يُبتّ فيها بعد. هذه هي الإرسالة التي ما زالت تنتظر."
+      "takenNotDecided": "استُلمت ولم يُبتّ فيها بعد. هذه هي الإرسالة التي ما زالت تنتظر.",
+      "mlsAccepted": "ردّت فوترة بـ AP: سُلّم التقرير وتأكد.",
+      "tddDelivered": "استلمته نقطة وصول فوترة. يعود الرد في رسالة MLS.",
+      "noMlsYet": "استلمته نقطة وصول فوترة، ولا رسالة MLS بعد. الصمت ليس إخفاقًا، ولا يُعاد إرسال شيء.",
+      "invoiceDelivered": "استلمتها نقطة وصول العميل."
     },
     "sortOptions": {
       "newest": "الأحدث أولًا",
       "slowest": "الأبطأ أولًا",
       "problemsFirst": "المشاكل أولًا"
     },
-    "notHeld": "الصفحة الأولى فقط من مكالمات اليوم محفوظة هنا حاليًا.",
-    "pagerNav": "صفحات المكالمات",
+    "notHeld": "تُحفظ هنا الصفحة الأولى فقط من رسائل اليوم حاليًا.",
+    "pagerNav": "صفحات الرسائل",
     "menu": {
       "putThingsRight": "صحّح الأمور",
       "retryWaiting": "أعد محاولة كل ما هو بالانتظار",
@@ -9337,6 +9500,10 @@
       "whoHearsNote": "المالكون والمشرفون في فريقك",
       "retention": "الحفظ والأرشيف",
       "retentionNote": "عشر سنوات، وخمس عشرة للعقارات"
+    },
+    "direction": {
+      "sent": "مُرسلة",
+      "received": "مستلمة"
     }
   },
   "tddResubmit": {
@@ -9411,7 +9578,8 @@
       "moreInvoicesCount_other": "{{count}} فواتير أخرى",
       "moreInvoicesCount_two": "فاتورتان أخريان",
       "moreInvoicesCount_few": "{{count}} فواتير أخرى",
-      "moreInvoicesCount_many": "{{count}} فواتير أخرى"
+      "moreInvoicesCount_many": "{{count}} فواتير أخرى",
+      "onNewInvoice": "الأولى، على الفاتورة الجديدة"
     },
     "stopRecurring": "أوقف تكرارها",
     "stopRecurringBody": "كلّفك هذا ثلاث حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيمنع ذلك عند إنشاء السجل.",
@@ -9432,7 +9600,43 @@
     "stopRecurringCount_many": "كلّفك هذا {{count}} حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
     "footerCount_two": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
     "footerCount_few": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
-    "footerCount_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل"
+    "footerCount_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+    "titleInvoice": "صحّح {{invoice}} بإشعار دائن وفاتورة جديدة",
+    "subtitleKind": {
+      "invoice": "رفضت هيئة الضرائب التقرير بسبب الفاتورة نفسها. يحمل التقرير نسخة كاملة من الفاتورة، فالتقرير المعدَّل لن يطابق الفاتورة التي لدى {{customer}}: صحّحها بإشعار دائن وفاتورة جديدة.",
+      "report": "رُفض التقرير المرسل إلى هيئة الضرائب وحده، لا الفاتورة. بعد تصحيح التقرير يمكن إعادة إرساله، ولا شيء يذهب إلى {{customer}}.",
+      "unknown": "رُفض التقرير المرسل إلى هيئة الضرائب، فالبيع غير مُصرّح به بعد. تحقق مما رُفض: إن كان في الفاتورة نفسها فيلزم إشعار دائن وفاتورة جديدة بدل إعادة الإرسال."
+    },
+    "fixNote": {
+      "buyerPeppolId": "أضف معرّف المشارك في Peppol إلى سجل العميل، ثم أصدر الإشعار الدائن والفاتورة الجديدة.",
+      "totals": "إجمالي الفاتورة لا يطابق بنودها. أصدر إشعارًا دائنًا، ثم فاتورة جديدة ببنود مصححة.",
+      "taxCategory": "فئة ضريبة القيمة المضافة في أحد البنود لا تطابق نسبته. أصدر إشعارًا دائنًا، ثم فاتورة جديدة بفئة مصححة.",
+      "otherInvoice": "الرفض يتعلق بالفاتورة نفسها. أصدر إشعارًا دائنًا، ثم فاتورة جديدة مصححة.",
+      "report": "الرفض يتعلق بالتقرير وحده. يبني فوتر التقرير من جديد من الفاتورة نفسها ويرسله.",
+      "unknown": "اقرأ ما رُفض أعلاه. إن كان في الفاتورة نفسها فأصدر إشعارًا دائنًا وفاتورة جديدة بدل إعادة الإرسال."
+    },
+    "peppolIdHintPlain": "تستخدم عُمان النظام 0248 متبوعًا بالرقم الضريبي، مثل 0248:OM1100558840.",
+    "typedAbove": "كما كُتب أعلاه",
+    "newInvoiceNumber": "رقم فاتورة جديد",
+    "correctedOnNew": "يُصحَّح في الفاتورة الجديدة",
+    "issueCreditNote": "أصدر إشعارًا دائنًا",
+    "footerKind": {
+      "invoice_one": "فاتورة واحدة · يذهب إشعار دائن وفاتورة جديدة إلى العميل",
+      "invoice_other": "{{count}} فواتير · يذهب إشعار دائن وفاتورة جديدة إلى العميل عن كل منها",
+      "report_one": "فاتورة واحدة · 1 من حصتك · لا شيء يذهب إلى العميل",
+      "report_other": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "unknown_one": "فاتورة واحدة · 1 من حصتك · لا شيء يذهب إلى العميل",
+      "unknown_other": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "invoice_two": "{{count}} فواتير · يذهب إشعار دائن وفاتورة جديدة إلى العميل عن كل منها",
+      "invoice_few": "{{count}} فواتير · يذهب إشعار دائن وفاتورة جديدة إلى العميل عن كل منها",
+      "invoice_many": "{{count}} فواتير · يذهب إشعار دائن وفاتورة جديدة إلى العميل عن كل منها",
+      "report_two": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "report_few": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "report_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "unknown_two": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "unknown_few": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "unknown_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل"
+    }
   },
   "complianceReport": {
     "title": "تقرير الامتثال",
@@ -9452,7 +9656,7 @@
       "rejections": "حالات الرفض وكيف صُححت",
       "rejectionsNote": "ما اعترضت عليه الهيئة، ومتى صُحّح، وأي إعادة إرسال قُبلت",
       "superseded": "الإرسالات المُستبدلة",
-      "supersededNote": "أي المستندات أهملتها الهيئة، وأيها المعتمد لكل فاتورة",
+      "supersededNote": "التقارير التي استبدلتها أو ألغيتها بتقرير لاحق، وأيها المعتمد لكل فاتورة",
       "flows": "أي مسار سلكته كل فاتورة",
       "flowsNote": "سيناريو المستند وأي معرّف بديل استُخدم للمستهلك أو للتصدير",
       "xml": "ملفات XML للمستندات نفسها",
@@ -9477,7 +9681,8 @@
       "correctedAfterRejection": "رُفضت ثم صُححت",
       "stillNotReported": "لم يُبلَّغ عنها بعد",
       "totalInvoiced": "إجمالي المفوتر",
-      "vatReported": "الضريبة المبلَّغ عنها"
+      "vatReported": "الضريبة المبلَّغ عنها",
+      "stillWaiting": "أُرسلت وما زالت بانتظار الرد"
     },
     "nInvoices_one": "فاتورة واحدة",
     "nInvoices_other": "{{count}} فاتورة",
@@ -9500,7 +9705,8 @@
       "everyInvoice": "كل فاتورة في الفترة، دون استبعاد شيء"
     },
     "customFrom": "من",
-    "customTo": "إلى"
+    "customTo": "إلى",
+    "notAvailableYet": "غير متاح بعد"
   },
   "builtReport": {
     "ready": "جاهز",
@@ -9539,7 +9745,7 @@
     "neverAcceptedHeadline": "فاتورة واحدة لم تقبلها هيئة الضرائب قط",
     "neverAcceptedBody": "<b>{{invoice}}</b>، صدرت {{issued}} لصالح {{customer}} بمبلغ <b>{{total}}</b>. رُفض التقرير في اليوم نفسه تحت {{code}} لأن الفئة الضريبية في أحد السطور خالفت النسبة المطبقة. ولم تُصحَّح أو يُعد إرسالها، لذا <b>تقع ضريبة بقيمة {{vat}} خارج الرقم أعلاه</b> ويبقى البيع غير مصرّح به حتى تاريخ هذا التقرير.",
     "alsoWorthNoting": "مما يستحق الذكر",
-    "correctedNote": "<b>رُفضت {{count}} فواتير مرة واحدة ثم قُبلت في المحاولة الثانية.</b> وفي كل حالة غيّر التصحيح فئة ضريبية أو معرّف مشارك: دون تغيير أي مبلغ أو كمية أو تاريخ. سُحبت التقارير السابقة من الهيئة والنسخ المقبولة هي السجلات المعتمدة. وجميعها مدرجة في الصفحة ٣.",
+    "correctedNote": "<b>رُفضت {{count}} فواتير مرة ثم قُبلت في محاولة لاحقة.</b> استُبدلت التقارير السابقة بالتقارير المصححة التي أرسلناها وبقيت في الأرشيف، والنسخ المقبولة هي السجلات المعتمدة. وجميعها مدرجة في الصفحة ٣.",
     "numberingNote": "<b>لم تصدر أي فاتورة خارج فوتر خلال الفترة.</b> يتسلسل الترقيم دون انقطاع من {{from}} إلى {{to}} بلا فجوات.",
     "registerFirstRows": "السجل · أول صفوف من {{total}}",
     "col": {
@@ -9558,8 +9764,8 @@
     },
     "remainingRows": "تستمر الصفوف الـ{{count}} المتبقية في الصفحات {{from}} إلى {{to}}.",
     "attestation": "الإقرار",
-    "attestationBody": "أعدّ فوتر هذا التقرير من سجلاته الخاصة لما أُرسل إلى هيئة الضرائب العمانية وما ورد منها عبر منصة فوترة. وكل قيد مدعوم بمستند بيانات ضريبية محفوظ، وعند القبول بإقرار يحمل مرجع فوترة الظاهر. <b>هذه السجلات غير قابلة للتعديل</b> ويحمل كل ملف بصمة أُخذت لحظة حفظه.",
-    "attestationLimits": "<b>ما لا يفعله هذا التقرير.</b> يبيّن ما جرى التبليغ عنه، لا ما إذا كانت الفواتير نفسها صحيحة. لا يدقق فوتر المبالغ ولا المعالجة الضريبية ولا المعاملة التجارية خلفها. ويُفترض أن تطابق الأرقام هنا سجلات الهيئة، ويمكن التحقق منها فاتورة فاتورة بمراجع فوترة أعلاه.",
+    "attestationBody": "أعدّ فوتر هذا التقرير من سجلاته الخاصة لما أُرسل عبر Peppol إلى نقطة فوترة التابعة لهيئة الضرائب العمانية ولرسائل MLS التي عادت. وكل قيد مدعوم بمستند بيانات ضريبية محفوظ، وعند الإقرار برسالة MLS التي ردّت عليه. <b>هذه السجلات غير قابلة للتعديل</b> ويحمل كل ملف بصمة أُخذت لحظة حفظه.",
+    "attestationLimits": "<b>ما لا يفعله هذا التقرير.</b> يبيّن ما أُبلغ عنه، لا صحة الفواتير نفسها. لا يدقق فوتر المبالغ ولا المعاملة الضريبية ولا التجارة وراءها. ينبغي أن تتفق الأرقام هنا مع سجلات هيئة الضرائب، ويمكن التحقق منها فاتورة فاتورة باستخدام معرّفات TDD.",
     "fingerprintLabel": "بصمة هذا التقرير ·",
     "preparedBy": "أعدّه",
     "signedAutomatically": "وُقّع تلقائيًا · {{at}}",
@@ -9579,11 +9785,11 @@
       "rejections": "حالات الرفض والتصحيحات",
       "corrected": "الفواتير الخمس المصححة",
       "register": "السجل الكامل",
-      "withdrawn": "التقارير المسحوبة",
+      "withdrawn": "التقارير المستبدَلة",
       "flows": "أي مسار سلكته كل فاتورة"
     },
     "beforeYouSend": "قبل أن ترسله",
-    "beforeYouSendBody": "ما زالت {{invoice}} تظهر غير مبلّغ عنها. إن صححتها وأعدت إرسالها، سيُظهر تقرير جديد الربع مصرّحًا به بالكامل.",
+    "beforeYouSendBody": "ما زالت {{invoice}} غير مُبلَّغ عنها. رُفضت بسبب الفاتورة نفسها، فتُصحَّح بإشعار دائن وفاتورة جديدة؛ والتقرير الذي يُبنى بعد ذلك يُظهر الربع مُصرّحًا به بالكامل.",
     "putItRight": "صحّح {{invoice}}",
     "rebuildOnceFixed": "أعد الإنشاء بعد تصحيحها",
     "sendingItOut": "إرساله",
@@ -9593,7 +9799,15 @@
     "noneYet": "لا شيء بعد",
     "preparedByName": "فوتر · مزوّد خدمة معتمد",
     "receivedReported": "الفواتير المستلمة · أُبلغ عن <b>{{n}} من {{m}}</b>",
-    "receivedNotAvailable": "الفواتير المستلمة · غير متاح بعد"
+    "receivedNotAvailable": "الفواتير المستلمة · غير متاح بعد",
+    "outsideNotConfirmed": "<b>فواتير صدرت خارج فوتر: غير مؤكد.</b>",
+    "numberingUnbroken": "يتسلسل الترقيم دون انقطاع من {{from}} إلى {{to}}.",
+    "numberingGaps_one": "يمتد الترقيم من {{from}} إلى {{to}} مع فجوة واحدة: {{gaps}}.",
+    "numberingGaps_other": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}.",
+    "numberingNotConfirmed": "تسلسل الترقيم دون انقطاع: غير مؤكد.",
+    "numberingGaps_two": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}.",
+    "numberingGaps_few": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}.",
+    "numberingGaps_many": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}."
   },
   "callDetail": {
     "subtitle": "{{date}}، {{at}} · بشأن {{invoice}} · رُدّ خلال {{seconds}}",
@@ -9614,52 +9828,57 @@
     "step": {
       "built": "أُنشئ التقرير ووُقّع",
       "builtNote": "استغرق ١٨٤ مللي ثانية · ٤٫٨ ك.ب",
-      "connected": "اتصل بفوترة",
-      "connectedNote": "المصافحة ٩٦ مللي ثانية · الشهادة سارية حتى مارس ٢٠٢٧",
+      "connected": "سُلّم إلى نقطة وصول Peppol لدينا",
+      "connectedNote": "96ms",
       "sent": "أُرسل",
-      "sentNote": "الرفع ٤١ مللي ثانية",
-      "waiting": "بانتظار الهيئة",
+      "sentNote": "إيصال AS4 خلال 41ms",
+      "waiting": "بانتظار رسالة MLS",
       "waitingNote": "١٫٧٧ ثانية · كل التأخير كان من جانبهم",
-      "refused": "رُفض · {{status}}",
+      "refused": "MLS {{status}}: مرفوض",
       "refusedNote": "قاعدة واحدة قاطعة مخالفة",
-      "noRetry": "لم تُجرَّب إعادة",
-      "noRetryNote": "قال الرد retryable: false، فتوقف فوتر وأبلغك بدل استهلاك إرسالة أخرى."
+      "noRetry": "لم يُعَد الإرسال",
+      "noRetryNote": "الرفض يتعلق بالفاتورة نفسها، فتُصحَّح بإشعار دائن وفاتورة جديدة، لا بإعادة إرسال التقرير."
     },
-    "theCall": "المكالمة",
+    "theCall": "الرسالة",
     "when": "الوقت",
     "type": {
-      "submit": "إرسال تقرير"
+      "submit": "تقرير، نوع TDD هو S"
     },
     "answer": {
       "refused": "مرفوض"
     },
-    "roundTrip": "زمن الرحلة",
+    "roundTrip": "الوقت حتى الرد",
     "attempt": "المحاولة",
     "attemptOf": "{{n}} من {{total}}",
     "quotaUsed": "من الحصة",
     "whereTimeWent": "أين ذهب الوقت",
     "phase": {
       "building": "الإنشاء",
-      "connecting": "الاتصال",
+      "connecting": "التسليم",
       "sending": "الإرسال",
       "theirSide": "جانبهم"
     },
     "referencesToQuote": "مراجع للاستشهاد",
-    "requestId": "معرّف الطلب",
-    "traceId": "معرّف التتبع لدى الهيئة",
+    "requestId": "معرّف نسخة SBDH",
+    "traceId": "معرّف رسالة MLS",
     "documentUuid": "معرّف المستند",
     "copyAllThree": "انسخ الثلاثة",
-    "relatedCalls": "مكالمات ذات صلة",
+    "relatedCalls": "رسائل ذات صلة",
     "sameInvoice": "الفاتورة نفسها",
     "sameErrorCode": "رمز الخطأ نفسه",
     "sameCustomer": "العميل نفسه",
     "showAllThree": "اعرض الثلاثة",
-    "nCalls_one": "مكالمة واحدة",
-    "nCalls_other": "{{count}} مكالمات",
+    "nCalls_one": "رسالة واحدة",
+    "nCalls_other": "{{count}} رسائل",
     "nThisWeek": "{{n}} هذا الأسبوع",
     "nRefused": "{{n}} مرفوضة",
     "typeLabel": "النوع",
-    "answerLabel": "الرد"
+    "answerLabel": "الرد",
+    "copyIds": "انسخ المعرّفات",
+    "xmlKeptWithRecord": "ملف TDD بصيغة XML الموقّع محفوظ مع سجل {{invoice}}: نزّله من هناك.",
+    "nCalls_two": "{{count}} رسائل",
+    "nCalls_few": "{{count}} رسائل",
+    "nCalls_many": "{{count}} رسائل"
   },
   "settings": {
     "title": "الإعدادات",
@@ -18886,6 +19105,28 @@
         "address": "الرسيل 124، سلطنة عُمان",
         "phone": "مجاني {{number}}"
       }
+    }
+  },
+  "tradeDocs": {
+    "notAvailableYet": "غير متاح بعد: المستندات التجارية غير مرتبطة بالخادم، لذلك لا يمكن تنفيذ هذا الإجراء.",
+    "notFound": "لا يوجد {{kind}} برقم {{id}}.",
+    "notRecorded": "لم يُسجَّل بعد",
+    "notAvailableShort": "غير متاح بعد",
+    "empty": "لا شيء لعرضه هنا.",
+    "kind": {
+      "quotation": "عرض سعر",
+      "order": "نموذج طلب",
+      "delivery": "إشعار تسليم"
+    },
+    "selfBill": {
+      "none": "تتطلب الفوترة الذاتية اتفاقية فوترة ذاتية موقعة وسارية مع هذا المورد، ولا توجد اتفاقية مسجلة.",
+      "cannotCheck": "تتطلب الفوترة الذاتية اتفاقية موقعة وسارية مع هذا المورد، ولا تملك صلاحية عرض اتفاقيات الفوترة الذاتية للتحقق منها.",
+      "withdrawn": "تم سحب اتفاقية الفوترة الذاتية {{reference}} مع هذا المورد.",
+      "pending": "اتفاقية الفوترة الذاتية {{reference}} غير مفعّلة بعد.",
+      "suspended": "اتفاقية الفوترة الذاتية {{reference}} موقوفة.",
+      "notStarted": "لم يبدأ سريان اتفاقية الفوترة الذاتية {{reference}} بعد.",
+      "lapsed": "انتهت اتفاقية الفوترة الذاتية {{reference}}.",
+      "unverified": "اتفاقية الفوترة الذاتية {{reference}} بانتظار تحقق فوترة من المورد."
     }
   }
 }

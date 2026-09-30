@@ -1,14 +1,12 @@
 import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { ActionMenu } from '../../components/ui'
+import { ActionMenu, withRial } from '../../components/ui'
+import { Notice } from '../../components/feedback/ApiNotice'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
 import { deliveryNoteRowActions } from '../../lib/rowActions'
-import {
-  DELIVERY_NOTE_PURCHASE,
-  DELIVERY_NOTE_SALE,
-  type MetaRow,
-} from '../../lib/deliveryNoteDetail'
+import { deliveryById, type DeliveryDetail, type MetaRow } from '../../lib/deliveryNoteDetail'
 import type { LifecycleStep, TimelineEvent } from '../../lib/orderFormDetail'
 import backIcon from '../../assets/delivery-detail/back.svg'
 import printIcon from '../../assets/delivery-detail/print.svg'
@@ -81,7 +79,7 @@ function LifecycleStrip({ steps }: { steps: LifecycleStep[] }) {
             </span>
             {step.noteKey ? (
               <span className="text-center text-[10px] font-medium leading-[1.2] text-[#5b606c]">
-                {t(step.noteKey)}
+                {t(step.noteKey, step.noteValues)}
               </span>
             ) : null}
           </div>
@@ -120,7 +118,7 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
               {t(event.titleKey)}
             </p>
             <p className="mt-1.5 text-sm font-medium leading-[1.2] text-[#444957]">
-              {t(event.detailKey)}
+              {withRial(t(event.detailKey, event.detailValues))}
             </p>
           </div>
         </li>
@@ -129,15 +127,22 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
   )
 }
 
-type Doc = typeof DELIVERY_NOTE_SALE | typeof DELIVERY_NOTE_PURCHASE
-
-function DeliveryNoteDetail({ doc }: { doc: Doc }) {
+function DeliveryNoteDetail({ doc }: { doc: DeliveryDetail }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const notice = useTradeNotice()
   const sales = doc.direction === 'sales'
   /** Only the sales side captures a signature; the purchase side keeps their paperwork instead. */
-  const signature = 'signature' in doc.proof ? doc.proof.signature : null
-  const signatureLabelKey =
-    'signatureLabelKey' in doc.proof ? doc.proof.signatureLabelKey : 'deliveryDetail.sale.signature'
+  const signature = doc.proof.signature
+  const signatureLabelKey = 'deliveryDetail.sale.signature'
+  // Converting opens the invoice composer filled from this note: its lines, the customer, the
+  // order and despatch references (TRADE_DOCUMENTS.md rows T.10 to T.12).
+  const convert = () =>
+    doc.action.kind === 'convert'
+      ? navigate(`/invoices/new?from=${encodeURIComponent(doc.id)}`)
+      : notice.unavailable()
+  const onAction = (itemId: string) =>
+    itemId === 'invoice' && sales ? convert() : notice.unavailable()
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -158,7 +163,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
             <h1 className="text-[32px] font-medium leading-[1.2] text-[#151c2d]">{doc.id}</h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6efea] px-3 py-[5px] text-sm font-semibold text-[#3d5648]">
               <span className="size-1.5 rounded-full bg-[#3d5648]" />
-              {t(doc.statusKey)}
+              {t(doc.status.key, doc.status.values)}
             </span>
             <span
               className={[
@@ -177,19 +182,23 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
             <span className="font-semibold text-[#151c2d]">{doc.party}</span>
             <span className="font-medium">
               {' '}
-              • {t(doc.dateKey)} • {t(doc.againstKey)}{' '}
+              • {t(doc.date.key, doc.date.values)} •{' '}
+              {doc.against ? `${t('deliveryDetail.against')} ` : t('deliveryDetail.standalone')}
             </span>
-            <span className="font-semibold text-[#151c2d]">{doc.against}</span>
+            {doc.against ? (
+              <span className="font-semibold text-[#151c2d]">{doc.against}</span>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <ActionMenu
-            items={deliveryNoteRowActions(doc.id)}
+            items={deliveryNoteRowActions(doc.id, onAction)}
             label={t('orderDetail.moreActions')}
             variant="bordered"
           />
           <button
             type="button"
+            onClick={notice.unavailable}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
           >
             <img src={printIcon} alt="" className="size-6" />
@@ -197,6 +206,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
           </button>
           <button
             type="button"
+            onClick={notice.unavailable}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
           >
             <img src={downloadIcon} alt="" className="size-6" />
@@ -204,6 +214,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
           </button>
           <button
             type="button"
+            onClick={convert}
             className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
           >
             <img src={issueInvoiceIcon} alt="" className="size-6" />
@@ -215,9 +226,12 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
       <Card>
         <LifecycleStrip steps={doc.steps} />
         <p className="mt-6 border-t border-[#f3f3f3] pt-4 text-sm font-medium leading-[1.2] text-[#444957]">
-          {t(doc.lifecycleNoteKey)}
+          {doc.lifecycleNote
+            ? withRial(t(doc.lifecycleNote.key, doc.lifecycleNote.values))
+            : t('tradeDocs.notRecorded')}
         </p>
       </Card>
+      {notice.node}
 
       {/* Proof (796) | action + progress + details (332) */}
       <div className="grid items-start gap-4 xl:grid-cols-[796fr_332px]">
@@ -227,7 +241,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
             <div className="flex items-center gap-2.5 border-b border-[#dbe6df] pb-4">
               <img src={tickIcon} alt="" className="size-6" />
               <h2 className="text-xl font-medium leading-[1.2] text-[#2c3342]">
-                {t(doc.proof.titleKey)}
+                {t(doc.proof.title.key, doc.proof.title.values)}
               </h2>
             </div>
             <div className="mt-4 flex flex-wrap gap-6">
@@ -242,7 +256,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
                         {t(row.labelKey)}
                       </dt>
                       <dd className="mt-1 text-sm font-semibold leading-[1.2] text-[#151c2d]">
-                        {t(row.valueKey)}
+                        {t(row.value.key, row.value.values)}
                       </dd>
                     </div>
                   </div>
@@ -285,7 +299,14 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {doc.lines.map((line) => (
+                  {doc.lines === null ? (
+                    <tr>
+                      <td colSpan={4} className="py-5 text-sm font-medium text-[#5b606c]">
+                        {t('tradeDocs.notAvailableShort')}
+                      </td>
+                    </tr>
+                  ) : null}
+                  {(doc.lines ?? []).map((line) => (
                     <tr key={line.id} className="border-b border-[#f3f3f3] last:border-b-0">
                       <td className="py-5 pe-4">
                         <p className="text-base font-medium leading-[1.2] text-[#151c2d]">
@@ -311,7 +332,11 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
             <h2 className="mb-4 text-xl font-medium leading-[1.2] text-[#2c3342]">
               {t('orderDetail.activity')}
             </h2>
-            <Timeline events={doc.activity} />
+            {doc.activity ? (
+              <Timeline events={doc.activity} />
+            ) : (
+              <p className="text-sm font-medium text-[#5b606c]">{t('tradeDocs.notRecorded')}</p>
+            )}
           </Card>
 
           <Card>
@@ -319,6 +344,9 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
               {t(doc.filesTitleKey)}
             </h2>
             <div className="flex flex-col gap-3">
+              {doc.files.length === 0 ? (
+                <p className="text-sm font-medium text-[#5b606c]">{t('tradeDocs.notRecorded')}</p>
+              ) : null}
               {doc.files.map((file) => (
                 <div
                   key={file.id}
@@ -331,12 +359,13 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
                         {t(file.titleKey)}
                       </span>
                       <span className="mt-1.5 block text-sm font-medium leading-[1.2] text-[#444957]">
-                        {t(file.metaKey)}
+                        {withRial(t(file.metaKey))}
                       </span>
                     </span>
                   </span>
                   <button
                     type="button"
+                    onClick={notice.unavailable}
                     aria-label={t('orderDetail.download')}
                     className="flex size-9 items-center justify-center rounded-sm border border-[#e8e8ea]"
                   >
@@ -359,14 +388,15 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
             <div className="mt-4 flex items-center gap-1">
               <img src={omrIcon} alt="" className="h-auto w-7 shrink-0" />
               <span className="text-[28px] font-semibold leading-[1.2] text-[#2c3342]">
-                {doc.action.amount}
+                {doc.action.amount ?? '—'}
               </span>
             </div>
             <p className="mt-2 text-sm font-medium leading-[1.3] text-[#444957]">
-              {t(doc.action.noteKey)}
+              {withRial(t(doc.action.noteKey ?? 'tradeDocs.notRecorded'))}
             </p>
             <button
               type="button"
+              onClick={convert}
               className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-sm bg-[#2c4eb7] px-3 text-sm font-semibold text-white"
             >
               <img src={issueInvoiceIcon} alt="" className="size-5" />
@@ -376,7 +406,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
 
           <Card className="border border-[#f3f3f3]">
             <h2 className="text-base font-medium leading-[1.2] text-[#2c3342]">
-              {t(doc.progress.titleKey)}
+              {t(doc.progress.title.key, doc.progress.title.values)}
             </h2>
             <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#737781]">
               {t(doc.progress.barLabelKey)}
@@ -384,11 +414,13 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#e6efea]">
               <span
                 className="block h-full rounded-full bg-[#3d5648]"
-                style={{ width: `${doc.progress.percent}%` }}
+                style={{ width: `${doc.progress.percent ?? 0}%` }}
               />
             </div>
             <p className="mt-2.5 text-sm font-medium leading-[1.3] text-[#444957]">
-              {t(doc.progress.noteKey)}
+              {doc.progress.note
+                ? t(doc.progress.note.key, doc.progress.note.values)
+                : t('tradeDocs.notRecorded')}
             </p>
           </Card>
 
@@ -403,7 +435,7 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
                     {t(row.labelKey)}
                   </dt>
                   <dd className="text-sm font-semibold leading-[1.2] text-[#2c3342]">
-                    {row.value}
+                    {row.value ?? t('tradeDocs.notRecorded')}
                   </dd>
                 </div>
               ))}
@@ -416,13 +448,27 @@ function DeliveryNoteDetail({ doc }: { doc: Doc }) {
 }
 
 export function DeliveryNoteDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
-  /** GRN-prefixed ids are inbound purchase receipts; DN- ids are outbound sales deliveries. */
-  const isPurchase = (id ?? '').toUpperCase().startsWith('GRN')
+  // The record the address names; its own direction decides the layout, not the id's prefix.
+  const doc = deliveryById(id)
 
   return (
     <AppShell>
-      <DeliveryNoteDetail doc={isPurchase ? DELIVERY_NOTE_PURCHASE : DELIVERY_NOTE_SALE} />
+      {doc ? (
+        <DeliveryNoteDetail doc={doc} />
+      ) : (
+        <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+          <Notice
+            badge={t('appAccess.notFound')}
+            body={t('tradeDocs.notFound', { kind: t('tradeDocs.kind.delivery'), id })}
+            action={{
+              label: t('deliveryDetail.breadcrumb'),
+              to: '/trade-documents/delivery-notes',
+            }}
+          />
+        </div>
+      )}
     </AppShell>
   )
 }

@@ -3,14 +3,26 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu, RowsView, TableCheckbox } from '../../components/ui'
-import { orderFormRowActions } from '../../lib/rowActions'
+import { orderFormRowActions, type TradeRowAction } from '../../lib/rowActions'
+import { matchesSearch, pageNumbers, selfBillGate } from '../../lib/tradeDocuments'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
+import { useApiRead } from '../../hooks'
+import {
+  AGREEMENTS_PATH,
+  loadAgreements,
+  type AgreementDto,
+} from '../../api/selfBilling/agreements'
+import { can, useSession } from '../../lib/session/session'
+import { muscatToday } from '../../lib/invoiceIssue'
 import {
   BAR_TRACK,
-  ORDER_KPI,
   ORDER_MODES,
-  ORDER_PAGE_NUMBERS,
+  ORDER_PAGE_SIZE,
   ORDER_ROWS,
   ORDER_TABS,
+  inMode,
+  inOrderTab,
+  orderKpis,
   type BarTone,
   type OrderMode,
   type OrderRow,
@@ -132,7 +144,7 @@ function Amount({
   )
 }
 
-function OrderFormsHeader() {
+function OrderFormsHeader({ onUnavailable }: { onUnavailable: () => void }) {
   const { t } = useTranslation()
 
   return (
@@ -157,6 +169,7 @@ function OrderFormsHeader() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
+          onClick={onUnavailable}
           className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white"
         >
           <img src={exportIcon} alt="" className="size-6" />
@@ -207,7 +220,7 @@ function ModeSelector({ mode, onChange }: { mode: OrderMode; onChange: (m: Order
               </span>
             </span>
             <span className="text-2xl font-semibold leading-[1.2] text-[#2c3342]">
-              {option.count}
+              {inMode(ORDER_ROWS, option.id).length}
             </span>
           </button>
         )
@@ -216,12 +229,12 @@ function ModeSelector({ mode, onChange }: { mode: OrderMode; onChange: (m: Order
   )
 }
 
-function OrderKpiCards() {
+function OrderKpiCards({ onTab }: { onTab: (tab: OrderTabId) => void }) {
   const { t } = useTranslation()
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {ORDER_KPI.map((kpi) => (
+      {orderKpis(ORDER_ROWS).map((kpi) => (
         <article key={kpi.id} className="flex flex-col rounded-md bg-surface-card p-5">
           <div className="-me-5 flex items-center gap-2.5">
             <span
@@ -241,33 +254,34 @@ function OrderKpiCards() {
               className="text-[32px] font-semibold leading-[1.2] text-[#2c3342]"
             />
           </div>
-          {'legend' in kpi && kpi.legend ? (
-            <div className="-me-5 mt-2.5 flex items-center gap-3">
+          {kpi.legend ? (
+            <div className="-me-5 mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
               {kpi.legend.map((entry) => (
                 <span key={entry.labelKey} className="inline-flex items-center gap-1.5">
                   <span
                     className={['size-2 shrink-0 rounded-full', TONE_FILL[entry.tone]].join(' ')}
                   />
                   <span className="whitespace-nowrap text-sm font-medium leading-[1.2] text-[#444957]">
-                    {t(entry.labelKey)}
+                    {t(entry.labelKey, entry.values)}
                   </span>
                 </span>
               ))}
             </div>
           ) : null}
-          {'link' in kpi && kpi.link ? (
-            <Link
-              to={kpi.link.to}
+          {kpi.link ? (
+            <button
+              type="button"
+              onClick={() => onTab(kpi.link.tab)}
               className="mt-2.5 inline-flex items-center gap-0.5 text-base font-semibold leading-[1.2] text-[#233e92]"
             >
-              {t(kpi.link.labelKey)}
+              {t(kpi.link.labelKey, kpi.link.values)}
               <img
                 src={linkChevronIcon}
                 alt=""
                 aria-hidden="true"
                 className="size-[17px] rtl:rotate-180"
               />
-            </Link>
+            </button>
           ) : null}
         </article>
       ))}
@@ -320,7 +334,18 @@ function FulfilmentBar({ row }: { row: OrderRow }) {
   )
 }
 
-function NextStepButton({ row }: { row: OrderRow }) {
+export type NextStepHandler = (row: OrderRow) => void
+
+function NextStepButton({
+  row,
+  onStep,
+  blocked,
+}: {
+  row: OrderRow
+  onStep: NextStepHandler
+  /** Set when the step may not be taken here (self-billing without an agreement). */
+  blocked: boolean
+}) {
   const { t } = useTranslation()
   const action = row.action
 
@@ -352,10 +377,15 @@ function NextStepButton({ row }: { row: OrderRow }) {
   return (
     <button
       type="button"
-      onClick={(event) => event.stopPropagation()}
+      aria-disabled={blocked || undefined}
+      onClick={(event) => {
+        event.stopPropagation()
+        onStep(row)
+      }}
       className={[
         'inline-flex h-9 items-center gap-1 rounded-sm px-2.5 text-sm font-semibold leading-[1.2] transition-opacity hover:opacity-90',
         filled,
+        blocked ? 'cursor-not-allowed opacity-50 hover:opacity-50' : '',
       ].join(' ')}
     >
       <img
@@ -368,7 +398,15 @@ function NextStepButton({ row }: { row: OrderRow }) {
   )
 }
 
-function OrderRowCells({ row }: { row: OrderRow }) {
+function OrderRowCells({
+  row,
+  onStep,
+  blocked,
+}: {
+  row: OrderRow
+  onStep: NextStepHandler
+  blocked: boolean
+}) {
   const { t } = useTranslation()
   const status = STATUS_STYLES[row.status]
   const sales = row.direction === 'sales'
@@ -430,7 +468,7 @@ function OrderRowCells({ row }: { row: OrderRow }) {
           className="text-base font-semibold leading-[1.2] text-[#2c3342]"
         />
         <p className="mt-1 text-xs font-semibold leading-[1.2] text-[#737781]">
-          {t(row.valueNoteKey)}
+          {t(row.valueNoteKey, row.valueNoteValues)}
         </p>
       </td>
       <td className="px-2 py-3.5 align-top">
@@ -449,7 +487,7 @@ function OrderRowCells({ row }: { row: OrderRow }) {
           </span>
         </span>
         <div className="mt-2">
-          <NextStepButton row={row} />
+          <NextStepButton row={row} onStep={onStep} blocked={blocked} />
         </div>
       </td>
     </>
@@ -498,19 +536,41 @@ function BarLegend() {
   )
 }
 
-function OrderFormsTable() {
+function OrderFormsTable({
+  mode,
+  activeTab,
+  setActiveTab,
+  onUnavailable,
+  onAction,
+  onStep,
+  isBlocked,
+}: {
+  mode: OrderMode
+  activeTab: OrderTabId
+  setActiveTab: (tab: OrderTabId) => void
+  onUnavailable: () => void
+  onAction: TradeRowAction
+  onStep: NextStepHandler
+  isBlocked: (row: OrderRow) => boolean
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<OrderTabId>('all')
-  const [page, setPage] = useState(2)
+  const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<string[]>([])
+  const [search, setSearch] = useState('')
+  // TODO(backend): TRADE_DOCUMENTS.md rows T.1 and T.7: the rows are the page's own data.
+  const inView = inMode(ORDER_ROWS, mode)
+  const rows = inOrderTab(inView, activeTab).filter((row) =>
+    matchesSearch(search, row.id, row.party, t(row.sourceKey)),
+  )
+  const pages = pageNumbers(rows.length, ORDER_PAGE_SIZE)
 
   const toggleRow = (id: string) =>
     setSelected((current) =>
       current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     )
-  const allSelected = selected.length === ORDER_ROWS.length
-  const toggleAll = () => setSelected(allSelected ? [] : ORDER_ROWS.map((row) => row.id))
+  const allSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
+  const toggleAll = () => setSelected(allSelected ? [] : rows.map((row) => row.id))
 
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
@@ -521,7 +581,11 @@ function OrderFormsTable() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setPage(1)
+              }}
+              aria-pressed={active}
               className={[
                 'relative flex items-center gap-1 pb-3 text-base leading-[1.2] transition-colors',
                 active
@@ -537,7 +601,7 @@ function OrderFormsTable() {
                   tab.danger ? '' : active ? 'text-[#233e92]' : 'text-[#5b606c]',
                 ].join(' ')}
               >
-                {tab.count}
+                {inOrderTab(inView, tab.id).length}
               </span>
               {active ? (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 bg-[#233e92]" />
@@ -552,6 +616,8 @@ function OrderFormsTable() {
           <img src={searchIcon} alt="" className="size-5 shrink-0" />
           <input
             type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={t('orderForms.searchPlaceholder')}
             className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-[#8a8e96]"
           />
@@ -559,6 +625,7 @@ function OrderFormsTable() {
         <div className="flex items-center gap-4">
           <button
             type="button"
+            onClick={onUnavailable}
             className="inline-flex h-11 items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-3 text-sm font-semibold text-[#444957]"
           >
             <img src={filterIcon} alt="" className="size-6" />
@@ -566,6 +633,7 @@ function OrderFormsTable() {
           </button>
           <button
             type="button"
+            onClick={onUnavailable}
             className="inline-flex h-11 items-center gap-2 rounded-sm border border-[#e8e8ea] bg-surface-tab-bar px-3 text-sm font-semibold text-[#444957]"
           >
             <img src={sortIcon} alt="" className="size-6" />
@@ -616,7 +684,14 @@ function OrderFormsTable() {
             </tr>
           </thead>
           <tbody>
-            {ORDER_ROWS.map((row) => (
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="py-12 text-center text-sm font-medium text-[#737781]">
+                  {t('tradeDocs.empty')}
+                </td>
+              </tr>
+            ) : null}
+            {rows.slice((page - 1) * ORDER_PAGE_SIZE, page * ORDER_PAGE_SIZE).map((row) => (
               <tr
                 key={row.id}
                 className="cursor-pointer border-b border-[#f3f3f3] last:border-b-0 hover:bg-primary-25/60"
@@ -629,9 +704,12 @@ function OrderFormsTable() {
                     ariaLabel={t('orderForms.selectRow', { id: row.id })}
                   />
                 </td>
-                <OrderRowCells row={row} />
+                <OrderRowCells row={row} onStep={onStep} blocked={isBlocked(row)} />
                 <td className="px-2 py-3.5 align-top" onClick={(e) => e.stopPropagation()}>
-                  <ActionMenu items={orderFormRowActions(row.id)} label={t('orderForms.rowMenu')} />
+                  <ActionMenu
+                    items={orderFormRowActions(row.id, onAction)}
+                    label={t('orderForms.rowMenu')}
+                  />
                 </td>
               </tr>
             ))}
@@ -645,7 +723,7 @@ function OrderFormsTable() {
         <label className="flex items-center gap-4 text-sm font-medium text-[#737781]">
           {t('orderForms.showResult')}
           <span className="inline-flex h-[33px] items-center gap-2.5 rounded-sm border border-[#e8e8ea] px-3 text-sm font-semibold text-[#2c3342]">
-            6
+            {ORDER_PAGE_SIZE}
             <img src={chevronDownIcon} alt="" className="size-4" />
           </span>
         </label>
@@ -653,11 +731,12 @@ function OrderFormsTable() {
           <button
             type="button"
             aria-label={t('orderForms.previous')}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rtl:rotate-180" />
           </button>
-          {ORDER_PAGE_NUMBERS.map((label, index) =>
+          {pages.map((label, index) =>
             label === '...' ? (
               <span
                 key={`gap-${index}`}
@@ -685,6 +764,7 @@ function OrderFormsTable() {
           <button
             type="button"
             aria-label={t('orderForms.next')}
+            onClick={() => setPage((p) => Math.min(pages.length, p + 1))}
             className="flex size-10 items-center justify-center rounded-lg"
           >
             <img src={chevronLeftIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
@@ -697,14 +777,68 @@ function OrderFormsTable() {
 
 export function OrderFormsPage() {
   const [mode, setMode] = useState<OrderMode>('all')
+  const [activeTab, setActiveTab] = useState<OrderTabId>('all')
+  const navigate = useNavigate()
+  const notice = useTradeNotice()
+  const session = useSession()
+  const today = muscatToday()
+  const canSeeAgreements = can(session, 'selfbilling.agreement.manage')
+  const agreementsRead = useApiRead<AgreementDto[]>(
+    canSeeAgreements ? AGREEMENTS_PATH : null,
+    loadAgreements,
+  )
+  const agreements = !canSeeAgreements
+    ? null
+    : agreementsRead.read.status === 'ready'
+      ? agreementsRead.read.data
+      : []
+  const gateFor = (row: OrderRow) => selfBillGate(row.counterpartyId, agreements, today)
+
+  const onStep: NextStepHandler = (row) => {
+    const action = row.action
+    if (action.kind === 'invoice') navigate(`/invoices/new?from=${encodeURIComponent(row.id)}`)
+    else if (action.kind === 'deliver')
+      navigate(`/trade-documents/delivery-notes/new?order=${encodeURIComponent(row.id)}`)
+    else if (action.kind === 'receipt')
+      navigate(
+        `/trade-documents/delivery-notes/new?type=purchase&order=${encodeURIComponent(row.id)}`,
+      )
+    else if (action.kind === 'selfbill') {
+      // Only under a signed, active self-billing agreement with this supplier (handbook 5.1).
+      const gate = gateFor(row)
+      if (gate.allowed) navigate('/income/self-billing/new')
+      else notice.show(gate.reasonKey, gate.values)
+    }
+  }
+  const onAction: TradeRowAction = (itemId, documentId) => {
+    if (itemId === 'invoice') navigate(`/invoices/new?from=${encodeURIComponent(documentId)}`)
+    else if (itemId === 'delivery')
+      navigate(`/trade-documents/delivery-notes/new?order=${encodeURIComponent(documentId)}`)
+    else notice.unavailable()
+  }
 
   return (
     <AppShell>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
-        <OrderFormsHeader />
-        <ModeSelector mode={mode} onChange={setMode} />
-        <OrderKpiCards />
-        <OrderFormsTable />
+        <OrderFormsHeader onUnavailable={notice.unavailable} />
+        <ModeSelector
+          mode={mode}
+          onChange={(next) => {
+            setMode(next)
+            setActiveTab('all')
+          }}
+        />
+        <OrderKpiCards onTab={setActiveTab} />
+        {notice.node}
+        <OrderFormsTable
+          mode={mode}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onUnavailable={notice.unavailable}
+          onAction={onAction}
+          onStep={onStep}
+          isBlocked={(row) => row.action.kind === 'selfbill' && !gateFor(row).allowed}
+        />
       </div>
     </AppShell>
   )
