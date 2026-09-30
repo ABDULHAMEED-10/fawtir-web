@@ -358,23 +358,20 @@ describe('the VAT figures by month', () => {
     ],
     input: [
       vatRow({ side: 'INPUT', period: '2026-01', category: 'ALL', rate: null, vatAmount: 20 }),
-      vatRow({ side: 'INPUT', period: '2026-01', category: 'AE', rate: null, vatAmount: 7 }),
     ],
-    net: [vatRow({ side: 'NET', period: '2026-01', category: 'ALL', rate: null, vatAmount: 23 })],
+    net: [vatRow({ side: 'NET', period: '2026-01', category: 'ALL', rate: null, vatAmount: 30 })],
   }
 
-  it('counts reverse charge as output and input both, and nets it to nothing', () => {
+  it('states the server figures as they are when there is nothing to correct', () => {
     const figures = vatMonths(monthly, 'OMR')
-    expect(figures.output.get('2026-01')).toBe(57)
-    expect(figures.input.get('2026-01')).toBe(27)
-    // The server netted 50 - 27 = 23; stated on both sides the reverse charge nets away.
+    expect(figures.output.get('2026-01')).toBe(50)
+    expect(figures.input.get('2026-01')).toBe(20)
     expect(figures.net.get('2026-01')).toBe(30)
-    expect(figures.reverseCharge.get('2026-01')).toBe(7)
   })
 
   it("takes the tenant's own self-billed VAT out of output and net", () => {
     const figures = vatMonths(monthly, 'OMR', new Map([['2026-01', 5]]))
-    expect(figures.output.get('2026-01')).toBe(52)
+    expect(figures.output.get('2026-01')).toBe(45)
     expect(figures.net.get('2026-01')).toBe(25)
   })
 
@@ -384,7 +381,7 @@ describe('the VAT figures by month', () => {
       ...monthly,
       input: monthly.input.map((row) => ({ ...row, reclaimableVatAmount: 4 })),
     }
-    expect(vatMonths(confirmed, 'OMR').reclaimable?.get('2026-01')).toBe(8)
+    expect(vatMonths(confirmed, 'OMR').reclaimable?.get('2026-01')).toBe(4)
   })
 
   it('keeps exempt and outside scope apart, and does not split input it cannot', () => {

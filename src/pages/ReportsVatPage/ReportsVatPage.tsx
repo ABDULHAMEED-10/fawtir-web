@@ -66,8 +66,9 @@ import { formatAmount, formatCount } from '../../lib/format'
  * The net figure is the server's NET rows, never a subtraction done here: a period with input
  * and no output has to read one way, and two answers would drift apart. Two corrections move it
  * (`lib/vatReport` `vatMonths`): the tenant's own self-billed documents (389, 261) are purchases,
- * so their VAT is taken out of output, read from a fourth call (the volume report by type); and
- * reverse charge counts as output and input both.
+ * so their VAT is taken out of output, read from a fourth call (the volume report by type).
+ * Reverse charge is not computed: it is a transaction type (BTOM-001), not one of Oman's four
+ * categories, and the report does not carry it yet (TODO(backend): REPORTS.md row 1.27).
  *
  * **Input VAT is not called reclaimable** until the server says which bills were approved and
  * had their receipt reported (REPORTS.md row 1.25): until then the cards say "reclaim not
@@ -181,11 +182,10 @@ function VatBody({
     (types?.rows ?? []).filter((row) => row.currency === currency),
     selfBilledVat,
   )
-  const { output, input, net, reverseCharge, reclaimable } = vatMonths(report, currency, selfBilled)
+  const { output, input, net, reclaimable } = vatMonths(report, currency, selfBilled)
 
   const outputNow = sumOver(output, current.months)
   const inputNow = sumOver(input, current.months)
-  const reverseNow = sumOver(reverseCharge, current.months)
   // Owed is output less the input VAT that can actually be reclaimed. Until the server says which
   // bills that is (REPORTS.md row 1.25) it is the server's net, and the card says reclaim is not
   // confirmed rather than implying every bill counts.
@@ -284,11 +284,7 @@ function VatBody({
           value={money(outputNow)}
           currency
           change={percentPill(outputNow, sumOver(output, previous.months), language)}
-          note={t(
-            reverseNow !== 0
-              ? 'reports.vat.kpi.collectedNoteReverse'
-              : 'reports.vat.kpi.collectedNote',
-          )}
+          note={t('reports.vat.kpi.collectedNote')}
         />
         <KpiCard
           label={t('reports.vat.kpi.paid')}

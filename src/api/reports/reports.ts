@@ -158,7 +158,8 @@ export type CashFlowReportDto = {
  *
  * `category` on INPUT rows is `ALL` today (one VAT total per bill). TODO(backend): REPORTS.md row
  * 1.23, the Oman categories (S, Z, E, O, CL-04-OM) on INPUT rows; the page splits them as soon as
- * they arrive. A row whose category is `AE` is read as reverse charge (row 1.27).
+ * they arrive. Reverse charge is a transaction type (BTOM-001), not a category, and is not read
+ * from `category` (row 1.27).
  */
 export type VatRowDto = {
   side: 'OUTPUT' | 'INPUT' | 'NET'

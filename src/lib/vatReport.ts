@@ -90,20 +90,18 @@ function addTo(map: Map<string, number>, key: string, value: number) {
   map.set(key, (map.get(key) ?? 0) + value)
 }
 
-/**
- * Reverse charge. PINT-OM has no reverse-charge category (it is a transaction type, BTOM-001),
- * but a row the server marks `AE` is read as one. The buyer accounts for that VAT itself, so it
- * is both output VAT and input VAT for the tenant, whichever side the server put it on.
- * TODO(backend): REPORTS.md row 1.27, the BTOM-001 transaction type on VAT rows.
+/*
+ * Reverse charge is not computed here. Oman has four VAT categories only (S, Z, E, O; CL-04-OM)
+ * and reverse charge is a transaction type (BTOM-001), not a category, so no row's category can
+ * say a document was reverse-charged. TODO(backend): REPORTS.md row 1.27, reverse-charge amounts
+ * identified by BTOM-001 on the VAT report, so the buyer's self-accounted VAT can be shown as
+ * output and input both.
  */
-export const REVERSE_CHARGE = 'AE'
 
 export type VatMonths = {
   output: Map<string, number>
   input: Map<string, number>
   net: Map<string, number>
-  /** Reverse-charge VAT per month, already inside both `output` and `input`. */
-  reverseCharge: Map<string, number>
   /**
    * VAT on approved, receipt-reported bills per month, or null when the server does not say
    * (REPORTS.md row 1.25). Null means no bill's reclaim is confirmed, not that none is due.
@@ -119,8 +117,7 @@ export type VatMonths = {
  *   the tenant's input, never its output: it is taken out of output and out of net. It is not
  *   added to input, where the matching bill already carries it (source SELF_BILLED).
  *   TODO(backend): REPORTS.md row 1.26, OUTPUT rows that leave these out on the server.
- * - Reverse charge (`AE`) counts on both sides (see `REVERSE_CHARGE`).
- * - Net starts from the server's NET rows and moves only by those two corrections, so a period
+ * - Net starts from the server's NET rows and moves only by that correction, so a period
  *   with input and no output still reads the way the server decides.
  */
 export function vatMonths(
@@ -132,30 +129,10 @@ export function vatMonths(
   const output = new Map<string, number>()
   const input = new Map<string, number>()
   const net = new Map<string, number>()
-  const reverseCharge = new Map<string, number>()
-  const rcOut = new Map<string, number>()
-  const rcIn = new Map<string, number>()
 
-  for (const row of own(report.output)) {
-    if (row.category === REVERSE_CHARGE) addTo(rcOut, monthOf(row), row.vatAmount)
-    else addTo(output, monthOf(row), row.vatAmount)
-  }
-  for (const row of own(report.input)) {
-    if (row.category === REVERSE_CHARGE) addTo(rcIn, monthOf(row), row.vatAmount)
-    else addTo(input, monthOf(row), row.vatAmount)
-  }
+  for (const row of own(report.output)) addTo(output, monthOf(row), row.vatAmount)
+  for (const row of own(report.input)) addTo(input, monthOf(row), row.vatAmount)
   for (const row of own(report.net)) addTo(net, monthOf(row), row.vatAmount)
-
-  for (const key of new Set([...rcOut.keys(), ...rcIn.keys()])) {
-    const out = rcOut.get(key) ?? 0
-    const inn = rcIn.get(key) ?? 0
-    const both = out + inn
-    reverseCharge.set(key, both)
-    addTo(output, key, both)
-    addTo(input, key, both)
-    // The server netted `out - inn`; stated on both sides it nets to nothing.
-    addTo(net, key, inn - out)
-  }
 
   for (const [key, value] of selfBilled ?? []) {
     addTo(output, key, -value)
@@ -171,7 +148,7 @@ export function vatMonths(
     for (const row of inputRows) addTo(reclaimable, monthOf(row), row.reclaimableVatAmount ?? 0)
   }
 
-  return { output, input, net, reverseCharge, reclaimable }
+  return { output, input, net, reclaimable }
 }
 
 /** The four Oman VAT categories (CL-04-OM), in the order the treatment rows draw them. */
@@ -182,17 +159,15 @@ export const OMAN_CATEGORIES = ['S', 'Z', 'E', 'O'] as const
  * Exempt and outside scope are separate parts: they are different treatments with different
  * consequences for what can be reclaimed, and one "Exempt" part would misstate both.
  *
- * An export arrives as zero-rated (Z, or G from an older server). Reverse charge is not a supply
- * category and is left out. Returns null when a row carries no Oman category (INPUT rows say
- * `ALL` today, REPORTS.md row 1.23), so the row can say it is not split instead of guessing.
+ * Only the four Oman categories (CL-04-OM) are read; an export is zero-rated (Z). Returns null
+ * when a row carries anything else (INPUT rows say `ALL` today, REPORTS.md row 1.23), so the row
+ * can say it is not split instead of guessing.
  */
 export function categoryAmounts(rows: VatRowDto[], months: string[]): number[] | null {
   const parts = [0, 0, 0, 0]
   for (const row of rows) {
     if (!months.includes(monthOf(row))) continue
-    if (row.category === REVERSE_CHARGE) continue
-    const category = row.category === 'G' ? 'Z' : row.category
-    const index = (OMAN_CATEGORIES as readonly string[]).indexOf(category)
+    const index = (OMAN_CATEGORIES as readonly string[]).indexOf(row.category)
     if (index < 0) return null
     parts[index] += row.taxableAmount
   }
