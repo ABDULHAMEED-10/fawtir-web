@@ -196,7 +196,6 @@ let notJson: boolean
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
-  forgetEntitlements()
   resetSharedRequests()
   localStorage.clear()
   sessionStorage.clear()
@@ -238,7 +237,30 @@ beforeEach(async () => {
   )
 })
 
+/**
+ * Which permission set the session cache currently holds.
+ *
+ * The entitlements cache is module-level and survives between tests, and `useErpAccess` reads it
+ * synchronously through `peekEntitlements` — so a warm cache starts `ready` true and skips an async
+ * settle and a render pass. Dropping it in `beforeEach` paid that cost 46 times for the 41 tests
+ * that all sign in as the same operator. It is dropped only when `who` actually changes, which
+ * halved this file's time in a suite where it was the slowest of 99.
+ *
+ * `coldEntitlements()` is for the one test that asserts the not-yet-known state, which a warm cache
+ * would skip straight past.
+ */
+let cachedFor: Entitlements | null = null
+
+function coldEntitlements() {
+  forgetEntitlements()
+  cachedFor = null
+}
+
 function renderPage() {
+  if (cachedFor !== who) {
+    forgetEntitlements()
+    cachedFor = who
+  }
   return render(
     <MemoryRouter initialEntries={[`/settings/erp/connections/${ID}/extraction`]}>
       <Routes>
@@ -758,7 +780,10 @@ describe('permissions', () => {
 
   it('offers no control while the entitlements are still unknown', async () => {
     // Fails closed: nothing is offered until permission is known, rather than shown then withdrawn.
+    // The cache has to be dropped for this one: warm, `useErpAccess` reads it synchronously and the
+    // not-yet-known state this test is about never exists.
     who = ALL
+    coldEntitlements()
     renderPage()
     expect(screen.queryByRole('button', { name: 'Save settings' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Fetch sample' })).toBeNull()
