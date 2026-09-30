@@ -15751,7 +15751,8 @@
       "walkInName": "Enter the customer's name.",
       "hsCode": "Choose an HS code for this goods line (IBR-079-OM).",
       "serviceType": "Choose a service type for this service line (IBR-155-OM).",
-      "lineAmount": "This line's amount is too large."
+      "lineAmount": "This line's amount is too large.",
+      "categoryReasonConflict": "Lines at the same VAT category and rate must give the same reason. Give this line the same reason as the others at its rate."
     },
     "lineError": "Line {{line}}: {{message}}",
     "exemptionReason": "Reason no VAT is charged",
@@ -16666,7 +16667,8 @@
       "amountTitle": {
         "credit": "Amount to credit",
         "debit": "Amount charged"
-      }
+      },
+      "notAvailableYet": "Not available yet"
     },
     "status": {
       "draft": "Draft",
@@ -16885,7 +16887,9 @@
       "serviceSearch": "Service name, e.g. catering",
       "classificationNone": "Nothing matches. Choose Other.",
       "more": "One more",
-      "fewer": "One fewer"
+      "fewer": "One fewer",
+      "vatShort": "{{rate}}% {{category}}",
+      "vatRate": "{{rate}}%"
     },
     "amount": {
       "title": {

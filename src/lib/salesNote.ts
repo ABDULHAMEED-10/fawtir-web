@@ -1,14 +1,29 @@
 import type { InvoiceDetailDto } from '../api/invoices/detail'
 import type {
+  DiscountDto,
   DraftLineRequest,
   DraftRequest,
   DraftResponse,
   NoteKind,
 } from '../api/invoices/drafts'
-import type { InvoiceListPayment, InvoiceRowDto } from '../api/invoices/list'
-import type { SelectOption } from '../components/ui/Select'
-import { CODED_REASON, PAYMENT_TERMS, itemTypeOfUnit, reasonRequired } from './invoiceDraft'
-import { calculateInvoice, formatAtScale, projectInvoice } from './invoiceMath'
+import type { InvoiceListPayment, InvoiceRowDto, InvoiceSummaryDto } from '../api/invoices/list'
+import type { TFunction } from 'i18next'
+import {
+  CATEGORY_REASON_CONFLICT,
+  CODED_REASON,
+  PAYMENT_TERMS,
+  categoryReasonConflicts,
+  itemTypeOfUnit,
+  reasonRequired,
+} from './invoiceDraft'
+import {
+  CALC_SCALE,
+  calculateInvoice,
+  formatAtScale,
+  parseAmount,
+  projectInvoice,
+  type LineInput,
+} from './invoiceMath'
 import { issueProblems, muscatToday, plusDays } from './invoiceIssue'
 import { netDaysFor } from './reference/referenceData'
 import type { ReferenceDataDto } from '../api/reference/referenceData'
@@ -28,8 +43,8 @@ export type ReasonCode = (typeof REASON_CODES)[number]
 /**
  * The reasons the design offers, per kind, each carried to the API as one of its five BTOM-032
  * codes. Two reasons can share a code (a goodwill discount and a freight charge are both "other"),
- * so a reopened draft shows the first reason of its code, and "Other" where the code is OTH.
- * TODO(backend): a `correctionReasonDetail` beside the code, so the chosen reason survives a save.
+ * so the chosen reason also travels as `correctionReasonDetail` (its id here, INCOME.md 4.9); a
+ * note saved without one reads as the first reason of its code, and "Other" where the code is OTH.
  */
 export type NoteReason = { id: string; code: ReasonCode }
 export const NOTE_REASONS: Record<NoteKind, NoteReason[]> = {
@@ -63,9 +78,27 @@ export function reasonCodeOf(kind: NoteKind, reason: string): ReasonCode | null 
   return NOTE_REASONS[kind].find((entry) => entry.id === reason)?.code ?? null
 }
 
-/** The label key of a row's reason, from the code the list carries. */
-export function reasonLabelKey(kind: NoteKind, code: string | null | undefined): string | null {
-  const reason = reasonOfCode(kind, code)
+/**
+ * The design's reason a note states: its stored `correctionReasonDetail` when that is one of the
+ * kind's reasons and pairs with the code (INCOME.md 4.9), else the first reason of the code.
+ */
+export function reasonOf(
+  kind: NoteKind,
+  code: string | null | undefined,
+  detail: string | null | undefined,
+): string {
+  const stored = detail ? NOTE_REASONS[kind].find((entry) => entry.id === detail) : undefined
+  if (stored && (!code || stored.code === code)) return stored.id
+  return reasonOfCode(kind, code)
+}
+
+/** The label key of a note's reason, from its stored reason detail, else the code it carries. */
+export function reasonLabelKey(
+  kind: NoteKind,
+  code: string | null | undefined,
+  detail?: string | null,
+): string | null {
+  const reason = reasonOf(kind, code, detail)
   return reason ? `salesNote.reasonOptions.${reason}` : null
 }
 
@@ -80,31 +113,12 @@ export const NOTE_MODES: Record<NoteKind, NoteMode[]> = {
   DEBIT_NOTE: ['correctLines', 'additionalItems', 'flatCharge'],
 }
 
-/** The UN/ECE Rec 20 units each kind of line can be measured in; the toggle narrows the list. */
-export const UNITS_BY_KIND: Record<NoteLineKind, SelectOption[]> = {
-  goods: [
-    { value: 'EA', label: 'EA', hint: 'Each' },
-    { value: 'KGM', label: 'KG', hint: 'Kilogram' },
-    { value: 'LTR', label: 'L', hint: 'Litre' },
-    { value: 'BG', label: 'BG', hint: 'Bag' },
-    { value: 'BX', label: 'BX', hint: 'Box' },
-    { value: 'SA', label: 'SA', hint: 'Sack' },
-    { value: 'PK', label: 'PK', hint: 'Pack' },
-    { value: 'MTR', label: 'M', hint: 'Metre' },
-  ],
-  service: [
-    { value: 'EA', label: 'EA', hint: 'Each' },
-    { value: 'HUR', label: 'HR', hint: 'Hour' },
-    { value: 'DAY', label: 'DAY', hint: 'Day' },
-  ],
-}
-
-/** The unit as the frames print it ("KG" for KGM), the code itself when the list has no name for it. */
-export function unitLabel(unitCode: string): string {
-  return (
-    [...UNITS_BY_KIND.goods, ...UNITS_BY_KIND.service].find((unit) => unit.value === unitCode)
-      ?.label ?? unitCode
-  )
+/**
+ * The unit as the frames print it ("KG" for KGM), through the short unit labels the rest of the
+ * app uses (`reference.unitShort`), the code itself when there is no label for it.
+ */
+export function unitLabel(unitCode: string, t: TFunction): string {
+  return t(`reference.unitShort.${unitCode}`, { defaultValue: unitCode })
 }
 
 /** A line's kind, read from its unit as the invoice draft reads its lines (`ZZ` reads as goods). */
@@ -305,6 +319,23 @@ export function fromInvoice(
   }
 }
 
+type DraftLine = DraftResponse['lines'][number]
+
+/** A saved draft line's kind: its goods/service flag, else the unit's guess. */
+function kindOfDraftLine(line: DraftLine): NoteLineKind {
+  const flag = line.classification?.goodsOrService
+  return flag === 'S' ? 'service' : flag === 'G' ? 'goods' : kindOfUnit(line.unitCode)
+}
+
+/** A saved draft line's HS code or real service type (00000000 is "not applicable"). */
+function classificationOfDraftLine(line: DraftLine, fallback: string | null): string | null {
+  const c = line.classification
+  if (c?.goodsOrService === 'S') {
+    return c.serviceTypeCode && c.serviceTypeCode !== '00000000' ? c.serviceTypeCode : null
+  }
+  return c?.hsCode ?? fallback
+}
+
 /**
  * A saved note draft against the invoice it corrects: the invoice's lines with the draft's own
  * quantity and price on the ones it kept, plus any line the draft added of its own.
@@ -335,19 +366,8 @@ export function fromNoteDraft(
       quantity: String(saved.quantity),
       unitPrice: money3(saved.unitPrice),
       unitCode: saved.unitCode,
-      kind:
-        saved.classification?.goodsOrService === 'S'
-          ? 'service'
-          : saved.classification?.goodsOrService === 'G'
-            ? 'goods'
-            : kindOfUnit(saved.unitCode),
-      classification:
-        saved.classification?.goodsOrService === 'S'
-          ? saved.classification.serviceTypeCode &&
-            saved.classification.serviceTypeCode !== '00000000'
-            ? saved.classification.serviceTypeCode
-            : null
-          : (saved.classification?.hsCode ?? line.classification),
+      kind: kindOfDraftLine(saved),
+      classification: classificationOfDraftLine(saved, line.classification),
       discountType: saved.discountType,
       discountValue: String(saved.discountValue),
     }
@@ -355,7 +375,9 @@ export function fromNoteDraft(
   let form: NoteForm = { ...base, lines }
   for (const line of draft.lines) {
     if (matched.has(keyOf(line.productId || null, line.description))) continue
-    const added = addedLine(form, invoice, kindOfUnit(line.unitCode))
+    // Rebuilt from the saved line in full, so a reopened draft sends back what it was saved with:
+    // the line's own no-VAT reason code and its HS code or service type included.
+    const added = addedLine(form, invoice, kindOfDraftLine(line))
     form = {
       ...form,
       lines: [
@@ -364,6 +386,7 @@ export function fromNoteDraft(
           ...added,
           description: line.description,
           unitCode: line.unitCode,
+          classification: classificationOfDraftLine(line, null),
           quantity: String(line.quantity),
           unitPrice: money3(line.unitPrice),
           discountType: line.discountType,
@@ -373,6 +396,7 @@ export function fromNoteDraft(
             en16931Category: line.en16931Category,
             rate: line.taxRate,
             exemptionReason: line.exemptionReason,
+            exemptionReasonCode: line.exemptionReasonCode ?? null,
           },
         },
       ],
@@ -403,7 +427,11 @@ export function fromNoteDraft(
   return {
     ...form,
     mode,
-    reason: reasonOfCode(noteKind, draft.details.correctionReasonCode),
+    reason: reasonOf(
+      noteKind,
+      draft.details.correctionReasonCode,
+      draft.details.correctionReasonDetail,
+    ),
     reference: draft.details.subject ?? '',
     note: draft.details.customerVisibleNote ?? '',
   }
@@ -505,8 +533,92 @@ export type NoteTotals = {
   rate: number | null
 }
 
-/** Net, VAT and total of the kept lines, through the invoice engine. */
-export function noteTotals(form: NoteForm): NoteTotals {
+/** No document discount: what every note but a credit of an invoice's own lines sends. */
+export const NO_HEADER_DISCOUNT: DiscountDto = { type: 'FIXED_AMOUNT', value: 0 }
+
+function engineLine(line: NoteLine, index: number): LineInput {
+  return {
+    id: String(line.lineNumber),
+    lineNumber: index + 1,
+    quantity: QUANTITY.test(line.quantity.trim()) ? line.quantity.trim() : '0',
+    unitPrice: PRICE.test(line.unitPrice.trim()) ? line.unitPrice.trim() : '0',
+    vatRate: String(line.taxCategory.rate),
+    discountType: line.discountType,
+    discountValue: QUANTITY.test(line.discountValue.trim()) ? line.discountValue.trim() : '0',
+  }
+}
+
+/** The lines' amount after their own discounts, excluding VAT, at the engine's scale (10). */
+function afterLineDiscounts(lines: LineInput[]): bigint {
+  if (lines.length === 0) return 0n
+  return calculateInvoice(lines, 'FIXED_AMOUNT', '0').lines.reduce(
+    (sum, line) => sum + line.afterLineDiscount,
+    0n,
+  )
+}
+
+/** HALF_UP, as the engine rounds (MonetaryScale.ROUNDING_MODE); both operands positive. */
+function divideHalfUp(numerator: bigint, denominator: bigint): bigint {
+  const quotient = numerator / denominator
+  return (numerator % denominator) * 2n >= denominator ? quotient + 1n : quotient
+}
+
+/**
+ * The document (header) discount a credit note carries, so what it credits is what the customer
+ * was charged (W-2):
+ *
+ * - the whole invoice: the invoice's own discount, type and value;
+ * - some of its lines: a percentage discount as it is (the engine takes the same share of each
+ *   line either way); a fixed amount in proportion, the invoice's discount times the credited
+ *   lines' amount after line discounts over the invoice's, HALF_UP to three decimals. The engine
+ *   spreads a fixed discount over every line by that same proportion (whatever its VAT category),
+ *   so each credited line gets back its own share, to within half a baisa on the whole note. It
+ *   follows the quantities and prices as they are edited;
+ * - a custom amount, and every debit note: none (the person types what to credit, and a document
+ *   discount must not reduce a new charge).
+ */
+export function noteHeaderDiscount(
+  form: NoteForm,
+  invoice: InvoiceDetailDto,
+  kind: NoteKind,
+): DiscountDto {
+  const discount = invoice.headerDiscount
+  if (kind !== 'CREDIT_NOTE' || !discount || !(Number(discount.value) > 0))
+    return NO_HEADER_DISCOUNT
+  if (form.mode === 'full') return { type: discount.type, value: Number(discount.value) }
+  if (form.mode !== 'lines') return NO_HEADER_DISCOUNT
+  if (discount.type === 'PERCENTAGE') return { type: 'PERCENTAGE', value: Number(discount.value) }
+  const invoiceBase = afterLineDiscounts(
+    invoice.lines.map((line, index) => ({
+      id: String(line.lineNumber),
+      lineNumber: index + 1,
+      quantity: String(line.quantity),
+      unitPrice: String(line.unitPrice),
+      vatRate: String(line.taxRate ?? 0),
+      discountType: line.discountType,
+      discountValue: String(line.discountValue),
+    })),
+  )
+  const credited = afterLineDiscounts(
+    form.lines.filter((line) => line.include).map((line, index) => engineLine(line, index)),
+  )
+  if (invoiceBase <= 0n || credited <= 0n) return NO_HEADER_DISCOUNT
+  const toMilli = 10n ** BigInt(CALC_SCALE - 3)
+  // One division (discount × credited ÷ base), rounded once, to baisa.
+  const share = divideHalfUp(parseAmount(String(discount.value)) * credited, invoiceBase * toMilli)
+  // Never more than the credited lines' own amount (the engine refuses HEADER_DISCOUNT_EXCEEDS_BASE).
+  const capped = share * toMilli > credited ? credited / toMilli : share
+  return { type: 'FIXED_AMOUNT', value: Number(formatAtScale(capped).replace(/,/g, '')) }
+}
+
+/**
+ * Net, VAT and total of the kept lines, through the invoice engine, with the note's document
+ * discount (`noteHeaderDiscount`) as the server will apply it.
+ */
+export function noteTotals(
+  form: NoteForm,
+  headerDiscount: DiscountDto = NO_HEADER_DISCOUNT,
+): NoteTotals {
   const kept = form.lines.filter((line) => line.include)
   const rates = new Set(kept.map((line) => line.taxCategory.rate))
   const rate = rates.size === 1 ? [...rates][0] : null
@@ -514,17 +626,9 @@ export function noteTotals(form: NoteForm): NoteTotals {
     return { net: '0.000', vat: '0.000', total: '0.000', lines: new Map(), rate }
   const projected = projectInvoice(
     calculateInvoice(
-      kept.map((line, index) => ({
-        id: String(line.lineNumber),
-        lineNumber: index + 1,
-        quantity: QUANTITY.test(line.quantity.trim()) ? line.quantity.trim() : '0',
-        unitPrice: PRICE.test(line.unitPrice.trim()) ? line.unitPrice.trim() : '0',
-        vatRate: String(line.taxCategory.rate),
-        discountType: line.discountType,
-        discountValue: QUANTITY.test(line.discountValue.trim()) ? line.discountValue.trim() : '0',
-      })),
-      'PERCENTAGE',
-      '0',
+      kept.map((line, index) => engineLine(line, index)),
+      headerDiscount.type,
+      String(headerDiscount.value),
     ),
   )
   const plain = (value: bigint) => formatAtScale(value).replace(/,/g, '')
@@ -578,6 +682,10 @@ export function noteProblems(form: NoteForm, kind: NoteKind, today = muscatToday
       : reasonRequired(category) && !(line.taxCategory.exemptionReason ?? '').trim()
   })
   if (reasonMissing && !problems.lines) problems.lines = 'salesNote.error.vatReason'
+  // One reason per VAT category and rate on the note (BR-CO-18, INCOME.md V.6): refused by the
+  // server only at preview or issue, so said here before the save.
+  if (!problems.lines && categoryReasonConflicts(kept.map((line) => line.taxCategory)).length > 0)
+    problems.lines = CATEGORY_REASON_CONFLICT
   const dates = issueProblems(
     { issueDate: form.issueDate, dueDate: kind === 'CREDIT_NOTE' ? form.issueDate : form.dueDate },
     today,
@@ -602,14 +710,13 @@ export function toNoteRequest(
       .filter((line) => line.include)
       .map((line, index) => ({
         lineNumber: index + 1,
-        // TODO(backend): a line added on the note has no catalogue product (client rule: free-text
-        // description, no product code). The draft line still requires productId/productCode, so
-        // they go empty until the API accepts product-less lines.
-        productId: line.productId ?? '',
-        productCode: line.productCode ?? '',
-        // TODO(backend): `lines[].itemType` (GOODS | SERVICE), `lines[].hsCode` and
-        // `lines[].serviceType` (docs/backend-guides/INCOME.md (part C)); `line.kind` and
-        // `line.classification` stay on the page until the draft accepts them.
+        // A line added on the note has no catalogue product (client rule: free-text description,
+        // no product code), so it states neither key: `productId` is a UUID on the API, and a
+        // free-text line leaves both out (INCOME.md 4.4).
+        ...(line.productId ? { productId: line.productId } : {}),
+        ...(line.productCode ? { productCode: line.productCode } : {}),
+        // The goods/service flag and the HS code or service type travel as `classification`
+        // (below), as the draft accepts them (docs/backend-guides/INCOME.md, part C and 4.10).
         description: line.description.trim(),
         unitCode: line.unitCode,
         quantity: Number(line.quantity.trim()),
@@ -618,7 +725,8 @@ export function toNoteRequest(
         taxCategory: line.taxCategory,
         ...classificationRequest(line),
       })),
-    headerDiscount: { type: 'FIXED_AMOUNT', value: 0 },
+    // The invoice's document discount, on a credit of its own lines (W-2, `noteHeaderDiscount`).
+    headerDiscount: noteHeaderDiscount(form, invoice, kind),
     details: {
       deliveryDate: null,
       // TODO(backend): a reference field of its own on the draft (`buyerReference` exists on the
@@ -630,6 +738,8 @@ export function toNoteRequest(
       transactionType:
         invoice.details?.transactionType === 'SIMPLIFIED' ? 'SIMPLIFIED' : 'FULL_TAX',
       correctionReasonCode: reasonCodeOf(kind, form.reason),
+      // The reason as chosen, beside its code, so a reopened draft and the lists name it (4.9).
+      correctionReasonDetail: reasonCodeOf(kind, form.reason) ? form.reason : null,
     },
   }
 }
@@ -651,6 +761,23 @@ export function creditEffect(
   }
 }
 
+/**
+ * A customer's Peppol participant id as the note detail prints it ("0248:OM1100447102"), from the
+ * `{scheme, value}` the customer record answers, or from a plain string. A value that already
+ * starts with its scheme ("0248:OM…") is not prefixed a second time.
+ */
+export function participantIdText(
+  id: { scheme?: string | null; value?: string | null } | string | null | undefined,
+): string | null {
+  if (!id) return null
+  if (typeof id === 'string') return id.trim() || null
+  const value = (id.value ?? '').trim()
+  const scheme = (id.scheme ?? '').trim()
+  if (!value) return null
+  if (!scheme || value.startsWith(`${scheme}:`)) return value
+  return `${scheme}:${value}`
+}
+
 export const NOTE_ROUTES: Record<NoteKind, string> = {
   CREDIT_NOTE: '/income/credit-notes',
   DEBIT_NOTE: '/income/debit-notes',
@@ -661,10 +788,20 @@ export const NOTE_REFUSALS: Record<string, string> = {
   CORRECTED_INVOICE_NOT_ISSUED: 'salesNote.refused.invoiceNotIssued',
   CORRECTION_REASON_CODE_INVALID: 'salesNote.error.reason',
   CORRECTION_REASON_CODE_REQUIRED: 'salesNote.error.reason',
+  // The reason detail beside the code (INCOME.md 4.9): the page sends a pairing one, so a refusal
+  // here means the reason needs choosing again.
+  CORRECTION_REASON_DETAIL_CODE_MISMATCH: 'salesNote.error.reason',
+  CORRECTION_REASON_DETAIL_INVALID: 'salesNote.error.reason',
+  CORRECTION_REASON_DETAIL_NOT_ALLOWED_FOR_TYPE: 'salesNote.error.reason',
+  CORRECTION_REASON_DETAIL_REQUIRES_CODE: 'salesNote.error.reason',
   CREDIT_NOTE_EXCEEDS_CORRECTABLE_AMOUNT: 'salesNote.refused.exceeds',
   CREDIT_NOTE_NOTHING_CORRECTABLE: 'salesNote.refused.nothingLeft',
   CREDIT_NOTE_REFERENCE_REQUIRED: 'salesNote.refused.invoiceNotIssued',
   DEBIT_NOTE_REFERENCE_REQUIRED: 'salesNote.refused.invoiceNotIssued',
+  // One VAT breakdown per category and rate (BR-CO-18): the engine refuses two reasons in one at
+  // preview or issue. The page checks it before saving (`categoryReasonConflicts`, INCOME.md V.6).
+  TAX_CATEGORY_METADATA_CONFLICT: CATEGORY_REASON_CONFLICT,
+  TAX_CATEGORY_REASON_CONFLICT: CATEGORY_REASON_CONFLICT,
 }
 
 /* ---------------------------------------------------------------------------------------------
@@ -707,6 +844,11 @@ export type NoteTab = {
   payment: InvoiceListPayment | null
   /** Narrowed on the client where the API has no filter for it; null takes every row it answers. */
   only: NoteListStatus[] | null
+  /**
+   * No list can answer the tab yet, so it shows its empty state and asks the server nothing: the
+   * API records no refunds (INCOME.md 4.2, 4.3).
+   */
+  none?: boolean
   danger?: boolean
 }
 
@@ -714,10 +856,15 @@ export const NOTE_TABS: Record<NoteKind, NoteTab[]> = {
   CREDIT_NOTE: [
     { id: 'all', state: 'DRAFT,ISSUED,CANCELLED', payment: null, only: null },
     { id: 'drafts', state: 'DRAFT', payment: null, only: null },
+    // TODO(backend): a delivery filter on the list (INCOME.md 4.3); until then one page of issued
+    // notes is narrowed on the client.
     { id: 'toSend', state: 'ISSUED', payment: null, only: ['toSend'] },
-    { id: 'refundDue', state: 'ISSUED', payment: null, only: ['refundDue'] },
-    { id: 'applied', state: 'ISSUED', payment: null, only: ['applied'] },
-    { id: 'refunded', state: 'ISSUED', payment: null, only: ['refunded'] },
+    // TODO(backend): refund tracking (INCOME.md 4.2): no credit note is refund due or refunded yet.
+    { id: 'refundDue', state: 'ISSUED', payment: null, only: ['refundDue'], none: true },
+    // With no refunds recorded, every issued credit note is applied to its invoice: the server's
+    // own filter, so the pages and the count are the tab's (`issuedTotal`, INCOME.md 4.1).
+    { id: 'applied', state: 'ISSUED', payment: null, only: null },
+    { id: 'refunded', state: 'ISSUED', payment: null, only: ['refunded'], none: true },
   ],
   DEBIT_NOTE: [
     { id: 'all', state: 'DRAFT,ISSUED,CANCELLED', payment: null, only: null },
@@ -737,8 +884,8 @@ export type NoteFigure = { amount: number; count: number; days?: number }
 
 export type NoteSummary = {
   counts: Record<string, number>
-  /** Issued this quarter: the subtitle under the title. */
-  quarter: NoteFigure
+  /** Issued this quarter: the subtitle under the title. Null when the source does not say. */
+  quarter: NoteFigure | null
   cards: Record<string, NoteFigure>
 }
 
@@ -747,70 +894,70 @@ export function daysBetween(from: string, to: string): number {
 }
 
 /**
- * The tab counts and the four figures on top, read off the notes the list can show. The list API
- * has no summary by document type, so these come from a wide read of the notes themselves.
- * TODO(backend): `GET /v1/authored-invoices/summary?type=CREDIT_NOTE|DEBIT_NOTE`.
+ * The debit notes list's tab counts and four figures, from `GET /v1/authored-invoices/summary
+ * ?type=DEBIT_NOTE` (INCOME.md 4.1). The counts are the tabs' (every currency); the figures are
+ * the cards' (in `currencyCode`). Overdue's "days late" is the oldest overdue note's, as the wide
+ * read's largest `daysOverdue` was.
+ * The subtitle's "charged this quarter" is `issuedThisQuarter` (INCOME.md 4.18); absent, the
+ * subtitle reads as it does while the figures load.
  */
-export function summariseNotes(
-  kind: NoteKind,
-  rows: readonly InvoiceRowDto[],
-  today = muscatToday(),
-): NoteSummary {
-  const statuses = rows.map((row) => ({ row, status: noteStatusOf(kind, row) }))
-  const counts: Record<string, number> = {}
-  for (const tab of NOTE_TABS[kind]) {
-    counts[tab.id] = statuses.filter(({ row, status }) => {
-      if (tab.id === 'all') return row.authoringState !== 'DISCARDED'
-      if (tab.id === 'drafts') return status === 'draft'
-      if (tab.only) return tab.only.includes(status)
-      return status === tab.id
-    }).length
+export function debitSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
+  const counts: Record<string, number> = {
+    all: summary.all,
+    drafts: summary.drafts,
+    awaiting: summary.awaiting,
+    overdue: summary.overdue,
+    paid: summary.paid,
   }
-  const amountOf = (row: InvoiceRowDto) => row.totals?.totalAmount ?? 0
-  const figure = (
-    list: { row: InvoiceRowDto }[],
-    amount: (row: InvoiceRowDto) => number = amountOf,
-  ): NoteFigure => ({
-    amount: Math.round(list.reduce((sum, { row }) => sum + amount(row), 0) * 1000) / 1000,
-    count: list.length,
-  })
-  const issued = statuses.filter(({ row }) => row.authoringState === 'ISSUED' && row.issueDate)
-  const quarterMonth = Math.floor((Number(today.slice(5, 7)) - 1) / 3) * 3 + 1
-  const quarterStart = `${today.slice(0, 4)}-${String(quarterMonth).padStart(2, '0')}-01`
-  const quarter = figure(issued.filter(({ row }) => row.issueDate! >= quarterStart))
-  const last30 = figure(issued.filter(({ row }) => daysBetween(row.issueDate!, today) <= 30))
-  if (kind === 'CREDIT_NOTE') {
-    return {
-      counts,
-      quarter,
-      cards: {
-        credited: last30,
-        refundDue: figure(statuses.filter(({ status }) => status === 'refundDue')),
-        applied: figure(statuses.filter(({ status }) => status === 'applied')),
-        refunded: figure(statuses.filter(({ status }) => status === 'refunded')),
-      },
-    }
-  }
-  const overdue = statuses.filter(({ status }) => status === 'overdue')
+  if (summary.toSend !== undefined) counts.toSend = summary.toSend
+  const overdueDays = summary.oldestOverdueDueDate
+    ? Math.max(0, daysBetween(summary.oldestOverdueDueDate, summary.asOf))
+    : 0
   return {
     counts,
-    quarter,
+    quarter: summary.issuedThisQuarter
+      ? { amount: summary.issuedThisQuarter.total, count: summary.issuedThisQuarter.count }
+      : null,
     cards: {
-      charged: last30,
-      awaiting: figure(
-        statuses.filter(({ status }) => status === 'awaiting' || status === 'toSend'),
-        (row) => row.payment?.outstandingAmount ?? amountOf(row),
-      ),
-      collected: figure(
-        statuses.filter(({ status }) => status === 'paid'),
-        (row) => row.payment?.paidAmount ?? amountOf(row),
-      ),
+      ...(summary.issuedLast30Days
+        ? {
+            charged: {
+              amount: summary.issuedLast30Days.total,
+              count: summary.issuedLast30Days.count,
+            },
+          }
+        : {}),
+      awaiting: { amount: summary.awaitingTotal, count: summary.awaiting },
+      collected: { amount: summary.paidTotal, count: summary.paidInvoices },
       overdue: {
-        ...figure(overdue, (row) => row.payment?.outstandingAmount ?? amountOf(row)),
-        days: Math.max(0, ...overdue.map(({ row }) => row.payment?.daysOverdue ?? 0)),
+        amount: summary.overdueTotal,
+        count: summary.overdueInvoices,
+        days: overdueDays,
       },
     },
   }
+}
+
+/**
+ * The credit notes list's tab counts, subtitle and figures, from `GET /v1/authored-invoices/summary
+ * ?type=CREDIT_NOTE` (INCOME.md 4.1). Credited · 30 days is `issuedLast30Days`; with no refunds
+ * recorded, every issued credit note is applied against its invoice, so Applied to invoices (card
+ * and tab) is `issuedTotal`. The subtitle's quarter is `issuedThisQuarter`. A figure the summary
+ * does not carry is left out, and its card reads as unavailable.
+ * TODO(backend): Refund due and Refunded, cards and tabs, need refund tracking (INCOME.md 4.2).
+ */
+export function creditSummaryOf(summary: InvoiceSummaryDto): NoteSummary {
+  const counts: Record<string, number> = { all: summary.all, drafts: summary.drafts }
+  if (summary.toSend !== undefined) counts.toSend = summary.toSend
+  if (summary.issuedTotal) counts.applied = summary.issuedTotal.count
+  const figure = (value: { count: number; total: number } | undefined): NoteFigure | null =>
+    value ? { amount: value.total, count: value.count } : null
+  const cards: Record<string, NoteFigure> = {}
+  const credited = figure(summary.issuedLast30Days)
+  const applied = figure(summary.issuedTotal)
+  if (credited) cards.credited = credited
+  if (applied) cards.applied = applied
+  return { counts, quarter: figure(summary.issuedThisQuarter), cards }
 }
 
 /** The design's "Refund" column on a credit note row. */
@@ -840,10 +987,15 @@ export type DebitPaymentCell =
 export function debitPaymentOf(row: InvoiceRowDto, today = muscatToday()): DebitPaymentCell {
   const status = noteStatusOf('DEBIT_NOTE', row)
   if (status === 'draft' || status === 'cancelled') return null
-  // TODO(backend): the paid date and method per row; the list carries only the payment state.
-  if (status === 'paid') return { kind: 'paid', date: null }
+  // Read from the payment, not from `status`: an undelivered note's status is "to send", and that
+  // hid a note already paid (or late) behind "Due ... added to invoice balance". Delivery only
+  // decides the added-to-invoice hint below.
+  const payment = row.payment
+  // The paid date, when the row carries it (INCOME.md 4.7); absent, the cell reads "Paid".
+  // TODO(backend): the method (`lastPaymentMethodCode`) has no drawn place in the cell yet (4.7).
+  if (payment?.state === 'PAID') return { kind: 'paid', date: payment.lastPaymentDate ?? null }
   if (!row.dueDate) return null
-  if (status === 'overdue') {
+  if (payment?.overdue) {
     return {
       kind: 'late',
       date: row.dueDate,

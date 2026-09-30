@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
-import { OmAmount, Select, TableCheckbox } from '../../components/ui'
+import { OmAmount, Rial, Select, TableCheckbox } from '../../components/ui'
 import { ClassificationField, unitOptions } from '../../components/invoice'
 import {
   CODED_REASON,
@@ -279,7 +279,10 @@ export function NoteLinesTable({
                           label: t(`createInvoice.taxCategories.${category.code}`, {
                             defaultValue: category.code,
                           }),
-                          shortLabel: `${Number(category.rate)}% ${category.en16931Category}`,
+                          shortLabel: t('salesNote.lines.vatShort', {
+                            rate: Number(category.rate),
+                            category: category.en16931Category,
+                          }),
                         }))}
                         panelWidth={240}
                         tight
@@ -288,7 +291,7 @@ export function NoteLinesTable({
                     ) : (
                       <div className={`${SHELL} bg-surface-tab-bar`}>
                         <span className="text-sm font-medium text-text-secondary">
-                          {line.taxCategory.rate}%
+                          {t('salesNote.lines.vatRate', { rate: line.taxCategory.rate })}
                         </span>
                       </div>
                     )}
@@ -340,7 +343,13 @@ export function NoteLinesTable({
                         className={`${INPUT} text-end tabular-nums`}
                       />
                       <span className="text-xs font-semibold text-text-quaternary">
-                        {line.discountType === 'PERCENTAGE' ? '%' : currency}
+                        {line.discountType === 'PERCENTAGE' ? (
+                          '%'
+                        ) : currency === 'OMR' ? (
+                          <Rial />
+                        ) : (
+                          currency
+                        )}
                       </span>
                     </div>
                     <div className="flex h-[50px] items-center justify-end gap-2">
