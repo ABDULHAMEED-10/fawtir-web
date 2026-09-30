@@ -30,7 +30,11 @@ import {
   type DebitNoteDecisionDto,
   type DebitNoteRowDto,
 } from '../../api/expenditure/notes'
-import { billOriginalPath, downloadBillOriginal } from '../../api/expenditure/bills'
+import {
+  billOriginalPath,
+  downloadBillOriginal,
+  type BillDetailDto,
+} from '../../api/expenditure/bills'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   loadSupplierOverview,
@@ -46,6 +50,7 @@ import {
   debitNoteChecks,
 } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { lineVatOf } from '../../lib/billDetail'
 import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
@@ -208,7 +213,7 @@ function DebitNoteDetail() {
   const tone = TONE.debit
   const lines = own?.lines ?? []
   const net = total - (row.vatAmount ?? 0)
-  const reasonLabel = reasonLabelKey(row.reasonCode)
+  const reasonLabel = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
   const reasonText = reasonLabel
     ? t(reasonLabel.key, { defaultValue: reasonLabel.fallback })
     : t('supplierCreditNotes.rows.noReason')
@@ -493,7 +498,7 @@ function DebitNoteDetail() {
                           )}
                         </td>
                         <td className="py-4 text-end text-sm font-medium text-text-secondary">
-                          {line.vatRate === null ? '—' : `${line.vatRate}%`}
+                          <LineVatCell line={line} />
                         </td>
                         <td className="py-4 text-end text-sm font-semibold text-text-primary">
                           {line.lineNet === null ? (
@@ -768,5 +773,27 @@ function DebitNoteDetail() {
         </aside>
       </div>
     </div>
+  )
+}
+
+/**
+ * A line's VAT cell: "5%" on a standard line; "0% · Exempt" with its reason code beneath on a
+ * line that is not. TODO(backend): EXPENDITURE.md R.2, the category rides on the line.
+ */
+function LineVatCell({ line }: { line: BillDetailDto['lines'][number] }) {
+  const { t } = useTranslation()
+  const vat = lineVatOf(line)
+  if (vat.rate === null) return <>—</>
+  return (
+    <>
+      {vat.categoryKey
+        ? t('billDetail.lines.vatCategory', { rate: `${vat.rate}%`, category: t(vat.categoryKey) })
+        : `${vat.rate}%`}
+      {vat.reason ? (
+        <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-quaternary">
+          {vat.reason}
+        </span>
+      ) : null}
+    </>
   )
 }

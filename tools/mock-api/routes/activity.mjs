@@ -38,13 +38,18 @@ function row({
   variant = 'B2B',
   attention = false,
   resubmit = false,
+  documentKind = 'INVOICE',
+  typeCode = '380',
+  participantId = null,
+  customizationId = 'urn:peppol:pint:billing-1@om-1',
 }) {
   const submitted = at(when, 3)
+  const received = direction === 'RECEIVED'
   return {
     invoice_uuid: uuid(n),
     direction,
-    document_kind: 'INVOICE',
-    document_type_code: '380',
+    document_kind: documentKind,
+    document_type_code: typeCode,
     invoice_number: number,
     counterparty,
     occurred_at: when,
@@ -69,7 +74,8 @@ function row({
     },
     attention,
     links: {
-      document: `/api/v1/invoices/${uuid(n)}`,
+      // A received bill is not one of our invoices, so there is no `/invoices` record to open.
+      document: received ? null : `/api/v1/invoices/${uuid(n)}`,
       tdd_xml: `/api/v1/invoices/${uuid(n)}/tdd`,
       resubmit: resubmit ? `/api/v1/invoices/${uuid(n)}/tdd/resubmit` : null,
     },
@@ -79,6 +85,11 @@ function row({
     fawtara_reference: fawtara,
     superseded_by: supersededBy,
     scenario,
+    // TODO(backend) fields (ACTIVITY.md 2.25 to 2.27): the TDOM-04/05 receipt moment on a received
+    // document, the other side's participant ID and the document's CustomizationID.
+    received_at: received ? when : null,
+    counterparty_participant_id: participantId,
+    customization_id: customizationId,
   }
 }
 
@@ -93,6 +104,8 @@ const FEATURED = [
     tddStatus: 'REJECTED',
     reason: 'The customer has no Peppol ID on their record.',
     tddUuid: '4b17-9ce2-8a04-31df',
+    // No Peppol ID, so the invoice could not reach the customer's access point either.
+    invoiceAck: 'NONE',
     attention: true,
     resubmit: true,
   }),
@@ -160,7 +173,11 @@ const FEATURED = [
   }),
 ]
 
-/** The two other invoices the same missing Peppol ID turned down this week (Figma 154:108616). */
+/**
+ * The two other invoices the same cause turned down this week (Figma 154:108616): the customer has
+ * no Peppol ID. The frame drew these as received by the customer, which a customer with no Peppol
+ * ID cannot be, so their invoice leg carries no acknowledgement.
+ */
 const SAME_CAUSE = [
   ['INV-2042', 612.5, '2026-09-24T07:10:00Z', '5d02-81aa-3c7e-90b4', 7],
   ['INV-2040', 580.5, '2026-09-23T09:55:00Z', '1e6b-4f20-a9d3-6c18', 8],
@@ -175,6 +192,7 @@ const SAME_CAUSE = [
     tddStatus: 'REJECTED',
     reason: 'The customer has no Peppol ID on their record.',
     tddUuid,
+    invoiceAck: 'NONE',
     attention: true,
     resubmit: true,
   }),
@@ -208,7 +226,67 @@ const FILLER = Array.from({ length: 34 }, (_, i) => {
   })
 })
 
-const ITEMS = [...FEATURED, ...FILLER.slice(0, 4), ...SAME_CAUSE, ...FILLER.slice(4)]
+/**
+ * Bills and notes suppliers sent us over Peppol: the receiving side's provider reports each one as
+ * a TDD with the receipt date and time (PINT-OM TDD, TDT-010 = 02 Receiver, TDOM-04/05). The
+ * numbers are the Expenditure mocks' (bills.mjs, supplierNotes.mjs).
+ */
+const RECEIVED = [
+  row({
+    n: 200,
+    number: 'MR-INV-8821',
+    counterparty: 'Muscat Roastery Co',
+    participantId: '0248:OM1100581904',
+    amount: 2354.31,
+    when: '2026-09-20T08:00:00Z',
+    direction: 'RECEIVED',
+    tddAck: 'AP',
+    tddStatus: 'ACCEPTED',
+    clearedIn: 61,
+    tddUuid: 'b812-3f0a-6e21-9c47',
+    fawtara: 'OM-2026-0084122',
+  }),
+  row({
+    n: 201,
+    number: 'MR-INV-8755',
+    counterparty: 'Muscat Roastery Co',
+    participantId: '0248:OM1100581904',
+    amount: 1165.5,
+    when: '2026-08-30T06:40:00Z',
+    direction: 'RECEIVED',
+    tddAck: 'AP',
+    tddStatus: 'ACCEPTED',
+    clearedIn: 58,
+    tddUuid: 'b7c4-11d9-40ae-2f63',
+    fawtara: 'OM-2026-0083655',
+  }),
+  row({
+    n: 202,
+    number: 'AND-CN-0442',
+    counterparty: 'Al Noor Dates LLC',
+    participantId: '0248:OM1100690233',
+    amount: 84.9,
+    when: '2026-07-30T09:20:00Z',
+    direction: 'RECEIVED',
+    documentKind: 'CREDIT_NOTE',
+    typeCode: '381',
+    tddAck: 'AP',
+    tddStatus: 'ACCEPTED',
+    clearedIn: 44,
+    tddUuid: 'a95e-7c02-d318-4b0f',
+    fawtara: 'OM-2026-0082917',
+  }),
+]
+
+const ITEMS = [
+  ...FEATURED,
+  ...FILLER.slice(0, 3),
+  RECEIVED[0],
+  FILLER[3],
+  ...SAME_CAUSE,
+  ...FILLER.slice(4),
+  ...RECEIVED.slice(1),
+]
 
 function matches(item, query) {
   const tdd = query.get('tdd_ack')
@@ -351,30 +429,35 @@ function detail(id) {
           fawtara_reference: 'OM-2026-0083907',
           superseded_by: null,
           counterparty: 'Barka Beach Resort',
+          counterparty_participant_id: '0248:OM1100558840',
         }
       : item
   return {
     invoice_uuid: id,
     summary: summaryRow,
     tdd_lineage: lineage,
-    mls: [
-      {
-        channel: 'INVOICE',
-        ack: 'AB',
-        received_at: at(item.occurred_at, 288),
-        sender: '0248:OM1100558840',
-        sbdh_instance_identifier: 'sbdh-1',
-        reason: null,
-      },
-      {
-        channel: 'INVOICE',
-        ack: summaryRow.invoice_leg.ack,
-        received_at: summaryRow.invoice_leg.ack_at,
-        sender: '0248:OM1100558840',
-        sbdh_instance_identifier: 'sbdh-2',
-        reason: null,
-      },
-    ],
+    // On a received document the MLS replies are ours to them, not theirs to us.
+    mls:
+      item.direction === 'RECEIVED'
+        ? []
+        : [
+            {
+              channel: 'INVOICE',
+              ack: 'AB',
+              received_at: at(item.occurred_at, 288),
+              sender: '0248:OM1100558840',
+              sbdh_instance_identifier: 'sbdh-1',
+              reason: null,
+            },
+            {
+              channel: 'INVOICE',
+              ack: summaryRow.invoice_leg.ack,
+              received_at: summaryRow.invoice_leg.ack_at,
+              sender: '0248:OM1100558840',
+              sbdh_instance_identifier: 'sbdh-2',
+              reason: null,
+            },
+          ],
     transmissions: [],
   }
 }

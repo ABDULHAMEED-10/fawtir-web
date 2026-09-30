@@ -43,14 +43,15 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import * as validate from '../../lib/validation'
+import { candidateParticipantId } from '../../lib/peppolParticipant'
+import { GOVERNORATES, GOVERNORATE_NAMES, governorateIdFor } from '../../lib/governorates'
 import {
-  addressLine,
   blankSupplierForm,
   fromSupplierDetail,
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
-  withAddressLine,
+  type AddressField,
   type LoadedBank,
   type PlacedError,
   type SupplierField,
@@ -103,15 +104,29 @@ const ORDER: SupplierField[] = [
   'telephone',
   'billing.streetName',
   'billing.cityName',
+  'billing.countrySubentity',
+  'billing.postalCode',
   'billing.countryCode',
   'supplierCategory',
 ]
 
-/** Every address refusal lands on the one Address line the frame draws. */
+/**
+ * The billing address's parts each have their input (the street keeps the Address line's id); the
+ * country is the select in the first card, and a pickup refusal lands on the street, since the
+ * form draws no pickup address.
+ */
+const ADDRESS_INPUTS: Record<string, string> = {
+  cityName: 'supplier-billing-city',
+  countrySubentity: 'supplier-billing-governorate',
+  postalCode: 'supplier-billing-postalCode',
+  countryCode: 'supplier-billing-country',
+}
 const inputId = (field: SupplierField) =>
-  field.startsWith('billing.') || field.startsWith('pickup.')
-    ? 'supplier-billing-address'
-    : `supplier-${field}`
+  field.startsWith('billing.')
+    ? (ADDRESS_INPUTS[field.slice('billing.'.length)] ?? 'supplier-billing-address')
+    : field.startsWith('pickup.')
+      ? 'supplier-billing-address'
+      : `supplier-${field}`
 
 const PEPPOL_SHAPE = /^(0248|0242):\S+$/
 
@@ -215,22 +230,41 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
       current[field as SupplierField] ? { ...current, [field]: undefined } : current,
     )
   }
-  const changeAddress = (line: string) => {
-    setValues((current) => ({ ...current, billing: withAddressLine(current.billing, line) }))
+  const changeAddress = (part: AddressField, next: string) => {
+    setValues((current) => {
+      const billing = { ...current.billing, [part]: next }
+      // A new governorate outdates the code the record had for the old one.
+      if (part === 'countrySubentity' && next !== current.billing.countrySubentity)
+        billing.kept = { ...billing.kept, countrySubentityCode: null }
+      return { ...current, billing }
+    })
     setErrors((current) => {
       const cleared = { ...current }
       for (const field of Object.keys(cleared) as SupplierField[])
-        if (field.startsWith('billing.')) delete cleared[field]
+        if (field === `billing.${part}` || field.startsWith('pickup.')) delete cleared[field]
       return cleared
     })
+  }
+  // A valid VAT number and an empty Peppol ID: the ID an Omani VAT registrant is reached at
+  // (0248 and the VATIN) is filled in, and stays editable.
+  const changeVatNumber = (next: string) => {
+    const vatNumber = next.toUpperCase()
+    const candidate = candidateParticipantId(vatNumber)
+    setValues((current) => ({
+      ...current,
+      vatNumber,
+      ...(candidate && !current.peppolId.trim() ? { peppolId: candidate } : {}),
+    }))
+    setErrors((current) => (current.vatNumber ? { ...current, vatNumber: undefined } : current))
   }
   const errorText = (field: SupplierField) => {
     const placed = errors[field]
     if (!placed) return undefined
     return 'key' in placed ? t(placed.key) : placed.text
   }
-  const addressError = (Object.keys(errors) as SupplierField[]).find(
-    (field) => field.startsWith('billing.') && errors[field],
+  // What the street's input shows: its own refusal, else a pickup one (the form draws no pickup).
+  const addressError = (['billing.streetName', ...Object.keys(errors)] as SupplierField[]).find(
+    (field) => (field === 'billing.streetName' || field.startsWith('pickup.')) && errors[field],
   )
 
   const focusFirst = (found: Partial<Record<SupplierField, unknown>>) => {
@@ -380,6 +414,13 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     value: code,
     label: `${code} - ${t(`supplierEdit.currencyName.${code}`, { defaultValue: code })}`,
   }))
+  // Oman's eleven, stored by English name (IBT-054); a stored name that is not one of them is kept.
+  const governorates: SelectOption[] = [
+    ...(values.billing.countrySubentity && !governorateIdFor(values.billing.countrySubentity)
+      ? [{ value: values.billing.countrySubentity, label: values.billing.countrySubentity }]
+      : []),
+    ...GOVERNORATES.map((id) => ({ value: GOVERNORATE_NAMES[id], label: t(`governorate.${id}`) })),
+  ]
   const countries = [
     ...(values.billing.countryCode && !COUNTRIES.includes(values.billing.countryCode)
       ? [{ value: values.billing.countryCode, label: values.billing.countryCode }]
@@ -592,7 +633,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   placeholder="OM1100000000"
                   maxLength={64}
                   value={values.vatNumber}
-                  onChange={(next) => change('vatNumber', next.toUpperCase())}
+                  onChange={changeVatNumber}
                   valid={vatValid}
                   hint={vatValid ? t('supplierEdit.vatValid') : t('supplierEdit.vatHint')}
                   error={errorText('vatNumber')}
@@ -602,7 +643,19 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   label={t('supplierEdit.country')}
                   value={values.billing.countryCode}
                   options={countries}
-                  onChange={(next) => change('billing', { ...values.billing, countryCode: next })}
+                  onChange={(next) =>
+                    change('billing', {
+                      ...values.billing,
+                      countryCode: next,
+                      // A governorate is Oman's; another country's address does not keep one.
+                      ...(next === 'OM'
+                        ? {}
+                        : {
+                            countrySubentity: '',
+                            kept: { ...values.billing.kept, countrySubentityCode: null },
+                          }),
+                    })
+                  }
                 />
               </FieldGrid>
             </div>
@@ -787,11 +840,49 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   id="supplier-billing-address"
                   name="address"
                   label={t('supplierEdit.address')}
-                  placeholder={t('supplierEdit.addressPlaceholder')}
-                  maxLength={300}
-                  value={addressLine(values.billing)}
-                  onChange={changeAddress}
+                  placeholder={t('newCustomer.address.streetPlaceholder')}
+                  maxLength={150}
+                  value={values.billing.streetName}
+                  onChange={(next) => changeAddress('streetName', next)}
                   error={addressError ? errorText(addressError) : undefined}
+                />
+              </FieldGrid>
+              {/* The address in its parts, as a self-billed invoice needs them on the supplier as
+                  seller (PINT-OM IBR-019-OM: address line, city and post code). */}
+              <FieldGrid>
+                <TextField
+                  id={inputId('billing.cityName')}
+                  name="city"
+                  label={t('addressContact.city')}
+                  placeholder={t('newCustomer.address.cityPlaceholder')}
+                  maxLength={150}
+                  value={values.billing.cityName}
+                  onChange={(next) => changeAddress('cityName', next)}
+                  error={errorText('billing.cityName')}
+                />
+                {values.billing.countryCode === 'OM' ? (
+                  <SelectRow
+                    id={inputId('billing.countrySubentity')}
+                    label={t('addressContact.governorate')}
+                    value={values.billing.countrySubentity}
+                    options={governorates}
+                    placeholder={t('supplierEdit.governoratePlaceholder')}
+                    onChange={(next) => changeAddress('countrySubentity', next)}
+                    error={errorText('billing.countrySubentity')}
+                  />
+                ) : null}
+              </FieldGrid>
+              <FieldGrid>
+                <TextField
+                  id={inputId('billing.postalCode')}
+                  name="postalCode"
+                  label={t('addressContact.postalCode')}
+                  placeholder={t('supplierEdit.postalCodePlaceholder')}
+                  inputMode="numeric"
+                  maxLength={20}
+                  value={values.billing.postalCode}
+                  onChange={(next) => changeAddress('postalCode', next)}
+                  error={errorText('billing.postalCode')}
                 />
               </FieldGrid>
               <SelectRow

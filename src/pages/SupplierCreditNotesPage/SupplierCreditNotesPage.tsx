@@ -449,7 +449,7 @@ function CreditRow({
   const navigate = useNavigate()
   const chip = CHIP[CREDIT_STATUS_CHIP[note.status]]
   const action = CREDIT_ROW_ACTION[note.status]
-  const reason = reasonLabelKey(note.reasonCode)
+  const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const [busy, setBusy] = useState(false)
   const detailTo = `/expenditure/credit-notes/${note.id}`
   const billTo = note.againstBillId ? `/expenditure/bills/${note.againstBillId}` : null

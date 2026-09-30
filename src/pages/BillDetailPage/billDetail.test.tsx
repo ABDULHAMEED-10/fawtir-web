@@ -281,14 +281,70 @@ describe('A bill, wired to the API', () => {
     expect(screen.getByText('Received against PO-0031')).toBeTruthy()
   })
 
-  it('says who reports the bill to the Tax Authority, and never claims a filing of its own', async () => {
+  it('never claims our receipt report without a status from the server', async () => {
     renderBill()
-    expect(
-      await screen.findByText(/Reported to the Tax Authority by the supplier's provider/),
-    ).toBeTruthy()
-    expect(screen.getByText('Delivered over the Peppol network and verified')).toBeTruthy()
-    expect(screen.queryByText(/TDD/)).toBeNull()
+    // PINT-OM (om-tdd): the receiver reports what it received; the supplier's report does not
+    // cover it, so without the status the card says it is not known.
+    const line = await screen.findByText('Receipt report status not available yet')
+    // Read inside the Compliance card: the app's own menu names its "TDD & OTA" screen.
+    const card = within(line.closest('ul') as HTMLElement)
+    expect(card.getByText('Delivered over the Peppol network and verified')).toBeTruthy()
+    expect(card.queryByText(/Receipt reported to the Tax Authority/)).toBeNull()
+    expect(card.queryByText(/supplier's provider/)).toBeNull()
+    expect(card.queryByText(/TDD/)).toBeNull()
     expect(screen.queryByText(/Archived/)).toBeNull()
+  })
+
+  it('says when our receipt report was accepted by the Tax Authority', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        compliance: {
+          ...detail().compliance,
+          receiptReport: {
+            status: 'ACCEPTED',
+            reportedAt: '2026-09-01T08:14:00Z',
+            tddUuid: 'tdd-1',
+          },
+        },
+      })
+    renderBill()
+    expect(await screen.findByText(/^Receipt reported to the Tax Authority · /)).toBeTruthy()
+    expect(screen.queryByText('Receipt report status not available yet')).toBeNull()
+  })
+
+  it('shows a zero-rated and an exempt line with their reason codes, and no single VAT rate', async () => {
+    const base = detail()
+    billResponse = () =>
+      json(200, {
+        ...base,
+        lines: [
+          ...base.lines,
+          {
+            ...base.lines[0],
+            lineNo: 2,
+            description: 'Fresh dates',
+            vatRate: 0,
+            taxCategoryCode: 'Z',
+            exemptionReasonCode: 'VATZR-OM-01',
+          },
+          {
+            ...base.lines[0],
+            lineNo: 3,
+            description: 'Cargo insurance',
+            vatRate: 0,
+            taxCategoryCode: 'E',
+            exemptionReasonCode: 'VATEX-OM-01',
+          },
+        ],
+      })
+    renderBill()
+    expect(await screen.findByText('0% · Zero-rated')).toBeTruthy()
+    expect(screen.getByText('0% · Exempt')).toBeTruthy()
+    expect(screen.getByText('VATZR-OM-01')).toBeTruthy()
+    expect(screen.getByText('VATEX-OM-01')).toBeTruthy()
+    expect(screen.getByText('5%')).toBeTruthy()
+    expect(screen.queryByText('VAT · 5%')).toBeNull()
   })
 
   it('says compliance input is pending for a bill nobody reported', async () => {
@@ -434,7 +490,7 @@ describe('A bill, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderBill()
     expect(await screen.findByText('الطلب والاستلام والفاتورة متطابقة')).toBeTruthy()
-    expect(screen.getByText(/أبلغ عنها مزوّد المورّد/)).toBeTruthy()
+    expect(screen.getByText('حالة إبلاغ الاستلام غير متاحة بعد')).toBeTruthy()
     expect(screen.getByText('2,242.200')).toBeTruthy()
   })
 })
@@ -502,14 +558,45 @@ describe('bill detail mapping', () => {
     ).toMatchObject({ approve: false, reject: false, hold: false })
   })
 
-  it('never claims a receiver-side filing', () => {
+  it('never claims a receiver-side filing the server has not reported', () => {
     // Four lines as the frame draws them, each from a fact held; a missing fact says so.
     expect(complianceOf(detail()).map((note) => note.key)).toEqual([
       'billDetail.compliance.overPeppol',
       'billDetail.compliance.passedPintOm',
-      'billDetail.compliance.reportedBySupplier',
+      'billDetail.compliance.receipt.unavailable',
       'billDetail.compliance.originalKept',
     ])
+    const reported = (status: 'ACCEPTED' | 'SUBMITTED' | 'REJECTED' | 'NOT_SUBMITTED') =>
+      complianceOf(
+        {
+          ...detail(),
+          compliance: {
+            ...detail().compliance,
+            receiptReport: {
+              status,
+              reportedAt: status === 'ACCEPTED' ? '2026-09-01T08:14:00Z' : null,
+            },
+          },
+        },
+        () => '1 Sept 2026',
+      )[2]
+    expect(reported('ACCEPTED')).toEqual({
+      key: 'billDetail.compliance.receipt.accepted',
+      values: { date: '1 Sept 2026' },
+      ok: true,
+    })
+    expect(reported('SUBMITTED')).toMatchObject({
+      key: 'billDetail.compliance.receipt.submitted',
+      ok: false,
+    })
+    expect(reported('REJECTED')).toMatchObject({
+      key: 'billDetail.compliance.receipt.rejected',
+      ok: false,
+    })
+    expect(reported('NOT_SUBMITTED')).toMatchObject({
+      key: 'billDetail.compliance.receipt.notSubmitted',
+      ok: false,
+    })
     expect(
       complianceOf({
         ...detail(),

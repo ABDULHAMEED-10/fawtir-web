@@ -251,6 +251,10 @@ describe('one row, as the frame reads it', () => {
     )
   })
 
+  it('says a document a supplier sent us was received by us', () => {
+    expect(customerAckOf(item({ direction: 'RECEIVED' }))).toBe('youReceived')
+  })
+
   it('counts each tab from the summary', () => {
     expect(tabCount(SUMMARY, 'all')).toBe(100)
     expect(tabCount(SUMMARY, 'accepted')).toBe(70)
@@ -475,6 +479,44 @@ describe("one document's record", () => {
     expect(screen.getAllByText('OM-2026-0083907').length).toBeGreaterThan(0)
     // Accepted, and no link from the server: nothing to resend.
     expect(screen.getByRole('button', { name: 'Nothing to resend' })).toBeTruthy()
+  })
+
+  it('tells a received document as arriving from the supplier, with its route and profile', async () => {
+    detailReply = {
+      ...DETAIL,
+      tdd_lineage: [DETAIL.tdd_lineage[1]],
+      mls: [],
+      summary: {
+        ...DETAIL.summary,
+        direction: 'RECEIVED',
+        counterparty: 'Muscat Roastery Co',
+        received_at: '2026-09-20T08:00:00Z',
+        counterparty_participant_id: '0248:OM1100581904',
+        customization_id: 'urn:peppol:pint:selfbilling-1@om-1',
+      },
+    }
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect(await screen.findByText('From Muscat Roastery Co')).toBeTruthy()
+    expect(screen.getByText('Receipt reported, via Fawtara')).toBeTruthy()
+    expect(screen.getByText('Arrived over Peppol')).toBeTruthy()
+    expect(screen.getByText('Validated')).toBeTruthy()
+    expect(screen.queryByText('Signed')).toBeNull()
+    expect(screen.getByText('0248:OM1100581904')).toBeTruthy()
+    expect(screen.getByText('PINT-OM self-billing 1.0.1')).toBeTruthy()
+    // The company profile is not answered here, so our own ID stays off the record.
+    expect(screen.getAllByText('Not on the record yet').length).toBe(1)
+  })
+
+  it('fills our participant ID from the company VAT number', async () => {
+    const base = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).endsWith('/v1/company-profile')
+        ? json(200, { taxNumber: 'OM1100392000' })
+        : base(input, init),
+    )
+    renderDetail(`/compliance/activity/${UUID_A}`)
+    expect(await screen.findByText('0248:OM1100392000')).toBeTruthy()
+    expect(screen.getByText('PINT-OM billing 1.0.1')).toBeTruthy()
   })
 
   it('sends the fix through the link the record carries', async () => {

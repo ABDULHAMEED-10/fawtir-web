@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { DateField, Rial, Select } from '../ui'
+import { DateField, Rial, Select, withRial } from '../ui'
 import { Notice } from '../feedback/ApiNotice'
 import { FieldLabel, TextField } from '../form'
 import { selectAllOnFocus } from '../invoice'
@@ -28,10 +28,12 @@ import {
   CONFIRM_REFUSALS,
   CURRENCIES,
   billProblems,
+  billTaxCategories,
   blankLine,
   fileKindOf,
   fromIntake,
   linesTotals,
+  rateOfCategory,
   savedDetails,
   toConfirmation,
   toCorrections,
@@ -42,6 +44,8 @@ import {
   type BillProblems,
 } from '../../lib/billIntake'
 import { formatAmount, formatDate } from '../../lib/format'
+import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
+import { useReferenceData } from '../../lib/reference/referenceData'
 import { IntakeFilePreview } from './IntakeFilePreview'
 import { SupplierPicker } from './SupplierPicker'
 import fileIcon from '../../assets/bill-capture/file.svg'
@@ -71,6 +75,43 @@ const LINE_INPUT =
   'h-[42px] rounded-sm border border-primary-300 bg-surface-tab-bar px-2 text-end text-sm font-medium text-text-secondary outline-none focus:border-primary-700'
 const TOTAL_INPUT =
   'h-[42px] w-[140px] rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-end font-semibold text-text-primary outline-none tabular-nums focus:border-primary-700'
+
+/**
+ * A line's VAT as a category, in the cell the rate box had: closed it reads "5% S", open it names
+ * each of Oman's four in full (PINT-OM CL-04-OM). Picking one sets the line's rate from it.
+ */
+export function LineTaxSelect({
+  line,
+  onChange,
+  ariaLabel,
+}: {
+  line: BillLine
+  onChange: (patch: Partial<BillLine>) => void
+  ariaLabel: string
+}) {
+  const { t } = useTranslation()
+  const categories = billTaxCategories(useReferenceData() ?? DESIGN_REFERENCE)
+  return (
+    <Select
+      value={line.taxCategoryCode ?? ''}
+      onChange={(code) =>
+        onChange({ taxCategoryCode: code, vatRate: rateOfCategory(categories, code) })
+      }
+      options={categories.map((category) => ({
+        value: category.code,
+        label: t(`createInvoice.taxCategories.${category.code}`, { defaultValue: category.code }),
+        // The VAT column is narrow: the rate alone for standard lines, the category letter for the rest.
+        shortLabel:
+          category.en16931Category === 'S' ? `${Number(category.rate)}%` : category.en16931Category,
+      }))}
+      placeholder={`${line.vatRate}%`}
+      panelWidth={240}
+      compact
+      tight
+      ariaLabel={ariaLabel}
+    />
+  )
+}
 
 function Note({ tone, children }: { tone: 'warn' | 'ok' | 'info'; children: React.ReactNode }) {
   const icon = tone === 'warn' ? warnIcon : tone === 'ok' ? matchOkIcon : okCheckIcon
@@ -178,6 +219,8 @@ export function BillIntakeForm({
     ? null
     : (billable.find((order) => !dismissedOrders.includes(order.id)) ?? null)
 
+  // The rial sign stands for OMR only; a bill in another currency names it after the figure.
+  const isOmr = form.currency === 'OMR'
   const money = (value: number | string, currency = form.currency) =>
     formatAmount(value, currency, i18n.language)
   const error = (field: BillField) => (errors[field] ? t(errors[field]!) : undefined)
@@ -437,7 +480,7 @@ export function BillIntakeForm({
                           className="h-[42px] w-full rounded-sm border border-primary-300 bg-surface-tab-bar px-3 text-sm font-medium text-text-secondary outline-none focus:border-primary-700"
                         />
                       </td>
-                      {(['quantity', 'unitPrice', 'vatRate'] as const).map((key) => (
+                      {(['quantity', 'unitPrice'] as const).map((key) => (
                         <td key={key} className="px-1 py-1.5">
                           <span className="relative block w-[72px]">
                             <input
@@ -446,22 +489,20 @@ export function BillIntakeForm({
                               onFocus={selectAllOnFocus}
                               onChange={(event) => setLine(line.id, { [key]: event.target.value })}
                               aria-label={t(`billIntake.lineField.${key}`)}
-                              className={[LINE_INPUT, 'w-full', key === 'vatRate' ? 'pe-5' : '']
-                                .filter(Boolean)
-                                .join(' ')}
+                              className={[LINE_INPUT, 'w-full'].join(' ')}
                             />
-                            {/* The frame writes the rate as "5%": the sign sits inside the box. */}
-                            {key === 'vatRate' ? (
-                              <span
-                                aria-hidden="true"
-                                className="pointer-events-none absolute inset-y-0 end-2 flex items-center text-sm font-medium text-text-secondary"
-                              >
-                                %
-                              </span>
-                            ) : null}
                           </span>
                         </td>
                       ))}
+                      <td className="px-1 py-1.5">
+                        <span className="relative block w-[72px]">
+                          <LineTaxSelect
+                            line={line}
+                            onChange={(patch) => setLine(line.id, patch)}
+                            ariaLabel={t('billIntake.lineField.vatRate')}
+                          />
+                        </span>
+                      </td>
                       <td className="ps-1 py-1.5">
                         <span className="flex h-[42px] w-[92px] items-center justify-end rounded-sm border border-border-subtle bg-white px-2 text-sm font-semibold text-text-secondary tabular-nums">
                           {totals?.lineNets[index]}
@@ -508,8 +549,9 @@ export function BillIntakeForm({
               <div className="flex items-center justify-between gap-4 py-1">
                 <dt className="text-sm font-medium text-text-tertiary">{t('uploadBill.net')}</dt>
                 <dd className="flex items-center gap-1 text-sm font-semibold text-text-secondary tabular-nums">
-                  <Rial />
+                  {isOmr ? <Rial /> : null}
                   {totals ? money(totals.net) : t('billDetail.notStated')}
+                  {totals && !isOmr ? ` ${form.currency}` : null}
                 </dd>
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -519,7 +561,7 @@ export function BillIntakeForm({
                   </label>
                 </dt>
                 <dd className="flex items-center gap-2 text-sm font-semibold text-text-secondary">
-                  <Rial />
+                  {isOmr ? <Rial /> : null}
                   <input
                     id="bill-vat"
                     name="vat"
@@ -534,6 +576,7 @@ export function BillIntakeForm({
                       error('vat') ? 'ring-1 ring-border-danger' : '',
                     ].join(' ')}
                   />
+                  {isOmr ? null : <span>{form.currency}</span>}
                 </dd>
               </div>
               {error('vat') ? (
@@ -549,7 +592,7 @@ export function BillIntakeForm({
                   </label>
                 </dt>
                 <dd className="flex items-center gap-2 text-[22px] font-semibold leading-[1.2] text-text-primary">
-                  <Rial />
+                  {isOmr ? <Rial /> : null}
                   <input
                     id="bill-total"
                     name="total"
@@ -565,6 +608,7 @@ export function BillIntakeForm({
                       error('total') ? 'ring-1 ring-border-danger' : '',
                     ].join(' ')}
                   />
+                  {isOmr ? null : <span>{form.currency}</span>}
                 </dd>
               </div>
               {error('total') ? (
@@ -714,15 +758,17 @@ export function BillIntakeForm({
                 {t('billIntake.duplicate.title')}
               </h2>
               <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {t('billIntake.duplicate.body', {
-                  number: duplicate.supplierBillNumber,
-                  date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
-                  total:
-                    duplicate.total === null
-                      ? ''
-                      : `${money(duplicate.total, duplicate.currencyCode ?? form.currency)} ${duplicate.currencyCode ?? form.currency}`,
-                  source: t(`billIntake.duplicate.source.${duplicate.source}`),
-                })}
+                {withRial(
+                  t('billIntake.duplicate.body', {
+                    number: duplicate.supplierBillNumber,
+                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
+                    total:
+                      duplicate.total === null
+                        ? ''
+                        : `${money(duplicate.total, duplicate.currencyCode ?? form.currency)} ${duplicate.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                  }),
+                )}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link

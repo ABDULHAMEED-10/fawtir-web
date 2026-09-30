@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
+import { withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -80,7 +81,8 @@ function ApprovalPolicy() {
       <LoadingNotice />
     )
   }
-  if (read.read.status === 'failed') return <ApiReadFailure error={read.read.error} retry={read.retry} />
+  if (read.read.status === 'failed')
+    return <ApiReadFailure error={read.read.error} retry={read.retry} />
 
   const set = (changes: Partial<ApprovalPolicyForm>) => setForm({ ...form, ...changes })
 
@@ -102,7 +104,9 @@ function ApprovalPolicy() {
       setNotice(null)
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)
-      setFailure(message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body)
+      setFailure(
+        message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body,
+      )
     } finally {
       setSaving(false)
     }
@@ -111,13 +115,20 @@ function ApprovalPolicy() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-2xl font-medium leading-[1.2] text-text-primary">{t('approvalPolicy.title')}</h2>
+        <h2 className="text-2xl font-medium leading-[1.2] text-text-primary">
+          {t('approvalPolicy.title')}
+        </h2>
         <p className="mt-1 max-w-[680px] text-sm font-medium leading-[1.5] text-text-quaternary">
           {t('approvalPolicy.subtitle')}
         </p>
       </div>
 
-      {notice ? <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} /> : null}
+      {notice ? (
+        <Notice
+          body={notice}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
       {failure ? (
         <Notice
           badge={t('approvalPolicy.notSaved')}
@@ -133,13 +144,17 @@ function ApprovalPolicy() {
       ) : null}
 
       <section className="rounded-md bg-surface-card p-6">
-        <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('approvalPolicy.approvers.title')}</h3>
+        <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
+          {t('approvalPolicy.approvers.title')}
+        </h3>
         <p className="mt-1 max-w-[560px] text-sm font-medium leading-[1.5] text-text-quaternary">
           {t('approvalPolicy.approvers.note')}
         </p>
 
         <label className="mt-4 block max-w-[220px]">
-          <span className="text-xs font-semibold text-text-quaternary">{t('approvalPolicy.approvers.label')}</span>
+          <span className="text-xs font-semibold text-text-quaternary">
+            {t('approvalPolicy.approvers.label')}
+          </span>
           <input
             type="number"
             inputMode="numeric"
@@ -154,7 +169,9 @@ function ApprovalPolicy() {
           />
         </label>
         {approvers ? (
-          <p className="mt-2 text-sm font-medium text-danger-700">{t(`approvalPolicy.problem.${approvers}`)}</p>
+          <p className="mt-2 text-sm font-medium text-danger-700">
+            {t(`approvalPolicy.problem.${approvers}`)}
+          </p>
         ) : null}
         {/* Said plainly, because "1" reading as "nobody has to approve" is the likely misreading. */}
         <p className="mt-2 text-sm font-medium leading-[1.5] text-text-quaternary">
@@ -163,7 +180,9 @@ function ApprovalPolicy() {
       </section>
 
       <section className="rounded-md bg-surface-card p-6">
-        <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">{t('approvalPolicy.threshold.title')}</h3>
+        <h3 className="text-xl font-medium leading-[1.2] text-text-secondary">
+          {t('approvalPolicy.threshold.title')}
+        </h3>
         <p className="mt-1 max-w-[560px] text-sm font-medium leading-[1.5] text-text-quaternary">
           {t('approvalPolicy.threshold.note')}
         </p>
@@ -194,7 +213,9 @@ function ApprovalPolicy() {
 
         {form.mode === 'BELOW_AMOUNT' ? (
           <label className="mt-4 block max-w-[260px]">
-            <span className="text-xs font-semibold text-text-quaternary">{t('approvalPolicy.threshold.label')}</span>
+            <span className="text-xs font-semibold text-text-quaternary">
+              {t('approvalPolicy.threshold.label')}
+            </span>
             <input
               type="text"
               inputMode="decimal"
@@ -208,21 +229,29 @@ function ApprovalPolicy() {
           </label>
         ) : null}
         {threshold ? (
-          <p className="mt-2 text-sm font-medium text-danger-700">{t(`approvalPolicy.problem.${threshold}`)}</p>
+          <p className="mt-2 text-sm font-medium text-danger-700">
+            {t(`approvalPolicy.problem.${threshold}`)}
+          </p>
         ) : null}
 
         {/* "Strictly below" is the server's word, and the boundary case is the one people get wrong. */}
         {form.mode === 'BELOW_AMOUNT' && threshold === null && form.threshold.trim() !== '' ? (
           <p className="mt-2 text-sm font-medium leading-[1.5] text-text-quaternary">
-            {t('approvalPolicy.threshold.boundary', { amount: money(Number(form.threshold)) })}
+            {withRial(
+              t('approvalPolicy.threshold.boundary', {
+                amount: `OMR ${money(Number(form.threshold))}`,
+              }),
+            )}
           </p>
         ) : null}
 
         {removing ? (
           <p className="mt-3 rounded-md bg-pending-100 p-3 text-sm font-medium text-pending-700">
-            {t('approvalPolicy.threshold.removing', {
-              amount: money(saved?.autoApproveBelow ?? 0),
-            })}
+            {withRial(
+              t('approvalPolicy.threshold.removing', {
+                amount: `OMR ${money(saved?.autoApproveBelow ?? 0)}`,
+              }),
+            )}
           </p>
         ) : null}
       </section>

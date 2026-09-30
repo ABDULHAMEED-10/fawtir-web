@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { DateField, FileDropzone, Rial, Select } from '../../components/ui'
+import { DateField, FileDropzone, Rial, Select, withRial } from '../../components/ui'
 import { FieldLabel, TextField } from '../../components/form'
 import { selectAllOnFocus } from '../../components/invoice'
 import { BillFilePicker, SupplierPicker, type PickedSupplier } from '../../components/bills'
@@ -76,10 +76,10 @@ type Receipt = {
   method: Method
 }
 
-const VAT_RATES: { id: VatRate; key: string }[] = [
-  { id: '5', key: 'scanReceipts.vat.five' },
-  { id: '0', key: 'scanReceipts.vat.zero' },
-  { id: 'exempt', key: 'scanReceipts.vat.exempt' },
+const VAT_RATES: { id: VatRate; key: string; category: 'S5' | 'Z0' | 'E0' }[] = [
+  { id: '5', key: 'scanReceipts.vat.five', category: 'S5' },
+  { id: '0', key: 'scanReceipts.vat.zero', category: 'Z0' },
+  { id: 'exempt', key: 'scanReceipts.vat.exempt', category: 'E0' },
 ]
 
 /**
@@ -516,6 +516,8 @@ function ReceiptEditor({
         toConfirmation(form, {
           category: receipt.category || null,
           notDuplicateOf,
+          // 0% and Exempt are both a zero rate; the category is what tells them apart.
+          taxCategoryCode: VAT_RATES.find((rate) => rate.id === receipt.vatRate)?.category ?? null,
           paidOnTheSpot:
             receipt.paid === 'onSpot'
               ? {
@@ -942,15 +944,17 @@ function ReceiptEditor({
                 {t('billIntake.duplicate.title')}
               </h2>
               <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {t('billIntake.duplicate.body', {
-                  number: duplicate.supplierBillNumber,
-                  date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
-                  total:
-                    duplicate.total === null
-                      ? ''
-                      : `${formatAmount(duplicate.total, duplicate.currencyCode ?? form.currency, i18n.language)} ${duplicate.currencyCode ?? form.currency}`,
-                  source: t(`billIntake.duplicate.source.${duplicate.source}`),
-                })}
+                {withRial(
+                  t('billIntake.duplicate.body', {
+                    number: duplicate.supplierBillNumber,
+                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, i18n.language) : '',
+                    total:
+                      duplicate.total === null
+                        ? ''
+                        : `${formatAmount(duplicate.total, duplicate.currencyCode ?? form.currency, i18n.language)} ${duplicate.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                  }),
+                )}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
