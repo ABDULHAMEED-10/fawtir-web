@@ -42,6 +42,8 @@ function row({
   typeCode = '380',
   participantId = null,
   customizationId = 'urn:peppol:pint:billing-1@om-1',
+  scope = 'D',
+  vatRate = 0.05,
 }) {
   const submitted = at(when, 3)
   const received = direction === 'RECEIVED'
@@ -90,6 +92,13 @@ function row({
     received_at: received ? when : null,
     counterparty_participant_id: participantId,
     customization_id: customizationId,
+    // TODO(backend) fields (ACTIVITY.md 2.31, 2.32, 2.34): the TDD type (S sent), our role on the
+    // TDD (01 seller, 02 receiver; TDT-010), the TDD scope (D domestic; IP or INP for an export)
+    // and the invoice total VAT (IBT-110).
+    tdd_type: 'S',
+    reporter_role: received ? '02' : '01',
+    tdd_scope: scope,
+    tax_amount: Math.round((amount - amount / (1 + vatRate)) * 1000) / 1000,
   }
 }
 
@@ -169,7 +178,11 @@ const FEATURED = [
     invoiceAck: 'NONE',
     tddUuid: '0e94-af13-6d27-8850',
     fawtara: 'OM-2026-0084201',
-    scenario: { flow: 11, stand_in_id: '997770000097' },
+    // An export is reported under TDD scope IP or INP, not with a stand-in ID (997770000097 is
+    // not a PINT-OM stand-in; only 997770000099 is published). Zero-rated, so no VAT.
+    scenario: { flow: 11, stand_in_id: null },
+    scope: 'INP',
+    vatRate: 0,
   }),
 ]
 
@@ -213,13 +226,15 @@ const NUMBERS = Array.from({ length: 40 }, (_, i) => `INV-${2035 - i}`).filter((
 const FILLER = Array.from({ length: 34 }, (_, i) => {
   const [counterparty, amount] = CUSTOMERS[i % CUSTOMERS.length]
   const waiting = false
+  // One report delivered without confirmation (MLS AB): its own state, never counted as accepted.
+  const unconfirmed = i === 1
   return row({
     n: 100 + i,
     number: NUMBERS[i],
     counterparty,
     amount,
     when: at('2026-09-21T06:00:00Z', -i * 9 * 3600),
-    tddAck: waiting ? 'NONE' : 'AP',
+    tddAck: waiting ? 'NONE' : unconfirmed ? 'AB' : 'AP',
     clearedIn: 40 + ((i * 17) % 120),
     tddUuid: `${(0x3c9a + i).toString(16)}-1e77-2b04-${(0x4f6a + i * 7).toString(16)}`,
     fawtara: waiting ? null : `OM-2026-00${84100 + i}`,
@@ -288,14 +303,30 @@ const ITEMS = [
   ...RECEIVED.slice(1),
 ]
 
+/**
+ * A report we replaced (TDD type R) is listed under Superseded only: the ack filters and the
+ * summary count the live report of each document. INV-1993's live report is its accepted V2.
+ */
+const liveAck = (item) => (item.tdd_leg?.status === 'SUPERSEDED' ? 'AP' : item.tdd_leg?.ack)
+
+function inWindow(item, query) {
+  const day = item.occurred_at.slice(0, 10)
+  const from = query.get('from')
+  const to = query.get('to')
+  return (!from || day >= from) && (!to || day <= to)
+}
+
 function matches(item, query) {
   const tdd = query.get('tdd_ack')
   const status = query.get('tdd_status')
   const direction = query.get('direction')
+  const kind = query.get('document_kind')
   const number = (query.get('invoice_number') ?? '').toLowerCase()
   if (query.get('attention') === 'true' && !item.attention) return false
   if (status && item.tdd_leg?.status !== status) return false
-  if (tdd && item.tdd_leg?.ack !== tdd) return false
+  if (tdd && (item.tdd_leg?.status === 'SUPERSEDED' || item.tdd_leg?.ack !== tdd)) return false
+  if (kind && item.document_kind !== kind) return false
+  if (!inWindow(item, query)) return false
   if (direction && item.direction !== direction) return false
   if (number && !(item.invoice_number ?? '').toLowerCase().includes(number)) return false
   return true
@@ -313,9 +344,9 @@ function listPage(query) {
   }
 }
 
-function counts(pick) {
+function counts(items, pick) {
   const out = { ap: 0, ab: 0, re: 0, none: 0 }
-  for (const item of ITEMS) {
+  for (const item of items) {
     const ack = pick(item)
     if (!ack) continue
     out[ack.toLowerCase()] += 1
@@ -341,21 +372,26 @@ function summary(query) {
       superseded: 0,
     }
   }
+  // The figures follow the Direction filter (ACTIVITY.md 2.33), so sent and received never mix.
+  const direction = query.get('direction')
+  const items = direction ? ITEMS.filter((item) => item.direction === direction) : ITEMS
   return {
     from: query.get('from'),
     to: query.get('to'),
-    documents: ITEMS.length,
-    tdd_ack: counts((item) => item.tdd_leg?.ack),
-    invoice_ack: counts((item) => (item.b2c ? null : item.invoice_leg.ack)),
+    documents: items.length,
+    tdd_ack: counts(items, liveAck),
+    invoice_ack: counts(items, (item) =>
+      item.b2c || item.direction === 'RECEIVED' ? null : item.invoice_leg.ack,
+    ),
     dead_lettered: 0,
-    attention: ITEMS.filter((item) => item.attention).length,
+    attention: items.filter((item) => item.attention).length,
     sla: {
-      met: ITEMS.filter((item) => item.tdd_leg?.sla_met === true).length,
+      met: items.filter((item) => item.tdd_leg?.sla_met === true).length,
       missed: 0,
-      pending: ITEMS.filter((item) => item.tdd_leg?.sla_met === null).length,
+      pending: items.filter((item) => item.tdd_leg?.sla_met === null).length,
     },
     median_minutes_to_tdd_ack: 2.23,
-    superseded: ITEMS.filter((item) => item.tdd_leg?.status === 'SUPERSEDED').length,
+    superseded: items.filter((item) => item.tdd_leg?.status === 'SUPERSEDED').length,
     previous_median_minutes_to_tdd_ack: 2.87,
   }
 }
@@ -381,6 +417,7 @@ function detail(id) {
             tdd_uuid: '6c25-b840-1f97-4ae3',
             error_code: 'OTA-E-1122',
             fawtara_reference: null,
+            tdd_type: 'S',
           },
           {
             id: 'tdd-1993-2',
@@ -395,6 +432,8 @@ function detail(id) {
             tdd_uuid: '6c25-b840-1f97-5b02',
             error_code: null,
             fawtara_reference: 'OM-2026-0083907',
+            // The corrected report we sent to replace V1.
+            tdd_type: 'R',
           },
         ]
       : [
@@ -409,7 +448,11 @@ function detail(id) {
             failure_reason: item.tdd_leg?.reason ?? null,
             transmission_id: null,
             tdd_uuid: item.tdd_uuid,
-            error_code: item.tdd_leg?.ack === 'RE' ? 'OTA-E-2041' : null,
+            // The design's code for a missing buyer Peppol ID; other refusals carry none here.
+            error_code:
+              item.tdd_leg?.ack === 'RE' && /peppol id/i.test(item.tdd_leg?.reason ?? '')
+                ? 'OTA-E-2041'
+                : null,
             fawtara_reference: item.fawtara_reference,
           },
         ]

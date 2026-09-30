@@ -7,7 +7,7 @@ import {
   loadActivitySummary,
   type ActivitySummaryDto,
 } from '../../api/compliance/activity'
-import { deliveredCount, shareOf1 } from '../../lib/activityLedger'
+import { shareOf1 } from '../../lib/activityLedger'
 import {
   REPORT_PERIODS,
   REPORT_SECTIONS,
@@ -60,8 +60,8 @@ export function ComplianceReportModal({
   })
   const range = useMemo(() => periodRange(period, new Date(), custom), [period, custom])
   // The period's counts come from the ledger summary for that window. TODO(backend): the
-  // corrected count, the total invoiced and the VAT are not on the summary (asks row 2.9), so
-  // those three stay the design's figures until they are.
+  // corrected count, the total invoiced and the VAT are not on the summary (asks rows 2.9, 2.35),
+  // so those three stay the design's figures until they are.
   const summaryPath = open ? activitySummaryPath(range.from, range.to) : null
   const summary = useApiRead<ActivitySummaryDto>(summaryPath, () =>
     loadActivitySummary(summaryPath as string),
@@ -70,13 +70,22 @@ export function ComplianceReportModal({
     const base = periodFigures(period)
     if (summary.read.status !== 'ready') return base
     const book = summary.read.data
-    const accepted = deliveredCount(book.tdd_ack)
+    // Accepted is AP only: "delivered, unconfirmed" (AB) is not an acceptance. Still waiting is
+    // silence, not a failure (handbook 5.3), so it is counted apart from what was not reported.
+    const accepted = book.tdd_ack.ap
+    const netInvoiced = book.invoiced_total ?? base.netInvoiced
     return {
       ...base,
       invoices: book.documents,
       accepted,
       acceptedRate: shareOf1(accepted, book.documents),
-      notReported: book.tdd_ack.re + book.tdd_ack.none,
+      notReported: book.tdd_ack.re,
+      waiting: book.tdd_ack.none,
+      netInvoiced,
+      // The sum of IBT-110 over reported invoices when the server gives it. A server total with
+      // no VAT beside it cannot say what the unreported invoices held, so it reads "not available";
+      // otherwise the design book's figure, unreported invoices left out.
+      vat: book.vat_reported ?? (book.invoiced_total != null ? null : base.vat),
     }
   }, [period, summary.read])
 
@@ -297,13 +306,22 @@ export function ComplianceReportModal({
             value={String(figures.notReported)}
             tone={figures.notReported > 0 ? 'text-pending-700' : undefined}
           />
+          {/* Silence is not a failure: sent and not answered yet is its own line. */}
+          <SummaryRow
+            label={t('complianceReport.summary.stillWaiting')}
+            value={String(figures.waiting)}
+          />
           <SummaryRow
             label={t('complianceReport.summary.totalInvoiced')}
             value={`OMR ${formatOmr(figures.netInvoiced)}`}
           />
           <SummaryRow
             label={t('complianceReport.summary.vatReported')}
-            value={`OMR ${formatOmr(figures.vat)}`}
+            value={
+              figures.vat === null
+                ? t('complianceReport.notAvailableYet')
+                : `OMR ${formatOmr(figures.vat)}`
+            }
           />
         </dl>
       </div>
