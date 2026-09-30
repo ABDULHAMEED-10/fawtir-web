@@ -294,6 +294,64 @@ describe('edit', () => {
   })
 })
 
+/* =================================================================== transport */
+
+/**
+ * Which transports may be chosen, and what happens to one that is already stored.
+ *
+ * REST is the only transport the extraction runtime implements, so it is the only one offered. The
+ * backend's enum holds three values and no more — there is no FILE and no SOAP, and offering either
+ * would let an operator store a transport nothing can read.
+ */
+describe('transport', () => {
+  const transportSelect = () => screen.getByLabelText('How Fawtir connects') as HTMLSelectElement
+  const offered = () => Array.from(transportSelect().options).map((option) => option.value)
+
+  it('offers only REST on a connection that stores REST', async () => {
+    rows = [connection({ transportType: 'REST' })]
+    renderAt(`/settings/erp/connections/${ID}/settings`)
+    await screen.findByLabelText('How Fawtir connects')
+
+    expect(offered()).toEqual(['REST'])
+  })
+
+  it('never offers FILE or SOAP, which the backend enum does not have', async () => {
+    renderAt(`/settings/erp/connections/${ID}/settings`)
+    await screen.findByLabelText('How Fawtir connects')
+
+    // Named rather than inferred from the list's length: both were offered by the design mock, and a
+    // value the enum cannot accept is a 400 the operator can do nothing about.
+    expect(offered()).not.toContain('FILE')
+    expect(offered()).not.toContain('SOAP')
+  })
+
+  it.each(['JDBC', 'SFTP'] as const)(
+    'keeps a stored %s in the list rather than rewriting it',
+    async (stored) => {
+      // The select's value must be one of its options or the browser reports "", and saving any other
+      // field would then post transportType: null — silently changing a transport the operator never
+      // touched. So a stored value the runtime cannot use is still shown, and still saved back.
+      rows = [connection({ transportType: stored })]
+      renderAt(`/settings/erp/connections/${ID}/settings`)
+      await screen.findByLabelText('How Fawtir connects')
+
+      expect(offered()).toContain(stored)
+      expect(transportSelect().value).toBe(stored)
+
+      fireEvent.click(screen.getByText('Save changes'))
+      await waitFor(() => expect(mutations().length).toBeGreaterThan(0))
+      expect((mutations()[0].body as Record<string, unknown>).transportType).toBe(stored)
+    },
+  )
+
+  it('offers only REST when creating a connection', async () => {
+    renderAt('/settings/erp/connections/new')
+    await screen.findByLabelText('How Fawtir connects')
+
+    expect(offered()).toEqual(['REST'])
+  })
+})
+
 /* =================================================================== lifecycle */
 
 describe('lifecycle', () => {
