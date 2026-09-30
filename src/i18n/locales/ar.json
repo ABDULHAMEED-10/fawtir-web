@@ -2540,6 +2540,9 @@
       "inclusive": "شامل الضريبة",
       "exclShort": "دون الضريبة",
       "inclShort": "شامل الضريبة"
+    },
+    "fromTrade": {
+      "notFound": "لا يوجد عرض سعر أو أمر بيع أو إشعار تسليم برقم {{id}} لتعبئة هذه الفاتورة منه."
     }
   },
   "periodicInvoice": {
@@ -3614,7 +3617,11 @@
       "winRate": "نسبة الفوز",
       "winRateMeta": "آخر ٩٠ يوماً، محسوبة بالقيمة",
       "expiring": "تنتهي قريباً",
-      "expiringMeta": "باقة تدريب الموظفين خلال يومين"
+      "expiringMeta": "باقة تدريب الموظفين خلال يومين",
+      "openMetaCount": "{{count}} بانتظار القرار",
+      "acceptedMetaCount": "{{count}} تحولت إلى طلبات",
+      "expiringMetaNext": "{{subject}} خلال {{count}} أيام",
+      "expiringMetaNone": "لا ينتهي أي عرض خلال الأيام السبعة القادمة"
     },
     "tabs": {
       "all": "الكل",
@@ -3646,7 +3653,9 @@
       "delivering": "قيد التسليم",
       "expiring": "تنتهي قريباً",
       "declined": "مرفوضة"
-    }
+    },
+    "subtitleCount": "{{count}} عرض سعر · {{amount}} ر.ع. مفتوحة بانتظار القرار",
+    "empty": "لا شيء في هذا التبويب."
   },
   "newQuotation": {
     "breadcrumb": "عروض الأسعار",
@@ -3654,7 +3663,7 @@
     "savedJustNow": "تم الحفظ للتو",
     "customer": "العميل",
     "change": "تغيير",
-    "prospectHint": "تقدّم عرضاً لعميل جديد؟ الاسم والبريد الإلكتروني يكفيان — بيانات ضريبة القيمة المضافة و«بيبول» مطلوبة فقط عند تحويل العرض إلى فاتورة.",
+    "prospectHint": "تقدّم عرضاً لعميل جديد؟ الاسم والبريد الإلكتروني يكفيان: بيانات ضريبة القيمة المضافة و«بيبول» مطلوبة فقط عند تحويل العرض إلى فاتورة.",
     "addProspect": "إضافة عميل محتمل",
     "summary": "الملخص",
     "subtotal": "المجموع الفرعي",
@@ -3700,7 +3709,8 @@
     "dropFilesHint": "أوامر الشراء، إشعارات التسليم، العقود · PDF، JPG، XLSX",
     "preview": "معاينة",
     "saveDraft": "حفظ كمسودة",
-    "sendQuotation": "إرسال عرض السعر"
+    "sendQuotation": "إرسال عرض السعر",
+    "leadTimePlaceholder": "مثال: حسب توفر المخزون وقت الطلب..."
   },
   "quotationDetail": {
     "breadcrumbParent": "المستندات التجارية",
@@ -3750,7 +3760,16 @@
     "noteToCustomer": "ملاحظة للعميل",
     "noteToCustomerHint": "على عرض السعر",
     "internalNote": "ملاحظة داخلية",
-    "internalNoteHint": "خاصة"
+    "internalNoteHint": "خاصة",
+    "validTo": "صالح حتى {{date}}",
+    "decisionTitle": {
+      "draft": "لم يُرسل إلى {{customer}} بعد",
+      "sent": "بانتظار رد {{customer}}",
+      "expiring": "بانتظار رد {{customer}}",
+      "accepted": "قبله {{customer}}",
+      "delivering": "قبله {{customer}}",
+      "declined": "رفضه {{customer}}"
+    }
   },
   "orderForms": {
     "breadcrumbParent": "المستندات التجارية",
@@ -3776,7 +3795,13 @@
       "delivered": "تم التسليم، دون فوترة",
       "deliveredLink": "فوترة ٤ أوامر",
       "received": "تم الاستلام، دون فوترة",
-      "receivedLink": "مراجعة ٣ أوامر"
+      "receivedLink": "مراجعة ٣ أوامر",
+      "salesAmount": "{{amount}} بيع",
+      "purchaseAmount": "{{amount}} شراء",
+      "toDeliverAmount": "{{amount}} للتسليم",
+      "toReceiveAmount": "{{amount}} للاستلام",
+      "invoiceCount": "فوترة {{count}} أوامر",
+      "reviewCount": "مراجعة {{count}} أوامر"
     },
     "tabs": {
       "all": "الكل",
@@ -3828,7 +3853,8 @@
       "billed2090": "٢٬٠٩٠٫٠٠٠ مفوترة",
       "nothingInvoiced": "لا توجد فوترة",
       "nothingBilled": "لا توجد فوترة",
-      "fullyInvoiced": "مفوترة بالكامل"
+      "fullyInvoiced": "مفوترة بالكامل",
+      "invoicedAmount": "{{amount}} مفوترة"
     },
     "note": {
       "toInvoice": "للفوترة",
@@ -3923,7 +3949,7 @@
   "deliveryNotes": {
     "breadcrumbParent": "المستندات التجارية",
     "title": "إشعارات التسليم",
-    "subtitle": "إثبات انتقال البضائع — ما أرسلته إلى العملاء، وما أرسله الموردون إليك. الكميات فقط، دون أسعار.",
+    "subtitle": "إثبات انتقال البضائع: ما أرسلته إلى العملاء، وما أرسله الموردون إليك. الكميات فقط، دون أسعار.",
     "export": "تصدير",
     "newDeliveryNote": "إشعار تسليم جديد",
     "mode": {
@@ -3945,7 +3971,10 @@
       "notInvoicedNote": "إشعارات لم تُصدر لها فاتورة",
       "notInvoicedLink": "مراجعة",
       "short": "تسليمات ناقصة",
-      "shortNote": "هذا الشهر · كلاهما في جانب الشراء"
+      "shortNote": "هذا الشهر · كلاهما في جانب الشراء",
+      "moveOutCount": "{{count}} صادرة",
+      "moveInCount": "{{count}} واردة",
+      "shortNoteCount": "هذا الشهر · {{count}} في جانب الشراء"
     },
     "tabs": {
       "all": "الكل",
@@ -3967,7 +3996,8 @@
       "vsPo0029": "مقابل PO-0029",
       "standalone": "مستقل",
       "vsSo0068": "مقابل SO-0068",
-      "vsPo0028": "مقابل PO-0028"
+      "vsPo0028": "مقابل PO-0028",
+      "vsPo0030": "مقابل PO-0030"
     },
     "due": {
       "delivered0920": "تم التسليم ٠٩:٢٠",
@@ -3990,7 +4020,7 @@
       "nobodySigned": "لم يوقّع أحد",
       "leftAtReception": "تُرك في الاستقبال",
       "photoToDoor": "صورة عند الباب",
-      "signedByAhmed": "وقّعه أحمد ١٨ يوليو",
+      "signedByAhmed": "وقّعه أحمد · ١٨ يوليو",
       "notArrived": "لم يصل",
       "awaitingVan": "بانتظار الشاحنة"
     },
@@ -4399,21 +4429,21 @@
         "orderConfirmed": "تم تأكيد\nالأمر",
         "orderConfirmedNote": "22 Jul",
         "delivered": "تم التسليم",
-        "deliveredNote": "60% · 2 notes",
+        "deliveredNote": "{{pct}}٪ · {{count}} إشعارات",
         "invoiced": "تمت الفوترة",
-        "invoicedNote": "40% · 1 invoice",
+        "invoicedNote": "{{pct}}٪ · {{count}} فاتورة",
         "paid": "مدفوع",
-        "paidNote": "40% collected"
+        "paidNote": "تم تحصيل {{pct}}٪"
       },
-      "lifecycleNote": "A standing order, so three stages run at once — you keep shipping, billing and collecting against the same commitment. OMR 248.000 has been delivered and not yet invoiced.",
+      "lifecycleNote": "أمر دائم، لذا تجري ثلاث مراحل معاً: تواصل الشحن والفوترة والتحصيل مقابل الالتزام نفسه. تم تسليم {{amount}} ر.ع. ولم تُفوتر بعد.",
       "fulfilmentTitle": "التنفيذ",
       "fulfilment": {
         "invoiced": "Invoiced",
-        "invoicedNote": "40% · 1 invoice, paid",
+        "invoicedNote": "{{pct}}٪ · {{count}} فاتورة، مدفوعة",
         "delivered": "Delivered, not invoiced",
-        "deliveredNote": "20% · shipped and unbilled",
+        "deliveredNote": "{{pct}}٪ · شُحنت ولم تُفوتر",
         "toDeliver": "Still to deliver",
-        "toDeliverNote": "40% · next drop 04 Aug"
+        "toDeliverNote": "{{pct}}٪ · الدفعة التالية ٠٤ أغسطس"
       },
       "legend": {
         "billed": "Billed",
@@ -4439,8 +4469,8 @@
         "nextDrop": "Next drop due 04 Aug",
         "nextDropNote": "32 KG beans, 24 roasting batches, 4 packs of cups still to ship",
         "paid": "INV-2041 paid",
-        "paidNote": "OMR 496.000 received by bank transfer · 29 Jul",
-        "issued": "INV-2041 issued for the first two drops",
+        "paidNote": "تم استلام {{amount}} ر.ع. بتحويل بنكي · ٢٩ يوليو",
+        "issued": "صدرت INV-2041 عن الدفعة الأولى، DN-0121",
         "issuedNote": "Sent over Peppol, TDD accepted by the OTA · 28 Jul",
         "delivered": "DN-0124 delivered and signed",
         "deliveredNote": "24 KG, 18 batches, 3 packs · received by Khalid at the café · 27 Jul",
@@ -4453,7 +4483,9 @@
         "dn0124": "DN-0124 · delivery note",
         "dn0124Note": "Delivered 27 Jul · signed · not yet invoiced",
         "inv2041": "INV-2041 · invoice",
-        "inv2041Note": "OMR 496.000 · issued 28 Jul · paid · TDD accepted"
+        "inv2041Note": "{{amount}} ر.ع. · صدرت ٢٨ يوليو · مدفوعة · قُبلت وثيقة البيانات الضريبية",
+        "dn0121": "DN-0121 · إشعار تسليم",
+        "dn0121Note": "سُلّم ٢٥ يوليو · وقّعه خالد الراشدي · فوتر على INV-2041"
       }
     },
     "purchase": {
@@ -4472,9 +4504,11 @@
         "theyBilled": "فوتروا",
         "theyBilledNote": "They billed",
         "youPaid": "دفعت",
-        "youPaidNote": "Due 28 Aug"
+        "youPaidNote": "Due 28 Aug",
+        "poSentDate": "٢٠ يوليو",
+        "theyBilledDate": "٢٩ يوليو"
       },
-      "lifecycleNote": "Half the order has arrived and Al Noor Dates has invoiced. Their invoice doesn't match what we received — nothing should be paid until that's resolved.",
+      "lifecycleNote": "وصل نصف الأمر وأصدرت نور التمور فاتورتها. فاتورتهم لا تطابق ما استلمناه: لا يُدفع شيء حتى تُحل المشكلة.",
       "matchTitle": "الأمر والتسليم والفاتورة متطابقة",
       "viewTheirInvoice": "عرض فاتورتهم",
       "match": {
@@ -4483,10 +4517,11 @@
         "received": "You received",
         "receivedNote": "Checked in 28 Jul · GRN-0087",
         "billed": "They billed",
-        "billedNote": "per KG · MR-INV-8821"
+        "billedNote": "per KG · MR-INV-8821",
+        "ordered": "ما طلبته"
       },
       "dueToPay": "مستحق الدفع",
-      "dueNote": "On 28 Aug, Net 30 from MR-INV-8821. Nothing is blocking it — the invoice matched on arrival.",
+      "dueNote": "في ٢٨ أغسطس، صافي ٣٠ يوماً من MR-INV-8821. لا شيء يمنع الدفع: طابقت الفاتورة عند وصولها.",
       "schedulePayment": "جدولة الدفع",
       "markAsPaid": "تعليم كمدفوع",
       "whatThisCosts": "التكلفة",
@@ -4514,12 +4549,12 @@
         "dueNote": "OMR 2,354.310 · Net 30 from their invoice date",
         "matched": "MR-INV-8821 matched automatically",
         "matchedNote": "Quantities and prices agree with PO-0031 and GRN-0087 · 29 Jul",
-        "grn": "GRN-0087 recorded — everything arrived",
+        "grn": "سُجّل GRN-0087: وصل كل شيء",
         "grnNote": "300 KG and 12 sacks checked in at Main store · 28 Jul, 07:45",
         "poSent": "PO sent to Muscat Roastery",
         "poSentNote": "Required by 28 Jul · 20 Jul",
         "approved": "Approved by Hafidh Saif",
-        "approvedNote": "OMR 2,354.310 gross · above the OMR 2,000 limit · 19 Jul"
+        "approvedNote": "2,354.310 ر.ع. إجمالي · فوق حد 2,000.000 ر.ع. · ١٩ يوليو"
       },
       "documentsTitle": "المستندات المرتبطة بهذا الأمر",
       "files": {
@@ -4529,8 +4564,12 @@
         "grnNote": "Received 28 Jul · checked in by Yusuf Al Balushi",
         "invoice": "MR-INV-8821 · their invoice",
         "invoiceNote": "Arrived over Peppol 29 Jul · OMR 2,354.310 · matched"
-      }
-    }
+      },
+      "matchTitleOpen": "الأمر والتسليم والفاتورة"
+    },
+    "tailDue": "مستحق {{date}}",
+    "tailRequired": "مطلوب بحلول {{date}}",
+    "pctOnly": "{{pct}}٪"
   },
   "deliveryDetail": {
     "breadcrumb": "إشعارات التسليم",
@@ -4549,7 +4588,8 @@
       "onDate": "في ٢٧ يوليو ٢٠٢٦",
       "steps": {
         "deliveredNote": "This note · 27 Jul",
-        "invoicedNote": "Not yet"
+        "invoicedNote": "Not yet",
+        "invoicedOn": "على {{id}}"
       },
       "lifecycleNote": "The goods are with the customer and signed for. Nothing has been billed for this drop yet, the invoice is the next step, and the only one that goes to the Tax Authority.",
       "proofTitle": "تم التوقيع عند الاستلام",
@@ -4567,7 +4607,7 @@
       "convertToInvoice": "تحويل إلى فاتورة",
       "progressTitle": "Progress on SO-0073",
       "thisDrop": "هذه الشحنة",
-      "progressNote": "60% of the order delivered across 2 notes. 40% still to ship — next drop due 04 Aug.",
+      "progressNote": "تم تسليم {{pct}}٪ من الأمر عبر {{count}} إشعارات. يتبقى {{left}}٪ للشحن؛ الدفعة التالية مستحقة ٠٤ أغسطس.",
       "noteDetails": "تفاصيل الإشعار",
       "noteNumber": "رقم الإشعار",
       "dispatched": "تم الإرسال",
@@ -4610,7 +4650,7 @@
       "theirPaperwork": "مستنداتهم",
       "theirPaperworkValue": "MR-DN-2290 · signed copy kept",
       "billedAndMatched": "مفوتر ومطابق",
-      "billedNote": "MR-INV-8821 covers exactly this delivery. Nothing to chase — payment is scheduled for 28 Aug.",
+      "billedNote": "تغطي MR-INV-8821 هذا التسليم تماماً. لا شيء للمتابعة: الدفع مجدول في ٢٨ أغسطس.",
       "viewTheirInvoice": "عرض فاتورتهم",
       "progressTitle": "Progress on PO-0031",
       "receivedAfter": "المستلم بعد هذا الإشعار",
@@ -4631,7 +4671,7 @@
         "dueNote": "Net 30 from MR-INV-8821 · nothing blocking it",
         "matched": "MR-INV-8821 matched to this receipt",
         "matchedNote": "Quantities and prices agree with PO-0031 · 29 Jul",
-        "checkedIn": "Checked in — everything present",
+        "checkedIn": "تم الفحص: كل شيء موجود",
         "checkedInNote": "Yusuf Al Balushi counted 300 KG and 12 sacks, 3 photos taken · 28 Jul, 07:45",
         "vanArrived": "Van arrived at Main store",
         "vanArrivedNote": "Muscat Roastery · their note MR-DN-2290 · 28 Jul, 07:20",
@@ -4640,8 +4680,12 @@
       },
       "linkedDocuments": "المستندات المرتبطة",
       "filePo": "PO-0031",
-      "filePoNote": "Muscat Roastery Co · placed 20 Jul"
-    }
+      "filePoNote": "Muscat Roastery Co · placed 20 Jul",
+      "theirBill": "فاتورتهم"
+    },
+    "progressOn": "التقدم في {{id}}",
+    "onDateValue": "في {{date}}",
+    "standalone": "إشعار مستقل"
   },
   "linkModal": {
     "title": "ربط المستندات ذات الصلة",
@@ -4660,14 +4704,20 @@
     },
     "docs": {
       "dn0131": "DN-0131 · إشعار تسليم",
-      "dn0131Meta": "سُلّم ٣٠ يوليو · وقّعه خالد الراشدي · ٤ بنود"
+      "dn0131Meta": "سُلّم ٣٠ يوليو · وقّعه خالد الراشدي · ٤ بنود",
+      "deliveryTitle": "{{id}} · إشعار تسليم",
+      "deliveryMeta": "سُلّم {{date}} · {{lines}}",
+      "orderTitle": "{{id}} · نموذج طلب",
+      "orderMeta": "الحركة مستحقة {{due}}"
     },
     "closed": "مغلق",
     "poNumber": "رقم أمر الشراء الخاص بهم",
     "poNumberHint": "اكتبه، فهو مرجع العميل الخاص",
     "poPlaceholder": "مثال: NSC-PO-4471",
     "cancel": "إلغاء",
-    "confirm": "ربط {{count}} مستندات"
+    "confirm": "ربط {{count}} مستندات",
+    "emptyForCustomer": "لا توجد نماذج طلب أو إشعارات تسليم لهذا العميل لربطها.",
+    "chooseCustomer": "اختر العميل أولاً: لا يمكن ربط إلا مستنداته."
   },
   "tradeCreate": {
     "draft": "مسودة",
@@ -4802,7 +4852,18 @@
       "onThisNote": "On this note",
       "effectOn": "Effect on SO-0073",
       "summaryNote": "4 packs of cups and 8 KG of beans will still be outstanding after this drop.",
-      "sendWithDriver": "إرسال مع السائق"
+      "sendWithDriver": "إرسال مع السائق",
+      "againstMetaPct": "أمر أسبوعي دائم · تم تسليم {{pct}}٪ حتى الآن · الدفعة التالية ٠٤ أغسطس",
+      "effectOnOrder": "الأثر على {{id}}",
+      "stillOutstanding": "يبقى معلقاً بعد هذه الدفعة: {{list}}.",
+      "nothingOutstanding": "لن يبقى شيء معلقاً بعد هذه الدفعة.",
+      "moreThanOrderedCount": "{{count}} أكثر من المطلوب",
+      "shipAllCount": "شحن الكل {{count}}",
+      "shipsTheRest": "يشحن كل ما تبقى",
+      "lineMeta": "المطلوب {{ordered}} · تم تسليم {{delivered}}",
+      "overshipWarningCount": "تشحن {{count}} {{unit}} من {{item}} أكثر مما يغطيه {{id}}.",
+      "overshipHintRefused": "لا يمكن إرسال الإشعار بهذا الشكل. خفّض الكمية إلى ما تبقى في الأمر، أو ارفع كمية الأمر لفوترة الزيادة، أو أرسلها هدية لا تُفوتر.",
+      "overshipRefused": "يشحن هذا الإشعار أكثر مما تبقى في {{id}}، لذا لا يمكن إرساله. خفّض الكمية أولاً."
     },
     "receipt": {
       "title": "إيصال شراء جديد",
@@ -4848,8 +4909,10 @@
       "internalNotes": "Internal notes",
       "takenIntoStock": "Taken into stock",
       "effectOn": "Effect on PO-0028",
-      "summaryNote": "3 kraft bags stay outstanding until the supplier replaces or credits them."
-    }
+      "summaryNote": "3 kraft bags stay outstanding until the supplier replaces or credits them.",
+      "driverVehiclePlaceholder": "مثال: الشاحنة ٤ · 7841 MB"
+    },
+    "standardRate": "النسبة القياسية · ٥٪"
   },
   "reminders": {
     "breadcrumb": "الإعدادات",
@@ -19032,6 +19095,28 @@
         "address": "الرسيل 124، سلطنة عُمان",
         "phone": "مجاني {{number}}"
       }
+    }
+  },
+  "tradeDocs": {
+    "notAvailableYet": "غير متاح بعد: المستندات التجارية غير مرتبطة بالخادم، لذلك لا يمكن تنفيذ هذا الإجراء.",
+    "notFound": "لا يوجد {{kind}} برقم {{id}}.",
+    "notRecorded": "لم يُسجَّل بعد",
+    "notAvailableShort": "غير متاح بعد",
+    "empty": "لا شيء لعرضه هنا.",
+    "kind": {
+      "quotation": "عرض سعر",
+      "order": "نموذج طلب",
+      "delivery": "إشعار تسليم"
+    },
+    "selfBill": {
+      "none": "تتطلب الفوترة الذاتية اتفاقية فوترة ذاتية موقعة وسارية مع هذا المورد، ولا توجد اتفاقية مسجلة.",
+      "cannotCheck": "تتطلب الفوترة الذاتية اتفاقية موقعة وسارية مع هذا المورد، ولا تملك صلاحية عرض اتفاقيات الفوترة الذاتية للتحقق منها.",
+      "withdrawn": "تم سحب اتفاقية الفوترة الذاتية {{reference}} مع هذا المورد.",
+      "pending": "اتفاقية الفوترة الذاتية {{reference}} غير مفعّلة بعد.",
+      "suspended": "اتفاقية الفوترة الذاتية {{reference}} موقوفة.",
+      "notStarted": "لم يبدأ سريان اتفاقية الفوترة الذاتية {{reference}} بعد.",
+      "lapsed": "انتهت اتفاقية الفوترة الذاتية {{reference}}.",
+      "unverified": "اتفاقية الفوترة الذاتية {{reference}} بانتظار تحقق فوترة من المورد."
     }
   }
 }
