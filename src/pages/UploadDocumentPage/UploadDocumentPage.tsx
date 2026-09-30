@@ -158,6 +158,8 @@ export function UploadDocumentPage() {
             {t('documents.upload.title')}
           </h1>
           <p className="mt-2 text-sm font-medium leading-[1.4] text-text-quaternary">
+            {/* An upload is kept on the supplier's profile, not in the Peppol archive.
+                TODO(backend): uploads in the archive, DOCUMENTS.md row 3.26. */}
             {t('documents.upload.subtitle')}
           </p>
         </div>

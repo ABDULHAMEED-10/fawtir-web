@@ -6899,7 +6899,7 @@
     "subtitle": "Every document Fawtir sent or received, what it holds for each, and how long it must be kept. Oman VAT Law asks for ten years.",
     "ownPapers": "Agreements, certificates and price lists are filed against the supplier or customer they belong to.",
     "ownPapersLink": "Go to suppliers",
-    "searchPlaceholder": "Search here...",
+    "searchPlaceholder": "Search by document number...",
     "allKinds": "Every kind",
     "allTdd": "Any reporting status",
     "allYears": "Every tax year",
@@ -6928,7 +6928,9 @@
       "STANDARD_INVOICE": "Invoice",
       "CREDIT_NOTE": "Credit note",
       "SELF_BILLING_INVOICE": "Self-billed invoice",
-      "SELF_BILLING_CREDIT_NOTE": "Self-billed credit note"
+      "SELF_BILLING_CREDIT_NOTE": "Self-billed credit note",
+      "DEBIT_NOTE": "Debit note",
+      "PREPAYMENT_INVOICE": "Prepayment invoice"
     },
     "direction": {
       "ISSUED": "Sent",
@@ -7021,7 +7023,11 @@
         "creditIssued": "Credit note to",
         "creditReceived": "Credit note from",
         "selfBilledInvoice": "Self-billed invoice from",
-        "selfBilledCredit": "Self-billed credit note from"
+        "selfBilledCredit": "Self-billed credit note from",
+        "debitIssued": "Debit note to",
+        "debitReceived": "Debit note from",
+        "prepaymentIssued": "Prepayment invoice to",
+        "prepaymentReceived": "Prepayment invoice from"
       },
       "issued": "issued {{date}}",
       "keptChip": "Kept until {{date}}",
@@ -7034,7 +7040,9 @@
         "pdf": "The readable invoice",
         "qr": "Printed on the invoice",
         "mls": "Delivery and OTA replies",
-        "delivery_notification": "The network's receipt"
+        "delivery_notification": "The network's receipt",
+        "tddReceived": "Filed with the OTA by us as receiver (role 02)",
+        "pdfReceived": "The supplier's readable copy"
       },
       "badge": {
         "signed": "Signed PINT-OM",
@@ -7042,7 +7050,11 @@
         "image": "Image",
         "messages_one": "{{count}} message",
         "messages_other": "{{count}} messages",
-        "receipt": "Receipt"
+        "receipt": "Receipt",
+        "signatureFailed": "Signature failed",
+        "signatureUnconfirmed": "Signature not confirmed",
+        "languagesUnconfirmed": "Languages not confirmed",
+        "language": "{{languages}}"
       },
       "copy": "Copy",
       "copied": "Copied",
@@ -7062,6 +7074,7 @@
         "380": "Commercial invoice",
         "381": "Credit note",
         "383": "Debit note",
+        "386": "Prepayment invoice",
         "389": "Self-billed invoice"
       },
       "issuedOn": "Issued",
@@ -7142,10 +7155,22 @@
         "someone": "Someone",
         "aFile": "a file"
       },
-      "logNote": "Every view, download and share is recorded, and the log can't be edited."
+      "logNote": "Every view, download and share is recorded, and the log can't be edited.",
+      "received": "received {{date}}",
+      "debitNoteTitle": "Debit note {{number}}",
+      "corrects": "Corrects invoice",
+      "correctsIssued": "Corrects invoice · issued {{date}}",
+      "correctsNoUuid": "UUID not given yet",
+      "notGivenYet": "Not given yet",
+      "signatureFailed": "Signature failed",
+      "signatureUnconfirmed": "Signature not checked yet",
+      "allLayers": "All {{total}} layers passed",
+      "someLayers": "{{passed}} of {{total}} layers passed",
+      "validationUnconfirmed": "Not confirmed yet",
+      "logNoteUnconfirmed": "No access log is kept for this record yet, so only its filing is shown."
     },
-    "subtitleFull": "Every file Fawtir has generated, received or been given, kept for the ten years Oman VAT Law requires, and fifteen for property. Nothing here can be edited or deleted while its retention runs.",
-    "subtitleEmpty": "Where every file Fawtir generates, receives or is given ends up, kept for as long as Oman VAT Law requires.",
+    "subtitleFull": "Every Peppol document Fawtir has sent or received, kept for the ten years Oman VAT Law requires, and fifteen for property. These cannot be edited or deleted while their retention runs. Papers you upload are filed on the supplier's profile instead, with their own retention.",
+    "subtitleEmpty": "Where every Peppol document Fawtir sends or receives ends up, kept for as long as Oman VAT Law requires.",
     "uploadCta": "Upload a document",
     "searchLabel": "Search by document number",
     "filters": "Filters",
@@ -7223,7 +7248,9 @@
       "pdf": "The readable invoice, both languages in one file",
       "qr": "The QR code printed on the invoice",
       "mls": "Delivery acknowledged by the other side's access point, and the OTA's reply",
-      "delivery_notification": "The transport network's own receipt"
+      "delivery_notification": "The transport network's own receipt",
+      "tddReceived": "Tax Data Document we filed with the OTA as receiver (role 02)",
+      "pdfReceived": "The supplier's readable copy"
     },
     "verified": "Verified",
     "viewFile": "View {{name}}",
@@ -7232,7 +7259,9 @@
     "noMatch": {
       "title": "Nothing matches",
       "note": "No document fits these filters. Clear one to see more.",
-      "noHold": "No document is on legal hold."
+      "noHold": "No document is on legal hold.",
+      "noHoldOnPage": "No document on this page is on legal hold. Held records on other pages are not listed here yet.",
+      "noTypeOnPage": "No document of this kind on this page. Try the next page."
     },
     "showingOf": "Showing {{shown}} of {{total}} records",
     "pages": "Pages",
@@ -7274,7 +7303,7 @@
     "upload": {
       "breadcrumb": "Upload a document",
       "title": "Add a document",
-      "subtitle": "For the paper that matters but doesn't come through Peppol: contracts, signed delivery notes, warranties, letters.",
+      "subtitle": "For the paper that matters but doesn't come through Peppol: contracts, signed delivery notes, warranties, letters. An upload is filed on the supplier's profile, kept apart from the Peppol archive, with its own retention.",
       "notAllowed": "Filing a paper needs permission to manage suppliers. Ask an administrator.",
       "steps": {
         "file": "The file",
@@ -7354,7 +7383,24 @@
     "fileName": {
       "mls": "MLS responses",
       "delivery_notification": "Transport receipt"
-    }
+    },
+    "recordKindLabel": {
+      "salesInvoice": "Sales invoice",
+      "billReceived": "Bill received over Peppol",
+      "creditIssued": "Credit note",
+      "creditReceived": "Credit note received",
+      "debitIssued": "Debit note",
+      "debitReceived": "Debit note received",
+      "prepaymentIssued": "Prepayment invoice",
+      "prepaymentReceived": "Prepayment invoice received",
+      "selfBilledInvoice": "Self-billed invoice",
+      "selfBilledCredit": "Self-billed credit note"
+    },
+    "metaIssued": "issued {{date}}",
+    "metaReceived": "received {{date}}",
+    "metaCorrects": "corrects {{number}}",
+    "showingOnPage": "Showing {{count}} on this page",
+    "sortedOnPage": "sorted within this page"
   },
   "reports": {
     "title": "Reports",
