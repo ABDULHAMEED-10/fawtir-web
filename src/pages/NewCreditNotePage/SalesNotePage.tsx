@@ -43,6 +43,7 @@ import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { selfBillingMessageKey } from '../../lib/selfBillingRefusals'
+import { selfBillOwed } from '../../lib/selfBillDetail'
 import { formatAmount, formatDate } from '../../lib/format'
 import { issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
 import {
@@ -117,6 +118,24 @@ function notePaths(kind: NoteKind, selfBilled: boolean): NotePaths {
     original: (id) => `/invoices/${id}`,
     note: (id) => `${NOTE_ROUTES[kind]}/${id}`,
   }
+}
+
+/**
+ * A self-billed credit note corrects a purchase: the other party is the supplier and the VAT is the
+ * tenant's input VAT (handbook 3.1, approved 30 Sep 2026). The composer's sales wording is swapped
+ * for these keys on that route only; every other key reads as on a sales note.
+ */
+const SELF_BILLED_WORDING: Record<string, string> = {
+  'salesNote.compose.customerUnknown': 'selfBilledNote.supplierUnknown',
+  'salesNote.noteToCustomer': 'selfBilledNote.noteToSupplier',
+  'salesNote.compose.peppolTitle': 'selfBilledNote.peppolTitle',
+  'salesNote.amount.reduces': 'selfBilledNote.reduces',
+  'salesNote.amount.newBalance': 'selfBilledNote.newBalance',
+  'salesNote.amount.refundTitle': 'selfBilledNote.refundTitle',
+  'salesNote.amount.refundHint': 'selfBilledNote.refundHint',
+  'salesNote.amount.refundNone': 'selfBilledNote.refundNone',
+  'salesNote.amount.filed.credit': 'selfBilledNote.filed',
+  'salesNote.refused.invoiceNotIssued': 'selfBilledNote.invoiceNotIssued',
 }
 
 type Loaded = {
@@ -457,11 +476,18 @@ function NoteEditor({
   selfBilled,
   paths,
   invoice,
-  receivable,
+  receivable: loadedReceivable,
   draft,
   customer,
 }: { kind: NoteKind; selfBilled: boolean; paths: NotePaths } & Loaded) {
-  const { t, i18n } = useTranslation()
+  const { t: translate, i18n } = useTranslation()
+  const t = (key: string, options?: Record<string, unknown>): string =>
+    translate(selfBilled ? (SELF_BILLED_WORDING[key] ?? key) : key, options ?? {})
+  // A self-billed document's debt is its Expenditure payable (D2): what is owed, paid and credited
+  // is read there, never from the receivable, which is NOT_APPLICABLE on a self-billed document.
+  // TODO(backend): INCOME.md 7.21, the payable's creditedAmount must net earlier self-billed
+  // credit notes, or "Already credited" and the creditable figure stay as if none was issued.
+  const receivable = selfBilled ? selfBillOwed(invoice.payable, loadedReceivable) : loadedReceivable
   const reference = useReferenceData()
   const navigate = useNavigate()
   const session = useSession()

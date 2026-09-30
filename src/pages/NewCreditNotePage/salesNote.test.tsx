@@ -1460,12 +1460,41 @@ describe('a self-billed credit note (SW3, D6)', () => {
     renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
     expect(await screen.findByText('Green beans')).toBeTruthy()
     expect(
-      screen.getByText('This invoice is not issued (or was cancelled), so it cannot be corrected.'),
+      screen.getByText(
+        'Only an issued self-billed invoice can be credited here. Open the self-billed invoice and use Credit note.',
+      ),
     ).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Issue credit note' }).hasAttribute('disabled')).toBe(
       true,
     )
   })
+
+  it('names the supplier and input VAT, and reads what is owed from the payable', async () => {
+    original = {
+      ...SELF_BILLED,
+      payable: {
+        billId: 'bill-1',
+        state: 'PARTIALLY_PAID',
+        totalAmount: 100,
+        paidAmount: 20,
+        creditedAmount: 5,
+        outstandingAmount: 75,
+        currency: 'OMR',
+        dueDate: null,
+      },
+    }
+    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText('Green beans')).toBeTruthy()
+    expect(screen.getByText('Reduces input VAT')).toBeTruthy()
+    expect(screen.getByText('Send to supplier over Peppol')).toBeTruthy()
+    expect(screen.getAllByText('Note to supplier').length).toBeGreaterThan(0)
+    expect(screen.getByText('Still owed to the supplier')).toBeTruthy()
+    expect(screen.queryByText('Reduces recognised revenue')).toBeNull()
+    expect(screen.queryByText('Send to customer over Peppol')).toBeNull()
+    // Already credited and the creditable figure come from the payable, not the receivable.
+    expect(screen.getByText('5.000')).toBeTruthy()
+    expect(screen.getByText('95.000')).toBeTruthy()
+  }, 30_000)
 
   it('asks for selfbilling.create, not creditnote.create', async () => {
     entitlements = { ...ADMIN }
