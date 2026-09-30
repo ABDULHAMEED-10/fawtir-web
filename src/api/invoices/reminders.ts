@@ -13,8 +13,8 @@ import { withQuery } from '../query'
  * 1. **The log is a past-tense ledger, not a queue.** It answers a bare array with no total and no
  *    "has more", and there is no upcoming-sends endpoint at all. Nothing can say what is due to go
  *    out tomorrow; `preview` answers only what would happen **today**, for one invoice.
- * 2. **A rung is spent once, for ever.** The server holds `UNIQUE (invoice_id, days_from_due)`, a
- *    failed send still spends the rung, and there is no retry and no way to un-spend one.
+ * 2. **A rung is spent once, for ever.** The server holds `UNIQUE (invoice_id, days_from_due)`,
+ *    and there is no retry and no way to un-spend one.
  */
 
 /** Signed days from the due date: negative is before, 0 is on the day, positive is after. */
@@ -125,8 +125,7 @@ export function loadReminderPreview(path: string): Promise<ReminderPreviewDto> {
  * Send one now. `daysFromDue` names the rung to spend; omitted, the server works out today's.
  *
  * Bypasses the two schedule refusals — a person is deciding — but not the invoice's own. Answers
- * 503 `REMINDER_DELIVERY_UNAVAILABLE` wherever mail delivery is switched off, which is every
- * checked-in deployment today.
+ * 503 `REMINDER_DELIVERY_UNAVAILABLE` wherever mail delivery is switched off.
  */
 export function sendReminderNow(invoiceId: string, daysFromDue: number | null): Promise<ReminderPreviewDto> {
   return apiRequest<ReminderPreviewDto>(`${invoiceRemindersPath(invoiceId)}/send`, {

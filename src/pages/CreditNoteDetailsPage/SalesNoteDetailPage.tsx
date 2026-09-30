@@ -1336,8 +1336,9 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
             </div>
           ) : null}
 
-          {/* A debit note is chased like an invoice; a credit note is not owed to us. */}
-          {!draft && !credit ? (
+          {/* A debit note is chased like an invoice; a credit note is not owed to us, and a
+              cancelled note is owed by nobody (its preview has no amount to put in a message). */}
+          {!draft && !credit && status !== 'cancelled' ? (
             <div id="reminders">
               <InvoiceRemindersCard invoiceId={id} dueDate={data.dueDate} />
             </div>

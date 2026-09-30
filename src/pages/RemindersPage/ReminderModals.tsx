@@ -154,14 +154,12 @@ export function SendReminderModal({
   const chosen = entry ?? entries.find((candidate) => candidate.invoice.id === chosenId) ?? null
   const ladder = normaliseOffsets(offsets)
   const today = muscatToday()
+  // Today's distance from the due date, as the invoice page uses. Not the queue's next rung: that
+  // can be a later one, and the server writes the message from the rung it is given, so sending it
+  // early would tell the customer the wrong number of days and spend that rung before its day.
   const fallback = chosen ? rungToday(today, chosen.invoice.dueDate) : null
   const [picked, setPicked] = useState<number | null>(null)
-  const rung =
-    picked ??
-    chosen?.next?.offset ??
-    ladder.find((offset) => offset === fallback) ??
-    ladder[0] ??
-    fallback
+  const rung = picked ?? fallback ?? ladder[0] ?? null
   const previewPath = chosen ? reminderPreviewPath(chosen.invoice.id, rung) : null
   const preview = useApiRead<ReminderPreviewDto>(previewPath, () =>
     loadReminderPreview(previewPath ?? ''),

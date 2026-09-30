@@ -36,12 +36,8 @@ export function rungNote(days: number): { key: string; values?: Record<string, n
 export type RungProblem = 'notWhole' | 'outOfRange' | 'duplicate'
 
 /**
- * What the server would refuse, checked here first.
- *
- * Not belt and braces: `PUT /payment-reminders/schedule` answers **500** for its own domain
- * refusals today, because its controller is missing from the invoice exception handler. Until that
- * is fixed the page is the only thing that can tell someone their rung is out of range, so these
- * checks are load-bearing rather than a nicety.
+ * What the server would refuse, checked here first. `PUT /payment-reminders/schedule` answers 400
+ * for the same cases; checking here says which rung is wrong before anything is sent.
  */
 export function rungProblem(value: string, others: number[]): RungProblem | null {
   const days = Number(value)
@@ -214,7 +210,27 @@ export type QueueInvoice = {
   paid: boolean
 }
 
-export type QueueReason = 'noDueDate' | 'noRungs' | 'ladderSpent' | 'noRecipient'
+export type QueueReason = 'optedOut' | 'noDueDate' | 'noRungs' | 'ladderSpent' | 'noRecipient'
+
+/**
+ * Why a row is under "Not sending", in the page's words. A customer who has not opted in reads
+ * the preview's own verdict wording, so the queue and the invoice page say the same thing.
+ */
+export const QUEUE_REASON_NOTE: Record<QueueReason, string> = {
+  optedOut: 'paymentReminders.verdict.customerOptedOut',
+  noDueDate: 'reminders.queue.reason.noDueDate',
+  noRungs: 'reminders.queue.reason.noRungs',
+  ladderSpent: 'reminders.queue.reason.ladderSpent',
+  noRecipient: 'reminders.queue.reason.noRecipient',
+}
+
+/**
+ * The log's `locale` is the customer's language as stored (`en`, `ar`) or the server's default
+ * (`EN`); the page's keys are upper case, so either spelling finds its words.
+ */
+export function logLocaleKey(locale: string): string {
+  return `reminders.queue.locale.${locale.toUpperCase()}`
+}
 
 export type QueueEntry = {
   invoice: QueueInvoice
@@ -226,12 +242,18 @@ export type QueueEntry = {
   spent: ReminderLogDto[]
 }
 
+/**
+ * `optedOutOf` answers true only for a customer the page holds whose own reminder switch is off:
+ * the sweep never mails them (`ReminderDecision` checks it before anything else), so they are
+ * "Not sending" whatever the ladder says. A customer the page does not hold is not guessed at.
+ */
 export function buildQueue(
   invoices: QueueInvoice[],
   offsets: number[],
   log: ReminderLogDto[],
   emailOf: (customerId: string) => string | null,
   today: string,
+  optedOutOf: (customerId: string) => boolean = () => false,
 ): QueueEntry[] {
   const ladder = normaliseOffsets(offsets)
   return invoices
@@ -242,6 +264,8 @@ export function buildQueue(
         .sort((a, b) => b.firedOn.localeCompare(a.firedOn))
       const used = new Set(spent.map((row) => row.daysFromDue))
       const email = emailOf(invoice.customerId)
+      if (optedOutOf(invoice.customerId))
+        return { invoice, email, next: null, reason: 'optedOut', spent }
       if (!invoice.dueDate) return { invoice, email, next: null, reason: 'noDueDate', spent }
       if (ladder.length === 0) return { invoice, email, next: null, reason: 'noRungs', spent }
       const dueDate = invoice.dueDate

@@ -33,7 +33,8 @@ export function useReminderQueue(canReadSchedule: boolean, today: string) {
   const invoicesPath = invoiceListPath({
     state: 'ISSUED',
     payment: null,
-    type: 'INVOICE',
+    // The sweep chases debit notes as well as invoices (`JdbcReminderCandidateAdapter`).
+    type: ['INVOICE', 'DEBIT_NOTE'],
     from: null,
     to: null,
     search: '',
@@ -73,7 +74,10 @@ export function useReminderQueue(canReadSchedule: boolean, today: string) {
       })),
     [invoices.read],
   )
-  const customerRows = customers.read.status === 'ready' ? customers.read.data.items : []
+  const customerRows = useMemo(
+    () => (customers.read.status === 'ready' ? customers.read.data.items : []),
+    [customers.read],
+  )
   const emails = useMemo(
     () =>
       new Map(
@@ -81,17 +85,31 @@ export function useReminderQueue(canReadSchedule: boolean, today: string) {
       ),
     [customerRows],
   )
-  const muted = customerRows.filter(
-    (row) => row.profile?.deliveryPreferences?.automaticPaymentReminders === false,
-  ).length
+  const mutedIds = useMemo(
+    () =>
+      new Set(
+        customerRows
+          .filter((row) => row.profile?.deliveryPreferences?.automaticPaymentReminders === false)
+          .map((row) => row.id),
+      ),
+    [customerRows],
+  )
+  const muted = mutedIds.size
   const ladder = schedule.read.status === 'ready' ? schedule.read.data : null
   const logRows = log.read.status === 'ready' ? log.read.data : []
   const queue = useMemo<QueueEntry[]>(
     () =>
       ladder
-        ? buildQueue(rows, ladder.offsets, logRows, (id) => emails.get(id) ?? null, today)
+        ? buildQueue(
+            rows,
+            ladder.offsets,
+            logRows,
+            (id) => emails.get(id) ?? null,
+            today,
+            (id) => mutedIds.has(id),
+          )
         : [],
-    [ladder, rows, logRows, emails, today],
+    [ladder, rows, logRows, emails, today, mutedIds],
   )
 
   return {
