@@ -4,10 +4,23 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { InvoiceDetailDto, InvoiceReceivableDto } from '../../api/invoices/detail'
-import { creditEffect, fromInvoice, noteProblems, toNoteRequest } from '../../lib/salesNote'
+import type { DraftRequest, DraftResponse } from '../../api/invoices/drafts'
+import type { InvoiceRowDto } from '../../api/invoices/list'
+import {
+  addedLine,
+  creditEffect,
+  debitPaymentOf,
+  fromInvoice,
+  fromNoteDraft,
+  noteProblems,
+  participantIdText,
+  toNoteRequest,
+  withMode,
+} from '../../lib/salesNote'
 import { NewCreditNotePage } from './NewCreditNotePage'
 import { NewDebitNotePage } from '../NewDebitNotePage'
 import { CreditNotesPage } from '../CreditNotesPage'
+import { DebitNotesPage } from '../DebitNotesPage'
 import { InvoiceDetailsPage } from '../InvoiceDetailsPage'
 
 const INVOICE_ID = '11111111-1111-1111-1111-111111111111'
@@ -124,6 +137,9 @@ function json(status: number, body?: unknown) {
 
 let fetchMock: ReturnType<typeof vi.fn>
 let receivable: InvoiceReceivableDto
+let entitlements: Entitlements
+/** Per-test answers, tried before the shared ones; `undefined` falls through. */
+let override: (url: string, init?: RequestInit) => Response | Promise<Response> | undefined
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
     ([called, init]) =>
@@ -136,9 +152,13 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   receivable = RECEIVABLE
+  entitlements = ADMIN
+  override = () => undefined
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
-    if (url === '/api/v1/me/entitlements') return json(200, ADMIN)
+    const answered = await override(url, init)
+    if (answered) return answered
+    if (url === '/api/v1/me/entitlements') return json(200, entitlements)
     if (url === `/api/v1/authored-invoices/${INVOICE_ID}`) return json(200, INVOICE)
     if (url === `/api/v1/authored-invoices/${INVOICE_ID}/receivable`) return json(200, receivable)
     if (url === `/api/v1/authored-invoices/${INVOICE_ID}/credit-notes` && method === 'POST')
@@ -220,6 +240,7 @@ function renderAt(path: string) {
         <Route path="/income/credit-notes" element={<CreditNotesPage />} />
         <Route path="/income/credit-notes/new" element={<NewCreditNotePage />} />
         <Route path="/income/credit-notes/:id" element={<p>credit note page</p>} />
+        <Route path="/income/debit-notes" element={<DebitNotesPage />} />
         <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
         <Route path="/income/debit-notes/:id" element={<p>debit note page</p>} />
         <Route path="/invoices/:id" element={<InvoiceDetailsPage />} />
@@ -441,5 +462,448 @@ describe('notes around the invoice', () => {
         String(url).includes(`correction_of_invoice_id=${INVOICE_ID}`),
       ),
     ).toBe(true)
+  })
+})
+
+/** The draft the server answers for a note request: what `fromNoteDraft` reads back. */
+function draftOf(request: DraftRequest, type: 'CREDIT_NOTE' | 'DEBIT_NOTE'): DraftResponse {
+  return {
+    ...(DRAFT as unknown as DraftResponse),
+    type,
+    details: { ...DRAFT.details, ...request.details } as DraftResponse['details'],
+    lines: request.lines.map((line) => ({
+      lineNumber: line.lineNumber,
+      productId: line.productId ?? null,
+      productCode: line.productCode ?? null,
+      description: line.description,
+      unitCode: line.unitCode,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      discountType: line.discount.type,
+      discountValue: line.discount.value,
+      taxCategoryCode: line.taxCategory.code,
+      en16931Category: line.taxCategory.en16931Category,
+      taxRate: line.taxCategory.rate,
+      exemptionReason: line.taxCategory.exemptionReason,
+      exemptionReasonCode: line.taxCategory.exemptionReasonCode ?? null,
+      classification: line.classification ?? null,
+    })),
+  }
+}
+
+describe('a reopened note draft (W-1) and lines with no product (W-3)', () => {
+  it('sends back the same body it was saved with, reason code and classification included', () => {
+    const start = withMode(
+      { ...fromInvoice(INVOICE, 'DEBIT_NOTE'), reason: 'freightOmitted' },
+      'additionalItems',
+      INVOICE,
+    )
+    const [first] = start.lines.filter((line) => !line.fromInvoice)
+    const second = addedLine(start, INVOICE, 'service')
+    const form = {
+      ...start,
+      lines: [
+        ...start.lines.filter((line) => line.lineNumber !== first.lineNumber),
+        {
+          ...first,
+          description: 'Export packing',
+          classification: '090121000000',
+          unitPrice: '12.000',
+          taxCategory: {
+            code: 'Z0',
+            en16931Category: 'Z',
+            rate: 0,
+            exemptionReason: null,
+            exemptionReasonCode: 'VATZR-OM-10',
+          },
+        },
+        {
+          ...second,
+          description: 'Consulting',
+          unitCode: 'HUR',
+          classification: '86000000',
+          unitPrice: '40.000',
+        },
+      ],
+    }
+    const saved = toNoteRequest(form, INVOICE, 'DEBIT_NOTE')
+    expect(saved.lines[0]).toMatchObject({
+      taxCategory: { code: 'Z0', exemptionReasonCode: 'VATZR-OM-10' },
+      classification: { goodsOrService: 'G', hsCode: '090121000000' },
+    })
+
+    const reopened = fromNoteDraft(draftOf(saved, 'DEBIT_NOTE'), INVOICE, 'DEBIT_NOTE')
+    expect(toNoteRequest(reopened, INVOICE, 'DEBIT_NOTE')).toEqual(saved)
+  })
+
+  it('leaves productId and productCode out of a line added on the note', () => {
+    const form = withMode(
+      { ...fromInvoice(INVOICE, 'DEBIT_NOTE'), reason: 'freightOmitted' },
+      'flatCharge',
+      INVOICE,
+    )
+    const [line] = toNoteRequest(form, INVOICE, 'DEBIT_NOTE').lines
+    expect(line).not.toHaveProperty('productId')
+    expect(line).not.toHaveProperty('productCode')
+  })
+})
+
+/** A debit note ready to save: Roasting charged 3.000 more, reason "Undercharged". */
+async function readyDebitNote() {
+  renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
+  expect(await screen.findByText(/Only the difference is charged/)).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Unit price · Roasting'), { target: { value: '3' } })
+  chooseReason('Undercharged')
+}
+
+const keyOf = (call: unknown[]) =>
+  ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+
+describe('idempotency keys (W-4)', () => {
+  const idle = (name: string) =>
+    vi.waitFor(() =>
+      expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(false),
+    )
+  const created = () => calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes`)
+  const issued = () => calls('POST', `/api/v1/invoice-drafts/${NOTE_ID}/issue`)
+
+  it('sends the create under a new key after the server refused it', async () => {
+    let refuse = true
+    override = (url, init) => {
+      if (url !== `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes` || init?.method !== 'POST')
+        return undefined
+      if (!refuse) return undefined
+      refuse = false
+      return json(422, { title: 'Refused', status: 422, code: 'CORRECTED_INVOICE_NOT_ISSUED' })
+    }
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await vi.waitFor(() => expect(created()).toHaveLength(1))
+    await idle('Save draft')
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(created()).toHaveLength(2)
+    expect(bodyOf(created()[1])).toEqual(bodyOf(created()[0]))
+    expect(keyOf(created()[1])).not.toBe(keyOf(created()[0]))
+  }, 30_000)
+
+  it('replays the create under the same key after a network error', async () => {
+    let fail = true
+    override = (url, init) => {
+      if (url !== `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes` || init?.method !== 'POST')
+        return undefined
+      if (!fail) return undefined
+      fail = false
+      throw new TypeError('Failed to fetch')
+    }
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await vi.waitFor(() => expect(created()).toHaveLength(1))
+    await idle('Save draft')
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(created()).toHaveLength(2)
+    expect(keyOf(created()[1])).toBe(keyOf(created()[0]))
+  }, 30_000)
+
+  it('sends the issue under a new key after the server refused it', async () => {
+    let version = 0
+    let refuse = true
+    override = (url, init) => {
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}` && init?.method === 'PUT')
+        return json(200, { ...DRAFT, type: 'DEBIT_NOTE', version: ++version })
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}/issue` && refuse) {
+        refuse = false
+        return json(409, { title: 'Stale', status: 409, code: 'STALE_INVOICE_VERSION' })
+      }
+      return undefined
+    }
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Issue debit note' }))
+    await vi.waitFor(() => expect(issued()).toHaveLength(1))
+    await idle('Issue debit note')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue debit note' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    // The draft was saved again first (PUT), and the resend goes under a new key.
+    expect(calls('PUT', `/api/v1/invoice-drafts/${NOTE_ID}`)).toHaveLength(1)
+    expect(bodyOf(issued()[1]).expectedVersion).toBe(1)
+    expect(keyOf(issued()[1])).not.toBe(keyOf(issued()[0]))
+  }, 30_000)
+
+  it('replays the issue under the same key after a network error, even with a new version', async () => {
+    let version = 0
+    let fail = true
+    override = (url, init) => {
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}` && init?.method === 'PUT')
+        return json(200, { ...DRAFT, type: 'DEBIT_NOTE', version: ++version })
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}/issue` && fail) {
+        fail = false
+        throw new TypeError('Failed to fetch')
+      }
+      return undefined
+    }
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Issue debit note' }))
+    await vi.waitFor(() => expect(issued()).toHaveLength(1))
+    await idle('Issue debit note')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue debit note' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    // The first issue may have reached the server: the retry must not be able to issue twice.
+    expect(keyOf(issued()[1])).toBe(keyOf(issued()[0]))
+  }, 30_000)
+
+  it('replays the issue under the same key after a 5xx', async () => {
+    let fail = true
+    override = (url, init) => {
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}` && init?.method === 'PUT')
+        return json(200, { ...DRAFT, type: 'DEBIT_NOTE' })
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}/issue` && fail) {
+        fail = false
+        return json(503, { title: 'Unavailable', status: 503 })
+      }
+      return undefined
+    }
+    await readyDebitNote()
+    fireEvent.click(screen.getByRole('button', { name: 'Issue debit note' }))
+    await vi.waitFor(() => expect(issued()).toHaveLength(1))
+    await idle('Issue debit note')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue debit note' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    expect(bodyOf(issued()[1])).toEqual(bodyOf(issued()[0]))
+    expect(keyOf(issued()[1])).toBe(keyOf(issued()[0]))
+  }, 30_000)
+})
+
+describe("the note detail's participant id (4.14)", () => {
+  it('prints scheme:value from the record, without doubling a prefix the value already has', () => {
+    expect(participantIdText({ scheme: '0248', value: 'OM1100447102' })).toBe('0248:OM1100447102')
+    expect(participantIdText({ scheme: '0248', value: '0248:OM1100447102' })).toBe(
+      '0248:OM1100447102',
+    )
+  })
+
+  it('takes a plain string as it is, and nothing when there is no id', () => {
+    expect(participantIdText('0248:OM1100447102')).toBe('0248:OM1100447102')
+    expect(participantIdText(null)).toBeNull()
+    expect(participantIdText({ scheme: '0248', value: '' })).toBeNull()
+  })
+})
+
+describe('the debit composer', () => {
+  it('names the tax category of the lines it charges (W-5)', async () => {
+    renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
+    const field = () => screen.getByText('Default tax category').closest('label') as HTMLElement
+    await screen.findByText(/Only the difference is charged/)
+    expect(within(field()).getByText('Standard rate · 5%')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('radio', { name: /Additional items/ }))
+    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Delivery' } })
+    fireEvent.click(screen.getByRole('button', { name: 'VAT (%) · Delivery' }))
+    fireEvent.click(screen.getByRole('option', { name: /Zero-rated/ }))
+    expect(within(field()).getByText('Zero-rated - 0%')).toBeTruthy()
+  }, 30_000)
+
+  it('offers Save draft only to someone who may save drafts (W-6)', async () => {
+    entitlements = {
+      ...ADMIN,
+      permissions: ADMIN.permissions.filter((permission) => permission !== 'invoice.draft'),
+    }
+    renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByRole('button', { name: 'Issue debit note' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull()
+  }, 30_000)
+})
+
+describe('attachments on the note draft (4.6)', () => {
+  const file = (name: string) => new File(['x'], name, { type: 'application/pdf' })
+  const drop = (container: HTMLElement, files: File[]) =>
+    fireEvent.change(container.querySelector('input[type=file]') as HTMLInputElement, {
+      target: { files },
+    })
+
+  it('uploads the queued files to the saved draft, each once, and keeps the draft on a failure', async () => {
+    entitlements = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.attachment.manage'] }
+    let failSecond = true
+    override = (url, init) => {
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}` && init?.method === 'PUT')
+        return json(200, { ...DRAFT, type: 'DEBIT_NOTE', version: 1 })
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/attachments` && init?.method === 'POST') {
+        const name = ((init.body as FormData).get('file') as File).name
+        if (name === 'po.pdf' && failSecond) {
+          failSecond = false
+          return json(500, { title: 'Boom', status: 500 })
+        }
+        return json(201, { id: `att-${name}`, filename: name })
+      }
+      return undefined
+    }
+    const { container } = render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/new?invoice=${INVOICE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/new" element={<NewDebitNotePage />} />
+          <Route path="/income/debit-notes/:id" element={<p>debit note page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText(/Only the difference is charged/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Unit price · Roasting'), { target: { value: '3' } })
+    chooseReason('Undercharged')
+    drop(container, [file('delivery.pdf'), file('po.pdf')])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    const uploads = () => calls('POST', `/api/v1/authored-invoices/${NOTE_ID}/attachments`)
+    await vi.waitFor(() => expect(uploads()).toHaveLength(2))
+    // The draft was created, the second file failed: the page stays, with the notice.
+    expect(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes`)).toHaveLength(1)
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save draft' }).hasAttribute('disabled')).toBe(
+        false,
+      ),
+    )
+    expect(screen.getByRole('alert').textContent).toContain('temporarily unavailable')
+    expect(screen.queryByText('debit note page')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    expect(await screen.findByText('debit note page')).toBeTruthy()
+    // Saved again (PUT, no second create), and only the file that failed went up again.
+    expect(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/debit-notes`)).toHaveLength(1)
+    expect(calls('PUT', `/api/v1/invoice-drafts/${NOTE_ID}`)).toHaveLength(1)
+    const names = uploads().map(
+      (call) => (((call[1] as RequestInit).body as FormData).get('file') as File).name,
+    )
+    expect(names).toEqual(['delivery.pdf', 'po.pdf', 'po.pdf'])
+  }, 30_000)
+
+  it('shows no drop zone to someone who may not attach files', async () => {
+    renderAt(`/income/debit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText(/Only the difference is charged/)).toBeTruthy()
+    expect(screen.queryByText('Attachments')).toBeNull()
+  }, 30_000)
+})
+
+const DEBIT_SUMMARY = {
+  currencyCode: 'OMR',
+  asOf: '2026-09-25',
+  all: 13,
+  drafts: 1,
+  toSend: 1,
+  awaiting: 2,
+  overdue: 1,
+  paid: 8,
+  outstandingTotal: 18.375,
+  outstandingInvoices: 3,
+  awaitingTotal: 12.075,
+  dueSoonInvoices: 0,
+  dueSoonDays: 7,
+  overdueTotal: 6.3,
+  overdueInvoices: 1,
+  oldestOverdueDueDate: '2026-09-13',
+  paidTotal: 48.195,
+  paidInvoices: 8,
+  issuedLast30Days: { count: 2, total: 69.06 },
+  issuedThisQuarter: { count: 11, total: 66.57 },
+}
+
+describe('the debit notes list figures (4.1)', () => {
+  it('reads the tabs and the four figures from the summary by type, not from a wide read', async () => {
+    override = (url) =>
+      url.startsWith('/api/v1/authored-invoices/summary') ? json(200, DEBIT_SUMMARY) : undefined
+    renderAt('/income/debit-notes')
+    expect(await screen.findByText('69.060')).toBeTruthy()
+    const summaries = calls('GET', '/api/v1/authored-invoices/summary')
+    expect(summaries).toHaveLength(1)
+    expect(summaries[0][0]).toBe('/api/v1/authored-invoices/summary?type=DEBIT_NOTE')
+    expect(
+      calls('GET', '/api/v1/authored-invoices?').some(([url]) => String(url).includes('size=200')),
+    ).toBe(false)
+    expect(screen.getByText('2 debit notes issued')).toBeTruthy()
+    // The designed subtitle, from the quarter the summary answers.
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /^11 debit notes · .*66\.570 charged this quarter$/.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText('12.075')).toBeTruthy()
+    expect(screen.getByText('48.195')).toBeTruthy()
+    // One overdue note, due 13 Sep, read on 25 Sep: 12 days late.
+    expect(screen.getByText('1 note · 12 days late')).toBeTruthy()
+    expect(within(screen.getByRole('tab', { name: /All/ })).getByText('13')).toBeTruthy()
+    expect(within(screen.getByRole('tab', { name: /Paid/ })).getByText('8')).toBeTruthy()
+  })
+
+  it('reads the list description in the subtitle when the summary has no quarter', async () => {
+    const withoutQuarter: Partial<typeof DEBIT_SUMMARY> = { ...DEBIT_SUMMARY }
+    delete withoutQuarter.issuedThisQuarter
+    override = (url) =>
+      url.startsWith('/api/v1/authored-invoices/summary') ? json(200, withoutQuarter) : undefined
+    renderAt('/income/debit-notes')
+    expect(await screen.findByText('69.060')).toBeTruthy()
+    expect(screen.getByText(/Debit notes charge a customer more on an issued invoice/)).toBeTruthy()
+    expect(screen.queryByText(/charged this quarter/)).toBeNull()
+  })
+
+  it('says the figures are unavailable when the summary fails', async () => {
+    override = (url) =>
+      url.startsWith('/api/v1/authored-invoices/summary')
+        ? json(500, { title: 'Boom', status: 500 })
+        : undefined
+    renderAt('/income/debit-notes')
+    expect((await screen.findAllByText('Figures unavailable')).length).toBe(4)
+    expect(screen.getByText(/Debit notes charge a customer more on an issued invoice/)).toBeTruthy()
+  })
+})
+
+describe('a paid debit note row (4.7)', () => {
+  const row = (payment: Partial<NonNullable<InvoiceRowDto['payment']>>) =>
+    ({
+      id: 'd-1',
+      type: 'DEBIT_NOTE',
+      version: 2,
+      authoringState: 'ISSUED',
+      deliveryState: 'SENT_MANUALLY',
+      customerId: 'c-1',
+      currency: 'OMR',
+      invoiceNumber: 'DBN-1',
+      issueDate: '2026-09-01',
+      dueDate: '2026-10-01',
+      details: null,
+      lines: [],
+      totals: { totalAmount: 10 },
+      customerName: 'Sohar Port Logistics',
+      payment: {
+        state: 'PAID',
+        overdue: false,
+        daysOverdue: null,
+        paidAmount: 10,
+        creditedAmount: 0,
+        outstandingAmount: 0,
+        ...payment,
+      },
+    }) as InvoiceRowDto
+
+  it('prints the paid date when the row carries it, and "Paid" alone when it does not', () => {
+    expect(
+      debitPaymentOf(row({ lastPaymentDate: '2026-09-20', lastPaymentMethodCode: '30' })),
+    ).toEqual({ kind: 'paid', date: '2026-09-20' })
+    expect(debitPaymentOf(row({}))).toEqual({ kind: 'paid', date: null })
+  })
+
+  it('reads a paid or late note from its payment even before it is delivered', () => {
+    const undelivered = (payment: Partial<NonNullable<InvoiceRowDto['payment']>>) =>
+      ({ ...row(payment), deliveryState: 'NOT_SUBMITTED' }) as InvoiceRowDto
+    expect(debitPaymentOf(undelivered({ lastPaymentDate: '2026-09-29' }))).toEqual({
+      kind: 'paid',
+      date: '2026-09-29',
+    })
+    expect(
+      debitPaymentOf(
+        undelivered({ state: 'UNPAID', overdue: true, daysOverdue: 4, outstandingAmount: 10 }),
+      ),
+    ).toEqual({ kind: 'late', date: '2026-10-01', days: 4 })
+    expect(
+      debitPaymentOf(undelivered({ state: 'UNPAID', outstandingAmount: 10 }), '2026-09-29'),
+    ).toEqual({ kind: 'due', date: '2026-10-01', addedToInvoice: true, daysLeft: null })
   })
 })

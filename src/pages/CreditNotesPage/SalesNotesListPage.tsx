@@ -22,9 +22,12 @@ import { ApiError, pageCountOf, type Page } from '../../api'
 import {
   exportInvoices,
   invoiceListPath,
+  invoiceSummaryPath,
   loadInvoicePage,
+  loadInvoiceSummary,
   type InvoiceListSort,
   type InvoiceRowDto,
+  type InvoiceSummaryDto,
 } from '../../api/invoices/list'
 import {
   discardDraft,
@@ -41,6 +44,7 @@ import {
   NOTE_TABS,
   creditRefundOf,
   debitPaymentOf,
+  debitSummaryOf,
   noteMatchesTab,
   noteStatusOf,
   reasonLabelKey,
@@ -114,7 +118,7 @@ const SORT_OPTIONS: SortOption<SortKey>[] = SORTS.map((entry) => ({
 
 const PAGE_SIZES = [10, 25, 50] as const
 const DEFAULT_PAGE_SIZE = 10
-/** How many notes the tab counts and the four figures are read from — the API has no summary by type. */
+/** How many credit notes the tab counts and the four figures are read from (no credit summary yet). */
 const SUMMARY_SIZE = 200
 const SEARCH_DELAY_MS = 300
 
@@ -203,8 +207,12 @@ function NotesList({ kind }: { kind: NoteKind }) {
     size,
   })
   const list = useApiRead<Page<InvoiceRowDto>>(listPath, () => loadInvoicePage(listPath))
-  // TODO(backend): a summary by document type (`/v1/authored-invoices/summary?type=…`); until then
-  // the counts and the four figures are read off the notes themselves.
+  // Debit notes: the tab counts and the four figures come from the summary by document type
+  // (INCOME.md 4.1). TODO(backend): credit notes still read them off the notes themselves (4.1).
+  const debitSummaryPath = credit ? null : invoiceSummaryPath('DEBIT_NOTE')
+  const debitSummary = useApiRead<InvoiceSummaryDto>(debitSummaryPath, () =>
+    loadInvoiceSummary('DEBIT_NOTE'),
+  )
   const summaryPath = invoiceListPath({
     state: 'DRAFT,ISSUED,CANCELLED',
     payment: null,
@@ -216,10 +224,20 @@ function NotesList({ kind }: { kind: NoteKind }) {
     page: 0,
     size: SUMMARY_SIZE,
   })
-  const wide = useApiRead<Page<InvoiceRowDto>>(summaryPath, () => loadInvoicePage(summaryPath))
+  const wide = useApiRead<Page<InvoiceRowDto>>(credit ? summaryPath : null, () =>
+    loadInvoicePage(summaryPath),
+  )
+  const figures = credit ? wide : debitSummary
   const summary = useMemo(
-    () => (wide.read.status === 'ready' ? summariseNotes(kind, wide.read.data.items, today) : null),
-    [wide.read, kind, today],
+    () =>
+      credit
+        ? wide.read.status === 'ready'
+          ? summariseNotes(kind, wide.read.data.items, today)
+          : null
+        : debitSummary.read.status === 'ready'
+          ? debitSummaryOf(debitSummary.read.data)
+          : null,
+    [credit, wide.read, debitSummary.read, kind, today],
   )
   const branches = useApiRead<BranchDto[]>('/v1/branches', loadBranches)
   const branchName = (id: string | null | undefined) =>
@@ -256,7 +274,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
     try {
       await discardDraft(target.id, target.version)
       list.retry()
-      wide.retry()
+      figures.retry()
     } catch (error) {
       setNotice(
         error instanceof ApiError && error.code === 'STALE_INVOICE_VERSION'
@@ -328,7 +346,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
           </h1>
         </div>
         <p className="text-sm font-medium leading-[1.2] text-[#8f8f8f]">
-          {summary
+          {summary?.quarter
             ? withRial(
                 t(`salesNote.list.subtitle.${kindKey}`, {
                   count: summary.quarter.count,
@@ -415,7 +433,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
                         notes: count(figure.count),
                         days: count(figure.days ?? 0),
                       })
-                  : wide.read.status === 'failed'
+                  : figures.read.status === 'failed'
                     ? t('salesNote.list.kpi.unavailable')
                     : '…'}
               </p>
@@ -738,7 +756,7 @@ function NotesList({ kind }: { kind: NoteKind }) {
       {list.read.status === 'loading' && page === null ? (
         <span className="sr-only">{t('appAccess.loading')}</span>
       ) : null}
-      {wide.read.status === 'loading' && !summary ? <LoadingNotice /> : null}
+      {figures.read.status === 'loading' && !summary ? <LoadingNotice /> : null}
 
       <Modal
         open={discarding !== null}

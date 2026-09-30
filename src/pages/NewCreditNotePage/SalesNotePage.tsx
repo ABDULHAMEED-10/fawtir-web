@@ -25,6 +25,7 @@ import { ApiError, type Page } from '../../api'
 import {
   loadInvoice,
   loadReceivable,
+  uploadAttachment,
   type InvoiceDetailDto,
   type InvoiceReceivableDto,
 } from '../../api/invoices/detail'
@@ -396,10 +397,16 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [files, setFiles] = useState<File[]>([])
-  const [key] = useState(newIdempotencyKey)
-  // The issue key is the dates': changing a date after a refusal is a new request, not a replay.
-  const [issueKey, setIssueKey] = useState(newIdempotencyKey)
+  /** Files already on the saved draft, so a retry after a failed upload sends each one once. */
+  const uploaded = useRef(new Set<File>())
+  // The create's and the issue's keys. A new key is taken only after the server refused the last
+  // request (a 4xx problem answer): nothing was created or issued, so the next send is a new
+  // request. After a timeout, a network error or a 5xx the retry reuses the key, because the
+  // server may have done it, and a second key could create or issue the note twice.
+  const createAttempt = useRef<KeyedAttempt>({ key: newIdempotencyKey(), refused: false })
+  const issueAttempt = useRef<KeyedAttempt>({ key: newIdempotencyKey(), refused: false })
   const inFlight = useRef(false)
+  const canAttach = can(session, 'invoice.attachment.manage')
 
   const totals = useMemo(() => noteTotals(form), [form])
   const money = (value: number | string | null | undefined) =>
@@ -428,10 +435,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
   // customers only; a consumer's simplified document carries neither.
   const classified = customer?.type !== 'CONSUMER'
   const change = (patch: Partial<NoteForm>) => setForm((current) => ({ ...current, ...patch }))
-  const changeDate = (patch: Partial<Pick<NoteForm, 'issueDate' | 'dueDate'>>) => {
-    change(patch)
-    setIssueKey(newIdempotencyKey())
-  }
+  const changeDate = (patch: Partial<Pick<NoteForm, 'issueDate' | 'dueDate'>>) => change(patch)
 
   /** Saves the draft (creating it the first time) and returns it, or null when refused. */
   const persist = async (): Promise<DraftResponse | null> => {
@@ -444,9 +448,22 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
     const request = toNoteRequest(form, invoice, kind)
     const next = saved
       ? await saveDraft(saved.id, saved.version, request)
-      : await createNote(kind, invoice.id, key, request)
+      : await withKey(createAttempt, (key) => createNote(kind, invoice.id, key, request))
     setSaved(next)
     return next
+  }
+
+  /**
+   * The files dropped on the page, onto the saved draft (the API takes attachments on a DRAFT only,
+   * so this runs after the save and before the issue). A file that went up is not sent again.
+   */
+  const uploadQueued = async (draft: DraftResponse) => {
+    if (!canAttach) return
+    for (const file of files) {
+      if (uploaded.current.has(file)) continue
+      await uploadAttachment(draft.id, file)
+      uploaded.current.add(file)
+    }
   }
 
   const run = async (then: (draft: DraftResponse) => Promise<void> | void) => {
@@ -456,7 +473,10 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
     setNotice(null)
     try {
       const next = await persist()
-      if (next) await then(next)
+      if (!next) return
+      // On a failed upload the draft stays saved and the page stays open with the notice.
+      await uploadQueued(next)
+      await then(next)
     } catch (error) {
       const coded = error instanceof ApiError && error.code ? NOTE_REFUSALS[error.code] : undefined
       const refusal = coded ? null : issueRefusalOf(error)
@@ -476,12 +496,13 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
 
   const issue = () =>
     run(async (next) => {
-      const issued = await issueDraft(next.id, issueKey, {
+      const request = {
         expectedVersion: next.version,
         issueDate: form.issueDate,
         // A credit note is not collected; the API still wants a due date, so the issue date is sent.
         dueDate: credit ? form.issueDate : form.dueDate,
-      })
+      }
+      const issued = await withKey(issueAttempt, (key) => issueDraft(next.id, key, request))
       navigate(`${base}/${issued.id}`, {
         replace: true,
         state: { issuedNumber: issued.invoiceNumber },
@@ -533,6 +554,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
   const sign = credit ? '−' : '+'
   const toneClass = credit ? 'text-danger-700' : 'text-success-700'
   const vatRate = totals.rate ?? invoice.lines[0]?.taxRate ?? 5
+  const categoryLabel = noteCategoryLabel(form, invoice, vatRate, t)
 
   return (
     <Frame
@@ -557,15 +579,18 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
       actions={
         <>
           <ActionMenu items={menu} label={t('salesNote.compose.more')} variant="bordered" />
-          <button
-            type="button"
-            disabled={busy || !invoiceIssued}
-            onClick={() => void run((next) => navigate(`${base}/${next.id}`, { replace: true }))}
-            className={GHOST_BUTTON}
-          >
-            <img src={saveDraftIcon} alt="" className="size-5" />
-            {t('salesNote.saveDraft')}
-          </button>
+          {/* The draft is saved with PUT /invoice-drafts, which asks for invoice.draft. */}
+          {can(session, 'invoice.draft') ? (
+            <button
+              type="button"
+              disabled={busy || !invoiceIssued}
+              onClick={() => void run((next) => navigate(`${base}/${next.id}`, { replace: true }))}
+              className={GHOST_BUTTON}
+            >
+              <img src={saveDraftIcon} alt="" className="size-5" />
+              {t('salesNote.saveDraft')}
+            </button>
+          ) : null}
           {can(session, 'invoice.issue') ? (
             <button
               type="button"
@@ -918,11 +943,9 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                 </span>
               </Labelled>
               {credit ? null : (
-                /* Text only, as the client asked: the category is the invoice's. */
+                /* Text only, as the client asked: the note's category, named as the lines table names it. */
                 <Labelled label={t('salesNote.compose.taxCategory')} required>
-                  <span className={FIELD_READONLY}>
-                    {t('salesNote.compose.standardRate', { rate: vatRate })}
-                  </span>
+                  <span className={FIELD_READONLY}>{categoryLabel}</span>
                 </Labelled>
               )}
             </div>
@@ -952,51 +975,54 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
             </div>
           </SectionCard>
 
-          {/* Attachments — TODO(backend): no upload endpoint for draft attachments; files chosen here stay with the page. */}
-          <SectionCard title={t('salesNote.compose.attachments')}>
-            <FileDropzone
-              accept=".pdf,.jpg,.jpeg,.png,.xlsx"
-              multiple
-              onFiles={(picked) => setFiles((current) => [...current, ...picked])}
-              className="block w-full"
-            >
-              {({ dragging }) => (
-                <div
-                  className={[
-                    'flex min-h-[168px] flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed bg-surface-tab-bar px-4 py-8 text-center',
-                    dragging ? 'border-primary-700' : 'border-primary-300',
-                  ].join(' ')}
-                >
-                  <img src={uploadIcon} alt="" className="size-6" />
-                  <span className="text-base font-medium text-text-primary">
-                    {t('salesNote.compose.dropFiles')}
-                  </span>
-                  <span className="text-sm font-medium text-text-quaternary">
-                    {t('salesNote.compose.dropHint')}
-                  </span>
-                </div>
-              )}
-            </FileDropzone>
-            {files.length > 0 ? (
-              <ul className="mt-3 flex flex-col gap-2">
-                {files.map((file, index) => (
-                  <li
-                    key={`${file.name}-${index}`}
-                    className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-3 py-2 text-sm font-medium text-text-secondary"
+          {/* Attachments: queued here, uploaded to the draft when it is saved, before it is issued
+              (INCOME.md 4.6; POST /authored-invoices/{id}/attachments, DRAFT only). */}
+          {canAttach ? (
+            <SectionCard title={t('salesNote.compose.attachments')}>
+              <FileDropzone
+                accept=".pdf,.jpg,.jpeg,.png,.xlsx"
+                multiple
+                onFiles={(picked) => setFiles((current) => [...current, ...picked])}
+                className="block w-full"
+              >
+                {({ dragging }) => (
+                  <div
+                    className={[
+                      'flex min-h-[168px] flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed bg-surface-tab-bar px-4 py-8 text-center',
+                      dragging ? 'border-primary-700' : 'border-primary-300',
+                    ].join(' ')}
                   >
-                    <span className="truncate">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
-                      className="text-xs font-semibold text-text-quaternary hover:text-danger-700"
+                    <img src={uploadIcon} alt="" className="size-6" />
+                    <span className="text-base font-medium text-text-primary">
+                      {t('salesNote.compose.dropFiles')}
+                    </span>
+                    <span className="text-sm font-medium text-text-quaternary">
+                      {t('salesNote.compose.dropHint')}
+                    </span>
+                  </div>
+                )}
+              </FileDropzone>
+              {files.length > 0 ? (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {files.map((file, index) => (
+                    <li
+                      key={`${file.name}-${index}`}
+                      className="flex items-center justify-between gap-3 rounded-sm border border-border-subtle px-3 py-2 text-sm font-medium text-text-secondary"
                     >
-                      {t('salesNote.compose.removeFile')}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </SectionCard>
+                      <span className="truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                        className="text-xs font-semibold text-text-quaternary hover:text-danger-700"
+                      >
+                        {t('salesNote.compose.removeFile')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </SectionCard>
+          ) : null}
         </div>
 
         {/* Amount to credit / charge */}
@@ -1132,4 +1158,53 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
       </div>
     </Frame>
   )
+}
+
+type KeyedAttempt = { key: string; refused: boolean }
+
+/**
+ * Sends a keyed request: under a new key when the server refused the last one (4xx), under the
+ * same key otherwise, so a retry after a timeout, a network error or a 5xx is a replay.
+ */
+async function withKey<T>(
+  attempt: { current: KeyedAttempt },
+  send: (key: string) => Promise<T>,
+): Promise<T> {
+  if (attempt.current.refused) attempt.current = { key: newIdempotencyKey(), refused: false }
+  try {
+    return await send(attempt.current.key)
+  } catch (error) {
+    if (error instanceof ApiError && error.status >= 400 && error.status < 500)
+      attempt.current = { ...attempt.current, refused: true }
+    throw error
+  }
+}
+
+/**
+ * The debit note's "Default tax category": the one category its lines carry (the invoice's while
+ * no line is charged yet), named with the category labels the lines table already uses. A standard
+ * rate note keeps the drawn "Standard rate · 5%".
+ * TODO(owner): a note whose lines mix categories has no drawn wording; it reads as before.
+ */
+function noteCategoryLabel(
+  form: NoteForm,
+  invoice: InvoiceDetailDto,
+  vatRate: number,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const standard = t('salesNote.compose.standardRate', { rate: vatRate })
+  const kept = form.lines.filter((line) => line.include)
+  const categories = (
+    kept.length > 0
+      ? kept.map((line) => line.taxCategory)
+      : invoice.lines.map((line) => ({
+          code: line.taxCategoryCode,
+          en16931Category: line.en16931Category,
+        }))
+  ).filter((category, index, all) => all.findIndex((c) => c.code === category.code) === index)
+  if (categories.length !== 1 || categories[0].en16931Category === 'S') return standard
+  const { code, en16931Category } = categories[0]
+  return t(`createInvoice.taxCategories.${code}`, {
+    defaultValue: t(`createInvoice.taxCategories.${en16931Category}0`, { defaultValue: code }),
+  })
 }

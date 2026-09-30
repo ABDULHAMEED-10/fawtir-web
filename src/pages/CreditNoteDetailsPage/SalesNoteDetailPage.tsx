@@ -53,6 +53,7 @@ import {
   NOTE_ROUTES,
   daysBetween,
   reasonLabelKey,
+  participantIdText,
   unitLabel,
   type NoteListStatus,
 } from '../../lib/salesNote'
@@ -779,8 +780,14 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                       {customer.read.data.displayName}
                     </p>
                     <p className="truncate text-xs font-medium text-text-quaternary">
-                      {customer.read.data.profile.details?.vatRegistrationNumber ??
-                        t('salesNote.detail.noVat')}
+                      {/* INCOME.md 4.14: the participant id beside the VAT number, when the record has one. */}
+                      {[
+                        customer.read.data.profile.details?.vatRegistrationNumber ??
+                          t('salesNote.detail.noVat'),
+                        participantIdText(customer.read.data.profile.details?.peppolParticipantId),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </p>
                   </div>
                 </div>
@@ -927,7 +934,7 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
                           {line.quantity}
                         </td>
                         <td className="py-3 text-base font-medium text-text-secondary">
-                          {unitLabel(line.unitCode)}
+                          {unitLabel(line.unitCode, t)}
                         </td>
                         <td className="py-3 text-sm font-medium text-text-secondary">
                           {line.discountValue === 0

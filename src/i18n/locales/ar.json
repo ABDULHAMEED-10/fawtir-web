@@ -17583,7 +17583,9 @@
       "serviceSearch": "اسم الخدمة، مثل: تقديم الطعام",
       "classificationNone": "لا توجد نتائج. اختر أخرى.",
       "more": "زيادة واحدة",
-      "fewer": "نقصان واحد"
+      "fewer": "نقصان واحد",
+      "vatShort": "{{rate}}% {{category}}",
+      "vatRate": "{{rate}}%"
     },
     "amount": {
       "title": {
