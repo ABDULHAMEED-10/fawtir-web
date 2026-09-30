@@ -44,14 +44,20 @@ beforeEach(async () => {
   refuse = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url)
+    const url = String(
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+    )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
     if (url.startsWith(POLICY_URL)) {
       if (init?.method === 'PUT') {
         sent = JSON.parse(String(init.body))
         if (refuse !== null) {
           return new Response(
-            JSON.stringify({ ...refuse, status: 400, type: 'https://api.fawtir.om/problems/expenditure-refused' }),
+            JSON.stringify({
+              ...refuse,
+              status: 400,
+              type: 'https://api.fawtir.om/problems/expenditure-refused',
+            }),
             { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
           )
         }
@@ -82,7 +88,10 @@ describe('the approval policy screen', () => {
     renderPage()
     expect(await screen.findByLabelText('People who must approve')).toHaveProperty('value', '2')
     expect(screen.getByLabelText('Amount')).toHaveProperty('value', '50')
-    expect(screen.getByRole('radio', { name: /Bills under a set amount/ })).toHaveProperty('checked', true)
+    expect(screen.getByRole('radio', { name: /Bills under a set amount/ })).toHaveProperty(
+      'checked',
+      true,
+    )
   })
 
   it('sends both figures together, because the server replaces the policy whole', async () => {
@@ -100,7 +109,13 @@ describe('the approval policy screen', () => {
     fireEvent.click(screen.getByRole('radio', { name: /Every bill needs approval/ }))
 
     // The consequence is stated before the save, not discovered afterwards.
-    expect(await screen.findByText(/This removes the .* threshold/)).toBeTruthy()
+    expect(
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /This removes the .* threshold/.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Save the rule' }))
     await waitFor(() => expect(sent).toEqual({ requiredApprovals: 2, autoApproveBelow: null }))
@@ -134,7 +149,13 @@ describe('the approval policy screen', () => {
   it('says the boundary out loud, because "below" is the part people misread', async () => {
     renderPage()
     await screen.findByLabelText('Amount')
-    expect(screen.getByText(/A bill of exactly .* still needs approval/)).toBeTruthy()
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          /A bill of exactly .*OMR.* still needs approval/.test(element.textContent ?? ''),
+      ),
+    ).toBeTruthy()
   })
 
   it('offers no way to require nobody, which the server would refuse anyway', async () => {
@@ -165,7 +186,9 @@ describe('the approval policy screen', () => {
 
     // The rule that was broken, by name, with the reference support needs -- not the generic
     // fallback, and not "try again", which no refusal ever rewards.
-    expect(await screen.findByText(/An approval rule has to require at least one approver/)).toBeTruthy()
+    expect(
+      await screen.findByText(/An approval rule has to require at least one approver/),
+    ).toBeTruthy()
     expect(screen.getByText(/trace-4/)).toBeTruthy()
     expect(screen.queryByText(/Please try again/i)).toBeNull()
   })

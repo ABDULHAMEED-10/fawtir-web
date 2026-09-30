@@ -214,7 +214,14 @@ export function ComplianceReportPage() {
                 <Stat
                   label={t('builtReport.stat.invoicesIssued')}
                   value={String(figures.invoices)}
-                  note={t('builtReport.stat.includingCreditNotes', { count: figures.creditNotes })}
+                  note={
+                    figures.debitNotes === null
+                      ? t('builtReport.stat.includingCreditNotes', { count: figures.creditNotes })
+                      : t('builtReport.stat.includingCreditAndDebitNotes', {
+                          credit: figures.creditNotes,
+                          debit: figures.debitNotes,
+                        })
+                  }
                 />
                 <Stat
                   label={t('builtReport.stat.acceptedByOta')}
@@ -251,6 +258,18 @@ export function ComplianceReportPage() {
                   rule="border-s-pending-500"
                 />
               </div>
+              {/* A line under the grid rather than a seventh cell, so the 3 x 2 grid stays as drawn. */}
+              <p className="mt-4 text-xs font-medium leading-[1.7] text-text-secondary">
+                {figures.receivedReported !== null && figures.receivedTotal !== null ? (
+                  <Trans
+                    i18nKey="builtReport.receivedReported"
+                    values={{ n: figures.receivedReported, m: figures.receivedTotal }}
+                    components={{ b: <span className="font-semibold text-text-primary" /> }}
+                  />
+                ) : (
+                  t('builtReport.receivedNotAvailable')
+                )}
+              </p>
 
               {/* Auditor note */}
               <p className="mt-7 border-b border-border-subtle pb-2 text-[10px] font-semibold uppercase tracking-[0.6px] text-text-primary">

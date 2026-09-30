@@ -5,6 +5,7 @@ import { DateField, withRial } from '../ui'
 import { Notice } from '../feedback/ApiNotice'
 import { FieldLabel, TextField } from '../form'
 import { SupplierPicker } from '../bills'
+import { LineTaxSelect } from '../bills/BillIntakeForm'
 import { selectAllOnFocus } from '../invoice'
 import { DebitChecks } from './DebitChecks'
 import { InfoNote, SignedAmount, TONE } from './NoteParts'
@@ -570,7 +571,7 @@ export function SupplierNoteIntake({
                           ].join(' ')}
                         />
                       </td>
-                      {(['quantity', 'unitPrice', 'vatRate'] as const).map((key) => (
+                      {(['quantity', 'unitPrice'] as const).map((key) => (
                         <td key={key} className="px-1 py-1.5">
                           <input
                             value={line[key]}
@@ -585,6 +586,15 @@ export function SupplierNoteIntake({
                           />
                         </td>
                       ))}
+                      <td className="px-1 py-1.5">
+                        <span className="block w-[72px]">
+                          <LineTaxSelect
+                            line={line}
+                            onChange={(patch) => setLine(line.id, patch)}
+                            ariaLabel={t('billIntake.lineField.vatRate')}
+                          />
+                        </span>
+                      </td>
                       <td className="py-1.5 ps-1">
                         <span
                           className={[
@@ -926,15 +936,17 @@ export function SupplierNoteIntake({
                 {t('billIntake.duplicate.title')}
               </h2>
               <p className="mt-2 text-sm font-medium leading-[1.5] text-text-secondary">
-                {t('billIntake.duplicate.body', {
-                  number: duplicate.supplierBillNumber,
-                  date: duplicate.issueDate ? formatDate(duplicate.issueDate, language) : '—',
-                  total:
-                    duplicate.total === null
-                      ? '—'
-                      : `${money(duplicate.total)} ${duplicate.currencyCode ?? form.currency}`,
-                  source: t(`billIntake.duplicate.source.${duplicate.source}`),
-                })}
+                {withRial(
+                  t('billIntake.duplicate.body', {
+                    number: duplicate.supplierBillNumber,
+                    date: duplicate.issueDate ? formatDate(duplicate.issueDate, language) : '—',
+                    total:
+                      duplicate.total === null
+                        ? '—'
+                        : `${money(duplicate.total)} ${duplicate.currencyCode ?? form.currency}`,
+                    source: t(`billIntake.duplicate.source.${duplicate.source}`),
+                  }),
+                )}
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link

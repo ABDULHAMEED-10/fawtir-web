@@ -33,6 +33,11 @@ export type ExtractedFieldsDto = {
     quantity: number | null
     unitPrice: number | null
     vatRate: number | null
+    /**
+     * TODO(backend): EXPENDITURE.md M.1. The line's VAT category (S5, Z0, E0, O0), so exempt and
+     * zero-rated lines (both 0%) come back apart. Absent today: the rate decides.
+     */
+    taxCategoryCode?: string | null
     amount: number | null
     confident: boolean
   }[]
@@ -59,7 +64,11 @@ export type IntakeDto = {
 export function uploadIntake(file: File, source: IntakeSourceDto): Promise<IntakeDto> {
   const form = new FormData()
   form.append('file', file)
-  return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}`, { method: 'POST', body: form, timeoutMs: 60_000 })
+  return apiRequest<IntakeDto>(`${BILL_INTAKE_PATH}?source=${source}`, {
+    method: 'POST',
+    body: form,
+    timeoutMs: 60_000,
+  })
 }
 
 /** Removes an intake nobody confirmed, so an abandoned upload leaves no row behind. */
@@ -84,7 +93,17 @@ export type ConfirmIntakeDto = {
   currency: string
   vat: number | null
   total: number
-  lines: { description: string; quantity: number; unit: null; unitPrice: number; vatRate: number; lineNet: number }[]
+  lines: {
+    description: string
+    quantity: number
+    /** UN/ECE Rec 20 code chosen on the row, or null (EXPENDITURE.md 7.11). */
+    unit: string | null
+    unitPrice: number
+    vatRate: number
+    /** TODO(backend): EXPENDITURE.md M.1. S5, Z0, E0 or O0; the rate alone cannot tell E0 from Z0. */
+    taxCategoryCode?: string | null
+    lineNet: number
+  }[]
   purchaseOrderId: string | null
   goodsReceiptId: null
   purchaseOrderReference: null
@@ -93,6 +112,11 @@ export type ConfirmIntakeDto = {
   paidOnTheSpot: { methodCode: '10' | '48'; paymentReference: null; paidOn: string | null } | null
   /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
   notDuplicateOf: string | null
+  /**
+   * TODO(backend): EXPENDITURE.md M.2. A receipt's VAT category when it has no lines (S5, Z0,
+   * E0): 0% and Exempt both carry a zero rate and are otherwise sent the same.
+   */
+  taxCategoryCode?: string | null
 }
 
 /** `ConfirmedBillResponse`. */
@@ -104,7 +128,10 @@ export type ConfirmedBillDto = {
 }
 
 export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {
-  return apiRequest<ConfirmedBillDto>(`${BILL_INTAKE_PATH}/${encodeURIComponent(id)}/confirm`, { method: 'POST', body })
+  return apiRequest<ConfirmedBillDto>(`${BILL_INTAKE_PATH}/${encodeURIComponent(id)}/confirm`, {
+    method: 'POST',
+    body,
+  })
 }
 
 /** `PossibleDuplicateBill`: the bill on file with the same supplier, type and number. */
@@ -152,7 +179,9 @@ export function loadIntake(id: string): Promise<IntakeDto> {
  */
 export async function loadIntakeFile(intake: IntakeDto): Promise<File> {
   const download = await apiDownload(`${intakePath(intake.id)}/file`)
-  return new File([download.blob], download.filename ?? intake.filename ?? 'bill', { type: download.blob.type || intake.contentType })
+  return new File([download.blob], download.filename ?? intake.filename ?? 'bill', {
+    type: download.blob.type || intake.contentType,
+  })
 }
 
 /** `FieldsRequest`: a person's corrections. No confidence is sent — a typed field is confident by definition. */
@@ -166,11 +195,22 @@ export type IntakeCorrectionsDto = {
   net: number | null
   vat: number | null
   total: number | null
-  lines: { description: string | null; quantity: number | null; unitPrice: number | null; vatRate: number | null; amount: number | null }[]
+  lines: {
+    description: string | null
+    quantity: number | null
+    unitPrice: number | null
+    vatRate: number | null
+    /** TODO(backend): EXPENDITURE.md M.1. Kept with the saved line so a resumed bill keeps it. */
+    taxCategoryCode?: string | null
+    amount: number | null
+  }[]
 }
 
 /** `UpdateRequest`. */
-export type UpdateIntakeDto = { extracted: IntakeCorrectionsDto | null; documentTypeCode: IntakeDocumentTypeDto | null }
+export type UpdateIntakeDto = {
+  extracted: IntakeCorrectionsDto | null
+  documentTypeCode: IntakeDocumentTypeDto | null
+}
 
 /**
  * `invoice.payment.manage`. Saves what the person has typed so far on the intake — the bytes are

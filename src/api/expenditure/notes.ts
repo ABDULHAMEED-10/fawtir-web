@@ -1,4 +1,5 @@
 import { apiRequest } from '../client'
+import type { ReceiptReportDto } from './bills'
 import { fromItemsPage, type ItemsPage, type Page } from '../page'
 import { withQuery } from '../query'
 
@@ -71,6 +72,13 @@ export type CreditNoteRowDto = {
   vatAmount: number | null
   /** BTOM-032 — why the supplier credited. Mandatory under IBR-023-OM, coded by CL-02-OM. */
   reasonCode: string | null
+  /**
+   * The finer reason behind the CL-02-OM code, as the app's own reason id (SHORT_DELIVERY,
+   * DAMAGED, SURCHARGE…). TODO(backend): EXPENDITURE.md R.3.
+   */
+  reasonDetail?: string | null
+  /** Our own receipt report to the OTA (om-tdd, role 02). TODO(backend): EXPENDITURE.md R.1. */
+  receiptReport?: ReceiptReportDto | null
   approval: ApprovalDto
   status: CreditNoteStatusDto
   balance: CreditNoteBalanceDto
@@ -194,6 +202,13 @@ export type DebitNoteRowDto = {
   vatAmount: number | null
   amountDue: number | null
   reasonCode: string | null
+  /**
+   * The finer reason behind the CL-02-OM code, as the app's own reason id (SHORT_DELIVERY,
+   * DAMAGED, SURCHARGE…). TODO(backend): EXPENDITURE.md R.3.
+   */
+  reasonDetail?: string | null
+  /** Our own receipt report to the OTA (om-tdd, role 02). TODO(backend): EXPENDITURE.md R.1. */
+  receiptReport?: ReceiptReportDto | null
   approval: ApprovalDto
   paidAmount: number
   creditedAmount: number

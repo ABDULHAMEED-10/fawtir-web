@@ -1,5 +1,6 @@
 import type { CreditNoteRowDto, CreditNoteSettlementDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
+import { receiptReportNote } from './billDetail'
 
 /**
  * Credit notes a supplier issued to us: Expenditure > Credit notes (Figma 163:18691, 163:19080,
@@ -63,15 +64,28 @@ export function vatEffect(billVat: number | null, noteVat: number | null) {
   }
 }
 
-export type ComplianceLine = { id: string; key: string; ok: boolean }
+export type ComplianceLine = {
+  id: string
+  key: string
+  values?: Record<string, string | number>
+  ok: boolean
+}
 
 /**
- * The Compliance card, from the two facts the row states: whether the platform vouched for the
- * document (validated and reported over Peppol) and whether it names the bill it corrects. An
- * uploaded note is neither validated nor reported, and the card says so rather than ticking it.
+ * The Compliance card, from what the row states: whether it names the bill it corrects, whether
+ * the network validated it, and our own receipt report to the Tax Authority. Validation over
+ * Peppol is not a report: under PINT-OM the receiving side reports each document it received as
+ * a Tax Data Document with reporter role 02 Receiver (om-tdd), and only `receiptReport` says
+ * whether that happened. An uploaded note is neither validated nor reported, and the card says so.
+ *
+ * TODO(backend): EXPENDITURE.md R.1. `receiptReport` on GET /v1/credit-notes/{id}.
  */
-export function creditCompliance(row: CreditNoteRowDto): ComplianceLine[] {
+export function creditCompliance(
+  row: CreditNoteRowDto,
+  day: (iso: string) => string = (iso) => iso.slice(0, 10),
+): ComplianceLine[] {
   const verified = row.networkVerified
+  const receipt = receiptReportNote(row.receiptReport, day)
   return [
     {
       id: 'valid',
@@ -87,13 +101,9 @@ export function creditCompliance(row: CreditNoteRowDto): ComplianceLine[] {
         : 'supplierCreditNotes.detail.compliance.notValidated',
       ok: verified,
     },
-    {
-      id: 'tdd',
-      key: verified
-        ? 'supplierCreditNotes.detail.compliance.tdd'
-        : 'supplierCreditNotes.detail.compliance.notReported',
-      ok: verified,
-    },
+    row.source === 'PEPPOL'
+      ? { id: 'tdd', key: receipt.key, values: receipt.values, ok: receipt.ok }
+      : { id: 'tdd', key: 'supplierCreditNotes.detail.compliance.notReported', ok: false },
   ]
 }
 
@@ -179,12 +189,13 @@ export function creditActivity(
     }))
 
   const issued = row.issueDate ? fmt.date(row.issueDate) : ''
-  if (row.networkVerified) {
+  // Only an accepted receipt report is an event to list; validation over Peppol is not one.
+  if (row.receiptReport?.status === 'ACCEPTED') {
     done.push({
       id: 'reported',
       titleKey: 'supplierCreditNotes.detail.activity.reported',
       detailKey: 'supplierCreditNotes.detail.activity.reportedDetail',
-      values: { date: issued },
+      values: { date: row.receiptReport.reportedAt ? fmt.when(row.receiptReport.reportedAt) : '' },
       tone: 'done',
     })
   }

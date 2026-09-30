@@ -37,6 +37,7 @@ import {
   billOriginalPath,
   downloadBillOriginal,
   loadBillPage,
+  type BillDetailDto,
   type BillRowDto,
 } from '../../api/expenditure/bills'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
@@ -48,6 +49,7 @@ import {
 import {
   CREDIT_STATUS_CHIP,
   CREDIT_STATUS_LABEL,
+  cl02ReasonOf,
   reasonLabelKey,
   toCreditNoteItem,
 } from '../../lib/supplierNoteList'
@@ -60,7 +62,8 @@ import {
 } from '../../lib/supplierCreditNotes'
 import { billStateKey } from '../../lib/supplierDebitNotes'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { formatAmount, formatDate, formatInstant } from '../../lib/format'
+import { lineVatOf } from '../../lib/billDetail'
+import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import downloadIcon from '../../assets/invoice-details/download.svg'
@@ -195,7 +198,10 @@ function CreditNoteDetail() {
   const remaining = row.balance.remaining
   const effect = creditEffect(remaining > 0 ? remaining : (row.creditedAmount ?? 0), bill)
   const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount)
-  const reason = reasonLabelKey(row.reasonCode)
+  const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
+  // "QTY · Quantity correction": the code in the Tax Authority's list (CL-02-OM), under the
+  // friendly label. TODO(backend): EXPENDITURE.md R.3.
+  const cl02 = cl02ReasonOf(row.reasonCode)
   const reasonText = reason
     ? t(reason.key, { defaultValue: reason.fallback })
     : t('supplierCreditNotes.rows.noReason')
@@ -402,7 +408,12 @@ function CreditNoteDetail() {
               // TODO(backend): the frame quotes the supplier's own note text; the row carries
               // only the CL-02-OM code (row 5.8).
               <p className="mt-2 text-xs font-medium text-text-quaternary">
-                {t('supplierCreditNotes.detail.reasonCode', { code: row.reasonCode })}
+                {cl02
+                  ? t('expenditureNotes.reasonCodeLine', {
+                      code: cl02,
+                      label: t(`salesNote.reasons.${cl02}`),
+                    })
+                  : t('supplierCreditNotes.detail.reasonCode', { code: row.reasonCode })}
               </p>
             ) : null}
           </NoteCard>
@@ -461,7 +472,7 @@ function CreditNoteDetail() {
                           )}
                         </td>
                         <td className="py-4 text-end text-sm font-medium text-text-secondary">
-                          {line.vatRate === null ? '—' : `${line.vatRate}%`}
+                          <LineVatCell line={line} />
                         </td>
                         <td className="py-4 text-end text-sm font-semibold text-text-primary">
                           {line.lineNet === null ? (
@@ -680,11 +691,13 @@ function CreditNoteDetail() {
 
           <NoteCard title={t('supplierCreditNotes.detail.complianceTitle')}>
             <ComplianceList
-              lines={creditCompliance(row).map((line) => ({
-                id: line.id,
-                ok: line.ok,
-                text: t(line.key),
-              }))}
+              lines={creditCompliance(row, (iso) => formatInstantDay(iso, language)).map(
+                (line) => ({
+                  id: line.id,
+                  ok: line.ok,
+                  text: t(line.key, line.values),
+                }),
+              )}
             />
           </NoteCard>
 
@@ -1043,5 +1056,27 @@ function RefundForm({
         {t('supplierDebitNotes.detail.cancel')}
       </button>
     </div>
+  )
+}
+
+/**
+ * A line's VAT cell: "5%" on a standard line; "0% · Exempt" with its reason code beneath on a
+ * line that is not. TODO(backend): EXPENDITURE.md R.2, the category rides on the line.
+ */
+function LineVatCell({ line }: { line: BillDetailDto['lines'][number] }) {
+  const { t } = useTranslation()
+  const vat = lineVatOf(line)
+  if (vat.rate === null) return <>—</>
+  return (
+    <>
+      {vat.categoryKey
+        ? t('billDetail.lines.vatCategory', { rate: `${vat.rate}%`, category: t(vat.categoryKey) })
+        : `${vat.rate}%`}
+      {vat.reason ? (
+        <span className="mt-1 block text-xs font-medium leading-[1.3] text-text-quaternary">
+          {vat.reason}
+        </span>
+      ) : null}
+    </>
   )
 }

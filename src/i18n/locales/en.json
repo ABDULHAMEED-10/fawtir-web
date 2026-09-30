@@ -1003,7 +1003,7 @@
       "customers": "Customers",
       "suppliers": "Suppliers",
       "compliance": "Compliance",
-      "tddOta": "Activity",
+      "tddOta": "TDD & OTA",
       "documents": "Documents",
       "insights": "Insights",
       "reports": "Reports",
@@ -5332,7 +5332,8 @@
       "theyreCharging": "They're charging",
       "none": "The supplier sent no lines with this bill.",
       "vatOnly": "VAT",
-      "receivedOn": "Received on {{receipt}}"
+      "receivedOn": "Received on {{receipt}}",
+      "vatCategory": "{{rate}} · {{category}}"
     },
     "linked": {
       "title": "Linked documents",
@@ -5392,7 +5393,15 @@
       "passedPintOm": "Passed PINT-OM validation",
       "noPintOm": "No PINT-OM validation on an uploaded or scanned bill",
       "originalKept": "Original kept on file for the retention period",
-      "noOriginal": "No original file on record"
+      "noOriginal": "No original file on record",
+      "receipt": {
+        "accepted": "Receipt reported to the Tax Authority · {{date}}",
+        "acceptedUndated": "Receipt reported to the Tax Authority",
+        "submitted": "Receipt report waiting for the Tax Authority",
+        "rejected": "Receipt report turned down",
+        "notSubmitted": "Receipt not reported yet",
+        "unavailable": "Receipt report status not available yet"
+      }
     },
     "supplier": {
       "title": "Supplier",
@@ -6720,7 +6729,15 @@
       "summaryBeforeAccept_other": "{{count}} things worth a look before you accept.",
       "summaryBeforeAcceptBody": "Read the points marked Check, then decide.",
       "supplierNone": "No supplier chosen yet",
-      "supplierNoneDetail": "Choose who sent it, so the charge is checked against the right account."
+      "supplierNoneDetail": "Choose who sent it, so the charge is checked against the right account.",
+      "validatedReceipt": {
+        "accepted": "Received over Peppol and validated. Receipt reported to the Tax Authority · {{date}}.",
+        "acceptedUndated": "Received over Peppol and validated. Receipt reported to the Tax Authority.",
+        "submitted": "Received over Peppol and validated. Receipt report waiting for the Tax Authority.",
+        "rejected": "Received over Peppol and validated. Receipt report turned down.",
+        "notSubmitted": "Received over Peppol and validated. Receipt not reported yet.",
+        "unavailable": "Received over Peppol and validated. Receipt report status not available yet."
+      }
     }
   },
   "expenditureReminders": {
@@ -8119,7 +8136,9 @@
       "EUR": "Euro",
       "AED": "UAE Dirham",
       "SAR": "Saudi Riyal"
-    }
+    },
+    "governoratePlaceholder": "Choose a governorate",
+    "postalCodePlaceholder": "3 digits, e.g. 112"
   },
   "purchaseOrder": {
     "title": "New purchase order",
@@ -8460,8 +8479,8 @@
     "unusedCredits_other": "{{count}} credit notes still unused"
   },
   "activity": {
-    "title": "Activity",
-    "subtitle": "Every invoice you send is reported to the Oman Tax Authority as a Tax Data Document.",
+    "title": "TDD & OTA",
+    "subtitle": "Every invoice you send or receive is reported to the Oman Tax Authority as a Tax Data Document.",
     "callLog": "The OTA call log",
     "complianceReport": "Compliance report",
     "searchPlaceholder": "Invoice number, TDD UUID",
@@ -8561,7 +8580,8 @@
       "RE": "Rejected or failed",
       "NONE": "No acknowledgement yet",
       "waiting": "Not yet",
-      "refused": "Turned it down"
+      "refused": "Turned it down",
+      "youReceived": "You received it"
     },
     "today": "Today",
     "sortOptions": {
@@ -8716,7 +8736,9 @@
       "theyAccepted": "They accepted it",
       "waitingOnOta": "Waiting on the OTA",
       "waitingOnThem": "Waiting for their reply",
-      "theyRefused": "They turned it down"
+      "theyRefused": "They turned it down",
+      "arrivedOverPeppol": "Arrived over Peppol",
+      "validated": "Validated"
     },
     "whyTurnedDown": "Why the first one was turned down",
     "rejection": {
@@ -8836,8 +8858,12 @@
       "waiting": "Still waiting",
       "delivered": "Delivered",
       "theyRefused": "Turned down by them",
-      "noReplyYet": "No reply yet"
-    }
+      "noReplyYet": "No reply yet",
+      "received": "Received"
+    },
+    "from": "From",
+    "fromSupplier": "From {{customer}}",
+    "receiptReportedNote": "Receipt reported, via Fawtara"
   },
   "callLog": {
     "title": "The OTA call log",
@@ -9120,7 +9146,8 @@
       "vatReported": "VAT reported",
       "allStandard": "All at the standard 5%",
       "notInVatFigure": "Not in the VAT figure",
-      "fromUnreported": "From the unreported invoice"
+      "fromUnreported": "From the unreported invoice",
+      "includingCreditAndDebitNotes": "Including {{credit}} credit notes and {{debit}} debit notes"
     },
     "thingsAuditorShouldKnow": "Things an auditor should know",
     "neverAcceptedHeadline": "One invoice was never accepted by the Tax Authority",
@@ -9178,7 +9205,9 @@
     "nobody": "Nobody",
     "downloads": "Downloads",
     "noneYet": "None yet",
-    "preparedByName": "Fawtir · Accredited Service Provider"
+    "preparedByName": "Fawtir · Accredited Service Provider",
+    "receivedReported": "Bills received · reported <b>{{n}} of {{m}}</b>",
+    "receivedNotAvailable": "Bills received · Not available yet"
   },
   "callDetail": {
     "subtitle": "{{date}}, {{at}} · about {{invoice}} · answered in {{seconds}}",
@@ -17639,7 +17668,8 @@
       "CAN": "Order cancelled",
       "VAT": "VAT corrected",
       "OTH": "Other reason"
-    }
+    },
+    "reasonCodeLine": "{{code}} · {{label}}"
   },
   "landing": {
     "nav": {

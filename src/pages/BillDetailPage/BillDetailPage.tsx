@@ -33,6 +33,7 @@ import {
 import {
   activityOf,
   complianceOf,
+  lineVatOf,
   decisionNoteOf,
   decisionsOf,
   singleVatRate,
@@ -446,7 +447,7 @@ function BillScreen() {
                           {money(line.unitPrice)}
                         </td>
                         <td className="py-3.5 text-end text-sm font-medium text-text-secondary">
-                          {line.vatRate === null ? t('billDetail.notStated') : `${line.vatRate}%`}
+                          <LineVat line={line} />
                         </td>
                         <td className="py-3.5 text-end text-base font-semibold text-text-primary">
                           <span className="me-1">
@@ -623,7 +624,7 @@ function BillScreen() {
 
           <Card title={t('billDetail.compliance.title')}>
             <ul className="flex flex-col gap-2.5">
-              {complianceOf(detail).map((note) => (
+              {complianceOf(detail, (iso) => formatInstantDay(iso, language)).map((note) => (
                 <li key={note.key} className="flex items-start gap-2">
                   <img
                     src={note.ok ? complianceIcon : clockIcon}
@@ -764,6 +765,28 @@ function Breadcrumb({ title }: { title: string | null }) {
         {title ?? t('billDetail.breadcrumbBill')}
       </span>
     </div>
+  )
+}
+
+/**
+ * The VAT cell: "5%" on a standard line; "0% · Exempt" with its reason code beneath on a line
+ * that is not (TODO(backend): EXPENDITURE.md R.2, the category rides on the line).
+ */
+function LineVat({ line }: { line: BillDetailDto['lines'][number] }) {
+  const { t } = useTranslation()
+  const vat = lineVatOf(line)
+  if (vat.rate === null) return <>{t('billDetail.notStated')}</>
+  return (
+    <>
+      {vat.categoryKey
+        ? t('billDetail.lines.vatCategory', { rate: `${vat.rate}%`, category: t(vat.categoryKey) })
+        : `${vat.rate}%`}
+      {vat.reason ? (
+        <span className="mt-1 block text-xs font-medium leading-[1.2] text-text-quaternary">
+          {vat.reason}
+        </span>
+      ) : null}
+    </>
   )
 }
 

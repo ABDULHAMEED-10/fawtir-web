@@ -1058,7 +1058,9 @@ const recurringById = (id) => RECURRING.find((r) => r.id === id)
 
 function recurringDto(r) {
   const { pausedOn, ...dto } = r
-  return dto
+  // The schedule's VAT category (EXPENDITURE.md M.3): stored from the POST/PUT body as sent and
+  // echoed back; null on the seeded rows, where the screen infers it from vatAmount.
+  return { taxCategoryCode: null, ...dto }
 }
 
 function inState(r, state) {
