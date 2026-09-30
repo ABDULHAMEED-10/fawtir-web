@@ -80,7 +80,10 @@ export type PeriodicScheduleDto = {
   /** The schedule's own template (see `PeriodicTemplateDto`). */
   template?: PeriodicTemplateDto | null
   interval: RecurrenceInterval
-  /** Derived from the interval (IBR-036-OM), so it is shown and never chosen. */
+  /**
+   * Derived from the interval, so it is shown and never chosen: monthly is a summary invoice,
+   * weekly and longer are continuous supply (IBR-036-OM keeps a summary within one month).
+   */
   transactionSubtype: 'SUMMARY' | 'CONTINUOUS_SUPPLY'
   nextRunDate: string
   endDate: string | null
@@ -98,6 +101,11 @@ export type PeriodicScheduleDto = {
   lastRunDate?: string | null
   /** When the schedule was set up (the design's "Started"). */
   createdAt?: string
+  /**
+   * The anchor day (1 to 31) of a monthly, quarterly or yearly series: each run lands on it, or on
+   * the last day of a shorter month. Null or absent on a weekly series and on older servers.
+   */
+  dayOfMonth?: number | null
 }
 
 export type PeriodicRunDto = {

@@ -38,10 +38,12 @@ import {
   cadenceNote,
   countTab,
   generatedThisMonth,
+  isLastRun,
   monthlyEquivalent,
   narrowSchedules,
   ownTemplateInfo,
   periodicCounts,
+  runsDueSoon,
   scheduleName,
   scheduleNote,
   scheduleStatus,
@@ -105,6 +107,15 @@ const STATUS_STYLES: Record<PeriodicStatus, string> = {
  * references come from the customers and invoices lists, read once each.
  */
 export function PeriodicInvoicesPage() {
+  return (
+    <AppShell>
+      <PeriodicInvoicesContent />
+    </AppShell>
+  )
+}
+
+/** The page itself, inside the shell so `useSession()` reads the session the shell provides. */
+function PeriodicInvoicesContent() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
@@ -198,13 +209,11 @@ export function PeriodicInvoicesPage() {
     (sum, schedule) => sum + monthlyEquivalent(amountOf(schedule), schedule.interval),
     0,
   )
-  const dueSoonAmount = activeRows
-    .filter(
-      (schedule) =>
-        scheduleNote(schedule, today).key !== 'periodicList.state.finished' &&
-        daysUntil(today, schedule.nextRunDate) <= 30,
-    )
-    .reduce((sum, schedule) => sum + amountOf(schedule), 0)
+  // Every run due in the window, not only each schedule's next one.
+  const dueSoonAmount = activeRows.reduce(
+    (sum, schedule) => sum + amountOf(schedule) * runsDueSoon(schedule, today),
+    0,
+  )
 
   const visible = sortSchedules(
     narrowSchedules(rows, tab, search, nameOf, templateOf, interval === 'all' ? null : interval),
@@ -252,7 +261,7 @@ export function PeriodicInvoicesPage() {
       // The run just raised was the schedule's next one; the one after it is now next.
       const next = upcomingRuns(schedule, 2)[1]
       setNotice(
-        next
+        next && !isLastRun(schedule)
           ? { body: t('periodicList.done.generated', { date: formatDate(next, language) }) }
           : { key: 'periodicList.done.generatedLast' },
       )
@@ -266,7 +275,9 @@ export function PeriodicInvoicesPage() {
   // Generate raises a real draft and moves the schedule on, so a mis-click is asked about first;
   // a second click the same day is refused by the server, so no limit is kept here.
   const [generating, setGenerating] = useState<PeriodicScheduleDto | null>(null)
-  const generatingNext = generating ? upcomingRuns(generating, 2)[1] : undefined
+  // The last run is known from the runs left (or the end date), never from an empty list.
+  const generatingNext =
+    generating && !isLastRun(generating) ? upcomingRuns(generating, 2)[1] : undefined
   const onGenerate = () => {
     if (!generating) return
     const target = generating
@@ -315,9 +326,13 @@ export function PeriodicInvoicesPage() {
     }
   }
 
+  // The ticked rows when there are any, else the list as narrowed.
+  const picked = rows.filter((schedule) => selected.includes(schedule.id))
+  const exported = picked.length > 0 ? sortSchedules(picked, sort, titleOf, amountOf) : visible
+
   const exportCsv = () => {
     const header = ['schedule', 'customer', 'frequency', 'next_run', 'per_invoice', 'status']
-    const lines = visible.map((schedule) =>
+    const lines = exported.map((schedule) =>
       [
         titleOf(schedule),
         nameOf(schedule.customerId) ?? schedule.customerId,
@@ -340,51 +355,64 @@ export function PeriodicInvoicesPage() {
     URL.revokeObjectURL(url)
   }
 
-  /** The row menu as the design's Actions frame (154:166746) lists it. */
-  const menuFor = (schedule: PeriodicScheduleDto): ActionMenuItem[] => [
-    {
-      id: 'view',
-      labelKey: 'periodicList.menu.view',
-      icon: viewIcon,
-      to: `/income/periodic/${schedule.id}`,
-    },
-    ...(canManage
-      ? [
-          {
-            id: 'generate',
-            labelKey: 'periodicList.menu.generate',
-            icon: generateIcon,
-            onSelect: () => setGenerating(schedule),
-          },
-          schedule.active
-            ? {
-                id: 'pause',
-                labelKey: 'periodicList.menu.pause',
-                icon: pauseIcon,
-                onSelect: () => void toggle(schedule),
-              }
-            : {
-                id: 'resume',
-                labelKey: 'periodicList.menu.resume',
-                icon: resumeIcon,
-                onSelect: () => void toggle(schedule),
-              },
-          {
-            id: 'duplicate',
-            labelKey: 'periodicList.menu.duplicate',
-            icon: duplicateIcon,
-            to: `/income/periodic/new?copy=${schedule.id}`,
-          },
-          {
-            id: 'delete',
-            labelKey: 'periodicList.menu.delete',
-            icon: deleteIcon,
-            danger: true,
-            onSelect: () => setDeleting(schedule),
-          },
-        ]
-      : []),
-  ]
+  /**
+   * The row menu as the design's Actions frame (154:166746) lists it. Generate is offered only on
+   * an active series (the server refuses a paused or finished one), and a finished series has
+   * nothing to pause or resume.
+   */
+  const menuFor = (schedule: PeriodicScheduleDto): ActionMenuItem[] => {
+    const status = scheduleStatus(schedule)
+    return [
+      {
+        id: 'view',
+        labelKey: 'periodicList.menu.view',
+        icon: viewIcon,
+        to: `/income/periodic/${schedule.id}`,
+      },
+      ...(canManage
+        ? [
+            ...(status === 'active'
+              ? [
+                  {
+                    id: 'generate',
+                    labelKey: 'periodicList.menu.generate',
+                    icon: generateIcon,
+                    onSelect: () => setGenerating(schedule),
+                  },
+                  {
+                    id: 'pause',
+                    labelKey: 'periodicList.menu.pause',
+                    icon: pauseIcon,
+                    onSelect: () => void toggle(schedule),
+                  },
+                ]
+              : status === 'paused'
+                ? [
+                    {
+                      id: 'resume',
+                      labelKey: 'periodicList.menu.resume',
+                      icon: resumeIcon,
+                      onSelect: () => void toggle(schedule),
+                    },
+                  ]
+                : []),
+            {
+              id: 'duplicate',
+              labelKey: 'periodicList.menu.duplicate',
+              icon: duplicateIcon,
+              to: `/income/periodic/new?copy=${schedule.id}`,
+            },
+            {
+              id: 'delete',
+              labelKey: 'periodicList.menu.delete',
+              icon: deleteIcon,
+              danger: true,
+              onSelect: () => setDeleting(schedule),
+            },
+          ]
+        : []),
+    ]
+  }
 
   const generated = generatedThisMonth(rows, today, amountOf)
   const onRequestCount = countTab(rows, 'onRequest')
@@ -429,7 +457,7 @@ export function PeriodicInvoicesPage() {
   ]
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
@@ -452,7 +480,7 @@ export function PeriodicInvoicesPage() {
             <button
               type="button"
               onClick={exportCsv}
-              disabled={visible.length === 0}
+              disabled={exported.length === 0}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
             >
               <img src={exportIcon} alt="" className="size-6 rotate-180" />
@@ -923,12 +951,8 @@ export function PeriodicInvoicesPage() {
           {t('periodicList.deleteBody')}
         </p>
       </Modal>
-    </AppShell>
+    </>
   )
-}
-
-function daysUntil(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 }
 
 /** The list pager as the invoices list draws it: first, last and a window around the current page. */

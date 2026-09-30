@@ -220,6 +220,8 @@ let createResponse: () => Response
 let runNowResponse: () => Response
 let deleteResponse: () => Response
 let updateResponse: () => Response
+let scheduleDetail: PeriodicScheduleDto
+let runList: PeriodicRunDto[]
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -241,6 +243,8 @@ beforeEach(async () => {
     json(200, { ...RUNS[0], runDate: MONTHLY.nextRunDate, draftInvoiceId: 'inv-10' })
   deleteResponse = () => new Response(null, { status: 204 })
   updateResponse = () => json(200, { ...MONTHLY, interval: 'QUARTERLY' })
+  scheduleDetail = MONTHLY
+  runList = RUNS
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -253,13 +257,14 @@ beforeEach(async () => {
       return json(200, { internalNote: null })
     if (url.endsWith('/pause')) return json(200, { ...MONTHLY, active: false })
     if (url.endsWith('/resume')) return json(200, { ...PAUSED, active: true, nextRunDate: TODAY })
-    if (url.endsWith('/sch-1/runs')) return method === 'POST' ? runNowResponse() : json(200, RUNS)
+    if (url.endsWith('/sch-1/runs'))
+      return method === 'POST' ? runNowResponse() : json(200, runList)
     if (url === '/api/v1/periodic-invoice-schedules/sch-1')
       return method === 'PUT'
         ? updateResponse()
         : method === 'DELETE'
           ? deleteResponse()
-          : json(200, MONTHLY)
+          : json(200, scheduleDetail)
     if (url === '/api/v1/periodic-invoice-schedules' && method === 'POST') return createResponse()
     if (url === '/api/v1/periodic-invoice-schedules') return json(200, schedules)
     throw new Error(`unexpected request to ${method} ${url}`)
@@ -534,6 +539,84 @@ describe('Periodic invoices, wired to the API', () => {
     expect(await screen.findByText(/The draft could not be raised/)).toBeTruthy()
   })
 
+  it('offers Generate only on an active series, and says "last" only with one run left', async () => {
+    schedules = [{ ...MONTHLY, remainingOccurrences: 1 }, LAPSED, PAUSED]
+    renderAt('/income/periodic')
+
+    // A paused series is refused by the server, so its menu offers no Generate.
+    const paused = (await screen.findByRole('link', { name: 'Nizwa Cafe' })).closest(
+      'tr',
+    ) as HTMLElement
+    fireEvent.click(within(paused).getByRole('button', { name: 'Schedule actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'Resume series' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Generate invoice' })).toBeNull()
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' })
+
+    await chooseFromRow('Muscat Grand Hotel', 'Generate invoice')
+    expect(
+      await within(await screen.findByRole('dialog')).findByText(/schedule's last invoice/),
+    ).toBeTruthy()
+  })
+
+  it('shows a finished series as finished, not paused, with nothing to resume or generate', async () => {
+    const FINISHED: PeriodicScheduleDto = {
+      ...PAUSED,
+      remainingOccurrences: 0,
+    }
+    schedules = [MONTHLY, LAPSED, FINISHED]
+    renderAt('/income/periodic')
+    const row = (await screen.findByRole('link', { name: 'Nizwa Cafe' })).closest(
+      'tr',
+    ) as HTMLElement
+    expect(within(row).getAllByText('Finished').length).toBeGreaterThan(0)
+    expect(within(row).queryByText('Paused')).toBeNull()
+    expect(
+      within(screen.getByText('Needs attention').closest('article') as HTMLElement).getByText(
+        '0 paused · 0 on request',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Paused/ }).textContent).toContain('0')
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Resume series' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Generate invoice' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Pause series' })).toBeNull()
+  })
+
+  it('exports only the ticked schedules, else the list as narrowed', async () => {
+    const blobs: Blob[] = []
+    const create = vi.fn((blob: Blob) => {
+      blobs.push(blob)
+      return 'blob:periodic'
+    })
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderAt('/income/periodic')
+    await screen.findByRole('link', { name: 'Muscat Grand Hotel' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    expect((await blobs[0].text()).trim().split('\n')).toHaveLength(4)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sohar Beach Resort/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    const picked = (await blobs[1].text()).trim().split('\n')
+    expect(picked).toHaveLength(2)
+    expect(picked[1]).toContain('Sohar Beach Resort')
+  })
+
+  it('offers a viewer nothing that changes a schedule', async () => {
+    who = { ...DRAFTER, permissions: ['invoice.read', 'reports.read'] }
+    renderAt('/income/periodic')
+    const row = (await screen.findByRole('link', { name: 'Muscat Grand Hotel' })).closest(
+      'tr',
+    ) as HTMLElement
+    expect(screen.queryByRole('link', { name: /New recurring invoice/ })).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: 'Schedule actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View schedule' })).toBeTruthy()
+    for (const name of ['Generate invoice', 'Pause series', 'Delete', 'Duplicate'])
+      expect(screen.queryByRole('menuitem', { name })).toBeNull()
+  })
+
   it('deletes a schedule after asking, and says why when it has an open run', async () => {
     renderAt('/income/periodic')
     await chooseFromRow('Muscat Grand Hotel', 'Delete')
@@ -559,6 +642,23 @@ describe('Periodic invoices, wired to the API', () => {
     )
   })
 
+  it('dates "Started" in Muscat and badges a run issued once it has a number', async () => {
+    // 00:56 in Muscat on 1 Oct is still 30 Sep in UTC.
+    scheduleDetail = { ...MONTHLY, createdAt: '2026-09-30T20:56:00Z' }
+    runList = [{ ...RUNS[0], invoiceNumber: 'INV-2026-000031' }, RUNS[1]]
+    renderAt('/income/periodic/sch-1')
+    expect(await screen.findByText('INV-2026-000031')).toBeTruthy()
+    const started = screen.getByText('Started').parentElement as HTMLElement
+    expect(within(started).getByText(/1 Oct 2026/)).toBeTruthy()
+    const run = screen.getByText('INV-2026-000031').closest('div.flex') as HTMLElement
+    expect(within(run.parentElement as HTMLElement).getByText('Issued')).toBeTruthy()
+    // "Issued" counts the runs that took a number, not every run raised.
+    const issued = screen
+      .getAllByText('Issued')
+      .find((node) => node.parentElement?.textContent?.includes('1 invoice'))
+    expect(issued).toBeTruthy()
+  })
+
   it('asks for a reload when the schedule raised a draft since it was opened', async () => {
     updateResponse = () =>
       json(409, { title: 'Refused', status: 409, code: 'PERIODIC_RUN_ALREADY_RAISED' })
@@ -572,7 +672,7 @@ describe('Periodic invoices, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderAt('/income/periodic')
     expect(await screen.findByRole('heading', { level: 1, name: 'الفواتير الدورية' })).toBeTruthy()
-    expect(screen.getAllByText('فاتورة ملخّصة').length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('فاتورة ملخّصة')).length).toBeGreaterThan(0)
   })
 })
 

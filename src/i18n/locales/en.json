@@ -1500,8 +1500,8 @@
       "generatedMeta": "Counted on each schedule's page",
       "attention": "Needs attention",
       "attentionMeta": "{{paused}} paused · {{onRequest}} on request",
-      "generatedIssued_one": "{{count}} invoice issued",
-      "generatedIssued_other": "{{count}} invoices issued"
+      "generatedIssued_one": "{{count}} draft raised",
+      "generatedIssued_other": "{{count}} drafts raised"
     },
     "status": {
       "active": "Active",
@@ -1545,10 +1545,10 @@
     "deleteTitle": "Delete this schedule?",
     "deleteBody": "It leaves the list and raises no more drafts. The drafts it already raised are kept.",
     "deleteConfirm": "Delete",
-    "issuedCount_one": "{{count}} issued",
-    "issuedCount_other": "{{count}} issued",
+    "issuedCount_one": "{{count}} raised",
+    "issuedCount_other": "{{count}} raised",
     "lastRun": "last {{date}}",
-    "notIssued": "Not issued",
+    "notIssued": "None raised",
     "generateTitle": "Raise the next invoice now?",
     "generateBody": "The schedule moves to {{date}}.",
     "generateBodyLast": "This is the schedule's last invoice. It raises no more after this one.",
@@ -2472,7 +2472,7 @@
       "left": "Runs left",
       "noLimit": "No limit",
       "subtype": "Invoicing period",
-      "subtypeNote": "Set by the cadence: weekly and monthly are summary invoices, longer ones are continuous supply (IBR-036-OM).",
+      "subtypeNote": "Set by the cadence: monthly is a summary invoice, weekly and longer ones are continuous supply (IBR-036-OM).",
       "subject": "Subject / about",
       "po": "PO reference",
       "paymentTerms": "Payment terms",
@@ -2531,7 +2531,8 @@
       "alreadyRaised": "This schedule changed since you opened it: its latest draft has already been raised. Reload the page and try again.",
       "notActive": "This schedule is paused or finished, so no draft can be raised. Resume it first.",
       "runInProgress": "A draft for this schedule is being raised right now. Try again in a moment.",
-      "hasOpenRun": "This schedule has a run in progress or waiting to be retried. Open the schedule to deal with it, or pause it instead."
+      "hasOpenRun": "This schedule has a run in progress or waiting to be retried. Use Generate invoice to try that run again, or pause the schedule instead.",
+      "finished": "This schedule has finished: it has no runs left, so it can't be resumed. Use Duplicate to start a new one."
     },
     "kind": "Recurring invoice",
     "nextShort": "Next",

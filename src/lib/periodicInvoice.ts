@@ -51,12 +51,25 @@ export type PeriodicTabId = 'all' | 'active' | 'onRequest' | 'paused' | 'draft'
 
 export const PERIODIC_TABS: PeriodicTabId[] = ['all', 'active', 'onRequest', 'paused', 'draft']
 
-/** What the status pill says. `finished` is an active series with no runs left. */
+/** What the status pill says. `finished` is a series with no runs left, paused or not. */
 export type PeriodicStatus = 'active' | 'paused' | 'finished' | 'onRequest' | 'draft'
 
+/**
+ * A series with no runs left: none remaining, or its end date before the next run. The server
+ * switches a finished series off, so it is not paused and cannot be resumed.
+ */
+export function isFinished(
+  schedule: Pick<PeriodicScheduleDto, 'remainingOccurrences' | 'endDate' | 'nextRunDate'>,
+): boolean {
+  return (
+    schedule.remainingOccurrences === 0 ||
+    (schedule.endDate !== null && schedule.endDate < schedule.nextRunDate)
+  )
+}
+
 export function scheduleStatus(schedule: PeriodicScheduleDto): PeriodicStatus {
+  if (isFinished(schedule)) return 'finished'
   if (!schedule.active) return 'paused'
-  if (schedule.remainingOccurrences === 0) return 'finished'
   return 'active'
 }
 
@@ -134,31 +147,65 @@ export function monthlyEquivalent(total: number, interval: RecurrenceInterval): 
   }
 }
 
-/** The run after `date` on the cadence, as the server steps it (calendar months, same day). */
-export function addInterval(date: string, interval: RecurrenceInterval): string {
-  const [y, m, d] = date.split('-').map(Number)
-  const next = new Date(Date.UTC(y, m - 1, d))
-  if (interval === 'WEEKLY') next.setUTCDate(next.getUTCDate() + 7)
-  else if (interval === 'MONTHLY') next.setUTCMonth(next.getUTCMonth() + 1)
-  else if (interval === 'QUARTERLY') next.setUTCMonth(next.getUTCMonth() + 3)
-  else next.setUTCFullYear(next.getUTCFullYear() + 1)
-  return next.toISOString().slice(0, 10)
+const MONTHS_OF: Record<Exclude<RecurrenceInterval, 'WEEKLY'>, number> = {
+  MONTHLY: 1,
+  QUARTERLY: 3,
+  ANNUALLY: 12,
 }
 
-/** The next few run dates, stopping at the end date or the runs left. */
-export function upcomingRuns(schedule: PeriodicScheduleDto, count: number): string[] {
+/**
+ * The run after `date` on the cadence, as the server steps it: seven days, or whole calendar
+ * months landing on the anchor day (`dayOfMonth`, else the day of `date`), clamped to the last day
+ * of a shorter month. So 31 Jan steps to 28 Feb and then back to 31 Mar, never drifting.
+ */
+export function addInterval(
+  date: string,
+  interval: RecurrenceInterval,
+  anchorDay?: number | null,
+): string {
+  const [y, m, d] = date.split('-').map(Number)
+  if (interval === 'WEEKLY') {
+    const next = new Date(Date.UTC(y, m - 1, d))
+    next.setUTCDate(next.getUTCDate() + 7)
+    return next.toISOString().slice(0, 10)
+  }
+  const index = m - 1 + MONTHS_OF[interval]
+  const year = y + Math.floor(index / 12)
+  const month = (index % 12) + 1
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return `${year}-${pad2(month)}-${pad2(Math.min(anchorDay ?? d, last))}`
+}
+
+/**
+ * The next few run dates, stopping at the end date, the runs left or `until` (inclusive). A
+ * monthly, quarterly or yearly series keeps its anchor day (`dayOfMonth`, else the next run's day).
+ */
+export function upcomingRuns(
+  schedule: PeriodicScheduleDto,
+  count: number,
+  until?: string,
+): string[] {
   if (!schedule.active) return []
   const dates: string[] = []
   let date = schedule.nextRunDate
+  const anchor = schedule.dayOfMonth ?? Number(schedule.nextRunDate.slice(8, 10))
   const limit =
     schedule.remainingOccurrences === null ? count : Math.min(count, schedule.remainingOccurrences)
   while (dates.length < limit) {
     if (schedule.endDate && date > schedule.endDate) break
+    if (until && date > until) break
     dates.push(date)
-    date = addInterval(date, schedule.interval)
+    date = addInterval(date, schedule.interval, anchor)
   }
   return dates
 }
+
+/** Whether the run now due is the series' last: one run left, or the end date comes first. */
+export function isLastRun(schedule: PeriodicScheduleDto): boolean {
+  return schedule.remainingOccurrences === 1 || upcomingRuns(schedule, 2).length < 2
+}
+
+const pad2 = (value: number) => String(value).padStart(2, '0')
 
 export type CadenceNote = { key: string; values?: Record<string, string | number> }
 
@@ -230,8 +277,6 @@ export function repeatValue(interval: RecurrenceInterval, firstRunDate: string):
   return `d${d}`
 }
 
-const pad2 = (value: number) => String(value).padStart(2, '0')
-
 /** The first date on or after `notBefore` that fits the chosen repeat, staying near the first run. */
 export function dateForRepeat(
   interval: RecurrenceInterval,
@@ -294,16 +339,30 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
 }
 
+/** The ISO date `days` after `from`. */
+function addDays(from: string, days: number): string {
+  const [y, m, d] = from.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
+}
+
+/**
+ * Every run an active series owes up to 30 days from today, not only its next one: a weekly
+ * series due on the 13th, 20th and 27th counts three times. A run whose date has already passed
+ * is still owed (the sweep fires it on the next pass), so it counts rather than vanishing.
+ */
+export function runsDueSoon(schedule: PeriodicScheduleDto, today: string): number {
+  if (scheduleStatus(schedule) !== 'active') return 0
+  return upcomingRuns(schedule, Number.POSITIVE_INFINITY, addDays(today, 30)).length
+}
+
 /** The figures the page can count honestly: everything else would need amounts it has not got. */
 export function periodicCounts(schedules: PeriodicScheduleDto[], today: string) {
-  const active = schedules.filter((schedule) => schedule.active)
+  const active = schedules.filter((schedule) => scheduleStatus(schedule) === 'active')
   return {
     total: schedules.length,
     active: active.length,
-    paused: schedules.length - active.length,
-    // A run whose date has already passed is still owed (the sweep fires it on the next pass),
-    // so it belongs in "due in 30 days" rather than vanishing from every count on the page.
-    dueSoon: active.filter((schedule) => daysBetween(today, schedule.nextRunDate) <= 30).length,
+    paused: schedules.filter((schedule) => scheduleStatus(schedule) === 'paused').length,
+    dueSoon: active.reduce((sum, schedule) => sum + runsDueSoon(schedule, today), 0),
     // A run whose date passed without a draft: with the paused ones, what a person should look at.
     overdue: active.filter(
       (schedule) =>
@@ -334,10 +393,10 @@ export function generatedThisMonth(
 
 export type ScheduleNote = { key: string; values?: Record<string, string | number> }
 
-/** What the row says: paused first, then a finished series, then when the next draft is due. */
+/** What the row says: a finished series first, then paused, then when the next draft is due. */
 export function scheduleNote(schedule: PeriodicScheduleDto, today: string): ScheduleNote {
+  if (isFinished(schedule)) return { key: 'periodicList.state.finished' }
   if (!schedule.active) return { key: 'periodicList.state.paused' }
-  if (schedule.remainingOccurrences === 0) return { key: 'periodicList.state.finished' }
   const days = daysBetween(today, schedule.nextRunDate)
   if (days < 0) return { key: 'periodicList.state.overdue', values: { date: schedule.nextRunDate } }
   if (days === 0) return { key: 'periodicList.state.today' }
@@ -348,7 +407,7 @@ export function scheduleTone(
   schedule: PeriodicScheduleDto,
   today: string,
 ): 'warn' | 'ok' | 'muted' {
-  if (!schedule.active || schedule.remainingOccurrences === 0) return 'muted'
+  if (scheduleStatus(schedule) !== 'active') return 'muted'
   return daysBetween(today, schedule.nextRunDate) < 0 ? 'warn' : 'ok'
 }
 
@@ -760,4 +819,5 @@ export const PERIODIC_REFUSALS: Record<string, string> = {
   PERIODIC_SCHEDULE_NOT_ACTIVE: 'periodicInvoice.error.notActive',
   PERIODIC_RUN_IN_PROGRESS: 'periodicInvoice.error.runInProgress',
   PERIODIC_SCHEDULE_HAS_OPEN_RUN: 'periodicInvoice.error.hasOpenRun',
+  PERIODIC_SCHEDULE_FINISHED: 'periodicInvoice.error.finished',
 }
