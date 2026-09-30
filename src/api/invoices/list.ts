@@ -123,6 +123,18 @@ export type InvoiceSummaryDto = {
    * `issuedLast30Days`: the notes lists' subtitle. Absent from an API that predates it.
    */
   issuedThisQuarter?: { count: number; total: number }
+  /**
+   * Documents issued in `asOf`'s calendar month, their total and their VAT, in `currencyCode`: the
+   * self-billing list's "Raised this month" and "Input VAT claimed" cards. Absent from an API that
+   * predates it.
+   */
+  issuedThisMonth?: { count: number; total: number; vat: number }
+  /**
+   * Issued self-billed invoices whose Expenditure payable is not settled, every currency, and the
+   * earliest issue date among them: the self-billing list's "Awaiting supplier" card. Absent from
+   * an API that predates it.
+   */
+  awaitingSupplier?: { count: number; oldestIssueDate: string | null }
 }
 
 /** What a tab, the toolbar and the search ask the server for. */
@@ -188,15 +200,22 @@ export async function loadInvoicePage(path: string): Promise<Page<InvoiceRowDto>
   return fromSpringPage(await apiRequest<SpringPage<InvoiceRowDto>>(path))
 }
 
-/** The summary's request: every document, or one document type (`?type=DEBIT_NOTE`). */
-export function invoiceSummaryPath(type: InvoiceTypeDto | null = null): string {
-  return withQuery(INVOICE_SUMMARY_PATH, { type })
+/**
+ * The summary's request: every document, or one document type (`?type=DEBIT_NOTE`), with the
+ * money figures in `currency` when one is named (the server's default is OMR).
+ */
+export function invoiceSummaryPath(
+  type: InvoiceTypeDto | null = null,
+  currency: string | null = null,
+): string {
+  return withQuery(INVOICE_SUMMARY_PATH, { type, currency })
 }
 
 export function loadInvoiceSummary(
   type: InvoiceTypeDto | null = null,
+  currency: string | null = null,
 ): Promise<InvoiceSummaryDto> {
-  return apiRequest<InvoiceSummaryDto>(invoiceSummaryPath(type))
+  return apiRequest<InvoiceSummaryDto>(invoiceSummaryPath(type, currency))
 }
 
 export type InvoiceExport = ApiDownload & {

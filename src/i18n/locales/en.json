@@ -3017,7 +3017,8 @@
       "opened": "The agreement was opened.",
       "activated": "The agreement is active.",
       "suspended": "The agreement is suspended.",
-      "withdrawn": "The agreement was withdrawn."
+      "withdrawn": "The agreement was withdrawn.",
+      "renewed": "The agreement was renewed. Activate the new one; Fawtir verifies the supplier again before you can issue under it."
     },
     "problem": {
       "referenceRequired": "Give the agreement a reference.",
@@ -3080,7 +3081,9 @@
       "body": "Self-billed invoices to these suppliers are refused until you open a new agreement with them.",
       "action": "Renew agreement",
       "body_one": "Self-billed invoices to this supplier are refused until the agreement is renewed. Existing documents stay valid and reportable.",
-      "body_other": "Self-billed invoices to these suppliers are refused until their agreements are renewed. Existing documents stay valid and reportable."
+      "body_other": "Self-billed invoices to these suppliers are refused until their agreements are renewed. Existing documents stay valid and reportable.",
+      "blockedDrafts_one": "{{count}} draft self-billed invoice is blocked until its agreement is renewed. Existing documents stay valid and reportable.",
+      "blockedDrafts_other": "{{count}} draft self-billed invoices are blocked until their agreements are renewed. Existing documents stay valid and reportable."
     },
     "vat": "VAT {{number}}",
     "notVerified": "Network identity not verified yet",
@@ -17536,6 +17539,9 @@
       "uploading": "Uploading…",
       "tooLarge": "{{name}} is over 10 MB and was not added.",
       "wrongType": "{{name}} is not a supported file type."
+    },
+    "pay": {
+      "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment."
     }
   },
   "supplierNotes": {

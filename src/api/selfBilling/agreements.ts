@@ -1,4 +1,4 @@
-import { apiRequest } from '../client'
+import { apiDownload, apiRequest, type ApiDownload } from '../client'
 
 /**
  * Self-billing agreements (`SelfBillingAgreementController`, I-12).
@@ -19,8 +19,8 @@ import { apiRequest } from '../client'
  * created happily; issuing then refuses. That is why this screen matters: it is the only place the
  * authority to issue can be seen or changed.
  *
- * **No edit, no delete.** The reference and dates are fixed once opened; only the three lifecycle
- * posts act. And there is deliberately no `EXPIRED` status — a lapsed `effectiveTo` is derived and
+ * **No edit, no delete.** The reference and dates are fixed once opened; only the lifecycle posts
+ * act, and a renewal withdraws the agreement and opens its successor in one step. And there is deliberately no `EXPIRED` status — a lapsed `effectiveTo` is derived and
  * never stored, so nothing server-side will ever say "expiring soon".
  */
 
@@ -46,6 +46,17 @@ export type AgreementDto = {
   withdrawnAt: string | null
   withdrawalReason: string | null
   version: number
+  /**
+   * The self-billed documents issued under this agreement (invoices less credit notes). Answered
+   * by the two reads; null on the lifecycle responses, absent from an API that predates it.
+   * `total` is null when the documents span currencies, `currency` null when there are none.
+   */
+  documents?: { count: number; total: number | null; currency: string | null } | null
+  /**
+   * The supplier's drafts issuing would refuse today because of this agreement. Null on a withdrawn
+   * agreement and on the lifecycle responses. `total` is always null: a draft is priced at issue.
+   */
+  blockedDrafts?: { count: number; total: number | null } | null
 }
 
 export const AGREEMENT_REFERENCE_MAX = 100
@@ -90,4 +101,25 @@ export function withdrawAgreement(agreementId: string, reason: string | null): P
     method: 'POST',
     body: { reason: reason && reason.trim() !== '' ? reason.trim() : null },
   })
+}
+
+export type RenewAgreementBody = {
+  agreementReference: string
+  effectiveFrom: string
+  /** Open-ended when null. */
+  effectiveTo: string | null
+}
+
+/**
+ * Withdraws the agreement and opens its successor for the same supplier in one transaction; the
+ * new one starts PENDING_ACTIVATION and unverified (D4). A withdrawn agreement is refused with
+ * `SELF_BILLING_AGREEMENT_WITHDRAWN`.
+ */
+export function renewAgreement(agreementId: string, body: RenewAgreementBody): Promise<AgreementDto> {
+  return apiRequest<AgreementDto>(`${agreementPath(agreementId)}/renewal`, { method: 'POST', body })
+}
+
+/** Every agreement, as the list shows it, as CSV. */
+export function exportAgreements(): Promise<ApiDownload> {
+  return apiDownload(`${AGREEMENTS_PATH}/export.csv`)
 }

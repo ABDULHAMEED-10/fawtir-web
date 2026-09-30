@@ -21,6 +21,7 @@ import {
   type InvoiceReceivableDto,
 } from '../../api/invoices/detail'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
+import { recordBillPayment } from '../../api/expenditure/bills'
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import {
   AGREEMENTS_PATH,
@@ -31,6 +32,7 @@ import { attachmentRows, attachmentsEditable, isDraft } from '../../lib/invoiceD
 import {
   agreementNote,
   selfBillItems,
+  selfBillOwed,
   selfBillStatus,
   selfBillTimeline,
   selfBillTracks,
@@ -281,7 +283,12 @@ function SelfBillScreen() {
 
   const data = invoice.read.data
   const draft = isDraft(data)
-  const owed = receivable.read.status === 'ready' ? receivable.read.data : null
+  // The debt is the Expenditure payable (D2) when the document answers one; see selfBillOwed.
+  const payable = data.payable ?? null
+  const owed = selfBillOwed(
+    payable,
+    receivable.read.status === 'ready' ? receivable.read.data : null,
+  )
   const supplier =
     customer.read.status === 'ready'
       ? customer.read.data.displayName
@@ -324,8 +331,9 @@ function SelfBillScreen() {
     attachments.read.status === 'ready'
       ? attachmentRows(attachments.read.data, (bytes) => fileSize(bytes, language))
       : []
-  // Paying needs an issued document with something owed and the right to record it.
+  // Paying needs an issued document with something owed on its payable and the right to record it.
   const canPay =
+    payable !== null &&
     can(session, 'invoice.payment.manage') &&
     data.authoringState === 'ISSUED' &&
     owed !== null &&
@@ -911,17 +919,28 @@ function SelfBillScreen() {
         </div>
       </SectionCard>
 
-      {paying ? (
+      {paying && payable ? (
         <RecordPaymentModal
           invoiceId={id}
           invoiceNumber={data.invoiceNumber}
-          currency={data.currency}
-          outstanding={owed?.outstandingAmount ?? null}
+          currency={payable.currency}
+          outstanding={payable.outstandingAmount}
           issueDate={data.issueDate}
           today={today}
+          // Recorded against the supplier's bill: the document's own route refuses a self-billed
+          // document (PAYMENT_REQUIRES_RECEIVABLE).
+          record={(key, payment) =>
+            recordBillPayment(payable.billId, key, { ...payment, currency: payable.currency })
+          }
+          refusals={{
+            BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'selfBillDetail.pay.notApproved' },
+          }}
           onClose={() => setPaying(false)}
           onRecorded={() => {
             setPaying(false)
+            setNotice(t('invoiceDetails.done.recorded'))
+            // The payable is read with the document, so the document is read again.
+            invoice.retry()
             receivable.retry()
             payments.retry()
             history.retry()

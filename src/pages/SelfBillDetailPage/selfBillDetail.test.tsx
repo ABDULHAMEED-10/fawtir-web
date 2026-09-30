@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -7,6 +7,7 @@ import type {
   InvoiceDetailDto,
   InvoiceHistoryDto,
   InvoiceReceivableDto,
+  SelfBilledPayableDto,
 } from '../../api/invoices/detail'
 import type { AgreementDto } from '../../api/selfBilling/agreements'
 import { selfBillStatus, selfBillTimeline, selfBillTracks } from '../../lib/selfBillDetail'
@@ -126,6 +127,19 @@ const RECEIVABLE: InvoiceReceivableDto = {
   dueDate: '2026-08-23',
 }
 
+/** The Expenditure payable the document raised at issue (D2): partly paid. */
+const PAYABLE: SelfBilledPayableDto = {
+  billId: 'bill-1',
+  state: 'PARTIALLY_PAID',
+  totalAmount: 58.59,
+  paidAmount: 20,
+  creditedAmount: 0,
+  outstandingAmount: 38.59,
+  currency: 'OMR',
+  dueDate: '2026-08-23',
+}
+const BILL_PAYMENTS_URL = '/api/v1/bills/bill-1/payments'
+
 const HISTORY: InvoiceHistoryDto = {
   entries: [
     {
@@ -175,6 +189,7 @@ function json(status: number, body?: unknown) {
 
 let fetchMock: ReturnType<typeof vi.fn>
 let invoiceResponse: () => Response
+let billPaymentResponse: () => Response
 let who: Entitlements
 
 const calls = () =>
@@ -189,6 +204,8 @@ beforeEach(async () => {
   vi.setSystemTime(new Date(`${TODAY}T09:00:00Z`))
   who = BUYER
   invoiceResponse = () => json(200, invoice())
+  billPaymentResponse = () =>
+    json(201, { id: 'p-1', entryType: 'PAYMENT', amount: 38.59, currency: 'OMR' })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -217,6 +234,7 @@ beforeEach(async () => {
       ])
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === URL_BASE) return invoiceResponse()
+    if (url === BILL_PAYMENTS_URL && method === 'POST') return billPaymentResponse()
     if (url === '/api/v1/customers/c-1')
       return json(200, {
         id: 'c-1',
@@ -253,6 +271,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
+
+function cleanupAndRender(response: () => Response) {
+  cleanup()
+  invoiceResponse = response
+  renderPage()
+}
 
 function renderPage() {
   return render(
@@ -316,15 +340,98 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.getByText('Readable copy.pdf')).toBeTruthy()
   })
 
-  it('offers to record a payment on an issued document that still owes, through the shared modal', async () => {
+  it('keeps Record payment off when the document answers no payable, since the receivable never owes', async () => {
     renderPage()
     await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty(
-        'disabled',
-        false,
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty('disabled', true)
+  })
+
+  it("shows what is paid and still owed from the document's payable", async () => {
+    invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    // The summary rail: what is settled, and the total due is what the payable still owes.
+    expect(await screen.findByText('Paid or credited')).toBeTruthy()
+    expect(screen.getByText('20.000')).toBeTruthy()
+    expect(screen.getByText('38.590')).toBeTruthy()
+
+    cleanupAndRender(() =>
+      json(
+        200,
+        invoice({
+          payable: { ...PAYABLE, state: 'PAID', paidAmount: 58.59, outstandingAmount: 0 },
+        }),
       ),
     )
+    expect(await screen.findByText('Paid')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty('disabled', true)
+  })
+
+  it('records a payment against the supplier bill, with an idempotency key, and reads the document again', async () => {
+    invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    const open = screen.getByRole('button', { name: 'Record payment' })
+    await waitFor(() => expect(open).toHaveProperty('disabled', false))
+    fireEvent.click(open)
+    const amount = (await screen.findByRole('textbox', {
+      name: /Amount received/,
+    })) as HTMLInputElement
+    expect(amount.value).toBe('38.590')
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }),
+    )
+
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_PAYMENTS_URL}`))
+    // Never the document's own route, which refuses a self-billed document.
+    expect(calls()).not.toContain(`POST ${URL_BASE}/payments`)
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === BILL_PAYMENTS_URL)!
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      amount: 38.59,
+      methodCode: '30',
+      paymentReference: null,
+      paymentDate: TODAY,
+      currency: 'OMR',
+    })
+    const headers = (init as RequestInit).headers as Record<string, string> | Headers
+    const key =
+      headers instanceof Headers ? headers.get('Idempotency-Key') : headers['Idempotency-Key']
+    expect(key).toMatch(/^payment-[0-9a-f-]{36}$/)
+
+    expect(await screen.findByText('Payment recorded.')).toBeTruthy()
+    await waitFor(() =>
+      expect(calls().filter((call) => call === `GET ${URL_BASE}`)).toHaveLength(2),
+    )
+  })
+
+  it('says the supplier bill needs approval in Expenditure when the bill is not ready to pay', async () => {
+    invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+    billPaymentResponse = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        title: 'Request refused',
+        detail: 'This bill is PENDING with 0 of 1 required approvals; payment requires READY',
+        error: 'BILL_NOT_READY_FOR_PAYMENT',
+      })
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    const open = screen.getByRole('button', { name: 'Record payment' })
+    await waitFor(() => expect(open).toHaveProperty('disabled', false))
+    fireEvent.click(open)
+    await screen.findByRole('textbox', { name: /Amount received/ })
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Record payment' }),
+    )
+
+    expect(
+      await screen.findByText(
+        'The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.',
+      ),
+    ).toBeTruthy()
+    // The dialog stays open and nothing was recorded.
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(screen.queryByText('Payment recorded.')).toBeNull()
   })
 
   it('reads a draft as not sent, unpriced and with no open item', async () => {

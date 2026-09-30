@@ -10,7 +10,7 @@ import {
   focusFirstInvalidField,
 } from '../ConsolePage/subscriptions/modalFields'
 import { ApiError } from '../../api'
-import { newPaymentKey, recordPayment } from '../../api/invoices/detail'
+import { newPaymentKey, recordPayment, type RecordPaymentRequest } from '../../api/invoices/detail'
 import {
   PAYMENT_REFUSALS,
   paymentProblems,
@@ -36,6 +36,8 @@ export function RecordPaymentModal({
   today,
   onClose,
   onRecorded,
+  record,
+  refusals,
 }: {
   invoiceId: string
   invoiceNumber: string | null
@@ -46,6 +48,13 @@ export function RecordPaymentModal({
   today: string
   onClose: () => void
   onRecorded: () => void
+  /**
+   * Where the payment is recorded, when not against the invoice itself: a self-billed document's
+   * debt is its Expenditure bill, so that page records against the bill. Same key, same form.
+   */
+  record?: (idempotencyKey: string, payment: RecordPaymentRequest) => Promise<unknown>
+  /** Refusals that route can add, named over {@link PAYMENT_REFUSALS}. */
+  refusals?: Record<string, { field: PaymentField | null; key: string }>
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -79,16 +88,21 @@ export function RecordPaymentModal({
     }
     setBusy(true)
     try {
-      await recordPayment(invoiceId, idempotencyKey, {
+      const payment: RecordPaymentRequest = {
         amount: Number(form.amount.trim().replace(/,/g, '')),
         methodCode: form.methodCode,
         paymentReference: form.reference.trim() || null,
         paymentDate: form.paymentDate,
-      })
+      }
+      await (record
+        ? record(idempotencyKey, payment)
+        : recordPayment(invoiceId, idempotencyKey, payment))
       onRecorded()
     } catch (error) {
       const refusal =
-        error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code
+          ? (refusals?.[error.code] ?? PAYMENT_REFUSALS[error.code])
+          : undefined
       if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {

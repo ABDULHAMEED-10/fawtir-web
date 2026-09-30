@@ -14,6 +14,7 @@ import {
   DateField,
   FilterMenu,
   Modal,
+  OmAmount,
   RowsView,
   SortMenu,
   TableCheckbox,
@@ -25,8 +26,10 @@ import {
   AGREEMENT_REFERENCE_MAX,
   WITHDRAWAL_REASON_MAX,
   activateAgreement,
+  exportAgreements,
   loadAgreements,
   openAgreement,
+  renewAgreement,
   suspendAgreement,
   withdrawAgreement,
   type AgreementDto,
@@ -55,7 +58,8 @@ import {
 import { LIST_PAGE_SIZES, ListPager } from '../SelfBillingPage/ListPager'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { muscatToday } from '../../lib/invoiceIssue'
-import { formatCount, formatDate } from '../../lib/format'
+import { formatAmount, formatCount, formatDate } from '../../lib/format'
+import { saveDownload } from '../../lib/supplierRecord'
 import { can, useSession } from '../../lib/session/session'
 import activeIcon from '../../assets/agreements/kpi-active.svg'
 import expiringIcon from '../../assets/agreements/kpi-expiring-soon.svg'
@@ -113,9 +117,8 @@ const STATUSES: AgreementStatusDto[] = ['ACTIVE', 'PENDING_ACTIVATION', 'SUSPEND
  * can, because `platform.selfbilling.counterparty.verify` is platform-reserved and no tenant can
  * ever hold it (Zain, 2026-08-27). Verification is therefore shown as a state, never as a button.
  *
- * **What the frame draws and the API cannot feed** is drawn and marked rather than dropped:
- * per-agreement document counts (TODO(backend): nothing links an invoice to an agreement), an
- * export (no route), an agreement "kind" (there is only the agreed one). There is no `EXPIRED`
+ * **What the frame draws and the API cannot feed** is drawn and marked rather than dropped: an
+ * agreement "kind" (there is only the agreed one) and its coverage. There is no `EXPIRED`
  * status; a lapsed `effectiveTo` is derived here and labelled, since the server will never say it.
  */
 export function AgreementsPage() {
@@ -193,8 +196,9 @@ function Agreements() {
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [opening, setOpening] = useState(false)
-  // The supplier the design's "Renew agreement" opens the dialog on.
-  const [renewFor, setRenewFor] = useState<string | null>(null)
+  // The agreement the design's "Renew agreement" renews; the dialog opens on its supplier.
+  const [renewing, setRenewing] = useState<AgreementDto | null>(null)
+  const [exporting, setExporting] = useState(false)
   const [withdrawing, setWithdrawing] = useState<AgreementDto | null>(null)
   const [selected, setSelected] = useState<string[]>([])
 
@@ -218,6 +222,19 @@ function Agreements() {
       onFailure(error)
     } finally {
       setBusy(null)
+    }
+  }
+
+  const onExport = async () => {
+    setExporting(true)
+    setNotice(null)
+    setFailure(null)
+    try {
+      saveDownload(await exportAgreements(), 'fawtir-self-billing-agreements.csv')
+    } catch (error) {
+      onFailure(error)
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -264,6 +281,8 @@ function Agreements() {
     .filter((row) => lapsed(row, today) && row.status !== 'WITHDRAWN')
     .sort((a, b) => b.effectiveTo!.localeCompare(a.effectiveTo!))
   const lapsedCount = lapsedRows.length
+  // The drafts the lapsed agreements block today (the frame's "1 draft self-billed invoice").
+  const blockedDrafts = lapsedRows.reduce((sum, row) => sum + (row.blockedDrafts?.count ?? 0), 0)
   const count = (value: number) => formatCount(value, language)
   const allSelected = shown.length > 0 && shown.every((row) => selected.includes(row.id))
 
@@ -382,14 +401,14 @@ function Agreements() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {/* TODO(backend): no export route for agreements; the button is the design's and says so. */}
           <button
             type="button"
-            onClick={() => setNotice(t('agreements.exportUnavailable'))}
+            onClick={() => void onExport()}
+            disabled={exporting}
             className={OUTLINE_BUTTON}
           >
             <img src={exportIcon} alt="" className="size-6 rotate-180" />
-            {t('agreements.export')}
+            {exporting ? t('invoicesPage.exporting') : t('agreements.export')}
           </button>
           <button
             type="button"
@@ -425,9 +444,8 @@ function Agreements() {
         <>
           {/*
             Full-width danger banner, as the design draws it, only when something has lapsed. It
-            names the supplier and the day, and "Renew agreement" opens a new one on that supplier.
-            TODO(backend): the frame also counts the drafts the lapse blocks; nothing links a draft
-            to an agreement, so that line is not drawn.
+            names the supplier and the day and, when there are any, the drafts the lapse blocks;
+            "Renew agreement" renews that supplier's agreement (withdraws it, opens its successor).
           */}
           {lapsedCount > 0 ? (
             <div className="flex flex-wrap items-start gap-4 rounded-sm border border-[#ead0ce] bg-danger-100 p-4">
@@ -443,13 +461,15 @@ function Agreements() {
                   })}
                 </p>
                 <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-tertiary">
-                  {t('agreements.alert.body', { count: lapsedCount })}
+                  {blockedDrafts > 0
+                    ? t('agreements.alert.blockedDrafts', { count: blockedDrafts })
+                    : t('agreements.alert.body', { count: lapsedCount })}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  setRenewFor(lapsedRows[0].customerId)
+                  setRenewing(lapsedRows[0])
                   setOpening(true)
                 }}
                 className="inline-flex h-[38px] shrink-0 items-center justify-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100 max-md:w-full"
@@ -757,12 +777,38 @@ function Agreements() {
                               </p>
                             ) : null}
                           </td>
-                          {/* TODO(backend): nothing links a document to an agreement, so no count or value is answered. */}
-                          <td
-                            className="px-2 py-3 align-top"
-                            title={t('agreements.documentsUnknown')}
-                          >
-                            <p className="text-xl font-semibold leading-[1.2] text-text-muted">—</p>
+                          {/* Documents issued under this agreement: the count, and their value. */}
+                          <td className="px-2 py-3 align-top">
+                            {row.documents ? (
+                              <>
+                                <p className="text-xl font-semibold leading-[1.2] text-text-primary">
+                                  {count(row.documents.count)}
+                                </p>
+                                {row.documents.count > 0 && row.documents.total !== null ? (
+                                  <div className="mt-1.5">
+                                    {row.documents.currency === 'OMR' ? (
+                                      <OmAmount
+                                        size="xs"
+                                        amount={formatAmount(row.documents.total, 'OMR', language)}
+                                        amountClassName="text-sm font-medium text-text-secondary"
+                                      />
+                                    ) : (
+                                      <p className="text-sm font-medium text-text-secondary">
+                                        {`${row.documents.currency ?? ''} ${formatAmount(
+                                          row.documents.total,
+                                          row.documents.currency ?? 'OMR',
+                                          language,
+                                        )}`.trim()}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </>
+                            ) : (
+                              <p className="text-xl font-semibold leading-[1.2] text-text-muted">
+                                —
+                              </p>
+                            )}
                           </td>
                           <td className="px-2 py-3 align-top">
                             <span
@@ -839,15 +885,15 @@ function Agreements() {
       {opening ? (
         <OpenAgreementDialog
           customers={customers.read.status === 'ready' ? customers.read.data.items : []}
-          initialCustomerId={renewFor}
+          renewing={renewing}
           onCancel={() => {
             setOpening(false)
-            setRenewFor(null)
+            setRenewing(null)
           }}
-          onDone={() => {
+          onDone={(renewed) => {
             setOpening(false)
-            setRenewFor(null)
-            setNotice(t('agreements.done.opened'))
+            setRenewing(null)
+            setNotice(t(renewed ? 'agreements.done.renewed' : 'agreements.done.opened'))
             read.retry()
           }}
           onFailure={onFailure}
@@ -910,27 +956,30 @@ function DialogActions({
 }
 
 /**
- * Opening one.
+ * Opening one, or renewing one.
  *
  * The reference and the dates cannot be edited afterwards (there is no PUT or PATCH), so the
- * dialog says so before it writes rather than leaving it to be discovered.
+ * dialog says so before it writes rather than leaving it to be discovered. Opened from "Renew
+ * agreement" it renews that agreement (`POST …/{id}/renewal`): the lapsed one is withdrawn and its
+ * successor opened in one step, where opening a second live agreement would be refused.
  */
 function OpenAgreementDialog({
   customers,
-  initialCustomerId,
+  renewing,
   onCancel,
   onDone,
   onFailure,
 }: {
   customers: CustomerDto[]
-  /** Pre-chosen when the dialog opens from "Renew agreement". */
-  initialCustomerId: string | null
+  /** The agreement "Renew agreement" renews; its supplier is pre-chosen. */
+  renewing: AgreementDto | null
   onCancel: () => void
-  onDone: () => void
+  /** `renewed` when an agreement was renewed rather than a new one opened. */
+  onDone: (renewed: boolean) => void
   onFailure: (error: unknown) => void
 }) {
   const { t } = useTranslation()
-  const [customerId, setCustomerId] = useState(initialCustomerId ?? '')
+  const [customerId, setCustomerId] = useState(renewing?.customerId ?? '')
   const [reference, setReference] = useState('')
   const [from, setFrom] = useState(() => muscatToday())
   const [to, setTo] = useState('')
@@ -944,13 +993,16 @@ function OpenAgreementDialog({
     if (!ready) return
     setSaving(true)
     try {
-      await openAgreement({
-        customerId,
+      const terms = {
         agreementReference: reference.trim(),
         effectiveFrom: from,
         effectiveTo: to.trim() === '' ? null : to,
-      })
-      onDone()
+      }
+      // A renewal only for the supplier it was opened on; another supplier is a new agreement.
+      const renew = renewing !== null && renewing.customerId === customerId
+      if (renew) await renewAgreement(renewing.id, terms)
+      else await openAgreement({ customerId, ...terms })
+      onDone(renew)
     } catch (error) {
       onFailure(error)
       onCancel()

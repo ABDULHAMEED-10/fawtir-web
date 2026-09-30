@@ -138,6 +138,31 @@ export function releaseBill(billId: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/release`, { method: 'POST' })
 }
 
+/** `RecordBillPayment`. The currency must be the bill's own: there is no buy-side exchange rate. */
+export type RecordBillPaymentRequest = {
+  amount: number
+  currency: string
+  methodCode: string | null
+  paymentReference: string | null
+  paymentDate: string
+}
+
+/**
+ * Records a payment made against a bill (`invoice.payment.manage`, `Idempotency-Key`). The bill must
+ * be approval-READY: an unapproved one is refused with `BILL_NOT_READY_FOR_PAYMENT`.
+ */
+export function recordBillPayment(
+  billId: string,
+  idempotencyKey: string,
+  payment: RecordBillPaymentRequest,
+): Promise<unknown> {
+  return apiRequest(`${billPath(billId)}/payments`, {
+    method: 'POST',
+    body: payment,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
 export type BillMatchVerdict = 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
 
 export type BillHoldDto = {

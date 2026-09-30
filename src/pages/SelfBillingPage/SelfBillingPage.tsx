@@ -23,9 +23,12 @@ import { ApiError, pageCountOf, type Page } from '../../api'
 import {
   exportInvoices,
   invoiceListPath,
+  invoiceSummaryPath,
   loadInvoicePage,
+  loadInvoiceSummary,
   type InvoiceListFilter,
   type InvoiceRowDto,
+  type InvoiceSummaryDto,
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft } from '../../api/invoices/drafts'
@@ -74,6 +77,12 @@ import deleteIcon from '../../assets/actions/delete.svg'
 import { LIST_PAGE_SIZES as PAGE_SIZES, ListPager } from './ListPager'
 
 const DEFAULT_PAGE_SIZE = 6
+/**
+ * The cards' figures: self-billed invoices only (a self-billed credit note would otherwise reduce
+ * "Raised this month"), in the rial the cards draw.
+ */
+const SUMMARY_TYPE: InvoiceTypeDto = 'SELF_BILLED_INVOICE'
+const SUMMARY_CURRENCY = 'OMR'
 const SEARCH_DELAY_MS = 300
 
 const OUTLINE_BUTTON =
@@ -221,9 +230,9 @@ function failureText(t: Translate, error: unknown): string {
  * **Both types in one page.** `GET /authored-invoices` binds `type` as a `Set<InvoiceType>`, so
  * "All" is a single request the server pages; the Document type filter narrows to one.
  *
- * **No summary.** `/authored-invoices/summary` counts every document type, so the design's cards
- * are derived from the page in view and from the agreements, and say so; no figure is drawn from a
- * total that would be the whole ledger's. TODO(backend): a self-billing summary.
+ * **Cards from the summary.** `/authored-invoices/summary?type=SELF_BILLED_INVOICE` answers the
+ * month's raised total and VAT and what still awaits the supplier (its Expenditure payable is not
+ * settled), counted over the whole tenant rather than the page in view.
  *
  * **Drafting needs `selfbilling.create`**, a different right from drafting your own invoice. The
  * agreement decides whether a draft will ever ISSUE, and the row note under each supplier says so.
@@ -303,6 +312,10 @@ function SelfBilled() {
   })
   const list = useApiRead<Page<InvoiceRowDto>>(mayRead && !unreported ? listPath : null, () =>
     loadInvoicePage(listPath),
+  )
+  const summaryPath = invoiceSummaryPath(SUMMARY_TYPE, SUMMARY_CURRENCY)
+  const summary = useApiRead<InvoiceSummaryDto>(mayRead ? summaryPath : null, () =>
+    loadInvoiceSummary(SUMMARY_TYPE, SUMMARY_CURRENCY),
   )
 
   // Read to answer "can I actually issue one of these", which is the question this page raises
@@ -434,6 +447,7 @@ function SelfBilled() {
 
       <SelfBillingKpiCards
         page={page}
+        summary={summary.read.status === 'ready' ? summary.read.data : null}
         usable={usable}
         expiring={expiring}
         agreementFor={agreementRows ? agreementFor : null}
@@ -448,8 +462,8 @@ function SelfBilled() {
         >
           {TABS.map((entry) => {
             const active = entry.id === tab
-            // TODO(backend): no per-tab count, because the only summary counts every document
-            // type; the active tab shows the page total the list itself reports.
+            // TODO(backend): no per-tab count is drawn yet (the cards' summary asks for invoices
+            // only); the active tab shows the page total the list itself reports.
             const tally = active && page && page.total !== null ? page.total : null
             return (
               <button
@@ -614,19 +628,20 @@ const EMPTY_PAGE: Page<InvoiceRowDto> = {
 
 /**
  * The design's four cards (Raised this month, Input VAT claimed, Awaiting supplier, Agreements
- * expiring). TODO(backend): no self-billing summary exists and the ledger's summary counts every
- * type, so every figure is derived from the page in view: what was issued this month and its VAT,
- * what is issued and unsettled (the nearest thing to "awaiting the supplier"), and the value of
- * the documents whose supplier's agreement ends within 30 days.
+ * expiring). The first three are the summary's (`issuedThisMonth`, `awaitingSupplier`); the
+ * fourth is the value of the documents in view whose supplier's agreement ends within 30 days.
  */
 function SelfBillingKpiCards({
   page,
+  summary,
   usable,
   expiring,
   agreementFor,
   today,
 }: {
   page: Page<InvoiceRowDto> | null
+  /** Null while loading, or when it could not be read: the figures then read "—". */
+  summary: InvoiceSummaryDto | null
   usable: number | null
   expiring: number | null
   /** Null while the agreements are unknown (not loaded, or not permitted). */
@@ -636,19 +651,11 @@ function SelfBillingKpiCards({
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const rows = page?.items ?? []
-  const currency = rows[0]?.currency ?? 'OMR'
+  const currency = summary?.currencyCode ?? SUMMARY_CURRENCY
   const issued = rows.filter((row) => row.authoringState === 'ISSUED')
-  const month = today.slice(0, 7)
-  const thisMonth = issued.filter((row) => row.issueDate?.startsWith(month))
-  const raised = thisMonth.reduce((sum, row) => sum + (row.totals?.totalAmount ?? 0), 0)
-  const inputVat = thisMonth.reduce((sum, row) => sum + (vatOf(row) ?? 0), 0)
-  const awaiting = issued.filter(
-    (row) => row.payment && row.payment.state !== 'NOT_APPLICABLE' && row.payment.state !== 'PAID',
-  )
-  const oldest = awaiting.reduce<string | null>(
-    (min, row) => (row.issueDate && (min === null || row.issueDate < min) ? row.issueDate : min),
-    null,
-  )
+  const thisMonth = summary?.issuedThisMonth ?? null
+  const awaiting = summary?.awaitingSupplier ?? null
+  const oldest = awaiting?.oldestIssueDate ?? null
   const ending = agreementFor
     ? issued
         .map((row) => ({ row, agreement: agreementFor(row.customerId) }))
@@ -668,16 +675,16 @@ function SelfBillingKpiCards({
       id: 'raised',
       icon: raisedIcon,
       titleKey: 'selfBilling.kpi.raised',
-      figure: page ? money(raised) : '—',
+      figure: thisMonth ? money(thisMonth.total) : '—',
       currency: true,
-      meta: t('selfBilling.kpi.raisedMeta', { count: thisMonth.length }),
+      meta: t('selfBilling.kpi.raisedMeta', { count: thisMonth?.count ?? 0 }),
       danger: false,
     },
     {
       id: 'inputVat',
       icon: inputVatIcon,
       titleKey: 'selfBilling.kpi.inputVat',
-      figure: page ? money(inputVat) : '—',
+      figure: thisMonth ? money(thisMonth.vat) : '—',
       currency: true,
       meta: t('selfBilling.kpi.inputVatMeta'),
       danger: false,
@@ -686,7 +693,7 @@ function SelfBillingKpiCards({
       id: 'awaiting',
       icon: awaitingIcon,
       titleKey: 'selfBilling.kpi.awaiting',
-      figure: page ? count(awaiting.length) : '—',
+      figure: awaiting ? count(awaiting.count) : '—',
       currency: false,
       meta: oldest
         ? t('selfBilling.kpi.awaitingMeta', { count: daysBetween(oldest, today) })

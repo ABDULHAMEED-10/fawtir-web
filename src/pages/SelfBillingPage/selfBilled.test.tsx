@@ -3,12 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
-import type { InvoiceRowDto } from '../../api/invoices/list'
+import type { InvoiceRowDto, InvoiceSummaryDto } from '../../api/invoices/list'
 import type { AgreementDto } from '../../api/selfBilling/agreements'
 import { SelfBillingPage } from './SelfBillingPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const LIST_URL = '/api/v1/authored-invoices'
+const SUMMARY_URL = '/api/v1/authored-invoices/summary'
 
 const USER: Entitlements = {
   userId: 'u-1',
@@ -70,9 +71,12 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let rows: InvoiceRowDto[]
 let agreements: AgreementDto[]
+let summary: Partial<InvoiceSummaryDto>
 
+const calls = () => fetchMock.mock.calls.map(([url]) => String(url))
 const listCalls = () =>
-  fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(LIST_URL))
+  calls().filter((url) => url.startsWith(LIST_URL) && !url.startsWith(SUMMARY_URL))
+const summaryCalls = () => calls().filter((url) => url.startsWith(SUMMARY_URL))
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -80,6 +84,12 @@ beforeEach(async () => {
   who = USER
   rows = [row()]
   agreements = [agreement()]
+  summary = {
+    currencyCode: 'OMR',
+    asOf: '2026-09-30',
+    issuedThisMonth: { count: 0, total: 0, vat: 0 },
+    awaitingSupplier: { count: 0, oldestIssueDate: null },
+  }
 
   fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(
@@ -87,6 +97,7 @@ beforeEach(async () => {
     )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
     if (url.startsWith('/api/v1/self-billing-agreements')) return json(200, agreements)
+    if (url.startsWith(SUMMARY_URL)) return json(200, summary)
     if (url.startsWith(LIST_URL)) {
       const asked = (new URL(url, 'http://x').searchParams.get('type') ?? '')
         .split(',')
@@ -242,13 +253,32 @@ describe('the self-billed documents list', () => {
     ).toBe('/income/self-billing/new')
   })
 
-  it('draws no tab counts, because the summary counts every document type', async () => {
+  it('draws the first three cards from the summary of self-billed invoices, not from the page', async () => {
+    const oldest = new Date()
+    oldest.setUTCDate(oldest.getUTCDate() - 4)
+    summary = {
+      ...summary,
+      issuedThisMonth: { count: 3, total: 1234.5, vat: 58.786 },
+      awaitingSupplier: { count: 7, oldestIssueDate: oldest.toISOString().slice(0, 10) },
+    }
     renderPage()
-    await screen.findByText('SB-0001')
-    // A figure here would be the whole ledger's, not self-billing's.
-    expect(
-      fetchMock.mock.calls.map(([url]) => String(url)).some((url) => url.includes('/summary')),
-    ).toBe(false)
+    // Invoices only (a self-billed credit note would reduce the month), in the rial the cards draw.
+    await waitFor(() => expect(summaryCalls()).toHaveLength(1))
+    const asked = new URL(summaryCalls()[0], 'http://x').searchParams
+    expect(asked.getAll('type')).toEqual(['SELF_BILLED_INVOICE'])
+    expect(asked.get('currency')).toBe('OMR')
+
+    expect(await screen.findByText('1,234.500')).toBeTruthy()
+    expect(screen.getByText('Across 3 documents')).toBeTruthy()
+    expect(screen.getByText('58.786')).toBeTruthy()
+    // The page holds one row; the card counts the whole tenant.
+    expect(screen.getByText('7')).toBeTruthy()
+    expect(screen.getByText('Oldest raised 4 days ago')).toBeTruthy()
+  })
+
+  it('says nothing is waiting on a supplier when the summary counts none', async () => {
+    renderPage()
+    expect(await screen.findByText('Nothing is waiting on a supplier')).toBeTruthy()
   })
 
   it('links a row to its own detail page', async () => {
