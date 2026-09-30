@@ -4,6 +4,7 @@ import type {
   ReminderScheduleDto,
   ReminderVerdict,
 } from '../api/invoices/reminders'
+import { ApiError } from '../api'
 
 /**
  * Payment reminders (I-14, decisions of 2026-09-18).
@@ -151,6 +152,82 @@ export const REMINDER_REFUSALS: Record<string, string> = {
   REMINDER_ALREADY_SENT: 'paymentReminders.error.alreadySent',
   REMINDER_DELIVERY_UNAVAILABLE: 'paymentReminders.error.deliveryUnavailable',
   REMINDER_SEND_FAILED: 'paymentReminders.error.sendFailed',
+}
+
+/**
+ * `ALREADY_SENT` answers two different refusals and the preview does not say which: the chosen
+ * rung was spent, or (D4) a reminder already went out by hand for this invoice today — at most
+ * one does per business day. When the rungs already fired for the invoice are known and the
+ * chosen one is not among them, it can only be the second.
+ */
+export function verdictNoteFor(
+  verdict: ReminderVerdict,
+  rung: number | null,
+  fired: number[] | null,
+): string {
+  if (verdict === 'ALREADY_SENT' && rung !== null && fired !== null && !fired.includes(rung))
+    return 'paymentReminders.verdict.sentByHandToday'
+  return VERDICT_NOTE[verdict]
+}
+
+/**
+ * A manual send's refusal in the page's words, or null when it is not one of the reminder
+ * refusals. `REMINDER_ALREADY_SENT` is told apart the same way as the preview's verdict, and by
+ * the server's own detail when it names the one-a-day rule.
+ */
+export function reminderRefusalNote(
+  error: unknown,
+  rung: number | null,
+  fired: number[] | null,
+): string | null {
+  const code = error instanceof ApiError ? error.code : null
+  if (!code || !REMINDER_REFUSALS[code]) return null
+  if (code === 'REMINDER_ALREADY_SENT') {
+    const detail = error instanceof ApiError ? error.problem.detail : null
+    const byHandToday = typeof detail === 'string' && /business day/i.test(detail)
+    if (byHandToday || (rung !== null && fired !== null && !fired.includes(rung)))
+      return 'paymentReminders.error.sentByHandToday'
+  }
+  return REMINDER_REFUSALS[code]
+}
+
+/**
+ * Where an invoice is on the reminder ladder: which rung comes next, how many rungs there are,
+ * and when that next one goes out (the server sends at 08:00 Muscat time). The number is the
+ * position of the rung whose day is shown, so "Reminder 4 of 5" and "in 7 days" name one rung.
+ */
+export function reminderLadder(
+  offsets: number[] | null,
+  dueDate: string | null,
+  today: string,
+  sendsToday: boolean,
+): {
+  number: number
+  total: number
+  next: { key: string; values?: Record<string, number> } | null
+} | null {
+  if (!offsets || offsets.length === 0 || !dueDate) return null
+  const rungs = [...offsets].sort((a, b) => a - b)
+  const todayRung = rungToday(today, dueDate)
+  if (todayRung === null) return null
+  const upcoming = rungs.find((rung) => (sendsToday ? rung >= todayRung : rung > todayRung))
+  if (upcoming === undefined) {
+    const passed = rungs.filter((rung) => rung < todayRung).length
+    return {
+      number: Math.min(rungs.length, passed + 1),
+      total: rungs.length,
+      next: { key: 'invoiceDetails.reminder.none' },
+    }
+  }
+  const number = rungs.indexOf(upcoming) + 1
+  const daysAway = upcoming - todayRung
+  const next =
+    daysAway === 0
+      ? { key: 'invoiceDetails.reminder.today' }
+      : daysAway === 1
+        ? { key: 'invoiceDetails.reminder.tomorrow' }
+        : { key: 'invoiceDetails.reminder.onDay', values: { count: daysAway } }
+  return { number, total: rungs.length, next }
 }
 
 /** A date range the server would refuse (`from` after `to`) is refused here first. */

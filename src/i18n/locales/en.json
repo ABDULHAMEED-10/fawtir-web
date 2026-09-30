@@ -17378,7 +17378,9 @@
       "settled": "The invoice is settled, so there is nothing to chase.",
       "noRungToday": "No rung falls today.",
       "alreadySent": "This rung has already been used.",
-      "noRecipient": "The customer has no e-mail address on file."
+      "noRecipient": "The customer has no e-mail address on file.",
+      "sentByHandToday": "A reminder was already sent by hand for this invoice today. Only one goes out by hand per day.",
+      "settledDebitNote": "The debit note is settled, so there is nothing to chase."
     },
     "error": {
       "range": "The first date must come before the second.",
@@ -17394,7 +17396,8 @@
       "notSendable": "This reminder cannot be sent for this invoice.",
       "alreadySent": "That rung has already been used for this invoice.",
       "deliveryUnavailable": "E-mail sending is not switched on for this installation, so nothing was sent.",
-      "sendFailed": "The e-mail was refused, and the rung has been used up. It cannot be tried again."
+      "sendFailed": "The e-mail was refused, and the rung has been used up. It cannot be tried again.",
+      "sentByHandToday": "A reminder was already sent by hand for this invoice today. Only one goes out by hand per day."
     },
     "done": {
       "saved": "Saved.",

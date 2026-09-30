@@ -1340,7 +1340,11 @@ function NoteScreen({ kind }: { kind: NoteKind }) {
               cancelled note is owed by nobody (its preview has no amount to put in a message). */}
           {!draft && !credit && status !== 'cancelled' ? (
             <div id="reminders">
-              <InvoiceRemindersCard invoiceId={id} dueDate={data.dueDate} />
+              <InvoiceRemindersCard
+                invoiceId={id}
+                dueDate={data.dueDate}
+                noteType={kind === 'DEBIT_NOTE' ? 'DEBIT_NOTE' : undefined}
+              />
             </div>
           ) : null}
         </div>

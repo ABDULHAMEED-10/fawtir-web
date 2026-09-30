@@ -16,14 +16,18 @@ import {
   normaliseOffsets,
   paidAfterReminder,
   rangeProblem,
+  reminderLadder,
+  reminderRefusalNote,
   rungNote,
   rungProblem,
   rungToday,
   scheduleChanged,
   scheduleProblem,
   stepOf,
+  verdictNoteFor,
   type QueueInvoice,
 } from '../../lib/paymentReminders'
+import { ApiError } from '../../api'
 import { RemindersPage } from './RemindersPage'
 import { PaymentRemindersPage } from '../PaymentRemindersPage/PaymentRemindersPage'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
@@ -531,6 +535,36 @@ describe('Reminders on one invoice', () => {
     expect(screen.queryByRole('button', { name: 'Send one now' })).toBeNull()
   })
 
+  it('tells a rung already used from the one-by-hand-a-day rule', async () => {
+    // The history holds rung -3 only; ALREADY_SENT at rung 7 can only be today's manual send.
+    preview = { ...PREVIEW, verdict: 'ALREADY_SENT', rung: 7 }
+    const { unmount } = renderCard()
+    expect(
+      await screen.findByText(
+        'A reminder was already sent by hand for this invoice today. Only one goes out by hand per day.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('This rung has already been used.')).toBeNull()
+    unmount()
+
+    preview = { ...PREVIEW, verdict: 'ALREADY_SENT', rung: -3 }
+    renderCard()
+    expect(await screen.findByText('This rung has already been used.')).toBeTruthy()
+  })
+
+  it('names a settled debit note as such, and shows no rung for it', async () => {
+    preview = { ...PREVIEW, verdict: 'SETTLED', rung: -16, subject: null, body: null }
+    render(
+      <MemoryRouter>
+        <InvoiceRemindersCard invoiceId="inv-1" dueDate={DUE_DATE} noteType="DEBIT_NOTE" />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByText('The debit note is settled, so there is nothing to chase.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/^Rung:/)).toBeNull()
+  })
+
   it('says plainly when the deployment cannot send mail', async () => {
     sendResponse = () =>
       json(503, {
@@ -551,6 +585,64 @@ describe('Reminders on one invoice', () => {
 })
 
 describe('what the page works out for itself', () => {
+  it('numbers the banner by the rung whose day it shows, after a manual send', () => {
+    // Ladder 0/3/7/14/21, seven days past due, rung +7 sent by hand today: the next to go out is
+    // +14, the fourth rung, in seven days — not "Reminder 3 of 5".
+    const today = '2026-10-01'
+    const dueDate = '2026-09-24'
+    expect(reminderLadder([0, 3, 7, 14, 21], dueDate, today, false)).toEqual({
+      number: 4,
+      total: 5,
+      next: { key: 'invoiceDetails.reminder.onDay', values: { count: 7 } },
+    })
+    // Before the send, today's rung is the one shown.
+    expect(reminderLadder([0, 3, 7, 14, 21], dueDate, today, true)).toEqual({
+      number: 3,
+      total: 5,
+      next: { key: 'invoiceDetails.reminder.today' },
+    })
+    // Between rungs, the next one is named with its own number.
+    expect(reminderLadder([0, 3, 7, 14, 21], '2026-09-26', today, false)?.number).toBe(3)
+    // Past the last rung nothing more goes out.
+    expect(reminderLadder([0, 3, 7], '2026-09-01', today, false)).toEqual({
+      number: 3,
+      total: 3,
+      next: { key: 'invoiceDetails.reminder.none' },
+    })
+  })
+
+  it('reads ALREADY_SENT on an unused rung as the one-by-hand-a-day rule', () => {
+    expect(verdictNoteFor('ALREADY_SENT', 7, [-3])).toBe('paymentReminders.verdict.sentByHandToday')
+    expect(verdictNoteFor('ALREADY_SENT', 7, [-3, 7])).toBe('paymentReminders.verdict.alreadySent')
+    // Not knowing what fired, the plain wording stands.
+    expect(verdictNoteFor('ALREADY_SENT', 7, null)).toBe('paymentReminders.verdict.alreadySent')
+    expect(verdictNoteFor('SEND', 7, [])).toBe('paymentReminders.verdict.send')
+
+    const refusal = (detail: string) =>
+      new ApiError({
+        status: 409,
+        problemType: 'reminder-already-sent',
+        code: 'REMINDER_ALREADY_SENT',
+        problem: { detail },
+      })
+    expect(
+      reminderRefusalNote(refusal('A reminder at 7 days from due has already been sent'), 7, [7]),
+    ).toBe('paymentReminders.error.alreadySent')
+    expect(
+      reminderRefusalNote(refusal('A reminder at 7 days from due has already been sent'), 7, [-3]),
+    ).toBe('paymentReminders.error.sentByHandToday')
+    expect(
+      reminderRefusalNote(
+        refusal(
+          'A reminder has already been sent for this invoice today; at most one is sent by hand per business day',
+        ),
+        7,
+        null,
+      ),
+    ).toBe('paymentReminders.error.sentByHandToday')
+    expect(reminderRefusalNote(new Error('boom'), 7, [])).toBeNull()
+  })
+
   it('reads a rung in words, by its sign', () => {
     expect(rungNote(0).key).toBe('paymentReminders.rung.onDueDate')
     expect(rungNote(-3)).toEqual({ key: 'paymentReminders.rung.before', values: { count: 3 } })
