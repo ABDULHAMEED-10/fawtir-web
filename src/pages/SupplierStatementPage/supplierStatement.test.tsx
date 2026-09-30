@@ -183,6 +183,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -228,6 +229,11 @@ describe('The supplier statement, wired to the API', () => {
   })
 
   it('reads the year to date first, and any period the reader picks', async () => {
+    // The custom range below picks the 9th and the 12th of the current month, and the calendar
+    // refuses future days, so on the 1st to the 11th the picks did nothing and the test timed out.
+    // Only the clock is faked; testing-library's own timers stay real.
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-20T09:00:00Z'))
     renderStatement()
     await screen.findByRole('heading', { level: 1, name: 'Statement' })
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
