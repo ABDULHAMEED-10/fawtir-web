@@ -352,7 +352,9 @@ describe('uploader, duplicate and the marks applied at issue', () => {
       </ReferenceDataContext.Provider>,
     )
     expect(await screen.findByText(/Issued as INV-2026-0042\./)).toBeTruthy()
-    expect(screen.getByText(/The payment was not recorded\. Use Record payment on this invoice\./)).toBeTruthy()
+    expect(
+      screen.getByText(/The payment was not recorded\. Use Record payment on this invoice\./),
+    ).toBeTruthy()
     expect(screen.getByText(/It was not marked as sent manually\./)).toBeTruthy()
   })
 })
@@ -373,9 +375,10 @@ describe('An invoice, wired to the API', () => {
 
     // The headline figure, the "Outstanding" column, the payments footer and the activity's head
     // entry are the same number, by design.
-    expect(screen.getAllByText('36.700')).toHaveLength(4)
+    // The activity's entry arrives with its own request, so wait for all four under a loaded run.
+    await waitFor(() => expect(screen.getAllByText('36.700')).toHaveLength(4))
     // The invoice total: the balance card, under the lines, the payments footer and the preview.
-    expect(screen.getAllByText('56.700')).toHaveLength(4)
+    await waitFor(() => expect(screen.getAllByText('56.700')).toHaveLength(4))
     // Paid on the balance card, and again as the payment itself.
     expect(screen.getAllByText('20.000').length).toBeGreaterThan(0)
     // The API sends no line total; 12 × 4.500 is computed here.
@@ -827,8 +830,7 @@ describe('Recording and reversing payments', () => {
 })
 
 describe('Attachments', () => {
-  const fileInput = () =>
-    document.querySelector('input[type="file"]') as HTMLInputElement
+  const fileInput = () => document.querySelector('input[type="file"]') as HTMLInputElement
 
   it('uploads a file on a draft invoice with the permission, and refreshes the list', async () => {
     who = CAN_MANAGE_ATTACHMENTS

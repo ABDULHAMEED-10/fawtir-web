@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Modal } from '../../components/ui'
+import { DateField, Modal, Select } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { BillStatusChip } from '../../components/bills/BillStatusChip'
-import { FieldGrid, PhoneField, SelectField, TextAreaField, TextField } from '../../components/form'
+import { FieldGrid, FieldLabel, PhoneField, TextAreaField, TextField } from '../../components/form'
 import { useApiRead } from '../../hooks'
 import type { ApiRead } from '../../hooks/useApiRead'
 import { ApiError, type Page } from '../../api'
@@ -34,7 +34,16 @@ import {
 import { dueNoteOf, toBillListItem } from '../../lib/billList'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
-import { blankContact, contactProblems, documentMeta, documentRemovable, fileSize, paymentLines, saveDownload, type ContactForm } from '../../lib/supplierRecord'
+import {
+  blankContact,
+  contactProblems,
+  documentMeta,
+  documentRemovable,
+  fileSize,
+  paymentLines,
+  saveDownload,
+  type ContactForm,
+} from '../../lib/supplierRecord'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { e164, nationalPhone } from '../../lib/supplierForm'
 import omrRowIcon from '../../assets/invoices/omr-row.svg'
@@ -46,22 +55,48 @@ function useFailureText() {
   return (error: unknown) => {
     const message = describeApiFailure(error)
     const body = t(message.key, message.values)
-    return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body
+    return message.reference
+      ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+      : body
   }
 }
 
 /** Previous and next only: the supplier lists carry no total, so a full page is the hint of another. */
-function PageNav({ page, hasMore, onChange }: { page: number; hasMore: boolean; onChange: (page: number) => void }) {
+function PageNav({
+  page,
+  hasMore,
+  onChange,
+}: {
+  page: number
+  hasMore: boolean
+  onChange: (page: number) => void
+}) {
   const { t } = useTranslation()
   if (page === 0 && !hasMore) return null
-  const button = 'inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary hover:bg-primary-25 disabled:opacity-40'
+  const button =
+    'inline-flex h-9 items-center rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary hover:bg-primary-25 disabled:opacity-40'
   return (
-    <nav aria-label={t('supplierRecord.pages')} className="mt-4 flex items-center justify-end gap-2">
-      <button type="button" className={button} disabled={page === 0} onClick={() => onChange(page - 1)}>
+    <nav
+      aria-label={t('supplierRecord.pages')}
+      className="mt-4 flex items-center justify-end gap-2"
+    >
+      <button
+        type="button"
+        className={button}
+        disabled={page === 0}
+        onClick={() => onChange(page - 1)}
+      >
         {t('supplierRecord.previous')}
       </button>
-      <span className="text-sm font-medium text-text-quaternary">{t('supplierRecord.pageNumber', { page: page + 1 })}</span>
-      <button type="button" className={button} disabled={!hasMore} onClick={() => onChange(page + 1)}>
+      <span className="text-sm font-medium text-text-quaternary">
+        {t('supplierRecord.pageNumber', { page: page + 1 })}
+      </span>
+      <button
+        type="button"
+        className={button}
+        disabled={!hasMore}
+        onClick={() => onChange(page + 1)}
+      >
         {t('supplierRecord.next')}
       </button>
     </nav>
@@ -76,7 +111,8 @@ function Empty({ text }: { text: string }) {
   return <p className="py-10 text-center text-sm font-medium text-text-quaternary">{text}</p>
 }
 
-const TH = 'pb-2.5 text-start text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary'
+const TH =
+  'pb-2.5 text-start text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-text-quaternary'
 
 export function BillsTab({ supplierId }: { supplierId: string }) {
   const { t, i18n } = useTranslation()
@@ -84,7 +120,8 @@ export function BillsTab({ supplierId }: { supplierId: string }) {
   const path = supplierBillsPath(supplierId, page, PAGE_SIZE)
   const bills = useApiRead<Page<BillRowDto>>(path, () => loadSupplierBills(path))
   if (bills.read.status === 'loading') return <LoadingNotice />
-  if (bills.read.status === 'failed') return <ApiReadFailure error={bills.read.error} retry={bills.retry} />
+  if (bills.read.status === 'failed')
+    return <ApiReadFailure error={bills.read.error} retry={bills.retry} />
   const data = bills.read.data
   return (
     <Panel>
@@ -109,18 +146,34 @@ export function BillsTab({ supplierId }: { supplierId: string }) {
                 return (
                   <tr key={row.id} className="border-b border-surface-background last:border-0">
                     <td className="py-3.5 pe-4 align-top">
-                      <Link to={`/expenditure/bills/${row.id}`} className="text-sm font-semibold text-primary-700 hover:underline">
+                      <Link
+                        to={`/expenditure/bills/${row.id}`}
+                        className="text-sm font-semibold text-primary-700 hover:underline"
+                      >
                         {row.supplierBillNumber ?? t('supplierRecord.unnumbered')}
                       </Link>
                       <p className="mt-1 text-xs font-medium text-text-quaternary">
-                        {[row.issueDate ? t('supplierRecord.issued', { date: formatDate(row.issueDate, i18n.language) }) : null, row.purchaseOrderReference]
+                        {[
+                          row.issueDate
+                            ? t('supplierRecord.issued', {
+                                date: formatDate(row.issueDate, i18n.language),
+                              })
+                            : null,
+                          row.purchaseOrderReference,
+                        ]
                           .filter(Boolean)
                           .join(' · ')}
                       </p>
                     </td>
                     <td className="py-3.5 pe-4 align-top">
-                      <p className="text-sm font-medium text-text-secondary">{row.dueDate ? formatDate(row.dueDate, i18n.language) : '—'}</p>
-                      {due ? <p className="mt-1 text-xs font-medium text-text-quaternary">{t(due.key, due.values)}</p> : null}
+                      <p className="text-sm font-medium text-text-secondary">
+                        {row.dueDate ? formatDate(row.dueDate, i18n.language) : '—'}
+                      </p>
+                      {due ? (
+                        <p className="mt-1 text-xs font-medium text-text-quaternary">
+                          {t(due.key, due.values)}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="py-3.5 pe-4 align-top">
                       <BillStatusChip item={item} />
@@ -131,7 +184,9 @@ export function BillsTab({ supplierId }: { supplierId: string }) {
                     <td className="py-3.5 text-end align-top">
                       <span className="flex items-center justify-end gap-1 text-sm font-semibold text-text-primary tabular-nums">
                         <img src={omrRowIcon} alt="" className="h-auto w-4 shrink-0" />
-                        {row.totalIncludingVat === null ? '—' : formatAmount(row.totalIncludingVat, row.currencyCode, i18n.language)}
+                        {row.totalIncludingVat === null
+                          ? '—'
+                          : formatAmount(row.totalIncludingVat, row.currencyCode, i18n.language)}
                       </span>
                     </td>
                   </tr>
@@ -152,7 +207,8 @@ export function PaymentsTab({ supplierId }: { supplierId: string }) {
   const path = supplierPaymentsPath(supplierId, page, PAGE_SIZE)
   const payments = useApiRead<Page<SupplierPaymentDto>>(path, () => loadSupplierPayments(path))
   if (payments.read.status === 'loading') return <LoadingNotice />
-  if (payments.read.status === 'failed') return <ApiReadFailure error={payments.read.error} retry={payments.retry} />
+  if (payments.read.status === 'failed')
+    return <ApiReadFailure error={payments.read.error} retry={payments.retry} />
   const data = payments.read.data
   const lines = paymentLines(data.items)
   return (
@@ -173,22 +229,48 @@ export function PaymentsTab({ supplierId }: { supplierId: string }) {
             </thead>
             <tbody>
               {lines.map((line) => (
-                <tr key={line.id} className={['border-b border-surface-background last:border-0', line.reversed ? 'opacity-60' : ''].join(' ')}>
-                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">{line.paymentDate ? formatDate(line.paymentDate, i18n.language) : '—'}</td>
+                <tr
+                  key={line.id}
+                  className={[
+                    'border-b border-surface-background last:border-0',
+                    line.reversed ? 'opacity-60' : '',
+                  ].join(' ')}
+                >
                   <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">
-                    {line.methodCode ? t(`invoiceDetails.pay.means.${line.methodCode}`, { defaultValue: line.methodCode }) : '—'}
+                    {line.paymentDate ? formatDate(line.paymentDate, i18n.language) : '—'}
                   </td>
-                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">{line.paymentReference ?? '—'}</td>
+                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">
+                    {line.methodCode
+                      ? t(`invoiceDetails.pay.means.${line.methodCode}`, {
+                          defaultValue: line.methodCode,
+                        })
+                      : '—'}
+                  </td>
+                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">
+                    {line.paymentReference ?? '—'}
+                  </td>
                   <td className="py-3.5 pe-4">
-                    <Link to={`/expenditure/bills/${line.billId}`} className="text-sm font-semibold text-primary-700 hover:underline">
+                    <Link
+                      to={`/expenditure/bills/${line.billId}`}
+                      className="text-sm font-semibold text-primary-700 hover:underline"
+                    >
                       {t('supplierRecord.openBill')}
                     </Link>
                   </td>
                   <td className="py-3.5 text-end">
-                    <span className={['text-sm font-semibold tabular-nums', line.reversed ? 'text-text-quaternary line-through' : 'text-text-primary'].join(' ')}>
+                    <span
+                      className={[
+                        'text-sm font-semibold tabular-nums',
+                        line.reversed ? 'text-text-quaternary line-through' : 'text-text-primary',
+                      ].join(' ')}
+                    >
                       {formatAmount(line.amount, line.currency, i18n.language)}
                     </span>
-                    {line.reversed ? <p className="text-xs font-medium text-text-quaternary">{t('supplierRecord.reversed')}</p> : null}
+                    {line.reversed ? (
+                      <p className="text-xs font-medium text-text-quaternary">
+                        {t('supplierRecord.reversed')}
+                      </p>
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -207,7 +289,8 @@ export function OrdersTab({ supplierId }: { supplierId: string }) {
   const path = supplierOrdersPath(supplierId, page, PAGE_SIZE)
   const orders = useApiRead<Page<PurchaseOrderRowDto>>(path, () => loadSupplierOrders(path))
   if (orders.read.status === 'loading') return <LoadingNotice />
-  if (orders.read.status === 'failed') return <ApiReadFailure error={orders.read.error} retry={orders.retry} />
+  if (orders.read.status === 'failed')
+    return <ApiReadFailure error={orders.read.error} retry={orders.retry} />
   const data = orders.read.data
   return (
     <Panel>
@@ -231,7 +314,10 @@ export function OrdersTab({ supplierId }: { supplierId: string }) {
                   <td className="py-3.5 pe-4 text-sm font-semibold">
                     {/* The tab listed orders with nowhere to go until the order had a screen of
                         its own; submitting, approving and booking goods in all live there. */}
-                    <Link to={`/expenditure/purchase-orders/${order.id}`} className="text-primary-700 hover:underline">
+                    <Link
+                      to={`/expenditure/purchase-orders/${order.id}`}
+                      className="text-primary-700 hover:underline"
+                    >
                       {order.number ?? t('supplierRecord.unnumbered')}
                     </Link>
                   </td>
@@ -240,10 +326,16 @@ export function OrdersTab({ supplierId }: { supplierId: string }) {
                       {t(`supplierRecord.orderState.${order.state}`)}
                     </span>
                   </td>
-                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">{order.orderDate ? formatDate(order.orderDate, i18n.language) : '—'}</td>
-                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">{order.wantedBy ? formatDate(order.wantedBy, i18n.language) : '—'}</td>
+                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">
+                    {order.orderDate ? formatDate(order.orderDate, i18n.language) : '—'}
+                  </td>
+                  <td className="py-3.5 pe-4 text-sm font-medium text-text-secondary">
+                    {order.wantedBy ? formatDate(order.wantedBy, i18n.language) : '—'}
+                  </td>
                   <td className="py-3.5 text-end text-sm font-semibold text-text-primary tabular-nums">
-                    {order.totalGross === null ? '—' : formatAmount(order.totalGross, order.currency, i18n.language)}
+                    {order.totalGross === null
+                      ? '—'
+                      : formatAmount(order.totalGross, order.currency, i18n.language)}
                   </td>
                 </tr>
               ))}
@@ -276,12 +368,16 @@ export function DocumentsTab({
   const [busy, setBusy] = useState(false)
 
   if (documents.read.status === 'loading') return <LoadingNotice />
-  if (documents.read.status === 'failed') return <ApiReadFailure error={documents.read.error} retry={documents.retry} />
+  if (documents.read.status === 'failed')
+    return <ApiReadFailure error={documents.read.error} retry={documents.retry} />
 
   const download = async (entry: SupplierDocumentDto) => {
     setNotice(null)
     try {
-      saveDownload(await downloadSupplierDocument(supplierId, entry.document.id), entry.document.title)
+      saveDownload(
+        await downloadSupplierDocument(supplierId, entry.document.id),
+        entry.document.title,
+      )
     } catch (error) {
       setNotice(failure(error))
     }
@@ -307,16 +403,25 @@ export function DocumentsTab({
   return (
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">{t('supplierDetail.papersOnFile')}</h3>
+        <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
+          {t('supplierDetail.papersOnFile')}
+        </h3>
         {canManage ? (
-          <button type="button" onClick={onUpload} className="inline-flex h-[38px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800">
+          <button
+            type="button"
+            onClick={onUpload}
+            className="inline-flex h-[38px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800"
+          >
             {t('supplierDetail.attachDocument')}
           </button>
         ) : null}
       </div>
       {notice ? (
         <div className="mt-3">
-          <Notice body={notice} action={{ label: t('common.close'), onClick: () => setNotice(null) }} />
+          <Notice
+            body={notice}
+            action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+          />
         </div>
       ) : null}
       {documents.read.data.length === 0 ? (
@@ -326,31 +431,55 @@ export function DocumentsTab({
           {documents.read.data.map((entry) => {
             const meta = documentMeta(entry)
             return (
-              <li key={entry.document.id} className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3.5 last:border-0">
+              <li
+                key={entry.document.id}
+                className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3.5 last:border-0"
+              >
                 <div className="min-w-0 flex-1">
-                  <p className={['text-sm font-semibold leading-[1.3] text-text-primary', entry.standing === 'SUPERSEDED' ? 'opacity-60' : ''].join(' ')}>
+                  <p
+                    className={[
+                      'text-sm font-semibold leading-[1.3] text-text-primary',
+                      entry.standing === 'SUPERSEDED' ? 'opacity-60' : '',
+                    ].join(' ')}
+                  >
                     {entry.document.title}
                   </p>
                   <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
                     {[
                       t(`supplierRecord.kind.${entry.document.kind}`),
-                      t(meta.key, { date: formatDate(String(meta.values?.date ?? ''), i18n.language) }),
+                      t(meta.key, {
+                        date: formatDate(String(meta.values?.date ?? ''), i18n.language),
+                      }),
                       fileSize(entry.document.byteSize, i18n.language),
-                      entry.document.legalHold.held ? t('supplierRecord.documents.legalHold') : null,
+                      entry.document.legalHold.held
+                        ? t('supplierRecord.documents.legalHold')
+                        : null,
                       entry.document.retainUntil && entry.document.retainUntil >= today
-                        ? t('supplierRecord.documents.keptUntil', { date: formatDate(entry.document.retainUntil, i18n.language) })
+                        ? t('supplierRecord.documents.keptUntil', {
+                            date: formatDate(entry.document.retainUntil, i18n.language),
+                          })
                         : null,
                     ]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
                 </div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">{t(`supplierRecord.standing.${entry.standing}`)}</span>
-                <button type="button" onClick={() => void download(entry)} className="text-sm font-semibold text-primary-700 hover:underline">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
+                  {t(`supplierRecord.standing.${entry.standing}`)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void download(entry)}
+                  className="text-sm font-semibold text-primary-700 hover:underline"
+                >
                   {t('supplierRecord.documents.download')}
                 </button>
                 {canManage && documentRemovable(entry, today) ? (
-                  <button type="button" onClick={() => setRetiring(entry)} className="text-sm font-semibold text-text-tertiary hover:text-danger-700">
+                  <button
+                    type="button"
+                    onClick={() => setRetiring(entry)}
+                    className="text-sm font-semibold text-text-tertiary hover:text-danger-700"
+                  >
                     {t('supplierRecord.documents.retire')}
                   </button>
                 ) : null}
@@ -366,7 +495,11 @@ export function DocumentsTab({
           title={t('supplierRecord.documents.retireTitle', { title: retiring.document.title })}
           footer={
             <div className="flex justify-end gap-2.5">
-              <button type="button" onClick={() => setRetiring(null)} className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary">
+              <button
+                type="button"
+                onClick={() => setRetiring(null)}
+                className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+              >
                 {t('common.cancel')}
               </button>
               <button
@@ -380,7 +513,9 @@ export function DocumentsTab({
             </div>
           }
         >
-          <p className="text-sm font-medium leading-[1.5] text-text-secondary">{t('supplierRecord.documents.retireBody')}</p>
+          <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+            {t('supplierRecord.documents.retireBody')}
+          </p>
         </Modal>
       ) : null}
     </Panel>
@@ -390,7 +525,15 @@ export function DocumentsTab({
 const KINDS: DocumentKind[] = ['AGREEMENT', 'CERTIFICATE', 'PRICE_LIST', 'CORRESPONDENCE', 'OTHER']
 const MAX_BYTES = 10 * 1024 * 1024
 
-export function UploadDocumentModal({ supplierId, onClose, onUploaded }: { supplierId: string; onClose: () => void; onUploaded: () => void }) {
+export function UploadDocumentModal({
+  supplierId,
+  onClose,
+  onUploaded,
+}: {
+  supplierId: string
+  onClose: () => void
+  onUploaded: () => void
+}) {
   const { t } = useTranslation()
   const failure = useFailureText()
   const [file, setFile] = useState<File | null>(null)
@@ -432,16 +575,30 @@ export function UploadDocumentModal({ supplierId, onClose, onUploaded }: { suppl
       subtitle={t('supplierRecord.documents.uploadSubtitle')}
       footer={
         <div className="flex justify-end gap-2.5">
-          <button type="button" onClick={onClose} className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+          >
             {t('common.cancel')}
           </button>
-          <button type="submit" form="supplier-document-upload" disabled={busy} className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white disabled:opacity-60">
+          <button
+            type="submit"
+            form="supplier-document-upload"
+            disabled={busy}
+            className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white disabled:opacity-60"
+          >
             {busy ? t('supplierForm.saving') : t('supplierDetail.attachDocument')}
           </button>
         </div>
       }
     >
-      <form id="supplier-document-upload" noValidate onSubmit={submit} className="flex flex-col gap-4">
+      <form
+        id="supplier-document-upload"
+        noValidate
+        onSubmit={submit}
+        className="flex flex-col gap-4"
+      >
         {notice ? <Notice body={notice} /> : null}
         <div className="flex flex-col gap-1">
           <label htmlFor="supplier-document-file" className="text-sm font-medium text-text-primary">
@@ -462,17 +619,34 @@ export function UploadDocumentModal({ supplierId, onClose, onUploaded }: { suppl
             </p>
           ) : null}
         </div>
-        <TextField id="supplier-document-title" name="title" label={t('supplierRecord.documents.title')} required maxLength={200} value={title} onChange={setTitle} error={errors.title ? t(errors.title) : undefined} />
+        <TextField
+          id="supplier-document-title"
+          name="title"
+          label={t('supplierRecord.documents.title')}
+          required
+          maxLength={200}
+          value={title}
+          onChange={setTitle}
+          error={errors.title ? t(errors.title) : undefined}
+        />
         <FieldGrid>
-          <SelectField
-            id="supplier-document-kind"
-            name="kind"
-            label={t('supplierRecord.documents.kindLabel')}
-            options={KINDS.map((value) => ({ value, label: t(`supplierRecord.kind.${value}`) }))}
-            value={kind}
-            onChange={(next) => setKind(next as DocumentKind)}
-          />
-          <TextField id="supplier-document-date" name="documentDate" type="date" label={t('supplierRecord.documents.date')} value={documentDate} onChange={setDocumentDate} />
+          <div className="flex flex-col gap-1">
+            <FieldLabel label={t('supplierRecord.documents.kindLabel')} />
+            <Select
+              value={kind}
+              onChange={(next) => setKind(next as DocumentKind)}
+              options={KINDS.map((value) => ({ value, label: t(`supplierRecord.kind.${value}`) }))}
+              ariaLabel={t('supplierRecord.documents.kindLabel')}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <FieldLabel label={t('supplierRecord.documents.date')} />
+            <DateField
+              value={documentDate}
+              onChange={setDocumentDate}
+              ariaLabel={t('supplierRecord.documents.date')}
+            />
+          </div>
         </FieldGrid>
         <TextField
           id="supplier-document-series"
@@ -483,7 +657,14 @@ export function UploadDocumentModal({ supplierId, onClose, onUploaded }: { suppl
           value={series}
           onChange={setSeries}
         />
-        <TextAreaField id="supplier-document-note" name="note" label={t('supplierRecord.documents.note')} maxLength={500} value={note} onChange={setNote} />
+        <TextAreaField
+          id="supplier-document-note"
+          name="note"
+          label={t('supplierRecord.documents.note')}
+          maxLength={500}
+          value={note}
+          onChange={setNote}
+        />
       </form>
     </Modal>
   )
@@ -525,10 +706,18 @@ export function SwitchSupplierModal({
       open
       onClose={onClose}
       width={520}
-      title={to === 'off' ? t('supplierOff.title', { name }) : t('supplierRecord.switchOnTitle', { name })}
+      title={
+        to === 'off'
+          ? t('supplierOff.title', { name })
+          : t('supplierRecord.switchOnTitle', { name })
+      }
       footer={
         <div className="flex justify-end gap-2.5">
-          <button type="button" onClick={onClose} className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+          >
             {t('supplierOff.cancel')}
           </button>
           <button
@@ -543,7 +732,9 @@ export function SwitchSupplierModal({
       }
     >
       {notice ? <Notice body={notice} /> : null}
-      <p className="text-sm font-medium leading-[1.6] text-text-secondary">{to === 'off' ? t('supplierRecord.switchOffBody') : t('supplierRecord.switchOnBody')}</p>
+      <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+        {to === 'off' ? t('supplierRecord.switchOffBody') : t('supplierRecord.switchOnBody')}
+      </p>
     </Modal>
   )
 }
@@ -586,7 +777,11 @@ export function SupplierContactsModal({
     try {
       await work()
     } catch (error) {
-      setNotice(error instanceof ApiError && error.status === 409 ? t('supplierRecord.contacts.stale') : failure(error))
+      setNotice(
+        error instanceof ApiError && error.status === 409
+          ? t('supplierRecord.contacts.stale')
+          : failure(error),
+      )
     } finally {
       setBusy(false)
     }
@@ -609,13 +804,20 @@ export function SupplierContactsModal({
         notes: editing.notes.trim() || null,
         ...(editing.version === undefined ? {} : { version: editing.version }),
       }
-      const saved = editing.id ? await updateSupplierContact(supplierId, editing.id, body) : await addSupplierContact(supplierId, body)
-      refresh(editing.id ? list.map((contact) => (contact.id === saved.id ? saved : contact)) : [...list, saved])
+      const saved = editing.id
+        ? await updateSupplierContact(supplierId, editing.id, body)
+        : await addSupplierContact(supplierId, body)
+      refresh(
+        editing.id
+          ? list.map((contact) => (contact.id === saved.id ? saved : contact))
+          : [...list, saved],
+      )
       setEditing(null)
     })
   }
 
-  const makeMain = (contact: SupplierContactDto) => void run(async () => refresh(await makeMainContact(supplierId, contact.id, contact.version)))
+  const makeMain = (contact: SupplierContactDto) =>
+    void run(async () => refresh(await makeMainContact(supplierId, contact.id, contact.version)))
 
   const remove = (contact: SupplierContactDto) =>
     void run(async () => {
@@ -625,7 +827,8 @@ export function SupplierContactsModal({
 
   const field = (name: keyof ContactForm) => ({
     value: String(editing?.[name] ?? ''),
-    onChange: (next: string) => setEditing((current) => (current ? { ...current, [name]: next } : current)),
+    onChange: (next: string) =>
+      setEditing((current) => (current ? { ...current, [name]: next } : current)),
     error: errors[name] ? t(errors[name]!) : undefined,
   })
 
@@ -640,16 +843,29 @@ export function SupplierContactsModal({
         <div className="flex justify-end gap-2.5">
           {editing ? (
             <>
-              <button type="button" onClick={() => setEditing(null)} className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+              >
                 {t('common.cancel')}
               </button>
-              <button type="submit" form="supplier-contact-form" disabled={busy} className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white disabled:opacity-60">
+              <button
+                type="submit"
+                form="supplier-contact-form"
+                disabled={busy}
+                className="inline-flex h-[42px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white disabled:opacity-60"
+              >
                 {busy ? t('supplierForm.saving') : t('supplierRecord.contacts.save')}
               </button>
             </>
           ) : (
             <>
-              <button type="button" onClick={onClose} className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary">
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary"
+              >
                 {t('common.close')}
               </button>
               <button
@@ -669,45 +885,99 @@ export function SupplierContactsModal({
     >
       {notice ? <Notice body={notice} /> : null}
       {editing ? (
-        <form id="supplier-contact-form" noValidate onSubmit={save} className="mt-2 flex flex-col gap-4">
+        <form
+          id="supplier-contact-form"
+          noValidate
+          onSubmit={save}
+          className="mt-2 flex flex-col gap-4"
+        >
           <FieldGrid>
-            <TextField id="contact-fullName" name="fullName" label={t('supplierRecord.contacts.name')} required maxLength={200} {...field('fullName')} />
-            <TextField id="contact-roleTitle" name="roleTitle" label={t('newSupplier.contact.role')} maxLength={100} {...field('roleTitle')} />
+            <TextField
+              id="contact-fullName"
+              name="fullName"
+              label={t('supplierRecord.contacts.name')}
+              required
+              maxLength={200}
+              {...field('fullName')}
+            />
+            <TextField
+              id="contact-roleTitle"
+              name="roleTitle"
+              label={t('newSupplier.contact.role')}
+              maxLength={100}
+              {...field('roleTitle')}
+            />
           </FieldGrid>
-          <SelectField
-            id="contact-purpose"
-            name="purpose"
-            label={t('supplierRecord.contacts.purpose')}
-            // MAIN is set by "Make main", never by saving a second one.
-            options={PURPOSES.filter((purpose) => purpose !== 'MAIN' || !hasMain || editing.purpose === 'MAIN').map((value) => ({
-              value,
-              label: t(`supplierRecord.purpose.${value}`),
-            }))}
-            value={editing.purpose}
-            onChange={(next) => setEditing((current) => (current ? { ...current, purpose: next as ContactPurpose } : current))}
+          <div className="flex flex-col gap-1">
+            <FieldLabel label={t('supplierRecord.contacts.purpose')} />
+            <Select
+              value={editing.purpose}
+              onChange={(next) =>
+                setEditing((current) =>
+                  current ? { ...current, purpose: next as ContactPurpose } : current,
+                )
+              }
+              // MAIN is set by "Make main", never by saving a second one.
+              options={PURPOSES.filter(
+                (purpose) => purpose !== 'MAIN' || !hasMain || editing.purpose === 'MAIN',
+              ).map((value) => ({
+                value,
+                label: t(`supplierRecord.purpose.${value}`),
+              }))}
+              ariaLabel={t('supplierRecord.contacts.purpose')}
+            />
+          </div>
+          <TextField
+            id="contact-email"
+            name="email"
+            type="email"
+            label={t('supplierRecord.contacts.email')}
+            maxLength={255}
+            {...field('email')}
           />
-          <TextField id="contact-email" name="email" type="email" label={t('supplierRecord.contacts.email')} maxLength={255} {...field('email')} />
           <FieldGrid>
-            <PhoneField id="contact-telephone" name="telephone" label={t('newSupplier.contact.telephone')} {...field('telephone')} />
-            <PhoneField id="contact-mobilePhone" name="mobilePhone" label={t('newSupplier.contact.mobile')} {...field('mobilePhone')} />
+            <PhoneField
+              id="contact-telephone"
+              name="telephone"
+              label={t('newSupplier.contact.telephone')}
+              {...field('telephone')}
+            />
+            <PhoneField
+              id="contact-mobilePhone"
+              name="mobilePhone"
+              label={t('newSupplier.contact.mobile')}
+              {...field('mobilePhone')}
+            />
           </FieldGrid>
           {errors.channel ? (
             <p role="alert" className="text-xs font-medium text-text-danger">
               {t(errors.channel)}
             </p>
           ) : null}
-          <TextAreaField id="contact-notes" name="notes" label={t('supplierRecord.contacts.notes')} maxLength={1000} value={editing.notes} onChange={field('notes').onChange} />
+          <TextAreaField
+            id="contact-notes"
+            name="notes"
+            label={t('supplierRecord.contacts.notes')}
+            maxLength={1000}
+            value={editing.notes}
+            onChange={field('notes').onChange}
+          />
         </form>
       ) : list.length === 0 ? (
         <Empty text={t('supplierRecord.contacts.empty')} />
       ) : (
         <ul className="flex flex-col">
           {list.map((contact) => (
-            <li key={contact.id} className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3 last:border-0">
+            <li
+              key={contact.id}
+              className="flex flex-wrap items-center gap-3 border-b border-surface-background py-3 last:border-0"
+            >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-text-primary">
                   {contact.fullName}
-                  {contact.roleTitle ? <span className="font-medium text-text-quaternary"> · {contact.roleTitle}</span> : null}
+                  {contact.roleTitle ? (
+                    <span className="font-medium text-text-quaternary"> · {contact.roleTitle}</span>
+                  ) : null}
                 </p>
                 <p className="mt-0.5 truncate text-xs font-medium text-text-quaternary">
                   {[contact.email, contact.telephone, contact.mobilePhone]
@@ -720,9 +990,16 @@ export function SupplierContactsModal({
                     ))}
                 </p>
               </div>
-              <span className="rounded-sm bg-primary-50 px-2 py-1 text-[11px] font-semibold text-primary-800">{t(`supplierRecord.purpose.${contact.purpose}`)}</span>
+              <span className="rounded-sm bg-primary-50 px-2 py-1 text-[11px] font-semibold text-primary-800">
+                {t(`supplierRecord.purpose.${contact.purpose}`)}
+              </span>
               {contact.purpose !== 'MAIN' ? (
-                <button type="button" disabled={busy} onClick={() => makeMain(contact)} className="text-sm font-semibold text-primary-700 hover:underline disabled:opacity-50">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => makeMain(contact)}
+                  className="text-sm font-semibold text-primary-700 hover:underline disabled:opacity-50"
+                >
                   {t('supplierRecord.contacts.makeMain')}
                 </button>
               ) : null}
@@ -747,7 +1024,12 @@ export function SupplierContactsModal({
               >
                 {t('supplierRecord.contacts.edit')}
               </button>
-              <button type="button" disabled={busy} onClick={() => remove(contact)} className="text-sm font-semibold text-text-tertiary hover:text-danger-700 disabled:opacity-50">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => remove(contact)}
+                className="text-sm font-semibold text-text-tertiary hover:text-danger-700 disabled:opacity-50"
+              >
                 {t('supplierRecord.contacts.remove')}
               </button>
             </li>

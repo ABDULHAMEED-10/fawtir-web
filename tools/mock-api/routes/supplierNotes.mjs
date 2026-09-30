@@ -325,6 +325,18 @@ function bill(
   }
 }
 
+/**
+ * The receipt report we (the receiver) filed with the Tax Authority for a note that came over
+ * Peppol. One waits on the Tax Authority and one was turned down, so both states are on screen.
+ */
+function receiptReportOf(id, source, issueDate) {
+  if (source !== 'PEPPOL') return null
+  if (id === 'cn-mr-0118') return { status: 'SUBMITTED', reportedAt: null, tddUuid: `tdd-${id}` }
+  if (id === 'dn-gcl-0091')
+    return { status: 'REJECTED', reportedAt: `${issueDate}T11:20:00Z`, tddUuid: `tdd-${id}` }
+  return { status: 'ACCEPTED', reportedAt: `${issueDate}T11:20:00Z`, tddUuid: `tdd-${id}` }
+}
+
 /* --------------------------------------------------------------- credit notes */
 
 const CREDIT_NOTES = [
@@ -336,7 +348,8 @@ const CREDIT_NOTES = [
     source: 'PEPPOL',
     credited: 84.9,
     vat: 4.05,
-    reasonCode: 'SHORT_DELIVERY',
+    reasonCode: 'QTY',
+    reasonDetail: 'SHORT_DELIVERY',
     status: 'UNAPPLIED',
     balance: { applied: 0, refunded: 0, remaining: 84.9 },
     billId: 'b-and-3382',
@@ -349,7 +362,8 @@ const CREDIT_NOTES = [
     source: 'PEPPOL',
     credited: 242.5,
     vat: 11.548,
-    reasonCode: 'OVERCHARGE',
+    reasonCode: 'VAL',
+    reasonDetail: 'OVERCHARGE',
     status: 'WAITING_FOR_BILL',
     balance: { applied: 0, refunded: 0, remaining: 242.5 },
     billNumber: 'MR-INV-8811',
@@ -362,7 +376,8 @@ const CREDIT_NOTES = [
     source: 'UPLOADED',
     credited: 100.8,
     vat: 4.8,
-    reasonCode: 'DAMAGED',
+    reasonCode: 'QTY',
+    reasonDetail: 'DAMAGED',
     status: 'APPLIED',
     balance: { applied: 100.8, refunded: 0, remaining: 0 },
     billId: 'b-sp-1140',
@@ -375,7 +390,8 @@ const CREDIT_NOTES = [
     source: 'PEPPOL',
     credited: 61.3,
     vat: 2.919,
-    reasonCode: 'PRICE_CORRECTION',
+    reasonCode: 'VAL',
+    reasonDetail: 'PRICE_CORRECTION',
     status: 'REFUNDED',
     balance: { applied: 0, refunded: 61.3, remaining: 0 },
     billId: 'b-mz-7801',
@@ -386,11 +402,12 @@ const CREDIT_NOTES = [
     number: 'AND-CN-0391',
     issueDate: '2026-07-11',
     source: 'PEPPOL',
-    credited: 249.1,
-    vat: 11.862,
-    reasonCode: 'RETURN',
+    credited: 224.16,
+    vat: 8.46,
+    reasonCode: 'CAN',
+    reasonDetail: 'RETURN',
     status: 'APPLIED',
-    balance: { applied: 249.1, refunded: 0, remaining: 0 },
+    balance: { applied: 224.16, refunded: 0, remaining: 0 },
     billId: 'b-and-3301',
   }),
 ]
@@ -404,6 +421,7 @@ function creditNote({
   credited,
   vat,
   reasonCode,
+  reasonDetail = null,
   status,
   balance,
   billId = null,
@@ -416,6 +434,8 @@ function creditNote({
     inboundDeliveryId: source === 'PEPPOL' ? `inb-${id}` : null,
     source,
     networkVerified: source === 'PEPPOL',
+    // Our own receipt report (om-tdd, reporter role 02): EXPENDITURE.md R.1.
+    receiptReport: receiptReportOf(id, source, issueDate),
     supplierId,
     supplierName: supplierRow.displayName,
     supplierParticipantId: supplierRow.participantId,
@@ -427,6 +447,8 @@ function creditNote({
     creditedAmount: credited,
     vatAmount: vat,
     reasonCode,
+    // The app's finer reason behind the CL-02-OM code: EXPENDITURE.md R.3.
+    reasonDetail,
     approval: 'NONE',
     status,
     balance,
@@ -473,7 +495,7 @@ const CREDIT_SETTLEMENTS = {
       creditNoteId: 'cn-and-0391',
       billId: 'b-and-3301',
       kind: 'APPLIED',
-      amount: 249.1,
+      amount: 224.16,
       paymentReference: null,
       settledOn: '2026-07-14',
       actorId: 'u-hafidh',
@@ -517,7 +539,8 @@ const DEBIT_NOTES = [
     source: 'PEPPOL',
     total: 96.5,
     vat: 4.595,
-    reasonCode: 'SURCHARGE',
+    reasonCode: 'VAL',
+    reasonDetail: 'SURCHARGE',
     status: 'UNCHECKED',
     outstanding: 96.5,
     paid: 0,
@@ -532,7 +555,8 @@ const DEBIT_NOTES = [
     source: 'PEPPOL',
     total: 61.75,
     vat: 2.94,
-    reasonCode: 'PRICE_CORRECTION',
+    reasonCode: 'VAL',
+    reasonDetail: 'PRICE_CORRECTION',
     status: 'ACCEPTED',
     outstanding: 61.75,
     paid: 0,
@@ -548,7 +572,8 @@ const DEBIT_NOTES = [
     source: 'UPLOADED',
     total: 80.65,
     vat: 3.84,
-    reasonCode: 'SURCHARGE',
+    reasonCode: 'VAL',
+    reasonDetail: 'SURCHARGE',
     status: 'ACCEPTED',
     outstanding: 0,
     paid: 80.65,
@@ -564,7 +589,8 @@ const DEBIT_NOTES = [
     source: 'PEPPOL',
     total: 122.7,
     vat: 5.843,
-    reasonCode: 'LATE_FEE',
+    reasonCode: 'OTH',
+    reasonDetail: 'LATE_FEE',
     status: 'REFUSED',
     outstanding: 122.7,
     paid: 0,
@@ -581,7 +607,8 @@ const DEBIT_NOTES = [
     source: 'PEPPOL',
     total: 61.3,
     vat: 2.919,
-    reasonCode: 'DUPLICATE',
+    reasonCode: 'CAN',
+    reasonDetail: 'DUPLICATE',
     status: 'REFUSED',
     outstanding: 61.3,
     paid: 0,
@@ -601,6 +628,7 @@ function debitNote({
   total,
   vat,
   reasonCode,
+  reasonDetail = null,
   status,
   outstanding,
   paid,
@@ -615,6 +643,8 @@ function debitNote({
     inboundDeliveryId: source === 'PEPPOL' ? `inb-${id}` : null,
     source,
     networkVerified: source === 'PEPPOL',
+    // Our own receipt report (om-tdd, reporter role 02): EXPENDITURE.md R.1.
+    receiptReport: receiptReportOf(id, source, issueDate),
     supplierId,
     supplierName: supplierRow.displayName,
     supplierParticipantId: supplierRow.participantId,
@@ -628,6 +658,8 @@ function debitNote({
     vatAmount: vat,
     amountDue: total,
     reasonCode,
+    // The app's finer reason behind the CL-02-OM code: EXPENDITURE.md R.3.
+    reasonDetail,
     approval: 'NONE',
     paidAmount: paid,
     creditedAmount: 0,
@@ -718,6 +750,51 @@ const NOTE_LINES = {
       unitPrice: 0.24,
       vatRate: 5,
       lineNet: 96.0,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+  ],
+  // A standard, a zero-rated and an exempt line (CL-04-OM S, Z, E): EXPENDITURE.md R.2.
+  'cn-and-0391': [
+    {
+      lineNo: 1,
+      description: 'Returned: Khalas dates, 5 kg box',
+      quantity: 12,
+      unit: 'BX',
+      unitPrice: 14.1,
+      vatRate: 5,
+      taxCategoryCode: 'S',
+      exemptionReasonCode: null,
+      exemptionReason: null,
+      lineNet: 169.2,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+    {
+      lineNo: 2,
+      description: 'Returned: fresh Khalas dates, loose',
+      quantity: 25,
+      unit: 'KG',
+      unitPrice: 1.6,
+      vatRate: 0,
+      taxCategoryCode: 'Z',
+      exemptionReasonCode: 'VATZR-OM-01',
+      exemptionReason: null,
+      lineNet: 40.0,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+    },
+    {
+      lineNo: 3,
+      description: 'Cargo insurance, returned load',
+      quantity: 1,
+      unit: 'EA',
+      unitPrice: 6.5,
+      vatRate: 0,
+      taxCategoryCode: 'E',
+      exemptionReasonCode: 'VATEX-OM-01',
+      exemptionReason: null,
+      lineNet: 6.5,
       purchaseOrderLineId: null,
       goodsReceiptId: null,
     },
@@ -814,6 +891,7 @@ function noteAsBillDetail(note, kind) {
       source: note.source,
       networkVerified: note.networkVerified,
       obligation: row.complianceObligation,
+      receiptReport: note.receiptReport ?? null,
     },
     activity: [{ at: `${note.issueDate}T11:05:00Z`, kind: 'ARRIVED', detail: null, actor: null }],
   }
@@ -1143,7 +1221,8 @@ export default [
         number: body?.billNumber ?? null,
         issueDate: body?.issueDate ?? '2026-09-25',
         source: 'UPLOADED',
-        reasonCode: 'OTHER',
+        reasonCode: 'OTH',
+        reasonDetail: 'OTHER',
       }
       if (body?.documentTypeCode === '383') {
         DEBIT_NOTES.unshift(

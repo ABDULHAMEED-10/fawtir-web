@@ -32,7 +32,8 @@ import {
 import { BRANCHES_PATH, loadBranches, type BranchDto } from '../../api/invoices/drafts'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
-import { netDaysFor, taxCategoryFor, useReferenceData } from '../../lib/reference/referenceData'
+import { supplierTaxCategory } from '../../lib/billIntake'
+import { netDaysFor, useReferenceData } from '../../lib/reference/referenceData'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { addDays } from '../../lib/dates'
 import { formatAmount, formatDate, initialsOf } from '../../lib/format'
@@ -107,8 +108,8 @@ function NewPurchaseOrder({ id }: { id: string }) {
   const head = overview.read.status === 'ready' ? overview.read.data : null
   const profile = record?.profile ?? null
   const currency = profile?.defaultCurrency ?? 'OMR'
-  const category =
-    taxCategoryFor(reference, profile?.defaultTaxCategory ?? 'S5') ?? reference.taxCategories[0]
+  // Oman's four only (CL-04-OM): a supplier defaulting to AE or G starts on S5.
+  const category = supplierTaxCategory(reference, profile?.defaultTaxCategory)
   const vatRate = category?.rate ?? '5'
   const netDays =
     netDaysFor(reference, profile?.paymentTerms) ??

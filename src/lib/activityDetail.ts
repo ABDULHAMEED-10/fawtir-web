@@ -1,5 +1,6 @@
 import type {
   ActivityDetailDto,
+  ActivityDirectionDto,
   ActivityLinksDto,
   MlsRecordDto,
   TddObligationDto,
@@ -61,6 +62,8 @@ export type ReportVersion = {
 
 export type ActivityRecord = {
   invoiceUuid: string
+  /** RECEIVED: a supplier sent it to us, so the counterparty is the seller and we report receipt. */
+  direction: ActivityDirectionDto
   invoice: string | null
   customer: string | null
   issued: string
@@ -74,7 +77,16 @@ export type ActivityRecord = {
   rejection: { code: string | null; reason: string; later: 'accepted' | 'open' } | null
   versions: ReportVersion[]
   proof: { reference: string | null; uuid: string | null; acceptedAt: string | null }
-  route: { flow: RowFlow; flowNumber: number | null; standIn: string | null; mlsCount: number }
+  route: {
+    flow: RowFlow
+    flowNumber: number | null
+    standIn: string | null
+    mlsCount: number
+    /** The other side's participant ID, when the record carries it (asks row 2.26). */
+    theirId: string | null
+    /** The PINT-OM specification the document was built to (asks row 2.27). */
+    profile: string
+  }
   /** Oman VAT Law keeps a tax document ten years from issue. */
   retention: { keptUntil: string; years: number; months: number }
   copies: {
@@ -89,6 +101,20 @@ export type ActivityRecord = {
 }
 
 const RETENTION_YEARS = 10
+
+/**
+ * The PINT-OM specification a document follows, from its CustomizationID. PINT-OM billing and
+ * self-billing are both at v1.0.1; a document that does not say is billing, the default profile.
+ */
+const PROFILES: Record<string, string> = {
+  'urn:peppol:pint:billing-1@om-1': 'PINT-OM billing 1.0.1',
+  'urn:peppol:pint:selfbilling-1@om-1': 'PINT-OM self-billing 1.0.1',
+}
+export const DEFAULT_PROFILE = PROFILES['urn:peppol:pint:billing-1@om-1']
+
+export function profileOf(customizationId: string | null | undefined): string {
+  return (customizationId && PROFILES[customizationId.trim()]) || DEFAULT_PROFILE
+}
 
 /** `8 Jun · 11:20:04` in the business's time zone. */
 export function stampOf(iso: string | null, language = 'en'): string | null {
@@ -215,7 +241,11 @@ function tddJourney(dto: ActivityDetailDto, outcome: RowOutcome, language: strin
   return {
     id: 'ota',
     titleKey: 'activityDetail.toTaxAuthority',
-    subtitleKey: 'activityDetail.toTaxAuthorityNote',
+    // The receiving side reports that it received the document (TDT-010 = 02 Receiver).
+    subtitleKey:
+      dto.summary.direction === 'RECEIVED'
+        ? 'activityDetail.receiptReportedNote'
+        : 'activityDetail.toTaxAuthorityNote',
     ...verdict,
     steps,
   }
@@ -227,8 +257,40 @@ const MLS_STEP: Record<string, { labelKey: string; state: StepState }> = {
   RE: { labelKey: 'activityDetail.step.theyRefused', state: 'failed' },
 }
 
+/**
+ * A document a supplier sent us: it arrived over Peppol and was validated here. The receipt moment
+ * is the one the receiving side reports on its TDD (PINT-OM TDOM-04 date, TDOM-05 time).
+ */
+function receivedJourney(dto: ActivityDetailDto, language: string): Journey {
+  const item = dto.summary
+  // TODO(backend): ACTIVITY.md 2.25. No receipt time on the item yet; the ledger's moment stands in.
+  const arrived = item.received_at ?? item.occurred_at
+  return {
+    id: 'peppol',
+    titleKey: 'activityDetail.fromSupplier',
+    subtitleKey: 'activityDetail.toCustomerNote',
+    verdictKey: 'activityDetail.verdict.received',
+    tone: 'good',
+    steps: [
+      {
+        id: 'arrived',
+        labelKey: 'activityDetail.step.arrivedOverPeppol',
+        at: stampOf(arrived, language),
+        state: 'done',
+      },
+      {
+        id: 'validated',
+        labelKey: 'activityDetail.step.validated',
+        at: stampOf(item.validated_at, language),
+        state: item.validated_at ? 'done' : 'waiting',
+      },
+    ],
+  }
+}
+
 function peppolJourney(dto: ActivityDetailDto, language: string): Journey | null {
   const item = dto.summary
+  if (item.direction === 'RECEIVED') return receivedJourney(dto, language)
   // A walk-in sale or a buyer off Peppol is reported only: nothing travels to a customer.
   if (item.b2c || item.scenario?.stand_in_id) return null
   const replies = [...dto.mls]
@@ -376,6 +438,7 @@ export function recordFromDetail(
 
   return {
     invoiceUuid: dto.invoice_uuid,
+    direction: item.direction,
     invoice: item.invoice_number,
     customer: item.counterparty,
     issued: dayOf(item.occurred_at, language),
@@ -397,6 +460,8 @@ export function recordFromDetail(
       flowNumber: item.scenario?.flow ?? null,
       standIn: item.scenario?.stand_in_id ?? null,
       mlsCount: replies,
+      theirId: item.counterparty_participant_id ?? null,
+      profile: profileOf(item.customization_id),
     },
     retention: {
       keptUntil: dayOf(keptUntil.toISOString(), language),

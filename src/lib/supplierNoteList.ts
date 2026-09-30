@@ -162,6 +162,8 @@ export type CreditNoteItem = {
   againstBillIssueDate: string | null
   applied: boolean
   reasonCode: string | null
+  /** The supplier's finer reason behind the code, when sent. */
+  reasonDetail: string | null
   status: CreditNoteStatusDto
   currency: string
   credited: number | null
@@ -187,6 +189,7 @@ export function toCreditNoteItem(row: CreditNoteRowDto): CreditNoteItem {
     againstBillIssueDate: row.credits.issueDate,
     applied: row.credits.applied,
     reasonCode: row.reasonCode,
+    reasonDetail: row.reasonDetail ?? null,
     status: row.status,
     currency: row.currencyCode,
     credited: row.creditedAmount,
@@ -253,6 +256,8 @@ export type DebitNoteItem = {
   againstBillNumber: string | null
   againstBillIssueDate: string | null
   reasonCode: string | null
+  /** The supplier's finer reason behind the code, when sent. */
+  reasonDetail: string | null
   status: DebitNoteStatusDto
   decisionReason: string | null
   decidedAt: string | null
@@ -286,6 +291,7 @@ export function toDebitNoteItem(row: DebitNoteRowDto): DebitNoteItem {
     againstBillNumber: row.relatesTo?.billNumber ?? null,
     againstBillIssueDate: row.relatesTo?.issueDate ?? null,
     reasonCode: row.reasonCode,
+    reasonDetail: row.reasonDetail ?? null,
     status: row.status,
     decisionReason: row.decisionReason,
     decidedAt: row.decidedAt,
@@ -310,11 +316,47 @@ export function debitAmountNoteKey(item: DebitNoteItem): string {
 }
 
 /**
- * The CL-02-OM reason as something to read. A code with no label is shown as the code: inventing
+ * The reason as something to read: the supplier's finer reason when sent, else the CL-02-OM code. A code with no label is shown as the code: inventing
  * a sentence for it would put words in the supplier's mouth, and a blank would hide that they
  * gave a reason at all.
  */
-export function reasonLabelKey(code: string | null): { key: string; fallback: string } | null {
+export function reasonLabelKey(
+  code: string | null,
+  detail: string | null = null,
+): { key: string; fallback: string } | null {
+  // The finer reason ("Short delivery") reads better than the CL-02-OM code's own label; the
+  // code is still shown beside it on the detail screens. TODO(backend): EXPENDITURE.md R.3.
+  if (detail) return { key: `expenditureNotes.reason.${detail}`, fallback: detail }
   if (!code) return null
   return { key: `expenditureNotes.reason.${code}`, fallback: code }
+}
+
+/** The five CL-02-OM credit and debit note reason codes (BTOM-032, IBR-023-OM). */
+export const CL02_OM_REASONS = ['CAN', 'VAT', 'VAL', 'QTY', 'OTH'] as const
+export type Cl02Reason = (typeof CL02_OM_REASONS)[number]
+
+/**
+ * The app's older reason codes read as the CL-02-OM code they stand for, so the screen can say
+ * which code the note carries in the Tax Authority's own list.
+ *
+ * TODO(backend): EXPENDITURE.md R.3. `reasonCode` should only ever carry a CL-02-OM code.
+ */
+const LEGACY_REASONS: Record<string, Cl02Reason> = {
+  SHORT_DELIVERY: 'QTY',
+  DAMAGED: 'QTY',
+  RETURN: 'CAN',
+  OVERCHARGE: 'VAL',
+  PRICE_CORRECTION: 'VAL',
+  SURCHARGE: 'VAL',
+  LATE_FEE: 'OTH',
+  DUPLICATE: 'CAN',
+  OTHER: 'OTH',
+}
+
+/** The CL-02-OM code a reason stands for, or null for a code that maps to none. */
+export function cl02ReasonOf(code: string | null): Cl02Reason | null {
+  if (!code) return null
+  const upper = code.toUpperCase()
+  if ((CL02_OM_REASONS as readonly string[]).includes(upper)) return upper as Cl02Reason
+  return LEGACY_REASONS[upper] ?? null
 }
