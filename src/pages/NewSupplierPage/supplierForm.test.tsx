@@ -210,7 +210,7 @@ describe('a new supplier', () => {
     expect(calls('POST', '/api/v1/suppliers')).toHaveLength(0)
   })
 
-  it('puts the server field refusals on their inputs, an address field on the one Address line', async () => {
+  it('puts the server field refusals on their inputs, an address part on its own input', async () => {
     createResponse = () =>
       json(400, {
         type: 'https://api.fawtir.om/problems/validation-failed',
@@ -229,12 +229,54 @@ describe('a new supplier', () => {
     typeInto(/^VAT number/, 'OM1100447102')
     typeInto(/Peppol participant ID/, '0248:OM1100447102')
     typeInto(/Main contact/, 'Laila')
-    typeInto(/^Address/, 'Sohar')
+    typeInto(/^Address/, 'Falaj Al Qabail')
+    typeInto(/^City/, 'Sohar')
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
 
     const city = await screen.findByText('This is longer than allowed')
-    expect(city.closest('div')?.querySelector('input')?.id).toBe('supplier-billing-address')
+    expect(city.closest('div')?.querySelector('input')?.id).toBe('supplier-billing-city')
+    expect(bodyOf(calls('POST', '/api/v1/suppliers')[0]).invoiceAddress).toMatchObject({
+      streetName: 'Falaj Al Qabail',
+      cityName: 'Sohar',
+      countryCode: 'OM',
+    })
+  })
+
+  it('fills the Peppol ID from a valid VAT number and sends the address in its parts', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { name: 'New supplier' })
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/^VAT number/, 'OM1100447102')
+    // Filled in, not locked: an empty Peppol ID takes 0248 and the VATIN.
+    expect((screen.getByLabelText(/Peppol participant ID/) as HTMLInputElement).value).toBe(
+      '0248:OM1100447102',
+    )
+    typeInto(/Main contact/, 'Laila')
+    typeInto(/^Address/, 'Way 3021, Building 12')
+    typeInto(/^City/, 'Sohar')
+    fireEvent.click(screen.getByRole('button', { name: 'Governorate' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'North Al Batinah' }))
+    typeInto(/^Postal code/, '31')
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+    expect(await screen.findByText('Omani postal codes are 3 digits')).toBeTruthy()
+    expect(calls('POST', '/api/v1/suppliers')).toHaveLength(0)
+
+    typeInto(/^Postal code/, '311')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/suppliers')[0])).toMatchObject({
+      participantScheme: '0248',
+      participantValue: 'OM1100447102',
+      invoiceAddress: {
+        streetName: 'Way 3021, Building 12',
+        cityName: 'Sohar',
+        countrySubentity: 'North Al Batinah',
+        postalCode: '311',
+        countryCode: 'OM',
+      },
+    })
   })
 
   it('names a duplicate VAT number or Peppol ID on a new supplier', async () => {

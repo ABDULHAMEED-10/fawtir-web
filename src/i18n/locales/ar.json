@@ -1006,7 +1006,7 @@
       "customers": "العملاء",
       "suppliers": "الموردون",
       "compliance": "الامتثال",
-      "tddOta": "النشاط",
+      "tddOta": "TDD وجهاز الضرائب",
       "documents": "المستندات",
       "insights": "التحليلات",
       "reports": "التقارير",
@@ -5534,7 +5534,8 @@
       "theyreCharging": "إجمالي المطالبة",
       "none": "لم يرسل المورّد أي بنود مع هذه الفاتورة.",
       "vatOnly": "ضريبة القيمة المضافة",
-      "receivedOn": "استُلم على {{receipt}}"
+      "receivedOn": "استُلم على {{receipt}}",
+      "vatCategory": "{{rate}} · {{category}}"
     },
     "linked": {
       "title": "المستندات المرتبطة",
@@ -5594,7 +5595,15 @@
       "passedPintOm": "اجتازت التحقق وفق PINT-OM",
       "noPintOm": "لا تحقق PINT-OM على فاتورة مرفوعة أو ممسوحة",
       "originalKept": "الملف الأصلي محفوظ طوال فترة الاحتفاظ",
-      "noOriginal": "لا ملف أصلي مسجل"
+      "noOriginal": "لا ملف أصلي مسجل",
+      "receipt": {
+        "accepted": "أُبلغت هيئة الضرائب بالاستلام · {{date}}",
+        "acceptedUndated": "أُبلغت هيئة الضرائب بالاستلام",
+        "submitted": "إبلاغ الاستلام بانتظار هيئة الضرائب",
+        "rejected": "رُفض إبلاغ الاستلام",
+        "notSubmitted": "لم يُبلَّغ عن الاستلام بعد",
+        "unavailable": "حالة إبلاغ الاستلام غير متاحة بعد"
+      }
     },
     "supplier": {
       "title": "المورد",
@@ -6980,7 +6989,15 @@
       "summaryBeforeAccept_other": "{{count}} أمور تستحق النظر قبل القبول.",
       "summaryBeforeAcceptBody": "اقرأ النقاط المعلّمة بـ\"راجع\"، ثم قرر.",
       "supplierNone": "لم يُختر مورد بعد",
-      "supplierNoneDetail": "اختر الجهة المرسلة ليُراجَع الرسم مقابل الحساب الصحيح."
+      "supplierNoneDetail": "اختر الجهة المرسلة ليُراجَع الرسم مقابل الحساب الصحيح.",
+      "validatedReceipt": {
+        "accepted": "استُلم عبر بيبول وتُحقق منه. أُبلغت هيئة الضرائب بالاستلام · {{date}}.",
+        "acceptedUndated": "استُلم عبر بيبول وتُحقق منه. أُبلغت هيئة الضرائب بالاستلام.",
+        "submitted": "استُلم عبر بيبول وتُحقق منه. إبلاغ الاستلام بانتظار هيئة الضرائب.",
+        "rejected": "استُلم عبر بيبول وتُحقق منه. رُفض إبلاغ الاستلام.",
+        "notSubmitted": "استُلم عبر بيبول وتُحقق منه. لم يُبلَّغ عن الاستلام بعد.",
+        "unavailable": "استُلم عبر بيبول وتُحقق منه. حالة إبلاغ الاستلام غير متاحة بعد."
+      }
     }
   },
   "expenditureReminders": {
@@ -8458,7 +8475,9 @@
       "EUR": "يورو",
       "AED": "درهم إماراتي",
       "SAR": "ريال سعودي"
-    }
+    },
+    "governoratePlaceholder": "اختر المحافظة",
+    "postalCodePlaceholder": "3 أرقام، مثال: 112"
   },
   "purchaseOrder": {
     "title": "أمر شراء جديد",
@@ -8819,8 +8838,8 @@
     "unusedCredits_many": "{{count}} إشعارًا دائنًا لم يُستخدم بعد"
   },
   "activity": {
-    "title": "النشاط",
-    "subtitle": "كل فاتورة ترسلها تُبلَّغ إلى هيئة الضرائب العمانية كمستند بيانات ضريبية.",
+    "title": "TDD وجهاز الضرائب",
+    "subtitle": "كل فاتورة ترسلها أو تستلمها تُبلَّغ إلى هيئة الضرائب العمانية كمستند بيانات ضريبية.",
     "callLog": "سجل مكالمات الهيئة",
     "complianceReport": "تقرير الامتثال",
     "searchPlaceholder": "رقم الفاتورة أو معرّف المستند",
@@ -8920,7 +8939,8 @@
       "RE": "مرفوض أو فشل",
       "NONE": "بلا إقرار بعد",
       "waiting": "ليس بعد",
-      "refused": "رفضها"
+      "refused": "رفضها",
+      "youReceived": "استلمتها أنت"
     },
     "today": "اليوم",
     "sortOptions": {
@@ -9075,7 +9095,9 @@
       "theyAccepted": "قبلوها",
       "waitingOnOta": "بانتظار الهيئة",
       "waitingOnThem": "بانتظار ردهم",
-      "theyRefused": "رفضوها"
+      "theyRefused": "رفضوها",
+      "arrivedOverPeppol": "وصلت عبر Peppol",
+      "validated": "تم التحقق منها"
     },
     "whyTurnedDown": "لماذا رُفضت المحاولة الأولى",
     "rejection": {
@@ -9195,8 +9217,12 @@
       "waiting": "بالانتظار",
       "delivered": "سُلّمت",
       "theyRefused": "رفضها العميل",
-      "noReplyYet": "لا رد بعد"
-    }
+      "noReplyYet": "لا رد بعد",
+      "received": "استُلمت"
+    },
+    "from": "من",
+    "fromSupplier": "من {{customer}}",
+    "receiptReportedNote": "أُبلغ عن الاستلام، عبر فوترة"
   },
   "callLog": {
     "title": "سجل مكالمات الهيئة",
@@ -9503,7 +9529,8 @@
       "vatReported": "الضريبة المبلَّغ عنها",
       "allStandard": "كلها بالنسبة القياسية ٥٪",
       "notInVatFigure": "خارج رقم الضريبة",
-      "fromUnreported": "من الفاتورة غير المبلَّغ عنها"
+      "fromUnreported": "من الفاتورة غير المبلَّغ عنها",
+      "includingCreditAndDebitNotes": "منها {{credit}} إشعارات دائنة و{{debit}} إشعارات مدينة"
     },
     "thingsAuditorShouldKnow": "ما ينبغي أن يعرفه المدقق",
     "neverAcceptedHeadline": "فاتورة واحدة لم تقبلها هيئة الضرائب قط",
@@ -9561,7 +9588,9 @@
     "nobody": "لا أحد",
     "downloads": "مرات التنزيل",
     "noneYet": "لا شيء بعد",
-    "preparedByName": "فوتر · مزوّد خدمة معتمد"
+    "preparedByName": "فوتر · مزوّد خدمة معتمد",
+    "receivedReported": "الفواتير المستلمة · أُبلغ عن <b>{{n}} من {{m}}</b>",
+    "receivedNotAvailable": "الفواتير المستلمة · غير متاح بعد"
   },
   "callDetail": {
     "subtitle": "{{date}}، {{at}} · بشأن {{invoice}} · رُدّ خلال {{seconds}}",
@@ -18386,7 +18415,8 @@
       "CAN": "أُلغي الطلب",
       "VAT": "تصحيح الضريبة",
       "OTH": "سبب آخر"
-    }
+    },
+    "reasonCodeLine": "{{code}} · {{label}}"
   },
   "landing": {
     "nav": {

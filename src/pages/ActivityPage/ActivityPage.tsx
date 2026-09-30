@@ -113,6 +113,7 @@ const FLOW_CHIP: Record<RowFlow, string> = {
 
 const CUSTOMER_ICON: Record<CustomerAck, string> = {
   received: ackYesIcon,
+  youReceived: ackYesIcon,
   noCustomer: ackNoneIcon,
   notOnPeppol: ackLateIcon,
   waiting: ackLateIcon,

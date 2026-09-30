@@ -68,6 +68,9 @@ catalogue, stock, point of sale, reports and the document archive.
 5. Commit to `dev` with a message that says what changed and why, and push `dev`.
 6. The owner opens the `dev` to `main` PR and merges it. Do not push to `main` unless the owner
    says so for a specific merge.
+7. When the owner does ask for `main`: open the `dev` to `main` PR, **wait for the `verify` check
+   to go green** (merging early broke `main` once, #105), merge it with the title
+   `Merge pull request #<n> from ABDULHAMEED-10/dev`, then fast-forward `dev` to `main`.
 
 ### Reviewing a backend PR before it is merged
 
@@ -370,6 +373,24 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 - **Back on the first onboarding step** goes to the email code screen, which shows "Your email is
   verified" once the code is spent.
 - **Customers** have no detail screen (none in Figma); the row menu offers New invoice and Edit.
+- **Public site** (Figma "SaaS Website", 186:12607): Home `/`, Pricing `/pricing`, Features
+  `/features`, Contact Us `/contact`, sharing one nav, closing band and footer
+  (`src/pages/HomePage/site.tsx`, pages in `src/pages/SitePages/`). The nav's Pricing link goes to
+  `/pricing`, never to the sign-up plan picker `/plans`. Gaps are in `docs/backend-guides/SITE.md`.
+- **Site pricing reads the app's catalogue** (owner, 29 Sep 2026): prices, limits, card features,
+  the comparison rows and the questions come from `src/lib/plans.ts` and the sign-up plans screen
+  (`PlanComparison.tsx` exports `GROUPS`, `COLUMNS`, `faqParams`). The Figma frame's own figures
+  (49 / 89 / 149) are not used. "What counts" is documents sent and received, as the app meters.
+- **Mobile app scope** (owner, 29 Sep 2026): onboarding, company settings, Income (invoices,
+  credit notes, debit notes) and Expenditure (bills) only. **No self-billing on mobile.** The
+  mobile developer's guide for onboarding to invoice creation is a shared doc:
+  https://claude.ai/code/artifact/0880cec3-51a4-4cc7-93b6-d55890f97365 (data, rules and APIs only;
+  the mobile UI and layout are his call).
+- **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
+  "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
+  after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
+  line amounts after the document discount; the V.6 same-category-reason guard lives in the shared
+  composer; `/summary?type=` tiles only once the endpoint exists.
 
 ---
 
@@ -381,7 +402,10 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
    not the amount still open. Should it be capped?
 3. Should the onboarding items (POS question, ISIC at sign-up, the Company profile ISIC field)
    get their own backend guide instead of living in INCOME.md?
-4. Parked until integration asks for it: the ~500 tap targets of 24 to 34 px (judged fine on a
+4. Contact Us page: is the design's phone "+2444 0100" real, and should the address be
+   hello@fawtir.om or support@fawtir.om? The Features mockup images still show "OMR" and a
+   "0208:" participant ID (Oman is 0248); the designer should correct them.
+5. Parked until integration asks for it: the ~500 tap targets of 24 to 34 px (judged fine on a
    real device), POS product photos hot-linked from Wikimedia Commons, `/purchase-orders` having
    a create form but no list.
 

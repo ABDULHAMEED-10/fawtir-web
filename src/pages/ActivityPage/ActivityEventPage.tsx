@@ -17,6 +17,8 @@ import {
   type ReportVersion,
 } from '../../lib/activityDetail'
 import { formatAmount } from '../../lib/format'
+import { COMPANY_PROFILE_PATH, loadCompanyProfile } from '../../api/company/companyProfile'
+import { candidateParticipantId } from '../../lib/peppolParticipant'
 import { can, useSession } from '../../lib/session/session'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import portalIcon from '../../assets/invoice-details/fullscreen.svg'
@@ -120,6 +122,11 @@ function Record({
   const [copied, setCopied] = useState(false)
   const number = record.invoice ?? t('activity.unnumbered')
   const status = STATUS_BADGE[record.outcome]
+  // Our participant ID is `0248:` and our VAT number (src/lib/peppolParticipant.ts). A profile the
+  // reader may not see, or one that fails to load, leaves the field "Not on the record yet".
+  // TODO(backend): ACTIVITY.md 2.26. The registered ID can differ from this candidate.
+  const profile = useApiRead(COMPANY_PROFILE_PATH, loadCompanyProfile).read
+  const ourId = profile.status === 'ready' ? candidateParticipantId(profile.data.taxNumber) : null
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -141,7 +148,7 @@ function Record({
           <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-sm font-medium leading-[1.4] text-text-tertiary">
             {record.customer ? (
               <span>
-                {t('activityDetail.to')}{' '}
+                {t(record.direction === 'RECEIVED' ? 'activityDetail.from' : 'activityDetail.to')}{' '}
                 <span className="text-text-primary">{record.customer}</span>
               </span>
             ) : null}
@@ -287,15 +294,20 @@ function Record({
                     : t('activityDetail.route.documentsNoMls')
                 }
               />
-              {/* TODO(backend): neither participant ID is on the record (asks row 2.13). */}
-              <RouteField label={t('activityDetail.route.yourId')} value={null} />
-              <RouteField label={t('activityDetail.route.theirId')} value={null} />
+              {/* TODO(backend): neither participant ID is on the record (asks rows 2.13, 2.26). */}
+              <RouteField label={t('activityDetail.route.yourId')} value={ourId} mono />
+              <RouteField
+                label={t('activityDetail.route.theirId')}
+                value={record.route.theirId}
+                mono
+              />
               <RouteField
                 label={t('activityDetail.route.standIn')}
                 value={record.route.standIn ?? t('activityDetail.route.noStandIn')}
                 mono={record.route.standIn !== null}
               />
-              <RouteField label={t('activityDetail.route.profile')} value="PINT-OM 1.0" />
+              {/* TODO(backend): ACTIVITY.md 2.27. Billing 1.0.1 until the item carries its CustomizationID. */}
+              <RouteField label={t('activityDetail.route.profile')} value={record.route.profile} />
             </dl>
           </section>
         </div>

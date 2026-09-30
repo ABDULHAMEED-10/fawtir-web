@@ -44,11 +44,12 @@ import {
   UPLOAD_REFUSALS,
   blankBillForm,
   linesTotals,
+  supplierTaxCategory,
   toConfirmation,
   type BillLine,
 } from '../../lib/billIntake'
 import { DESIGN_REFERENCE } from '../../lib/invoiceDraft'
-import { netDaysFor, taxCategoryFor, useReferenceData } from '../../lib/reference/referenceData'
+import { netDaysFor, useReferenceData } from '../../lib/reference/referenceData'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { addDays } from '../../lib/dates'
 import { formatAmount, formatDate, initialsOf } from '../../lib/format'
@@ -121,8 +122,8 @@ function RecordBill({ id }: { id: string }) {
       ? orders.read.data.items.filter((order) => BILLABLE.has(order.state))
       : []
   const currency = profile?.defaultCurrency ?? 'OMR'
-  const category =
-    taxCategoryFor(reference, profile?.defaultTaxCategory ?? 'S5') ?? reference.taxCategories[0]
+  // Oman's four only (CL-04-OM): a supplier defaulting to AE or G starts on S5.
+  const category = supplierTaxCategory(reference, profile?.defaultTaxCategory)
   const vatRate = category?.rate ?? '5'
   const netDays =
     netDaysFor(reference, profile?.paymentTerms) ??
@@ -165,8 +166,11 @@ function RecordBill({ id }: { id: string }) {
         quantity: line.quantity,
         unitPrice: line.unitPrice,
         vatRate: line.vatRate,
+        taxCategoryCode: category.code,
+        // The unit chosen on the row goes with the line (EXPENDITURE.md 7.11).
+        unit: line.unit,
       })),
-    [lines],
+    [lines, category.code],
   )
   const totals = useMemo(() => linesTotals(billLines), [billLines])
   const net = Number(totals?.net ?? 0)

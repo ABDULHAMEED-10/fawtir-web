@@ -5,8 +5,8 @@
  * design needs and the backend does not answer yet (backend asks 3.1 to 3.12), so the screens can
  * be seen as drawn.
  *
- * The signed XML is served as `{ status, raw, headers }`: the scratch server used for screenshots
- * writes `raw` as it is; the shared server JSON-encodes it, so there the preview falls back to text.
+ * The signed XML is served as `{ status, raw, headers }`: `server.mjs` writes `raw` as the literal
+ * response body, so the viewer gets the XML itself rather than a JSON wrapper.
  */
 
 const BY_ID = new Map()
@@ -316,6 +316,40 @@ const XML_2038 = `<?xml version="1.0" encoding="UTF-8"?>
 </Invoice>
 `
 
+/** Our own company, the supplier on what we issue and the customer on what we receive. */
+const OURS = {
+  endpoint: 'OM1100392000',
+  name: 'Al Bahja Coffee LLC',
+  address:
+    '<cac:PostalAddress><cbc:StreetName>Souq Street</cbc:StreetName><cbc:CityName>Nizwa</cbc:CityName></cac:PostalAddress>',
+}
+
+const party = (tag, { endpoint, name, address = '' }) =>
+  `<cac:${tag}><cac:Party>
+    <cbc:EndpointID schemeID="0248">${endpoint}</cbc:EndpointID>${address ? `\n    ${address}` : ''}
+    <cac:PartyTaxScheme><cbc:CompanyID>${endpoint}</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>
+    <cac:PartyLegalEntity><cbc:RegistrationName>${name}</cbc:RegistrationName></cac:PartyLegalEntity>
+  </cac:Party></cac:${tag}>`
+
+const SUPPLIER_BLOCK = /<cac:AccountingSupplierParty>[\s\S]*?<\/cac:AccountingSupplierParty>/
+const CUSTOMER_BLOCK = /<cac:AccountingCustomerParty>[\s\S]*?<\/cac:AccountingCustomerParty>/
+
+/**
+ * The document XML for `sub-<number>`. On a RECEIVED document the counterparty is the seller
+ * (AccountingSupplierParty) and our company the buyer (AccountingCustomerParty); on an issued one
+ * it is the other way round.
+ */
+function documentXml(sub) {
+  const number = sub.slice(4).toUpperCase()
+  const xml = XML_2038.replace(/INV-2038/g, number)
+  const item = ITEMS.find((entry) => entry.invoice_number.toUpperCase() === number)
+  if (!item || item.direction !== 'RECEIVED') return xml
+  const them = { endpoint: item.counterparty.replace(/^0248:/, ''), name: item.counterparty_name }
+  return xml
+    .replace(SUPPLIER_BLOCK, party('AccountingSupplierParty', them))
+    .replace(CUSTOMER_BLOCK, party('AccountingCustomerParty', OURS))
+}
+
 export default [
   { match: '/api/v1/compliance/documents', reply: ({ query }) => list(query) },
   {
@@ -332,7 +366,7 @@ export default [
       status: 200,
       raw:
         params[1] === 'document'
-          ? XML_2038.replace(/INV-2038/g, params[0].slice(4).toUpperCase())
+          ? documentXml(params[0])
           : `<?xml version="1.0"?>\n<TaxDataDocument id="${params[0].slice(4).toUpperCase()}">\n  <Status>ACCEPTED</Status>\n</TaxDataDocument>\n`,
       headers: { 'Content-Type': 'application/xml' },
     }),

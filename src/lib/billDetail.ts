@@ -1,12 +1,13 @@
-import type { BillDetailDto, BillMatchDto } from '../api/expenditure/bills'
+import type { BillDetailDto, BillMatchDto, ReceiptReportDto } from '../api/expenditure/bills'
 
 /**
  * One supplier bill, opened (Figma 86:16520), written only from what `GET /bills/{id}` carries.
  *
  * The screen answers three questions in order: did it arrive cleanly, does it agree with what
  * was ordered and received, and should it be approved. Where the design shows something the API
- * does not hold (payment terms, an early-payment saving, the approver's name, a receiver-side tax
- * filing), it is left out rather than drawn from nothing (decisions of 2026-09-16).
+ * does not hold (payment terms, an early-payment saving, the approver's name), it is left out
+ * rather than drawn from nothing (decisions of 2026-09-16). Our own receipt report to the Tax
+ * Authority is read from the response when it carries one, and otherwise said to be unknown.
  */
 
 export type Note = { key: string; values?: Record<string, string | number> }
@@ -175,26 +176,56 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
 }
 
 /**
+ * Our own report of a received document to the Tax Authority. Under PINT-OM the receiving side's
+ * service provider reports each document it receives as a Tax Data Document with reporter role
+ * 02 Receiver and the receipt date and time (om-tdd), so a supplier's report never covers it.
+ * Absent, the line says the status is not known; it never claims a filing.
+ *
+ * TODO(backend): EXPENDITURE.md R.1. The receipt report's status and date on the response.
+ */
+export function receiptReportNote(
+  report: ReceiptReportDto | null | undefined,
+  instantDay: (iso: string) => string,
+): Note & { ok: boolean } {
+  if (!report) return { key: 'billDetail.compliance.receipt.unavailable', ok: false }
+  switch (report.status) {
+    case 'ACCEPTED':
+      return report.reportedAt
+        ? {
+            key: 'billDetail.compliance.receipt.accepted',
+            values: { date: instantDay(report.reportedAt) },
+            ok: true,
+          }
+        : { key: 'billDetail.compliance.receipt.acceptedUndated', ok: true }
+    case 'SUBMITTED':
+      return { key: 'billDetail.compliance.receipt.submitted', ok: false }
+    case 'REJECTED':
+      return { key: 'billDetail.compliance.receipt.rejected', ok: false }
+    default:
+      return { key: 'billDetail.compliance.receipt.notSubmitted', ok: false }
+  }
+}
+
+/**
  * The compliance card's four lines (Figma 163:23284: validity, PINT-OM, tax reporting, the
  * archive), each written from a fact the platform holds. A line whose fact is missing says so
- * rather than claiming it; nothing here claims a receiver-side filing, which the platform does
- * not make.
+ * rather than claiming it. For a bill received over Peppol the reporting line is our own receipt
+ * report (om-tdd, reporter role 02), not the supplier's.
  */
-export function complianceOf(detail: BillDetailDto): (Note & { ok: boolean })[] {
+export function complianceOf(
+  detail: BillDetailDto,
+  instantDay: (iso: string) => string = (iso) => iso.slice(0, 10),
+): (Note & { ok: boolean })[] {
   const { compliance, intake, bill } = detail
   const verified = compliance.source === 'PEPPOL' && compliance.networkVerified
   const reporting: Note & { ok: boolean } =
-    compliance.obligation === 'REPORTED_BY_SENDER'
-      ? {
-          key:
-            compliance.source === 'PEPPOL'
-              ? 'billDetail.compliance.reportedBySupplier'
-              : 'billDetail.compliance.reportedBySender',
-          ok: true,
-        }
-      : compliance.obligation === 'PENDING_COMPLIANCE_INPUT'
-        ? { key: 'billDetail.compliance.pendingInput', ok: false }
-        : { key: 'billDetail.compliance.notApplicable', ok: true }
+    compliance.source === 'PEPPOL'
+      ? receiptReportNote(compliance.receiptReport, instantDay)
+      : compliance.obligation === 'REPORTED_BY_SENDER'
+        ? { key: 'billDetail.compliance.reportedBySender', ok: true }
+        : compliance.obligation === 'PENDING_COMPLIANCE_INPUT'
+          ? { key: 'billDetail.compliance.pendingInput', ok: false }
+          : { key: 'billDetail.compliance.notApplicable', ok: true }
   const kept = intake !== null || bill.inboundDeliveryId !== null
   return [
     verified
@@ -335,10 +366,47 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
   }))
 }
 
-/** One VAT rate for the whole bill when every line has the same one; otherwise none is named. */
+type BillLine = BillDetailDto['lines'][number]
+
+/** The line's VAT category (CL-04-OM), standard when the response does not name one. */
+function categoryOf(line: BillLine): string {
+  return (line.taxCategoryCode ?? 'S').toUpperCase()
+}
+
+/**
+ * What a line's VAT cell says: the rate, and for a zero-rated, exempt or out-of-scope line its
+ * category and the reason it carries (VATZR-OM-nn, VATEX-OM-nn, or free text on O). A line with
+ * no category keeps today's rate alone.
+ *
+ * TODO(backend): EXPENDITURE.md R.2. The line's category and exemption reason on the response.
+ */
+export function lineVatOf(line: BillLine): {
+  rate: number | null
+  categoryKey: string | null
+  reason: string | null
+} {
+  const category = categoryOf(line)
+  if (!line.taxCategoryCode || category === 'S') {
+    return { rate: line.vatRate, categoryKey: null, reason: null }
+  }
+  return {
+    rate: line.vatRate ?? 0,
+    categoryKey:
+      category === 'Z' || category === 'E' || category === 'O'
+        ? `invoiceDetails.category.${category}`
+        : null,
+    reason: line.exemptionReasonCode ?? line.exemptionReason ?? null,
+  }
+}
+
+/**
+ * One VAT rate for the whole bill when every line has the same rate and the same category;
+ * otherwise none is named (a zero-rated and an exempt line both at 0% are still two kinds).
+ */
 export function singleVatRate(detail: BillDetailDto): number | null {
   const rates = new Set(
     detail.lines.map((line) => line.vatRate).filter((rate): rate is number => rate !== null),
   )
-  return rates.size === 1 ? [...rates][0] : null
+  const categories = new Set(detail.lines.map(categoryOf))
+  return rates.size === 1 && categories.size <= 1 ? [...rates][0] : null
 }
