@@ -1913,7 +1913,7 @@ function fileKind(file: InvoiceAttachmentDto): string {
 
 /**
  * Where this invoice is on the reminder ladder: which rung today's reminder would be, how many
- * rungs there are, and when the next one goes out (the server sends at 09:00 Muscat time).
+ * rungs there are, and when the next one goes out (the server sends at 08:00 Muscat time).
  */
 function reminderLadder(
   offsets: number[] | null,
