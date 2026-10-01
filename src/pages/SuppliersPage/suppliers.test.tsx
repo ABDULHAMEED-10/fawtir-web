@@ -249,6 +249,14 @@ describe('Suppliers list, wired to the API', () => {
     expect(listCalls().at(-1)).toBe('/api/v1/suppliers?page=0&page_size=10')
   })
 
+  it('offers a new order and a new bill in the row menu of an active supplier', async () => {
+    renderSuppliers()
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    expect(await screen.findByText('New purchase order')).toBeTruthy()
+    expect(screen.getByText('Record a bill')).toBeTruthy()
+  })
+
   it('offers only what the reader may do', async () => {
     who = READ_ONLY
     renderSuppliers()
@@ -313,6 +321,25 @@ describe('Switched-off suppliers', () => {
         expect.objectContaining({ method: 'POST' }),
       ),
     )
+  })
+
+  it('offers no new order and no new bill for one in the row menu', async () => {
+    listResponses = [
+      () =>
+        json(200, {
+          items: [row({ status: 'SWITCHED_OFF' })],
+          page: 0,
+          pageSize: 10,
+          count: 1,
+          total: 1,
+        }),
+    ]
+    renderSuppliers('/suppliers?tab=switchedOff')
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    expect(await screen.findByText('Export their statement')).toBeTruthy()
+    expect(screen.queryByText('New purchase order')).toBeNull()
+    expect(screen.queryByText('Record a bill')).toBeNull()
   })
 
   it('does not offer it to someone who may not manage suppliers', async () => {

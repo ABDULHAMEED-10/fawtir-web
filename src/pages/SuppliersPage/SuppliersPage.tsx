@@ -661,8 +661,12 @@ function SupplierTableRow({
           requires: 'supplier.manage',
         },
   ]
+  // A switched-off supplier takes no new order and no new bill, so neither is offered for one.
   const items: ActionMenuItem[] = menu.flatMap(({ requires, ...item }) =>
-    can(session, requires) ? [item] : [],
+    can(session, requires) &&
+    (supplier.active || (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill'))
+      ? [item]
+      : [],
   )
 
   return (

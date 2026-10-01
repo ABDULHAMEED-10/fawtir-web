@@ -566,6 +566,44 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('button', { name: 'Switch this supplier off' })).toBeNull()
   })
 
+  it('offers a new order and a new bill only to someone who may raise them', async () => {
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    // This manager holds neither purchase-order.manage nor invoice.payment.manage.
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+  })
+
+  it('offers each of the two with its own permission', async () => {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'purchase-order.manage'] }
+    const first = renderSupplier()
+    expect(await screen.findByRole('link', { name: 'New purchase order' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+    first.unmount()
+
+    forgetEntitlements()
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    renderSupplier()
+    expect(await screen.findByRole('link', { name: 'Record a bill' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+  })
+
+  it('offers neither for a switched-off supplier, whoever asks', async () => {
+    who = {
+      ...MANAGER,
+      permissions: [...MANAGER.permissions, 'purchase-order.manage', 'invoice.payment.manage'],
+    }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', switchedOffAt: '2026-09-17T08:00:00Z' },
+    }
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Edit supplier/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+  })
+
   it('pays them: the ticked bills go into the draft run the modal offers (Figma 163:29156)', async () => {
     who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
     renderSupplier()
@@ -603,6 +641,13 @@ describe('Record a bill (Figma 163:27781)', () => {
         </Routes>
       </MemoryRouter>,
     )
+
+  it('draws no save button, greyed or otherwise, for someone who may not record bills', async () => {
+    renderRecord()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Record a bill' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send for approval' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Discard' })).toBeTruthy()
+  })
 
   it('uploads the attached file and confirms the typed bill against the chosen order', async () => {
     who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
