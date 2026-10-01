@@ -510,6 +510,41 @@ describe('A bill, wired to the API', () => {
       'nothing owed',
     ).toBe(false)
     expect(await offered(base, READ_ONLY), 'no payment permission').toBe(false)
+    // Draft and exported runs alike: it is paid there, or taken out of the run first.
+    expect(await offered({ ...base, paymentRunReference: 'RUN-0012' }), 'in a payment run').toBe(
+      false,
+    )
+  })
+
+  it('offers Reject on an approved bill only until a payment is recorded or it joins a run', async () => {
+    const rejectOffered = async (bill: BillDetailDto) => {
+      forgetEntitlements()
+      billResponse = () => json(200, bill)
+      const view = renderBill()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      const shown = screen.queryByRole('button', { name: 'Reject' }) !== null
+      view.unmount()
+      return shown
+    }
+    const base = detail({ readiness: APPROVED })
+
+    // Header order on an approved bill: Download, Reject, Record payment.
+    expect(await rejectOffered(base)).toBe(true)
+    expect(
+      await rejectOffered({
+        ...base,
+        settlement: {
+          ...base.settlement,
+          paidAmount: 1000,
+          outstandingAmount: 1354.31,
+          paymentState: 'PARTIALLY_PAID',
+        },
+      }),
+      'part paid',
+    ).toBe(false)
+    expect(await rejectOffered({ ...base, paymentRunReference: 'RUN-0012' }), 'in a run').toBe(
+      false,
+    )
   })
 
   it('leaves Record payment showing for the rest after a part payment', async () => {
@@ -675,6 +710,26 @@ describe('bill detail mapping', () => {
         all,
       ),
     ).toBe(false)
+    expect(canRecordPayment({ ...approved, paymentRunReference: 'RUN-0012' }, all)).toBe(false)
+    expect(
+      canRecordPayment(
+        { ...approved, bill: { ...approved.bill, workflowState: 'IN_PAYMENT_RUN' } },
+        all,
+      ),
+    ).toBe(false)
+  })
+
+  it('offers no rejection once a payment is recorded or the bill is in a run', () => {
+    const all = () => true
+    const approved = detail({ readiness: APPROVED })
+    expect(decisionsOf(approved, all).reject).toBe(true)
+    expect(
+      decisionsOf(
+        { ...approved, settlement: { ...approved.settlement, paidAmount: 0.001 } },
+        all,
+      ).reject,
+    ).toBe(false)
+    expect(decisionsOf({ ...approved, paymentRunReference: 'RUN-0012' }, all).reject).toBe(false)
   })
 
   it('offers no decision on a credit note or a paid bill', () => {

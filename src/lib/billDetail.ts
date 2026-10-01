@@ -30,6 +30,11 @@ export function isCreditNote(detail: BillDetailDto): boolean {
   return detail.bill.documentTypeCode === '381' || detail.bill.documentTypeCode === '261'
 }
 
+/** In a payment run that is still open: draft and exported runs alike. */
+export function inPaymentRun(detail: BillDetailDto): boolean {
+  return detail.bill.workflowState === 'IN_PAYMENT_RUN' || detail.paymentRunReference !== null
+}
+
 export function stepsOf(detail: BillDetailDto, format: DateFormat): BillStep[] {
   const { bill, readiness, settlement, intake } = detail
   const match = bill.match
@@ -143,16 +148,23 @@ export function decisionsOf(
   const payer = can('invoice.payment.manage') && decidable
   return {
     approve: approver && detail.readiness.state !== 'READY',
-    reject: approver && detail.readiness.state !== 'REJECTED',
+    // Not once any payment is recorded or the bill is in a payment run: a bill part paid, or
+    // about to be paid, is not rejected (owner decision 2026-10-01; the server refuses it too).
+    reject:
+      approver &&
+      detail.readiness.state !== 'REJECTED' &&
+      detail.settlement.paidAmount <= 0 &&
+      !inPaymentRun(detail),
     hold: payer && detail.hold === null,
     release: can('invoice.payment.manage') && detail.hold !== null,
   }
 }
 
 /**
- * Whether a payment can be recorded on this bill now: it is approved, not on hold, still owes
- * money, and the reader may record payments. Anything else and the action is not offered at all
- * (owner decision 2026-10-01: hidden, not disabled). A held bill is released first.
+ * Whether a payment can be recorded on this bill now: it is approved, not on hold, not in a
+ * payment run, still owes money, and the reader may record payments. Anything else and the action
+ * is not offered at all (owner decision 2026-10-01: hidden, not disabled). A held bill is
+ * released first; a bill in a run is paid there, or taken out of the run.
  */
 export function canRecordPayment(
   detail: BillDetailDto,
@@ -163,6 +175,7 @@ export function canRecordPayment(
     !isCreditNote(detail) &&
     detail.readiness.state === 'READY' &&
     detail.hold === null &&
+    !inPaymentRun(detail) &&
     detail.settlement.paymentState !== 'PAID' &&
     detail.settlement.outstandingAmount > 0
   )
