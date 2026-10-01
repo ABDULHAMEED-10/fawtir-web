@@ -40,6 +40,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   RULE_LABEL_KEY,
+  hasNoTiming,
   offsetsProblem,
   ruleChanged,
   type OffsetProblem,
@@ -108,9 +109,10 @@ const blankRule = (type: ConfigurableRuleType): ReminderRuleDto => ({
  * that has not arrived, is set on each recurring bill and is drawn as a link there. How the team
  * is told, what today's sweep would send, and one Save for the lot.
  *
- * Three constraints are the server's and are checked here so a save is not spent learning them:
- * a repeat belongs to the late rule alone, an escalation to the stale-approval rule alone, and a
- * rule whose recipients are not derived cannot be switched on with nobody to tell.
+ * Four constraints are the server's and are checked here so a save is not spent learning them:
+ * a repeat belongs to the late rule alone, an escalation to the stale-approval rule alone, a rule
+ * cannot be switched on with no timing chosen, and a rule whose recipients are not derived cannot
+ * be switched on with nobody to tell.
  */
 export function ExpenditureRemindersPage() {
   return (
@@ -225,11 +227,14 @@ function Editor({
     (type) => draft.find((rule) => rule.type === type) ?? blankRule(type),
   )
 
-  const problems = new Map<ConfigurableRuleType, OffsetProblem | 'recipients'>()
+  // In the order the server checks them, so the line under the rule is the one it would refuse on.
+  const problems = new Map<ConfigurableRuleType, RuleProblem>()
   for (const rule of editable) {
     const type = rule.type as ConfigurableRuleType
     const offsets = offsetsProblem(rule.offsets)
     if (offsets) problems.set(type, offsets)
+    // Asked only of someone who can choose one: a reader is shown the rule as it is on file.
+    else if (canManage && hasNoTiming(rule)) problems.set(type, 'noTiming')
     else if (rule.enabled && RECIPIENTS_REQUIRED_TO_ENABLE[type] && rule.recipients.length === 0)
       problems.set(type, 'recipients')
   }
@@ -441,6 +446,9 @@ function Editor({
   )
 }
 
+/** What stops a rule being saved, said in a line under it. */
+type RuleProblem = OffsetProblem | 'noTiming' | 'recipients'
+
 function SectionCard({
   step,
   title,
@@ -505,7 +513,7 @@ function RuleCard({
   rule: ReminderRuleDto | null
   roster: ReminderRecipientDto[] | null
   canManage: boolean
-  problem: OffsetProblem | 'recipients' | null
+  problem: RuleProblem | null
   onChange: (change: Partial<ReminderRuleDto>) => void
 }) {
   const { t } = useTranslation()

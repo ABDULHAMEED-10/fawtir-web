@@ -7002,7 +7002,8 @@
       "outOfRange": "Each day must be between 0 and {{maxDays}}",
       "repeated": "The same day twice",
       "notWhole": "Whole days only",
-      "recipients": "Switching this on needs at least one person to tell"
+      "recipients": "Switching this on needs at least one person to tell",
+      "noTiming": "Choose when to remind, or switch this off."
     },
     "inbox": {
       "title": "Your reminders",

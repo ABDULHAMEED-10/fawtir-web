@@ -59,6 +59,7 @@ function json(status: number, body?: unknown) {
 }
 
 let fetchMock: ReturnType<typeof vi.fn>
+let entitlements: Entitlements
 let onFile: MockReminderRule[]
 let settingsOnFile: MockReminderSettings
 let refusals: 'coded' | 'legacy'
@@ -87,6 +88,7 @@ function seed(rule: Partial<MockReminderRule> & { type: string }) {
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
+  entitlements = MANAGER
   onFile = defaultRules()
   settingsOnFile = defaultSettings()
   refusals = 'coded'
@@ -100,7 +102,7 @@ beforeEach(async () => {
     const url = String(
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     )
-    if (url.includes('/me/entitlements')) return json(200, MANAGER)
+    if (url.includes('/me/entitlements')) return json(200, entitlements)
     if (url.includes('/bill-reminders/rules')) {
       // `revision` stands for any field the answer may gain that the request record lacks.
       if (init?.method !== 'PUT')
@@ -338,9 +340,19 @@ describe('saving', () => {
   })
 })
 
-describe('a save the server refuses', () => {
-  /** Switched on with every day cleared: the one refusal the screen itself can reach. */
-  async function saveAnEmptyRule() {
+/** `REMINDER_RULE_EMPTY` as the server answers it, in the shape it sends now or the one before. */
+function emptyRuleRefusal(shape: 'coded' | 'legacy') {
+  const answer = saveRules(
+    defaultRules(),
+    { rules: [{ type: 'BEFORE_DUE', offsets: [], recipients: [HAFIDH], enabled: true }] },
+    { refusals: shape },
+  )
+  return { status: answer.status, body: answer.body }
+}
+
+describe('a rule switched on with no timing chosen', () => {
+  /** The rule on file and on; both of its lit days are then switched off. */
+  async function clearEveryDay() {
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
     await screen.findByText('Before a bill is due')
@@ -352,8 +364,152 @@ describe('a save the server refuses', () => {
       ),
     )
     fireEvent.click(within(before).getByRole('button', { name: '2 days before' }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    expect(within(before).queryByRole('alert')).toBeNull()
     fireEvent.click(within(before).getByRole('button', { name: '7 days before' }))
     await waitFor(() => expect(pressed(before, '7 days before')).toBe('false'))
+    return before
+  }
+
+  it('blocks Save with a line under the rule, and never asks the server', async () => {
+    const before = await clearEveryDay()
+
+    expect(await within(before).findByRole('alert')).toHaveProperty(
+      'textContent',
+      'Choose when to remind, or switch this off.',
+    )
+    // Only under the rule it is about.
+    expect(screen.getAllByText('Choose when to remind, or switch this off.')).toHaveLength(1)
+    expect(saveButton()).toHaveProperty('disabled', true)
+    fireEvent.click(saveButton())
+    expect(rulesBodies).toHaveLength(0)
+    expect(settingsBodies).toHaveLength(0)
+  })
+
+  it('lets the save go once a timing is chosen', async () => {
+    const before = await clearEveryDay()
+    await within(before).findByRole('alert')
+
+    fireEvent.click(within(before).getByRole('button', { name: 'On the day' }))
+    await waitFor(() => expect(within(before).queryByRole('alert')).toBeNull())
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    await waitFor(() =>
+      expect(onFile.find((rule) => rule.type === 'BEFORE_DUE')!.offsets).toEqual([0]),
+    )
+  })
+
+  it('lets the save go once the rule is switched off, with no day on it', async () => {
+    const before = await clearEveryDay()
+    await within(before).findByRole('alert')
+
+    fireEvent.click(within(before).getByRole('switch'))
+    await waitFor(() => expect(within(before).queryByRole('alert')).toBeNull())
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    await waitFor(() => {
+      const saved = onFile.find((rule) => rule.type === 'BEFORE_DUE')!
+      expect(saved.enabled).toBe(false)
+      expect(saved.offsets).toEqual([])
+    })
+  })
+
+  it('counts a repeat or an escalation as a timing, as the server does', async () => {
+    // The late rule with its one day off still has "then every 3 days"; the approval rule with
+    // its day off still has the owner's. The server takes both, so neither is blocked here.
+    seed({ type: 'LATE', offsets: [1], repeatEveryDays: 3, recipients: [HAFIDH], enabled: true })
+    seed({ type: 'APPROVAL_STALE', offsets: [2], escalationOffsets: [5], enabled: true })
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    const late = card('Once a bill is late')
+    const approval = card('An approval nobody has answered')
+    await waitFor(() =>
+      expect(within(late).getByRole('button', { name: 'The day after' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+
+    fireEvent.click(within(late).getByRole('button', { name: 'The day after' }))
+    fireEvent.click(within(approval).getByRole('button', { name: '2 days' }))
+    await waitFor(() => expect(pressed(approval, '2 days')).toBe('false'))
+    expect(within(late).queryByRole('alert')).toBeNull()
+    expect(within(approval).queryByRole('alert')).toBeNull()
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+
+    // With the repeat off as well, the late rule has nothing left saying when.
+    fireEvent.click(within(late).getByRole('button', { name: 'Then every 3 days' }))
+    expect(await within(late).findByRole('alert')).toHaveProperty(
+      'textContent',
+      'Choose when to remind, or switch this off.',
+    )
+    expect(saveButton()).toHaveProperty('disabled', true)
+  })
+
+  it('does not ask a rule that is off for a timing', async () => {
+    seed({ type: 'BEFORE_DUE', offsets: [], recipients: [HAFIDH], enabled: false })
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(within(card('Before a bill is due')).queryByRole('alert')).toBeNull()
+    expect(screen.queryByText('Choose when to remind, or switch this off.')).toBeNull()
+  })
+
+  it('shows a reader a rule on file with no timing as it is, with no line', async () => {
+    // Nothing to choose and nothing to save for someone who may only read.
+    entitlements = { ...MANAGER, permissions: ['invoice.read'] }
+    onFile = onFile.map((rule) =>
+      rule.type === 'BEFORE_DUE' ? { ...rule, offsets: [], enabled: true } : rule,
+    )
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(screen.queryByText('Choose when to remind, or switch this off.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    seed({ type: 'BEFORE_DUE', offsets: [2], recipients: [HAFIDH], enabled: true })
+    renderPage()
+    const before = (await screen.findByText('قبل استحقاق الفاتورة')).closest('article')!
+    await waitFor(() =>
+      expect(within(before).getByRole('button', { name: 'قبل يومين' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+    fireEvent.click(within(before).getByRole('button', { name: 'قبل يومين' }))
+    expect(await within(before).findByRole('alert')).toHaveProperty(
+      'textContent',
+      'اختر موعد التذكير، أو أوقف هذا التذكير.',
+    )
+    expect(screen.getByRole('button', { name: 'حفظ التغييرات' })).toHaveProperty('disabled', true)
+  })
+})
+
+describe('a save the server refuses', () => {
+  /**
+   * The page now stops a rule with no timing itself, so the server's refusal of one can only come
+   * from outside the page (an older tab, another person's change). It is answered here to a save
+   * the page does allow: one day of two switched off.
+   */
+  async function saveAnEmptyRule(shape: 'coded' | 'legacy') {
+    seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
+    forced = emptyRuleRefusal(shape)
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    const before = card('Before a bill is due')
+    await waitFor(() =>
+      expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+    fireEvent.click(within(before).getByRole('button', { name: '2 days before' }))
+    await waitFor(() => expect(pressed(before, '2 days before')).toBe('false'))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
     await waitFor(() => expect(rulesBodies).toHaveLength(1))
@@ -371,8 +527,7 @@ describe('a save the server refuses', () => {
   }
 
   it('in the shape the controller sent before it kept the code: a plain validation failure', async () => {
-    refusals = 'legacy'
-    const before = await saveAnEmptyRule()
+    const before = await saveAnEmptyRule('legacy')
 
     expect(
       await screen.findByText('Some details were not accepted. Check the form and try again.'),
@@ -384,8 +539,7 @@ describe('a save the server refuses', () => {
   })
 
   it('in the shape it sends now: the Expenditure refusal with its code', async () => {
-    refusals = 'coded'
-    const before = await saveAnEmptyRule()
+    const before = await saveAnEmptyRule('coded')
 
     // REMINDER_RULE_EMPTY has no sentence of its own yet, so it reads as a refusal, not as a
     // fault to retry, and never as the raw code or the server's English detail.
@@ -427,6 +581,7 @@ describe('a save the server refuses', () => {
   it('does not go on to save the settings when the rules were refused', async () => {
     // Two calls, rules first. A refusal stops the second, so the page never reports a half.
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
+    forced = emptyRuleRefusal('coded')
     renderPage()
     await screen.findByText('Before a bill is due')
     const before = card('Before a bill is due')
@@ -437,8 +592,7 @@ describe('a save the server refuses', () => {
       ),
     )
     fireEvent.click(within(before).getByRole('button', { name: '2 days before' }))
-    fireEvent.click(within(before).getByRole('button', { name: '7 days before' }))
-    await waitFor(() => expect(pressed(before, '7 days before')).toBe('false'))
+    await waitFor(() => expect(pressed(before, '2 days before')).toBe('false'))
     fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
@@ -555,6 +709,7 @@ describe('the reminders screen in Arabic', () => {
     expect(screen.queryByText(new RegExp(GONE))).toBeNull()
 
     // A refused save: the Arabic sentence, never the server's English detail.
+    forced = emptyRuleRefusal('coded')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: 'قبل يومين' })).toHaveProperty(
         'disabled',
@@ -562,8 +717,7 @@ describe('the reminders screen in Arabic', () => {
       ),
     )
     fireEvent.click(within(before).getByRole('button', { name: 'قبل يومين' }))
-    fireEvent.click(within(before).getByRole('button', { name: 'قبل ٧ أيام' }))
-    await waitFor(() => expect(pressed(before, 'قبل ٧ أيام')).toBe('false'))
+    await waitFor(() => expect(pressed(before, 'قبل يومين')).toBe('false'))
     const save = screen.getByRole('button', { name: 'حفظ التغييرات' })
     await waitFor(() => expect(save).toHaveProperty('disabled', false))
     fireEvent.click(save)
