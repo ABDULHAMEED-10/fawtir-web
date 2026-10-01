@@ -3225,7 +3225,10 @@
     "attachments": {
       "drop": "Drop files or click to upload",
       "hint": "Purchase orders, delivery notes, contracts · PDF, JPG, XLSX",
-      "unavailable": "Attachments cannot be added to a draft yet."
+      "uploadFailed": "{{name}} was not uploaded: {{reason}}",
+      "tooLarge": "{{name}} is over 10 MB and was not added.",
+      "wrongType": "{{name}} is not a supported file type.",
+      "remove": "Remove {{name}}"
     },
     "actions": {
       "preview": "Preview",
@@ -15925,7 +15928,11 @@
       "notFound": "That agreement is not on this account.",
       "rangeInvalid": "The end date is before the start date.",
       "referenceRequired": "The agreement needs a reference.",
-      "referenceTooLong": "That reference is too long."
+      "referenceTooLong": "That reference is too long.",
+      "counterpartyInactive": "This supplier is not active in your records. Reactivate it, then issue.",
+      "counterpartyLegalName": "This supplier has no legal registered name on its record. Add it, then issue.",
+      "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
+      "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue."
     }
   },
   "appAccess": {
@@ -17775,9 +17782,12 @@
       "download": "Download file",
       "delete": "Delete file",
       "none": "No files are kept with this document.",
-      "removeUnavailable": "Files cannot be removed from here yet.",
+      "removeUnavailable": "You do not have permission to remove files from this document.",
       "issued": "Files can only be added or removed while the document is a draft.",
-      "uploadUnavailable": "Uploading from here is not available yet: there is no attachment route."
+      "uploadUnavailable": "You do not have permission to add files to this document.",
+      "uploading": "Uploading…",
+      "tooLarge": "{{name}} is over 10 MB and was not added.",
+      "wrongType": "{{name}} is not a supported file type."
     }
   },
   "supplierNotes": {

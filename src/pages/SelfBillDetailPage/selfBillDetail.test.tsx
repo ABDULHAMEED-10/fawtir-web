@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -194,6 +194,16 @@ beforeEach(async () => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url === `${URL_BASE}/receivable`) return json(200, RECEIVABLE)
     if (url === `${URL_BASE}/payments`) return json(200, [])
+    if (url === `${URL_BASE}/attachments` && method === 'POST')
+      return json(201, {
+        id: 'f-2',
+        filename: 'delivery-note.pdf',
+        contentType: 'application/pdf',
+        byteSize: 1200,
+        sha256: 'z',
+        attachedAt: '2026-09-25T08:00:00Z',
+      })
+    if (url === `${URL_BASE}/attachments/f-1` && method === 'DELETE') return json(204)
     if (url === `${URL_BASE}/attachments`)
       return json(200, [
         {
@@ -338,6 +348,31 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.queryByText(/to confirm$/)).toBeNull()
     // A draft has no payments to read.
     expect(calls()).not.toContain(`GET ${URL_BASE}/payments`)
+  })
+
+  it('adds and removes files on a draft through the attachment routes', async () => {
+    who = { ...BUYER, permissions: [...BUYER.permissions, 'invoice.attachment.manage'] }
+    invoiceResponse = () =>
+      json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null, totals: null }))
+    renderPage()
+    expect(await screen.findByText('Readable copy.pdf')).toBeTruthy()
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['%PDF'], 'delivery-note.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+    await waitFor(() => expect(calls()).toContain(`POST ${URL_BASE}/attachments`))
+
+    // The list is read again after the upload; the bin is live on a draft.
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete file' }))
+    await waitFor(() => expect(calls()).toContain(`DELETE ${URL_BASE}/attachments/f-1`))
+  })
+
+  it('offers neither on an issued document, which the API would refuse', async () => {
+    who = { ...BUYER, permissions: [...BUYER.permissions, 'invoice.attachment.manage'] }
+    renderPage()
+    expect(await screen.findByText('Readable copy.pdf')).toBeTruthy()
+    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete file' })).toHaveProperty('disabled', true)
   })
 })
 

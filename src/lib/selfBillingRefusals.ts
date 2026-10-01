@@ -36,7 +36,23 @@ const REFUSALS: Record<string, string> = {
   SELF_BILLING_AGREEMENT_RANGE_INVALID: 'apiErrors.selfBilling.rangeInvalid',
   SELF_BILLING_AGREEMENT_REFERENCE_REQUIRED: 'apiErrors.selfBilling.referenceRequired',
   SELF_BILLING_AGREEMENT_REFERENCE_TOO_LONG: 'apiErrors.selfBilling.referenceTooLong',
+
+  // Issuing: the seller is the counterparty, so its record must hold what the document needs
+  // (`CustomerSelfBillingSellerAdapter`). A 400 from the invoice handler, checked after the
+  // agreement gates pass.
+  COUNTERPARTY_NOT_SELECTABLE: 'apiErrors.selfBilling.counterpartyInactive',
+  COUNTERPARTY_LEGAL_NAME_MISSING: 'apiErrors.selfBilling.counterpartyLegalName',
+  COUNTERPARTY_VATIN_MISSING: 'apiErrors.selfBilling.counterpartyVat',
+  COUNTERPARTY_ADDRESS_MISSING: 'apiErrors.selfBilling.counterpartyAddress',
 }
+
+/** The issuance refusals about the counterparty's record: named, and never a `SELF_BILLING_` code. */
+const COUNTERPARTY_CODES = new Set([
+  'COUNTERPARTY_NOT_SELECTABLE',
+  'COUNTERPARTY_LEGAL_NAME_MISSING',
+  'COUNTERPARTY_VATIN_MISSING',
+  'COUNTERPARTY_ADDRESS_MISSING',
+])
 
 /**
  * A named self-billing refusal.
@@ -46,7 +62,11 @@ const REFUSALS: Record<string, string> = {
  * exception rather than on a list of controllers.
  */
 export function isSelfBillingRefusal(error: unknown): error is ApiError {
-  return error instanceof ApiError && error.code !== null && error.code.startsWith('SELF_BILLING_')
+  return (
+    error instanceof ApiError &&
+    error.code !== null &&
+    (error.code.startsWith('SELF_BILLING_') || COUNTERPARTY_CODES.has(error.code))
+  )
 }
 
 export function selfBillingMessageKey(error: unknown): string | null {

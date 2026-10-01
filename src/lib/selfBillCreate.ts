@@ -124,8 +124,9 @@ export type SelfBillForm = {
   exemptionReason: string
   subject: string
   poReference: string
-  /** TODO(backend): no draft field for the payment section or the two switches. */
+  /** UNCL4461 code, sent as `details.paymentMethod` (IBT-081) with the label the reader saw. */
   paymentMethod: string
+  /** TODO(backend): no draft field for the payment reference or the two switches. */
   paymentReference: string
   recordPayment: boolean
   deliverByEmail: boolean
@@ -254,13 +255,15 @@ const number = (value: string) => Number((value || '0').replace(/,/g, ''))
 
 /**
  * The form as `InvoiceDraftRequest`. Unknown members are refused by the server, so the payment
- * section, the switches, the line kind and the HS code / service type stay on the page.
+ * reference and the two switches stay on the page; the payment method goes as the invoice
+ * composer sends it.
  */
 export function toSelfBilledDraftRequest(
   form: SelfBillForm,
   exclVat: boolean,
   reference: ReferenceDataDto | null,
   termLabel: (code: string) => string = (code) => code,
+  methodLabel: (code: string) => string = (code) => code,
 ): DraftRequest {
   const terms: ReferenceDto | null = form.paymentTerms
     ? { code: form.paymentTerms, label: termLabel(form.paymentTerms) }
@@ -274,10 +277,9 @@ export function toSelfBilledDraftRequest(
       const tax = taxCategoryOf(reference, lineTaxCode(line, form.taxCategory))
       const reason = lineReason(line, form)
       return {
+        // Free text: the composer rules name no catalogue product, so both product members are
+        // left out, as the invoice composer leaves them out of a free-text line.
         lineNumber: index + 1,
-        // Free text: the composer rules name no catalogue product.
-        productId: '',
-        productCode: '',
         description: line.description.trim(),
         unitCode: line.unit,
         quantity: number(line.quantity),
@@ -322,6 +324,10 @@ export function toSelfBilledDraftRequest(
       customerVisibleNote: text(form.noteSupplier),
       ...(form.noteInternal === null ? {} : { internalNote: form.noteInternal }),
       paymentTerms: terms,
+      // A snapshot of what the reader saw, stored beside the code like the terms.
+      paymentMethod: form.paymentMethod
+        ? { code: form.paymentMethod, label: methodLabel(form.paymentMethod) }
+        : null,
       transactionType: 'FULL_TAX',
       // IBT-010 and IBT-012, which only a self-billed document may carry: the design's self-bill
       // number is the tenant's own reference as buyer, and the locked agreement field is the
@@ -368,6 +374,7 @@ export function fromSelfBilledDraft(draft: DraftResponse, today: string): SelfBi
     number: draft.details.buyerReference ?? '',
     supplyDate: draft.details.deliveryDate ?? blank.supplyDate,
     paymentTerms: draft.details.paymentTerms?.code ?? blank.paymentTerms,
+    paymentMethod: draft.details.paymentMethod?.code ?? blank.paymentMethod,
     currency: draft.currency,
     taxCategory: draft.lines[0]?.taxCategoryCode ?? blank.taxCategory,
     exemptionReasonCode: draft.lines[0]?.exemptionReasonCode ?? '',

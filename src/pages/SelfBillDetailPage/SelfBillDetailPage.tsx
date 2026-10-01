@@ -12,6 +12,8 @@ import {
   loadInvoice,
   loadPayments,
   loadReceivable,
+  removeAttachment,
+  uploadAttachment,
   type InvoiceAttachmentDto,
   type InvoiceDetailDto,
   type InvoiceHistoryDto,
@@ -25,7 +27,7 @@ import {
   loadAgreements,
   type AgreementDto,
 } from '../../api/selfBilling/agreements'
-import { attachmentRows, isDraft } from '../../lib/invoiceDetail'
+import { attachmentRows, attachmentsEditable, isDraft } from '../../lib/invoiceDetail'
 import {
   agreementNote,
   selfBillItems,
@@ -41,7 +43,7 @@ import { formatAmount, formatDate, formatInstant } from '../../lib/format'
 import { fileSize } from '../../lib/supplierRecord'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
-import { OmAmount, RowsView } from '../../components/ui'
+import { FileDropzone, OmAmount, RowsView } from '../../components/ui'
 import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
 import peppolTrackIcon from '../../assets/self-bill-detail/track-peppol.svg'
 import otaTrackIcon from '../../assets/self-bill-detail/track-ota.svg'
@@ -58,6 +60,12 @@ import fileDownloadIcon from '../../assets/self-bill-detail/file-download.svg'
 import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
+
+/** What the attachment route takes: the invoice composer's list and limit. */
+const ATTACHMENT_TYPES = '.pdf,.jpg,.jpeg,.png,.xlsx'
+const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+const DROP_ZONE =
+  'flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 transition-colors hover:bg-primary-25'
 
 const TRACK_ICONS: Record<SelfBillTrack['id'], string> = {
   peppol: peppolTrackIcon,
@@ -255,6 +263,8 @@ function SelfBillScreen() {
 
   const [notice, setNotice] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   if (invoice.read.status !== 'ready') {
     return (
@@ -328,6 +338,37 @@ function SelfBillScreen() {
     return message.reference
       ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
       : body
+  }
+
+  // The draft attachment routes the invoice pages use; the API takes and removes files on a draft only.
+  const canManageAttachments = attachmentsEditable(data, (permission) => can(session, permission))
+
+  const uploadFiles = async (picked: File[]) => {
+    setNotice(null)
+    setUploading(true)
+    try {
+      for (const file of picked) {
+        await uploadAttachment(id, file)
+      }
+    } catch (error) {
+      setNotice(failureText(error))
+    } finally {
+      attachments.retry()
+      setUploading(false)
+    }
+  }
+
+  const removeFile = async (file: InvoiceAttachmentDto) => {
+    setNotice(null)
+    setRemovingId(file.id)
+    try {
+      await removeAttachment(id, file.id)
+      attachments.retry()
+    } catch (error) {
+      setNotice(failureText(error))
+    } finally {
+      setRemovingId(null)
+    }
   }
 
   const download = async (file: InvoiceAttachmentDto) => {
@@ -784,17 +825,24 @@ function SelfBillScreen() {
               >
                 <img src={fileDownloadIcon} alt="" className="size-4" />
               </button>
-              {/* TODO(backend): no attachment removal route; the design's bin waits for it. */}
               <button
                 type="button"
-                disabled
-                title={t(
-                  draft
-                    ? 'selfBillDetail.attachments.removeUnavailable'
-                    : 'selfBillDetail.attachments.issued',
-                )}
+                disabled={!canManageAttachments || removingId === file.id}
+                onClick={canManageAttachments ? () => void removeFile(file) : undefined}
+                title={
+                  canManageAttachments
+                    ? t('selfBillDetail.attachments.delete')
+                    : t(
+                        draft
+                          ? 'selfBillDetail.attachments.removeUnavailable'
+                          : 'selfBillDetail.attachments.issued',
+                      )
+                }
                 aria-label={t('selfBillDetail.attachments.delete')}
-                className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle opacity-60"
+                className={[
+                  'flex size-8 shrink-0 items-center justify-center rounded-sm border border-border-subtle',
+                  canManageAttachments ? 'transition-colors hover:bg-neutral-25' : 'opacity-60',
+                ].join(' ')}
               >
                 <img src={fileDeleteIcon} alt="" className="size-4" />
               </button>
@@ -805,28 +853,61 @@ function SelfBillScreen() {
               {t('selfBillDetail.attachments.none')}
             </p>
           ) : null}
-          {/* TODO(backend): no upload route; the design's drop zone is drawn and says so when used. */}
-          <button
-            type="button"
-            onClick={() =>
-              setNotice(
-                t(
-                  draft
-                    ? 'selfBillDetail.attachments.uploadUnavailable'
-                    : 'selfBillDetail.attachments.issued',
-                ),
-              )
-            }
-            className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-sm border border-dashed border-border-default bg-surface-tab-bar px-4 py-3.5 transition-colors hover:bg-primary-25"
-          >
-            <img src={uploadIcon} alt="" className="size-5" />
-            <span className="text-sm font-medium text-text-secondary">
-              {t('selfBillDetail.attachments.drop')}
-            </span>
-            <span className="text-xs font-medium text-text-muted">
-              {t('selfBillDetail.attachments.hint')}
-            </span>
-          </button>
+          {canManageAttachments ? (
+            <FileDropzone
+              accept={ATTACHMENT_TYPES}
+              multiple
+              maxBytes={ATTACHMENT_MAX_BYTES}
+              onFiles={(picked) => void uploadFiles(picked)}
+              onReject={(reason, file) =>
+                setNotice(
+                  t(
+                    reason === 'size'
+                      ? 'selfBillDetail.attachments.tooLarge'
+                      : 'selfBillDetail.attachments.wrongType',
+                    { name: file.name },
+                  ),
+                )
+              }
+              className={DROP_ZONE}
+            >
+              {() => (
+                <>
+                  <img src={uploadIcon} alt="" className="size-5" />
+                  <span className="text-sm font-medium text-text-secondary">
+                    {uploading
+                      ? t('selfBillDetail.attachments.uploading')
+                      : t('selfBillDetail.attachments.drop')}
+                  </span>
+                  <span className="text-xs font-medium text-text-muted">
+                    {t('selfBillDetail.attachments.hint')}
+                  </span>
+                </>
+              )}
+            </FileDropzone>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                setNotice(
+                  t(
+                    draft
+                      ? 'selfBillDetail.attachments.uploadUnavailable'
+                      : 'selfBillDetail.attachments.issued',
+                  ),
+                )
+              }
+              className={DROP_ZONE}
+            >
+              <img src={uploadIcon} alt="" className="size-5" />
+              <span className="text-sm font-medium text-text-secondary">
+                {t('selfBillDetail.attachments.drop')}
+              </span>
+              <span className="text-xs font-medium text-text-muted">
+                {t('selfBillDetail.attachments.hint')}
+              </span>
+            </button>
+          )}
         </div>
       </SectionCard>
 

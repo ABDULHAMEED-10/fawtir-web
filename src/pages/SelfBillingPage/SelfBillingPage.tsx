@@ -55,6 +55,7 @@ import {
 } from '../../lib/selfBillingAgreements'
 import { calculateInvoice, projectInvoice } from '../../lib/invoiceMath'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { muscatToday } from '../../lib/invoiceIssue'
 import { formatAmount, formatCount, formatDate, minorUnitsOf } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import raisedIcon from '../../assets/self-billing/kpi-raised.svg'
@@ -94,8 +95,8 @@ const KINDS: { id: KindId; types: InvoiceTypeDto[] }[] = [
 
 /**
  * The design's tabs (Figma 154:157643), in its order, over what the list can answer. "To send" is
- * issued documents not yet delivered; TODO(backend): no delivery-state filter exists, so it asks
- * for every issued document. "Awaiting confirmation" is what is issued and not yet settled, the
+ * issued documents not yet delivered by any means: the list's `delivery=TO_SEND`, the same filter
+ * the invoices list uses. "Awaiting confirmation" is what is issued and not yet settled, the
  * nearest state the platform has. "Disputed" and "Confirmed" have no state at all (nothing records
  * a supplier's confirmation), so they ask for nothing and say so.
  */
@@ -241,7 +242,8 @@ function SelfBilled() {
   const session = useSession()
   const mayRead = can(session, 'invoice.read')
   const [params, setParams] = useSearchParams()
-  const today = new Date().toISOString().slice(0, 10)
+  // The Oman calendar day, as the composer and the agreements screen count it.
+  const today = muscatToday()
 
   const kind = KINDS.find((entry) => entry.id === params.get('kind')) ?? KINDS[0]
   const tab: TabId = isTab(params.get('tab')) ? (params.get('tab') as TabId) : 'all'
@@ -282,7 +284,7 @@ function SelfBilled() {
   const unreported = UNREPORTED_TABS.includes(tab)
   const filter: InvoiceListFilter = {
     ...(tab === 'toSend'
-      ? { state: 'ISSUED', payment: null }
+      ? { state: 'ISSUED', delivery: 'TO_SEND' as const, payment: null }
       : isInvoiceTab(tab)
         ? tabFilter(tab)
         : tabFilter('all')),
