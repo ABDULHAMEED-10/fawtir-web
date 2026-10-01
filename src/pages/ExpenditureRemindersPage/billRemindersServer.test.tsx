@@ -241,7 +241,7 @@ describe('a company that has saved nothing', () => {
     renderPage()
     await screen.findByText('Before a bill is due')
 
-    // Six rules, all off; the recurring row is the bills' own and reads on.
+    // Six rules, all off. The recurring row is not a rule: no switch, and not counted.
     for (const title of [
       'Before a bill is due',
       'Once a bill is late',
@@ -254,7 +254,8 @@ describe('a company that has saved nothing', () => {
         'false',
       )
     }
-    expect(screen.getByText('1 rule on')).toBeTruthy()
+    expect(within(card("A recurring bill that hasn't arrived")).queryByRole('switch')).toBeNull()
+    expect(screen.getByText('0 rules on')).toBeTruthy()
     expect(screen.getByText(/one daily email at 08:00, weekends skipped/)).toBeTruthy()
 
     // The server answers a ladder ascending (0, 2, 7); the chips light by day, not by position.
@@ -545,7 +546,9 @@ describe('the reminders screen in Arabic', () => {
     expect(pressed(before, 'قبل ٧ أيام')).toBe('true')
     expect(pressed(before, 'قبل يومين')).toBe('true')
     expect(pressed(before, 'في اليوم نفسه')).toBe('false')
-    expect(screen.getByText('قاعدتان مفعّلتان')).toBeTruthy()
+    // One rule is on. The recurring row has no switch and is not counted.
+    expect(within(card('فاتورة متكررة لم تصل')).queryByRole('switch')).toBeNull()
+    expect(screen.getByText('قاعدة واحدة مفعّلة')).toBeTruthy()
 
     // The unnamed person, in Arabic.
     expect(await screen.findByText('بريد واحد · 08:00 · إلى أحد أعضاء الفريق')).toBeTruthy()

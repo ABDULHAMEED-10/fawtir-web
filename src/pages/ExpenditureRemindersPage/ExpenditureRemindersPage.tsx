@@ -533,13 +533,16 @@ function RuleCard({
             {t(`${label}.note`)}
           </p>
         </div>
-        {/* The recurring row's switch is the bills' own: it cannot be turned off here. */}
-        <Switch
-          checked={on}
-          onChange={(enabled) => rule && onChange({ enabled })}
-          label={t(`${label}.title`)}
-          disabled={!canManage}
-        />
+        {/* The recurring row has no rule behind it and nothing to switch: its timing is set on
+            each recurring bill, so no switch is drawn there. */}
+        {rule ? (
+          <Switch
+            checked={on}
+            onChange={(enabled) => onChange({ enabled })}
+            label={t(`${label}.title`)}
+            disabled={!canManage}
+          />
+        ) : null}
       </div>
 
       {/* The settings dim rather than disappear, so the shape of the rule stays readable. */}

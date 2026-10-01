@@ -103,7 +103,7 @@ backend asks" documents.
 | 4.4 | Preview badge "ONE EMAIL · 08:00 · TO YUSUF AND HAFIDH", one line per thing naming everyone it goes to | none: derived from the settings and the preview's per-person groups |
 | 4.5 | Avatars on the recipient chips | a photo per user; one placeholder image is used |
 | 4.6 | Timing chips (7 / 2 / on the day; 1, 2, 3 days; 5 / 7 days) | none: each chip is one offset; a saved offset the frame does not draw is shown as an extra chip so it is never lost on save |
-| 4.7 | The recurring rule drawn on, "Set per bill on Recurring bills" | none: the switch is fixed on; the server refuses a rule row for it |
+| 4.7 | The recurring rule drawn on, "Set per bill on Recurring bills" | none: the server refuses a rule row for it. **Since 1 Oct 2026** (pending the owner, decision D10) the row has no switch, because it cannot be switched here, and the footer's "N rules on" no longer counts it |
 | 4.8 | One "Save changes" for rules and delivery | none: `PUT /rules` with the changed rules and `PUT /settings` when delivery changed |
 
 ## 5. Supplier credit and debit notes (`GET /v1/credit-notes`, `/v1/debit-notes`, their `/summary`, one note, `/v1/bills/intake`)

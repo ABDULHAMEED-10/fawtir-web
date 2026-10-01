@@ -206,7 +206,9 @@ describe('payables reminder rules', () => {
     expect(toggleOffset([7], 2, true)).toEqual([7, 2])
     expect(toggleOffset([3], 1, false)).toEqual([1])
     expect(toggleOffset([3], 3, false)).toEqual([])
-    expect(rulesOn([rule('LATE', { enabled: true }), rule('BEFORE_DUE')])).toBe(2)
+    // Only what can be switched, and is: the recurring row is not a rule and is not counted.
+    expect(rulesOn([rule('LATE', { enabled: true }), rule('BEFORE_DUE')])).toBe(1)
+    expect(rulesOn([rule('LATE'), rule('BEFORE_DUE')])).toBe(0)
     const lines = flattenPreview({
       date: '2026-09-25',
       total: 2,
@@ -264,14 +266,17 @@ describe('the reminders screen', () => {
     expect(
       within(recurring).getByRole('link', { name: 'Recurring bills' }).getAttribute('href'),
     ).toBe('/expenditure/recurring-bills')
-    // Its switch is the bills' own: drawn on, and clicking it changes nothing here.
-    fireEvent.click(within(recurring).getByRole('switch'))
-    expect(within(recurring).getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    // It cannot be switched here, so it has no switch; the six rules keep theirs.
+    expect(within(recurring).queryByRole('switch')).toBeNull()
+    expect(screen.getAllByRole('switch').filter((node) => node.closest('article'))).toHaveLength(6)
+    // Not dimmed like a rule that is off: its link and who it tells stay readable.
+    expect(within(recurring).getByText('The person named on each')).toBeTruthy()
     // The three sections of the frame, and its footer.
     expect(screen.getByText('Money leaving')).toBeTruthy()
     expect(screen.getByText('Work sitting still')).toBeTruthy()
     expect(screen.getByText('How you get told')).toBeTruthy()
-    expect(screen.getByText('4 rules on')).toBeTruthy()
+    // Three rules are on. The recurring row is not one of them and is not counted.
+    expect(screen.getByText('3 rules on')).toBeTruthy()
   })
 
   it('offers a repeat on the late rule alone, and an escalation on the stale-approval rule alone', async () => {
@@ -495,6 +500,12 @@ describe('the reminders screen', () => {
     who = READER
     renderPage()
     await screen.findByText('Before a bill is due')
+    // The recurring row has no switch for a reader either; the six rules show theirs, greyed.
+    expect(within(card("A recurring bill that hasn't arrived")).queryByRole('switch')).toBeNull()
+    expect(within(card('Before a bill is due')).getByRole('switch')).toHaveProperty(
+      'disabled',
+      true,
+    )
     expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
     expect(screen.queryByRole('button', { name: "Send me today's now" })).toBeNull()
   })

@@ -152,9 +152,12 @@ export function toggleOffset(offsets: number[], offset: number, multi: boolean):
     : [...offsets, offset]
 }
 
-/** The rules the footer counts as on: every enabled rule, and the recurring one, which is always set per bill. */
+/**
+ * The rules the footer counts as on: the ones that can be switched, and are. The recurring row is
+ * not a rule and cannot be switched, so it is not counted.
+ */
 export function rulesOn(rules: ReminderRuleDto[]): number {
-  return rules.filter((rule) => rule.enabled).length + 1
+  return rules.filter((rule) => rule.enabled).length
 }
 
 export type PreviewLine = {
