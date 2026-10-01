@@ -5358,7 +5358,8 @@
     "actions": {
       "download": "Download",
       "reject": "Reject",
-      "approve": "Approve"
+      "approve": "Approve",
+      "recordPayment": "Record payment"
     },
     "steps": {
       "arrived": "Arrived",
@@ -5559,7 +5560,8 @@
       "held": "On hold.",
       "released": "Released from hold.",
       "matched": "Matched to the order.",
-      "unmatched": "The match was removed."
+      "unmatched": "The match was removed.",
+      "recorded": "Payment recorded."
     },
     "notStated": "Not stated",
     "terms": {
@@ -5576,6 +5578,11 @@
       "bank": "Bank",
       "noBank": "No bank details on file",
       "saving": "Paying by {{date}} saves"
+    },
+    "pay": {
+      "amount": "Amount paid",
+      "date": "Paid on",
+      "notApproved": "This bill has not been approved yet. Approve it, then record the payment."
     }
   },
   "uploadBill": {

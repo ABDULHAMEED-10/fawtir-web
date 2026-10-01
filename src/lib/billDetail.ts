@@ -149,6 +149,25 @@ export function decisionsOf(
   }
 }
 
+/**
+ * Whether a payment can be recorded on this bill now: it is approved, not on hold, still owes
+ * money, and the reader may record payments. Anything else and the action is not offered at all
+ * (owner decision 2026-10-01: hidden, not disabled). A held bill is released first.
+ */
+export function canRecordPayment(
+  detail: BillDetailDto,
+  can: (permission: string) => boolean,
+): boolean {
+  return (
+    can('invoice.payment.manage') &&
+    !isCreditNote(detail) &&
+    detail.readiness.state === 'READY' &&
+    detail.hold === null &&
+    detail.settlement.paymentState !== 'PAID' &&
+    detail.settlement.outstandingAmount > 0
+  )
+}
+
 /** The sentence under the amount in the decision panel. */
 export function decisionNoteOf(detail: BillDetailDto): Note {
   const { readiness, hold, settlement } = detail

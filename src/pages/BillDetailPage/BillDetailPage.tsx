@@ -17,6 +17,7 @@ import {
   loadBillMatch,
   loadSupplierOrders,
   matchBill,
+  recordBillPayment,
   rejectBill,
   releaseBill,
   unmatchBill,
@@ -32,6 +33,7 @@ import {
 } from '../../api/expenditure/supplierRecord'
 import {
   activityOf,
+  canRecordPayment,
   complianceOf,
   lineVatOf,
   decisionNoteOf,
@@ -44,6 +46,7 @@ import {
   type Note,
 } from '../../lib/billDetail'
 import { toBillListItem } from '../../lib/billList'
+import { muscatToday } from '../../lib/invoiceIssue'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstant, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
@@ -58,6 +61,8 @@ import downloadIcon from '../../assets/invoice-details/download.svg'
 import peppolBadgeIcon from '../../assets/invoice-details/peppol-badge.svg'
 import clockIcon from '../../assets/invoice-details/clock.svg'
 import docOrderIcon from '../../assets/create-invoice/doc-order.svg'
+import recordPaymentIcon from '../../assets/self-bill-detail/record-payment.svg'
+import { RecordPaymentModal } from '../InvoiceDetailsPage/RecordPaymentModal'
 import docDeliveryIcon from '../../assets/create-invoice/doc-delivery.svg'
 import pdfIcon from '../../assets/invoice-details/pdf.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
@@ -157,6 +162,7 @@ function BillScreen() {
   const [asking, setAsking] = useState<'reject' | 'hold' | null>(null)
   const [reason, setReason] = useState('')
   const [matching, setMatching] = useState(false)
+  const [paying, setPaying] = useState(false)
 
   const act = async (run: () => Promise<unknown>, done: string) => {
     setBusy(true)
@@ -199,6 +205,7 @@ function BillScreen() {
     instantDay: (iso) => formatInstantDay(iso, language),
   })
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
+  const payable = canRecordPayment(detail, (permission) => can(session, permission))
   const original = billOriginalPath(detail)
   const orderNumber =
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
@@ -277,6 +284,12 @@ function BillScreen() {
               >
                 <img src={hdrBtnIcon} alt="" className="size-[17px]" />
                 {t('billDetail.actions.approve')}
+              </button>
+            ) : null}
+            {payable ? (
+              <button type="button" onClick={() => setPaying(true)} className={PRIMARY_BUTTON}>
+                <img src={recordPaymentIcon} alt="" className="size-6" />
+                {t('billDetail.actions.recordPayment')}
               </button>
             ) : null}
           </div>
@@ -746,6 +759,32 @@ function BillScreen() {
           if (ok) setMatching(false)
         }}
       />
+
+      {paying ? (
+        // The dialog the self-bill page pays its supplier's bill with: same form, same route.
+        <RecordPaymentModal
+          invoiceId={id}
+          invoiceNumber={row.supplierBillNumber}
+          currency={detail.settlement.currency}
+          outstanding={detail.settlement.outstandingAmount}
+          issueDate={row.issueDate}
+          today={muscatToday()}
+          record={(key, payment) =>
+            recordBillPayment(id, key, { ...payment, currency: detail.settlement.currency })
+          }
+          refusals={{
+            BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'billDetail.pay.notApproved' },
+          }}
+          labelKeys={{ amount: 'billDetail.pay.amount', date: 'billDetail.pay.date' }}
+          onClose={() => setPaying(false)}
+          onRecorded={() => {
+            setPaying(false)
+            setNotice({ key: 'billDetail.done.recorded' })
+            // The Paid step, the Payment terms card and Activity are all read with the bill.
+            bill.retry()
+          }}
+        />
+      ) : null}
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
-import { complianceOf, decisionsOf, stepsOf } from '../../lib/billDetail'
+import { canRecordPayment, complianceOf, decisionsOf, stepsOf } from '../../lib/billDetail'
 import { BillDetailPage } from './BillDetailPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -27,6 +27,12 @@ const ADMIN: Entitlements = {
   featureFlags: {},
 }
 const READ_ONLY: Entitlements = { ...ADMIN, username: 'viewer', permissions: ['invoice.read'] }
+const APPROVED: BillDetailDto['readiness'] = {
+  state: 'READY',
+  distinctApprovals: 2,
+  required: 2,
+  autoApproved: false,
+}
 
 function detail(overrides: Partial<BillDetailDto> = {}): BillDetailDto {
   const base: BillDetailDto = {
@@ -426,6 +432,123 @@ describe('A bill, wired to the API', () => {
     await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/release`))
   })
 
+  it('records a payment on an approved bill from the header, and reloads the bill', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-05T09:00:00Z'))
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    // Approved, so the Approve button has left the header and Record payment takes its place.
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+
+    // The money goes to the supplier, so the dialog says paid, not received.
+    const dialog = await screen.findByRole('dialog')
+    const amount = within(dialog).getByRole('textbox', { name: /Amount paid/ }) as HTMLInputElement
+    expect(amount.value).toBe('2354.310')
+    expect(within(dialog).getByText('Paid on')).toBeTruthy()
+    expect(within(dialog).queryByText(/Amount received|Received on/)).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/payments`))
+    const [, init] = fetchMock.mock.calls.find(([url]) => url === `${BILL_URL}/payments`)!
+    expect(JSON.parse(String((init as RequestInit).body))).toEqual({
+      amount: 2354.31,
+      methodCode: '30',
+      paymentReference: null,
+      paymentDate: '2026-10-05',
+      currency: 'OMR',
+    })
+    const headers = (init as RequestInit).headers as Record<string, string> | Headers
+    const key =
+      headers instanceof Headers ? headers.get('Idempotency-Key') : headers['Idempotency-Key']
+    expect(key).toMatch(/^payment-[0-9a-f-]{36}$/)
+
+    expect(await screen.findByText('Payment recorded.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() =>
+      expect(calls().filter((call) => call === `GET ${BILL_URL}`)).toHaveLength(2),
+    )
+    vi.useRealTimers()
+  })
+
+  it('keeps Record payment out of the page unless the bill can be paid by this reader', async () => {
+    const offered = async (bill: BillDetailDto, reader = ADMIN) => {
+      who = reader
+      forgetEntitlements()
+      billResponse = () => json(200, bill)
+      const view = renderBill()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      const shown = screen.queryByRole('button', { name: 'Record payment' }) !== null
+      view.unmount()
+      return shown
+    }
+    const base = detail({ readiness: APPROVED })
+
+    expect(await offered(base)).toBe(true)
+    // Hidden, not disabled (owner decision 2026-10-01).
+    expect(await offered(detail()), 'waiting for approval').toBe(false)
+    expect(
+      await offered({
+        ...base,
+        hold: {
+          id: 'h-1',
+          reason: 'Query with supplier',
+          openedBy: 'u-1',
+          openedAt: '2026-09-04T08:00:00Z',
+          releasedBy: null,
+          releasedAt: null,
+        },
+      }),
+      'on hold: released first',
+    ).toBe(false)
+    expect(
+      await offered({
+        ...base,
+        settlement: { ...base.settlement, paidAmount: 2354.31, outstandingAmount: 0, paymentState: 'PAID' },
+      }),
+      'nothing owed',
+    ).toBe(false)
+    expect(await offered(base, READ_ONLY), 'no payment permission').toBe(false)
+  })
+
+  it('leaves Record payment showing for the rest after a part payment', async () => {
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: APPROVED,
+          settlement: {
+            ...detail().settlement,
+            paidAmount: 1000,
+            outstandingAmount: 1354.31,
+            paymentState: 'PARTIALLY_PAID',
+          },
+        }),
+      )
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const amount = (await screen.findByRole('textbox', { name: /Amount paid/ })) as HTMLInputElement
+    expect(amount.value).toBe('1354.310')
+  })
+
+  it('says the bill is not approved yet when the server refuses the payment for that', async () => {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    actionResponse = () =>
+      json(400, { error: 'BILL_NOT_READY_FOR_PAYMENT', detail: 'not ready', status: 400 })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    expect(
+      await within(dialog).findByText(
+        'This bill has not been approved yet. Approve it, then record the payment.',
+      ),
+    ).toBeTruthy()
+  })
+
   it('offers only reading to someone who cannot approve or pay', async () => {
     who = READ_ONLY
     renderBill()
@@ -533,6 +656,25 @@ describe('bill detail mapping', () => {
       format,
     )
     expect(paid.every((step) => step.state === 'done')).toBe(true)
+  })
+
+  it('offers a payment only on an approved, unheld bill that still owes money', () => {
+    const all = () => true
+    const approved = detail({ readiness: APPROVED })
+    expect(canRecordPayment(approved, all)).toBe(true)
+    expect(canRecordPayment(detail(), all)).toBe(false)
+    expect(canRecordPayment(approved, (permission) => permission !== 'invoice.payment.manage')).toBe(
+      false,
+    )
+    expect(
+      canRecordPayment({ ...approved, bill: { ...approved.bill, documentTypeCode: '381' } }, all),
+    ).toBe(false)
+    expect(
+      canRecordPayment(
+        { ...approved, settlement: { ...approved.settlement, outstandingAmount: 0 } },
+        all,
+      ),
+    ).toBe(false)
   })
 
   it('offers no decision on a credit note or a paid bill', () => {
