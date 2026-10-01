@@ -372,7 +372,7 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty('disabled', true)
   })
 
-  it('keeps Record payment off for a reader without invoice.payment.manage, even with something owed', async () => {
+  it('does not offer Record payment to a reader without invoice.payment.manage, even with something owed', async () => {
     who = {
       ...BUYER,
       roles: [{ id: 'r-2', code: 'VIEWER', name: 'Viewer', systemRole: true }],
@@ -382,9 +382,8 @@ describe('A self-billed invoice through its own door', () => {
     renderPage()
     await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
     await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
-    const button = screen.getByRole('button', { name: 'Record payment' })
-    expect(button).toHaveProperty('disabled', true)
-    fireEvent.click(button)
+    // Hidden, not disabled (owner decision 2026-10-01), as the invoice page does.
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
