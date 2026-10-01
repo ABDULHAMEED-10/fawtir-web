@@ -1498,7 +1498,11 @@
     },
     "done": {
       "paused": "أُوقف. لن تُنشأ مسودات حتى تستأنفه.",
-      "resumed": "استُؤنف. المسودة القادمة مستحقة في {{date}}."
+      "resumed": "استُؤنف. المسودة القادمة مستحقة في {{date}}.",
+      "generated": "أُنشئت مسودة. المسودة القادمة مستحقة في {{date}}.",
+      "generatedLast": "أُنشئت مسودة. لم تعد لهذا الجدول تشغيلات أخرى.",
+      "generateFailed": "تعذّر إنشاء المسودة. افتح الجدول لمعرفة السبب.",
+      "deleted": "حُذف الجدول. تبقى المسودات التي أنشأها محفوظة."
     },
     "breadcrumbIncome": "الدخل",
     "subtitleLive_zero": "لا جداول دورية",
@@ -1541,12 +1545,12 @@
       "generatedMeta": "يُحسب في صفحة كل جدول",
       "attention": "يحتاج انتباهاً",
       "attentionMeta": "{{paused}} متوقف · {{onRequest}} عند الطلب",
-      "generatedIssued_zero": "لم تصدر فواتير",
-      "generatedIssued_one": "صدرت فاتورة واحدة",
-      "generatedIssued_two": "صدرت فاتورتان",
-      "generatedIssued_few": "صدرت {{count}} فواتير",
-      "generatedIssued_many": "صدرت {{count}} فاتورة",
-      "generatedIssued_other": "صدرت {{count}} فاتورة"
+      "generatedIssued_zero": "لم تُنشأ مسودات",
+      "generatedIssued_one": "أُنشئت مسودة واحدة",
+      "generatedIssued_two": "أُنشئت مسودتان",
+      "generatedIssued_few": "أُنشئت {{count}} مسودات",
+      "generatedIssued_many": "أُنشئت {{count}} مسودة",
+      "generatedIssued_other": "أُنشئت {{count}} مسودة"
     },
     "status": {
       "active": "نشط",
@@ -1585,18 +1589,21 @@
     "pages": "الصفحات",
     "prevPage": "الصفحة السابقة",
     "nextPage": "الصفحة التالية",
-    "notYet": {
-      "generate": "إنشاء فاتورة عند الطلب غير متاح بعد. تنشئ الدورة اليومية كل فاتورة في موعدها.",
-      "delete": "حذف الجدول غير متاح بعد. أوقفه مؤقتًا لإيقافه."
-    },
-    "issuedCount_zero": "لم تصدر",
-    "issuedCount_one": "صدرت واحدة",
-    "issuedCount_two": "صدرت اثنتان",
-    "issuedCount_few": "صدرت {{count}}",
-    "issuedCount_many": "صدرت {{count}}",
-    "issuedCount_other": "صدرت {{count}}",
+    "deleteTitle": "حذف هذا الجدول؟",
+    "deleteBody": "سيغادر القائمة ولن يُنشئ مسودات أخرى. تبقى المسودات التي أنشأها محفوظة.",
+    "deleteConfirm": "حذف",
+    "issuedCount_zero": "لم تُنشأ",
+    "issuedCount_one": "أُنشئت واحدة",
+    "issuedCount_two": "أُنشئت اثنتان",
+    "issuedCount_few": "أُنشئت {{count}}",
+    "issuedCount_many": "أُنشئت {{count}}",
+    "issuedCount_other": "أُنشئت {{count}}",
     "lastRun": "آخرها {{date}}",
-    "notIssued": "لم تصدر"
+    "notIssued": "لم يُنشأ شيء",
+    "generateTitle": "إنشاء الفاتورة القادمة الآن؟",
+    "generateBody": "ينتقل الجدول إلى {{date}}.",
+    "generateBodyLast": "هذه آخر فاتورة في الجدول. لن يُنشئ فواتير أخرى بعدها.",
+    "generateConfirm": "إنشاء فاتورة"
   },
   "suppliersPage": {
     "title": "الموردون",
@@ -2567,7 +2574,7 @@
       "left": "الدورات المتبقية",
       "noLimit": "بلا حد",
       "subtype": "فترة الفوترة",
-      "subtypeNote": "تحددها الدورة: الأسبوعية والشهرية فواتير ملخّصة، وما هو أطول توريد مستمر (IBR-036-OM).",
+      "subtypeNote": "تحددها الدورة: الشهرية فاتورة ملخّصة، والأسبوعية وما هو أطول توريد مستمر (IBR-036-OM).",
       "subject": "الموضوع",
       "po": "مرجع أمر الشراء",
       "paymentTerms": "شروط الدفع",
@@ -2609,7 +2616,9 @@
     "outcome": {
       "DRAFTED": "أُنشئت مسودة",
       "FAILED": "تعذّر الإنشاء",
-      "SKIPPED": "لم تُنشأ"
+      "SKIPPED": "لم تُنشأ",
+      "CLAIMED": "قيد الإنشاء",
+      "DEAD_LETTERED": "تعذّر الإنشاء"
     },
     "save": "احفظ التعديلات",
     "start": "ابدأ الجدول",
@@ -2624,7 +2633,12 @@
       "occurrences": "أدخل عددًا صحيحًا للدورات أو اتركه فارغًا.",
       "intervalRequired": "اختر عدد مرات التكرار.",
       "notFound": "لم يعد هذا الجدول موجودًا.",
-      "linesRequired": "أضف بندًا واحدًا على الأقل مع وصف."
+      "linesRequired": "أضف بندًا واحدًا على الأقل مع وصف.",
+      "alreadyRaised": "تغيّر هذا الجدول منذ فتحته، إذ أُنشئت مسودته الأخيرة بالفعل. أعد تحميل الصفحة ثم حاول مجددًا.",
+      "notActive": "هذا الجدول موقوف مؤقتًا أو منتهٍ، فلا يمكن إنشاء مسودة. استأنفه أولًا.",
+      "runInProgress": "تُنشأ مسودة لهذا الجدول الآن. حاول مجددًا بعد قليل.",
+      "hasOpenRun": "لهذا الجدول تشغيل قيد التنفيذ أو بانتظار إعادة المحاولة. استخدم «إنشاء فاتورة» لإعادة محاولة ذلك التشغيل، أو أوقف الجدول مؤقتًا بدلًا من ذلك.",
+      "finished": "انتهى هذا الجدول ولم تتبقَّ له دورات، فلا يمكن استئنافه. استخدم «تكرار» لبدء جدول جديد."
     },
     "kind": "فاتورة متكررة",
     "nextShort": "التالية",
@@ -2700,7 +2714,9 @@
     "pill": {
       "DRAFTED": "مسودة",
       "FAILED": "فشل",
-      "SKIPPED": "تخطٍّ"
+      "SKIPPED": "تخطٍّ",
+      "CLAIMED": "قيد التنفيذ",
+      "DEAD_LETTERED": "فشل"
     },
     "runMeta": "تشغيل {{date}}",
     "generatedNextBefore": "تُنشأ الفاتورة التالية في",
@@ -2708,7 +2724,7 @@
     "noUpcoming": "لا مزيد قادم.",
     "upcoming": {
       "started": "بدأ",
-      "issued": "أُنشئ",
+      "issued": "صدرت",
       "each": "لكل واحدة",
       "invoices_zero": "لا فواتير",
       "invoices_one": "فاتورة واحدة",
