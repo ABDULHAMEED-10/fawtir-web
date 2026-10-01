@@ -14161,7 +14161,8 @@
         "above": "<b>{{percent}}%</b> above the usual amount.",
         "below": "<b>{{percent}}%</b> below the usual amount."
       }
-    }
+    },
+    "unreadable": "Reminders could not be read. Reload to try again."
   },
   "onboarding": {
     "sessionExpired": "Your signup session has ended. If you need help finishing your registration, contact Fawtir support.",
