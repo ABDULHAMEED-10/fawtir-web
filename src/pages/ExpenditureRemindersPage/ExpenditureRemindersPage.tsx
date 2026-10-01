@@ -220,9 +220,9 @@ function Editor({
   useEffect(() => setDraft(savedRules), [savedRules])
   useEffect(() => setDelivery(savedSettings), [savedSettings])
 
-  // The picker needs admin.users.manage, which someone who may edit these rules does not
-  // necessarily hold. A refusal is expected, not an error: the rules stay editable and the
-  // people already on them travel back untouched.
+  // The people come from the names-only list, readable by whoever may save these rules. A server
+  // from before that list refuses the read: the rules stay editable and the people already on
+  // them travel back untouched.
   const people = useApiRead<ReminderRecipientDto[]>(
     canManage ? POSSIBLE_RECIPIENTS_PATH : null,
     loadPossibleRecipients,
@@ -694,8 +694,9 @@ function RecipientPicker({
   }
 
   // First names, as the frame draws them; the popover lists people in full.
+  // Someone with no name on file, or no longer on the list, is worded, never shown as an id.
   const nameOf = (id: string) =>
-    roster.find((person) => person.id === id)?.name.split(' ')[0] ??
+    roster.find((person) => person.id === id)?.name?.split(' ')[0] ??
     t('expenditureReminders.someone')
 
   return (
@@ -749,7 +750,7 @@ function RecipientPicker({
                     ].join(' ')}
                   >
                     <img src={avatarImg} alt="" className="size-6 rounded-full object-cover" />
-                    {person.name}
+                    {person.name ?? t('expenditureReminders.someone')}
                   </button>
                 </li>
               ))}

@@ -136,11 +136,8 @@ beforeEach(async () => {
       )
     }
     if (url.includes('/bill-reminders/preview')) return json(200, preview)
-    if (url.includes('/v1/users')) {
-      return json(200, {
-        content: [{ id: HAFIDH, username: 'hafidh', firstName: 'Hafidh', lastName: 'Al Balushi' }],
-      })
-    }
+    if (url.includes('/recurring-bills/recipients'))
+      return json(200, [{ id: HAFIDH, displayName: 'Hafidh Al Balushi' }])
     return json(404)
   })
   vi.stubGlobal('fetch', fetchMock)

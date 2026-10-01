@@ -1,5 +1,6 @@
 import { apiRequest } from '../client'
 import { withQuery } from '../query'
+import { RECURRING_RECIPIENTS_PATH, loadRecurringRecipients } from './recurringBills'
 
 /**
  * Payables reminders (`BillReminderController`, E-14).
@@ -189,21 +190,21 @@ export async function acknowledgeReminder(id: string): Promise<void> {
 }
 
 /**
- * The people a rule can name. `GET /users` needs `admin.users.manage`, which someone who may
- * edit reminder rules (`invoice.payment.manage`) does not necessarily hold — so a caller must
- * handle this being refused rather than assume a list.
+ * The people a rule can name: the names-only list a recurring bill also picks from
+ * (`GET /recurring-bills/recipients`). It needs `invoice.payment.manage`, the permission that
+ * saves these rules, so whoever may save a rule may choose who it tells. It used to be the
+ * admin-only `GET /users`, which a Finance Manager could not read.
+ *
+ * Names only: no e-mail, no role, no username. `name` is null for someone with no name on file
+ * and the page words that person. A server from before the route refuses the read, so a caller
+ * must still handle having no list.
  */
-export type ReminderRecipientDto = { id: string; name: string }
-
-type UsersPage = { content?: { id: string; username: string; firstName: string | null; lastName: string | null }[] }
+export type ReminderRecipientDto = { id: string; name: string | null }
 
 /** The read's own URL, so the cache key and the request it stands for cannot drift apart. */
-export const POSSIBLE_RECIPIENTS_PATH = withQuery('/v1/users', { status: 'ACTIVE', size: 100 })
+export const POSSIBLE_RECIPIENTS_PATH = RECURRING_RECIPIENTS_PATH
 
 export async function loadPossibleRecipients(): Promise<ReminderRecipientDto[]> {
-  const page = await apiRequest<UsersPage>(POSSIBLE_RECIPIENTS_PATH)
-  return (page.content ?? []).map((user) => ({
-    id: user.id,
-    name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
-  }))
+  const people = await loadRecurringRecipients()
+  return people.map((person) => ({ id: person.id, name: person.displayName?.trim() || null }))
 }
