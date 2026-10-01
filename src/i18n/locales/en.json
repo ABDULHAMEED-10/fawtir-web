@@ -6238,6 +6238,16 @@
     },
     "supplier": {
       "pausedWhileOff": "Its recurring bills are paused while it is switched off."
+    },
+    "refused": {
+      "ended": "This recurring bill has ended. Set up a new one to keep watching.",
+      "supplierSwitchedOff": "The supplier is switched off. Switch it back on, then resume this recurring bill.",
+      "periodNotWatched": "That period is no longer being watched. Reload to see the current one.",
+      "periodAlreadyReceived": "A bill is already marked as received for this period.",
+      "billGone": "That bill is not on this account. Reload and choose another.",
+      "billAlreadyMatched": "That bill is already matched to a recurring bill. Choose another.",
+      "billNotEligible": "That bill cannot be used here. Self-billed, rejected and held bills are left out.",
+      "endBeforeNext": "The end date is before the next expected bill. Choose a later end date."
     }
   },
   "supplierCreditNotes": {

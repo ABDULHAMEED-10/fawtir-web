@@ -806,12 +806,17 @@ describe('a recurring bill paused with its supplier (item 30)', () => {
     expect(canResume(ENDED, false)).toBe(false)
   })
 
-  it('lets the server answer when it refuses a resume, in the general refusal words', async () => {
+  it('lets the server answer when it refuses a resume, in the sentence for it', async () => {
     supplierStatus = 'UNREADABLE'
     resumeResponse = () => refusal('RECURRING_BILL_SUPPLIER_SWITCHED_OFF')
     await openDetail('rb-held', 'Water cooler')
     fireEvent.click(await screen.findByRole('button', { name: 'Resume watching' }))
-    expect(await screen.findByText(/The server refused this/)).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'The supplier is switched off. Switch it back on, then resume this recurring bill.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/The server refused this/)).toBeNull()
     expect(screen.queryByText(/RECURRING_BILL_SUPPLIER_SWITCHED_OFF/)).toBeNull()
     expect(screen.queryByText(/English only/)).toBeNull()
   })
@@ -945,19 +950,74 @@ describe('"Mark as received" (item 23)', () => {
     expect(calls('POST', '/api/v1/recurring-bills/rb-1/mark-received')).toHaveLength(0)
   })
 
+  it.each(['RECURRING_BILL_CODE_WITH_NO_SENTENCE'])(
+    'reads a refusal it has no sentence for (%s) in the general refusal words, never as its code',
+    async (code) => {
+      markResponse = () => refusal(code)
+      await openDetail()
+      fireEvent.click(screen.getByRole('button', { name: 'Mark as received' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Mark as received' })
+      fireEvent.click(await within(dialog).findByRole('button', { name: /NP-0931/ }))
+      expect(await screen.findByText(/The server refused this/)).toBeTruthy()
+      expect(screen.queryByText(new RegExp(code))).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    },
+  )
+
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 4, rows 3 to 7). A correction
+  // there changes the sentences below with it. The period and the bill that are gone answer 404.
   it.each([
-    'RECURRING_BILL_PERIOD_ALREADY_RECEIVED',
-    'RECURRING_BILL_ARRIVAL_ALREADY_MATCHED',
-    'RECURRING_BILL_ARRIVAL_NOT_ELIGIBLE',
-  ])('reads a refusal (%s) in the general refusal words, never as its code', async (code) => {
-    markResponse = () => refusal(code)
+    [
+      'RECURRING_BILL_PERIOD_NOT_FOUND',
+      404,
+      'That period is no longer being watched. Reload to see the current one.',
+    ],
+    [
+      'RECURRING_BILL_PERIOD_ALREADY_RECEIVED',
+      400,
+      'A bill is already marked as received for this period.',
+    ],
+    [
+      'RECURRING_BILL_ARRIVAL_BILL_NOT_FOUND',
+      404,
+      'That bill is not on this account. Reload and choose another.',
+    ],
+    [
+      'RECURRING_BILL_ARRIVAL_ALREADY_MATCHED',
+      400,
+      'That bill is already matched to a recurring bill. Choose another.',
+    ],
+    [
+      'RECURRING_BILL_ARRIVAL_NOT_ELIGIBLE',
+      400,
+      'That bill cannot be used here. Self-billed, rejected and held bills are left out.',
+    ],
+  ])('says why it was refused (%s), in its own sentence', async (code, status, sentence) => {
+    markResponse = () =>
+      json(status, {
+        type: `https://api.fawtir.om/problems/${status === 404 ? 'resource-not-found' : 'expenditure-refused'}`,
+        error: code,
+        detail: 'English only',
+      })
     await openDetail()
     fireEvent.click(screen.getByRole('button', { name: 'Mark as received' }))
     const dialog = await screen.findByRole('dialog', { name: 'Mark as received' })
     fireEvent.click(await within(dialog).findByRole('button', { name: /NP-0931/ }))
-    expect(await screen.findByText(/The server refused this/)).toBeTruthy()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(/The server refused this|Not found/)).toBeNull()
     expect(screen.queryByText(new RegExp(code))).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('says a period already has its bill in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    markResponse = () => refusal('RECURRING_BILL_PERIOD_ALREADY_RECEIVED')
+    await openDetail()
+    const title = i18n.t('recurringBills.detail.markReceived')
+    fireEvent.click(screen.getByRole('button', { name: title }))
+    const dialog = await screen.findByRole('dialog', { name: title })
+    fireEvent.click(await within(dialog).findByRole('button', { name: /NP-0931/ }))
+    expect(await screen.findByText('سُجّل استلام فاتورة لهذه الفترة من قبل.')).toBeTruthy()
   })
 })
 
@@ -1168,10 +1228,25 @@ describe('editing a recurring bill', () => {
 
   it('reads a refusal it has no sentence for in the general refusal words', async () => {
     await openEdit('rb-1')
-    fetchMock.mockImplementationOnce(async () => refusal('RECURRING_BILL_ENDED'))
+    fetchMock.mockImplementationOnce(async () => refusal('RECURRING_BILL_SUPPLIER_REQUIRED'))
     fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
     expect(await screen.findByText(/The server refused this/)).toBeTruthy()
-    expect(screen.queryByText(/RECURRING_BILL_ENDED/)).toBeNull()
+    expect(screen.queryByText(/RECURRING_BILL_SUPPLIER_REQUIRED/)).toBeNull()
+  })
+
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 4, rows 1 and 8).
+  it.each([
+    [
+      'RECURRING_BILL_END_BEFORE_NEXT_RUN',
+      'The end date is before the next expected bill. Choose a later end date.',
+    ],
+    ['RECURRING_BILL_ENDED', 'This recurring bill has ended. Set up a new one to keep watching.'],
+  ])('reads a refused save (%s) as its own sentence', async (code, sentence) => {
+    await openEdit('rb-1')
+    fetchMock.mockImplementationOnce(async () => refusal(code))
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(/The server refused this/)).toBeNull()
   })
 
   it('reads an arrival day the server refuses as its own sentence', async () => {
@@ -1261,5 +1336,26 @@ describe('the detail and the list, where the audit found no test', () => {
     expect((screen.getByRole('button', { name: 'Previous' }) as HTMLButtonElement).disabled).toBe(
       false,
     )
+  })
+})
+
+// Draft wording, pending the owner (Wording-For-Abdul.md section 4, rows 1 and 2). Resume is not
+// drawn where the page knows it would be refused, so these show when the page is out of date.
+describe('a resume the server refuses, on the list', () => {
+  it.each([
+    ['RECURRING_BILL_ENDED', 'This recurring bill has ended. Set up a new one to keep watching.'],
+    [
+      'RECURRING_BILL_SUPPLIER_SWITCHED_OFF',
+      'The supplier is switched off. Switch it back on, then resume this recurring bill.',
+    ],
+  ])('says why (%s), in its own sentence', async (code, sentence) => {
+    resumeResponse = () => refusal(code)
+    renderAt('/expenditure/recurring-bills')
+    await screen.findByRole('link', { name: 'Water cooler' })
+    fireEvent.click(
+      await within(rowOf('Water cooler')).findByRole('button', { name: 'Resume watching' }),
+    )
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(/The server refused this/)).toBeNull()
   })
 })
