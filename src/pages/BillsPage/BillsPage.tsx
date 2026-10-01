@@ -255,12 +255,18 @@ function BillsScreen() {
   // The uploads and receipts nobody has confirmed, drawn as the design's draft rows at the top
   // of the first page of Needs attention and All. The API lists them apart from the bills.
   const known = summary.read.status === 'ready' ? summary.read.data : null
+  // A draft is an upload or a receipt, and the source filter shows or hides it as it does a
+  // bill: "Uploaded" keeps the uploads, "Scanned" the receipts, any other source neither. The
+  // server narrows the read, so the twenty it answers are twenty of the kind asked for.
+  const draftSource =
+    showing.source === 'UPLOADED' || showing.source === 'SCANNED' ? showing.source : null
   const showDrafts =
     (tab === 'needsAttention' || tab === 'all') &&
     pageNumber === 1 &&
     query === '' &&
+    (showing.source === null || draftSource !== null) &&
     (known?.needsAttention.draft ?? 0) > 0
-  const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20) : null
+  const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20, draftSource) : null
   const intakes = useApiRead<IntakePageDto>(intakesPath, () => loadIntakes(intakesPath!))
 
   const [notice, setNotice] = useState<string | null>(null)
@@ -388,13 +394,12 @@ function BillsScreen() {
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
   const unconfirmed = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
-  // A draft is an upload or a receipt, and the source filter shows or hides it as it does a
-  // bill: "Uploaded" keeps the uploads, "Scanned" the receipts, any other source neither.
-  const filteredSource = BILL_SOURCES.find((option) => option.id === sourceKey)?.source ?? null
+  // Checked again here by each row's own source: a server that does not know the `source`
+  // parameter answers uploads and receipts alike.
   const drafts =
-    filteredSource === null
+    draftSource === null
       ? unconfirmed
-      : unconfirmed.filter((intake) => intake.source === filteredSource)
+      : unconfirmed.filter((intake) => intake.source === draftSource)
   // The whole ledger's counts with no filter on, and when the filtered read fails.
   const tabs =
     countsPath === null || counts.read.status === 'failed'
@@ -522,7 +527,7 @@ function BillsScreen() {
             canApprove={canApprove}
             canManage={canCapture}
             busy={busy}
-            ledgerEmpty={totals.tabs.all === 0 && unconfirmed.length === 0}
+            ledgerEmpty={totals.tabs.all === 0 && totals.needsAttention.draft === 0}
             onApprove={(id) => void act(id, () => approveBill(id))}
             onRelease={(id) => void act(id, () => releaseBill(id))}
             onAsk={(next) => {

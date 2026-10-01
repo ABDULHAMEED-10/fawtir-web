@@ -192,8 +192,18 @@ export function possibleDuplicateOf(error: unknown): PossibleDuplicateDto | null
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */
 export type IntakePageDto = { items: IntakeDto[]; page: number; pageSize: number; count: number }
 
-export function unconfirmedIntakesPath(page = 0, pageSize = 20): string {
-  return `${BILL_INTAKE_PATH}?status=UNCONFIRMED&page=${page}&page_size=${pageSize}`
+/**
+ * `source` narrows the list on the server to uploads or to receipts, so a page of twenty is twenty
+ * of that kind. A server that does not know the parameter answers every kind; the caller still
+ * checks each row's own `source`.
+ */
+export function unconfirmedIntakesPath(
+  page = 0,
+  pageSize = 20,
+  source: IntakeSourceDto | null = null,
+): string {
+  const narrowed = source ? `&source=${source}` : ''
+  return `${BILL_INTAKE_PATH}?status=UNCONFIRMED${narrowed}&page=${page}&page_size=${pageSize}`
 }
 
 export function loadIntakes(path: string): Promise<IntakePageDto> {
