@@ -75,6 +75,28 @@ const STEP_CIRCLE: Record<BillStepState, string> = {
   upcoming: 'bg-white border-border-default',
 }
 
+/**
+ * What the bill payment route refuses, as the dialog says it. The button is already hidden for a
+ * bill that is unapproved or in a run, so those two only show when the bill changed after the
+ * page loaded. Decimals and the date read as the invoice dialog's own lines.
+ */
+const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0]['refusals']> = {
+  BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'billDetail.pay.notApproved' },
+  BILL_PAYMENT_IN_PAYMENT_RUN: {
+    field: null,
+    key: 'billDetail.pay.inRun',
+    values: (problem) => ({ run: String(problem.paymentRunReference ?? '') }),
+  },
+  BILL_PAYMENT_AMOUNT_SCALE_INVALID: {
+    field: 'amount',
+    key: 'invoiceDetails.pay.error.amountScale',
+  },
+  BILL_PAYMENT_DATE_IN_FUTURE: {
+    field: 'paymentDate',
+    key: 'invoiceDetails.pay.error.dateFuture',
+  },
+}
+
 /** Server refusals worth their own sentence; anything else reads through `describeApiFailure`. */
 const REFUSALS: Record<string, string> = {
   APPROVAL_ALREADY_GIVEN: 'billDetail.refused.alreadyApproved',
@@ -772,9 +794,7 @@ function BillScreen() {
           record={(key, payment) =>
             recordBillPayment(id, key, { ...payment, currency: detail.settlement.currency })
           }
-          refusals={{
-            BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'billDetail.pay.notApproved' },
-          }}
+          refusals={BILL_PAYMENT_REFUSALS}
           labelKeys={{ amount: 'billDetail.pay.amount', date: 'billDetail.pay.date' }}
           onClose={() => setPaying(false)}
           onRecorded={() => {

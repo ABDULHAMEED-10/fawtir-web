@@ -5582,7 +5582,8 @@
     "pay": {
       "amount": "Amount paid",
       "date": "Paid on",
-      "notApproved": "This bill has not been approved yet. Approve it, then record the payment."
+      "notApproved": "This bill has not been approved yet. Approve it, then record the payment.",
+      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first."
     }
   },
   "uploadBill": {

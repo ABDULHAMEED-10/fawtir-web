@@ -547,6 +547,27 @@ describe('A bill, wired to the API', () => {
     )
   })
 
+  it('names the payment run when the bill joined one after the page loaded', async () => {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    actionResponse = () =>
+      json(400, {
+        error: 'BILL_PAYMENT_IN_PAYMENT_RUN',
+        detail: 'This bill is in payment run RUN-0012. Pay it there, or take it out of the run first.',
+        paymentRunReference: 'RUN-0012',
+        status: 400,
+      })
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    expect(
+      await within(dialog).findByText(
+        'This bill is in payment run RUN-0012. Pay it there, or take it out of the run first.',
+      ),
+    ).toBeTruthy()
+  })
+
   it('leaves Record payment showing for the rest after a part payment', async () => {
     billResponse = () =>
       json(
