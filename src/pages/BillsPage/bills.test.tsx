@@ -5,7 +5,13 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillRowDto, BillSummaryDto } from '../../api/expenditure/bills'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
-import { daysFromMuscatToday, dueNoteOf, statusLabelKey, toBillListItem } from '../../lib/billList'
+import {
+  daysFromMuscatToday,
+  dueNoteOf,
+  rowActionOf,
+  statusLabelKey,
+  toBillListItem,
+} from '../../lib/billList'
 import { BillsPage } from './BillsPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -22,6 +28,12 @@ const ADMIN: Entitlements = {
   featureFlags: {},
 }
 const READ_ONLY: Entitlements = { ...ADMIN, username: 'viewer', permissions: ['invoice.read'] }
+/** Captures and pays bills, and exports them, but does not approve: the one who waits on an approver. */
+const CAPTURER: Entitlements = {
+  ...ADMIN,
+  username: 'finance',
+  permissions: ['invoice.read', 'invoice.payment.manage', 'invoice.export'],
+}
 
 // Figures unlike the design's mock ledger (5 needing attention, 11,247.880 payable).
 const SUMMARY: BillSummaryDto = {
@@ -113,6 +125,8 @@ let unconfirmed: IntakeDto[]
 let listResponses: Array<() => Response>
 let summaryResponse: () => Response
 let who: Entitlements
+let nudgeResponse: () => Response
+let exportResponse: () => Response
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -125,8 +139,21 @@ beforeEach(async () => {
   summaryResponse = () => json(200, SUMMARY)
   unconfirmed = []
   listResponses = [() => json(200, itemsPage([bill()], 1))]
+  nudgeResponse = () =>
+    json(202, { billId: ID, nudgedOn: '2026-10-01', approvers: 1 })
+  exportResponse = () =>
+    new Response('supplier\n', {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': 'attachment; filename="fawtir-bills.csv"',
+        'X-Fawtir-Export-Truncated': 'false',
+      },
+    })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
+    if (url.endsWith('/approval/nudge') && init?.method === 'POST') return nudgeResponse()
+    if (url.startsWith('/api/v1/bills/export.csv')) return exportResponse()
     if (url === SUMMARY_URL) return summaryResponse()
     if (url.endsWith('/approval/approve') && init?.method === 'POST') return json(200, {})
     if (url.startsWith('/api/v1/bills?') || url === '/api/v1/bills') {
@@ -425,6 +452,55 @@ describe('Bills list, wired to the API', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
   })
 
+  it('offers no export without the export permission', async () => {
+    // ADMIN here holds no `invoice.export`: hidden, not shown disabled.
+    renderBills()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.queryByRole('button', { name: /Export/ })).toBeNull()
+  })
+
+  it('exports the list it is showing, and warns when the file stops at the cap', async () => {
+    who = CAPTURER
+    const created = vi.fn(() => 'blob:bills')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    exportResponse = () =>
+      new Response('supplier\n', {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="fawtir-bills.csv"',
+          'X-Fawtir-Export-Truncated': 'true',
+        },
+      })
+    renderBills('/expenditure/bills?tab=approved&source=peppol&sort=dueAsc&q=qalhat&page=3&size=25')
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+
+    expect(await screen.findByText(/stops at 10,000 bills/)).toBeTruthy()
+    // The tab, the search, the source and the order the list has; never its page.
+    expect(calls('/api/v1/bills/export.csv')).toEqual([
+      '/api/v1/bills/export.csv?filter=APPROVED&q=qalhat&source=PEPPOL&sort=DUE_SOONEST',
+    ])
+    expect(created).toHaveBeenCalledTimes(1)
+    expect(click).toHaveBeenCalledTimes(1)
+    click.mockRestore()
+  })
+
+  it('exports every bill with no filter on, and says why when the server refuses', async () => {
+    who = CAPTURER
+    exportResponse = () =>
+      json(403, { type: 'https://api.fawtir.om/problems/insufficient-permission' })
+    renderBills('/expenditure/bills?tab=all')
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+    await waitFor(() =>
+      expect(calls('/api/v1/bills/export.csv')).toEqual(['/api/v1/bills/export.csv']),
+    )
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Export/ })).toBeTruthy()
+  })
+
   it('reads in Arabic with Latin digits', async () => {
     await i18n.changeLanguage('ar')
     renderBills()
@@ -678,5 +754,155 @@ describe('uploads waiting for their details', () => {
         ),
       ).toHaveLength(1),
     )
+  })
+})
+
+describe('nudging the approver', () => {
+  const awaiting = () => bill({ workflowState: 'AWAITING_APPROVAL' })
+  const nudges = () =>
+    fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        url === `/api/v1/bills/${ID}/approval/nudge` &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    )
+  const refusal = (status: number, error: string, type = 'expenditure-refused') => () =>
+    json(status, { type: `https://api.fawtir.om/problems/${type}`, error })
+
+  it('sends the nudge and says the approver was reminded', async () => {
+    who = CAPTURER
+    listResponses = [() => json(200, itemsPage([awaiting()], 1))]
+    renderBills()
+    fireEvent.click(await screen.findByRole('button', { name: /Nudge the approver/ }))
+
+    expect(await screen.findByText('The approver has been reminded.')).toBeTruthy()
+    expect(nudges()).toHaveLength(1)
+    expect((nudges()[0][1] as RequestInit).body).toBeUndefined()
+    // Nothing on the list changes with a nudge, so it is not read again.
+    expect(listCalls()).toEqual([FIRST_PAGE])
+  })
+
+  it.each([
+    [
+      409,
+      'BILL_NUDGE_ALREADY_SENT',
+      'resource-conflict',
+      'A reminder for this bill was already sent today. You can send another tomorrow.',
+    ],
+    [
+      400,
+      'BILL_APPROVAL_NOT_PENDING',
+      'expenditure-refused',
+      'This bill is no longer waiting for approval. Reload to see where it is.',
+    ],
+    [
+      409,
+      'BILL_NUDGE_NO_APPROVER',
+      'resource-conflict',
+      'Nobody on this account can approve this bill. Check the approval rules in Settings.',
+    ],
+    [
+      503,
+      'BILL_NUDGE_DELIVERY_UNAVAILABLE',
+      'expenditure-refused',
+      'Bill reminders are not switched on, so nobody was told.',
+    ],
+  ])('says why a nudge was refused: %i %s', async (status, error, type, sentence) => {
+    who = CAPTURER
+    listResponses = [() => json(200, itemsPage([awaiting()], 1))]
+    nudgeResponse = refusal(status, error, type)
+    renderBills()
+    fireEvent.click(await screen.findByRole('button', { name: /Nudge the approver/ }))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText('The approver has been reminded.')).toBeNull()
+  })
+
+  it('reads a bill that has gone as not found', async () => {
+    who = CAPTURER
+    listResponses = [() => json(200, itemsPage([awaiting()], 1))]
+    nudgeResponse = refusal(404, 'BILL_NOT_FOUND', 'resource-not-found')
+    renderBills()
+    fireEvent.click(await screen.findByRole('button', { name: /Nudge the approver/ }))
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.queryByText('The approver has been reminded.')).toBeNull()
+  })
+
+  it('is not offered to a reader who can neither capture, pay nor approve', async () => {
+    who = READ_ONLY
+    listResponses = [() => json(200, itemsPage([awaiting()], 1))]
+    renderBills()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.queryByRole('button', { name: /Nudge the approver/ })).toBeNull()
+  })
+
+  it('is not offered on a bill that is not waiting for approval', async () => {
+    who = CAPTURER
+    // New and under the approval limit, approved, and on hold: nobody is being waited on.
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({ id: 'b-new', supplierBillNumber: 'NEW-1', workflowState: 'NEW' }),
+            bill({
+              id: 'b-ok',
+              supplierBillNumber: 'OK-1',
+              workflowState: 'APPROVED',
+              readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+            }),
+          ]),
+        ),
+    ]
+    renderBills()
+    await screen.findByText('NEW-1')
+    expect(screen.queryByRole('button', { name: /Nudge the approver/ })).toBeNull()
+  })
+
+  it('gives an approver Approve in the same place, not a nudge', async () => {
+    listResponses = [() => json(200, itemsPage([awaiting()], 1))]
+    renderBills()
+    expect(await screen.findByRole('button', { name: 'Approve' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Nudge the approver/ })).toBeNull()
+  })
+
+  it('decides the row button from the state and the two permissions', () => {
+    const waiting = toBillListItem(awaiting())
+    expect(rowActionOf(waiting, { canApprove: true, canCapture: true })).toBe('approve')
+    expect(rowActionOf(waiting, { canApprove: false, canCapture: true })).toBe('nudge')
+    expect(rowActionOf(waiting, { canApprove: false, canCapture: false })).toBeNull()
+    const fresh = toBillListItem(bill({ workflowState: 'NEW' }))
+    expect(rowActionOf(fresh, { canApprove: true, canCapture: false })).toBe('approve')
+    expect(rowActionOf(fresh, { canApprove: false, canCapture: true })).toBeNull()
+  })
+})
+
+describe('a draft row for a reader who cannot capture bills', () => {
+  it('offers no "Check and save", no Discard and no link into the capture pages', async () => {
+    who = READ_ONLY
+    summaryResponse = () =>
+      json(200, { ...SUMMARY, needsAttention: { ...SUMMARY.needsAttention, draft: 2 } })
+    unconfirmed = [
+      intakeRow('i-1', 'UPLOADED', {
+        supplierName: 'Nizwa Hardware Store',
+        billNumber: 'NHS-2026-14',
+      }),
+      intakeRow('i-2', 'SCANNED', {}),
+    ]
+    renderBills('/expenditure/bills?tab=needsAttention')
+
+    const upload = (await screen.findByText('Nizwa Hardware Store')).closest('tr')!
+    // The row is still drawn, with what was typed so far.
+    expect(within(upload).getByText('NHS-2026-14')).toBeTruthy()
+    expect(within(upload).getByText('Draft, confirm details')).toBeTruthy()
+    expect(within(upload).queryByRole('link')).toBeNull()
+    expect(within(upload).queryByText(/Check and save/)).toBeNull()
+    expect(within(upload).queryByRole('button', { name: 'Bill actions' })).toBeNull()
+    const receipt = screen.getByText('receipt.jpg').closest('tr')!
+    expect(within(receipt).queryByRole('link')).toBeNull()
+    expect(within(receipt).queryByRole('button', { name: 'Bill actions' })).toBeNull()
+
+    // A bill's own row keeps its link and its menu.
+    const billRow = screen.getByText('QMS-7781').closest('tr')!
+    expect(within(billRow).getByRole('link', { name: 'QMS-7781' })).toBeTruthy()
+    expect(within(billRow).getByRole('button', { name: 'Bill actions' })).toBeTruthy()
   })
 })

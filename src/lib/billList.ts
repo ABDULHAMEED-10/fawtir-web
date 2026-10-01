@@ -198,12 +198,27 @@ export function draftRowPath(item: BillListItem): string | null {
  */
 export type BillRowAction = 'approve' | 'reviewDifference' | 'nudge' | 'viewHold' | 'checkAndSave'
 
-export function rowActionOf(item: BillListItem, canApprove: boolean): BillRowAction | null {
-  if (item.draft) return 'checkAndSave'
+/** What the reader may do, as far as a row's button goes. */
+export type BillRowAccess = {
+  /** `invoice.approve`. */
+  canApprove: boolean
+  /** `invoice.payment.manage`: capturing a bill (finishing a draft) and paying it. */
+  canCapture: boolean
+}
+
+/**
+ * An action the reader cannot take is not offered (owner decision 2026-10-01): no "Check and
+ * save" without the capture permission, and no nudge for a reader who can neither capture, pay
+ * nor approve. The nudge is for a bill that is waiting on an approver, which a new bill under
+ * the approval limit is not; the server refuses it there (`BILL_APPROVAL_NOT_PENDING`).
+ */
+export function rowActionOf(item: BillListItem, access: BillRowAccess): BillRowAction | null {
+  if (item.draft) return access.canCapture ? 'checkAndSave' : null
   if (item.status === 'mismatch') return 'reviewDifference'
   if (item.status === 'onHold') return 'viewHold'
-  if (item.canApprove) return canApprove ? 'approve' : 'nudge'
-  return null
+  if (!item.canApprove) return null
+  if (access.canApprove) return 'approve'
+  return access.canCapture && item.status === 'awaitingApproval' ? 'nudge' : null
 }
 
 function isCreditNote(row: BillRowDto): boolean {

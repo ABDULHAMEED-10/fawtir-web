@@ -110,6 +110,29 @@ export function billListPath(query: BillListQuery): string {
   })
 }
 
+export type BillExport = ApiDownload & {
+  /** The server stopped at its row cap; the file is not every matching bill. */
+  truncated: boolean
+}
+
+/**
+ * The CSV of the bills the list is showing (`invoice.export`): the same tab, search, source and
+ * order. No page: the file runs to the server's cap, and says when it stopped there.
+ */
+export async function exportBills(
+  query: Pick<BillListQuery, 'filter' | 'q' | 'source' | 'sort'>,
+): Promise<BillExport> {
+  const file = await apiDownload(
+    withQuery(`${BILLS_PATH}/export.csv`, {
+      filter: query.filter === 'ALL' ? undefined : query.filter,
+      q: query.q.trim(),
+      source: query.source,
+      sort: query.sort === 'NEWEST' ? undefined : query.sort,
+    }),
+  )
+  return { ...file, truncated: file.headers.get('X-Fawtir-Export-Truncated') === 'true' }
+}
+
 export async function loadBillPage(path: string): Promise<Page<BillRowDto>> {
   return fromItemsPage(await apiRequest<ItemsPage<BillRowDto>>(path))
 }
@@ -136,6 +159,17 @@ export function holdBill(billId: string, reason: string): Promise<unknown> {
 
 export function releaseBill(billId: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/release`, { method: 'POST' })
+}
+
+/** `BillController.NudgeView`: accepted, and for how many approvers. Delivery follows. */
+export type BillNudgeDto = { billId: string; nudgedOn: string; approvers: number }
+
+/**
+ * Reminds the people who can still approve this bill (`invoice.payment.manage` or
+ * `invoice.approve`). One a day per bill: a second is refused with `BILL_NUDGE_ALREADY_SENT`.
+ */
+export function nudgeBillApprover(billId: string): Promise<BillNudgeDto> {
+  return apiRequest<BillNudgeDto>(`${billPath(billId)}/approval/nudge`, { method: 'POST' })
 }
 
 /** `RecordBillPayment`. The currency must be the bill's own: there is no buy-side exchange rate. */

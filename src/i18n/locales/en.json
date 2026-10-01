@@ -5346,6 +5346,16 @@
     },
     "rowMenu": {
       "view": "View the bill"
+    },
+    "export": "Export",
+    "exporting": "Exporting…",
+    "exportTruncated": "The file stops at 10,000 bills. Narrow the filters to export the rest.",
+    "nudge": {
+      "sent": "The approver has been reminded.",
+      "alreadySent": "A reminder for this bill was already sent today. You can send another tomorrow.",
+      "notPending": "This bill is no longer waiting for approval. Reload to see where it is.",
+      "noApprover": "Nobody on this account can approve this bill. Check the approval rules in Settings.",
+      "unavailable": "Bill reminders are not switched on, so nobody was told."
     }
   },
   "billDetail": {

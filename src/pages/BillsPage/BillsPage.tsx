@@ -21,9 +21,11 @@ import {
   BILL_SUMMARY_PATH,
   approveBill,
   billListPath,
+  exportBills,
   holdBill,
   loadBillPage,
   loadBillSummary,
+  nudgeBillApprover,
   rejectBill,
   releaseBill,
   type BillRowDto,
@@ -78,6 +80,7 @@ import actChevronIcon from '../../assets/bills/act-chevron.svg'
 import filterIcon from '../../assets/bills/filter.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import searchIcon from '../../assets/invoices/search.svg'
+import exportIcon from '../../assets/invoices/export.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import pauseIcon from '../../assets/actions/pause.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -145,6 +148,20 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
 }
 
+/**
+ * Why a nudge was refused, as its own sentence. Draft wording, pending the owner
+ * (Wording-For-Abdul.md, "Nudging the approver").
+ */
+const NUDGE_REFUSALS: Record<string, string> = {
+  BILL_NUDGE_ALREADY_SENT: 'billsPage.nudge.alreadySent',
+  BILL_APPROVAL_NOT_PENDING: 'billsPage.nudge.notPending',
+  BILL_NUDGE_NO_APPROVER: 'billsPage.nudge.noApprover',
+  BILL_NUDGE_DELIVERY_UNAVAILABLE: 'billsPage.nudge.unavailable',
+}
+
+/** The Invoices list's Export button, as it is drawn there. */
+const OUTLINE_BUTTON =
+  'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-60'
 const PRIMARY_BUTTON =
   'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
 const QUIET_BUTTON =
@@ -215,14 +232,14 @@ function BillsScreen() {
   }, [typed])
 
   const summary = useApiRead<BillSummaryDto>(BILL_SUMMARY_PATH, loadBillSummary)
-  const listPath = billListPath({
+  // What the list is showing, less its page: the export sends the same four.
+  const showing = {
     filter: BILL_TABS.find((entry) => entry.id === tab)?.filter ?? 'NEEDS_ATTENTION',
     q: query,
     source: BILL_SOURCES.find((option) => option.id === sourceKey)?.source ?? null,
     sort: BILL_SORTS.find((option) => option.value === sortKey)?.sort ?? 'NEWEST',
-    page: pageNumber - 1,
-    pageSize: size,
-  })
+  }
+  const listPath = billListPath({ ...showing, page: pageNumber - 1, pageSize: size })
   const list = useApiRead<Page<BillRowDto>>(listPath, () => loadBillPage(listPath))
 
   // The uploads and receipts nobody has confirmed, drawn as the design's draft rows at the top
@@ -259,6 +276,41 @@ function BillsScreen() {
       return false
     } finally {
       setBusy(null)
+    }
+  }
+
+  // A nudge changes nothing the list shows, so there is nothing to read again after it.
+  const nudge = async (billId: string) => {
+    setNotice(null)
+    setBusy(billId)
+    try {
+      await nudgeBillApprover(billId)
+      setNotice(t('billsPage.nudge.sent'))
+    } catch (error) {
+      const refusal = error instanceof ApiError && error.code ? NUDGE_REFUSALS[error.code] : null
+      setNotice(refusal ? t(refusal) : refusalText(t, error))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const [exporting, setExporting] = useState(false)
+  const onExport = async () => {
+    setExporting(true)
+    setNotice(null)
+    try {
+      const file = await exportBills(showing)
+      const url = URL.createObjectURL(file.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.filename ?? 'fawtir-bills.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+      if (file.truncated) setNotice(t('billsPage.exportTruncated'))
+    } catch (error) {
+      setNotice(refusalText(t, error))
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -402,6 +454,19 @@ function BillsScreen() {
               width={240}
               onChange={(value) => update({ sort: value === 'newest' ? null : value, page: null })}
             />
+            {/* The frame (163:21928) draws no Export, so it sits with the list's filters, as the
+                owner placed it: the Invoices list's button, for whoever may export. */}
+            {can(session, 'invoice.export') ? (
+              <button
+                type="button"
+                onClick={() => void onExport()}
+                disabled={exporting}
+                className={OUTLINE_BUTTON}
+              >
+                <img src={exportIcon} alt="" className="size-6 rotate-180" />
+                {exporting ? t('billsPage.exporting') : t('billsPage.export')}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -438,7 +503,7 @@ function BillsScreen() {
               setAsking(next)
             }}
             onDiscard={(intakeId) => void act(intakeId, () => discardIntake(intakeId))}
-            onUnavailable={(key) => setNotice(t(key))}
+            onNudge={(id) => void nudge(id)}
           />
         )}
 
@@ -735,7 +800,7 @@ function BillTable({
   onRelease,
   onAsk,
   onDiscard,
-  onUnavailable,
+  onNudge,
 }: {
   page: Page<BillRowDto> | null
   drafts: IntakePageDto['items']
@@ -747,8 +812,7 @@ function BillTable({
   onRelease: (billId: string) => void
   onAsk: (asking: Asking) => void
   onDiscard: (intakeId: string) => void
-  /** An action the design offers and the API cannot do yet; the key names the sentence. */
-  onUnavailable: (key: string) => void
+  onNudge: (billId: string) => void
 }) {
   const { t } = useTranslation()
   const rows = useMemo(
@@ -825,7 +889,7 @@ function BillTable({
                       : [...current, row.id],
                   )
                 }
-                action={rowActionOf(row, canApprove)}
+                action={rowActionOf(row, { canApprove, canCapture: canManage })}
                 canApprove={canApprove}
                 canManage={canManage}
                 busy={busy === row.id || (row.draft !== null && busy === row.draft.intakeId)}
@@ -833,7 +897,7 @@ function BillTable({
                 onRelease={() => onRelease(row.id)}
                 onAsk={(kind) => onAsk({ kind, billId: row.id, number: row.number ?? row.id })}
                 onDiscard={() => row.draft && onDiscard(row.draft.intakeId)}
-                onUnavailable={onUnavailable}
+                onNudge={() => onNudge(row.id)}
               />
             ))
           )}
@@ -855,7 +919,7 @@ function BillTableRow({
   onRelease,
   onAsk,
   onDiscard,
-  onUnavailable,
+  onNudge,
 }: {
   row: BillListItem
   selected: boolean
@@ -868,7 +932,7 @@ function BillTableRow({
   onRelease: () => void
   onAsk: (kind: 'reject' | 'hold') => void
   onDiscard: () => void
-  onUnavailable: (key: string) => void
+  onNudge: () => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -876,16 +940,23 @@ function BillTableRow({
   const dueNote = dueNoteOf(row)
   const to = draftRowPath(row) ?? `/expenditure/bills/${row.id}`
   const scanned = row.source === 'scanned'
+  const name = row.number
+    ? scanned
+      ? t('billsPage.rows.receipt', { number: row.number })
+      : row.number
+    : (row.draft?.filename ?? t('billsPage.rows.noNumber'))
 
   /**
    * The row menu. No frame draws it for bills (163:24153 is a payment run's), so it offers what
    * the row's state allows: the bill itself, and the decisions the detail page takes.
    */
+  // A draft is finished and discarded with the capture permission; without it the row offers
+  // neither, and its name is not a link to a page that would only say "no access".
   const menu: ActionMenuItem[] = row.draft
     ? [
-        { id: 'check', labelKey: 'billsPage.actions.checkAndSave', icon: actEditIcon, to },
         ...(canManage
           ? [
+              { id: 'check', labelKey: 'billsPage.actions.checkAndSave', icon: actEditIcon, to },
               {
                 id: 'discard',
                 labelKey: 'billsPage.unconfirmed.discard',
@@ -969,16 +1040,16 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <Link
-          to={to}
-          className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline"
-        >
-          {row.number
-            ? scanned
-              ? t('billsPage.rows.receipt', { number: row.number })
-              : row.number
-            : (row.draft?.filename ?? t('billsPage.rows.noNumber'))}
-        </Link>
+        {row.draft && !canManage ? (
+          <span className="text-sm font-semibold leading-[1.2] text-primary-900">{name}</span>
+        ) : (
+          <Link
+            to={to}
+            className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline"
+          >
+            {name}
+          </Link>
+        )}
         {row.draft ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
             {t('billsPage.rows.read', { date: formatInstantDay(row.draft.uploadedAt, language) })}
@@ -1082,7 +1153,7 @@ function BillTableRow({
                 action === 'approve'
                   ? onApprove
                   : action === 'nudge'
-                    ? () => onUnavailable('billsPage.notice.nudgeUnavailable')
+                    ? onNudge
                     : undefined
               }
             />
@@ -1118,7 +1189,9 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <ActionMenu items={menu} label={t('billsPage.rowMenuLabel')} floating />
+        {menu.length > 0 ? (
+          <ActionMenu items={menu} label={t('billsPage.rowMenuLabel')} floating />
+        ) : null}
       </td>
     </tr>
   )
