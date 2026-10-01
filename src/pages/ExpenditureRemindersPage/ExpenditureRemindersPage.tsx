@@ -35,6 +35,7 @@ import {
   type ReminderRecipientDto,
   type ReminderRuleDto,
   type ReminderRulesDto,
+  type ReminderSettingsAnswerDto,
   type ReminderSettingsDto,
 } from '../../api/expenditure/billReminders'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -132,7 +133,7 @@ function RemindersScreen() {
     canRead ? BILL_REMINDER_RULES_PATH : null,
     loadReminderRules,
   )
-  const settings = useApiRead<ReminderSettingsDto>(
+  const settings = useApiRead<ReminderSettingsAnswerDto>(
     canRead ? BILL_REMINDER_SETTINGS_PATH : null,
     loadReminderSettings,
   )
@@ -164,6 +165,11 @@ function RemindersScreen() {
           body={notice}
           action={{ label: t('common.close'), onClick: () => setNotice(null) }}
         />
+      ) : null}
+      {/* Only when the server says so. A server from before the field says nothing either way,
+          and nothing is shown. */}
+      {settings.read.status === 'ready' && settings.read.data.sendingEnabled === false ? (
+        <Notice body={t('expenditureReminders.sendingOff')} />
       ) : null}
       {rules.read.status === 'loading' || settings.read.status === 'loading' ? (
         <LoadingNotice />

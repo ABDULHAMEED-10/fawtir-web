@@ -68,6 +68,8 @@ let forced: { status: number; body: Record<string, unknown> } | null
 let rulesBodies: Record<string, unknown>[]
 let settingsBodies: Record<string, unknown>[]
 let preview: ReminderPreviewDto
+/** What `GET /settings` says about sending. `undefined` is a server from before the field. */
+let sending: boolean | undefined
 /** Fields on each rule the server answers that `RuleRequest` does not declare. */
 let extraOnRead: Record<string, unknown>
 
@@ -96,6 +98,7 @@ beforeEach(async () => {
   rulesBodies = []
   settingsBodies = []
   extraOnRead = {}
+  sending = true
   preview = { date: '2026-10-01', total: 0, groups: [] }
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -116,12 +119,21 @@ beforeEach(async () => {
     }
     if (url.includes('/bill-reminders/settings')) {
       // The answer carries `sendingEnabled`, read-only; the page must not need to send it back.
-      if (init?.method !== 'PUT') return json(200, settingsAnswer(settingsOnFile))
+      if (init?.method !== 'PUT')
+        return json(
+          200,
+          sending === undefined
+            ? settingsOnFile
+            : settingsAnswer(settingsOnFile, { sendingEnabled: sending }),
+        )
       const body = JSON.parse(String(init.body))
       settingsBodies.push(body)
-      const answer = saveSettings(body)
+      const answer = saveSettings(body, { sendingEnabled: sending ?? true })
       if (answer.settings) settingsOnFile = answer.settings
-      return json(answer.status, answer.body)
+      return json(
+        answer.status,
+        answer.settings && sending === undefined ? answer.settings : answer.body,
+      )
     }
     if (url.includes('/bill-reminders/preview')) return json(200, preview)
     if (url.includes('/v1/users')) {
@@ -349,6 +361,70 @@ function emptyRuleRefusal(shape: 'coded' | 'legacy') {
   )
   return { status: answer.status, body: answer.body }
 }
+
+describe('a server that is not sending reminders', () => {
+  const LINE = 'Reminders are not being sent yet.'
+
+  it('says so in one line, and the page still works', async () => {
+    sending = false
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(screen.getAllByText(LINE)).toHaveLength(1)
+    // The page's own notice, with nothing to press on it.
+    const notice = screen.getByText(LINE).closest('section')!
+    expect(within(notice).queryByRole('button')).toBeNull()
+
+    // Rules still save while sending is off, the line stays, and the field is not sent back.
+    fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(settingsBodies).toHaveLength(1))
+    expect(Object.keys(settingsBodies[0]).sort()).toEqual([...SETTINGS_PUT.fields].sort())
+    expect(await screen.findByText('Saved.')).toBeTruthy()
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', true))
+    expect(screen.getAllByText(LINE)).toHaveLength(1)
+  })
+
+  it('says nothing when the server is sending', async () => {
+    sending = true
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(screen.queryByText(LINE)).toBeNull()
+  })
+
+  it('says nothing when an older server does not say either way', async () => {
+    sending = undefined
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(screen.queryByText(LINE)).toBeNull()
+
+    // And a save against that server still goes through.
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(settingsOnFile.delivery).toBe('IN_APP'))
+    expect(screen.queryByText(LINE)).toBeNull()
+  })
+
+  it('tells a reader too', async () => {
+    sending = false
+    entitlements = { ...MANAGER, permissions: ['invoice.read'] }
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(screen.getByText(LINE)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
+  })
+
+  it('says it in Arabic', async () => {
+    sending = false
+    await i18n.changeLanguage('ar')
+    renderPage()
+    await screen.findByText('قبل استحقاق الفاتورة')
+    expect(screen.getByText('لا تُرسل التذكيرات بعد.')).toBeTruthy()
+    expect(screen.queryByText(LINE)).toBeNull()
+  })
+})
 
 describe('a rule switched on with no timing chosen', () => {
   /** The rule on file and on; both of its lit days are then switched off. */

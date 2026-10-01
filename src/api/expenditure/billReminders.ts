@@ -75,6 +75,15 @@ export type ReminderSettingsDto = {
   stopWhenInRun: boolean
 }
 
+/**
+ * `SettingsResponse`: the four saved values, and whether this server sends reminders at all
+ * (`fawtir.expenditure.reminders.enabled`). Read-only and the same for every company; `false`
+ * means rules and settings save, the preview answers, and nothing is ever sent. A server from
+ * before the field leaves it out, which says nothing either way. Kept off
+ * {@link ReminderSettingsDto} because that type is the request record, field for field.
+ */
+export type ReminderSettingsAnswerDto = ReminderSettingsDto & { sendingEnabled?: boolean }
+
 export type ReminderPreviewItemDto = {
   ruleType: ReminderRuleTypeDto
   subjectType: ReminderSubjectTypeDto
@@ -145,8 +154,8 @@ function ruleRequest(rule: ReminderRuleDto): ReminderRuleDto {
   }
 }
 
-export function loadReminderSettings(): Promise<ReminderSettingsDto> {
-  return apiRequest<ReminderSettingsDto>(BILL_REMINDER_SETTINGS_PATH)
+export function loadReminderSettings(): Promise<ReminderSettingsAnswerDto> {
+  return apiRequest<ReminderSettingsAnswerDto>(BILL_REMINDER_SETTINGS_PATH)
 }
 
 /** `SettingsRequest`, field for field, for the same reason as {@link ruleRequest}. */

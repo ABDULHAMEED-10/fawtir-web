@@ -7026,7 +7026,8 @@
       "sendNow": "Send me today's now",
       "notYet": "Not available yet: this needs the backend.",
       "save": "Save changes"
-    }
+    },
+    "sendingOff": "Reminders are not being sent yet."
   },
   "documents": {
     "title": "Documents",
