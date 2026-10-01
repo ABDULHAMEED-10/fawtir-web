@@ -387,7 +387,14 @@ function BillsScreen() {
 
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
-  const drafts = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
+  const unconfirmed = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
+  // A draft is an upload or a receipt, and the source filter shows or hides it as it does a
+  // bill: "Uploaded" keeps the uploads, "Scanned" the receipts, any other source neither.
+  const filteredSource = BILL_SOURCES.find((option) => option.id === sourceKey)?.source ?? null
+  const drafts =
+    filteredSource === null
+      ? unconfirmed
+      : unconfirmed.filter((intake) => intake.source === filteredSource)
   // The whole ledger's counts with no filter on, and when the filtered read fails.
   const tabs =
     countsPath === null || counts.read.status === 'failed'
@@ -515,7 +522,7 @@ function BillsScreen() {
             canApprove={canApprove}
             canManage={canCapture}
             busy={busy}
-            ledgerEmpty={totals.tabs.all === 0 && drafts.length === 0}
+            ledgerEmpty={totals.tabs.all === 0 && unconfirmed.length === 0}
             onApprove={(id) => void act(id, () => approveBill(id))}
             onRelease={(id) => void act(id, () => releaseBill(id))}
             onAsk={(next) => {

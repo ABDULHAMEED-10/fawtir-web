@@ -1087,3 +1087,76 @@ describe('the tab counts under a search or a source filter', () => {
     await waitFor(() => expect(countCalls()).toHaveLength(2), SLOW)
   })
 })
+
+describe('draft rows under the source filter', () => {
+  const withDrafts = () => {
+    summaryResponse = () =>
+      json(200, { ...SUMMARY, needsAttention: { ...SUMMARY.needsAttention, draft: 2 } })
+    unconfirmed = [
+      intakeRow('i-1', 'UPLOADED', {
+        supplierName: 'Nizwa Hardware Store',
+        billNumber: 'NHS-2026-14',
+      }),
+      intakeRow('i-2', 'SCANNED', {}),
+    ]
+  }
+  const badge = (name: RegExp) => within(screen.getByRole('button', { name })).getByText(/^\d+$/)
+  const SLOW = { timeout: 5000 }
+
+  it('shows both kinds with no source filter on', async () => {
+    withDrafts()
+    renderBills()
+    expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
+    expect(screen.getByText('receipt.jpg')).toBeTruthy()
+  })
+
+  it('keeps the uploads and hides the receipts under "Uploaded"', async () => {
+    withDrafts()
+    renderBills('/expenditure/bills?source=uploaded')
+    expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.queryByText('receipt.jpg')).toBeNull()
+  })
+
+  it('keeps the receipts and hides the uploads under "Scanned"', async () => {
+    withDrafts()
+    renderBills('/expenditure/bills?source=scanned')
+    expect(await screen.findByText('receipt.jpg')).toBeTruthy()
+    expect(screen.queryByText('Nizwa Hardware Store')).toBeNull()
+  })
+
+  it.each([['peppol'], ['recurring'], ['selfBilled']])(
+    'shows no draft under "%s", and the badge is the count of the rows that are left',
+    async (source) => {
+      withDrafts()
+      // One bill matches the filter: the badge says 1 and one row is drawn, no draft beside it.
+      countsResponse = () =>
+        json(200, { ...SUMMARY, tabs: { ...SUMMARY.tabs, needsAttention: 1, all: 1 } })
+      renderBills(`/expenditure/bills?source=${source}`)
+      await screen.findByText('Qalhat Marine Supplies')
+      await waitFor(() => expect(badge(/^Needs attention/).textContent).toBe('1'), SLOW)
+      // The drafts were read; the filter is what leaves them out.
+      await waitFor(
+        () => expect(calls('/api/v1/bills/intake?status=UNCONFIRMED')).toHaveLength(1),
+        SLOW,
+      )
+      expect(screen.queryByText('Nizwa Hardware Store')).toBeNull()
+      expect(screen.queryByText('receipt.jpg')).toBeNull()
+      expect(screen.getAllByRole('row')).toHaveLength(2) // the header and the one bill
+    },
+  )
+
+  it('says nothing matches, not that the ledger is empty, when only drafts exist and the filter hides them', async () => {
+    withDrafts()
+    summaryResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        needsAttention: { ...SUMMARY.needsAttention, draft: 2 },
+        tabs: { ...SUMMARY.tabs, needsAttention: 0, all: 0 },
+      })
+    listResponses = [() => json(200, itemsPage([], 0))]
+    renderBills('/expenditure/bills?source=peppol')
+    expect(await screen.findByText('No bills match these filters.')).toBeTruthy()
+    expect(screen.queryByText(/No bills yet/)).toBeNull()
+  })
+})
