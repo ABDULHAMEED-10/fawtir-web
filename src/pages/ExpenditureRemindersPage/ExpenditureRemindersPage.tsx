@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -35,11 +35,13 @@ import {
   type ReminderRecipientDto,
   type ReminderRuleDto,
   type ReminderRulesDto,
+  type ReminderSettingsAnswerDto,
   type ReminderSettingsDto,
 } from '../../api/expenditure/billReminders'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   RULE_LABEL_KEY,
+  hasNoTiming,
   offsetsProblem,
   ruleChanged,
   type OffsetProblem,
@@ -54,6 +56,7 @@ import {
   joinNames,
   rulesOn,
   toggleOffset,
+  withOneTiming,
   type RuleSpec,
 } from '../../lib/expenditureReminders'
 import { formatAmount, formatCount, formatInstant } from '../../lib/format'
@@ -108,9 +111,10 @@ const blankRule = (type: ConfigurableRuleType): ReminderRuleDto => ({
  * that has not arrived, is set on each recurring bill and is drawn as a link there. How the team
  * is told, what today's sweep would send, and one Save for the lot.
  *
- * Three constraints are the server's and are checked here so a save is not spent learning them:
- * a repeat belongs to the late rule alone, an escalation to the stale-approval rule alone, and a
- * rule whose recipients are not derived cannot be switched on with nobody to tell.
+ * Four constraints are the server's and are checked here so a save is not spent learning them:
+ * a repeat belongs to the late rule alone, an escalation to the stale-approval rule alone, a rule
+ * cannot be switched on with no timing chosen, and a rule whose recipients are not derived cannot
+ * be switched on with nobody to tell.
  */
 export function ExpenditureRemindersPage() {
   return (
@@ -130,7 +134,7 @@ function RemindersScreen() {
     canRead ? BILL_REMINDER_RULES_PATH : null,
     loadReminderRules,
   )
-  const settings = useApiRead<ReminderSettingsDto>(
+  const settings = useApiRead<ReminderSettingsAnswerDto>(
     canRead ? BILL_REMINDER_SETTINGS_PATH : null,
     loadReminderSettings,
   )
@@ -163,6 +167,11 @@ function RemindersScreen() {
           action={{ label: t('common.close'), onClick: () => setNotice(null) }}
         />
       ) : null}
+      {/* Only when the server says so. A server from before the field says nothing either way,
+          and nothing is shown. */}
+      {settings.read.status === 'ready' && settings.read.data.sendingEnabled === false ? (
+        <Notice body={t('expenditureReminders.sendingOff')} />
+      ) : null}
       {rules.read.status === 'loading' || settings.read.status === 'loading' ? (
         <LoadingNotice />
       ) : null}
@@ -190,7 +199,7 @@ function RemindersScreen() {
 }
 
 function Editor({
-  savedRules,
+  savedRules: rulesOnFile,
   savedSettings,
   canManage,
   setNotice,
@@ -204,6 +213,10 @@ function Editor({
   onSaved: () => void
 }) {
   const { t } = useTranslation()
+  // What the page edits and compares against: the rules on file, with a switched-off row that
+  // takes one timing read as holding one. Untouched, nothing differs and nothing is offered to
+  // save; a rule that is then saved carries its one timing.
+  const savedRules = useMemo(() => rulesOnFile.map(withOneTiming), [rulesOnFile])
   const [draft, setDraft] = useState<ReminderRuleDto[]>(savedRules)
   const [delivery, setDelivery] = useState<ReminderSettingsDto>(savedSettings)
   const [busy, setBusy] = useState(false)
@@ -212,9 +225,9 @@ function Editor({
   useEffect(() => setDraft(savedRules), [savedRules])
   useEffect(() => setDelivery(savedSettings), [savedSettings])
 
-  // The picker needs admin.users.manage, which someone who may edit these rules does not
-  // necessarily hold. A refusal is expected, not an error: the rules stay editable and the
-  // people already on them travel back untouched.
+  // The people come from the names-only list, readable by whoever may save these rules. A server
+  // from before that list refuses the read: the rules stay editable and the people already on
+  // them travel back untouched.
   const people = useApiRead<ReminderRecipientDto[]>(
     canManage ? POSSIBLE_RECIPIENTS_PATH : null,
     loadPossibleRecipients,
@@ -225,11 +238,14 @@ function Editor({
     (type) => draft.find((rule) => rule.type === type) ?? blankRule(type),
   )
 
-  const problems = new Map<ConfigurableRuleType, OffsetProblem | 'recipients'>()
+  // In the order the server checks them, so the line under the rule is the one it would refuse on.
+  const problems = new Map<ConfigurableRuleType, RuleProblem>()
   for (const rule of editable) {
     const type = rule.type as ConfigurableRuleType
     const offsets = offsetsProblem(rule.offsets)
     if (offsets) problems.set(type, offsets)
+    // Asked only of someone who can choose one: a reader is shown the rule as it is on file.
+    else if (canManage && hasNoTiming(rule)) problems.set(type, 'noTiming')
     else if (rule.enabled && RECIPIENTS_REQUIRED_TO_ENABLE[type] && rule.recipients.length === 0)
       problems.set(type, 'recipients')
   }
@@ -422,14 +438,8 @@ function Editor({
               {delivery.skipWeekends ? `, ${t('expenditureReminders.footer.weekendsSkipped')}` : ''}
             </p>
             <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:justify-end">
-              {/* TODO(backend): a route that sends the reader today's digest now. */}
-              <button
-                type="button"
-                onClick={() => setNotice(t('expenditureReminders.footer.notYet'))}
-                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                {t('expenditureReminders.footer.sendNow')}
-              </button>
+              {/* "Send me today's now" is not drawn: no route sends it, and a button that does
+                  nothing is not shown (guide row 4.2). */}
               <button
                 type="button"
                 disabled={!canSave}
@@ -446,6 +456,9 @@ function Editor({
     </>
   )
 }
+
+/** What stops a rule being saved, said in a line under it. */
+type RuleProblem = OffsetProblem | 'noTiming' | 'recipients'
 
 function SectionCard({
   step,
@@ -511,7 +524,7 @@ function RuleCard({
   rule: ReminderRuleDto | null
   roster: ReminderRecipientDto[] | null
   canManage: boolean
-  problem: OffsetProblem | 'recipients' | null
+  problem: RuleProblem | null
   onChange: (change: Partial<ReminderRuleDto>) => void
 }) {
   const { t } = useTranslation()
@@ -539,13 +552,16 @@ function RuleCard({
             {t(`${label}.note`)}
           </p>
         </div>
-        {/* The recurring row's switch is the bills' own: it cannot be turned off here. */}
-        <Switch
-          checked={on}
-          onChange={(enabled) => rule && onChange({ enabled })}
-          label={t(`${label}.title`)}
-          disabled={!canManage}
-        />
+        {/* The recurring row has no rule behind it and nothing to switch: its timing is set on
+            each recurring bill, so no switch is drawn there. */}
+        {rule ? (
+          <Switch
+            checked={on}
+            onChange={(enabled) => onChange({ enabled })}
+            label={t(`${label}.title`)}
+            disabled={!canManage}
+          />
+        ) : null}
       </div>
 
       {/* The settings dim rather than disappear, so the shape of the rule stays readable. */}
@@ -683,8 +699,9 @@ function RecipientPicker({
   }
 
   // First names, as the frame draws them; the popover lists people in full.
+  // Someone with no name on file, or no longer on the list, is worded, never shown as an id.
   const nameOf = (id: string) =>
-    roster.find((person) => person.id === id)?.name.split(' ')[0] ??
+    roster.find((person) => person.id === id)?.name?.split(' ')[0] ??
     t('expenditureReminders.someone')
 
   return (
@@ -738,7 +755,7 @@ function RecipientPicker({
                     ].join(' ')}
                   >
                     <img src={avatarImg} alt="" className="size-6 rounded-full object-cover" />
-                    {person.name}
+                    {person.name ?? t('expenditureReminders.someone')}
                   </button>
                 </li>
               ))}

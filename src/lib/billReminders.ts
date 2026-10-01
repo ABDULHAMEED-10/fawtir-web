@@ -42,6 +42,20 @@ export function offsetsProblem(offsets: number[]): OffsetProblem | null {
   return null
 }
 
+/**
+ * A rule switched on with nothing saying when: no day, no repeat and no escalation. The server
+ * refuses exactly this (`REMINDER_RULE_EMPTY`), so the page says so under the rule before a save
+ * is spent learning it. A rule that is off may be empty.
+ */
+export function hasNoTiming(rule: ReminderRuleDto): boolean {
+  return (
+    rule.enabled &&
+    rule.offsets.length === 0 &&
+    rule.repeatEveryDays === null &&
+    (rule.escalationOffsets ?? []).length === 0
+  )
+}
+
 /** Whether a rule differs from the one on file, so only what changed is sent. */
 export function ruleChanged(saved: ReminderRuleDto[], rule: ReminderRuleDto): boolean {
   const before = saved.find((entry) => entry.type === rule.type)

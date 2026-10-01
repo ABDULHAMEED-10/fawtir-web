@@ -1525,34 +1525,72 @@ const PREVIEW = {
   ],
 }
 
+/**
+ * `InboxItemResponse` as the bell reads it: the original eleven fields, then what the notice is
+ * about (`reason`), the name a reader knows it by, the amount, and where its line leads. `read`
+ * is worked out when it is answered, as the server does.
+ */
+const inboxItem = (item) => ({
+  outcome: 'SENT',
+  firedOn: TODAY,
+  createdAt: `${TODAY}T04:00:00Z`,
+  acknowledgedAt: null,
+  reason: item.ruleType,
+  occasion: null,
+  occasionDate: null,
+  amount: null,
+  currency: null,
+  billId: item.subjectType === 'BILL' ? item.subjectId : null,
+  recurringBillId: item.subjectType === 'RECURRING_BILL' ? item.subjectId : null,
+  intakeId: item.subjectType === 'INTAKE' ? item.subjectId : null,
+  arrivedBillId: null,
+  variancePercent: null,
+  ...item,
+})
+
 let INBOX = [
-  {
+  inboxItem({
     id: 'inb-1',
     ruleType: 'LATE',
     subjectType: 'BILL',
     subjectId: 'b-and-3370',
-    billId: 'b-and-3370',
-    daysFromDue: -9,
-    firedOn: TODAY,
-    headline: 'Al Noor Dates unpaid for 9 days',
-    outcome: 'SENT',
-    createdAt: `${TODAY}T04:00:00Z`,
-    acknowledgedAt: null,
-  },
-  {
+    subjectDisplay: 'AND-INV-3370',
+    // Days late count up; days still to go are sent zero or negative.
+    daysFromDue: 9,
+    headline: 'AND-INV-3370 is 9 day(s) overdue',
+    amount: 411.5,
+    currency: 'OMR',
+  }),
+  inboxItem({
     id: 'inb-2',
     ruleType: 'BEFORE_DUE',
     subjectType: 'BILL',
     subjectId: 'b-sp-1140',
-    billId: 'b-sp-1140',
-    daysFromDue: 3,
-    firedOn: TODAY,
-    headline: 'Sohar Packaging due in 3 days',
-    outcome: 'SENT',
-    createdAt: `${TODAY}T04:00:00Z`,
-    acknowledgedAt: null,
-  },
+    subjectDisplay: 'SP-1140',
+    daysFromDue: -3,
+    headline: 'SP-1140 is due in 3 day(s)',
+    amount: 3140,
+    currency: 'OMR',
+  }),
+  inboxItem({
+    id: 'inb-3',
+    ruleType: 'RECURRING_LATE',
+    reason: 'RECURRING_LATE',
+    occasion: 'LATE',
+    occasionDate: TODAY,
+    subjectType: 'RECURRING_BILL',
+    subjectId: 'rb-power',
+    subjectDisplay: 'Electricity',
+    daysFromDue: 2,
+    headline: 'Recurring bill Electricity has not arrived',
+    amount: 318.4,
+    currency: 'OMR',
+    createdAt: '2026-09-24T04:00:00Z',
+    acknowledgedAt: '2026-09-24T09:30:00Z',
+  }),
 ]
+
+const inboxAnswer = (item) => ({ ...item, read: item.acknowledgedAt !== null })
 
 /* -------------------------------------------------------------------- routes */
 
@@ -2116,16 +2154,34 @@ export default [
   { match: '/api/v1/bill-reminders/preview', reply: () => PREVIEW },
   {
     match: '/api/v1/bill-reminders/inbox',
-    reply: ({ query }) =>
-      query.get('unread') === 'true' ? INBOX.filter((i) => i.acknowledgedAt === null) : INBOX,
+    reply: ({ query }) => {
+      const rows =
+        query.get('unread') === 'true' ? INBOX.filter((i) => i.acknowledgedAt === null) : INBOX
+      return rows.slice(0, Number(query.get('limit')) || 50).map(inboxAnswer)
+    },
+  },
+  // The reader's own unread, which no limit caps.
+  {
+    match: '/api/v1/bill-reminders/inbox/unread-count',
+    reply: () => ({ unread: INBOX.filter((i) => i.acknowledgedAt === null).length }),
+  },
+  {
+    method: 'POST',
+    match: '/api/v1/bill-reminders/inbox/acknowledge-all',
+    reply: () => {
+      const unread = INBOX.filter((i) => i.acknowledgedAt === null)
+      for (const item of unread) item.acknowledgedAt = `${TODAY}T12:00:00Z`
+      return { acknowledged: unread.length }
+    },
   },
   {
     method: 'POST',
     match: /^\/api\/v1\/bill-reminders\/inbox\/([^/]+)\/acknowledge$/,
+    // 204 the first time and every time after; 404 only for a row that is not the reader's.
     reply: ({ params }) => {
       const item = INBOX.find((i) => i.id === params[0])
       if (!item) return { status: 404 }
-      item.acknowledgedAt = `${TODAY}T12:00:00Z`
+      item.acknowledgedAt ??= `${TODAY}T12:00:00Z`
       return { status: 204 }
     },
   },

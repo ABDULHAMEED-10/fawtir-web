@@ -6972,7 +6972,7 @@
       "inAppOnly": "In Fawtir only · no email",
       "headline_one": "{{count}} thing needs attention this morning.",
       "headline_other": "{{count}} things need attention this morning.",
-      "nothing": "Nothing would go out today. Every rule that could fire is switched off.",
+      "nothing": "Nothing would go out today.",
       "to": "to",
       "alNoor": "Al Noor Dates unpaid for {{days}} days",
       "alNoorAmount": "OMR 411.500",
@@ -7018,7 +7018,8 @@
       "outOfRange": "Each day must be between 0 and {{maxDays}}",
       "repeated": "The same day twice",
       "notWhole": "Whole days only",
-      "recipients": "Switching this on needs at least one person to tell"
+      "recipients": "Switching this on needs at least one person to tell",
+      "noTiming": "Choose when to remind, or switch this off."
     },
     "inbox": {
       "title": "Your reminders",
@@ -7041,7 +7042,8 @@
       "sendNow": "Send me today's now",
       "notYet": "Not available yet: this needs the backend.",
       "save": "Save changes"
-    }
+    },
+    "sendingOff": "Reminders are not being sent yet."
   },
   "documents": {
     "title": "Documents",
@@ -14129,6 +14131,55 @@
       "title": "{{erpNumber}} changed in the ERP after it was submitted",
       "body": "A submitted invoice cannot be changed ({{note}}). Issue a credit note in {{product}} and the connector will collect it.",
       "open": "Open the record"
+    },
+    "reminder": {
+      "BEFORE_DUE": {
+        "now": "Bill {{name}} is due today",
+        "days_one": "Bill {{name}} is due tomorrow",
+        "days_other": "Bill {{name}} is due in {{count}} days"
+      },
+      "LATE": {
+        "now": "Bill {{name}} is late",
+        "days_one": "Bill {{name}} is {{count}} day late",
+        "days_other": "Bill {{name}} is {{count}} days late"
+      },
+      "DISCOUNT_EXPIRY": {
+        "now": "The discount on bill {{name}} runs out today",
+        "days_one": "The discount on bill {{name}} runs out tomorrow",
+        "days_other": "The discount on bill {{name}} runs out in {{count}} days"
+      },
+      "APPROVAL_STALE": {
+        "now": "Bill {{name}} is waiting for approval",
+        "days_one": "Bill {{name}} has waited {{count}} day for approval",
+        "days_other": "Bill {{name}} has waited {{count}} days for approval"
+      },
+      "MISMATCH_STALE": {
+        "now": "Bill {{name}} has a mismatch nobody has resolved",
+        "days_one": "The mismatch on bill {{name}} has waited {{count}} day",
+        "days_other": "The mismatch on bill {{name}} has waited {{count}} days"
+      },
+      "SCAN_UNCONFIRMED": {
+        "now": "{{name}} is waiting to be confirmed",
+        "days_one": "{{name}} has waited {{count}} day to be confirmed",
+        "days_other": "{{name}} has waited {{count}} days to be confirmed"
+      },
+      "RECURRING_LATE": {
+        "now": "{{name}} has not arrived",
+        "days_one": "{{name}} is {{count}} day late arriving",
+        "days_other": "{{name}} is {{count}} days late arriving"
+      },
+      "RECURRING_CHASE": {
+        "title": "Please chase the supplier for {{name}}"
+      },
+      "RECURRING_OUT_OF_RANGE": {
+        "title": "{{name}} arrived outside its usual range"
+      },
+      "body": {
+        "owed": "<b>{{amount}}</b> still to pay.",
+        "usual": "Usually <b>{{amount}}</b>.",
+        "above": "<b>{{percent}}%</b> above the usual amount.",
+        "below": "<b>{{percent}}%</b> below the usual amount."
+      }
     }
   },
   "onboarding": {
