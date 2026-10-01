@@ -354,6 +354,65 @@ describe('A bill, wired to the API', () => {
     expect(card.queryByText('No original file on record')).toBeNull()
     // No em dash in the owner's line.
     expect(card.queryByText(/—/)).toBeNull()
+    // Those three are the whole block: nothing is "reported by the sender" on your own document.
+    expect(card.getAllByRole('listitem')).toHaveLength(3)
+    expect(card.queryByText(/Reported by the sender/)).toBeNull()
+  })
+
+  const scanned = (note: string | null | undefined): BillDetailDto => ({
+    ...detail(),
+    bill: { ...detail().bill, source: 'SCANNED', inboundDeliveryId: null, note },
+    intake: {
+      id: 'in-1',
+      source: 'SCANNED',
+      filename: 'receipt-4471.jpg',
+      contentType: 'image/jpeg',
+      uploadedAt: '2026-09-12T08:00:00Z',
+    },
+    compliance: { source: 'SCANNED', networkVerified: false, obligation: 'PENDING_COMPLIANCE_INPUT' },
+  })
+  const fileRow = async () =>
+    (await screen.findByRole('button', { name: 'receipt-4471.jpg' })).closest('li') as HTMLElement
+
+  it("shows a receipt's note as the sub-line of its row in Linked documents", async () => {
+    billResponse = () => json(200, scanned('Fixing the drain behind the roastery'))
+    renderBill()
+    const row = within(await fileRow())
+    const line = row.getByText('Note: Fixing the drain behind the roastery')
+    // The row's own sub-line, in its own style: nothing new is drawn for the note.
+    expect(line.tagName).toBe('P')
+    expect(line.className).toContain('text-xs')
+    expect(line.className).toContain('text-text-quaternary')
+    expect(row.queryByText('The original file as the supplier sent it')).toBeNull()
+  })
+
+  it('cuts a long note to one line and keeps the whole of it on hover', async () => {
+    const long = 'Drain cover, wire brush and sealant for the roastery floor. '.repeat(6).trim()
+    billResponse = () => json(200, scanned(long))
+    renderBill()
+    const line = within(await fileRow()).getByText(`Note: ${long}`)
+    expect(line.className).toContain('truncate')
+    expect(line.getAttribute('title')).toBe(`Note: ${long}`)
+  })
+
+  it.each([[null], [undefined], ['   ']])(
+    'leaves the row as it was when the bill has no note (%j)',
+    async (note) => {
+      billResponse = () => json(200, scanned(note))
+      renderBill()
+      const row = within(await fileRow())
+      const line = row.getByText('The original file as the supplier sent it')
+      expect(line.className).not.toContain('truncate')
+      expect(line.getAttribute('title')).toBeNull()
+      expect(screen.queryByText(/^Note:/)).toBeNull()
+    },
+  )
+
+  it('reads the note line in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, scanned('Drain cover'))
+    renderBill()
+    expect(await screen.findByText('ملاحظة: Drain cover')).toBeTruthy()
   })
 
   it('keeps the agreement line, as the link, when the document has no agreement on record', async () => {
@@ -937,7 +996,6 @@ describe('bill detail mapping', () => {
         link: '/income/self-billing/sb-1',
       },
       { key: 'billDetail.compliance.selfBilled.validTaxInvoice', ok: true },
-      { key: 'billDetail.compliance.reportedBySender', ok: true },
     ])
     // A response that names no document (an older server) still says who issued it, and links nowhere.
     const bare = complianceOf(selfBilledBill)
@@ -945,9 +1003,17 @@ describe('bill detail mapping', () => {
       'billDetail.compliance.selfBilled.issuedByYou',
       'billDetail.compliance.selfBilled.agreementNoReference',
       'billDetail.compliance.selfBilled.validTaxInvoice',
-      'billDetail.compliance.reportedBySender',
     ])
     expect(bare[1].link).toBeUndefined()
+    // Whatever the obligation says, a self-billed bill has these three lines and no fourth.
+    for (const obligation of ['PENDING_COMPLIANCE_INPUT', 'NOT_APPLICABLE'] as const) {
+      expect(
+        complianceOf({
+          ...selfBilledBill,
+          compliance: { ...selfBilledBill.compliance, obligation },
+        }),
+      ).toHaveLength(3)
+    }
     // The row's own id is enough to reach the document.
     expect(
       complianceOf({

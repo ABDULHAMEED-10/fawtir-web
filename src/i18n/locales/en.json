@@ -5455,7 +5455,8 @@
       "matchedToThisBill": "Matched to this bill",
       "receiptAgainst": "Received against {{order}}",
       "originalNote": "The original file as the supplier sent it",
-      "none": "Nothing is linked to this bill yet."
+      "none": "Nothing is linked to this bill yet.",
+      "note": "Note: {{text}}"
     },
     "activity": {
       "title": "Activity",
