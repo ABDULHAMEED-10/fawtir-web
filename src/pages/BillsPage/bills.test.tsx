@@ -1172,17 +1172,40 @@ describe('why a rejection was refused, in its own sentence', () => {
   const GENERIC = /The server refused this\. Nothing was changed/
 
   // Found by key, so the same steps run in Arabic.
-  async function reject() {
+  async function decide(menuKey: string, confirmKey: string) {
     renderBills()
     const row = (await screen.findByText('QMS-7781')).closest('tr')!
     fireEvent.click(within(row).getByRole('button', { name: i18n.t('billsPage.rowMenuLabel') }))
-    fireEvent.click(
-      await screen.findByRole('menuitem', { name: i18n.t('billDetail.actions.reject') }),
-    )
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t(menuKey) }))
     const dialog = await screen.findByRole('dialog')
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Not ours' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.reject.confirm') }))
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t(confirmKey) }))
   }
+  const reject = () => decide('billDetail.actions.reject', 'billDetail.reject.confirm')
+  const hold = () => decide('billDetail.decision.putOnHold', 'billDetail.hold.confirm')
+
+  // Wording-For-Abdul.md section 5.
+  it.each([
+    ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],
+    [
+      'BILL_HOLD_REASON_TOO_LONG',
+      'That reason is too long. Shorten it and put the bill on hold again.',
+    ],
+  ])('a hold: %s', async (error, sentence) => {
+    decisionResponse = refusal(error)
+    await hold()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('says a hold reason is too long in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    decisionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
+    await hold()
+    expect(
+      await screen.findByText('السبب طويل أكثر من اللازم. اختصره ثم علّق الفاتورة من جديد.'),
+    ).toBeTruthy()
+  })
 
   it.each([
     [
@@ -1213,7 +1236,7 @@ describe('why a rejection was refused, in its own sentence', () => {
   })
 
   it('keeps the general refusal for a code with no sentence of its own', async () => {
-    decisionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
+    decisionResponse = refusal('APPROVAL_CODE_WITH_NO_SENTENCE')
     await reject()
     expect(await screen.findByText(GENERIC)).toBeTruthy()
   })

@@ -103,6 +103,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let uploads: IntakeDto[]
 let confirmAnswers: Response[]
+/** What the next upload answers instead of an intake, when set. */
+let uploadRefusal: (() => Response) | null
 /** The intake a resume link (`/upload/:intakeId`) finds, when one is set. */
 let resumed: IntakeDto | null
 
@@ -119,12 +121,13 @@ beforeEach(async () => {
   forgetEntitlements()
   uploads = []
   confirmAnswers = []
+  uploadRefusal = null
   resumed = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, MANAGER)
     if (url.startsWith('/api/v1/bills/intake?source=') && method === 'POST')
-      return json(201, uploads.shift())
+      return uploadRefusal ? uploadRefusal() : json(201, uploads.shift())
     if (/\/api\/v1\/bills\/intake\/[^/]+\/confirm$/.test(url))
       return (
         confirmAnswers.shift() ??
@@ -707,6 +710,19 @@ describe('why a captured bill was refused, in its own sentence', () => {
       'expenditure-refused',
       'This supplier is switched off. Switch it back on to record a bill for it.',
     ],
+    // Section 5 of the wording file.
+    [
+      'BILL_INTAKE_PETTY_CASH_NOT_CASH',
+      400,
+      'expenditure-refused',
+      'Petty cash can only be recorded as cash.',
+    ],
+    [
+      'BILL_NOTE_TOO_LONG',
+      400,
+      'expenditure-refused',
+      'That note is too long. Shorten it to 500 characters.',
+    ],
   ]
   const GENERIC = /The server refused this\. Nothing was changed/
   const refusal = (status: number, type: string, error: string) =>
@@ -760,9 +776,27 @@ describe('why a captured bill was refused, in its own sentence', () => {
   })
 
   it('keeps the general refusal for a code with no sentence of its own', async () => {
-    confirmAnswers.push(refusal(400, 'expenditure-refused', 'BILL_NOTE_TOO_LONG'))
+    confirmAnswers.push(refusal(400, 'expenditure-refused', 'BILL_INTAKE_CODE_WITH_NO_SENTENCE'))
     await uploadAndSave('/expenditure/bills/upload', 'Save the bill')
     expect(await screen.findByText(GENERIC)).toBeTruthy()
+  })
+
+  it.each([
+    ['/expenditure/bills/upload', new File(['%PDF-1.4'], 'bill.pdf', { type: 'application/pdf' })],
+    ['/expenditure/bills/scan', new File(['a'], 'one.jpg', { type: 'image/jpeg' })],
+  ])('says an upload with no file needs one, on %s', async (path, file) => {
+    uploadRefusal = () => refusal(400, 'expenditure-refused', 'BILL_INTAKE_FILE_REQUIRED')
+    renderAt(path)
+    await pick([file])
+    expect(await screen.findByText("Choose the bill's file first.")).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('says petty cash is cash in Arabic', async () => {
+    confirmAnswers.push(refusal(400, 'expenditure-refused', 'BILL_INTAKE_PETTY_CASH_NOT_CASH'))
+    await i18n.changeLanguage('ar')
+    await uploadAndSave('/expenditure/bills/upload', i18n.t('uploadBill.saveBill'))
+    expect(await screen.findByText('المصروفات النثرية لا تُسجَّل إلا نقدًا.')).toBeTruthy()
   })
 
   it('does not call a debit note a bill: its capture keeps the general refusal', async () => {

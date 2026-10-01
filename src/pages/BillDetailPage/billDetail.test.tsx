@@ -1156,8 +1156,28 @@ describe('why a bill was refused, in its own sentence', () => {
     expect(screen.queryByText(GENERIC)).toBeNull()
   })
 
+  // Wording-For-Abdul.md section 5.
+  it.each([
+    ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],
+    [
+      'BILL_HOLD_REASON_TOO_LONG',
+      'That reason is too long. Shorten it and put the bill on hold again.',
+    ],
+  ])('says why a hold was refused: %s', async (error, sentence) => {
+    actionResponse = refusal(error)
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('billDetail.decision.putOnHold') })[0])
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Disputed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.hold.confirm') }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/hold`))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
   it('keeps the general refusal for a code with no sentence of its own', async () => {
-    actionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
+    actionResponse = refusal('APPROVAL_CODE_WITH_NO_SENTENCE')
     await reject()
     expect(await screen.findByText(GENERIC)).toBeTruthy()
 
