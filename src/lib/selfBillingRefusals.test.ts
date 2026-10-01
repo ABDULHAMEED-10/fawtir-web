@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api'
 import { describeApiFailure } from './apiFailure'
 import { issueRefusalOf } from './invoiceIssue'
-import { selfBilledIssueMessageKey, selfBillingMessageKey } from './selfBillingRefusals'
+import {
+  isSelfBilledSupplierSwitchedOff,
+  selfBilledIssueMessageKey,
+  selfBillingMessageKey,
+} from './selfBillingRefusals'
 
 const refused = (status: number, code: string) =>
   new ApiError({ status, problemType: 'request-rejected', code })
@@ -46,5 +50,25 @@ describe("the supplier's business activity on a self-billed issue (BTOM-033)", (
       'apiErrors.selfBilling.counterpartyVat',
     )
     expect(selfBilledIssueMessageKey(refused(400, 'SOMETHING_ELSE'))).toBeNull()
+  })
+})
+
+describe('a self-billed issue for a switched-off supplier', () => {
+  // The invoice handler's shape on the issue route: its own problem type, the code in `code`.
+  const switchedOff = new ApiError({
+    status: 400,
+    problemType: 'supplier-switched-off',
+    code: 'SUPPLIER_SWITCHED_OFF',
+  })
+
+  it('is recognised by its code', () => {
+    expect(isSelfBilledSupplierSwitchedOff(switchedOff)).toBe(true)
+    expect(isSelfBilledSupplierSwitchedOff(refused(400, 'COUNTERPARTY_NOT_SELECTABLE'))).toBe(false)
+  })
+
+  it('is named only where the self-bill composer asks: no other screen gains a sentence for it', () => {
+    expect(selfBillingMessageKey(switchedOff)).toBeNull()
+    expect(issueRefusalOf(switchedOff)).toBeNull()
+    expect(describeApiFailure(switchedOff).key).not.toBe('apiErrors.selfBilling.supplierSwitchedOff')
   })
 })

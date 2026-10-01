@@ -16007,7 +16007,8 @@
       "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
       "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue.",
       "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
-      "supplierIsicAction": "Go to agreements"
+      "supplierIsicAction": "Go to agreements",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on, then issue."
     }
   },
   "appAccess": {
