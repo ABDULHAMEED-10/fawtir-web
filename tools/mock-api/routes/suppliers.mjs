@@ -462,10 +462,15 @@ function detail(row) {
       commercialRegistrationNumber: extra.commercialRegistrationNumber ?? null,
       notes: null,
       supplierCategory: extra.supplierCategory ?? null,
+      tradingName: extra.tradingName ?? null,
+      tags: extra.tags ?? [],
+      autoMatchPurchaseOrders: extra.autoMatchPurchaseOrders ?? true,
       selfBillingAgreement: row.selfBilling,
       health: row.record.health,
       supplierSince: extra.supplierSince ?? '2025-06-01',
       switchedOffAt: row.switchedOffAt,
+      switchedOffReason: row.switchedOffReason ?? null,
+      switchedOffNote: row.switchedOffNote ?? null,
       status: row.status,
       customerStatus: 'ACTIVE',
       version: versions.get(row.id) ?? 3,
@@ -497,6 +502,11 @@ function applyRequest(row, body) {
   extra.emailRecipients = body.emailRecipients
   extra.telephone = body.telephone
   extra.supplierCategory = body.supplierCategory
+  extra.tradingName = body.tradingName ?? null
+  extra.tags = body.tags ?? []
+  // Null leaves the stored switch as it is, as the backend does.
+  if (typeof body.autoMatchPurchaseOrders === 'boolean')
+    extra.autoMatchPurchaseOrders = body.autoMatchPurchaseOrders
   extra.invoiceAddress = body.invoiceAddress
   if (body.bankDetails) {
     extra.bankDetails = {
@@ -626,6 +636,8 @@ const PROBLEM_ROWS = [
     {
       summary: 'VAT OM1100628391 · Net 10',
       value: 'OM1100628391',
+      // The supplier that already holds this VAT number: the row links to it.
+      onFile: { id: uuid(1), displayName: 'Sohar Packaging LLC', supplier: true },
     },
   ),
   importRow(
@@ -659,6 +671,8 @@ const PROBLEM_ROWS = [
     {
       summary: 'VAT OM1100220417 · On receipt',
       value: '0248:OM1100220417',
+      // Held by a customer that is not a supplier: named, but there is no supplier page to open.
+      onFile: { id: uuid(700), displayName: 'Sur Fishing Cooperative', supplier: false },
     },
   ),
   importRow(
@@ -713,7 +727,10 @@ const READY_ROWS = READY_NAMES.map((name, index) => {
 const batches = new Map()
 
 function batch(target, filename) {
-  const rows = [...PROBLEM_ROWS, ...READY_ROWS].sort((a, b) => a.rowNumber - b.rowNumber)
+  // `onFile` is the supplier import's; the customer import always answers null.
+  const rows = [...PROBLEM_ROWS, ...READY_ROWS]
+    .map((row) => ({ ...row, onFile: target === 'SUPPLIER' ? (row.onFile ?? null) : null }))
+    .sort((a, b) => a.rowNumber - b.rowNumber)
   const counts = {
     ready: rows.filter((row) => row.severity === 'READY').length,
     needsALook: rows.filter((row) => row.severity === 'NEEDS_A_LOOK').length,
@@ -867,11 +884,15 @@ export default [
   {
     method: 'POST',
     match: /^\/api\/v1\/suppliers\/([^/]+)\/switch-(off|on)$/,
-    reply: ({ params }) => {
+    reply: ({ params, body }) => {
       const row = byId(params[0])
       if (!row) return { status: 404 }
-      row.status = params[1] === 'off' ? 'SWITCHED_OFF' : 'ACTIVE'
-      row.switchedOffAt = params[1] === 'off' ? new Date().toISOString() : null
+      const off = params[1] === 'off'
+      row.status = off ? 'SWITCHED_OFF' : 'ACTIVE'
+      row.switchedOffAt = off ? new Date().toISOString() : null
+      // The dialog's reason and note are kept with the record; switching on clears them.
+      row.switchedOffReason = off ? (body?.reason ?? null) : null
+      row.switchedOffNote = off ? (body?.note ?? null) : null
       return detail(row)
     },
   },

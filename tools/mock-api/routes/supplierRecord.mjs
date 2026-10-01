@@ -58,6 +58,11 @@ const PROFILE = {
   commercialRegistrationNumber: '1104472',
   notes: null,
   supplierCategory: 'Raw materials',
+  tradingName: null,
+  tags: [],
+  autoMatchPurchaseOrders: true,
+  switchedOffReason: null,
+  switchedOffNote: null,
   selfBillingAgreement: false,
   health: [],
   supplierSince: '2024-09-02',
@@ -286,7 +291,13 @@ const bucket = (rows) => ({
 })
 
 const OVERVIEW = () => ({
-  tabs: { bills: bills.length, payments: 28, orders: orders.length, documents: DOCUMENTS.length },
+  tabs: {
+    bills: bills.length,
+    payments: 28,
+    orders: orders.length,
+    documents: DOCUMENTS.length,
+    openBills: open.length,
+  },
   match: {
     agreed: bills.length,
     orderBacked: bills.length,
@@ -715,7 +726,14 @@ export default [
   { match: `${S}/overview`, reply: () => OVERVIEW() },
   { match: `${S}/contacts`, reply: () => CONTACTS },
   { match: `${S}/documents`, reply: () => DOCUMENTS },
-  { match: `${S}/bills`, reply: ({ query }) => page(bills, query) },
+  {
+    match: `${S}/bills`,
+    // `open=true` lists the bills still owed, with their total; otherwise every document.
+    reply: ({ query }) =>
+      query.get('open') === 'true'
+        ? { ...page(open, query), total: open.length }
+        : page(bills, query),
+  },
   { match: `${S}/purchases`, reply: () => PURCHASES },
   { match: `${S}/payments`, reply: ({ query }) => page(PAYMENTS, query) },
   {
@@ -740,8 +758,14 @@ export default [
   {
     method: 'POST',
     match: `${S}/switch-off`,
-    reply: () => {
-      profile = { ...profile, status: 'SWITCHED_OFF', switchedOffAt: `${TODAY}T09:00:00Z` }
+    reply: ({ body }) => {
+      profile = {
+        ...profile,
+        status: 'SWITCHED_OFF',
+        switchedOffAt: `${TODAY}T09:00:00Z`,
+        switchedOffReason: body?.reason ?? null,
+        switchedOffNote: body?.note ?? null,
+      }
       return DETAIL()
     },
   },
@@ -749,7 +773,13 @@ export default [
     method: 'POST',
     match: `${S}/switch-on`,
     reply: () => {
-      profile = { ...profile, status: 'ACTIVE', switchedOffAt: null }
+      profile = {
+        ...profile,
+        status: 'ACTIVE',
+        switchedOffAt: null,
+        switchedOffReason: null,
+        switchedOffNote: null,
+      }
       return DETAIL()
     },
   },
