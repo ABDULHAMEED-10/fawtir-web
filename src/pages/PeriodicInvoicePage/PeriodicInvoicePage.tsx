@@ -52,6 +52,7 @@ import { formatAmount, formatDate } from '../../lib/format'
 import { FALLBACK_TAX_CATEGORIES as TAX_CATEGORIES } from '../../lib/selfBillCreate'
 import { PAYMENT_TERMS } from '../../lib/invoiceDraft'
 import { formatAtScale } from '../../lib/invoiceMath'
+import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
 import {
   PERIODIC_INTERVALS,
@@ -101,9 +102,6 @@ import invoiceActionIcon from '../../assets/actions/invoice.svg'
 const CUSTOMER_PAGE_SIZE = 100
 const UPCOMING_COUNT = 4
 
-const muscatToday = () =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
-
 const STATUS_STYLES: Record<PeriodicStatus, string> = {
   active: 'bg-success-100 text-success-700',
   paused: 'bg-pending-100 text-pending-700',
@@ -116,9 +114,14 @@ const RUN_PILL: Record<string, string> = {
   DRAFTED: 'bg-pending-100 text-pending-700',
   FAILED: 'bg-danger-100 text-danger-700',
   SKIPPED: 'bg-neutral-25 text-neutral-700',
+  // The two outcomes the run log added: shown as a failed and a skipped run are.
+  DEAD_LETTERED: 'bg-danger-100 text-danger-700',
+  CLAIMED: 'bg-neutral-25 text-neutral-700',
   PAID: 'bg-success-100 text-success-700',
   PARTIALLY_PAID: 'bg-pending-100 text-pending-700',
   UNPAID: 'bg-warning-100 text-warning-700',
+  // A run whose draft has since been issued, in the invoice pages' "Issued" tone.
+  ISSUED: 'bg-primary-25 text-primary-800',
 }
 
 const ENDINGS: PeriodicEnding[] = ['never', 'date', 'count']
@@ -132,9 +135,8 @@ const FIELD =
  * the lines below, then what it has raised and what is to come.
  *
  * The design sets a schedule up **from scratch**: customer, details, lines, schedule, notes. The
- * API knows only "copy invoice X on a cadence", so the schedule half goes to its routes as before
- * and the document half travels as the schedule's own template (TODO(backend), see
- * `PeriodicTemplateDto`). An invoice handed over as `?template=<id>` (from the invoice pages) or a
+ * schedule half goes to its routes as before and the document half travels as the schedule's own
+ * template (see `PeriodicTemplateDto`), which the API accepts on create and update. An invoice handed over as `?template=<id>` (from the invoice pages) or a
  * schedule as `?copy=<id>` (the list's Duplicate) is a pre-fill, never the only door.
  */
 export function PeriodicInvoicePage({ mode }: { mode: 'view' | 'create' | 'edit' }) {
@@ -412,9 +414,9 @@ function ScheduleComposer({ id }: { id: string | null }) {
   const nextRun = (id && schedule?.nextRunDate) || form.firstRunDate
   const daysToNext = nextRun ? daysBetween(today, nextRun) : null
   const ending = endingOf(form)
-  // Derived from the cadence (IBR-036-OM), as the server derives it: shown, never chosen.
-  const subtype =
-    form.interval === 'WEEKLY' || form.interval === 'MONTHLY' ? 'SUMMARY' : 'CONTINUOUS_SUPPLY'
+  // Derived from the cadence, as the server derives it: shown, never chosen. Only monthly is a
+  // summary invoice; a week can cross a month end, and IBR-036-OM keeps a summary in one month.
+  const subtype = form.interval === 'MONTHLY' ? 'SUMMARY' : 'CONTINUOUS_SUPPLY'
   const upcoming =
     id && schedule
       ? upcomingRuns(
@@ -424,13 +426,19 @@ function ScheduleComposer({ id }: { id: string | null }) {
             nextRunDate: form.firstRunDate || schedule.nextRunDate,
             endDate: form.endDate || null,
             remainingOccurrences: form.occurrences.trim() ? Number(form.occurrences) : null,
+            // The saved anchor day holds only while the first run is the saved one.
+            dayOfMonth:
+              form.firstRunDate === schedule.nextRunDate && form.interval === schedule.interval
+                ? schedule.dayOfMonth
+                : null,
           },
           UPCOMING_COUNT,
         )
       : []
   const runRows = runs.read.status === 'ready' ? runs.read.data : []
+  // The Muscat calendar day it was set up on, not the UTC one.
   const started =
-    schedule?.createdAt?.slice(0, 10) ??
+    (schedule?.createdAt ? muscatToday(new Date(schedule.createdAt)) : null) ??
     (runRows.length > 0
       ? runRows.reduce(
           (oldest, run) => (run.runDate < oldest ? run.runDate : oldest),
@@ -556,19 +564,25 @@ function ScheduleComposer({ id }: { id: string | null }) {
                     variant="bordered"
                   />
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() => void toggle()}
-                  disabled={busy}
-                  className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
-                >
-                  <img src={schedule?.active ? pauseIcon : resumeIcon} alt="" className="size-5" />
-                  {t(
-                    schedule?.active
-                      ? 'periodicInvoice.pauseSeries'
-                      : 'periodicInvoice.resumeSeries',
-                  )}
-                </button>
+                {status === 'finished' ? null : (
+                  <button
+                    type="button"
+                    onClick={() => void toggle()}
+                    disabled={busy}
+                    className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
+                  >
+                    <img
+                      src={schedule?.active ? pauseIcon : resumeIcon}
+                      alt=""
+                      className="size-5"
+                    />
+                    {t(
+                      schedule?.active
+                        ? 'periodicInvoice.pauseSeries'
+                        : 'periodicInvoice.resumeSeries',
+                    )}
+                  </button>
+                )}
               </>
             ) : (
               <Link
@@ -903,7 +917,7 @@ function ScheduleComposer({ id }: { id: string | null }) {
             </div>
           </section>
 
-          {/* TODO(backend): `autoIssue` and `notifyOnRun` are sent with the schedule; nothing acts on them yet. */}
+          {/* TODO(backend): `autoIssue` and `notifyOnRun` are sent with the schedule; the API accepts and ignores them, nothing is stored. */}
           <section className="flex flex-col gap-4 rounded-sm bg-surface-card p-4">
             <SwitchRow
               label={t('periodicInvoice.sendAuto')}
@@ -1035,7 +1049,9 @@ function ScheduleComposer({ id }: { id: string | null }) {
                       style: RUN_PILL[run.paymentState],
                       key: `periodicInvoice.payment.${run.paymentState}`,
                     }
-                  : { style: RUN_PILL[run.outcome], key: `periodicInvoice.pill.${run.outcome}` }
+                  : run.invoiceNumber
+                    ? { style: RUN_PILL.ISSUED, key: 'invoicesPage.authoring.issued' }
+                    : { style: RUN_PILL[run.outcome], key: `periodicInvoice.pill.${run.outcome}` }
               const runAmount =
                 run.totalAmount ?? (run.outcome === 'DRAFTED' ? Number(amount(total)) : null)
               return (
@@ -1124,7 +1140,9 @@ function ScheduleComposer({ id }: { id: string | null }) {
             <div className="h-px w-full bg-surface-background" />
             {upcoming.length === 0 ? (
               <p className="py-4 text-center text-sm font-medium text-text-quaternary">
-                {t(schedule?.active ? 'periodicInvoice.noUpcoming' : 'periodicList.status.paused')}
+                {t(
+                  status === 'paused' ? 'periodicList.status.paused' : 'periodicInvoice.noUpcoming',
+                )}
               </p>
             ) : (
               <ul className="flex flex-col gap-3">
@@ -1154,11 +1172,16 @@ function ScheduleComposer({ id }: { id: string | null }) {
                 label={t('periodicInvoice.upcoming.started')}
                 value={started ? formatDate(started, language) : '—'}
               />
+              {/* Issued means a number was taken: counted from the runs, not the runs raised. */}
               <Stat
                 label={t('periodicInvoice.upcoming.issued')}
-                value={t('periodicInvoice.upcoming.invoices', {
-                  count: schedule?.runCount ?? draftedCount(runRows),
-                })}
+                value={
+                  runs.read.status === 'ready'
+                    ? t('periodicInvoice.upcoming.invoices', {
+                        count: runRows.filter((run) => run.invoiceNumber).length,
+                      })
+                    : '—'
+                }
               />
               <Stat
                 label={t('periodicInvoice.upcoming.each')}

@@ -21,8 +21,10 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import {
+  QUEUE_REASON_NOTE,
   QUEUE_TABS,
   addDays,
+  logLocaleKey,
   normaliseOffsets,
   outcomeNote,
   paidAfterReminder,
@@ -218,7 +220,7 @@ function ReminderQueue() {
     return formatDate(entry.next.date, language).replace(/\s\d{4}$/, '')
   }
   const sendingNote = (entry: QueueEntry) => {
-    if (!entry.next) return t(`reminders.queue.reason.${entry.reason ?? 'ladderSpent'}`)
+    if (!entry.next) return t(QUEUE_REASON_NOTE[entry.reason ?? 'ladderSpent'])
     const days = Math.round(
       (Date.parse(`${entry.next.date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
     )
@@ -581,7 +583,7 @@ function ReminderQueue() {
                             })}
                           </p>
                           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
-                            {t(`reminders.queue.locale.${row.locale}`, {
+                            {t(logLocaleKey(row.locale), {
                               defaultValue: row.locale,
                             })}
                           </p>

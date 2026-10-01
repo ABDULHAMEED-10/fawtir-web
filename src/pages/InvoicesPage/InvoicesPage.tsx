@@ -14,7 +14,8 @@ import {
 } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
-import { ApiError, pageCountOf, type Page } from '../../api'
+import { ApiError, apiRequest, pageCountOf, type Page } from '../../api'
+import { withQuery } from '../../api/query'
 import {
   INVOICE_SUMMARY_PATH,
   exportInvoices,
@@ -120,6 +121,16 @@ const isTab = (value: string | null): value is TabId => value === 'toSend' || is
 
 /** The design's Channel filter: the list reads the customer's sending method. */
 type ChannelId = 'all' | 'peppol' | 'email'
+
+/**
+ * The payment tabs are the customer's side of the ledger. A self-billed invoice's debt is what the
+ * tenant owes its supplier (its Expenditure payable, decision D2), so it is left to the
+ * Self-billing page: with no Type chosen, these tabs and their counts ask for the sales types only
+ * (Zain, 30 Sep 2026). A Type the user picks is sent as it is.
+ */
+const PAYMENT_TABS: ReadonlySet<TabId> = new Set<TabId>(['awaiting', 'overdue', 'paid'])
+const SALES_TYPES: InvoiceTypeDto[] = ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE']
+const SALES_SUMMARY_PATH = withQuery(INVOICE_SUMMARY_PATH, { type: SALES_TYPES.join(',') })
 const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
 const isChannel = (value: string | null): value is ChannelId =>
   CHANNELS.includes(value as ChannelId)
@@ -210,6 +221,9 @@ function InvoicesScreen() {
   }, [typed])
 
   const summary = useApiRead<InvoiceSummaryDto>(INVOICE_SUMMARY_PATH, loadInvoiceSummary)
+  const salesSummary = useApiRead<InvoiceSummaryDto>(SALES_SUMMARY_PATH, () =>
+    apiRequest<InvoiceSummaryDto>(SALES_SUMMARY_PATH),
+  )
   // The period counts back from the server's day, so the list waits for the summary to know it.
   const channelFilter = channel === 'all' ? null : channel === 'peppol' ? 'PEPPOL' : 'EMAIL'
   const filter: InvoiceListFilter | null =
@@ -224,7 +238,10 @@ function InvoicesScreen() {
                 ...periodRange(period, summary.read.data.asOf),
                 search: query,
               }
-            : listFilter(tab, type, period, summary.read.data.asOf, query)),
+            : {
+                ...listFilter(tab, type, period, summary.read.data.asOf, query),
+                ...(type === null && PAYMENT_TABS.has(tab) ? { type: SALES_TYPES } : {}),
+              }),
           channel: channelFilter,
         }
       : null
@@ -330,11 +347,7 @@ function InvoicesScreen() {
       <div className="flex flex-wrap items-center gap-3">
         {can(session, 'invoice.draft') ? (
           // The design's button opens the invoice import (drafts only); its routes are TODO(backend).
-          <button
-            type="button"
-            onClick={() => setImporting(true)}
-            className={OUTLINE_BUTTON}
-          >
+          <button type="button" onClick={() => setImporting(true)} className={OUTLINE_BUTTON}>
             <img src={bulkUploadIcon} alt="" className="size-6" />
             {t('invoicesPage.bulkUpload')}
           </button>
@@ -404,7 +417,13 @@ function InvoicesScreen() {
             const active = entry.id === tab
             // The owner asked for 0 rather than an empty badge when the summary is unavailable.
             const tally =
-              entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
+              entry.id === 'toSend'
+                ? (totals.toSend ?? 0)
+                : PAYMENT_TABS.has(entry.id)
+                  ? salesSummary.read.status === 'ready'
+                    ? tabCount(salesSummary.read.data, entry.id)
+                    : 0
+                  : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}

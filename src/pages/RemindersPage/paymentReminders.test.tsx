@@ -9,19 +9,25 @@ import type {
   ReminderScheduleDto,
 } from '../../api/invoices/reminders'
 import {
+  QUEUE_REASON_NOTE,
   buildQueue,
   hasMorePages,
+  logLocaleKey,
   normaliseOffsets,
   paidAfterReminder,
   rangeProblem,
+  reminderLadder,
+  reminderRefusalNote,
   rungNote,
   rungProblem,
   rungToday,
   scheduleChanged,
   scheduleProblem,
   stepOf,
+  verdictNoteFor,
   type QueueInvoice,
 } from '../../lib/paymentReminders'
+import { ApiError } from '../../api'
 import { RemindersPage } from './RemindersPage'
 import { PaymentRemindersPage } from '../PaymentRemindersPage/PaymentRemindersPage'
 import { InvoiceRemindersCard } from '../../components/invoice/InvoiceRemindersCard'
@@ -338,22 +344,28 @@ describe('Payment reminders, wired to the API', () => {
     expect(await screen.findByRole('button', { name: 'Resume everything' })).toBeTruthy()
   })
 
-  it('sends one now from the queue, at the rung the row is waiting on', async () => {
+  it("sends one now from the queue at today's rung, not the later one the row is waiting on", async () => {
     renderAt('/income/reminders')
     const queued = (await screen.findByRole('link', { name: 'INV-2026-000001' })).closest(
       'tr',
     ) as HTMLElement
     fireEvent.click(within(queued).getByRole('button', { name: 'Send now' }))
 
-    // The real message, previewed at that rung.
+    // The row waits on the due-date rung (0), three weeks away. The server writes the message from
+    // the rung it is given, so the modal previews and sends today's distance (-21) instead.
     expect(await screen.findByText('Invoice INV-2026-000001 is overdue')).toBeTruthy()
     await waitFor(() =>
       expect(
         calls('GET', '/api/v1/authored-invoices/inv-1/reminders/preview').some((call) =>
-          String(call[0]).includes('days_from_due=0'),
+          String(call[0]).includes('days_from_due=-21'),
         ),
       ).toBe(true),
     )
+    expect(
+      calls('GET', '/api/v1/authored-invoices/inv-1/reminders/preview').some((call) =>
+        String(call[0]).includes('days_from_due=0'),
+      ),
+    ).toBe(false)
     const dialog = screen.getByRole('dialog')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Send now' }))
     await waitFor(() =>
@@ -363,7 +375,52 @@ describe('Payment reminders, wired to the API', () => {
       JSON.parse(
         String(calls('POST', '/api/v1/authored-invoices/inv-1/reminders/send')[0][1]?.body),
       ),
-    ).toEqual({ daysFromDue: 0 })
+    ).toEqual({ daysFromDue: -21 })
+  })
+
+  it('asks for debit notes as well as invoices, since the sweep chases both', async () => {
+    renderAt('/income/reminders')
+    await screen.findByRole('link', { name: 'INV-2026-000001' })
+    const read = calls('GET', '/api/v1/authored-invoices?')
+    expect(read.length).toBeGreaterThan(0)
+    const params = new URL(String(read[0][0]), 'http://x').searchParams
+    expect(params.get('type')).toBe('INVOICE,DEBIT_NOTE')
+    expect(params.get('state')).toBe('ISSUED')
+  })
+
+  it('lists a customer who has not opted in under Not sending, in the preview’s words', async () => {
+    const customers = structuredClone(CUSTOMERS)
+    customers.content[0].profile = {
+      ...customers.content[0].profile,
+      deliveryPreferences: { automaticPaymentReminders: false },
+    } as (typeof customers.content)[0]['profile']
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.startsWith('/api/v1/customers?')) return json(200, customers)
+      if (url === '/api/v1/me/entitlements') return json(200, who)
+      if (url.startsWith('/api/v1/payment-reminders/schedule')) return json(200, schedule)
+      if (url.startsWith('/api/v1/authored-invoices?')) return json(200, INVOICES)
+      if (url.startsWith('/api/v1/payment-reminders/log')) return json(200, log)
+      throw new Error(`unexpected request to ${init?.method ?? 'GET'} ${url}`)
+    })
+    renderAt('/income/reminders')
+    await screen.findByRole('heading', { level: 1, name: 'Payment reminders' })
+    // Not in Scheduled, although a rung is still to come for it.
+    await waitFor(() => expect(screen.getByRole('tab', { name: /^Not sending/ })).toBeTruthy())
+    expect(screen.queryByRole('link', { name: 'INV-2026-000001' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /^Not sending/ }))
+    const link = await screen.findByRole('link', { name: 'INV-2026-000001' })
+    const listed = link.closest('tr') as HTMLElement
+    expect(within(listed).getByText('This customer is set not to receive reminders.')).toBeTruthy()
+  })
+
+  it('names the language of a log row stored in lower case', async () => {
+    log = [row({ locale: 'ar' }), row({ invoiceId: 'inv-2', invoiceNumber: 'INV-2', locale: 'EN' })]
+    renderAt('/income/reminders')
+    await screen.findByRole('heading', { level: 1, name: 'Payment reminders' })
+    fireEvent.click(screen.getByRole('tab', { name: /^Sent/ }))
+    expect(await screen.findByText('In Arabic')).toBeTruthy()
+    expect(screen.getByText('In English')).toBeTruthy()
+    expect(screen.queryByText('ar')).toBeNull()
   })
 
   it('edits the ladder in days from the due date, and reads back what the server stored', async () => {
@@ -478,6 +535,36 @@ describe('Reminders on one invoice', () => {
     expect(screen.queryByRole('button', { name: 'Send one now' })).toBeNull()
   })
 
+  it('tells a rung already used from the one-by-hand-a-day rule', async () => {
+    // The history holds rung -3 only; ALREADY_SENT at rung 7 can only be today's manual send.
+    preview = { ...PREVIEW, verdict: 'ALREADY_SENT', rung: 7 }
+    const { unmount } = renderCard()
+    expect(
+      await screen.findByText(
+        'A reminder was already sent by hand for this invoice today. Only one goes out by hand per day.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('This rung has already been used.')).toBeNull()
+    unmount()
+
+    preview = { ...PREVIEW, verdict: 'ALREADY_SENT', rung: -3 }
+    renderCard()
+    expect(await screen.findByText('This rung has already been used.')).toBeTruthy()
+  })
+
+  it('names a settled debit note as such, and shows no rung for it', async () => {
+    preview = { ...PREVIEW, verdict: 'SETTLED', rung: -16, subject: null, body: null }
+    render(
+      <MemoryRouter>
+        <InvoiceRemindersCard invoiceId="inv-1" dueDate={DUE_DATE} noteType="DEBIT_NOTE" />
+      </MemoryRouter>,
+    )
+    expect(
+      await screen.findByText('The debit note is settled, so there is nothing to chase.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/^Rung:/)).toBeNull()
+  })
+
   it('says plainly when the deployment cannot send mail', async () => {
     sendResponse = () =>
       json(503, {
@@ -498,13 +585,71 @@ describe('Reminders on one invoice', () => {
 })
 
 describe('what the page works out for itself', () => {
+  it('numbers the banner by the rung whose day it shows, after a manual send', () => {
+    // Ladder 0/3/7/14/21, seven days past due, rung +7 sent by hand today: the next to go out is
+    // +14, the fourth rung, in seven days — not "Reminder 3 of 5".
+    const today = '2026-10-01'
+    const dueDate = '2026-09-24'
+    expect(reminderLadder([0, 3, 7, 14, 21], dueDate, today, false)).toEqual({
+      number: 4,
+      total: 5,
+      next: { key: 'invoiceDetails.reminder.onDay', values: { count: 7 } },
+    })
+    // Before the send, today's rung is the one shown.
+    expect(reminderLadder([0, 3, 7, 14, 21], dueDate, today, true)).toEqual({
+      number: 3,
+      total: 5,
+      next: { key: 'invoiceDetails.reminder.today' },
+    })
+    // Between rungs, the next one is named with its own number.
+    expect(reminderLadder([0, 3, 7, 14, 21], '2026-09-26', today, false)?.number).toBe(3)
+    // Past the last rung nothing more goes out.
+    expect(reminderLadder([0, 3, 7], '2026-09-01', today, false)).toEqual({
+      number: 3,
+      total: 3,
+      next: { key: 'invoiceDetails.reminder.none' },
+    })
+  })
+
+  it('reads ALREADY_SENT on an unused rung as the one-by-hand-a-day rule', () => {
+    expect(verdictNoteFor('ALREADY_SENT', 7, [-3])).toBe('paymentReminders.verdict.sentByHandToday')
+    expect(verdictNoteFor('ALREADY_SENT', 7, [-3, 7])).toBe('paymentReminders.verdict.alreadySent')
+    // Not knowing what fired, the plain wording stands.
+    expect(verdictNoteFor('ALREADY_SENT', 7, null)).toBe('paymentReminders.verdict.alreadySent')
+    expect(verdictNoteFor('SEND', 7, [])).toBe('paymentReminders.verdict.send')
+
+    const refusal = (detail: string) =>
+      new ApiError({
+        status: 409,
+        problemType: 'reminder-already-sent',
+        code: 'REMINDER_ALREADY_SENT',
+        problem: { detail },
+      })
+    expect(
+      reminderRefusalNote(refusal('A reminder at 7 days from due has already been sent'), 7, [7]),
+    ).toBe('paymentReminders.error.alreadySent')
+    expect(
+      reminderRefusalNote(refusal('A reminder at 7 days from due has already been sent'), 7, [-3]),
+    ).toBe('paymentReminders.error.sentByHandToday')
+    expect(
+      reminderRefusalNote(
+        refusal(
+          'A reminder has already been sent for this invoice today; at most one is sent by hand per business day',
+        ),
+        7,
+        null,
+      ),
+    ).toBe('paymentReminders.error.sentByHandToday')
+    expect(reminderRefusalNote(new Error('boom'), 7, [])).toBeNull()
+  })
+
   it('reads a rung in words, by its sign', () => {
     expect(rungNote(0).key).toBe('paymentReminders.rung.onDueDate')
     expect(rungNote(-3)).toEqual({ key: 'paymentReminders.rung.before', values: { count: 3 } })
     expect(rungNote(14)).toEqual({ key: 'paymentReminders.rung.after', values: { count: 14 } })
   })
 
-  it('catches what the schedule route would answer 500 for', () => {
+  it('catches what the schedule route would refuse', () => {
     expect(rungProblem('400', [])).toBe('outOfRange')
     expect(rungProblem('-366', [])).toBe('outOfRange')
     expect(rungProblem('3.5', [])).toBe('notWhole')
@@ -578,6 +723,23 @@ describe('what the page works out for itself', () => {
       'noRecipient',
     )
     expect(buildQueue([{ ...unpaid, paid: true }], [7], [], email, '2026-09-20')).toEqual([])
+    // A customer whose own switch is off is never mailed by the sweep, whatever the ladder says.
+    const optedOut = buildQueue(
+      [unpaid],
+      [-3, 0, 7, 14],
+      spent,
+      email,
+      '2026-09-20',
+      (id) => id === 'cus-1',
+    )[0]
+    expect(optedOut).toMatchObject({ next: null, reason: 'optedOut', email: 'a@b.om' })
+    expect(QUEUE_REASON_NOTE.optedOut).toBe('paymentReminders.verdict.customerOptedOut')
+    expect(
+      buildQueue([unpaid], [-3, 0, 7, 14], spent, email, '2026-09-20', () => false)[0].next,
+    ).toEqual({ offset: 14, date: '2026-09-24' })
+    expect(logLocaleKey('ar')).toBe('reminders.queue.locale.AR')
+    expect(logLocaleKey('en')).toBe('reminders.queue.locale.EN')
+    expect(logLocaleKey('EN')).toBe('reminders.queue.locale.EN')
     expect(
       paidAfterReminder(
         [{ ...unpaid, paid: true }],

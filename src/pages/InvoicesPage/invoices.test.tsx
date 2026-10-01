@@ -9,6 +9,8 @@ import { InvoicesPage } from './InvoicesPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SUMMARY_URL = '/api/v1/authored-invoices/summary'
+// The payment tabs' counts: sales documents only (a self-billed invoice's debt is a payable).
+const SALES_SUMMARY_URL = `${SUMMARY_URL}?type=INVOICE%2CCREDIT_NOTE%2CDEBIT_NOTE`
 const FIRST_PAGE =
   '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=0&size=10'
 
@@ -115,6 +117,7 @@ function springPage(content: InvoiceRowDto[], totalElements = content.length, pa
 let fetchMock: ReturnType<typeof vi.fn>
 let listResponses: Array<() => Response>
 let summaryResponse: () => Response
+let salesSummaryResponse: () => Response
 let exportResponse: () => Response
 let discardResponse: () => Response
 let who: Entitlements
@@ -128,6 +131,7 @@ beforeEach(async () => {
   forgetEntitlements()
   who = ADMIN
   summaryResponse = () => json(200, SUMMARY)
+  salesSummaryResponse = () => json(200, { ...SUMMARY, awaiting: 6, overdue: 4, paid: 17 })
   listResponses = [() => json(200, springPage([issued(), draft()], 2))]
   discardResponse = () => json(200, draft({ authoringState: 'DISCARDED' }))
   exportResponse = () =>
@@ -141,6 +145,7 @@ beforeEach(async () => {
   fetchMock = vi.fn(async (url: string) => {
     if (url === ENTITLEMENTS_URL) return json(200, who)
     if (url === SUMMARY_URL) return summaryResponse()
+    if (url === SALES_SUMMARY_URL) return salesSummaryResponse()
     if (url.startsWith('/api/v1/authored-invoices/export.csv')) return exportResponse()
     if (url.startsWith('/api/v1/invoice-drafts/')) return discardResponse()
     if (url === '/api/v1/branches')
@@ -149,7 +154,13 @@ beforeEach(async () => {
       ])
     // The sidebar's own account switcher, unrelated to anything under test here.
     if (url === '/api/v1/branches/overview')
-      return json(200, { openCount: 0, everCount: 0, peopleAcross: 0, invoicesThisMonth: 0, branches: [] })
+      return json(200, {
+        openCount: 0,
+        everCount: 0,
+        peopleAcross: 0,
+        invoicesThisMonth: 0,
+        branches: [],
+      })
     if (url.startsWith('/api/v1/authored-invoices?')) {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
@@ -188,7 +199,9 @@ describe('Invoices list, wired to the API', () => {
     // 7 July to 15 September.
     expect(screen.getByText('4 invoices · oldest 70 days')).toBeTruthy()
     expect(within(screen.getByRole('button', { name: /^All\s?41$/ })).getByText('41')).toBeTruthy()
-    expect(within(screen.getByRole('button', { name: /^Overdue/ })).getByText('5')).toBeTruthy()
+    // The payment tabs count sales documents only; All counts every type.
+    expect(within(screen.getByRole('button', { name: /^Overdue/ })).getByText('4')).toBeTruthy()
+    expect(within(screen.getByRole('button', { name: /^Paid/ })).getByText('17')).toBeTruthy()
     // The design's "To send" tab and PEPPOL/OTA column are drawn; the summary carries no count for
     // the tab yet, and the column prints a Peppol response code only when the row carries one.
     expect(screen.getByRole('button', { name: /^To send/ })).toBeTruthy()
@@ -281,14 +294,14 @@ describe('Invoices list, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Overdue/ }))
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe(
-        '/api/v1/authored-invoices?payment=OVERDUE&sort=UPDATED&page=0&size=10',
+        '/api/v1/authored-invoices?payment=OVERDUE&type=INVOICE%2CCREDIT_NOTE%2CDEBIT_NOTE&sort=UPDATED&page=0&size=10',
       ),
     )
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'sohar' } })
     await waitFor(() =>
       expect(listCalls().at(-1)).toBe(
-        '/api/v1/authored-invoices?payment=OVERDUE&q=sohar&sort=UPDATED&page=0&size=10',
+        '/api/v1/authored-invoices?payment=OVERDUE&type=INVOICE%2CCREDIT_NOTE%2CDEBIT_NOTE&q=sohar&sort=UPDATED&page=0&size=10',
       ),
     )
 

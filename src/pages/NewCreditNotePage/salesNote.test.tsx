@@ -29,6 +29,7 @@ import { CreditNotesPage } from '../CreditNotesPage'
 import { DebitNotesPage } from '../DebitNotesPage'
 import { InvoiceDetailsPage } from '../InvoiceDetailsPage'
 import { CreditNoteDetailsPage } from '../CreditNoteDetailsPage'
+import { DebitNoteDetailPage } from '../DebitNoteDetailPage'
 
 const INVOICE_ID = '11111111-1111-1111-1111-111111111111'
 const NOTE_ID = '22222222-2222-2222-2222-222222222222'
@@ -1339,5 +1340,79 @@ describe("the credit note detail's refund and applied figures (4.19)", () => {
     await vi.waitFor(() => expect(screen.getAllByText('Not available yet')).toHaveLength(3))
     expect(screen.queryByText(/Refund due to/)).toBeNull()
     expect(screen.queryByText('Settled by this credit')).toBeNull()
+  }, 30_000)
+})
+
+describe("a debit note's reminders card", () => {
+  const debitNote = (authoringState: string): InvoiceDetailDto => ({
+    ...INVOICE,
+    id: NOTE_ID,
+    type: 'DEBIT_NOTE',
+    correctionOfInvoiceId: INVOICE_ID,
+    authoringState: authoringState as InvoiceDetailDto['authoringState'],
+    deliveryState: 'SENT_MANUALLY',
+    invoiceNumber: 'DBN-7',
+  })
+
+  const openWith = async (note: InvoiceDetailDto) => {
+    override = (url) => {
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}`) return json(200, note)
+      if (url === `/api/v1/authored-invoices/${NOTE_ID}/receivable`)
+        return json(200, {
+          ...RECEIVABLE,
+          paidAmount: 0,
+          outstandingAmount: 73.5,
+          paymentState: 'UNPAID',
+        })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/reminders/preview`))
+        return json(200, {
+          invoiceId: NOTE_ID,
+          invoiceNumber: 'DBN-7',
+          verdict: 'NO_RUNG_TODAY',
+          rung: null,
+          recipient: null,
+          language: null,
+          subject: null,
+          body: null,
+        })
+      if (url.startsWith(`/api/v1/authored-invoices/${NOTE_ID}/`))
+        return json(
+          200,
+          url.endsWith('/history')
+            ? { entries: [], truncated: false, limit: 200 }
+            : url.endsWith('/internal-note')
+              ? { internalNote: null }
+              : [],
+        )
+      return undefined
+    }
+    const view = render(
+      <MemoryRouter initialEntries={[`/income/debit-notes/${NOTE_ID}`]}>
+        <Routes>
+          <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByRole('heading', { name: 'DBN-7' })).toBeTruthy()
+    return view
+  }
+  const previews = () => calls('GET', `/api/v1/authored-invoices/${NOTE_ID}/reminders/preview`)
+
+  it('is shown on an issued debit note, which the sweep chases', async () => {
+    const view = await openWith(debitNote('ISSUED'))
+    await vi.waitFor(() => expect(previews().length).toBeGreaterThan(0))
+    expect(view.container.querySelector('#reminders')).not.toBeNull()
+  }, 30_000)
+
+  it('is not shown on a cancelled debit note, so no preview is asked for', async () => {
+    const view = await openWith(debitNote('CANCELLED'))
+    // Let the page settle, then check nothing asked the server for a reminder.
+    await vi.waitFor(() =>
+      expect(calls('GET', `/api/v1/authored-invoices/${NOTE_ID}/history`).length).toBeGreaterThan(
+        0,
+      ),
+    )
+    expect(view.container.querySelector('#reminders')).toBeNull()
+    expect(previews()).toHaveLength(0)
   }, 30_000)
 })

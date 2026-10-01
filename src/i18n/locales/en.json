@@ -1465,7 +1465,11 @@
     },
     "done": {
       "paused": "Paused. No drafts will be raised until you resume it.",
-      "resumed": "Resumed. The next draft is due {{date}}."
+      "resumed": "Resumed. The next draft is due {{date}}.",
+      "generated": "Draft raised. The next one is due {{date}}.",
+      "generatedLast": "Draft raised. This schedule has no more runs.",
+      "generateFailed": "The draft could not be raised. Open the schedule to see why.",
+      "deleted": "Deleted. The drafts it raised are kept."
     },
     "breadcrumbIncome": "Income",
     "subtitleLive_one": "{{count}} recurring schedule · {{active}} active",
@@ -1496,8 +1500,8 @@
       "generatedMeta": "Counted on each schedule's page",
       "attention": "Needs attention",
       "attentionMeta": "{{paused}} paused · {{onRequest}} on request",
-      "generatedIssued_one": "{{count}} invoice issued",
-      "generatedIssued_other": "{{count}} invoices issued"
+      "generatedIssued_one": "{{count}} draft raised",
+      "generatedIssued_other": "{{count}} drafts raised"
     },
     "status": {
       "active": "Active",
@@ -1538,14 +1542,17 @@
     "pages": "Pages",
     "prevPage": "Previous page",
     "nextPage": "Next page",
-    "notYet": {
-      "generate": "Generating an invoice on demand is not available yet. The daily sweep raises each one on its date.",
-      "delete": "Deleting a schedule is not available yet. Pause it to stop it."
-    },
-    "issuedCount_one": "{{count}} issued",
-    "issuedCount_other": "{{count}} issued",
+    "deleteTitle": "Delete this schedule?",
+    "deleteBody": "It leaves the list and raises no more drafts. The drafts it already raised are kept.",
+    "deleteConfirm": "Delete",
+    "issuedCount_one": "{{count}} raised",
+    "issuedCount_other": "{{count}} raised",
     "lastRun": "last {{date}}",
-    "notIssued": "Not issued"
+    "notIssued": "None raised",
+    "generateTitle": "Raise the next invoice now?",
+    "generateBody": "The schedule moves to {{date}}.",
+    "generateBodyLast": "This is the schedule's last invoice. It raises no more after this one.",
+    "generateConfirm": "Generate invoice"
   },
   "suppliersPage": {
     "title": "Suppliers",
@@ -2178,10 +2185,10 @@
       "sendNow": "Send now",
       "details": "Reminder details",
       "ofLadder": "Reminder {{n}} of {{total}}",
-      "today": "goes out today at 09:00",
-      "tomorrow": "goes out tomorrow at 09:00",
-      "onDay_one": "goes out in {{count}} day at 09:00",
-      "onDay_other": "goes out in {{count}} days at 09:00",
+      "today": "goes out today at 08:00",
+      "tomorrow": "goes out tomorrow at 08:00",
+      "onDay_one": "goes out in {{count}} day at 08:00",
+      "onDay_other": "goes out in {{count}} days at 08:00",
       "none": "no further reminders on the ladder"
     },
     "onPeppol": "On Peppol",
@@ -2468,7 +2475,7 @@
       "left": "Runs left",
       "noLimit": "No limit",
       "subtype": "Invoicing period",
-      "subtypeNote": "Set by the cadence: weekly and monthly are summary invoices, longer ones are continuous supply (IBR-036-OM).",
+      "subtypeNote": "Set by the cadence: monthly is a summary invoice, weekly and longer ones are continuous supply (IBR-036-OM).",
       "subject": "Subject / about",
       "po": "PO reference",
       "paymentTerms": "Payment terms",
@@ -2506,7 +2513,9 @@
     "outcome": {
       "DRAFTED": "Draft raised",
       "FAILED": "Could not be raised",
-      "SKIPPED": "Not raised"
+      "SKIPPED": "Not raised",
+      "CLAIMED": "Being raised",
+      "DEAD_LETTERED": "Could not be raised"
     },
     "save": "Save the changes",
     "start": "Start the schedule",
@@ -2521,7 +2530,12 @@
       "occurrences": "Give a whole number of runs, or leave it empty.",
       "intervalRequired": "Choose how often it runs.",
       "notFound": "This schedule no longer exists.",
-      "linesRequired": "Add at least one line with a description."
+      "linesRequired": "Add at least one line with a description.",
+      "alreadyRaised": "This schedule changed since you opened it: its latest draft has already been raised. Reload the page and try again.",
+      "notActive": "This schedule is paused or finished, so no draft can be raised. Resume it first.",
+      "runInProgress": "A draft for this schedule is being raised right now. Try again in a moment.",
+      "hasOpenRun": "This schedule has a run in progress or waiting to be retried. Use Generate invoice to try that run again, or pause the schedule instead.",
+      "finished": "This schedule has finished: it has no runs left, so it can't be resumed. Use Duplicate to start a new one."
     },
     "kind": "Recurring invoice",
     "nextShort": "Next",
@@ -2590,7 +2604,9 @@
     "pill": {
       "DRAFTED": "Draft",
       "FAILED": "Failed",
-      "SKIPPED": "Skipped"
+      "SKIPPED": "Skipped",
+      "CLAIMED": "In progress",
+      "DEAD_LETTERED": "Failed"
     },
     "runMeta": "Run {{date}}",
     "generatedNextBefore": "The next invoice generates on",
@@ -4859,7 +4875,7 @@
       "scheduleSettings": "Schedule settings",
       "sendAReminder": "Send a reminder",
       "holdTitle": "Reminders are held for 24 hours before they go out",
-      "holdNote": "Anything below with a countdown can still be cancelled. If you do nothing, it sends at 09:00.",
+      "holdNote": "Anything below with a countdown can still be cancelled. If you do nothing, it sends at 08:00.",
       "pauseEverything": "Pause everything",
       "searchPlaceholder": "Search customer or invoice...",
       "selectAll": "Select all reminders",
@@ -4897,7 +4913,7 @@
         "outcome": "What happened"
       },
       "tomorrow": "Tomorrow",
-      "in16Hours": "in 16 hours · 09:00",
+      "in16Hours": "in 16 hours · 08:00",
       "aug4": "4 Aug",
       "in5Days": "in 5 days",
       "aug11": "11 Aug",
@@ -17389,7 +17405,9 @@
       "settled": "The invoice is settled, so there is nothing to chase.",
       "noRungToday": "No rung falls today.",
       "alreadySent": "This rung has already been used.",
-      "noRecipient": "The customer has no e-mail address on file."
+      "noRecipient": "The customer has no e-mail address on file.",
+      "sentByHandToday": "A reminder was already sent by hand for this invoice today. Only one goes out by hand per day.",
+      "settledDebitNote": "The debit note is settled, so there is nothing to chase."
     },
     "error": {
       "range": "The first date must come before the second.",
@@ -17405,7 +17423,8 @@
       "notSendable": "This reminder cannot be sent for this invoice.",
       "alreadySent": "That rung has already been used for this invoice.",
       "deliveryUnavailable": "E-mail sending is not switched on for this installation, so nothing was sent.",
-      "sendFailed": "The e-mail was refused, and the rung has been used up. It cannot be tried again."
+      "sendFailed": "The e-mail was refused, and the rung has been used up. It cannot be tried again.",
+      "sentByHandToday": "A reminder was already sent by hand for this invoice today. Only one goes out by hand per day."
     },
     "done": {
       "saved": "Saved.",
