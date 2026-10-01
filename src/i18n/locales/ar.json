@@ -1755,7 +1755,8 @@
       "addFirst": "أضف أول مورد",
       "importList": "استيراد قائمة من Excel"
     },
-    "vatNumber": "الرقم الضريبي {{vat}}"
+    "vatNumber": "الرقم الضريبي {{vat}}",
+    "switchedOffOnReason": "أُوقف في {{date}} · {{reason}}"
   },
   "newSupplier": {
     "title": "مورّد جديد",

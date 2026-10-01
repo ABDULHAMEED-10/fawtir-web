@@ -453,18 +453,19 @@ describe('switching a supplier off from its edit page', () => {
 describe('a supplier copied into a new one', () => {
   const field = (label: RegExp) => screen.getByLabelText(label) as HTMLInputElement
 
-  it('opens the new-supplier form with the details, and the VAT number, CR number and IBAN empty', async () => {
+  it('opens the new-supplier form with the details, and the VAT number, CR number and bank account empty', async () => {
     renderAt(`/suppliers/new?copy=${ID}`)
     await screen.findByRole('heading', { level: 1, name: 'New supplier' })
     await waitFor(() => expect(field(/^Legal name/).value).toBe('Qalhat Marine Supplies LLC'))
     expect(field(/Main contact/).value).toBe('Accounts team')
     expect(field(/Their email/).value).toBe('ap@qalhat.om')
     expect(field(/^Phone/).value).toBe('24000000')
-    expect(field(/^Bank$/).value).toBe('Bank Muscat')
-    // The three that name one company or one account start empty.
+    // What names one company or one account starts empty: the whole bank account goes with the IBAN.
     expect(field(/^VAT number/).value).toBe('')
     expect(field(/^Commercial registration/).value).toBe('')
     expect(field(/^IBAN/).value).toBe('')
+    expect(field(/^Bank$/).value).toBe('')
+    expect(field(/BIC/).value).toBe('')
     // The Peppol ID is the VAT number behind a scheme, so it starts empty too.
     expect(field(/Peppol participant ID/).value).toBe('')
   })
@@ -497,12 +498,12 @@ describe('a supplier copied into a new one', () => {
       supplierCategory: 'Marine',
       earlyPaymentDiscountPercent: 1.5,
       earlyPaymentDiscountDays: 10,
-      // The new account: the source's beneficiary is not carried onto it.
+      // The new account is only what was typed: nothing of the source's account is carried onto it.
       bankDetails: {
         beneficiaryName: null,
         iban: 'OM230270000098765432101',
-        bic: 'BMUSOMRX',
-        bankName: 'Bank Muscat',
+        bic: null,
+        bankName: null,
       },
       invoiceAddress: { cityName: 'Sur', streetName: 'Main Street', buildingNumber: '1' },
     })
@@ -516,16 +517,27 @@ describe('a supplier copied into a new one', () => {
     expect(item?.getAttribute('href')).toBe(`/suppliers/new?copy=${ID}`)
   })
 
-  it('copies every detail but the four identifiers', () => {
+  it('saves without a bank account when none is typed, with no complaint about the IBAN', async () => {
+    renderAt(`/suppliers/new?copy=${ID}`)
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    await waitFor(() => expect(field(/^Legal name/).value).toBe('Qalhat Marine Supplies LLC'))
+    typeInto(/^VAT number/, 'OM1100447102')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/suppliers')[0]).bankDetails).toBeNull()
+  })
+
+  it('copies every detail but the identifiers and the bank account', () => {
     const copied = copyOfSupplier(detail())
     expect(copied).toMatchObject({
       legalName: 'Qalhat Marine Supplies LLC',
       vatNumber: '',
       commercialRegistrationNumber: '',
       iban: '',
+      bankName: '',
+      bic: '',
       peppolId: '',
-      bankName: 'Bank Muscat',
-      bic: 'BMUSOMRX',
       registeredOnPeppol: true,
       paymentTerms: 'NET45',
     })

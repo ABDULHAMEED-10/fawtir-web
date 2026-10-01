@@ -1700,7 +1700,8 @@
       "addFirst": "Add your first supplier",
       "importList": "Import a list from Excel"
     },
-    "vatNumber": "VAT {{vat}}"
+    "vatNumber": "VAT {{vat}}",
+    "switchedOffOnReason": "Switched off {{date}} · {{reason}}"
   },
   "newSupplier": {
     "title": "New supplier",

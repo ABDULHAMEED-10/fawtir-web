@@ -44,6 +44,8 @@ export type SupplierListRowDto = {
   status: SupplierStatus
   /** When the supplier was switched off; the list frame dates it under the name. */
   switchedOffAt?: string | null
+  /** Why, when a reason was given; null while active. Optional: an older server leaves it out. */
+  switchedOffReason?: SwitchOffReasonDto | null
 }
 
 /** `SupplierSummary`. */

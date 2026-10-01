@@ -693,9 +693,14 @@ function SupplierTableRow({
             <p className="mt-1 text-xs font-medium text-text-quaternary">
               {!supplier.active
                 ? supplier.switchedOffAt
-                  ? t('suppliersPage.switchedOffOn', {
-                      date: formatInstantDay(supplier.switchedOffAt, language),
-                    })
+                  ? supplier.switchedOffReason
+                    ? t('suppliersPage.switchedOffOnReason', {
+                        date: formatInstantDay(supplier.switchedOffAt, language),
+                        reason: t(`supplierOff.reason.${supplier.switchedOffReason}`),
+                      })
+                    : t('suppliersPage.switchedOffOn', {
+                        date: formatInstantDay(supplier.switchedOffAt, language),
+                      })
                   : t('suppliersPage.record.switchedOff')
                 : supplier.vat
                   ? t('suppliersPage.vatNumber', { vat: supplier.vat })

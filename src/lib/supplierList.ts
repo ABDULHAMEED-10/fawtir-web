@@ -50,6 +50,11 @@ export type SupplierListItem = {
   active: boolean
   /** When they were switched off, for the line under the name (Figma "Switched off 12 Apr 2026"). */
   switchedOffAt: string | null
+  /**
+   * Why it was switched off, as the switch-off dialog names it (`supplierOff.reason.{id}`); null
+   * when no reason was given, or the server sent one this build does not know.
+   */
+  switchedOffReason: SwitchOffReasonId | null
 }
 
 const CHANNEL: Record<BillingChannel, SupplierChannel> = {
@@ -173,6 +178,8 @@ export function toSupplierListItem(row: SupplierListRowDto, now = Date.now()): S
     active: row.status === 'ACTIVE',
     // The frame dates the switch-off under the name; a row without the date says "Switched off".
     switchedOffAt: row.status === 'SWITCHED_OFF' ? (row.switchedOffAt ?? null) : null,
+    switchedOffReason:
+      row.status === 'SWITCHED_OFF' ? switchOffReasonId(row.switchedOffReason ?? null) : null,
   }
 }
 
@@ -185,12 +192,17 @@ const SWITCH_OFF_REASON_CODE = {
   somethingElse: 'SOMETHING_ELSE',
 } as const satisfies Record<string, SwitchOffReasonDto>
 
+export type SwitchOffReasonId = keyof typeof SWITCH_OFF_REASON_CODE
+
 /** What the dialog asked, as `POST /suppliers/{id}/switch-off` takes it; an empty note is none. */
-export function switchOffRequest(
-  reason: keyof typeof SWITCH_OFF_REASON_CODE,
-  note: string,
-): SwitchOffRequestDto {
+export function switchOffRequest(reason: SwitchOffReasonId, note: string): SwitchOffRequestDto {
   return { reason: SWITCH_OFF_REASON_CODE[reason], note: note.trim() || null }
+}
+
+/** The dialog's answer a stored reason stands for, so a row can say it in the dialog's words. */
+export function switchOffReasonId(code: string | null): SwitchOffReasonId | null {
+  const ids = Object.keys(SWITCH_OFF_REASON_CODE) as SwitchOffReasonId[]
+  return ids.find((id) => SWITCH_OFF_REASON_CODE[id] === code) ?? null
 }
 
 /** The action offered on each row follows from what is wrong with it. */

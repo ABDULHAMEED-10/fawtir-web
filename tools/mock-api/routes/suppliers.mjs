@@ -163,6 +163,7 @@ const FEATURED = [
     record: record([], 31, 31),
     status: 'SWITCHED_OFF',
     switchedOffAt: '2026-04-12T09:30:00Z',
+    switchedOffReason: 'STOPPED_TRADING',
   },
 ]
 

@@ -345,6 +345,50 @@ describe('Suppliers list, wired to the API', () => {
     renderSuppliers('/suppliers?tab=switchedOff')
     expect(await screen.findByText('Switched off 12 Apr 2026')).toBeTruthy()
   })
+
+  describe('the reason a supplier was switched off, on its row', () => {
+    const offRow = (overrides: Partial<SupplierListRowDto>) => {
+      listResponses = [
+        () =>
+          json(200, {
+            items: [row({ status: 'SWITCHED_OFF', ...overrides })],
+            page: 0,
+            pageSize: 10,
+            count: 1,
+            total: 1,
+          }),
+      ]
+      renderSuppliers('/suppliers?tab=switchedOff')
+    }
+
+    it('follows the date, in the switch-off dialog’s words', async () => {
+      offRow({ switchedOffAt: '2026-04-12T09:30:00Z', switchedOffReason: 'MOVED_SUPPLIER' })
+      expect(
+        await screen.findByText('Switched off 12 Apr 2026 · Moved to another supplier'),
+      ).toBeTruthy()
+    })
+
+    it('is left out when none was given: the line reads as it always did', async () => {
+      offRow({ switchedOffAt: '2026-04-12T09:30:00Z', switchedOffReason: null })
+      expect(await screen.findByText('Switched off 12 Apr 2026')).toBeTruthy()
+      expect(screen.queryByText(/·\s*(Stopped|They closed|Duplicate|Moved|Something)/)).toBeNull()
+    })
+
+    it('is not shown without a date: the row says "Switched off" and nothing more', async () => {
+      offRow({ switchedOffReason: 'DUPLICATE' })
+      await screen.findByText('Qalhat Marine Supplies')
+      const line = screen.getByRole('link', { name: 'Qalhat Marine Supplies' }).nextElementSibling
+      expect(line?.textContent).toBe('Switched off')
+    })
+
+    it('reads in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      offRow({ switchedOffAt: '2026-04-12T09:30:00Z', switchedOffReason: 'CLOSED_DOWN' })
+      await screen.findByText('Qalhat Marine Supplies')
+      const line = screen.getByRole('link', { name: 'Qalhat Marine Supplies' }).nextElementSibling
+      expect(line?.textContent).toMatch(/^أُوقف في .+ · أغلقوا$/)
+    })
+  })
 })
 
 describe('Switched-off suppliers', () => {
@@ -455,6 +499,19 @@ describe('toSupplierListItem', () => {
       issue: 'switchedOff',
       score: 0,
     })
+  })
+
+  it('reads the switch-off reason only from a switched-off row, and only one it knows', () => {
+    const off = { status: 'SWITCHED_OFF' as const, switchedOffAt: '2026-04-12T09:30:00Z' }
+    expect(
+      toSupplierListItem(row({ ...off, switchedOffReason: 'STOPPED_TRADING' })).switchedOffReason,
+    ).toBe('stoppedTrading')
+    // A server without the field, and a code this build does not know, both read as no reason.
+    expect(toSupplierListItem(row(off)).switchedOffReason).toBeNull()
+    expect(
+      toSupplierListItem(row({ ...off, switchedOffReason: 'RETIRED' as never })).switchedOffReason,
+    ).toBeNull()
+    expect(toSupplierListItem(row({ switchedOffReason: 'DUPLICATE' })).switchedOffReason).toBeNull()
   })
 
   it('writes nothing the row cannot support', () => {
