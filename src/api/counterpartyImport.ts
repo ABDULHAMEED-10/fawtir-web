@@ -24,6 +24,13 @@ export type ImportBatchRowDto = {
   /** Null until the batch is committed, then CREATED or SKIPPED. */
   outcome: string | null
   outcomeMessage: string | null
+  /**
+   * The record already on file with this row's VAT number or Peppol ID (`field` says which). Only
+   * one live record may hold either, so such a row can never be created. `supplier` false means
+   * the record is a customer that is not a supplier, which has no supplier page to link to.
+   * Suppliers only: the customer import always answers null.
+   */
+  onFile?: { id: string; displayName: string; supplier: boolean } | null
   /** TODO(backend): the line under the name in the review ("Net 30 · rustaq@timber.om"). */
   summary?: string | null
   /** TODO(backend): what the file holds in the column at fault, for the review's field box. */

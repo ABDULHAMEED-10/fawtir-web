@@ -5,11 +5,13 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { ImportBatchDto } from '../../api/counterpartyImport'
 import {
+  alreadyOnFile,
   batchBlocker,
   commitSelection,
   comingIn,
   fieldLabel,
   fileProblem,
+  importable,
   initialSelection,
   problemNote,
   rowsInTab,
@@ -228,6 +230,79 @@ describe('The staged import, wired to the API', () => {
     ).toEqual({ rowNumbers: [4, 5] })
   })
 
+  describe('a row whose VAT number is already on file', () => {
+    const ON_FILE_ID = '99999999-9999-9999-9999-999999999999'
+    const withOnFile = (supplier: boolean): ImportBatchDto => ({
+      ...BATCH,
+      rows: BATCH.rows.map((row) =>
+        row.rowNumber === 3
+          ? { ...row, onFile: { id: ON_FILE_ID, displayName: 'Sohar Packaging LLC', supplier } }
+          : { ...row, onFile: null },
+      ),
+    })
+    const soharRow = () => within(screen.getByText('Sohar Packaging LLC').closest('tr')!)
+
+    it('loses "Bring in anyway" and links to the supplier it duplicates', async () => {
+      batch = withOnFile(true)
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      const link = soharRow().getByRole('link', { name: 'Already on file' })
+      expect(link.getAttribute('href')).toBe(`/suppliers/${ON_FILE_ID}`)
+      expect(soharRow().queryByRole('button')).toBeNull()
+      // It is not counted among the rows that would come in, and is never sent to the commit.
+      expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(
+        JSON.parse(
+          String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[0][1]?.body),
+        ),
+      ).toEqual({ rowNumbers: [4, 5] })
+    })
+
+    it('says so without a link when the record on file is not a supplier', async () => {
+      batch = withOnFile(false)
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      expect(soharRow().getByText('Already on file')).toBeTruthy()
+      expect(soharRow().queryByRole('link')).toBeNull()
+      expect(soharRow().queryByRole('button')).toBeNull()
+    })
+
+    it('keeps the button on rows that can be imported', async () => {
+      batch = withOnFile(true)
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /^Ready/ }))
+      const ready = within(screen.getByText('Barka Glass Works').closest('tr')!)
+      fireEvent.click(ready.getByRole('button', { name: 'Leave it out' }))
+      expect(ready.getByRole('button', { name: 'Bring it in' })).toBeTruthy()
+    })
+
+    it('still offers "Bring in anyway" on a row worth a look that names no record on file', async () => {
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      fireEvent.click(soharRow().getByRole('button', { name: 'Leave it out' }))
+      expect(soharRow().getByRole('button', { name: 'Bring in anyway' })).toBeTruthy()
+      expect(soharRow().queryByText('Already on file')).toBeNull()
+    })
+
+    it('reads in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      batch = withOnFile(true)
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(screen.getAllByRole('tab').length).toBeGreaterThan(0))
+      fireEvent.click(screen.getAllByRole('tab')[1])
+      expect(await screen.findByRole('link', { name: 'مسجّل مسبقًا' })).toBeTruthy()
+    })
+  })
+
   it('says when fewer rows were created than were chosen', async () => {
     commitResponse = () => json(200, { batchId: BATCH_ID, selected: 3, created: 2, skipped: 1 })
     renderImport()
@@ -321,6 +396,24 @@ describe('The staged import, wired to the API', () => {
 })
 
 describe('staged import helpers', () => {
+  it('never keeps, counts or sends a row that is already on file', () => {
+    const batch: ImportBatchDto = {
+      ...BATCH,
+      rows: BATCH.rows.map((row) =>
+        row.rowNumber === 3
+          ? { ...row, onFile: { id: 'x', displayName: 'Sohar Packaging LLC', supplier: true } }
+          : row,
+      ),
+    }
+    expect(importable(batch.rows[1])).toBe(false)
+    expect([...initialSelection(batch)]).toEqual([4, 5])
+    expect(comingIn(batch, new Set([3, 4, 5]))).toBe(2)
+    // `wouldImport` still counts it, so the kept rows go out as a list, not as "all of them".
+    expect(commitSelection(batch, new Set([3, 4, 5]))).toEqual([4, 5])
+    expect(alreadyOnFile(batch.rows[1])).toEqual({ to: '/suppliers/x' })
+    expect(alreadyOnFile(batch.rows[2])).toBeNull()
+  })
+
   it('sends null for every importable row and a list otherwise', () => {
     const all = initialSelection(BATCH)
     expect([...all].sort()).toEqual([3, 4, 5])

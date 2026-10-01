@@ -31,6 +31,7 @@ import { saveDownload } from '../../lib/supplierRecord'
 import {
   IMPORT_ROUTES,
   IMPORT_TABS,
+  alreadyOnFile,
   batchBlocker,
   comingIn,
   commitSelection,
@@ -550,6 +551,7 @@ function ImportRow({
   const field = fieldLabel(row.field)
   const note = problemNote(row)
   const canKeep = importable(row)
+  const onFile = alreadyOnFile(row)
   // TODO(backend): a correction typed here should re-check the row; until then it stays on screen.
   const [typed, setTyped] = useState<string | null>(null)
   const value = typed ?? row.value ?? ''
@@ -636,6 +638,21 @@ function ImportRow({
                 ? t('stagedImport.action.bringInAnyway')
                 : t('stagedImport.action.bringItIn')}
           </button>
+        ) : onFile ? (
+          // Its VAT number or Peppol ID is on another record, so it cannot come in: the row names
+          // that record instead of offering "Bring in anyway".
+          onFile.to ? (
+            <Link
+              to={onFile.to}
+              className="inline-flex h-[38px] items-center whitespace-nowrap text-sm font-semibold text-primary-700 hover:underline"
+            >
+              {t('stagedImport.action.alreadyOnFile')}
+            </Link>
+          ) : (
+            <span className="inline-flex h-[38px] items-center whitespace-nowrap text-sm font-semibold text-text-quaternary">
+              {t('stagedImport.action.alreadyOnFile')}
+            </span>
+          )
         ) : (
           // The check refuses the row whatever is chosen; it comes back in through the file.
           <span className="inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-quaternary">

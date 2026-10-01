@@ -18099,7 +18099,8 @@
     "action": {
       "leaveOut": "اتركه",
       "bringInAnyway": "أدخله على أي حال",
-      "bringItIn": "أدخله"
+      "bringItIn": "أدخله",
+      "alreadyOnFile": "مسجّل مسبقًا"
     },
     "typeAName": "اكتب اسمًا",
     "empty": "فارغ"
