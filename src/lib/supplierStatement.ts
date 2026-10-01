@@ -135,6 +135,20 @@ export function emailBlocker(
   return null
 }
 
+/**
+ * Why the server would not e-mail the statement, by its code. Draft wording, pending the owner
+ * (Wording-For-Abdul.md, "Statement e-mail failures"). The mail server's own failure answers 503,
+ * the rest 400; a server that names no code is read as before, as e-mail not switched on.
+ */
+export const STATEMENT_EMAIL_REFUSALS: Record<string, string> = {
+  SUPPLIER_STATEMENT_EMAIL_NOT_SWITCHED_ON: 'supplierStatement.email.unavailable',
+  SUPPLIER_SWITCHED_OFF: 'supplierStatement.email.switchedOff',
+  SUPPLIER_STATEMENT_NO_EMAIL_ADDRESS: 'supplierStatement.email.noAddress',
+  SUPPLIER_STATEMENT_RECIPIENT_NOT_ON_RECORD: 'supplierStatement.email.notOnRecord',
+  SUPPLIER_STATEMENT_PERIOD_INVALID: 'supplierStatement.email.periodInvalid',
+  SUPPLIER_STATEMENT_SEND_FAILED: 'supplierStatement.email.sendFailed',
+}
+
 export function periodTotals(statement: SupplierStatementDto): { billedNet: number; paid: number } {
   // Rounded to the fils so a float remainder never prints as a stray thousandth.
   return {

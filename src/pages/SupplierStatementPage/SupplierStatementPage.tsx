@@ -26,6 +26,7 @@ import {
   ageingNote,
   columnsOf,
   customRangeProblem,
+  STATEMENT_EMAIL_REFUSALS,
   emailBlocker,
   entryLink,
   entryOpen,
@@ -667,9 +668,15 @@ function EmailStatementModal({
       const sent = await emailSupplierStatement(supplierId, from, to, recipient)
       onSent(sent.recipient)
     } catch (error) {
-      // The page already keeps a switched-off supplier, one with no address and any address not on
-      // the record from getting here; the refusal left is a deployment that cannot send e-mail.
-      if (error instanceof ApiError && error.status === 400) {
+      // The server names why. The page already keeps a switched-off supplier, one with no address
+      // and any address not on the record from getting here, so most of these show only when the
+      // record changed after the page loaded.
+      const refusal =
+        error instanceof ApiError && error.code ? STATEMENT_EMAIL_REFUSALS[error.code] : undefined
+      if (refusal) {
+        setFailure(t(refusal, { address: recipient }))
+      } else if (error instanceof ApiError && error.status === 400 && error.code === null) {
+        // A server from before the codes: its one 400 is a deployment that cannot send e-mail.
         setFailure(t('supplierStatement.email.unavailable'))
       } else {
         const message = describeApiFailure(error)

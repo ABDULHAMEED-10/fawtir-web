@@ -8680,7 +8680,10 @@
       "note": "Only an address already on the supplier's record can be used. Add another on the supplier's page.",
       "switchedOff": "This supplier is switched off, so nothing is sent to them.",
       "noAddress": "This supplier has no email address on file. Add one on their page.",
-      "unavailable": "Email isn't switched on for this deployment. Download the statement and send it yourself."
+      "unavailable": "Email isn't switched on. Download the statement and send it yourself.",
+      "notOnRecord": "{{address}} is not on this supplier's record. Choose an address from the list, or add it on their page.",
+      "periodInvalid": "The start date is after the end date. Fix the period, then send.",
+      "sendFailed": "The statement could not be sent just now. Try again, or download it and send it yourself."
     },
     "unusedCredits_one": "{{count}} credit note still unused",
     "unusedCredits_other": "{{count}} credit notes still unused"
