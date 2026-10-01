@@ -39,6 +39,11 @@ import {
   supplierOverviewPath,
   type SupplierOverviewDto,
 } from '../../api/expenditure/supplierRecord'
+import {
+  loadSupplierRecurring,
+  supplierRecurringPath,
+  type SupplierRecurringStandingDto,
+} from '../../api/expenditure/recurringBills'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
@@ -565,7 +570,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
           }
         />
       ) : null}
-      {switchedOff ? <Notice body={t('supplierForm.switchedOff')} /> : null}
+      {switchedOff && supplierId ? <SwitchedOffNotice supplierId={supplierId} /> : null}
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -1334,5 +1339,27 @@ function RecentChanges({ record, language }: { record: SupplierDetailDto; langua
         </ul>
       )}
     </section>
+  )
+}
+
+/**
+ * The line a switched-off supplier's page opens with. Switching a supplier off pauses its
+ * recurring bills; where it did, the same notice says so.
+ */
+function SwitchedOffNotice({ supplierId }: { supplierId: string }) {
+  const { t } = useTranslation()
+  const standing = useApiRead<SupplierRecurringStandingDto>(supplierRecurringPath(supplierId), () =>
+    loadSupplierRecurring(supplierId),
+  )
+  const paused =
+    standing.read.status === 'ready' && standing.read.data.pausedBySupplierSwitchOff > 0
+  return (
+    <Notice
+      body={
+        paused
+          ? `${t('supplierForm.switchedOff')} ${t('recurringBills.supplier.pausedWhileOff')}`
+          : t('supplierForm.switchedOff')
+      }
+    />
   )
 }
