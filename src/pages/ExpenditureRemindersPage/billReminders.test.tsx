@@ -163,11 +163,28 @@ describe('payables reminder rules', () => {
         rule('BEFORE_DUE', { offsets: [7], recipients: ['b', 'a'], enabled: true }),
       ),
     ).toBe(false)
-    // The ladder is stored as given, so its order IS a change.
+    // Another day on the ladder is a change.
     expect(
       ruleChanged(
         saved,
         rule('BEFORE_DUE', { offsets: [7, 2], recipients: ['a', 'b'], enabled: true }),
+      ),
+    ).toBe(true)
+    // The same days in another order are not: the server sorts the ladder and answers it
+    // ascending, so a chip switched off and on again must not read as something to save.
+    const sorted = [
+      rule('APPROVAL_STALE', { offsets: [0, 2, 7], escalationOffsets: [5, 7], enabled: true }),
+    ]
+    expect(
+      ruleChanged(
+        sorted,
+        rule('APPROVAL_STALE', { offsets: [7, 0, 2], escalationOffsets: [7, 5], enabled: true }),
+      ),
+    ).toBe(false)
+    expect(
+      ruleChanged(
+        sorted,
+        rule('APPROVAL_STALE', { offsets: [7, 0, 3], escalationOffsets: [7, 5], enabled: true }),
       ),
     ).toBe(true)
     expect(

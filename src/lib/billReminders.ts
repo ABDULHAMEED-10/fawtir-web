@@ -59,9 +59,15 @@ export function ruleChanged(saved: ReminderRuleDto[], rule: ReminderRuleDto): bo
   )
 }
 
-/** Order matters: the server stores the ladder as given. */
+/**
+ * Order does not matter: the server sorts the ladder and answers it ascending, so the same days
+ * in another order are the same ladder. A chip switched off and on again is not a change.
+ */
 function sameNumbers(a: number[], b: number[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index])
+  if (a.length !== b.length) return false
+  const left = [...a].sort((x, y) => x - y)
+  const right = [...b].sort((x, y) => x - y)
+  return left.every((value, index) => value === right[index])
 }
 
 /** Order does not: a recipient set is a set, and the server dedupes it into one. */
