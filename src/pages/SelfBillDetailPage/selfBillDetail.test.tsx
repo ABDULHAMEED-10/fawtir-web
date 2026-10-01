@@ -372,6 +372,22 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty('disabled', true)
   })
 
+  it('keeps Record payment off for a reader without invoice.payment.manage, even with something owed', async () => {
+    who = {
+      ...BUYER,
+      roles: [{ id: 'r-2', code: 'VIEWER', name: 'Viewer', systemRole: true }],
+      permissions: ['invoice.read', 'reports.read'],
+    }
+    invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
+    const button = screen.getByRole('button', { name: 'Record payment' })
+    expect(button).toHaveProperty('disabled', true)
+    fireEvent.click(button)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('records a payment against the supplier bill, with an idempotency key, and reads the document again', async () => {
     invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
     renderPage()

@@ -1,4 +1,5 @@
-import type { CodeListEntry } from './codeList'
+import type { SelectOption } from '../../components/ui'
+import { nameOf, type CodeListEntry } from './codeList'
 
 /**
  * Industrial classification: ISIC Rev. 4 at Oman's 6-digit national level, the activity of the
@@ -5773,3 +5774,16 @@ export const ISIC_ACTIVITIES: IsicActivity[] = [
     'التعليم التقني والمهني دون مستوى التعليم العالي',
   ),
 ]
+
+/**
+ * The ISIC picker's options, searched by activity name with the code as the hint so a known code
+ * finds it too. One definition for both pickers: the tenant's own activity (Settings › Company) and
+ * a self-billing supplier's (the agreement dialog).
+ */
+export function isicOptions(language: string): SelectOption[] {
+  return ISIC_ACTIVITIES.map((activity) => ({
+    value: activity.code,
+    label: nameOf(activity, language),
+    hint: `ISIC ${activity.code}`,
+  }))
+}

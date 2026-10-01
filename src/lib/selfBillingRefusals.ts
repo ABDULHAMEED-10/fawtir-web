@@ -77,3 +77,28 @@ export function selfBillingMessageKey(error: unknown): string | null {
 }
 
 export const MAPPED_SELF_BILLING_CODES = Object.freeze(Object.keys(REFUSALS))
+
+/** A self-billed issue refused for the supplier's missing business activity (BTOM-033). */
+export const SUPPLIER_ISIC_MISSING_KEY = 'apiErrors.selfBilling.supplierIsicMissing'
+
+/** Where a self-billing supplier's business activity (ISIC) is set: its agreement dialog. */
+export const SELF_BILLING_AGREEMENTS_ROUTE = '/income/self-billing/agreements'
+
+/**
+ * A self-billed issue's refusal, as a sentence: the self-billing refusals above, plus
+ * `INDUSTRIAL_CLASSIFICATION_REQUIRED` read as the **supplier's** missing code.
+ *
+ * BTOM-033 is the seller's code and on a self-billed document the seller is the supplier (IBR-081-OM
+ * requires it on every line), so the refusal is about the supplier's record, not Settings › Company.
+ * Kept out of `REFUSALS` on purpose: `describeApiFailure` maps those for every screen, and on a sales
+ * invoice the same code does mean the tenant's own activity. Only self-billed callers ask this.
+ */
+export function selfBilledIssueMessageKey(error: unknown): string | null {
+  if (isSupplierIsicMissing(error)) return SUPPLIER_ISIC_MISSING_KEY
+  return selfBillingMessageKey(error)
+}
+
+/** The self-billed issue refusal that sends the reader to the agreements page to fix it. */
+export function isSupplierIsicMissing(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'INDUSTRIAL_CLASSIFICATION_REQUIRED'
+}
