@@ -1118,6 +1118,7 @@ function LinkedDocuments({
   const { t } = useTranslation()
   const match = detail.bill.match
   const order = match && match.verdict !== 'NO_ORDER' && match.purchaseOrderNumber ? match : null
+  const note = detail.bill.note?.trim() ?? ''
   const originalName =
     detail.intake?.filename ??
     (detail.bill.inboundDeliveryId ? `${detail.bill.supplierBillNumber ?? 'bill'}.xml` : null)
@@ -1129,6 +1130,8 @@ function LinkedDocuments({
     to?: string
     kindKey: string
     detail: string
+    /** The sub-line is a typed note: kept to one line, with the whole of it on hover. */
+    detailIsNote?: boolean
     onClick?: () => void
   }[] = []
   if (order) {
@@ -1167,7 +1170,10 @@ function LinkedDocuments({
       icon: /\.pdf$/i.test(originalName) ? pdfIcon : fileIcon,
       title: originalName,
       kindKey: 'billDetail.linked.originalFile',
-      detail: t('billDetail.linked.originalNote'),
+      // The note typed when the receipt was captured takes the row's sub-line (owner decision
+      // 2026-10-01: nothing new is drawn for it).
+      detail: note ? t('billDetail.linked.note', { text: note }) : t('billDetail.linked.originalNote'),
+      detailIsNote: note !== '',
       onClick: onDownload ?? undefined,
     })
   }
@@ -1237,7 +1243,13 @@ function LinkedDocuments({
                     {t(doc.kindKey)}
                   </span>
                 </p>
-                <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
+                <p
+                  title={doc.detailIsNote ? doc.detail : undefined}
+                  className={[
+                    'mt-1 text-xs font-medium leading-[1.2] text-text-quaternary',
+                    doc.detailIsNote ? 'truncate' : '',
+                  ].join(' ')}
+                >
                   {doc.detail}
                 </p>
               </div>

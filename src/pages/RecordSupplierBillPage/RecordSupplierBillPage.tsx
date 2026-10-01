@@ -15,6 +15,7 @@ import { ApiError, type Page } from '../../api'
 import {
   confirmIntake,
   discardIntake,
+  newBillKey,
   possibleDuplicateOf,
   recordBillWithoutFile,
   uploadIntake,
@@ -150,6 +151,10 @@ function RecordBill({ id }: { id: string }) {
   // The file already stored, and the intake it became: a save that failed is retried on the same
   // intake, as Upload a bill does, so a refused confirm leaves no upload behind per attempt.
   const stored = useRef<{ file: File; intakeId: string } | null>(null)
+  // The key a bill with no file is sent under, and the body it was made for. A save sent again
+  // unchanged (a lost answer, a second try) reuses it, so the server records one bill; a changed
+  // bill is another request and takes a new key, as does the next bill after this one is saved.
+  const attempt = useRef<{ body: string; key: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   // The order waiting for its bill comes first, as the design chooses it; else the first open one.
@@ -245,10 +250,16 @@ function RecordBill({ id }: { id: string }) {
       }
       const confirmation = toConfirmation(form, { notDuplicateOf })
       // No file attached: the typed bill is recorded on its own, with no intake behind it.
-      const bill = stored.current
-        ? await confirmIntake(stored.current.intakeId, confirmation)
-        : await recordBillWithoutFile(confirmation)
+      let bill
+      if (stored.current) {
+        bill = await confirmIntake(stored.current.intakeId, confirmation)
+      } else {
+        const body = JSON.stringify(confirmation)
+        if (attempt.current?.body !== body) attempt.current = { body, key: newBillKey() }
+        bill = await recordBillWithoutFile(attempt.current.key, confirmation)
+      }
       stored.current = null
+      attempt.current = null
       navigate(`/expenditure/bills/${bill.id}`)
     } catch (failure) {
       // An intake that is gone or already a bill cannot be confirmed again: the next save uploads.

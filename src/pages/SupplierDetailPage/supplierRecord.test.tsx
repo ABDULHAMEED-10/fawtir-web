@@ -782,6 +782,81 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(calls('POST', '/api/v1/bills/intake/')).toHaveLength(0)
   })
 
+  const noFilePosts = () =>
+    calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+  const keyOf = (call: unknown[]) =>
+    ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+  const ready = () =>
+    waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Send for approval' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+
+  it('sends a bill with no file under an idempotency key the API accepts', async () => {
+    await typeBill()
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(1)
+    expect(keyOf(noFilePosts()[0])).toMatch(/^[A-Za-z0-9._:-]{16,128}$/)
+  })
+
+  it('sends the same key again when the same bill is retried after the answer was lost', async () => {
+    const succeed = confirmResponse
+    // The request left and no answer came back: the bill may or may not have been recorded.
+    confirmResponse = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    await typeBill()
+    send()
+    await waitFor(() => expect(noFilePosts()).toHaveLength(1))
+    await ready()
+    expect(screen.queryByText('bill page')).toBeNull()
+
+    confirmResponse = succeed
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(2)
+    expect(keyOf(noFilePosts()[1])).toBe(keyOf(noFilePosts()[0]))
+    expect(String(noFilePosts()[1][1]?.body)).toBe(String(noFilePosts()[0][1]?.body))
+  })
+
+  it('takes a new key once the bill is changed before the retry', async () => {
+    const succeed = confirmResponse
+    confirmResponse = refused
+    await typeBill()
+    send()
+    await waitFor(() => expect(noFilePosts()).toHaveLength(1))
+    await ready()
+
+    // Sent again untouched: the same request, the same key.
+    send()
+    await waitFor(() => expect(noFilePosts()).toHaveLength(2))
+    await ready()
+    expect(keyOf(noFilePosts()[1])).toBe(keyOf(noFilePosts()[0]))
+
+    // A different bill number is a different bill, so a different request.
+    confirmResponse = succeed
+    fireEvent.change(screen.getByLabelText(/Their bill number/), { target: { value: 'QMS-2051' } })
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(3)
+    expect(keyOf(noFilePosts()[2])).not.toBe(keyOf(noFilePosts()[0]))
+    expect(JSON.parse(String(noFilePosts()[2][1]?.body)).billNumber).toBe('QMS-2051')
+  })
+
+  it('sends no idempotency key on the confirm of a bill that has a file', async () => {
+    await typeBill()
+    attach('bill.pdf')
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(0)
+    const headers = (confirmed('intake-1')[0][1] as RequestInit).headers as
+      | Record<string, string>
+      | undefined
+    expect(headers?.['Idempotency-Key']).toBeUndefined()
+  })
+
   it('still checks a bill with no file before sending it', async () => {
     who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
     renderRecord()

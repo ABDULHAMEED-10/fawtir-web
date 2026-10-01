@@ -146,13 +146,27 @@ export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<Confi
   })
 }
 
+/** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires of an `Idempotency-Key`. */
+export function newBillKey(): string {
+  return `bill-${crypto.randomUUID()}`
+}
+
 /**
  * A bill typed in with no file behind it (`POST /bills`, `invoice.payment.manage`): the confirm
- * body, and no intake. Nothing guards a double post but the bill number, so the caller keeps its
- * in-flight guard. The refusals are confirm's, less the two about the intake itself.
+ * body, and no intake. There is no intake to stop a second bill, so the request carries an
+ * `Idempotency-Key`, as a bill payment does: the same key with the same body is the same bill,
+ * recorded once however often it is sent. The refusals are confirm's, less the two about the
+ * intake itself.
  */
-export function recordBillWithoutFile(body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {
-  return apiRequest<ConfirmedBillDto>('/v1/bills', { method: 'POST', body })
+export function recordBillWithoutFile(
+  idempotencyKey: string,
+  body: ConfirmIntakeDto,
+): Promise<ConfirmedBillDto> {
+  return apiRequest<ConfirmedBillDto>('/v1/bills', {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
 }
 
 /** `PossibleDuplicateBill`: the bill on file with the same supplier, type and number. */
