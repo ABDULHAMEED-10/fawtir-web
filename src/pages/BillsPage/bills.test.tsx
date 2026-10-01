@@ -996,6 +996,8 @@ describe('the row menu', () => {
 describe('the tab counts under a search or a source filter', () => {
   const countCalls = () => calls(`${SUMMARY_URL}?`)
   const badge = (name: RegExp) => within(screen.getByRole('button', { name })).getByText(/^\d+$/)
+  // The search waits out its typing pause before it is sent, and the count is a read after that.
+  const SLOW = { timeout: 5000 }
   const FILTERED: BillSummaryDto = {
     ...SUMMARY,
     tabs: {
@@ -1021,7 +1023,7 @@ describe('the tab counts under a search or a source filter', () => {
     renderBills('/expenditure/bills?tab=all&q=qalhat&source=peppol')
     await screen.findByText('Qalhat Marine Supplies')
 
-    await waitFor(() => expect(badge(/^All/).textContent).toBe('2'))
+    await waitFor(() => expect(badge(/^All/).textContent).toBe('2'), SLOW)
     expect(badge(/^Paid/).textContent).toBe('1')
     expect(badge(/^Needs attention/).textContent).toBe('1')
     expect(countCalls()).toEqual(['/api/v1/bills/summary?q=qalhat&source=PEPPOL'])
@@ -1039,13 +1041,13 @@ describe('the tab counts under a search or a source filter', () => {
     expect(badge(/^All/).textContent).toBe('31')
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzz' } })
-    await waitFor(() => expect(badge(/^All/).textContent).toBe('0'))
+    await waitFor(() => expect(badge(/^All/).textContent).toBe('0'), SLOW)
     expect(countCalls()).toEqual(['/api/v1/bills/summary?q=zzz'])
     // The search box is still there with what was typed: the page did not start over.
     expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('zzz')
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
-    await waitFor(() => expect(badge(/^All/).textContent).toBe('31'))
+    await waitFor(() => expect(badge(/^All/).textContent).toBe('31'), SLOW)
     expect(countCalls()).toHaveLength(1)
   })
 
@@ -1053,7 +1055,7 @@ describe('the tab counts under a search or a source filter', () => {
     countsResponse = () => json(200, FILTERED)
     renderBills('/expenditure/bills?source=selfBilled')
     await screen.findByText('Qalhat Marine Supplies')
-    await waitFor(() => expect(badge(/^Paid/).textContent).toBe('1'))
+    await waitFor(() => expect(badge(/^Paid/).textContent).toBe('1'), SLOW)
     expect(countCalls()).toEqual(['/api/v1/bills/summary?source=SELF_BILLED'])
   })
 
@@ -1074,7 +1076,7 @@ describe('the tab counts under a search or a source filter', () => {
     countsResponse = () => json(500, { type: 'https://api.fawtir.om/problems/internal-error' })
     renderBills('/expenditure/bills?tab=all&q=qalhat')
     await screen.findByText('Qalhat Marine Supplies')
-    await waitFor(() => expect(countCalls()).toHaveLength(1))
+    await waitFor(() => expect(countCalls()).toHaveLength(1), SLOW)
     expect(badge(/^All/).textContent).toBe('31')
   })
 
@@ -1082,6 +1084,6 @@ describe('the tab counts under a search or a source filter', () => {
     countsResponse = () => json(200, FILTERED)
     renderBills('/expenditure/bills?q=qalhat')
     fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
-    await waitFor(() => expect(countCalls()).toHaveLength(2))
+    await waitFor(() => expect(countCalls()).toHaveLength(2), SLOW)
   })
 })
