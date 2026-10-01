@@ -22,6 +22,7 @@ import {
   type MockReminderRule,
   type MockReminderSettings,
 } from '../../../tools/mock-api/lib/billReminderRules.mjs'
+import { withOneTiming } from '../../lib/expenditureReminders'
 import { ExpenditureRemindersPage } from './ExpenditureRemindersPage'
 
 /**
@@ -209,10 +210,10 @@ describe('the two request bodies, field for field', () => {
     const sent = (rulesBodies[0] as { rules: Record<string, unknown>[] }).rules
     expect(sent).toHaveLength(1)
     expect(Object.keys(sent[0]).sort()).toEqual([...RULES_PUT.each.fields].sort())
-    // The server's own default days travel back as they came.
+    // The row takes one timing: of the server's two starting days, the earlier is sent.
     expect(sent[0]).toEqual({
       type: 'SCAN_UNCONFIRMED',
-      offsets: [2, 7],
+      offsets: [2],
       repeatEveryDays: null,
       escalationOffsets: null,
       recipients: [],
@@ -277,25 +278,174 @@ describe('a company that has saved nothing', () => {
     const late = card('Once a bill is late')
     expect(pressed(late, 'The day after')).toBe('true')
     expect(pressed(late, 'Then every 3 days')).toBe('true')
-    // The defaults carry more than one day on the rows below; every day on file is shown lit.
+    // The server's defaults carry two or three days on the rows below, which take one. Each
+    // starts on the earliest: 2 days then the owner after 5, 1 day, 2 days.
     const approval = card('An approval nobody has answered')
     expect(pressed(approval, '1 day')).toBe('false')
     expect(pressed(approval, '2 days')).toBe('true')
-    expect(pressed(approval, '3 days')).toBe('true')
+    expect(pressed(approval, '3 days')).toBe('false')
     expect(pressed(approval, '5 days')).toBe('true')
-    expect(pressed(approval, '7 days')).toBe('true')
+    expect(pressed(approval, '7 days')).toBe('false')
     const mismatch = card('A mismatch nobody has resolved')
     expect(pressed(mismatch, '1 day')).toBe('true')
-    expect(pressed(mismatch, '3 days')).toBe('true')
-    expect(pressed(mismatch, 'A week')).toBe('true')
+    expect(pressed(mismatch, '3 days')).toBe('false')
+    expect(pressed(mismatch, 'A week')).toBe('false')
     const scan = card('A scanned receipt still unconfirmed')
     expect(pressed(scan, '2 days')).toBe('true')
-    expect(pressed(scan, 'A week')).toBe('true')
+    expect(pressed(scan, 'A week')).toBe('false')
 
     // Nothing was touched, so nothing is offered to save and nothing was written.
     expect(saveButton()).toHaveProperty('disabled', true)
     expect(rulesBodies).toHaveLength(0)
     expect(settingsBodies).toHaveLength(0)
+  })
+})
+
+describe('rows that take one timing', () => {
+  const singleDefaults = () =>
+    defaultRules().map((rule) =>
+      rule.type === 'APPROVAL_STALE'
+        ? { ...rule, offsets: [2], escalationOffsets: [5] }
+        : rule.type === 'MISMATCH_STALE'
+          ? { ...rule, offsets: [1] }
+          : rule.type === 'SCAN_UNCONFIRMED'
+            ? { ...rule, offsets: [2] }
+            : rule,
+    )
+
+  it('reads a switched-off row as holding its earliest day only, and leaves the others alone', () => {
+    const [before, late, discount, approval, mismatch, scan] = defaultRules().map((rule) =>
+      withOneTiming(rule as ReminderRuleDto),
+    )
+    // Rows that take several keep every day.
+    expect(before.offsets).toEqual([0, 2, 7])
+    expect(late.offsets).toEqual([1])
+    expect(late.repeatEveryDays).toBe(3)
+    expect(discount.offsets).toEqual([3])
+    // Rows that take one.
+    expect(approval.offsets).toEqual([2])
+    expect(approval.escalationOffsets).toEqual([5])
+    expect(mismatch.offsets).toEqual([1])
+    expect(scan.offsets).toEqual([2])
+
+    // Already one, or none: the same object back, nothing rewritten.
+    const single = singleDefaults()[3] as ReminderRuleDto
+    expect(withOneTiming(single)).toBe(single)
+    const empty = { ...single, offsets: [], escalationOffsets: null }
+    expect(withOneTiming(empty)).toBe(empty)
+    // A rule that is on is firing on every day it holds: it is never read as fewer.
+    const on = { ...(defaultRules()[4] as ReminderRuleDto), recipients: [HAFIDH], enabled: true }
+    expect(withOneTiming(on)).toBe(on)
+    // Whatever order the days come in, the earliest is kept.
+    expect(withOneTiming({ ...single, offsets: [7, 3] }).offsets).toEqual([3])
+  })
+
+  it('sends one timing, and one for the owner, when the approval rule is switched on', async () => {
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    fireEvent.click(within(card('An approval nobody has answered')).getByRole('switch'))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    expect((rulesBodies[0] as { rules: unknown[] }).rules).toEqual([
+      {
+        type: 'APPROVAL_STALE',
+        offsets: [2],
+        repeatEveryDays: null,
+        escalationOffsets: [5],
+        recipients: [],
+        enabled: true,
+      },
+    ])
+    await waitFor(() =>
+      expect(onFile.find((rule) => rule.type === 'APPROVAL_STALE')).toMatchObject({
+        offsets: [2],
+        escalationOffsets: [5],
+        enabled: true,
+      }),
+    )
+  })
+
+  it('sends the one timing the reader picked instead', async () => {
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    const scan = card('A scanned receipt still unconfirmed')
+    fireEvent.click(within(scan).getByRole('switch'))
+    await waitFor(() =>
+      expect(within(scan).getByRole('button', { name: 'A week' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+    fireEvent.click(within(scan).getByRole('button', { name: 'A week' }))
+    await waitFor(() => expect(pressed(scan, 'A week')).toBe('true'))
+    expect(pressed(scan, '2 days')).toBe('false')
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    expect((rulesBodies[0] as { rules: { offsets: number[] }[] }).rules[0].offsets).toEqual([7])
+  })
+
+  it('shows a rule that is on exactly as it is on file, and does not cut it down unasked', async () => {
+    // Switched on before this change, so both days are on file and both are firing. The page
+    // shows both; a change to anything else on the page does not send this rule at all.
+    seed({ type: 'SCAN_UNCONFIRMED', offsets: [2, 7], enabled: true })
+    seed({ type: 'MISMATCH_STALE', offsets: [1, 3, 7], recipients: [HAFIDH], enabled: true })
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    const scan = card('A scanned receipt still unconfirmed')
+    expect(pressed(scan, '2 days')).toBe('true')
+    expect(pressed(scan, 'A week')).toBe('true')
+    const mismatch = card('A mismatch nobody has resolved')
+    expect(pressed(mismatch, '1 day')).toBe('true')
+    expect(pressed(mismatch, '3 days')).toBe('true')
+    expect(pressed(mismatch, 'A week')).toBe('true')
+    expect(saveButton()).toHaveProperty('disabled', true)
+
+    // Picking one keeps one, as the row always has.
+    await waitFor(() =>
+      expect(within(mismatch).getByRole('button', { name: '3 days' })).toHaveProperty(
+        'disabled',
+        false,
+      ),
+    )
+    fireEvent.click(within(mismatch).getByRole('button', { name: '3 days' }))
+    await waitFor(() => expect(pressed(mismatch, '1 day')).toBe('false'))
+    expect(pressed(mismatch, '3 days')).toBe('true')
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    const sent = (rulesBodies[0] as { rules: { type: string; offsets: number[] }[] }).rules
+    expect(sent.map((rule) => rule.type)).toEqual(['MISMATCH_STALE'])
+    expect(sent[0].offsets).toEqual([3])
+    // The scan rule was not touched and is still as it was.
+    expect(onFile.find((rule) => rule.type === 'SCAN_UNCONFIRMED')!.offsets).toEqual([2, 7])
+  })
+
+  it('draws a server that already starts those rows on one timing the same way', async () => {
+    onFile = singleDefaults()
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    const approval = card('An approval nobody has answered')
+    expect(pressed(approval, '2 days')).toBe('true')
+    expect(pressed(approval, '3 days')).toBe('false')
+    expect(pressed(approval, '5 days')).toBe('true')
+    expect(pressed(approval, '7 days')).toBe('false')
+    expect(pressed(card('A mismatch nobody has resolved'), '1 day')).toBe('true')
+    expect(pressed(card('A scanned receipt still unconfirmed'), '2 days')).toBe('true')
+    expect(saveButton()).toHaveProperty('disabled', true)
+  })
+
+  it('shows a reader the same one timing, in Arabic too', async () => {
+    entitlements = { ...MANAGER, permissions: ['invoice.read'] }
+    await i18n.changeLanguage('ar')
+    renderPage()
+    const approval = (await screen.findByText('اعتماد لم يردّ عليه أحد')).closest('article')!
+    expect(pressed(approval, 'يومان')).toBe('true')
+    expect(pressed(approval, '٣ أيام')).toBe('false')
+    expect(pressed(approval, '٥ أيام')).toBe('true')
+    expect(pressed(approval, '٧ أيام')).toBe('false')
+    expect(screen.queryByRole('button', { name: 'حفظ التغييرات' })).toBeNull()
   })
 })
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -56,6 +56,7 @@ import {
   joinNames,
   rulesOn,
   toggleOffset,
+  withOneTiming,
   type RuleSpec,
 } from '../../lib/expenditureReminders'
 import { formatAmount, formatCount, formatInstant } from '../../lib/format'
@@ -198,7 +199,7 @@ function RemindersScreen() {
 }
 
 function Editor({
-  savedRules,
+  savedRules: rulesOnFile,
   savedSettings,
   canManage,
   setNotice,
@@ -212,6 +213,10 @@ function Editor({
   onSaved: () => void
 }) {
   const { t } = useTranslation()
+  // What the page edits and compares against: the rules on file, with a switched-off row that
+  // takes one timing read as holding one. Untouched, nothing differs and nothing is offered to
+  // save; a rule that is then saved carries its one timing.
+  const savedRules = useMemo(() => rulesOnFile.map(withOneTiming), [rulesOnFile])
   const [draft, setDraft] = useState<ReminderRuleDto[]>(savedRules)
   const [delivery, setDelivery] = useState<ReminderSettingsDto>(savedSettings)
   const [busy, setBusy] = useState(false)

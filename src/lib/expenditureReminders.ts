@@ -153,6 +153,31 @@ export function toggleOffset(offsets: number[], offset: number, multi: boolean):
 }
 
 /**
+ * A row that takes one timing, holding one.
+ *
+ * The approval, mismatch and scan rows (and the owner's part of the approval row) take a single
+ * timing, but the server's starting values carry two or three, so a new company used to see
+ * several lit on a row where a click keeps one. A rule that is off and carries several is read as
+ * carrying the earliest: 2 days, then the owner after 5; 1 day; 2 days. Nothing is written by
+ * this; the one timing is what is sent when the rule is next saved.
+ *
+ * A rule that is ON is left exactly as it is on file. Its extra days really are firing, and the
+ * page must not show fewer than the server acts on, nor drop them without the reader choosing.
+ */
+export function withOneTiming(rule: ReminderRuleDto): ReminderRuleDto {
+  const spec = RULE_SPECS.find((entry) => entry.type === rule.type)
+  if (!spec || rule.enabled) return rule
+  const earliest = (days: number[]) => (days.length > 1 ? [Math.min(...days)] : days)
+  const offsets = spec.multi ? rule.offsets : earliest(rule.offsets)
+  const escalationOffsets =
+    spec.escalation && rule.escalationOffsets
+      ? earliest(rule.escalationOffsets)
+      : rule.escalationOffsets
+  if (offsets === rule.offsets && escalationOffsets === rule.escalationOffsets) return rule
+  return { ...rule, offsets, escalationOffsets }
+}
+
+/**
  * The rules the footer counts as on: the ones that can be switched, and are. The recurring row is
  * not a rule and cannot be switched, so it is not counted.
  */
