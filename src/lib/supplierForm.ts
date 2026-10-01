@@ -247,9 +247,9 @@ export function fromSupplierDetail(detail: SupplierDetailDto): {
 
 /**
  * "Copy into a new supplier": the record's details as the start of a new one. The VAT number, the
- * CR number and the IBAN start empty, because each names one company or one account. The Peppol ID
- * starts empty with them: it is the VAT number behind a scheme, no two suppliers may share one,
- * and a typed VAT number fills it in again.
+ * CR number and the whole bank account (IBAN, bank name, BIC) start empty, because each names one
+ * company or one account. The Peppol ID starts empty with them: it is the VAT number behind a
+ * scheme, no two suppliers may share one, and a typed VAT number fills it in again.
  */
 export function copyOfSupplier(detail: SupplierDetailDto): SupplierFormValues {
   return {
@@ -257,6 +257,8 @@ export function copyOfSupplier(detail: SupplierDetailDto): SupplierFormValues {
     vatNumber: '',
     commercialRegistrationNumber: '',
     iban: '',
+    bankName: '',
+    bic: '',
     peppolId: '',
   }
 }
