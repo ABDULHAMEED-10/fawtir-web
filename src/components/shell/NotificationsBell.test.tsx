@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import type { ReminderInboxItemDto } from '../../api/expenditure/billReminders'
 import type { Entitlements } from '../../lib/identity/entitlements'
-import { notesStore, type NoteScope } from '../../lib/notifications'
+import { NOTES, noteValues, notesStore, type NoteScope } from '../../lib/notifications'
 import { SessionContext } from '../../lib/session/session'
 import { NotificationsBell } from './NotificationsBell'
 
@@ -319,6 +319,66 @@ describe('the count on the bell', () => {
     expect(within(panel).queryByText(/was refused by the Tax Authority/)).toBeNull()
     expect(within(panel).queryByText(/signed in from a new device/)).toBeNull()
   })
+})
+
+describe('the seven sample notices the design typed in', () => {
+  // Certificate, plan usage, refused invoice, stock, accepted, invitation, new device: none has a
+  // source, so none is shown to anyone. What the bell holds is what the server sent.
+  const PEOPLE: { who: string; session: Entitlements | null; scope: NoteScope; reads: boolean }[] =
+    [
+      ...['ADMIN', 'FINANCE_MANAGER', 'APPROVER', 'VIEWER'].map((code) => ({
+        who: code,
+        session: { ...READER, roles: [{ id: 'r-1', code, name: code, systemRole: true }] },
+        scope: 'tenant' as const,
+        reads: true,
+      })),
+      {
+        who: 'someone who may not read bills',
+        session: { ...READER, permissions: ['customer.read'] },
+        scope: 'tenant',
+        reads: false,
+      },
+      { who: 'nobody signed in', session: null, scope: 'tenant', reads: false },
+      { who: 'the console operator', session: READER, scope: 'console', reads: false },
+    ]
+
+  const sampleSentences = (language: string) =>
+    NOTES.flatMap((note) => {
+      const values = noteValues(note, language)
+      return [
+        i18n.t(note.titleKey, values),
+        ...note.actions.map((action) => i18n.t(action.labelKey, values)),
+      ]
+    })
+
+  for (const language of ['en', 'ar'] as const) {
+    for (const person of PEOPLE) {
+      for (const filled of [true, false]) {
+        it(`shows none of them to ${person.who}, in ${language}, with ${
+          filled ? 'a reminder' : 'nothing'
+        } in the inbox`, async () => {
+          await i18n.changeLanguage(language)
+          inbox = filled ? [LATE] : []
+          renderBell(person.session, person.scope)
+          fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.notifications') }))
+          const panel = await screen.findByRole('dialog', { name: i18n.t('notes.title') })
+          const expected = filled && person.reads ? 1 : 0
+          await waitFor(() =>
+            expect(within(panel).queryAllByRole('listitem')).toHaveLength(expected),
+          )
+          if (expected === 0) await within(panel).findByText(i18n.t('notes.allCaughtUp'))
+
+          const samples = sampleSentences(language)
+          // Seven titles and their buttons, each a real sentence and not a bare key.
+          expect(samples.length).toBeGreaterThanOrEqual(7)
+          for (const sentence of samples) {
+            expect(sentence).not.toMatch(/^notes\./)
+            expect(panel.textContent ?? '', sentence).not.toContain(sentence)
+          }
+        })
+      }
+    }
+  }
 })
 
 describe('reading a line', () => {
