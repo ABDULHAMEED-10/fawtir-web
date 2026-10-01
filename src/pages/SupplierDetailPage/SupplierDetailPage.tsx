@@ -152,7 +152,8 @@ function SupplierRecord({ id }: { id: string }) {
   const documents = useApiRead<SupplierDocumentDto[]>(supplierDocumentsPath(id), () =>
     loadSupplierDocuments(id),
   )
-  const recentBillsPath = supplierBillsPath(id, 0, 5)
+  // The "Open bills" card: the five newest bills still owed, not the five newest documents.
+  const recentBillsPath = supplierBillsPath(id, 0, 5, true)
   const recentBills = useApiRead<Page<BillRowDto>>(recentBillsPath, () =>
     loadSupplierBills(recentBillsPath),
   )
@@ -520,7 +521,7 @@ function SupplierRecord({ id }: { id: string }) {
               {recentBills.read.status === 'ready' ? (
                 latest.length === 0 ? (
                   <p className="mt-4 text-sm font-medium text-text-quaternary">
-                    {t('supplierRecord.noBills')}
+                    {t('suppliersPage.owedNote.nothingOpen')}
                   </p>
                 ) : (
                   <div className="mt-4 overflow-x-auto">

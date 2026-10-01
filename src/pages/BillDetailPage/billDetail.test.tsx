@@ -161,6 +161,7 @@ let matchResponse: () => Response
 let actionResponse: () => Response
 let ordersResponse: () => Response
 let supplierBank: () => unknown
+let supplierOpenBills: number | undefined
 let who: Entitlements
 
 const calls = () =>
@@ -188,6 +189,7 @@ beforeEach(async () => {
         },
       ],
     })
+  supplierOpenBills = undefined
   supplierBank = () => ({
     beneficiaryName: 'Qalhat Marine Supplies',
     iban: 'OM90 0018 0000 6283 2290',
@@ -218,7 +220,13 @@ beforeEach(async () => {
       })
     if (url === '/api/v1/suppliers/s-1/overview')
       return json(200, {
-        tabs: { bills: 2, payments: 1, orders: 3, documents: 0 },
+        tabs: {
+          bills: 2,
+          payments: 1,
+          orders: 3,
+          documents: 0,
+          ...(supplierOpenBills === undefined ? {} : { openBills: supplierOpenBills }),
+        },
         match: { agreed: 2, orderBacked: 2, summary: null },
         usualLeadTimeDays: 8,
         payables: {
@@ -688,6 +696,21 @@ describe('A bill, wired to the API', () => {
     expect(await screen.findByText('الطلب والاستلام والفاتورة متطابقة')).toBeTruthy()
     expect(screen.getByText('حالة إبلاغ الاستلام غير متاحة بعد')).toBeTruthy()
     expect(screen.getByText('2,242.200')).toBeTruthy()
+  })
+})
+
+describe('the supplier card on a bill', () => {
+  it('counts the supplier’s open bills as their page does, not the four bands', async () => {
+    // Three open bills, one of them in another currency: the bands (OMR only) add up to two.
+    supplierOpenBills = 3
+    renderBill()
+    expect(await screen.findByText(/^3 · /)).toBeTruthy()
+    expect(screen.queryByText(/^2 · /)).toBeNull()
+  })
+
+  it('falls back to the bands when the server does not send the count', async () => {
+    renderBill()
+    expect(await screen.findByText(/^2 · /)).toBeTruthy()
   })
 })
 

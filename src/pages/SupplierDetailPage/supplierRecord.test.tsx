@@ -160,6 +160,7 @@ let who: Entitlements
 let detail: SupplierDetailDto
 let uploads: number
 let confirmResponse: () => Response
+let openBills: unknown[]
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -174,6 +175,7 @@ beforeEach(async () => {
   who = MANAGER
   detail = DETAIL
   uploads = 0
+  openBills = [BILL]
   confirmResponse = () =>
     json(200, {
       id: 'bill-new',
@@ -225,11 +227,21 @@ beforeEach(async () => {
         },
       ])
     if (url.startsWith(`${ONE}/bills?`)) {
-      const size = Number(new URL(url, 'http://x').searchParams.get('page_size'))
+      const query = new URL(url, 'http://x').searchParams
+      const size = Number(query.get('page_size'))
+      // The overview card asks for the open bills; the Bills tab asks for every document.
+      if (query.get('open') === 'true')
+        return json(200, {
+          items: openBills,
+          page: 0,
+          pageSize: size,
+          count: openBills.length,
+          total: openBills.length,
+        })
       return json(200, {
         items:
           size === 5
-            ? [BILL]
+            ? [{ ...BILL, id: 'b-paid', supplierBillNumber: 'QMS-PAID', outstandingAmount: 0 }]
             : Array.from({ length: 20 }, (_, i) => ({
                 ...BILL,
                 id: `b-${i}`,
@@ -564,6 +576,27 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('button', { name: 'Manage' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Attach document' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Switch this supplier off' })).toBeNull()
+  })
+
+  it('lists open bills only in the "Open bills" card, and every document in the Bills tab', async () => {
+    renderSupplier()
+    expect(await screen.findByRole('link', { name: 'QMS-2044' })).toBeTruthy()
+    expect(calls('GET', `${ONE}/bills?`).map(([url]) => String(url))).toEqual([
+      `${ONE}/bills?open=true&page=0&page_size=5`,
+    ])
+    // The newest documents of any state are not what the card shows.
+    expect(screen.queryByRole('link', { name: 'QMS-PAID' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Bills/ }))
+    expect(await screen.findByRole('link', { name: 'QMS-19' })).toBeTruthy()
+    expect(String(calls('GET', `${ONE}/bills?`)[1][0])).toBe(`${ONE}/bills?page=0&page_size=20`)
+  })
+
+  it('says nothing is open when every bill is settled', async () => {
+    openBills = []
+    renderSupplier()
+    expect(await screen.findByText('Nothing open')).toBeTruthy()
+    expect(screen.queryByText('No bills from this supplier yet.')).toBeNull()
   })
 
   it('offers a new order and a new bill only to someone who may raise them', async () => {
