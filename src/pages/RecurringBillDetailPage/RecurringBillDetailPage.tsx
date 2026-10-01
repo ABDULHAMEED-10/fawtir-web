@@ -34,11 +34,11 @@ import {
   cadenceNote,
   canResume,
   chartBars,
-  chaseBlocker,
   chaseNotice,
   daysBetween,
   formatVariance,
   isEnded,
+  offersChase,
   monthName,
   monthYear,
   ordinal,
@@ -179,7 +179,6 @@ function RecurringBill({ id }: { id: string }) {
 
   const note = stateNote(bill)
   const tone = toneOf(bill)
-  const blocker = chaseBlocker(bill)
   const cadence = cadenceNote(bill, language)
   const money = (value: number | null) =>
     value === null ? '' : formatAmount(value, bill.currencyCode, language)
@@ -417,18 +416,18 @@ function RecurringBill({ id }: { id: string }) {
                   )}
                 </button>
               ) : null}
-              {ended ? null : (
+              {/* Only once the bill is late, by the list row's own rule: hidden, not disabled. */}
+              {!ended && offersChase(bill) ? (
                 <button
                   type="button"
                   onClick={() => void act('chase')}
-                  disabled={busy || blocker !== null}
-                  title={blocker ? t(blocker) : undefined}
+                  disabled={busy}
                   className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
                 >
                   <img src={mailWhiteIcon} alt="" className="size-[17px]" />
                   {t('recurringBills.actions.chase')}
                 </button>
-              )}
+              ) : null}
             </div>
           ) : null}
         </div>

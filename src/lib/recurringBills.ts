@@ -122,6 +122,15 @@ export function chaseBlocker(bill: RecurringBillDto): string | null {
   return null
 }
 
+/**
+ * Whether Chase is offered at all: only once the bill is late, on a watch that can be chased.
+ * The list row and the detail header both ask here, so the two cannot drift. Before the bill is
+ * expected there is nothing to chase, so the button is not drawn (hidden, not shown disabled).
+ */
+export function offersChase(bill: RecurringBillDto): boolean {
+  return bill.active && bill.expectation?.state === 'LATE' && chaseBlocker(bill) === null
+}
+
 /** The server's own refusals, in the page's words. */
 export const RECURRING_REFUSALS: Record<string, string> = {
   RECURRING_BILL_ARRIVAL_DAY_REQUIRED: 'recurringBills.error.arrivalDayRequired',

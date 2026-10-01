@@ -1293,9 +1293,9 @@ describe('the detail and the list, where the audit found no test', () => {
     expect(
       screen.getByText('Fawtir writes this bill itself on the day, for the usual amount.'),
     ).toBeTruthy()
-    expect(
-      (screen.getByRole('button', { name: 'Chase the supplier' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    // Nothing is waited for, so Chase is not drawn at all (it used to be drawn greyed out).
+    expect(screen.queryByRole('button', { name: 'Chase the supplier' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Pause watching' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Mark as received' })).toBeNull()
   })
 

@@ -31,7 +31,7 @@ import {
   canResume,
   categoriesOf,
   categoryGlyph,
-  chaseBlocker,
+  offersChase,
   chaseNotice,
   daysBetween,
   formatVariance,
@@ -553,7 +553,7 @@ function Row({
     ? resumable
       ? { key: 'recurringBills.actions.resume', onClick: onToggle, filled: false }
       : null
-    : expectation?.state === 'LATE' && chaseBlocker(bill) === null
+    : offersChase(bill)
       ? { key: 'recurringBills.actions.chase', onClick: onChase, filled: true }
       : null
 
