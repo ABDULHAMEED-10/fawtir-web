@@ -469,6 +469,25 @@ describe('Bills list, wired to the API', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
   })
 
+  it('offers "Start a payment run" only to someone who can manage payment runs', async () => {
+    // The card and its figures stay for a reader; only the link into a new run goes.
+    who = READ_ONLY
+    const reader = renderBills()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.getByText('4 approved bills')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Start a payment run/ })).toBeNull()
+    expect(screen.queryByText('Start a payment run')).toBeNull()
+    reader.unmount()
+
+    forgetEntitlements()
+    who = CAPTURER
+    renderBills()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.getByRole('link', { name: /Start a payment run/ }).getAttribute('href')).toBe(
+      '/expenditure/payments/new',
+    )
+  })
+
   it('offers no export without the export permission', async () => {
     // ADMIN here holds no `invoice.export`: hidden, not shown disabled.
     renderBills()

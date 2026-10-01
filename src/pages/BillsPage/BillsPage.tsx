@@ -420,7 +420,11 @@ function BillsScreen() {
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
       {header}
-      <BillKpiCards totals={totals} onReview={() => update({ tab: null, page: null })} />
+      <BillKpiCards
+        totals={totals}
+        canStartRun={canCapture}
+        onReview={() => update({ tab: null, page: null })}
+      />
 
       <section className="overflow-hidden rounded-md bg-surface-card">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2 border-b border-border-subtle px-6 pt-4">
@@ -636,8 +640,20 @@ function refusalText(t: Translate, error: unknown): string {
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body
 }
 
-/** The four cards of the frame, each with its figure, its line of context and, on two, a link. */
-function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: () => void }) {
+/**
+ * The four cards of the frame, each with its figure, its line of context and, on two, a link.
+ * `canStartRun` is read by the screen inside the shell and handed down: the link into a new
+ * payment run is hidden from someone who cannot manage one, as it is on the Payments list.
+ */
+function BillKpiCards({
+  totals,
+  canStartRun,
+  onReview,
+}: {
+  totals: BillSummaryDto
+  canStartRun: boolean
+  onReview: () => void
+}) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const count = (value: number) => formatCount(value, language)
@@ -712,7 +728,7 @@ function BillKpiCards({ totals, onReview }: { totals: BillSummaryDto; onReview: 
       money: true,
       meta: t('billsPage.kpi.readyBills', { count: totals.readyToPayCount }),
       link:
-        totals.readyToPayCount > 0
+        canStartRun && totals.readyToPayCount > 0
           ? { label: t('billsPage.kpi.readyLink'), onClick: null, to: '/expenditure/payments/new' }
           : null,
     },
