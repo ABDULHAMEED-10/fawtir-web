@@ -134,6 +134,9 @@ function RemindersScreen() {
     canRead ? BILL_REMINDER_SETTINGS_PATH : null,
     loadReminderSettings,
   )
+  // Held here, not in the editor: a save reads the rules and settings again, the editor is taken
+  // down while they load, and a notice kept inside it would go with it.
+  const [notice, setNotice] = useState<string | null>(null)
 
   if (!canRead) {
     return (
@@ -154,6 +157,12 @@ function RemindersScreen() {
         </p>
       </div>
 
+      {notice ? (
+        <Notice
+          body={notice}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
       {rules.read.status === 'loading' || settings.read.status === 'loading' ? (
         <LoadingNotice />
       ) : null}
@@ -169,6 +178,7 @@ function RemindersScreen() {
           savedRules={rules.read.data.rules}
           savedSettings={settings.read.data}
           canManage={canManage}
+          setNotice={setNotice}
           onSaved={() => {
             rules.retry()
             settings.retry()
@@ -183,18 +193,20 @@ function Editor({
   savedRules,
   savedSettings,
   canManage,
+  setNotice,
   onSaved,
 }: {
   savedRules: ReminderRuleDto[]
   savedSettings: ReminderSettingsDto
   canManage: boolean
+  /** The page's one notice line ("Saved."), owned above so it outlives the reload after a save. */
+  setNotice: (notice: string | null) => void
   onSaved: () => void
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState<ReminderRuleDto[]>(savedRules)
   const [delivery, setDelivery] = useState<ReminderSettingsDto>(savedSettings)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
   useEffect(() => setDraft(savedRules), [savedRules])
@@ -262,12 +274,6 @@ function Editor({
 
   return (
     <>
-      {notice ? (
-        <Notice
-          body={notice}
-          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
-        />
-      ) : null}
       {failure ? (
         <Notice
           badge={t('supplierCreditNoteDetail.notDone')}
@@ -777,11 +783,12 @@ function Preview({ delivery, time }: { delivery: ReminderSettingsDto['delivery']
   const preview = useApiRead<ReminderPreviewDto>(BILL_REMINDER_PREVIEW_PATH, loadReminderPreview)
   const data = preview.read.status === 'ready' ? preview.read.data : null
   const lines = data ? flattenPreview(data) : []
+  // First names, as the frame draws them. A person the server could not name gets the wording the
+  // people picker already uses for one, never their id.
+  const firstName = (name: string | null) =>
+    name === null || name.trim() === '' ? t('expenditureReminders.someone') : name.split(' ')[0]
   const audience = data
-    ? joinNames(
-        audienceOf(data).map((name) => name.split(' ')[0]),
-        t('expenditureReminders.and'),
-      )
+    ? joinNames(audienceOf(data).map(firstName), t('expenditureReminders.and'))
     : ''
 
   return (
@@ -846,10 +853,7 @@ function Preview({ delivery, time }: { delivery: ReminderSettingsDto['delivery']
                         : null}
                       {line.amount !== null ? ' · ' : ''}
                       {t('expenditureReminders.preview.to')}{' '}
-                      {joinNames(
-                        line.recipients.map((name) => name.split(' ')[0]),
-                        t('expenditureReminders.and'),
-                      )}
+                      {joinNames(line.recipients.map(firstName), t('expenditureReminders.and'))}
                     </p>
                   </div>
                 </li>

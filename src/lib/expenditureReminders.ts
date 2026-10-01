@@ -163,14 +163,15 @@ export type PreviewLine = {
   headline: string
   amount: number | null
   currency: string | null
-  recipients: string[]
+  /** A person the server sent without a name is `null`, never their id: the page words it. */
+  recipients: (string | null)[]
 }
 
 /** The preview is grouped per person; the frame lists each thing once, naming everyone it goes to. */
 export function flattenPreview(preview: ReminderPreviewDto): PreviewLine[] {
   const lines = new Map<string, PreviewLine>()
   for (const group of preview.groups) {
-    const who = group.displayName ?? group.recipientUserId
+    const who = group.displayName
     for (const item of group.items) {
       const id = `${item.ruleType}:${item.subjectId}:${item.daysFromDue}`
       const line = lines.get(id) ?? {
@@ -188,8 +189,13 @@ export function flattenPreview(preview: ReminderPreviewDto): PreviewLine[] {
   return [...lines.values()]
 }
 
-export function audienceOf(preview: ReminderPreviewDto): string[] {
-  return preview.groups.map((group) => group.displayName ?? group.recipientUserId)
+/** Everyone today's preview goes to. People with no name are counted once, as one `null`. */
+export function audienceOf(preview: ReminderPreviewDto): (string | null)[] {
+  const names: (string | null)[] = []
+  for (const group of preview.groups) {
+    if (group.displayName !== null || !names.includes(null)) names.push(group.displayName)
+  }
+  return names
 }
 
 /** "Yusuf", "Yusuf and Hafidh", "Yusuf, Hafidh and Aisha". */

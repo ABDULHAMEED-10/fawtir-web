@@ -123,15 +123,41 @@ export function loadReminderRules(): Promise<ReminderRulesDto> {
  * without the people already on it would quietly drop them.
  */
 export function saveReminderRules(rules: ReminderRuleDto[]): Promise<ReminderRulesDto> {
-  return apiRequest<ReminderRulesDto>(BILL_REMINDER_RULES_PATH, { method: 'PUT', body: { rules } })
+  return apiRequest<ReminderRulesDto>(BILL_REMINDER_RULES_PATH, {
+    method: 'PUT',
+    body: { rules: rules.map(ruleRequest) },
+  })
+}
+
+/**
+ * `RuleRequest`, field for field. The page edits the object it loaded, and the server refuses a
+ * JSON field its record does not declare: a field the response gains later must not ride back on
+ * the save. The names are pinned by `billReminders.requestFields.json`.
+ */
+function ruleRequest(rule: ReminderRuleDto): ReminderRuleDto {
+  return {
+    type: rule.type,
+    offsets: rule.offsets,
+    repeatEveryDays: rule.repeatEveryDays,
+    escalationOffsets: rule.escalationOffsets,
+    recipients: rule.recipients,
+    enabled: rule.enabled,
+  }
 }
 
 export function loadReminderSettings(): Promise<ReminderSettingsDto> {
   return apiRequest<ReminderSettingsDto>(BILL_REMINDER_SETTINGS_PATH)
 }
 
+/** `SettingsRequest`, field for field, for the same reason as {@link ruleRequest}. */
 export function saveReminderSettings(settings: ReminderSettingsDto): Promise<ReminderSettingsDto> {
-  return apiRequest<ReminderSettingsDto>(BILL_REMINDER_SETTINGS_PATH, { method: 'PUT', body: settings })
+  const body: ReminderSettingsDto = {
+    delivery: settings.delivery,
+    digestTime: settings.digestTime,
+    skipWeekends: settings.skipWeekends,
+    stopWhenInRun: settings.stopWhenInRun,
+  }
+  return apiRequest<ReminderSettingsDto>(BILL_REMINDER_SETTINGS_PATH, { method: 'PUT', body })
 }
 
 export function loadReminderPreview(): Promise<ReminderPreviewDto> {
