@@ -54,8 +54,18 @@ export function RecordPaymentModal({
    * debt is its Expenditure bill, so that page records against the bill. Same key, same form.
    */
   record?: (idempotencyKey: string, payment: RecordPaymentRequest) => Promise<unknown>
-  /** Refusals that route can add, named over {@link PAYMENT_REFUSALS}. */
-  refusals?: Record<string, { field: PaymentField | null; key: string }>
+  /**
+   * Refusals that route can add, named over {@link PAYMENT_REFUSALS}. `values` reads what the
+   * sentence names off the problem document (a bill's payment run reference).
+   */
+  refusals?: Record<
+    string,
+    {
+      field: PaymentField | null
+      key: string
+      values?: (problem: Readonly<Record<string, unknown>>) => Record<string, unknown>
+    }
+  >
   /**
    * The amount and date labels, when the money goes the other way: on a self-billed document the
    * tenant pays its supplier, so "Amount paid" / "Paid on" rather than received.
@@ -105,14 +115,16 @@ export function RecordPaymentModal({
         : recordPayment(invoiceId, idempotencyKey, payment))
       onRecorded()
     } catch (error) {
+      const named = error instanceof ApiError && error.code ? refusals?.[error.code] : undefined
       const refusal =
-        error instanceof ApiError && error.code
-          ? (refusals?.[error.code] ?? PAYMENT_REFUSALS[error.code])
-          : undefined
+        named ??
+        (error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined)
       if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
-        setFailure(t(refusal.key))
+        setFailure(
+          t(refusal.key, error instanceof ApiError ? (named?.values?.(error.problem) ?? {}) : {}),
+        )
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
