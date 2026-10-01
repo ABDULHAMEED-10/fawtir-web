@@ -150,6 +150,22 @@ const renderPage = () =>
     </MemoryRouter>,
   )
 
+/**
+ * The editor is up AND its mount effects have run. `findByText` alone can answer in the gap
+ * between React committing the editor and running its effects; one of those effects copies the
+ * rules on file into the draft, so a click made in that gap is overwritten and the test fails
+ * about once in sixty. The preview's read is started by the same round of effects, so once it has
+ * been asked for, the round is over.
+ */
+async function editorReady(title = 'Before a bill is due') {
+  await screen.findByText(title)
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes('/bill-reminders/preview')),
+    ).toBe(true),
+  )
+}
+
 const card = (title: string) => screen.getByText(title).closest('article')!
 const pressed = (within_: HTMLElement, name: string) =>
   within(within_).getByRole('button', { name }).getAttribute('aria-pressed')
@@ -191,7 +207,7 @@ describe('the two request bodies, field for field', () => {
     // would be refused if it rode back on the save.
     extraOnRead = { revision: 4 }
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
@@ -220,7 +236,7 @@ describe('the two request bodies, field for field', () => {
 
   it('sends the settings as exactly the four fields the record declares', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
@@ -243,7 +259,7 @@ describe('the two request bodies, field for field', () => {
 describe('a company that has saved nothing', () => {
   it('draws the defaults exactly as the server returns them, and has nothing to save', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     // Six rules, all off; the recurring row is the bills' own and reads on.
     for (const title of [
@@ -297,7 +313,7 @@ describe('saving', () => {
     // the page's list; the same days in another order are the same ladder.
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
@@ -316,7 +332,7 @@ describe('saving', () => {
 
   it('still says "Saved." once the page has read the saved values back', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const readsBefore = rulesReads()
 
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
@@ -346,7 +362,7 @@ describe('a save the server refuses', () => {
   async function saveAnEmptyRule() {
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
@@ -414,7 +430,7 @@ describe('a save the server refuses', () => {
       },
     }
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
@@ -431,7 +447,7 @@ describe('a save the server refuses', () => {
     // Two calls, rules first. A refusal stops the second, so the page never reports a half.
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
@@ -472,7 +488,7 @@ describe('a save the server refuses', () => {
       },
     }
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const readsBefore = rulesReads()
 
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
@@ -515,7 +531,7 @@ describe('a save the server refuses', () => {
       body: { type: 'https://api.fawtir.om/problems/internal-error' },
     }
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
     fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
@@ -611,7 +627,7 @@ describe('the reminders screen in Arabic', () => {
     }
     const { container } = renderPage()
 
-    expect(await screen.findByText('قبل استحقاق الفاتورة')).toBeTruthy()
+    await editorReady('قبل استحقاق الفاتورة')
     expect(screen.getByRole('heading', { level: 1, name: 'التذكيرات' })).toBeTruthy()
     for (const title of [
       'بعد تأخر الفاتورة',
