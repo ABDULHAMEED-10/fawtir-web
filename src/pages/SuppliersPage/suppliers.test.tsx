@@ -255,6 +255,10 @@ describe('Suppliers list, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
     expect(await screen.findByText('New purchase order')).toBeTruthy()
     expect(screen.getByText('Record a bill')).toBeTruthy()
+    // "Copy into a new supplier" names the row it copies.
+    expect(screen.getByText('Copy into a new supplier').closest('a')?.getAttribute('href')).toBe(
+      '/suppliers/new?copy=11111111-1111-1111-1111-111111111111',
+    )
   })
 
   it('offers only what the reader may do', async () => {

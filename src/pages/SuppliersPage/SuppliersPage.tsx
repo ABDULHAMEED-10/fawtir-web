@@ -45,6 +45,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { copySupplierPath } from '../../lib/supplierForm'
 import { SuppliersEmptyState } from './SuppliersEmptyState'
 import { SwitchSupplierOffModal, type SwitchOffTarget } from './SwitchSupplierOffModal'
 import kpiSuppliersIcon from '../../assets/suppliers/kpi-suppliers.svg'
@@ -639,7 +640,7 @@ function SupplierTableRow({
       labelKey: 'suppliersPage.menu.copyToNew',
       descriptionKey: 'suppliersPage.menu.copyToNewNote',
       icon: menuCopyIcon,
-      to: '/suppliers/new',
+      to: copySupplierPath(supplier.id),
       requires: 'supplier.manage',
     },
     supplier.active

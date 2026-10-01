@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { AppShell } from '../../layouts/AppShell'
@@ -47,6 +47,8 @@ import { candidateParticipantId } from '../../lib/peppolParticipant'
 import { GOVERNORATES, GOVERNORATE_NAMES, governorateIdFor } from '../../lib/governorates'
 import {
   blankSupplierForm,
+  copyOfSupplier,
+  copySupplierPath,
   fromSupplierDetail,
   hasBankAccount,
   placeSupplierErrors,
@@ -177,6 +179,12 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     supplierId ? supplierOverviewPath(supplierId) : null,
     () => loadSupplierOverview(supplierId!),
   )
+  // "Copy into a new supplier" names the record to start from; an edit has its own.
+  const [params] = useSearchParams()
+  const copyId = editing ? null : params.get('copy')
+  const source = useApiRead<SupplierDetailDto>(copyId ? supplierPath(copyId) : null, () =>
+    loadSupplier(copyId!),
+  )
   const [record, setRecord] = useState<SupplierDetailDto | null>(null)
   const [values, setValues] = useState<SupplierFormValues>(blankSupplierForm)
   const [bank, setBank] = useState<LoadedBank>(null)
@@ -212,6 +220,22 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     setBank(next.bank)
   }, [loadedRecord])
 
+  const sourceRecord = source.read.status === 'ready' ? source.read.data : null
+  useEffect(() => {
+    if (sourceRecord) setValues(copyOfSupplier(sourceRecord))
+  }, [sourceRecord])
+
+  if (copyId && source.read.status !== 'ready') {
+    return (
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+        {source.read.status === 'loading' ? (
+          <LoadingNotice />
+        ) : (
+          <ApiReadFailure error={source.read.error} retry={source.retry} />
+        )}
+      </div>
+    )
+  }
   if (editing && loaded.read.status !== 'ready') {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -505,7 +529,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                         labelKey: 'suppliersPage.menu.copyToNew',
                         descriptionKey: 'suppliersPage.menu.copyToNewNote',
                         icon: menuCopyIcon,
-                        to: '/suppliers/new',
+                        to: copySupplierPath(record.profile.id),
                       },
                       switchedOff
                         ? {

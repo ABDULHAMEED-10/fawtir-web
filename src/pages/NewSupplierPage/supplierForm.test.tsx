@@ -6,6 +6,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   blankSupplierForm,
+  copyOfSupplier,
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
@@ -298,6 +299,96 @@ describe('a new supplier', () => {
         'Another supplier or customer already uses this VAT number or Peppol ID.',
       ),
     ).toBeTruthy()
+  })
+})
+
+describe('a supplier copied into a new one', () => {
+  const field = (label: RegExp) => screen.getByLabelText(label) as HTMLInputElement
+
+  it('opens the new-supplier form with the details, and the VAT number, CR number and IBAN empty', async () => {
+    renderAt(`/suppliers/new?copy=${ID}`)
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    await waitFor(() => expect(field(/^Legal name/).value).toBe('Qalhat Marine Supplies LLC'))
+    expect(field(/Main contact/).value).toBe('Accounts team')
+    expect(field(/Their email/).value).toBe('ap@qalhat.om')
+    expect(field(/^Phone/).value).toBe('24000000')
+    expect(field(/^Bank$/).value).toBe('Bank Muscat')
+    // The three that name one company or one account start empty.
+    expect(field(/^VAT number/).value).toBe('')
+    expect(field(/^Commercial registration/).value).toBe('')
+    expect(field(/^IBAN/).value).toBe('')
+    // The Peppol ID is the VAT number behind a scheme, so it starts empty too.
+    expect(field(/Peppol participant ID/).value).toBe('')
+  })
+
+  it('saves as a new supplier: a POST with its own key, no version, never a PUT on the source', async () => {
+    renderAt(`/suppliers/new?copy=${ID}`)
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    await waitFor(() => expect(field(/^Legal name/).value).toBe('Qalhat Marine Supplies LLC'))
+    typeInto(/^Legal name/, 'Qalhat Marine Supplies (Sohar) LLC')
+    typeInto(/^VAT number/, 'OM1100447102')
+    typeInto(/^IBAN/, 'OM230270000098765432101')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    expect(calls('PUT', ONE)).toHaveLength(0)
+    const body = bodyOf(calls('POST', '/api/v1/suppliers')[0])
+    expect('version' in body).toBe(false)
+    expect(body).toMatchObject({
+      legalName: 'Qalhat Marine Supplies (Sohar) LLC',
+      vatNumber: 'OM1100447102',
+      // Filled in from the typed VAT number, as on any new supplier.
+      participantScheme: '0248',
+      participantValue: 'OM1100447102',
+      commercialRegistrationNumber: null,
+      contactPerson: 'Accounts team',
+      emailRecipients: ['ap@qalhat.om'],
+      telephone: '+96824000000',
+      paymentTerms: 'NET45',
+      preferredLanguage: 'ar',
+      supplierCategory: 'Marine',
+      earlyPaymentDiscountPercent: 1.5,
+      earlyPaymentDiscountDays: 10,
+      // The new account: the source's beneficiary is not carried onto it.
+      bankDetails: {
+        beneficiaryName: null,
+        iban: 'OM230270000098765432101',
+        bic: 'BMUSOMRX',
+        bankName: 'Bank Muscat',
+      },
+      invoiceAddress: { cityName: 'Sur', streetName: 'Main Street', buildingNumber: '1' },
+    })
+  })
+
+  it('is where the edit page’s "Copy into a new supplier" leads', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    const item = (await screen.findByText('Copy into a new supplier')).closest('a')
+    expect(item?.getAttribute('href')).toBe(`/suppliers/new?copy=${ID}`)
+  })
+
+  it('copies every detail but the four identifiers', () => {
+    const copied = copyOfSupplier(detail())
+    expect(copied).toMatchObject({
+      legalName: 'Qalhat Marine Supplies LLC',
+      vatNumber: '',
+      commercialRegistrationNumber: '',
+      iban: '',
+      peppolId: '',
+      bankName: 'Bank Muscat',
+      bic: 'BMUSOMRX',
+      registeredOnPeppol: true,
+      paymentTerms: 'NET45',
+    })
+    expect(copied.billing.cityName).toBe('Sur')
+  })
+
+  it('opens a blank form when no record is named', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    expect(field(/^Legal name/).value).toBe('')
+    expect(calls('GET', ONE)).toHaveLength(0)
   })
 })
 
