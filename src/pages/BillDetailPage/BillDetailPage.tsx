@@ -280,7 +280,8 @@ function BillScreen() {
             </span>
           ) : null}
 
-          <div className="ms-auto flex flex-wrap items-center gap-3">
+          {/* On a phone the actions take a row of their own and share its full width. */}
+          <div className="flex w-full flex-wrap items-center gap-3 sm:ms-auto sm:w-auto [&>button]:shrink-0 [&>button]:grow [&>button]:justify-center [&>button]:whitespace-nowrap sm:[&>button]:grow-0">
             {original ? (
               <button type="button" onClick={download} className={OUTLINE_BUTTON}>
                 <img src={downloadIcon} alt="" className="size-5" />
