@@ -48,20 +48,32 @@ export function alreadyOnFile(row: ImportBatchRowDto): { to: string | null } | n
 }
 
 /**
- * What to send as `rowNumbers`: null when every importable row is kept, which is what the server
- * reads as "all of them", and the explicit list otherwise.
+ * What to send as `rowNumbers`: always the rows that are kept, named one by one.
+ *
+ * It used to send nothing ("all of them") when as many rows were kept as the server's
+ * `wouldImport`. The two numbers can match while the rows differ: in a file where B repeats A,
+ * keeping A and B and leaving G out is two rows, as is the server's own A and G. The reader would
+ * then get rows they did not choose, so the list always goes out. The server takes a list equal
+ * to its default set as it takes no list.
  */
-export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>): number[] | null {
-  const chosen = batch.rows
+export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>): number[] {
+  return batch.rows
     .filter((row) => importable(row) && keep.has(row.rowNumber))
     .map((row) => row.rowNumber)
-  // `wouldImport` counts a row already on file, which is never chosen: the list then goes out
-  // in full, so the server is not asked for a row it would skip.
-  return chosen.length === Number(batch.counts.wouldImport) ? null : chosen
 }
 
+/**
+ * What the first read of a batch keeps: every importable row, less a row that repeats an earlier
+ * row of the file. Only one of such a pair can come in, so the first stays kept and the repeat
+ * starts left out, which is also what the server counts in `wouldImport`. The reader can still
+ * bring the repeat in by hand (and leave the first out).
+ */
 export function initialSelection(batch: ImportBatchDto): Set<number> {
-  return new Set(batch.rows.filter(importable).map((row) => row.rowNumber))
+  return new Set(
+    batch.rows
+      .filter((row) => importable(row) && repeatsEarlierRow(row) === null)
+      .map((row) => row.rowNumber),
+  )
 }
 
 export function comingIn(batch: ImportBatchDto, keep: ReadonlySet<number>): number {
@@ -112,10 +124,30 @@ export function fieldLabel(field: string | null): { key: string } | { text: stri
   return key ? { key } : { text: field }
 }
 
+/** "Row 2 of this file has the same VAT number, and only one of them can be brought in". */
+const REPEATS_EARLIER_ROW = /^Row (\d+) of this file has the same (VAT number|Peppol identifier)/
+
+/**
+ * Whether the check marked this row as repeating an earlier row of the same file, and which: the
+ * earlier row's line in the file and the identifier the two share. The server stores no kind for
+ * a row that is worth a look, so its message is what says it, as it is for "already on file"
+ * below. Null for any other row, and for every row of a server that does not flag repeats.
+ */
+export function repeatsEarlierRow(
+  row: ImportBatchRowDto,
+): { row: number; identifier: 'vat' | 'peppol' } | null {
+  if (row.severity !== 'NEEDS_A_LOOK' || !row.message) return null
+  const match = REPEATS_EARLIER_ROW.exec(row.message)
+  if (!match) return null
+  return { row: Number(match[1]), identifier: match[2] === 'VAT number' ? 'vat' : 'peppol' }
+}
+
 /**
  * The one verdict the check gives today for a row it will still import: the counterparty is
  * already on file. Everything else is a validation refusal in the server's own words, which is
- * more use to the reader than a guess at what it meant.
+ * more use to the reader than a guess at what it meant. A row that repeats an earlier row of the
+ * file (`repeatsEarlierRow`) is shown in the server's words too, until it has a sentence of its
+ * own in both languages: this is where that sentence would be chosen.
  */
 export function problemNote(row: ImportBatchRowDto): { key: string } | { text: string } | null {
   if (!row.message) return null

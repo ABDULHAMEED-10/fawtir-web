@@ -97,7 +97,11 @@ export function loadImportBatch(target: ImportTarget, batchId: string): Promise<
   return apiRequest<ImportBatchDto>(importBatchPath(target, batchId))
 }
 
-/** `rowNumbers` names the rows to bring in; null means every importable row. */
+/**
+ * `rowNumbers` names the rows to bring in. Null sends none and lets the server choose (every
+ * importable row that does not repeat an earlier row of the file); the import screen always names
+ * its rows, so what is brought in is what was ticked.
+ */
 export function commitImport(
   target: ImportTarget,
   batchId: string,

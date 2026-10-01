@@ -16,6 +16,7 @@ import {
   problemNote,
   problemValue,
   readyOnPeppol,
+  repeatsEarlierRow,
   rowsInTab,
   tabCount,
 } from '../../lib/stagedImport'
@@ -90,6 +91,25 @@ const BATCH: ImportBatchDto = {
     },
   ],
   counts: { ready: 2, needsALook: 1, cannotImport: 1, wouldImport: 3 },
+}
+
+/**
+ * A file whose second row repeats its first: A (row 2), B (row 3, the same VAT number), G (row 4).
+ * The check leaves B out of `wouldImport`, and a commit that names no rows leaves it out too.
+ */
+const REPEATS: ImportBatchDto = {
+  ...BATCH,
+  totalRows: 3,
+  rows: [
+    { ...BATCH.rows[2], rowNumber: 2 },
+    {
+      ...BATCH.rows[1],
+      rowNumber: 3,
+      message: 'Row 2 of this file has the same VAT number, and only one of them can be brought in',
+    },
+    { ...BATCH.rows[3], rowNumber: 4 },
+  ],
+  counts: { ready: 2, needsALook: 1, cannotImport: 0, wouldImport: 2 },
 }
 
 function json(status: number, body?: unknown) {
@@ -208,10 +228,10 @@ describe('The staged import, wired to the API', () => {
     await waitFor(() =>
       expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
     )
-    // Every importable row kept: the server reads an empty body as "all of them".
+    // Every importable row kept, and still named one by one: the rows sent are the rows ticked.
     expect(
       JSON.parse(String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[0][1]?.body)),
-    ).toEqual({})
+    ).toEqual({ rowNumbers: [3, 4, 5] })
     expect(await screen.findByRole('heading', { name: '3 suppliers brought in' })).toBeTruthy()
     expect(screen.getByText('3 chosen, 1 left out.')).toBeTruthy()
 
@@ -386,6 +406,59 @@ describe('The staged import, wired to the API', () => {
     })
   })
 
+  describe('a row that repeats an earlier row of the same file', () => {
+    const soharRow = () => within(screen.getByText('Sohar Packaging LLC').closest('tr')!)
+    const commitBody = (call = 0) =>
+      JSON.parse(
+        String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[call][1]?.body),
+      )
+
+    it('starts left out, with the first of the pair kept, and says so in the server’s words', async () => {
+      batch = REPEATS
+      renderImport()
+      await uploadFile()
+      await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
+      expect(screen.getByText('2 of 3 would come in')).toBeTruthy()
+      fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+      expect(soharRow().getByText(REPEATS.rows[1].message!)).toBeTruthy()
+      // Left out to begin with, and still the reader's to bring in.
+      expect(soharRow().getByRole('button', { name: 'Bring in anyway' })).toBeTruthy()
+      expect(
+        within(screen.getByText('Barka Glass Works').closest('tr')!).getByRole('button', {
+          name: 'Leave it out',
+        }),
+      ).toBeTruthy()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(commitBody()).toEqual({ rowNumbers: [2, 4] })
+    })
+
+    it('sends the rows that are ticked, not "all of them", when their number matches the default', async () => {
+      // A (row 2), B (row 3) repeats A, G (row 4). The reader takes B and leaves G out: two rows,
+      // as many as the check would bring in, and not the same two.
+      batch = REPEATS
+      renderImport()
+      await uploadFile()
+      await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
+      fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+      fireEvent.click(soharRow().getByRole('button', { name: 'Bring in anyway' }))
+      fireEvent.click(
+        within(screen.getByText('Ibri Motors').closest('tr')!).getByRole('button', {
+          name: 'Leave it out',
+        }),
+      )
+      expect(screen.getByText('2 of 3 would come in')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(commitBody()).toEqual({ rowNumbers: [2, 3] })
+    })
+  })
+
   it('says when fewer rows were created than were chosen', async () => {
     commitResponse = () => json(200, { batchId: BATCH_ID, selected: 3, created: 2, skipped: 1 })
     renderImport()
@@ -449,6 +522,9 @@ describe('The staged import, wired to the API', () => {
     await waitFor(() => expect(calls('POST', '/api/v1/customers/import/check')).toHaveLength(1))
     fireEvent.click(await screen.findByRole('button', { name: 'Bring in 3 customers' }))
     expect(await screen.findByRole('heading', { name: '3 customers brought in' })).toBeTruthy()
+    expect(
+      JSON.parse(String(calls('POST', `/api/v1/customers/import/${BATCH_ID}/commit`)[0][1]?.body)),
+    ).toEqual({ rowNumbers: [3, 4, 5] })
     expect(screen.getByRole('link', { name: 'See your customers' }).getAttribute('href')).toBe(
       '/customers',
     )
@@ -497,14 +573,44 @@ describe('staged import helpers', () => {
     expect(alreadyOnFile(batch.rows[2])).toBeNull()
   })
 
-  it('sends null for every importable row and a list otherwise', () => {
+  it('always sends the ticked rows as a list, every importable row included', () => {
     const all = initialSelection(BATCH)
     expect([...all].sort()).toEqual([3, 4, 5])
-    expect(commitSelection(BATCH, all)).toBeNull()
+    // A file with no repeats: the same rows as before, now named.
+    expect(commitSelection(BATCH, all)).toEqual([3, 4, 5])
     expect(commitSelection(BATCH, new Set([4, 5]))).toEqual([4, 5])
     // A refused row is never sent, even if something ticks it.
     expect(commitSelection(BATCH, new Set([2, 4, 5]))).toEqual([4, 5])
     expect(comingIn(BATCH, new Set([4]))).toBe(1)
+  })
+
+  it('leaves a row that repeats an earlier row of the file unticked, and sends exactly what is ticked', () => {
+    expect(repeatsEarlierRow(REPEATS.rows[1])).toEqual({ row: 2, identifier: 'vat' })
+    expect(
+      repeatsEarlierRow({
+        ...REPEATS.rows[1],
+        field: 'peppolParticipantId',
+        message:
+          'Row 14 of this file has the same Peppol identifier, and only one of them can be brought in',
+      }),
+    ).toEqual({ row: 14, identifier: 'peppol' })
+    // Not a repeat: a ready row, a record already on file, a refused row saying the same words.
+    expect(repeatsEarlierRow(REPEATS.rows[0])).toBeNull()
+    expect(repeatsEarlierRow(BATCH.rows[1])).toBeNull()
+    expect(
+      repeatsEarlierRow({ ...REPEATS.rows[1], severity: 'CANNOT_IMPORT' }),
+    ).toBeNull()
+
+    // The first of the pair stays ticked; the repeat can still be ticked by hand.
+    expect([...initialSelection(REPEATS)]).toEqual([2, 4])
+    expect(importable(REPEATS.rows[1])).toBe(true)
+    expect(comingIn(REPEATS, initialSelection(REPEATS))).toBe(2)
+    expect(commitSelection(REPEATS, initialSelection(REPEATS))).toEqual([2, 4])
+    // Two ticked, as many as `wouldImport`, and not the server's two: the list still goes out.
+    expect(commitSelection(REPEATS, new Set([2, 3]))).toEqual([2, 3])
+    // The row shows the server's own sentence; a row already on file is ticked as it was before.
+    expect(problemNote(REPEATS.rows[1])).toEqual({ text: REPEATS.rows[1].message })
+    expect([...initialSelection(BATCH)]).toEqual([3, 4, 5])
   })
 
   it('splits the rows into the buckets the server gave', () => {

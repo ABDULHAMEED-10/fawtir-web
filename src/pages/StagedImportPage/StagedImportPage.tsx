@@ -122,7 +122,8 @@ function StagedImport({ target }: { target: ImportTarget }) {
     )
   }
 
-  // The first read of a batch decides what is kept: everything the check would bring in.
+  // The first read of a batch decides what is kept: everything the check would bring in, which
+  // leaves out a row that repeats an earlier row of the file.
   if (batch && seeded !== batch.id) {
     setSeeded(batch.id)
     setKeep(initialSelection(batch))
