@@ -387,12 +387,14 @@ describe('trading name, tags and the auto-match switch', () => {
     expect(autoMatch().getAttribute('aria-checked')).toBe('true')
   })
 
-  it('puts a refused trading name on its input', () => {
+  it('puts a refused trading name on its input, and a refused tag in the notice', () => {
+    // The server's size check on the name carries no code, so its own sentence is shown.
     const placed = placeSupplierErrors([
-      { field: 'tradingName', code: 'TOO_LONG', message: 'must be at most 200 characters' },
+      { field: 'tradingName', message: 'size must be between 0 and 200' },
+      { field: 'tags', code: 'TOO_MANY', message: 'At most 20 tags' },
     ])
-    expect(placed.fields.tradingName).toEqual({ key: 'validation.tooLong' })
-    expect(placed.other).toEqual([])
+    expect(placed.fields.tradingName).toEqual({ text: 'size must be between 0 and 200' })
+    expect(placed.other).toEqual(['At most 20 tags'])
   })
 
   it('offers no room for a twenty-first tag', async () => {
@@ -417,7 +419,11 @@ describe('trading name, tags and the auto-match switch', () => {
     const copied = copyOfSupplier(
       detail({ tradingName: 'Qalhat Marine', tags: ['Marine'], autoMatchPurchaseOrders: false }),
     )
-    expect(copied).toMatchObject({ tradingName: 'Qalhat Marine', tags: ['Marine'], autoMatch: false })
+    expect(copied).toMatchObject({
+      tradingName: 'Qalhat Marine',
+      tags: ['Marine'],
+      autoMatch: false,
+    })
   })
 })
 
