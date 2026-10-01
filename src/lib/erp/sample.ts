@@ -36,6 +36,16 @@ export function flattenKeys(payload: unknown, prefix = ''): SampleKey[] {
 }
 
 /**
+ * How many samples this visit may hold.
+ *
+ * A property of the store rather than of the Samples screen, because a second screen now adds to it:
+ * the MANAGED_PULL extraction page hands over the document it fetched from the tenant's ERP. Two
+ * screens enforcing their own ceiling is how one of them ends up filling a picker the other says is
+ * full. The limit is what keeps that picker readable; no server enforces it.
+ */
+export const SAMPLE_LIMIT = 10
+
+/**
  * A sample held for this visit only.
  *
  * Nothing stores a sample payload — see `SAMPLES` in `UNSUPPORTED_CAPABILITIES`. A sample is still
