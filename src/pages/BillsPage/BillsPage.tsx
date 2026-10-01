@@ -21,10 +21,12 @@ import {
   BILL_SUMMARY_PATH,
   approveBill,
   billListPath,
+  billTabCountsPath,
   exportBills,
   holdBill,
   loadBillPage,
   loadBillSummary,
+  loadBillTabCounts,
   nudgeBillApprover,
   rejectBill,
   releaseBill,
@@ -240,6 +242,14 @@ function BillsScreen() {
     sort: BILL_SORTS.find((option) => option.value === sortKey)?.sort ?? 'NEWEST',
   }
   const listPath = billListPath({ ...showing, page: pageNumber - 1, pageSize: size })
+  // With a search or a source filter on, the tab badges are counted over the same bills as the
+  // rows (owner decision 2026-10-01). A read of its own, so the cards above, which describe the
+  // whole ledger, stay on screen while the counts follow the typing.
+  const countsPath = billTabCountsPath(showing)
+  const counts = useApiRead<BillSummaryDto>(countsPath, () => loadBillTabCounts(countsPath!))
+  // The badges keep their last figures while the next ones load, rather than flashing the
+  // whole ledger's between two searches.
+  const lastTabs = useRef<BillSummaryDto['tabs'] | null>(null)
   const list = useApiRead<Page<BillRowDto>>(listPath, () => loadBillPage(listPath))
 
   // The uploads and receipts nobody has confirmed, drawn as the design's draft rows at the top
@@ -260,6 +270,7 @@ function BillsScreen() {
 
   const refresh = () => {
     summary.retry()
+    if (countsPath) counts.retry()
     list.retry()
     if (intakesPath) intakes.retry()
   }
@@ -377,7 +388,15 @@ function BillsScreen() {
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
   const drafts = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
-  const truncated = (page?.truncated ?? false) || (tab !== 'all' && totals.tabs.truncated)
+  // The whole ledger's counts with no filter on, and when the filtered read fails.
+  const tabs =
+    countsPath === null || counts.read.status === 'failed'
+      ? totals.tabs
+      : counts.read.status === 'ready'
+        ? counts.read.data.tabs
+        : (lastTabs.current ?? totals.tabs)
+  lastTabs.current = countsPath === null ? null : tabs
+  const truncated = (page?.truncated ?? false) || (tab !== 'all' && tabs.truncated)
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -412,7 +431,7 @@ function BillsScreen() {
                       : 'bg-primary-25 text-text-quaternary',
                   ].join(' ')}
                 >
-                  {count(billTabCount(totals, entry.id))}
+                  {count(billTabCount(tabs, entry.id))}
                 </span>
                 {active ? (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-800" />

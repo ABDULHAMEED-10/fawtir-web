@@ -318,8 +318,8 @@ export function isBillTab(value: string | null): value is BillTabId {
   return BILL_TABS.some((tab) => tab.id === value)
 }
 
-export function billTabCount(summary: BillSummaryDto, tab: BillTabId): number {
-  return summary.tabs[tab]
+export function billTabCount(tabs: BillSummaryDto['tabs'], tab: BillTabId): number {
+  return tabs[tab]
 }
 
 export type BillSortKey =

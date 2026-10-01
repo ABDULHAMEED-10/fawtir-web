@@ -126,6 +126,8 @@ let listResponses: Array<() => Response>
 let summaryResponse: () => Response
 let who: Entitlements
 let nudgeResponse: () => Response
+/** The summary asked for with a search or a source: its tab counts are the filtered ones. */
+let countsResponse: (url: string) => Response
 let exportResponse: () => Response
 
 const calls = (prefix: string) =>
@@ -139,6 +141,7 @@ beforeEach(async () => {
   summaryResponse = () => json(200, SUMMARY)
   unconfirmed = []
   listResponses = [() => json(200, itemsPage([bill()], 1))]
+  countsResponse = () => json(200, SUMMARY)
   nudgeResponse = () =>
     json(202, { billId: ID, nudgedOn: '2026-10-01', approvers: 1 })
   exportResponse = () =>
@@ -155,6 +158,7 @@ beforeEach(async () => {
     if (url.endsWith('/approval/nudge') && init?.method === 'POST') return nudgeResponse()
     if (url.startsWith('/api/v1/bills/export.csv')) return exportResponse()
     if (url === SUMMARY_URL) return summaryResponse()
+    if (url.startsWith(`${SUMMARY_URL}?`)) return countsResponse(url)
     if (url.endsWith('/approval/approve') && init?.method === 'POST') return json(200, {})
     if (/\/(approval\/reject|hold|release)$/.test(url) && init?.method === 'POST')
       return json(200, {})
@@ -986,5 +990,98 @@ describe('the row menu', () => {
     expect(screen.queryByRole('menuitem', { name: 'Put on hold' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Reject' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: /Release/ })).toBeNull()
+  })
+})
+
+describe('the tab counts under a search or a source filter', () => {
+  const countCalls = () => calls(`${SUMMARY_URL}?`)
+  const badge = (name: RegExp) => within(screen.getByRole('button', { name })).getByText(/^\d+$/)
+  const FILTERED: BillSummaryDto = {
+    ...SUMMARY,
+    tabs: {
+      needsAttention: 1,
+      all: 2,
+      awaitingApproval: 1,
+      approved: 0,
+      onHold: 0,
+      paid: 1,
+      truncated: false,
+    },
+  }
+
+  it('asks for the whole ledger only, with no filter on', async () => {
+    renderBills('/expenditure/bills?tab=paid&sort=dueAsc')
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(countCalls()).toEqual([])
+    expect(badge(/^Paid/).textContent).toBe('17')
+  })
+
+  it('counts the tabs over the same search and source as the rows', async () => {
+    countsResponse = () => json(200, FILTERED)
+    renderBills('/expenditure/bills?tab=all&q=qalhat&source=peppol')
+    await screen.findByText('Qalhat Marine Supplies')
+
+    await waitFor(() => expect(badge(/^All/).textContent).toBe('2'))
+    expect(badge(/^Paid/).textContent).toBe('1')
+    expect(badge(/^Needs attention/).textContent).toBe('1')
+    expect(countCalls()).toEqual(['/api/v1/bills/summary?q=qalhat&source=PEPPOL'])
+    expect(listCalls()).toEqual(['/api/v1/bills?q=qalhat&source=PEPPOL&page=0&page_size=10'])
+    // The cards describe the whole ledger and do not move with the search.
+    expect(screen.getByText('8,765.432')).toBeTruthy()
+    expect(screen.getByText('13 open · 2 overdue')).toBeTruthy()
+  })
+
+  it('follows the search box as it is typed, and goes back when it is cleared', async () => {
+    countsResponse = (url) =>
+      json(200, url.includes('q=zzz') ? { ...FILTERED, tabs: { ...FILTERED.tabs, all: 0 } } : FILTERED)
+    renderBills('/expenditure/bills?tab=all')
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(badge(/^All/).textContent).toBe('31')
+
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'zzz' } })
+    await waitFor(() => expect(badge(/^All/).textContent).toBe('0'))
+    expect(countCalls()).toEqual(['/api/v1/bills/summary?q=zzz'])
+    // The search box is still there with what was typed: the page did not start over.
+    expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('zzz')
+
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
+    await waitFor(() => expect(badge(/^All/).textContent).toBe('31'))
+    expect(countCalls()).toHaveLength(1)
+  })
+
+  it('sends the source alone when only the source is filtered', async () => {
+    countsResponse = () => json(200, FILTERED)
+    renderBills('/expenditure/bills?source=selfBilled')
+    await screen.findByText('Qalhat Marine Supplies')
+    await waitFor(() => expect(badge(/^Paid/).textContent).toBe('1'))
+    expect(countCalls()).toEqual(['/api/v1/bills/summary?source=SELF_BILLED'])
+  })
+
+  it('keeps an empty search apart from an empty ledger', async () => {
+    // Nothing matches, so every filtered count is 0; the ledger itself is not empty.
+    countsResponse = () =>
+      json(200, {
+        ...SUMMARY,
+        tabs: { ...SUMMARY.tabs, needsAttention: 0, all: 0, awaitingApproval: 0, paid: 0 },
+      })
+    listResponses = [() => json(200, itemsPage([], 0))]
+    renderBills('/expenditure/bills?q=zzz')
+    expect(await screen.findByText('No bills match these filters.')).toBeTruthy()
+    expect(screen.queryByText(/No bills yet/)).toBeNull()
+  })
+
+  it('shows the whole ledger counts when the filtered count cannot be read', async () => {
+    countsResponse = () => json(500, { type: 'https://api.fawtir.om/problems/internal-error' })
+    renderBills('/expenditure/bills?tab=all&q=qalhat')
+    await screen.findByText('Qalhat Marine Supplies')
+    await waitFor(() => expect(countCalls()).toHaveLength(1))
+    expect(badge(/^All/).textContent).toBe('31')
+  })
+
+  it('reads the filtered counts again after an approval', async () => {
+    countsResponse = () => json(200, FILTERED)
+    renderBills('/expenditure/bills?q=qalhat')
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(countCalls()).toHaveLength(2))
   })
 })
