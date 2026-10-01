@@ -4,6 +4,7 @@ import type {
   ReminderScheduleDto,
   ReminderVerdict,
 } from '../api/invoices/reminders'
+import { ApiError } from '../api'
 
 /**
  * Payment reminders (I-14, decisions of 2026-09-18).
@@ -36,12 +37,8 @@ export function rungNote(days: number): { key: string; values?: Record<string, n
 export type RungProblem = 'notWhole' | 'outOfRange' | 'duplicate'
 
 /**
- * What the server would refuse, checked here first.
- *
- * Not belt and braces: `PUT /payment-reminders/schedule` answers **500** for its own domain
- * refusals today, because its controller is missing from the invoice exception handler. Until that
- * is fixed the page is the only thing that can tell someone their rung is out of range, so these
- * checks are load-bearing rather than a nicety.
+ * What the server would refuse, checked here first. `PUT /payment-reminders/schedule` answers 400
+ * for the same cases; checking here says which rung is wrong before anything is sent.
  */
 export function rungProblem(value: string, others: number[]): RungProblem | null {
   const days = Number(value)
@@ -157,6 +154,82 @@ export const REMINDER_REFUSALS: Record<string, string> = {
   REMINDER_SEND_FAILED: 'paymentReminders.error.sendFailed',
 }
 
+/**
+ * `ALREADY_SENT` answers two different refusals and the preview does not say which: the chosen
+ * rung was spent, or (D4) a reminder already went out by hand for this invoice today — at most
+ * one does per business day. When the rungs already fired for the invoice are known and the
+ * chosen one is not among them, it can only be the second.
+ */
+export function verdictNoteFor(
+  verdict: ReminderVerdict,
+  rung: number | null,
+  fired: number[] | null,
+): string {
+  if (verdict === 'ALREADY_SENT' && rung !== null && fired !== null && !fired.includes(rung))
+    return 'paymentReminders.verdict.sentByHandToday'
+  return VERDICT_NOTE[verdict]
+}
+
+/**
+ * A manual send's refusal in the page's words, or null when it is not one of the reminder
+ * refusals. `REMINDER_ALREADY_SENT` is told apart the same way as the preview's verdict, and by
+ * the server's own detail when it names the one-a-day rule.
+ */
+export function reminderRefusalNote(
+  error: unknown,
+  rung: number | null,
+  fired: number[] | null,
+): string | null {
+  const code = error instanceof ApiError ? error.code : null
+  if (!code || !REMINDER_REFUSALS[code]) return null
+  if (code === 'REMINDER_ALREADY_SENT') {
+    const detail = error instanceof ApiError ? error.problem.detail : null
+    const byHandToday = typeof detail === 'string' && /business day/i.test(detail)
+    if (byHandToday || (rung !== null && fired !== null && !fired.includes(rung)))
+      return 'paymentReminders.error.sentByHandToday'
+  }
+  return REMINDER_REFUSALS[code]
+}
+
+/**
+ * Where an invoice is on the reminder ladder: which rung comes next, how many rungs there are,
+ * and when that next one goes out (the server sends at 08:00 Muscat time). The number is the
+ * position of the rung whose day is shown, so "Reminder 4 of 5" and "in 7 days" name one rung.
+ */
+export function reminderLadder(
+  offsets: number[] | null,
+  dueDate: string | null,
+  today: string,
+  sendsToday: boolean,
+): {
+  number: number
+  total: number
+  next: { key: string; values?: Record<string, number> } | null
+} | null {
+  if (!offsets || offsets.length === 0 || !dueDate) return null
+  const rungs = [...offsets].sort((a, b) => a - b)
+  const todayRung = rungToday(today, dueDate)
+  if (todayRung === null) return null
+  const upcoming = rungs.find((rung) => (sendsToday ? rung >= todayRung : rung > todayRung))
+  if (upcoming === undefined) {
+    const passed = rungs.filter((rung) => rung < todayRung).length
+    return {
+      number: Math.min(rungs.length, passed + 1),
+      total: rungs.length,
+      next: { key: 'invoiceDetails.reminder.none' },
+    }
+  }
+  const number = rungs.indexOf(upcoming) + 1
+  const daysAway = upcoming - todayRung
+  const next =
+    daysAway === 0
+      ? { key: 'invoiceDetails.reminder.today' }
+      : daysAway === 1
+        ? { key: 'invoiceDetails.reminder.tomorrow' }
+        : { key: 'invoiceDetails.reminder.onDay', values: { count: daysAway } }
+  return { number, total: rungs.length, next }
+}
+
 /** A date range the server would refuse (`from` after `to`) is refused here first. */
 export function rangeProblem(from: string, to: string): boolean {
   return Boolean(from && to && from > to)
@@ -214,7 +287,27 @@ export type QueueInvoice = {
   paid: boolean
 }
 
-export type QueueReason = 'noDueDate' | 'noRungs' | 'ladderSpent' | 'noRecipient'
+export type QueueReason = 'optedOut' | 'noDueDate' | 'noRungs' | 'ladderSpent' | 'noRecipient'
+
+/**
+ * Why a row is under "Not sending", in the page's words. A customer who has not opted in reads
+ * the preview's own verdict wording, so the queue and the invoice page say the same thing.
+ */
+export const QUEUE_REASON_NOTE: Record<QueueReason, string> = {
+  optedOut: 'paymentReminders.verdict.customerOptedOut',
+  noDueDate: 'reminders.queue.reason.noDueDate',
+  noRungs: 'reminders.queue.reason.noRungs',
+  ladderSpent: 'reminders.queue.reason.ladderSpent',
+  noRecipient: 'reminders.queue.reason.noRecipient',
+}
+
+/**
+ * The log's `locale` is the customer's language as stored (`en`, `ar`) or the server's default
+ * (`EN`); the page's keys are upper case, so either spelling finds its words.
+ */
+export function logLocaleKey(locale: string): string {
+  return `reminders.queue.locale.${locale.toUpperCase()}`
+}
 
 export type QueueEntry = {
   invoice: QueueInvoice
@@ -226,12 +319,18 @@ export type QueueEntry = {
   spent: ReminderLogDto[]
 }
 
+/**
+ * `optedOutOf` answers true only for a customer the page holds whose own reminder switch is off:
+ * the sweep never mails them (`ReminderDecision` checks it before anything else), so they are
+ * "Not sending" whatever the ladder says. A customer the page does not hold is not guessed at.
+ */
 export function buildQueue(
   invoices: QueueInvoice[],
   offsets: number[],
   log: ReminderLogDto[],
   emailOf: (customerId: string) => string | null,
   today: string,
+  optedOutOf: (customerId: string) => boolean = () => false,
 ): QueueEntry[] {
   const ladder = normaliseOffsets(offsets)
   return invoices
@@ -242,6 +341,8 @@ export function buildQueue(
         .sort((a, b) => b.firedOn.localeCompare(a.firedOn))
       const used = new Set(spent.map((row) => row.daysFromDue))
       const email = emailOf(invoice.customerId)
+      if (optedOutOf(invoice.customerId))
+        return { invoice, email, next: null, reason: 'optedOut', spent }
       if (!invoice.dueDate) return { invoice, email, next: null, reason: 'noDueDate', spent }
       if (ladder.length === 0) return { invoice, email, next: null, reason: 'noRungs', spent }
       const dueDate = invoice.dueDate

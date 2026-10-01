@@ -68,9 +68,10 @@ import {
   type Note as ViewNote,
 } from '../../lib/invoiceDetail'
 import {
-  REMINDER_REFUSALS,
   VERDICT_NOTE,
   canSendByHand,
+  reminderLadder,
+  reminderRefusalNote,
   rungToday,
 } from '../../lib/paymentReminders'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -318,7 +319,7 @@ function InvoiceScreen() {
   // Self-billing inverts the parties: the tenant is the buyer and customerId names the seller,
   // so every counterparty label on this page flips with the document type.
   const party = counterpartyKeys(data.type)
-  const status = statusOf(data, owed)
+  const status = statusOf(data, owed, today)
   const totals = lineTotals(data)
   const money = (value: number | null | undefined) =>
     value === null || value === undefined ? '—' : formatAmount(value, data.currency, language)
@@ -426,10 +427,8 @@ function InvoiceScreen() {
       const sent = await sendReminderNow(id, shownReminder.rung)
       setNotice({ body: t('paymentReminders.invoice.sent', { recipient: sent.recipient ?? '' }) })
     } catch (error) {
-      const code = error instanceof ApiError ? error.code : null
-      setNotice({
-        body: code && REMINDER_REFUSALS[code] ? t(REMINDER_REFUSALS[code]) : refusalText(t, error),
-      })
+      const refusal = reminderRefusalNote(error, shownReminder.rung, null)
+      setNotice({ body: refusal ? t(refusal) : refusalText(t, error) })
     } finally {
       // A refusal can mean the rung is now spent, so what the banner shows is re-read either way.
       reminder.retry()
@@ -513,7 +512,7 @@ function InvoiceScreen() {
   const preview = (
     <DocumentPreview
       data={data}
-      status={t(status.key, { count: 0 })}
+      status={t(status.key, status.values)}
       customer={customer.read.status === 'ready' ? customer.read.data : null}
       branch={branchName}
       lineTotals={totals}
@@ -538,7 +537,7 @@ function InvoiceScreen() {
             ].join(' ')}
           >
             <span className="size-1.5 rounded-full bg-current" />
-            {t(status.key, { count: 0 })}
+            {t(status.key, status.values)}
           </span>
 
           <div className="ms-auto flex flex-wrap items-center gap-3">
@@ -1464,7 +1463,7 @@ function InvoiceScreen() {
                 </div>
                 <div className="pb-5">
                   <p className="text-base font-medium leading-[1.2] text-text-primary">
-                    {t(status.key, { count: 0 })}
+                    {t(status.key, status.values)}
                   </p>
                   <p className="mt-1.5 flex flex-wrap items-center gap-1 text-sm font-medium leading-[1.2] text-text-tertiary">
                     {t('invoiceDetails.outstanding')}{' '}
@@ -1909,38 +1908,6 @@ function fileKind(file: InvoiceAttachmentDto): string {
   if (extension && extension.length <= 5 && extension !== file.filename)
     return extension.toUpperCase()
   return file.contentType.split('/').pop()?.toUpperCase() ?? ''
-}
-
-/**
- * Where this invoice is on the reminder ladder: which rung today's reminder would be, how many
- * rungs there are, and when the next one goes out (the server sends at 09:00 Muscat time).
- */
-function reminderLadder(
-  offsets: number[] | null,
-  dueDate: string | null,
-  today: string,
-  sendsToday: boolean,
-): { number: number; total: number; next: ViewNote | null } | null {
-  if (!offsets || offsets.length === 0 || !dueDate) return null
-  const rungs = [...offsets].sort((a, b) => a - b)
-  const todayRung = rungToday(today, dueDate)
-  if (todayRung === null) return null
-  const passed = rungs.filter((rung) => rung < todayRung).length
-  const number = Math.min(rungs.length, passed + 1)
-  const upcoming = rungs.find((rung) => (sendsToday ? rung >= todayRung : rung > todayRung))
-  if (upcoming === undefined)
-    return { number, total: rungs.length, next: { key: 'invoiceDetails.reminder.none' } }
-  const daysAway = upcoming - todayRung
-  const next: ViewNote =
-    daysAway === 0
-      ? { key: 'invoiceDetails.reminder.today' }
-      : daysAway === 1
-        ? { key: 'invoiceDetails.reminder.tomorrow' }
-        : {
-            key: 'invoiceDetails.reminder.onDay',
-            values: { count: daysAway },
-          }
-  return { number, total: rungs.length, next }
 }
 
 function refusalText(t: Translate, error: unknown): string {
