@@ -54,6 +54,15 @@ type Picked = { id: string; name: string; vatNumber: string | null }
  * own (ask 3.15). Each is drawn and kept in the form; none is sent.
  */
 export function UploadDocumentPage() {
+  return (
+    <AppShell>
+      <UploadDocument />
+    </AppShell>
+  )
+}
+
+/** Inside the shell, where the session is: whether the reader may file a paper is read from it. */
+function UploadDocument() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const navigate = useNavigate()
@@ -138,7 +147,7 @@ export function UploadDocumentPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-1 flex-col gap-5">
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -565,7 +574,7 @@ export function UploadDocumentPage() {
           </div>
         </div>
       </div>
-    </AppShell>
+    </>
   )
 }
 
