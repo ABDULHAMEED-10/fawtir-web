@@ -98,7 +98,7 @@ backend asks" documents.
 | # | The design shows | Ask |
 |---|---|---|
 | 4.1 | Reminders (163:21448) has no inbox; "In Fawtir: a count on the bell and on the Bills tab" | the bell should read `GET /bill-reminders/inbox` and acknowledge from there. The page's `ReminderInbox` (read + acknowledge) is kept, exported and tested, but not mounted |
-| 4.2 | Footer "Send me today's now" | a route that sends the reader today's digest now; the button says it is not available yet |
+| 4.2 | Footer "Send me today's now" | a route that sends the reader their own summary now. **Since 1 Oct 2026 the button is not drawn** (pending the owner, decision D5): no route exists, and what cannot be done is not shown. It comes back with the route |
 | 4.3 | No input for the digest hour | `digestTime` is sent back as loaded and shown in the card ("at 08:00") and the footer |
 | 4.4 | Preview badge "ONE EMAIL · 08:00 · TO YUSUF AND HAFIDH", one line per thing naming everyone it goes to | none: derived from the settings and the preview's per-person groups |
 | 4.5 | Avatars on the recipient chips | a photo per user; one placeholder image is used |

@@ -422,14 +422,8 @@ function Editor({
               {delivery.skipWeekends ? `, ${t('expenditureReminders.footer.weekendsSkipped')}` : ''}
             </p>
             <div className="flex flex-wrap items-center gap-3 max-md:w-full max-md:justify-end">
-              {/* TODO(backend): a route that sends the reader today's digest now. */}
-              <button
-                type="button"
-                onClick={() => setNotice(t('expenditureReminders.footer.notYet'))}
-                className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-              >
-                {t('expenditureReminders.footer.sendNow')}
-              </button>
+              {/* "Send me today's now" is not drawn: no route sends it, and a button that does
+                  nothing is not shown (guide row 4.2). */}
               <button
                 type="button"
                 disabled={!canSave}

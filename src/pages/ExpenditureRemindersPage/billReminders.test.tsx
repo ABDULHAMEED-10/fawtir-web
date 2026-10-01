@@ -476,6 +476,21 @@ describe('the reminders screen', () => {
     await waitFor(() => expect(inboxCalls().length).toBeGreaterThan(1))
   })
 
+  it('does not draw "Send me today\'s now", which nothing behind it can do', async () => {
+    // No route sends today's summary on request. What cannot be done is not shown, to a manager
+    // as much as to a reader, and the footer keeps its count and its Save.
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: "Send me today's now" })).toBeNull()
+    expect(screen.queryByText("Send me today's now")).toBeNull()
+    expect(screen.queryByText(/Not available yet/)).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    expect(await screen.findByRole('button', { name: 'حفظ التغييرات' })).toBeTruthy()
+    expect(screen.queryByText('أرسل لي ملخص اليوم الآن')).toBeNull()
+  })
+
   it('offers no save to someone who may only read', async () => {
     who = READER
     renderPage()
