@@ -668,10 +668,12 @@ function SupplierTableRow({
           requires: 'supplier.manage',
         },
   ]
-  // A switched-off supplier takes no new order and no new bill, so neither is offered for one.
+  // A switched-off supplier takes no new order, no new bill and no new payment run, so none of
+  // the three is offered for one.
   const items: ActionMenuItem[] = menu.flatMap(({ requires, ...item }) =>
     can(session, requires) &&
-    (supplier.active || (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill'))
+    (supplier.active ||
+      (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow'))
       ? [item]
       : [],
   )

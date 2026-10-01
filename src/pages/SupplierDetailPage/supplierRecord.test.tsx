@@ -639,6 +639,54 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
   })
 
+  it('offers no "Pay them" for a switched-off supplier, and offers it again once it is on', async () => {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', switchedOffAt: '2026-09-17T08:00:00Z' },
+    }
+    const off = renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Pay them' })).toBeNull()
+    expect(screen.queryByText('Pay them')).toBeNull()
+    off.unmount()
+
+    forgetEntitlements()
+    detail = DETAIL
+    renderSupplier()
+    expect(await screen.findByRole('button', { name: 'Pay them' })).toBeTruthy()
+  })
+
+  it('offers no way into a payment run from a switched-off supplier, and every way from one that is on', async () => {
+    // Each of these opens the same dialog, and the server refuses a switched-off supplier's bills
+    // in a run, so none is drawn. A run their bills already sit in can still be opened.
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', switchedOffAt: '2026-09-17T08:00:00Z' },
+    }
+    const off = renderSupplier()
+    // The approved bill's row opens the bill instead of offering a run.
+    expect(await screen.findByRole('link', { name: 'Open bill' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'Open the run' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Add to a payment run' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add to a run' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Pay separately' })).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    off.unmount()
+
+    forgetEntitlements()
+    detail = DETAIL
+    renderSupplier()
+    expect(await screen.findByRole('button', { name: 'Add to a run' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add to a payment run' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open the run' })).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay separately' }))
+    expect(
+      await screen.findByRole('dialog', { name: 'Pay Qalhat Marine Supplies LLC' }),
+    ).toBeTruthy()
+  })
+
   it('pays them: the ticked bills go into the draft run the modal offers (Figma 163:29156)', async () => {
     who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
     renderSupplier()

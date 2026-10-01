@@ -299,6 +299,7 @@ describe('Suppliers list, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
     expect(await screen.findByText('New purchase order')).toBeTruthy()
     expect(screen.getByText('Record a bill')).toBeTruthy()
+    expect(screen.getByText('Pay them now')).toBeTruthy()
     // "Copy into a new supplier" names the row it copies.
     expect(screen.getByText('Copy into a new supplier').closest('a')?.getAttribute('href')).toBe(
       '/suppliers/new?copy=11111111-1111-1111-1111-111111111111',
@@ -471,6 +472,7 @@ describe('Switched-off suppliers', () => {
     expect(await screen.findByText('Export their statement')).toBeTruthy()
     expect(screen.queryByText('New purchase order')).toBeNull()
     expect(screen.queryByText('Record a bill')).toBeNull()
+    expect(screen.queryByText('Pay them now')).toBeNull()
   })
 
   it('does not offer it to someone who may not manage suppliers', async () => {
