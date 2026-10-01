@@ -31,14 +31,25 @@ export function isDraft(invoice: InvoiceDetailDto): boolean {
 export function statusOf(
   invoice: InvoiceDetailDto,
   receivable: InvoiceReceivableDto | null,
-): { key: string; tone: 'draft' | 'issued' | 'cancelled' | 'awaiting' | 'partial' | 'overdue' | 'paid' } {
+  today?: string,
+): {
+  key: string
+  values?: Record<string, number>
+  tone: 'draft' | 'issued' | 'cancelled' | 'awaiting' | 'partial' | 'overdue' | 'paid'
+} {
   if (invoice.authoringState === 'DRAFT') return { key: 'invoicesPage.authoring.draft', tone: 'draft' }
   if (invoice.authoringState === 'CANCELLED') return { key: 'invoicesPage.authoring.cancelled', tone: 'cancelled' }
   if (invoice.authoringState === 'DISCARDED') return { key: 'invoicesPage.authoring.discarded', tone: 'cancelled' }
   if (!receivable || receivable.paymentState === 'NOT_APPLICABLE') {
     return { key: 'invoicesPage.authoring.issued', tone: 'issued' }
   }
-  if (receivable.overdue) return { key: 'invoicesPage.payment.overdue_other', tone: 'overdue' }
+  if (receivable.overdue) {
+    // "Overdue · 7 days": the same count as the balance line's "7 days overdue" (`dueNote`).
+    const note = today ? dueNote(receivable, today) : null
+    return note?.key === 'invoiceDetails.due.late'
+      ? { key: 'invoicesPage.payment.overdue', values: { count: Number(note.values?.count) }, tone: 'overdue' }
+      : { key: 'invoicesPage.payment.overdue', tone: 'overdue' }
+  }
   if (receivable.paymentState === 'PAID') return { key: 'invoicesPage.payment.paid', tone: 'paid' }
   if (receivable.paymentState === 'PARTIALLY_PAID') return { key: 'invoicesPage.payment.partial', tone: 'partial' }
   return { key: 'invoicesPage.payment.awaiting', tone: 'awaiting' }

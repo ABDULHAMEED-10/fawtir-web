@@ -901,6 +901,13 @@ describe('invoice detail mapping', () => {
       'paid',
     )
     expect(statusOf(invoice(), { ...RECEIVABLE, overdue: true }).tone).toBe('overdue')
+    // The pill counts the days late from the due date, as the balance line does.
+    expect(statusOf(invoice(), { ...RECEIVABLE, overdue: true }, '2026-10-07')).toMatchObject({
+      key: 'invoicesPage.payment.overdue',
+      values: { count: 7 },
+    })
+    expect(i18n.t('invoicesPage.payment.overdue', { count: 7 })).toBe('Overdue · 7 days')
+    expect(i18n.t('invoicesPage.payment.overdue', { count: 1 })).toBe('Overdue · 1 day')
     // Nothing is owed on a credit note, so it reads as issued rather than as unpaid.
     expect(
       statusOf(invoice({ type: 'CREDIT_NOTE' }), { ...RECEIVABLE, paymentState: 'NOT_APPLICABLE' })
