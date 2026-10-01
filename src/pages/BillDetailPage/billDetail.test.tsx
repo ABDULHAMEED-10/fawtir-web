@@ -1287,3 +1287,87 @@ describe('why a bill was refused, in its own sentence', () => {
     expect(await within(dialog).findByText(GENERIC)).toBeTruthy()
   })
 })
+
+describe('the original file, for someone who only reads bills', () => {
+  // Both file routes take `invoice.read` on the server, and the page asks for nothing more: a
+  // Viewer downloads the original like anyone else. A bill typed in with no file has no original,
+  // and then nobody is offered a Download.
+  const uploaded = (): BillDetailDto => ({
+    ...detail(),
+    bill: { ...detail().bill, source: 'UPLOADED', inboundDeliveryId: null },
+    intake: {
+      id: 'in-7',
+      source: 'UPLOADED',
+      filename: 'qms-7781.pdf',
+      contentType: 'application/pdf',
+      uploadedAt: '2026-09-12T08:00:00Z',
+    },
+  })
+  const typedIn = (): BillDetailDto => ({
+    ...detail(),
+    bill: { ...detail().bill, source: 'UPLOADED', inboundDeliveryId: null },
+    intake: null,
+  })
+
+  /** Answers the two file routes; everything else goes to the page's usual mock. */
+  const serveFiles = () => {
+    const usual = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.endsWith('/file') || url.endsWith('/document')
+        ? new Response('the original', {
+            status: 200,
+            headers: { 'Content-Disposition': 'attachment; filename="qms-7781.pdf"' },
+          })
+        : usual(url, init),
+    )
+  }
+
+  const objectUrls = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:original')
+    URL.revokeObjectURL = vi.fn()
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    URL.createObjectURL = objectUrls.create
+    URL.revokeObjectURL = objectUrls.revoke
+  })
+
+  it.each([
+    ['a Viewer', READ_ONLY],
+    ['an Administrator', ADMIN],
+  ])('lets %s download an uploaded bill', async (_who, entitlements) => {
+    who = entitlements
+    billResponse = () => json(200, uploaded())
+    serveFiles()
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(calls()).toContain('GET /api/v1/bills/intake/in-7/file'))
+    await waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1))
+    // The file's row in Linked documents downloads it too.
+    fireEvent.click(screen.getByRole('button', { name: 'qms-7781.pdf' }))
+    await waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  it('lets a Viewer download a bill that came over Peppol', async () => {
+    who = READ_ONLY
+    serveFiles()
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(calls()).toContain('GET /api/v1/inbound-invoices/d-1/document'))
+  })
+
+  it.each([
+    ['a Viewer', READ_ONLY],
+    ['an Administrator', ADMIN],
+  ])('offers %s no Download on a bill with no original file', async (_who, entitlements) => {
+    who = entitlements
+    billResponse = () => json(200, typedIn())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
+  })
+})
