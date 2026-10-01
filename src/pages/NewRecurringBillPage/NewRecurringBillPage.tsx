@@ -14,17 +14,15 @@ import {
 import { useApiRead } from '../../hooks'
 import { ApiError, type Page } from '../../api'
 import {
+  RECURRING_RECIPIENTS_PATH,
   createRecurringBill,
   loadRecurringBill,
+  loadRecurringRecipients,
   recurringBillPath,
   updateRecurringBill,
   type RecurringBillDto,
+  type RecurringRecipientDto,
 } from '../../api/expenditure/recurringBills'
-import {
-  POSSIBLE_RECIPIENTS_PATH,
-  loadPossibleRecipients,
-  type ReminderRecipientDto,
-} from '../../api/expenditure/billReminders'
 import { loadSupplierBills, supplierBillsPath } from '../../api/expenditure/supplierRecord'
 import type { BillRowDto } from '../../api/expenditure/bills'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -37,7 +35,7 @@ import {
   LATE_AFTER_OPTIONS,
   RECURRING_REFUSALS,
   VAT_TREATMENTS,
-  WEEKDAY_KEYS,
+  WEEKDAY_OPTIONS,
   blankRecurringForm,
   formOf,
   ordinal,
@@ -127,13 +125,19 @@ function RecurringBillForm({ id }: { id: string | null }) {
     id && canManage ? recurringBillPath(id) : null,
     id ? () => loadRecurringBill(id) : undefined,
   )
-  // The people a watch can tell. `GET /users` needs user-admin rights this reader may not hold;
-  // a refusal leaves the field showing whoever is named today.
-  const people = useApiRead<ReminderRecipientDto[]>(
-    canManage ? POSSIBLE_RECIPIENTS_PATH : null,
-    loadPossibleRecipients,
+  // The people a watch can tell: names only, readable by whoever may manage recurring bills.
+  // Should the read fail, the field shows whoever is named today.
+  const people = useApiRead<RecurringRecipientDto[]>(
+    canManage ? RECURRING_RECIPIENTS_PATH : null,
+    loadRecurringRecipients,
   )
-  const roster = people.read.status === 'ready' ? people.read.data : null
+  const roster =
+    people.read.status === 'ready'
+      ? people.read.data.map((person) => ({
+          id: person.id,
+          name: person.displayName?.trim() || t('recurringBills.form.someone'),
+        }))
+      : null
   const pastPath = form.supplierId ? supplierBillsPath(form.supplierId, 0, 3) : null
   const past = useApiRead<Page<BillRowDto>>(pastPath, () => loadSupplierBills(pastPath!))
 
@@ -188,7 +192,10 @@ function RecurringBillForm({ id }: { id: string | null }) {
     if (Object.keys(problems).length > 0 || busy) return
     setBusy(true)
     try {
-      const request = toRecurringRequest(form)
+      const request = toRecurringRequest(
+        form,
+        id && existing.read.status === 'ready' ? existing.read.data : null,
+      )
       const saved = id ? await updateRecurringBill(id, request) : await createRecurringBill(request)
       navigate(`/expenditure/recurring-bills/${saved.id}`, { replace: true })
     } catch (error) {
@@ -233,9 +240,9 @@ function RecurringBillForm({ id }: { id: string | null }) {
 
   const dayOptions =
     form.interval === 'WEEKLY'
-      ? WEEKDAY_KEYS.map((key, index) => ({
-          value: String(index + 1),
-          label: t(`recurringBills.weekday.${key}`),
+      ? WEEKDAY_OPTIONS.map((weekday) => ({
+          value: String(weekday.iso),
+          label: t(`recurringBills.weekday.${weekday.key}`),
         }))
       : Array.from({ length: 31 }, (_, index) => ({
           value: String(index + 1),

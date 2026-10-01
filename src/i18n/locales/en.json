@@ -5899,7 +5899,8 @@
       "dueOn": "Due {{date}}",
       "willRaise": "Next raised {{date}}",
       "noNextRun": "No next date",
-      "dueToArrive": "Due to arrive"
+      "dueToArrive": "Due to arrive",
+      "ended": "Ended"
     },
     "menu": {
       "edit": "Edit",
@@ -5919,7 +5920,9 @@
     "done": {
       "paused": "Paused. Nothing will be watched or raised until you resume it.",
       "resumed": "Resumed.",
-      "chased": "Whoever is named has been told."
+      "chased": "Whoever is named has been told.",
+      "chasedTold": "{{name}} has been told to chase the supplier.",
+      "chasedNobody": "Nobody was told. Choose who gets told in this recurring bill."
     },
     "form": {
       "newTitle": "Set up a recurring bill",
@@ -5945,8 +5948,8 @@
       "whenToTellYou": "When to tell you",
       "tolerance": "Tell me if it moves more than (%)",
       "lateAfter": "Late after (days)",
-      "autoApprove": "Approve it automatically when it's within range",
-      "autoApproveNote": "Skips the approval step for a bill that looks exactly like every other month. Off by default.",
+      "autoApprove": "Mark it as expected",
+      "autoApproveNote": "Bills inside the range are marked as expected. They still go through approval.",
       "inPlainWords": "In plain words",
       "save": "Save the changes",
       "start": "Start watching",
@@ -6086,7 +6089,8 @@
         "raised": "Raised by Fawtir",
         "raisedDetail": "Written on {{when}}",
         "started": "Started watching this bill",
-        "startedDetail": "Watching since {{date}}"
+        "startedDetail": "Watching since {{date}}",
+        "notWatched": "Not watched from {{from}} to {{to}}"
       },
       "whatExpects": "What Fawtir expects",
       "howOften": "How often",
@@ -6124,7 +6128,8 @@
       "notOnFile": "Not on file",
       "onPeppol": "On Peppol. Their bills arrive by themselves, verified.",
       "notOnPeppol": "Not on Peppol. Asking them to join would remove the uploading and the chasing.",
-      "openSupplier": "Open the supplier"
+      "openSupplier": "Open the supplier",
+      "endedLine": "This instruction ended on {{date}}. Set up a new one to keep watching."
     },
     "runCol": {
       "period": "Period",
@@ -6206,6 +6211,9 @@
       "MONTHLY": "around the {{day}} of each month",
       "QUARTERLY": "around the {{day}}, each quarter",
       "ANNUALLY": "around the {{day}}, once a year"
+    },
+    "supplier": {
+      "pausedWhileOff": "Its recurring bills are paused while it is switched off."
     }
   },
   "supplierCreditNotes": {

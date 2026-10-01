@@ -18,6 +18,7 @@ import {
   type RecurringListState,
   type RecurringSummaryDto,
 } from '../../api/expenditure/recurringBills'
+import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
@@ -27,12 +28,15 @@ import {
   RECURRING_SORTS,
   RECURRING_TABS,
   cadenceNote,
+  canResume,
   categoriesOf,
   categoryGlyph,
   chaseBlocker,
+  chaseNotice,
   daysBetween,
   formatVariance,
   hasMore,
+  isEnded,
   monthYear,
   narrow,
   sortRows,
@@ -90,6 +94,15 @@ type Failure = { key: string; values?: Record<string, string | number> } | { bod
  * sort work on the page in hand. The tab counts are the summary's own figures.
  */
 export function RecurringBillsPage() {
+  return (
+    <AppShell>
+      <RecurringBills />
+    </AppShell>
+  )
+}
+
+/** Inside the shell, where the session is: what the reader may do decides what each row offers. */
+function RecurringBills() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
@@ -154,8 +167,7 @@ export function RecurringBillsPage() {
         list.retry()
         summary.retry()
       } else {
-        await chaseRecurringBill(bill.id)
-        setNotice({ key: 'recurringBills.done.chased' })
+        setNotice(chaseNotice(await chaseRecurringBill(bill.id)))
       }
     } catch (error) {
       failed(error)
@@ -165,7 +177,7 @@ export function RecurringBillsPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-[620px]">
@@ -365,7 +377,7 @@ export function RecurringBillsPage() {
           ) : null}
         </section>
       </div>
-    </AppShell>
+    </>
   )
 }
 
@@ -442,56 +454,84 @@ function Row({
         ? PILL.ok
         : PILL.due
   const day = (iso: string) => formatDate(iso, language)
+  const ended = isEnded(bill)
+  // A row paused with its supplier offers Resume only once the supplier's record says it is back
+  // on; that record is read for such a row alone. One that cannot be read leaves the server to say.
+  const heldBySupplier =
+    !bill.active && !ended && bill.pauseReason === 'SUPPLIER_SWITCHED_OFF' && bill.supplierId
+      ? bill.supplierId
+      : null
+  const holder = useApiRead<SupplierDetailDto>(
+    heldBySupplier && canManage ? supplierPath(heldBySupplier) : null,
+    () => loadSupplier(heldBySupplier!),
+  )
+  const resumable = canResume(
+    bill,
+    !heldBySupplier
+      ? false
+      : holder.read.status === 'ready'
+        ? holder.read.data.profile.status === 'SWITCHED_OFF'
+        : holder.read.status === 'failed'
+          ? false
+          : null,
+  )
 
   /** The middle column: what is expected, or what last came. */
-  const timing = !bill.active
+  const timing = ended
     ? {
-        heading: 'recurringBills.timing.paused',
+        heading: 'recurringBills.state.ended',
         date: t('recurringBills.rows.nothingWatched'),
-        note: { key: 'recurringBills.rows.resumeToWatch' },
+        note: null,
         tone: 'muted' as const,
       }
-    : bill.mode === 'RAISE'
+    : !bill.active
       ? {
-          heading: 'recurringBills.timing.nextRaised',
-          date: bill.nextRunDate ? day(bill.nextRunDate) : t('recurringBills.kpi.nothing'),
-          note: { key: 'recurringBills.rows.raisedByFawtir' },
+          heading: 'recurringBills.timing.paused',
+          date: t('recurringBills.rows.nothingWatched'),
+          note: { key: 'recurringBills.rows.resumeToWatch' },
           tone: 'muted' as const,
         }
-      : expectation?.state === 'LATE'
+      : bill.mode === 'RAISE'
         ? {
-            heading: 'recurringBills.timing.expected',
-            date: expectation.expectedOn ? day(expectation.expectedOn) : '',
-            note: { key: 'recurringBills.rows.nothingArrived' },
-            tone: 'warn' as const,
+            heading: 'recurringBills.timing.nextRaised',
+            date: bill.nextRunDate ? day(bill.nextRunDate) : t('recurringBills.kpi.nothing'),
+            note: { key: 'recurringBills.rows.raisedByFawtir' },
+            tone: 'muted' as const,
           }
-        : expectation?.state === 'DUE_TO_ARRIVE'
+        : expectation?.state === 'LATE'
           ? {
               heading: 'recurringBills.timing.expected',
               date: expectation.expectedOn ? day(expectation.expectedOn) : '',
-              note: {
-                key: 'recurringBills.rows.inDays',
-                values: {
-                  count: expectation.expectedOn
-                    ? Math.max(0, daysBetween(today, expectation.expectedOn))
-                    : 0,
-                },
-              },
-              tone: 'muted' as const,
+              note: { key: 'recurringBills.rows.nothingArrived' },
+              tone: 'warn' as const,
             }
-          : expectation?.lastArrivedOn
+          : expectation?.state === 'DUE_TO_ARRIVE'
             ? {
-                heading: 'recurringBills.timing.lastArrived',
-                date: day(expectation.lastArrivedOn),
-                note: { key: 'recurringBills.rows.arrivedAndMatched' },
-                tone: 'ok' as const,
-              }
-            : {
                 heading: 'recurringBills.timing.expected',
-                date: t('recurringBills.kpi.nothing'),
-                note: { key: 'recurringBills.state.watching' },
+                date: expectation.expectedOn ? day(expectation.expectedOn) : '',
+                note: {
+                  key: 'recurringBills.rows.inDays',
+                  values: {
+                    count: expectation.expectedOn
+                      ? Math.max(0, daysBetween(today, expectation.expectedOn))
+                      : 0,
+                  },
+                },
                 tone: 'muted' as const,
               }
+            : expectation?.lastArrivedOn
+              ? {
+                  heading: 'recurringBills.timing.lastArrived',
+                  date: day(expectation.lastArrivedOn),
+                  note: { key: 'recurringBills.rows.arrivedAndMatched' },
+                  tone: 'ok' as const,
+                }
+              : {
+                  heading: 'recurringBills.timing.expected',
+                  date: t('recurringBills.kpi.nothing'),
+                  note: { key: 'recurringBills.state.watching' },
+                  tone: 'muted' as const,
+                }
 
   const variance = expectation?.variancePercent ?? bill.lastVariancePercent
   const amountNote =
@@ -510,7 +550,9 @@ function Row({
         : { key: `recurringBills.rows.per.${bill.interval}`, tone: 'muted' as const }
 
   const action = !bill.active
-    ? { key: 'recurringBills.actions.resume', onClick: onToggle, filled: false }
+    ? resumable
+      ? { key: 'recurringBills.actions.resume', onClick: onToggle, filled: false }
+      : null
     : expectation?.state === 'LATE' && chaseBlocker(bill) === null
       ? { key: 'recurringBills.actions.chase', onClick: onChase, filled: true }
       : null
@@ -558,9 +600,13 @@ function Row({
         <p className="mt-1 text-base font-semibold leading-[1.2] text-text-primary">
           {timing.date}
         </p>
-        <p className={['mt-1 text-xs font-medium leading-[1.2]', NOTE_TONE[timing.tone]].join(' ')}>
-          {t(timing.note.key, timing.note.values)}
-        </p>
+        {timing.note ? (
+          <p
+            className={['mt-1 text-xs font-medium leading-[1.2]', NOTE_TONE[timing.tone]].join(' ')}
+          >
+            {t(timing.note.key, 'values' in timing.note ? timing.note.values : undefined)}
+          </p>
+        ) : null}
       </div>
 
       <div className="min-w-[140px] text-end">
@@ -640,14 +686,18 @@ function Row({
                   icon: editIcon,
                   to: `/expenditure/recurring-bills/${bill.id}/edit`,
                 },
-                {
-                  id: 'pause',
-                  labelKey: bill.active
-                    ? 'recurringBills.menu.pause'
-                    : 'recurringBills.menu.resume',
-                  icon: pauseIcon,
-                  onSelect: onToggle,
-                },
+                ...(bill.active || resumable
+                  ? [
+                      {
+                        id: 'pause',
+                        labelKey: bill.active
+                          ? 'recurringBills.menu.pause'
+                          : 'recurringBills.menu.resume',
+                        icon: pauseIcon,
+                        onSelect: onToggle,
+                      },
+                    ]
+                  : []),
               ]
             : []),
         ]}
