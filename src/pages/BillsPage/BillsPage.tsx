@@ -454,7 +454,8 @@ function BillsScreen() {
               className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
           </label>
-          <div className="flex items-center gap-3">
+          {/* Wraps, so a third button does not push a phone-width toolbar sideways. */}
+          <div className="flex flex-wrap items-center gap-3">
             <FilterMenu
               label={t('billsPage.filters')}
               value={sourceKey}
