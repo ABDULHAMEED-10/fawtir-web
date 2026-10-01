@@ -33,6 +33,7 @@ import {
   updateSupplier,
   type SupplierDetailDto,
   type SupplierTypeDto,
+  type SwitchOffRequestDto,
 } from '../../api/expenditure/suppliers'
 import {
   loadSupplierOverview,
@@ -46,6 +47,8 @@ import * as validate from '../../lib/validation'
 import { candidateParticipantId } from '../../lib/peppolParticipant'
 import { GOVERNORATES, GOVERNORATE_NAMES, governorateIdFor } from '../../lib/governorates'
 import {
+  MAX_TAGS,
+  TAG_MAX_LENGTH,
   blankSupplierForm,
   copyOfSupplier,
   copySupplierPath,
@@ -54,6 +57,7 @@ import {
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
+  withTag,
   type AddressField,
   type LoadedBank,
   type PlacedError,
@@ -64,6 +68,7 @@ import {
   SwitchSupplierOffModal,
   type SwitchOffTarget,
 } from '../SuppliersPage/SwitchSupplierOffModal'
+import { switchOffRequest } from '../../lib/supplierList'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import checkIcon from '../../assets/bill-detail/tick.svg'
 import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
@@ -92,6 +97,7 @@ const CATEGORIES: { value: string; key: string }[] = [
 const ORDER: SupplierField[] = [
   'type',
   'legalName',
+  'tradingName',
   'commercialRegistrationNumber',
   'vatNumber',
   'peppolId',
@@ -188,11 +194,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
   const [record, setRecord] = useState<SupplierDetailDto | null>(null)
   const [values, setValues] = useState<SupplierFormValues>(blankSupplierForm)
   const [bank, setBank] = useState<LoadedBank>(null)
-  // TODO(backend): the frame's trading name, "match bills to purchase orders" switch and tags have
-  // no field on `SupplierRequest`; they are asked as drawn and kept on the screen.
-  const [tradingName, setTradingName] = useState('')
-  const [autoMatch, setAutoMatch] = useState(true)
-  const [tags, setTags] = useState<string[]>([])
+  // What is being typed into "Add tag"; the tags themselves are part of the form's values.
   const [newTag, setNewTag] = useState('')
   const [errors, setErrors] = useState<Partial<Record<SupplierField, PlacedError>>>({})
   const arrived = (location.state as { saved?: string } | null)?.saved
@@ -383,12 +385,12 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     }
   }
 
-  const switchTo = async (to: 'off' | 'on') => {
+  const switchTo = async (to: 'off' | 'on', why?: SwitchOffRequestDto) => {
     if (!record) return
     setBusy(true)
     setNotice(null)
     try {
-      await switchSupplier(record.profile.id, to)
+      await switchSupplier(record.profile.id, to, why)
       setOffTarget(null)
       loaded.retry()
       setNotice({
@@ -636,8 +638,9 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   label={t('supplierEdit.tradingName')}
                   placeholder={t('newSupplier.details.commercialNamePlaceholder')}
                   maxLength={200}
-                  value={tradingName}
-                  onChange={setTradingName}
+                  value={values.tradingName}
+                  onChange={(next) => change('tradingName', next)}
+                  error={errorText('tradingName')}
                 />
                 <TextField
                   id={inputId('commercialRegistrationNumber')}
@@ -716,8 +719,8 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
               <ToggleRow
                 label={t('supplierEdit.autoMatch')}
                 hint={t('supplierEdit.autoMatchHint')}
-                checked={autoMatch}
-                onChange={setAutoMatch}
+                checked={values.autoMatch}
+                onChange={(next) => change('autoMatch', next)}
                 name="autoMatch"
               />
               <div className="flex items-start justify-between gap-4">
@@ -924,7 +927,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   {t('supplierEdit.tags')}
                 </span>
                 <div className="flex flex-wrap items-center gap-2.5">
-                  {tags.map((tag) => (
+                  {values.tags.map((tag) => (
                     <span
                       key={tag}
                       className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-primary-50 px-3 text-sm font-medium text-primary-800"
@@ -934,31 +937,36 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                         type="button"
                         aria-label={t('supplierEdit.removeTag', { tag })}
                         onClick={() =>
-                          setTags((current) => current.filter((entry) => entry !== tag))
+                          change(
+                            'tags',
+                            values.tags.filter((entry) => entry !== tag),
+                          )
                         }
                       >
                         <img src={removeIcon} alt="" className="size-3.5" />
                       </button>
                     </span>
                   ))}
-                  <label className="inline-flex h-[34px] items-center gap-1.5 rounded-sm border border-dashed border-border-default bg-white px-3 text-sm font-medium text-text-secondary focus-within:border-primary-300">
-                    <img src={plusIcon} alt="" className="size-3.5" />
-                    <input
-                      value={newTag}
-                      onChange={(event) => setNewTag(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter') return
-                        event.preventDefault()
-                        const tag = newTag.trim()
-                        if (tag && !tags.includes(tag)) setTags((current) => [...current, tag])
-                        setNewTag('')
-                      }}
-                      maxLength={40}
-                      placeholder={t('supplierEdit.addTag')}
-                      aria-label={t('supplierEdit.addTag')}
-                      className="w-[110px] bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-secondary"
-                    />
-                  </label>
+                  {/* A record holds twenty tags; with twenty there is no room to add one. */}
+                  {values.tags.length < MAX_TAGS ? (
+                    <label className="inline-flex h-[34px] items-center gap-1.5 rounded-sm border border-dashed border-border-default bg-white px-3 text-sm font-medium text-text-secondary focus-within:border-primary-300">
+                      <img src={plusIcon} alt="" className="size-3.5" />
+                      <input
+                        value={newTag}
+                        onChange={(event) => setNewTag(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter') return
+                          event.preventDefault()
+                          change('tags', withTag(values.tags, newTag))
+                          setNewTag('')
+                        }}
+                        maxLength={TAG_MAX_LENGTH}
+                        placeholder={t('supplierEdit.addTag')}
+                        aria-label={t('supplierEdit.addTag')}
+                        className="w-[110px] bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-secondary"
+                      />
+                    </label>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1050,8 +1058,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
         target={offTarget}
         busy={busy}
         onClose={() => setOffTarget(null)}
-        // TODO(backend): send the reason and the note once `POST /suppliers/{id}/switch-off` takes them.
-        onConfirm={() => void switchTo('off')}
+        onConfirm={(_target, reason, note) => void switchTo('off', switchOffRequest(reason, note))}
       />
     </form>
   )

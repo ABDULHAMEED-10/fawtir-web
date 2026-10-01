@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -10,6 +10,7 @@ import {
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
+  withTag,
 } from '../../lib/supplierForm'
 import { NewSupplierPage } from './NewSupplierPage'
 import { EditSupplierPage } from '../EditSupplierPage'
@@ -124,6 +125,8 @@ beforeEach(async () => {
     if (url === ONE && method === 'GET') return json(200, loaded())
     if (url === ONE && method === 'PUT') return updateResponse()
     if (url === `${ONE}/bank-details/confirm`) return json(200, detail({ health: [] }))
+    if (url === `${ONE}/switch-off` && method === 'POST')
+      return json(200, detail({ status: 'SWITCHED_OFF', switchedOffAt: '2026-10-01T08:00:00Z' }))
     throw new Error(`unexpected ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -299,6 +302,145 @@ describe('a new supplier', () => {
         'Another supplier or customer already uses this VAT number or Peppol ID.',
       ),
     ).toBeTruthy()
+  })
+})
+
+describe('trading name, tags and the auto-match switch', () => {
+  const addTag = (tag: string) => {
+    const input = screen.getByLabelText('Add a tag')
+    fireEvent.change(input, { target: { value: tag } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+  }
+  const autoMatch = () =>
+    screen.getByRole('switch', { name: 'Match bills to purchase orders automatically' })
+
+  it('sends what was typed on a new supplier', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/^Trading name/, '  Sohar Steel  ')
+    typeInto(/Main contact/, 'Laila Al Harthy')
+    typeInto(/Peppol participant ID/, '0248:OM1100447102')
+    addTag('Key supplier')
+    addTag(' Raw materials ')
+    addTag('Key supplier')
+    expect(autoMatch().getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(autoMatch())
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/suppliers')[0])).toMatchObject({
+      tradingName: 'Sohar Steel',
+      tags: ['Key supplier', 'Raw materials'],
+      autoMatchPurchaseOrders: false,
+    })
+  })
+
+  it('sends none, none and "on" when nothing was touched', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/Main contact/, 'Laila Al Harthy')
+    typeInto(/Peppol participant ID/, '0248:OM1100447102')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    const body = bodyOf(calls('POST', '/api/v1/suppliers')[0])
+    expect(body.tradingName).toBeNull()
+    expect(body.tags).toEqual([])
+    expect(body.autoMatchPurchaseOrders).toBe(true)
+  })
+
+  it('opens an edit with the server’s values and saves the changed ones', async () => {
+    loaded = () =>
+      detail({
+        tradingName: 'Qalhat Marine',
+        tags: ['Marine', 'Key supplier'],
+        autoMatchPurchaseOrders: false,
+      })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect((screen.getByLabelText(/^Trading name/) as HTMLInputElement).value).toBe('Qalhat Marine')
+    expect(screen.getByRole('button', { name: 'Remove Marine' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove Key supplier' })).toBeTruthy()
+    expect(autoMatch().getAttribute('aria-checked')).toBe('false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Marine' }))
+    fireEvent.click(autoMatch())
+    typeInto(/^Trading name/, '')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    await waitFor(() => expect(calls('PUT', ONE)).toHaveLength(1))
+    expect(bodyOf(calls('PUT', ONE)[0])).toMatchObject({
+      version: 7,
+      tradingName: null,
+      tags: ['Key supplier'],
+      autoMatchPurchaseOrders: true,
+    })
+  })
+
+  it('reads a record from a server without the fields as none, none and "on"', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect((screen.getByLabelText(/^Trading name/) as HTMLInputElement).value).toBe('')
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
+    expect(autoMatch().getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('puts a refused trading name on its input', () => {
+    const placed = placeSupplierErrors([
+      { field: 'tradingName', code: 'TOO_LONG', message: 'must be at most 200 characters' },
+    ])
+    expect(placed.fields.tradingName).toEqual({ key: 'validation.tooLong' })
+    expect(placed.other).toEqual([])
+  })
+
+  it('offers no room for a twenty-first tag', async () => {
+    loaded = () => detail({ tags: Array.from({ length: 20 }, (_, index) => `Tag ${index + 1}`) })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect(screen.getByText('Tag 20')).toBeTruthy()
+    expect(screen.queryByLabelText('Add a tag')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tag 20' }))
+    expect(screen.getByLabelText('Add a tag')).toBeTruthy()
+  })
+
+  it('adds a tag once, trimmed, and never past twenty', () => {
+    expect(withTag(['A'], '  B ')).toEqual(['A', 'B'])
+    expect(withTag(['A'], 'A')).toEqual(['A'])
+    expect(withTag(['A'], '   ')).toEqual(['A'])
+    const full = Array.from({ length: 20 }, (_, index) => `T${index}`)
+    expect(withTag(full, 'One more')).toEqual(full)
+  })
+
+  it('copies them into a new supplier with the rest of the details', () => {
+    const copied = copyOfSupplier(
+      detail({ tradingName: 'Qalhat Marine', tags: ['Marine'], autoMatchPurchaseOrders: false }),
+    )
+    expect(copied).toMatchObject({ tradingName: 'Qalhat Marine', tags: ['Marine'], autoMatch: false })
+  })
+})
+
+describe('switching a supplier off from its edit page', () => {
+  it('sends the reason chosen and the note typed', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    fireEvent.click(await screen.findByText('Switch this supplier off'))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Switch off Qalhat Marine Supplies LLC',
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Duplicate record' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: '  Same company as Qalhat Marine  ' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch them off' }))
+
+    await waitFor(() => expect(calls('POST', `${ONE}/switch-off`)).toHaveLength(1))
+    expect(bodyOf(calls('POST', `${ONE}/switch-off`)[0])).toEqual({
+      reason: 'DUPLICATE',
+      note: 'Same company as Qalhat Marine',
+    })
   })
 })
 

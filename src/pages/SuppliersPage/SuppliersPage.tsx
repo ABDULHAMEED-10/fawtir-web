@@ -22,6 +22,7 @@ import {
   SUPPLIER_SUMMARY_PATH,
   type SupplierListRowDto,
   type SupplierSummaryDto,
+  type SwitchOffRequestDto,
 } from '../../api/expenditure/suppliers'
 import {
   inChannel,
@@ -33,6 +34,7 @@ import {
   SUPPLIER_PAGE_SIZE,
   SUPPLIER_SORTS,
   SUPPLIER_TABS,
+  switchOffRequest,
   tabCount,
   toSupplierListItem,
   type Note,
@@ -172,11 +174,11 @@ function SuppliersScreen() {
     list.retry()
   }
 
-  const switchTo = async (id: string, to: 'off' | 'on') => {
+  const switchTo = async (id: string, to: 'off' | 'on', why?: SwitchOffRequestDto) => {
     setActionError(null)
     setBusy(true)
     try {
-      await switchSupplier(id, to)
+      await switchSupplier(id, to, why)
       setOffTarget(null)
       refresh()
     } catch (error) {
@@ -480,8 +482,9 @@ function SuppliersScreen() {
         target={offTarget}
         busy={busy}
         onClose={() => setOffTarget(null)}
-        // TODO(backend): send the reason and the note once `POST /suppliers/{id}/switch-off` takes them.
-        onConfirm={(target) => void switchTo(target.id, 'off')}
+        onConfirm={(target, reason, note) =>
+          void switchTo(target.id, 'off', switchOffRequest(reason, note))
+        }
       />
     </div>
   )
