@@ -229,9 +229,9 @@ function Editor({
   useEffect(() => setOnFile(savedRules), [savedRules])
   useEffect(() => setDelivery(savedSettings), [savedSettings])
 
-  // The people come from the names-only list, readable by whoever may save these rules. A server
-  // from before that list refuses the read: the rules stay editable and the people already on
-  // them travel back untouched.
+  // The people come from the names-only list, readable by whoever may save these rules. When it
+  // cannot be read (a server from before that list, or any failed read) the page says so: the
+  // rules stay editable and the people already on them travel back untouched.
   const people = useApiRead<ReminderRecipientDto[]>(
     canManage ? POSSIBLE_RECIPIENTS_PATH : null,
     loadPossibleRecipients,

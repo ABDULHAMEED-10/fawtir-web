@@ -382,7 +382,13 @@ describe('the reminders screen', () => {
     renderPage()
     await editorReady()
 
-    expect(await screen.findByText(/needs user-admin rights/)).toBeTruthy()
+    // Said once, as what happened: the list could not be read. Not as a missing right, which
+    // it no longer is since whoever may save the rules may read the list.
+    const line = await screen.findByText(
+      'The list of people could not be read. Reload to choose who is told.',
+    )
+    expect(line.tagName).toBe('P')
+    expect(screen.queryByText(/needs user-admin rights/)).toBeNull()
     const before = card('Before a bill is due')
     expect(within(before).getByText('1 person already chosen')).toBeTruthy()
 
@@ -394,6 +400,27 @@ describe('the reminders screen', () => {
     await waitFor(() => expect(savedRules).not.toBeNull())
     expect((savedRules as { rules: ReminderRuleDto[] }).rules[0].recipients).toEqual(['u-2'])
     expect((savedRules as { rules: ReminderRuleDto[] }).rules[0].offsets).toEqual([7, 2, 0])
+  })
+
+  it('says the list of people could not be read when the read fails, in Arabic too', async () => {
+    // Not only a server from before the list: any failed read of it.
+    rosterStatus = 500
+    await i18n.changeLanguage('ar')
+    renderPage()
+    await editorReady('قبل استحقاق الفاتورة')
+    expect(
+      await screen.findByText('تعذّرت قراءة قائمة الأشخاص. أعد التحميل لاختيار من يُبلَّغ.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/صلاحية إدارة المستخدمين/)).toBeNull()
+    expect(screen.queryByText(/could not be read/)).toBeNull()
+  })
+
+  it('does not say it to a reader, for whom no list is read', async () => {
+    who = READER
+    rosterStatus = 500
+    renderPage()
+    await editorReady()
+    expect(screen.queryByText(/The list of people could not be read/)).toBeNull()
   })
 
   it('lets whoever may save the rules choose who is told, from the names-only list', async () => {
@@ -413,7 +440,7 @@ describe('the reminders screen', () => {
 
     // The person on the rule by first name, and no line about user-admin rights.
     fireEvent.click(await within(before).findByRole('button', { name: 'Hafidh' }))
-    expect(screen.queryByText(/needs user-admin rights/)).toBeNull()
+    expect(screen.queryByText(/The list of people could not be read/)).toBeNull()
     // Names, and nothing else about anyone.
     const options = await screen.findAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual([

@@ -6981,7 +6981,7 @@
     "whoIsTold": "Who is told",
     "recipientCount_one": "{{count}} person already chosen",
     "recipientCount_other": "{{count}} people already chosen",
-    "noRoster": "Choosing who is told needs user-admin rights. The people already on each rule are kept as they are.",
+    "noRoster": "The list of people could not be read. Reload to choose who is told.",
     "saveRules": "Save the rules",
     "saveDelivery": "Save how you are told",
     "saved": "Saved.",
