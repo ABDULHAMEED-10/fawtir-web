@@ -14892,8 +14892,7 @@
       "transport": {
         "REST": "REST API",
         "JDBC": "Database (JDBC)",
-        "FILE": "File",
-        "SOAP": "SOAP"
+        "SFTP": "SFTP (file transfer)"
       },
       "credentialType": {
         "BASIC_AUTH": "Username and password",
@@ -14936,7 +14935,8 @@
         "lastChecked": "Last checked",
         "version_label": "Revision",
         "created": "Created",
-        "updated": "Last changed"
+        "updated": "Last changed",
+        "extraction": "Extraction"
       },
       "create": {
         "heading": "Add a connection",
@@ -15043,7 +15043,17 @@
         "ENDPOINT_INVALID": "That address was not accepted. Give the address on its own, with no user name or password in it.",
         "CONFIGURATION_INVALID": "The transport settings were not accepted. They must be a JSON object and must not contain passwords or tokens.",
         "CREDENTIAL_ENCRYPTION_UNAVAILABLE": "Sign-in details cannot be saved right now. An administrator needs to finish setting up encryption.",
-        "NOT_FOUND": "This connection no longer exists."
+        "NOT_FOUND": "This connection no longer exists.",
+        "EXTRACTION_SETTINGS_ABSENT": "This connection has no extraction settings yet. Configure extraction first.",
+        "EXTRACTION_SETTINGS_INVALID": "The extraction settings were refused. Check the pointers, the cursor and the transaction type.",
+        "EXTRACTION_NOT_READY": "Production collection can only be enabled on a ready connection. Mark it ready first.",
+        "EXTRACTION_NOT_CERTIFIED": "The mapping has not passed a test invoice for this transaction type. Certify it before enabling collection.",
+        "EXTRACTION_MODE_UNSUPPORTED": "This connection does not collect by pulling from an ERP.",
+        "EXTRACTION_TRANSPORT_UNSUPPORTED": "Collection is supported over REST only. Change the transport on the Settings tab.",
+        "SAMPLE_NO_DOCUMENTS": "The ERP answered but returned no documents. Check the documents pointer and the start position.",
+        "SAMPLE_IN_PROGRESS": "A sample is already being fetched for this connection. Wait for it to finish.",
+        "SAMPLE_CREDENTIAL_UNAVAILABLE": "This connection has no usable credential, so a sample cannot be fetched.",
+        "SAMPLE_ARCHIVED": "This connection is archived and makes no outbound calls."
       },
       "reload": "Reload",
       "permission": {
@@ -15990,6 +16000,135 @@
       "VALUE_MAPS": "Code-to-code tables are not supported yet. Use a transform instead.",
       "ERP_VERSION": "Fawtir records the ERP, not its version.",
       "PROFILE_ORIGIN": "Whether the live expression came from the wizard is inferred, not recorded."
+    },
+    "extraction": {
+      "done": {
+        "save": "Extraction settings saved.",
+        "enable": "Production collection enabled.",
+        "disable": "Production collection disabled.",
+        "sample": "Sample fetched."
+      },
+      "state": {
+        "GLOBALLY_DISABLED": "Automation off",
+        "NOT_CONFIGURED": "Not configured",
+        "CONNECTION_NOT_READY": "Connection not ready",
+        "DISABLED_BY_OPERATOR": "Production off",
+        "MAPPING_NOT_CERTIFIED": "Mapping not certified",
+        "RUNNING": "Running",
+        "BACKOFF": "Retry backoff",
+        "FAILED_LAST_RUN": "Last run failed",
+        "WAITING": "Ready, waiting"
+      },
+      "stateHelp": {
+        "GLOBALLY_DISABLED": "Scheduled collection is switched off for the whole platform. This connection keeps its own settings.",
+        "NOT_CONFIGURED": "Add the extraction settings below before anything can run.",
+        "CONNECTION_NOT_READY": "Mark the connection ready on the Settings tab first.",
+        "DISABLED_BY_OPERATOR": "Someone switched production collection off for this connection.",
+        "MAPPING_NOT_CERTIFIED": "Collection would fetch invoices and reject every one. Certify the mapping first.",
+        "RUNNING": "A collection cycle is in progress.",
+        "BACKOFF": "A run failed, so the next attempt is being held back.",
+        "FAILED_LAST_RUN": "The most recent run failed, and the schedule carries no penalty.",
+        "WAITING": "Nothing to do. The next run is scheduled."
+      },
+      "runState": {
+        "CREATED": "Created",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "COMPLETED_WITH_ERRORS": "Completed with rejections",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "cursorKind": {
+        "TIMESTAMP": "Updated-at timestamp",
+        "SEQUENCE": "Sequence number",
+        "CONTINUATION_TOKEN": "Continuation token",
+        "PAGE_TOKEN": "Page token",
+        "derivedHint": "Reads the next position from each document",
+        "opaqueHint": "Reads the next position from the response envelope"
+      },
+      "status": {
+        "title": "Collection status",
+        "description": "Read from the server. Fawtir decides this, not this screen.",
+        "automation": "Platform automation",
+        "automationOn": "On",
+        "automationOff": "Off",
+        "cadence": "Effective cadence",
+        "nextRun": "Next run",
+        "notScheduled": "Not scheduled yet",
+        "failures": "Consecutive failures",
+        "backoffUntil": "Held until",
+        "lastRun": "Last run",
+        "lastRunCounts": "Last run documents",
+        "lastFailure": "Last failure",
+        "retryable": "will retry",
+        "counts": "{{discovered}} found, {{accepted}} accepted, {{rejected}} rejected, {{duplicates}} duplicate"
+      },
+      "config": {
+        "title": "Configure extraction",
+        "description": "Where the invoices are in the ERP response, and how to page through them.",
+        "save": "Save settings",
+        "saving": "Saving...",
+        "readOnly": "You do not have permission to change these settings.",
+        "none": "Extraction is not configured for this connection.",
+        "platformDefault": "Platform default"
+      },
+      "field": {
+        "interval": "How often to collect",
+        "intervalHint": "ISO-8601, for example PT30M. Leave empty for the platform default. Effective: {{effective}}",
+        "transactionType": "Transaction type",
+        "transactionTypeHint": "20-character BTOM-001 bitmap. The mapping certification is scoped to this value.",
+        "documentsPointer": "Documents pointer",
+        "documentIdPointer": "Document id pointer",
+        "documentVersionPointer": "Document version pointer",
+        "pointerHint": "RFC 6901 JSON Pointer, for example /data",
+        "optionalPointerHint": "Optional. RFC 6901 JSON Pointer.",
+        "cursorKind": "How to continue",
+        "cursorParameter": "Cursor query parameter",
+        "cursorParameterHint": "The query parameter the cursor is sent in. Required unless you chose Page token.",
+        "documentCursorPointer": "Document cursor pointer",
+        "documentCursorPointerHint": "Where each document carries its ordering value.",
+        "nextCursorPointer": "Next cursor pointer",
+        "nextCursorPointerHint": "Where the response carries the token for the next page.",
+        "pageSizeParameter": "Page size parameter",
+        "pageSizeParameterHint": "The query parameter the page size is sent in. The size itself is a platform setting.",
+        "initialCursor": "Start from",
+        "initialCursorHint": "Optional. Where a first collection begins, and what a sample fetch reads from."
+      },
+      "sample": {
+        "title": "Fetch a sample invoice",
+        "description": "Asks Fawtir to collect one document, exactly as production would. Nothing is recorded and no invoice is created.",
+        "fetch": "Fetch sample",
+        "fetching": "Fetching...",
+        "noPermission": "You do not have permission to fetch a sample.",
+        "documentId": "Document id",
+        "version": "Version",
+        "size": "Size",
+        "latency": "Round trip",
+        "bytes": "{{count}} bytes",
+        "ms": "{{count}} ms",
+        "payload": "Source document, exactly as received",
+        "useInMapping": "Open mapping",
+        "handover": {
+          "ready": "Adds this document to the mapping samples for this visit and opens the preview. Nothing is stored.",
+          "notJson": "The mapping preview needs a JSON document, and this one is not JSON.",
+          "atLimit": "The mapping samples for this visit are full ({{limit}}). Remove one on the Samples screen first."
+        }
+      },
+      "enablement": {
+        "title": "Production collection",
+        "description": "Turning this on lets Fawtir collect from this ERP on its own, at the cadence above.",
+        "enable": "Enable production collection",
+        "enabling": "Enabling...",
+        "disable": "Disable production collection",
+        "disabling": "Disabling...",
+        "needConfig": "Extraction settings saved",
+        "needReady": "Connection marked ready",
+        "needCertified": "Mapping certified for this transaction type",
+        "ok": "Done",
+        "outstanding": "Outstanding",
+        "enabledNote": "Collection is on. It still only runs while platform automation is on.",
+        "disabledNote": "Collection is off. Nothing runs automatically."
+      }
     }
   },
   "apiErrors": {

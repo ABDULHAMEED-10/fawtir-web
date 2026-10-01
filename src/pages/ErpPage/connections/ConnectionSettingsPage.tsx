@@ -25,10 +25,26 @@ import {
   updateErpConnection,
   type ErpConnectionDto,
   type ErpCredentialType,
+  SELECTABLE_TRANSPORTS,
   type ErpTransportType,
 } from '../../../api/erp/connections'
 
-const TRANSPORTS: ErpTransportType[] = ['REST', 'JDBC', 'FILE', 'SOAP']
+// See SELECTABLE_TRANSPORTS. A connection already storing JDBC or SFTP keeps it: the option list
+// below adds the stored value so editing another field cannot silently rewrite the transport.
+const TRANSPORTS: readonly ErpTransportType[] = SELECTABLE_TRANSPORTS
+
+/**
+ * What the edit form may offer: the selectable transports, plus whatever this connection already
+ * stores if that is something else.
+ *
+ * Without the second part, opening a connection saved as JDBC would show an empty select, and saving
+ * any other field would post `transportType: null` — silently rewriting a value the operator never
+ * touched. Narrowing the offer must not rewrite history.
+ */
+function transportOptions(stored: ErpTransportType | null): readonly ErpTransportType[] {
+  if (stored === null || TRANSPORTS.includes(stored)) return TRANSPORTS
+  return [...TRANSPORTS, stored]
+}
 const CREDENTIAL_TYPES: ErpCredentialType[] = [
   'BASIC_AUTH',
   'API_TOKEN',
@@ -184,7 +200,7 @@ function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload
             id="erp-edit-transport"
             name="transportType"
             label={t('erp.connections.create.transport')}
-            options={TRANSPORTS.map((value) => ({
+            options={transportOptions(connection.transportType).map((value) => ({
               value,
               label: t(`erp.connections.transport.${value}`),
             }))}
