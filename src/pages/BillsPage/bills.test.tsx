@@ -156,6 +156,8 @@ beforeEach(async () => {
     if (url.startsWith('/api/v1/bills/export.csv')) return exportResponse()
     if (url === SUMMARY_URL) return summaryResponse()
     if (url.endsWith('/approval/approve') && init?.method === 'POST') return json(200, {})
+    if (/\/(approval\/reject|hold|release)$/.test(url) && init?.method === 'POST')
+      return json(200, {})
     if (url.startsWith('/api/v1/bills?') || url === '/api/v1/bills') {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
@@ -904,5 +906,85 @@ describe('a draft row for a reader who cannot capture bills', () => {
     const billRow = screen.getByText('QMS-7781').closest('tr')!
     expect(within(billRow).getByRole('link', { name: 'QMS-7781' })).toBeTruthy()
     expect(within(billRow).getByRole('button', { name: 'Bill actions' })).toBeTruthy()
+  })
+})
+
+describe('the row menu', () => {
+  const posts = (suffix: string) =>
+    fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        url === `/api/v1/bills/${ID}/${suffix}` &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    )
+  const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
+  const openMenu = async () => {
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Bill actions' }))
+  }
+
+  it('puts a bill on hold with the reason typed, then reads the list again', async () => {
+    renderBills()
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Put on hold' }))
+    const dialog = await screen.findByRole('dialog')
+    // No reason, no hold: the server requires one.
+    expect((within(dialog).getByRole('button', { name: /hold/i }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: '  Two deliveries billed twice  ' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: /hold/i }))
+
+    await waitFor(() => expect(posts('hold')).toHaveLength(1))
+    expect(bodyOf(posts('hold')[0])).toEqual({ reason: 'Two deliveries billed twice' })
+    await waitFor(() => expect(listCalls()).toHaveLength(2))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('rejects a bill with its reason', async () => {
+    renderBills()
+    await openMenu()
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reject' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Not ours' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Reject/ }))
+
+    await waitFor(() => expect(posts('approval/reject')).toHaveLength(1))
+    expect(bodyOf(posts('approval/reject')[0])).toEqual({ reason: 'Not ours' })
+    expect(posts('hold')).toHaveLength(0)
+  })
+
+  it('releases a held bill, and offers no second hold on it', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              workflowState: 'ON_HOLD',
+              hold: { reason: 'Two deliveries billed twice', openedAt: '2026-09-20T08:00:00Z' },
+            }),
+          ]),
+        ),
+    ]
+    renderBills()
+    await openMenu()
+    expect(screen.queryByRole('menuitem', { name: 'Put on hold' })).toBeNull()
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Release/ }))
+
+    await waitFor(() => expect(posts('release')).toHaveLength(1))
+    expect((posts('release')[0][1] as RequestInit).body).toBeUndefined()
+    await waitFor(() => expect(listCalls()).toHaveLength(2))
+  })
+
+  it('offers a reader none of the three', async () => {
+    who = READ_ONLY
+    renderBills()
+    await openMenu()
+    expect(await screen.findByRole('menuitem', { name: /View/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Put on hold' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Reject' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /Release/ })).toBeNull()
   })
 })

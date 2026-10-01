@@ -16593,7 +16593,9 @@
       "source": {
         "PEPPOL": "received over Peppol",
         "UPLOADED": "uploaded",
-        "SCANNED": "scanned"
+        "SCANNED": "scanned",
+        "RECURRING": "from a recurring bill",
+        "SELF_BILLED": "self-billed"
       },
       "open": "Open that bill",
       "different": "It's a different bill. Save it"

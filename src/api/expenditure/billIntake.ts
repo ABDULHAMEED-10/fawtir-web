@@ -141,7 +141,8 @@ export type PossibleDuplicateDto = {
   issueDate: string | null
   total: number | null
   currencyCode: string | null
-  source: 'PEPPOL' | 'UPLOADED' | 'SCANNED'
+  /** Any bill can be the one on file: the server's check does not look at where it came from. */
+  source: 'PEPPOL' | 'UPLOADED' | 'SCANNED' | 'RECURRING' | 'SELF_BILLED'
 }
 
 /** The bill a 409 `BILL_INTAKE_POSSIBLE_DUPLICATE` named, or null for any other failure. */
