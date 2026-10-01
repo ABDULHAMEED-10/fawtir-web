@@ -783,11 +783,12 @@ function Preview({ delivery, time }: { delivery: ReminderSettingsDto['delivery']
   const preview = useApiRead<ReminderPreviewDto>(BILL_REMINDER_PREVIEW_PATH, loadReminderPreview)
   const data = preview.read.status === 'ready' ? preview.read.data : null
   const lines = data ? flattenPreview(data) : []
+  // First names, as the frame draws them. A person the server could not name gets the wording the
+  // people picker already uses for one, never their id.
+  const firstName = (name: string | null) =>
+    name === null || name.trim() === '' ? t('expenditureReminders.someone') : name.split(' ')[0]
   const audience = data
-    ? joinNames(
-        audienceOf(data).map((name) => name.split(' ')[0]),
-        t('expenditureReminders.and'),
-      )
+    ? joinNames(audienceOf(data).map(firstName), t('expenditureReminders.and'))
     : ''
 
   return (
@@ -852,10 +853,7 @@ function Preview({ delivery, time }: { delivery: ReminderSettingsDto['delivery']
                         : null}
                       {line.amount !== null ? ' · ' : ''}
                       {t('expenditureReminders.preview.to')}{' '}
-                      {joinNames(
-                        line.recipients.map((name) => name.split(' ')[0]),
-                        t('expenditureReminders.and'),
-                      )}
+                      {joinNames(line.recipients.map(firstName), t('expenditureReminders.and'))}
                     </p>
                   </div>
                 </li>
