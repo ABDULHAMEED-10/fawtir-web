@@ -130,6 +130,55 @@ export function problemNote(row: ImportBatchRowDto): { key: string } | { text: s
   return { text: row.message }
 }
 
+/**
+ * What the file holds in one column of a row, or undefined when it cannot be told: the columns are
+ * not known yet, the template has no such column, or the row's cells are not the template's width
+ * (a row the check could not map is kept as it was typed, in the file's own order).
+ */
+function cellOf(
+  row: ImportBatchRowDto,
+  columns: readonly string[] | null,
+  column: string,
+): string | undefined {
+  if (!columns || row.cells.length !== columns.length) return undefined
+  const index = columns.indexOf(column)
+  return index < 0 ? undefined : row.cells[index]
+}
+
+/**
+ * The file's value in the column at fault, for the review's field box: the server's own `value`
+ * when it sends one, else the row's cell in that column.
+ */
+export function problemValue(
+  row: ImportBatchRowDto,
+  columns: readonly string[] | null,
+): string | undefined {
+  if (typeof row.value === 'string') return row.value
+  return row.field ? cellOf(row, columns, row.field) : undefined
+}
+
+/**
+ * How many of the ready rows are on Peppol, for the review's first card: the server's count when
+ * it sends one, else the ready rows that carry a Peppol ID. That is the rule the Suppliers list's
+ * "On Peppol" card counts by (a record with a participant identifier), so the card says what the
+ * list will say once the rows are in. Null when it cannot be told, and the card then says less.
+ */
+export function readyOnPeppol(
+  batch: ImportBatchDto,
+  columns: readonly string[] | null,
+): number | null {
+  if (typeof batch.counts.onPeppol === 'number') return batch.counts.onPeppol
+  if (!columns || !columns.includes('peppolParticipantId')) return null
+  let count = 0
+  for (const row of batch.rows) {
+    if (row.severity !== 'READY') continue
+    const id = cellOf(row, columns, 'peppolParticipantId')
+    if (id === undefined) return null
+    if (id.trim()) count += 1
+  }
+  return count
+}
+
 export type FileProblem = 'type' | 'size' | null
 
 export function fileProblem(file: File, maxBytes: number): FileProblem {
