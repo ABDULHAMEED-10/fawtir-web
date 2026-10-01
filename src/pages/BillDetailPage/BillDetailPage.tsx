@@ -82,14 +82,19 @@ const STEP_CIRCLE: Record<BillStepState, string> = {
  * page loaded. Decimals and the date read as the invoice dialog's own lines.
  *
  * On hold and too much are draft wording, pending the owner (Wording-For-Abdul.md, "Paying a
- * bill"). The server's too much is said without the figure: the dialog refuses an amount above
- * the outstanding amount it holds before asking ({@link BILL_AMOUNT_TOO_MUCH}, with the figure), so
- * when the server refuses one, the figure the page holds is the stale one.
+ * bill"). The dialog refuses an amount above the outstanding amount it holds before asking
+ * ({@link BILL_AMOUNT_TOO_MUCH}), so when the server refuses one, the figure the page holds is
+ * the stale one: the sentence names the figure the server sends with the refusal, and is said
+ * without one when a server from before that field sends none.
  */
 const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0]['refusals']> = {
   BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'billDetail.pay.notApproved' },
   BILL_PAYMENT_ON_HOLD: { field: null, key: 'billDetail.pay.onHold' },
-  BILL_PAYMENT_EXCEEDS_OUTSTANDING: { field: 'amount', key: 'billDetail.pay.tooMuch' },
+  BILL_PAYMENT_EXCEEDS_OUTSTANDING: {
+    field: 'amount',
+    key: 'billDetail.pay.tooMuch',
+    keyWithOwed: 'billDetail.pay.tooMuchMost',
+  },
   BILL_PAYMENT_IN_PAYMENT_RUN: {
     field: null,
     key: 'billDetail.pay.inRun',
@@ -121,6 +126,9 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 5).
+  BILL_HOLD_REASON_REQUIRED: 'billDetail.refused.holdReasonRequired',
+  BILL_HOLD_REASON_TOO_LONG: 'billDetail.refused.holdReasonTooLong',
   GOODS_RECEIPT_WRONG_ORDER: 'billDetail.refused.wrongReceipt',
 }
 

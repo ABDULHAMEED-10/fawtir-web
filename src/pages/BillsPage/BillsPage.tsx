@@ -152,6 +152,9 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 5).
+  BILL_HOLD_REASON_REQUIRED: 'billDetail.refused.holdReasonRequired',
+  BILL_HOLD_REASON_TOO_LONG: 'billDetail.refused.holdReasonTooLong',
 }
 
 /**

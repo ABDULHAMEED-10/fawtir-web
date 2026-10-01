@@ -1067,7 +1067,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     })
 
     it('keeps the general refusal for a code with no sentence of its own', async () => {
-      confirmResponse = refusal(400, 'expenditure-refused', 'BILL_NOTE_TOO_LONG')
+      confirmResponse = refusal(400, 'expenditure-refused', 'BILL_INTAKE_CODE_WITH_NO_SENTENCE')
       await typeBill()
       send()
       expect(await screen.findByText(GENERIC)).toBeTruthy()

@@ -5573,7 +5573,9 @@
       "wrongReceipt": "That receipt belongs to a different order.",
       "paymentRecorded": "A payment is already recorded on this bill, so it can no longer be rejected.",
       "inRun": "This bill is in payment run {{run}}. Take it out of the run before rejecting it.",
-      "reasonTooLong": "That reason is too long. Shorten it and reject again."
+      "reasonTooLong": "That reason is too long. Shorten it and reject again.",
+      "holdReasonRequired": "A hold has to say why.",
+      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again."
     },
     "done": {
       "approved": "Approved.",
@@ -16782,7 +16784,8 @@
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
-      "empty": "That file is empty."
+      "empty": "That file is empty.",
+      "fileRequired": "Choose the bill's file first."
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -16885,7 +16888,9 @@
       "purchaseOrderGone": "That purchase order is not on this account. Choose another, or save the bill without one.",
       "vatCategoryInvalid": "That VAT category cannot be used on a bill. Choose another.",
       "vatRateMismatch": "That VAT rate does not match the VAT category. Choose the rate that goes with it.",
-      "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it."
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
+      "pettyCashNotCash": "Petty cash can only be recorded as cash.",
+      "noteTooLong": "That note is too long. Shorten it to 500 characters."
     }
   },
   "salesNote": {
@@ -18066,7 +18071,11 @@
     "pay": {
       "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.",
       "amount": "Amount paid",
-      "date": "Paid on"
+      "date": "Paid on",
+      "onHold": "The supplier bill for this document is on hold. Release it on the bill, then record the payment.",
+      "inRun": "The supplier bill for this document is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "tooMuch": "That is more than the supplier bill still owes.",
+      "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
     "creditNote": "Credit note"
   },
