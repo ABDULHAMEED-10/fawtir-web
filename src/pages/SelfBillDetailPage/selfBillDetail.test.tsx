@@ -344,11 +344,12 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.getByText('Readable copy.pdf')).toBeTruthy()
   })
 
-  it('keeps Record payment off when the document answers no payable, since the receivable never owes', async () => {
+  it('does not offer Record payment when the document answers no payable, since the receivable never owes', async () => {
     renderPage()
     await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
     await waitFor(() => expect(calls()).toContain(`GET ${URL_BASE}/receivable`))
-    expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty('disabled', true)
+    // Hidden, not greyed out (owner decision 2026-10-01).
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
   })
 
   it("shows what is paid and still owed from the document's payable", async () => {
@@ -369,7 +370,7 @@ describe('A self-billed invoice through its own door', () => {
       ),
     )
     expect(await screen.findByText('Paid')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Record payment' })).toHaveProperty('disabled', true)
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
   })
 
   it('does not offer Record payment to a reader without invoice.payment.manage, even with something owed', async () => {

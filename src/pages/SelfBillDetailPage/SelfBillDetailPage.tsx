@@ -349,13 +349,12 @@ function SelfBillScreen() {
     attachments.read.status === 'ready'
       ? attachmentRows(attachments.read.data, (bytes) => fileSize(bytes, language))
       : []
-  // Without the right to record payments the action is not offered at all, as on the invoice page
-  // (owner decision 2026-10-01: hidden, not disabled).
-  const mayPay = can(session, 'invoice.payment.manage')
   // Paying needs an issued document with something owed on its payable and the right to record it.
+  // Otherwise the action is not offered at all, as on the invoice and bill pages (owner decisions
+  // 2026-10-01: hidden, not disabled; no greyed button on a draft or a paid document either).
   const canPay =
     payable !== null &&
-    mayPay &&
+    can(session, 'invoice.payment.manage') &&
     data.authoringState === 'ISSUED' &&
     owed !== null &&
     owed.paymentState !== 'NOT_APPLICABLE' &&
@@ -483,11 +482,9 @@ function SelfBillScreen() {
               {t('selfBillDetail.creditNote')}
             </Link>
           ) : null}
-          {mayPay ? (
+          {canPay ? (
             <button
               type="button"
-              disabled={!canPay}
-              title={canPay ? undefined : t('selfBillDetail.recordPaymentUnavailable')}
               onClick={() => setPaying(true)}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60"
             >
