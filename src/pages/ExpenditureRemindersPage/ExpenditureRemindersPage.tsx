@@ -134,6 +134,9 @@ function RemindersScreen() {
     canRead ? BILL_REMINDER_SETTINGS_PATH : null,
     loadReminderSettings,
   )
+  // Held here, not in the editor: a save reads the rules and settings again, the editor is taken
+  // down while they load, and a notice kept inside it would go with it.
+  const [notice, setNotice] = useState<string | null>(null)
 
   if (!canRead) {
     return (
@@ -154,6 +157,12 @@ function RemindersScreen() {
         </p>
       </div>
 
+      {notice ? (
+        <Notice
+          body={notice}
+          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
+        />
+      ) : null}
       {rules.read.status === 'loading' || settings.read.status === 'loading' ? (
         <LoadingNotice />
       ) : null}
@@ -169,6 +178,7 @@ function RemindersScreen() {
           savedRules={rules.read.data.rules}
           savedSettings={settings.read.data}
           canManage={canManage}
+          setNotice={setNotice}
           onSaved={() => {
             rules.retry()
             settings.retry()
@@ -183,18 +193,20 @@ function Editor({
   savedRules,
   savedSettings,
   canManage,
+  setNotice,
   onSaved,
 }: {
   savedRules: ReminderRuleDto[]
   savedSettings: ReminderSettingsDto
   canManage: boolean
+  /** The page's one notice line ("Saved."), owned above so it outlives the reload after a save. */
+  setNotice: (notice: string | null) => void
   onSaved: () => void
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState<ReminderRuleDto[]>(savedRules)
   const [delivery, setDelivery] = useState<ReminderSettingsDto>(savedSettings)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
 
   useEffect(() => setDraft(savedRules), [savedRules])
@@ -262,12 +274,6 @@ function Editor({
 
   return (
     <>
-      {notice ? (
-        <Notice
-          body={notice}
-          action={{ label: t('common.close'), onClick: () => setNotice(null) }}
-        />
-      ) : null}
       {failure ? (
         <Notice
           badge={t('supplierCreditNoteDetail.notDone')}
