@@ -58,6 +58,8 @@ export type IntakeDto = {
   confirmedBillId: string | null
   workflowState: string | null
   uploadedAt: string
+  /** A note saved on the intake earlier; confirm sends it again, it is not carried over. */
+  note?: string | null
 }
 
 /** `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. */
@@ -108,8 +110,16 @@ export type ConfirmIntakeDto = {
   goodsReceiptId: null
   purchaseOrderReference: null
   category: string | null
-  /** UNCL4461: `10` cash, `48` card. */
-  paidOnTheSpot: { methodCode: '10' | '48'; paymentReference: null; paidOn: string | null } | null
+  /**
+   * UNCL4461: `10` cash, `48` card. Petty cash is cash (`10`) with `pettyCash: true`; the server
+   * then writes its fixed reference, "Petty cash", on the payment.
+   */
+  paidOnTheSpot: {
+    methodCode: '10' | '48'
+    paymentReference: null
+    paidOn: string | null
+    pettyCash?: true
+  } | null
   /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
   notDuplicateOf: string | null
   /**
@@ -117,6 +127,8 @@ export type ConfirmIntakeDto = {
    * E0): 0% and Exempt both carry a zero rate and are otherwise sent the same.
    */
   taxCategoryCode?: string | null
+  /** Free text kept on the bill, at most 500 characters. Sent only when something was typed. */
+  note?: string
 }
 
 /** `ConfirmedBillResponse`. */
@@ -132,6 +144,15 @@ export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<Confi
     method: 'POST',
     body,
   })
+}
+
+/**
+ * A bill typed in with no file behind it (`POST /bills`, `invoice.payment.manage`): the confirm
+ * body, and no intake. Nothing guards a double post but the bill number, so the caller keeps its
+ * in-flight guard. The refusals are confirm's, less the two about the intake itself.
+ */
+export function recordBillWithoutFile(body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {
+  return apiRequest<ConfirmedBillDto>('/v1/bills', { method: 'POST', body })
 }
 
 /** `PossibleDuplicateBill`: the bill on file with the same supplier, type and number. */

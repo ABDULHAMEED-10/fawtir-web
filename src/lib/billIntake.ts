@@ -286,6 +286,8 @@ export type ConfirmExtras = {
    * chips): sent only when given.
    */
   taxCategoryCode?: string | null
+  /** The note typed on a receipt, kept on the bill: sent only when something was typed. */
+  note?: string | null
 }
 
 export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): ConfirmIntakeDto {
@@ -320,6 +322,7 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     notDuplicateOf: extras.notDuplicateOf ?? null,
     // TODO(backend): EXPENDITURE.md M.2. A receipt's category: 0% zero-rated and exempt apart.
     ...(extras.taxCategoryCode ? { taxCategoryCode: extras.taxCategoryCode } : {}),
+    ...(extras.note?.trim() ? { note: extras.note.trim() } : {}),
   }
 }
 

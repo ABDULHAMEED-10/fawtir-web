@@ -8,7 +8,8 @@ import { ScanReceiptsPage } from './ScanReceiptsPage'
 
 /**
  * Scan receipts on its own: a receipt resumed from a draft row, discarded, refused, warned about
- * as a possible duplicate, and the page for a reader who cannot capture bills. The two-photo run
+ * as a possible duplicate, its note and petty cash, and the page for a reader who cannot capture
+ * bills. The two-photo run
  * through confirm (card, then still owing) is in `UploadBillPage/billIntake.test.tsx`.
  */
 
@@ -346,5 +347,92 @@ describe('scan receipts: a reader who cannot capture bills', () => {
     expect(document.querySelector('input[type=file]')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Save and next' })).toBeNull()
     expect(calls('POST', '/api/v1/bills/intake')).toHaveLength(0)
+  })
+})
+
+describe('scan receipts: the note and petty cash', () => {
+  const confirmBody = (id: string) => bodyOf(calls('POST', `/api/v1/bills/intake/${id}/confirm`)[0])
+
+  it('sends the note typed on the receipt, trimmed, to be kept on the bill', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.change(screen.getByLabelText(/^Note/), {
+      target: { value: '  Fixing the drain behind the roastery  ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1))
+    expect(confirmBody('r-1').note).toBe('Fixing the drain behind the roastery')
+  })
+
+  it('sends no note field when nothing was typed', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.change(screen.getByLabelText(/^Note/), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1))
+    expect('note' in confirmBody('r-1')).toBe(false)
+  })
+
+  it('brings back a note saved on the receipt earlier and sends it again', async () => {
+    stored = { 'r-1': { ...typed('r-1', 'Nizwa Hardware Store', 28.4), note: 'Drain cover' } }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    expect((screen.getByLabelText(/^Note/) as HTMLInputElement).value).toBe('Drain cover')
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1))
+    expect(confirmBody('r-1').note).toBe('Drain cover')
+  })
+
+  it('records petty cash as cash, marked so the server writes its fixed reference', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Petty cash' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1))
+    expect(confirmBody('r-1').paidOnTheSpot).toEqual({
+      methodCode: '10',
+      paymentReference: null,
+      paidOn: '2026-09-12',
+      pettyCash: true,
+    })
+  })
+
+  it.each([
+    ['Cash', '10'],
+    ['Card', '48'],
+  ])('does not mark %s as petty cash', async (button, methodCode) => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    // Through petty cash and back, so the mark is shown to follow the choice.
+    fireEvent.click(screen.getByRole('button', { name: 'Petty cash' }))
+    fireEvent.click(screen.getByRole('button', { name: button }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1))
+    expect(confirmBody('r-1').paidOnTheSpot).toEqual({
+      methodCode,
+      paymentReference: null,
+      paidOn: '2026-09-12',
+    })
+  })
+
+  it('sends no payment, and so no petty cash mark, on a receipt still owing', async () => {
+    stored = { 'r-1': typed('r-1', 'Nizwa Hardware Store', 28.4) }
+    renderAt('/expenditure/bills/scan?intake=r-1')
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Petty cash' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Still owing' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/bills/intake/r-1/confirm')).toHaveLength(1))
+    expect(confirmBody('r-1').paidOnTheSpot).toBeNull()
   })
 })
