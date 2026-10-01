@@ -135,6 +135,22 @@ const renderPage = () =>
     </MemoryRouter>,
   )
 
+/**
+ * The editor is up AND its mount effects have run. `findByText` alone can answer in the gap
+ * between React committing the editor and running its effects; one of those effects copies the
+ * rules on file into the draft, so a click made in that gap is overwritten and the test fails
+ * about once in sixty. The preview's read is started by the same round of effects, so once it has
+ * been asked for, the round is over.
+ */
+async function editorReady(title = 'Before a bill is due') {
+  await screen.findByText(title)
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes('/bill-reminders/preview')),
+    ).toBe(true),
+  )
+}
+
 const card = (title: string) => screen.getByText(title).closest('article')!
 
 describe('payables reminder rules', () => {
@@ -280,7 +296,7 @@ describe('the reminders screen', () => {
 
   it('offers a repeat on the late rule alone, and an escalation on the stale-approval rule alone', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     // The server refuses either field on any other type, so neither is drawn there.
     const late = card('Once a bill is late')
@@ -302,7 +318,7 @@ describe('the reminders screen', () => {
 
   it('will not switch on a rule that would fire at nobody', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     const mismatch = card('A mismatch nobody has resolved')
     fireEvent.click(within(mismatch).getByRole('switch'))
@@ -318,7 +334,7 @@ describe('the reminders screen', () => {
     // APPROVAL_STALE and SCAN_UNCONFIRMED derive their recipients, so the guard above must not
     // catch them: a "cannot enable" check that caught everything would pass either way.
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     const scan = card('A scanned receipt still unconfirmed')
     expect(within(scan).getByText('Whoever scanned it')).toBeTruthy()
@@ -335,7 +351,7 @@ describe('the reminders screen', () => {
 
   it('sends only the changed rules, with their people still on them', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     // A rule that is off has its chips dimmed and still, as the frame draws; the late rule is on.
     const discount = card('Before an early-payment discount runs out')
@@ -364,9 +380,15 @@ describe('the reminders screen', () => {
     // its recipients travel back untouched: saving without them would empty it.
     rosterStatus = 404
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
-    expect(await screen.findByText(/needs user-admin rights/)).toBeTruthy()
+    // Said once, as what happened: the list could not be read. Not as a missing right, which
+    // it no longer is since whoever may save the rules may read the list.
+    const line = await screen.findByText(
+      'The list of people could not be read. Reload to choose who is told.',
+    )
+    expect(line.tagName).toBe('P')
+    expect(screen.queryByText(/needs user-admin rights/)).toBeNull()
     const before = card('Before a bill is due')
     expect(within(before).getByText('1 person already chosen')).toBeTruthy()
 
@@ -378,6 +400,27 @@ describe('the reminders screen', () => {
     await waitFor(() => expect(savedRules).not.toBeNull())
     expect((savedRules as { rules: ReminderRuleDto[] }).rules[0].recipients).toEqual(['u-2'])
     expect((savedRules as { rules: ReminderRuleDto[] }).rules[0].offsets).toEqual([7, 2, 0])
+  })
+
+  it('says the list of people could not be read when the read fails, in Arabic too', async () => {
+    // Not only a server from before the list: any failed read of it.
+    rosterStatus = 500
+    await i18n.changeLanguage('ar')
+    renderPage()
+    await editorReady('قبل استحقاق الفاتورة')
+    expect(
+      await screen.findByText('تعذّرت قراءة قائمة الأشخاص. أعد التحميل لاختيار من يُبلَّغ.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/صلاحية إدارة المستخدمين/)).toBeNull()
+    expect(screen.queryByText(/could not be read/)).toBeNull()
+  })
+
+  it('does not say it to a reader, for whom no list is read', async () => {
+    who = READER
+    rosterStatus = 500
+    renderPage()
+    await editorReady()
+    expect(screen.queryByText(/The list of people could not be read/)).toBeNull()
   })
 
   it('lets whoever may save the rules choose who is told, from the names-only list', async () => {
@@ -392,12 +435,12 @@ describe('the reminders screen', () => {
       { id: 'u-3', displayName: 'Aisha Al Hinai' },
     ]
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
 
     // The person on the rule by first name, and no line about user-admin rights.
     fireEvent.click(await within(before).findByRole('button', { name: 'Hafidh' }))
-    expect(screen.queryByText(/needs user-admin rights/)).toBeNull()
+    expect(screen.queryByText(/The list of people could not be read/)).toBeNull()
     // Names, and nothing else about anyone.
     const options = await screen.findAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual([
@@ -422,7 +465,7 @@ describe('the reminders screen', () => {
 
   it('adds a person to a rule that had nobody, which then can be switched on', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const mismatch = card('A mismatch nobody has resolved')
     fireEvent.click(within(mismatch).getByRole('switch'))
     expect(await within(mismatch).findByRole('alert', {}, { timeout: 8000 })).toBeTruthy()
@@ -440,7 +483,7 @@ describe('the reminders screen', () => {
       { id: 'u-3', displayName: 'Aisha Al Hinai' },
     ]
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
 
     fireEvent.click(await within(before).findByRole('button', { name: 'Someone on the team' }))
@@ -459,7 +502,7 @@ describe('the reminders screen', () => {
   it('does not ask for the list of people for someone who may only read', async () => {
     who = READER
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     // The people on a rule are counted, not named, and no list is read.
     expect(within(card('Before a bill is due')).getByText('1 person already chosen')).toBeTruthy()
     const asked = fetchMock.mock.calls.map(([url]) => String(url))
@@ -469,7 +512,7 @@ describe('the reminders screen', () => {
 
   it('saves how the reader is told with the same Save', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -571,7 +614,7 @@ describe('the reminders screen', () => {
     // No route sends today's summary on request. What cannot be done is not shown, to a manager
     // as much as to a reader, and the footer keeps its count and its Save.
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: "Send me today's now" })).toBeNull()
     expect(screen.queryByText("Send me today's now")).toBeNull()
@@ -585,7 +628,7 @@ describe('the reminders screen', () => {
   it('offers no save to someone who may only read', async () => {
     who = READER
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     // The recurring row has no switch for a reader either; the six rules show theirs, greyed.
     expect(within(card("A recurring bill that hasn't arrived")).queryByRole('switch')).toBeNull()
     expect(within(card('Before a bill is due')).getByRole('switch')).toHaveProperty(

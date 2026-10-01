@@ -6999,7 +6999,7 @@
     "whoIsTold": "Who is told",
     "recipientCount_one": "{{count}} person already chosen",
     "recipientCount_other": "{{count}} people already chosen",
-    "noRoster": "Choosing who is told needs user-admin rights. The people already on each rule are kept as they are.",
+    "noRoster": "The list of people could not be read. Reload to choose who is told.",
     "saveRules": "Save the rules",
     "saveDelivery": "Save how you are told",
     "saved": "Saved.",
@@ -14182,7 +14182,8 @@
         "above": "<b>{{percent}}%</b> above the usual amount.",
         "below": "<b>{{percent}}%</b> below the usual amount."
       }
-    }
+    },
+    "unreadable": "Reminders could not be read. Reload to try again."
   },
   "onboarding": {
     "sessionExpired": "Your signup session has ended. If you need help finishing your registration, contact Fawtir support.",
@@ -16177,7 +16178,10 @@
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
       "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
-      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
+      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first.",
+      "reminderRepeatNotAllowed": "That reminder does not repeat.",
+      "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
+      "reminderDaysOutOfRange": "That number of days is outside the range the server accepts."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",

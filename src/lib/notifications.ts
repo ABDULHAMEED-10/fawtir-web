@@ -257,6 +257,8 @@ type NotesState = {
   owner: string | null
   /** The newest lines, or null before the first answer. */
   items: readonly ReminderInboxItemDto[] | null
+  /** The latest read of the lines did not answer. Any lines read before it are kept. */
+  listFailed: boolean
   /** The server's own count of unread, which no page of the list caps. */
   unread: number
   /** Put away for this visit. "See them all" brings them back. */
@@ -268,6 +270,7 @@ type NotesState = {
 const EMPTY: NotesState = {
   owner: null,
   items: null,
+  listFailed: false,
   unread: 0,
   dismissed: new Set(),
   done: new Map(),
@@ -332,6 +335,7 @@ async function read(withList: boolean): Promise<void> {
   set({
     ...state,
     items,
+    listFailed: withList ? list.status === 'rejected' : state.listFailed,
     unread: count.status === 'fulfilled' ? count.value : state.unread,
   })
 }
@@ -433,6 +437,8 @@ export function useNotes(scope: NoteScope = 'tenant') {
     unread: mine ? current.unread : 0,
     /** False while the first read of the list is still on its way. */
     loaded: !mine || current.items !== null,
+    /** The lines could not be read, so an empty list here is not "nothing to show". */
+    failed: mine && current.listFailed,
     isRead: (id: string) => {
       const item = items.find((entry) => entry.id === id)
       return item ? isAcknowledged(item) : true

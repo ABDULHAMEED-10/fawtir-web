@@ -301,10 +301,11 @@ export function NotificationsPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {/* Nothing is claimed while the first read is still on its way. */}
-        {!notes.loaded ? null : groups.length === 0 ? (
+        {/* Nothing is claimed while the first read is still on its way. With no line to show,
+            the panel's one empty-state line says which it is: nothing there, or not read. */}
+        {!notes.loaded && !notes.failed ? null : groups.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm font-medium text-text-tertiary">
-            {t('notes.allCaughtUp')}
+            {t(notes.failed ? 'notes.unreadable' : 'notes.allCaughtUp')}
           </p>
         ) : (
           groups.map(({ group, items }) => (

@@ -218,16 +218,20 @@ function Editor({
   // save; a rule that is then saved carries its one timing.
   const savedRules = useMemo(() => rulesOnFile.map(withOneTiming), [rulesOnFile])
   const [draft, setDraft] = useState<ReminderRuleDto[]>(savedRules)
+  // The rules on file. The page's read, until a save writes the rules and then fails on the
+  // settings: the rules are saved all the same, so the server's answer to that save stands here.
+  const [onFile, setOnFile] = useState<ReminderRuleDto[]>(savedRules)
   const [delivery, setDelivery] = useState<ReminderSettingsDto>(savedSettings)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
   useEffect(() => setDraft(savedRules), [savedRules])
+  useEffect(() => setOnFile(savedRules), [savedRules])
   useEffect(() => setDelivery(savedSettings), [savedSettings])
 
-  // The people come from the names-only list, readable by whoever may save these rules. A server
-  // from before that list refuses the read: the rules stay editable and the people already on
-  // them travel back untouched.
+  // The people come from the names-only list, readable by whoever may save these rules. When it
+  // cannot be read (a server from before that list, or any failed read) the page says so: the
+  // rules stay editable and the people already on them travel back untouched.
   const people = useApiRead<ReminderRecipientDto[]>(
     canManage ? POSSIBLE_RECIPIENTS_PATH : null,
     loadPossibleRecipients,
@@ -250,7 +254,7 @@ function Editor({
       problems.set(type, 'recipients')
   }
 
-  const changed = editable.filter((rule) => ruleChanged(savedRules, rule))
+  const changed = editable.filter((rule) => ruleChanged(onFile, rule))
   const deliveryDirty =
     delivery.delivery !== savedSettings.delivery ||
     delivery.digestTime !== savedSettings.digestTime ||
@@ -268,12 +272,26 @@ function Editor({
   const save = async () => {
     setBusy(true)
     setFailure(null)
+    // Two calls, rules first. What the rules call answered, if it went through.
+    let rulesNowOnFile: ReminderRuleDto[] | null = null
     try {
-      if (changed.length > 0) await saveReminderRules(changed)
+      if (changed.length > 0) rulesNowOnFile = (await saveReminderRules(changed)).rules ?? null
       if (deliveryDirty) await saveReminderSettings(delivery)
       setNotice(t('expenditureReminders.saved'))
       onSaved()
     } catch (error) {
+      // The rules were written and the settings were not. The rules are shown as the server now
+      // holds them, so they no longer read as unsaved and are not sent again; the settings edit
+      // stays as typed and Save stays lit for it. Taken from the save's own answer, not a fresh
+      // read: a read takes this editor down, and the settings edit and this failure with it.
+      // TODO(owner): the failure below is the settings' own, in the sentence the page already
+      // has. It does not say that the rules were saved. Whether it should is the owner's call.
+      if (rulesNowOnFile) {
+        // Read the same way as the page's own read: a row that takes one timing holds one.
+        const nowOnFile = rulesNowOnFile.map(withOneTiming)
+        setOnFile(nowOnFile)
+        setDraft(nowOnFile)
+      }
       setNotice(null)
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)

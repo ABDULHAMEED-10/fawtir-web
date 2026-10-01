@@ -101,6 +101,8 @@ function json(status: number, body?: unknown) {
 const NOT_FOUND = { type: 'https://api.fawtir.om/problems/resource-not-found', status: 404 }
 
 let fetchMock: ReturnType<typeof vi.fn>
+/** The server as it answers when it is up, so a test that breaks it can put it back. */
+let server: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 /** The reader's inbox on the server, newest first. */
 let inbox: ReminderInboxItemDto[]
 /** Unread rows the server holds beyond the ones the list returns. */
@@ -147,7 +149,7 @@ beforeEach(async () => {
   acknowledgeStatus = 204
   calls = []
 
-  fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  server = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(
       String(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url),
       'http://localhost',
@@ -183,7 +185,8 @@ beforeEach(async () => {
       return json(200, rows.slice(0, Number(url.searchParams.get('limit'))).map(answer))
     }
     return json(404, NOT_FOUND)
-  })
+  }
+  fetchMock = vi.fn(server)
   vi.stubGlobal('fetch', fetchMock)
 })
 
@@ -565,16 +568,101 @@ describe('whose bell it is', () => {
     expect(await within(theirs).findByText('You are all caught up.')).toBeTruthy()
     expect(within(theirs).queryByText('Bill ME-991 is 3 days late')).toBeNull()
   })
+})
 
-  it('leaves the bell as it was when the inbox cannot be read', async () => {
-    fetchMock.mockImplementation(async () => json(500, { status: 500 }))
+describe('an inbox that cannot be read', () => {
+  const SENTENCE = 'Reminders could not be read. Reload to try again.'
+  const failEverything = () => fetchMock.mockImplementation(async () => json(500, { status: 500 }))
+
+  it('says so in the panel, in the line that otherwise says there is nothing', async () => {
+    failEverything()
     renderBell()
     const panel = await openPanel()
-    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2))
-    // No count, no line, and no claim that there is nothing: the read did not answer.
+    const line = await within(panel).findByText(SENTENCE)
+    // The panel's own empty-state line, not a new element beside it.
+    expect(line.tagName).toBe('P')
+    expect(line.className).toContain('py-12')
+    expect(line.className).toContain('text-center')
+    // No count, no line, and no claim that there is nothing.
     expect(bell().textContent).toBe('')
     expect(within(panel).queryAllByRole('listitem')).toHaveLength(0)
     expect(within(panel).queryByText('You are all caught up.')).toBeNull()
+    expect(markAll(panel)).toHaveProperty('disabled', true)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    failEverything()
+    renderBell()
+    fireEvent.click(screen.getByRole('button', { name: /^الإشعارات/ }))
+    const panel = await screen.findByRole('dialog', { name: 'الإشعارات' })
+    expect(
+      await within(panel).findByText('تعذّرت قراءة التذكيرات. أعد التحميل للمحاولة مجددًا.'),
+    ).toBeTruthy()
+    expect(within(panel).queryByText('لا جديد لديك.')).toBeNull()
+    expect(within(panel).queryByText(/could not be read/)).toBeNull()
+  })
+
+  it('does not go on saying "all caught up" when a later read of an empty inbox fails', async () => {
+    renderBell()
+    const panel = await openPanel()
+    expect(await within(panel).findByText('You are all caught up.')).toBeTruthy()
+    fireEvent.click(bell())
+
+    failEverything()
+    const again = await openPanel()
+    expect(await within(again).findByText(SENTENCE)).toBeTruthy()
+    expect(within(again).queryByText('You are all caught up.')).toBeNull()
+  })
+
+  it('keeps the lines it had when a later read fails, and shows no sentence over them', async () => {
+    inbox = [LATE]
+    renderBell()
+    const panel = await openPanel()
+    await within(panel).findByText('Bill ME-991 is 3 days late')
+    fireEvent.click(bell())
+
+    // Counted on the stub itself: the failing server keeps no log of its own.
+    const listReads = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('/bill-reminders/inbox?')).length
+    const before = listReads()
+    failEverything()
+    const again = await openPanel()
+    await waitFor(() => expect(listReads()).toBeGreaterThan(before))
+    await waitFor(() => expect(within(again).getByText('Bill ME-991 is 3 days late')).toBeTruthy())
+    expect(within(again).queryByText(SENTENCE)).toBeNull()
+  })
+
+  it('shows the lines again once the read answers', async () => {
+    failEverything()
+    renderBell()
+    const panel = await openPanel()
+    await within(panel).findByText(SENTENCE)
+    fireEvent.click(bell())
+
+    inbox = [LATE]
+    fetchMock.mockImplementation(server)
+    const again = await openPanel()
+    expect(await within(again).findByText('Bill ME-991 is 3 days late')).toBeTruthy()
+    expect(within(again).queryByText(SENTENCE)).toBeNull()
+    await waitFor(() => expect(bell().textContent).toBe('1'))
+  })
+
+  it('does not say it for a server from before the bell, whose list still answers', async () => {
+    modern = false
+    renderBell()
+    const panel = await openPanel()
+    expect(await within(panel).findByText('You are all caught up.')).toBeTruthy()
+    expect(within(panel).queryByText(SENTENCE)).toBeNull()
+  })
+
+  it('does not say it to someone with no inbox to read', async () => {
+    failEverything()
+    renderBell({ ...READER, permissions: ['customer.read'] })
+    const panel = await openPanel()
+    expect(within(panel).getByText('You are all caught up.')).toBeTruthy()
+    expect(within(panel).queryByText(SENTENCE)).toBeNull()
+    expect(calls).toHaveLength(0)
   })
 })
 
