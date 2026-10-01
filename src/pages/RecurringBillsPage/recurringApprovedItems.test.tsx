@@ -1368,7 +1368,7 @@ describe('a save the server refuses, on the add and edit form', () => {
     [
       'RECURRING_BILL_SUPPLIER_SWITCHED_OFF',
       'This supplier is switched off. Switch it back on to add a recurring bill for it.',
-      'هذا المورّد موقوف. أعد تشغيله لإضافة فاتورة متكررة له.',
+      'هذا المورد موقوف. أعد تفعيله لإضافة فاتورة متكررة له.',
     ],
     [
       'RECURRING_BILL_RECIPIENT_UNKNOWN',

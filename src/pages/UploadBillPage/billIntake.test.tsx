@@ -772,7 +772,7 @@ describe('why a captured bill was refused, in its own sentence', () => {
     confirmAnswers.push(refusal(400, 'expenditure-refused', 'SUPPLIER_SWITCHED_OFF'))
     await i18n.changeLanguage('ar')
     await uploadAndSave('/expenditure/bills/upload', i18n.t('uploadBill.saveBill'))
-    expect(await screen.findByText('هذا المورّد موقوف. أعد تشغيله لتسجيل فاتورة له.')).toBeTruthy()
+    expect(await screen.findByText('هذا المورّد موقوف. أعد تفعيله لتسجيل فاتورة له.')).toBeTruthy()
   })
 
   it('keeps the general refusal for a code with no sentence of its own', async () => {
@@ -796,7 +796,7 @@ describe('why a captured bill was refused, in its own sentence', () => {
     confirmAnswers.push(refusal(400, 'expenditure-refused', 'BILL_INTAKE_PETTY_CASH_NOT_CASH'))
     await i18n.changeLanguage('ar')
     await uploadAndSave('/expenditure/bills/upload', i18n.t('uploadBill.saveBill'))
-    expect(await screen.findByText('المصروفات النثرية لا تُسجَّل إلا نقدًا.')).toBeTruthy()
+    expect(await screen.findByText('المصروف النثري لا يُسجَّل إلا نقدًا.')).toBeTruthy()
   })
 
   it('does not call a debit note a bill: its capture keeps the general refusal', async () => {

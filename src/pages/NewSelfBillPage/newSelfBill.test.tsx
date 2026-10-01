@@ -407,7 +407,7 @@ describe('the dedicated self-billed composer', () => {
     it('says so in Arabic', async () => {
       await i18n.changeLanguage('ar')
       const dialog = await issue(SWITCHED_OFF)
-      expect(await within(dialog).findByText('هذا المورّد موقوف. أعد تشغيله ثم أصدر.')).toBeTruthy()
+      expect(await within(dialog).findByText('هذا المورّد موقوف. أعد تفعيله ثم أصدر.')).toBeTruthy()
     })
 
     it('still names a counterparty refusal as before', async () => {

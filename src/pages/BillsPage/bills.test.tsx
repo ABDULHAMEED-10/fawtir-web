@@ -1203,7 +1203,7 @@ describe('why a rejection was refused, in its own sentence', () => {
     decisionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
     await hold()
     expect(
-      await screen.findByText('السبب طويل أكثر من اللازم. اختصره ثم علّق الفاتورة من جديد.'),
+      await screen.findByText('السبب طويل أكثر من اللازم. اختصره ثم ضع الفاتورة قيد الانتظار من جديد.'),
     ).toBeTruthy()
   })
 
