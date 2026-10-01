@@ -148,6 +148,19 @@ export const RECURRING_REFUSALS: Record<string, string> = {
   RECURRING_BILL_PAUSED: 'recurringBills.chase.paused',
 }
 
+/**
+ * The same refusals as the add / edit form says them. Draft wording, pending the owner
+ * (Wording-For-Abdul.md section 8). A switched-off supplier is one code with two sentences: on
+ * the list and the detail it refuses a Resume ("then resume this recurring bill"), on the form
+ * it refuses the save, where there is nothing to resume. The person under "who gets told" is
+ * chosen on the form alone.
+ */
+export const RECURRING_FORM_REFUSALS: Record<string, string> = {
+  ...RECURRING_REFUSALS,
+  RECURRING_BILL_SUPPLIER_SWITCHED_OFF: 'recurringBills.refused.formSupplierSwitchedOff',
+  RECURRING_BILL_RECIPIENT_UNKNOWN: 'recurringBills.refused.recipientUnknown',
+}
+
 /* -------------------------------------------------------------- the row's words */
 
 /** The tile glyph a watch is drawn with, read off the category it was filed under. */
