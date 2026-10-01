@@ -109,18 +109,53 @@ export type ReminderPreviewDto = {
   groups: ReminderPreviewGroupDto[]
 }
 
+/**
+ * What a notice is about, for the page to write its own sentence. For the six bill and scan rules
+ * it is the rule type; the three recurring ones all arrive as rule type `RECURRING_LATE`.
+ */
+export type ReminderReasonDto =
+  | ConfigurableRuleType
+  | 'RECURRING_LATE'
+  | 'RECURRING_CHASE'
+  | 'RECURRING_OUT_OF_RANGE'
+
+/**
+ * `InboxItemResponse`. The first eleven fields are the original answer. The rest are what the bell
+ * needs and are all optional here: a server from before them leaves them out, and a notice
+ * recorded before them carries `subjectDisplay`, `amount` and `currency` as null.
+ */
 export type ReminderInboxItemDto = {
   id: string
   ruleType: ReminderRuleTypeDto
   subjectType: ReminderSubjectTypeDto
   subjectId: string
+  /** Set when the subject is a bill: where its line leads. */
   billId: string | null
+  /**
+   * Read by `reason`. Before due and discount: zero or negative, the days still to go. Late and
+   * the two recurring "late" reasons: days late. Approval, mismatch, scan: days it has waited.
+   */
   daysFromDue: number
   firedOn: string
+  /** The English sentence the server wrote when it recorded the notice. */
   headline: string
   outcome: string
   createdAt: string
   acknowledgedAt: string | null
+  reason?: ReminderReasonDto
+  occasion?: 'LATE' | 'CHASE' | 'OUT_OF_RANGE' | null
+  occasionDate?: string | null
+  /** The bill's number, the uploaded file's name or the recurring bill's name. */
+  subjectDisplay?: string | null
+  amount?: number | null
+  currency?: string | null
+  recurringBillId?: string | null
+  intakeId?: string | null
+  /** `RECURRING_OUT_OF_RANGE` only: the bill that arrived outside the range. */
+  arrivedBillId?: string | null
+  /** `RECURRING_OUT_OF_RANGE` only: signed, for example `16.67`. */
+  variancePercent?: number | null
+  read?: boolean
 }
 
 export function loadReminderRules(): Promise<ReminderRulesDto> {
@@ -187,6 +222,23 @@ export function loadReminderInbox(path: string): Promise<ReminderInboxItemDto[]>
 /** Scoped to the caller: a reminder addressed to someone else answers 404. */
 export async function acknowledgeReminder(id: string): Promise<void> {
   await apiRequest<unknown>(`${BILL_REMINDERS_PATH}/inbox/${encodeURIComponent(id)}/acknowledge`, { method: 'POST' })
+}
+
+export const REMINDER_UNREAD_COUNT_PATH = `${BILL_REMINDERS_PATH}/inbox/unread-count`
+
+/** The caller's own unread notices, which no page limit caps. */
+export async function loadReminderUnreadCount(): Promise<number> {
+  const answer = await apiRequest<{ unread?: number }>(REMINDER_UNREAD_COUNT_PATH)
+  return answer.unread ?? 0
+}
+
+/** Marks every unread notice addressed to the caller as read; answers how many it marked. */
+export async function acknowledgeAllReminders(): Promise<number> {
+  const answer = await apiRequest<{ acknowledged?: number } | null>(
+    `${BILL_REMINDERS_PATH}/inbox/acknowledge-all`,
+    { method: 'POST' },
+  )
+  return answer?.acknowledged ?? 0
 }
 
 /**
