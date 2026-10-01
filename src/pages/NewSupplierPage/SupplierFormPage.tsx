@@ -48,6 +48,7 @@ import { GOVERNORATES, GOVERNORATE_NAMES, governorateIdFor } from '../../lib/gov
 import {
   blankSupplierForm,
   fromSupplierDetail,
+  hasBankAccount,
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
@@ -956,7 +957,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   label={t('supplierEdit.complete.peppol')}
                 />
                 <CheckItem
-                  done={!health.has('NO_BANK_DETAILS') && record.profile.bankDetails !== null}
+                  done={!health.has('NO_BANK_DETAILS') && hasBankAccount(record.profile.bankDetails)}
                   label={t('supplierEdit.complete.iban')}
                 />
                 <CheckItem

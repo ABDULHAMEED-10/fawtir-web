@@ -174,8 +174,19 @@ export type SupplierDetailDto = {
     defaultTaxCategory: string | null
     paymentTerms: string | null
     defaultPaymentMethod: string | null
-    bankDetails:
-      (SupplierBankDetailsDto & { changedAt: string | null; confirmedAt: string | null }) | null
+    /**
+     * The backend always sends the object; a supplier with no account on file gets every field
+     * null. Read "has an account" from the IBAN (`hasBankAccount` in lib/supplierForm), never from
+     * the object being there.
+     */
+    bankDetails: {
+      beneficiaryName: string | null
+      iban: string | null
+      bic: string | null
+      bankName: string | null
+      changedAt: string | null
+      confirmedAt: string | null
+    } | null
     contactPerson: string | null
     roleTitle: string | null
     emailRecipients: string[] | null

@@ -129,7 +129,15 @@ function supplierDetail(row) {
       defaultTaxCategory: 'S5',
       paymentTerms: 'NET30',
       defaultPaymentMethod: '30',
-      bankDetails: null,
+      // As the backend does: no account on file is an object of nulls, never null.
+      bankDetails: {
+        beneficiaryName: null,
+        iban: null,
+        bic: null,
+        bankName: null,
+        changedAt: null,
+        confirmedAt: null,
+      },
       contactPerson: null,
       roleTitle: null,
       emailRecipients: null,
