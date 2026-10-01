@@ -5,6 +5,7 @@ import { AppShell } from '../../layouts/AppShell'
 import {
   ActionMenu,
   FilterMenu,
+  Modal,
   OmAmount,
   RowsView,
   Select,
@@ -16,32 +17,39 @@ import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback
 import { useApiRead } from '../../hooks'
 import {
   PERIODIC_SCHEDULES_PATH,
+  deletePeriodicSchedule,
   loadPeriodicSchedules,
+  runPeriodicNow,
   setPeriodicActive,
   type PeriodicScheduleDto,
   type RecurrenceInterval,
 } from '../../api/invoices/periodic'
 import { customerListPath, loadCustomerPage, type CustomerDto } from '../../api/customers/customers'
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
-import type { Page } from '../../api'
+import { ApiError, type Page } from '../../api'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
 import {
   PERIODIC_INTERVALS,
+  PERIODIC_REFUSALS,
   PERIODIC_SORTS,
   PERIODIC_TABS,
   cadenceNote,
   countTab,
   generatedThisMonth,
+  isLastRun,
   monthlyEquivalent,
   narrowSchedules,
+  ownTemplateInfo,
   periodicCounts,
+  runsDueSoon,
   scheduleName,
   scheduleNote,
   scheduleStatus,
   scheduleTone,
   sortSchedules,
+  upcomingRuns,
   type PeriodicSortId,
   type PeriodicStatus,
   type PeriodicTabId,
@@ -99,6 +107,15 @@ const STATUS_STYLES: Record<PeriodicStatus, string> = {
  * references come from the customers and invoices lists, read once each.
  */
 export function PeriodicInvoicesPage() {
+  return (
+    <AppShell>
+      <PeriodicInvoicesContent />
+    </AppShell>
+  )
+}
+
+/** The page itself, inside the shell so `useSession()` reads the session the shell provides. */
+function PeriodicInvoicesContent() {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
@@ -173,8 +190,14 @@ export function PeriodicInvoicesPage() {
     [invoices.read],
   )
   const nameOf = (customerId: string) => names.get(customerId)
+  // The schedule's own template wins, as it does when a run drafts; the invoice is then only the
+  // pre-fill it started from.
   const templateOf = (schedule: PeriodicScheduleDto) =>
-    schedule.templateInvoiceId ? templates.get(schedule.templateInvoiceId) : undefined
+    schedule.template
+      ? ownTemplateInfo(schedule.template)
+      : schedule.templateInvoiceId
+        ? templates.get(schedule.templateInvoiceId)
+        : undefined
   const titleOf = (schedule: PeriodicScheduleDto) =>
     scheduleName(templateOf(schedule), nameOf(schedule.customerId)) ??
     t('periodicList.unknownCustomer')
@@ -186,13 +209,11 @@ export function PeriodicInvoicesPage() {
     (sum, schedule) => sum + monthlyEquivalent(amountOf(schedule), schedule.interval),
     0,
   )
-  const dueSoonAmount = activeRows
-    .filter(
-      (schedule) =>
-        scheduleNote(schedule, today).key !== 'periodicList.state.finished' &&
-        daysUntil(today, schedule.nextRunDate) <= 30,
-    )
-    .reduce((sum, schedule) => sum + amountOf(schedule), 0)
+  // Every run due in the window, not only each schedule's next one.
+  const dueSoonAmount = activeRows.reduce(
+    (sum, schedule) => sum + amountOf(schedule) * runsDueSoon(schedule, today),
+    0,
+  )
 
   const visible = sortSchedules(
     narrowSchedules(rows, tab, search, nameOf, templateOf, interval === 'all' ? null : interval),
@@ -211,6 +232,78 @@ export function PeriodicInvoicesPage() {
     change()
   }
 
+  const fail = (error: unknown) => {
+    const code = error instanceof ApiError ? error.code : null
+    if (code && PERIODIC_REFUSALS[code]) {
+      setNotice({ key: PERIODIC_REFUSALS[code] })
+      return
+    }
+    const message = describeApiFailure(error)
+    const body = t(message.key, message.values)
+    setNotice({
+      body: message.reference
+        ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
+        : body,
+    })
+  }
+
+  /** "Generate invoice": raises the next run now; the schedule then moves on one interval. */
+  const generate = async (schedule: PeriodicScheduleDto) => {
+    setNotice(null)
+    setBusy(schedule.id)
+    try {
+      const run = await runPeriodicNow(schedule.id)
+      schedules.retry()
+      if (run.outcome !== 'DRAFTED') {
+        setNotice({ key: 'periodicList.done.generateFailed' })
+        return
+      }
+      // The run just raised was the schedule's next one; the one after it is now next.
+      const next = upcomingRuns(schedule, 2)[1]
+      setNotice(
+        next && !isLastRun(schedule)
+          ? { body: t('periodicList.done.generated', { date: formatDate(next, language) }) }
+          : { key: 'periodicList.done.generatedLast' },
+      )
+    } catch (error) {
+      fail(error)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  // Generate raises a real draft and moves the schedule on, so a mis-click is asked about first;
+  // a second click the same day is refused by the server, so no limit is kept here.
+  const [generating, setGenerating] = useState<PeriodicScheduleDto | null>(null)
+  // The last run is known from the runs left (or the end date), never from an empty list.
+  const generatingNext =
+    generating && !isLastRun(generating) ? upcomingRuns(generating, 2)[1] : undefined
+  const onGenerate = () => {
+    if (!generating) return
+    const target = generating
+    setGenerating(null)
+    void generate(target)
+  }
+
+  const [deleting, setDeleting] = useState<PeriodicScheduleDto | null>(null)
+  const onDelete = async () => {
+    if (!deleting) return
+    const target = deleting
+    setDeleting(null)
+    setNotice(null)
+    setBusy(target.id)
+    try {
+      await deletePeriodicSchedule(target.id)
+      setSelected((current) => current.filter((selectedId) => selectedId !== target.id))
+      setNotice({ key: 'periodicList.done.deleted' })
+    } catch (error) {
+      fail(error)
+    } finally {
+      setBusy(null)
+      schedules.retry()
+    }
+  }
+
   const toggle = async (schedule: PeriodicScheduleDto) => {
     setNotice(null)
     setBusy(schedule.id)
@@ -227,21 +320,19 @@ export function PeriodicInvoicesPage() {
             },
       )
     } catch (error) {
-      const message = describeApiFailure(error)
-      const body = t(message.key, message.values)
-      setNotice({
-        body: message.reference
-          ? `${body} ${t('apiErrors.reference', { id: message.reference })}`
-          : body,
-      })
+      fail(error)
     } finally {
       setBusy(null)
     }
   }
 
+  // The ticked rows when there are any, else the list as narrowed.
+  const picked = rows.filter((schedule) => selected.includes(schedule.id))
+  const exported = picked.length > 0 ? sortSchedules(picked, sort, titleOf, amountOf) : visible
+
   const exportCsv = () => {
     const header = ['schedule', 'customer', 'frequency', 'next_run', 'per_invoice', 'status']
-    const lines = visible.map((schedule) =>
+    const lines = exported.map((schedule) =>
       [
         titleOf(schedule),
         nameOf(schedule.customerId) ?? schedule.customerId,
@@ -264,53 +355,64 @@ export function PeriodicInvoicesPage() {
     URL.revokeObjectURL(url)
   }
 
-  /** The row menu as the design's Actions frame (154:166746) lists it. */
-  const menuFor = (schedule: PeriodicScheduleDto): ActionMenuItem[] => [
-    {
-      id: 'view',
-      labelKey: 'periodicList.menu.view',
-      icon: viewIcon,
-      to: `/income/periodic/${schedule.id}`,
-    },
-    ...(canManage
-      ? [
-          {
-            id: 'generate',
-            labelKey: 'periodicList.menu.generate',
-            icon: generateIcon,
-            // TODO(backend): a run-now route; the sweep is the only thing that raises a draft today.
-            onSelect: () => setNotice({ key: 'periodicList.notYet.generate' }),
-          },
-          schedule.active
-            ? {
-                id: 'pause',
-                labelKey: 'periodicList.menu.pause',
-                icon: pauseIcon,
-                onSelect: () => void toggle(schedule),
-              }
-            : {
-                id: 'resume',
-                labelKey: 'periodicList.menu.resume',
-                icon: resumeIcon,
-                onSelect: () => void toggle(schedule),
-              },
-          {
-            id: 'duplicate',
-            labelKey: 'periodicList.menu.duplicate',
-            icon: duplicateIcon,
-            to: `/income/periodic/new?copy=${schedule.id}`,
-          },
-          {
-            id: 'delete',
-            labelKey: 'periodicList.menu.delete',
-            icon: deleteIcon,
-            danger: true,
-            // TODO(backend): a delete route; pause is the only stop the API has.
-            onSelect: () => setNotice({ key: 'periodicList.notYet.delete' }),
-          },
-        ]
-      : []),
-  ]
+  /**
+   * The row menu as the design's Actions frame (154:166746) lists it. Generate is offered only on
+   * an active series (the server refuses a paused or finished one), and a finished series has
+   * nothing to pause or resume.
+   */
+  const menuFor = (schedule: PeriodicScheduleDto): ActionMenuItem[] => {
+    const status = scheduleStatus(schedule)
+    return [
+      {
+        id: 'view',
+        labelKey: 'periodicList.menu.view',
+        icon: viewIcon,
+        to: `/income/periodic/${schedule.id}`,
+      },
+      ...(canManage
+        ? [
+            ...(status === 'active'
+              ? [
+                  {
+                    id: 'generate',
+                    labelKey: 'periodicList.menu.generate',
+                    icon: generateIcon,
+                    onSelect: () => setGenerating(schedule),
+                  },
+                  {
+                    id: 'pause',
+                    labelKey: 'periodicList.menu.pause',
+                    icon: pauseIcon,
+                    onSelect: () => void toggle(schedule),
+                  },
+                ]
+              : status === 'paused'
+                ? [
+                    {
+                      id: 'resume',
+                      labelKey: 'periodicList.menu.resume',
+                      icon: resumeIcon,
+                      onSelect: () => void toggle(schedule),
+                    },
+                  ]
+                : []),
+            {
+              id: 'duplicate',
+              labelKey: 'periodicList.menu.duplicate',
+              icon: duplicateIcon,
+              to: `/income/periodic/new?copy=${schedule.id}`,
+            },
+            {
+              id: 'delete',
+              labelKey: 'periodicList.menu.delete',
+              icon: deleteIcon,
+              danger: true,
+              onSelect: () => setDeleting(schedule),
+            },
+          ]
+        : []),
+    ]
+  }
 
   const generated = generatedThisMonth(rows, today, amountOf)
   const onRequestCount = countTab(rows, 'onRequest')
@@ -332,8 +434,7 @@ export function PeriodicInvoicesPage() {
       meta: t('periodicList.kpi.dueMeta', { count: counts.dueSoon }),
     },
     {
-      // TODO(backend): counted from each schedule's `lastRunDate` and per-invoice amount once the
-      // API carries them; until then the runs are only readable one schedule at a time.
+      // Counted from each schedule's `lastRunDate` and per-invoice amount, when the API carries them.
       id: 'generated',
       icon: generatedIcon,
       title: t('periodicList.kpi.generated'),
@@ -356,7 +457,7 @@ export function PeriodicInvoicesPage() {
   ]
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
@@ -379,7 +480,7 @@ export function PeriodicInvoicesPage() {
             <button
               type="button"
               onClick={exportCsv}
-              disabled={visible.length === 0}
+              disabled={exported.length === 0}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
             >
               <img src={exportIcon} alt="" className="size-6 rotate-180" />
@@ -702,7 +803,7 @@ export function PeriodicInvoicesPage() {
                             )}
                           </td>
                           <td className="px-2 py-2.5">
-                            {/* TODO(backend): `runCount` and `lastRunDate` on the schedule; the runs are only readable one schedule at a time. */}
+                            {/* `runCount` and `lastRunDate` on the schedule, when present; otherwise the runs are read on the schedule's page. */}
                             {schedule.runCount === undefined ? (
                               <Link
                                 to={`/income/periodic/${schedule.id}`}
@@ -792,12 +893,66 @@ export function PeriodicInvoicesPage() {
           {t('periodicList.sweepNote')}
         </p>
       </div>
-    </AppShell>
-  )
-}
 
-function daysUntil(from: string, to: string): number {
-  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+      <Modal
+        open={generating !== null}
+        onClose={() => setGenerating(null)}
+        title={t('periodicList.generateTitle')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setGenerating(null)}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={onGenerate}
+              className="inline-flex h-11 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white hover:bg-primary-800"
+            >
+              {t('periodicList.generateConfirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {generatingNext
+            ? t('periodicList.generateBody', { date: formatDate(generatingNext, language) })
+            : t('periodicList.generateBodyLast')}
+        </p>
+      </Modal>
+
+      <Modal
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title={t('periodicList.deleteTitle')}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setDeleting(null)}
+              className="inline-flex h-11 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={() => void onDelete()}
+              className="inline-flex h-11 items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white"
+            >
+              {t('periodicList.deleteConfirm')}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm font-medium leading-[1.5] text-text-secondary">
+          {t('periodicList.deleteBody')}
+        </p>
+      </Modal>
+    </>
+  )
 }
 
 /** The list pager as the invoices list draws it: first, last and a window around the current page. */

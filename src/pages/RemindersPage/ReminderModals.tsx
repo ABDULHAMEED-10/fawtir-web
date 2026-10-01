@@ -3,24 +3,26 @@ import { useTranslation } from 'react-i18next'
 import { Combobox, DateField, Modal, OmAmount, type SelectOption } from '../../components/ui'
 import { LoadingNotice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
-import { ApiError } from '../../api'
 import {
+  invoiceRemindersPath,
+  loadInvoiceReminders,
   loadReminderPreview,
   reminderPreviewPath,
   sendReminderNow,
+  type ReminderLogDto,
   type ReminderPreviewDto,
 } from '../../api/invoices/reminders'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
 import {
-  REMINDER_REFUSALS,
-  VERDICT_NOTE,
   addDays,
   canSendByHand,
   normaliseOffsets,
+  reminderRefusalNote,
   rungNote,
   rungToday,
   stepOf,
+  verdictNoteFor,
   type QueueEntry,
   type ReminderTone,
 } from '../../lib/paymentReminders'
@@ -154,19 +156,26 @@ export function SendReminderModal({
   const chosen = entry ?? entries.find((candidate) => candidate.invoice.id === chosenId) ?? null
   const ladder = normaliseOffsets(offsets)
   const today = muscatToday()
+  // Today's distance from the due date, as the invoice page uses. Not the queue's next rung: that
+  // can be a later one, and the server writes the message from the rung it is given, so sending it
+  // early would tell the customer the wrong number of days and spend that rung before its day.
   const fallback = chosen ? rungToday(today, chosen.invoice.dueDate) : null
   const [picked, setPicked] = useState<number | null>(null)
-  const rung =
-    picked ??
-    chosen?.next?.offset ??
-    ladder.find((offset) => offset === fallback) ??
-    ladder[0] ??
-    fallback
+  const rung = picked ?? fallback ?? ladder[0] ?? null
   const previewPath = chosen ? reminderPreviewPath(chosen.invoice.id, rung) : null
   const preview = useApiRead<ReminderPreviewDto>(previewPath, () =>
     loadReminderPreview(previewPath ?? ''),
   )
   const shown = preview.read.status === 'ready' ? preview.read.data : null
+  // The rungs this invoice has spent, so an ALREADY_SENT on a rung never used reads as the
+  // one-by-hand-a-day rule. The queue's log is only the recent page, so the invoice's own is read.
+  const firedPath =
+    chosen && shown?.verdict === 'ALREADY_SENT' ? invoiceRemindersPath(chosen.invoice.id) : null
+  const firedLog = useApiRead<ReminderLogDto[]>(firedPath, () =>
+    loadInvoiceReminders(firedPath ?? ''),
+  )
+  const fired =
+    firedLog.read.status === 'ready' ? firedLog.read.data.map((row) => row.daysFromDue) : null
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -178,8 +187,12 @@ export function SendReminderModal({
       const sent = await sendReminderNow(chosen.invoice.id, rung)
       onSent(sent.recipient)
     } catch (error) {
-      const code = error instanceof ApiError ? error.code : null
-      if (code && REMINDER_REFUSALS[code]) setNotice(t(REMINDER_REFUSALS[code]))
+      const refusal = reminderRefusalNote(
+        error,
+        rung,
+        chosen.spent.map((row) => row.daysFromDue),
+      )
+      if (refusal) setNotice(t(refusal))
       else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
@@ -296,7 +309,7 @@ export function SendReminderModal({
           ) : null}
           {shown && shown.verdict !== 'SEND' ? (
             <p className="mt-4 text-sm font-medium text-text-tertiary">
-              {t(VERDICT_NOTE[shown.verdict])}
+              {t(verdictNoteFor(shown.verdict, shown.rung ?? rung, fired))}
               {canSendByHand(shown.verdict)
                 ? ` ${t('paymentReminders.invoice.stillSendable')}`
                 : ''}

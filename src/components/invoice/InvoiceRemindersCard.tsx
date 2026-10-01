@@ -13,8 +13,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatDate } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
-import { OUTCOME_TONE, REMINDER_REFUSALS, VERDICT_NOTE, canSendByHand, outcomeNote, rungNote, rungToday } from '../../lib/paymentReminders'
-import { ApiError } from '../../api'
+import { OUTCOME_TONE, canSendByHand, outcomeNote, reminderRefusalNote, rungNote, rungToday, verdictNoteFor } from '../../lib/paymentReminders'
 
 const TONE: Record<'ok' | 'warn' | 'muted', string> = {
   ok: 'text-text-secondary',
@@ -34,7 +33,16 @@ const TONE: Record<'ok' | 'warn' | 'muted', string> = {
  */
 const muscatToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
 
-export function InvoiceRemindersCard({ invoiceId, dueDate }: { invoiceId: string; dueDate: string | null }) {
+export function InvoiceRemindersCard({
+  invoiceId,
+  dueDate,
+  noteType,
+}: {
+  invoiceId: string
+  dueDate: string | null
+  /** A debit note is chased like an invoice, and its settled line names it rather than "the invoice". */
+  noteType?: 'DEBIT_NOTE'
+}) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
   const session = useSession()
@@ -55,6 +63,7 @@ export function InvoiceRemindersCard({ invoiceId, dueDate }: { invoiceId: string
 
   const shown = preview.read.status === 'ready' ? preview.read.data : null
   const rows = history.read.status === 'ready' ? history.read.data : []
+  const fired = history.read.status === 'ready' ? rows.map((row) => row.daysFromDue) : null
 
   const send = async () => {
     setSending(true)
@@ -67,9 +76,9 @@ export function InvoiceRemindersCard({ invoiceId, dueDate }: { invoiceId: string
     } catch (error) {
       // The four reminder refusals each mean something specific — a spent rung, a deployment with
       // no mail sender — and the generic 409/503 wording would lose all of it.
-      const code = error instanceof ApiError ? error.code : null
-      if (code && REMINDER_REFUSALS[code]) {
-        setNotice(t(REMINDER_REFUSALS[code]))
+      const refusal = reminderRefusalNote(error, shown?.rung ?? rung, fired)
+      if (refusal) {
+        setNotice(t(refusal))
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)
@@ -104,10 +113,14 @@ export function InvoiceRemindersCard({ invoiceId, dueDate }: { invoiceId: string
       {shown ? (
         <>
           <p className="mt-2 text-sm font-medium text-text-tertiary">
-            {t(VERDICT_NOTE[shown.verdict])}
+            {t(
+              shown.verdict === 'SETTLED' && noteType === 'DEBIT_NOTE'
+                ? 'paymentReminders.verdict.settledDebitNote'
+                : verdictNoteFor(shown.verdict, shown.rung, fired),
+            )}
             {canSendByHand(shown.verdict) && shown.verdict !== 'SEND' ? ` ${t('paymentReminders.invoice.stillSendable')}` : ''}
           </p>
-          {shown.rung !== null ? (
+          {shown.rung !== null && shown.verdict !== 'SETTLED' ? (
             <p className="mt-1 text-sm font-medium text-text-quaternary">
               {t('paymentReminders.invoice.rung', { rung: t(rungNote(shown.rung).key, rungNote(shown.rung).values) })}
               {shown.recipient ? ` · ${shown.recipient}` : ''}
