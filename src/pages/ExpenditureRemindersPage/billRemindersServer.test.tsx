@@ -303,7 +303,7 @@ describe('a company that has saved nothing', () => {
     expect(pressed(late, 'The day after')).toBe('true')
     expect(pressed(late, 'Then every 3 days')).toBe('true')
     // The server's defaults carry two or three days on the rows below, which take one. Each
-    // starts on the earliest: 2 days then the owner after 5, 1 day, 2 days.
+    // starts where the design starts it: 2 days then the owner after 5, 3 days, 2 days.
     const approval = card('An approval nobody has answered')
     expect(pressed(approval, '1 day')).toBe('false')
     expect(pressed(approval, '2 days')).toBe('true')
@@ -311,8 +311,8 @@ describe('a company that has saved nothing', () => {
     expect(pressed(approval, '5 days')).toBe('true')
     expect(pressed(approval, '7 days')).toBe('false')
     const mismatch = card('A mismatch nobody has resolved')
-    expect(pressed(mismatch, '1 day')).toBe('true')
-    expect(pressed(mismatch, '3 days')).toBe('false')
+    expect(pressed(mismatch, '1 day')).toBe('false')
+    expect(pressed(mismatch, '3 days')).toBe('true')
     expect(pressed(mismatch, 'A week')).toBe('false')
     const scan = card('A scanned receipt still unconfirmed')
     expect(pressed(scan, '2 days')).toBe('true')
@@ -331,13 +331,13 @@ describe('rows that take one timing', () => {
       rule.type === 'APPROVAL_STALE'
         ? { ...rule, offsets: [2], escalationOffsets: [5] }
         : rule.type === 'MISMATCH_STALE'
-          ? { ...rule, offsets: [1] }
+          ? { ...rule, offsets: [3] }
           : rule.type === 'SCAN_UNCONFIRMED'
             ? { ...rule, offsets: [2] }
             : rule,
     )
 
-  it('reads a switched-off row as holding its earliest day only, and leaves the others alone', () => {
+  it('reads a switched-off row as holding one day only, and leaves the others alone', () => {
     const [before, late, discount, approval, mismatch, scan] = defaultRules().map((rule) =>
       withOneTiming(rule as ReminderRuleDto),
     )
@@ -349,8 +349,15 @@ describe('rows that take one timing', () => {
     // Rows that take one.
     expect(approval.offsets).toEqual([2])
     expect(approval.escalationOffsets).toEqual([5])
-    expect(mismatch.offsets).toEqual([1])
+    // The mismatch row starts on three days, as the design does, not on its earliest.
+    expect(mismatch.offsets).toEqual([3])
     expect(scan.offsets).toEqual([2])
+    // Three days is kept only when it is one of the days on file; otherwise the earliest is.
+    expect(withOneTiming({ ...mismatch, offsets: [7, 1] }).offsets).toEqual([1])
+    expect(withOneTiming({ ...mismatch, offsets: [7, 3, 1] }).offsets).toEqual([3])
+    // One day on file is that day, whatever it is: the page does not move it to three.
+    const oneDay = { ...mismatch, offsets: [1] }
+    expect(withOneTiming(oneDay)).toBe(oneDay)
 
     // Already one, or none: the same object back, nothing rewritten.
     const single = singleDefaults()[3] as ReminderRuleDto
@@ -389,6 +396,27 @@ describe('rows that take one timing', () => {
         enabled: true,
       }),
     )
+  })
+
+  it('sends three days when the mismatch rule is switched on untouched', async () => {
+    seed({ type: 'MISMATCH_STALE', recipients: [HAFIDH] })
+    renderPage()
+    await editorReady()
+    fireEvent.click(within(card('A mismatch nobody has resolved')).getByRole('switch'))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    expect((rulesBodies[0] as { rules: unknown[] }).rules).toEqual([
+      {
+        type: 'MISMATCH_STALE',
+        offsets: [3],
+        repeatEveryDays: null,
+        escalationOffsets: null,
+        recipients: [HAFIDH],
+        enabled: true,
+      },
+    ])
   })
 
   it('sends the one timing the reader picked instead', async () => {
@@ -455,8 +483,23 @@ describe('rows that take one timing', () => {
     expect(pressed(approval, '3 days')).toBe('false')
     expect(pressed(approval, '5 days')).toBe('true')
     expect(pressed(approval, '7 days')).toBe('false')
-    expect(pressed(card('A mismatch nobody has resolved'), '1 day')).toBe('true')
+    expect(pressed(card('A mismatch nobody has resolved'), '3 days')).toBe('true')
+    expect(pressed(card('A mismatch nobody has resolved'), '1 day')).toBe('false')
     expect(pressed(card('A scanned receipt still unconfirmed'), '2 days')).toBe('true')
+    expect(saveButton()).toHaveProperty('disabled', true)
+  })
+
+  it('shows a mismatch rule that holds one day as that day, and does not move it to three', async () => {
+    // A server whose starting value for the row is one day, or a company that saved one day and
+    // switched the rule off: the page cannot tell them apart, so it shows what is on file.
+    onFile = singleDefaults().map((rule) =>
+      rule.type === 'MISMATCH_STALE' ? { ...rule, offsets: [1] } : rule,
+    )
+    renderPage()
+    await editorReady()
+    const mismatch = card('A mismatch nobody has resolved')
+    expect(pressed(mismatch, '1 day')).toBe('true')
+    expect(pressed(mismatch, '3 days')).toBe('false')
     expect(saveButton()).toHaveProperty('disabled', true)
   })
 
@@ -935,8 +978,8 @@ describe('a save the server refuses', () => {
     expect(pressed(scan, '2 days')).toBe('true')
     expect(pressed(scan, 'A week')).toBe('false')
     const mismatch = card('A mismatch nobody has resolved')
-    expect(pressed(mismatch, '1 day')).toBe('true')
-    expect(pressed(mismatch, '3 days')).toBe('false')
+    expect(pressed(mismatch, '1 day')).toBe('false')
+    expect(pressed(mismatch, '3 days')).toBe('true')
     // The editor was not taken down to learn this: the failure and the edit are both still up.
     expect(rulesReads()).toBe(readsBefore)
 
