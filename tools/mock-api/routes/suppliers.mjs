@@ -429,8 +429,16 @@ function detail(row) {
       defaultPaymentMethod: '30',
       bankDetails:
         extra.bankDetails ??
+        // As the backend does: no account on file is an object of nulls, never null.
         (row.record.health.includes('NO_BANK_DETAILS')
-          ? null
+          ? {
+              beneficiaryName: null,
+              iban: null,
+              bic: null,
+              bankName: null,
+              changedAt: null,
+              confirmedAt: null,
+            }
           : {
               beneficiaryName: row.displayName,
               iban: `OM81018000001234${String(row.id).slice(-7)}`,

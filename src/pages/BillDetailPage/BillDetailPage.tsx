@@ -1209,7 +1209,7 @@ function PaymentTermsCard({
     ],
     [
       'billDetail.terms.payTo',
-      bank
+      bank?.iban
         ? `${bank.bankName ?? t('billDetail.terms.bank')} ···${bank.iban.replace(/\s/g, '').slice(-4)}`
         : t('billDetail.terms.noBank'),
     ],

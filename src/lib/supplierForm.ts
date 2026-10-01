@@ -172,6 +172,16 @@ export function addressValues(address: SupplierAddressDto | null): AddressValues
   }
 }
 
+/**
+ * Whether the record holds a bank account. The backend sends `bankDetails` as an object of nulls
+ * when there is none, so the IBAN decides, not the object.
+ */
+export function hasBankAccount(
+  bankDetails: SupplierDetailDto['profile']['bankDetails'],
+): bankDetails is NonNullable<SupplierDetailDto['profile']['bankDetails']> & { iban: string } {
+  return Boolean(bankDetails?.iban?.trim())
+}
+
 export function fromSupplierDetail(detail: SupplierDetailDto): {
   values: SupplierFormValues
   bank: LoadedBank
@@ -212,7 +222,7 @@ export function fromSupplierDetail(detail: SupplierDetailDto): {
     pickup: addressValues(detail.deliveryAddress),
     notes: text(p.notes),
   }
-  const bank = p.bankDetails
+  const bank = hasBankAccount(p.bankDetails)
     ? {
         iban: p.bankDetails.iban,
         bic: text(p.bankDetails.bic),

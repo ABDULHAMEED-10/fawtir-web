@@ -154,6 +154,7 @@ let billResponse: () => Response
 let matchResponse: () => Response
 let actionResponse: () => Response
 let ordersResponse: () => Response
+let supplierBank: () => unknown
 let who: Entitlements
 
 const calls = () =>
@@ -181,6 +182,14 @@ beforeEach(async () => {
         },
       ],
     })
+  supplierBank = () => ({
+    beneficiaryName: 'Qalhat Marine Supplies',
+    iban: 'OM90 0018 0000 6283 2290',
+    bic: null,
+    bankName: 'Bank Muscat',
+    changedAt: null,
+    confirmedAt: null,
+  })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === ENTITLEMENTS_URL) return json(200, who)
@@ -193,14 +202,7 @@ beforeEach(async () => {
           displayName: 'Qalhat Marine Supplies',
           vatNumber: 'OM1100447102',
           paymentTerms: 'NET30',
-          bankDetails: {
-            beneficiaryName: 'Qalhat Marine Supplies',
-            iban: 'OM90 0018 0000 6283 2290',
-            bic: null,
-            bankName: 'Bank Muscat',
-            changedAt: null,
-            confirmedAt: null,
-          },
+          bankDetails: supplierBank(),
           earlyPaymentDiscountPercent: 2,
           earlyPaymentDiscountDays: 7,
         },
@@ -279,6 +281,21 @@ describe('A bill, wired to the API', () => {
       '/expenditure/purchase-orders/po-1',
     )
     expect(screen.getByText('Received against PO-0031')).toBeTruthy()
+  })
+
+  it('says there are no bank details when the supplier record carries an account of nulls', async () => {
+    // What the backend sends for a supplier with no bank account: the object, all nulls.
+    supplierBank = () => ({
+      beneficiaryName: null,
+      iban: null,
+      bic: null,
+      bankName: null,
+      changedAt: null,
+      confirmedAt: null,
+    })
+    renderBill()
+    expect(await screen.findByText('Net 30 days')).toBeTruthy()
+    expect(screen.getByText('No bank details on file')).toBeTruthy()
   })
 
   it('never claims our receipt report without a status from the server', async () => {

@@ -145,7 +145,15 @@ function supplierDetail(id) {
             changedAt: null,
             confirmedAt: '2026-01-10T08:00:00Z',
           }
-        : null,
+        : // As the backend does: no account on file is an object of nulls, never null.
+          {
+            beneficiaryName: null,
+            iban: null,
+            bic: null,
+            bankName: null,
+            changedAt: null,
+            confirmedAt: null,
+          },
       contactPerson: null,
       roleTitle: null,
       emailRecipients: s.email ? [s.email] : null,

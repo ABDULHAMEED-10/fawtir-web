@@ -100,6 +100,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let createResponse: () => Response
 let updateResponse: () => Response
+let loaded: () => SupplierDetailDto
 
 const calls = (method: string, url: string) =>
   fetchMock.mock.calls.filter(
@@ -114,11 +115,12 @@ beforeEach(async () => {
   who = MANAGER
   createResponse = () => json(201, detail({ health: [] }))
   updateResponse = () => json(200, detail({ version: 8 }))
+  loaded = () => detail()
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url === '/api/v1/suppliers' && method === 'POST') return createResponse()
-    if (url === ONE && method === 'GET') return json(200, detail())
+    if (url === ONE && method === 'GET') return json(200, loaded())
     if (url === ONE && method === 'PUT') return updateResponse()
     if (url === `${ONE}/bank-details/confirm`) return json(200, detail({ health: [] }))
     throw new Error(`unexpected ${method} ${url}`)
@@ -337,6 +339,83 @@ describe('an existing supplier', () => {
       bic: 'BMUSOMRX',
       bankName: 'Bank Muscat',
     })
+  })
+
+  it('reads an account with every field null as no account, and saves without touching it', async () => {
+    // What the backend sends for a supplier with no bank account: the object, all nulls.
+    const noAccount = {
+      bankDetails: {
+        beneficiaryName: null,
+        iban: null,
+        bic: null,
+        bankName: null,
+        changedAt: null,
+        confirmedAt: null,
+      },
+      health: ['NO_BANK_DETAILS' as const],
+    }
+    loaded = () => detail(noAccount)
+    updateResponse = () => json(200, detail({ ...noAccount, version: 8 }))
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect((screen.getByLabelText(/^IBAN/) as HTMLInputElement).value).toBe('')
+    expect(
+      screen.queryByText(
+        'Changing the account asks someone to confirm it before the next payment.',
+      ),
+    ).toBeNull()
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    expect(await screen.findByText('Changes saved.')).toBeTruthy()
+    expect(
+      screen.queryByText("Bank details can't be removed here. Enter the account to keep."),
+    ).toBeNull()
+    expect(calls('PUT', ONE)).toHaveLength(1)
+    expect(bodyOf(calls('PUT', ONE)[0]).bankDetails).toBeNull()
+  })
+
+  it('sends the first account of a supplier that had none', async () => {
+    loaded = () =>
+      detail({
+        bankDetails: {
+          beneficiaryName: null,
+          iban: '  ',
+          bic: null,
+          bankName: null,
+          changedAt: null,
+          confirmedAt: null,
+        },
+      })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    typeInto(/^IBAN/, 'OM230270000098765432101')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    await waitFor(() => expect(calls('PUT', ONE)).toHaveLength(1))
+    expect(bodyOf(calls('PUT', ONE)[0]).bankDetails).toEqual({
+      beneficiaryName: null,
+      iban: 'OM230270000098765432101',
+      bic: null,
+      bankName: null,
+    })
+  })
+
+  it('still asks for the account to keep when the IBAN of a real account is cleared', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect(
+      screen.getByText('Changing the account asks someone to confirm it before the next payment.'),
+    ).toBeTruthy()
+    // The whole account is cleared: a bank name or BIC left behind asks for the IBAN instead.
+    for (const name of ['bankName', 'bic', 'iban'])
+      fireEvent.change(document.querySelector(`input[name="${name}"]`)!, { target: { value: '' } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    expect(
+      await screen.findByText("Bank details can't be removed here. Enter the account to keep."),
+    ).toBeTruthy()
+    expect(calls('PUT', ONE)).toHaveLength(0)
   })
 
   it('confirms bank details that changed', async () => {
