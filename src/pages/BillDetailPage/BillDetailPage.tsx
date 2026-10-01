@@ -43,6 +43,7 @@ import {
   termsDaysOf,
   threeWayOf,
   type BillStepState,
+  type ComplianceNote,
   type Note,
 } from '../../lib/billDetail'
 import { toBillListItem } from '../../lib/billList'
@@ -668,7 +669,7 @@ function BillScreen() {
                     className="mt-0.5 size-4 shrink-0"
                   />
                   <span className="text-sm font-medium leading-[1.3] text-text-tertiary">
-                    <NoteText note={note} />
+                    <ComplianceText note={note} />
                   </span>
                 </li>
               ))}
@@ -853,6 +854,40 @@ function LineVat({ line }: { line: BillDetailDto['lines'][number] }) {
 function NoteText({ note }: { note: Note }) {
   const { t } = useTranslation()
   return <>{t(note.key, note.values)}</>
+}
+
+/** Stands in for a value while its sentence is translated, so the value can be drawn as a link. */
+const LINK_MARK = '\u2063'
+
+/**
+ * A compliance line. One that leads somewhere links the reference its sentence names (a
+ * self-billed bill's agreement, to the self-billing document); with no reference to name, the
+ * whole line is the link.
+ */
+function ComplianceText({ note }: { note: ComplianceNote }) {
+  const { t } = useTranslation()
+  if (!note.link) return <NoteText note={note} />
+  const linkClass = 'font-semibold text-primary-700 hover:underline'
+  const reference = note.values?.reference
+  if (reference === undefined) {
+    return (
+      <Link to={note.link} className={linkClass}>
+        {t(note.key, note.values)}
+      </Link>
+    )
+  }
+  const [before, after = ''] = t(note.key, { ...note.values, reference: LINK_MARK }).split(
+    LINK_MARK,
+  )
+  return (
+    <>
+      {before}
+      <Link to={note.link} className={linkClass}>
+        {reference}
+      </Link>
+      {after}
+    </>
+  )
 }
 
 /** A step's detail: the source under "Arrived" is named through its own key. */

@@ -5508,6 +5508,12 @@
         "rejected": "Receipt report turned down",
         "notSubmitted": "Receipt not reported yet",
         "unavailable": "Receipt report status not available yet"
+      },
+      "selfBilled": {
+        "issuedByYou": "Issued by you through Fawtir on the supplier's behalf",
+        "agreement": "Self-billing agreement {{reference}}",
+        "agreementNoReference": "Self-billing agreement",
+        "validTaxInvoice": "Valid tax invoice: VAT is reclaimable"
       }
     },
     "supplier": {

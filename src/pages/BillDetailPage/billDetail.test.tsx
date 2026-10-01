@@ -318,6 +318,69 @@ describe('A bill, wired to the API', () => {
     expect(screen.queryByText(/Archived/)).toBeNull()
   })
 
+  const selfBilled = (selfBilling: BillDetailDto['selfBilling']): BillDetailDto => ({
+    ...detail(),
+    bill: {
+      ...detail().bill,
+      source: 'SELF_BILLED',
+      documentTypeCode: '389',
+      inboundDeliveryId: null,
+      issuedInvoiceId: 'sb-1',
+    },
+    intake: null,
+    selfBilling,
+    compliance: { source: 'SELF_BILLED', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
+  })
+  const AGREED = {
+    issuedInvoiceId: 'sb-1',
+    invoiceNumber: 'SB-2026-0007',
+    agreementId: 'ag-1',
+    agreementReference: 'SBA-2026-003',
+  }
+
+  it('says a self-billed bill was issued by you, under which agreement, and that its VAT is reclaimable', async () => {
+    billResponse = () => json(200, selfBilled(AGREED))
+    renderBill()
+    const line = await screen.findByText("Issued by you through Fawtir on the supplier's behalf")
+    const card = within(line.closest('ul') as HTMLElement)
+    expect(card.getByText('Valid tax invoice: VAT is reclaimable')).toBeTruthy()
+    // The agreement's reference is the link, and it leads to the self-billing document.
+    expect(card.getByText(/^Self-billing agreement/)).toBeTruthy()
+    const link = card.getByRole('link', { name: 'SBA-2026-003' })
+    expect(link.getAttribute('href')).toBe('/income/self-billing/sb-1')
+    // None of the three lines that were wrong for a document this company issued itself.
+    expect(card.queryByText(/Not validated/)).toBeNull()
+    expect(card.queryByText(/No PINT-OM validation/)).toBeNull()
+    expect(card.queryByText('No original file on record')).toBeNull()
+    // No em dash in the owner's line.
+    expect(card.queryByText(/—/)).toBeNull()
+  })
+
+  it('keeps the agreement line, as the link, when the document has no agreement on record', async () => {
+    billResponse = () =>
+      json(200, selfBilled({ ...AGREED, agreementId: null, agreementReference: null }))
+    renderBill()
+    await screen.findByText("Issued by you through Fawtir on the supplier's behalf")
+    expect(
+      screen.getByRole('link', { name: 'Self-billing agreement' }).getAttribute('href'),
+    ).toBe('/income/self-billing/sb-1')
+  })
+
+  it('reads the self-billed lines in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, selfBilled(AGREED))
+    renderBill()
+    const line = await screen.findByText('أصدرتها أنت عبر فوتر نيابةً عن المورّد')
+    const card = within(line.closest('ul') as HTMLElement)
+    expect(
+      card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد'),
+    ).toBeTruthy()
+    expect(card.getByText(/^اتفاقية الفوترة الذاتية/)).toBeTruthy()
+    expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
+      '/income/self-billing/sb-1',
+    )
+  })
+
   it('says when our receipt report was accepted by the Tax Authority', async () => {
     billResponse = () =>
       json(200, {
@@ -847,6 +910,57 @@ describe('bill detail mapping', () => {
       'billDetail.compliance.noPintOm',
       'billDetail.compliance.pendingInput',
       'billDetail.compliance.noOriginal',
+    ])
+  })
+
+  it('writes a self-billed bill as this company\'s own document, not as one that never arrived', () => {
+    const selfBilledBill: BillDetailDto = {
+      ...detail(),
+      bill: { ...detail().bill, source: 'SELF_BILLED', inboundDeliveryId: null },
+      compliance: { source: 'SELF_BILLED', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
+    }
+    const withAgreement = complianceOf({
+      ...selfBilledBill,
+      selfBilling: {
+        issuedInvoiceId: 'sb-1',
+        invoiceNumber: 'SB-2026-0007',
+        agreementId: 'ag-1',
+        agreementReference: 'SBA-2026-003',
+      },
+    })
+    expect(withAgreement).toEqual([
+      { key: 'billDetail.compliance.selfBilled.issuedByYou', ok: true },
+      {
+        key: 'billDetail.compliance.selfBilled.agreement',
+        values: { reference: 'SBA-2026-003' },
+        ok: true,
+        link: '/income/self-billing/sb-1',
+      },
+      { key: 'billDetail.compliance.selfBilled.validTaxInvoice', ok: true },
+      { key: 'billDetail.compliance.reportedBySender', ok: true },
+    ])
+    // A response that names no document (an older server) still says who issued it, and links nowhere.
+    const bare = complianceOf(selfBilledBill)
+    expect(bare.map((note) => note.key)).toEqual([
+      'billDetail.compliance.selfBilled.issuedByYou',
+      'billDetail.compliance.selfBilled.agreementNoReference',
+      'billDetail.compliance.selfBilled.validTaxInvoice',
+      'billDetail.compliance.reportedBySender',
+    ])
+    expect(bare[1].link).toBeUndefined()
+    // The row's own id is enough to reach the document.
+    expect(
+      complianceOf({
+        ...selfBilledBill,
+        bill: { ...selfBilledBill.bill, issuedInvoiceId: 'sb-9' },
+      })[1].link,
+    ).toBe('/income/self-billing/sb-9')
+    // Every other source keeps its four lines.
+    expect(complianceOf(detail()).map((note) => note.key)).toEqual([
+      'billDetail.compliance.overPeppol',
+      'billDetail.compliance.passedPintOm',
+      'billDetail.compliance.receipt.unavailable',
+      'billDetail.compliance.originalKept',
     ])
   })
 })
