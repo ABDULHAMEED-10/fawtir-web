@@ -1216,6 +1216,9 @@ function recurringRuns(r) {
 
 /* ---------------------------------------------------------- bill reminders */
 
+// Beside the routes it serves, so this module's other areas are left as they are.
+import { saveRules, saveSettings, settingsAnswer } from '../lib/billReminderRules.mjs'
+
 const USERS = [
   { id: 'u-yusuf', username: 'yusuf', firstName: 'Yusuf', lastName: 'Al Balushi' },
   { id: 'u-hafidh', username: 'hafidh', firstName: 'Hafidh', lastName: 'Saif' },
@@ -1225,7 +1228,8 @@ const USERS = [
 let RULES = [
   {
     type: 'BEFORE_DUE',
-    offsets: [7, 2],
+    // Ascending, as the server answers a ladder.
+    offsets: [2, 7],
     repeatEveryDays: null,
     escalationOffsets: null,
     recipients: ['u-yusuf'],
@@ -1773,22 +1777,21 @@ export default [
   {
     method: 'PUT',
     match: '/api/v1/bill-reminders/rules',
+    // Checked as the server checks it: see ../lib/billReminderRules.mjs.
     reply: ({ body }) => {
-      for (const rule of body?.rules ?? []) {
-        const index = RULES.findIndex((r) => r.type === rule.type)
-        if (index === -1) RULES.push(rule)
-        else RULES[index] = rule
-      }
-      return { rules: RULES }
+      const answer = saveRules(RULES, body, { users: USERS.map((user) => user.id) })
+      if (answer.rules) RULES = answer.rules
+      return { status: answer.status, body: answer.body }
     },
   },
-  { match: '/api/v1/bill-reminders/settings', reply: () => SETTINGS },
+  { match: '/api/v1/bill-reminders/settings', reply: () => settingsAnswer(SETTINGS) },
   {
     method: 'PUT',
     match: '/api/v1/bill-reminders/settings',
     reply: ({ body }) => {
-      SETTINGS = { ...SETTINGS, ...body }
-      return SETTINGS
+      const answer = saveSettings(body)
+      if (answer.settings) SETTINGS = answer.settings
+      return { status: answer.status, body: answer.body }
     },
   },
   { match: '/api/v1/bill-reminders/preview', reply: () => PREVIEW },
