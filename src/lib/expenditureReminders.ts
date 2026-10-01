@@ -177,12 +177,9 @@ export function withOneTiming(rule: ReminderRuleDto): ReminderRuleDto {
   return { ...rule, offsets, escalationOffsets }
 }
 
-/**
- * The rules the footer counts as on: the ones that can be switched, and are. The recurring row is
- * not a rule and cannot be switched, so it is not counted.
- */
+/** The rules the footer counts as on: every enabled rule, and the recurring one, which is always set per bill. */
 export function rulesOn(rules: ReminderRuleDto[]): number {
-  return rules.filter((rule) => rule.enabled).length
+  return rules.filter((rule) => rule.enabled).length + 1
 }
 
 export type PreviewLine = {
