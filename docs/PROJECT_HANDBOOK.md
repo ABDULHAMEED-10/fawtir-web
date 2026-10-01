@@ -402,6 +402,15 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   counted from the document date until the start of the retention period is checked against the
   Oman VAT law (open question 6). Trade documents have their own guide,
   `docs/backend-guides/TRADE_DOCUMENTS.md`.
+- **Owner decisions, 1 Oct 2026** (Zain's open questions):
+  1. An action the user may not take is **hidden**, not shown disabled, as on the invoice page
+     (e.g. Record payment on a self-bill for a Viewer).
+  2. Weekly recurring bills in Expenditure get the same 7-day period fix as weekly periodic
+     invoices, for **future** bills only; bills already raised keep their dates.
+  3. The one-reminder-per-invoice-per-day limit counts **both** manual and automatic reminders.
+  4. On a sales invoice the ISIC code is always the company's (5.2). An ERP or API import that
+     sends a different line code has it replaced by the company's code, and the import report
+     says so; the import is not refused.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
