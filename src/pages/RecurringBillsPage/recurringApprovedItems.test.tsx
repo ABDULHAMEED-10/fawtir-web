@@ -990,7 +990,7 @@ describe('"Mark as received" (item 23)', () => {
     [
       'RECURRING_BILL_ARRIVAL_NOT_ELIGIBLE',
       400,
-      'That bill cannot be used here. Self-billed, rejected and held bills are left out.',
+      "That bill cannot be used here. Choose one of this supplier's own bills in the same currency.",
     ],
   ])('says why it was refused (%s), in its own sentence', async (code, status, sentence) => {
     markResponse = () =>

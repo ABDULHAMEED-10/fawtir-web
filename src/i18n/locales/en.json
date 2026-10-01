@@ -6246,7 +6246,7 @@
       "periodAlreadyReceived": "A bill is already marked as received for this period.",
       "billGone": "That bill is not on this account. Reload and choose another.",
       "billAlreadyMatched": "That bill is already matched to a recurring bill. Choose another.",
-      "billNotEligible": "That bill cannot be used here. Self-billed, rejected and held bills are left out.",
+      "billNotEligible": "That bill cannot be used here. Choose one of this supplier's own bills in the same currency.",
       "endBeforeNext": "The end date is before the next expected bill. Choose a later end date."
     }
   },
