@@ -369,6 +369,68 @@ describe('the dedicated self-billed composer', () => {
     ).toBe('/income/self-billing/agreements')
   })
 
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 7). A correction there changes
+  // the sentences below with it.
+  describe('an issue the server refuses, in the Issue dialog', () => {
+    // Found by key, so the same steps run in Arabic. The dialog prices the draft first; the
+    // refusal is for the issue that follows.
+    async function issue(problem: Record<string, unknown>) {
+      renderAt('/income/self-billing/sb-1/edit')
+      await waitFor(() =>
+        expect(document.querySelector('input[value="SB-0115"]')).not.toBeNull(),
+      )
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('newSelfBill.actions.issue') }))
+      const dialog = await screen.findByRole('dialog', { name: i18n.t('invoiceIssue.title') })
+      await within(dialog).findByText(/22\.680/)
+      fetchMock.mockImplementationOnce(async () => json(400, { status: 400, ...problem }))
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('invoiceIssue.submit') }))
+      return dialog
+    }
+    // The invoice handler's own shape on this route: `code`, and a type named after it.
+    const SWITCHED_OFF = {
+      type: 'https://api.fawtir.om/problems/supplier-switched-off',
+      code: 'SUPPLIER_SWITCHED_OFF',
+    }
+
+    it('says the supplier is switched off, not that something went wrong', async () => {
+      const dialog = await issue(SWITCHED_OFF)
+      expect(
+        await within(dialog).findByText(
+          'This supplier is switched off. Switch it back on, then issue.',
+        ),
+      ).toBeTruthy()
+      expect(within(dialog).queryByText(/Something went wrong/)).toBeNull()
+      // Only the missing business activity carries a link.
+      expect(within(dialog).queryByRole('link')).toBeNull()
+    })
+
+    it('says so in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      const dialog = await issue(SWITCHED_OFF)
+      expect(await within(dialog).findByText('هذا المورّد موقوف. أعد تشغيله ثم أصدر.')).toBeTruthy()
+    })
+
+    it('still names a counterparty refusal as before', async () => {
+      const dialog = await issue({
+        type: 'https://api.fawtir.om/problems/request-rejected',
+        code: 'COUNTERPARTY_VATIN_MISSING',
+      })
+      expect(
+        await within(dialog).findByText(
+          /This supplier has no VAT registration number on its record\. Add it, then issue\./,
+        ),
+      ).toBeTruthy()
+    })
+
+    it('reads a code with no sentence as it did before', async () => {
+      const dialog = await issue({
+        type: 'https://api.fawtir.om/problems/request-rejected',
+        code: 'SOME_CODE_WITH_NO_SENTENCE',
+      })
+      expect(await within(dialog).findByText(/Something went wrong\. Please try again\./)).toBeTruthy()
+    })
+  })
+
   it('reads a saved draft back and saves it through the shared draft route', async () => {
     renderAt('/income/self-billing/sb-1/edit')
 

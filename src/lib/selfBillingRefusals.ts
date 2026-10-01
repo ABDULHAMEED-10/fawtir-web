@@ -98,6 +98,21 @@ export function selfBilledIssueMessageKey(error: unknown): string | null {
   return selfBillingMessageKey(error)
 }
 
+/**
+ * A self-billed issue refused because the supplier is switched off. Draft wording, pending the
+ * owner (Wording-For-Abdul.md section 7).
+ *
+ * Kept out of `REFUSALS` for the same reason as the business activity above: `SUPPLIER_SWITCHED_OFF`
+ * is one code with a different sentence on each screen that meets it (a bill's capture, the
+ * statement e-mail), and here it arrives from the invoice handler (`code`), not as an Expenditure
+ * refusal. Only the self-bill composer's Issue dialog asks this.
+ */
+export const SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY = 'apiErrors.selfBilling.supplierSwitchedOff'
+
+export function isSelfBilledSupplierSwitchedOff(error: unknown): boolean {
+  return error instanceof ApiError && error.code === 'SUPPLIER_SWITCHED_OFF'
+}
+
 /** The self-billed issue refusal that sends the reader to the agreements page to fix it. */
 export function isSupplierIsicMissing(error: unknown): boolean {
   return error instanceof ApiError && error.code === 'INDUSTRIAL_CLASSIFICATION_REQUIRED'

@@ -6249,7 +6249,9 @@
       "billGone": "That bill is not on this account. Reload and choose another.",
       "billAlreadyMatched": "That bill is already matched to a recurring bill. Choose another.",
       "billNotEligible": "That bill cannot be used here. Choose one of this supplier's own bills in the same currency.",
-      "endBeforeNext": "The end date is before the next expected bill. Choose a later end date."
+      "endBeforeNext": "The end date is before the next expected bill. Choose a later end date.",
+      "formSupplierSwitchedOff": "This supplier is switched off. Switch it back on to add a recurring bill for it.",
+      "recipientUnknown": "The person chosen is no longer on the team. Choose someone else."
     }
   },
   "supplierCreditNotes": {
@@ -16201,7 +16203,8 @@
       "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
       "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue.",
       "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
-      "supplierIsicAction": "Go to agreements"
+      "supplierIsicAction": "Go to agreements",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on, then issue."
     }
   },
   "appAccess": {

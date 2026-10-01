@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -1357,5 +1357,100 @@ describe('a resume the server refuses, on the list', () => {
     )
     expect(await screen.findByText(sentence)).toBeTruthy()
     expect(screen.queryByText(/The server refused this/)).toBeNull()
+  })
+})
+
+// Draft wording, pending the owner (Wording-For-Abdul.md section 8). A correction there changes
+// the sentences below with it. The supplier code is the one Resume meets on the list, where it
+// keeps its own sentence (the describe above).
+describe('a save the server refuses, on the add and edit form', () => {
+  const FORM: [string, string, string][] = [
+    [
+      'RECURRING_BILL_SUPPLIER_SWITCHED_OFF',
+      'This supplier is switched off. Switch it back on to add a recurring bill for it.',
+      'هذا المورّد موقوف. أعد تشغيله لإضافة فاتورة متكررة له.',
+    ],
+    [
+      'RECURRING_BILL_RECIPIENT_UNKNOWN',
+      'The person chosen is no longer on the team. Choose someone else.',
+      'الشخص المختار لم يعد ضمن الفريق. اختر شخصًا آخر.',
+    ],
+  ]
+  const RESUME = 'The supplier is switched off. Switch it back on, then resume this recurring bill.'
+
+  /** A new recurring bill, filled in as far as the form itself asks. */
+  async function fillNew() {
+    renderAt('/expenditure/recurring-bills/new')
+    await screen.findByRole('heading', { level: 1, name: 'Add a recurring bill' })
+    fireEvent.change(screen.getByLabelText(/^What to call it/), { target: { value: 'Shop rent' } })
+    fireEvent.change(screen.getByLabelText(/^Usual amount/), { target: { value: '850' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Rent & premises/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Arrives around' }))
+    fireEvent.click(await screen.findByRole('option', { name: '28th' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier' }))
+    fireEvent.change(await screen.findByPlaceholderText('Search your suppliers'), {
+      target: { value: 'Nizwa Properties' },
+    })
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Use “Nizwa Properties” as written/ }),
+    )
+  }
+  const refuseNext = (code: string) =>
+    fetchMock.mockImplementationOnce(async () => refusal(code))
+  const inArabic = () =>
+    act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+
+  it.each(FORM)('adding: %s', async (code, english) => {
+    await fillNew()
+    refuseNext(code)
+    fireEvent.click(screen.getByRole('button', { name: 'Add recurring bill' }))
+    expect(await screen.findByText(english)).toBeTruthy()
+    expect(screen.queryByText(RESUME)).toBeNull()
+    expect(screen.queryByText(/The server refused this/)).toBeNull()
+    expect(calls('POST', '/api/v1/recurring-bills')).toHaveLength(1)
+  })
+
+  it.each(FORM)('adding, in Arabic: %s', async (code, _english, arabic) => {
+    await fillNew()
+    await inArabic()
+    refuseNext(code)
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('recurringBills.form.add') }))
+    expect(await screen.findByText(arabic)).toBeTruthy()
+  })
+
+  it.each(FORM)('editing: %s', async (code, english) => {
+    await openEdit('rb-1')
+    refuseNext(code)
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    expect(await screen.findByText(english)).toBeTruthy()
+    expect(screen.queryByText(RESUME)).toBeNull()
+    expect(screen.queryByText(/The server refused this/)).toBeNull()
+  })
+
+  it.each(FORM)('editing, in Arabic: %s', async (code, _english, arabic) => {
+    await openEdit('rb-1')
+    await inArabic()
+    refuseNext(code)
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('recurringBills.form.save') }))
+    expect(await screen.findByText(arabic)).toBeTruthy()
+  })
+
+  it('keeps the general refusal for a code with no sentence of its own, when adding', async () => {
+    await fillNew()
+    refuseNext('RECURRING_BILL_CODE_WITH_NO_SENTENCE')
+    fireEvent.click(screen.getByRole('button', { name: 'Add recurring bill' }))
+    expect(await screen.findByText(/The server refused this/)).toBeTruthy()
+  })
+
+  it('leaves Resume with its own sentence for the same code, on the detail', async () => {
+    supplierStatus = 'UNREADABLE'
+    resumeResponse = () => refusal('RECURRING_BILL_SUPPLIER_SWITCHED_OFF')
+    await openDetail('rb-held', 'Water cooler')
+    fireEvent.click(await screen.findByRole('button', { name: 'Resume watching' }))
+    expect(await screen.findByText(RESUME)).toBeTruthy()
+    expect(screen.queryByText(/to add a recurring bill for it/)).toBeNull()
   })
 })
