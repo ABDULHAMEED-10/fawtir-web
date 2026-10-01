@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useReferenceData } from '../../lib/reference/referenceData'
 import { DESIGN_REFERENCE, omanTaxCategories } from '../../lib/invoiceDraft'
@@ -42,6 +42,8 @@ import {
 import { invoiceListPath, loadInvoicePage, type InvoiceRowDto } from '../../api/invoices/list'
 import { loadCustomer, type CustomerDto } from '../../api/customers/customers'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { selfBillingMessageKey } from '../../lib/selfBillingRefusals'
+import { selfBillOwed } from '../../lib/selfBillDetail'
 import { formatAmount, formatDate } from '../../lib/format'
 import { issueRefusalOf, muscatToday } from '../../lib/invoiceIssue'
 import {
@@ -88,6 +90,54 @@ import uploadIcon from '../../assets/create-invoice/upload.svg'
 import invoiceActionIcon from '../../assets/actions/invoice.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
 
+/**
+ * Where a note's page links go. A self-billed credit note (IBT-003 261) corrects a self-billed
+ * invoice, so it lives with self-billing: its original, its list and the note itself open there.
+ */
+type NotePaths = {
+  /** The list the breadcrumb returns to. */
+  list: string
+  /** The page of the document the note corrects. */
+  original: (id: string) => string
+  /** Where the saved or issued note opens. */
+  note: (id: string) => string
+}
+
+const SELF_BILLING_PATH = '/income/self-billing'
+
+function notePaths(kind: NoteKind, selfBilled: boolean): NotePaths {
+  if (selfBilled) {
+    return {
+      list: SELF_BILLING_PATH,
+      original: (id) => `${SELF_BILLING_PATH}/${id}`,
+      note: (id) => `${SELF_BILLING_PATH}/${id}`,
+    }
+  }
+  return {
+    list: NOTE_ROUTES[kind],
+    original: (id) => `/invoices/${id}`,
+    note: (id) => `${NOTE_ROUTES[kind]}/${id}`,
+  }
+}
+
+/**
+ * A self-billed credit note corrects a purchase: the other party is the supplier and the VAT is the
+ * tenant's input VAT (handbook 3.1, approved 30 Sep 2026). The composer's sales wording is swapped
+ * for these keys on that route only; every other key reads as on a sales note.
+ */
+const SELF_BILLED_WORDING: Record<string, string> = {
+  'salesNote.compose.customerUnknown': 'selfBilledNote.supplierUnknown',
+  'salesNote.noteToCustomer': 'selfBilledNote.noteToSupplier',
+  'salesNote.compose.peppolTitle': 'selfBilledNote.peppolTitle',
+  'salesNote.amount.reduces': 'selfBilledNote.reduces',
+  'salesNote.amount.newBalance': 'selfBilledNote.newBalance',
+  'salesNote.amount.refundTitle': 'selfBilledNote.refundTitle',
+  'salesNote.amount.refundHint': 'selfBilledNote.refundHint',
+  'salesNote.amount.refundNone': 'selfBilledNote.refundNone',
+  'salesNote.amount.filed.credit': 'selfBilledNote.filed',
+  'salesNote.refused.invoiceNotIssued': 'selfBilledNote.invoiceNotIssued',
+}
+
 type Loaded = {
   invoice: InvoiceDetailDto
   receivable: InvoiceReceivableDto | null
@@ -120,7 +170,18 @@ const FIELD_READONLY =
  * draft. Same for debit notes. Everything — the lines, the reason, the dates, issuing — is on the
  * one page; nothing opens over it.
  */
-export function SalesNotePage({ kind }: { kind: NoteKind }) {
+export function SalesNotePage({
+  kind,
+  selfBilled = false,
+}: {
+  kind: NoteKind
+  /**
+   * A self-billed credit note (decision D6: the credit-note composer, reached from an issued
+   * self-billed invoice): created on `/authored-invoices/{id}/self-billed-credit-notes` under
+   * `selfbilling.create`, and opened from and returned to self-billing.
+   */
+  selfBilled?: boolean
+}) {
   const { id } = useParams()
   const [search] = useSearchParams()
   return (
@@ -128,6 +189,7 @@ export function SalesNotePage({ kind }: { kind: NoteKind }) {
       <SalesNote
         key={id ?? search.get('invoice') ?? 'none'}
         kind={kind}
+        selfBilled={selfBilled}
         draftId={id ?? null}
         invoiceId={search.get('invoice')}
       />
@@ -137,10 +199,12 @@ export function SalesNotePage({ kind }: { kind: NoteKind }) {
 
 function SalesNote({
   kind,
+  selfBilled,
   draftId,
   invoiceId,
 }: {
   kind: NoteKind
+  selfBilled: boolean
   draftId: string | null
   invoiceId: string | null
 }) {
@@ -179,35 +243,57 @@ function SalesNote({
     }
   }, [draftId, invoiceId, kind, attempt, customerReadable])
 
-  const permission = kind === 'CREDIT_NOTE' ? 'creditnote.create' : 'debitnote.create'
+  // The self-billed route asks `selfbilling.create`, not `creditnote.create`.
+  const permission = selfBilled
+    ? 'selfbilling.create'
+    : kind === 'CREDIT_NOTE'
+      ? 'creditnote.create'
+      : 'debitnote.create'
+  const paths = notePaths(kind, selfBilled)
   if (!can(session, permission)) return <PermissionDeniedNotice />
+  // A self-billed credit note is started from its self-billed invoice's page; there is no picker.
+  if (!draftId && !invoiceId && selfBilled) return <Navigate to={paths.list} replace />
   if (!draftId && !invoiceId) return <InvoicePicker kind={kind} />
   if (loaded.status === 'loading') {
     return (
-      <Frame kind={kind} title={t(`salesNote.${kind === 'CREDIT_NOTE' ? 'credit' : 'debit'}.new`)}>
+      <Frame
+        kind={kind}
+        paths={paths}
+        selfBilled={selfBilled}
+        title={t(`salesNote.${kind === 'CREDIT_NOTE' ? 'credit' : 'debit'}.new`)}
+      >
         <LoadingNotice />
       </Frame>
     )
   }
   if (loaded.status === 'failed') {
     return (
-      <Frame kind={kind} title={t(`salesNote.${kind === 'CREDIT_NOTE' ? 'credit' : 'debit'}.new`)}>
+      <Frame
+        kind={kind}
+        paths={paths}
+        selfBilled={selfBilled}
+        title={t(`salesNote.${kind === 'CREDIT_NOTE' ? 'credit' : 'debit'}.new`)}
+      >
         <ApiReadFailure error={loaded.error} retry={() => setAttempt((n) => n + 1)} />
       </Frame>
     )
   }
-  return <NoteEditor kind={kind} {...loaded.data} />
+  return <NoteEditor kind={kind} selfBilled={selfBilled} paths={paths} {...loaded.data} />
 }
 
 /** The breadcrumb, title and status pill every state of the page shares. */
 function Frame({
   kind,
+  paths = notePaths(kind, false),
+  selfBilled = false,
   title,
   subtitle,
   actions,
   children,
 }: {
   kind: NoteKind
+  paths?: NotePaths
+  selfBilled?: boolean
   title: string
   subtitle?: ReactNode
   actions?: ReactNode
@@ -227,8 +313,10 @@ function Frame({
               {t('salesNote.compose.breadcrumbIncome')}
               <img src={backIcon} alt="" className="size-6 rotate-180 rtl:rotate-0" />
             </Link>
-            <Link to={NOTE_ROUTES[kind]} className="hover:text-text-secondary">
-              {t(`salesNote.${kindKey}.list`)}
+            <Link to={paths.list} className="hover:text-text-secondary">
+              {selfBilled
+                ? t('selfBillDetail.breadcrumbSelfBilled')
+                : t(`salesNote.${kindKey}.list`)}
             </Link>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -383,8 +471,23 @@ function Stat({ label, amount, tone = '' }: { label: string; amount: string; ton
   )
 }
 
-function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: NoteKind } & Loaded) {
-  const { t, i18n } = useTranslation()
+function NoteEditor({
+  kind,
+  selfBilled,
+  paths,
+  invoice,
+  receivable: loadedReceivable,
+  draft,
+  customer,
+}: { kind: NoteKind; selfBilled: boolean; paths: NotePaths } & Loaded) {
+  const { t: translate, i18n } = useTranslation()
+  const t = (key: string, options?: Record<string, unknown>): string =>
+    translate(selfBilled ? (SELF_BILLED_WORDING[key] ?? key) : key, options ?? {})
+  // A self-billed document's debt is its Expenditure payable (D2): what is owed, paid and credited
+  // is read there, never from the receivable, which is NOT_APPLICABLE on a self-billed document.
+  // TODO(backend): INCOME.md 7.21, the payable's creditedAmount must net earlier self-billed
+  // credit notes, or "Already credited" and the creditable figure stay as if none was issued.
+  const receivable = selfBilled ? selfBillOwed(invoice.payable, loadedReceivable) : loadedReceivable
   const reference = useReferenceData()
   const navigate = useNavigate()
   const session = useSession()
@@ -417,10 +520,13 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
     value === null || value === undefined
       ? '—'
       : formatAmount(value, invoice.currency, i18n.language)
-  const base = NOTE_ROUTES[kind]
   const invoiceNumber = invoice.invoiceNumber ?? invoice.id
   const customerName = customer?.displayName ?? t('salesNote.compose.customerUnknown')
-  const invoiceIssued = invoice.type === 'INVOICE' && invoice.authoringState === 'ISSUED'
+  // The server takes a self-billed credit note only against an issued self-billed invoice, and an
+  // ordinary note only against an issued ordinary one (CORRECTED_INVOICE_NOT_ISSUED otherwise).
+  const invoiceIssued =
+    invoice.type === (selfBilled ? 'SELF_BILLED_INVOICE' : 'INVOICE') &&
+    invoice.authoringState === 'ISSUED'
   const today = muscatToday()
   const total = Number(totals.total)
   const outstanding = receivable?.outstandingAmount ?? null
@@ -452,7 +558,9 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
     const request = toNoteRequest(form, invoice, kind)
     const next = saved
       ? await saveDraft(saved.id, saved.version, request)
-      : await withKey(createAttempt, (key) => createNote(kind, invoice.id, key, request))
+      : await withKey(createAttempt, (key) =>
+          createNote(selfBilled ? 'SELF_BILLED_CREDIT_NOTE' : kind, invoice.id, key, request),
+        )
     setSaved(next)
     return next
   }
@@ -482,6 +590,13 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
       await uploadQueued(next)
       await then(next)
     } catch (error) {
+      // A self-billed note meets the agreement gates at issue (an agreement in force on the note's
+      // issue date, a verified seller, a complete counterparty record): named before anything else.
+      const selfBilling = selfBilled ? selfBillingMessageKey(error) : null
+      if (selfBilling) {
+        setNotice(t(selfBilling))
+        return
+      }
       const coded = error instanceof ApiError && error.code ? NOTE_REFUSALS[error.code] : undefined
       const refusal = coded ? null : issueRefusalOf(error)
       const described = describeApiFailure(error)
@@ -507,7 +622,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
         dueDate: credit ? form.issueDate : form.dueDate,
       }
       const issued = await withKey(issueAttempt, (key) => issueDraft(next.id, key, request))
-      navigate(`${base}/${issued.id}`, {
+      navigate(paths.note(issued.id), {
         replace: true,
         state: { issuedNumber: issued.invoiceNumber },
       })
@@ -518,7 +633,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
     setBusy(true)
     try {
       await discardDraft(saved.id, saved.version)
-      navigate(base, { replace: true })
+      navigate(paths.list, { replace: true })
     } catch (error) {
       const described = describeApiFailure(error)
       setNotice(t(described.key, described.values))
@@ -532,7 +647,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
       id: 'invoice',
       labelKey: 'salesNote.compose.openInvoice',
       icon: invoiceActionIcon,
-      to: `/invoices/${invoice.id}`,
+      to: paths.original(invoice.id),
     },
     ...(saved
       ? [
@@ -563,6 +678,8 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
   return (
     <Frame
       kind={kind}
+      paths={paths}
+      selfBilled={selfBilled}
       title={saved?.invoiceNumber ?? t(`salesNote.${kindKey}.new`)}
       subtitle={
         <>
@@ -570,7 +687,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
             {t(`salesNote.compose.${credit ? 'reversing' : 'adjusting'}`)}
           </span>
           <Link
-            to={`/invoices/${invoice.id}`}
+            to={paths.original(invoice.id)}
             className="font-semibold text-text-primary hover:text-primary-700"
           >
             {invoiceNumber}
@@ -588,7 +705,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
             <button
               type="button"
               disabled={busy || !invoiceIssued}
-              onClick={() => void run((next) => navigate(`${base}/${next.id}`, { replace: true }))}
+              onClick={() => void run((next) => navigate(paths.note(next.id), { replace: true }))}
               className={GHOST_BUTTON}
             >
               <img src={saveDraftIcon} alt="" className="size-5" />
@@ -628,7 +745,7 @@ function NoteEditor({ kind, invoice, receivable, draft, customer }: { kind: Note
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
-                      to={`/invoices/${invoice.id}`}
+                      to={paths.original(invoice.id)}
                       className="text-base font-semibold text-text-primary hover:text-primary-700"
                     >
                       {invoiceNumber}

@@ -7160,8 +7160,8 @@
         "380": "Commercial invoice",
         "381": "Credit note",
         "383": "Debit note",
-        "386": "Prepayment invoice",
-        "389": "Self-billed invoice"
+        "389": "Self-billed invoice",
+        "386": "Prepayment invoice"
       },
       "issuedOn": "Issued",
       "paymentDue": "Payment due",
@@ -17797,7 +17797,8 @@
       "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.",
       "amount": "Amount paid",
       "date": "Paid on"
-    }
+    },
+    "creditNote": "Credit note"
   },
   "supplierNotes": {
     "searchPlaceholder": "Search supplier, bill number...",
@@ -18360,6 +18361,18 @@
         "phone": "Toll free {{number}}"
       }
     }
+  },
+  "selfBilledNote": {
+    "supplierUnknown": "Supplier",
+    "noteToSupplier": "Note to supplier",
+    "peppolTitle": "Send to supplier over Peppol",
+    "reduces": "Reduces input VAT",
+    "newBalance": "Still owed to the supplier",
+    "refundTitle": "Refund due from supplier",
+    "refundHint": "The credit is more than you still owe on {{invoice}}, so it is settled in full and the supplier owes you the difference.",
+    "refundNone": "The credit is within what you still owe on {{invoice}}, so nothing comes back from the supplier.",
+    "filed": "Filed against {{invoice}} · reduces the input VAT on your return.",
+    "invoiceNotIssued": "Only an issued self-billed invoice can be credited here. Open the self-billed invoice and use Credit note."
   },
   "tradeDocs": {
     "notAvailableYet": "Not available yet: trade documents are not connected to the server, so this action cannot be carried out.",

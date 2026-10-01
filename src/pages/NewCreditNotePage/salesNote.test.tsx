@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { InvoiceDetailDto, InvoiceReceivableDto } from '../../api/invoices/detail'
-import type { DraftRequest, DraftResponse } from '../../api/invoices/drafts'
+import { createNote, type DraftRequest, type DraftResponse } from '../../api/invoices/drafts'
 import type { InvoiceRowDto } from '../../api/invoices/list'
 import {
   NOTE_REFUSALS,
@@ -24,6 +24,7 @@ import {
 } from '../../lib/salesNote'
 import { CATEGORY_REASON_CONFLICT } from '../../lib/invoiceDraft'
 import { NewCreditNotePage } from './NewCreditNotePage'
+import { NewSelfBilledCreditNotePage } from './NewSelfBilledCreditNotePage'
 import { NewDebitNotePage } from '../NewDebitNotePage'
 import { CreditNotesPage } from '../CreditNotesPage'
 import { DebitNotesPage } from '../DebitNotesPage'
@@ -1341,6 +1342,172 @@ describe("the credit note detail's refund and applied figures (4.19)", () => {
     expect(screen.queryByText(/Refund due to/)).toBeNull()
     expect(screen.queryByText('Settled by this credit')).toBeNull()
   }, 30_000)
+})
+
+describe('a self-billed credit note (SW3, D6)', () => {
+  const SELF_BILLED: InvoiceDetailDto = {
+    ...INVOICE,
+    type: 'SELF_BILLED_INVOICE',
+    invoiceNumber: 'SBI-2026-0001',
+    details: { ...INVOICE.details!, buyerReference: 'SB-0114', contractReference: 'SBA-2025-011' },
+  }
+  const SB_ROUTE = `/api/v1/authored-invoices/${INVOICE_ID}/self-billed-credit-notes`
+  /** A buyer who may self-bill but holds neither sales note permission. */
+  const SELF_BILLER: Entitlements = {
+    ...ADMIN,
+    permissions: ['invoice.read', 'invoice.draft', 'invoice.issue', 'selfbilling.create'],
+  }
+  let original: InvoiceDetailDto
+  let issueAnswer: () => Response
+
+  beforeEach(() => {
+    entitlements = SELF_BILLER
+    original = SELF_BILLED
+    receivable = {
+      ...RECEIVABLE,
+      paymentState: 'NOT_APPLICABLE',
+      paidAmount: 0,
+      outstandingAmount: 0,
+    }
+    issueAnswer = () =>
+      json(200, {
+        ...SELF_BILLED,
+        id: NOTE_ID,
+        type: 'SELF_BILLED_CREDIT_NOTE',
+        invoiceNumber: 'SBC-1',
+      })
+    override = (url, init) => {
+      const method = init?.method ?? 'GET'
+      if (url === `/api/v1/authored-invoices/${INVOICE_ID}`) return json(200, original)
+      if (url === SB_ROUTE && method === 'POST')
+        return json(201, { ...DRAFT, type: 'SELF_BILLED_CREDIT_NOTE' })
+      if (url === `/api/v1/invoice-drafts/${NOTE_ID}/issue`) return issueAnswer()
+      return undefined
+    }
+  })
+
+  function renderSelfBilled(path: string) {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/income/self-billing" element={<p>self-billing list</p>} />
+          <Route
+            path="/income/self-billing/credit-notes/new"
+            element={<NewSelfBilledCreditNotePage />}
+          />
+          <Route path="/income/self-billing/:id" element={<p>self-bill page</p>} />
+          <Route path="/income/credit-notes/:id" element={<p>credit note page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('posts to the self-billed credit note route', async () => {
+    const body = toNoteRequest(fromInvoice(SELF_BILLED, 'CREDIT_NOTE'), SELF_BILLED)
+    await createNote('SELF_BILLED_CREDIT_NOTE', INVOICE_ID, 'draft-key-0000000001', body)
+    const sent = calls('POST', SB_ROUTE)
+    expect(sent).toHaveLength(1)
+    expect(bodyOf(sent[0])).toEqual(body)
+    expect((sent[0][1] as RequestInit).headers).toMatchObject({
+      'Idempotency-Key': 'draft-key-0000000001',
+    })
+  })
+
+  it('issues from the credit-note composer under selfbilling.create and opens the note in self-billing', async () => {
+    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText('Green beans')).toBeTruthy()
+    // The breadcrumb and the original point back into self-billing, not the sales invoice pages.
+    expect(screen.getByRole('link', { name: 'Self-billed' }).getAttribute('href')).toBe(
+      '/income/self-billing',
+    )
+    expect(screen.getAllByRole('link', { name: 'SBI-2026-0001' })[0].getAttribute('href')).toBe(
+      `/income/self-billing/${INVOICE_ID}`,
+    )
+
+    chooseReason('Returned goods')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
+
+    expect(await screen.findByText('self-bill page')).toBeTruthy()
+    const created = calls('POST', SB_ROUTE)
+    expect(created).toHaveLength(1)
+    expect(bodyOf(created[0]).customerId).toBe('c-1')
+    expect(bodyOf(created[0]).details.correctionReasonCode).toBe('QTY')
+    expect(calls('POST', `/api/v1/authored-invoices/${INVOICE_ID}/credit-notes`)).toHaveLength(0)
+    expect(calls('POST', `/api/v1/invoice-drafts/${NOTE_ID}/issue`)).toHaveLength(1)
+  }, 30_000)
+
+  it('names the agreement refusal at issue instead of a generic conflict', async () => {
+    issueAnswer = () =>
+      json(409, {
+        type: 'https://fawtir.om/problems/self-billing-agreement-not-in-force',
+        title: 'Conflict',
+        status: 409,
+        code: 'SELF_BILLING_AGREEMENT_NOT_IN_FORCE',
+      })
+    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText('Green beans')).toBeTruthy()
+    chooseReason('Returned goods')
+    fireEvent.click(screen.getByRole('button', { name: 'Issue credit note' }))
+    expect(
+      await screen.findByText(
+        'The agreement with this supplier is not in force on this date: it has not started, or it has ended.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('self-bill page')).toBeNull()
+  }, 30_000)
+
+  it('refuses an ordinary invoice as the original, before asking the server', async () => {
+    original = INVOICE
+    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText('Green beans')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Only an issued self-billed invoice can be credited here. Open the self-billed invoice and use Credit note.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Issue credit note' }).hasAttribute('disabled')).toBe(
+      true,
+    )
+  })
+
+  it('names the supplier and input VAT, and reads what is owed from the payable', async () => {
+    original = {
+      ...SELF_BILLED,
+      payable: {
+        billId: 'bill-1',
+        state: 'PARTIALLY_PAID',
+        totalAmount: 100,
+        paidAmount: 20,
+        creditedAmount: 5,
+        outstandingAmount: 75,
+        currency: 'OMR',
+        dueDate: null,
+      },
+    }
+    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText('Green beans')).toBeTruthy()
+    expect(screen.getByText('Reduces input VAT')).toBeTruthy()
+    expect(screen.getByText('Send to supplier over Peppol')).toBeTruthy()
+    expect(screen.getAllByText('Note to supplier').length).toBeGreaterThan(0)
+    expect(screen.getByText('Still owed to the supplier')).toBeTruthy()
+    expect(screen.queryByText('Reduces recognised revenue')).toBeNull()
+    expect(screen.queryByText('Send to customer over Peppol')).toBeNull()
+    // Already credited and the creditable figure come from the payable, not the receivable.
+    expect(screen.getByText('5.000')).toBeTruthy()
+    expect(screen.getByText('95.000')).toBeTruthy()
+  }, 30_000)
+
+  it('asks for selfbilling.create, not creditnote.create', async () => {
+    entitlements = { ...ADMIN }
+    renderSelfBilled(`/income/self-billing/credit-notes/new?invoice=${INVOICE_ID}`)
+    expect(await screen.findByText(/doesn't have access to this part of Fawtir/)).toBeTruthy()
+    expect(screen.queryByText('Green beans')).toBeNull()
+  })
+
+  it('returns to the self-billing list when no invoice is named', async () => {
+    renderSelfBilled('/income/self-billing/credit-notes/new')
+    expect(await screen.findByText('self-billing list')).toBeTruthy()
+  })
 })
 
 describe("a debit note's reminders card", () => {

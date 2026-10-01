@@ -287,6 +287,43 @@ describe('the self-billed documents list', () => {
     expect(link.getAttribute('href')).toBe('/income/self-billing/i-1')
   })
 
+  it('reopens a self-billed credit note draft in the credit-note composer it was written in', async () => {
+    who = { ...USER, permissions: [...USER.permissions, 'selfbilling.create'] }
+    rows = [
+      row({
+        id: 'sbc-1',
+        type: 'SELF_BILLED_CREDIT_NOTE',
+        authoringState: 'DRAFT',
+        invoiceNumber: null,
+        customerName: 'Credit Supplier',
+      }),
+      row({
+        id: 'sbi-1',
+        authoringState: 'DRAFT',
+        invoiceNumber: null,
+        customerName: 'Invoice Supplier',
+      }),
+    ]
+    const at = (path: string) => (
+      <Routes>
+        <Route path="/income/self-billing" element={<SelfBillingPage />} />
+        <Route
+          path="/income/self-billing/credit-notes/:id/edit"
+          element={<p>note composer {path}</p>}
+        />
+        <Route path="/income/self-billing/:id/edit" element={<p>self-bill composer</p>} />
+      </Routes>
+    )
+    render(<MemoryRouter initialEntries={['/income/self-billing']}>{at('sbc')}</MemoryRouter>)
+    fireEvent.click(await screen.findByText('Credit Supplier'))
+    expect(await screen.findByText('note composer sbc')).toBeTruthy()
+
+    cleanup()
+    render(<MemoryRouter initialEntries={['/income/self-billing']}>{at('sbi')}</MemoryRouter>)
+    fireEvent.click(await screen.findByText('Invoice Supplier'))
+    expect(await screen.findByText('self-bill composer')).toBeTruthy()
+  })
+
   it('shows an empty state per type rather than one that could mislead', async () => {
     rows = []
     renderPage()

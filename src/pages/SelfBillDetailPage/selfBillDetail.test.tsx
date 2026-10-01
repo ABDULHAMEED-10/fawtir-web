@@ -17,6 +17,8 @@ const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const ID = '11111111-1111-1111-1111-111111111111'
 const URL_BASE = `/api/v1/authored-invoices/${ID}`
 const TODAY = '2026-09-25'
+// The invoice a self-billed credit note corrects.
+const ORIGINAL_ID = '22222222-2222-2222-2222-222222222222'
 
 const BUYER: Entitlements = {
   userId: 'u-1',
@@ -234,6 +236,8 @@ beforeEach(async () => {
       ])
     if (url === `${URL_BASE}/history`) return json(200, HISTORY)
     if (url === URL_BASE) return invoiceResponse()
+    if (url === `/api/v1/authored-invoices/${ORIGINAL_ID}`)
+      return json(200, invoice({ id: ORIGINAL_ID, invoiceNumber: 'SBI-2026-0001' }))
     if (url === BILL_PAYMENTS_URL && method === 'POST') return billPaymentResponse()
     if (url === '/api/v1/customers/c-1')
       return json(200, {
@@ -487,6 +491,43 @@ describe('A self-billed invoice through its own door', () => {
   })
 })
 
+describe('the self-billed credit note entry (SW3, D6)', () => {
+  const SELF_BILLER: Entitlements = {
+    ...BUYER,
+    permissions: [...BUYER.permissions, 'selfbilling.create'],
+  }
+  const creditLink = () => screen.queryByRole('link', { name: 'Credit note' })
+
+  it('opens the credit-note composer from an issued self-billed invoice', async () => {
+    who = SELF_BILLER
+    renderPage()
+    expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
+    expect(creditLink()?.getAttribute('href')).toBe(
+      `/income/self-billing/credit-notes/new?invoice=${ID}`,
+    )
+  })
+
+  it('offers none on a draft, on a self-billed credit note, or without selfbilling.create', async () => {
+    who = SELF_BILLER
+    invoiceResponse = () => json(200, invoice({ authoringState: 'DRAFT', invoiceNumber: null }))
+    renderPage()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Not numbered yet' })).toBeTruthy()
+    expect(creditLink()).toBeNull()
+
+    cleanupAndRender(() =>
+      json(200, invoice({ type: 'SELF_BILLED_CREDIT_NOTE', invoiceNumber: 'SBC-2026-0001' })),
+    )
+    expect(await screen.findByRole('heading', { level: 1, name: 'SBC-2026-0001' })).toBeTruthy()
+    expect(creditLink()).toBeNull()
+
+    who = BUYER
+    forgetEntitlements()
+    cleanupAndRender(() => json(200, invoice()))
+    expect(await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })).toBeTruthy()
+    expect(creditLink()).toBeNull()
+  })
+})
+
 describe('self-bill detail mapping', () => {
   it('reads the status from the state, then from what is owed, then from delivery', () => {
     expect(selfBillStatus(invoice({ authoringState: 'DRAFT' }), null).key).toBe(
@@ -533,5 +574,31 @@ describe('self-bill detail mapping', () => {
       paid: true,
     })
     expect(settled).toHaveLength(2)
+  })
+})
+
+describe('a self-billed credit note', () => {
+  it('links back to the self-billed invoice it corrects (IBR-032-OM)', async () => {
+    invoiceResponse = () =>
+      json(
+        200,
+        invoice({
+          type: 'SELF_BILLED_CREDIT_NOTE',
+          invoiceNumber: 'SBC-2026-0001',
+          correctionOfInvoiceId: ORIGINAL_ID,
+        }),
+      )
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBC-2026-0001' })
+    const link = await screen.findByRole('link', { name: 'SBI-2026-0001' })
+    expect(link.getAttribute('href')).toBe(`/income/self-billing/${ORIGINAL_ID}`)
+    expect(screen.getByText('Credits')).toBeTruthy()
+  })
+
+  it('shows no original on a self-billed invoice', async () => {
+    renderPage()
+    await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+    expect(screen.queryByText('Credits')).toBeNull()
+    expect(calls()).not.toContain(`GET /api/v1/authored-invoices/${ORIGINAL_ID}`)
   })
 })

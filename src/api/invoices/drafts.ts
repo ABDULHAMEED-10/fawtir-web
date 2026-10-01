@@ -196,17 +196,29 @@ export function createSelfBilledDraft(
 
 export type NoteKind = 'CREDIT_NOTE' | 'DEBIT_NOTE'
 
+/** The note routes under an issued document: the two sales notes and the self-billed credit note. */
+export type NoteRouteKind = NoteKind | 'SELF_BILLED_CREDIT_NOTE'
+
+const NOTE_ROUTE: Record<NoteRouteKind, string> = {
+  CREDIT_NOTE: 'credit-notes',
+  DEBIT_NOTE: 'debit-notes',
+  SELF_BILLED_CREDIT_NOTE: 'self-billed-credit-notes',
+}
+
 /**
- * A credit or debit note draft against an issued invoice (`creditnote.create` / `debitnote.create`).
- * The body is the ordinary draft content: the server copies nothing from the invoice.
+ * A note draft against an issued document: a credit or debit note on an invoice
+ * (`creditnote.create` / `debitnote.create`), or a self-billed credit note (IBT-003 261) on an
+ * issued self-billed invoice (`selfbilling.create`; the server refuses any other predecessor with
+ * `CORRECTED_INVOICE_NOT_ISSUED`). The body is the ordinary draft content: the server copies
+ * nothing from the invoice.
  */
 export function createNote(
-  kind: NoteKind,
+  kind: NoteRouteKind,
   invoiceId: string,
   idempotencyKey: string,
   draft: DraftRequest,
 ): Promise<DraftResponse> {
-  const route = kind === 'CREDIT_NOTE' ? 'credit-notes' : 'debit-notes'
+  const route = NOTE_ROUTE[kind]
   return apiRequest<DraftResponse>(
     `/v1/authored-invoices/${encodeURIComponent(invoiceId)}/${route}`,
     {

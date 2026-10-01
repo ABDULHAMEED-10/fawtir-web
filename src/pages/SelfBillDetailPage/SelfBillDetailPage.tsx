@@ -61,6 +61,7 @@ import fileJpgIcon from '../../assets/self-bill-detail/file-jpg.svg'
 import fileDownloadIcon from '../../assets/self-bill-detail/file-download.svg'
 import fileDeleteIcon from '../../assets/self-bill-detail/file-delete.svg'
 import backIcon from '../../assets/invoice-details/back.svg'
+import creditNoteIcon from '../../assets/invoice-details/credit-note.svg'
 import uploadIcon from '../../assets/create-invoice/upload.svg'
 
 /** What the attachment route takes: the invoice composer's list and limit. */
@@ -151,16 +152,28 @@ function DetailField({
   value,
   note,
   noteTone = 'pending',
+  to,
 }: {
   label: string
   value: string
   note?: string | null
   noteTone?: 'pending' | 'danger'
+  /** Makes the value a link, e.g. a credit note's original invoice. */
+  to?: string
 }) {
   return (
     <div>
       <p className="text-xs font-medium leading-[1.2] text-[#727579]">{label}</p>
-      <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-primary">{value}</p>
+      {to ? (
+        <Link
+          to={to}
+          className="mt-1.5 block text-sm font-semibold leading-[1.2] text-primary-700 hover:underline"
+        >
+          {value}
+        </Link>
+      ) : (
+        <p className="mt-1.5 text-sm font-medium leading-[1.2] text-text-primary">{value}</p>
+      )}
       {note ? (
         <p
           className={[
@@ -257,6 +270,11 @@ function SelfBillScreen() {
     () => loadCustomer(document!.customerId),
   )
   const branches = useApiRead<BranchDto[]>(document ? BRANCHES_PATH : null, loadBranches)
+  // A self-billed credit note names the invoice it corrects (IBR-032-OM); read it for its number.
+  const originalId = document?.correctionOfInvoiceId ?? null
+  const original = useApiRead<InvoiceDetailDto>(originalId ? invoicePath(originalId) : null, () =>
+    loadInvoice(originalId!),
+  )
   // The agreement the document was raised under, for the note beneath the Agreement field.
   const agreements = useApiRead<AgreementDto[]>(
     document && can(session, 'selfbilling.agreement.manage') ? AGREEMENTS_PATH : null,
@@ -339,6 +357,13 @@ function SelfBillScreen() {
     owed !== null &&
     owed.paymentState !== 'NOT_APPLICABLE' &&
     owed.paymentState !== 'PAID'
+
+  // A self-billed credit note (261) corrects an ISSUED self-billed invoice only (decision D6: the
+  // credit-note composer, as the invoice page opens it). The create route asks selfbilling.create.
+  const canCredit =
+    data.type === 'SELF_BILLED_INVOICE' &&
+    data.authoringState === 'ISSUED' &&
+    can(session, 'selfbilling.create')
 
   const failureText = (error: unknown) => {
     const message = describeApiFailure(error)
@@ -446,6 +471,15 @@ function SelfBillScreen() {
           >
             {t('selfBillDetail.sendReminder')}
           </button>
+          {canCredit ? (
+            <Link
+              to={`/income/self-billing/credit-notes/new?invoice=${encodeURIComponent(data.id)}`}
+              className={OUTLINE_BUTTON}
+            >
+              <img src={creditNoteIcon} alt="" className="size-5" />
+              {t('selfBillDetail.creditNote')}
+            </Link>
+          ) : null}
           <button
             type="button"
             disabled={!canPay}
@@ -508,6 +542,15 @@ function SelfBillScreen() {
           </div>
 
           <div className="mt-5 grid gap-5 sm:grid-cols-3">
+            {data.correctionOfInvoiceId ? (
+              <DetailField
+                label={t('salesNote.credit.corrects')}
+                value={
+                  original.read.status === 'ready' ? (original.read.data.invoiceNumber ?? '—') : '—'
+                }
+                to={`/income/self-billing/${data.correctionOfInvoiceId}`}
+              />
+            ) : null}
             <DetailField label={t('selfBillDetail.fields.issueDate')} value={day(data.issueDate)} />
             <DetailField
               label={t('selfBillDetail.fields.supplyDate')}
