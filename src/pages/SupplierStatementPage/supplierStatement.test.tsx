@@ -183,6 +183,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -228,6 +229,10 @@ describe('The supplier statement, wired to the API', () => {
   })
 
   it('reads the year to date first, and any period the reader picks', async () => {
+    // The custom range picks the 9th and 12th of this month, and the calendar refuses days after
+    // today, so the clock is held at the 20th: on the 1st to the 11th the days could not be picked.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-20T09:00:00Z'))
     renderStatement()
     await screen.findByRole('heading', { level: 1, name: 'Statement' })
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date())
