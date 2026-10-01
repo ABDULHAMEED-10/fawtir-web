@@ -16722,7 +16722,10 @@
       "approvalAlreadyGiven": "سبق أن اعتمدت هذه الفاتورة.",
       "approvalReasonRequired": "الرفض يجب أن يذكر سببه.",
       "applyAmountInvalid": "المبلغ المخصوم يجب أن يكون أكبر من صفر.",
-      "approvalPolicyInvalid": "قاعدة الاعتماد يجب أن تشترط معتمدًا واحدًا على الأقل."
+      "approvalPolicyInvalid": "قاعدة الاعتماد يجب أن تشترط معتمدًا واحدًا على الأقل.",
+      "reminderRepeatNotAllowed": "هذا التذكير لا يتكرر.",
+      "reminderRecipientUnknown": "أحد الأشخاص المختارين لم يعد ضمن الفريق. اختر من جديد.",
+      "reminderDaysOutOfRange": "عدد الأيام هذا خارج المدى الذي يقبله الخادم."
     },
     "selfBilling": {
       "generic": "رفض الخادم هذا بسبب اتفاقية الفوترة الذاتية مع هذا المورّد. راجع الاتفاقية قبل المحاولة مجددًا.",

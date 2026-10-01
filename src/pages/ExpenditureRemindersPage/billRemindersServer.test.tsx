@@ -785,9 +785,11 @@ describe('a save the server refuses', () => {
   it('in the shape it sends now: the Expenditure refusal with its code', async () => {
     const before = await saveAnEmptyRule('coded')
 
-    // REMINDER_RULE_EMPTY has no sentence of its own yet, so it reads as a refusal, not as a
-    // fault to retry, and never as the raw code or the server's English detail.
-    expect(await screen.findByText(/^The server refused this\./)).toBeTruthy()
+    // REMINDER_RULE_EMPTY has its own sentence, the one the page shows under a rule it stops
+    // itself: never the raw code, the server's English detail, or an invitation to retry.
+    const notice = (await screen.findByText('Not done')).closest('section')!
+    expect(within(notice).getByText('Choose when to remind, or switch this off.')).toBeTruthy()
+    expect(screen.queryByText(/^The server refused this\./)).toBeNull()
     expect(screen.getByText('Not done')).toBeTruthy()
     expect(screen.queryByText(/REMINDER_RULE_EMPTY/)).toBeNull()
     expect(screen.queryByText(/needs at least one offset/)).toBeNull()
@@ -822,6 +824,38 @@ describe('a save the server refuses', () => {
     expect(screen.queryByText('Saved.')).toBeNull()
   })
 
+  it('tells someone whose chosen person has left the team to choose again', async () => {
+    // Someone is switched off between the page reading the list and Save. The mock refuses a
+    // person added who is not one of the company's, as the server does.
+    forced = {
+      status: 400,
+      body: {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        title: 'Request refused',
+        status: 400,
+        detail: `${GONE} is not an active user of this company`,
+        error: 'REMINDER_RULE_RECIPIENT_UNKNOWN',
+      },
+    }
+    renderPage()
+    await editorReady()
+    fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    expect(
+      await screen.findByText('One of the people chosen is no longer on the team. Choose again.'),
+    ).toBeTruthy()
+    expect(screen.getByText('Not done')).toBeTruthy()
+    expect(screen.queryByText(new RegExp(GONE))).toBeNull()
+    expect(screen.queryByText('Saved.')).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    forced = { ...forced, body: { ...forced.body, error: 'REMINDER_RULE_OFFSET_OUT_OF_RANGE' } }
+    fireEvent.click(await screen.findByRole('button', { name: 'حفظ التغييرات' }))
+    expect(await screen.findByText('عدد الأيام هذا خارج المدى الذي يقبله الخادم.')).toBeTruthy()
+  })
+
   it('does not go on to save the settings when the rules were refused', async () => {
     // Two calls, rules first. A refusal stops the second, so the page never reports a half.
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
@@ -841,7 +875,7 @@ describe('a save the server refuses', () => {
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
 
-    expect(await screen.findByText(/^The server refused this\./)).toBeTruthy()
+    expect(await screen.findByText('Choose when to remind, or switch this off.')).toBeTruthy()
     expect(rulesBodies).toHaveLength(1)
     expect(settingsBodies).toHaveLength(0)
     expect(settingsOnFile.delivery).toBe('DAILY_DIGEST')
@@ -1082,7 +1116,7 @@ describe('the reminders screen in Arabic', () => {
     const save = screen.getByRole('button', { name: 'حفظ التغييرات' })
     await waitFor(() => expect(save).toHaveProperty('disabled', false))
     fireEvent.click(save)
-    expect(await screen.findByText(/^رفض الخادم هذا الطلب\./)).toBeTruthy()
+    expect(await screen.findByText('اختر موعد التذكير، أو أوقف هذا التذكير.')).toBeTruthy()
     expect(screen.queryByText(/needs at least one offset/)).toBeNull()
 
     // No message key and no English page string left on the Arabic page.

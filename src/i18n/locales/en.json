@@ -16016,7 +16016,10 @@
       "approvalAlreadyGiven": "You have already approved this bill.",
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
-      "approvalPolicyInvalid": "An approval rule has to require at least one approver."
+      "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
+      "reminderRepeatNotAllowed": "That reminder does not repeat.",
+      "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
+      "reminderDaysOutOfRange": "That number of days is outside the range the server accepts."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
