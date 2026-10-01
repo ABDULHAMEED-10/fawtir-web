@@ -43,7 +43,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   BILL_FILE_TYPES,
-  CONFIRM_REFUSALS,
+  BILL_CONFIRM_REFUSALS,
   UPLOAD_REFUSALS,
   blankBillForm,
   linesTotals,
@@ -275,9 +275,9 @@ function RecordBill({ id }: { id: string }) {
       } else if (
         failure instanceof ApiError &&
         failure.code &&
-        (CONFIRM_REFUSALS[failure.code] || UPLOAD_REFUSALS[failure.code])
+        (BILL_CONFIRM_REFUSALS[failure.code] || UPLOAD_REFUSALS[failure.code])
       ) {
-        setNotice(t(CONFIRM_REFUSALS[failure.code]?.key ?? UPLOAD_REFUSALS[failure.code]))
+        setNotice(t(BILL_CONFIRM_REFUSALS[failure.code]?.key ?? UPLOAD_REFUSALS[failure.code]))
       } else {
         const described = describeApiFailure(failure)
         const body = t(described.key, described.values)

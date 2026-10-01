@@ -5570,7 +5570,10 @@
       "reasonRequired": "A rejection needs a reason.",
       "paidCannotHold": "A bill that is paid cannot be put on hold.",
       "notPayable": "Nothing is owed on this bill, so it cannot be put on hold.",
-      "wrongReceipt": "That receipt belongs to a different order."
+      "wrongReceipt": "That receipt belongs to a different order.",
+      "paymentRecorded": "A payment is already recorded on this bill, so it can no longer be rejected.",
+      "inRun": "This bill is in payment run {{run}}. Take it out of the run before rejecting it.",
+      "reasonTooLong": "That reason is too long. Shorten it and reject again."
     },
     "done": {
       "approved": "Approved.",
@@ -5601,7 +5604,10 @@
       "amount": "Amount paid",
       "date": "Paid on",
       "notApproved": "This bill has not been approved yet. Approve it, then record the payment.",
-      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first."
+      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "onHold": "This bill is on hold. Release it, then record the payment.",
+      "tooMuch": "That is more than this bill still owes.",
+      "tooMuchMost": "That is more than this bill still owes. The most you can record is {{amount}}."
     }
   },
   "uploadBill": {
@@ -15965,7 +15971,8 @@
       "approvalAlreadyGiven": "You have already approved this bill.",
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
-      "approvalPolicyInvalid": "An approval rule has to require at least one approver."
+      "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
+      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -16668,7 +16675,15 @@
       "toCheck_other": "{{count}} fields still to check",
       "notReported": "uploaded bills are not validated or reported like Peppol ones"
     },
-    "noOpenOrders": "This supplier has no open orders to link to."
+    "noOpenOrders": "This supplier has no open orders to link to.",
+    "refused": {
+      "paidTotalZero": "A bill paid on the spot needs a total above zero.",
+      "paymentMethodRequired": "Choose how this bill was paid.",
+      "purchaseOrderGone": "That purchase order is not on this account. Choose another, or save the bill without one.",
+      "vatCategoryInvalid": "That VAT category cannot be used on a bill. Choose another.",
+      "vatRateMismatch": "That VAT rate does not match the VAT category. Choose the rate that goes with it.",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it."
+    }
   },
   "salesNote": {
     "credit": {

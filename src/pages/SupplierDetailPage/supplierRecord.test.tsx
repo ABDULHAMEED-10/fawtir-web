@@ -1009,4 +1009,68 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(confirmed('intake-1')).toHaveLength(2)
     expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body)).notDuplicateOf).toBe('bill-old')
   })
+
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 1, "Capturing a bill"). A
+  // correction there changes the sentences below with it.
+  describe('why the bill was refused, in its own sentence', () => {
+    const refusal = (status: number, type: string, error: string) => () =>
+      new Response(
+        JSON.stringify({ type: `https://api.fawtir.om/problems/${type}`, status, error }),
+        { status, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    const GENERIC = /The server refused this\. Nothing was changed/
+    // The codes this page can provoke: it has no paid-on-the-spot choice.
+    const RECORD: [string, number, string, string][] = [
+      [
+        'PURCHASE_ORDER_NOT_FOUND',
+        404,
+        'resource-not-found',
+        'That purchase order is not on this account. Choose another, or save the bill without one.',
+      ],
+      [
+        'BILL_TAX_CATEGORY_INVALID',
+        400,
+        'expenditure-refused',
+        'That VAT category cannot be used on a bill. Choose another.',
+      ],
+      [
+        'BILL_TAX_CATEGORY_RATE_MISMATCH',
+        400,
+        'expenditure-refused',
+        'That VAT rate does not match the VAT category. Choose the rate that goes with it.',
+      ],
+      [
+        'SUPPLIER_SWITCHED_OFF',
+        400,
+        'expenditure-refused',
+        'This supplier is switched off. Switch it back on to record a bill for it.',
+      ],
+    ]
+
+    it.each(RECORD)('with no file attached: %s', async (error, status, type, sentence) => {
+      confirmResponse = refusal(status, type, error)
+      await typeBill()
+      send()
+      expect(await screen.findByText(sentence)).toBeTruthy()
+      expect(screen.queryByText(GENERIC)).toBeNull()
+      expect(noFilePosts()).toHaveLength(1)
+    })
+
+    it.each(RECORD)('with a file attached: %s', async (error, status, type, sentence) => {
+      confirmResponse = refusal(status, type, error)
+      await typeBill()
+      attach('bill.pdf')
+      send()
+      expect(await screen.findByText(sentence)).toBeTruthy()
+      expect(screen.queryByText(GENERIC)).toBeNull()
+      expect(confirmed('intake-1')).toHaveLength(1)
+    })
+
+    it('keeps the general refusal for a code with no sentence of its own', async () => {
+      confirmResponse = refusal(400, 'expenditure-refused', 'BILL_NOTE_TOO_LONG')
+      await typeBill()
+      send()
+      expect(await screen.findByText(GENERIC)).toBeTruthy()
+    })
+  })
 })

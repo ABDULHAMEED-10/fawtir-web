@@ -129,6 +129,8 @@ let nudgeResponse: () => Response
 /** The summary asked for with a search or a source: its tab counts are the filtered ones. */
 let countsResponse: (url: string) => Response
 let exportResponse: () => Response
+/** What a reject, a hold or a release answers. */
+let decisionResponse: () => Response
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -144,6 +146,7 @@ beforeEach(async () => {
   countsResponse = () => json(200, SUMMARY)
   nudgeResponse = () =>
     json(202, { billId: ID, nudgedOn: '2026-10-01', approvers: 1 })
+  decisionResponse = () => json(200, {})
   exportResponse = () =>
     new Response('supplier\n', {
       status: 200,
@@ -161,7 +164,7 @@ beforeEach(async () => {
     if (url.startsWith(`${SUMMARY_URL}?`)) return countsResponse(url)
     if (url.endsWith('/approval/approve') && init?.method === 'POST') return json(200, {})
     if (/\/(approval\/reject|hold|release)$/.test(url) && init?.method === 'POST')
-      return json(200, {})
+      return decisionResponse()
     if (url.startsWith('/api/v1/bills?') || url === '/api/v1/bills') {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
@@ -1158,5 +1161,60 @@ describe('draft rows under the source filter', () => {
     renderBills('/expenditure/bills?source=peppol')
     expect(await screen.findByText('No bills match these filters.')).toBeTruthy()
     expect(screen.queryByText(/No bills yet/)).toBeNull()
+  })
+})
+
+// Draft wording, pending the owner (Wording-For-Abdul.md section 1, "Rejecting a bill"). A
+// correction there changes the sentences below with it.
+describe('why a rejection was refused, in its own sentence', () => {
+  const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
+    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+  const GENERIC = /The server refused this\. Nothing was changed/
+
+  // Found by key, so the same steps run in Arabic.
+  async function reject() {
+    renderBills()
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: i18n.t('billsPage.rowMenuLabel') }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: i18n.t('billDetail.actions.reject') }),
+    )
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Not ours' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.reject.confirm') }))
+  }
+
+  it.each([
+    [
+      'APPROVAL_REJECT_PAYMENT_RECORDED',
+      {},
+      'A payment is already recorded on this bill, so it can no longer be rejected.',
+    ],
+    [
+      'APPROVAL_REJECT_IN_PAYMENT_RUN',
+      { paymentRunReference: 'PR-0007' },
+      'This bill is in payment run PR-0007. Take it out of the run before rejecting it.',
+    ],
+    ['APPROVAL_REASON_TOO_LONG', {}, 'That reason is too long. Shorten it and reject again.'],
+  ])('%s', async (error, extra, sentence) => {
+    decisionResponse = refusal(error, extra)
+    await reject()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('names the run in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    decisionResponse = refusal('APPROVAL_REJECT_IN_PAYMENT_RUN', { paymentRunReference: 'PR-0007' })
+    await reject()
+    expect(
+      await screen.findByText('هذه الفاتورة ضمن دفعة السداد PR-0007. أخرجها من الدفعة قبل رفضها.'),
+    ).toBeTruthy()
+  })
+
+  it('keeps the general refusal for a code with no sentence of its own', async () => {
+    decisionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
+    await reject()
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
   })
 })

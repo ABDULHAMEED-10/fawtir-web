@@ -372,6 +372,28 @@ export const CONFIRM_REFUSALS: Record<string, { field: BillField | null; key: st
   BILL_INTAKE_NOT_FOUND: { field: null, key: 'billIntake.error.intakeGone' },
 }
 
+/**
+ * What a bill's capture screens (Upload a bill, Record a bill, Scan receipts) add to
+ * {@link CONFIRM_REFUSALS}. Draft wording, pending the owner (Wording-For-Abdul.md, "Capturing a
+ * bill"). Kept off the shared map because each sentence says "bill", and a supplier's credit or
+ * debit note is captured through the same confirm route.
+ *
+ * Keyed on the code alone: `PURCHASE_ORDER_NOT_FOUND` answers 404, the rest 400. None belongs to
+ * one input of the form, so each reads in the page's notice, where the general refusal read.
+ */
+export const BILL_CONFIRM_REFUSALS: Record<string, { field: BillField | null; key: string }> = {
+  ...CONFIRM_REFUSALS,
+  BILL_INTAKE_PAYMENT_AMOUNT_INVALID: { field: null, key: 'billIntake.refused.paidTotalZero' },
+  BILL_INTAKE_PAYMENT_METHOD_REQUIRED: {
+    field: null,
+    key: 'billIntake.refused.paymentMethodRequired',
+  },
+  PURCHASE_ORDER_NOT_FOUND: { field: null, key: 'billIntake.refused.purchaseOrderGone' },
+  BILL_TAX_CATEGORY_INVALID: { field: null, key: 'billIntake.refused.vatCategoryInvalid' },
+  BILL_TAX_CATEGORY_RATE_MISMATCH: { field: null, key: 'billIntake.refused.vatRateMismatch' },
+  SUPPLIER_SWITCHED_OFF: { field: null, key: 'billIntake.refused.supplierSwitchedOff' },
+}
+
 /** Why an upload was refused, by the server's code. */
 export const UPLOAD_REFUSALS: Record<string, string> = {
   BILL_INTAKE_TOO_LARGE: 'billIntake.upload.tooLarge',

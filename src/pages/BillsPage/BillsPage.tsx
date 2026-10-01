@@ -144,6 +144,10 @@ const REFUSALS: Record<string, string> = {
   APPROVAL_ALREADY_GIVEN: 'billDetail.refused.alreadyApproved',
   APPROVAL_TRANSITION_INVALID: 'billDetail.refused.changed',
   APPROVAL_REJECTION_REASON_REQUIRED: 'billDetail.refused.reasonRequired',
+  // Rejecting: draft wording, pending the owner (Wording-For-Abdul.md, "Rejecting a bill").
+  APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
+  APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
+  APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
   BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
@@ -617,7 +621,8 @@ function BillsScreen() {
 
 function refusalText(t: Translate, error: unknown): string {
   if (error instanceof ApiError && error.code && REFUSALS[error.code])
-    return t(REFUSALS[error.code])
+    // The run is the one value a sentence here names; the server sends it beside the code.
+    return t(REFUSALS[error.code], { run: String(error.problem.paymentRunReference ?? '') })
   const message = describeApiFailure(error)
   const body = t(message.key, message.values)
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body

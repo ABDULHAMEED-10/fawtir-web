@@ -39,6 +39,7 @@ export function RecordPaymentModal({
   record,
   refusals,
   labelKeys,
+  amountTooMuchKey,
 }: {
   invoiceId: string
   invoiceNumber: string | null
@@ -71,6 +72,11 @@ export function RecordPaymentModal({
    * tenant pays its supplier, so "Amount paid" / "Paid on" rather than received.
    */
   labelKeys?: { amount: string; date: string }
+  /**
+   * What an amount above what is still owed reads as, when it is not an invoice that is owed (a
+   * bill). `{{amount}}` is the outstanding amount the dialog holds, as its subtitle prints it.
+   */
+  amountTooMuchKey?: string
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -96,6 +102,8 @@ export function RecordPaymentModal({
     event.preventDefault()
     const target = event.currentTarget
     const problems = paymentProblems(form, { outstanding, currency, issueDate, today })
+    if (amountTooMuchKey && problems.amount === 'invoiceDetails.pay.error.amountTooMuch')
+      problems.amount = amountTooMuchKey
     setErrors(problems)
     setFailure(null)
     if (Object.values(problems).some(Boolean)) {
@@ -174,7 +182,16 @@ export function RecordPaymentModal({
               leadingIcon={<Rial className="text-text-secondary" />}
               value={form.amount}
               onChange={(event) => change('amount', event.target.value)}
-              error={errors.amount ? t(errors.amount) : undefined}
+              error={
+                errors.amount
+                  ? t(errors.amount, {
+                      amount:
+                        outstanding === null
+                          ? ''
+                          : formatAmount(outstanding, currency, i18n.language),
+                    })
+                  : undefined
+              }
               hint={t('invoiceDetails.pay.amountHint')}
             />
           </div>
