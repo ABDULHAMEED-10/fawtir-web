@@ -34,6 +34,7 @@ import {
 } from '../../lib/consoleSubscriptions'
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { omr } from '../../lib/superAdmin'
+import { omanPhone } from '../../lib/validation'
 import {
   Field,
   SummaryLine,
@@ -175,10 +176,10 @@ function validate(step: Exclude<Step, 'review'>, draft: Draft, t: TFunction): Er
   }
   if (step === 'owner') {
     if (!draft.ownerName.trim()) errors.ownerName = required
-    const digits = draft.ownerPhone.replace(/\D/g, '')
-    if (!digits) errors.ownerPhone = required
-    else if (digits.length !== 8) errors.ownerPhone = t('validation.phoneLength')
-    else if (!/^[792]/.test(digits)) errors.ownerPhone = t('validation.phonePrefix')
+    // The shared Omani phone rule (lib/validation), as sign-up and the customer forms use.
+    const phoneProblem = omanPhone(draft.ownerPhone)
+    if (phoneProblem)
+      errors.ownerPhone = phoneProblem === 'validation.required' ? required : t(phoneProblem)
     if (!draft.ownerEmail.trim()) errors.ownerEmail = required
     else if (!EMAIL.test(draft.ownerEmail.trim())) errors.ownerEmail = t('validation.email')
   }

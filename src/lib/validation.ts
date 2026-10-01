@@ -8,8 +8,9 @@
  * round trip; the backend stays authoritative and re-checks every one of them.
  *
  * The formats here are Oman-specific and worth stating once:
- *  - Mobile numbers are 8 digits and start with 7 or 9; landlines start with 2. The +968 prefix
- *    is supplied by the field, so it is never part of the value.
+ *  - Numbers are 8 digits. Landlines start 22 to 26 (the fixed-number blocks by region); mobiles
+ *    start 71 to 79 or 90 to 99. The +968 prefix is supplied by the field, so it is never part of
+ *    the value.
  *  - A VAT identification number is `OM`, a registrant class of `11` or `12`, then 8 digits.
  *  - Commercial registration numbers are 7 digits.
  *  - Postal codes are 3 digits.
@@ -68,12 +69,20 @@ export function fullName(value: string): FieldError {
   return undefined
 }
 
+/**
+ * The ranges in use: fixed lines 22 to 26 (22 non-geographic, 23 Dhofar and Al Wusta, 24 Muscat,
+ * 25 A'Dakhliyah, Al Sharqiya and A'Dhahira, 26 Al Batinah and Musandam) and mobiles 71 to 79 and
+ * 90 to 99. Kept to whole blocks so a new operator range inside them is not refused (owner, 1 Oct
+ * 2026); to be confirmed against the TRA numbering plan.
+ */
+const OMAN_PHONE_PREFIX = /^(2[2-6]|7[1-9]|9\d)/
+
 /** Oman national number, without the +968 prefix. */
 export function omanPhone(value: string): FieldError {
   const digits = value.replace(/\D/g, '')
   if (!digits) return 'validation.required'
   if (digits.length !== 8) return 'validation.phoneLength'
-  return /^[279]/.test(digits) ? undefined : 'validation.phonePrefix'
+  return OMAN_PHONE_PREFIX.test(digits) ? undefined : 'validation.phonePrefix'
 }
 
 /** The `+968XXXXXXXX` form the server stores. Only meaningful once {@link omanPhone} passes. */
