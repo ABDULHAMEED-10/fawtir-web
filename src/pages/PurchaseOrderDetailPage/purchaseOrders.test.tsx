@@ -148,6 +148,8 @@ let receipts: GoodsReceiptDto[]
 let actions: string[]
 let bookedBody: unknown
 let createdBody: unknown
+/** What `GET /purchase-orders/{id}` answers when it is not the order itself. */
+let orderRefused: number | null
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
@@ -158,6 +160,7 @@ beforeEach(async () => {
   actions = []
   bookedBody = null
   createdBody = null
+  orderRefused = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -184,7 +187,8 @@ beforeEach(async () => {
       actions.push(move[1])
       return json(200, current)
     }
-    if (url.includes(`/purchase-orders/${ORDER_ID}`)) return json(200, current)
+    if (url.includes(`/purchase-orders/${ORDER_ID}`))
+      return orderRefused ? json(orderRefused) : json(200, current)
     if (url.endsWith('/api/v1/purchase-orders') && init?.method === 'POST') {
       createdBody = JSON.parse(String(init.body))
       return json(201, order({ state: 'DRAFT' }))
@@ -416,6 +420,39 @@ describe('one purchase order', () => {
     expect(
       screen.queryByRole('button', { name: /Approve|Mark as sent|Send for approval/ }),
     ).toBeNull()
+  })
+})
+
+describe('a purchase order opened by someone who may only read it', () => {
+  /** Reads orders (to match a bill to one) and can neither manage nor approve them. */
+  const READER: Entitlements = { ...BUYER, permissions: ['purchase-order.read'] }
+
+  it('shows the order with no "No access" above it and nothing to press', async () => {
+    who = READER
+    for (const state of ['DRAFT', 'AWAITING_APPROVAL', 'APPROVED', 'SENT', 'RECEIVED'] as const) {
+      forgetEntitlements()
+      current = order({ state })
+      const view = renderDetail()
+      await screen.findByText('PO-0001')
+      expect(screen.getByText('Arabica beans')).toBeTruthy()
+      expect(screen.queryByText('No access')).toBeNull()
+      expect(screen.queryByText(/doesn't have access/)).toBeNull()
+      expect(
+        screen.queryByRole('button', {
+          name: /Send for approval|Approve it|Mark as sent|Cancel the order|Book these in|Close the order/,
+        }),
+      ).toBeNull()
+      view.unmount()
+    }
+    expect(actions).toEqual([])
+  })
+
+  it('still reads a refused order as "No access"', async () => {
+    who = READER
+    orderRefused = 403
+    renderDetail()
+    expect(await screen.findByText('No access')).toBeTruthy()
+    expect(screen.queryByText('PO-0001')).toBeNull()
   })
 })
 

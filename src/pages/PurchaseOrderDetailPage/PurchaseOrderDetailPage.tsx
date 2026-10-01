@@ -9,7 +9,6 @@ import {
   ApiReadFailure,
   LoadingNotice,
   Notice,
-  PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
@@ -263,7 +262,6 @@ function PurchaseOrderDetail({ id }: { id: string }) {
           action={{ label: t('common.close'), onClick: () => setFailure(null) }}
         />
       ) : null}
-      {!canManage && !canApprove ? <PermissionDeniedNotice /> : null}
 
       <SupplierStrip
         initials={initialsOf(supplierName)}
