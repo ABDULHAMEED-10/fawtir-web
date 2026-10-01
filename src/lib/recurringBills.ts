@@ -1,8 +1,10 @@
 import type {
   ExpectationState,
+  NotWatchedDto,
   RecurrenceInterval,
   RecurringBillDto,
   RecurringBillRequestDto,
+  RecurringChaseDto,
   RecurringListState,
   RecurringMode,
   RecurringRunDto,
@@ -46,6 +48,7 @@ export type StateNote = { key: string; values?: Record<string, string | number> 
  * it will next write a bill.
  */
 export function stateNote(bill: RecurringBillDto): StateNote {
+  if (isEnded(bill)) return { key: 'recurringBills.state.ended' }
   if (!bill.active) return { key: 'recurringBills.state.paused' }
   if (bill.mode === 'RAISE') {
     return bill.nextRunDate
@@ -67,6 +70,37 @@ export function stateNote(bill: RecurringBillDto): StateNote {
     case 'DUE_TO_ARRIVE':
       return { key: 'recurringBills.state.dueToArrive' }
   }
+}
+
+/** A finished instruction: its count ran out or its end date passed. It is not paused, and cannot be resumed. */
+export function isEnded(bill: Pick<RecurringBillDto, 'status' | 'ended'>): boolean {
+  return bill.status === 'ENDED' || bill.ended === true
+}
+
+/**
+ * Whether Resume is offered. Never on an ended instruction. One paused because its supplier was
+ * switched off stays without it while the supplier is off: `supplierSwitchedOff` is what the
+ * supplier's own record says, `null` while that is not known yet.
+ */
+export function canResume(
+  bill: Pick<RecurringBillDto, 'active' | 'status' | 'ended' | 'pauseReason'>,
+  supplierSwitchedOff: boolean | null,
+): boolean {
+  if (bill.active || isEnded(bill)) return false
+  if (bill.pauseReason === 'SUPPLIER_SWITCHED_OFF') return supplierSwitchedOff === false
+  return true
+}
+
+/**
+ * What a chase answered: who was told, or that nobody was. A server that does not say (`told`
+ * absent) and a person with no name on file both read as the sentence without a name.
+ */
+export function chaseNotice(answer: RecurringChaseDto): StateNote {
+  if (answer.told === false) return { key: 'recurringBills.done.chasedNobody' }
+  const name = answer.toldNames?.[0]?.trim()
+  return answer.told && name
+    ? { key: 'recurringBills.done.chasedTold', values: { name } }
+    : { key: 'recurringBills.done.chased' }
 }
 
 export function toneOf(bill: RecurringBillDto): 'warn' | 'ok' | 'muted' {
@@ -127,7 +161,7 @@ export function categoryGlyph(category: string | null): CategoryGlyph {
   return 'other'
 }
 
-/** Weekday names for a weekly watch's `arrivesAroundDay` (1 = Sunday, the Omani week's first day). */
+/** Weekday names in the order the form lists them: Sunday first, the Omani week's first day. */
 export const WEEKDAY_KEYS = [
   'sunday',
   'monday',
@@ -137,6 +171,20 @@ export const WEEKDAY_KEYS = [
   'friday',
   'saturday',
 ]
+
+/**
+ * A weekly watch's `arrivesAroundDay` is the ISO weekday, as the server stores and reads it:
+ * 1 = Monday … 7 = Sunday. These two are the only place the list's Sunday-first order meets it.
+ */
+export const WEEKDAY_OPTIONS: { iso: number; key: string }[] = WEEKDAY_KEYS.map((key, index) => ({
+  iso: index === 0 ? 7 : index,
+  key,
+}))
+
+/** The name of an ISO weekday (1 = Monday … 7 = Sunday). */
+export function weekdayKey(iso: number): string {
+  return WEEKDAY_KEYS[((iso % 7) + 7) % 7]
+}
 
 /** "Monthly, around the 28th" / "Weekly, on Sundays" / "Yearly, in March". */
 export function cadenceNote(
@@ -148,7 +196,7 @@ export function cadenceNote(
     return day
       ? {
           key: 'recurringBills.cadence.weekly',
-          values: { weekday: `recurringBills.weekday.${WEEKDAY_KEYS[(day - 1) % 7]}` },
+          values: { weekday: `recurringBills.weekday.${weekdayKey(day)}` },
         }
       : { key: 'recurringBills.interval.WEEKLY' }
   }
@@ -280,7 +328,7 @@ export type RecurringForm = {
   totalIncludingVat: string
   vatTreatment: VatTreatment
   tolerancePercent: string
-  /** Off: the tolerance is not sent, so an amount outside the band is not flagged. */
+  /** Off: an amount outside the band is not flagged. The percentage is kept for when it is on again. */
   flagOutsideRange: boolean
   lateAfterDays: string
   autoApproveWithinRange: boolean
@@ -329,7 +377,9 @@ export function formOf(bill: RecurringBillDto, today: string): RecurringForm {
     totalIncludingVat: String(bill.totalIncludingVat),
     vatTreatment: treatmentOf(bill.vatAmount, bill.totalIncludingVat, bill.taxCategoryCode),
     tolerancePercent: bill.tolerancePercent === null ? '10' : String(bill.tolerancePercent),
-    flagOutsideRange: bill.mode !== 'EXPECT' || bill.tolerancePercent !== null,
+    // A server that does not say reads as before: on exactly when a percentage is stored.
+    flagOutsideRange:
+      bill.mode !== 'EXPECT' || (bill.toleranceEnabled ?? bill.tolerancePercent !== null),
     lateAfterDays: bill.lateAfterDays === null ? '' : String(bill.lateAfterDays),
     autoApproveWithinRange: bill.autoApproveWithinRange,
     notifyUserId: bill.notifyUserId,
@@ -376,37 +426,57 @@ export function recurringProblems(form: RecurringForm): Partial<Record<Recurring
 
 const digitsOrNull = (value: string): number | null => (value.trim() ? Number(value) : null)
 
-export function toRecurringRequest(form: RecurringForm, currency = 'OMR'): RecurringBillRequestDto {
+/** Whether the percentage the form holds is one the server takes. */
+function toleranceHeld(form: RecurringForm): number | null {
+  const percent = digitsOrNull(form.tolerancePercent)
+  return percent !== null && percent >= 0 && percent <= 100 ? percent : null
+}
+
+/**
+ * The request body. `stored` is the instruction being edited: what the form does not show
+ * (its currency, the count it has left) goes back as it was, so a save does not rewrite it.
+ */
+export function toRecurringRequest(
+  form: RecurringForm,
+  stored?: Pick<RecurringBillDto, 'currencyCode' | 'remainingOccurrences'> | null,
+): RecurringBillRequestDto {
   const expecting = form.mode === 'EXPECT'
   const total = Number(form.totalIncludingVat)
   return {
     supplierId: form.supplierId,
     supplierName: form.supplierName.trim(),
     description: form.description.trim(),
-    currencyCode: currency,
+    currencyCode: stored?.currencyCode ?? 'OMR',
     totalIncludingVat: total,
     vatAmount: vatOf(total, form.vatTreatment),
     // The design asks for the day the payment usually falls due, not a number of days; a bill
-    // paid on arrival has no terms.
-    paymentTermsDays: form.paymentDueDay.trim() ? null : 0,
+    // paid on arrival has no terms. A RAISE instruction's terms date the bills it writes and the
+    // form has no field for them: null keeps the stored ones.
+    paymentTermsDays: !expecting || form.paymentDueDay.trim() ? null : 0,
     interval: form.interval,
     // A RAISE watch starts on its start date; an EXPECT watch is told when to start watching, and
     // the server works out the first expected day from the arrival day.
     startDate: expecting ? null : form.startDate || null,
     endDate: form.endDate || null,
-    occurrences: null,
+    occurrences: stored?.remainingOccurrences ?? null,
     mode: form.mode,
     category: form.category.trim() || null,
     theirReference: form.theirReference.trim() || null,
     arrivesAroundDay: expecting ? digitsOrNull(form.arrivesAroundDay) : null,
     paymentDueDay: digitsOrNull(form.paymentDueDay),
-    tolerancePercent:
-      expecting && form.flagOutsideRange ? digitsOrNull(form.tolerancePercent) : null,
+    // The percentage goes with the switch off too, so it is there when the switch comes back on;
+    // one the server would refuse is left out while off, which keeps the stored one.
+    tolerancePercent: !expecting
+      ? null
+      : form.flagOutsideRange
+        ? digitsOrNull(form.tolerancePercent)
+        : toleranceHeld(form),
+    toleranceEnabled: expecting ? form.flagOutsideRange : null,
     lateAfterDays: expecting ? digitsOrNull(form.lateAfterDays) : null,
     autoApproveWithinRange: expecting ? form.autoApproveWithinRange : null,
     notifyUserId: form.notifyUserId,
     watchingFrom: expecting ? form.watchingFrom || null : null,
-    // TODO(backend): EXPENDITURE.md M.3. The treatment round-trips as its category.
+    // The treatment round-trips as its category (EXPENDITURE.md M.3).
     taxCategoryCode: TREATMENT_CATEGORY[form.vatTreatment],
   }
 }
@@ -422,7 +492,7 @@ export function plainWords(form: RecurringForm, language: string, who: string): 
     when: `recurringBills.when.${form.interval}`,
     day:
       form.interval === 'WEEKLY'
-        ? `recurringBills.weekday.${WEEKDAY_KEYS[Math.max(0, (day - 1) % 7)]}`
+        ? `recurringBills.weekday.${weekdayKey(day || 1)}`
         : ordinal(day || 1, language),
     flagDay: ordinal(day + late || 1, language),
     who,
@@ -473,13 +543,17 @@ export function timelineOf(
 
 /* ------------------------------------------------------------------ the detail */
 
-/** What a period cost: the usual amount moved by the recorded variance, once a bill arrived. */
+/**
+ * What a period cost, once a bill arrived: the bill's own total when the server sends it, else
+ * the usual amount moved by the recorded variance.
+ */
 export function amountOf(run: RecurringRunDto, usual: number): number | null {
   if (
     run.outcome === 'ARRIVED' ||
     run.outcome === 'ARRIVED_OUT_OF_RANGE' ||
     run.outcome === 'RAISED'
   ) {
+    if (typeof run.billAmount === 'number') return run.billAmount
     return Math.round(usual * (1 + (run.variancePercent ?? 0) / 100) * 1000) / 1000
   }
   return null
@@ -520,6 +594,12 @@ export function trackRecord(
   const closed = runs.filter((run) => run.outcome !== 'EXPECTED')
   const arrived = closed.filter((run) => amountOf(run, bill.totalIncludingVat) !== null)
   const year = today.slice(0, 4)
+  // Where the server says when each bill was paid, "paid this year" is what was paid this year;
+  // without it, it is what arrived this year, as before.
+  const knowsPayments = runs.some((run) => run.paidOn !== undefined)
+  const countedThisYear = knowsPayments
+    ? arrived.filter((run) => run.paidOn?.startsWith(year))
+    : arrived.filter((run) => run.runDate.startsWith(year))
   return {
     matched: arrived.length,
     periods: closed.length,
@@ -527,9 +607,10 @@ export function trackRecord(
     changed: arrived.filter((run) => (run.variancePercent ?? 0) !== 0).length,
     paidThisYear:
       Math.round(
-        arrived
-          .filter((run) => run.runDate.startsWith(year))
-          .reduce((sum, run) => sum + (amountOf(run, bill.totalIncludingVat) ?? 0), 0) * 1000,
+        countedThisYear.reduce(
+          (sum, run) => sum + (amountOf(run, bill.totalIncludingVat) ?? 0),
+          0,
+        ) * 1000,
       ) / 1000,
     costPerYear: Math.round(bill.totalIncludingVat * PER_YEAR[bill.interval] * 1000) / 1000,
   }
@@ -540,56 +621,79 @@ export type Activity = {
   key: string
   values: Record<string, string | number>
   tone: 'current' | 'done'
+  /** False for a line that is the whole of what there is to say: no second line under it. */
+  detail?: false
 }
 
-/** What happened, newest first: the open period, the last few arrivals, and the day watching began. */
+/**
+ * What happened, newest first: the open period, the last few arrivals, any span that was not
+ * watched, and the day watching began.
+ */
 export function activityOf(
   bill: RecurringBillDto,
   runs: RecurringRunDto[],
   day: (iso: string) => string,
   limit = 4,
 ): Activity[] {
-  const items: Activity[] = []
+  const dated: { on: string; item: Activity }[] = []
   const ordered = [...runs].sort((a, b) => b.runDate.localeCompare(a.runDate)).slice(0, limit)
   for (const run of ordered) {
     const when = run.periodStart ?? run.runDate
+    const add = (item: Omit<Activity, 'id'>) =>
+      dated.push({ on: run.runDate, item: { id: run.id, ...item } })
     if (run.outcome === 'LATE')
-      items.push({
-        id: run.id,
+      add({
         key: 'recurringBills.detail.activity.flagged',
         values: { expected: run.expectedOn ? day(run.expectedOn) : '' },
         tone: 'current',
       })
     else if (run.outcome === 'ARRIVED')
-      items.push({
-        id: run.id,
+      add({
         key: 'recurringBills.detail.activity.arrived',
         values: { when: day(when), expected: run.expectedOn ? day(run.expectedOn) : '' },
         tone: 'done',
       })
     else if (run.outcome === 'ARRIVED_OUT_OF_RANGE')
-      items.push({
-        id: run.id,
+      add({
         key: 'recurringBills.detail.activity.outOfRange',
         values: { when: day(when), percent: formatVariance(run.variancePercent) },
         tone: 'done',
       })
     else if (run.outcome === 'RAISED')
-      items.push({
-        id: run.id,
+      add({
         key: 'recurringBills.detail.activity.raised',
         values: { when: day(run.runDate) },
         tone: 'done',
       })
   }
+  for (const gap of bill.notWatched ?? [])
+    dated.push({ on: gapDay(gap), item: notWatched(gap, day) })
+  // Stable: lines of one day keep the order they were added in.
+  const feed = dated
+    .map((entry, index) => ({ ...entry, index }))
+    .sort((a, b) => b.on.localeCompare(a.on) || a.index - b.index)
+    .map((entry) => entry.item)
   if (bill.watchingFrom)
-    items.push({
+    feed.push({
       id: 'started',
       key: 'recurringBills.detail.activity.started',
       values: { date: day(bill.watchingFrom) },
       tone: 'done',
     })
-  return items
+  return feed
+}
+
+/** The day a skip was recorded, to place its line among the periods. */
+const gapDay = (gap: NotWatchedDto) => gap.recordedAt.slice(0, 10)
+
+function notWatched(gap: NotWatchedDto, day: (iso: string) => string): Activity {
+  return {
+    id: `not-watched-${gap.from}-${gap.to}`,
+    key: 'recurringBills.detail.activity.notWatched',
+    values: { from: day(gap.from), to: day(gap.to) },
+    tone: 'current',
+    detail: false,
+  }
 }
 
 /** The category and the search box narrow the page in hand: the API filters by state only. */
