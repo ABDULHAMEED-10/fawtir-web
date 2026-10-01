@@ -10,10 +10,13 @@ import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/ex
 import {
   downloadSupplierStatement,
   emailSupplierStatement,
+  loadSupplierOverview,
   loadSupplierStatement,
+  supplierOverviewPath,
   supplierStatementPath,
   type StatementEntryKind,
   type StatementFormat,
+  type SupplierOverviewDto,
   type SupplierStatementDto,
 } from '../../api/expenditure/supplierRecord'
 import { describeApiFailure } from '../../lib/apiFailure'
@@ -24,6 +27,7 @@ import {
   AGEING_BUCKETS,
   PERIODS,
   ageingNote,
+  everLateOf,
   columnsOf,
   customRangeProblem,
   STATEMENT_EMAIL_REFUSALS,
@@ -94,6 +98,11 @@ function SupplierStatement({ id }: { id: string }) {
   const supplier = useApiRead<SupplierDetailDto>(supplierPath(id), () => loadSupplier(id))
   const path = supplierStatementPath(id, range.from, range.to)
   const statement = useApiRead<SupplierStatementDto>(path, () => loadSupplierStatement(path))
+  // Whether they were ever paid late is on the supplier's overview, not on the statement: read
+  // for the ageing strip's "Never been late with them". If it cannot be read the strip says less.
+  const overview = useApiRead<SupplierOverviewDto>(supplierOverviewPath(id), () =>
+    loadSupplierOverview(id),
+  )
   // When the figures were read, for "Prepared": a new period is a new statement.
   const preparedAt = useMemo(
     () => (statement.read.status === 'ready' ? new Date().toISOString() : null),
@@ -601,7 +610,13 @@ function SupplierStatement({ id }: { id: string }) {
 
         <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4">
           {AGEING_BUCKETS.map((bucket, index) => {
-            const note = ageingNote(bucket, data)
+            const note = ageingNote(bucket, {
+              ageingDetail: data.ageingDetail,
+              everLate: everLateOf(
+                data,
+                overview.read.status === 'ready' ? overview.read.data : null,
+              ),
+            })
             return (
               <div key={bucket} className={['border-s-2 ps-3', BUCKET_TONE[index]].join(' ')}>
                 <p className="text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.6px] text-text-quaternary">
@@ -619,7 +634,8 @@ function SupplierStatement({ id }: { id: string }) {
                     {t('supplierStatement.nothing')}
                   </p>
                 )}
-                {/* TODO(backend): the bill count and next due date under each figure (§7.14). */}
+                {/* TODO(backend): the bill count and next due date under each figure (§7.14).
+                    "Never been late with them" is read from the supplier's overview. */}
                 <p className="mt-1.5 text-xs font-medium leading-[1.3] text-text-quaternary">
                   {note
                     ? t(note.key, {

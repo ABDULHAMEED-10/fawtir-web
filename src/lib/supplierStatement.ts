@@ -2,6 +2,7 @@ import type {
   StatementAgeingBucket,
   StatementEntryKind,
   StatementIssuerDto,
+  SupplierOverviewDto,
   SupplierStatementDto,
 } from '../api/expenditure/supplierRecord'
 import type { SupplierDetailDto } from '../api/expenditure/suppliers'
@@ -88,7 +89,7 @@ export type AgeingNote = { key: string; values?: Record<string, string | number>
  */
 export function ageingNote(
   bucket: StatementAgeingBucket,
-  statement: SupplierStatementDto,
+  statement: Pick<SupplierStatementDto, 'ageingDetail' | 'everLate'>,
 ): AgeingNote {
   const detail = statement.ageingDetail?.[bucket]
   if (detail && detail.bills > 0) {
@@ -101,6 +102,22 @@ export function ageingNote(
     return { key: 'supplierDetail.bandNote.alreadyLate' }
   }
   return null
+}
+
+/**
+ * Whether the supplier was ever paid late, for the ageing strip: the statement's own answer when
+ * it carries one, else the supplier overview's (`payables.everLate`, the same fact the supplier
+ * page's "Never been late with them" reads). The overview answers for one currency, so it is read
+ * only for a statement in that currency. Null when neither says, and the strip says nothing.
+ */
+export function everLateOf(
+  statement: Pick<SupplierStatementDto, 'everLate' | 'currencyCode'>,
+  overview: Pick<SupplierOverviewDto, 'payables'> | null,
+): boolean | null {
+  if (typeof statement.everLate === 'boolean') return statement.everLate
+  const payables = overview?.payables
+  if (!payables || payables.currencyCode !== statement.currencyCode) return null
+  return typeof payables.everLate === 'boolean' ? payables.everLate : null
 }
 
 /** A bill still open at the end of the period, which the design shades. Only when the server says. */

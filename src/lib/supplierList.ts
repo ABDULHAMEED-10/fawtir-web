@@ -280,10 +280,19 @@ export function isSupplierChannelFilter(value: string | null): value is Supplier
   return SUPPLIER_CHANNEL_FILTERS.some((option) => option.value === value)
 }
 
+/** The `channel=` value `GET /v1/suppliers` takes for a Filters choice; null for every channel. */
+export function channelParam(channel: SupplierChannelFilter): BillingChannel | null {
+  if (channel === 'all') return null
+  const found = (Object.keys(CHANNEL) as BillingChannel[]).find((code) => CHANNEL[code] === channel)
+  return found ?? null
+}
+
 /**
- * The frame's Filters menu narrows the list by channel. The API has no channel parameter
- * (TODO(backend): `channel=` on GET /v1/suppliers), so until it does the page it fetched is
- * narrowed here, and the line under the table says how many of the page are shown.
+ * The frame's Filters menu narrows the list by channel. The server does it (`channelParam`), rows
+ * and total alike. The page that comes back is narrowed here as well: a server older than the
+ * parameter ignores it and answers every channel, and the list then shows what it showed before
+ * the parameter existed, the matching rows of the fetched page. On a server that filtered, every
+ * row already matches and this changes nothing.
  */
 export function inChannel(item: SupplierListItem, channel: SupplierChannelFilter): boolean {
   return channel === 'all' || item.channel === channel
