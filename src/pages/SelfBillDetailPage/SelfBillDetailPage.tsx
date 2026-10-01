@@ -208,6 +208,24 @@ function Money({ amount, className }: { amount: number; className: string }) {
  * The tenant is the BUYER here: the document records what it owes the supplier, which is why the
  * seller card names the customer record and the buyer card names this company.
  */
+/**
+ * What the bill payment route refuses, in this page's words: the debt is "the supplier bill for
+ * this document", not the document. On hold, in a run and too much are draft wording, pending the
+ * owner (Wording-For-Abdul.md section 6).
+ */
+const SUPPLIER_BILL_PAYMENT_REFUSALS: NonNullable<
+  Parameters<typeof RecordPaymentModal>[0]['refusals']
+> = {
+  BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'selfBillDetail.pay.notApproved' },
+  BILL_PAYMENT_ON_HOLD: { field: null, key: 'selfBillDetail.pay.onHold' },
+  BILL_PAYMENT_IN_PAYMENT_RUN: {
+    field: null,
+    key: 'selfBillDetail.pay.inRun',
+    values: (problem) => ({ run: String(problem.paymentRunReference ?? '') }),
+  },
+  BILL_PAYMENT_EXCEEDS_OUTSTANDING: { field: 'amount', key: 'selfBillDetail.pay.tooMuch' },
+}
+
 export function SelfBillDetailPage() {
   return (
     <AppShell>
@@ -977,9 +995,7 @@ function SelfBillScreen() {
           record={(key, payment) =>
             recordBillPayment(payable.billId, key, { ...payment, currency: payable.currency })
           }
-          refusals={{
-            BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'selfBillDetail.pay.notApproved' },
-          }}
+          refusals={SUPPLIER_BILL_PAYMENT_REFUSALS}
           labelKeys={{ amount: 'selfBillDetail.pay.amount', date: 'selfBillDetail.pay.date' }}
           onClose={() => setPaying(false)}
           onRecorded={() => {

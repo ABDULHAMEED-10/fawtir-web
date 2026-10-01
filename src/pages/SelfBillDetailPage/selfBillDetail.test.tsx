@@ -458,6 +458,79 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.queryByText('Payment recorded.')).toBeNull()
   })
 
+  // Draft wording, pending the owner (Wording-For-Abdul.md section 6). A correction there changes
+  // the sentences below with it.
+  describe('why paying the supplier bill was refused, in this page\'s words', () => {
+    const GENERIC = /The server refused this\. Nothing was changed/
+    const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
+      json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+
+    // Found by key, so the same steps run in Arabic.
+    async function pay() {
+      invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+      renderPage()
+      await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+      const record = i18n.t('selfBillDetail.recordPayment')
+      const open = screen.getByRole('button', { name: record })
+      await waitFor(() => expect(open).toHaveProperty('disabled', false))
+      fireEvent.click(open)
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }),
+      )
+      return dialog
+    }
+
+    it.each([
+      [
+        'BILL_PAYMENT_ON_HOLD',
+        {},
+        'The supplier bill for this document is on hold. Release it on the bill, then record the payment.',
+      ],
+      [
+        'BILL_PAYMENT_IN_PAYMENT_RUN',
+        { paymentRunReference: 'PR-0007' },
+        'The supplier bill for this document is in payment run PR-0007. Pay it there, or take it out of the run first.',
+      ],
+    ])('%s', async (error, extra, sentence) => {
+      billPaymentResponse = refusal(error, extra)
+      const dialog = await pay()
+      expect(await within(dialog).findByText(sentence)).toBeTruthy()
+      expect(within(dialog).queryByText(GENERIC)).toBeNull()
+      expect(screen.queryByText('Payment recorded.')).toBeNull()
+    })
+
+    it('names the run in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      billPaymentResponse = refusal('BILL_PAYMENT_IN_PAYMENT_RUN', {
+        paymentRunReference: 'PR-0007',
+      })
+      const dialog = await pay()
+      expect(
+        await within(dialog).findByText(
+          'فاتورة المورّد لهذا المستند ضمن دفعة السداد PR-0007. ادفعها من هناك، أو أخرجها من الدفعة أولًا.',
+        ),
+      ).toBeTruthy()
+    })
+
+    it('says the amount is more than the supplier bill owes, under the amount, when the server names no figure', async () => {
+      billPaymentResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING')
+      const dialog = await pay()
+      const sentence = await within(dialog).findByText(
+        'That is more than the supplier bill still owes.',
+      )
+      expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
+      expect(within(dialog).queryByText(/The most you can record/)).toBeNull()
+      expect(within(dialog).queryByText(GENERIC)).toBeNull()
+    })
+
+    it('keeps the general refusal for a code with no sentence of its own', async () => {
+      billPaymentResponse = refusal('BILL_PAYMENT_ACTOR_REQUIRED')
+      const dialog = await pay()
+      expect(await within(dialog).findByText(GENERIC)).toBeTruthy()
+    })
+  })
+
   it('reads a draft as not sent, unpriced and with no open item', async () => {
     invoiceResponse = () =>
       json(

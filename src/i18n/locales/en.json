@@ -17881,7 +17881,10 @@
     "pay": {
       "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.",
       "amount": "Amount paid",
-      "date": "Paid on"
+      "date": "Paid on",
+      "onHold": "The supplier bill for this document is on hold. Release it on the bill, then record the payment.",
+      "inRun": "The supplier bill for this document is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "tooMuch": "That is more than the supplier bill still owes."
     },
     "creditNote": "Credit note"
   },
