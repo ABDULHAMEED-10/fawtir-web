@@ -158,6 +158,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let detail: SupplierDetailDto
+let uploads: number
+let confirmResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -171,6 +173,14 @@ beforeEach(async () => {
   forgetEntitlements()
   who = MANAGER
   detail = DETAIL
+  uploads = 0
+  confirmResponse = () =>
+    json(200, {
+      id: 'bill-new',
+      supplierBillNumber: 'QMS-2050',
+      totalIncludingVat: 105,
+      currencyCode: 'OMR',
+    })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -333,7 +343,7 @@ beforeEach(async () => {
       return json(200, { run: {}, items: [] })
     if (url === '/api/v1/bills/intake?source=UPLOADED' && method === 'POST')
       return json(201, {
-        id: 'intake-1',
+        id: `intake-${++uploads}`,
         source: 'UPLOADED',
         filename: 'bill.pdf',
         contentType: 'application/pdf',
@@ -346,13 +356,10 @@ beforeEach(async () => {
         workflowState: null,
         uploadedAt: '2026-09-25T10:00:00Z',
       })
-    if (url === '/api/v1/bills/intake/intake-1/confirm' && method === 'POST')
-      return json(200, {
-        id: 'bill-new',
-        supplierBillNumber: 'QMS-2050',
-        totalIncludingVat: 105,
-        currencyCode: 'OMR',
-      })
+    if (/^\/api\/v1\/bills\/intake\/intake-\d+\/confirm$/.test(url) && method === 'POST')
+      return confirmResponse()
+    if (/^\/api\/v1\/bills\/intake\/intake-\d+$/.test(url) && method === 'DELETE')
+      return new Response(null, { status: 204 })
     if (url.startsWith(`${ONE}/statement.pdf`))
       return new Response('%PDF', { status: 200, headers: { 'Content-Type': 'application/pdf' } })
     if (url === `${ONE}/switch-off` && method === 'POST') {
@@ -647,5 +654,120 @@ describe('Record a bill (Figma 163:27781)', () => {
       },
     ])
     expect(await screen.findByText('bill page')).toBeTruthy()
+    // One upload, one confirm, nothing discarded.
+    expect(calls('POST', '/api/v1/bills/intake?source=UPLOADED')).toHaveLength(1)
+    expect(calls('DELETE', '/api/v1/bills/intake/')).toHaveLength(0)
+  })
+
+  const refused = () =>
+    new Response(JSON.stringify({ type: 'about:blank', title: 'Bad Request', status: 400 }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/problem+json' },
+    })
+  const uploaded = () => calls('POST', '/api/v1/bills/intake?source=UPLOADED')
+  const confirmed = (intake: string) => calls('POST', `/api/v1/bills/intake/${intake}/confirm`)
+
+  async function typeBill() {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    renderRecord()
+    await screen.findByRole('radio', { name: /PO-0033/ })
+    fireEvent.change(screen.getByLabelText(/Their bill number/), { target: { value: 'QMS-2050' } })
+    fireEvent.change(screen.getByLabelText('Line 1: what it is'), {
+      target: { value: 'Marine rope' },
+    })
+    fireEvent.change(screen.getByLabelText('Line 1: quantity'), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText('Line 1: unit price'), { target: { value: '10' } })
+  }
+  const attach = (name: string) =>
+    fireEvent.change(screen.getByLabelText('Attach a file'), {
+      target: { files: [new File(['%PDF'], name, { type: 'application/pdf' })] },
+    })
+  const send = () => fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
+
+  it('retries a refused save on the intake it already uploaded, not on a new one', async () => {
+    const succeed = confirmResponse
+    confirmResponse = refused
+    await typeBill()
+    attach('bill.pdf')
+    send()
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(1))
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Send for approval' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+
+    // The same file, sent again: the stored upload is confirmed again, nothing new goes up.
+    send()
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(2))
+    confirmResponse = succeed
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Send for approval' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+    send()
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(uploaded()).toHaveLength(1)
+    expect(confirmed('intake-1')).toHaveLength(3)
+    expect(calls('DELETE', '/api/v1/bills/intake/')).toHaveLength(0)
+  })
+
+  it('discards the stored upload when another file is chosen before the retry', async () => {
+    const succeed = confirmResponse
+    confirmResponse = refused
+    await typeBill()
+    attach('bill.pdf')
+    send()
+    await waitFor(() => expect(confirmed('intake-1')).toHaveLength(1))
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Send for approval' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+
+    confirmResponse = succeed
+    attach('bill-corrected.pdf')
+    send()
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(calls('DELETE', '/api/v1/bills/intake/intake-1')).toHaveLength(1)
+    expect(uploaded()).toHaveLength(2)
+    expect(confirmed('intake-2')).toHaveLength(1)
+    expect(calls('DELETE', '/api/v1/bills/intake/intake-2')).toHaveLength(0)
+  })
+
+  it('confirms a possible duplicate as a different bill on the same upload', async () => {
+    const succeed = confirmResponse
+    confirmResponse = () =>
+      new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          status: 409,
+          code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+          duplicateOf: {
+            billId: 'bill-old',
+            supplierBillNumber: 'QMS-2050',
+            issueDate: '2026-09-01',
+            total: 105,
+            currencyCode: 'OMR',
+            source: 'UPLOADED',
+          },
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await typeBill()
+    attach('bill.pdf')
+    send()
+    const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
+    confirmResponse = succeed
+    await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(different)
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(uploaded()).toHaveLength(1)
+    expect(confirmed('intake-1')).toHaveLength(2)
+    expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body)).notDuplicateOf).toBe('bill-old')
   })
 })

@@ -14,6 +14,7 @@ import { useApiRead } from '../../hooks'
 import { ApiError, type Page } from '../../api'
 import {
   confirmIntake,
+  discardIntake,
   possibleDuplicateOf,
   uploadIntake,
   type PossibleDuplicateDto,
@@ -144,6 +145,9 @@ function RecordBill({ id }: { id: string }) {
   >({})
   const [attempted, setAttempted] = useState(false)
   const inFlight = useRef(false)
+  // The file already stored, and the intake it became: a save that failed is retried on the same
+  // intake, as Upload a bill does, so a refused confirm leaves no upload behind per attempt.
+  const stored = useRef<{ file: File; intakeId: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   // The order waiting for its bill comes first, as the design chooses it; else the first open one.
@@ -219,7 +223,16 @@ function RecordBill({ id }: { id: string }) {
     inFlight.current = true
     setBusy(true)
     try {
-      const intake = await uploadIntake(file, 'UPLOADED')
+      if (stored.current && stored.current.file !== file) {
+        // Another file was chosen: the stored one goes, as "Replace the file" does on Upload a bill.
+        await discardIntake(stored.current.intakeId).catch(() => undefined)
+        stored.current = null
+      }
+      if (!stored.current) {
+        const uploaded = await uploadIntake(file, 'UPLOADED')
+        stored.current = { file, intakeId: uploaded.id }
+      }
+      const intakeId = stored.current.intakeId
       const form = {
         ...blankBillForm(),
         supplierId: profile.id,
@@ -233,9 +246,17 @@ function RecordBill({ id }: { id: string }) {
         total: totals?.total ?? '0',
         purchaseOrderId: chosen?.id ?? '',
       }
-      const bill = await confirmIntake(intake.id, toConfirmation(form, { notDuplicateOf }))
+      const bill = await confirmIntake(intakeId, toConfirmation(form, { notDuplicateOf }))
+      stored.current = null
       navigate(`/expenditure/bills/${bill.id}`)
     } catch (failure) {
+      // An intake that is gone or already a bill cannot be confirmed again: the next save uploads.
+      if (
+        failure instanceof ApiError &&
+        (failure.code === 'BILL_INTAKE_NOT_FOUND' ||
+          failure.code === 'BILL_INTAKE_ALREADY_CONFIRMED')
+      )
+        stored.current = null
       const same = possibleDuplicateOf(failure)
       if (same) {
         setDuplicate(same)
