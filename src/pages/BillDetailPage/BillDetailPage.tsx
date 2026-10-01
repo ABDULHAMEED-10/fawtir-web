@@ -831,7 +831,8 @@ function Breadcrumb({ title }: { title: string | null }) {
 
 /**
  * The VAT cell: "5%" on a standard line; "0% · Exempt" with its reason code beneath on a line
- * that is not (TODO(backend): EXPENDITURE.md R.2, the category rides on the line).
+ * that is not. The category rides on the line (`taxCategoryCode`); the reason code is still
+ * TODO(backend): EXPENDITURE.md R.2.
  */
 function LineVat({ line }: { line: BillDetailDto['lines'][number] }) {
   const { t } = useTranslation()

@@ -4,7 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
-import { canRecordPayment, complianceOf, decisionsOf, stepsOf } from '../../lib/billDetail'
+import {
+  canRecordPayment,
+  complianceOf,
+  decisionsOf,
+  lineVatOf,
+  singleVatRate,
+  stepsOf,
+} from '../../lib/billDetail'
 import { BillDetailPage } from './BillDetailPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -489,6 +496,41 @@ describe('A bill, wired to the API', () => {
     expect(screen.getByText('VATZR-OM-01')).toBeTruthy()
     expect(screen.getByText('VATEX-OM-01')).toBeTruthy()
     expect(screen.getByText('5%')).toBeTruthy()
+    expect(screen.queryByText('VAT · 5%')).toBeNull()
+  })
+
+  it('names each line\'s VAT category from the letter the server sends: S, Z, E, O and none', async () => {
+    const base = detail()
+    const line = (lineNo: number, description: string, vatRate: number | null, code?: string | null) => ({
+      ...base.lines[0],
+      lineNo,
+      description,
+      vatRate,
+      ...(code === undefined ? {} : { taxCategoryCode: code }),
+    })
+    billResponse = () =>
+      json(200, {
+        ...base,
+        lines: [
+          line(1, 'Standard line', 5, 'S'),
+          line(2, 'Zero line', 0, 'Z'),
+          line(3, 'Exempt line', 0, 'E'),
+          line(4, 'Out of scope line', 0, 'O'),
+          line(5, 'Null line', 5, null),
+          line(6, 'Missing line', 0),
+        ],
+      })
+    renderBill()
+    const cell = async (description: string) =>
+      (await screen.findByText(description)).closest('tr')!.querySelectorAll('td')[3].textContent
+    // A standard line, and a line with no category, read as the rate alone, as before.
+    expect(await cell('Standard line')).toBe('5%')
+    expect(await cell('Null line')).toBe('5%')
+    expect(await cell('Missing line')).toBe('0%')
+    expect(await cell('Zero line')).toBe('0% · Zero-rated')
+    expect(await cell('Exempt line')).toBe('0% · Exempt')
+    expect(await cell('Out of scope line')).toBe('0% · Out of scope')
+    // Categories mix, so the totals name no single rate.
     expect(screen.queryByText('VAT · 5%')).toBeNull()
   })
 
@@ -1028,5 +1070,29 @@ describe('bill detail mapping', () => {
       'billDetail.compliance.receipt.unavailable',
       'billDetail.compliance.originalKept',
     ])
+  })
+
+  it('reads the VAT cell from the category letter, and the rate alone without one', () => {
+    const line = (vatRate: number | null, taxCategoryCode?: string | null) => ({
+      ...detail().lines[0],
+      vatRate,
+      taxCategoryCode,
+    })
+    expect(lineVatOf(line(5, 'S'))).toEqual({ rate: 5, categoryKey: null, reason: null })
+    expect(lineVatOf(line(0, 'Z')).categoryKey).toBe('invoiceDetails.category.Z')
+    expect(lineVatOf(line(0, 'E')).categoryKey).toBe('invoiceDetails.category.E')
+    expect(lineVatOf(line(0, 'O')).categoryKey).toBe('invoiceDetails.category.O')
+    // An exempt or out-of-scope line may carry no rate at all: it reads as 0%.
+    expect(lineVatOf(line(null, 'E')).rate).toBe(0)
+    // No category: what the page showed before the server sent one.
+    expect(lineVatOf(line(5, null))).toEqual({ rate: 5, categoryKey: null, reason: null })
+    expect(lineVatOf(line(0, undefined))).toEqual({ rate: 0, categoryKey: null, reason: null })
+    expect(lineVatOf(line(null, null))).toEqual({ rate: null, categoryKey: null, reason: null })
+    // A letter the page does not know is never drawn as a raw key.
+    expect(lineVatOf(line(0, 'X')).categoryKey).toBeNull()
+
+    // Two 0% lines of different categories are two kinds of VAT, not one rate.
+    expect(singleVatRate({ ...detail(), lines: [line(0, 'Z'), line(0, 'E')] })).toBeNull()
+    expect(singleVatRate({ ...detail(), lines: [line(5, 'S'), line(5, null)] })).toBe(5)
   })
 })

@@ -267,7 +267,7 @@ export type BillDetailDto = {
     lineNet: number | null
     purchaseOrderLineId: string | null
     goodsReceiptId: string | null
-    /** IBT-151, CL-04-OM: S, Z, E or O. TODO(backend): EXPENDITURE.md R.2. */
+    /** IBT-151, CL-04-OM: S, Z, E or O; null on a line captured without one (EXPENDITURE.md R.2). */
     taxCategoryCode?: string | null
     /** IBT-121: VATZR-OM-nn on a Z line, VATEX-OM-nn on an E line. TODO(backend): EXPENDITURE.md R.2. */
     exemptionReasonCode?: string | null
