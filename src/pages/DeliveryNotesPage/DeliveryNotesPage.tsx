@@ -712,6 +712,15 @@ function DeliveryNotesTable({
 }
 
 export function DeliveryNotesPage() {
+  return (
+    <AppShell>
+      <DeliveryNotes />
+    </AppShell>
+  )
+}
+
+/** Inside the shell, where the session is: what the reader may see decides the self-billing check. */
+function DeliveryNotes() {
   const [mode, setMode] = useState<DeliveryMode>('all')
   const [activeTab, setActiveTab] = useState<DeliveryTabId>('all')
   const navigate = useNavigate()
@@ -758,7 +767,7 @@ export function DeliveryNotesPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
         <DeliveryNotesHeader onUnavailable={notice.unavailable} />
         <ModeSelector
@@ -780,6 +789,6 @@ export function DeliveryNotesPage() {
           isBlocked={(row) => row.action.kind === 'selfbill' && !gateFor(row).allowed}
         />
       </div>
-    </AppShell>
+    </>
   )
 }
