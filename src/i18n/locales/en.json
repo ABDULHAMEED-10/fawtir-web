@@ -6956,7 +6956,7 @@
       "inAppOnly": "In Fawtir only · no email",
       "headline_one": "{{count}} thing needs attention this morning.",
       "headline_other": "{{count}} things need attention this morning.",
-      "nothing": "Nothing would go out today. Every rule that could fire is switched off.",
+      "nothing": "Nothing would go out today.",
       "to": "to",
       "alNoor": "Al Noor Dates unpaid for {{days}} days",
       "alNoorAmount": "OMR 411.500",

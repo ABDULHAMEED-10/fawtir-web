@@ -636,6 +636,34 @@ describe('what today would send', () => {
     expect(screen.queryByText(new RegExp(GONE))).toBeNull()
   })
 
+  it('says only that nothing would go out when the preview is empty, rules on or off', async () => {
+    // The empty preview used to blame switched-off rules. It is just as empty with every rule on
+    // and nothing due, or on a held weekend, so it says what is true in all of them.
+    seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(await screen.findByText('Nothing would go out today.')).toBeTruthy()
+    expect(screen.queryByText(/switched off/)).toBeNull()
+    // No badge and no count over an empty list.
+    expect(screen.queryByText(/needs? attention this morning/)).toBeNull()
+  })
+
+  it('says the same to a company with every rule off, and to a reader', async () => {
+    entitlements = { ...MANAGER, permissions: ['invoice.read'] }
+    renderPage()
+    await screen.findByText('Before a bill is due')
+    expect(await screen.findByText('Nothing would go out today.')).toBeTruthy()
+    expect(screen.queryByText(/switched off/)).toBeNull()
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderPage()
+    await screen.findByText('قبل استحقاق الفاتورة')
+    expect(await screen.findByText('لن يُرسل شيء اليوم.')).toBeTruthy()
+    expect(screen.queryByText(/كل قاعدة قد تُفعّل مُطفأة/)).toBeNull()
+  })
+
   it('counts several unnamed people once', async () => {
     preview = {
       date: '2026-10-01',
