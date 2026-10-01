@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { StepTracker } from '../../components/ui'
 import { NEW_QUOTATION, NEW_QUOTATION_STEPS } from '../../lib/newQuotation'
+import { formatRials, quoteItemTotal } from '../../lib/quotationDetail'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
 import backIcon from '../../assets/quotation-create/back.svg'
 import customerLogo from '../../assets/quotation-create/customer-logo.svg'
 import chevronRightIcon from '../../assets/quotation-create/chevron-right.svg'
@@ -172,6 +174,8 @@ export function NewQuotationPage() {
   const { t } = useTranslation()
   const doc = NEW_QUOTATION
   const [vatMode, setVatMode] = useState<'excl' | 'incl'>('excl')
+  // Nothing on this form can be saved yet (TRADE_DOCUMENTS.md rows T.1 and T.9).
+  const notice = useTradeNotice()
 
   return (
     <AppShell>
@@ -203,6 +207,8 @@ export function NewQuotationPage() {
           </div>
         </div>
 
+        {notice.node}
+
         {/* 1 Customer (796) | Summary (332) */}
         <div className="grid gap-4 xl:grid-cols-[796fr_332px]">
           <Card>
@@ -224,6 +230,7 @@ export function NewQuotationPage() {
               </div>
               <button
                 type="button"
+                onClick={notice.unavailable}
                 className="inline-flex h-[38px] items-center gap-0.5 rounded-sm border border-[#e8e8ea] bg-white ps-3.5 pe-2.5 text-sm font-semibold text-[#233e92]"
               >
                 {t('newQuotation.change')}
@@ -240,6 +247,7 @@ export function NewQuotationPage() {
               </span>
               <button
                 type="button"
+                onClick={notice.unavailable}
                 className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-[#2c4eb7]"
               >
                 {t('newQuotation.addProspect')}
@@ -373,17 +381,20 @@ export function NewQuotationPage() {
               </div>
               <div className="flex flex-col gap-3">
                 {doc.items.map((item) => (
-                  <div key={item.id} className={ITEM_GRID}>
+                  <div key={item.lineNo} className={ITEM_GRID}>
                     <ItemCell value={item.description} select />
-                    <ItemCell value={item.unitPrice} />
+                    <ItemCell value={item.unitPrice.toFixed(3)} />
                     <ItemCell value={item.vat} />
-                    <ItemCell value={item.qty} stepper />
-                    <ItemCell value={item.unit} select />
-                    <ItemCell value={item.discount} />
+                    <ItemCell value={String(item.qty)} stepper />
+                    <ItemCell value={item.unitLabel} select />
+                    <ItemCell value={`${item.discountPct}%`} />
                     <div className="flex items-center justify-end gap-2">
-                      <span className="text-xl font-semibold text-[#151c2d]/90">{item.total}</span>
+                      <span className="text-xl font-semibold text-[#151c2d]/90">
+                        {formatRials(quoteItemTotal(item))}
+                      </span>
                       <button
                         type="button"
+                        onClick={notice.unavailable}
                         aria-label={t('newQuotation.removeLine')}
                         className="flex size-8 shrink-0 items-center justify-center rounded-sm border border-[#e8e8ea]"
                       >
@@ -397,6 +408,7 @@ export function NewQuotationPage() {
           </div>
           <button
             type="button"
+            onClick={notice.unavailable}
             className="mt-3 flex h-12 w-full items-center justify-center gap-1.5 rounded-sm border border-[#d0d2d5] text-base font-semibold text-[#2c4eb7]"
           >
             <img src={plusIcon} alt="" className="size-6" />
@@ -452,7 +464,10 @@ export function NewQuotationPage() {
               suffix="chevron"
             />
             <Field label={t('newQuotation.expectedDelivery')} value={doc.terms.expectedDelivery} />
-            <Field label={t('newQuotation.leadTime')} placeholder={doc.terms.leadTimePlaceholder} />
+            <Field
+              label={t('newQuotation.leadTime')}
+              placeholder={t(doc.terms.leadTimePlaceholderKey)}
+            />
           </div>
         </Card>
 
@@ -499,6 +514,7 @@ export function NewQuotationPage() {
         <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-end gap-3 px-4 py-[19px]">
           <button
             type="button"
+            onClick={notice.unavailable}
             className="inline-flex h-[54px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-white px-4 text-sm font-semibold text-[#2c3342]"
           >
             <img src={eyeIcon} alt="" className="size-6" />
@@ -506,6 +522,7 @@ export function NewQuotationPage() {
           </button>
           <button
             type="button"
+            onClick={notice.unavailable}
             className="inline-flex h-[54px] items-center gap-2 rounded-sm border border-[#e8e8ea] bg-white px-4 text-sm font-semibold text-[#2c3342]"
           >
             <img src={saveDraftIcon} alt="" className="size-6" />
@@ -513,6 +530,7 @@ export function NewQuotationPage() {
           </button>
           <button
             type="button"
+            onClick={notice.unavailable}
             className="inline-flex h-[54px] items-center gap-1.5 rounded-sm bg-primary-700 px-10 text-base font-semibold text-white transition-colors hover:bg-primary-800"
           >
             <img src={sendIcon} alt="" className="size-6" />

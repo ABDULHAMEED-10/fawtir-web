@@ -15,10 +15,24 @@ import {
   type ActivityListDto,
 } from '../../api/compliance/activity'
 import { whenOf } from '../../lib/activityDetail'
-import { formatDuration, secondsBetween } from '../../lib/activityLedger'
+import {
+  formatDuration,
+  refusalCauseOf,
+  refusalKindOf,
+  secondsBetween,
+} from '../../lib/activityLedger'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { can, useSession } from '../../lib/session/session'
-import { QUOTA_LEFT, TDD_RESUBMIT, formatOmr, type ChangeRow } from '../../lib/tddResubmit'
+import {
+  TDD_RESUBMIT,
+  changeRows,
+  formatOmr,
+  quotaAboutToUse,
+  quotaLeft,
+  vatOf,
+  type ChangeCell,
+  type ChangeRow,
+} from '../../lib/tddResubmit'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import warnIcon from '../../assets/activity/warn-danger.svg'
 import quotaWarnIcon from '../../assets/activity/warn-amber.svg'
@@ -27,13 +41,20 @@ import crossIcon from '../../assets/suppliers/consequence-stop.svg'
 import sendIcon from '../../assets/activity/ch-peppol.svg'
 
 /**
- * Put a turned-down report right and send it again (Figma 154:108616), for the document at
+ * Put a turned-down report right (Figma 154:108616), for the document at
  * `/compliance/activity/:id/resubmit`.
  *
  * The record (`/v1/compliance/activity/{invoice_uuid}`) names the invoice, the customer, what the
- * Authority said and when; "Fix and send" posts the resubmission through the link the server put
- * on the record, and only for someone who may submit. The fix itself, the before-and-after table
- * and the allowance are the design's until the backend describes them (asks rows 2.16 to 2.19).
+ * Authority said and when. What the page offers follows from what was refused:
+ *
+ * - an error in the invoice itself (totals, a tax category, the buyer's Peppol ID) is put right
+ *   with a credit note and a new invoice, because the TDD carries a full copy of the invoice
+ *   (TDT-012, IBR-TDD-57) and a changed report would not match the invoice the buyer holds;
+ * - an error in the report alone is sent again: "Fix and send" posts the resubmission through the
+ *   link the server put on the record, and only for someone who may submit.
+ *
+ * Only the fix for the actual cause is drawn. A typed fix cannot be saved yet (asks row 2.16), so
+ * a send that depends on one stays disabled. The allowance is the design's (row 2.18).
  */
 export function TddResubmitPage() {
   return (
@@ -51,7 +72,7 @@ function ResubmitScreen() {
   const detail = useApiRead<ActivityDetailDto>(activityDetailPath(id), () => loadActivityDetail(id))
   const rejectedPath = activityListPath({ tddAck: 'RE' }, 0, 100)
   const rejected = useApiRead<ActivityListDto>(rejectedPath, () => loadActivityList(rejectedPath))
-  const [peppolId, setPeppolId] = useState(TDD_RESUBMIT.fix.suggested)
+  const [peppolId, setPeppolId] = useState('')
   const [required, setRequired] = useState(false)
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
@@ -78,8 +99,13 @@ function ResubmitScreen() {
   const turnedDownAt =
     item.tdd_leg?.ack === 'RE' ? whenOf(item.tdd_leg.ack_at, i18n.language) : null
   const undeclaredFor = secondsBetween(item.occurred_at, new Date().toISOString())
+  const code = refusal?.error_code ?? null
+  const reason = refusal?.failure_reason ?? item.tdd_leg?.reason ?? null
+  // TODO(backend): ACTIVITY.md 2.30. Classified from the code and the reason until the refusal
+  // carries its kind (`error_kind`).
+  const cause = refusalCauseOf(code, reason)
+  const kind = refusalKindOf(cause, refusal?.error_kind ?? item.tdd_leg?.error_kind)
   const record = {
-    ...TDD_RESUBMIT,
     invoice,
     customer,
     customerLegal: customer,
@@ -90,9 +116,8 @@ function ResubmitScreen() {
       .join('')
       .toUpperCase(),
     rejection: {
-      ...TDD_RESUBMIT.rejection,
-      code: refusal?.error_code ?? null,
-      reason: refusal?.failure_reason ?? item.tdd_leg?.reason ?? null,
+      code,
+      reason,
       turnedDownAt: turnedDownAt ?? t('activityDetail.notYet'),
       attemptsSoFar: Math.max(1, lineage.length),
       undeclaredFor: undeclaredFor === null ? null : formatDuration(undeclaredFor),
@@ -113,16 +138,25 @@ function ResubmitScreen() {
   const group = [item, ...sameCause]
   const invoices = group.length
   const undeclaredTotal = group.reduce((sum, row) => sum + (row.amount ?? 0), 0)
-  const undeclaredVat = Math.round((undeclaredTotal - undeclaredTotal / 1.05) * 1000) / 1000
-  const mayResubmit = can(session, 'invoice.submit') && item.links.resubmit !== null
+  // The invoice total VAT (IBT-110) where the item carries it (asks row 2.34).
+  const undeclaredVat = Math.round(group.reduce((sum, row) => sum + vatOf(row), 0) * 1000) / 1000
+  const maySubmit = can(session, 'invoice.submit')
+  const mayResubmit = maySubmit && item.links.resubmit !== null
+  const peppolCause = cause === 'buyerPeppolId'
   const valid = TDD_RESUBMIT.fix.pattern.test(peppolId.trim())
+  // TODO(backend): ACTIVITY.md 2.16. There is no route to save a typed fix, so nothing that
+  // depends on one can go yet: the Peppol ID must be saved before a report or invoice carries it.
+  const canSaveFix = false
+  const blockedOnFix = peppolCause && !canSaveFix
+  const aboutToUse = quotaAboutToUse(invoices, kind)
+  const left = quotaLeft(aboutToUse)
+  const changes = changeRows(item, cause, kind, peppolId)
 
   const send = async () => {
-    if (!item.links.resubmit) return
+    if (!item.links.resubmit || kind === 'invoice' || blockedOnFix) return
     setSending(true)
     setFailure(null)
     try {
-      // TODO(backend): the Peppol ID typed above is not saved to the customer yet (asks row 2.16).
       for (const row of group) {
         if (row.links.resubmit) await resubmitTdd(row.links.resubmit)
       }
@@ -162,10 +196,12 @@ function ResubmitScreen() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-[820px]">
             <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('tddResubmit.title', { invoice })}
+              {t(kind === 'invoice' ? 'tddResubmit.titleInvoice' : 'tddResubmit.title', {
+                invoice,
+              })}
             </h1>
             <p className="mt-1 text-sm font-medium leading-[1.5] text-[#8f8f8f]">
-              {t('tddResubmit.subtitle', { customer: record.customer })}
+              {t(`tddResubmit.subtitleKind.${kind}`, { customer: record.customer })}
             </p>
           </div>
           <Link
@@ -237,51 +273,59 @@ function ResubmitScreen() {
                       {record.customerLegal}
                     </p>
                     <p className="mt-1 text-sm font-medium leading-[1.4] text-text-tertiary">
-                      {t(record.customerNoteKey)}
+                      {t(`tddResubmit.fixNote.${cause}`)}
                     </p>
                   </div>
                 </div>
                 <Link
-                  to="/customers"
+                  to={peppolCause ? '/customers' : `/invoices/${dto.invoice_uuid}`}
                   className="inline-flex h-[42px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
                 >
-                  {t('tddResubmit.openCustomer')}
+                  {t(peppolCause ? 'tddResubmit.openCustomer' : 'tddResubmit.openInvoice')}
                 </Link>
               </div>
 
-              <div className="mt-4">
-                <label
-                  htmlFor="peppol-id"
-                  className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary"
-                >
-                  {t('tddResubmit.peppolIdLabel')}
-                  <span className="text-xl leading-4 text-primary-700">*</span>
-                </label>
-                <div
-                  className={[
-                    'mt-1.5 flex h-[50px] items-center gap-2 rounded-sm border px-4',
-                    valid ? 'border-[#cfe0d5] bg-[#eef5f0]' : 'border-danger-700 bg-white',
-                  ].join(' ')}
-                >
-                  <input
-                    id="peppol-id"
-                    value={peppolId}
-                    onChange={(event) => setPeppolId(event.target.value)}
-                    className="w-full min-w-0 border-0 bg-transparent font-mono text-sm text-text-secondary outline-none"
-                  />
-                  {valid ? <img src={tickIcon} alt="" className="size-5 shrink-0" /> : null}
+              {/* The Peppol ID is the fix for a missing buyer participant ID only. */}
+              {peppolCause ? (
+                <div className="mt-4">
+                  <label
+                    htmlFor="peppol-id"
+                    className="flex items-center gap-0.5 text-sm font-medium leading-[1.2] text-text-primary"
+                  >
+                    {t('tddResubmit.peppolIdLabel')}
+                    <span className="text-xl leading-4 text-primary-700">*</span>
+                  </label>
+                  <div
+                    className={[
+                      'mt-1.5 flex h-[50px] items-center gap-2 rounded-sm border px-4',
+                      valid
+                        ? 'border-[#cfe0d5] bg-[#eef5f0]'
+                        : peppolId.trim() === ''
+                          ? 'border-border-subtle bg-white'
+                          : 'border-danger-700 bg-white',
+                    ].join(' ')}
+                  >
+                    <input
+                      id="peppol-id"
+                      value={peppolId}
+                      placeholder="0248:OM"
+                      onChange={(event) => setPeppolId(event.target.value)}
+                      className="w-full min-w-0 border-0 bg-transparent font-mono text-sm text-text-secondary outline-none"
+                    />
+                    {valid ? <img src={tickIcon} alt="" className="size-5 shrink-0" /> : null}
+                  </div>
+                  <p
+                    className={[
+                      'mt-1.5 text-xs font-medium leading-[1.4]',
+                      valid || peppolId.trim() === '' ? 'text-text-quaternary' : 'text-danger-700',
+                    ].join(' ')}
+                  >
+                    {valid || peppolId.trim() === ''
+                      ? t('tddResubmit.peppolIdHintPlain')
+                      : t('tddResubmit.peppolIdInvalid')}
+                  </p>
                 </div>
-                <p
-                  className={[
-                    'mt-1.5 text-xs font-medium leading-[1.4]',
-                    valid ? 'text-text-quaternary' : 'text-danger-700',
-                  ].join(' ')}
-                >
-                  {valid
-                    ? t('tddResubmit.peppolIdHint', { vat: record.vat })
-                    : t('tddResubmit.peppolIdInvalid')}
-                </p>
-              </div>
+              ) : null}
             </section>
 
             {/* 2 What changes */}
@@ -303,8 +347,8 @@ function ResubmitScreen() {
                     </tr>
                   </thead>
                   <tbody>
-                    {record.changes.map((row) => (
-                      <ChangeTableRow key={row.id} row={row} peppolId={peppolId} />
+                    {changes.map((row) => (
+                      <ChangeTableRow key={row.id} row={row} />
                     ))}
                   </tbody>
                 </table>
@@ -323,13 +367,15 @@ function ResubmitScreen() {
                 <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-border-default">
                   <span
                     className="bg-primary-700"
-                    style={{ width: `${(record.quota.used / record.quota.allowance) * 100}%` }}
+                    style={{
+                      width: `${(TDD_RESUBMIT.quota.used / TDD_RESUBMIT.quota.allowance) * 100}%`,
+                    }}
                   />
                   <span
                     className="bg-[#4c6c5a]"
                     style={{
-                      width: `${(record.quota.aboutToUse / record.quota.allowance) * 100}%`,
-                      minWidth: record.quota.aboutToUse > 0 ? 6 : 0,
+                      width: `${(aboutToUse / TDD_RESUBMIT.quota.allowance) * 100}%`,
+                      minWidth: aboutToUse > 0 ? 6 : 0,
                     }}
                   />
                 </div>
@@ -338,17 +384,17 @@ function ResubmitScreen() {
                   {[
                     {
                       tone: 'bg-primary-700',
-                      text: t('tddResubmit.quotaUsed', { count: record.quota.used }),
+                      text: t('tddResubmit.quotaUsed', { count: TDD_RESUBMIT.quota.used }),
                     },
                     {
                       tone: 'bg-[#4c6c5a]',
-                      text: t('tddResubmit.quotaAboutTo', { count: record.quota.aboutToUse }),
+                      text: t('tddResubmit.quotaAboutTo', { count: aboutToUse }),
                     },
                     {
                       tone: 'bg-border-default',
                       text: t('tddResubmit.quotaLeft', {
-                        count: QUOTA_LEFT,
-                        allowance: record.quota.allowance,
+                        count: left,
+                        allowance: TDD_RESUBMIT.quota.allowance,
                       }),
                     },
                   ].map((entry) => (
@@ -393,7 +439,8 @@ function ResubmitScreen() {
                     }}
                   />,
                   t('tddResubmit.leaveIt.unreported'),
-                  t('tddResubmit.leaveIt.futureFails'),
+                  // Only a customer with no Peppol ID makes every future invoice fail the same way.
+                  ...(peppolCause ? [t('tddResubmit.leaveIt.futureFails')] : []),
                 ].map((line, index) => (
                   <li key={index} className="flex items-start gap-2.5">
                     <img src={crossIcon} alt="" className="mt-1 size-3 shrink-0" />
@@ -419,7 +466,12 @@ function ResubmitScreen() {
                 />
                 <Row
                   label={t('tddResubmit.attempt.willBeAttempt')}
-                  value={String(record.rejection.attemptsSoFar + 1)}
+                  // A credit note and a new invoice start a new report, not another attempt.
+                  value={
+                    kind === 'invoice'
+                      ? t('tddResubmit.attempt.onNewInvoice')
+                      : String(record.rejection.attemptsSoFar + 1)
+                  }
                 />
                 <Row
                   label={t('tddResubmit.attempt.fixingAlongside')}
@@ -427,34 +479,37 @@ function ResubmitScreen() {
                 />
                 <Row
                   label={t('tddResubmit.attempt.quotaAfter')}
-                  value={t('tddResubmit.attempt.left', { count: QUOTA_LEFT })}
+                  value={t('tddResubmit.attempt.left', { count: left })}
                   last
                 />
               </dl>
             </section>
 
-            <section className="rounded-md bg-surface-card p-5">
-              <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
-                {t('tddResubmit.stopRecurring')}
-              </h3>
-              <p className="mt-2.5 text-sm font-medium leading-[1.6] text-text-tertiary">
-                {t('tddResubmit.stopRecurringCount', { count: invoices })}
-              </p>
-              <button
-                type="button"
-                onClick={() => setRequired(true)}
-                disabled={required}
-                className={[
-                  'mt-4 inline-flex h-[42px] w-full items-center justify-center gap-2 rounded-sm border text-sm font-semibold transition-colors',
-                  required
-                    ? 'border-[#cfe0d5] bg-[#eef5f0] text-[#3d5648]'
-                    : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
-                ].join(' ')}
-              >
-                {required ? <img src={tickIcon} alt="" className="size-4" /> : null}
-                {required ? t('tddResubmit.madeRequired') : t('tddResubmit.makeRequired')}
-              </button>
-            </section>
+            {/* The design's "Stop it recurring" is about a missing Peppol ID: shown for that cause. */}
+            {peppolCause ? (
+              <section className="rounded-md bg-surface-card p-5">
+                <h3 className="text-base font-semibold leading-[1.2] text-text-primary">
+                  {t('tddResubmit.stopRecurring')}
+                </h3>
+                <p className="mt-2.5 text-sm font-medium leading-[1.6] text-text-tertiary">
+                  {t('tddResubmit.stopRecurringCount', { count: invoices })}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRequired(true)}
+                  disabled={required}
+                  className={[
+                    'mt-4 inline-flex h-[42px] w-full items-center justify-center gap-2 rounded-sm border text-sm font-semibold transition-colors',
+                    required
+                      ? 'border-[#cfe0d5] bg-[#eef5f0] text-[#3d5648]'
+                      : 'border-border-subtle bg-white text-text-secondary hover:bg-primary-25',
+                  ].join(' ')}
+                >
+                  {required ? <img src={tickIcon} alt="" className="size-4" /> : null}
+                  {required ? t('tddResubmit.madeRequired') : t('tddResubmit.makeRequired')}
+                </button>
+              </section>
+            ) : null}
           </aside>
         </div>
       </div>
@@ -473,7 +528,7 @@ function ResubmitScreen() {
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-border-subtle bg-surface-card px-4 py-4">
         <div className="mx-auto flex w-full max-w-[1144px] flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-text-tertiary">
-            {t('tddResubmit.footerCount', { count: invoices })}
+            {t(`tddResubmit.footerKind.${kind}`, { count: invoices })}
           </p>
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
@@ -482,17 +537,29 @@ function ResubmitScreen() {
             >
               {t('tddResubmit.cancel')}
             </Link>
+            {/* TODO(backend): ACTIVITY.md 2.16. No route saves a fix yet, so this stays disabled. */}
             <button
               type="button"
-              disabled={!valid}
+              disabled={!canSaveFix || !valid}
               className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-5 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
             >
               {t('tddResubmit.saveOnly')}
             </button>
-            {mayResubmit ? (
+            {kind === 'invoice' ? (
+              // An error in the invoice itself: a credit note, then a new invoice. Nothing is resent.
+              maySubmit ? (
+                <Link
+                  to={`/income/credit-notes/new?invoice=${dto.invoice_uuid}`}
+                  className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                >
+                  <img src={sendIcon} alt="" className="size-4 brightness-0 invert" />
+                  {t('tddResubmit.issueCreditNote')}
+                </Link>
+              ) : null
+            ) : mayResubmit ? (
               <button
                 type="button"
-                disabled={!valid || sending}
+                disabled={blockedOnFix || sending}
                 onClick={() => void send()}
                 className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
               >
@@ -511,10 +578,10 @@ function ResubmitScreen() {
   )
 }
 
-function ChangeTableRow({ row, peppolId }: { row: ChangeRow; peppolId: string }) {
+function ChangeTableRow({ row }: { row: ChangeRow }) {
   const { t } = useTranslation()
-  /** Only the corrected field differs; everything else is carried over untouched. */
-  const changes = Boolean(row.after)
+  /** Only the corrected fields differ; everything else is carried over untouched. */
+  const changes = row.after !== null
 
   return (
     <tr
@@ -525,31 +592,21 @@ function ChangeTableRow({ row, peppolId }: { row: ChangeRow; peppolId: string })
     >
       <td className="px-4 py-3.5 text-sm font-medium text-text-secondary">{t(row.fieldKey)}</td>
       <td className="px-4 py-3.5">
-        {row.beforeEmpty ? (
+        {row.before.empty ? (
           <span className="text-sm font-medium italic text-danger-700">
             {t('tddResubmit.empty')}
           </span>
         ) : (
-          <span
-            className={[
-              'text-sm text-text-secondary',
-              row.mono ? 'font-mono text-xs' : 'font-medium',
-            ].join(' ')}
-          >
-            {row.money ? (
-              <span className="inline-flex items-baseline gap-1">
-                <Rial />
-                {row.before}
-              </span>
-            ) : (
-              row.before
-            )}
-          </span>
+          <Cell cell={row.before} />
         )}
       </td>
       <td className="px-4 py-3.5">
-        {changes ? (
-          <span className="font-mono text-xs font-semibold text-[#3d5648]">{peppolId}</span>
+        {row.after ? (
+          row.after.text ? (
+            <span className="font-mono text-xs font-semibold text-[#3d5648]">{row.after.text}</span>
+          ) : (
+            <span className="text-sm font-medium text-[#3d5648]">{t(row.after.key ?? '')}</span>
+          )
         ) : (
           <span className="text-sm font-medium text-text-quaternary">
             {t('tddResubmit.unchanged')}
@@ -557,6 +614,30 @@ function ChangeTableRow({ row, peppolId }: { row: ChangeRow; peppolId: string })
         )}
       </td>
     </tr>
+  )
+}
+
+function Cell({ cell }: { cell: ChangeCell }) {
+  const { t } = useTranslation()
+  if (cell.key) {
+    return <span className="text-sm font-medium text-text-quaternary">{t(cell.key)}</span>
+  }
+  return (
+    <span
+      className={[
+        'text-sm text-text-secondary',
+        cell.mono ? 'font-mono text-xs' : 'font-medium',
+      ].join(' ')}
+    >
+      {cell.money ? (
+        <span className="inline-flex items-baseline gap-1">
+          <Rial />
+          {cell.text}
+        </span>
+      ) : (
+        cell.text
+      )}
+    </span>
   )
 }
 

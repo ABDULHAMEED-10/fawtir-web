@@ -1,7 +1,7 @@
 # Fawtir web: project handbook
 
 **For:** anyone who picks this project up, human or AI, without the history of earlier chats.
-**Last updated:** 27 September 2026. **Owner:** Abdul Hameed (GitHub `ABDULHAMEED-10`).
+**Last updated:** 30 September 2026. **Owner:** Abdul Hameed (GitHub `ABDULHAMEED-10`).
 
 This is the memory of the project: what it is, how we work, the rules that keep the UI intact
 while the backend is wired in, every product and Oman-compliance decision taken so far, and the
@@ -112,10 +112,17 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
   Expenditure and Suppliers (for example Expenditure is `163:16959` there and `154:131901` on page
   `0:1`). Both work with the MCP. **Node ids change when the designer re-uploads a frame:** find
   frames by name, then take the id.
-- **Screens with no design:** POS, and the **invoice import dialog** (the Invoices list's Bulk
+- **Screens with no design:** POS, the **self-billed credit note** and the **supplier business activity** dialogs (below), and the **invoice import dialog** (the Invoices list's Bulk
   upload). On these judgement decides; flag such decisions. The import dialog is an owner-approved
   exception (2026-09-28, on grounds of time, per the approved Invoice Import guide): it is built on
   the existing theme and components only and changes no other screen.
+- **Self-billed credit note (approved 2026-09-30):** a necessary screen with no Figma frame (PR
+  #117). It reuses the credit-note composer and changes no other screen; its wording must fit a
+  purchase document (supplier, input VAT), not the sales wording of the composer.
+- **Supplier business activity (approved 2026-09-30):** the ISIC field in the self-billing
+  agreement dialog and the "Set business activity" dialog from an agreement's row menu (PR #120)
+  have no Figma frame. Built with existing components only (Modal, Combobox); the code is saved on
+  the supplier's record and goes on every line of that supplier's self-billed documents (BTOM-033).
 - **Zero-rating warning (approved 2026-09-28, same basis):** the line warning in the invoice composer
   and the confirmation step before issuing (INCOME.md rows Z.1 to Z.7) have no Figma frame. Build
   them with existing components only and touch no other screen. Manual invoices warn and never
@@ -128,7 +135,7 @@ Sections on page `0:1` (children are the frames; list them with `get_metadata` o
 | Auth Screens (sign-in, sign-up, onboarding)                                   | `154:79063`                                                       |
 | Income frames (invoices, notes, periodic, reminders, self-billing, customers) | top-level frames, e.g. Invoice `154:86625`, Customers `154:91007` |
 | Reports                                                                       | `154:105574`                                                      |
-| TDD & OTA (shown in the app as **Activity**)                                  | `154:108266`                                                      |
+| TDD & OTA (shown in the app as **TDD & OTA**, as in Figma)                     | `154:108266`                                                      |
 | Super Admin                                                                   | `154:111760`                                                      |
 | POS                                                                           | `154:112770`                                                      |
 | Settings                                                                      | `154:116156`                                                      |
@@ -336,7 +343,7 @@ Checked on 2026-09-28 against PDK 1.4.4. Findings from that check are in
   PINT-OM code-list folder or the `com.helger.peppol:peppol-om` Maven package, served by backend
   search endpoints (asked in the guide).
 
-### 5.3 Reporting to the OTA (the Activity screen)
+### 5.3 Reporting to the OTA (the TDD & OTA screen)
 
 - Each invoice sent is reported to the OTA as a **Tax Data Document (TDD)**. The acknowledgement
   comes back as MLS messages.
@@ -386,6 +393,24 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   mobile developer's guide for onboarding to invoice creation is a shared doc:
   https://claude.ai/code/artifact/0880cec3-51a4-4cc7-93b6-d55890f97365 (data, rules and APIs only;
   the mobile UI and layout are his call).
+- **TDD & OTA, Documents, Reports and Trade documents review** (owner, 30 Sep 2026): all 26
+  findings approved and applied within the rules above (no designed element dropped, no API call
+  deleted; missing data reads "not confirmed" with a `TODO(backend)` row). Decisions taken with
+  it: the menu and page are named **TDD & OTA**, as in Figma (the code's route and file names stay
+  `activity`); the "24-hour rule" copy is removed, since no published OTA or PINT-OM rule states
+  it, and only the deadline the server returns is shown; the ten-year "Kept until" dates stay
+  counted from the document date until the start of the retention period is checked against the
+  Oman VAT law (open question 6). Trade documents have their own guide,
+  `docs/backend-guides/TRADE_DOCUMENTS.md`.
+- **Owner decisions, 1 Oct 2026** (Zain's open questions):
+  1. An action the user may not take is **hidden**, not shown disabled, as on the invoice page
+     (e.g. Record payment on a self-bill for a Viewer).
+  2. Weekly recurring bills in Expenditure get the same 7-day period fix as weekly periodic
+     invoices, for **future** bills only; bills already raised keep their dates.
+  3. The one-reminder-per-invoice-per-day limit counts **both** manual and automatic reminders.
+  4. On a sales invoice the ISIC code is always the company's (5.2). An ERP or API import that
+     sends a different line code has it replaced by the company's code, and the import report
+     says so; the import is not refused.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
@@ -396,7 +421,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 
 ## 7. Open questions for the owner
 
-1. OTA wording on Activity and Reports: Figma's "Accepted by the OTA" / "Rejected", or the
+1. OTA wording on TDD & OTA and Reports: Figma's "Accepted by the OTA" / "Rejected", or the
    cautious wording that an acknowledgement is delivery, not a ruling.
 2. A "Full invoice" credit note on an invoice that already has credits credits the whole invoice,
    not the amount still open. Should it be capped?
@@ -408,6 +433,9 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 5. Parked until integration asks for it: the ~500 tap targets of 24 to 34 px (judged fine on a
    real device), POS product photos hot-linked from Wikimedia Commons, `/purchase-orders` having
    a create form but no list.
+6. Retention: do the ten years (fifteen for property) run from the document date or from the end
+   of the tax year? To be checked against the Oman VAT law; if the latter, every "Kept until"
+   date on Documents is early.
 
 ---
 

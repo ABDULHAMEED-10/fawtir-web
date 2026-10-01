@@ -1,15 +1,18 @@
 import type { ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import { ActionMenu, RowsView, withRial } from '../../components/ui'
 import { orderFormRowActions } from '../../lib/rowActions'
 import {
-  ORDER_FORM_PURCHASE,
-  ORDER_FORM_SALE,
+  orderById,
   type LifecycleStep,
+  type PurchaseOrderDetail,
+  type SaleOrderDetail,
   type TimelineEvent,
 } from '../../lib/orderFormDetail'
+import { Notice } from '../../components/feedback/ApiNotice'
+import { useTradeNotice } from '../../components/trade/TradeNotice'
 import backIcon from '../../assets/order-detail/back.svg'
 import downloadIcon from '../../assets/order-detail/download.svg'
 import logDeliveryIcon from '../../assets/order-detail/log-delivery.svg'
@@ -27,8 +30,6 @@ import timelineDoneIcon from '../../assets/quotation-detail/timeline-done.svg'
 import timelineOpenIcon from '../../assets/quotation-detail/timeline-open.svg'
 import proofClockIcon from '../../assets/delivery-notes-v2/proof-clock.svg'
 import omrIcon from '../../assets/order-forms-v2/omr.svg'
-
-const BAR_TRACK = 763
 
 const TONE_FILL = {
   invoiced: 'bg-[#2c4eb7]',
@@ -65,10 +66,14 @@ function Amount({
   size = 'md',
   className = '',
 }: {
-  value: string
+  value: string | null
   size?: 'xs' | 'sm' | 'md' | 'lg'
   className?: string
 }) {
+  const { t } = useTranslation()
+  if (value === null) {
+    return <span className="text-sm font-medium text-[#5b606c]">{t('tradeDocs.notRecorded')}</span>
+  }
   const mark = { xs: 'w-3.5', sm: 'w-4', md: 'w-5', lg: 'w-7' }[size]
   return (
     <span className="inline-flex items-center gap-1">
@@ -108,7 +113,7 @@ function LifecycleStrip({ steps }: { steps: LifecycleStep[] }) {
             </span>
             {step.noteKey ? (
               <span className="text-center text-[10px] font-medium leading-[1.2] text-[#5b606c]">
-                {t(step.noteKey)}
+                {t(step.noteKey, step.noteValues)}
               </span>
             ) : null}
           </div>
@@ -147,7 +152,7 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
               {t(event.titleKey)}
             </p>
             <p className="mt-1.5 text-sm font-medium leading-[1.2] text-[#444957]">
-              {withRial(t(event.detailKey))}
+              {withRial(t(event.detailKey, event.detailValues))}
             </p>
           </div>
         </li>
@@ -156,7 +161,15 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
   )
 }
 
-function FileRow({ titleKey, metaKey }: { titleKey: string; metaKey: string }) {
+function FileRow({
+  titleKey,
+  metaKey,
+  metaValues,
+}: {
+  titleKey: string
+  metaKey: string
+  metaValues?: Record<string, string | number>
+}) {
   const { t } = useTranslation()
   return (
     <div className="flex items-center gap-4 rounded-sm border border-[#f3f3f3] p-4">
@@ -164,7 +177,7 @@ function FileRow({ titleKey, metaKey }: { titleKey: string; metaKey: string }) {
       <div className="min-w-0">
         <p className="text-base font-medium leading-[1.2] text-[#151c2d]">{t(titleKey)}</p>
         <p className="mt-1.5 text-sm font-medium leading-[1.2] text-[#444957]">
-          {withRial(t(metaKey))}
+          {withRial(t(metaKey, metaValues))}
         </p>
       </div>
     </div>
@@ -178,7 +191,7 @@ function DetailHeader({
   direction,
   leadKey,
   party,
-  tailKey,
+  tail,
   actions,
 }: {
   id: string
@@ -187,7 +200,7 @@ function DetailHeader({
   direction: 'sales' | 'purchase'
   leadKey: string
   party: string
-  tailKey: string
+  tail: { key: string; values?: Record<string, string | number> }
   actions: ReactNode
 }) {
   const { t } = useTranslation()
@@ -241,7 +254,7 @@ function DetailHeader({
         <p className="mt-1.5 text-base leading-[1.2] text-[#5b606c]">
           <span className="font-medium">• {t(leadKey)} </span>
           <span className="font-semibold text-[#151c2d]">{party}</span>
-          <span className="font-medium"> · {t(tailKey)}</span>
+          <span className="font-medium"> · {t(tail.key, tail.values)}</span>
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">{actions}</div>
@@ -251,10 +264,22 @@ function DetailHeader({
 
 /* --------------------------------------------------------------- sales */
 
-function SaleDetail() {
+/** A timeline or a list the server has not given: one quiet line in its place. */
+function NotRecorded() {
   const { t } = useTranslation()
-  const doc = ORDER_FORM_SALE
+  return <p className="text-sm font-medium text-[#5b606c]">{t('tradeDocs.notRecorded')}</p>
+}
+
+function SaleDetail({ doc }: { doc: SaleOrderDetail }) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const notice = useTradeNotice()
   const f = doc.fulfilment
+  const invoice = () => navigate(`/invoices/new?from=${encodeURIComponent(doc.id)}`)
+  const deliver = () =>
+    navigate(`/trade-documents/delivery-notes/new?order=${encodeURIComponent(doc.id)}`)
+  const onAction = (itemId: string) =>
+    itemId === 'invoice' ? invoice() : itemId === 'delivery' ? deliver() : notice.unavailable()
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -265,16 +290,17 @@ function SaleDetail() {
         direction="sales"
         leadKey="orderDetail.sale.for"
         party={doc.customer}
-        tailKey={doc.confirmedKey}
+        tail={doc.tail}
         actions={
           <>
             <ActionMenu
-              items={orderFormRowActions(doc.id)}
+              items={orderFormRowActions(doc.id, onAction)}
               label={t('orderDetail.moreActions')}
               variant="bordered"
             />
             <button
               type="button"
+              onClick={notice.unavailable}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
             >
               <img src={downloadIcon} alt="" className="size-6" />
@@ -282,6 +308,7 @@ function SaleDetail() {
             </button>
             <button
               type="button"
+              onClick={deliver}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
             >
               <img src={logDeliveryIcon} alt="" className="size-6" />
@@ -289,6 +316,7 @@ function SaleDetail() {
             </button>
             <button
               type="button"
+              onClick={invoice}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
             >
               <img src={issueInvoiceIcon} alt="" className="size-6" />
@@ -301,9 +329,12 @@ function SaleDetail() {
       <Card>
         <LifecycleStrip steps={doc.steps} />
         <p className="mt-6 border-t border-[#f3f3f3] pt-4 text-sm font-medium leading-[1.2] text-[#444957]">
-          {withRial(t(doc.lifecycleNoteKey))}
+          {doc.lifecycleNote
+            ? withRial(t(doc.lifecycleNote.key, doc.lifecycleNote.values))
+            : t('tradeDocs.notRecorded')}
         </p>
       </Card>
+      {notice.node}
 
       {/* Fulfilment (795) | Order value (332) */}
       <div className="grid gap-4 xl:grid-cols-[795fr_332px]">
@@ -329,11 +360,12 @@ function SaleDetail() {
                   />
                 </div>
                 <p className="mt-2 text-sm font-medium leading-[1.2] text-[#5b606c]">
-                  {t(stat.noteKey)}
+                  {stat.note ? t(stat.note.key, stat.note.values) : t('tradeDocs.notRecorded')}
                 </p>
-                {'actionKey' in stat && stat.actionKey ? (
+                {stat.actionKey ? (
                   <button
                     type="button"
+                    onClick={invoice}
                     className="mt-3 inline-flex h-9 items-center justify-center gap-1 rounded-sm bg-[#2c4eb7] px-2.5 text-sm font-semibold text-white"
                   >
                     <img src={issueInvoiceSmIcon} alt="" className="size-5" />
@@ -352,7 +384,7 @@ function SaleDetail() {
                   'absolute inset-y-0 start-0 rounded-[2px]',
                   TONE_FILL[segment.tone],
                 ].join(' ')}
-                style={{ width: `${(segment.width / BAR_TRACK) * 100}%` }}
+                style={{ width: `${segment.pct}%` }}
               />
             ))}
           </div>
@@ -457,7 +489,14 @@ function SaleDetail() {
               </tr>
             </thead>
             <tbody>
-              {doc.lines.map((line) => (
+              {doc.lines === null ? (
+                <tr>
+                  <td colSpan={7} className="py-5 text-sm font-medium text-[#5b606c]">
+                    {t('tradeDocs.notAvailableShort')}
+                  </td>
+                </tr>
+              ) : null}
+              {(doc.lines ?? []).map((line) => (
                 <tr key={line.id} className="border-b border-[#f3f3f3] last:border-b-0">
                   <td className="py-5 pe-4">
                     <p className="text-base font-medium leading-[1.2] text-[#151c2d]">
@@ -482,14 +521,19 @@ function SaleDetail() {
 
       <Card>
         <SectionTitle title={t('orderDetail.activity')} />
-        <Timeline events={doc.activity} />
+        {doc.activity ? <Timeline events={doc.activity} /> : <NotRecorded />}
       </Card>
 
       <Card>
         <SectionTitle title={t('orderDetail.attachments')} />
         <div className="flex flex-col gap-3">
           {doc.attachments.map((file) => (
-            <FileRow key={file.id} titleKey={file.titleKey} metaKey={file.metaKey} />
+            <FileRow
+              key={file.id}
+              titleKey={file.titleKey}
+              metaKey={file.metaKey}
+              metaValues={file.metaValues}
+            />
           ))}
           <div className="flex flex-wrap items-center justify-center gap-2 rounded-sm bg-[#fafafa] px-4 py-5">
             <img src={uploadIcon} alt="" className="size-6" />
@@ -508,9 +552,11 @@ function SaleDetail() {
 
 /* ------------------------------------------------------------ purchase */
 
-function PurchaseDetail() {
+function PurchaseDetail({ doc }: { doc: PurchaseOrderDetail }) {
   const { t } = useTranslation()
-  const doc = ORDER_FORM_PURCHASE
+  const notice = useTradeNotice()
+  const unavailable = notice.unavailable
+  const onAction = () => unavailable()
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -521,16 +567,17 @@ function PurchaseDetail() {
         direction="purchase"
         leadKey="orderDetail.purchase.placedWith"
         party={doc.supplier}
-        tailKey={doc.requiredKey}
+        tail={doc.tail}
         actions={
           <>
             <ActionMenu
-              items={orderFormRowActions(doc.id)}
+              items={orderFormRowActions(doc.id, onAction)}
               label={t('orderDetail.moreActions')}
               variant="bordered"
             />
             <button
               type="button"
+              onClick={unavailable}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a]"
             >
               <img src={downloadIcon} alt="" className="size-6" />
@@ -538,6 +585,7 @@ function PurchaseDetail() {
             </button>
             <button
               type="button"
+              onClick={unavailable}
               className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-[#2c4eb7] px-4 text-sm font-semibold text-white"
             >
               <img src={issueInvoiceIcon} alt="" className="size-6" />
@@ -550,9 +598,12 @@ function PurchaseDetail() {
       <Card>
         <LifecycleStrip steps={doc.steps} />
         <p className="mt-6 border-t border-[#f3f3f3] pt-4 text-sm font-medium leading-[1.2] text-[#444957]">
-          {withRial(t(doc.lifecycleNoteKey))}
+          {doc.lifecycleNote
+            ? withRial(t(doc.lifecycleNote.key, doc.lifecycleNote.values))
+            : t('tradeDocs.notRecorded')}
         </p>
       </Card>
+      {notice.node}
 
       {/* Three-way match (796) | Due to pay + What this costs (332) */}
       <div className="grid items-start gap-4 xl:grid-cols-[796fr_332px]">
@@ -565,7 +616,11 @@ function PurchaseDetail() {
                   {t(doc.match.titleKey)}
                 </h2>
               </span>
-              <button type="button" className="text-sm font-semibold text-[#2c4eb7]">
+              <button
+                type="button"
+                onClick={unavailable}
+                className="text-sm font-semibold text-[#2c4eb7]"
+              >
                 {t(doc.match.linkKey)}
               </button>
             </div>
@@ -582,10 +637,10 @@ function PurchaseDetail() {
                     </span>
                   </span>
                   <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-[#2c3342]">
-                    {stat.value}
+                    {stat.value ?? '—'}
                   </p>
                   <p className="mt-2 flex flex-wrap items-center gap-1 text-sm font-medium leading-[1.2] text-[#5b606c]">
-                    {'rate' in stat && stat.rate ? (
+                    {stat.rate ? (
                       <Amount
                         value={stat.rate}
                         size="xs"
@@ -622,7 +677,14 @@ function PurchaseDetail() {
                   </tr>
                 </thead>
                 <tbody>
-                  {doc.lines.map((line) => (
+                  {doc.lines === null ? (
+                    <tr>
+                      <td colSpan={5} className="py-5 text-sm font-medium text-[#5b606c]">
+                        {t('tradeDocs.notAvailableShort')}
+                      </td>
+                    </tr>
+                  ) : null}
+                  {(doc.lines ?? []).map((line) => (
                     <tr key={line.id} className="border-b border-[#f3f3f3] last:border-b-0">
                       <td className="py-5 pe-4">
                         <p className="text-base font-medium leading-[1.2] text-[#151c2d]">
@@ -672,11 +734,12 @@ function PurchaseDetail() {
               />
             </div>
             <p className="mt-2 text-sm font-medium leading-[1.3] text-[#444957]">
-              {t(doc.due.noteKey)}
+              {t(doc.due.noteKey ?? 'tradeDocs.notRecorded')}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
+                onClick={unavailable}
                 className="inline-flex h-9 items-center gap-1.5 rounded-sm bg-[#2c4eb7] px-3 text-sm font-semibold text-white"
               >
                 <img src={issueInvoiceIcon} alt="" className="size-5" />
@@ -684,6 +747,7 @@ function PurchaseDetail() {
               </button>
               <button
                 type="button"
+                onClick={unavailable}
                 className="inline-flex h-9 items-center rounded-sm border border-[#e8e8ea] bg-white px-3 text-sm font-semibold text-[#3a3a3a]"
               >
                 {t(doc.due.secondaryKey)}
@@ -736,7 +800,7 @@ function PurchaseDetail() {
             <div className="mt-5 flex gap-2 rounded-sm bg-[#f3f4f5] px-3 py-2">
               <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
               <p className="text-sm font-medium leading-[1.3] text-[#5b606c]">
-                {t(doc.cost.noteKey)}
+                {t(doc.cost.noteKey ?? 'tradeDocs.notRecorded')}
               </p>
             </div>
           </Card>
@@ -758,6 +822,7 @@ function PurchaseDetail() {
           </span>
         </div>
         <div className="flex flex-col gap-4">
+          {doc.approval.rows.length === 0 ? <NotRecorded /> : null}
           {doc.approval.rows.map((row) => (
             <div key={row.id} className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -791,12 +856,13 @@ function PurchaseDetail() {
 
       <Card>
         <SectionTitle title={t('orderDetail.activity')} />
-        <Timeline events={doc.activity} />
+        {doc.activity ? <Timeline events={doc.activity} /> : <NotRecorded />}
       </Card>
 
       <Card>
         <SectionTitle title={t('orderDetail.purchase.documentsTitle')} />
         <div className="flex flex-col gap-3">
+          {doc.documents.length === 0 ? <NotRecorded /> : null}
           {doc.documents.map((file) => (
             <FileRow key={file.id} titleKey={file.titleKey} metaKey={file.metaKey} />
           ))}
@@ -807,9 +873,29 @@ function PurchaseDetail() {
 }
 
 export function OrderFormDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
-  /** PO-prefixed ids are purchase orders; everything else reads as a sales order. */
-  const isPurchase = (id ?? '').toUpperCase().startsWith('PO')
+  // The record the address names; its own direction decides the layout, not the id's prefix.
+  const doc = orderById(id)
 
-  return <AppShell>{isPurchase ? <PurchaseDetail /> : <SaleDetail />}</AppShell>
+  return (
+    <AppShell>
+      {doc === null ? (
+        <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+          <Notice
+            badge={t('appAccess.notFound')}
+            body={t('tradeDocs.notFound', { kind: t('tradeDocs.kind.order'), id })}
+            action={{
+              label: t('orderDetail.breadcrumbOrderForms'),
+              to: '/trade-documents/order-forms',
+            }}
+          />
+        </div>
+      ) : doc.direction === 'purchase' ? (
+        <PurchaseDetail doc={doc} />
+      ) : (
+        <SaleDetail doc={doc} />
+      )}
+    </AppShell>
+  )
 }
