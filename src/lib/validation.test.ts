@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fullName, password, toOmanE164, username } from './validation'
+import { fullName, omanPhone, password, toOmanE164, username } from './validation'
 import { getPasswordStrength } from './passwordStrength'
 
 describe('username', () => {
@@ -84,5 +84,24 @@ describe('toOmanE164', () => {
   it('prefixes the national number with +968, dropping separators', () => {
     expect(toOmanE164('9123 4567')).toBe('+96891234567')
     expect(toOmanE164('9123-4567')).toBe('+96891234567')
+  })
+})
+
+describe('omanPhone', () => {
+  it('takes the fixed-line blocks 22 to 26 and the mobile ranges 71 to 79 and 90 to 99', () => {
+    for (const number of ['22123456', '23123456', '24123456', '25123456', '26123456'])
+      expect(omanPhone(number)).toBeUndefined()
+    for (const number of ['71234567', '79234567', '90234567', '99234567', '9123 4567'])
+      expect(omanPhone(number)).toBeUndefined()
+  })
+
+  it('refuses the ranges no Omani number uses', () => {
+    for (const number of ['20123456', '21123456', '27123456', '29123456', '70123456', '81234567'])
+      expect(omanPhone(number)).toBe('validation.phonePrefix')
+  })
+
+  it('asks for the number, then its eight digits', () => {
+    expect(omanPhone('')).toBe('validation.required')
+    expect(omanPhone('9123456')).toBe('validation.phoneLength')
   })
 })

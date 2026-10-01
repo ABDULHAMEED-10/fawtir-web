@@ -112,10 +112,17 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
   Expenditure and Suppliers (for example Expenditure is `163:16959` there and `154:131901` on page
   `0:1`). Both work with the MCP. **Node ids change when the designer re-uploads a frame:** find
   frames by name, then take the id.
-- **Screens with no design:** POS, and the **invoice import dialog** (the Invoices list's Bulk
+- **Screens with no design:** POS, the **self-billed credit note** and the **supplier business activity** dialogs (below), and the **invoice import dialog** (the Invoices list's Bulk
   upload). On these judgement decides; flag such decisions. The import dialog is an owner-approved
   exception (2026-09-28, on grounds of time, per the approved Invoice Import guide): it is built on
   the existing theme and components only and changes no other screen.
+- **Self-billed credit note (approved 2026-09-30):** a necessary screen with no Figma frame (PR
+  #117). It reuses the credit-note composer and changes no other screen; its wording must fit a
+  purchase document (supplier, input VAT), not the sales wording of the composer.
+- **Supplier business activity (approved 2026-09-30):** the ISIC field in the self-billing
+  agreement dialog and the "Set business activity" dialog from an agreement's row menu (PR #120)
+  have no Figma frame. Built with existing components only (Modal, Combobox); the code is saved on
+  the supplier's record and goes on every line of that supplier's self-billed documents (BTOM-033).
 - **Zero-rating warning (approved 2026-09-28, same basis):** the line warning in the invoice composer
   and the confirmation step before issuing (INCOME.md rows Z.1 to Z.7) have no Figma frame. Build
   them with existing components only and touch no other screen. Manual invoices warn and never
@@ -395,6 +402,15 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   counted from the document date until the start of the retention period is checked against the
   Oman VAT law (open question 6). Trade documents have their own guide,
   `docs/backend-guides/TRADE_DOCUMENTS.md`.
+- **Owner decisions, 1 Oct 2026** (Zain's open questions):
+  1. An action the user may not take is **hidden**, not shown disabled, as on the invoice page
+     (e.g. Record payment on a self-bill for a Viewer).
+  2. Weekly recurring bills in Expenditure get the same 7-day period fix as weekly periodic
+     invoices, for **future** bills only; bills already raised keep their dates.
+  3. The one-reminder-per-invoice-per-day limit counts **both** manual and automatic reminders.
+  4. On a sales invoice the ISIC code is always the company's (5.2). An ERP or API import that
+     sends a different line code has it replaced by the company's code, and the import report
+     says so; the import is not refused.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
