@@ -14,7 +14,12 @@ export type PayablesBucketDto = { amount: number; bills: number; nextDue: string
 
 /** `SupplierOverview`. A held bill counts only in `onHold`; "due soon" is within 7 days. */
 export type SupplierOverviewDto = {
-  tabs: { bills: number; payments: number; orders: number; documents: number }
+  /**
+   * `bills` counts every document (the Bills tab). `openBills` counts the bills still owed, in any
+   * currency: the same rule as the list row's `youOwe.openBills`. Typed optional because a server
+   * older than the field leaves it out.
+   */
+  tabs: { bills: number; payments: number; orders: number; documents: number; openBills?: number }
   /** Of the bills backed by an order, how many agreed with it. `summary` is English and not shown. */
   match: { agreed: number; orderBacked: number; summary: string | null }
   usualLeadTimeDays: number | null
@@ -37,11 +42,19 @@ export function loadSupplierOverview(id: string): Promise<SupplierOverviewDto> {
   return apiRequest<SupplierOverviewDto>(supplierOverviewPath(id))
 }
 
-export function supplierBillsPath(id: string, page: number, pageSize: number) {
-  return withQuery(`${supplierPath(id)}/bills`, { page, page_size: pageSize })
+/**
+ * @param open `true` asks for the open bills only: bills (not credit notes) that still owe
+ *        something and were not rejected, held ones included. Left out, every document is listed.
+ */
+export function supplierBillsPath(id: string, page: number, pageSize: number, open = false) {
+  return withQuery(`${supplierPath(id)}/bills`, {
+    open: open ? true : undefined,
+    page,
+    page_size: pageSize,
+  })
 }
 
-/** Newest issue date first. No total: `hasMore` is a full page. */
+/** Newest issue date first. No total unless open bills were asked for: `hasMore` is a full page. */
 export async function loadSupplierBills(path: string): Promise<Page<BillRowDto>> {
   return fromItemsPage(await apiRequest<ItemsPage<BillRowDto>>(path))
 }

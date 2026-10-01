@@ -83,6 +83,13 @@ let listResponses: Array<() => Response>
 let summaryResponse: () => Response
 let who: Entitlements
 
+/** The body of the one `switch-off` call, or undefined when none was made (or it carried none). */
+const switchOffBody = () => {
+  const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/switch-off'))
+  const body = (call?.[1] as RequestInit | undefined)?.body
+  return typeof body === 'string' ? JSON.parse(body) : undefined
+}
+
 const listCalls = () =>
   fetchMock.mock.calls
     .map(([url]) => String(url))
@@ -249,6 +256,18 @@ describe('Suppliers list, wired to the API', () => {
     expect(listCalls().at(-1)).toBe('/api/v1/suppliers?page=0&page_size=10')
   })
 
+  it('offers a new order and a new bill in the row menu of an active supplier', async () => {
+    renderSuppliers()
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    expect(await screen.findByText('New purchase order')).toBeTruthy()
+    expect(screen.getByText('Record a bill')).toBeTruthy()
+    // "Copy into a new supplier" names the row it copies.
+    expect(screen.getByText('Copy into a new supplier').closest('a')?.getAttribute('href')).toBe(
+      '/suppliers/new?copy=11111111-1111-1111-1111-111111111111',
+    )
+  })
+
   it('offers only what the reader may do', async () => {
     who = READ_ONLY
     renderSuppliers()
@@ -288,7 +307,43 @@ describe('Suppliers list, wired to the API', () => {
         expect.objectContaining({ method: 'POST' }),
       ),
     )
+    // The reason goes with the call; no note was typed, so none is sent.
+    expect(switchOffBody()).toEqual({ reason: 'STOPPED_TRADING', note: null })
     expect(await screen.findAllByText('Switched off')).toBeTruthy()
+  })
+
+  it('sends the reason picked and the note typed in the switch-off dialog', async () => {
+    renderSuppliers()
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    fireEvent.click(await screen.findByText('Switch this supplier off'))
+    const dialog = await screen.findByRole('dialog', { name: 'Switch off Qalhat Marine Supplies' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Moved to another supplier' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Contract moved to Rustaq Timber' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch them off' }))
+    await waitFor(() =>
+      expect(switchOffBody()).toEqual({
+        reason: 'MOVED_SUPPLIER',
+        note: 'Contract moved to Rustaq Timber',
+      }),
+    )
+  })
+
+  it('dates a switched-off supplier under its name when the row carries the date', async () => {
+    listResponses = [
+      () =>
+        json(200, {
+          items: [row({ status: 'SWITCHED_OFF', switchedOffAt: '2026-04-12T09:30:00Z' })],
+          page: 0,
+          pageSize: 10,
+          count: 1,
+          total: 1,
+        }),
+    ]
+    renderSuppliers('/suppliers?tab=switchedOff')
+    expect(await screen.findByText('Switched off 12 Apr 2026')).toBeTruthy()
   })
 })
 
@@ -313,6 +368,28 @@ describe('Switched-off suppliers', () => {
         expect.objectContaining({ method: 'POST' }),
       ),
     )
+    // Switching on takes no body.
+    const on = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/switch-on'))
+    expect((on?.[1] as RequestInit).body).toBeUndefined()
+  })
+
+  it('offers no new order and no new bill for one in the row menu', async () => {
+    listResponses = [
+      () =>
+        json(200, {
+          items: [row({ status: 'SWITCHED_OFF' })],
+          page: 0,
+          pageSize: 10,
+          count: 1,
+          total: 1,
+        }),
+    ]
+    renderSuppliers('/suppliers?tab=switchedOff')
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    expect(await screen.findByText('Export their statement')).toBeTruthy()
+    expect(screen.queryByText('New purchase order')).toBeNull()
+    expect(screen.queryByText('Record a bill')).toBeNull()
   })
 
   it('does not offer it to someone who may not manage suppliers', async () => {

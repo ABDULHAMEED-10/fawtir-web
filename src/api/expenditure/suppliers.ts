@@ -42,7 +42,7 @@ export type SupplierListRowDto = {
     bankChangedAt: string | null
   }
   status: SupplierStatus
-  /** TODO(backend): when the supplier was switched off; the list frame dates it under the name. */
+  /** When the supplier was switched off; the list frame dates it under the name. */
   switchedOffAt?: string | null
 }
 
@@ -89,11 +89,27 @@ export function loadSupplierSummary(): Promise<SupplierSummaryDto> {
   return apiRequest<SupplierSummaryDto>(SUPPLIER_SUMMARY_PATH)
 }
 
-/** `supplier.manage`. Both answer with the supplier's detail, which the list does not need. */
-export async function switchSupplier(id: string, to: 'off' | 'on'): Promise<void> {
+/** Why a supplier was switched off: the dialog's five answers, as the server stores them. */
+export type SwitchOffReasonDto =
+  'STOPPED_TRADING' | 'CLOSED_DOWN' | 'DUPLICATE' | 'MOVED_SUPPLIER' | 'SOMETHING_ELSE'
+
+/** The optional body of `POST /suppliers/{id}/switch-off`. */
+export type SwitchOffRequestDto = { reason: SwitchOffReasonDto | null; note: string | null }
+
+/**
+ * `supplier.manage`. Both answer with the supplier's detail, which the list does not need.
+ * Switching off may say why (`why`); the server keeps the reason and the note with the record and
+ * clears them when the supplier is switched back on. Switching on takes no body.
+ */
+export async function switchSupplier(
+  id: string,
+  to: 'off' | 'on',
+  why?: SwitchOffRequestDto,
+): Promise<void> {
   await apiRequest<unknown>(`${SUPPLIERS_PATH}/${encodeURIComponent(id)}/switch-${to}`, {
     method: 'POST',
     credentials: 'same-origin',
+    ...(to === 'off' && why ? { body: why } : {}),
   })
 }
 
@@ -154,6 +170,12 @@ export type SupplierRequestDto = {
   commercialRegistrationNumber: string | null
   notes: string | null
   supplierCategory: string | null
+  /** Blank or null clears it. */
+  tradingName: string | null
+  /** At most 20, each at most 40 characters; `[]` clears them. */
+  tags: string[]
+  /** "Match bills to purchase orders automatically". Stored only: nothing acts on it yet. */
+  autoMatchPurchaseOrders: boolean
   version?: number
 }
 
@@ -200,10 +222,20 @@ export type SupplierDetailDto = {
     commercialRegistrationNumber: string | null
     notes: string | null
     supplierCategory: string | null
+    /**
+     * The three below are typed optional: a server older than the fields leaves them out, and the
+     * form then opens as it did before them (no trading name, no tags, the switch on).
+     */
+    tradingName?: string | null
+    tags?: string[] | null
+    autoMatchPurchaseOrders?: boolean | null
     selfBillingAgreement: boolean
     health: SupplierHealthFlag[]
     supplierSince: string | null
     switchedOffAt: string | null
+    /** Why it was switched off and the note left with it; null while active or when none was given. */
+    switchedOffReason?: SwitchOffReasonDto | null
+    switchedOffNote?: string | null
     status: SupplierStatus
     customerStatus: string | null
     version: number

@@ -317,15 +317,17 @@ function RecordBill({ id }: { id: string }) {
             <Link to={back} className={SECONDARY_BUTTON}>
               {t('recordBill.discard')}
             </Link>
-            <button
-              type="button"
-              disabled={!canSend}
-              onClick={() => void save(null)}
-              className={PRIMARY_BUTTON}
-            >
-              <img src={tickIcon} alt="" className="size-4" />
-              {busy ? t('billIntake.saving') : t('recordBill.sendForApproval')}
-            </button>
+            {canRecord ? (
+              <button
+                type="button"
+                disabled={!canSend}
+                onClick={() => void save(null)}
+                className={PRIMARY_BUTTON}
+              >
+                <img src={tickIcon} alt="" className="size-4" />
+                {busy ? t('billIntake.saving') : t('recordBill.sendForApproval')}
+              </button>
+            ) : null}
           </>
         }
       />

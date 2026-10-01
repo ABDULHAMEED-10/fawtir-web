@@ -160,6 +160,7 @@ let who: Entitlements
 let detail: SupplierDetailDto
 let uploads: number
 let confirmResponse: () => Response
+let openBills: unknown[]
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -174,6 +175,7 @@ beforeEach(async () => {
   who = MANAGER
   detail = DETAIL
   uploads = 0
+  openBills = [BILL]
   confirmResponse = () =>
     json(200, {
       id: 'bill-new',
@@ -225,11 +227,21 @@ beforeEach(async () => {
         },
       ])
     if (url.startsWith(`${ONE}/bills?`)) {
-      const size = Number(new URL(url, 'http://x').searchParams.get('page_size'))
+      const query = new URL(url, 'http://x').searchParams
+      const size = Number(query.get('page_size'))
+      // The overview card asks for the open bills; the Bills tab asks for every document.
+      if (query.get('open') === 'true')
+        return json(200, {
+          items: openBills,
+          page: 0,
+          pageSize: size,
+          count: openBills.length,
+          total: openBills.length,
+        })
       return json(200, {
         items:
           size === 5
-            ? [BILL]
+            ? [{ ...BILL, id: 'b-paid', supplierBillNumber: 'QMS-PAID', outstandingAmount: 0 }]
             : Array.from({ length: 20 }, (_, i) => ({
                 ...BILL,
                 id: `b-${i}`,
@@ -568,6 +580,65 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('button', { name: 'Switch this supplier off' })).toBeNull()
   })
 
+  it('lists open bills only in the "Open bills" card, and every document in the Bills tab', async () => {
+    renderSupplier()
+    expect(await screen.findByRole('link', { name: 'QMS-2044' })).toBeTruthy()
+    expect(calls('GET', `${ONE}/bills?`).map(([url]) => String(url))).toEqual([
+      `${ONE}/bills?open=true&page=0&page_size=5`,
+    ])
+    // The newest documents of any state are not what the card shows.
+    expect(screen.queryByRole('link', { name: 'QMS-PAID' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Bills/ }))
+    expect(await screen.findByRole('link', { name: 'QMS-19' })).toBeTruthy()
+    expect(String(calls('GET', `${ONE}/bills?`)[1][0])).toBe(`${ONE}/bills?page=0&page_size=20`)
+  })
+
+  it('says nothing is open when every bill is settled', async () => {
+    openBills = []
+    renderSupplier()
+    expect(await screen.findByText('Nothing open')).toBeTruthy()
+    expect(screen.queryByText('No bills from this supplier yet.')).toBeNull()
+  })
+
+  it('offers a new order and a new bill only to someone who may raise them', async () => {
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    // This manager holds neither purchase-order.manage nor invoice.payment.manage.
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+  })
+
+  it('offers each of the two with its own permission', async () => {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'purchase-order.manage'] }
+    const first = renderSupplier()
+    expect(await screen.findByRole('link', { name: 'New purchase order' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+    first.unmount()
+
+    forgetEntitlements()
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    renderSupplier()
+    expect(await screen.findByRole('link', { name: 'Record a bill' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+  })
+
+  it('offers neither for a switched-off supplier, whoever asks', async () => {
+    who = {
+      ...MANAGER,
+      permissions: [...MANAGER.permissions, 'purchase-order.manage', 'invoice.payment.manage'],
+    }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', switchedOffAt: '2026-09-17T08:00:00Z' },
+    }
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /Edit supplier/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+  })
+
   it('pays them: the ticked bills go into the draft run the modal offers (Figma 163:29156)', async () => {
     who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
     renderSupplier()
@@ -605,6 +676,13 @@ describe('Record a bill (Figma 163:27781)', () => {
         </Routes>
       </MemoryRouter>,
     )
+
+  it('draws no save button, greyed or otherwise, for someone who may not record bills', async () => {
+    renderRecord()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Record a bill' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send for approval' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Discard' })).toBeTruthy()
+  })
 
   it('uploads the attached file and confirms the typed bill against the chosen order', async () => {
     who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }

@@ -4,6 +4,8 @@ import type {
   SupplierListRowDto,
   SupplierListSort,
   SupplierSummaryDto,
+  SwitchOffReasonDto,
+  SwitchOffRequestDto,
 } from '../api/expenditure/suppliers'
 import { initialsOf } from './format'
 
@@ -169,9 +171,26 @@ export function toSupplierListItem(row: SupplierListRowDto, now = Date.now()): S
     score: scoreOf(row),
     recordNote: recordNoteOf(row, issue),
     active: row.status === 'ACTIVE',
-    // TODO(backend): `switchedOffAt` on list rows (typed optional); the frame dates the switch-off.
+    // The frame dates the switch-off under the name; a row without the date says "Switched off".
     switchedOffAt: row.status === 'SWITCHED_OFF' ? (row.switchedOffAt ?? null) : null,
   }
+}
+
+/** The switch-off dialog's five answers, and the code the server stores for each. */
+const SWITCH_OFF_REASON_CODE = {
+  stoppedTrading: 'STOPPED_TRADING',
+  closedDown: 'CLOSED_DOWN',
+  duplicate: 'DUPLICATE',
+  movedSupplier: 'MOVED_SUPPLIER',
+  somethingElse: 'SOMETHING_ELSE',
+} as const satisfies Record<string, SwitchOffReasonDto>
+
+/** What the dialog asked, as `POST /suppliers/{id}/switch-off` takes it; an empty note is none. */
+export function switchOffRequest(
+  reason: keyof typeof SWITCH_OFF_REASON_CODE,
+  note: string,
+): SwitchOffRequestDto {
+  return { reason: SWITCH_OFF_REASON_CODE[reason], note: note.trim() || null }
 }
 
 /** The action offered on each row follows from what is wrong with it. */

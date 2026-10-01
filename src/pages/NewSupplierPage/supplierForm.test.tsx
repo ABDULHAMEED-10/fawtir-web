@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   blankSupplierForm,
+  copyOfSupplier,
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
+  withTag,
 } from '../../lib/supplierForm'
 import { NewSupplierPage } from './NewSupplierPage'
 import { EditSupplierPage } from '../EditSupplierPage'
@@ -123,6 +125,8 @@ beforeEach(async () => {
     if (url === ONE && method === 'GET') return json(200, loaded())
     if (url === ONE && method === 'PUT') return updateResponse()
     if (url === `${ONE}/bank-details/confirm`) return json(200, detail({ health: [] }))
+    if (url === `${ONE}/switch-off` && method === 'POST')
+      return json(200, detail({ status: 'SWITCHED_OFF', switchedOffAt: '2026-10-01T08:00:00Z' }))
     throw new Error(`unexpected ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -298,6 +302,241 @@ describe('a new supplier', () => {
         'Another supplier or customer already uses this VAT number or Peppol ID.',
       ),
     ).toBeTruthy()
+  })
+})
+
+describe('trading name, tags and the auto-match switch', () => {
+  const addTag = (tag: string) => {
+    const input = screen.getByLabelText('Add a tag')
+    fireEvent.change(input, { target: { value: tag } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+  }
+  const autoMatch = () =>
+    screen.getByRole('switch', { name: 'Match bills to purchase orders automatically' })
+
+  it('sends what was typed on a new supplier', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/^Trading name/, '  Sohar Steel  ')
+    typeInto(/Main contact/, 'Laila Al Harthy')
+    typeInto(/Peppol participant ID/, '0248:OM1100447102')
+    addTag('Key supplier')
+    addTag(' Raw materials ')
+    addTag('Key supplier')
+    expect(autoMatch().getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(autoMatch())
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/suppliers')[0])).toMatchObject({
+      tradingName: 'Sohar Steel',
+      tags: ['Key supplier', 'Raw materials'],
+      autoMatchPurchaseOrders: false,
+    })
+  })
+
+  it('sends none, none and "on" when nothing was touched', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    typeInto(/^Legal name/, 'Sohar Steel LLC')
+    typeInto(/Main contact/, 'Laila Al Harthy')
+    typeInto(/Peppol participant ID/, '0248:OM1100447102')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    const body = bodyOf(calls('POST', '/api/v1/suppliers')[0])
+    expect(body.tradingName).toBeNull()
+    expect(body.tags).toEqual([])
+    expect(body.autoMatchPurchaseOrders).toBe(true)
+  })
+
+  it('opens an edit with the server’s values and saves the changed ones', async () => {
+    loaded = () =>
+      detail({
+        tradingName: 'Qalhat Marine',
+        tags: ['Marine', 'Key supplier'],
+        autoMatchPurchaseOrders: false,
+      })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect((screen.getByLabelText(/^Trading name/) as HTMLInputElement).value).toBe('Qalhat Marine')
+    expect(screen.getByRole('button', { name: 'Remove Marine' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove Key supplier' })).toBeTruthy()
+    expect(autoMatch().getAttribute('aria-checked')).toBe('false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Marine' }))
+    fireEvent.click(autoMatch())
+    typeInto(/^Trading name/, '')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0])
+
+    await waitFor(() => expect(calls('PUT', ONE)).toHaveLength(1))
+    expect(bodyOf(calls('PUT', ONE)[0])).toMatchObject({
+      version: 7,
+      tradingName: null,
+      tags: ['Key supplier'],
+      autoMatchPurchaseOrders: true,
+    })
+  })
+
+  it('reads a record from a server without the fields as none, none and "on"', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect((screen.getByLabelText(/^Trading name/) as HTMLInputElement).value).toBe('')
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
+    expect(autoMatch().getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('puts a refused trading name on its input, and a refused tag in the notice', () => {
+    // The server's size check on the name carries no code, so its own sentence is shown.
+    const placed = placeSupplierErrors([
+      { field: 'tradingName', message: 'size must be between 0 and 200' },
+      { field: 'tags', code: 'TOO_MANY', message: 'At most 20 tags' },
+    ])
+    expect(placed.fields.tradingName).toEqual({ text: 'size must be between 0 and 200' })
+    expect(placed.other).toEqual(['At most 20 tags'])
+  })
+
+  it('offers no room for a twenty-first tag', async () => {
+    loaded = () => detail({ tags: Array.from({ length: 20 }, (_, index) => `Tag ${index + 1}`) })
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    expect(screen.getByText('Tag 20')).toBeTruthy()
+    expect(screen.queryByLabelText('Add a tag')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tag 20' }))
+    expect(screen.getByLabelText('Add a tag')).toBeTruthy()
+  })
+
+  it('adds a tag once, trimmed, and never past twenty', () => {
+    expect(withTag(['A'], '  B ')).toEqual(['A', 'B'])
+    expect(withTag(['A'], 'A')).toEqual(['A'])
+    expect(withTag(['A'], '   ')).toEqual(['A'])
+    const full = Array.from({ length: 20 }, (_, index) => `T${index}`)
+    expect(withTag(full, 'One more')).toEqual(full)
+  })
+
+  it('copies them into a new supplier with the rest of the details', () => {
+    const copied = copyOfSupplier(
+      detail({ tradingName: 'Qalhat Marine', tags: ['Marine'], autoMatchPurchaseOrders: false }),
+    )
+    expect(copied).toMatchObject({
+      tradingName: 'Qalhat Marine',
+      tags: ['Marine'],
+      autoMatch: false,
+    })
+  })
+})
+
+describe('switching a supplier off from its edit page', () => {
+  it('sends the reason chosen and the note typed', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    fireEvent.click(await screen.findByText('Switch this supplier off'))
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Switch off Qalhat Marine Supplies LLC',
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Duplicate record' }))
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: '  Same company as Qalhat Marine  ' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Switch them off' }))
+
+    await waitFor(() => expect(calls('POST', `${ONE}/switch-off`)).toHaveLength(1))
+    expect(bodyOf(calls('POST', `${ONE}/switch-off`)[0])).toEqual({
+      reason: 'DUPLICATE',
+      note: 'Same company as Qalhat Marine',
+    })
+  })
+})
+
+describe('a supplier copied into a new one', () => {
+  const field = (label: RegExp) => screen.getByLabelText(label) as HTMLInputElement
+
+  it('opens the new-supplier form with the details, and the VAT number, CR number and IBAN empty', async () => {
+    renderAt(`/suppliers/new?copy=${ID}`)
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    await waitFor(() => expect(field(/^Legal name/).value).toBe('Qalhat Marine Supplies LLC'))
+    expect(field(/Main contact/).value).toBe('Accounts team')
+    expect(field(/Their email/).value).toBe('ap@qalhat.om')
+    expect(field(/^Phone/).value).toBe('24000000')
+    expect(field(/^Bank$/).value).toBe('Bank Muscat')
+    // The three that name one company or one account start empty.
+    expect(field(/^VAT number/).value).toBe('')
+    expect(field(/^Commercial registration/).value).toBe('')
+    expect(field(/^IBAN/).value).toBe('')
+    // The Peppol ID is the VAT number behind a scheme, so it starts empty too.
+    expect(field(/Peppol participant ID/).value).toBe('')
+  })
+
+  it('saves as a new supplier: a POST with its own key, no version, never a PUT on the source', async () => {
+    renderAt(`/suppliers/new?copy=${ID}`)
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    await waitFor(() => expect(field(/^Legal name/).value).toBe('Qalhat Marine Supplies LLC'))
+    typeInto(/^Legal name/, 'Qalhat Marine Supplies (Sohar) LLC')
+    typeInto(/^VAT number/, 'OM1100447102')
+    typeInto(/^IBAN/, 'OM230270000098765432101')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save supplier' })[0])
+
+    await waitFor(() => expect(calls('POST', '/api/v1/suppliers')).toHaveLength(1))
+    expect(calls('PUT', ONE)).toHaveLength(0)
+    const body = bodyOf(calls('POST', '/api/v1/suppliers')[0])
+    expect('version' in body).toBe(false)
+    expect(body).toMatchObject({
+      legalName: 'Qalhat Marine Supplies (Sohar) LLC',
+      vatNumber: 'OM1100447102',
+      // Filled in from the typed VAT number, as on any new supplier.
+      participantScheme: '0248',
+      participantValue: 'OM1100447102',
+      commercialRegistrationNumber: null,
+      contactPerson: 'Accounts team',
+      emailRecipients: ['ap@qalhat.om'],
+      telephone: '+96824000000',
+      paymentTerms: 'NET45',
+      preferredLanguage: 'ar',
+      supplierCategory: 'Marine',
+      earlyPaymentDiscountPercent: 1.5,
+      earlyPaymentDiscountDays: 10,
+      // The new account: the source's beneficiary is not carried onto it.
+      bankDetails: {
+        beneficiaryName: null,
+        iban: 'OM230270000098765432101',
+        bic: 'BMUSOMRX',
+        bankName: 'Bank Muscat',
+      },
+      invoiceAddress: { cityName: 'Sur', streetName: 'Main Street', buildingNumber: '1' },
+    })
+  })
+
+  it('is where the edit page’s "Copy into a new supplier" leads', async () => {
+    renderAt(`/suppliers/${ID}/edit`)
+    await screen.findByRole('heading', { name: 'Edit Qalhat Marine Supplies LLC' })
+    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
+    const item = (await screen.findByText('Copy into a new supplier')).closest('a')
+    expect(item?.getAttribute('href')).toBe(`/suppliers/new?copy=${ID}`)
+  })
+
+  it('copies every detail but the four identifiers', () => {
+    const copied = copyOfSupplier(detail())
+    expect(copied).toMatchObject({
+      legalName: 'Qalhat Marine Supplies LLC',
+      vatNumber: '',
+      commercialRegistrationNumber: '',
+      iban: '',
+      peppolId: '',
+      bankName: 'Bank Muscat',
+      bic: 'BMUSOMRX',
+      registeredOnPeppol: true,
+      paymentTerms: 'NET45',
+    })
+    expect(copied.billing.cityName).toBe('Sur')
+  })
+
+  it('opens a blank form when no record is named', async () => {
+    renderAt('/suppliers/new')
+    await screen.findByRole('heading', { level: 1, name: 'New supplier' })
+    expect(field(/^Legal name/).value).toBe('')
+    expect(calls('GET', ONE)).toHaveLength(0)
   })
 })
 

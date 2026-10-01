@@ -22,6 +22,7 @@ import {
   SUPPLIER_SUMMARY_PATH,
   type SupplierListRowDto,
   type SupplierSummaryDto,
+  type SwitchOffRequestDto,
 } from '../../api/expenditure/suppliers'
 import {
   inChannel,
@@ -33,6 +34,7 @@ import {
   SUPPLIER_PAGE_SIZE,
   SUPPLIER_SORTS,
   SUPPLIER_TABS,
+  switchOffRequest,
   tabCount,
   toSupplierListItem,
   type Note,
@@ -45,6 +47,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatInstantDay } from '../../lib/format'
 import { can, useSession } from '../../lib/session/session'
+import { copySupplierPath } from '../../lib/supplierForm'
 import { SuppliersEmptyState } from './SuppliersEmptyState'
 import { SwitchSupplierOffModal, type SwitchOffTarget } from './SwitchSupplierOffModal'
 import kpiSuppliersIcon from '../../assets/suppliers/kpi-suppliers.svg'
@@ -171,11 +174,11 @@ function SuppliersScreen() {
     list.retry()
   }
 
-  const switchTo = async (id: string, to: 'off' | 'on') => {
+  const switchTo = async (id: string, to: 'off' | 'on', why?: SwitchOffRequestDto) => {
     setActionError(null)
     setBusy(true)
     try {
-      await switchSupplier(id, to)
+      await switchSupplier(id, to, why)
       setOffTarget(null)
       refresh()
     } catch (error) {
@@ -479,8 +482,9 @@ function SuppliersScreen() {
         target={offTarget}
         busy={busy}
         onClose={() => setOffTarget(null)}
-        // TODO(backend): send the reason and the note once `POST /suppliers/{id}/switch-off` takes them.
-        onConfirm={(target) => void switchTo(target.id, 'off')}
+        onConfirm={(target, reason, note) =>
+          void switchTo(target.id, 'off', switchOffRequest(reason, note))
+        }
       />
     </div>
   )
@@ -639,7 +643,7 @@ function SupplierTableRow({
       labelKey: 'suppliersPage.menu.copyToNew',
       descriptionKey: 'suppliersPage.menu.copyToNewNote',
       icon: menuCopyIcon,
-      to: '/suppliers/new',
+      to: copySupplierPath(supplier.id),
       requires: 'supplier.manage',
     },
     supplier.active
@@ -661,8 +665,12 @@ function SupplierTableRow({
           requires: 'supplier.manage',
         },
   ]
+  // A switched-off supplier takes no new order and no new bill, so neither is offered for one.
   const items: ActionMenuItem[] = menu.flatMap(({ requires, ...item }) =>
-    can(session, requires) ? [item] : [],
+    can(session, requires) &&
+    (supplier.active || (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill'))
+      ? [item]
+      : [],
   )
 
   return (

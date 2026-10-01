@@ -12,8 +12,9 @@ import * as validate from './validation'
  * The supplier form, for a new supplier and for an existing one, on the Edit frame's layout
  * (Figma 163:26848; the product owner's rule of 26 Sep 2026: the frame wins).
  *
- * What it holds is what `SupplierRequest` carries. The frame's trading name and tags have nothing
- * behind them and live on the page only (TODO(backend)). The request is flat, and an edit replaces
+ * What it holds is what `SupplierRequest` carries, the frame's trading name, tags and "match bills
+ * to purchase orders" switch included (the switch is stored and nothing acts on it yet). The request
+ * is flat, and an edit replaces
  * what it is sent, so the mapping back to a request is where most of the care is: the bank details
  * are sent only when someone changed them, because any change, even resending the same account
  * without its bank name, raises "bank changed". Fields the frame does not draw (role, mobile, the
@@ -49,8 +50,12 @@ export type AddressField = Exclude<keyof AddressValues, 'kept'>
 export type SupplierFormValues = {
   type: SupplierTypeDto
   legalName: string
+  tradingName: string
   commercialRegistrationNumber: string
   supplierCategory: string
+  tags: string[]
+  /** "Match bills to purchase orders automatically": stored with the record, no behaviour yet. */
+  autoMatch: boolean
   /** Empty means not registered for VAT: the frame has no separate switch. */
   vatNumber: string
   registeredOnPeppol: boolean
@@ -116,8 +121,11 @@ export function blankSupplierForm(): SupplierFormValues {
   return {
     type: 'BUSINESS',
     legalName: '',
+    tradingName: '',
     commercialRegistrationNumber: '',
     supplierCategory: '',
+    tags: [],
+    autoMatch: true,
     vatNumber: '',
     registeredOnPeppol: true,
     peppolId: '',
@@ -190,8 +198,12 @@ export function fromSupplierDetail(detail: SupplierDetailDto): {
   const values: SupplierFormValues = {
     type: p.type,
     legalName: text(p.legalName ?? p.displayName),
+    tradingName: text(p.tradingName),
     commercialRegistrationNumber: text(p.commercialRegistrationNumber),
     supplierCategory: text(p.supplierCategory),
+    tags: [...(p.tags ?? [])],
+    // On unless someone turned it off, as the server reads a record that never chose.
+    autoMatch: p.autoMatchPurchaseOrders ?? true,
     vatNumber: p.registeredForVat === false ? '' : text(p.vatNumber),
     registeredOnPeppol: p.registeredOnPeppol ?? p.participantId !== null,
     peppolId: text(p.participantId),
@@ -232,6 +244,25 @@ export function fromSupplierDetail(detail: SupplierDetailDto): {
     : null
   return { values, bank }
 }
+
+/**
+ * "Copy into a new supplier": the record's details as the start of a new one. The VAT number, the
+ * CR number and the IBAN start empty, because each names one company or one account. The Peppol ID
+ * starts empty with them: it is the VAT number behind a scheme, no two suppliers may share one,
+ * and a typed VAT number fills it in again.
+ */
+export function copyOfSupplier(detail: SupplierDetailDto): SupplierFormValues {
+  return {
+    ...fromSupplierDetail(detail).values,
+    vatNumber: '',
+    commercialRegistrationNumber: '',
+    iban: '',
+    peppolId: '',
+  }
+}
+
+/** Where "Copy into a new supplier" goes: the new-supplier form, told which record to start from. */
+export const copySupplierPath = (id: string) => `/suppliers/new?copy=${encodeURIComponent(id)}`
 
 const orNull = (value: string) => (value.trim() === '' ? null : value.trim())
 
@@ -353,6 +384,9 @@ export function toSupplierRequest(
     commercialRegistrationNumber: orNull(values.commercialRegistrationNumber),
     notes: orNull(values.notes),
     supplierCategory: orNull(values.supplierCategory),
+    tradingName: orNull(values.tradingName),
+    tags: values.tags,
+    autoMatchPurchaseOrders: values.autoMatch,
     ...(version === undefined ? {} : { version }),
   }
 }
@@ -365,6 +399,16 @@ export function emailList(value: string): string[] {
 }
 
 export type SupplierProblems = Partial<Record<SupplierField, string>>
+
+/** The server's limits on tags: how many a record holds, and how long one may be. */
+export const MAX_TAGS = 20
+export const TAG_MAX_LENGTH = 40
+
+/** The tags with one more: trimmed, and unchanged when it is blank or already there. */
+export function withTag(tags: readonly string[], typed: string): string[] {
+  const tag = typed.trim()
+  return tag && !tags.includes(tag) && tags.length < MAX_TAGS ? [...tags, tag] : [...tags]
+}
 
 const IBAN_SHAPE = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/
 const BIC_SHAPE = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/
@@ -450,6 +494,7 @@ export function supplierProblems(
 const REQUEST_TO_FORM: Record<string, SupplierField> = {
   type: 'type',
   legalName: 'legalName',
+  tradingName: 'tradingName',
   vatNumber: 'vatNumber',
   registeredForVat: 'vatNumber',
   participantValue: 'peppolId',

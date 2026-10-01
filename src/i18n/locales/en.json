@@ -17364,7 +17364,8 @@
     "action": {
       "leaveOut": "Leave it out",
       "bringInAnyway": "Bring in anyway",
-      "bringItIn": "Bring it in"
+      "bringItIn": "Bring it in",
+      "alreadyOnFile": "Already on file"
     },
     "typeAName": "Type a name",
     "empty": "Empty"

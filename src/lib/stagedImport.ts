@@ -33,9 +33,18 @@ export function tabCount(batch: ImportBatchDto, tab: ImportTabId): number {
   return batch.counts[tab]
 }
 
-/** A row the server would bring in. A refused row is never sent, whatever is ticked. */
+/**
+ * A row that can be brought in. A refused row is never sent, whatever is ticked; nor is a row
+ * whose VAT number or Peppol ID is already on file, since the server would only skip it.
+ */
 export function importable(row: ImportBatchRowDto): boolean {
-  return row.severity !== 'CANNOT_IMPORT'
+  return row.severity !== 'CANNOT_IMPORT' && !row.onFile
+}
+
+/** The record a row duplicates, and its page when it has one (a supplier's; the import is theirs). */
+export function alreadyOnFile(row: ImportBatchRowDto): { to: string | null } | null {
+  if (!row.onFile) return null
+  return { to: row.onFile.supplier ? `/suppliers/${encodeURIComponent(row.onFile.id)}` : null }
 }
 
 /**
@@ -46,6 +55,8 @@ export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>
   const chosen = batch.rows
     .filter((row) => importable(row) && keep.has(row.rowNumber))
     .map((row) => row.rowNumber)
+  // `wouldImport` counts a row already on file, which is never chosen: the list then goes out
+  // in full, so the server is not asked for a row it would skip.
   return chosen.length === Number(batch.counts.wouldImport) ? null : chosen
 }
 
