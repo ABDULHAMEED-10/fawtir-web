@@ -2,6 +2,7 @@ import type {
   InvoiceDetailDto,
   InvoiceHistoryDto,
   InvoiceReceivableDto,
+  SelfBilledPayableDto,
 } from '../api/invoices/detail'
 import type { AgreementDto } from '../api/selfBilling/agreements'
 import { lineTotals, timelineOf } from './invoiceDetail'
@@ -65,6 +66,29 @@ export function selfBillStatus(
   if (invoice.deliveryState === 'NOT_SUBMITTED')
     return { key: 'selfBillDetail.status.toBeSent', tone: 'info' }
   return { key: 'selfBillDetail.status.awaitingConfirmation', tone: 'pending' }
+}
+
+/**
+ * What the tenant owes on a self-billed document, in the shape the page's status pill, summary rail
+ * and history already read. The debt is the Expenditure payable raised at issue (decision D2), never
+ * an Income receivable, so the payable wins whenever the API answers one; without it the document's
+ * own receivable (always `NOT_APPLICABLE` on a self-billed document) is kept.
+ */
+export function selfBillOwed(
+  payable: SelfBilledPayableDto | null | undefined,
+  receivable: InvoiceReceivableDto | null,
+): InvoiceReceivableDto | null {
+  if (!payable) return receivable
+  return {
+    documentTotal: payable.totalAmount,
+    paidAmount: payable.paidAmount,
+    creditedAmount: payable.creditedAmount,
+    outstandingAmount: payable.outstandingAmount,
+    currency: payable.currency,
+    paymentState: payable.state === 'NOT_PAYABLE' ? 'NOT_APPLICABLE' : payable.state,
+    overdue: false,
+    dueDate: payable.dueDate,
+  }
 }
 
 const RESPONSE_NOTE: Record<string, string> = {

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -77,6 +77,15 @@ beforeEach(async () => {
         page: 0,
         size: 200,
         totalElements: 1,
+      })
+    }
+    if (url === `${AGREEMENTS_URL}/export.csv`) {
+      return new Response('agreementReference,supplierId\n', {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': 'attachment; filename="self-billing-agreements.csv"',
+        },
       })
     }
     if (url.startsWith(AGREEMENTS_URL)) {
@@ -352,6 +361,84 @@ describe('the agreements screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
 
     expect(await screen.findByText(/already a live agreement with this supplier/)).toBeTruthy()
+    expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
+  })
+
+  it('fills Documents issued with the count and value the agreement answers, and "—" without them', async () => {
+    rows = [
+      agreement({ documents: { count: 23, total: 46.2, currency: 'OMR' } }),
+      agreement({
+        id: 'a-2',
+        customerId: 'c-2',
+        agreementReference: 'SBA-2026-005',
+        documents: null,
+      }),
+    ]
+    renderPage()
+    expect(await screen.findByText('23')).toBeTruthy()
+    expect(screen.getByText('46.200')).toBeTruthy()
+    expect(screen.getByText('—')).toBeTruthy()
+  })
+
+  it('counts the drafts a lapsed agreement blocks in the banner', async () => {
+    rows = [agreement({ effectiveTo: '2026-09-20', blockedDrafts: { count: 1, total: null } })]
+    renderPage()
+    expect(
+      await screen.findByText(
+        '1 draft self-billed invoice is blocked until its agreement is renewed. Existing documents stay valid and reportable.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('downloads the agreements through the export route', async () => {
+    const createObjectURL = vi.fn(() => 'blob:agreements')
+    const revokeObjectURL = vi.fn()
+    Object.assign(URL, { createObjectURL, revokeObjectURL })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }))
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1))
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(
+      `${AGREEMENTS_URL}/export.csv`,
+    )
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/not available yet/)).toBeNull()
+    click.mockRestore()
+  })
+
+  it('renews a lapsed agreement through the renewal route rather than opening a second one', async () => {
+    rows = [agreement({ effectiveTo: '2026-09-20' })]
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Renew agreement' }))
+    // The dialog names what it does: renew, not open a new one.
+    expect(within(await screen.findByRole('dialog')).getByText('Renew agreement')).toBeTruthy()
+    expect(screen.queryByText('Open a self-billing agreement')).toBeNull()
+    fireEvent.change(await screen.findByLabelText('Your reference for the agreement'), {
+      target: { value: 'SBA-2027-004' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+
+    await waitFor(() => expect(posted.at(-1)?.url).toBe(`${AGREEMENTS_URL}/a-1/renewal`))
+    expect(posted.at(-1)?.body).toEqual({
+      agreementReference: 'SBA-2027-004',
+      effectiveFrom: TODAY,
+      effectiveTo: null,
+    })
+    expect(posted.some((call) => call.url === AGREEMENTS_URL)).toBe(false)
+    expect(await screen.findByText(/The agreement was renewed/)).toBeTruthy()
+  })
+
+  it('names a withdrawn agreement when a renewal is refused', async () => {
+    rows = [agreement({ effectiveTo: '2026-09-20' })]
+    refuseWith = { code: 'SELF_BILLING_AGREEMENT_WITHDRAWN', status: 409 }
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Renew agreement' }))
+    fireEvent.change(await screen.findByLabelText('Your reference for the agreement'), {
+      target: { value: 'SBA-2027-004' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Open the agreement' }))
+
+    expect(await screen.findByText(/This agreement was withdrawn/)).toBeTruthy()
     expect(screen.queryByText(/Reload to see the latest version/)).toBeNull()
   })
 

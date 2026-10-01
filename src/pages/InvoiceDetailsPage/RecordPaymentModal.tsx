@@ -10,7 +10,7 @@ import {
   focusFirstInvalidField,
 } from '../ConsolePage/subscriptions/modalFields'
 import { ApiError } from '../../api'
-import { newPaymentKey, recordPayment } from '../../api/invoices/detail'
+import { newPaymentKey, recordPayment, type RecordPaymentRequest } from '../../api/invoices/detail'
 import {
   PAYMENT_REFUSALS,
   paymentProblems,
@@ -36,6 +36,9 @@ export function RecordPaymentModal({
   today,
   onClose,
   onRecorded,
+  record,
+  refusals,
+  labelKeys,
 }: {
   invoiceId: string
   invoiceNumber: string | null
@@ -46,6 +49,18 @@ export function RecordPaymentModal({
   today: string
   onClose: () => void
   onRecorded: () => void
+  /**
+   * Where the payment is recorded, when not against the invoice itself: a self-billed document's
+   * debt is its Expenditure bill, so that page records against the bill. Same key, same form.
+   */
+  record?: (idempotencyKey: string, payment: RecordPaymentRequest) => Promise<unknown>
+  /** Refusals that route can add, named over {@link PAYMENT_REFUSALS}. */
+  refusals?: Record<string, { field: PaymentField | null; key: string }>
+  /**
+   * The amount and date labels, when the money goes the other way: on a self-billed document the
+   * tenant pays its supplier, so "Amount paid" / "Paid on" rather than received.
+   */
+  labelKeys?: { amount: string; date: string }
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -79,16 +94,21 @@ export function RecordPaymentModal({
     }
     setBusy(true)
     try {
-      await recordPayment(invoiceId, idempotencyKey, {
+      const payment: RecordPaymentRequest = {
         amount: Number(form.amount.trim().replace(/,/g, '')),
         methodCode: form.methodCode,
         paymentReference: form.reference.trim() || null,
         paymentDate: form.paymentDate,
-      })
+      }
+      await (record
+        ? record(idempotencyKey, payment)
+        : recordPayment(invoiceId, idempotencyKey, payment))
       onRecorded()
     } catch (error) {
       const refusal =
-        error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined
+        error instanceof ApiError && error.code
+          ? (refusals?.[error.code] ?? PAYMENT_REFUSALS[error.code])
+          : undefined
       if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
@@ -134,7 +154,7 @@ export function RecordPaymentModal({
             <Input
               bordered
               name="amount"
-              label={t('invoiceDetails.pay.amount')}
+              label={t(labelKeys?.amount ?? 'invoiceDetails.pay.amount')}
               requiredMark
               inputMode="decimal"
               onFocus={selectAllOnFocus}
@@ -164,7 +184,7 @@ export function RecordPaymentModal({
           </Field>
           <Field
             name="paymentDate"
-            label={t('invoiceDetails.pay.date')}
+            label={t(labelKeys?.date ?? 'invoiceDetails.pay.date')}
             required
             error={errors.paymentDate ? t(errors.paymentDate) : undefined}
           >
@@ -173,7 +193,7 @@ export function RecordPaymentModal({
               onChange={(value) => change('paymentDate', value)}
               min={issueDate ?? undefined}
               max={today}
-              ariaLabel={t('invoiceDetails.pay.date')}
+              ariaLabel={t(labelKeys?.date ?? 'invoiceDetails.pay.date')}
             />
           </Field>
           <div data-field="reference">

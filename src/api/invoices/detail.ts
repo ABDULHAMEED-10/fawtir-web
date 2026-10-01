@@ -92,6 +92,24 @@ export type InvoiceDetailDto = {
   lines: InvoiceLineDto[]
   /** Null until the invoice is issued: a draft is priced only then. */
   totals: InvoiceTotalsDto | null
+  /**
+   * Self-billed documents only: the Expenditure payable raised at issue, which is what the tenant
+   * owes the supplier (decision D2). Null otherwise, or before it is raised; absent from an API
+   * that predates it. Paid through `POST /bills/{billId}/payments`.
+   */
+  payable?: SelfBilledPayableDto | null
+}
+
+/** `SelfBilledPayable`: the bill's own settlement. `NOT_PAYABLE` for a self-billed credit note. */
+export type SelfBilledPayableDto = {
+  billId: string
+  state: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'NOT_PAYABLE'
+  totalAmount: number
+  paidAmount: number
+  creditedAmount: number
+  outstandingAmount: number
+  currency: string
+  dueDate: string | null
 }
 
 /** `InvoiceReceivable`. `NOT_APPLICABLE` for anything that is not an issued invoice or debit note. */
