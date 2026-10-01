@@ -5101,7 +5101,7 @@
     "required": "This field is required",
     "email": "Enter a valid email address",
     "phoneLength": "Enter the 8-digit number, without +968",
-    "phonePrefix": "Omani numbers start with 7, 9 or 2",
+    "phonePrefix": "Not an Omani number: landlines start 22 to 26, mobiles 71 to 79 or 90 to 99",
     "vatin": "Use OM11 or OM12 followed by 8 digits",
     "crNumber": "The CR number is 7 digits",
     "postalCode": "Omani postal codes are 3 digits",
