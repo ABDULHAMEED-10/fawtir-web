@@ -223,7 +223,12 @@ const SUPPLIER_BILL_PAYMENT_REFUSALS: NonNullable<
     key: 'selfBillDetail.pay.inRun',
     values: (problem) => ({ run: String(problem.paymentRunReference ?? '') }),
   },
-  BILL_PAYMENT_EXCEEDS_OUTSTANDING: { field: 'amount', key: 'selfBillDetail.pay.tooMuch' },
+  // With the figure when the server names what is still owed, without it when it does not.
+  BILL_PAYMENT_EXCEEDS_OUTSTANDING: {
+    field: 'amount',
+    key: 'selfBillDetail.pay.tooMuch',
+    keyWithOwed: 'selfBillDetail.pay.tooMuchMost',
+  },
 }
 
 export function SelfBillDetailPage() {

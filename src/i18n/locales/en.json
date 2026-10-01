@@ -17884,7 +17884,8 @@
       "date": "Paid on",
       "onHold": "The supplier bill for this document is on hold. Release it on the bill, then record the payment.",
       "inRun": "The supplier bill for this document is in payment run {{run}}. Pay it there, or take it out of the run first.",
-      "tooMuch": "That is more than the supplier bill still owes."
+      "tooMuch": "That is more than the supplier bill still owes.",
+      "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
     "creditNote": "Credit note"
   },

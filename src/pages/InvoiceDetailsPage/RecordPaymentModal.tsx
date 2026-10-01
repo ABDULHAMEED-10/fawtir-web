@@ -21,6 +21,17 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount } from '../../lib/format'
 
 const FORM_ID = 'record-invoice-payment'
+
+/** What a refusal says is still owed, when it says so and something is: a paid bill has no "most". */
+function owedIn(
+  problem: Readonly<Record<string, unknown>>,
+): { amount: number; currency: string } | null {
+  const amount = problem.outstandingAmount
+  const currency = problem.currency
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null
+  if (typeof currency !== 'string' || currency === '') return null
+  return { amount, currency }
+}
 const ORDER: PaymentField[] = ['amount', 'methodCode', 'paymentDate', 'reference']
 
 /**
@@ -65,6 +76,12 @@ export function RecordPaymentModal({
       field: PaymentField | null
       key: string
       values?: (problem: Readonly<Record<string, unknown>>) => Record<string, unknown>
+      /**
+       * The sentence when the server names what is still owed beside the code (a bill's
+       * `outstandingAmount` and `currency`). `{{amount}}` is that figure, as the dialog prints
+       * money. Without the figure, or with nothing left to pay, `key` is said.
+       */
+      keyWithOwed?: string
     }
   >
   /**
@@ -92,6 +109,9 @@ export function RecordPaymentModal({
   const [errors, setErrors] = useState<Partial<Record<PaymentField, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // What the server said is still owed, when a refusal named it: the figure the page holds is
+  // the stale one by then.
+  const [owed, setOwed] = useState<{ amount: number; currency: string } | null>(null)
 
   const change = (field: PaymentField, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -106,6 +126,7 @@ export function RecordPaymentModal({
       problems.amount = amountTooMuchKey
     setErrors(problems)
     setFailure(null)
+    setOwed(null)
     if (Object.values(problems).some(Boolean)) {
       focusFirstInvalidField(target, ORDER, problems)
       return
@@ -127,7 +148,12 @@ export function RecordPaymentModal({
       const refusal =
         named ??
         (error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined)
-      if (refusal?.field) {
+      const namedOwed =
+        named?.keyWithOwed && error instanceof ApiError ? owedIn(error.problem) : null
+      if (refusal?.field && named?.keyWithOwed && namedOwed) {
+        setOwed(namedOwed)
+        setErrors({ [refusal.field]: named.keyWithOwed })
+      } else if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
         setFailure(
@@ -185,8 +211,9 @@ export function RecordPaymentModal({
               error={
                 errors.amount
                   ? t(errors.amount, {
-                      amount:
-                        outstanding === null
+                      amount: owed
+                        ? formatAmount(owed.amount, owed.currency, i18n.language)
+                        : outstanding === null
                           ? ''
                           : formatAmount(outstanding, currency, i18n.language),
                     })
