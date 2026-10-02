@@ -661,6 +661,34 @@ describe('Bills list, wired to the API', () => {
     // Latin digits either way.
     expect(screen.getByText('1,234.560')).toBeTruthy()
   })
+
+  // Owner's Round 5 answer 6 (2 Oct): "Paid on the day" is «دُفعت في الحال»; Release stays «إفراج».
+  it('says a bill paid on the day in the owner\'s Arabic', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              id: 'spot',
+              supplierName: 'Counter Co',
+              workflowState: 'PAID',
+              paidOnTheSpot: true,
+              dueDate: null,
+              outstandingAmount: 0,
+            }),
+          ]),
+        ),
+    ]
+    await i18n.changeLanguage('ar')
+    renderBills()
+    const row = (await screen.findByText('Counter Co')).closest('tr')!
+    expect(within(row).getByText('دُفعت في الحال')).toBeTruthy()
+    expect(within(row).queryByText('دُفعت في حينها')).toBeNull()
+    expect(i18n.t('billDetail.decision.release')).toBe('إفراج')
+    await i18n.changeLanguage('en')
+    expect(i18n.t('billsPage.rows.paidOnTheDay')).toBe('Paid on the day')
+  })
 })
 
 describe('bill list mapping', () => {
