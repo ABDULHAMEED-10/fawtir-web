@@ -14127,7 +14127,10 @@
       "DISCOUNT_EXPIRY": {
         "now": "The discount on bill {{name}} runs out today",
         "days_one": "The discount on bill {{name}} runs out tomorrow",
-        "days_other": "The discount on bill {{name}} runs out in {{count}} days"
+        "days_other": "The discount on bill {{name}} runs out in {{count}} days",
+        "dated": "{{percent}}% discount on bill {{name}} expires {{date}}",
+        "datedNow": "{{percent}}% discount on bill {{name}} runs out today",
+        "datedPast": "{{percent}}% discount on bill {{name}} expired {{date}}"
       },
       "APPROVAL_STALE": {
         "now": "Bill {{name}} is waiting for approval",
@@ -14160,7 +14163,8 @@
         "usual": "Usually <b>{{amount}}</b>.",
         "above": "<b>{{percent}}%</b> above the usual amount.",
         "below": "<b>{{percent}}%</b> below the usual amount.",
-        "heldUp": "<b>{{amount}}</b> held up."
+        "heldUp": "<b>{{amount}}</b> held up.",
+        "saves": "Saves <b>{{amount}}</b>."
       },
       "supplier": {
         "BEFORE_DUE": {
@@ -14175,7 +14179,10 @@
         "DISCOUNT_EXPIRY": {
           "now": "{{supplier}} discount expires today",
           "days_one": "{{supplier}} discount expires tomorrow",
-          "days_other": "{{supplier}} discount expires in {{count}} days"
+          "days_other": "{{supplier}} discount expires in {{count}} days",
+          "dated": "{{supplier}} {{percent}}% discount expires {{date}}",
+          "datedNow": "{{supplier}} {{percent}}% discount runs out today",
+          "datedPast": "{{supplier}} {{percent}}% discount expired {{date}}"
         },
         "APPROVAL_STALE": {
           "now": "{{supplier}} approval waiting",

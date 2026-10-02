@@ -368,6 +368,75 @@ describe('the lines when the server names the supplier and sends the due date', 
   })
 })
 
+describe('a discount line when the server sends the percentage, the day and the saving', () => {
+  const dayFromToday = (days: number) =>
+    new Date(Date.now() + 4 * 3_600_000 + days * 86_400_000).toISOString().slice(0, 10)
+  /** The day as the panel writes it: "5 Aug". */
+  const written = (day: string, locale: string) => {
+    const [year, month, date] = day.split('-').map(Number)
+    return new Date(year, month - 1, date).toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+    })
+  }
+  const discount = (over: Partial<ReminderInboxItemDto> = {}) =>
+    line({
+      id: 'n-discount',
+      ruleType: 'DISCOUNT_EXPIRY',
+      reason: 'DISCOUNT_EXPIRY',
+      daysFromDue: -4,
+      amount: 2354.5,
+      supplierName: 'Gulf Cold Logistics',
+      ...over,
+    })
+
+  it('reads as the design does, with the rial sign and three decimals on the saving', async () => {
+    const on = dayFromToday(4)
+    inbox = [discount({ discountPercent: 2, discountExpiresOn: on, discountSaving: 47.09 })]
+    renderBell()
+    const panel = await openPanel()
+    const row = (
+      await within(panel).findByText(
+        `Gulf Cold Logistics 2% discount expires ${written(on, 'en-GB')}`,
+      )
+    ).closest('li')!
+    expect(row.textContent).toContain('47.090.')
+    expect(row.textContent).toMatch(/Saves/)
+    // The amount is the saving, not what is still to pay, and it wears the rial sign.
+    expect(row.querySelector('b, span.font-semibold')?.textContent).toMatch(/47\.090$/)
+    expect(row.textContent).not.toMatch(/2,354\.500|still to pay|expires in/)
+    expect(within(row).getByRole('button', { name: 'Open the bill' })).toBeTruthy()
+  })
+
+  it('counts the days, as before, when the server does not send them', async () => {
+    inbox = [discount()]
+    renderBell()
+    const panel = await openPanel()
+    const row = (
+      await within(panel).findByText('Gulf Cold Logistics discount expires in 4 days')
+    ).closest('li')!
+    expect(row.textContent).toContain('2,354.500 still to pay.')
+    expect(row.textContent).not.toMatch(/Saves/)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    const on = dayFromToday(4)
+    inbox = [discount({ discountPercent: 2, discountExpiresOn: on, discountSaving: 47.09 })]
+    renderBell()
+    fireEvent.click(screen.getByRole('button', { name: /^الإشعارات/ }))
+    const panel = await screen.findByRole('dialog', { name: 'الإشعارات' })
+    const row = (
+      await within(panel).findByText(
+        `خصم 2٪ من Gulf Cold Logistics ينتهي ${written(on, 'ar-u-nu-latn')}`,
+      )
+    ).closest('li')!
+    expect(row.textContent).toMatch(/يوفّر/)
+    expect(row.textContent).toContain('47.090')
+    expect(row.textContent ?? '').not.toMatch(/notes\.|Saves|expires/)
+  })
+})
+
 describe('the icon on a bill reminder', () => {
   it('is the Bills icon the sidebar shows, the same file, for every kind of reminder', async () => {
     inbox = [LATE, DUE, RENT]

@@ -169,6 +169,15 @@ export type ReminderInboxItemDto = {
    * due date; left out by a server from before the field.
    */
   dueDate?: string | null
+  /**
+   * `DISCOUNT_EXPIRY` only, and only from a server that sends them: the early-payment discount's
+   * percentage (`2` for 2%), the last day it can be taken (`YYYY-MM-DD`) and what taking it saves,
+   * in the entry's `currency`. With them the bell writes the design's own line ("2% discount
+   * expires 5 Aug", "Saves ..."); without them it counts the days from `daysFromDue`.
+   */
+  discountPercent?: number | null
+  discountExpiresOn?: string | null
+  discountSaving?: number | null
 }
 
 export function loadReminderRules(): Promise<ReminderRulesDto> {

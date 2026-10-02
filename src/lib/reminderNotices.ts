@@ -17,6 +17,10 @@ import type { Note, NoteAction, NoteTone, NoteWhen } from './notifications'
  * before or on the due date the bill is due, after it the bill is unpaid. The other kinds have no
  * date to count from and say the number of days the notice was recorded with.
  *
+ * An early-payment discount is written as the design's own sample is ("2% discount expires 5 Aug"
+ * over "Saves 47.090") when the server sends its percentage, the day it runs out and the saving
+ * (`discountPercent`, `discountExpiresOn`, `discountSaving`). Without them it counts the days.
+ *
  * A scan has no supplier until somebody confirms it, so its line names the file. A notice with
  * no supplier's name (a server from before the field, or a bill that is no longer there), or a
  * due or late one with no due date, is worded around the name a reader knows the thing by: the
@@ -91,21 +95,56 @@ function actionOf(item: ReminderInboxItemDto, reason: ReminderReasonDto): NoteAc
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/**
- * How many days past its due date a bill is today, in the business's own day: positive once it is
- * late, zero on the day, negative while there are days to go. Null with no date to count from.
- */
-function daysPastDue(dueDate: string | null | undefined, now: Date): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dueDate?.trim() ?? '')
+/** A calendar day (`YYYY-MM-DD`, with or without a time after it) as its three numbers. */
+function calendarDay(day: string | null | undefined) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(day?.trim() ?? '')
   if (!match) return null
-  const due = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-  if (Number.isNaN(due)) return null
-  const today = businessParts(now)
-  return Math.round((Date.UTC(today.year, today.month - 1, today.date) - due) / DAY_MS)
+  const [year, month, date] = [Number(match[1]), Number(match[2]), Number(match[3])]
+  return Number.isNaN(Date.UTC(year, month - 1, date)) ? null : { year, month, date }
 }
 
-/** The title's key and the days it counts, or null when the line cannot be written this way. */
-type Title = { titleKey: string; count: number }
+/**
+ * How many days past a date today is, in the business's own day: positive once the date has gone
+ * (a bill is late), zero on the day, negative while there are days to go. Null with no date to
+ * count from.
+ */
+function daysPastDue(dueDate: string | null | undefined, now: Date): number | null {
+  const due = calendarDay(dueDate)
+  if (!due) return null
+  const today = businessParts(now)
+  return Math.round(
+    (Date.UTC(today.year, today.month - 1, today.date) -
+      Date.UTC(due.year, due.month - 1, due.date)) /
+      DAY_MS,
+  )
+}
+
+/**
+ * The title's key and the days it counts, or null when the line cannot be written this way. A
+ * discount written with its facts carries them too.
+ */
+type Title = { titleKey: string; count: number; facts?: { percent: number; date: Date } }
+
+const twoDecimals = (value: number) => Math.round(value * 100) / 100
+
+/**
+ * The discount's title in the design's own form, "2% discount expires 5 Aug", which needs the
+ * percentage and the day it runs out. The day is read against today: on its last day the
+ * discount "runs out today", and a notice read after it says the discount expired. Null when
+ * either fact is missing, and the caller counts the days as before.
+ */
+function discountTitle(item: ReminderInboxItemDto, base: string, now: Date): Title | null {
+  const percent = item.discountPercent
+  const day = calendarDay(item.discountExpiresOn)
+  const past = daysPastDue(item.discountExpiresOn, now)
+  if (typeof percent !== 'number' || !Number.isFinite(percent) || percent <= 0) return null
+  if (day === null || past === null) return null
+  return {
+    titleKey: `${base}.${past > 0 ? 'datedPast' : past === 0 ? 'datedNow' : 'dated'}`,
+    count: 0,
+    facts: { percent: twoDecimals(percent), date: new Date(day.year, day.month - 1, day.date) },
+  }
+}
 
 /**
  * The title that names the supplier. A due or late bill is read from its due date as it stands
@@ -129,14 +168,22 @@ function supplierTitle(
   }
   if (reason === 'RECURRING_CHASE' || reason === 'RECURRING_OUT_OF_RANGE')
     return { titleKey: key(reason, 'title'), count: 0 }
+  if (reason === 'DISCOUNT_EXPIRY') {
+    const dated = discountTitle(item, 'notes.reminder.supplier.DISCOUNT_EXPIRY', now)
+    if (dated) return dated
+  }
   const days = daysOf(item, reason)
   return { titleKey: key(reason, days === 0 ? 'now' : 'days'), count: days }
 }
 
 /** The title around the bill's number, the file's name or the recurring bill's name. */
-function namedTitle(item: ReminderInboxItemDto, reason: ReminderReasonDto): Title {
+function namedTitle(item: ReminderInboxItemDto, reason: ReminderReasonDto, now: Date): Title {
   if (reason === 'RECURRING_CHASE' || reason === 'RECURRING_OUT_OF_RANGE')
     return { titleKey: `notes.reminder.${reason}.title`, count: 0 }
+  if (reason === 'DISCOUNT_EXPIRY') {
+    const dated = discountTitle(item, 'notes.reminder.DISCOUNT_EXPIRY', now)
+    if (dated) return dated
+  }
   const days = daysOf(item, reason)
   return { titleKey: `notes.reminder.${reason}.${days === 0 ? 'now' : 'days'}`, count: days }
 }
@@ -145,6 +192,7 @@ function namedTitle(item: ReminderInboxItemDto, reason: ReminderReasonDto): Titl
 function bodyOf(
   item: ReminderInboxItemDto,
   reason: ReminderReasonDto,
+  now: Date,
 ): Pick<Note, 'bodyKey' | 'money'> & { percent?: number } {
   const money =
     typeof item.amount === 'number' && item.currency
@@ -156,7 +204,7 @@ function bodyOf(
     if (typeof variance === 'number' && variance !== 0) {
       return {
         bodyKey: variance > 0 ? 'notes.reminder.body.above' : 'notes.reminder.body.below',
-        percent: Math.round(Math.abs(variance) * 100) / 100,
+        percent: twoDecimals(Math.abs(variance)),
       }
     }
     // The rule's own title ("a recurring bill that hasn't arrived") would be wrong here.
@@ -166,6 +214,17 @@ function bodyOf(
     return money
       ? { bodyKey: 'notes.reminder.body.usual', money }
       : { bodyKey: `${RULE_LABEL_KEY.RECURRING_LATE}.title` }
+  }
+  // The design's own second line for a discount: what paying in time saves, in the entry's
+  // currency. Not once the day has gone, when there is no saving left to be had.
+  if (reason === 'DISCOUNT_EXPIRY' && item.currency) {
+    const saving = item.discountSaving
+    const gone = (daysPastDue(item.discountExpiresOn, now) ?? 0) > 0
+    if (typeof saving === 'number' && Number.isFinite(saving) && saving > 0 && !gone)
+      return {
+        bodyKey: 'notes.reminder.body.saves',
+        money: { amount: saving, currency: item.currency },
+      }
   }
   // A scan has no amount yet; a bill line recorded without one says which reminder it is.
   if (!money || reason === 'SCAN_UNCONFIRMED')
@@ -224,8 +283,8 @@ export function reminderNote(item: ReminderInboxItemDto, now: Date): Note {
   // A scan has no supplier until somebody confirms it: it is known by its file.
   const bySupplier =
     supplier === null || reason === 'SCAN_UNCONFIRMED' ? null : supplierTitle(item, reason, now)
-  const { titleKey, count } = bySupplier ?? namedTitle(item, reason)
-  const { percent, ...body } = bodyOf(item, reason)
+  const { titleKey, count, facts } = bySupplier ?? namedTitle(item, reason, now)
+  const { percent, ...body } = bodyOf(item, reason, now)
 
   return {
     id: item.id,
@@ -241,7 +300,10 @@ export function reminderNote(item: ReminderInboxItemDto, now: Date): Note {
       supplier: supplier ?? '',
       count,
       ...(percent === undefined ? {} : { percent }),
+      ...facts,
     },
+    // "5 Aug", as the design writes a discount's day.
+    ...(facts ? { dates: 'short' as const } : {}),
     actions: actionOf(item, reason),
     unread: !isAcknowledged(item),
   }

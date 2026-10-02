@@ -78,6 +78,11 @@ export type Note = {
   bodyKey?: string
   /** Dates are formatted by the panel, in the reader's language. */
   values: Record<string, string | number | Date>
+  /**
+   * How a date in `values` is written: "29 September" unless a line asks for the short form the
+   * design gives a bill reminder ("5 Aug"), which keeps Latin digits in Arabic as bills do.
+   */
+  dates?: 'short'
   /** An amount for the body, written out by the panel in the reader's language as `{{amount}}`. */
   money?: { amount: number; currency: string }
   /** When it happened — phrased by the panel in the reader's language. */
@@ -450,12 +455,14 @@ export function useNotes(scope: NoteScope = 'tenant') {
 
 /** A note's values ready for `t()` — dates written out in the reader's language ("29 September"). */
 export function noteValues(note: Note, language: string) {
-  const locale = language.startsWith('ar') ? 'ar' : 'en-GB'
+  const short = note.dates === 'short'
+  const arabic = language.startsWith('ar')
+  const locale = arabic ? (short ? 'ar-u-nu-latn' : 'ar') : 'en-GB'
   const values: Record<string, string | number> = Object.fromEntries(
     Object.entries(note.values).map(([key, value]) => [
       key,
       value instanceof Date
-        ? value.toLocaleDateString(locale, { day: 'numeric', month: 'long' })
+        ? value.toLocaleDateString(locale, { day: 'numeric', month: short ? 'short' : 'long' })
         : value,
     ]),
   )

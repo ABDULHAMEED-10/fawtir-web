@@ -14689,7 +14689,10 @@
         "days_two": "ينتهي خصم الفاتورة {{name}} بعد يومين",
         "days_few": "ينتهي خصم الفاتورة {{name}} بعد {{count}} أيام",
         "days_many": "ينتهي خصم الفاتورة {{name}} بعد {{count}} يومًا",
-        "days_other": "ينتهي خصم الفاتورة {{name}} بعد {{count}} يوم"
+        "days_other": "ينتهي خصم الفاتورة {{name}} بعد {{count}} يوم",
+        "dated": "خصم {{percent}}٪ على الفاتورة {{name}} ينتهي {{date}}",
+        "datedNow": "خصم {{percent}}٪ على الفاتورة {{name}} ينتهي اليوم",
+        "datedPast": "خصم {{percent}}٪ على الفاتورة {{name}} انتهى {{date}}"
       },
       "APPROVAL_STALE": {
         "now": "الفاتورة {{name}} بانتظار الاعتماد",
@@ -14734,7 +14737,8 @@
         "usual": "المبلغ المعتاد <b>{{amount}}</b>.",
         "above": "أعلى من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>.",
         "below": "أقل من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>.",
-        "heldUp": "<b>{{amount}}</b> بانتظار الاعتماد."
+        "heldUp": "<b>{{amount}}</b> بانتظار الاعتماد.",
+        "saves": "يوفّر <b>{{amount}}</b>."
       },
       "supplier": {
         "BEFORE_DUE": {
@@ -14758,7 +14762,10 @@
           "days_two": "خصم {{supplier}} ينتهي خلال يومين",
           "days_few": "خصم {{supplier}} ينتهي خلال {{count}} أيام",
           "days_many": "خصم {{supplier}} ينتهي خلال {{count}} يومًا",
-          "days_other": "خصم {{supplier}} ينتهي خلال {{count}} يوم"
+          "days_other": "خصم {{supplier}} ينتهي خلال {{count}} يوم",
+          "dated": "خصم {{percent}}٪ من {{supplier}} ينتهي {{date}}",
+          "datedNow": "خصم {{percent}}٪ من {{supplier}} ينتهي اليوم",
+          "datedPast": "خصم {{percent}}٪ من {{supplier}} انتهى {{date}}"
         },
         "APPROVAL_STALE": {
           "now": "اعتماد {{supplier}} ينتظر",

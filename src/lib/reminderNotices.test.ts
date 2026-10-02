@@ -571,6 +571,99 @@ describe('a reminder that names its supplier, in English', () => {
     expect(range.to).toBe('/expenditure/bills/b-77')
   })
 
+  it('writes the discount line as the design does once the server sends its three facts', () => {
+    const discount = {
+      supplierName: 'Muscat Roastery',
+      ruleType: 'DISCOUNT_EXPIRY',
+      reason: 'DISCOUNT_EXPIRY',
+      daysFromDue: -3,
+      amount: 2354.5,
+    } as const
+    const facts = { discountPercent: 2, discountExpiresOn: '2026-10-05', discountSaving: 47.09 }
+
+    // The design's sample: "2% discount expires 5 Aug" over "Saves 47.090".
+    const line = say({ ...discount, ...facts })
+    expect(line.title).toBe('Muscat Roastery 2% discount expires 5 Oct')
+    expect(line.body).toBe('Saves <b>OMR 47.090</b>.')
+    expect(line.to).toBe('/expenditure/bills/b-1')
+    expect(line.note.tone).toBe('success')
+    expect(say({ ...discount, ...facts, discountPercent: 2.5 }).title).toBe(
+      'Muscat Roastery 2.5% discount expires 5 Oct',
+    )
+    // The date is the day it is read against, not the count stored with the notice.
+    expect(say({ ...discount, ...facts, discountExpiresOn: '2026-10-01' }).title).toBe(
+      'Muscat Roastery 2% discount runs out today',
+    )
+    expect(say({ ...discount, ...facts, discountExpiresOn: '2026-10-01' }).body).toBe(
+      'Saves <b>OMR 47.090</b>.',
+    )
+    // Read after the date has gone: it says so, and nothing claims a saving still to be had.
+    const gone = say({ ...discount, ...facts, discountExpiresOn: '2026-10-15' })
+    expect(gone.title).toBe('Muscat Roastery 2% discount expires 15 Oct')
+    const past = (() => {
+      const note = reminderNote(item({ ...discount, ...facts }), new Date('2026-10-09T09:00:00Z'))
+      const values = noteValues(note, 'en')
+      return { title: i18n.t(note.titleKey, values), body: i18n.t(note.bodyKey!, values) }
+    })()
+    expect(past.title).toBe('Muscat Roastery 2% discount expired 5 Oct')
+    expect(past.body).toBe('<b>OMR 2,354.500</b> still to pay.')
+    // The saving is in the entry's own currency.
+    expect(say({ ...discount, ...facts, currency: 'USD', discountSaving: 12.5 }).body).toBe(
+      'Saves <b>USD 12.50</b>.',
+    )
+    // With no supplier to name, the same shape around the bill's number.
+    expect(say({ ...discount, ...facts, supplierName: null }).title).toBe(
+      '2% discount on bill ME-991 expires 5 Oct',
+    )
+    expect(
+      say({ ...discount, ...facts, supplierName: null, discountExpiresOn: '2026-10-01' }).title,
+    ).toBe('2% discount on bill ME-991 runs out today')
+  })
+
+  it('keeps the day-count discount line when the server does not send the facts', () => {
+    const discount = {
+      supplierName: 'Muscat Roastery',
+      ruleType: 'DISCOUNT_EXPIRY',
+      reason: 'DISCOUNT_EXPIRY',
+      daysFromDue: -3,
+    } as const
+    const asToday = {
+      title: 'Muscat Roastery discount expires in 3 days',
+      body: '<b>OMR 411.500</b> still to pay.',
+    }
+    expect(say(discount)).toMatchObject(asToday)
+    expect(
+      say({ ...discount, discountPercent: null, discountExpiresOn: null, discountSaving: null }),
+    ).toMatchObject(asToday)
+    // The title needs the percentage and the date together; the line under it needs the saving.
+    expect(say({ ...discount, discountPercent: 2 }).title).toBe(asToday.title)
+    expect(say({ ...discount, discountExpiresOn: '2026-10-05' }).title).toBe(asToday.title)
+    expect(say({ ...discount, discountPercent: 2, discountExpiresOn: 'soon' }).title).toBe(
+      asToday.title,
+    )
+    expect(say({ ...discount, discountPercent: 0, discountExpiresOn: '2026-10-05' }).title).toBe(
+      asToday.title,
+    )
+    expect(say({ ...discount, discountPercent: 2, discountExpiresOn: '2026-10-05' })).toMatchObject(
+      { title: 'Muscat Roastery 2% discount expires 5 Oct', body: asToday.body },
+    )
+    expect(say({ ...discount, discountSaving: 0 }).body).toBe(asToday.body)
+    expect(say({ ...discount, discountSaving: 47.09 })).toMatchObject({
+      title: asToday.title,
+      body: 'Saves <b>OMR 47.090</b>.',
+    })
+    // The facts belong to the discount notice alone.
+    expect(
+      say({
+        supplierName: 'Al Noor Dates',
+        dueDate: '2026-09-28',
+        discountPercent: 2,
+        discountExpiresOn: '2026-10-05',
+        discountSaving: 47.09,
+      }),
+    ).toMatchObject({ title: 'Al Noor Dates unpaid for 3 days', body: asToday.body })
+  })
+
   it('does not need the bill number once the supplier is named', () => {
     // A row recorded before the server kept the number: the supplier still names it.
     expect(say({ ...alNoor, subjectDisplay: null }).title).toBe('Al Noor Dates unpaid for 3 days')
@@ -662,6 +755,41 @@ describe('a reminder that names its supplier, in Arabic', () => {
     expect(counted('MISMATCH_STALE', 3)).toBe('اختلاف تمور النور لم يُحلّ منذ 3 أيام')
     expect(counted('MISMATCH_STALE', 11)).toBe('اختلاف تمور النور لم يُحلّ منذ 11 يومًا')
     expect(counted('MISMATCH_STALE', 100)).toBe('اختلاف تمور النور لم يُحلّ منذ 100 يوم')
+  })
+
+  it('writes the discount line with its percentage, its date and the saving', () => {
+    const discount = {
+      supplierName: 'تمور النور',
+      ruleType: 'DISCOUNT_EXPIRY',
+      reason: 'DISCOUNT_EXPIRY',
+      daysFromDue: -3,
+      discountPercent: 2,
+      discountExpiresOn: '2026-10-05',
+      discountSaving: 47.09,
+    } as const
+    // Digits stay Latin in Arabic, as everywhere in the app.
+    expect(say(discount).title).toBe('خصم 2٪ من تمور النور ينتهي 5 أكتوبر')
+    expect(say(discount).body).toBe('يوفّر <b>OMR 47.090</b>.')
+    expect(say({ ...discount, discountExpiresOn: '2026-10-01' }).title).toBe(
+      'خصم 2٪ من تمور النور ينتهي اليوم',
+    )
+    expect(say({ ...discount, discountExpiresOn: '2026-09-28' }).title).toBe(
+      'خصم 2٪ من تمور النور انتهى 28 سبتمبر',
+    )
+    expect(say({ ...discount, supplierName: null }).title).toBe(
+      'خصم 2٪ على الفاتورة ME-991 ينتهي 5 أكتوبر',
+    )
+    expect(say({ ...discount, supplierName: null, discountExpiresOn: '2026-10-01' }).title).toBe(
+      'خصم 2٪ على الفاتورة ME-991 ينتهي اليوم',
+    )
+    expect(say({ ...discount, supplierName: null, discountExpiresOn: '2026-09-28' }).title).toBe(
+      'خصم 2٪ على الفاتورة ME-991 انتهى 28 سبتمبر',
+    )
+    for (const on of ['2026-09-28', '2026-10-01', '2026-10-05']) {
+      const line = say({ ...discount, discountExpiresOn: on })
+      expect(line.title, on).not.toMatch(/notes\.|[A-Za-z]{3,}/)
+      expect(line.body, on).not.toMatch(/notes\./)
+    }
   })
 
   it('says the three recurring notices', () => {
