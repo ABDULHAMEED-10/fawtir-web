@@ -555,30 +555,48 @@ describe('The staged import, wired to the API', () => {
       )
     })
 
-    it('says a file whose header is not the template’s was refused, never in the server’s English', async () => {
-      // No sentence on the import screen says "this is not the template", so the code reads as
-      // the general refusal until the owner words one.
-      const usual = fetchMock.getMockImplementation()!
-      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
-        url.endsWith('/import/check')
-          ? json(400, {
-              type: 'https://api.fawtir.om/problems/expenditure-refused',
-              status: 400,
-              detail:
-                'Supplier CSV header does not match the supplier template: "Nickname" is not a column of the supplier template. Download the template and keep its header row',
-              error: 'SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED',
-            })
-          : usual(url, init),
-      )
-      renderImport()
-      await uploadFile()
-      expect(await screen.findByText(/The server refused this\. Nothing was changed/)).toBeTruthy()
-      // The server's English detail and the code are for logs, never for the screen.
-      expect(screen.queryByText(/Nickname/)).toBeNull()
-      expect(screen.queryByText(/SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED/)).toBeNull()
-      // Nothing was checked: the upload step is still there.
-      expect(screen.queryByRole('heading', { level: 1, name: 'Check before importing' })).toBeNull()
-    })
+    // Owner's Round 5 answer 5 (2 Oct): his sentence, in both languages, where a refused file is said.
+    for (const [language, sentence] of [
+      [
+        'en',
+        "This file's header row doesn't match Fawtir's template. Download the template and keep its header row.",
+      ],
+      ['ar', 'صف العناوين في هذا الملف لا يطابق قالب فوتر. نزّل القالب وأبقِ صف العناوين كما هو.'],
+    ] as const) {
+      it(`says a file whose header is not the template’s in the owner’s sentence (${language}), never in the server’s English`, async () => {
+        const usual = fetchMock.getMockImplementation()!
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+          url.endsWith('/import/check')
+            ? json(400, {
+                type: 'https://api.fawtir.om/problems/expenditure-refused',
+                status: 400,
+                detail:
+                  'Supplier CSV header does not match the supplier template: "Nickname" is not a column of the supplier template. Download the template and keep its header row',
+                error: 'SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED',
+              })
+            : usual(url, init),
+        )
+        await i18n.changeLanguage(language)
+        renderImport()
+        await uploadFile()
+        const notice = await screen.findByText(sentence, { exact: false })
+        expect(notice.textContent?.startsWith(sentence)).toBe(true)
+        expect(screen.queryByText(/The server refused this\. Nothing was changed/)).toBeNull()
+        // The server's English detail and the code are for logs, never for the screen.
+        expect(screen.queryByText(/Nickname/)).toBeNull()
+        expect(screen.queryByText(/SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED/)).toBeNull()
+        // Nothing was checked: the upload step is still there, with the template to download.
+        expect(
+          screen.queryByRole('heading', {
+            level: 1,
+            name: i18n.t('stagedImport.reviewTitle'),
+          }),
+        ).toBeNull()
+        expect(
+          screen.getByRole('button', { name: i18n.t('stagedImport.downloadTemplate') }),
+        ).toBeTruthy()
+      })
+    }
   })
 
   describe('a row that repeats an earlier row of the same file', () => {

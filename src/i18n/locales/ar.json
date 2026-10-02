@@ -18388,7 +18388,10 @@
       "alreadyOnFile": "مسجّل مسبقًا"
     },
     "typeAName": "اكتب اسمًا",
-    "empty": "فارغ"
+    "empty": "فارغ",
+    "refused": {
+      "headerNotRecognised": "صف العناوين في هذا الملف لا يطابق قالب فوتر. نزّل القالب وأبقِ صف العناوين كما هو."
+    }
   },
   "paymentReminders": {
     "backToHistory": "← التذكيرات المرسلة",

@@ -17614,7 +17614,10 @@
       "alreadyOnFile": "Already on file"
     },
     "typeAName": "Type a name",
-    "empty": "Empty"
+    "empty": "Empty",
+    "refused": {
+      "headerNotRecognised": "This file's header row doesn't match Fawtir's template. Download the template and keep its header row."
+    }
   },
   "paymentReminders": {
     "backToHistory": "← Reminders sent",

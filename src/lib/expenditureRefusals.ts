@@ -85,6 +85,9 @@ const REFUSALS: Record<string, string> = {
   // (Wording-For-Abdul.md row 17). The payment run screens name this code themselves
   // (`RUN_REFUSALS`), so this is what any other screen says.
   PAYMENT_RUN_BILL_ON_HOLD: 'apiErrors.refused.paymentRunBillOnHold',
+  // The supplier import, a file whose header row is neither template's (owner's Round 5
+  // answer 5, 2 Oct 2026: his sentence in both languages). The detail names the column, in English.
+  SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
 }
