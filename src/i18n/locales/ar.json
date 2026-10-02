@@ -5722,7 +5722,7 @@
       },
       "selfBilled": {
         "issuedByYou": "أصدرتها أنت عبر فوتر نيابةً عن المورّد",
-        "agreement": "اتفاقية الفوترة الذاتية {{reference}}",
+        "agreement": "اتفاقية فوترة ذاتية {{reference}}",
         "agreementNoReference": "اتفاقية الفوترة الذاتية",
         "validTaxInvoice": "فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد"
       }

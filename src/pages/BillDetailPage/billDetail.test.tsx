@@ -442,7 +442,7 @@ describe('A bill, wired to the API', () => {
     expect(
       card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد'),
     ).toBeTruthy()
-    expect(card.getByText(/^اتفاقية الفوترة الذاتية/)).toBeTruthy()
+    expect(card.getByText(/^اتفاقية فوترة ذاتية/)).toBeTruthy()
     expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
       '/income/self-billing/sb-1',
     )
