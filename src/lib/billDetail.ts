@@ -431,6 +431,9 @@ export type ActivityEntry = {
  * `ISSUED`, `CANCELLED`; owner's answer 3, 2 Oct 2026: "take it from the self-billed document's
  * history"). Those three are the invoice history's own event names and carry the same words the
  * self-bill page uses for them (`invoiceDetails.event.*`).
+ *
+ * TODO(backend): EXPENDITURE.md row 1.23. The full history of the self-billed document in
+ * `activity[]` (owner's Round 5 answer 4: created, issued and cancelled are enough for now).
  */
 const KNOWN_KINDS = new Set([
   'ARRIVED',
