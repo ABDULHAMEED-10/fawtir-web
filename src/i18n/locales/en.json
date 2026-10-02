@@ -14140,9 +14140,9 @@
         "days_other": "The mismatch on bill {{name}} has waited {{count}} days"
       },
       "SCAN_UNCONFIRMED": {
-        "now": "{{name}} is waiting to be confirmed",
-        "days_one": "{{name}} has waited {{count}} day to be confirmed",
-        "days_other": "{{name}} has waited {{count}} days to be confirmed"
+        "now": "{{name}} still unconfirmed",
+        "days_one": "{{name}} unconfirmed for {{count}} day",
+        "days_other": "{{name}} unconfirmed for {{count}} days"
       },
       "RECURRING_LATE": {
         "now": "{{name}} has not arrived",
@@ -14159,7 +14159,45 @@
         "owed": "<b>{{amount}}</b> still to pay.",
         "usual": "Usually <b>{{amount}}</b>.",
         "above": "<b>{{percent}}%</b> above the usual amount.",
-        "below": "<b>{{percent}}%</b> below the usual amount."
+        "below": "<b>{{percent}}%</b> below the usual amount.",
+        "heldUp": "<b>{{amount}}</b> held up."
+      },
+      "supplier": {
+        "BEFORE_DUE": {
+          "now": "{{supplier}} due today",
+          "days_one": "{{supplier}} due tomorrow",
+          "days_other": "{{supplier}} due in {{count}} days"
+        },
+        "LATE": {
+          "days_one": "{{supplier}} unpaid for {{count}} day",
+          "days_other": "{{supplier}} unpaid for {{count}} days"
+        },
+        "DISCOUNT_EXPIRY": {
+          "now": "{{supplier}} discount expires today",
+          "days_one": "{{supplier}} discount expires tomorrow",
+          "days_other": "{{supplier}} discount expires in {{count}} days"
+        },
+        "APPROVAL_STALE": {
+          "now": "{{supplier}} approval waiting",
+          "days_one": "{{supplier}} approval waiting {{count}} day",
+          "days_other": "{{supplier}} approval waiting {{count}} days"
+        },
+        "MISMATCH_STALE": {
+          "now": "{{supplier}} mismatch unresolved",
+          "days_one": "{{supplier}} mismatch unresolved for {{count}} day",
+          "days_other": "{{supplier}} mismatch unresolved for {{count}} days"
+        },
+        "RECURRING_LATE": {
+          "now": "{{supplier}} bill not arrived",
+          "days_one": "{{supplier}} bill not arrived, {{count}} day late",
+          "days_other": "{{supplier}} bill not arrived, {{count}} days late"
+        },
+        "RECURRING_CHASE": {
+          "title": "Chase {{supplier}} for the bill that has not arrived"
+        },
+        "RECURRING_OUT_OF_RANGE": {
+          "title": "{{supplier}} bill arrived outside the range"
+        }
       }
     },
     "unreadable": "Reminders could not be read. Reload to try again."

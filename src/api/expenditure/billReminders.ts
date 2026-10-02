@@ -156,6 +156,19 @@ export type ReminderInboxItemDto = {
   /** `RECURRING_OUT_OF_RANGE` only: signed, for example `16.67`. */
   variancePercent?: number | null
   read?: boolean
+  /**
+   * Who the bill or the recurring bill is owed to, read when the inbox is read (so a notice
+   * recorded earlier carries it too). The bell's sentence names it. Null for a scan, and for a
+   * bill that is no longer there; left out by a server from before the field.
+   */
+  supplierName?: string | null
+  /**
+   * A bill's due date as it stands now (`YYYY-MM-DD`). The bell counts "due in N days" and
+   * "unpaid for N days" from it on the day the line is read, not from `daysFromDue`, which is the
+   * count on the day the notice was recorded. Null for a scan, a recurring bill and a bill with no
+   * due date; left out by a server from before the field.
+   */
+  dueDate?: string | null
 }
 
 export function loadReminderRules(): Promise<ReminderRulesDto> {

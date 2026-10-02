@@ -6,11 +6,23 @@ import type { Note, NoteAction, NoteTone, NoteWhen } from './notifications'
 /**
  * A bill reminder from the reader's inbox, as a line of the bell's panel.
  *
- * The sentence is written here, from the fields the server sends (what it is about, the name a
- * reader knows it by, the amount, the days), so it reads in the reader's language. The server's
- * own `headline` is an English sentence fixed when the notice was recorded; it is used only for a
- * notice that carries no name, which is one recorded before the server kept the name (or sent by a
- * server from before these fields), because there it is the only thing that says which bill.
+ * The sentence is written here, from the fields the server sends, so it reads in the reader's
+ * language, and it is worded as the design words its own reminder lines: the supplier is named
+ * and the line says what is waiting ("Al Noor Dates unpaid for 9 days", "Sohar Packaging due in
+ * 3 days"). That needs the supplier's name (`supplierName`).
+ *
+ * A bill that is due or late is counted from its due date (`dueDate`) on the day the line is
+ * read, not from the number stored when the notice was recorded, so a notice read a week later
+ * still says how long the bill has gone unpaid. The same date decides which of the two it says:
+ * before or on the due date the bill is due, after it the bill is unpaid. The other kinds have no
+ * date to count from and say the number of days the notice was recorded with.
+ *
+ * A scan has no supplier until somebody confirms it, so its line names the file. A notice with
+ * no supplier's name (a server from before the field, or a bill that is no longer there), or a
+ * due or late one with no due date, is worded around the name a reader knows the thing by: the
+ * bill's number or the recurring bill's name. With no such name either, the server's own
+ * `headline` is shown: an English sentence fixed when the notice was recorded, and there the
+ * only thing that says which bill.
  *
  * The line is drawn by the panel exactly as it draws every other: a tinted tile with an icon, a
  * title, one line under it, when it arrived, and one button that opens the bill, the recurring
@@ -77,6 +89,58 @@ function actionOf(item: ReminderInboxItemDto, reason: ReminderReasonDto): NoteAc
   return []
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * How many days past its due date a bill is today, in the business's own day: positive once it is
+ * late, zero on the day, negative while there are days to go. Null with no date to count from.
+ */
+function daysPastDue(dueDate: string | null | undefined, now: Date): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dueDate?.trim() ?? '')
+  if (!match) return null
+  const due = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  if (Number.isNaN(due)) return null
+  const today = businessParts(now)
+  return Math.round((Date.UTC(today.year, today.month - 1, today.date) - due) / DAY_MS)
+}
+
+/** The title's key and the days it counts, or null when the line cannot be written this way. */
+type Title = { titleKey: string; count: number }
+
+/**
+ * The title that names the supplier. A due or late bill is read from its due date as it stands
+ * today; without that date there is nothing true to count, and the caller words it the other way.
+ */
+function supplierTitle(
+  item: ReminderInboxItemDto,
+  reason: ReminderReasonDto,
+  now: Date,
+): Title | null {
+  const key = (kind: ReminderReasonDto, form: 'now' | 'days' | 'title') =>
+    `notes.reminder.supplier.${kind}.${form}`
+
+  if (reason === 'BEFORE_DUE' || reason === 'LATE') {
+    const past = daysPastDue(item.dueDate, now)
+    if (past === null) return null
+    if (past > 0) return { titleKey: key('LATE', 'days'), count: past }
+    return past === 0
+      ? { titleKey: key('BEFORE_DUE', 'now'), count: 0 }
+      : { titleKey: key('BEFORE_DUE', 'days'), count: -past }
+  }
+  if (reason === 'RECURRING_CHASE' || reason === 'RECURRING_OUT_OF_RANGE')
+    return { titleKey: key(reason, 'title'), count: 0 }
+  const days = daysOf(item, reason)
+  return { titleKey: key(reason, days === 0 ? 'now' : 'days'), count: days }
+}
+
+/** The title around the bill's number, the file's name or the recurring bill's name. */
+function namedTitle(item: ReminderInboxItemDto, reason: ReminderReasonDto): Title {
+  if (reason === 'RECURRING_CHASE' || reason === 'RECURRING_OUT_OF_RANGE')
+    return { titleKey: `notes.reminder.${reason}.title`, count: 0 }
+  const days = daysOf(item, reason)
+  return { titleKey: `notes.reminder.${reason}.${days === 0 ? 'now' : 'days'}`, count: days }
+}
+
 /** The line under the title: the amount where there is one, else what kind of reminder it is. */
 function bodyOf(
   item: ReminderInboxItemDto,
@@ -104,9 +168,14 @@ function bodyOf(
       : { bodyKey: `${RULE_LABEL_KEY.RECURRING_LATE}.title` }
   }
   // A scan has no amount yet; a bill line recorded without one says which reminder it is.
-  return money && reason !== 'SCAN_UNCONFIRMED'
-    ? { bodyKey: 'notes.reminder.body.owed', money }
-    : { bodyKey: `${RULE_LABEL_KEY[item.ruleType]}.title` }
+  if (!money || reason === 'SCAN_UNCONFIRMED')
+    return { bodyKey: `${RULE_LABEL_KEY[item.ruleType]}.title` }
+  // The design's own second line for an approval: the amount is held up, not yet owed.
+  return {
+    bodyKey:
+      reason === 'APPROVAL_STALE' ? 'notes.reminder.body.heldUp' : 'notes.reminder.body.owed',
+    money,
+  }
 }
 
 const DAY_PARTS = new Intl.DateTimeFormat('en-CA', {
@@ -151,8 +220,11 @@ export function whenOf(createdAt: string, now: Date): { when: NoteWhen; group: N
 export function reminderNote(item: ReminderInboxItemDto, now: Date): Note {
   const reason = reasonOf(item)
   const name = item.subjectDisplay?.trim() || null
-  const days = daysOf(item, reason)
-  const counted = reason !== 'RECURRING_CHASE' && reason !== 'RECURRING_OUT_OF_RANGE'
+  const supplier = item.supplierName?.trim() || null
+  // A scan has no supplier until somebody confirms it: it is known by its file.
+  const bySupplier =
+    supplier === null || reason === 'SCAN_UNCONFIRMED' ? null : supplierTitle(item, reason, now)
+  const { titleKey, count } = bySupplier ?? namedTitle(item, reason)
   const { percent, ...body } = bodyOf(item, reason)
 
   return {
@@ -160,17 +232,14 @@ export function reminderNote(item: ReminderInboxItemDto, now: Date): Note {
     ...whenOf(item.createdAt, now),
     icon: 'bill',
     tone: TONE[reason],
-    titleKey: !counted
-      ? `notes.reminder.${reason}.title`
-      : days === 0
-        ? `notes.reminder.${reason}.now`
-        : `notes.reminder.${reason}.days`,
-    // No name to write a sentence around: the server's own sentence names the bill.
-    titleText: name === null ? item.headline : undefined,
+    titleKey,
+    // Neither a supplier nor a name to write a sentence around: the server's own names the bill.
+    titleText: bySupplier === null && name === null ? item.headline : undefined,
     ...body,
     values: {
       name: name ?? '',
-      count: days,
+      supplier: supplier ?? '',
+      count,
       ...(percent === undefined ? {} : { percent }),
     },
     actions: actionOf(item, reason),

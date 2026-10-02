@@ -135,12 +135,14 @@ describe('a bill reminder as a line of the bell, in English', () => {
       amount: null,
       currency: null,
     } as const
-    expect(say({ ...scan, daysFromDue: 0 }).title).toBe('receipt-12.jpg is waiting to be confirmed')
-    expect(say({ ...scan, daysFromDue: 1 }).title).toBe(
-      'receipt-12.jpg has waited 1 day to be confirmed',
-    )
+    expect(say({ ...scan, daysFromDue: 0 }).title).toBe('receipt-12.jpg still unconfirmed')
+    expect(say({ ...scan, daysFromDue: 1 }).title).toBe('receipt-12.jpg unconfirmed for 1 day')
     const line = say({ ...scan, daysFromDue: 2 })
-    expect(line.title).toBe('receipt-12.jpg has waited 2 days to be confirmed')
+    expect(line.title).toBe('receipt-12.jpg unconfirmed for 2 days')
+    // No supplier until it is confirmed: one sent with it would not change the line.
+    expect(say({ ...scan, daysFromDue: 2, supplierName: 'Muscat Roastery' }).title).toBe(
+      'receipt-12.jpg unconfirmed for 2 days',
+    )
     // No amount to give: the line says which reminder it is, in words the page already has.
     expect(line.body).toBe('A scanned receipt still unconfirmed')
     expect(line.to).toBe('/expenditure/bills/upload/in-7')
@@ -362,10 +364,12 @@ describe('the same lines in Arabic', () => {
       subjectDisplay: 'receipt-12.jpg',
       amount: null,
     } as const
-    expect(say({ ...scan, daysFromDue: 0 }).title).toBe('receipt-12.jpg بانتظار التأكيد')
-    expect(say({ ...scan, daysFromDue: 1 }).title).toBe(
-      'receipt-12.jpg بانتظار التأكيد منذ يوم واحد',
-    )
+    expect(say({ ...scan, daysFromDue: 0 }).title).toBe('receipt-12.jpg لم يُؤكَّد بعد')
+    expect(say({ ...scan, daysFromDue: 1 }).title).toBe('receipt-12.jpg لم يُؤكَّد منذ يوم واحد')
+    expect(say({ ...scan, daysFromDue: 2 }).title).toBe('receipt-12.jpg لم يُؤكَّد منذ يومين')
+    expect(say({ ...scan, daysFromDue: 7 }).title).toBe('receipt-12.jpg لم يُؤكَّد منذ 7 أيام')
+    expect(say({ ...scan, daysFromDue: 11 }).title).toBe('receipt-12.jpg لم يُؤكَّد منذ 11 يومًا')
+    expect(say({ ...scan, daysFromDue: 100 }).title).toBe('receipt-12.jpg لم يُؤكَّد منذ 100 يوم')
     expect(say({ ...scan, daysFromDue: 1 }).body).toBe('إيصال ممسوح لم يُؤكَّد بعد')
 
     const recurring = {
@@ -426,6 +430,288 @@ describe('the same lines in Arabic', () => {
           expect(title, `${language} ${reason} ${daysFromDue}`).not.toContain('{{')
           expect(title).not.toContain('—')
           expect(title).toContain('ME-991')
+        }
+      }
+    }
+  })
+})
+
+/**
+ * The lines as the design words them: the supplier is named, and a late bill is "unpaid for N
+ * days", N counted on the day it is read from the bill's due date. These need `supplierName` on
+ * the inbox entry, and `dueDate` too for a bill that is due or late. An entry without them keeps
+ * the sentences above.
+ */
+describe('a reminder that names its supplier, in English', () => {
+  const alNoor = { supplierName: 'Al Noor Dates', dueDate: '2026-09-28' } as const
+
+  it('says a late bill is unpaid for N days, counted today from its due date', () => {
+    // Due 28 September, read on 1 October in Muscat: three days. The number stored when the
+    // notice was recorded (here 1) is not what is shown.
+    const line = say({ ...alNoor, daysFromDue: 1 })
+    expect(line.title).toBe('Al Noor Dates unpaid for 3 days')
+    expect(line.body).toBe('<b>OMR 411.500</b> still to pay.')
+    expect(line.to).toBe('/expenditure/bills/b-1')
+    expect(line.button).toBe('Open the bill')
+    expect(line.note.tone).toBe('danger')
+    // The server's own English sentence is not used once the supplier is known.
+    expect(line.note.titleText).toBeUndefined()
+
+    expect(say({ ...alNoor, dueDate: '2026-09-30' }).title).toBe('Al Noor Dates unpaid for 1 day')
+    expect(say({ ...alNoor, dueDate: '2026-09-01' }).title).toBe('Al Noor Dates unpaid for 30 days')
+  })
+
+  it('counts on, so the same notice read later is still true', () => {
+    const notice = item({ ...alNoor, daysFromDue: 1 })
+    const title = (now: string) => {
+      const note = reminderNote(notice, new Date(now))
+      return i18n.t(note.titleKey, noteValues(note, 'en'))
+    }
+    expect(title('2026-09-29T09:00:00Z')).toBe('Al Noor Dates unpaid for 1 day')
+    expect(title('2026-10-01T09:00:00Z')).toBe('Al Noor Dates unpaid for 3 days')
+    expect(title('2026-10-12T09:00:00Z')).toBe('Al Noor Dates unpaid for 14 days')
+    // The day turns in Muscat, not in UTC: 21:00 UTC on the 1st is already the 2nd there.
+    expect(title('2026-10-01T21:00:00Z')).toBe('Al Noor Dates unpaid for 4 days')
+  })
+
+  it('says when a bill is due, from the same due date', () => {
+    const sohar = {
+      ruleType: 'BEFORE_DUE',
+      reason: 'BEFORE_DUE',
+      supplierName: 'Sohar Packaging',
+      // Stored as seven days to go; what is shown is what is true on the day it is read.
+      daysFromDue: -7,
+    } as const
+    expect(say({ ...sohar, dueDate: '2026-10-04' }).title).toBe('Sohar Packaging due in 3 days')
+    expect(say({ ...sohar, dueDate: '2026-10-02' }).title).toBe('Sohar Packaging due tomorrow')
+    expect(say({ ...sohar, dueDate: '2026-10-01' }).title).toBe('Sohar Packaging due today')
+    // Read after the due date has passed, a bill that was "due soon" is unpaid.
+    expect(say({ ...sohar, dueDate: '2026-09-29' }).title).toBe('Sohar Packaging unpaid for 2 days')
+    // And a late notice whose bill was given a later due date is due, not unpaid.
+    expect(say({ ...alNoor, dueDate: '2026-10-06' }).title).toBe('Al Noor Dates due in 5 days')
+    expect(say({ ...sohar, dueDate: '2026-10-04' }).body).toBe('<b>OMR 411.500</b> still to pay.')
+  })
+
+  it('reads a due date sent with a time as its day', () => {
+    expect(say({ ...alNoor, dueDate: '2026-09-28T00:00:00Z' }).title).toBe(
+      'Al Noor Dates unpaid for 3 days',
+    )
+  })
+
+  it('names the supplier for every other kind', () => {
+    const named = { supplierName: 'Muscat Roastery' } as const
+
+    const discount = { ...named, ruleType: 'DISCOUNT_EXPIRY', reason: 'DISCOUNT_EXPIRY' } as const
+    expect(say({ ...discount, daysFromDue: 0 }).title).toBe(
+      'Muscat Roastery discount expires today',
+    )
+    expect(say({ ...discount, daysFromDue: -1 }).title).toBe(
+      'Muscat Roastery discount expires tomorrow',
+    )
+    expect(say({ ...discount, daysFromDue: -3 }).title).toBe(
+      'Muscat Roastery discount expires in 3 days',
+    )
+
+    const approval = { ...named, ruleType: 'APPROVAL_STALE', reason: 'APPROVAL_STALE' } as const
+    expect(say({ ...approval, daysFromDue: 0 }).title).toBe('Muscat Roastery approval waiting')
+    expect(say({ ...approval, daysFromDue: 1 }).title).toBe(
+      'Muscat Roastery approval waiting 1 day',
+    )
+    expect(say({ ...approval, daysFromDue: 6 }).title).toBe(
+      'Muscat Roastery approval waiting 6 days',
+    )
+    // The design's own second line for an approval.
+    expect(say({ ...approval, daysFromDue: 6 }).body).toBe('<b>OMR 411.500</b> held up.')
+
+    const mismatch = { ...named, ruleType: 'MISMATCH_STALE', reason: 'MISMATCH_STALE' } as const
+    expect(say({ ...mismatch, daysFromDue: 0 }).title).toBe('Muscat Roastery mismatch unresolved')
+    expect(say({ ...mismatch, daysFromDue: 1 }).title).toBe(
+      'Muscat Roastery mismatch unresolved for 1 day',
+    )
+    expect(say({ ...mismatch, daysFromDue: 3 }).title).toBe(
+      'Muscat Roastery mismatch unresolved for 3 days',
+    )
+
+    const recurring = {
+      supplierName: 'Oman Electricity',
+      ruleType: 'RECURRING_LATE',
+      subjectType: 'RECURRING_BILL',
+      subjectId: 'rb-1',
+      recurringBillId: 'rb-1',
+      billId: null,
+      subjectDisplay: 'Electricity',
+      amount: 650,
+    } as const
+    const late = { ...recurring, reason: 'RECURRING_LATE', occasion: 'LATE' } as const
+    expect(say({ ...late, daysFromDue: 0 }).title).toBe('Oman Electricity bill not arrived')
+    expect(say({ ...late, daysFromDue: 1 }).title).toBe(
+      'Oman Electricity bill not arrived, 1 day late',
+    )
+    expect(say({ ...late, daysFromDue: 4 }).title).toBe(
+      'Oman Electricity bill not arrived, 4 days late',
+    )
+    expect(say({ ...late, daysFromDue: 4 }).body).toBe('Usually <b>OMR 650.000</b>.')
+    expect(say({ ...late, daysFromDue: 4 }).to).toBe('/expenditure/recurring-bills/rb-1')
+
+    const chase = say({ ...recurring, reason: 'RECURRING_CHASE', occasion: 'CHASE' })
+    expect(chase.title).toBe('Chase Oman Electricity for the bill that has not arrived')
+    expect(chase.to).toBe('/expenditure/recurring-bills/rb-1')
+
+    const range = say({
+      ...recurring,
+      reason: 'RECURRING_OUT_OF_RANGE',
+      occasion: 'OUT_OF_RANGE',
+      arrivedBillId: 'b-77',
+      variancePercent: 16.67,
+    })
+    expect(range.title).toBe('Oman Electricity bill arrived outside the range')
+    expect(range.body).toBe('<b>16.67%</b> above the usual amount.')
+    expect(range.to).toBe('/expenditure/bills/b-77')
+  })
+
+  it('does not need the bill number once the supplier is named', () => {
+    // A row recorded before the server kept the number: the supplier still names it.
+    expect(say({ ...alNoor, subjectDisplay: null }).title).toBe('Al Noor Dates unpaid for 3 days')
+  })
+
+  it('keeps the earlier sentence when the supplier or the due date is not sent', () => {
+    expect(say({ daysFromDue: 9 }).title).toBe('Bill ME-991 is 9 days late')
+    expect(say({ supplierName: '  ', dueDate: '2026-09-28', daysFromDue: 9 }).title).toBe(
+      'Bill ME-991 is 9 days late',
+    )
+    // A late or due line cannot count without the date.
+    expect(say({ supplierName: 'Al Noor Dates', dueDate: null, daysFromDue: 9 }).title).toBe(
+      'Bill ME-991 is 9 days late',
+    )
+    expect(say({ supplierName: 'Al Noor Dates', dueDate: 'soon', daysFromDue: 9 }).title).toBe(
+      'Bill ME-991 is 9 days late',
+    )
+    expect(
+      say({
+        ruleType: 'BEFORE_DUE',
+        reason: 'BEFORE_DUE',
+        supplierName: 'Al Noor Dates',
+        daysFromDue: -2,
+      }).title,
+    ).toBe('Bill ME-991 is due in 2 days')
+  })
+})
+
+describe('a reminder that names its supplier, in Arabic', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('ar')
+  })
+
+  const late = (dueDate: string) => say({ supplierName: 'تمور النور', dueDate }).title
+  const due = (dueDate: string) =>
+    say({ ruleType: 'BEFORE_DUE', reason: 'BEFORE_DUE', supplierName: 'تمور النور', dueDate }).title
+  const counted = (reason: 'DISCOUNT_EXPIRY' | 'APPROVAL_STALE' | 'MISMATCH_STALE', days: number) =>
+    say({
+      ruleType: reason,
+      reason,
+      supplierName: 'تمور النور',
+      daysFromDue: reason === 'DISCOUNT_EXPIRY' ? -days : days,
+    }).title
+
+  it('says a late bill with each Arabic plural form', () => {
+    expect(late('2026-09-30')).toBe('تمور النور غير مدفوعة منذ يوم واحد')
+    expect(late('2026-09-29')).toBe('تمور النور غير مدفوعة منذ يومين')
+    expect(late('2026-09-28')).toBe('تمور النور غير مدفوعة منذ 3 أيام')
+    expect(late('2026-09-21')).toBe('تمور النور غير مدفوعة منذ 10 أيام')
+    expect(late('2026-09-20')).toBe('تمور النور غير مدفوعة منذ 11 يومًا')
+    expect(late('2026-06-23')).toBe('تمور النور غير مدفوعة منذ 100 يوم')
+  })
+
+  it('says a bill that is due with each Arabic plural form', () => {
+    expect(due('2026-10-01')).toBe('تمور النور تستحق اليوم')
+    expect(due('2026-10-02')).toBe('تمور النور تستحق غدًا')
+    expect(due('2026-10-03')).toBe('تمور النور تستحق خلال يومين')
+    expect(due('2026-10-08')).toBe('تمور النور تستحق خلال 7 أيام')
+    expect(due('2026-10-12')).toBe('تمور النور تستحق خلال 11 يومًا')
+    expect(due('2027-01-09')).toBe('تمور النور تستحق خلال 100 يوم')
+  })
+
+  it('says the discount, the approval and the mismatch with each plural form', () => {
+    expect(counted('DISCOUNT_EXPIRY', 0)).toBe('خصم تمور النور ينتهي اليوم')
+    expect(counted('DISCOUNT_EXPIRY', 1)).toBe('خصم تمور النور ينتهي غدًا')
+    expect(counted('DISCOUNT_EXPIRY', 2)).toBe('خصم تمور النور ينتهي خلال يومين')
+    expect(counted('DISCOUNT_EXPIRY', 3)).toBe('خصم تمور النور ينتهي خلال 3 أيام')
+    expect(counted('DISCOUNT_EXPIRY', 11)).toBe('خصم تمور النور ينتهي خلال 11 يومًا')
+    expect(counted('DISCOUNT_EXPIRY', 100)).toBe('خصم تمور النور ينتهي خلال 100 يوم')
+
+    expect(counted('APPROVAL_STALE', 0)).toBe('اعتماد تمور النور ينتظر')
+    expect(counted('APPROVAL_STALE', 1)).toBe('اعتماد تمور النور ينتظر يومًا واحدًا')
+    expect(counted('APPROVAL_STALE', 2)).toBe('اعتماد تمور النور ينتظر يومين')
+    expect(counted('APPROVAL_STALE', 6)).toBe('اعتماد تمور النور ينتظر 6 أيام')
+    expect(counted('APPROVAL_STALE', 11)).toBe('اعتماد تمور النور ينتظر 11 يومًا')
+    expect(counted('APPROVAL_STALE', 100)).toBe('اعتماد تمور النور ينتظر 100 يوم')
+    expect(
+      say({
+        ruleType: 'APPROVAL_STALE',
+        reason: 'APPROVAL_STALE',
+        supplierName: 'تمور النور',
+        daysFromDue: 6,
+      }).body,
+    ).toMatch(/^<b>OMR .+<\/b> معلّقة\.$/)
+
+    expect(counted('MISMATCH_STALE', 0)).toBe('اختلاف تمور النور لم يُحلّ')
+    expect(counted('MISMATCH_STALE', 1)).toBe('اختلاف تمور النور لم يُحلّ منذ يوم واحد')
+    expect(counted('MISMATCH_STALE', 2)).toBe('اختلاف تمور النور لم يُحلّ منذ يومين')
+    expect(counted('MISMATCH_STALE', 3)).toBe('اختلاف تمور النور لم يُحلّ منذ 3 أيام')
+    expect(counted('MISMATCH_STALE', 11)).toBe('اختلاف تمور النور لم يُحلّ منذ 11 يومًا')
+    expect(counted('MISMATCH_STALE', 100)).toBe('اختلاف تمور النور لم يُحلّ منذ 100 يوم')
+  })
+
+  it('says the three recurring notices', () => {
+    const recurring = {
+      ruleType: 'RECURRING_LATE',
+      subjectType: 'RECURRING_BILL',
+      subjectId: 'rb-1',
+      supplierName: 'كهرباء عُمان',
+      subjectDisplay: 'الكهرباء',
+      amount: 650,
+    } as const
+    const arriving = (days: number) =>
+      say({ ...recurring, reason: 'RECURRING_LATE', daysFromDue: days }).title
+    expect(arriving(0)).toBe('فاتورة كهرباء عُمان لم تصل')
+    expect(arriving(1)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة يومًا')
+    expect(arriving(2)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة يومين')
+    expect(arriving(4)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة 4 أيام')
+    expect(arriving(11)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة 11 يومًا')
+    expect(arriving(100)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة 100 يوم')
+    expect(say({ ...recurring, reason: 'RECURRING_CHASE' }).title).toBe(
+      'تابع كهرباء عُمان بشأن الفاتورة التي لم تصل',
+    )
+    expect(say({ ...recurring, reason: 'RECURRING_OUT_OF_RANGE' }).title).toBe(
+      'فاتورة كهرباء عُمان وصلت خارج النطاق',
+    )
+  })
+
+  it('leaves no key and no English showing for any kind or any count', () => {
+    const reasons = [
+      'BEFORE_DUE',
+      'LATE',
+      'DISCOUNT_EXPIRY',
+      'APPROVAL_STALE',
+      'MISMATCH_STALE',
+      'RECURRING_LATE',
+      'RECURRING_CHASE',
+      'RECURRING_OUT_OF_RANGE',
+    ] as const
+    for (const reason of reasons) {
+      for (const days of [0, 1, 2, 3, 11, 100]) {
+        for (const dueDate of ['2026-09-20', '2026-10-01', '2026-10-02', '2026-10-20']) {
+          const line = say({
+            reason,
+            ruleType: (reason.startsWith('RECURRING')
+              ? 'RECURRING_LATE'
+              : reason) as ReminderInboxItemDto['ruleType'],
+            supplierName: 'تمور النور',
+            dueDate,
+            daysFromDue: reason === 'BEFORE_DUE' || reason === 'DISCOUNT_EXPIRY' ? -days : days,
+          })
+          expect(line.title, `${reason} ${days} ${dueDate}`).not.toMatch(/notes\.|[A-Za-z]{3,}/)
+          expect(line.title).toContain('تمور النور')
         }
       }
     }

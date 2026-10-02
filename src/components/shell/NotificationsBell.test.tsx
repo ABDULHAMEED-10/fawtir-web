@@ -322,6 +322,52 @@ describe('the count on the bell', () => {
   })
 })
 
+describe('the lines when the server names the supplier and sends the due date', () => {
+  /** The business day (Muscat, UTC+4) that is `days` from today, as the server writes a date. */
+  const dayFromToday = (days: number) =>
+    new Date(Date.now() + 4 * 3_600_000 + days * 86_400_000).toISOString().slice(0, 10)
+
+  const named = () => [
+    // Recorded on its first day late; the bill has gone unpaid nine days by now.
+    { ...LATE, daysFromDue: 1, supplierName: 'Al Noor Dates', dueDate: dayFromToday(-9) },
+    { ...DUE, daysFromDue: -7, supplierName: 'Sohar Packaging', dueDate: dayFromToday(3) },
+    { ...RENT, supplierName: 'Muscat Property', dueDate: null },
+  ]
+
+  it('names the supplier, and counts a late bill from its due date as of today', async () => {
+    inbox = named()
+    renderBell()
+    const panel = await openPanel()
+
+    const late = (await within(panel).findByText('Al Noor Dates unpaid for 9 days')).closest('li')!
+    expect(late.textContent).toContain('411.500 still to pay.')
+    expect(within(panel).getByText('Sohar Packaging due in 3 days')).toBeTruthy()
+    expect(within(panel).getByText('Muscat Property bill not arrived, 4 days late')).toBeTruthy()
+    // The bill's own number and the stored count are not what the line says any more.
+    expect(panel.textContent).not.toMatch(/ME-991|1 day late|due in 7 days|day\(s\)/)
+
+    fireEvent.click(within(late).getByRole('button', { name: 'Open the bill' }))
+    expect(screen.getByTestId('where').textContent).toBe('/expenditure/bills/b-1')
+  })
+
+  it('says the same in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    inbox = named()
+    renderBell()
+    fireEvent.click(screen.getByRole('button', { name: /^الإشعارات/ }))
+    const panel = await screen.findByRole('dialog', { name: 'الإشعارات' })
+
+    const late = (await within(panel).findByText('Al Noor Dates غير مدفوعة منذ 9 أيام')).closest(
+      'li',
+    )!
+    expect(late.textContent).toContain('لم تُسدَّد بعد.')
+    expect(within(late).getByRole('button', { name: 'افتح الفاتورة' })).toBeTruthy()
+    expect(within(panel).getByText('Sohar Packaging تستحق خلال 3 أيام')).toBeTruthy()
+    expect(within(panel).getByText('فاتورة Muscat Property لم تصل، متأخرة 4 أيام')).toBeTruthy()
+    expect(panel.textContent ?? '').not.toMatch(/notes\.|unpaid|due in|not arrived|still to pay/)
+  })
+})
+
 describe('the icon on a bill reminder', () => {
   it('is the Bills icon the sidebar shows, the same file, for every kind of reminder', async () => {
     inbox = [LATE, DUE, RENT]
@@ -479,7 +525,7 @@ describe('reading a line', () => {
     expect(await go('Electricity arrived outside its usual range', 'Open the bill')).toBe(
       '/expenditure/bills/b-77',
     )
-    expect(await go('receipt-12.jpg has waited 2 days to be confirmed', 'Check and save')).toBe(
+    expect(await go('receipt-12.jpg unconfirmed for 2 days', 'Check and save')).toBe(
       '/expenditure/bills/upload/in-7',
     )
     await waitFor(() => expect(called('POST', /\/acknowledge$/)).toHaveLength(3))

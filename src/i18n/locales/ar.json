@@ -14708,12 +14708,12 @@
         "days_other": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يوم"
       },
       "SCAN_UNCONFIRMED": {
-        "now": "{{name}} بانتظار التأكيد",
-        "days_one": "{{name}} بانتظار التأكيد منذ يوم واحد",
-        "days_two": "{{name}} بانتظار التأكيد منذ يومين",
-        "days_few": "{{name}} بانتظار التأكيد منذ {{count}} أيام",
-        "days_many": "{{name}} بانتظار التأكيد منذ {{count}} يومًا",
-        "days_other": "{{name}} بانتظار التأكيد منذ {{count}} يوم"
+        "now": "{{name}} لم يُؤكَّد بعد",
+        "days_one": "{{name}} لم يُؤكَّد منذ يوم واحد",
+        "days_two": "{{name}} لم يُؤكَّد منذ يومين",
+        "days_few": "{{name}} لم يُؤكَّد منذ {{count}} أيام",
+        "days_many": "{{name}} لم يُؤكَّد منذ {{count}} يومًا",
+        "days_other": "{{name}} لم يُؤكَّد منذ {{count}} يوم"
       },
       "RECURRING_LATE": {
         "now": "لم تصل {{name}} بعد",
@@ -14733,7 +14733,63 @@
         "owed": "<b>{{amount}}</b> لم تُسدَّد بعد.",
         "usual": "المبلغ المعتاد <b>{{amount}}</b>.",
         "above": "أعلى من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>.",
-        "below": "أقل من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>."
+        "below": "أقل من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>.",
+        "heldUp": "<b>{{amount}}</b> معلّقة."
+      },
+      "supplier": {
+        "BEFORE_DUE": {
+          "now": "{{supplier}} تستحق اليوم",
+          "days_one": "{{supplier}} تستحق غدًا",
+          "days_two": "{{supplier}} تستحق خلال يومين",
+          "days_few": "{{supplier}} تستحق خلال {{count}} أيام",
+          "days_many": "{{supplier}} تستحق خلال {{count}} يومًا",
+          "days_other": "{{supplier}} تستحق خلال {{count}} يوم"
+        },
+        "LATE": {
+          "days_one": "{{supplier}} غير مدفوعة منذ يوم واحد",
+          "days_two": "{{supplier}} غير مدفوعة منذ يومين",
+          "days_few": "{{supplier}} غير مدفوعة منذ {{count}} أيام",
+          "days_many": "{{supplier}} غير مدفوعة منذ {{count}} يومًا",
+          "days_other": "{{supplier}} غير مدفوعة منذ {{count}} يوم"
+        },
+        "DISCOUNT_EXPIRY": {
+          "now": "خصم {{supplier}} ينتهي اليوم",
+          "days_one": "خصم {{supplier}} ينتهي غدًا",
+          "days_two": "خصم {{supplier}} ينتهي خلال يومين",
+          "days_few": "خصم {{supplier}} ينتهي خلال {{count}} أيام",
+          "days_many": "خصم {{supplier}} ينتهي خلال {{count}} يومًا",
+          "days_other": "خصم {{supplier}} ينتهي خلال {{count}} يوم"
+        },
+        "APPROVAL_STALE": {
+          "now": "اعتماد {{supplier}} ينتظر",
+          "days_one": "اعتماد {{supplier}} ينتظر يومًا واحدًا",
+          "days_two": "اعتماد {{supplier}} ينتظر يومين",
+          "days_few": "اعتماد {{supplier}} ينتظر {{count}} أيام",
+          "days_many": "اعتماد {{supplier}} ينتظر {{count}} يومًا",
+          "days_other": "اعتماد {{supplier}} ينتظر {{count}} يوم"
+        },
+        "MISMATCH_STALE": {
+          "now": "اختلاف {{supplier}} لم يُحلّ",
+          "days_one": "اختلاف {{supplier}} لم يُحلّ منذ يوم واحد",
+          "days_two": "اختلاف {{supplier}} لم يُحلّ منذ يومين",
+          "days_few": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} أيام",
+          "days_many": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يومًا",
+          "days_other": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يوم"
+        },
+        "RECURRING_LATE": {
+          "now": "فاتورة {{supplier}} لم تصل",
+          "days_one": "فاتورة {{supplier}} لم تصل، متأخرة يومًا",
+          "days_two": "فاتورة {{supplier}} لم تصل، متأخرة يومين",
+          "days_few": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} أيام",
+          "days_many": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يومًا",
+          "days_other": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يوم"
+        },
+        "RECURRING_CHASE": {
+          "title": "تابع {{supplier}} بشأن الفاتورة التي لم تصل"
+        },
+        "RECURRING_OUT_OF_RANGE": {
+          "title": "فاتورة {{supplier}} وصلت خارج النطاق"
+        }
       }
     },
     "unreadable": "تعذّرت قراءة التذكيرات. أعد التحميل للمحاولة مجددًا."
