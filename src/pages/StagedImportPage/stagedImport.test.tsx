@@ -555,7 +555,9 @@ describe('The staged import, wired to the API', () => {
       )
     })
 
-    it('says a file whose header is not the template’s was refused, in both languages', async () => {
+    it('says a file whose header is not the template’s was refused, never in the server’s English', async () => {
+      // No sentence on the import screen says "this is not the template", so the code reads as
+      // the general refusal until the owner words one.
       const usual = fetchMock.getMockImplementation()!
       fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
         url.endsWith('/import/check')
@@ -570,16 +572,12 @@ describe('The staged import, wired to the API', () => {
       )
       renderImport()
       await uploadFile()
-      expect(
-        await screen.findByText(
-          "This file's header row doesn't match Fawtir's template. Download the template and keep its header row.",
-        ),
-      ).toBeTruthy()
-      // The server's English detail is for logs, never for the screen.
+      expect(await screen.findByText(/The server refused this\. Nothing was changed/)).toBeTruthy()
+      // The server's English detail and the code are for logs, never for the screen.
       expect(screen.queryByText(/Nickname/)).toBeNull()
-      expect(i18n.t('stagedImport.refused.headerNotRecognised', { lng: 'ar' })).toBe(
-        'صف العناوين في هذا الملف لا يطابق قالب فوتر. نزّل القالب وأبقِ صف العناوين كما هو.',
-      )
+      expect(screen.queryByText(/SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED/)).toBeNull()
+      // Nothing was checked: the upload step is still there.
+      expect(screen.queryByRole('heading', { level: 1, name: 'Check before importing' })).toBeNull()
     })
   })
 
