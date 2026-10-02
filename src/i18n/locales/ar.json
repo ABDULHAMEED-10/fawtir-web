@@ -1043,7 +1043,8 @@
         "bundles": "الحزم",
         "priceRules": "قواعد الأسعار"
       },
-      "lockedOn": "متاح في باقة {{plan}}"
+      "lockedOn": "متاح في باقة {{plan}}",
+      "billRemindersUnread": "تذكيرات الفواتير، {{count}} غير مقروءة"
     },
     "account": {
       "premiumPlan": "الخطة المميزة",

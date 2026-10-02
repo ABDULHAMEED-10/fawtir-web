@@ -453,6 +453,15 @@ export function useNotes(scope: NoteScope = 'tenant') {
   }
 }
 
+/**
+ * The reader's unread bill reminders, for anything that shows the bell's number somewhere else
+ * (the Bills entry of the sidebar). It reads the bell's store and asks nothing itself: the bell
+ * does the asking, so the two always show one number. 0 when there is nobody's inbox to read.
+ */
+export function useUnreadReminders(): number {
+  return useSyncExternalStore(subscribe, () => (state.owner === null ? 0 : state.unread))
+}
+
 /** A note's values ready for `t()` — dates written out in the reader's language ("29 September"). */
 export function noteValues(note: Note, language: string) {
   const short = note.dates === 'short'

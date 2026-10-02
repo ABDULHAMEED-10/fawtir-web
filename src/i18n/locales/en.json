@@ -1040,7 +1040,8 @@
         "bundles": "Bundles",
         "priceRules": "Price Rules"
       },
-      "lockedOn": "Available on {{plan}}"
+      "lockedOn": "Available on {{plan}}",
+      "billRemindersUnread": "Bill reminders, {{count}} unread"
     },
     "account": {
       "premiumPlan": "Premium plan",

@@ -11,6 +11,7 @@ import {
   type NavGroup,
   type NavItem,
 } from '../../lib/dashboard'
+import { useUnreadReminders } from '../../lib/notifications'
 import { can, useSession } from '../../lib/session/session'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
@@ -19,6 +20,10 @@ import { BrandLogo } from '../../components/BrandLogo'
 import { AccountSwitcher, UserMenu } from '../../components/shell'
 import avatar from '../../assets/dashboard/avatar.png'
 import chevron from '../../assets/dashboard/chevron.svg'
+
+/** The sidebar's count: the 18px round badge the design draws beside Income and TDD & OTA. */
+const NAV_BADGE =
+  'inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white'
 
 type SidebarNavItemProps = {
   to: string
@@ -88,11 +93,7 @@ function SidebarNavItem({ to, Icon, label, badge, active, onClick, locked }: Sid
           {label}
         </span>
       </span>
-      {badge != null && !locked ? (
-        <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white">
-          {badge}
-        </span>
-      ) : null}
+      {badge != null && !locked ? <span className={NAV_BADGE}>{badge}</span> : null}
       {locked ? <LockGlyph lock={locked} /> : null}
     </Link>
   )
@@ -147,6 +148,10 @@ function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
   const groupLock = lockFor(plan, item.feature)
   const groupActive = isGroupActive(location.pathname, item) && !groupLock
   const [open, setOpen] = useState(groupActive)
+  // The bell's own number, from the bell's own read: the two cannot disagree, and nothing more
+  // is asked of the server. Nothing unread, nobody's inbox to read, or a read that did not
+  // answer, all come back as 0 and no badge is drawn.
+  const unreadReminders = useUnreadReminders()
 
   useEffect(() => {
     if (groupActive) setOpen(true)
@@ -180,11 +185,7 @@ function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
             {t(item.labelKey)}
           </span>
         </span>
-        {item.badge != null && !groupLock ? (
-          <span className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-extrabold leading-none text-white">
-            {item.badge}
-          </span>
-        ) : null}
+        {item.badge != null && !groupLock ? <span className={NAV_BADGE}>{item.badge}</span> : null}
         {/* The lock takes the chevron's slot: a parent label is never clipped, and the row still
             opens on click so the reader can see what the group holds. */}
         {groupLock ? (
@@ -205,6 +206,7 @@ function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
           {item.children.map((child: NavChild) => {
             const lock = groupLock ?? lockFor(plan, child.feature)
             const childActive = isPathActive(location.pathname, child.to) && !lock
+            const count = child.count === 'billReminders' && !lock ? unreadReminders : 0
             return (
               <Link
                 key={child.id}
@@ -221,6 +223,17 @@ function ExpandableNavItem({ item, plan }: { item: NavItem; plan: AnyPlanId }) {
                 ].join(' ')}
               >
                 <span className="min-w-0 flex-1 truncate">{t(child.labelKey)}</span>
+                {count > 0 ? (
+                  <>
+                    {/* One figure, as on the bell; the label says the count in full. */}
+                    <span data-nav-count aria-hidden="true" className={NAV_BADGE}>
+                      {count > 9 ? '9+' : count}
+                    </span>
+                    <span className="sr-only">
+                      {t('dashboard.nav.billRemindersUnread', { count })}
+                    </span>
+                  </>
+                ) : null}
                 {lock ? <LockGlyph lock={lock} /> : null}
               </Link>
             )
