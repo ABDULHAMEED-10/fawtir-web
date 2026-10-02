@@ -429,6 +429,69 @@ describe('Bills list, wired to the API', () => {
     expect(within(resolved).queryByText('Mismatch found')).toBeNull()
   })
 
+  // The state the server sends for it (contract note, Round 7). Approve and the nudge are offered
+  // from the approvals (`readiness.state: PENDING`), never from the word "Mismatch": here they
+  // would answer APPROVAL_TRANSITION_INVALID and BILL_APPROVAL_NOT_PENDING.
+  it('offers a look at the difference, and neither Approve nor a nudge, on an approved bill that reads Mismatch', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            {
+              ...bill({
+                workflowState: 'MISMATCH',
+                readiness: {
+                  state: 'READY',
+                  distinctApprovals: 1,
+                  required: 1,
+                  autoApproved: false,
+                },
+                match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-0001', byHand: false },
+              }),
+              approval: 'APPROVED',
+            },
+          ]),
+        ),
+    ]
+    renderBills()
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    expect(within(row).getByText('Mismatch found')).toBeTruthy()
+    expect(within(row).getByText('Differs from the order')).toBeTruthy()
+    expect(within(row).queryByText(/Waiting on approval/)).toBeNull()
+    expect(within(row).getByRole('link', { name: 'Review the difference' })).toBeTruthy()
+    expect(within(row).queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Nudge the approver' })).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: 'Bill actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Approve' })).toBeNull()
+    // Holding it and rejecting it are still there.
+    expect(screen.getByRole('menuitem', { name: 'Put on hold' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Reject' })).toBeTruthy()
+    // No approve or nudge call was made.
+    expect(
+      fetchMock.mock.calls.some(([url]) => /\/approval\/(approve|nudge)/.test(String(url))),
+    ).toBe(false)
+    // The mapping itself: an approved mismatch is never approvable, whoever is reading.
+    const item = toBillListItem(
+      bill({
+        workflowState: 'MISMATCH',
+        readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+        match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-0001', byHand: false },
+      }),
+    )
+    expect(item.canApprove).toBe(false)
+    expect(rowActionOf(item, { canApprove: true, canCapture: true })).toBe('reviewDifference')
+    // And an unapproved mismatch is still not approved from the list: its difference is looked at first.
+    const pending = toBillListItem(
+      bill({
+        workflowState: 'MISMATCH',
+        readiness: { state: 'PENDING', distinctApprovals: 0, required: 1, autoApproved: false },
+        match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-0001', byHand: false },
+      }),
+    )
+    expect(rowActionOf(pending, { canApprove: true, canCapture: true })).toBe('reviewDifference')
+  })
+
   it('offers Approve only on a new or awaiting bill, never on a mismatch, and names the approvals still needed', async () => {
     listResponses = [
       () =>

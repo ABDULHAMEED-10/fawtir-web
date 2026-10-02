@@ -939,6 +939,73 @@ describe('A bill, wired to the API', () => {
     })
   }
 
+  // The state the server sends for it (contract note, Round 7): one approver required, one person
+  // approved, the verdict still a mismatch. Approve is offered from the approvals, never from the
+  // word "Mismatch", or the click would answer APPROVAL_TRANSITION_INVALID.
+  it('offers the match actions, and no Approve, on a bill one person approved that still reads Mismatch', async () => {
+    const oneOfOne = { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } as const
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: oneOfOne,
+          bill: {
+            ...detail().bill,
+            workflowState: 'MISMATCH',
+            // Sent beside the state; the page reads the approvals from `readiness`.
+            approval: 'APPROVED',
+            readiness: oneOfOne,
+            match: {
+              ...detail().bill.match!,
+              verdict: 'MISMATCH',
+              summary: '3 KGM more than we received on Arabica beans',
+            },
+          },
+        }),
+      )
+    renderBill()
+    const title = await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(within(title.parentElement as HTMLElement).getByText('Mismatch found')).toBeTruthy()
+    // Nothing left to approve, in the header or in the decision panel; nobody to nudge.
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Nudge/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    // The way forward is the match: change it or take it off.
+    expect(screen.getByRole('button', { name: 'Change the match' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove the match' })).toBeTruthy()
+    // What it says: the difference, in the page's own words, and that it was approved.
+    expect(screen.getByRole('heading', { name: 'This bill differs from the order' })).toBeTruthy()
+    expect(screen.getByText('3 KGM more than we received on Arabica beans')).toBeTruthy()
+    const decision = screen.getByRole('heading', { name: 'Your decision' }).closest('section')!
+    expect(within(decision).getByText('This bill differs from the order')).toBeTruthy()
+    expect(screen.queryByText(/Approved for payment\./)).toBeNull()
+    expect(screen.queryByText(/It can be paid\./)).toBeNull()
+    expect(screen.queryByText(/Waiting for approval/)).toBeNull()
+    const steps = stepsOf(
+      detail({
+        readiness: oneOfOne,
+        bill: {
+          ...detail().bill,
+          workflowState: 'MISMATCH',
+          match: { ...detail().bill.match!, verdict: 'MISMATCH' },
+        },
+      }),
+      { day: (iso) => iso, instantDay: (iso) => iso },
+    )
+    expect(steps.find((step) => step.id === 'matched')).toMatchObject({
+      state: 'current',
+      detail: { key: 'billDetail.steps.differs' },
+    })
+    expect(steps.find((step) => step.id === 'approved')).toMatchObject({
+      state: 'done',
+      detail: { key: 'billDetail.steps.approvedDone' },
+    })
+    // Rejecting it and putting it on hold are still the reader's to choose.
+    expect(within(decision).getByRole('button', { name: 'Query it' })).toBeTruthy()
+    expect(within(decision).getByRole('button', { name: 'Put on hold' })).toBeTruthy()
+  })
+
   it('does not say a bill approved by its amount can be paid while it differs from its order', () => {
     const byAmount = { ...APPROVED, distinctApprovals: 0, autoApproved: true }
     const approved = detail({ readiness: byAmount })
