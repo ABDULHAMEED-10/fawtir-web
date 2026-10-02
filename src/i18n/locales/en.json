@@ -16067,7 +16067,7 @@
       "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
       "reminderRepeatNotAllowed": "That reminder does not repeat.",
       "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
-      "reminderDaysOutOfRange": "That number of days is outside the range the server accepts."
+      "reminderDaysOutOfRange": "That number of days isn't allowed here."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",

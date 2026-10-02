@@ -900,7 +900,14 @@ describe('a save the server refuses', () => {
     await i18n.changeLanguage('ar')
     forced = { ...forced, body: { ...forced.body, error: 'REMINDER_RULE_OFFSET_OUT_OF_RANGE' } }
     fireEvent.click(await screen.findByRole('button', { name: 'حفظ التغييرات' }))
-    expect(await screen.findByText('عدد الأيام هذا خارج المدى الذي يقبله الخادم.')).toBeTruthy()
+    expect(await screen.findByText('هذا العدد من الأيام غير مسموح هنا.')).toBeTruthy()
+
+    // The same refusal in English, and the same sentence for a day count refused on the escalation.
+    await i18n.changeLanguage('en')
+    forced = { ...forced, body: { ...forced.body, error: 'REMINDER_RULE_ESCALATION_OUT_OF_RANGE' } }
+    fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText("That number of days isn't allowed here.")).toBeTruthy()
+    expect(screen.queryByText(/the server/)).toBeNull()
   })
 
   it('does not go on to save the settings when the rules were refused', async () => {

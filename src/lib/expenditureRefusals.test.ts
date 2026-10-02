@@ -63,13 +63,14 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
         'One of the people chosen is no longer on the team. Choose again.',
         'أحد الأشخاص المختارين لم يعد ضمن الفريق. اختر من جديد.',
       ],
+      // The owner's sentence of 2 Oct: it does not tell the reader about "the server".
       REMINDER_RULE_OFFSET_OUT_OF_RANGE: [
-        'That number of days is outside the range the server accepts.',
-        'عدد الأيام هذا خارج المدى الذي يقبله الخادم.',
+        "That number of days isn't allowed here.",
+        'هذا العدد من الأيام غير مسموح هنا.',
       ],
       REMINDER_RULE_ESCALATION_OUT_OF_RANGE: [
-        'That number of days is outside the range the server accepts.',
-        'عدد الأيام هذا خارج المدى الذي يقبله الخادم.',
+        "That number of days isn't allowed here.",
+        'هذا العدد من الأيام غير مسموح هنا.',
       ],
     }
     for (const [code, [english, arabic]] of Object.entries(sentences)) {
