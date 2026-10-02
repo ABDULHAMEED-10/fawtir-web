@@ -31,7 +31,7 @@ import { RecurringBillDetailPage } from '../RecurringBillDetailPage/RecurringBil
 import { NewRecurringBillPage } from '../NewRecurringBillPage/NewRecurringBillPage'
 
 /**
- * The owner-approved Recurring bills items of 1 Oct 2026 (Decisions-Abdul-Answers, items 23 to
+ * The owner-approved Recurring bills items of 1 Oct 2026 (items 23 to
  * 32) and the audit's web fixes (REC-05, REC-14), against the backend contract of the same day.
  */
 
