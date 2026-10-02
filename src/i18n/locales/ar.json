@@ -14724,7 +14724,7 @@
         "days_other": "تأخر وصول {{name}} {{count}} يوم"
       },
       "RECURRING_CHASE": {
-        "title": "يُرجى متابعة المورد بشأن {{name}}"
+        "title": "يُرجى متابعة المورّد بشأن {{name}}"
       },
       "RECURRING_OUT_OF_RANGE": {
         "title": "وصلت {{name}} خارج نطاقها المعتاد"

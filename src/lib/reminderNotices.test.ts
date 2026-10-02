@@ -386,7 +386,7 @@ describe('the same lines in Arabic', () => {
       'تأخر وصول إيجار المكتب 4 أيام',
     )
     expect(say({ ...recurring, reason: 'RECURRING_CHASE' }).title).toBe(
-      'يُرجى متابعة المورد بشأن إيجار المكتب',
+      'يُرجى متابعة المورّد بشأن إيجار المكتب',
     )
     expect(say({ ...recurring, reason: 'RECURRING_OUT_OF_RANGE' }).title).toBe(
       'وصلت إيجار المكتب خارج نطاقها المعتاد',
