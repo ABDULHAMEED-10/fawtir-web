@@ -614,7 +614,7 @@ describe('an honest chase (item 25)', () => {
   it('says both answers in Arabic as approved', async () => {
     await i18n.changeLanguage('ar')
     expect(i18n.t('recurringBills.done.chasedTold', { name: 'يوسف' })).toBe(
-      'تم إبلاغ يوسف لمطالبة المورد.',
+      'تم إبلاغ يوسف لمطالبة المورّد.',
     )
     expect(i18n.t('recurringBills.done.chasedNobody')).toBe(
       'لم يُبلَّغ أحد. اختر من يُبلَّغ في هذه الفاتورة المتكررة.',
@@ -1368,7 +1368,7 @@ describe('a save the server refuses, on the add and edit form', () => {
     [
       'RECURRING_BILL_SUPPLIER_SWITCHED_OFF',
       'This supplier is switched off. Switch it back on to add a recurring bill for it.',
-      'هذا المورد موقوف. أعد تفعيله لإضافة فاتورة متكررة له.',
+      'هذا المورّد موقوف. أعد تفعيله لإضافة فاتورة متكررة له.',
     ],
     [
       'RECURRING_BILL_RECIPIENT_UNKNOWN',

@@ -67,7 +67,7 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     )
     await i18n.changeLanguage('ar')
     expect(i18n.t(describeApiFailure(held).key)).toBe(
-      'في هذه الدفعة فاتورة موقوفة. ارفع الإيقاف عنها أو أخرجها من الدفعة أولًا.',
+      'في هذه الدفعة فاتورة قيد الانتظار. أفرج عنها أو أخرجها من الدفعة أولًا.',
     )
     await i18n.changeLanguage('en')
     // The payment run screens are outside this round and keep the sentence they already had.

@@ -382,7 +382,7 @@ describe('The staged import, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderImport()
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'استيراد الموردين من ملف' }),
+      await screen.findByRole('heading', { level: 1, name: 'استيراد المورّدين من ملف' }),
     ).toBeTruthy()
     await uploadFile()
     expect(
