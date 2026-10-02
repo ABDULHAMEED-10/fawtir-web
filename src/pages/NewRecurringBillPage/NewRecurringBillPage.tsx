@@ -118,6 +118,10 @@ function RecurringBillForm({ id }: { id: string | null }) {
   const [seeded, setSeeded] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<RecurringField, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
+  // The earliest "Watching from" the server would take for the save it just refused
+  // (`RECURRING_BILL_WATCHING_FROM_TOO_EARLY`). It follows the cadence and the arrival day that
+  // were sent, so it is only known from the refusal, and is forgotten when any of the three moves.
+  const [earliestWatchingFrom, setEarliestWatchingFrom] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const canManage = can(session, 'invoice.payment.manage')
@@ -168,6 +172,8 @@ function RecurringBillForm({ id }: { id: string | null }) {
 
   const set = (changes: Partial<RecurringForm>) => {
     setForm((current) => ({ ...current, ...changes }))
+    if ('watchingFrom' in changes || 'interval' in changes || 'arrivesAroundDay' in changes)
+      setEarliestWatchingFrom(null)
     setErrors((current) => {
       const next = { ...current }
       for (const key of Object.keys(changes) as RecurringField[]) delete next[key]
@@ -189,6 +195,7 @@ function RecurringBillForm({ id }: { id: string | null }) {
     const problems = recurringProblems(form)
     setErrors(problems)
     setFailure(null)
+    setEarliestWatchingFrom(null)
     if (Object.keys(problems).length > 0 || busy) return
     setBusy(true)
     try {
@@ -200,7 +207,16 @@ function RecurringBillForm({ id }: { id: string | null }) {
       navigate(`/expenditure/recurring-bills/${saved.id}`, { replace: true })
     } catch (error) {
       const code = error instanceof ApiError ? error.code : null
-      if (code && RECURRING_FORM_REFUSALS[code]) {
+      const earliest = error instanceof ApiError ? error.problem.earliestWatchingFrom : null
+      if (
+        code === 'RECURRING_BILL_WATCHING_FROM_TOO_EARLY' &&
+        typeof earliest === 'string' &&
+        earliest
+      ) {
+        // Said on the field, with the date the server names (owner's answer 13, 2 Oct 2026).
+        // Nothing was saved: the form stays as it is.
+        setEarliestWatchingFrom(earliest)
+      } else if (code && RECURRING_FORM_REFUSALS[code]) {
         setFailure(t(RECURRING_FORM_REFUSALS[code]))
       } else {
         const message = describeApiFailure(error)
@@ -233,6 +249,12 @@ function RecurringBillForm({ id }: { id: string | null }) {
       {errors[name] ? (
         <p role="alert" className="text-xs font-medium text-danger-700">
           {t(errors[name]!)}
+        </p>
+      ) : name === 'watchingFrom' && earliestWatchingFrom ? (
+        <p role="alert" className="text-xs font-medium text-danger-700">
+          {t('recurringBills.refused.watchingFromTooEarly', {
+            date: formatDate(earliestWatchingFrom, language),
+          })}
         </p>
       ) : null}
     </div>
