@@ -1054,8 +1054,19 @@ describe('bill detail mapping', () => {
   })
 })
 
-// Draft wording, pending the owner (Wording-For-Abdul.md section 1). A correction there changes
-// the sentences below with it.
+/**
+ * A sentence that prints money: the rial sign is drawn in place of "OMR" (which stays in the page
+ * for a screen reader), so the sentence is one paragraph whose text reads "OMR 1,354.310" around
+ * a no-break space, with the drawn sign inside it.
+ */
+async function moneySentence(dialog: HTMLElement, text: string): Promise<HTMLElement> {
+  const sentence = await within(dialog).findByText(
+    (_, element) => element?.tagName === 'P' && element.textContent === text,
+  )
+  expect(sentence.querySelector('svg')).toBeTruthy()
+  return sentence
+}
+
 describe('why a bill was refused, in its own sentence', () => {
   const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
     json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
@@ -1100,8 +1111,9 @@ describe('why a bill was refused, in its own sentence', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
 
     // The figure is the one the dialog's subtitle prints, and nothing is sent.
-    const sentence = await within(dialog).findByText(
-      'That is more than this bill still owes. The most you can record is 2,354.310.',
+    const sentence = await moneySentence(
+      dialog,
+      'That is more than this bill still owes. The most you can record is OMR\u00A02,354.310.',
     )
     expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
     expect(within(dialog).queryByText(/on this invoice/)).toBeNull()
@@ -1110,11 +1122,10 @@ describe('why a bill was refused, in its own sentence', () => {
     await act(async () => {
       await i18n.changeLanguage('ar')
     })
-    expect(
-      await within(dialog).findByText(
-        'هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله 2,354.310.',
-      ),
-    ).toBeTruthy()
+    await moneySentence(
+      dialog,
+      'هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله OMR\u00A02,354.310.',
+    )
   })
 
   // The dialog refuses an amount above the figure it holds before asking, so a refusal from the
@@ -1125,21 +1136,34 @@ describe('why a bill was refused, in its own sentence', () => {
       currency: 'OMR',
     })
     const dialog = await pay()
-    const sentence = await within(dialog).findByText(
-      'That is more than this bill still owes. The most you can record is 1,354.310.',
+    const sentence = await moneySentence(
+      dialog,
+      'That is more than this bill still owes. The most you can record is OMR\u00A01,354.310.',
     )
     expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
-    expect(within(dialog).queryByText(/2,354\.310\.$/)).toBeNull()
+    expect(sentence.textContent).not.toContain('2,354.310')
     expect(within(dialog).queryByText(GENERIC)).toBeNull()
 
     await act(async () => {
       await i18n.changeLanguage('ar')
     })
-    expect(
-      await within(dialog).findByText(
-        'هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله 1,354.310.',
-      ),
-    ).toBeTruthy()
+    await moneySentence(
+      dialog,
+      'هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله OMR\u00A01,354.310.',
+    )
+  })
+
+  // The sign is the rial's: a bill in another currency names its own code and its own decimals.
+  it('prints a figure in another currency with that currency, not with the rial sign', async () => {
+    actionResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', {
+      outstandingAmount: 1354.3,
+      currency: 'USD',
+    })
+    const dialog = await pay()
+    const sentence = await within(dialog).findByText(
+      'That is more than this bill still owes. The most you can record is USD 1,354.30.',
+    )
+    expect(sentence.querySelector('svg')).toBeNull()
   })
 
   it('names no "most" when the server says nothing is left to pay', async () => {
