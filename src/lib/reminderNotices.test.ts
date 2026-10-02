@@ -6,7 +6,9 @@ import { isAcknowledged, reasonOf, reminderNote, whenOf } from './reminderNotice
 
 /**
  * The sentence the bell writes for each kind of bill reminder, in both languages, from the fields
- * the inbox sends. Every sentence here is a draft pending the owner's approval of the wording.
+ * the inbox sends. The first groups are an entry that carries no supplier's name, which is worded
+ * around the bill's number, the file's name or the recurring bill's name; the groups at the end
+ * are the entry as the server sends it now, which names the supplier.
  */
 
 const NOW = new Date('2026-10-01T09:00:00Z') // 13:00 in Muscat
