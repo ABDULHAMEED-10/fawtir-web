@@ -34,6 +34,12 @@ export type ImportBatchRowDto = {
    */
   onFile?: { id: string; displayName: string; supplier: boolean } | null
   /**
+   * The server's own word that this row's counterparty is already on file, on either import. Such
+   * a row is never brought in. Absent from a server that predates it: the page then tells it from
+   * `onFile`, and failing that from the verdict's sentence (`isAlreadyOnFile` in lib/stagedImport).
+   */
+  alreadyOnFile?: boolean
+  /**
    * The line under the name in the review ("Net 30 · rustaq@timber.om"). The server does not send
    * it. TODO(owner): it could be written from `cells`, but which of the VAT number, the terms and
    * the e-mail it names, in what order, and what it says when one is missing is not decided
@@ -70,6 +76,11 @@ export type ImportBatchDto = {
     needsALook: number
     cannotImport: number
     wouldImport: number
+    /**
+     * How many rows are already on file, for the review's "N already on file". Absent from a
+     * server that predates it: the page counts the rows it tells so itself.
+     */
+    alreadyOnFile?: number
     /**
      * How many of the ready rows are on Peppol; the review's first card says so. The server does
      * not send it; the page counts it from `cells` (`readyOnPeppol` in lib/stagedImport).

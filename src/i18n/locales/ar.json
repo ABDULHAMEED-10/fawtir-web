@@ -18391,7 +18391,12 @@
     "empty": "فارغ",
     "refused": {
       "headerNotRecognised": "صف العناوين في هذا الملف لا يطابق قالب فوتر. نزّل القالب وأبقِ صف العناوين كما هو."
-    }
+    },
+    "alreadyOnFile_one": "صف واحد مسجّل مسبقًا",
+    "alreadyOnFile_two": "صفّان مسجّلان مسبقًا",
+    "alreadyOnFile_few": "{{count}} صفوف مسجّلة مسبقًا",
+    "alreadyOnFile_many": "{{count}} صفًا مسجّلًا مسبقًا",
+    "alreadyOnFile_other": "{{count}} صف مسجّل مسبقًا"
   },
   "paymentReminders": {
     "backToHistory": "← التذكيرات المرسلة",

@@ -17617,7 +17617,9 @@
     "empty": "Empty",
     "refused": {
       "headerNotRecognised": "This file's header row doesn't match Fawtir's template. Download the template and keep its header row."
-    }
+    },
+    "alreadyOnFile_one": "{{count}} already on file",
+    "alreadyOnFile_other": "{{count}} already on file"
   },
   "paymentReminders": {
     "backToHistory": "← Reminders sent",

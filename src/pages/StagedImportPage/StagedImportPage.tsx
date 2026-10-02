@@ -34,6 +34,7 @@ import {
   IMPORT_ROUTES,
   IMPORT_TABS,
   alreadyOnFile,
+  alreadyOnFileCount,
   batchBlocker,
   comingIn,
   commitSelection,
@@ -117,6 +118,7 @@ function StagedImport({ target }: { target: ImportTarget }) {
     namedColumns ?? (columnsRead.read.status === 'ready' ? columnsRead.read.data : null)
   const onPeppol = batch ? readyOnPeppol(batch, columns) : null
   const blocker = useMemo(() => (batch ? batchBlocker(batch, new Date()) : null), [batch])
+  const onFileCount = batch ? alreadyOnFileCount(batch) : 0
 
   if (!can(session, 'customer.import')) {
     return (
@@ -514,7 +516,14 @@ function StagedImport({ target }: { target: ImportTarget }) {
                     total: batch.totalRows,
                   })}
                 </span>{' '}
-                {t('stagedImport.leftOut', { count: batch.totalRows - comingIn(batch, keep) })}
+                {/* Rows already on file are counted on their own (owner's Round 5 answer 9): they
+                    cannot be brought in, so "unless you fix them" is not said of them. */}
+                {onFileCount > 0
+                  ? `· ${t('stagedImport.alreadyOnFile', { count: onFileCount })} `
+                  : null}
+                {t('stagedImport.leftOut', {
+                  count: Math.max(0, batch.totalRows - comingIn(batch, keep) - onFileCount),
+                })}
               </p>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Link
@@ -666,8 +675,9 @@ function ImportRow({
                 : t('stagedImport.action.bringItIn')}
           </button>
         ) : onFile ? (
-          // Its VAT number or Peppol ID is on another record, so it cannot come in: the row names
-          // that record instead of offering "Bring in anyway".
+          // Its VAT number or Peppol ID is on another record, so it cannot come in and has no
+          // button (hidden, not disabled): the row says so, and names that record when the
+          // server names one that has a page.
           onFile.to ? (
             <Link
               to={onFile.to}

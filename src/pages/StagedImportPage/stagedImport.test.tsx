@@ -6,6 +6,7 @@ import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitl
 import type { ImportBatchDto } from '../../api/counterpartyImport'
 import {
   alreadyOnFile,
+  alreadyOnFileCount,
   batchBlocker,
   commitSelection,
   comingIn,
@@ -13,6 +14,7 @@ import {
   fileProblem,
   importable,
   initialSelection,
+  isAlreadyOnFile,
   problemNote,
   problemValue,
   readyOnPeppol,
@@ -215,44 +217,46 @@ describe('The staged import, wired to the API', () => {
     expect(within(screen.getByRole('tab', { name: /Ready/ })).getByText('2')).toBeTruthy()
     expect(screen.getByText('Rustaq Timber Trading')).toBeTruthy()
     expect(screen.getByText('Ten digits — an Oman VATIN has twelve')).toBeTruthy()
-    // Three of four would come in; the refused row is never sent.
-    expect(screen.getByText('3 of 4 would come in')).toBeTruthy()
+    // Two of four would come in; the refused row and the row already on file are never sent.
+    expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
     expect(calls('POST', '/api/v1/suppliers/import/' + BATCH_ID + '/commit')).toHaveLength(0)
   })
 
   it('brings in every importable row by default, and only the ticked ones after a change', async () => {
+    commitResponse = () => json(200, { batchId: BATCH_ID, selected: 2, created: 2, skipped: 2 })
     renderImport()
     await uploadFile()
     await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bring in 3 suppliers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
     await waitFor(() =>
       expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
     )
     // Every importable row kept, and still named one by one: the rows sent are the rows ticked.
+    // Row 3 is already on file, so it is not among them.
     expect(
       JSON.parse(String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[0][1]?.body)),
-    ).toEqual({ rowNumbers: [3, 4, 5] })
-    expect(await screen.findByRole('heading', { name: '3 suppliers brought in' })).toBeTruthy()
-    expect(screen.getByText('3 chosen, 1 left out.')).toBeTruthy()
+    ).toEqual({ rowNumbers: [4, 5] })
+    expect(await screen.findByRole('heading', { name: '2 suppliers brought in' })).toBeTruthy()
+    expect(screen.getByText('2 chosen, 2 left out.')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Import another file' }))
     await uploadFile()
-    fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: /^Ready/ }))
     // The frame keeps or drops a row from its own button, not a tick box.
     fireEvent.click(
-      within(screen.getByText('Sohar Packaging LLC').closest('tr')!).getByRole('button', {
+      within(screen.getByText('Barka Glass Works').closest('tr')!).getByRole('button', {
         name: 'Leave it out',
       }),
     )
-    expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+    expect(screen.getByText('1 of 4 would come in')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Bring in 1 supplier' }))
     await waitFor(() =>
       expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(2),
     )
     expect(
       JSON.parse(String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[1][1]?.body)),
-    ).toEqual({ rowNumbers: [4, 5] })
+    ).toEqual({ rowNumbers: [5] })
   })
 
   describe('a row whose VAT number is already on file', () => {
@@ -308,11 +312,11 @@ describe('The staged import, wired to the API', () => {
       expect(ready.getByRole('button', { name: 'Bring it in' })).toBeTruthy()
     })
 
-    it('still offers "Bring in anyway" on a row worth a look that names no record on file', async () => {
+    it('still offers "Bring in anyway" on a row worth a look that is not on file: one that repeats a row of the file', async () => {
+      batch = REPEATS
       renderImport()
       await uploadFile()
       fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
-      fireEvent.click(soharRow().getByRole('button', { name: 'Leave it out' }))
       expect(soharRow().getByRole('button', { name: 'Bring in anyway' })).toBeTruthy()
       expect(soharRow().queryByText('Already on file')).toBeNull()
     })
@@ -387,7 +391,7 @@ describe('The staged import, wired to the API', () => {
       await uploadFile()
       expect(await screen.findByText('Everything checks out.')).toBeTruthy()
       expect(boxOf('Rustaq Timber Trading').value).toBe('')
-      expect(screen.getByText('3 of 4 would come in')).toBeTruthy()
+      expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
     })
 
     it('prefers the server’s own value and count when it sends them', () => {
@@ -703,11 +707,172 @@ describe('The staged import, wired to the API', () => {
     })
   })
 
+  // Owner's Round 5 answer 9 (2 Oct): rows already on file stay unticked and cannot be ticked, and
+  // are counted as "{n} already on file". One page, so it holds for suppliers and customers alike.
+  describe('rows already on file, on either import', () => {
+    const soharRow = () => within(screen.getByText('Sohar Packaging LLC').closest('tr')!)
+    const commitBody = (target: 'suppliers' | 'customers') =>
+      JSON.parse(String(calls('POST', `/api/v1/${target}/import/${BATCH_ID}/commit`)[0][1]?.body))
+
+    it('offers no way to bring in a customer row the check says is on file, and never sends it', async () => {
+      // The customer import names no record (`onFile` is always null): the verdict's sentence says it.
+      batch = {
+        ...BATCH,
+        target: 'CUSTOMER',
+        rows: BATCH.rows.map((row) => ({ ...row, onFile: null })),
+      }
+      commitResponse = () => json(200, { batchId: BATCH_ID, selected: 2, created: 2, skipped: 2 })
+      renderImport('customers')
+      const input = await waitFor(() => {
+        const found = document.querySelector('input[type=file]') as HTMLInputElement | null
+        expect(found).toBeTruthy()
+        return found!
+      })
+      fireEvent.change(input, { target: { files: [csvFile('customers.csv')] } })
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      // The row stays in view, with its sentence and "Already on file" where its button was.
+      expect(
+        soharRow().getByText(
+          'You already have a counterparty with this VAT number. Bringing it in again would give you two.',
+        ),
+      ).toBeTruthy()
+      expect(soharRow().getByText('Already on file')).toBeTruthy()
+      expect(soharRow().queryByRole('button')).toBeNull()
+      expect(soharRow().queryByRole('link')).toBeNull()
+      expect(soharRow().queryByRole('checkbox')).toBeNull()
+      expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
+      expect(screen.getByText(/· 1 already on file/)).toBeTruthy()
+      // The refused row is the one left out; the row on file is counted on its own.
+      expect(screen.getByText(/· 1 left out unless you fix it/)).toBeTruthy()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 customers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/customers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(commitBody('customers')).toEqual({ rowNumbers: [4, 5] })
+    })
+
+    it('does the same for a supplier batch from a server that names no record on file', async () => {
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      expect(soharRow().getByText('Already on file')).toBeTruthy()
+      expect(soharRow().queryByRole('button')).toBeNull()
+      expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
+      expect(screen.getByText(/· 1 already on file/)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(commitBody('suppliers')).toEqual({ rowNumbers: [4, 5] })
+    })
+
+    it('takes the server\'s own word for a row, and its own count, when it sends them', async () => {
+      batch = {
+        ...BATCH,
+        rows: BATCH.rows.map((row) =>
+          row.rowNumber === 4 ? { ...row, alreadyOnFile: true } : { ...row, alreadyOnFile: false },
+        ),
+        counts: { ...BATCH.counts, alreadyOnFile: 7 },
+      }
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /^All/ }))
+      const barka = within(screen.getByText('Barka Glass Works').closest('tr')!)
+      expect(barka.getByText('Already on file')).toBeTruthy()
+      expect(barka.queryByRole('button')).toBeNull()
+      // The row the sentence would have named is not on file, says the server: it keeps its button.
+      expect(soharRow().getByRole('button', { name: 'Leave it out' })).toBeTruthy()
+      expect(screen.getByText(/· 7 already on file/)).toBeTruthy()
+    })
+
+    it('says nothing about rows on file when there are none', async () => {
+      batch = REPEATS
+      renderImport()
+      await uploadFile()
+      await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
+      expect(screen.queryByText(/already on file/)).toBeNull()
+      expect(screen.getByText('2 of 3 would come in')).toBeTruthy()
+    })
+
+    it('counts them in Arabic on the approved term, in each of its plural forms', async () => {
+      const said = (count: number) => i18n.t('stagedImport.alreadyOnFile', { count, lng: 'ar' })
+      expect(said(1)).toBe('صف واحد مسجّل مسبقًا')
+      expect(said(2)).toBe('صفّان مسجّلان مسبقًا')
+      expect(said(3)).toBe('3 صفوف مسجّلة مسبقًا')
+      expect(said(11)).toBe('11 صفًا مسجّلًا مسبقًا')
+      expect(said(100)).toBe('100 صف مسجّل مسبقًا')
+      expect(i18n.t('stagedImport.alreadyOnFile', { count: 1, lng: 'en' })).toBe('1 already on file')
+      expect(i18n.t('stagedImport.alreadyOnFile', { count: 4, lng: 'en' })).toBe('4 already on file')
+      await i18n.changeLanguage('ar')
+      renderImport()
+      await uploadFile()
+      expect(await screen.findByText(/· صف واحد مسجّل مسبقًا/)).toBeTruthy()
+    })
+
+    // The file the owner was shown: a good row, one on file, a pair sharing a VAT number, and a
+    // row with no name.
+    it('reads true on the finish screen for the five-row file', async () => {
+      const row = (rowNumber: number, displayName: string | null) => ({
+        ...BATCH.rows[2],
+        rowNumber,
+        displayName,
+      })
+      batch = {
+        ...BATCH,
+        totalRows: 5,
+        rows: [
+          row(2, 'Good Trading LLC'),
+          {
+            ...row(3, 'On File LLC'),
+            severity: 'NEEDS_A_LOOK',
+            field: 'vatRegistrationNumber',
+            message: 'A counterparty with this VAT number is already on file',
+            onFile: { id: 'on-file-1', displayName: 'On File LLC', supplier: true },
+          },
+          row(4, 'Pair First LLC'),
+          {
+            ...row(5, 'Pair Second LLC'),
+            severity: 'NEEDS_A_LOOK',
+            field: 'vatRegistrationNumber',
+            message:
+              'Row 4 of this file has the same VAT number, and only one of them can be brought in',
+          },
+          {
+            ...row(6, null),
+            severity: 'CANNOT_IMPORT',
+            field: 'legalName',
+            message: 'Legal name is required',
+          },
+        ],
+        counts: { ready: 2, needsALook: 2, cannotImport: 1, wouldImport: 2 },
+      }
+      // What the server answers for the two rows that go out: both created, the other three skipped.
+      commitResponse = () => json(200, { batchId: BATCH_ID, selected: 2, created: 2, skipped: 3 })
+      renderImport()
+      await uploadFile()
+      await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
+      expect(screen.getByText('2 of 5 would come in')).toBeTruthy()
+      expect(screen.getByText(/· 1 already on file/)).toBeTruthy()
+      // The repeat (which can still be brought in by hand) and the nameless row.
+      expect(screen.getByText(/· 2 left out unless you fix them/)).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(commitBody('suppliers')).toEqual({ rowNumbers: [2, 4] })
+      expect(await screen.findByRole('heading', { name: '2 suppliers brought in' })).toBeTruthy()
+      expect(screen.getByText('2 chosen, 3 left out.')).toBeTruthy()
+      // Nothing chosen failed, so nothing is said to have changed since the check.
+      expect(screen.queryByText(/could not be created after all/)).toBeNull()
+    })
+  })
+
   it('says when fewer rows were created than were chosen', async () => {
-    commitResponse = () => json(200, { batchId: BATCH_ID, selected: 3, created: 2, skipped: 1 })
+    commitResponse = () => json(200, { batchId: BATCH_ID, selected: 2, created: 1, skipped: 3 })
     renderImport()
     await uploadFile()
-    fireEvent.click(await screen.findByRole('button', { name: 'Bring in 3 suppliers' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Bring in 2 suppliers' }))
     expect(await screen.findByText(/1 row could not be created after all/)).toBeTruthy()
   })
 
@@ -743,7 +908,7 @@ describe('The staged import, wired to the API', () => {
     await uploadFile()
     expect(await screen.findByText(/it has expired/)).toBeTruthy()
     expect(
-      (screen.getByRole('button', { name: 'Bring in 3 suppliers' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Bring in 2 suppliers' }) as HTMLButtonElement).disabled,
     ).toBe(true)
   })
 
@@ -764,11 +929,12 @@ describe('The staged import, wired to the API', () => {
     const input = document.querySelector('input[type=file]') as HTMLInputElement
     fireEvent.change(input, { target: { files: [csvFile('customers.csv')] } })
     await waitFor(() => expect(calls('POST', '/api/v1/customers/import/check')).toHaveLength(1))
-    fireEvent.click(await screen.findByRole('button', { name: 'Bring in 3 customers' }))
-    expect(await screen.findByRole('heading', { name: '3 customers brought in' })).toBeTruthy()
+    commitResponse = () => json(200, { batchId: BATCH_ID, selected: 2, created: 2, skipped: 2 })
+    fireEvent.click(await screen.findByRole('button', { name: 'Bring in 2 customers' }))
+    expect(await screen.findByRole('heading', { name: '2 customers brought in' })).toBeTruthy()
     expect(
       JSON.parse(String(calls('POST', `/api/v1/customers/import/${BATCH_ID}/commit`)[0][1]?.body)),
-    ).toEqual({ rowNumbers: [3, 4, 5] })
+    ).toEqual({ rowNumbers: [4, 5] })
     expect(screen.getByRole('link', { name: 'See your customers' }).getAttribute('href')).toBe(
       '/customers',
     )
@@ -817,12 +983,44 @@ describe('staged import helpers', () => {
     expect(alreadyOnFile(batch.rows[2])).toBeNull()
   })
 
+  it('tells a row on file by the server\'s flag, then the record it names, then its sentence', () => {
+    const sentence = BATCH.rows[1] // "A counterparty with this VAT number is already on file"
+    const ready = BATCH.rows[2]
+    // The sentence alone: the customer import, and a supplier server from before `onFile`.
+    expect(isAlreadyOnFile(sentence)).toBe(true)
+    expect(isAlreadyOnFile({ ...sentence, onFile: null })).toBe(true)
+    expect(importable(sentence)).toBe(false)
+    expect(alreadyOnFile(sentence)).toEqual({ to: null })
+    // The record it names.
+    expect(
+      isAlreadyOnFile({ ...ready, onFile: { id: 'x', displayName: 'X', supplier: true } }),
+    ).toBe(true)
+    // The flag, when the server sends it, is the answer either way.
+    expect(isAlreadyOnFile({ ...ready, alreadyOnFile: true })).toBe(true)
+    expect(alreadyOnFile({ ...ready, alreadyOnFile: true })).toEqual({ to: null })
+    expect(isAlreadyOnFile({ ...sentence, alreadyOnFile: false })).toBe(false)
+    expect(importable({ ...sentence, alreadyOnFile: false })).toBe(true)
+    // Not a refused row that happens to say so, and not a row that repeats another row of the file.
+    expect(isAlreadyOnFile(ready)).toBe(false)
+    expect(isAlreadyOnFile(REPEATS.rows[1])).toBe(false)
+    expect(isAlreadyOnFile({ ...sentence, severity: 'CANNOT_IMPORT' })).toBe(false)
+
+    // Never kept, never sent, whatever is ticked.
+    expect([...initialSelection(BATCH)]).toEqual([4, 5])
+    expect(commitSelection(BATCH, new Set([3, 4, 5]))).toEqual([4, 5])
+    expect(comingIn(BATCH, new Set([3, 4, 5]))).toBe(2)
+    // The count: the server's when it sends one, else the rows told above.
+    expect(alreadyOnFileCount(BATCH)).toBe(1)
+    expect(alreadyOnFileCount(REPEATS)).toBe(0)
+    expect(alreadyOnFileCount({ ...BATCH, counts: { ...BATCH.counts, alreadyOnFile: 7 } })).toBe(7)
+  })
+
   it('always sends the ticked rows as a list, every importable row included', () => {
     const all = initialSelection(BATCH)
-    expect([...all].sort()).toEqual([3, 4, 5])
-    // A file with no repeats: the same rows as before, now named.
-    expect(commitSelection(BATCH, all)).toEqual([3, 4, 5])
-    expect(commitSelection(BATCH, new Set([4, 5]))).toEqual([4, 5])
+    expect([...all].sort()).toEqual([4, 5])
+    // A file with no repeats: every importable row, named.
+    expect(commitSelection(BATCH, all)).toEqual([4, 5])
+    expect(commitSelection(BATCH, new Set([5]))).toEqual([5])
     // A refused row is never sent, even if something ticks it.
     expect(commitSelection(BATCH, new Set([2, 4, 5]))).toEqual([4, 5])
     expect(comingIn(BATCH, new Set([4]))).toBe(1)
@@ -852,12 +1050,12 @@ describe('staged import helpers', () => {
     expect(commitSelection(REPEATS, initialSelection(REPEATS))).toEqual([2, 4])
     // Two ticked, as many as `wouldImport`, and not the server's two: the list still goes out.
     expect(commitSelection(REPEATS, new Set([2, 3]))).toEqual([2, 3])
-    // The row shows the owner's sentence; a row already on file is ticked as it was before.
+    // The row shows the owner's sentence; a row already on file is never ticked.
     expect(problemNote(REPEATS.rows[1])).toEqual({
       key: 'stagedImport.problem.repeatsRowVat',
       values: { row: 2 },
     })
-    expect([...initialSelection(BATCH)]).toEqual([3, 4, 5])
+    expect([...initialSelection(BATCH)]).toEqual([4, 5])
   })
 
   it('splits the rows into the buckets the server gave', () => {

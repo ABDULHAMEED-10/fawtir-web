@@ -33,18 +33,45 @@ export function tabCount(batch: ImportBatchDto, tab: ImportTabId): number {
   return batch.counts[tab]
 }
 
+/** The check's verdict on a row whose VAT number or Peppol ID another record already holds. */
+const ALREADY_ON_FILE = /already on file/i
+
 /**
- * A row that can be brought in. A refused row is never sent, whatever is ticked; nor is a row
- * whose VAT number or Peppol ID is already on file, since the server would only skip it.
+ * Whether the counterparty in this row is already on file (owner's Round 5 answer 9, 2 Oct 2026:
+ * such a row stays left out and cannot be brought in). The server's own `alreadyOnFile` says so
+ * when it sends it. Without it, the record the row names (`onFile`, suppliers) does, and failing
+ * that the verdict's sentence: the customer import names no record, and neither does an older
+ * supplier server.
  */
-export function importable(row: ImportBatchRowDto): boolean {
-  return row.severity !== 'CANNOT_IMPORT' && !row.onFile
+export function isAlreadyOnFile(row: ImportBatchRowDto): boolean {
+  if (typeof row.alreadyOnFile === 'boolean') return row.alreadyOnFile
+  if (row.onFile) return true
+  return row.severity === 'NEEDS_A_LOOK' && row.message !== null && ALREADY_ON_FILE.test(row.message)
 }
 
-/** The record a row duplicates, and its page when it has one (a supplier's; the import is theirs). */
+/**
+ * A row that can be brought in. A refused row is never sent, whatever is ticked; nor is a row
+ * whose counterparty is already on file, since the server would only skip it.
+ */
+export function importable(row: ImportBatchRowDto): boolean {
+  return row.severity !== 'CANNOT_IMPORT' && !isAlreadyOnFile(row)
+}
+
+/**
+ * A row already on file, and the page of the record it duplicates when the server names one that
+ * has a page (a supplier's; the import is theirs). Null for any other row.
+ */
 export function alreadyOnFile(row: ImportBatchRowDto): { to: string | null } | null {
-  if (!row.onFile) return null
-  return { to: row.onFile.supplier ? `/suppliers/${encodeURIComponent(row.onFile.id)}` : null }
+  if (!isAlreadyOnFile(row)) return null
+  return {
+    to: row.onFile?.supplier ? `/suppliers/${encodeURIComponent(row.onFile.id)}` : null,
+  }
+}
+
+/** How many rows are already on file: the server's count when it sends one, else the rows told so. */
+export function alreadyOnFileCount(batch: ImportBatchDto): number {
+  if (typeof batch.counts.alreadyOnFile === 'number') return batch.counts.alreadyOnFile
+  return batch.rows.filter(isAlreadyOnFile).length
 }
 
 /**
@@ -173,7 +200,7 @@ export type ProblemNote =
  */
 export function problemNote(row: ImportBatchRowDto): ProblemNote | null {
   if (!row.message) return null
-  if (row.severity === 'NEEDS_A_LOOK' && /already on file/i.test(row.message)) {
+  if (row.severity === 'NEEDS_A_LOOK' && ALREADY_ON_FILE.test(row.message)) {
     return {
       key:
         row.field === 'vatRegistrationNumber'
