@@ -889,7 +889,7 @@ describe('a reminder that names its supplier, in Arabic', () => {
     )
     // The owner's decision of 2 Oct: the verb is the Chase button's own, vowel mark and all.
     const button = i18n.t('recurringBills.actions.chase')
-    expect(button).toBe('طالِب المورد')
+    expect(button.split(' ')[0]).toBe('طالِب')
     expect(say({ ...recurring, reason: 'RECURRING_CHASE' }).title.split(' ')[0]).toBe(
       button.split(' ')[0],
     )

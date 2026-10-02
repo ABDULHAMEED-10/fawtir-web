@@ -244,7 +244,11 @@ describe('the count on the Bills entry of the sidebar', () => {
       </MemoryRouter>,
     )
     await screen.findByText('the bills page')
-    const entry = () => within(nav()).getByRole('link', { name: /^فواتير الموردين/ })
+    // The entry's own label, read from the locale: the sidebar's wording is not this test's to fix.
+    const label = i18n.t('dashboard.nav.expenditureChildren.bills')
+    expect(label).not.toContain('dashboard.')
+    const named = new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    const entry = () => within(nav()).getByRole('link', { name: named })
     await waitFor(() => expect(entry().querySelector('[data-nav-count]')?.textContent).toBe('3'))
     expect(entry().textContent).toContain('تذكيرات الفواتير، 3 غير مقروءة')
     expect(entry().textContent ?? '').not.toMatch(/dashboard\.|unread/)
