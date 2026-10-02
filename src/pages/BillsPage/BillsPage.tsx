@@ -151,8 +151,7 @@ const REFUSALS: Record<string, string> = {
 }
 
 /**
- * Why a nudge was refused, as its own sentence. Draft wording, pending the owner
- * (Wording-For-Abdul.md, "Nudging the approver").
+ * Why a nudge was refused, as its own sentence.
  */
 const NUDGE_REFUSALS: Record<string, string> = {
   BILL_NUDGE_ALREADY_SENT: 'billsPage.nudge.alreadySent',
