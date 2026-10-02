@@ -487,8 +487,9 @@ function UploadDocument() {
               <h2 className="text-base font-medium leading-[1.2] text-text-primary">
                 {t('documents.upload.keepTitle')}
               </h2>
-              {/* Sent as `keep`. TODO(backend): a dated deletion behind the frame's third choice,
-                  "Until a date I choose" (ask 3.14); it is not offered until the server has one. */}
+              {/* Sent as `keep`. TODO(backend): DOCUMENTS.md row 3.30. A chosen date and a deletion
+                  job behind the frame's third choice, "Until a date I choose"; it stays hidden
+                  until the server has them (owner's Round 5 answer 2, 2 Oct 2026). */}
               <div
                 className="mt-4 flex flex-col gap-2.5"
                 role="radiogroup"

@@ -120,7 +120,8 @@ export function documentRemovable(entry: SupplierDocumentDto, today: string): bo
  * The upload screen's "How long to keep it" choices the server has a rule for (Figma 154:140599).
  * The frame's third choice, "Until a date I choose", has nothing behind it (no dated deletion, no
  * date field), so it is not offered: hidden, not disabled, and no value is sent for it.
- * TODO(backend): DOCUMENTS.md row 3.14, a dated deletion.
+ * TODO(backend): DOCUMENTS.md row 3.30, a chosen date and a deletion job (owner's Round 5
+ * answer 2, 2 Oct 2026: it stays hidden until then).
  */
 export type KeepChoice = 'forever' | 'matchInvoice'
 
