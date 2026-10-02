@@ -68,6 +68,9 @@ const REFUSALS: Record<string, string> = {
   REMINDER_RULE_OFFSET_OUT_OF_RANGE: 'apiErrors.refused.reminderDaysOutOfRange',
   REMINDER_RULE_ESCALATION_OUT_OF_RANGE: 'apiErrors.refused.reminderDaysOutOfRange',
 
+  // Checking a supplier import file whose header row is neither template's.
+  SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED: 'stagedImport.refused.headerNotRecognised',
+
   // Bills and payments reachable from the same screens.
   BILL_NOT_FOUND: 'apiErrors.refused.billNotFound',
   BILL_NOT_READY_FOR_PAYMENT: 'apiErrors.refused.billNotReadyForPayment',

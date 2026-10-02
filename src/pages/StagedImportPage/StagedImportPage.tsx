@@ -11,15 +11,15 @@ import {
 } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
+  FALLBACK_COLUMNS_PATH,
   IMPORT_MAX_BYTES,
   checkImport,
   commitImport,
   downloadFailedRows,
   downloadImportTemplate,
   importBatchPath,
-  importTemplatePath,
+  loadFallbackColumns,
   loadImportBatch,
-  loadImportColumns,
   type ImportBatchDto,
   type ImportBatchRowDto,
   type ImportCommitResultDto,
@@ -105,12 +105,16 @@ function StagedImport({ target }: { target: ImportTarget }) {
     batchId ? () => loadImportBatch(target, batchId) : undefined,
   )
   const batch = read.read.status === 'ready' ? read.read.data : null
-  // The template's column order, which is the order of every row's `cells`: read with the review,
-  // so the field box and the first card can say what the file holds. Without it they say less.
-  const columnsRead = useApiRead<string[]>(batch ? importTemplatePath(target) : null, () =>
-    loadImportColumns(target),
+  // The order of every row's `cells`, so the field box and the first card can say what the file
+  // holds: the batch's own `columns` when it names them (a file in the supplier template), and
+  // otherwise the customer template's keys, read with the review. Without either they say less.
+  const namedColumns = batch?.columns ?? null
+  const columnsRead = useApiRead<string[]>(
+    batch && !namedColumns ? FALLBACK_COLUMNS_PATH : null,
+    loadFallbackColumns,
   )
-  const columns = columnsRead.read.status === 'ready' ? columnsRead.read.data : null
+  const columns =
+    namedColumns ?? (columnsRead.read.status === 'ready' ? columnsRead.read.data : null)
   const onPeppol = batch ? readyOnPeppol(batch, columns) : null
   const blocker = useMemo(() => (batch ? batchBlocker(batch, new Date()) : null), [batch])
 
@@ -156,7 +160,7 @@ function StagedImport({ target }: { target: ImportTarget }) {
     setNotice(null)
     try {
       saveDownload(
-        await downloadImportTemplate(target),
+        await downloadImportTemplate(target, language),
         `fawtir-${target.toLowerCase()}-template.csv`,
       )
     } catch (error) {
@@ -169,7 +173,7 @@ function StagedImport({ target }: { target: ImportTarget }) {
     setNotice(null)
     try {
       saveDownload(
-        await downloadFailedRows(target, batch.id),
+        await downloadFailedRows(target, batch.id, language),
         `${target.toLowerCase()}-rows-that-failed.csv`,
       )
     } catch (error) {
@@ -547,7 +551,14 @@ function StagedImport({ target }: { target: ImportTarget }) {
   )
 }
 
-const NAME_FIELDS = new Set(['legalRegisteredName', 'entityMinistryName', 'firstName', 'lastName'])
+const NAME_FIELDS = new Set([
+  'legalRegisteredName',
+  'entityMinistryName',
+  'firstName',
+  'lastName',
+  // The supplier template's name column.
+  'legalName',
+])
 
 function ImportRow({
   row,

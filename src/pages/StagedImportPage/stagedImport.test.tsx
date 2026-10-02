@@ -148,13 +148,14 @@ beforeEach(async () => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.endsWith('/import/check') && method === 'POST') return json(200, batch)
-    if (url.endsWith('/import/template'))
+    // The supplier template is asked for in a language; the customer one is not.
+    if (/\/import\/template(\?language=(en|ar))?$/.test(url))
       return new Response(templateCsv, {
         status: 200,
         headers: { 'Content-Type': 'text/csv' },
       })
     if (url.endsWith(`/import/${BATCH_ID}/commit`)) return commitResponse()
-    if (url.endsWith(`/import/${BATCH_ID}/failed.csv`))
+    if (url.split('?')[0].endsWith(`/import/${BATCH_ID}/failed.csv`))
       return new Response('customerType\n', {
         status: 200,
         headers: { 'Content-Type': 'text/csv' },
@@ -368,7 +369,10 @@ describe('The staged import, wired to the API', () => {
       templateCsv = `${COLUMNS}\n`
       renderImport()
       await uploadFile()
-      await waitFor(() => expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(1))
+      // A batch that names no columns is a customer-shaped file: its cells follow the customer
+      // template, which is what is read (the supplier template is now a row of labels).
+      await waitFor(() => expect(calls('GET', '/api/v1/customers/import/template')).toHaveLength(1))
+      expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(0)
       expect(await screen.findByText('Everything checks out.')).toBeTruthy()
       expect(boxOf('Rustaq Timber Trading').value).toBe('')
     })
@@ -377,7 +381,7 @@ describe('The staged import, wired to the API', () => {
       batch = withCells()
       const usual = fetchMock.getMockImplementation()!
       fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
-        url.endsWith('/import/template') ? json(500, { status: 500 }) : usual(url, init),
+        url.includes('/import/template') ? json(500, { status: 500 }) : usual(url, init),
       )
       renderImport()
       await uploadFile()
@@ -403,6 +407,179 @@ describe('The staged import, wired to the API', () => {
       expect(readyOnPeppol(withCells(), null)).toBeNull()
       expect(readyOnPeppol(withCells(), ['customerType'])).toBeNull()
       expect(readyOnPeppol(BATCH, columns)).toBeNull()
+    })
+  })
+
+  // Owner's answer 5 (2 Oct): the supplier template is the supplier form's fields, in English or
+  // Arabic, and a checked batch names its own columns.
+  describe('the supplier template’s own columns', () => {
+    const COLUMNS = [
+      'type',
+      'legalName',
+      'vatRegistrationNumber',
+      'peppolParticipantId',
+      'bankIban',
+      'contactPerson',
+    ]
+    const supplierBatch = (): ImportBatchDto => ({
+      ...BATCH,
+      columns: COLUMNS,
+      rows: [
+        {
+          ...BATCH.rows[0],
+          displayName: 'Bad Iban Co',
+          field: 'bankIban',
+          message: 'IBAN check digits do not match; check it for a typo',
+          cells: ['BUSINESS', 'Bad Iban Co', 'OM1100003554', '', 'OM60 0180 0000 1234', 'Salim'],
+        },
+        {
+          ...BATCH.rows[1],
+          cells: ['BUSINESS', 'Sohar Packaging LLC', 'OM1100628391', '', '', 'Huda'],
+        },
+        {
+          ...BATCH.rows[2],
+          cells: ['BUSINESS', 'Barka Glass Works', 'OM1100300211', '0248:OM1100300211', '', 'Ali'],
+        },
+        {
+          ...BATCH.rows[3],
+          field: null,
+          cells: ['GOVERNMENT', 'Ibri Motors', '', '', '', 'Said'],
+        },
+      ],
+    })
+    const boxOf = (name: string) =>
+      within(screen.getByText(name).closest('tr')!).getByRole('textbox') as HTMLInputElement
+
+    it('reads the column order from the batch, and asks for no template to learn it', async () => {
+      batch = supplierBatch()
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(boxOf('Bad Iban Co').value).toBe('OM60 0180 0000 1234'))
+      expect(
+        await screen.findByText('Everything checks out. 1 of them are on Peppol.'),
+      ).toBeTruthy()
+      expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(0)
+      expect(calls('GET', '/api/v1/customers/import/template')).toHaveLength(0)
+    })
+
+    it('names the supplier form’s fields in the reader’s language', async () => {
+      expect(fieldLabel('type')).toEqual({ key: 'newSupplier.sections.supplierType' })
+      expect(fieldLabel('legalName')).toEqual({ key: 'supplierEdit.legalName' })
+      expect(fieldLabel('tradingName')).toEqual({ key: 'supplierEdit.tradingName' })
+      expect(fieldLabel('commercialRegistrationNumber')).toEqual({
+        key: 'supplierEdit.commercialRegistration',
+      })
+      expect(fieldLabel('country')).toEqual({ key: 'supplierEdit.country' })
+      expect(fieldLabel('registeredOnPeppol')).toEqual({ key: 'supplierEdit.onPeppol' })
+      expect(fieldLabel('autoMatchPurchaseOrders')).toEqual({ key: 'supplierEdit.autoMatch' })
+      expect(fieldLabel('earlyPaymentDiscountPercent')).toEqual({ key: 'supplierForm.earlyPercent' })
+      expect(fieldLabel('earlyPaymentDiscountDays')).toEqual({ key: 'supplierForm.earlyDays' })
+      expect(fieldLabel('contactPerson')).toEqual({ key: 'supplierEdit.mainContact' })
+      expect(fieldLabel('streetName')).toEqual({ key: 'supplierEdit.address' })
+      expect(fieldLabel('cityName')).toEqual({ key: 'addressContact.city' })
+      expect(fieldLabel('governorate')).toEqual({ key: 'addressContact.governorate' })
+      expect(fieldLabel('postalCode')).toEqual({ key: 'addressContact.postalCode' })
+      expect(fieldLabel('supplierCategory')).toEqual({ key: 'supplierEdit.category' })
+      expect(fieldLabel('tags')).toEqual({ key: 'supplierEdit.tags' })
+      // Every one of them has words in both languages.
+      for (const field of [...COLUMNS, 'tags', 'governorate', 'earlyPaymentDiscountDays']) {
+        const label = fieldLabel(field) as { key: string }
+        expect(i18n.t(label.key, { lng: 'en' }), field).not.toBe(label.key)
+        expect(i18n.t(label.key, { lng: 'ar' }), field).not.toBe(label.key)
+      }
+
+      batch = {
+        ...supplierBatch(),
+        rows: supplierBatch().rows.map((row, index) =>
+          index === 0
+            ? { ...row, field: 'contactPerson', message: 'Contact person is required' }
+            : row,
+        ),
+      }
+      renderImport()
+      await uploadFile()
+      const row = within((await screen.findByText('Bad Iban Co')).closest('tr')!)
+      expect(row.getByText('Main contact')).toBeTruthy()
+      await waitFor(() => expect(boxOf('Bad Iban Co').value).toBe('Salim'))
+    })
+
+    it('asks for the template in the page’s language', async () => {
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      const first = renderImport()
+      fireEvent.click(await screen.findByRole('button', { name: 'Download the template' }))
+      await waitFor(() => expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(1))
+      expect(String(calls('GET', '/api/v1/suppliers/import/template')[0][0])).toBe(
+        '/api/v1/suppliers/import/template?language=en',
+      )
+      first.unmount()
+
+      await i18n.changeLanguage('ar')
+      renderImport()
+      fireEvent.click(
+        await screen.findByRole('button', { name: i18n.t('stagedImport.downloadTemplate') }),
+      )
+      await waitFor(() => expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(2))
+      expect(String(calls('GET', '/api/v1/suppliers/import/template')[1][0])).toBe(
+        '/api/v1/suppliers/import/template?language=ar',
+      )
+    })
+
+    it('asks for the rows that failed in the page’s language', async () => {
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      await i18n.changeLanguage('ar')
+      batch = supplierBatch()
+      renderImport()
+      await uploadFile()
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: i18n.t('stagedImport.downloadFailed', { count: 1 }),
+        }),
+      )
+      await waitFor(() =>
+        expect(calls('GET', `/api/v1/suppliers/import/${BATCH_ID}/failed.csv`)).toHaveLength(1),
+      )
+      expect(String(calls('GET', `/api/v1/suppliers/import/${BATCH_ID}/failed.csv`)[0][0])).toBe(
+        `/api/v1/suppliers/import/${BATCH_ID}/failed.csv?language=ar`,
+      )
+    })
+
+    it('leaves the customer template and its failed rows as they were: no language', async () => {
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      who = { ...IMPORTER }
+      batch = { ...BATCH, target: 'CUSTOMER' }
+      renderImport('customers')
+      fireEvent.click(await screen.findByRole('button', { name: 'Download the template' }))
+      await waitFor(() => expect(calls('GET', '/api/v1/customers/import/template')).toHaveLength(1))
+      expect(String(calls('GET', '/api/v1/customers/import/template')[0][0])).toBe(
+        '/api/v1/customers/import/template',
+      )
+    })
+
+    it('says a file whose header is not the template’s was refused, in both languages', async () => {
+      const usual = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        url.endsWith('/import/check')
+          ? json(400, {
+              type: 'https://api.fawtir.om/problems/expenditure-refused',
+              status: 400,
+              detail:
+                'Supplier CSV header does not match the supplier template: "Nickname" is not a column of the supplier template. Download the template and keep its header row',
+              error: 'SUPPLIER_IMPORT_HEADER_NOT_RECOGNISED',
+            })
+          : usual(url, init),
+      )
+      renderImport()
+      await uploadFile()
+      expect(
+        await screen.findByText(
+          "This file's header row doesn't match Fawtir's template. Download the template and keep its header row.",
+        ),
+      ).toBeTruthy()
+      // The server's English detail is for logs, never for the screen.
+      expect(screen.queryByText(/Nickname/)).toBeNull()
+      expect(i18n.t('stagedImport.refused.headerNotRecognised', { lng: 'ar' })).toBe(
+        'صف العناوين في هذا الملف لا يطابق قالب فوتر. نزّل القالب وأبقِ صف العناوين كما هو.',
+      )
     })
   })
 

@@ -116,6 +116,24 @@ const FIELD_LABELS: Record<string, string> = {
   bankIban: 'stagedImport.field.iban',
   bankBic: 'stagedImport.field.bic',
   bankName: 'stagedImport.field.bankName',
+  // The supplier template's own columns (owner's answer 5, 2 Oct 2026), each in the words of the
+  // supplier form's field it fills.
+  type: 'newSupplier.sections.supplierType',
+  legalName: 'supplierEdit.legalName',
+  tradingName: 'supplierEdit.tradingName',
+  commercialRegistrationNumber: 'supplierEdit.commercialRegistration',
+  country: 'supplierEdit.country',
+  registeredOnPeppol: 'supplierEdit.onPeppol',
+  autoMatchPurchaseOrders: 'supplierEdit.autoMatch',
+  earlyPaymentDiscountPercent: 'supplierForm.earlyPercent',
+  earlyPaymentDiscountDays: 'supplierForm.earlyDays',
+  contactPerson: 'supplierEdit.mainContact',
+  streetName: 'supplierEdit.address',
+  cityName: 'addressContact.city',
+  governorate: 'addressContact.governorate',
+  postalCode: 'addressContact.postalCode',
+  supplierCategory: 'supplierEdit.category',
+  tags: 'supplierEdit.tags',
 }
 
 export function fieldLabel(field: string | null): { key: string } | { text: string } | null {
