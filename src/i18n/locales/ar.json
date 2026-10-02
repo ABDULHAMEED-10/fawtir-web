@@ -14794,7 +14794,7 @@
           "days_other": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يوم"
         },
         "RECURRING_CHASE": {
-          "title": "تابع {{supplier}} بشأن الفاتورة التي لم تصل"
+          "title": "طالِب {{supplier}} بالفاتورة التي لم تصل"
         },
         "RECURRING_OUT_OF_RANGE": {
           "title": "فاتورة {{supplier}} وصلت خارج النطاق"

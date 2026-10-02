@@ -885,7 +885,13 @@ describe('a reminder that names its supplier, in Arabic', () => {
     expect(arriving(11)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة 11 يومًا')
     expect(arriving(100)).toBe('فاتورة كهرباء عُمان لم تصل، متأخرة 100 يوم')
     expect(say({ ...recurring, reason: 'RECURRING_CHASE' }).title).toBe(
-      'تابع كهرباء عُمان بشأن الفاتورة التي لم تصل',
+      'طالِب كهرباء عُمان بالفاتورة التي لم تصل',
+    )
+    // The owner's decision of 2 Oct: the verb is the Chase button's own, vowel mark and all.
+    const button = i18n.t('recurringBills.actions.chase')
+    expect(button).toBe('طالِب المورد')
+    expect(say({ ...recurring, reason: 'RECURRING_CHASE' }).title.split(' ')[0]).toBe(
+      button.split(' ')[0],
     )
     expect(say({ ...recurring, reason: 'RECURRING_OUT_OF_RANGE' }).title).toBe(
       'فاتورة كهرباء عُمان وصلت خارج النطاق',
