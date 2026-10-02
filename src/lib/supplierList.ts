@@ -215,6 +215,22 @@ export const ROW_ACTION: Record<RecordIssue, string> = {
   switchedOff: 'suppliersPage.rowAction.turnBackOn',
 }
 
+/**
+ * What each row action leads to doing, as the server's routes ask for it: a new bill is recorded
+ * with `invoice.payment.manage`; confirming a changed bank account, adding bank details or a VAT
+ * number, putting a supplier on Peppol and switching one back on all change the record
+ * (`supplier.manage`). Without the permission the action is not drawn (owner's confirmation of
+ * 2 Oct 2026: read-only users see no buttons).
+ */
+export const ROW_ACTION_PERMISSION: Record<RecordIssue, string> = {
+  complete: 'invoice.payment.manage',
+  bankChanged: 'supplier.manage',
+  noBankDetails: 'supplier.manage',
+  noVatNumber: 'supplier.manage',
+  notOnPeppol: 'supplier.manage',
+  switchedOff: 'supplier.manage',
+}
+
 /** Labels for the issue column; a dated bank change is written by `recordLabelOf`. */
 export const RECORD_LABEL: Record<RecordIssue, string> = {
   complete: 'suppliersPage.record.complete',

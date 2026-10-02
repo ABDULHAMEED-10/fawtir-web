@@ -30,6 +30,7 @@ import {
   isSupplierSort,
   isSupplierTab,
   ROW_ACTION,
+  ROW_ACTION_PERMISSION,
   SUPPLIER_CHANNEL_FILTERS,
   SUPPLIER_PAGE_SIZE,
   SUPPLIER_SORTS,
@@ -670,12 +671,18 @@ function SupplierTableRow({
   ]
   // A switched-off supplier takes no new order, no new bill and no new payment run, so none of
   // the three is offered for one.
-  const items: ActionMenuItem[] = menu.flatMap(({ requires, ...item }) =>
-    can(session, requires) &&
-    (supplier.active ||
-      (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow'))
-      ? [item]
-      : [],
+  const offered = menu.filter(
+    (item) =>
+      can(session, item.requires) &&
+      (supplier.active ||
+        (item.id !== 'newPurchaseOrder' && item.id !== 'recordBill' && item.id !== 'payNow')),
+  )
+  // Someone who can only read suppliers is offered no menu at all (owner's confirmation of
+  // 2 Oct 2026: read-only users see no buttons). The statement, which they may read, is on the
+  // supplier's own page.
+  const beyondReading = offered.some((item) => item.requires !== 'supplier.read')
+  const items: ActionMenuItem[] = offered.flatMap(({ requires, ...item }) =>
+    beyondReading || requires !== 'supplier.read' ? [item] : [],
   )
 
   return (
@@ -805,16 +812,18 @@ function SupplierTableRow({
         {supplier.issue === 'switchedOff' ? (
           // "Turn back on" does what it says rather than opening the record, and only for someone
           // allowed to do it.
-          can(session, 'supplier.manage') ? (
+          can(session, ROW_ACTION_PERMISSION.switchedOff) ? (
             <button type="button" onClick={onSwitchOn} className={ROW_ACTION_CLASS}>
               {t(ROW_ACTION.switchedOff)}
             </button>
           ) : null
-        ) : (
+        ) : can(session, ROW_ACTION_PERMISSION[supplier.issue]) ? (
+          // Offered to someone who can do what it says once the record is open, and to nobody
+          // else: the supplier's name beside it opens the same record for reading.
           <Link to={detail} className={ROW_ACTION_CLASS}>
             {t(ROW_ACTION[supplier.issue])}
           </Link>
-        )}
+        ) : null}
       </td>
 
       <td className="px-4 py-4 align-middle text-end">

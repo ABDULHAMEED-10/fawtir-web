@@ -674,6 +674,98 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('button', { name: 'Switch this supplier off' })).toBeNull()
   })
 
+  // Owner's answer 6 and confirmation (2 Oct): Viewer and Approver read Suppliers, and "read-only
+  // users see no buttons". Neither role holds any purchase-order code.
+  const ACTIONS = {
+    links: ['Edit supplier', 'New purchase order', 'Record a bill'],
+    buttons: [
+      'Pay them',
+      'Add to a payment run',
+      'Add to a run',
+      'Pay separately',
+      'Attach document',
+      'Manage',
+      'Switch this supplier off',
+      'Remove',
+    ],
+  }
+
+  it.each([
+    ['a Viewer', ['supplier.read', 'invoice.read']],
+    ['an Approver', ['supplier.read', 'invoice.read', 'invoice.approve']],
+  ])('shows %s the record with no action on it, on any tab', async (_who, permissions) => {
+    who = { ...MANAGER, username: 'reader', permissions }
+    papers = [
+      {
+        document: paper('d-quote', 'Lapsed quotation', { keep: 'UNTIL_DELETED' }),
+        standing: 'ON_FILE',
+        removable: true,
+      },
+    ]
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'QMS-2044' })).toBeTruthy()
+    const nothingOffered = () => {
+      for (const name of ACTIONS.links)
+        expect(screen.queryByRole('link', { name: new RegExp(name) }), name).toBeNull()
+      for (const name of ACTIONS.buttons)
+        expect(screen.queryByRole('button', { name }), name).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Open the run' })).toBeNull()
+    }
+    nothingOffered()
+
+    // The tabs they can read, and no tab whose only content is one the server refuses them.
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
+      'Overview',
+      'Bills',
+      'Payments',
+      'Documents',
+    ])
+    for (const tab of ['Bills', 'Payments', 'Documents']) {
+      fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${tab}`) }))
+      await waitFor(() =>
+        expect(
+          screen.getByRole('tab', { name: new RegExp(`^${tab}`) }).getAttribute('aria-selected'),
+        ).toBe('true'),
+      )
+      nothingOffered()
+    }
+    // Reading is still theirs: the paper downloads, and nothing asks for purchase orders.
+    expect(await screen.findByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(calls('GET', '/api/v1/purchase-orders')).toHaveLength(0)
+    expect(calls('GET', '/api/v1/payment-runs')).toHaveLength(0)
+  })
+
+  it('keeps the Orders tab for someone who may read purchase orders', async () => {
+    who = { ...MANAGER, permissions: ['supplier.read', 'invoice.read', 'purchase-order.read'] }
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Orders/ })).toBeTruthy()
+  })
+
+  it('offers a Finance Manager the bill and payment actions, and nothing that changes the record', async () => {
+    who = {
+      ...MANAGER,
+      username: 'finance',
+      permissions: [
+        'supplier.read',
+        'invoice.read',
+        'invoice.payment.manage',
+        'invoice.approve',
+        'purchase-order.read',
+      ],
+    }
+    renderSupplier()
+    expect(await screen.findByRole('link', { name: 'Record a bill' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Pay them' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add to a payment run' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Orders/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Edit supplier/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    for (const name of ['Attach document', 'Manage', 'Switch this supplier off'])
+      expect(screen.queryByRole('button', { name }), name).toBeNull()
+  })
+
   it('lists open bills only in the "Open bills" card, and every document in the Bills tab', async () => {
     renderSupplier()
     expect(await screen.findByRole('link', { name: 'QMS-2044' })).toBeTruthy()

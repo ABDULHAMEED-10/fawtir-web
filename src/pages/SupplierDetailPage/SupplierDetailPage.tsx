@@ -131,6 +131,12 @@ function SupplierRecord({ id }: { id: string }) {
   const canManage = can(session, 'supplier.manage')
   const canPay = can(session, 'invoice.payment.manage')
   const canOrder = can(session, 'purchase-order.manage')
+  // The Orders tab is the supplier's purchase orders (`purchase-order.read`), each a link to its
+  // order. A Viewer or an Approver reads suppliers without that permission, so the tab, whose
+  // only content the server would refuse them, is not drawn for them.
+  const tabs = DETAIL_TABS.filter(
+    (entry) => entry !== 'orders' || can(session, 'purchase-order.read'),
+  )
   const today = muscatToday()
   const [tab, setTab] = useState<DetailTabId>('overview')
   const [notice, setNotice] = useState<Note | { body: string } | null>(null)
@@ -434,7 +440,7 @@ function SupplierRecord({ id }: { id: string }) {
         role="tablist"
         className="flex flex-wrap items-center gap-1 border-b border-border-subtle"
       >
-        {DETAIL_TABS.map((entry) => {
+        {tabs.map((entry) => {
           const active = entry === tab
           const count = tabCount(entry, head)
           return (

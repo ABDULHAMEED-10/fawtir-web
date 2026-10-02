@@ -306,15 +306,100 @@ describe('Suppliers list, wired to the API', () => {
     )
   })
 
-  it('offers only what the reader may do', async () => {
-    who = READ_ONLY
-    renderSuppliers()
-    await screen.findByText('Qalhat Marine Supplies')
+  // Owner's answer 6 and confirmation (2 Oct): Viewer and Approver read Suppliers, and "read-only
+  // users see no buttons".
+  const EVERY_ISSUE = () =>
+    json(200, {
+      items: [
+        row({ id: 's-ok', displayName: 'Complete Co' }),
+        row({
+          id: 's-bank',
+          displayName: 'Bank Changed Co',
+          record: { ...row().record, health: ['BANK_CHANGED_UNCONFIRMED'] },
+        }),
+        row({
+          id: 's-vat',
+          displayName: 'No Vat Co',
+          vatNumber: null,
+          record: { ...row().record, health: ['NO_VAT_NUMBER'] },
+        }),
+        row({
+          id: 's-paper',
+          displayName: 'Paper Co',
+          billingChannel: 'EMAIL_PDF',
+          participantId: null,
+        }),
+        row({ id: 's-off', displayName: 'Switched Off Co', status: 'SWITCHED_OFF' }),
+      ],
+      page: 0,
+      pageSize: 10,
+      count: 5,
+      total: 5,
+    })
+  const rowOf = async (name: string) =>
+    within((await screen.findByText(name)).closest('tr') as HTMLElement)
+
+  it.each([
+    ['a Viewer', ['supplier.read', 'invoice.read']],
+    ['an Approver', ['supplier.read', 'invoice.read', 'invoice.approve']],
+  ])('offers %s no button, no row action and no row menu', async (_who, permissions) => {
+    who = { ...ADMIN, username: 'reader', permissions }
+    listResponses = [EVERY_ISSUE]
+    renderSuppliers('/suppliers?tab=all')
+    await screen.findByText('Complete Co')
     expect(screen.queryByRole('link', { name: /New supplier/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Import/ })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Row actions' }))
-    expect(await screen.findByText('Export their statement')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Row actions' })).toBeNull()
+    for (const action of ['New bill', 'Check it', 'Add it', 'Chase it'])
+      expect(screen.queryByRole('link', { name: action }), action).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Turn back on' })).toBeNull()
+    // The record itself is still theirs to open: each name leads to the supplier's page.
+    expect(screen.getByRole('link', { name: 'Complete Co' }).getAttribute('href')).toBe(
+      '/suppliers/s-ok',
+    )
+    // Nothing on the page is a button but the tabs, the sort and the filters.
+    expect(screen.queryByText('Export their statement')).toBeNull()
     expect(screen.queryByText('Switch this supplier off')).toBeNull()
+  })
+
+  it('offers a Finance Manager the bill and payment actions, and nothing that changes the record', async () => {
+    who = {
+      ...ADMIN,
+      username: 'finance',
+      permissions: ['supplier.read', 'invoice.read', 'invoice.payment.manage', 'invoice.approve'],
+    }
+    listResponses = [EVERY_ISSUE]
+    renderSuppliers('/suppliers?tab=all')
+    const complete = await rowOf('Complete Co')
+    expect(complete.getByRole('link', { name: 'New bill' })).toBeTruthy()
+    // Fixing the record needs `supplier.manage`.
+    for (const action of ['Check it', 'Add it', 'Chase it'])
+      expect(screen.queryByRole('link', { name: action }), action).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Turn back on' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /New supplier/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Import/ })).toBeNull()
+
+    fireEvent.click(complete.getByRole('button', { name: 'Row actions' }))
+    expect(await screen.findByText('Record a bill')).toBeTruthy()
+    expect(screen.getByText('Pay them now')).toBeTruthy()
+    expect(screen.getByText('Export their statement')).toBeTruthy()
+    expect(screen.queryByText('New purchase order')).toBeNull()
+    expect(screen.queryByText('Attach a document')).toBeNull()
+    expect(screen.queryByText('Copy into a new supplier')).toBeNull()
+    expect(screen.queryByText('Switch this supplier off')).toBeNull()
+  })
+
+  it('offers someone who manages suppliers the record fixes, each on the row it belongs to', async () => {
+    who = { ...ADMIN, username: 'records', permissions: ['supplier.read', 'supplier.manage'] }
+    listResponses = [EVERY_ISSUE]
+    renderSuppliers('/suppliers?tab=all')
+    expect((await rowOf('Bank Changed Co')).getByRole('link', { name: 'Check it' })).toBeTruthy()
+    expect((await rowOf('No Vat Co')).getByRole('link', { name: 'Add it' })).toBeTruthy()
+    expect((await rowOf('Paper Co')).getByRole('link', { name: 'Chase it' })).toBeTruthy()
+    expect((await rowOf('Switched Off Co')).getByRole('button', { name: 'Turn back on' })).toBeTruthy()
+    // Recording a bill needs `invoice.payment.manage`.
+    expect(screen.queryByRole('link', { name: 'New bill' })).toBeNull()
+    expect((await rowOf('Complete Co')).getByRole('button', { name: 'Row actions' })).toBeTruthy()
   })
 
   it('switches a supplier off on the server after the dialog, then reads the list again', async () => {
