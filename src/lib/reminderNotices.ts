@@ -12,29 +12,29 @@ import type { Note, NoteAction, NoteTone, NoteWhen } from './notifications'
  * notice that carries no name, which is one recorded before the server kept the name (or sent by a
  * server from before these fields), because there it is the only thing that says which bill.
  *
- * The line is drawn by the panel exactly as it draws every other: a tinted tile with the icon of
- * the reminder rule (the same icon the Reminders page gives that rule), a title, one line under
- * it, when it arrived, and one button that opens the bill, the recurring bill or the upload.
+ * The line is drawn by the panel exactly as it draws every other: a tinted tile with an icon, a
+ * title, one line under it, when it arrived, and one button that opens the bill, the recurring
+ * bill or the upload. Every bill reminder wears the one icon, the sidebar's Bills icon; the tile
+ * behind it is tinted by what the reminder is about.
  */
 
-export type ReminderNoteIcon =
-  'due' | 'late' | 'discount' | 'approval' | 'mismatch' | 'scan' | 'recurring'
+export type ReminderNoteIcon = 'bill'
 
-const LOOK: Record<ReminderReasonDto, { icon: ReminderNoteIcon; tone: NoteTone }> = {
-  BEFORE_DUE: { icon: 'due', tone: 'brand' },
-  LATE: { icon: 'late', tone: 'danger' },
-  DISCOUNT_EXPIRY: { icon: 'discount', tone: 'success' },
-  APPROVAL_STALE: { icon: 'approval', tone: 'brand' },
-  MISMATCH_STALE: { icon: 'mismatch', tone: 'neutral' },
-  SCAN_UNCONFIRMED: { icon: 'scan', tone: 'neutral' },
-  RECURRING_LATE: { icon: 'recurring', tone: 'warning' },
-  RECURRING_CHASE: { icon: 'recurring', tone: 'warning' },
-  RECURRING_OUT_OF_RANGE: { icon: 'recurring', tone: 'warning' },
+const TONE: Record<ReminderReasonDto, NoteTone> = {
+  BEFORE_DUE: 'brand',
+  LATE: 'danger',
+  DISCOUNT_EXPIRY: 'success',
+  APPROVAL_STALE: 'brand',
+  MISMATCH_STALE: 'neutral',
+  SCAN_UNCONFIRMED: 'neutral',
+  RECURRING_LATE: 'warning',
+  RECURRING_CHASE: 'warning',
+  RECURRING_OUT_OF_RANGE: 'warning',
 }
 
 /** A server from before `reason` sends the rule type alone, which says the same for all but two. */
 export function reasonOf(item: ReminderInboxItemDto): ReminderReasonDto {
-  return item.reason && item.reason in LOOK ? item.reason : item.ruleType
+  return item.reason && item.reason in TONE ? item.reason : item.ruleType
 }
 
 /** A server from before `read` says it with the time it was acknowledged. */
@@ -158,7 +158,8 @@ export function reminderNote(item: ReminderInboxItemDto, now: Date): Note {
   return {
     id: item.id,
     ...whenOf(item.createdAt, now),
-    ...LOOK[reason],
+    icon: 'bill',
+    tone: TONE[reason],
     titleKey: !counted
       ? `notes.reminder.${reason}.title`
       : days === 0

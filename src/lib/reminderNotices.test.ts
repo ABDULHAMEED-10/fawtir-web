@@ -70,7 +70,7 @@ describe('a bill reminder as a line of the bell, in English', () => {
     expect(line.body).toBe('<b>OMR 411.500</b> still to pay.')
     expect(line.to).toBe('/expenditure/bills/b-1')
     expect(line.button).toBe('Open the bill')
-    expect(line.note.icon).toBe('due')
+    expect(line.note.icon).toBe('bill')
     expect(line.note.tone).toBe('brand')
   })
 
@@ -227,6 +227,28 @@ describe('a bill reminder as a line of the bell, in English', () => {
   it('writes another currency as its code, and a bill with no amount as its reminder', () => {
     expect(say({ amount: 120, currency: 'USD' }).body).toBe('<b>USD 120.00</b> still to pay.')
     expect(say({ amount: null, currency: null }).body).toBe('Once a bill is late')
+  })
+})
+
+describe('the icon of a bill reminder', () => {
+  it('is the one Bills icon for every kind, on the tile its kind is tinted', () => {
+    const TONE = {
+      BEFORE_DUE: 'brand',
+      LATE: 'danger',
+      DISCOUNT_EXPIRY: 'success',
+      APPROVAL_STALE: 'brand',
+      MISMATCH_STALE: 'neutral',
+      SCAN_UNCONFIRMED: 'neutral',
+      RECURRING_LATE: 'warning',
+      RECURRING_CHASE: 'warning',
+      RECURRING_OUT_OF_RANGE: 'warning',
+    } as const
+    for (const [reason, tone] of Object.entries(TONE)) {
+      const ruleType = reason.startsWith('RECURRING') ? 'RECURRING_LATE' : reason
+      const note = reminderNote(item({ reason, ruleType } as Partial<ReminderInboxItemDto>), NOW)
+      expect(note.icon, reason).toBe('bill')
+      expect(note.tone, reason).toBe(tone)
+    }
   })
 })
 

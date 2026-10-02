@@ -7,6 +7,7 @@ import type { Entitlements } from '../../lib/identity/entitlements'
 import { NOTES, noteValues, notesStore, type NoteScope } from '../../lib/notifications'
 import { SessionContext } from '../../lib/session/session'
 import { NotificationsBell } from './NotificationsBell'
+import sidebarBillsIcon from '../../assets/dashboard/nav-figma/expenditure.svg'
 
 /**
  * The bell against the reader's own reminder inbox (`BillReminderController`, section 4 of the
@@ -318,6 +319,23 @@ describe('the count on the bell', () => {
     expect(within(panel).queryByText(/Peppol certificate/)).toBeNull()
     expect(within(panel).queryByText(/was refused by the Tax Authority/)).toBeNull()
     expect(within(panel).queryByText(/signed in from a new device/)).toBeNull()
+  })
+})
+
+describe('the icon on a bill reminder', () => {
+  it('is the Bills icon the sidebar shows, the same file, for every kind of reminder', async () => {
+    inbox = [LATE, DUE, RENT]
+    renderBell()
+    const panel = await openPanel()
+    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(3))
+    for (const row of within(panel).getAllByRole('listitem')) {
+      // The first image of a row is the one on its tinted tile.
+      const icon = row.querySelector('img')!
+      expect(icon.getAttribute('src')).toBe(sidebarBillsIcon)
+      // Drawn as the panel draws every icon: no filter, no recolouring.
+      expect(icon.getAttribute('style')).toBeNull()
+      expect(icon.className).toBe('block size-4 max-w-none')
+    }
   })
 })
 
