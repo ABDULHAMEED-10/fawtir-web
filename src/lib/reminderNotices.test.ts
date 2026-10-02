@@ -734,22 +734,38 @@ describe('a reminder that names its supplier, in Arabic', () => {
       daysFromDue: reason === 'DISCOUNT_EXPIRY' ? -days : days,
     }).title
 
-  it('says a late bill with each Arabic plural form', () => {
-    expect(late('2026-09-30')).toBe('تمور النور غير مدفوعة منذ يوم واحد')
-    expect(late('2026-09-29')).toBe('تمور النور غير مدفوعة منذ يومين')
-    expect(late('2026-09-28')).toBe('تمور النور غير مدفوعة منذ 3 أيام')
-    expect(late('2026-09-21')).toBe('تمور النور غير مدفوعة منذ 10 أيام')
-    expect(late('2026-09-20')).toBe('تمور النور غير مدفوعة منذ 11 يومًا')
-    expect(late('2026-06-23')).toBe('تمور النور غير مدفوعة منذ 100 يوم')
+  // The owner's decision of 2 Oct: the line opens with «فاتورة», as «فاتورة {{supplier}} لم تصل»
+  // does. Without it «تمور النور غير مدفوعة» reads as the supplier being unpaid, not its bill.
+  it("says a late bill is the supplier's bill, with each Arabic plural form", () => {
+    expect(late('2026-09-30')).toBe('فاتورة تمور النور غير مدفوعة منذ يوم واحد')
+    expect(late('2026-09-29')).toBe('فاتورة تمور النور غير مدفوعة منذ يومين')
+    expect(late('2026-09-28')).toBe('فاتورة تمور النور غير مدفوعة منذ 3 أيام')
+    expect(late('2026-09-26')).toBe('فاتورة تمور النور غير مدفوعة منذ 5 أيام')
+    expect(late('2026-09-21')).toBe('فاتورة تمور النور غير مدفوعة منذ 10 أيام')
+    expect(late('2026-09-20')).toBe('فاتورة تمور النور غير مدفوعة منذ 11 يومًا')
+    expect(late('2026-09-19')).toBe('فاتورة تمور النور غير مدفوعة منذ 12 يومًا')
+    expect(late('2026-06-23')).toBe('فاتورة تمور النور غير مدفوعة منذ 100 يوم')
   })
 
-  it('says a bill that is due with each Arabic plural form', () => {
-    expect(due('2026-10-01')).toBe('تمور النور تستحق اليوم')
-    expect(due('2026-10-02')).toBe('تمور النور تستحق غدًا')
-    expect(due('2026-10-03')).toBe('تمور النور تستحق خلال يومين')
-    expect(due('2026-10-08')).toBe('تمور النور تستحق خلال 7 أيام')
-    expect(due('2026-10-12')).toBe('تمور النور تستحق خلال 11 يومًا')
-    expect(due('2027-01-09')).toBe('تمور النور تستحق خلال 100 يوم')
+  it("says a bill that is due is the supplier's bill, with each Arabic plural form", () => {
+    expect(due('2026-10-01')).toBe('فاتورة تمور النور تستحق اليوم')
+    expect(due('2026-10-02')).toBe('فاتورة تمور النور تستحق غدًا')
+    expect(due('2026-10-03')).toBe('فاتورة تمور النور تستحق خلال يومين')
+    expect(due('2026-10-06')).toBe('فاتورة تمور النور تستحق خلال 5 أيام')
+    expect(due('2026-10-08')).toBe('فاتورة تمور النور تستحق خلال 7 أيام')
+    expect(due('2026-10-12')).toBe('فاتورة تمور النور تستحق خلال 11 يومًا')
+    expect(due('2026-10-13')).toBe('فاتورة تمور النور تستحق خلال 12 يومًا')
+    expect(due('2027-01-09')).toBe('فاتورة تمور النور تستحق خلال 100 يوم')
+  })
+
+  it('never opens a due or late line with the supplier, at any count', () => {
+    for (const days of [1, 2, 5, 12, 100]) {
+      const day = (offset: number) =>
+        new Date(Date.UTC(2026, 9, 1 + offset)).toISOString().slice(0, 10)
+      expect(late(day(-days)), `late ${days}`).toMatch(/^فاتورة تمور النور غير مدفوعة منذ /)
+      expect(due(day(days)), `due ${days}`).toMatch(/^فاتورة تمور النور تستحق /)
+    }
+    expect(due('2026-10-01')).toMatch(/^فاتورة تمور النور تستحق /)
   })
 
   it('says the discount, the approval and the mismatch with each plural form', () => {

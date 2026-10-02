@@ -357,12 +357,12 @@ describe('the lines when the server names the supplier and sends the due date', 
     fireEvent.click(screen.getByRole('button', { name: /^الإشعارات/ }))
     const panel = await screen.findByRole('dialog', { name: 'الإشعارات' })
 
-    const late = (await within(panel).findByText('Al Noor Dates غير مدفوعة منذ 9 أيام')).closest(
-      'li',
-    )!
+    const late = (
+      await within(panel).findByText('فاتورة Al Noor Dates غير مدفوعة منذ 9 أيام')
+    ).closest('li')!
     expect(late.textContent).toContain('لم تُسدَّد بعد.')
     expect(within(late).getByRole('button', { name: 'افتح الفاتورة' })).toBeTruthy()
-    expect(within(panel).getByText('Sohar Packaging تستحق خلال 3 أيام')).toBeTruthy()
+    expect(within(panel).getByText('فاتورة Sohar Packaging تستحق خلال 3 أيام')).toBeTruthy()
     expect(within(panel).getByText('فاتورة Muscat Property لم تصل، متأخرة 4 أيام')).toBeTruthy()
     expect(panel.textContent ?? '').not.toMatch(/notes\.|unpaid|due in|not arrived|still to pay/)
   })

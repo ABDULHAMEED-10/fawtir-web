@@ -14744,19 +14744,19 @@
       },
       "supplier": {
         "BEFORE_DUE": {
-          "now": "{{supplier}} تستحق اليوم",
-          "days_one": "{{supplier}} تستحق غدًا",
-          "days_two": "{{supplier}} تستحق خلال يومين",
-          "days_few": "{{supplier}} تستحق خلال {{count}} أيام",
-          "days_many": "{{supplier}} تستحق خلال {{count}} يومًا",
-          "days_other": "{{supplier}} تستحق خلال {{count}} يوم"
+          "now": "فاتورة {{supplier}} تستحق اليوم",
+          "days_one": "فاتورة {{supplier}} تستحق غدًا",
+          "days_two": "فاتورة {{supplier}} تستحق خلال يومين",
+          "days_few": "فاتورة {{supplier}} تستحق خلال {{count}} أيام",
+          "days_many": "فاتورة {{supplier}} تستحق خلال {{count}} يومًا",
+          "days_other": "فاتورة {{supplier}} تستحق خلال {{count}} يوم"
         },
         "LATE": {
-          "days_one": "{{supplier}} غير مدفوعة منذ يوم واحد",
-          "days_two": "{{supplier}} غير مدفوعة منذ يومين",
-          "days_few": "{{supplier}} غير مدفوعة منذ {{count}} أيام",
-          "days_many": "{{supplier}} غير مدفوعة منذ {{count}} يومًا",
-          "days_other": "{{supplier}} غير مدفوعة منذ {{count}} يوم"
+          "days_one": "فاتورة {{supplier}} غير مدفوعة منذ يوم واحد",
+          "days_two": "فاتورة {{supplier}} غير مدفوعة منذ يومين",
+          "days_few": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} أيام",
+          "days_many": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يومًا",
+          "days_other": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يوم"
         },
         "DISCOUNT_EXPIRY": {
           "now": "خصم {{supplier}} ينتهي اليوم",
