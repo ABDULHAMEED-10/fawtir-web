@@ -5473,7 +5473,10 @@
         "RELEASED": "Released from hold",
         "PAID": "Payment recorded",
         "REVERSED": "Payment reversed",
-        "NO_ORDER": "Looked for an order"
+        "NO_ORDER": "Looked for an order",
+        "DRAFT_CREATED": "Draft created",
+        "ISSUED": "Issued",
+        "CANCELLED": "Cancelled"
       }
     },
     "decision": {

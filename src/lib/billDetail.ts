@@ -421,8 +421,14 @@ export type ActivityEntry = {
   byYou: boolean
 }
 
-/** The bill's own events, each with wording under `billDetail.activity.kind`. */
-const BILL_KINDS = new Set([
+/**
+ * The kinds this page has wording for, under `billDetail.activity.kind`: the bill's own events,
+ * and the steps of the self-billed document a self-billed bill was raised from (`DRAFT_CREATED`,
+ * `ISSUED`, `CANCELLED`; owner's answer 3, 2 Oct 2026: "take it from the self-billed document's
+ * history"). Those three are the invoice history's own event names and carry the same words the
+ * self-bill page uses for them (`invoiceDetails.event.*`).
+ */
+const KNOWN_KINDS = new Set([
   'ARRIVED',
   'CONFIRMED',
   'MATCHED',
@@ -432,20 +438,14 @@ const BILL_KINDS = new Set([
   'RELEASED',
   'PAID',
   'REVERSED',
+  'DRAFT_CREATED',
+  'ISSUED',
+  'CANCELLED',
 ])
-
-/**
- * The steps of the self-billed document a self-billed bill was raised from (owner's answer 3,
- * 2 Oct: "take it from the self-billed document's history"). They are the invoice history's own
- * event names, so they read in the words the self-bill page already uses for them.
- */
-const DOCUMENT_KINDS = new Set(['DRAFT_CREATED', 'ISSUED', 'CANCELLED'])
 
 /** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
 function activityKey(kind: string): string {
-  if (BILL_KINDS.has(kind)) return `billDetail.activity.kind.${kind}`
-  if (DOCUMENT_KINDS.has(kind)) return `invoiceDetails.event.${kind}`
-  return 'invoiceDetails.event.other'
+  return KNOWN_KINDS.has(kind) ? `billDetail.activity.kind.${kind}` : 'invoiceDetails.event.other'
 }
 
 /** A self-billed bill: this company's own document, issued on the supplier's behalf. */

@@ -1304,13 +1304,19 @@ describe('bill detail mapping', () => {
       'u-1',
     ).map((item) => item.key)
     expect(keys).toEqual([
-      'invoiceDetails.event.DRAFT_CREATED',
-      'invoiceDetails.event.ISSUED',
-      'invoiceDetails.event.CANCELLED',
+      'billDetail.activity.kind.DRAFT_CREATED',
+      'billDetail.activity.kind.ISSUED',
+      'billDetail.activity.kind.CANCELLED',
       'billDetail.activity.kind.APPROVED',
       'billDetail.activity.kind.PAID',
       'invoiceDetails.event.other',
     ])
+    // The three document steps say what the self-bill page says for the same events.
+    for (const kind of ['DRAFT_CREATED', 'ISSUED', 'CANCELLED'])
+      for (const lng of ['en', 'ar'])
+        expect(i18n.t(`billDetail.activity.kind.${kind}`, { lng }), `${kind} ${lng}`).toBe(
+          i18n.t(`invoiceDetails.event.${kind}`, { lng }),
+        )
   })
 
   it('reads the VAT cell from the category letter, and the rate alone without one', () => {

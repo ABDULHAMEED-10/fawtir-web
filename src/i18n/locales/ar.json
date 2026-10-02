@@ -5682,7 +5682,10 @@
         "RELEASED": "أُفرج عنها",
         "PAID": "سُجّل دفع",
         "REVERSED": "عُكس الدفع",
-        "NO_ORDER": "بحث عن طلب مطابق"
+        "NO_ORDER": "بحث عن طلب مطابق",
+        "DRAFT_CREATED": "أُنشئت المسودة",
+        "ISSUED": "صدرت",
+        "CANCELLED": "أُلغيت"
       }
     },
     "decision": {
