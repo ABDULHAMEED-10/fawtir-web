@@ -1186,7 +1186,10 @@ describe('editing a recurring bill', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Shop rent' })).toBeTruthy()
   })
 
-  it('keeps the currency, the count left and the terms of an instruction Fawtir raises (REC-14)', async () => {
+  // Owner's Round 5 answer 3 (2 Oct): the remaining count changes only when the user edits the
+  // count field itself. The form has no such field, so an edit never sends a count: null keeps
+  // the stored one on the server, and a run that used one up meanwhile is not written over.
+  it('keeps the currency and the terms of an instruction Fawtir raises, and leaves its count left to the server (REC-14)', async () => {
     await openEdit('rb-raise')
     // A raising instruction asks for its first date, not an arrival day.
     expect(screen.getByText('When it is raised')).toBeTruthy()
@@ -1198,12 +1201,24 @@ describe('editing a recurring bill', () => {
       mode: 'RAISE',
       description: 'Windows',
       currencyCode: 'USD',
-      occurrences: 6,
+      occurrences: null,
       paymentTermsDays: null,
       arrivesAroundDay: null,
       watchingFrom: null,
       toleranceEnabled: null,
     })
+  })
+
+  it('never echoes the stored count on an edit, whatever it is', () => {
+    for (const remainingOccurrences of [6, 1, 0, null]) {
+      const stored = { ...RAISING, remainingOccurrences }
+      const request = toRecurringRequest(formOf(stored, '2026-10-01'), stored)
+      expect(request.occurrences, String(remainingOccurrences)).toBeNull()
+      // The field is still sent, as null: "keep the stored count", never left to a default.
+      expect('occurrences' in request).toBe(true)
+      // What the form does not show and the server does not keep on a null still goes back.
+      expect(request.currencyCode).toBe('USD')
+    }
   })
 
   it('a new one is still in rial, with no count, and its terms as the due day says', () => {

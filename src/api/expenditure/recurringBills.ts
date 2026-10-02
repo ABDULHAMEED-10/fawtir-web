@@ -151,6 +151,11 @@ export type RecurringBillRequestDto = {
   interval: RecurrenceInterval
   startDate: string | null
   endDate: string | null
+  /**
+   * How many runs are left. On an update, null (or absent) keeps the stored count and a number
+   * sets it; the form has no count field, so it always sends null. A server from before that
+   * rule stores the null, which takes the limit off (EXPENDITURE.md row 3.22).
+   */
   occurrences: number | null
   mode: RecurringMode
   category: string | null

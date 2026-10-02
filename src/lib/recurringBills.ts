@@ -467,12 +467,18 @@ function toleranceHeld(form: RecurringForm): number | null {
 }
 
 /**
- * The request body. `stored` is the instruction being edited: what the form does not show
- * (its currency, the count it has left) goes back as it was, so a save does not rewrite it.
+ * The request body. `stored` is the instruction being edited: its currency, which the form does
+ * not show, goes back as it was, so a save does not rewrite it.
+ *
+ * The count an instruction has left is never sent (owner's Round 5 answer 3, 2 Oct 2026: it
+ * changes only when the user edits the count field itself, and the form has no such field). On
+ * `PUT /recurring-bills/{id}` a null `occurrences` keeps the stored count, so a run that used one
+ * up while the form was open is not written over by the number the form was opened with. A new
+ * instruction has no count, as before.
  */
 export function toRecurringRequest(
   form: RecurringForm,
-  stored?: Pick<RecurringBillDto, 'currencyCode' | 'remainingOccurrences'> | null,
+  stored?: Pick<RecurringBillDto, 'currencyCode'> | null,
 ): RecurringBillRequestDto {
   const expecting = form.mode === 'EXPECT'
   const total = Number(form.totalIncludingVat)
@@ -492,7 +498,7 @@ export function toRecurringRequest(
     // the server works out the first expected day from the arrival day.
     startDate: expecting ? null : form.startDate || null,
     endDate: form.endDate || null,
-    occurrences: stored?.remainingOccurrences ?? null,
+    occurrences: null,
     mode: form.mode,
     category: form.category.trim() || null,
     theirReference: form.theirReference.trim() || null,
