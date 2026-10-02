@@ -669,8 +669,7 @@ describe('upload a supplier note', () => {
   })
 })
 
-// Draft wording, pending the owner (Wording-For-Abdul.md section 1, "Capturing a bill"). A
-// correction there changes the sentences below with it.
+// The owner's approved sentences, word for word.
 describe('why a captured bill was refused, in its own sentence', () => {
   // [code, status, problem type, sentence]: the purchase order is the one that answers 404.
   const CAPTURE: [string, number, string, string][] = [

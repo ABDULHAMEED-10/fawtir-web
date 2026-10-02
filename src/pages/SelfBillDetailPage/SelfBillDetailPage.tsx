@@ -210,8 +210,7 @@ function Money({ amount, className }: { amount: number; className: string }) {
  */
 /**
  * What the bill payment route refuses, in this page's words: the debt is "the supplier bill for
- * this document", not the document. On hold, in a run and too much are draft wording, pending the
- * owner (Wording-For-Abdul.md section 6).
+ * this document", not the document.
  */
 const SUPPLIER_BILL_PAYMENT_REFUSALS: NonNullable<
   Parameters<typeof RecordPaymentModal>[0]['refusals']

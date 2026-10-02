@@ -1214,7 +1214,7 @@ describe('why a bill was refused, in its own sentence', () => {
     expect(screen.queryByText(GENERIC)).toBeNull()
   })
 
-  // Wording-For-Abdul.md section 5.
+  // A hold with no reason, or one that is too long.
   it.each([
     ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],
     [

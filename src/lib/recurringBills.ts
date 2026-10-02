@@ -126,7 +126,7 @@ export function chaseBlocker(bill: RecurringBillDto): string | null {
 export const RECURRING_REFUSALS: Record<string, string> = {
   RECURRING_BILL_ARRIVAL_DAY_REQUIRED: 'recurringBills.error.arrivalDayRequired',
   RECURRING_BILL_ARRIVAL_DAY_INVALID: 'recurringBills.error.arrivalDayInvalid',
-  // Draft wording, pending the owner (Wording-For-Abdul.md, "Recurring bill refusal messages").
+  // Refusals with a sentence of their own, in the owner's approved wording.
   // Resume is hidden where the page knows it would be refused, so the first two show when the
   // page is out of date; the next five are Mark as received; the last is a save. Keyed on the
   // code alone: the period and the bill that are gone answer 404, the rest 400.
@@ -149,8 +149,7 @@ export const RECURRING_REFUSALS: Record<string, string> = {
 }
 
 /**
- * The same refusals as the add / edit form says them. Draft wording, pending the owner
- * (Wording-For-Abdul.md section 8). A switched-off supplier is one code with two sentences: on
+ * The same refusals as the add / edit form says them. A switched-off supplier is one code with two sentences: on
  * the list and the detail it refuses a Resume ("then resume this recurring bill"), on the form
  * it refuses the save, where there is nothing to resume. The person under "who gets told" is
  * chosen on the form alone.

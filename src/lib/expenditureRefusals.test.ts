@@ -58,7 +58,6 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     await i18n.changeLanguage('en')
   })
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md row 17).
   it('says a run holds a held bill, on any screen that does not name the code itself', async () => {
     const held = refusal('PAYMENT_RUN_BILL_ON_HOLD')
     expect(MAPPED_REFUSAL_CODES).toContain('PAYMENT_RUN_BILL_ON_HOLD')

@@ -374,8 +374,7 @@ export const CONFIRM_REFUSALS: Record<string, { field: BillField | null; key: st
 
 /**
  * What a bill's capture screens (Upload a bill, Record a bill, Scan receipts) add to
- * {@link CONFIRM_REFUSALS}. Draft wording, pending the owner (Wording-For-Abdul.md, "Capturing a
- * bill"). Kept off the shared map because each sentence says "bill", and a supplier's credit or
+ * {@link CONFIRM_REFUSALS}, in the owner's approved wording. Kept off the shared map because each sentence says "bill", and a supplier's credit or
  * debit note is captured through the same confirm route.
  *
  * Keyed on the code alone: `PURCHASE_ORDER_NOT_FOUND` answers 404, the rest 400. None belongs to
@@ -392,8 +391,8 @@ export const BILL_CONFIRM_REFUSALS: Record<string, { field: BillField | null; ke
   BILL_TAX_CATEGORY_INVALID: { field: null, key: 'billIntake.refused.vatCategoryInvalid' },
   BILL_TAX_CATEGORY_RATE_MISMATCH: { field: null, key: 'billIntake.refused.vatRateMismatch' },
   SUPPLIER_SWITCHED_OFF: { field: null, key: 'billIntake.refused.supplierSwitchedOff' },
-  // Wording-For-Abdul.md section 5, draft as the rest. Only Scan receipts sends petty cash or a
-  // note today; the codes belong to the confirm route, so all three screens read them.
+  // Only Scan receipts sends petty cash or a note today; the codes belong to the confirm route,
+  // so all three screens read them.
   BILL_INTAKE_PETTY_CASH_NOT_CASH: { field: null, key: 'billIntake.refused.pettyCashNotCash' },
   BILL_NOTE_TOO_LONG: { field: null, key: 'billIntake.refused.noteTooLong' },
 }
@@ -403,8 +402,8 @@ export const UPLOAD_REFUSALS: Record<string, string> = {
   BILL_INTAKE_TOO_LARGE: 'billIntake.upload.tooLarge',
   BILL_INTAKE_TYPE_UNSUPPORTED: 'billIntake.upload.wrongType',
   BILL_INTAKE_EMPTY: 'billIntake.upload.empty',
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 5). The pickers always send a
-  // file, so this shows only if a request reaches the server without one.
+  // The pickers always send a file, so this shows only if a request reaches the server without
+  // one.
   BILL_INTAKE_FILE_REQUIRED: 'billIntake.upload.fileRequired',
 }
 

@@ -369,8 +369,7 @@ describe('the dedicated self-billed composer', () => {
     ).toBe('/income/self-billing/agreements')
   })
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 7). A correction there changes
-  // the sentences below with it.
+  // The owner's approved sentence, word for word.
   describe('an issue the server refuses, in the Issue dialog', () => {
     // Found by key, so the same steps run in Arabic. The dialog prices the draft first; the
     // refusal is for the issue that follows.

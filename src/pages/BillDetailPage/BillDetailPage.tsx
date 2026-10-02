@@ -81,8 +81,7 @@ const STEP_CIRCLE: Record<BillStepState, string> = {
  * bill that is unapproved, held or in a run, so those only show when the bill changed after the
  * page loaded. Decimals and the date read as the invoice dialog's own lines.
  *
- * On hold and too much are draft wording, pending the owner (Wording-For-Abdul.md, "Paying a
- * bill"). The dialog refuses an amount above the outstanding amount it holds before asking
+ * The dialog refuses an amount above the outstanding amount it holds before asking
  * ({@link BILL_AMOUNT_TOO_MUCH}), so when the server refuses one, the figure the page holds is
  * the stale one: the sentence names the figure the server sends with the refusal, and is said
  * without one when a server from before that field sends none.
@@ -118,7 +117,7 @@ const REFUSALS: Record<string, string> = {
   APPROVAL_ALREADY_GIVEN: 'billDetail.refused.alreadyApproved',
   APPROVAL_TRANSITION_INVALID: 'billDetail.refused.changed',
   APPROVAL_REJECTION_REASON_REQUIRED: 'billDetail.refused.reasonRequired',
-  // Rejecting: draft wording, pending the owner (Wording-For-Abdul.md, "Rejecting a bill").
+  // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
   APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
   APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
   APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
@@ -126,7 +125,7 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 5).
+  // A hold with no reason, or one that is too long.
   BILL_HOLD_REASON_REQUIRED: 'billDetail.refused.holdReasonRequired',
   BILL_HOLD_REASON_TOO_LONG: 'billDetail.refused.holdReasonTooLong',
   GOODS_RECEIPT_WRONG_ORDER: 'billDetail.refused.wrongReceipt',
