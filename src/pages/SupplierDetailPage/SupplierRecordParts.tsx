@@ -37,6 +37,7 @@ import { formatAmount, formatDate } from '../../lib/format'
 import {
   blankContact,
   contactProblems,
+  documentKindLabelKey,
   documentMeta,
   documentRemovable,
   fileSize,
@@ -446,7 +447,7 @@ export function DocumentsTab({
                   </p>
                   <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
                     {[
-                      t(`supplierRecord.kind.${entry.document.kind}`),
+                      t(documentKindLabelKey(entry.document.kind)),
                       t(meta.key, {
                         date: formatDate(String(meta.values?.date ?? ''), i18n.language),
                       }),

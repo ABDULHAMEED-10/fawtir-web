@@ -161,6 +161,8 @@ let detail: SupplierDetailDto
 let uploads: number
 let confirmResponse: () => Response
 let openBills: unknown[]
+/** What `GET /suppliers/{id}/documents` answers, when a case sets its own. */
+let papers: unknown[] | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -176,6 +178,7 @@ beforeEach(async () => {
   detail = DETAIL
   uploads = 0
   openBills = [BILL]
+  papers = null
   confirmResponse = () =>
     json(200, {
       id: 'bill-new',
@@ -194,6 +197,7 @@ beforeEach(async () => {
         { ...CONTACTS[1], purpose: 'MAIN', version: 6 },
         { ...CONTACTS[0], purpose: 'BILLING', version: 3 },
       ])
+    if (url === `${ONE}/documents` && method === 'GET' && papers) return json(200, papers)
     if (url === `${ONE}/documents`)
       return json(200, [
         {
@@ -561,6 +565,74 @@ describe('a supplier, opened', () => {
     expect(expired.queryByText(/On legal hold|Kept until/)).toBeNull()
     expect(expired.getByText(/20 kB/)).toBeTruthy()
     expect(expired.getByRole('button', { name: 'Remove' })).toBeTruthy()
+  })
+
+  // Owner's answer 4 (2 Oct): the server says whether a paper can be removed now (`removable`).
+  // A paper kept "until deleted" can go at any time; a tax document is under the ten-year rule.
+  const KEPT_PAPERS = [
+    {
+      document: paper('d-quote', 'Lapsed quotation', {
+        kind: 'CORRESPONDENCE',
+        series: null,
+        keep: 'UNTIL_DELETED',
+        retainUntil: null,
+      }),
+      standing: 'ON_FILE',
+      removable: true,
+    },
+    {
+      document: paper('d-bill', 'Bill 118', {
+        kind: 'BILL',
+        series: null,
+        keep: 'TEN_YEAR_RULE',
+        retainUntil: '2037-12-31',
+      }),
+      standing: 'ON_FILE',
+      removable: false,
+    },
+    {
+      // Past its date by this browser's reckoning, yet the server says it stays (a legal hold
+      // placed a moment ago, a clock that differs): the server's word is the one that counts.
+      document: paper('d-old', 'Old rate card', {
+        kind: 'PRICE_LIST',
+        series: null,
+        keep: 'TEN_YEAR_RULE',
+        retainUntil: '2025-12-31',
+      }),
+      standing: 'ON_FILE',
+      removable: false,
+    },
+  ]
+  const paperRow = async (title: string) =>
+    within((await screen.findByText(title)).closest('li') as HTMLElement)
+
+  it('offers Remove exactly where the server says the paper can be removed now', async () => {
+    papers = KEPT_PAPERS
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    const quote = await paperRow('Lapsed quotation')
+    expect(quote.getByRole('button', { name: 'Remove' })).toBeTruthy()
+    expect(quote.queryByText(/Kept until/)).toBeNull()
+    const bill = await paperRow('Bill 118')
+    expect(bill.queryByRole('button', { name: 'Remove' })).toBeNull()
+    expect(bill.getByText(/Kept until .*2037/)).toBeTruthy()
+    // A tax document's kind is named, never shown as a key.
+    expect(bill.getByText(/^Bill · /)).toBeTruthy()
+    expect(bill.queryByText(/supplierRecord\.kind/)).toBeNull()
+    const old = await paperRow('Old rate card')
+    expect(old.queryByRole('button', { name: 'Remove' })).toBeNull()
+    // Download stays for every paper.
+    expect(screen.getAllByRole('button', { name: 'Download' })).toHaveLength(3)
+  })
+
+  it('offers no Remove to someone who may only read suppliers, even on a removable paper', async () => {
+    who = { ...MANAGER, permissions: ['supplier.read'] }
+    papers = KEPT_PAPERS
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    const quote = await paperRow('Lapsed quotation')
+    expect(quote.getByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull()
   })
 
   it('keeps a phone number left-to-right inside Arabic text', async () => {

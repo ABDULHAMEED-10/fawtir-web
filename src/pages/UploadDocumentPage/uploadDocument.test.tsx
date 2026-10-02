@@ -122,6 +122,50 @@ describe('Upload a document', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
   })
 
+  // Owner's answer 4 (2 Oct): the "How long to keep it" choice is sent with the paper.
+  const fileAPaper = async (choose?: string) => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/compliance/documents/upload']}>
+        <Routes>
+          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
+          <Route path="/suppliers/:slug" element={<p>supplier page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('button', { name: /Save Document/ })
+    const input = container.querySelector('input[type=file]') as HTMLInputElement
+    const file = new File(['%PDF-1.4'], 'lapsed-quote.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(await screen.findByText('lapsed-quote.pdf')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Who or what it belongs to' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Gulf Cold Logistics/ }))
+    if (choose) fireEvent.click(screen.getByRole('radio', { name: new RegExp(choose) }))
+    fireEvent.click(screen.getByRole('button', { name: /Save Document/ }))
+    expect(await screen.findByText('supplier page')).toBeTruthy()
+    const post = fetchMock.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+    )
+    return (post?.[1] as RequestInit).body as FormData
+  }
+
+  it('sends the screen\'s own default, "Keep it indefinitely", as kept until deleted', async () => {
+    // Left out, the server keeps the paper under the ten-year rule: the default has to be sent.
+    const form = await fileAPaper()
+    expect(form.get('keep')).toBe('UNTIL_DELETED')
+  })
+
+  it('sends "Match the invoice it\'s attached to" as the ten-year rule', async () => {
+    const form = await fileAPaper("Match the invoice it's attached to")
+    expect(form.get('keep')).toBe('TEN_YEAR_RULE')
+  })
+
+  it('sends "Until a date I choose" as kept until deleted: the server has no dated deletion', async () => {
+    const form = await fileAPaper('Until a date I choose')
+    expect(form.get('keep')).toBe('UNTIL_DELETED')
+    // No date field exists on the route.
+    expect([...form.keys()].sort()).toEqual(['file', 'keep', 'kind', 'series', 'title'])
+  })
+
   /**
    * The two cases below mount the bare page, which draws the shell itself: who is signed in comes
    * only from the shell's own question to the server, as it does in the app.

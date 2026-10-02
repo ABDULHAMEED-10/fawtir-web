@@ -22,6 +22,7 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { can, useSession } from '../../lib/session/session'
 import { formatDate } from '../../lib/format'
 import { formatBytes } from '../../lib/documentArchive'
+import { keepChoicesFor, keepToSend, type KeepChoice } from '../../lib/supplierRecord'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import selectChevron from '../../assets/create-invoice/chevron.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
@@ -36,8 +37,7 @@ const SEARCH_DELAY_MS = 250
 
 const KINDS: DocumentKind[] = ['AGREEMENT', 'CERTIFICATE', 'PRICE_LIST', 'CORRESPONDENCE', 'OTHER']
 
-type Keep = 'forever' | 'matchInvoice' | 'untilDate'
-const KEEP_OPTIONS: Keep[] = ['forever', 'matchInvoice', 'untilDate']
+type Keep = KeepChoice
 
 type Picked = { id: string; name: string; vatNumber: string | null }
 
@@ -49,9 +49,14 @@ type Picked = { id: string; name: string; vatNumber: string | null }
  * and date go as the API takes them; "Valid until" and the tags ride in the document's note, which
  * is where a person reading it on the supplier's page will find them.
  *
- * TODO(backend): reading the file for a title, a date and a match (ask 3.13), a retention choice
- * (ask 3.14), attaching to a customer, an invoice, an order or a catalogue item, and tags of their
- * own (ask 3.15). Each is drawn and kept in the form; none is sent.
+ * "How long to keep it" is sent as `keep` (owner's answer 4, 2 Oct 2026): until deleted, or the
+ * ten-year rule. A tax document (bill, credit or debit note) is always under the ten-year rule,
+ * so it is offered that rule alone.
+ *
+ * TODO(backend): reading the file for a title, a date and a match (ask 3.13), a dated deletion
+ * behind "Until a date I choose" (ask 3.14), attaching to a customer, an invoice, an order or a
+ * catalogue item, and tags of their own (ask 3.15). Each is drawn and kept in the form; none is
+ * sent.
  */
 export function UploadDocumentPage() {
   return (
@@ -99,6 +104,11 @@ function UploadDocument() {
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
   const hasFile = files.length > 0
 
+  // A tax document is offered the ten-year rule alone, whatever was ticked before its kind was
+  // chosen: the choice shown as on is the one that will be sent.
+  const keepOptions = keepChoicesFor(kind)
+  const keepShown: Keep = keepOptions.includes(keep) ? keep : keepOptions[0]
+
   const kindOptions: SelectOption[] = KINDS.map((value) => ({
     value,
     label: t(`documents.upload.kinds.${value}`),
@@ -132,6 +142,7 @@ function UploadDocument() {
           series: files.length > 1 ? '' : title,
           documentDate: dateOn,
           note,
+          keep: keepToSend(kind, keepShown),
         })
       }
       navigate(`/suppliers/${encodeURIComponent(supplier.id)}`)
@@ -451,14 +462,15 @@ function UploadDocument() {
               <h2 className="text-base font-medium leading-[1.2] text-text-primary">
                 {t('documents.upload.keepTitle')}
               </h2>
-              {/* TODO(backend): a retention choice on an uploaded paper (ask 3.14); kept in the form. */}
+              {/* Sent as `keep`. TODO(backend): a dated deletion behind "Until a date I choose"
+                  (ask 3.14); the date is kept in the form, not sent. */}
               <div
                 className="mt-4 flex flex-col gap-2.5"
                 role="radiogroup"
                 aria-label={t('documents.upload.keepTitle')}
               >
-                {KEEP_OPTIONS.map((option) => {
-                  const on = keep === option
+                {keepOptions.map((option) => {
+                  const on = keepShown === option
                   return (
                     <button
                       key={option}
@@ -493,7 +505,7 @@ function UploadDocument() {
                   )
                 })}
               </div>
-              {keep === 'untilDate' ? (
+              {keepShown === 'untilDate' ? (
                 <div className="mt-3 flex flex-col gap-2">
                   <FieldLabel label={t('documents.upload.keep.pickDate')} />
                   <DateField
