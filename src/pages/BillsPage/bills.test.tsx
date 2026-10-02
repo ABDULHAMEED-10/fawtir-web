@@ -440,6 +440,33 @@ describe('Bills list, wired to the API', () => {
     expect(calls('/api/v1/expenditure/approval-policy')).toEqual([])
   })
 
+  // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
+  it('shows a bill approved by its amount as Approved, with no Approve on the row or in its menu', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              workflowState: 'APPROVED',
+              readiness: { state: 'READY', distinctApprovals: 0, required: 2, autoApproved: true },
+            }),
+          ]),
+        ),
+    ]
+    renderBills('/expenditure/bills?tab=approved')
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    expect(within(row).getByText('Approved')).toBeTruthy()
+    expect(within(row).queryByText(/Waiting on approval/)).toBeNull()
+    expect(within(row).queryByText('New, not reviewed')).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Nudge the approver' })).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: 'Bill actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Approve' })).toBeNull()
+    // What an approved bill still offers is still there.
+    expect(screen.getByRole('menuitem', { name: 'Put on hold' })).toBeTruthy()
+  })
+
   it('says when drafts are waiting and when a tab stopped at its window', async () => {
     summaryResponse = () =>
       json(200, {

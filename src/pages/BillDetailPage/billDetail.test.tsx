@@ -906,6 +906,31 @@ describe('A bill, wired to the API', () => {
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
   })
 
+  // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
+  it('shows a bill approved by its amount as Approved, with nothing left to approve and a payment on offer', async () => {
+    const byAmount = { state: 'READY', distinctApprovals: 0, required: 2, autoApproved: true } as const
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: byAmount,
+          approvals: [],
+          bill: { ...detail().bill, workflowState: 'APPROVED', readiness: byAmount },
+        }),
+      )
+    renderBill()
+    const title = await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(within(title.parentElement as HTMLElement).getByText('Approved')).toBeTruthy()
+    expect(screen.queryByText(/Waiting on approval/)).toBeNull()
+    expect(screen.getByText('No approval needed')).toBeTruthy()
+    expect(
+      screen.getByText('Below your approval limit, so no approval is needed. It can be paid.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
   it('leaves Record payment showing for the rest after a part payment', async () => {
     billResponse = () =>
       json(
