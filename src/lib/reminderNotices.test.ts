@@ -333,10 +333,14 @@ describe('the same lines in Arabic', () => {
     const due = { ruleType: 'BEFORE_DUE', reason: 'BEFORE_DUE' } as const
     expect(say({ ...due, daysFromDue: 0 }).title).toBe('تستحق الفاتورة ME-991 اليوم')
     expect(say({ ...due, daysFromDue: -1 }).title).toBe('تستحق الفاتورة ME-991 غدًا')
-    expect(say({ ...due, daysFromDue: -2 }).title).toBe('تستحق الفاتورة ME-991 بعد يومين')
-    expect(say({ ...due, daysFromDue: -7 }).title).toBe('تستحق الفاتورة ME-991 بعد 7 أيام')
-    expect(say({ ...due, daysFromDue: -11 }).title).toBe('تستحق الفاتورة ME-991 بعد 11 يومًا')
-    expect(say({ ...due, daysFromDue: -100 }).title).toBe('تستحق الفاتورة ME-991 بعد 100 يوم')
+    // "In N days" is «خلال», never «بعد» (the owner's decision of 2 Oct), here as in the line
+    // that names the supplier.
+    expect(say({ ...due, daysFromDue: -2 }).title).toBe('تستحق الفاتورة ME-991 خلال يومين')
+    expect(say({ ...due, daysFromDue: -5 }).title).toBe('تستحق الفاتورة ME-991 خلال 5 أيام')
+    expect(say({ ...due, daysFromDue: -7 }).title).toBe('تستحق الفاتورة ME-991 خلال 7 أيام')
+    expect(say({ ...due, daysFromDue: -11 }).title).toBe('تستحق الفاتورة ME-991 خلال 11 يومًا')
+    expect(say({ ...due, daysFromDue: -12 }).title).toBe('تستحق الفاتورة ME-991 خلال 12 يومًا')
+    expect(say({ ...due, daysFromDue: -100 }).title).toBe('تستحق الفاتورة ME-991 خلال 100 يوم')
 
     expect(say({ daysFromDue: 0 }).title).toBe('الفاتورة ME-991 متأخرة')
     expect(say({ daysFromDue: 1 }).title).toBe('الفاتورة ME-991 متأخرة يومًا واحدًا')
@@ -345,7 +349,20 @@ describe('the same lines in Arabic', () => {
 
     const discount = { ruleType: 'DISCOUNT_EXPIRY', reason: 'DISCOUNT_EXPIRY' } as const
     expect(say({ ...discount, daysFromDue: 0 }).title).toBe('ينتهي خصم الفاتورة ME-991 اليوم')
-    expect(say({ ...discount, daysFromDue: -3 }).title).toBe('ينتهي خصم الفاتورة ME-991 بعد 3 أيام')
+    expect(say({ ...discount, daysFromDue: -1 }).title).toBe('ينتهي خصم الفاتورة ME-991 غدًا')
+    expect(say({ ...discount, daysFromDue: -2 }).title).toBe('ينتهي خصم الفاتورة ME-991 خلال يومين')
+    expect(say({ ...discount, daysFromDue: -3 }).title).toBe(
+      'ينتهي خصم الفاتورة ME-991 خلال 3 أيام',
+    )
+    expect(say({ ...discount, daysFromDue: -5 }).title).toBe(
+      'ينتهي خصم الفاتورة ME-991 خلال 5 أيام',
+    )
+    expect(say({ ...discount, daysFromDue: -12 }).title).toBe(
+      'ينتهي خصم الفاتورة ME-991 خلال 12 يومًا',
+    )
+    expect(say({ ...discount, daysFromDue: -100 }).title).toBe(
+      'ينتهي خصم الفاتورة ME-991 خلال 100 يوم',
+    )
 
     const approval = { ruleType: 'APPROVAL_STALE', reason: 'APPROVAL_STALE' } as const
     expect(say({ ...approval, daysFromDue: 0 }).title).toBe(
@@ -403,6 +420,22 @@ describe('the same lines in Arabic', () => {
     expect(say({ ...recurring, reason: 'RECURRING_OUT_OF_RANGE', variancePercent: -8 }).body).toBe(
       'أقل من المبلغ المعتاد بنسبة <b>8٪</b>.',
     )
+  })
+
+  it('says "in N days" with «خلال» in every line that counts days to go, named by supplier or not', () => {
+    for (const reason of ['BEFORE_DUE', 'DISCOUNT_EXPIRY'] as const) {
+      for (const supplierName of [null, 'تمور النور']) {
+        for (const days of [1, 2, 5, 12, 100]) {
+          // No due date is sent: a due line then keeps the bill's own sentence even with a
+          // supplier, and the discount line names the supplier and counts the days it carries.
+          const title = say({ ruleType: reason, reason, supplierName, daysFromDue: -days }).title
+          const where = `${reason} ${supplierName ?? 'no supplier'} ${days}`
+          expect(title, where).not.toMatch(/بعد (يوم|\d)/)
+          if (days === 1) expect(title, where).toContain('غدًا')
+          else expect(title, where).toContain(days === 2 ? 'خلال يومين' : `خلال ${days} `)
+        }
+      }
+    }
   })
 
   it('writes the amount and the button in Arabic', () => {

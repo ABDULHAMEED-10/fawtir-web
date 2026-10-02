@@ -873,7 +873,7 @@ describe('the bell in Arabic', () => {
     const late = (await within(panel).findByText('الفاتورة ME-991 متأخرة 3 أيام')).closest('li')!
     expect(late.textContent).toContain('لم تُسدَّد بعد.')
     expect(within(late).getByRole('button', { name: 'افتح الفاتورة' })).toBeTruthy()
-    expect(within(panel).getByText('تستحق الفاتورة SP-1140 بعد يومين')).toBeTruthy()
+    expect(within(panel).getByText('تستحق الفاتورة SP-1140 خلال يومين')).toBeTruthy()
     const rent = within(panel).getByText('تأخر وصول Office rent 4 أيام').closest('li')!
     expect(rent.textContent).toContain('المبلغ المعتاد')
     expect(within(panel).getByText('3 جديدة')).toBeTruthy()
