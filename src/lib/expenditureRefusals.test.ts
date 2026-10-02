@@ -109,6 +109,20 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     await i18n.changeLanguage('en')
   })
 
+  // Owner's answer 2 (2 Oct): a single payment is refused on an unresolved mismatch as a payment
+  // run refuses it, and says so in the run's own sentence.
+  it('says a bill that does not match its order cannot be paid, in the payment run\'s words', async () => {
+    const mismatched = refusal('BILL_PAYMENT_MISMATCHED')
+    expect(MAPPED_REFUSAL_CODES).toContain('BILL_PAYMENT_MISMATCHED')
+    expect(i18n.t(describeApiFailure(mismatched).key)).toBe("That bill doesn't match its order.")
+    expect(i18n.t(describeApiFailure(mismatched).key)).toBe(
+      refusalOf(refusal('PAYMENT_RUN_BILL_MISMATCHED'), i18n.t),
+    )
+    await i18n.changeLanguage('ar')
+    expect(i18n.t(describeApiFailure(mismatched).key)).toBe('هذه الفاتورة لا تطابق أمر الشراء.')
+    await i18n.changeLanguage('en')
+  })
+
   // Draft wording, pending the owner (Wording-For-Abdul.md row 17).
   it('says a run holds a held bill, on any screen that does not name the code itself', async () => {
     const held = refusal('PAYMENT_RUN_BILL_ON_HOLD')

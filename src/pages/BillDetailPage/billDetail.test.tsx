@@ -882,6 +882,30 @@ describe('A bill, wired to the API', () => {
     ).toBeTruthy()
   })
 
+  it('offers no Record payment on an approved bill whose mismatch is unresolved, and offers it once matched by hand', async () => {
+    const mismatched = (verdict: 'MISMATCH' | 'MATCHED_BY_HAND') =>
+      detail({
+        readiness: APPROVED,
+        bill: {
+          ...detail().bill,
+          workflowState: 'APPROVED',
+          readiness: APPROVED,
+          match: { ...detail().bill.match!, verdict, byHand: verdict === 'MATCHED_BY_HAND' },
+        },
+      })
+    billResponse = () => json(200, mismatched('MISMATCH'))
+    const first = renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    first.unmount()
+    cleanup()
+
+    billResponse = () => json(200, mismatched('MATCHED_BY_HAND'))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
   it('leaves Record payment showing for the rest after a part payment', async () => {
     billResponse = () =>
       json(
@@ -1067,6 +1091,30 @@ describe('bill detail mapping', () => {
         all,
       ),
     ).toBe(false)
+  })
+
+  it('offers no payment while the bill does not match its order, whoever approved it', () => {
+    const all = () => true
+    const withVerdict = (verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER') => {
+      const approved = detail({ readiness: APPROVED })
+      return { ...approved, bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } } }
+    }
+    expect(canRecordPayment(withVerdict('MISMATCH'), all)).toBe(false)
+    // Approved by its amount, not by a person: the same rule.
+    expect(
+      canRecordPayment(
+        { ...withVerdict('MISMATCH'), readiness: { ...APPROVED, autoApproved: true } },
+        all,
+      ),
+    ).toBe(false)
+    // Resolved: matched by hand, matched again, no order found, or the match taken off.
+    expect(canRecordPayment(withVerdict('MATCHED_BY_HAND'), all)).toBe(true)
+    expect(canRecordPayment(withVerdict('MATCHED'), all)).toBe(true)
+    expect(canRecordPayment(withVerdict('NO_ORDER'), all)).toBe(true)
+    const unmatched = detail({ readiness: APPROVED })
+    expect(canRecordPayment({ ...unmatched, bill: { ...unmatched.bill, match: null } }, all)).toBe(
+      true,
+    )
   })
 
   it('offers no rejection once a payment is recorded or the bill is in a run', () => {
@@ -1297,6 +1345,32 @@ describe('why a bill was refused, in its own sentence', () => {
       await within(dialog).findByText('This bill is on hold. Release it, then record the payment.'),
     ).toBeTruthy()
     expect(within(dialog).queryByText(GENERIC)).toBeNull()
+  })
+
+  // Owner's answer 2 (2 Oct): a single payment is refused while a mismatch is unresolved, the
+  // same as a payment run. The sentence is the payment run's own, word for word.
+  it('says the bill does not match its order when the server refuses the payment for that', async () => {
+    actionResponse = refusal('BILL_PAYMENT_MISMATCHED')
+    const dialog = await pay()
+    expect(await within(dialog).findByText("That bill doesn't match its order.")).toBeTruthy()
+    expect(within(dialog).queryByText(GENERIC)).toBeNull()
+    // Nothing was recorded: the dialog stays open.
+    expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('says the same in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    actionResponse = refusal('BILL_PAYMENT_MISMATCHED')
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const record = i18n.t('billDetail.actions.recordPayment')
+    fireEvent.click(screen.getByRole('button', { name: record }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }),
+    )
+    expect(await within(dialog).findByText('هذه الفاتورة لا تطابق أمر الشراء.')).toBeTruthy()
   })
 
   it('says the most that can be recorded when the amount typed is more than the bill owes', async () => {

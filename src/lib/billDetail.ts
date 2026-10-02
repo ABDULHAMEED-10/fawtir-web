@@ -161,10 +161,21 @@ export function decisionsOf(
 }
 
 /**
- * Whether a payment can be recorded on this bill now: it is approved, not on hold, not in a
- * payment run, still owes money, and the reader may record payments. Anything else and the action
- * is not offered at all (owner decision 2026-10-01: hidden, not disabled). A held bill is
- * released first; a bill in a run is paid there, or taken out of the run.
+ * The stored match verdict says the bill does not agree with its order. Until that is resolved
+ * (matched by hand, the match taken off, or matched again and agreeing) the bill is not ready to
+ * pay, whoever or whatever approved it: the server refuses a single payment with
+ * `BILL_PAYMENT_MISMATCHED`, as a payment run always has (owner's answer 2, 2 Oct 2026).
+ */
+export function mismatchUnresolved(detail: BillDetailDto): boolean {
+  return detail.bill.match?.verdict === 'MISMATCH'
+}
+
+/**
+ * Whether a payment can be recorded on this bill now: it is approved, not on hold, does not
+ * disagree with its order, is not in a payment run, still owes money, and the reader may record
+ * payments. Anything else and the action is not offered at all (owner decision 2026-10-01:
+ * hidden, not disabled). A held bill is released first; a mismatch is resolved first; a bill in a
+ * run is paid there, or taken out of the run.
  */
 export function canRecordPayment(
   detail: BillDetailDto,
@@ -175,6 +186,7 @@ export function canRecordPayment(
     !isCreditNote(detail) &&
     detail.readiness.state === 'READY' &&
     detail.hold === null &&
+    !mismatchUnresolved(detail) &&
     !inPaymentRun(detail) &&
     detail.settlement.paymentState !== 'PAID' &&
     detail.settlement.outstandingAmount > 0

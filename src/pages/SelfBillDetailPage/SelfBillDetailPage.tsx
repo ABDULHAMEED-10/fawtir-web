@@ -218,6 +218,8 @@ const SUPPLIER_BILL_PAYMENT_REFUSALS: NonNullable<
 > = {
   BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'selfBillDetail.pay.notApproved' },
   BILL_PAYMENT_ON_HOLD: { field: null, key: 'selfBillDetail.pay.onHold' },
+  // The payment run's own sentence for the same refusal, word for word (owner's answer 2, 2 Oct).
+  BILL_PAYMENT_MISMATCHED: { field: null, key: 'paymentRuns.refused.mismatched' },
   BILL_PAYMENT_IN_PAYMENT_RUN: {
     field: null,
     key: 'selfBillDetail.pay.inRun',
