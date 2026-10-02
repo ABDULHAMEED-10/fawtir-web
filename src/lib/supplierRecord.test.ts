@@ -38,9 +38,10 @@ describe('how long a supplier paper is kept', () => {
   const TAX: DocumentKind[] = ['BILL', 'CREDIT_NOTE', 'DEBIT_NOTE']
   const OTHERS: DocumentKind[] = ['AGREEMENT', 'CERTIFICATE', 'PRICE_LIST', 'CORRESPONDENCE', 'OTHER']
 
-  it('offers every choice for a paper that is not a tax document', () => {
+  it('offers the two rules the server has for a paper that is not a tax document', () => {
+    // "Until a date I choose" has nothing behind it on the server, so it is not offered.
     for (const kind of OTHERS)
-      expect(keepChoicesFor(kind), kind).toEqual(['forever', 'matchInvoice', 'untilDate'])
+      expect(keepChoicesFor(kind), kind).toEqual(['forever', 'matchInvoice'])
   })
 
   it('offers a tax document the ten-year rule alone', () => {
@@ -50,14 +51,11 @@ describe('how long a supplier paper is kept', () => {
   it('sends the choice made for a paper that is not a tax document', () => {
     expect(keepToSend('AGREEMENT', 'forever')).toBe('UNTIL_DELETED')
     expect(keepToSend('AGREEMENT', 'matchInvoice')).toBe('TEN_YEAR_RULE')
-    // The server has no dated deletion: the paper stays until someone deletes it.
-    expect(keepToSend('CORRESPONDENCE', 'untilDate')).toBe('UNTIL_DELETED')
   })
 
   it('never sends "until deleted" for a tax document, whatever the form still holds', () => {
     for (const kind of TAX) {
       expect(keepToSend(kind, 'forever'), kind).toBe('TEN_YEAR_RULE')
-      expect(keepToSend(kind, 'untilDate'), kind).toBe('TEN_YEAR_RULE')
       expect(keepToSend(kind, 'matchInvoice'), kind).toBe('TEN_YEAR_RULE')
     }
   })

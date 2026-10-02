@@ -116,8 +116,13 @@ export function documentRemovable(entry: SupplierDocumentDto, today: string): bo
   return d.retainUntil === null || d.retainUntil < today
 }
 
-/** The upload screen's "How long to keep it" choices (Figma 154:140599). */
-export type KeepChoice = 'forever' | 'matchInvoice' | 'untilDate'
+/**
+ * The upload screen's "How long to keep it" choices the server has a rule for (Figma 154:140599).
+ * The frame's third choice, "Until a date I choose", has nothing behind it (no dated deletion, no
+ * date field), so it is not offered: hidden, not disabled, and no value is sent for it.
+ * TODO(backend): DOCUMENTS.md row 3.14, a dated deletion.
+ */
+export type KeepChoice = 'forever' | 'matchInvoice'
 
 /** A bill, a credit note or a debit note: always under the ten-year rule (owner, 2 Oct 2026). */
 const TAX_DOCUMENT_KINDS: ReadonlySet<string> = new Set(['BILL', 'CREDIT_NOTE', 'DEBIT_NOTE'])
@@ -128,19 +133,14 @@ export function isTaxDocumentKind(kind: string): boolean {
 
 /**
  * The choices offered for a kind of paper. A tax document is always kept under the ten-year rule
- * and cannot be set to delete, so the two choices that would let it go are not offered (hidden,
- * not disabled); the one left says which rule applies.
+ * and cannot be set to delete, so the choice that would let it go is not offered (hidden, not
+ * disabled); the one left says which rule applies.
  */
 export function keepChoicesFor(kind: DocumentKind): KeepChoice[] {
-  return isTaxDocumentKind(kind) ? ['matchInvoice'] : ['forever', 'matchInvoice', 'untilDate']
+  return isTaxDocumentKind(kind) ? ['matchInvoice'] : ['forever', 'matchInvoice']
 }
 
-/**
- * What the upload sends as `keep`. "Until a date I choose" has nothing behind it on the server
- * (no dated deletion, no date field), so such a paper is kept until someone deletes it, which is
- * the only rule that lets it go on the day chosen.
- * TODO(backend): DOCUMENTS.md row 3.14, a dated deletion.
- */
+/** What the upload sends as `keep`: the choice made, and the ten-year rule for a tax document. */
 export function keepToSend(kind: DocumentKind, choice: KeepChoice): DocumentKeep {
   if (isTaxDocumentKind(kind) || choice === 'matchInvoice') return 'TEN_YEAR_RULE'
   return 'UNTIL_DELETED'

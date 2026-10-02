@@ -53,10 +53,10 @@ type Picked = { id: string; name: string; vatNumber: string | null }
  * ten-year rule. A tax document (bill, credit or debit note) is always under the ten-year rule,
  * so it is offered that rule alone.
  *
- * TODO(backend): reading the file for a title, a date and a match (ask 3.13), a dated deletion
- * behind "Until a date I choose" (ask 3.14), attaching to a customer, an invoice, an order or a
- * catalogue item, and tags of their own (ask 3.15). Each is drawn and kept in the form; none is
- * sent.
+ * TODO(backend): reading the file for a title, a date and a match (ask 3.13), attaching to a
+ * customer, an invoice, an order or a catalogue item, and tags of their own (ask 3.15): each is
+ * drawn and kept in the form; none is sent. A dated deletion (ask 3.14): the frame's "Until a
+ * date I choose" is not drawn until the server has one.
  */
 export function UploadDocumentPage() {
   return (
@@ -87,7 +87,6 @@ function UploadDocument() {
   const [newTag, setNewTag] = useState('')
   const [addingTag, setAddingTag] = useState(false)
   const [keep, setKeep] = useState<Keep>('forever')
-  const [deleteAfter, setDeleteAfter] = useState('')
   const [errors, setErrors] = useState<{ file?: string; title?: string; supplier?: string }>({})
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -462,8 +461,8 @@ function UploadDocument() {
               <h2 className="text-base font-medium leading-[1.2] text-text-primary">
                 {t('documents.upload.keepTitle')}
               </h2>
-              {/* Sent as `keep`. TODO(backend): a dated deletion behind "Until a date I choose"
-                  (ask 3.14); the date is kept in the form, not sent. */}
+              {/* Sent as `keep`. TODO(backend): a dated deletion behind the frame's third choice,
+                  "Until a date I choose" (ask 3.14); it is not offered until the server has one. */}
               <div
                 className="mt-4 flex flex-col gap-2.5"
                 role="radiogroup"
@@ -505,17 +504,6 @@ function UploadDocument() {
                   )
                 })}
               </div>
-              {keepShown === 'untilDate' ? (
-                <div className="mt-3 flex flex-col gap-2">
-                  <FieldLabel label={t('documents.upload.keep.pickDate')} />
-                  <DateField
-                    value={deleteAfter}
-                    onChange={setDeleteAfter}
-                    min={dateOn || undefined}
-                    ariaLabel={t('documents.upload.keep.pickDate')}
-                  />
-                </div>
-              ) : null}
             </section>
 
             <section className="rounded-md bg-surface-card p-6">

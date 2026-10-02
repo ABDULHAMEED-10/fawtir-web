@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -159,11 +159,24 @@ describe('Upload a document', () => {
     expect(form.get('keep')).toBe('TEN_YEAR_RULE')
   })
 
-  it('sends "Until a date I choose" as kept until deleted: the server has no dated deletion', async () => {
-    const form = await fileAPaper('Until a date I choose')
-    expect(form.get('keep')).toBe('UNTIL_DELETED')
-    // No date field exists on the route.
-    expect([...form.keys()].sort()).toEqual(['file', 'keep', 'kind', 'series', 'title'])
+  it('draws the keep choice as two options, the first one on', async () => {
+    render(
+      <MemoryRouter initialEntries={['/compliance/documents/upload']}>
+        <Routes>
+          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const group = await screen.findByRole('radiogroup', { name: 'How long to keep it' })
+    const options = within(group).getAllByRole('radio')
+    expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    expect(within(group).getByRole('radio', { name: /Keep it indefinitely/ })).toBeTruthy()
+    expect(
+      within(group).getByRole('radio', { name: /Match the invoice it's attached to/ }),
+    ).toBeTruthy()
+    // Hidden, not disabled: the server has no dated deletion.
+    expect(screen.queryByRole('radio', { name: /Until a date I choose/ })).toBeNull()
+    expect(screen.queryByText('Delete after')).toBeNull()
   })
 
   /**

@@ -635,6 +635,28 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull()
   })
 
+  it('files a paper from "Attach document" under the ten-year rule, said out loud', async () => {
+    // The dialog draws no "How long to keep it": the paper is kept as every paper filed from here
+    // always was, and the rule is sent rather than left to the server's default.
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Attach document' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Attach a document' })
+    expect(within(dialog).queryByRole('radiogroup')).toBeNull()
+    const input = dialog.querySelector('input[type=file]') as HTMLInputElement
+    fireEvent.change(input, {
+      target: { files: [new File(['%PDF-1.4'], 'agreement.pdf', { type: 'application/pdf' })] },
+    })
+    fireEvent.change(within(dialog).getByLabelText(/^Title/), {
+      target: { value: 'Supply agreement 2027' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Attach document' }))
+    await waitFor(() => expect(calls('POST', `${ONE}/documents`)).toHaveLength(1))
+    const form = calls('POST', `${ONE}/documents`)[0][1]?.body as FormData
+    expect(form.get('keep')).toBe('TEN_YEAR_RULE')
+    expect(form.get('title')).toBe('Supply agreement 2027')
+  })
+
   it('keeps a phone number left-to-right inside Arabic text', async () => {
     renderSupplier()
     fireEvent.click(await screen.findByRole('button', { name: 'Manage' }))
