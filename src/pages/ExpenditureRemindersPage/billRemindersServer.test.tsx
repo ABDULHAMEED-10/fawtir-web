@@ -956,11 +956,17 @@ describe('a save the server refuses', () => {
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
 
-    // The failure, where and as the page shows any failed save. Nothing claims the lot was saved.
+    // Where the page shows any failed save, in the owner's sentence: it says which half went
+    // through. Nothing claims the lot was saved, and the settings' own refusal is not shown.
     expect(
-      await screen.findByText('Some details were not accepted. Check the form and try again.'),
+      await screen.findByText(
+        "The rules were saved, but the settings couldn't be saved. Try again.",
+      ),
     ).toBeTruthy()
     expect(screen.getByText('Not done')).toBeTruthy()
+    expect(
+      screen.queryByText('Some details were not accepted. Check the form and try again.'),
+    ).toBeNull()
     expect(screen.queryByText('Saved.')).toBeNull()
     expect(rulesBodies).toHaveLength(1)
     expect(settingsBodies).toHaveLength(1)
@@ -988,6 +994,97 @@ describe('a save the server refuses', () => {
     fireEvent.click(saveButton())
     await waitFor(() => expect(settingsBodies).toHaveLength(2))
     await waitFor(() => expect(settingsOnFile.delivery).toBe('IN_APP'))
+    expect(rulesBodies).toHaveLength(1)
+    expect(await screen.findByText('Saved.')).toBeTruthy()
+  })
+
+  it('says the same in Arabic, and the same whatever the settings failed on', async () => {
+    await i18n.changeLanguage('ar')
+    forcedSettings = {
+      status: 500,
+      body: { type: 'https://api.fawtir.om/problems/internal-error' },
+    }
+    renderPage()
+    await editorReady('قبل استحقاق الفاتورة')
+
+    fireEvent.click(
+      within(screen.getByText('إيصال ممسوح لم يُؤكَّد بعد').closest('article')!).getByRole(
+        'switch',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /داخل فوتر/ }))
+    const save = screen.getByRole('button', { name: 'حفظ التغييرات' })
+    await waitFor(() => expect(save).toHaveProperty('disabled', false))
+    fireEvent.click(save)
+
+    expect(
+      await screen.findByText('حُفظت القواعد، لكن تعذّر حفظ الإعدادات. حاول مرة أخرى.'),
+    ).toBeTruthy()
+    expect(rulesBodies).toHaveLength(1)
+    expect(settingsBodies).toHaveLength(1)
+    await waitFor(() => expect(save).toHaveProperty('disabled', false))
+  })
+
+  it('keeps the settings own failure when no rule was part of the save', async () => {
+    // Nothing was saved, so nothing says the rules were.
+    forcedSettings = {
+      status: 400,
+      body: {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        title: 'Request rejected',
+        status: 400,
+        detail: 'digestTime must be HH:mm',
+      },
+    }
+    renderPage()
+    await editorReady()
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    expect(
+      await screen.findByText('Some details were not accepted. Check the form and try again.'),
+    ).toBeTruthy()
+    expect(rulesBodies).toHaveLength(0)
+    expect(settingsBodies).toHaveLength(1)
+    expect(screen.queryByText(/The rules were saved/)).toBeNull()
+  })
+
+  it('reads the rules as saved even when the save answers with no rules', async () => {
+    // A rules save that answers 204, or without the list: the rules are on file all the same.
+    forcedSettings = {
+      status: 500,
+      body: { type: 'https://api.fawtir.om/problems/internal-error' },
+    }
+    const answering = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await answering(input, init)
+      const isRulesSave = String(input).includes('/bill-reminders/rules') && init?.method === 'PUT'
+      return isRulesSave && response.ok ? json(200, {}) : response
+    })
+    renderPage()
+    await editorReady()
+
+    fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    expect(
+      await screen.findByText(
+        "The rules were saved, but the settings couldn't be saved. Try again.",
+      ),
+    ).toBeTruthy()
+    expect(
+      within(card('A scanned receipt still unconfirmed'))
+        .getByRole('switch')
+        .getAttribute('aria-checked'),
+    ).toBe('true')
+
+    // Only the settings are left: Save sends them alone, and taking the edit back leaves nothing.
+    forcedSettings = null
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(settingsBodies).toHaveLength(2))
     expect(rulesBodies).toHaveLength(1)
     expect(await screen.findByText('Saved.')).toBeTruthy()
   })

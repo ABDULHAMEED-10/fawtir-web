@@ -7027,7 +7027,8 @@
       "notYet": "Not available yet: this needs the backend.",
       "save": "Save changes"
     },
-    "sendingOff": "Reminders are not being sent yet."
+    "sendingOff": "Reminders are not being sent yet.",
+    "rulesSavedSettingsFailed": "The rules were saved, but the settings couldn't be saved. Try again."
   },
   "documents": {
     "title": "Documents",
