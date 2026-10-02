@@ -408,6 +408,38 @@ describe('Bills list, wired to the API', () => {
     expect(within(awaiting).getByRole('button', { name: 'Approve' })).toBeTruthy()
   })
 
+  // Owner's answer 1 (2 Oct): a new approval policy applies to new bills only, so each bill carries
+  // the count it was recorded under and two rows of one page can differ.
+  it('names each bill\'s own approval count, never the settings page\'s', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              id: 'old',
+              supplierName: 'Recorded Before Co',
+              workflowState: 'AWAITING_APPROVAL',
+              readiness: { state: 'PENDING', distinctApprovals: 0, required: 1, autoApproved: false },
+            }),
+            bill({
+              id: 'new',
+              supplierName: 'Recorded After Co',
+              workflowState: 'AWAITING_APPROVAL',
+              readiness: { state: 'PENDING', distinctApprovals: 1, required: 2, autoApproved: false },
+            }),
+          ]),
+        ),
+    ]
+    renderBills()
+    const before = (await screen.findByText('Recorded Before Co')).closest('tr')!
+    expect(within(before).getByText('Waiting on approval')).toBeTruthy()
+    const after = screen.getByText('Recorded After Co').closest('tr')!
+    expect(within(after).getByText('Waiting on approval · 1 of 2')).toBeTruthy()
+    // The policy in Settings is what the NEXT bill is given: the list never reads it.
+    expect(calls('/api/v1/expenditure/approval-policy')).toEqual([])
+  })
+
   it('says when drafts are waiting and when a tab stopped at its window', async () => {
     summaryResponse = () =>
       json(200, {
