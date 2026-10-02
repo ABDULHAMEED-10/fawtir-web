@@ -654,7 +654,7 @@ describe('a reminder that names its supplier, in Arabic', () => {
         supplierName: 'تمور النور',
         daysFromDue: 6,
       }).body,
-    ).toMatch(/^<b>OMR .+<\/b> معلّقة\.$/)
+    ).toMatch(/^<b>OMR .+<\/b> بانتظار الاعتماد\.$/)
 
     expect(counted('MISMATCH_STALE', 0)).toBe('اختلاف تمور النور لم يُحلّ')
     expect(counted('MISMATCH_STALE', 1)).toBe('اختلاف تمور النور لم يُحلّ منذ يوم واحد')
