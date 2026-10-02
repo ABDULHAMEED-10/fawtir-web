@@ -928,3 +928,41 @@ describe('a reminder that names its supplier, in Arabic', () => {
     }
   })
 })
+
+describe("the owner's Arabic terms in the bell and on the Reminders page", () => {
+  /** Every Arabic sentence under the keys the bell, the Bills count and the Reminders page own. */
+  function owned(): [string, string][] {
+    const found: [string, string][] = []
+    const walk = (node: unknown, path: string) => {
+      if (typeof node === 'string') found.push([path, node])
+      else if (node && typeof node === 'object')
+        for (const [key, value] of Object.entries(node)) walk(value, `${path}.${key}`)
+    }
+    walk(i18n.getResource('ar', 'translation', 'notes.reminder'), 'notes.reminder')
+    walk(i18n.getResource('ar', 'translation', 'expenditureReminders'), 'expenditureReminders')
+    walk(
+      i18n.getResource('ar', 'translation', 'dashboard.nav.billRemindersUnread'),
+      'dashboard.nav.billRemindersUnread',
+    )
+    const refused = i18n.getResource('ar', 'translation', 'apiErrors.refused') as Record<
+      string,
+      string
+    >
+    for (const [key, value] of Object.entries(refused))
+      if (key.startsWith('reminder')) found.push([`apiErrors.refused.${key}`, value])
+    return found
+  }
+
+  it('says الاعتماد for approving a bill, المتكررة for a recurring bill, and يومًا', () => {
+    const sentences = owned()
+    // The bell's lines alone are more than this: the walk found the strings it is meant to read.
+    expect(sentences.length).toBeGreaterThan(200)
+    expect(sentences.some(([key]) => key === 'notes.reminder.supplier.APPROVAL_STALE.now')).toBe(
+      true,
+    )
+    for (const [key, sentence] of sentences) {
+      // The owner's decision of 2 Oct: not الموافقة, not الدورية, and the tanwin before the alif.
+      expect(sentence, key).not.toMatch(/الموافقة|الدورية|دورية|يوماً|مرحباً/)
+    }
+  })
+})
