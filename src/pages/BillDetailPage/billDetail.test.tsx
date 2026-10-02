@@ -5,6 +5,7 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
 import {
+  activityOf,
   canRecordPayment,
   complianceOf,
   decisionsOf,
@@ -372,6 +373,130 @@ describe('A bill, wired to the API', () => {
     // Those three are the whole block: nothing is "reported by the sender" on your own document.
     expect(card.getAllByRole('listitem')).toHaveLength(3)
     expect(card.queryByText(/Reported by the sender/)).toBeNull()
+  })
+
+  // Owner's answer 3 (2 Oct): a self-billed bill shows the document's lines under the self-bill
+  // page's own heading, and the Activity block, from the self-billed document's history.
+  const SELF_BILLED_LINES: BillDetailDto['lines'] = [
+    {
+      lineNo: 1,
+      description: 'Haulage, Sohar to Muscat',
+      quantity: 2,
+      unit: 'EA',
+      unitPrice: 150,
+      vatRate: 5,
+      lineNet: 300,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+      taxCategoryCode: 'S',
+    },
+    {
+      lineNo: 2,
+      description: 'Customs paperwork',
+      quantity: 1,
+      unit: 'EA',
+      unitPrice: 176.19,
+      vatRate: 0,
+      lineNet: 176.19,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+      taxCategoryCode: 'Z',
+    },
+  ]
+  const SELF_BILLED_ACTIVITY = [
+    { at: '2026-10-01T08:30:00Z', kind: 'APPROVED', detail: null, actor: 'u-2' },
+    { at: '2026-10-01T08:00:00Z', kind: 'ISSUED', detail: null, actor: 'u-1' },
+    { at: '2026-10-01T07:50:00Z', kind: 'DRAFT_CREATED', detail: null, actor: 'u-3' },
+  ] as BillDetailDto['activity']
+
+  it('shows a self-billed bill\'s lines under "Items supplied to you", not as sent by the supplier', async () => {
+    billResponse = () =>
+      json(200, { ...selfBilled(AGREED), lines: SELF_BILLED_LINES, activity: SELF_BILLED_ACTIVITY })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getByText('Haulage, Sohar to Muscat')).toBeTruthy()
+    expect(card.getByText('Customs paperwork')).toBeTruthy()
+    expect(card.getByText('2 EA')).toBeTruthy()
+    expect(card.getByText('300.000')).toBeTruthy()
+    expect(card.getByText('176.190', { selector: 'td.text-base' })).toBeTruthy()
+    // The supplier sent nothing: this company issued the document.
+    expect(screen.queryByRole('heading', { name: "What they're charging for" })).toBeNull()
+    expect(screen.queryByText('as sent by the supplier')).toBeNull()
+    expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
+  })
+
+  it('shows a self-billed bill\'s Activity from the document\'s history, in the self-bill page\'s words', async () => {
+    billResponse = () =>
+      json(200, {
+        ...selfBilled(AGREED),
+        lines: SELF_BILLED_LINES,
+        activity: [
+          {
+            at: '2026-10-02T06:10:00Z',
+            kind: 'CANCELLED',
+            detail: 'Raised against the wrong supplier',
+            actor: 'u-2',
+          },
+          ...SELF_BILLED_ACTIVITY,
+        ],
+      })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getAllByRole('listitem')).toHaveLength(4)
+    expect(card.getByText('Draft created')).toBeTruthy()
+    expect(card.getByText('Cancelled')).toBeTruthy()
+    expect(card.getByText(/^Raised against the wrong supplier · /)).toBeTruthy()
+    // The signed-in user (u-1) issued it: "by you" is said as for every other entry.
+    const issued = card.getByText('Issued').closest('li') as HTMLElement
+    expect(within(issued).getByText(/by you/)).toBeTruthy()
+    expect(card.getByText('Approved')).toBeTruthy()
+    // Never the key itself.
+    expect(card.queryByText(/billDetail\.activity/)).toBeNull()
+  })
+
+  it('reads a self-billed bill\'s heading and history in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () =>
+      json(200, { ...selfBilled(AGREED), lines: SELF_BILLED_LINES, activity: SELF_BILLED_ACTIVITY })
+    renderBill()
+    expect(await screen.findByRole('heading', { level: 2, name: 'البنود المورَّدة إليك' })).toBeTruthy()
+    expect(screen.getByText('صدرت')).toBeTruthy()
+    expect(screen.getByText('أُنشئت المسودة')).toBeTruthy()
+    expect(screen.queryByText('كما أرسله المورد')).toBeNull()
+  })
+
+  it('never says "the supplier sent no lines" of a self-billed bill, from a server that sends none', async () => {
+    // A server from before the change, or a document that can no longer be read: 200, no lines.
+    billResponse = () => json(200, { ...selfBilled(AGREED), lines: [], activity: [] })
+    renderBill()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' })).toBeTruthy()
+    expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
+    expect(screen.queryByText('as sent by the supplier')).toBeNull()
+    expect(screen.getByText('Nothing has been recorded against this bill yet.')).toBeTruthy()
+  })
+
+  it('keeps the supplier\'s heading and empty line for a bill the supplier sent', async () => {
+    billResponse = () => json(200, { ...detail(), lines: [] })
+    renderBill()
+    expect(await screen.findByRole('heading', { level: 2, name: "What they're charging for" })).toBeTruthy()
+    expect(screen.getByText('as sent by the supplier')).toBeTruthy()
+    expect(screen.getByText('The supplier sent no lines with this bill.')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Items supplied to you' })).toBeNull()
+  })
+
+  it('says "Recorded" for an activity kind it has no wording for, never the key', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        activity: [{ at: '2026-10-01T08:00:00Z', kind: 'SOMETHING_NEW', detail: null, actor: null }],
+      })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getByText('Recorded')).toBeTruthy()
+    expect(card.queryByText(/SOMETHING_NEW/)).toBeNull()
   })
 
   const scanned = (note: string | null | undefined): BillDetailDto => ({
@@ -1092,6 +1217,26 @@ describe('bill detail mapping', () => {
       'billDetail.compliance.passedPintOm',
       'billDetail.compliance.receipt.unavailable',
       'billDetail.compliance.originalKept',
+    ])
+  })
+
+  it('words the self-billed document\'s steps, keeps the bill\'s own kinds, and has a word for an unknown one', () => {
+    const entry = (kind: string) =>
+      ({ at: '2026-10-01T08:00:00Z', kind, detail: null, actor: 'u-1' }) as BillDetailDto['activity'][number]
+    const keys = activityOf(
+      {
+        ...detail(),
+        activity: ['DRAFT_CREATED', 'ISSUED', 'CANCELLED', 'APPROVED', 'PAID', 'BRAND_NEW'].map(entry),
+      },
+      'u-1',
+    ).map((item) => item.key)
+    expect(keys).toEqual([
+      'invoiceDetails.event.DRAFT_CREATED',
+      'invoiceDetails.event.ISSUED',
+      'invoiceDetails.event.CANCELLED',
+      'billDetail.activity.kind.APPROVED',
+      'billDetail.activity.kind.PAID',
+      'invoiceDetails.event.other',
     ])
   })
 

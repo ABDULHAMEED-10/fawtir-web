@@ -320,7 +320,23 @@ export type BillDetailDto = {
   }
   activity: {
     at: string | null
-    kind: 'ARRIVED' | 'CONFIRMED' | 'MATCHED' | 'APPROVED' | 'REJECTED' | 'HELD' | 'RELEASED' | 'PAID' | 'REVERSED'
+    /**
+     * The last three are the steps of the self-billed document, on a `SELF_BILLED` bill only, and
+     * only from a server that sends them.
+     */
+    kind:
+      | 'ARRIVED'
+      | 'CONFIRMED'
+      | 'MATCHED'
+      | 'APPROVED'
+      | 'REJECTED'
+      | 'HELD'
+      | 'RELEASED'
+      | 'PAID'
+      | 'REVERSED'
+      | 'DRAFT_CREATED'
+      | 'ISSUED'
+      | 'CANCELLED'
     detail: string | null
     actor: string | null
   }[]

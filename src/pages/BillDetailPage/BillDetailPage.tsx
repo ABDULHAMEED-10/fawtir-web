@@ -38,6 +38,7 @@ import {
   lineVatOf,
   decisionNoteOf,
   decisionsOf,
+  isSelfBilled,
   singleVatRate,
   stepsOf,
   termsDaysOf,
@@ -251,6 +252,7 @@ function BillScreen() {
   })
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
+  const selfBilled = isSelfBilled(detail)
   const original = billOriginalPath(detail)
   const orderNumber =
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
@@ -450,18 +452,27 @@ function BillScreen() {
 
           <Card>
             <div className="mb-4 flex flex-wrap items-baseline gap-2">
+              {/* A self-billed bill is this company's own document: its lines sit under the
+                  self-bill page's heading, and nothing is "as sent by the supplier" (owner's
+                  answer 3, 2 Oct). */}
               <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
-                {t('billDetail.lines.title')}
+                {selfBilled ? t('selfBillDetail.sections.items') : t('billDetail.lines.title')}
               </h2>
-              <span className="text-sm font-medium text-text-quaternary">
-                {t('billDetail.lines.asSent')}
-              </span>
+              {selfBilled ? null : (
+                <span className="text-sm font-medium text-text-quaternary">
+                  {t('billDetail.lines.asSent')}
+                </span>
+              )}
             </div>
 
             {detail.lines.length === 0 ? (
-              <p className="py-6 text-center text-sm font-medium text-text-quaternary">
-                {t('billDetail.lines.none')}
-              </p>
+              // No lines on a self-billed bill (a server from before they were sent, or a document
+              // that can no longer be read) is not something "the supplier sent".
+              selfBilled ? null : (
+                <p className="py-6 text-center text-sm font-medium text-text-quaternary">
+                  {t('billDetail.lines.none')}
+                </p>
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] border-collapse text-start">
