@@ -17849,7 +17849,7 @@
   },
   "approvalPolicy": {
     "title": "Bill approvals",
-    "subtitle": "Who must sign off a supplier's bill before it can be paid. This is the rule the Bills screen enforces. A bill that has not met it cannot be added to a payment run.",
+    "subtitle": "Who must sign off a supplier's bill before it can be paid. This rule applies to bills recorded from now on. Bills already waiting or approved keep their current decision. A bill that has not met it cannot be added to a payment run.",
     "saved": "The approval rule was saved.",
     "notSaved": "NOT SAVED",
     "save": "Save the rule",
@@ -17869,7 +17869,7 @@
       "BELOW_AMOUNT": "Bills under a set amount need no approval",
       "label": "Amount",
       "boundary": "A bill of exactly {{amount}} still needs approval. Only bills below it are let through.",
-      "removing": "This removes the {{amount}} threshold. Bills that needed no approval before will need one from now on."
+      "removing": "This removes the {{amount}} threshold. Bills recorded from now on above the new limit will need approval."
     },
     "problem": {
       "approversRequired": "Say how many approvals a bill needs.",

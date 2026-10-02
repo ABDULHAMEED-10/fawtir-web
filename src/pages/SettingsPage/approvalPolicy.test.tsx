@@ -121,6 +121,43 @@ describe('the approval policy screen', () => {
     await waitFor(() => expect(sent).toEqual({ requiredApprovals: 2, autoApproveBelow: null }))
   })
 
+  // Owner's Round 5 answer 2 (2 Oct): a new rule applies to new bills only, and the page says so.
+  it('says the rule applies to bills recorded from now on, and never that it re-judges the others', async () => {
+    renderPage()
+    await screen.findByLabelText('People who must approve')
+    const subtitle = screen.getByText(/Who must sign off a supplier's bill before it can be paid\./)
+    expect(subtitle.textContent).toBe(
+      "Who must sign off a supplier's bill before it can be paid. This rule applies to bills recorded from now on. Bills already waiting or approved keep their current decision. A bill that has not met it cannot be added to a payment run.",
+    )
+    expect(screen.queryByText(/This is the rule the Bills screen enforces/)).toBeNull()
+
+    fireEvent.click(screen.getByRole('radio', { name: /Every bill needs approval/ }))
+    const warning = await screen.findByText(
+      (_, element) =>
+        element?.tagName === 'P' && /This removes the .* threshold/.test(element.textContent ?? ''),
+    )
+    expect(warning.textContent).toMatch(
+      /^This removes the .* threshold\. Bills recorded from now on above the new limit will need approval\.$/,
+    )
+    expect(warning.textContent).not.toMatch(/needed no approval before/)
+  })
+
+  it('says the same in Arabic, with "waiting for approval" in the app\'s own term', async () => {
+    await i18n.changeLanguage('ar')
+    renderPage()
+    const subtitle = await screen.findByText(/من يجب أن يعتمد فاتورة المورّد قبل سدادها\./)
+    expect(subtitle.textContent).toContain(
+      'تنطبق هذه القاعدة على الفواتير المسجّلة من الآن فصاعدًا. الفواتير التي بانتظار الاعتماد أو المعتمدة تبقى على قرارها الحالي.',
+    )
+    expect(subtitle.textContent).toContain('والفاتورة التي لم تستوفها لا يمكن ضمّها إلى دفعة سداد.')
+    // "On hold" is not "waiting": the held word is not used for a bill waiting for approval.
+    expect(subtitle.textContent).not.toContain('قيد الانتظار')
+    expect(subtitle.textContent).not.toContain('تطبّقها شاشة الفواتير')
+    expect(i18n.t('approvalPolicy.threshold.removing', { amount: 'X' })).toBe(
+      'هذا يزيل حدّ X. والفواتير المسجّلة من الآن فصاعدًا التي تتجاوز الحد الجديد ستحتاج إلى اعتماد.',
+    )
+  })
+
   it('refuses out-of-range counts itself, and never asks the server', async () => {
     renderPage()
     const approvers = await screen.findByLabelText('People who must approve')
