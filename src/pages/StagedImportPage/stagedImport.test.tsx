@@ -413,14 +413,20 @@ describe('The staged import, wired to the API', () => {
         String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[call][1]?.body),
       )
 
-    it('starts left out, with the first of the pair kept, and says so in the server’s words', async () => {
+    it('starts left out, with the first of the pair kept, and says so in the approved sentence', async () => {
       batch = REPEATS
       renderImport()
       await uploadFile()
       await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
       expect(screen.getByText('2 of 3 would come in')).toBeTruthy()
       fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
-      expect(soharRow().getByText(REPEATS.rows[1].message!)).toBeTruthy()
+      // The owner's sentence (answer 34, 2 Oct), not the server's English one.
+      expect(
+        soharRow().getByText(
+          'Row 2 of this file has the same VAT number. Only one of them can be brought in.',
+        ),
+      ).toBeTruthy()
+      expect(soharRow().queryByText(REPEATS.rows[1].message!)).toBeNull()
       // Left out to begin with, and still the reader's to bring in.
       expect(soharRow().getByRole('button', { name: 'Bring in anyway' })).toBeTruthy()
       expect(
@@ -434,6 +440,51 @@ describe('The staged import, wired to the API', () => {
         expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
       )
       expect(commitBody()).toEqual({ rowNumbers: [2, 4] })
+    })
+
+    it('says it in Arabic, in the owner’s words', async () => {
+      await i18n.changeLanguage('ar')
+      batch = REPEATS
+      renderImport()
+      await uploadFile()
+      fireEvent.click((await screen.findAllByRole('tab'))[3])
+      expect(
+        await screen.findByText(
+          'الصف 2 من هذا الملف يحمل الرقم الضريبي نفسه. يمكن إدخال واحد منهما فقط.',
+        ),
+      ).toBeTruthy()
+    })
+
+    it('names the Peppol identifier when that is what the two rows share', async () => {
+      const peppolRepeat: ImportBatchDto = {
+        ...REPEATS,
+        rows: REPEATS.rows.map((row) =>
+          row.rowNumber === 3
+            ? {
+                ...row,
+                field: 'peppolParticipantId',
+                message:
+                  'Row 2 of this file has the same Peppol identifier, and only one of them can be brought in',
+              }
+            : row,
+        ),
+      }
+      batch = peppolRepeat
+      renderImport()
+      await uploadFile()
+      await screen.findByRole('heading', { level: 1, name: 'Check before importing' })
+      fireEvent.click(screen.getByRole('tab', { name: /^All/ }))
+      expect(
+        soharRow().getByText(
+          'Row 2 of this file has the same Peppol identifier. Only one of them can be brought in.',
+        ),
+      ).toBeTruthy()
+      await i18n.changeLanguage('ar')
+      expect(
+        await screen.findByText(
+          'الصف 2 من هذا الملف يحمل معرّف Peppol نفسه. يمكن إدخال واحد منهما فقط.',
+        ),
+      ).toBeTruthy()
     })
 
     it('sends the rows that are ticked, not "all of them", when their number matches the default', async () => {
@@ -608,8 +659,11 @@ describe('staged import helpers', () => {
     expect(commitSelection(REPEATS, initialSelection(REPEATS))).toEqual([2, 4])
     // Two ticked, as many as `wouldImport`, and not the server's two: the list still goes out.
     expect(commitSelection(REPEATS, new Set([2, 3]))).toEqual([2, 3])
-    // The row shows the server's own sentence; a row already on file is ticked as it was before.
-    expect(problemNote(REPEATS.rows[1])).toEqual({ text: REPEATS.rows[1].message })
+    // The row shows the owner's sentence; a row already on file is ticked as it was before.
+    expect(problemNote(REPEATS.rows[1])).toEqual({
+      key: 'stagedImport.problem.repeatsRowVat',
+      values: { row: 2 },
+    })
     expect([...initialSelection(BATCH)]).toEqual([3, 4, 5])
   })
 
@@ -631,6 +685,22 @@ describe('staged import helpers', () => {
     expect(problemNote(BATCH.rows[1])).toEqual({ key: 'stagedImport.problem.duplicateVat' })
     expect(problemNote(BATCH.rows[0])).toEqual({ text: 'Ten digits — an Oman VATIN has twelve' })
     expect(problemNote(BATCH.rows[2])).toBeNull()
+    // A row that repeats an earlier row of the file: the approved sentence, naming the row.
+    expect(problemNote(REPEATS.rows[1])).toEqual({
+      key: 'stagedImport.problem.repeatsRowVat',
+      values: { row: 2 },
+    })
+    expect(
+      problemNote({
+        ...REPEATS.rows[1],
+        message:
+          'Row 14 of this file has the same Peppol identifier, and only one of them can be brought in',
+      }),
+    ).toEqual({ key: 'stagedImport.problem.repeatsRowPeppol', values: { row: 14 } })
+    // The same words on a row the check refused are not that verdict: the server's words stay.
+    expect(
+      problemNote({ ...REPEATS.rows[1], severity: 'CANNOT_IMPORT' }),
+    ).toEqual({ text: REPEATS.rows[1].message })
     expect(fieldLabel('vatRegistrationNumber')).toEqual({ key: 'stagedImport.field.vatNumber' })
     expect(fieldLabel('somethingNew')).toEqual({ text: 'somethingNew' })
     expect(fieldLabel(null)).toBeNull()

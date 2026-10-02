@@ -630,7 +630,7 @@ function ImportRow({
               alt=""
               className="mt-0.5 size-4 shrink-0"
             />
-            {'key' in note ? t(note.key) : note.text}
+            {'key' in note ? t(note.key, note.values) : note.text}
           </p>
         ) : (
           <p className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-success-700">

@@ -142,14 +142,18 @@ export function repeatsEarlierRow(
   return { row: Number(match[1]), identifier: match[2] === 'VAT number' ? 'vat' : 'peppol' }
 }
 
+/** What the review says is wrong with a row: a sentence of the app's, or the server's own words. */
+export type ProblemNote =
+  | { key: string; values?: Record<string, string | number> }
+  | { text: string }
+
 /**
- * The one verdict the check gives today for a row it will still import: the counterparty is
- * already on file. Everything else is a validation refusal in the server's own words, which is
- * more use to the reader than a guess at what it meant. A row that repeats an earlier row of the
- * file (`repeatsEarlierRow`) is shown in the server's words too, until it has a sentence of its
- * own in both languages: this is where that sentence would be chosen.
+ * The verdicts the check gives for a row it will still import, each in a sentence of the app's
+ * own: the counterparty is already on file, or the row repeats an earlier row of the same file
+ * (the owner's sentence of 2 Oct 2026, naming that row). Everything else is a validation refusal
+ * in the server's own words, which is more use to the reader than a guess at what it meant.
  */
-export function problemNote(row: ImportBatchRowDto): { key: string } | { text: string } | null {
+export function problemNote(row: ImportBatchRowDto): ProblemNote | null {
   if (!row.message) return null
   if (row.severity === 'NEEDS_A_LOOK' && /already on file/i.test(row.message)) {
     return {
@@ -157,6 +161,16 @@ export function problemNote(row: ImportBatchRowDto): { key: string } | { text: s
         row.field === 'vatRegistrationNumber'
           ? 'stagedImport.problem.duplicateVat'
           : 'stagedImport.problem.duplicatePeppol',
+    }
+  }
+  const repeat = repeatsEarlierRow(row)
+  if (repeat) {
+    return {
+      key:
+        repeat.identifier === 'vat'
+          ? 'stagedImport.problem.repeatsRowVat'
+          : 'stagedImport.problem.repeatsRowPeppol',
+      values: { row: repeat.row },
     }
   }
   return { text: row.message }

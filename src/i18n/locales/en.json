@@ -17560,7 +17560,9 @@
     "nothingHere": "Nothing in this list.",
     "problem": {
       "duplicateVat": "You already have a counterparty with this VAT number. Bringing it in again would give you two.",
-      "duplicatePeppol": "You already have a counterparty with this Peppol identifier. Bringing it in again would give you two."
+      "duplicatePeppol": "You already have a counterparty with this Peppol identifier. Bringing it in again would give you two.",
+      "repeatsRowVat": "Row {{row}} of this file has the same VAT number. Only one of them can be brought in.",
+      "repeatsRowPeppol": "Row {{row}} of this file has the same Peppol identifier. Only one of them can be brought in."
     },
     "field": {
       "customerType": "Kind",
