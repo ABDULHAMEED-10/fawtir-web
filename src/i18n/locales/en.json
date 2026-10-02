@@ -14133,7 +14133,7 @@
         "datedPast": "{{percent}}% discount on bill {{name}} expired {{date}}"
       },
       "APPROVAL_STALE": {
-        "now": "Bill {{name}} is waiting for approval",
+        "now": "Bill {{name}} has waited less than a day for approval",
         "days_one": "Bill {{name}} has waited {{count}} day for approval",
         "days_other": "Bill {{name}} has waited {{count}} days for approval"
       },
@@ -14177,7 +14177,7 @@
           "days_other": "{{supplier}} unpaid for {{count}} days"
         },
         "DISCOUNT_EXPIRY": {
-          "now": "{{supplier}} discount expires today",
+          "now": "{{supplier}} discount runs out today",
           "days_one": "{{supplier}} discount expires tomorrow",
           "days_other": "{{supplier}} discount expires in {{count}} days",
           "dated": "{{supplier}} {{percent}}% discount expires {{date}}",
@@ -14185,7 +14185,7 @@
           "datedPast": "{{supplier}} {{percent}}% discount expired {{date}}"
         },
         "APPROVAL_STALE": {
-          "now": "{{supplier}} approval waiting",
+          "now": "{{supplier}} approval waiting less than a day",
           "days_one": "{{supplier}} approval waiting {{count}} day",
           "days_other": "{{supplier}} approval waiting {{count}} days"
         },

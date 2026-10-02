@@ -100,8 +100,10 @@ describe('a bill reminder as a line of the bell, in English', () => {
 
   it('says how long an approval has waited, and never "0 days"', () => {
     const approval = { ruleType: 'APPROVAL_STALE', reason: 'APPROVAL_STALE' } as const
-    // A nudge on the day the bill arrived has waited no days yet.
-    expect(say({ ...approval, daysFromDue: 0 }).title).toBe('Bill ME-991 is waiting for approval')
+    // A nudge on the day the bill arrived has waited no days yet: the owner's wording for it.
+    expect(say({ ...approval, daysFromDue: 0 }).title).toBe(
+      'Bill ME-991 has waited less than a day for approval',
+    )
     expect(say({ ...approval, daysFromDue: 1 }).title).toBe(
       'Bill ME-991 has waited 1 day for approval',
     )
@@ -346,7 +348,9 @@ describe('the same lines in Arabic', () => {
     expect(say({ ...discount, daysFromDue: -3 }).title).toBe('ينتهي خصم الفاتورة ME-991 بعد 3 أيام')
 
     const approval = { ruleType: 'APPROVAL_STALE', reason: 'APPROVAL_STALE' } as const
-    expect(say({ ...approval, daysFromDue: 0 }).title).toBe('الفاتورة ME-991 بانتظار الاعتماد')
+    expect(say({ ...approval, daysFromDue: 0 }).title).toBe(
+      'الفاتورة ME-991 تنتظر الاعتماد منذ أقل من يوم',
+    )
     expect(say({ ...approval, daysFromDue: 2 }).title).toBe(
       'الفاتورة ME-991 بانتظار الاعتماد منذ يومين',
     )
@@ -505,7 +509,7 @@ describe('a reminder that names its supplier, in English', () => {
 
     const discount = { ...named, ruleType: 'DISCOUNT_EXPIRY', reason: 'DISCOUNT_EXPIRY' } as const
     expect(say({ ...discount, daysFromDue: 0 }).title).toBe(
-      'Muscat Roastery discount expires today',
+      'Muscat Roastery discount runs out today',
     )
     expect(say({ ...discount, daysFromDue: -1 }).title).toBe(
       'Muscat Roastery discount expires tomorrow',
@@ -515,7 +519,9 @@ describe('a reminder that names its supplier, in English', () => {
     )
 
     const approval = { ...named, ruleType: 'APPROVAL_STALE', reason: 'APPROVAL_STALE' } as const
-    expect(say({ ...approval, daysFromDue: 0 }).title).toBe('Muscat Roastery approval waiting')
+    expect(say({ ...approval, daysFromDue: 0 }).title).toBe(
+      'Muscat Roastery approval waiting less than a day',
+    )
     expect(say({ ...approval, daysFromDue: 1 }).title).toBe(
       'Muscat Roastery approval waiting 1 day',
     )
@@ -664,6 +670,26 @@ describe('a reminder that names its supplier, in English', () => {
     ).toMatchObject({ title: 'Al Noor Dates unpaid for 3 days', body: asToday.body })
   })
 
+  it('never prints a zero for a discount on its last day or an approval not a day old', () => {
+    for (const language of ['en', 'ar']) {
+      for (const supplierName of ['Muscat Roastery', null]) {
+        for (const reason of ['DISCOUNT_EXPIRY', 'APPROVAL_STALE'] as const) {
+          const note = reminderNote(
+            item({ ruleType: reason, reason, supplierName, daysFromDue: 0 }),
+            NOW,
+          )
+          const title = i18n.t(note.titleKey, { ...noteValues(note, language), lng: language })
+          expect(title, `${language} ${reason} ${supplierName}`).not.toMatch(/\b0\b|٠/)
+          expect(title).toMatch(
+            reason === 'DISCOUNT_EXPIRY'
+              ? /runs out today|ينتهي .*اليوم|ينتهي اليوم/
+              : /less than a day|منذ أقل من يوم/,
+          )
+        }
+      }
+    }
+  })
+
   it('does not need the bill number once the supplier is named', () => {
     // A row recorded before the server kept the number: the supplier still names it.
     expect(say({ ...alNoor, subjectDisplay: null }).title).toBe('Al Noor Dates unpaid for 3 days')
@@ -734,7 +760,7 @@ describe('a reminder that names its supplier, in Arabic', () => {
     expect(counted('DISCOUNT_EXPIRY', 11)).toBe('خصم تمور النور ينتهي خلال 11 يومًا')
     expect(counted('DISCOUNT_EXPIRY', 100)).toBe('خصم تمور النور ينتهي خلال 100 يوم')
 
-    expect(counted('APPROVAL_STALE', 0)).toBe('اعتماد تمور النور ينتظر')
+    expect(counted('APPROVAL_STALE', 0)).toBe('اعتماد تمور النور ينتظر منذ أقل من يوم')
     expect(counted('APPROVAL_STALE', 1)).toBe('اعتماد تمور النور ينتظر يومًا واحدًا')
     expect(counted('APPROVAL_STALE', 2)).toBe('اعتماد تمور النور ينتظر يومين')
     expect(counted('APPROVAL_STALE', 6)).toBe('اعتماد تمور النور ينتظر 6 أيام')
