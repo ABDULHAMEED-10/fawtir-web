@@ -2,6 +2,7 @@ import type { BillRowDto } from '../api/expenditure/bills'
 import type { PaymentRunDto } from '../api/expenditure/paymentRuns'
 import type { SupplierDocumentDto, SupplierOverviewDto } from '../api/expenditure/supplierRecord'
 import type { SupplierDetailDto } from '../api/expenditure/suppliers'
+import { workflowStateOf } from './billList'
 import { addDays } from './dates'
 import type { Band, Note } from './supplierRecord'
 
@@ -81,7 +82,8 @@ export function runOf(row: BillRowDto, runs: readonly PaymentRunDto[]): PaymentR
 
 /** The sentence under a bill's status chip: where it is, said from its own fields. */
 export function whereNote(row: BillRowDto, run: PaymentRunDto | null): Note | null {
-  switch (row.workflowState) {
+  // Approved while it still differs from its order reads as the mismatch it is (`workflowStateOf`).
+  switch (workflowStateOf(row)) {
     case 'IN_PAYMENT_RUN':
       return run?.paymentDate
         ? { key: 'supplierDetail.where.paying', values: { date: run.paymentDate } }
@@ -125,7 +127,8 @@ export function rowAction(row: BillRowDto, run: PaymentRunDto | null, canPay: bo
       to: run ? `/expenditure/payments/${run.id}` : '/expenditure/payments',
     }
   }
-  if (row.workflowState === 'APPROVED' && canPay)
+  // Not a bill that still differs from its order: a payment run refuses it until that is resolved.
+  if (workflowStateOf(row) === 'APPROVED' && canPay)
     return { key: 'supplierDetail.addToRun', pay: true }
   return { key: 'supplierRecord.openBill', to: `/expenditure/bills/${row.id}` }
 }

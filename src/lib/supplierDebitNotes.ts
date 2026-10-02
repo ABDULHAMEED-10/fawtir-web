@@ -1,5 +1,6 @@
 import type { DebitNoteDecisionDto, DebitNoteRowDto } from '../api/expenditure/notes'
 import type { BillRowDto } from '../api/expenditure/bills'
+import { workflowStateOf } from './billList'
 import type { NoteActivity, NoteFormat } from './supplierCreditNotes'
 
 /**
@@ -46,7 +47,7 @@ const STATE_KEY: Record<BillRowDto['workflowState'], string> = {
 }
 
 export function billStateKey(bill: BillRowDto): string {
-  return STATE_KEY[bill.workflowState]
+  return STATE_KEY[workflowStateOf(bill)]
 }
 
 /** VAT at Oman's standard rate on a gross figure, to the rial's three places. */

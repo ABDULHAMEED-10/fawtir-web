@@ -11,7 +11,10 @@ import {
   rowActionOf,
   statusLabelKey,
   toBillListItem,
+  workflowStateOf,
 } from '../../lib/billList'
+import { rowAction, whereNote } from '../../lib/supplierDetail'
+import { billStateKey } from '../../lib/supplierDebitNotes'
 import { BillsPage } from './BillsPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -373,6 +376,59 @@ describe('Bills list, wired to the API', () => {
     expect(calls(SUMMARY_URL).length).toBeGreaterThan(1)
   })
 
+  // Owner's Round 5 answer 1 (2 Oct): approved while the mismatch is unresolved still reads Mismatch.
+  it('keeps the Mismatch chip on a bill people approved while it differs from its order, whichever state the server names', async () => {
+    const approvedByPeople = {
+      state: 'READY',
+      distinctApprovals: 1,
+      required: 1,
+      autoApproved: false,
+    } as const
+    const differs = { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false } as const
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            // The server after the change.
+            bill({
+              id: 'new',
+              supplierName: 'Newer Server Co',
+              workflowState: 'MISMATCH',
+              readiness: approvedByPeople,
+              match: differs,
+            }),
+            // Today's server: APPROVED beside the mismatch verdict.
+            bill({
+              id: 'old',
+              supplierName: 'Older Server Co',
+              workflowState: 'APPROVED',
+              readiness: approvedByPeople,
+              match: differs,
+            }),
+            // Matched by hand since: approved reads Approved.
+            bill({
+              id: 'ok',
+              supplierName: 'Resolved Co',
+              workflowState: 'APPROVED',
+              readiness: approvedByPeople,
+              match: { verdict: 'MATCHED_BY_HAND', purchaseOrderNumber: 'PO-9', byHand: true },
+            }),
+          ]),
+        ),
+    ]
+    renderBills()
+    for (const name of ['Newer Server Co', 'Older Server Co']) {
+      const row = (await screen.findByText(name)).closest('tr')!
+      expect(within(row).getByText('Mismatch found')).toBeTruthy()
+      expect(within(row).queryByText('Approved')).toBeNull()
+      expect(within(row).queryByRole('button', { name: 'Approve' })).toBeNull()
+    }
+    const resolved = screen.getByText('Resolved Co').closest('tr')!
+    expect(within(resolved).getByText('Approved')).toBeTruthy()
+    expect(within(resolved).queryByText('Mismatch found')).toBeNull()
+  })
+
   it('offers Approve only on a new or awaiting bill, never on a mismatch, and names the approvals still needed', async () => {
     listResponses = [
       () =>
@@ -608,6 +664,32 @@ describe('Bills list, wired to the API', () => {
 })
 
 describe('bill list mapping', () => {
+  it('reads a bill approved while it differs from its order as a mismatch, wherever its state is named', () => {
+    const differs = { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false } as const
+    const approved = bill({ workflowState: 'APPROVED', match: differs })
+    expect(workflowStateOf(approved)).toBe('MISMATCH')
+    expect(workflowStateOf(bill({ workflowState: 'MISMATCH', match: differs }))).toBe('MISMATCH')
+    // Only an approved bill is re-read: a paid or held one keeps the state the server gave it.
+    expect(workflowStateOf(bill({ workflowState: 'PAID', match: differs }))).toBe('PAID')
+    expect(workflowStateOf(bill({ workflowState: 'ON_HOLD', match: differs }))).toBe('ON_HOLD')
+    expect(workflowStateOf(bill({ workflowState: 'APPROVED', match: null }))).toBe('APPROVED')
+    // The supplier's page offers no payment run for it, and says where it differs.
+    expect(rowAction(approved, null, true)).toEqual({
+      key: 'supplierRecord.openBill',
+      to: `/expenditure/bills/${approved.id}`,
+    })
+    expect(whereNote(approved, null)).toEqual({
+      key: 'supplierDetail.where.mismatch',
+      values: { po: 'PO-9' },
+    })
+    expect(rowAction(bill({ workflowState: 'APPROVED', match: null }), null, true)).toEqual({
+      key: 'supplierDetail.addToRun',
+      pay: true,
+    })
+    // And a note picking a bill names it the same way.
+    expect(billStateKey(approved)).toBe('supplierNotes.billState.mismatch')
+  })
+
   it('notes a credit note, and settles counter purchases without a due date', () => {
     expect(toBillListItem(bill({ documentTypeCode: '381' })).amountNote).toEqual({
       key: 'billsPage.rows.creditNote',

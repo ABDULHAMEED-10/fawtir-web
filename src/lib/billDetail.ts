@@ -204,6 +204,10 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
     return { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
   }
   if (readiness.state === 'READY') {
+    // Approved, by people or by its amount, but it still differs from its order: nothing pays it
+    // until that is resolved, so the panel does not say it can be paid. It says what the match
+    // card says (owner's Round 5 answer 1, 2 Oct 2026: keep showing Mismatch).
+    if (mismatchUnresolved(detail)) return { key: 'billDetail.match.differs' }
     return {
       key: readiness.autoApproved
         ? 'billDetail.decision.belowLimit'

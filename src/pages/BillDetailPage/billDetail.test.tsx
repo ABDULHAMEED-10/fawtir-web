@@ -7,6 +7,7 @@ import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
 import {
   activityOf,
   canRecordPayment,
+  decisionNoteOf,
   complianceOf,
   decisionsOf,
   lineVatOf,
@@ -904,6 +905,67 @@ describe('A bill, wired to the API', () => {
     renderBill()
     await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
     expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
+  // Owner's Round 5 answer 1 (2 Oct): a bill approved while its mismatch is unresolved keeps
+  // showing Mismatch. The server will say `MISMATCH`; today's still says `APPROVED` beside the
+  // mismatch verdict, and both read the same here.
+  for (const workflowState of ['MISMATCH', 'APPROVED'] as const) {
+    it(`keeps showing Mismatch on a bill people approved while it differs from its order (server says ${workflowState})`, async () => {
+      billResponse = () =>
+        json(
+          200,
+          detail({
+            readiness: APPROVED,
+            bill: {
+              ...detail().bill,
+              workflowState,
+              readiness: APPROVED,
+              match: { ...detail().bill.match!, verdict: 'MISMATCH', summary: null },
+            },
+          }),
+        )
+      renderBill()
+      const title = await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      const header = title.parentElement as HTMLElement
+      expect(within(header).getByText('Mismatch found')).toBeTruthy()
+      expect(within(header).queryByText('Approved')).toBeNull()
+      // The decision panel says what stands in the way, in the words the match card already uses.
+      const decision = screen.getByRole('heading', { name: 'Your decision' }).closest('section')!
+      expect(within(decision).getByText('This bill differs from the order')).toBeTruthy()
+      expect(screen.queryByText(/Approved for payment\./)).toBeNull()
+      expect(screen.queryByText(/It can be paid\./)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    })
+  }
+
+  it('does not say a bill approved by its amount can be paid while it differs from its order', () => {
+    const byAmount = { ...APPROVED, distinctApprovals: 0, autoApproved: true }
+    const approved = detail({ readiness: byAmount })
+    const withVerdict = (verdict: 'MISMATCH' | 'MATCHED_BY_HAND') => ({
+      ...approved,
+      bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } },
+    })
+    expect(decisionNoteOf(withVerdict('MISMATCH'))).toEqual({ key: 'billDetail.match.differs' })
+    // Resolved, the sentence it had comes back.
+    expect(decisionNoteOf(withVerdict('MATCHED_BY_HAND'))).toEqual({
+      key: 'billDetail.decision.belowLimit',
+    })
+    // Paid, held and rejected bills keep their own sentence, mismatch or not.
+    expect(
+      decisionNoteOf({
+        ...withVerdict('MISMATCH'),
+        settlement: { ...approved.settlement, paymentState: 'PAID' },
+      }),
+    ).toEqual({ key: 'billDetail.decision.paid' })
+    // Not yet approved: the sentence about approving stays, the match card says the difference.
+    const pending = detail()
+    expect(
+      decisionNoteOf({
+        ...pending,
+        bill: { ...pending.bill, match: { ...pending.bill.match!, verdict: 'MISMATCH' } },
+      }).key,
+    ).toBe('billDetail.decision.needsMore')
   })
 
   // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
