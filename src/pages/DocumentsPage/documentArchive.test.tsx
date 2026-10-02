@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -35,6 +35,12 @@ const READER: Entitlements = {
   permissions: ['invoice.read'],
   scopes: [],
   featureFlags: {},
+}
+/** Reads the archive and may file a paper on a supplier, which is what the upload page saves. */
+const FILER: Entitlements = {
+  ...READER,
+  username: 'filer',
+  permissions: ['invoice.read', 'supplier.read', 'supplier.manage'],
 }
 const OUTSIDER: Entitlements = { ...READER, username: 'nobody', permissions: ['customer.read'] }
 
@@ -398,7 +404,34 @@ describe('The compliance archive, wired to the API', () => {
     expect(screen.queryByText(/Nothing filed here yet/)).toBeNull()
   })
 
+  // Owner's Round 5 answer 8 (2 Oct): the links to "Upload a document" are for someone who can
+  // save there, which is filing a paper on a supplier (`supplier.manage`).
+  it('offers the upload, at the top of the archive, to someone who can file a paper', async () => {
+    who = FILER
+    renderArchive()
+    expect(await screen.findByText('INV-2026-000004')).toBeTruthy()
+    const links = screen.getAllByRole('link', { name: 'Upload a document' })
+    expect(links).toHaveLength(1)
+    expect(links[0].getAttribute('href')).toBe('/compliance/documents/upload')
+  })
+
+  it('hides both links to the upload from someone who cannot save there, and nothing else', async () => {
+    renderArchive()
+    expect(await screen.findByText('INV-2026-000004')).toBeTruthy()
+    // The session is read inside the shell: once it is known, the link is gone, not greyed.
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Upload a document' })).toBeNull())
+    expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeTruthy()
+    cleanup()
+
+    page = () => ({ items: [], page: 0, page_size: 20, has_more: false })
+    renderArchive()
+    expect(await screen.findByText('Nothing filed here yet')).toBeTruthy()
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Upload a document' })).toBeNull())
+    expect(screen.queryByText('Upload a document')).toBeNull()
+  })
+
   it('draws the empty archive as the design does, with the upload offered', async () => {
+    who = FILER
     page = () => ({ items: [], page: 0, page_size: 20, has_more: false })
     renderArchive()
     expect(await screen.findByText('Nothing filed here yet')).toBeTruthy()

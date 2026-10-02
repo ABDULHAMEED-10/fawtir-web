@@ -15,6 +15,7 @@ import {
   type ArchiveSummary,
 } from '../../api/compliance/archive'
 import { describeApiFailure } from '../../lib/apiFailure'
+import { can, useSession } from '../../lib/session/session'
 import { formatAmount, formatCount, formatDate, formatInstantDay } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
 import {
@@ -283,13 +284,10 @@ export function DocumentsPage() {
             </p>
           </div>
           {archiveEmpty ? null : (
-            <Link
-              to="/compliance/documents/upload"
+            <UploadLink
               className="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-5 text-base font-medium text-[#3a3a3a] transition-colors hover:bg-white"
-            >
-              <img src={uploadIcon} alt="" className="size-5" />
-              {t('documents.uploadCta')}
-            </Link>
+              iconClassName="size-5"
+            />
           )}
         </div>
 
@@ -315,13 +313,10 @@ export function DocumentsPage() {
             <p className="mt-3 max-w-[520px] text-sm font-medium leading-[1.6] text-text-tertiary">
               {t('documents.empty.note')}
             </p>
-            <Link
-              to="/compliance/documents/upload"
+            <UploadLink
               className="mt-8 inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-5 text-base font-medium text-white transition-colors hover:bg-primary-800"
-            >
-              <img src={uploadIcon} alt="" className="size-5 brightness-0 invert" />
-              {t('documents.uploadCta')}
-            </Link>
+              iconClassName="size-5 brightness-0 invert"
+            />
           </section>
         ) : list.read.status === 'failed' ? null : (
           <section className="rounded-md bg-surface-card">
@@ -580,6 +575,23 @@ export function DocumentsPage() {
         )}
       </div>
     </AppShell>
+  )
+}
+
+/**
+ * The way to "Upload a document", for someone who can save there: the upload files a paper on a
+ * supplier, which takes `supplier.manage` (owner's Round 5 answer 8, 2 Oct 2026). Hidden, not
+ * disabled, for anyone else. Drawn inside the shell, where the session is.
+ */
+function UploadLink({ className, iconClassName }: { className: string; iconClassName: string }) {
+  const { t } = useTranslation()
+  const session = useSession()
+  if (!can(session, 'supplier.manage')) return null
+  return (
+    <Link to="/compliance/documents/upload" className={className}>
+      <img src={uploadIcon} alt="" className={iconClassName} />
+      {t('documents.uploadCta')}
+    </Link>
   )
 }
 
