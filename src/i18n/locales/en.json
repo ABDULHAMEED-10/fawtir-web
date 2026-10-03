@@ -9676,7 +9676,11 @@
       "bridgeTitle": "Upload from your ERP",
       "bridgeBody": "Send one document your ERP produced, and your mapping turns it into an invoice.",
       "bridgePill": "One document at a time",
-      "bridgeFoot": "No connection needed"
+      "bridgeFoot": "No connection needed",
+      "erpActivityTitle": "ERP activity",
+      "erpActivityBody": "Every document your ERP sent, what became of it, and the extraction runs that brought it in.",
+      "erpActivityPill": "Reports",
+      "erpActivityFoot": "Source documents, needs attention, runs"
     }
   },
   "peppolTax": {
@@ -16616,6 +16620,391 @@
         "noRule": "unnamed check",
         "more_one": "and {{count}} more check",
         "more_other": "and {{count}} more checks"
+      }
+    },
+    "reporting": {
+      "tabs": {
+        "label": "ERP activity",
+        "documents": "Source documents",
+        "attention": "Needs attention",
+        "runs": "Extraction runs"
+      },
+      "noConnection": "Not applicable",
+      "pager": "Pages",
+      "pastTheEnd": "There is nothing on this page for these filters.",
+      "firstPage": "Go to the first page",
+      "version": "version {{version}}",
+      "invoiceMissing": "Invoice record not found",
+      "noInvoice": "No invoice",
+      "window": {
+        "label": "Received between",
+        "from": "Received from",
+        "to": "Received to",
+        "problem": {
+          "missing": "Choose both dates.",
+          "invalid": "Enter dates as YYYY-MM-DD.",
+          "order": "The start date must not be after the end date.",
+          "tooLong": "Choose at most 367 days. Narrow the dates to see older documents."
+        },
+        "fixToRead": "Fix the dates above to see the documents."
+      },
+      "filters": {
+        "title": "Filters",
+        "channel": "Channel",
+        "connection": "Connection",
+        "processing": "Processing state",
+        "delivery": "Invoice state",
+        "reason": "Reason",
+        "retryable": "Can still be accepted",
+        "retryableYes": "Yes",
+        "retryableNo": "No",
+        "sort": "Order",
+        "document": "Document ID in your ERP",
+        "invoice": "Invoice number",
+        "any": "Any",
+        "anyLabel": "Any label",
+        "label": "Label",
+        "runState": "Run state",
+        "more": "More filters",
+        "fewer": "Fewer filters",
+        "reset": "Reset filters",
+        "clear": "Clear",
+        "apply": "Apply",
+        "exactHint": "Exact match"
+      },
+      "sort": {
+        "RECEIVED_NEWEST": "Newest first",
+        "RECEIVED_OLDEST": "Oldest first"
+      },
+      "documents": {
+        "title": "Source documents",
+        "subtitle": "Every document your ERP sent to Fawtir, from every channel, and what became of it.",
+        "listTitle": "Documents",
+        "caption": "Source documents",
+        "emptyFiltered": "No documents match these filters in this period.",
+        "emptyWindow": "No documents were received in this period."
+      },
+      "summary": {
+        "title": "This period",
+        "note": "Counted by the server over the dates, channel and connection chosen. The other filters narrow the list only.",
+        "received": "Received",
+        "bucket": {
+          "accepted": "Accepted",
+          "rejected": "Rejected",
+          "duplicate": "Duplicate",
+          "waiting_for_mapping": "Waiting for mapping",
+          "retryable": "Can still be accepted",
+          "processing": "Processing"
+        },
+        "downstreamTitle": "Where the accepted invoices stand now",
+        "downstreamNote": "Delivery failed counts invoices on the Peppol network only. Invoices for buyers outside the network are counted separately and are not failures.",
+        "events": "Also recorded: at least {{replays}} resends of documents already settled and at least {{conflicts}} refused conflicts. These come from the audit trail, which can miss an event and has none for managed pull."
+      },
+      "downstream": {
+        "total": "Accepted, all states",
+        "queued": "Queued",
+        "sending": "Sending",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "delivered_unconfirmed": "Delivered, unconfirmed",
+        "delivery_failed": "Delivery failed",
+        "off_network": "Outside the Peppol network",
+        "without_invoice": "Accepted without an invoice"
+      },
+      "col": {
+        "document": "Document",
+        "status": "Status",
+        "processing": "Processing",
+        "invoice": "Invoice",
+        "channel": "Channel",
+        "connection": "Connection",
+        "received": "Received",
+        "labels": "Needs attention because",
+        "started": "Run created",
+        "runState": "Run state"
+      },
+      "counter": {
+        "discovered": "Found",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "duplicate": "Duplicate",
+        "unsettled": "Unsettled"
+      },
+      "displayStatus": {
+        "REJECTED": "Rejected",
+        "DUPLICATE": "Duplicate",
+        "WAITING_FOR_MAPPING": "Waiting for mapping",
+        "RETRYABLE_FAILURE": "Will retry",
+        "PROCESSING": "Processing",
+        "ACCEPTED": "Accepted",
+        "SUBMITTED": "Submitted",
+        "SENT": "Sent",
+        "DELIVERED_UNCONFIRMED": "Delivered, unconfirmed",
+        "DELIVERED": "Delivered",
+        "OFF_NETWORK": "Outside Peppol",
+        "DELIVERY_FAILED": "Delivery failed"
+      },
+      "displayExplain": {
+        "REJECTED": "The document was refused and did not become an invoice.",
+        "DUPLICATE": "This document had already been received, so it did not become a second invoice.",
+        "WAITING_FOR_MAPPING": "The document is waiting for your ERP mapping to exist or be certified.",
+        "RETRYABLE_FAILURE": "The last attempt failed for a reason that may pass; the document can still be accepted.",
+        "PROCESSING": "The document is being processed.",
+        "ACCEPTED": "The document was accepted.",
+        "SUBMITTED": "The invoice exists and the transport has not acknowledged it yet.",
+        "SENT": "The transport acknowledged the invoice; the recipient's side has not answered yet.",
+        "DELIVERED_UNCONFIRMED": "The recipient's side answered without confirming, or did not answer in time.",
+        "DELIVERED": "The invoice was delivered.",
+        "OFF_NETWORK": "The buyer is not on the Peppol network, so the invoice was not sent over it. Whether the buyer received it by other means is not recorded here.",
+        "DELIVERY_FAILED": "The network leg ended without the invoice reaching the recipient, or they refused it."
+      },
+      "processingState": {
+        "DISCOVERED": "Received",
+        "CLAIMED": "Being processed",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "DUPLICATE": "Duplicate",
+        "FAILED": "Failed"
+      },
+      "reason": {
+        "SOURCE_UNAVAILABLE": "Your ERP could not be reached",
+        "SOURCE_TIMEOUT": "Your ERP did not answer in time",
+        "SOURCE_AUTHENTICATION_REJECTED": "Your ERP refused the sign-in details",
+        "INFRASTRUCTURE_ERROR": "A Fawtir service failed",
+        "ATTEMPTS_EXHAUSTED": "Every attempt was used",
+        "SOURCE_PAYLOAD_UNREADABLE": "The document could not be read in its format",
+        "DUPLICATE_SOURCE_RECORD": "Already received",
+        "MAPPING_PROFILE_ABSENT": "No ERP mapping is set up",
+        "MAPPING_FAILED": "The mapping could not produce an invoice",
+        "MAPPING_NOT_CERTIFIED": "The mapping is not certified",
+        "INVOICE_VALIDATION_FAILED": "The invoice failed validation"
+      },
+      "stage": {
+        "SOURCE": "your ERP",
+        "MAPPING": "mapping",
+        "INVOICE_VALIDATION": "invoice validation",
+        "SUBMISSION": "submission"
+      },
+      "failureClass": {
+        "DOCUMENT": "The document itself",
+        "READINESS": "Setup not ready",
+        "PLATFORM": "Fawtir platform"
+      },
+      "sourceKind": {
+        "MANAGED_PULL": "Managed pull",
+        "BRIDGE_UPLOAD": "Upload",
+        "API_PUSH": "API push"
+      },
+      "runState": {
+        "CREATED": "Created",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "COMPLETED_WITH_ERRORS": "Completed with errors",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "deliveryState": {
+        "QUEUED": "Queued",
+        "SENDING": "Sending",
+        "SENT": "Sent",
+        "DELIVERED": "Delivered",
+        "DELIVERED_UNCONFIRMED": "Delivered, unconfirmed",
+        "UNDELIVERABLE": "Undeliverable",
+        "C4_UNREACHABLE": "Recipient unreachable"
+      },
+      "route": {
+        "PEPPOL_NETWORK": "Peppol network",
+        "OUTSIDE_PEPPOL": "Outside the Peppol network"
+      },
+      "ack": {
+        "AP": "Accepted by the recipient's side",
+        "AB": "Delivered without confirmation",
+        "RE": "Refused or not delivered",
+        "NONE": "No answer recorded"
+      },
+      "taxStatus": {
+        "PENDING": "Waiting to be sent",
+        "SUBMITTED": "Sent",
+        "GENERATION_FAILED": "Could not be produced",
+        "ACCEPTED": "Accepted",
+        "DELIVERED_UNCONFIRMED": "Delivered, unconfirmed",
+        "REJECTED": "Refused as a message",
+        "TO_DISREGARD": "To be withdrawn",
+        "DISREGARD_SUBMITTED": "Withdrawal sent",
+        "DEAD_LETTERED": "Given up"
+      },
+      "taxVariant": {
+        "SUBMIT": "Report",
+        "RESUBMIT": "Corrected report",
+        "DISREGARD": "Withdrawal"
+      },
+      "label": {
+        "RECOVERY_PENDING": "Waiting for recovery",
+        "WAITING_FOR_MAPPING": "Waiting for mapping",
+        "RETRYABLE_FAILURE": "Failed, will retry",
+        "ACCEPTED_WITHOUT_INVOICE": "Accepted without an invoice",
+        "TRANSPORT_PENDING": "Transport has not acknowledged",
+        "RESPONSE_PENDING": "No answer from the recipient",
+        "DELIVERY_FAILED": "Delivery failed",
+        "TAX_REPORT_ATTENTION": "Tax report needs attention"
+      },
+      "labelExplain": {
+        "RECOVERY_PENDING": "The document is held by an attempt nobody is working on. Fawtir's recovery will release it.",
+        "WAITING_FOR_MAPPING": "The document is waiting for your ERP mapping to exist or be certified.",
+        "RETRYABLE_FAILURE": "The last attempt failed for a reason that may pass.",
+        "ACCEPTED_WITHOUT_INVOICE": "The document was accepted but no invoice exists for it. This should not happen; it is reported, not repaired.",
+        "TRANSPORT_PENDING": "The invoice has waited longer than expected for the transport to acknowledge it.",
+        "RESPONSE_PENDING": "The transport acknowledged the invoice and the recipient's side has not answered for too long.",
+        "DELIVERY_FAILED": "The network leg ended without the invoice reaching the recipient, or they refused it.",
+        "TAX_REPORT_ATTENTION": "The tax report could not be produced, was refused as a message, was given up on, or is waiting past its deadline. This is separate from delivery."
+      },
+      "labelGroup": {
+        "attention": "Before an invoice",
+        "delivery": "Delivery",
+        "tax": "Tax reporting"
+      },
+      "timeline": {
+        "title": "Timeline",
+        "note": "What the ledgers and the audit trail recorded, with the time each was recorded. Audit events are evidence and can be incomplete; managed pull records none.",
+        "newestFirst": "Show newest first",
+        "oldestFirst": "Show oldest first",
+        "truncated": "Older audit events exist and are not shown. Only the newest {{count}} are read.",
+        "empty": "Nothing has been recorded for this document yet.",
+        "SOURCE_RECEIVED": "Received",
+        "SOURCE_CLAIMED": "Picked up for processing",
+        "SOURCE_DEFERRED": "Put back to try later",
+        "RECOVERY": "Recovered",
+        "SOURCE_REJECTED": "Rejected",
+        "SOURCE_DUPLICATE": "Duplicate",
+        "SOURCE_ACCEPTED": "Accepted",
+        "REPLAY": "Sent again",
+        "CONFLICT": "Different content refused",
+        "INVOICE_SUBMITTED": "Invoice created",
+        "DELIVERY_STATE": "Delivery",
+        "RECIPIENT_RESPONSE": "Recipient's answer",
+        "TAX_REPORT": "Tax report"
+      },
+      "recovery": {
+        "RELEASED": "released for another attempt",
+        "EXHAUSTED": "no attempts left"
+      },
+      "timelineTax": {
+        "SUBMITTED": "sent",
+        "AP": "accepted",
+        "AB": "delivered without confirmation",
+        "RE": "refused as a message"
+      },
+      "origin": {
+        "SOURCE_LEDGER": "Source ledger",
+        "AUDIT_TRAIL": "Audit evidence",
+        "INVOICE_LEDGER": "Invoice ledger"
+      },
+      "actor": {
+        "USER": "By a user",
+        "API_KEY": "By an API key",
+        "SYSTEM": "By Fawtir",
+        "SUPPORT_USER": "By Fawtir support"
+      },
+      "detail": {
+        "title": "Source document",
+        "subtitle": "One document from your ERP, and each step it went through.",
+        "back": "All documents",
+        "overall": "Overall",
+        "overallNote": "A one-word summary of the furthest point reached. The sections below are what the ledgers record.",
+        "source": "From your ERP",
+        "version": "Version",
+        "run": "Run",
+        "openRun": "Open the run",
+        "reason": "Reason",
+        "stage": "At {{stage}}",
+        "failureClass": "Caused by",
+        "retryable": "Can still be accepted",
+        "retryableYes": "Yes, if the same document is tried again",
+        "retryableNo": "No",
+        "attempts": "Attempts",
+        "attemptsOf": "{{used}} of {{max}}",
+        "settled": "Settled",
+        "updated": "Last change",
+        "invoice": "Invoice",
+        "acceptedNoInvoice": "The document was accepted but no invoice is recorded for it.",
+        "noInvoice": "No invoice was created from this document.",
+        "anomaly": "Anomaly",
+        "compliance": "Delivery and tax reporting",
+        "openCompliance": "Open in compliance activity",
+        "delivery": "Delivery",
+        "offNetworkNote": "This invoice was not sent over the Peppol network. The ledger state below describes a network leg the invoice does not have and says nothing about whether the buyer received it.",
+        "route": "Route",
+        "ledgerState": "Ledger state",
+        "ledgerReason": "Ledger reason",
+        "validatedAt": "Validated",
+        "sentAt": "Sent",
+        "deliveredAt": "Delivered",
+        "response": "Recipient's answer",
+        "responseNote": "Separate from delivery: an invoice the transport acknowledged can still be refused here.",
+        "responseNotApplicable": "Not applicable: the invoice did not travel the Peppol network.",
+        "responseNone": "Nothing has been recorded yet. This is not a refusal.",
+        "tax": "Tax report",
+        "taxNote": "Separate from delivery. A refused report is a refusal of the report as a message, not a tax verdict.",
+        "taxNone": "No tax report obligation has been recorded yet.",
+        "taxStatus": "Status",
+        "taxVariant": "Kind",
+        "taxDeadline": "Deadline",
+        "taxSubmitted": "Sent",
+        "taxSla": "Deadline met",
+        "taxSlaOpen": "Not decided yet",
+        "taxSlaMet": "Yes",
+        "taxSlaMissed": "No",
+        "taxObligations": "Reports recorded"
+      },
+      "findings": {
+        "title": "Validation findings",
+        "truncated": "Only the first {{count}} findings were kept.",
+        "layer": "Layer",
+        "rule": "Rule",
+        "field": "Business term or field",
+        "explanation": "Explanation",
+        "none": "No findings were kept for this document."
+      },
+      "attention": {
+        "title": "Needs attention",
+        "subtitle": "Documents that have not reached where they should have, worked out by the server when you open this page. Nothing here is stored or needs to be dismissed.",
+        "listTitle": "Documents needing attention",
+        "unevaluated": "Not checked: {{labels}}.",
+        "responsePendingUnevaluated": "No approved waiting time for the recipient's answer is set, so a missing answer is not reported as late.",
+        "emptyFiltered": "No documents carry this label in this period.",
+        "empty": "Nothing needs attention in this period.",
+        "guideTitle": "What the labels mean",
+        "guideOpen": "Show the labels",
+        "since": "since",
+        "tax": "Tax report: {{status}}"
+      },
+      "runs": {
+        "title": "Extraction runs",
+        "subtitle": "Each time documents were collected or sent from your ERP, newest first.",
+        "listTitle": "Runs",
+        "countersNote": "The counters are what each run recorded when it ran. They do not change afterwards.",
+        "emptyFiltered": "No runs match these filters.",
+        "empty": "No extraction runs yet."
+      },
+      "run": {
+        "title": "Extraction run",
+        "subtitle": "What the run recorded, and where its documents stand now.",
+        "back": "All runs",
+        "documentsTitle": "Documents in this run",
+        "documentsNote": "The documents this run holds now. A document taken over by a later run is listed there.",
+        "documentsEmpty": "This run holds no documents.",
+        "metadata": "Run",
+        "field": {
+          "state": "State",
+          "channel": "Channel",
+          "connection": "Connection",
+          "created": "Created",
+          "started": "Started",
+          "completed": "Completed",
+          "failure": "Why it failed"
+        },
+        "countersTitle": "Recorded by the run",
+        "downstreamTitle": "Its accepted invoices now"
       }
     }
   },

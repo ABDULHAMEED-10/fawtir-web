@@ -1,18 +1,16 @@
-import { useParams } from 'react-router-dom'
-import { ConnectionFeatureUnavailable } from './connectionParts'
+import { Navigate, useParams } from 'react-router-dom'
 
 /**
- * The per-connection runs screen.
+ * The per-connection runs address, kept so an existing bookmark still lands somewhere true.
  *
- * Phase 2 has no extraction: no runs, no records, no write-back outbox, no scheduler and no
- * checkpoint. This screen previously rendered all of that from a design-time mock — run counts,
- * watermarks, collected and rejected totals — none of which had ever happened. A tenant reading
- * "3 collected, 1 rejected" would reasonably conclude their invoices were being submitted.
- *
- * So it says what is true instead. The route is kept rather than deleted so an existing bookmark
- * does not 404, and it is off the tab strip so nothing advertises it as a working feature.
+ * Runs are reported for every channel in one place (`/settings/erp/runs`), because a Bridge
+ * upload and an API push have runs and no connection. This address opens that report narrowed to
+ * the connection, or the run itself, instead of keeping a second runs screen beside it.
  */
 export function ConnectionRunsPage() {
-  const { id } = useParams<{ id: string }>()
-  return <ConnectionFeatureUnavailable connectionId={id} />
+  const { id = '', runId } = useParams<{ id: string; runId?: string }>()
+  const to = runId
+    ? `/settings/erp/runs/${encodeURIComponent(runId)}`
+    : `/settings/erp/runs?connection=${encodeURIComponent(id)}`
+  return <Navigate to={to} replace />
 }

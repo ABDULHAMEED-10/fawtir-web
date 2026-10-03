@@ -264,6 +264,17 @@ export function SettingsPage() {
         footKey: 'settings.card.bridgeFoot',
       },
       {
+        id: 'erpActivity',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: logIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/documents',
+        pillKey: 'settings.card.erpActivityPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.erpActivityFoot',
+      },
+      {
         id: 'plan',
         group: 'billing',
         icon: planIcon,
