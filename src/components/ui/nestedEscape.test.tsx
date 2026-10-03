@@ -218,4 +218,93 @@ describe('Escape across nested overlays', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
+
+  it('inside a dialog, closes two open popovers newest first, then the dialog, with no double close', () => {
+    function Layers({ onModalClose }: { onModalClose: () => void }) {
+      const firstAnchor = useRef<HTMLButtonElement>(null)
+      const secondAnchor = useRef<HTMLButtonElement>(null)
+      const [first, setFirst] = useState(false)
+      const [second, setSecond] = useState(false)
+      return (
+        <Modal open onClose={onModalClose} title="Editor">
+          <button ref={firstAnchor} type="button" onClick={() => setFirst(true)}>
+            List
+          </button>
+          <Popover open={first} anchorRef={firstAnchor} onClose={() => setFirst(false)}>
+            <p>Options</p>
+          </Popover>
+          <button ref={secondAnchor} type="button" onClick={() => setSecond(true)}>
+            Day
+          </button>
+          <Popover open={second} anchorRef={secondAnchor} onClose={() => setSecond(false)}>
+            <p>Calendar</p>
+          </Popover>
+        </Modal>
+      )
+    }
+    const onModalClose = vi.fn()
+    render(
+      <StrictMode>
+        <Layers onModalClose={onModalClose} />
+      </StrictMode>,
+    )
+    // Opened by keyboard, a dropdown stays open while focus moves on, so both can be open.
+    fireEvent.click(screen.getByRole('button', { name: 'List' }))
+    const day = screen.getByRole('button', { name: 'Day' })
+    fireEvent.click(day)
+
+    escapeOn(day)
+    expect(screen.queryByText('Calendar')).toBeNull()
+    expect(screen.getByText('Options')).toBeTruthy()
+    escapeOn(day)
+    expect(screen.queryByText('Options')).toBeNull()
+    expect(onModalClose).not.toHaveBeenCalled()
+    escapeOn(day)
+    expect(onModalClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes a dialog opened over a popover first, then the popover, then the outer dialog', () => {
+    function Over({ onOuterClose }: { onOuterClose: () => void }) {
+      const anchor = useRef<HTMLButtonElement>(null)
+      const [list, setList] = useState(false)
+      const [inner, setInner] = useState(false)
+      return (
+        <Modal open onClose={onOuterClose} title="Outer">
+          <button ref={anchor} type="button" onClick={() => setList(true)}>
+            List
+          </button>
+          <Popover open={list} anchorRef={anchor} onClose={() => setList(false)}>
+            <p>Options</p>
+          </Popover>
+          <button type="button" onClick={() => setInner(true)}>
+            Details
+          </button>
+          <Modal open={inner} onClose={() => setInner(false)} title="Inner">
+            <button type="button">Inner action</button>
+          </Modal>
+        </Modal>
+      )
+    }
+    const onOuterClose = vi.fn()
+    render(
+      <StrictMode>
+        <Over onOuterClose={onOuterClose} />
+      </StrictMode>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'List' }))
+    const details = screen.getByRole('button', { name: 'Details' })
+    details.focus()
+    fireEvent.click(details)
+    const inner = screen.getByRole('dialog', { name: 'Inner' })
+
+    escapeOn(inner)
+    expect(screen.queryByRole('dialog', { name: 'Inner' })).toBeNull()
+    expect(screen.getByText('Options')).toBeTruthy()
+    expect(document.activeElement).toBe(details)
+    escapeOn(details)
+    expect(screen.queryByText('Options')).toBeNull()
+    expect(onOuterClose).not.toHaveBeenCalled()
+    escapeOn(details)
+    expect(onOuterClose).toHaveBeenCalledTimes(1)
+  })
 })
