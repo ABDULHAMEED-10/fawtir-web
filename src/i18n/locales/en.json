@@ -9742,7 +9742,46 @@
     "headOffice": "head office",
     "ifSomethingBreaks": "If something breaks",
     "seeTddLog": "See the TDD reporting log",
-    "testSandbox": "Test with a sandbox invoice"
+    "testSandbox": "Test with a sandbox invoice",
+    "participant": {
+      "title": "Participant ID verification",
+      "note": "Fawtir checks your Peppol Participant ID against the validation policy in force.",
+      "loading": "Loading verification status…",
+      "readForbidden": "Your account does not have permission to see the Participant ID verification status. Ask an administrator in your company if you need it.",
+      "pill": {
+        "AWAITING_REVIEW": "Waiting for review",
+        "VERIFIED": "Verified",
+        "REVERIFICATION_REQUIRED": "Needs verifying again",
+        "REJECTED": "Not approved"
+      },
+      "body": {
+        "NOT_SUBMITTED": "Your Participant ID has not been submitted for verification yet.",
+        "DRAFT": "Your Participant ID is saved as a draft and has not been sent for verification yet.",
+        "AWAITING_REVIEW": "Your request is waiting for Fawtir to review it.",
+        "VERIFIED": "Your Participant ID is verified under the current validation policy.",
+        "REVERIFICATION_REQUIRED": "Your Participant ID was verified before. The validation policy has changed since then, so it must be verified against the current policy.",
+        "NO_POLICY_IN_FORCE": "Your Participant ID was verified. There is nothing you need to do for now.",
+        "REJECTED": "Your latest request was not approved."
+      },
+      "notDeleted": "Your earlier verification has not been deleted.",
+      "canAskAgain": "You can ask for verification against the current policy again.",
+      "participantId": "Participant ID",
+      "verifiedOn": "Verified on",
+      "verifiedUnder": "Verified under policy",
+      "policyInForce": "Policy in force",
+      "policyVersion": "Version {{number}}",
+      "none": "None",
+      "ask": "Request verification against the current policy",
+      "asking": "Sending request…",
+      "sent": "Your request was sent to Fawtir for review.",
+      "refused": {
+        "policyChanged": "The validation policy changed while this page was open. The current status is shown above. Check it, and ask again if you still need to.",
+        "inProgress": "A request is already waiting for review. The current status is shown above.",
+        "notRequired": "Your Participant ID does not need to be verified again. The current status is shown above.",
+        "policyNotActive": "No validation policy is in force right now, so a request cannot be made. Try again later.",
+        "forbidden": "Your account does not have permission to ask for verification. Ask an administrator in your company if you need it."
+      }
+    }
   },
   "companyProfile": {
     "title": "Company profile",
@@ -11786,7 +11825,8 @@
       "subscriptions": "Subscriptions",
       "erpConnections": "Connections",
       "erpTemplates": "Mapping templates",
-      "erpRequests": "Add-on requests"
+      "erpRequests": "Add-on requests",
+      "policies": "Validation policies"
     },
     "user": {
       "team": "Fawtir team",
@@ -12159,7 +12199,27 @@
         "reasonRequired": "Enter a reason code.",
         "reasonInvalid": "Use only uppercase letters, digits, underscore or hyphen, 3–80 characters.",
         "conflict": "This submission changed or was already decided. Reload it and look again.",
-        "forbidden": "Fawtir refused this decision. Another reviewer may need to make it, or your account lacks access."
+        "forbidden": "Fawtir refused this decision. Another reviewer may need to make it, or your account lacks access.",
+        "policyNotActive": "Participant ID approval is blocked because the Taxpayer Participant ID validation policy is not active.",
+        "viewPolicy": "View validation policy",
+        "candidateRejected": "The proposed ID does not meet the validation policy in force.",
+        "alreadyVerified": "This Participant ID is already verified for another company.",
+        "standing": {
+          "REVERIFICATION_REQUIRED": "Verified under an earlier policy",
+          "NO_POLICY_IN_FORCE": "Verified, no policy in force"
+        },
+        "standingNote": {
+          "REVERIFICATION_REQUIRED": "This ID was verified under an earlier version of the validation policy. The policy in force has changed, so the ID must be verified again against it. The earlier verification has not been deleted.",
+          "NO_POLICY_IN_FORCE": "This ID was verified, but no Participant ID validation policy is in force right now.",
+          "reverificationOpen": "This is a request to verify the ID again against the policy in force. The earlier verification still exists, and approving this request replaces it.",
+          "rejectedWithPrevious": "The latest request was rejected. The earlier verification still exists."
+        },
+        "previousId": "Previously verified ID",
+        "verifiedUnder": "Verified under policy",
+        "verifiedAt": "Verified on",
+        "policyInForce": "Policy in force",
+        "policyVersion": "Version {{number}}",
+        "noPolicyInForce": "None in force"
       }
     },
     "plans": {
@@ -14013,6 +14073,261 @@
         "badge": "Not here",
         "body": "There is no incident {{id}}. It may have been opened on another console or the link is wrong.",
         "back": "Back to incidents"
+      }
+    },
+    "policies": {
+      "title": "Validation policies",
+      "subtitle": "The platform rules that company data is checked against. A policy changes only through a draft that is submitted, reviewed, approved and activated.",
+      "loading": "Loading validation policies…",
+      "empty": "There is no validation policy your account may read. Ask a Fawtir administrator if you need access.",
+      "emptyMine": "No policy needs your action right now.",
+      "summary": "{{mine}} of {{total}} need your action",
+      "filter": {
+        "all": "All policies",
+        "mine": "Needs my action"
+      },
+      "col": {
+        "policy": "Policy",
+        "inForce": "In force",
+        "latest": "Latest version",
+        "queue": "Work queue",
+        "version": "Version",
+        "status": "Status",
+        "updated": "Updated"
+      },
+      "version": "Version {{number}}",
+      "noneInForce": "None in force",
+      "noVersion": "No version yet",
+      "testOnly": "Test only",
+      "none": "Not set",
+      "reference": "Reference:",
+      "notFound": "This validation policy doesn't exist.",
+      "back": "Back to validation policies",
+      "type": {
+        "TAXPAYER_PID_CONTRACT": "Taxpayer Participant ID validation policy",
+        "FAWTARA_POLICY": "Fawtara policy",
+        "BUSINESS_CARD_POLICY": "Business card policy",
+        "MTLS_PKI_READINESS": "mTLS and PKI readiness",
+        "AP_PROFILE_PROVISIONING": "AP profile provisioning",
+        "LEGAL_OSS_APPROVAL": "Legal OSS approval",
+        "EVENT_CONSUMER_ACCEPTANCE": "Event consumer acceptance",
+        "OMAN_STAGING_ACCEPTANCE": "Oman staging acceptance"
+      },
+      "status": {
+        "DRAFT": "Draft",
+        "SUBMITTED": "Submitted",
+        "PENDING_REVIEW": "Pending review",
+        "APPROVED": "Approved",
+        "ACTIVE": "Active",
+        "REJECTED": "Rejected",
+        "EXPIRED": "Expired",
+        "REVOKED": "Revoked",
+        "SUPERSEDED": "Superseded",
+        "NOT_APPLICABLE": "Not applicable",
+        "SCHEDULED": "Scheduled"
+      },
+      "queue": {
+        "draft": "Draft",
+        "submitted": "Submitted, awaiting review",
+        "pendingYourApproval": "Pending your approval",
+        "awaitingIndependentApproval": "Awaiting independent approval",
+        "pendingReview": "Pending review",
+        "approvedYourActivation": "Approved, awaiting your activation",
+        "approvedOtherOperator": "Approved, awaiting activation by another operator",
+        "approvedBlocked": "Approved, cannot be activated as it stands",
+        "approved": "Approved, awaiting activation",
+        "inForce": "In force",
+        "rejected": "Rejected",
+        "expired": "Expired",
+        "revoked": "Revoked",
+        "superseded": "Superseded",
+        "activeNotYetEffective": "Activated, not yet in force",
+        "activeWindowEnded": "Activated, effective period ended",
+        "scheduled": "Scheduled, takes effect on {{date}}",
+        "replaced": "Replaced by a newer version",
+        "activated": "Activated",
+        "approvedScheduledPending": "Approved, waiting for a scheduled replacement to take effect"
+      },
+      "detail": {
+        "loading": "Loading this policy…",
+        "versions": "Versions",
+        "newestOnly": "Only the newest {{count}} versions are listed.",
+        "noVersions": "No version of this policy exists yet.",
+        "versionNotFound": "This version doesn't exist, or it has been removed.",
+        "noContents": "This version holds no contents.",
+        "section": {
+          "details": "Version details",
+          "contents": "Policy contents",
+          "actions": "Next step",
+          "trail": "People and times"
+        },
+        "field": {
+          "status": "Status",
+          "version": "Version",
+          "lockVersion": "Lock version",
+          "testOnly": "Test only",
+          "effectiveFrom": "Effective from",
+          "effectiveTo": "Effective to",
+          "evidence": "Evidence reference",
+          "reasonCode": "Last reason code",
+          "contentHash": "Content hash",
+          "updated": "Last updated"
+        }
+      },
+      "trail": {
+        "created": "Created",
+        "submitted": "Submitted",
+        "reviewed": "Review started",
+        "approved": "Approved",
+        "activated": "Activated",
+        "ended": "Ended",
+        "rejected": "Rejected"
+      },
+      "actor": {
+        "unnamed": "Operator",
+        "you": "(you)"
+      },
+      "action": {
+        "create": "Create draft",
+        "newFrom": "New draft from this version",
+        "edit": "Edit draft",
+        "submit": "Submit for review",
+        "review": "Start review",
+        "approve": "Approve",
+        "activate": "Activate",
+        "none": "No action is available to you on this version.",
+        "reject": "Reject",
+        "scheduledPending": "Activation is not available while another replacement of this policy is scheduled and has not taken effect."
+      },
+      "separation": {
+        "approve": "Approval requires another authorized platform operator because you took part in creating or reviewing this version.",
+        "activate": "Activation requires another authorized platform operator because you approved this version."
+      },
+      "confirm": {
+        "policy": "Policy",
+        "version": "Version",
+        "status": "Current status",
+        "submit": {
+          "title": "Submit this draft for review?",
+          "records": "This action records you as the submitting operator.",
+          "consequence": "An operator who created, submitted or reviewed a version cannot approve it.",
+          "confirm": "Submit for review",
+          "sending": "Submitting…"
+        },
+        "review": {
+          "title": "Start the review of this version?",
+          "records": "This action records you as the reviewing operator.",
+          "consequence": "An operator who created, submitted or reviewed a version cannot approve it.",
+          "confirm": "Start review",
+          "sending": "Starting…"
+        },
+        "approve": {
+          "title": "Approve this version?",
+          "records": "This action records you as the approving operator.",
+          "consequence": "The operator who approves a version cannot activate it.",
+          "confirm": "Approve",
+          "sending": "Approving…"
+        },
+        "activate": {
+          "title": "Activate this version?",
+          "records": "This action records you as the activating operator.",
+          "replaces": "This version becomes the policy in force from its effective date and replaces the current one then.",
+          "pidImpact": "Activating this policy version changes the policy used for Participant ID verification. A Participant ID verification recorded against another policy version no longer counts as approved for onboarding or publication until that company's Participant ID is verified again against this version.",
+          "confirm": "Activate",
+          "sending": "Activating…",
+          "scheduled": "If this date is still ahead, the policy in force now stays in force until then."
+        },
+        "reject": {
+          "title": "Reject this version?",
+          "records": "This action records you as the rejecting operator.",
+          "consequence": "A rejected version cannot be approved or activated. To continue, prepare a new draft.",
+          "confirm": "Reject",
+          "sending": "Rejecting…"
+        }
+      },
+      "done": {
+        "submit": "Version {{number}} was submitted for review.",
+        "review": "The review of version {{number}} has started.",
+        "approve": "Version {{number}} was approved.",
+        "activate": "Version {{number}} is now the policy in force.",
+        "created": "Draft version {{number}} was created.",
+        "saved": "Draft version {{number}} was saved.",
+        "reject": "Version {{number}} was rejected."
+      },
+      "error": {
+        "forbidden": "Your account doesn't have permission for this action.",
+        "notFound": "This version no longer exists. The latest versions have been loaded.",
+        "changed": "This policy changed since you opened it. The latest version has been loaded.",
+        "concurrentDraft": "Another draft of this policy was created at the same moment. The latest versions have been loaded.",
+        "conflict": "Fawtir refused this action because the policy is no longer in the state it needs. The latest version has been loaded.",
+        "activationPrecondition": "This version cannot be activated as it stands. It may be missing an evidence reference or an effective date, have expired, hold contents that are not valid, or be marked test only.",
+        "rejectedContent": "Fawtir did not accept these contents. Check the fields and try again.",
+        "scheduledReplacementPending": "This version cannot be activated while another replacement of this policy is scheduled and has not taken effect. The latest versions have been loaded."
+      },
+      "editor": {
+        "createTitle": "New draft",
+        "fromTitle": "New draft from version {{number}}",
+        "editTitle": "Edit draft version {{number}}",
+        "note": "Saving stores a draft. Nothing takes effect until the draft is submitted, reviewed, approved and activated.",
+        "save": "Save draft",
+        "saving": "Saving…"
+      },
+      "pid": {
+        "choose": "Choose",
+        "chooseDay": "Choose a day",
+        "field": {
+          "participantIdentifierScheme": "Identifier scheme",
+          "valueSource": "Value source",
+          "validationPattern": "Validation pattern",
+          "allowedCharactersPattern": "Allowed characters pattern",
+          "minimumLength": "Minimum length",
+          "maximumLength": "Maximum length",
+          "normalization": "Normalisation",
+          "caseSensitive": "Case sensitive",
+          "vatinRelationship": "VAT number matching",
+          "canonicalRepresentation": "Canonical representation",
+          "uniquenessRule": "Uniqueness rule",
+          "positiveFixtures": "Fixtures that must pass",
+          "negativeFixtures": "Fixtures that must fail",
+          "evidenceReference": "Evidence reference",
+          "effectiveFrom": "Effective from",
+          "effectiveTo": "Effective to"
+        },
+        "hint": {
+          "scheme": "Letters, digits and _ . : - only, 2 to 100 characters.",
+          "valueSource": "Where the Participant ID value comes from. Nothing is filled in for you.",
+          "pattern": "A regular expression, in the form the Fawtir server reads.",
+          "allowedCharacters": "Optional. A regular expression.",
+          "length": "A whole number from 1 to 300.",
+          "canonicalRepresentation": "How the value is written once normalised. Nothing is filled in for you.",
+          "uniquenessRule": "What the value must be unique across. Nothing is filled in for you.",
+          "fixtures": "One value per line. Each line is kept exactly as typed.",
+          "evidence": "Up to 500 characters. Required before activation. Never include a password or a key.",
+          "effectiveFrom": "Starts at 00:00 UTC on this day.",
+          "effectiveTo": "Optional. Ends at 00:00 UTC on this day."
+        },
+        "option": {
+          "vatin": {
+            "MUST_MATCH": "Must match the VAT number",
+            "INDEPENDENT": "Independent of the VAT number",
+            "MUST_NOT_DERIVE": "Must not be derived from the VAT number"
+          },
+          "normalization": {
+            "NONE": "None",
+            "TRIM": "Trim spaces",
+            "TRIM_UPPERCASE": "Trim and convert to upper case",
+            "TRIM_LOWERCASE": "Trim and convert to lower case"
+          }
+        }
+      },
+      "validation": {
+        "scheme": "Use letters, digits and _ . : - only, 2 to 100 characters.",
+        "length": "Enter a whole number from 1 to 300.",
+        "maximumBelowMinimum": "The maximum length cannot be below the minimum length.",
+        "fixtures": "Enter at least one value, one per line.",
+        "evidence": "Keep the evidence reference to 500 characters or fewer.",
+        "effectiveTo": "The end day must be after the start day.",
+        "server": "Fawtir did not accept this value."
       }
     }
   },

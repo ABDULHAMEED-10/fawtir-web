@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '../../api'
+import type { ParticipantIdStanding } from '../../api/peppol/participantStanding'
 import { commonFailureMessage, type FormMessage } from '../identity/errors'
 
 /**
@@ -43,6 +44,12 @@ export type PidSubmission = {
   createdBy: string
   submittedBy: string | null
   optimisticLockVersion: number
+  /**
+   * Added to the same read without changing any field above: `status` still says what this row
+   * is, and only this says whether the company's verification counts under the policy in force.
+   * Optional because a backend without it must leave the card exactly as it was.
+   */
+  verificationStanding?: ParticipantIdStanding | null
 }
 
 export function currentSubmissionPath(tenantId: string): string {
@@ -85,15 +92,39 @@ export function reasonCodeError(value: string): 'required' | 'invalid' | null {
 /**
  * Same shape of failure as company verification: `409` means the case moved (someone else decided
  * it, or the tenant resubmitted), `403` a missing permission or the four-eyes rule (a submitter
- * cannot verify their own filing). A distinct `409` also covers the Participant ID already being
- * verified for another tenant — the backend cannot tell that apart from a stale revision by status
- * code alone, so both read the same way: reload and look again.
+ * cannot verify their own filing).
+ *
+ * The backend names its refusals with a `code`, and only that and the status are read here; the
+ * problem's `detail` is never matched or shown. A `409` without a code this screen knows, which
+ * includes `STALE_VERSION` and `INVALID_STATE`, keeps reading as "reload and look again": the one
+ * answer that is right for all of them.
  */
 export function describeParticipantFailure(error: unknown): FormMessage {
   if (error instanceof ApiError) {
-    if (error.status === 409) return { key: 'console.verification.participant.conflict' }
+    if (isPolicyNotActive(error)) return { key: 'console.verification.participant.policyNotActive' }
+    if (error.status === 400 && error.code === 'PID_CANDIDATE_REJECTED') {
+      return { key: 'console.verification.participant.candidateRejected' }
+    }
+    if (error.status === 409) {
+      if (error.code === 'PID_ALREADY_VERIFIED') {
+        return { key: 'console.verification.participant.alreadyVerified' }
+      }
+      if (error.code === 'SELF_VERIFICATION_NOT_ALLOWED') {
+        return { key: 'console.verification.participant.ownSubmission' }
+      }
+      return { key: 'console.verification.participant.conflict' }
+    }
     if (error.status === 403) return { key: 'console.verification.participant.forbidden' }
     if (error.status === 404) return { key: 'console.verification.detail.notFound' }
   }
   return commonFailureMessage(error)
+}
+
+/**
+ * An approval refused because no taxpayer Participant ID validation policy is in force. Told apart
+ * from every other refusal because the remedy is elsewhere: on the policy's own screen, not in a
+ * retry here. Rejecting needs no policy, so the backend never answers a rejection this way.
+ */
+export function isPolicyNotActive(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 400 && error.code === 'PID_POLICY_NOT_ACTIVE'
 }
