@@ -22,14 +22,9 @@ import stockIcon from '../../assets/notifications/stock.svg'
 import acceptedIcon from '../../assets/notifications/accepted.svg'
 import inviteIcon from '../../assets/notifications/invite.svg'
 import deviceIcon from '../../assets/notifications/device.svg'
-// A bill reminder wears the icon the Reminders page gives its rule.
-import dueIcon from '../../assets/expenditure-reminders/clock.svg'
-import lateIcon from '../../assets/expenditure-reminders/alert.svg'
-import discountIcon from '../../assets/expenditure-reminders/discount.svg'
-import approvalIcon from '../../assets/expenditure-reminders/approval.svg'
-import mismatchIcon from '../../assets/expenditure-reminders/eye.svg'
-import scanIcon from '../../assets/expenditure-reminders/camera.svg'
-import recurringIcon from '../../assets/expenditure-reminders/calendar.svg'
+// A bill reminder wears the sidebar's Bills icon: the same file the sidebar draws beside
+// Expenditure, whose first entry is Bills. Drawn as it is, on the tile the panel tints.
+import billIcon from '../../assets/dashboard/nav-figma/expenditure.svg'
 
 const ICON: Record<Note['icon'], string> = {
   certificate: certificateIcon,
@@ -39,13 +34,7 @@ const ICON: Record<Note['icon'], string> = {
   accepted: acceptedIcon,
   invite: inviteIcon,
   device: deviceIcon,
-  due: dueIcon,
-  late: lateIcon,
-  discount: discountIcon,
-  approval: approvalIcon,
-  mismatch: mismatchIcon,
-  scan: scanIcon,
-  recurring: recurringIcon,
+  bill: billIcon,
 }
 
 /** The tinted tile behind each icon (Figma: Danger, Warning, Success, Neutral, Primary 100/200). */

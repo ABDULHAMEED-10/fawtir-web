@@ -81,9 +81,8 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
-  // Exporting or marking paid a run that holds a held bill. Draft wording, pending the owner
-  // (Wording-For-Abdul.md row 17). The payment run screens name this code themselves
-  // (`RUN_REFUSALS`), so this is what any other screen says.
+  // Exporting or marking paid a run that holds a held bill. The payment run screens name this
+  // code themselves (`RUN_REFUSALS`), so this is what any other screen says.
   PAYMENT_RUN_BILL_ON_HOLD: 'apiErrors.refused.paymentRunBillOnHold',
   // The supplier import, a file whose header row is neither template's (owner's Round 5
   // answer 5, 2 Oct 2026: his sentence in both languages). The detail names the column, in English.

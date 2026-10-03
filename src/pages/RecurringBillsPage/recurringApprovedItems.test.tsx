@@ -31,7 +31,7 @@ import { RecurringBillDetailPage } from '../RecurringBillDetailPage/RecurringBil
 import { NewRecurringBillPage } from '../NewRecurringBillPage/NewRecurringBillPage'
 
 /**
- * The owner-approved Recurring bills items of 1 Oct 2026 (Decisions-Abdul-Answers, items 23 to
+ * The owner-approved Recurring bills items of 1 Oct 2026 (items 23 to
  * 32) and the audit's web fixes (REC-05, REC-14), against the backend contract of the same day.
  */
 
@@ -614,7 +614,7 @@ describe('an honest chase (item 25)', () => {
   it('says both answers in Arabic as approved', async () => {
     await i18n.changeLanguage('ar')
     expect(i18n.t('recurringBills.done.chasedTold', { name: 'يوسف' })).toBe(
-      'تم إبلاغ يوسف لمطالبة المورد.',
+      'تم إبلاغ يوسف لمطالبة المورّد.',
     )
     expect(i18n.t('recurringBills.done.chasedNobody')).toBe(
       'لم يُبلَّغ أحد. اختر من يُبلَّغ في هذه الفاتورة المتكررة.',
@@ -964,8 +964,8 @@ describe('"Mark as received" (item 23)', () => {
     },
   )
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 4, rows 3 to 7). A correction
-  // there changes the sentences below with it. The period and the bill that are gone answer 404.
+  // The owner's approved sentences, word for word. The period and the bill that are gone answer
+  // 404.
   it.each([
     [
       'RECURRING_BILL_PERIOD_NOT_FOUND',
@@ -1249,7 +1249,7 @@ describe('editing a recurring bill', () => {
     expect(screen.queryByText(/RECURRING_BILL_SUPPLIER_REQUIRED/)).toBeNull()
   })
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 4, rows 1 and 8).
+  // The owner's approved sentences, word for word.
   it.each([
     [
       'RECURRING_BILL_END_BEFORE_NEXT_RUN',
@@ -1354,8 +1354,8 @@ describe('the detail and the list, where the audit found no test', () => {
   })
 })
 
-// Draft wording, pending the owner (Wording-For-Abdul.md section 4, rows 1 and 2). Resume is not
-// drawn where the page knows it would be refused, so these show when the page is out of date.
+// Resume is not drawn where the page knows it would be refused, so these show when the page is
+// out of date.
 describe('a resume the server refuses, on the list', () => {
   it.each([
     ['RECURRING_BILL_ENDED', 'This recurring bill has ended. Set up a new one to keep watching.'],
@@ -1447,12 +1447,14 @@ describe('"Watching from" moved earlier than the first period already watched', 
 // Draft wording, pending the owner (Wording-For-Abdul.md section 8). A correction there changes
 // the sentences below with it. The supplier code is the one Resume meets on the list, where it
 // keeps its own sentence (the describe above).
+// The supplier code is the one Resume meets on the list, where it keeps its own sentence (the
+// describe above).
 describe('a save the server refuses, on the add and edit form', () => {
   const FORM: [string, string, string][] = [
     [
       'RECURRING_BILL_SUPPLIER_SWITCHED_OFF',
       'This supplier is switched off. Switch it back on to add a recurring bill for it.',
-      'هذا المورّد موقوف. أعد تشغيله لإضافة فاتورة متكررة له.',
+      'هذا المورّد موقوف. أعد تفعيله لإضافة فاتورة متكررة له.',
     ],
     [
       'RECURRING_BILL_RECIPIENT_UNKNOWN',

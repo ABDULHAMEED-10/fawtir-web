@@ -1244,8 +1244,7 @@ describe('Record a bill (Figma 163:27781)', () => {
     expect(JSON.parse(String(confirmed('intake-1')[1][1]?.body)).notDuplicateOf).toBe('bill-old')
   })
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 1, "Capturing a bill"). A
-  // correction there changes the sentences below with it.
+  // The owner's approved sentences, word for word.
   describe('why the bill was refused, in its own sentence', () => {
     const refusal = (status: number, type: string, error: string) => () =>
       new Response(

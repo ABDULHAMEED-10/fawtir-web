@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { useTranslation } from 'react-i18next'
 import { paymentMethodOptions, useReferenceData } from '../../lib/reference/referenceData'
-import { DateField, Input, Modal, Rial, Select } from '../../components/ui'
+import { DateField, Input, Modal, Rial, Select, withRial } from '../../components/ui'
 import { Notice } from '../../components/feedback/ApiNotice'
 import {
   Field,
@@ -32,6 +32,16 @@ function owedIn(
   if (typeof currency !== 'string' || currency === '') return null
   return { amount, currency }
 }
+
+/**
+ * A figure as a sentence prints it: its currency, then the amount at that currency's decimals
+ * (three for the rial). `withRial` draws the rial sign in place of "OMR"; any other currency
+ * keeps its code.
+ */
+function figureInSentence(amount: number, currency: string, language: string): string {
+  return `${currency} ${formatAmount(amount, currency, language)}`
+}
+
 const ORDER: PaymentField[] = ['amount', 'methodCode', 'paymentDate', 'reference']
 
 /**
@@ -78,8 +88,8 @@ export function RecordPaymentModal({
       values?: (problem: Readonly<Record<string, unknown>>) => Record<string, unknown>
       /**
        * The sentence when the server names what is still owed beside the code (a bill's
-       * `outstandingAmount` and `currency`). `{{amount}}` is that figure, as the dialog prints
-       * money. Without the figure, or with nothing left to pay, `key` is said.
+       * `outstandingAmount` and `currency`). `{{amount}}` is that figure, with the rial sign and
+       * three decimals. Without the figure, or with nothing left to pay, `key` is said.
        */
       keyWithOwed?: string
     }
@@ -91,7 +101,8 @@ export function RecordPaymentModal({
   labelKeys?: { amount: string; date: string }
   /**
    * What an amount above what is still owed reads as, when it is not an invoice that is owed (a
-   * bill). `{{amount}}` is the outstanding amount the dialog holds, as its subtitle prints it.
+   * bill). `{{amount}}` is the outstanding amount the dialog holds, with the rial sign and three
+   * decimals.
    */
   amountTooMuchKey?: string
 }) {
@@ -210,13 +221,15 @@ export function RecordPaymentModal({
               onChange={(event) => change('amount', event.target.value)}
               error={
                 errors.amount
-                  ? t(errors.amount, {
-                      amount: owed
-                        ? formatAmount(owed.amount, owed.currency, i18n.language)
-                        : outstanding === null
-                          ? ''
-                          : formatAmount(outstanding, currency, i18n.language),
-                    })
+                  ? withRial(
+                      t(errors.amount, {
+                        amount: owed
+                          ? figureInSentence(owed.amount, owed.currency, i18n.language)
+                          : outstanding === null
+                            ? ''
+                            : figureInSentence(outstanding, currency, i18n.language),
+                      }),
+                    )
                   : undefined
               }
               hint={t('invoiceDetails.pay.amountHint')}

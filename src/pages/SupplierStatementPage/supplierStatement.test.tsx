@@ -405,8 +405,7 @@ describe('The supplier statement, wired to the API', () => {
     expect(await screen.findByText('Sent to finance@soharpack.om.')).toBeTruthy()
   })
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 2). A correction there changes
-  // the sentences below with it.
+  // The owner's approved sentences, word for word.
   describe('why the statement was not e-mailed, in its own sentence', () => {
     const GENERIC = /The server refused this\. Nothing was changed/
     const refusal = (status: number, error: string) => () =>

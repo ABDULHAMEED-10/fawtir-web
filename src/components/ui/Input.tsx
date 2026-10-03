@@ -6,7 +6,8 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   labelEnd?: ReactNode
   leadingIcon?: ReactNode
   trailingIcon?: ReactNode
-  error?: string
+  /** The message under the field. A node, so a sentence can carry the drawn rial sign. */
+  error?: ReactNode
   hint?: string
   readOnlyAppearance?: boolean
   /**

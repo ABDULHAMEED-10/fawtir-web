@@ -99,8 +99,7 @@ export function selfBilledIssueMessageKey(error: unknown): string | null {
 }
 
 /**
- * A self-billed issue refused because the supplier is switched off. Draft wording, pending the
- * owner (Wording-For-Abdul.md section 7).
+ * A self-billed issue refused because the supplier is switched off.
  *
  * Kept out of `REFUSALS` for the same reason as the business activity above: `SUPPLIER_SWITCHED_OFF`
  * is one code with a different sentence on each screen that meets it (a bill's capture, the

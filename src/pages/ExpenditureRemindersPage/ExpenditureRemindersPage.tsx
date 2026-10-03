@@ -272,27 +272,43 @@ function Editor({
   const save = async () => {
     setBusy(true)
     setFailure(null)
-    // Two calls, rules first. What the rules call answered, if it went through.
+    // Two calls, rules first, and the settings only once the rules are written: a refused rule
+    // stops the save with nothing written, so the only half-save there can be is rules saved and
+    // settings not.
+    let rulesSaved = false
+    // What the rules call answered, when it answered with the rules.
     let rulesNowOnFile: ReminderRuleDto[] | null = null
     try {
-      if (changed.length > 0) rulesNowOnFile = (await saveReminderRules(changed)).rules ?? null
+      if (changed.length > 0) {
+        rulesNowOnFile = (await saveReminderRules(changed))?.rules ?? null
+        rulesSaved = true
+      }
       if (deliveryDirty) await saveReminderSettings(delivery)
       setNotice(t('expenditureReminders.saved'))
       onSaved()
     } catch (error) {
-      // The rules were written and the settings were not. The rules are shown as the server now
-      // holds them, so they no longer read as unsaved and are not sent again; the settings edit
-      // stays as typed and Save stays lit for it. Taken from the save's own answer, not a fresh
-      // read: a read takes this editor down, and the settings edit and this failure with it.
-      // TODO(owner): the failure below is the settings' own, in the sentence the page already
-      // has. It does not say that the rules were saved. Whether it should is the owner's call.
-      if (rulesNowOnFile) {
-        // Read the same way as the page's own read: a row that takes one timing holds one.
-        const nowOnFile = rulesNowOnFile.map(withOneTiming)
-        setOnFile(nowOnFile)
-        setDraft(nowOnFile)
-      }
       setNotice(null)
+      if (rulesSaved) {
+        // The rules were written and the settings were not. The rules are shown as the server
+        // now holds them, so they no longer read as unsaved and are not sent again; the settings
+        // edit stays as typed and Save stays lit for it. Taken from the save's own answer, not a
+        // fresh read: a read takes this editor down, and the settings edit and this failure with
+        // it. An answer with no rules in it leaves what was sent as what is on file.
+        if (rulesNowOnFile) {
+          // Read the same way as the page's own read: a row that takes one timing holds one.
+          const nowOnFile = rulesNowOnFile.map(withOneTiming)
+          setOnFile(nowOnFile)
+          setDraft(nowOnFile)
+        } else {
+          setOnFile((current) => [
+            ...current.filter((rule) => !changed.some((sent) => sent.type === rule.type)),
+            ...changed,
+          ])
+        }
+        // The owner's sentence (2 Oct 2026): it says which half went through.
+        setFailure(t('expenditureReminders.rulesSavedSettingsFailed'))
+        return
+      }
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)
       setFailure(
@@ -570,16 +586,13 @@ function RuleCard({
             {t(`${label}.note`)}
           </p>
         </div>
-        {/* The recurring row has no rule behind it and nothing to switch: its timing is set on
-            each recurring bill, so no switch is drawn there. */}
-        {rule ? (
-          <Switch
-            checked={on}
-            onChange={(enabled) => onChange({ enabled })}
-            label={t(`${label}.title`)}
-            disabled={!canManage}
-          />
-        ) : null}
+        {/* The recurring row's switch is the bills' own: it cannot be turned off here. */}
+        <Switch
+          checked={on}
+          onChange={(enabled) => rule && onChange({ enabled })}
+          label={t(`${label}.title`)}
+          disabled={!canManage}
+        />
       </div>
 
       {/* The settings dim rather than disappear, so the shape of the rule stays readable. */}

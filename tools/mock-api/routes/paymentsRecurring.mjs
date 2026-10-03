@@ -1527,10 +1527,13 @@ const PREVIEW = {
 
 /**
  * `InboxItemResponse` as the bell reads it: the original eleven fields, then what the notice is
- * about (`reason`), the name a reader knows it by, the amount, and where its line leads. `read`
- * is worked out when it is answered, as the server does.
+ * about (`reason`), the name a reader knows it by, the amount, where its line leads, the
+ * supplier's name and, for a bill, its due date. `read` and `dueDate` are worked out when it is
+ * answered, as the server does: `dueInDays` is this file's own, the bill's due date counted from
+ * the real today, so the bell's "unpaid for N days" reads the same on whatever day this is run.
  */
 const inboxItem = (item) => ({
+  supplierName: null,
   outcome: 'SENT',
   firedOn: TODAY,
   createdAt: `${TODAY}T04:00:00Z`,
@@ -1560,6 +1563,8 @@ let INBOX = [
     headline: 'AND-INV-3370 is 9 day(s) overdue',
     amount: 411.5,
     currency: 'OMR',
+    supplierName: 'Al Noor Dates',
+    dueInDays: -9,
   }),
   inboxItem({
     id: 'inb-2',
@@ -1571,6 +1576,8 @@ let INBOX = [
     headline: 'SP-1140 is due in 3 day(s)',
     amount: 3140,
     currency: 'OMR',
+    supplierName: 'Sohar Packaging',
+    dueInDays: 3,
   }),
   inboxItem({
     id: 'inb-3',
@@ -1585,12 +1592,21 @@ let INBOX = [
     headline: 'Recurring bill Electricity has not arrived',
     amount: 318.4,
     currency: 'OMR',
+    supplierName: 'Mazoon Electricity',
     createdAt: '2026-09-24T04:00:00Z',
     acknowledgedAt: '2026-09-24T09:30:00Z',
   }),
 ]
 
-const inboxAnswer = (item) => ({ ...item, read: item.acknowledgedAt !== null })
+/** The business day (Muscat, UTC+4) that is `days` from the real today, as `YYYY-MM-DD`. */
+const dayFromToday = (days) =>
+  new Date(Date.now() + 4 * 3_600_000 + days * 86_400_000).toISOString().slice(0, 10)
+
+const inboxAnswer = ({ dueInDays, ...item }) => ({
+  ...item,
+  read: item.acknowledgedAt !== null,
+  dueDate: dueInDays === undefined ? null : dayFromToday(dueInDays),
+})
 
 /* -------------------------------------------------------------------- routes */
 

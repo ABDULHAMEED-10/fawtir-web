@@ -294,6 +294,19 @@ function renderPage() {
   )
 }
 
+/**
+ * A sentence that prints money: the rial sign is drawn in place of "OMR" (which stays in the page
+ * for a screen reader), so the sentence is one paragraph whose text reads "OMR 1,354.310" around
+ * a no-break space, with the drawn sign inside it.
+ */
+async function moneySentence(dialog: HTMLElement, text: string): Promise<HTMLElement> {
+  const sentence = await within(dialog).findByText(
+    (_, element) => element?.tagName === 'P' && element.textContent === text,
+  )
+  expect(sentence.querySelector('svg')).toBeTruthy()
+  return sentence
+}
+
 describe('A self-billed invoice through its own door', () => {
   it('reads the document from the authored-invoice endpoints and draws it in the design, with the parties turned round', async () => {
     renderPage()
@@ -458,8 +471,7 @@ describe('A self-billed invoice through its own door', () => {
     expect(screen.queryByText('Payment recorded.')).toBeNull()
   })
 
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 6). A correction there changes
-  // the sentences below with it.
+  // The owner's approved sentences, word for word.
   describe('why paying the supplier bill was refused, in this page\'s words', () => {
     const GENERIC = /The server refused this\. Nothing was changed/
     const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
@@ -521,8 +533,9 @@ describe('A self-billed invoice through its own door', () => {
         currency: 'OMR',
       })
       const dialog = await pay()
-      const sentence = await within(dialog).findByText(
-        'That is more than the supplier bill still owes. The most you can record is 12.500.',
+      const sentence = await moneySentence(
+        dialog,
+        'That is more than the supplier bill still owes. The most you can record is OMR\u00A012.500.',
       )
       expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
       expect(within(dialog).queryByText(GENERIC)).toBeNull()
@@ -530,11 +543,10 @@ describe('A self-billed invoice through its own door', () => {
       await act(async () => {
         await i18n.changeLanguage('ar')
       })
-      expect(
-        await within(dialog).findByText(
-          'هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد. أقصى ما يمكن تسجيله 12.500.',
-        ),
-      ).toBeTruthy()
+      await moneySentence(
+        dialog,
+        'هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد. أقصى ما يمكن تسجيله OMR\u00A012.500.',
+      )
     })
 
     it('keeps its own check of the amount as it was', async () => {

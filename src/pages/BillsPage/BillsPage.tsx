@@ -144,7 +144,7 @@ const REFUSALS: Record<string, string> = {
   APPROVAL_ALREADY_GIVEN: 'billDetail.refused.alreadyApproved',
   APPROVAL_TRANSITION_INVALID: 'billDetail.refused.changed',
   APPROVAL_REJECTION_REASON_REQUIRED: 'billDetail.refused.reasonRequired',
-  // Rejecting: draft wording, pending the owner (Wording-For-Abdul.md, "Rejecting a bill").
+  // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
   APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
   APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
   APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
@@ -152,14 +152,13 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
-  // Draft wording, pending the owner (Wording-For-Abdul.md section 5).
+  // A hold with no reason, or one that is too long.
   BILL_HOLD_REASON_REQUIRED: 'billDetail.refused.holdReasonRequired',
   BILL_HOLD_REASON_TOO_LONG: 'billDetail.refused.holdReasonTooLong',
 }
 
 /**
- * Why a nudge was refused, as its own sentence. Draft wording, pending the owner
- * (Wording-For-Abdul.md, "Nudging the approver").
+ * Why a nudge was refused, as its own sentence.
  */
 const NUDGE_REFUSALS: Record<string, string> = {
   BILL_NUDGE_ALREADY_SENT: 'billsPage.nudge.alreadySent',

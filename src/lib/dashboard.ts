@@ -30,6 +30,12 @@ export type NavChild = {
    * not hide the entry: it shows greyed with a lock and leads to the upgrade nudge.
    */
   feature?: Feature
+  /**
+   * A live count drawn at the end of the entry, in the sidebar's own badge. `billReminders` is
+   * the reader's unread bill reminders, the number on the bell ("a count on the bell and on the
+   * Bills tab", Reminders 163:21448).
+   */
+  count?: 'billReminders'
 }
 
 export type NavItem = {
@@ -137,6 +143,7 @@ export const DASHBOARD_NAV: NavGroup[] = [
             id: 'bills',
             labelKey: 'dashboard.nav.expenditureChildren.bills',
             to: '/expenditure/bills',
+            count: 'billReminders',
           },
           {
             id: 'payments',

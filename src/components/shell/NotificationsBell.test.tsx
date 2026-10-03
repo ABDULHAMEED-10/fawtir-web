@@ -4,9 +4,10 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import type { ReminderInboxItemDto } from '../../api/expenditure/billReminders'
 import type { Entitlements } from '../../lib/identity/entitlements'
-import { notesStore, type NoteScope } from '../../lib/notifications'
+import { NOTES, noteValues, notesStore, type NoteScope } from '../../lib/notifications'
 import { SessionContext } from '../../lib/session/session'
 import { NotificationsBell } from './NotificationsBell'
+import sidebarBillsIcon from '../../assets/dashboard/nav-figma/expenditure.svg'
 
 /**
  * The bell against the reader's own reminder inbox (`BillReminderController`, section 4 of the
@@ -321,6 +322,198 @@ describe('the count on the bell', () => {
   })
 })
 
+describe('the lines when the server names the supplier and sends the due date', () => {
+  /** The business day (Muscat, UTC+4) that is `days` from today, as the server writes a date. */
+  const dayFromToday = (days: number) =>
+    new Date(Date.now() + 4 * 3_600_000 + days * 86_400_000).toISOString().slice(0, 10)
+
+  const named = () => [
+    // Recorded on its first day late; the bill has gone unpaid nine days by now.
+    { ...LATE, daysFromDue: 1, supplierName: 'Al Noor Dates', dueDate: dayFromToday(-9) },
+    { ...DUE, daysFromDue: -7, supplierName: 'Sohar Packaging', dueDate: dayFromToday(3) },
+    { ...RENT, supplierName: 'Muscat Property', dueDate: null },
+  ]
+
+  it('names the supplier, and counts a late bill from its due date as of today', async () => {
+    inbox = named()
+    renderBell()
+    const panel = await openPanel()
+
+    const late = (await within(panel).findByText('Al Noor Dates unpaid for 9 days')).closest('li')!
+    expect(late.textContent).toContain('411.500 still to pay.')
+    expect(within(panel).getByText('Sohar Packaging due in 3 days')).toBeTruthy()
+    expect(within(panel).getByText('Muscat Property bill not arrived, 4 days late')).toBeTruthy()
+    // The bill's own number and the stored count are not what the line says any more.
+    expect(panel.textContent).not.toMatch(/ME-991|1 day late|due in 7 days|day\(s\)/)
+
+    fireEvent.click(within(late).getByRole('button', { name: 'Open the bill' }))
+    expect(screen.getByTestId('where').textContent).toBe('/expenditure/bills/b-1')
+  })
+
+  it('says the same in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    inbox = named()
+    renderBell()
+    fireEvent.click(screen.getByRole('button', { name: /^الإشعارات/ }))
+    const panel = await screen.findByRole('dialog', { name: 'الإشعارات' })
+
+    const late = (
+      await within(panel).findByText('فاتورة Al Noor Dates غير مدفوعة منذ 9 أيام')
+    ).closest('li')!
+    expect(late.textContent).toContain('لم تُسدَّد بعد.')
+    expect(within(late).getByRole('button', { name: 'افتح الفاتورة' })).toBeTruthy()
+    expect(within(panel).getByText('فاتورة Sohar Packaging تستحق خلال 3 أيام')).toBeTruthy()
+    expect(within(panel).getByText('فاتورة Muscat Property لم تصل، متأخرة 4 أيام')).toBeTruthy()
+    expect(panel.textContent ?? '').not.toMatch(/notes\.|unpaid|due in|not arrived|still to pay/)
+  })
+})
+
+describe('a discount line when the server sends the percentage, the day and the saving', () => {
+  const dayFromToday = (days: number) =>
+    new Date(Date.now() + 4 * 3_600_000 + days * 86_400_000).toISOString().slice(0, 10)
+  /** The day as the panel writes it: "5 Aug". */
+  const written = (day: string, locale: string) => {
+    const [year, month, date] = day.split('-').map(Number)
+    return new Date(year, month - 1, date).toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+    })
+  }
+  const discount = (over: Partial<ReminderInboxItemDto> = {}) =>
+    line({
+      id: 'n-discount',
+      ruleType: 'DISCOUNT_EXPIRY',
+      reason: 'DISCOUNT_EXPIRY',
+      daysFromDue: -4,
+      amount: 2354.5,
+      supplierName: 'Gulf Cold Logistics',
+      ...over,
+    })
+
+  it('reads as the design does, with the rial sign and three decimals on the saving', async () => {
+    const on = dayFromToday(4)
+    inbox = [discount({ discountPercent: 2, discountExpiresOn: on, discountSaving: 47.09 })]
+    renderBell()
+    const panel = await openPanel()
+    const row = (
+      await within(panel).findByText(
+        `Gulf Cold Logistics 2% discount expires ${written(on, 'en-GB')}`,
+      )
+    ).closest('li')!
+    expect(row.textContent).toContain('47.090.')
+    expect(row.textContent).toMatch(/Saves/)
+    // The amount is the saving, not what is still to pay, and it wears the rial sign.
+    expect(row.querySelector('b, span.font-semibold')?.textContent).toMatch(/47\.090$/)
+    expect(row.textContent).not.toMatch(/2,354\.500|still to pay|expires in/)
+    expect(within(row).getByRole('button', { name: 'Open the bill' })).toBeTruthy()
+  })
+
+  it('counts the days, as before, when the server does not send them', async () => {
+    inbox = [discount()]
+    renderBell()
+    const panel = await openPanel()
+    const row = (
+      await within(panel).findByText('Gulf Cold Logistics discount expires in 4 days')
+    ).closest('li')!
+    expect(row.textContent).toContain('2,354.500 still to pay.')
+    expect(row.textContent).not.toMatch(/Saves/)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    const on = dayFromToday(4)
+    inbox = [discount({ discountPercent: 2, discountExpiresOn: on, discountSaving: 47.09 })]
+    renderBell()
+    fireEvent.click(screen.getByRole('button', { name: /^الإشعارات/ }))
+    const panel = await screen.findByRole('dialog', { name: 'الإشعارات' })
+    const row = (
+      await within(panel).findByText(
+        `خصم 2٪ من Gulf Cold Logistics ينتهي ${written(on, 'ar-u-nu-latn')}`,
+      )
+    ).closest('li')!
+    expect(row.textContent).toMatch(/يوفّر/)
+    expect(row.textContent).toContain('47.090')
+    expect(row.textContent ?? '').not.toMatch(/notes\.|Saves|expires/)
+  })
+})
+
+describe('the icon on a bill reminder', () => {
+  it('is the Bills icon the sidebar shows, the same file, for every kind of reminder', async () => {
+    inbox = [LATE, DUE, RENT]
+    renderBell()
+    const panel = await openPanel()
+    await waitFor(() => expect(within(panel).getAllByRole('listitem')).toHaveLength(3))
+    for (const row of within(panel).getAllByRole('listitem')) {
+      // The first image of a row is the one on its tinted tile.
+      const icon = row.querySelector('img')!
+      expect(icon.getAttribute('src')).toBe(sidebarBillsIcon)
+      // Drawn as the panel draws every icon: no filter, no recolouring.
+      expect(icon.getAttribute('style')).toBeNull()
+      expect(icon.className).toBe('block size-4 max-w-none')
+    }
+  })
+})
+
+describe('the seven sample notices the design typed in', () => {
+  // Certificate, plan usage, refused invoice, stock, accepted, invitation, new device: none has a
+  // source, so none is shown to anyone. What the bell holds is what the server sent.
+  const PEOPLE: { who: string; session: Entitlements | null; scope: NoteScope; reads: boolean }[] =
+    [
+      ...['ADMIN', 'FINANCE_MANAGER', 'APPROVER', 'VIEWER'].map((code) => ({
+        who: code,
+        session: { ...READER, roles: [{ id: 'r-1', code, name: code, systemRole: true }] },
+        scope: 'tenant' as const,
+        reads: true,
+      })),
+      {
+        who: 'someone who may not read bills',
+        session: { ...READER, permissions: ['customer.read'] },
+        scope: 'tenant',
+        reads: false,
+      },
+      { who: 'nobody signed in', session: null, scope: 'tenant', reads: false },
+      { who: 'the console operator', session: READER, scope: 'console', reads: false },
+    ]
+
+  const sampleSentences = (language: string) =>
+    NOTES.flatMap((note) => {
+      const values = noteValues(note, language)
+      return [
+        i18n.t(note.titleKey, values),
+        ...note.actions.map((action) => i18n.t(action.labelKey, values)),
+      ]
+    })
+
+  for (const language of ['en', 'ar'] as const) {
+    for (const person of PEOPLE) {
+      for (const filled of [true, false]) {
+        it(`shows none of them to ${person.who}, in ${language}, with ${
+          filled ? 'a reminder' : 'nothing'
+        } in the inbox`, async () => {
+          await i18n.changeLanguage(language)
+          inbox = filled ? [LATE] : []
+          renderBell(person.session, person.scope)
+          fireEvent.click(screen.getByRole('button', { name: i18n.t('dashboard.notifications') }))
+          const panel = await screen.findByRole('dialog', { name: i18n.t('notes.title') })
+          const expected = filled && person.reads ? 1 : 0
+          await waitFor(() =>
+            expect(within(panel).queryAllByRole('listitem')).toHaveLength(expected),
+          )
+          if (expected === 0) await within(panel).findByText(i18n.t('notes.allCaughtUp'))
+
+          const samples = sampleSentences(language)
+          // Seven titles and their buttons, each a real sentence and not a bare key.
+          expect(samples.length).toBeGreaterThanOrEqual(7)
+          for (const sentence of samples) {
+            expect(sentence).not.toMatch(/^notes\./)
+            expect(panel.textContent ?? '', sentence).not.toContain(sentence)
+          }
+        })
+      }
+    }
+  }
+})
+
 describe('reading a line', () => {
   it('marks it read on the server, and the count goes down', async () => {
     inbox = [LATE, DUE]
@@ -401,7 +594,7 @@ describe('reading a line', () => {
     expect(await go('Electricity arrived outside its usual range', 'Open the bill')).toBe(
       '/expenditure/bills/b-77',
     )
-    expect(await go('receipt-12.jpg has waited 2 days to be confirmed', 'Check and save')).toBe(
+    expect(await go('receipt-12.jpg unconfirmed for 2 days', 'Check and save')).toBe(
       '/expenditure/bills/upload/in-7',
     )
     await waitFor(() => expect(called('POST', /\/acknowledge$/)).toHaveLength(3))
@@ -680,7 +873,7 @@ describe('the bell in Arabic', () => {
     const late = (await within(panel).findByText('الفاتورة ME-991 متأخرة 3 أيام')).closest('li')!
     expect(late.textContent).toContain('لم تُسدَّد بعد.')
     expect(within(late).getByRole('button', { name: 'افتح الفاتورة' })).toBeTruthy()
-    expect(within(panel).getByText('تستحق الفاتورة SP-1140 بعد يومين')).toBeTruthy()
+    expect(within(panel).getByText('تستحق الفاتورة SP-1140 خلال يومين')).toBeTruthy()
     const rent = within(panel).getByText('تأخر وصول Office rent 4 أيام').closest('li')!
     expect(rent.textContent).toContain('المبلغ المعتاد')
     expect(within(panel).getByText('3 جديدة')).toBeTruthy()

@@ -153,9 +153,8 @@ export function emailBlocker(
 }
 
 /**
- * Why the server would not e-mail the statement, by its code. Draft wording, pending the owner
- * (Wording-For-Abdul.md, "Statement e-mail failures"). The mail server's own failure answers 503,
- * the rest 400; a server that names no code is read as before, as e-mail not switched on.
+ * Why the server would not e-mail the statement, by its code, each in the owner's approved
+ * sentence. The mail server's own failure answers 503, the rest 400; a server that names no code is read as before, as e-mail not switched on.
  */
 export const STATEMENT_EMAIL_REFUSALS: Record<string, string> = {
   SUPPLIER_STATEMENT_EMAIL_NOT_SWITCHED_ON: 'supplierStatement.email.unavailable',

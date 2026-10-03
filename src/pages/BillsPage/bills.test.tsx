@@ -1446,8 +1446,7 @@ describe('draft rows under the source filter', () => {
   })
 })
 
-// Draft wording, pending the owner (Wording-For-Abdul.md section 1, "Rejecting a bill"). A
-// correction there changes the sentences below with it.
+// The owner's approved sentences, word for word.
 describe('why a rejection was refused, in its own sentence', () => {
   const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
     json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
@@ -1466,7 +1465,7 @@ describe('why a rejection was refused, in its own sentence', () => {
   const reject = () => decide('billDetail.actions.reject', 'billDetail.reject.confirm')
   const hold = () => decide('billDetail.decision.putOnHold', 'billDetail.hold.confirm')
 
-  // Wording-For-Abdul.md section 5.
+  // A hold with no reason, or one that is too long.
   it.each([
     ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],
     [
@@ -1485,7 +1484,7 @@ describe('why a rejection was refused, in its own sentence', () => {
     decisionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
     await hold()
     expect(
-      await screen.findByText('السبب طويل أكثر من اللازم. اختصره ثم علّق الفاتورة من جديد.'),
+      await screen.findByText('السبب طويل أكثر من اللازم. اختصره ثم ضع الفاتورة قيد الانتظار من جديد.'),
     ).toBeTruthy()
   })
 

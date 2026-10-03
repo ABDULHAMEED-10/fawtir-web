@@ -221,9 +221,9 @@ describe('payables reminder rules', () => {
     expect(toggleOffset([7], 2, true)).toEqual([7, 2])
     expect(toggleOffset([3], 1, false)).toEqual([1])
     expect(toggleOffset([3], 3, false)).toEqual([])
-    // Only what can be switched, and is: the recurring row is not a rule and is not counted.
-    expect(rulesOn([rule('LATE', { enabled: true }), rule('BEFORE_DUE')])).toBe(1)
-    expect(rulesOn([rule('LATE'), rule('BEFORE_DUE')])).toBe(0)
+    // Every rule that is on, and the recurring one, which the design draws fixed on and counts.
+    expect(rulesOn([rule('LATE', { enabled: true }), rule('BEFORE_DUE')])).toBe(2)
+    expect(rulesOn([rule('LATE'), rule('BEFORE_DUE')])).toBe(1)
     const lines = flattenPreview({
       date: '2026-09-25',
       total: 2,
@@ -281,17 +281,20 @@ describe('the reminders screen', () => {
     expect(
       within(recurring).getByRole('link', { name: 'Recurring bills' }).getAttribute('href'),
     ).toBe('/expenditure/recurring-bills')
-    // It cannot be switched here, so it has no switch; the six rules keep theirs.
-    expect(within(recurring).queryByRole('switch')).toBeNull()
-    expect(screen.getAllByRole('switch').filter((node) => node.closest('article'))).toHaveLength(6)
+    // Its switch is the bills' own, as the design draws it: fixed on, and clicking it changes
+    // nothing here. Seven switches in all, one per row.
+    expect(within(recurring).getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(recurring).getByRole('switch'))
+    expect(within(recurring).getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    expect(screen.getAllByRole('switch').filter((node) => node.closest('article'))).toHaveLength(7)
     // Not dimmed like a rule that is off: its link and who it tells stay readable.
     expect(within(recurring).getByText('The person named on each')).toBeTruthy()
     // The three sections of the frame, and its footer.
     expect(screen.getByText('Money leaving')).toBeTruthy()
     expect(screen.getByText('Work sitting still')).toBeTruthy()
     expect(screen.getByText('How you get told')).toBeTruthy()
-    // Three rules are on. The recurring row is not one of them and is not counted.
-    expect(screen.getByText('3 rules on')).toBeTruthy()
+    // Three rules are on, and the recurring row is counted with them.
+    expect(screen.getByText('4 rules on')).toBeTruthy()
   })
 
   it('offers a repeat on the late rule alone, and an escalation on the stale-approval rule alone', async () => {
@@ -629,8 +632,10 @@ describe('the reminders screen', () => {
     who = READER
     renderPage()
     await editorReady()
-    // The recurring row has no switch for a reader either; the six rules show theirs, greyed.
-    expect(within(card("A recurring bill that hasn't arrived")).queryByRole('switch')).toBeNull()
+    // A reader sees all seven switches greyed; the recurring row's is still drawn on.
+    const recurringSwitch = within(card("A recurring bill that hasn't arrived")).getByRole('switch')
+    expect(recurringSwitch.getAttribute('aria-checked')).toBe('true')
+    expect(recurringSwitch).toHaveProperty('disabled', true)
     expect(within(card('Before a bill is due')).getByRole('switch')).toHaveProperty(
       'disabled',
       true,

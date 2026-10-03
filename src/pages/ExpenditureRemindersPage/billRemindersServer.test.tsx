@@ -273,7 +273,7 @@ describe('a company that has saved nothing', () => {
     renderPage()
     await editorReady()
 
-    // Six rules, all off. The recurring row is not a rule: no switch, and not counted.
+    // Six rules, all off; the recurring row is the bills' own, reads on and is counted.
     for (const title of [
       'Before a bill is due',
       'Once a bill is late',
@@ -286,8 +286,12 @@ describe('a company that has saved nothing', () => {
         'false',
       )
     }
-    expect(within(card("A recurring bill that hasn't arrived")).queryByRole('switch')).toBeNull()
-    expect(screen.getByText('0 rules on')).toBeTruthy()
+    expect(
+      within(card("A recurring bill that hasn't arrived"))
+        .getByRole('switch')
+        .getAttribute('aria-checked'),
+    ).toBe('true')
+    expect(screen.getByText('1 rule on')).toBeTruthy()
     expect(screen.getByText(/one daily email at 08:00, weekends skipped/)).toBeTruthy()
 
     // The server answers a ladder ascending (0, 2, 7); the chips light by day, not by position.
@@ -299,7 +303,7 @@ describe('a company that has saved nothing', () => {
     expect(pressed(late, 'The day after')).toBe('true')
     expect(pressed(late, 'Then every 3 days')).toBe('true')
     // The server's defaults carry two or three days on the rows below, which take one. Each
-    // starts on the earliest: 2 days then the owner after 5, 1 day, 2 days.
+    // starts where the design starts it: 2 days then the owner after 5, 3 days, 2 days.
     const approval = card('An approval nobody has answered')
     expect(pressed(approval, '1 day')).toBe('false')
     expect(pressed(approval, '2 days')).toBe('true')
@@ -307,8 +311,8 @@ describe('a company that has saved nothing', () => {
     expect(pressed(approval, '5 days')).toBe('true')
     expect(pressed(approval, '7 days')).toBe('false')
     const mismatch = card('A mismatch nobody has resolved')
-    expect(pressed(mismatch, '1 day')).toBe('true')
-    expect(pressed(mismatch, '3 days')).toBe('false')
+    expect(pressed(mismatch, '1 day')).toBe('false')
+    expect(pressed(mismatch, '3 days')).toBe('true')
     expect(pressed(mismatch, 'A week')).toBe('false')
     const scan = card('A scanned receipt still unconfirmed')
     expect(pressed(scan, '2 days')).toBe('true')
@@ -327,13 +331,13 @@ describe('rows that take one timing', () => {
       rule.type === 'APPROVAL_STALE'
         ? { ...rule, offsets: [2], escalationOffsets: [5] }
         : rule.type === 'MISMATCH_STALE'
-          ? { ...rule, offsets: [1] }
+          ? { ...rule, offsets: [3] }
           : rule.type === 'SCAN_UNCONFIRMED'
             ? { ...rule, offsets: [2] }
             : rule,
     )
 
-  it('reads a switched-off row as holding its earliest day only, and leaves the others alone', () => {
+  it('reads a switched-off row as holding one day only, and leaves the others alone', () => {
     const [before, late, discount, approval, mismatch, scan] = defaultRules().map((rule) =>
       withOneTiming(rule as ReminderRuleDto),
     )
@@ -345,8 +349,15 @@ describe('rows that take one timing', () => {
     // Rows that take one.
     expect(approval.offsets).toEqual([2])
     expect(approval.escalationOffsets).toEqual([5])
-    expect(mismatch.offsets).toEqual([1])
+    // The mismatch row starts on three days, as the design does, not on its earliest.
+    expect(mismatch.offsets).toEqual([3])
     expect(scan.offsets).toEqual([2])
+    // Three days is kept only when it is one of the days on file; otherwise the earliest is.
+    expect(withOneTiming({ ...mismatch, offsets: [7, 1] }).offsets).toEqual([1])
+    expect(withOneTiming({ ...mismatch, offsets: [7, 3, 1] }).offsets).toEqual([3])
+    // One day on file is that day, whatever it is: the page does not move it to three.
+    const oneDay = { ...mismatch, offsets: [1] }
+    expect(withOneTiming(oneDay)).toBe(oneDay)
 
     // Already one, or none: the same object back, nothing rewritten.
     const single = singleDefaults()[3] as ReminderRuleDto
@@ -385,6 +396,27 @@ describe('rows that take one timing', () => {
         enabled: true,
       }),
     )
+  })
+
+  it('sends three days when the mismatch rule is switched on untouched', async () => {
+    seed({ type: 'MISMATCH_STALE', recipients: [HAFIDH] })
+    renderPage()
+    await editorReady()
+    fireEvent.click(within(card('A mismatch nobody has resolved')).getByRole('switch'))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(rulesBodies).toHaveLength(1))
+    expect((rulesBodies[0] as { rules: unknown[] }).rules).toEqual([
+      {
+        type: 'MISMATCH_STALE',
+        offsets: [3],
+        repeatEveryDays: null,
+        escalationOffsets: null,
+        recipients: [HAFIDH],
+        enabled: true,
+      },
+    ])
   })
 
   it('sends the one timing the reader picked instead', async () => {
@@ -451,8 +483,23 @@ describe('rows that take one timing', () => {
     expect(pressed(approval, '3 days')).toBe('false')
     expect(pressed(approval, '5 days')).toBe('true')
     expect(pressed(approval, '7 days')).toBe('false')
-    expect(pressed(card('A mismatch nobody has resolved'), '1 day')).toBe('true')
+    expect(pressed(card('A mismatch nobody has resolved'), '3 days')).toBe('true')
+    expect(pressed(card('A mismatch nobody has resolved'), '1 day')).toBe('false')
     expect(pressed(card('A scanned receipt still unconfirmed'), '2 days')).toBe('true')
+    expect(saveButton()).toHaveProperty('disabled', true)
+  })
+
+  it('shows a mismatch rule that holds one day as that day, and does not move it to three', async () => {
+    // A server whose starting value for the row is one day, or a company that saved one day and
+    // switched the rule off: the page cannot tell them apart, so it shows what is on file.
+    onFile = singleDefaults().map((rule) =>
+      rule.type === 'MISMATCH_STALE' ? { ...rule, offsets: [1] } : rule,
+    )
+    renderPage()
+    await editorReady()
+    const mismatch = card('A mismatch nobody has resolved')
+    expect(pressed(mismatch, '1 day')).toBe('true')
+    expect(pressed(mismatch, '3 days')).toBe('false')
     expect(saveButton()).toHaveProperty('disabled', true)
   })
 
@@ -853,7 +900,14 @@ describe('a save the server refuses', () => {
     await i18n.changeLanguage('ar')
     forced = { ...forced, body: { ...forced.body, error: 'REMINDER_RULE_OFFSET_OUT_OF_RANGE' } }
     fireEvent.click(await screen.findByRole('button', { name: 'حفظ التغييرات' }))
-    expect(await screen.findByText('عدد الأيام هذا خارج المدى الذي يقبله الخادم.')).toBeTruthy()
+    expect(await screen.findByText('هذا العدد من الأيام غير مسموح هنا.')).toBeTruthy()
+
+    // The same refusal in English, and the same sentence for a day count refused on the escalation.
+    await i18n.changeLanguage('en')
+    forced = { ...forced, body: { ...forced.body, error: 'REMINDER_RULE_ESCALATION_OUT_OF_RANGE' } }
+    fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText("That number of days isn't allowed here.")).toBeTruthy()
+    expect(screen.queryByText(/the server/)).toBeNull()
   })
 
   it('does not go on to save the settings when the rules were refused', async () => {
@@ -909,11 +963,17 @@ describe('a save the server refuses', () => {
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
 
-    // The failure, where and as the page shows any failed save. Nothing claims the lot was saved.
+    // Where the page shows any failed save, in the owner's sentence: it says which half went
+    // through. Nothing claims the lot was saved, and the settings' own refusal is not shown.
     expect(
-      await screen.findByText('Some details were not accepted. Check the form and try again.'),
+      await screen.findByText(
+        "The rules were saved, but the settings couldn't be saved. Try again.",
+      ),
     ).toBeTruthy()
     expect(screen.getByText('Not done')).toBeTruthy()
+    expect(
+      screen.queryByText('Some details were not accepted. Check the form and try again.'),
+    ).toBeNull()
     expect(screen.queryByText('Saved.')).toBeNull()
     expect(rulesBodies).toHaveLength(1)
     expect(settingsBodies).toHaveLength(1)
@@ -931,8 +991,8 @@ describe('a save the server refuses', () => {
     expect(pressed(scan, '2 days')).toBe('true')
     expect(pressed(scan, 'A week')).toBe('false')
     const mismatch = card('A mismatch nobody has resolved')
-    expect(pressed(mismatch, '1 day')).toBe('true')
-    expect(pressed(mismatch, '3 days')).toBe('false')
+    expect(pressed(mismatch, '1 day')).toBe('false')
+    expect(pressed(mismatch, '3 days')).toBe('true')
     // The editor was not taken down to learn this: the failure and the edit are both still up.
     expect(rulesReads()).toBe(readsBefore)
 
@@ -941,6 +1001,97 @@ describe('a save the server refuses', () => {
     fireEvent.click(saveButton())
     await waitFor(() => expect(settingsBodies).toHaveLength(2))
     await waitFor(() => expect(settingsOnFile.delivery).toBe('IN_APP'))
+    expect(rulesBodies).toHaveLength(1)
+    expect(await screen.findByText('Saved.')).toBeTruthy()
+  })
+
+  it('says the same in Arabic, and the same whatever the settings failed on', async () => {
+    await i18n.changeLanguage('ar')
+    forcedSettings = {
+      status: 500,
+      body: { type: 'https://api.fawtir.om/problems/internal-error' },
+    }
+    renderPage()
+    await editorReady('قبل استحقاق الفاتورة')
+
+    fireEvent.click(
+      within(screen.getByText('إيصال ممسوح لم يُؤكَّد بعد').closest('article')!).getByRole(
+        'switch',
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /داخل فوتر/ }))
+    const save = screen.getByRole('button', { name: 'حفظ التغييرات' })
+    await waitFor(() => expect(save).toHaveProperty('disabled', false))
+    fireEvent.click(save)
+
+    expect(
+      await screen.findByText('حُفظت القواعد، لكن تعذّر حفظ الإعدادات. حاول مرة أخرى.'),
+    ).toBeTruthy()
+    expect(rulesBodies).toHaveLength(1)
+    expect(settingsBodies).toHaveLength(1)
+    await waitFor(() => expect(save).toHaveProperty('disabled', false))
+  })
+
+  it('keeps the settings own failure when no rule was part of the save', async () => {
+    // Nothing was saved, so nothing says the rules were.
+    forcedSettings = {
+      status: 400,
+      body: {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        title: 'Request rejected',
+        status: 400,
+        detail: 'digestTime must be HH:mm',
+      },
+    }
+    renderPage()
+    await editorReady()
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    expect(
+      await screen.findByText('Some details were not accepted. Check the form and try again.'),
+    ).toBeTruthy()
+    expect(rulesBodies).toHaveLength(0)
+    expect(settingsBodies).toHaveLength(1)
+    expect(screen.queryByText(/The rules were saved/)).toBeNull()
+  })
+
+  it('reads the rules as saved even when the save answers with no rules', async () => {
+    // A rules save that answers 204, or without the list: the rules are on file all the same.
+    forcedSettings = {
+      status: 500,
+      body: { type: 'https://api.fawtir.om/problems/internal-error' },
+    }
+    const answering = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await answering(input, init)
+      const isRulesSave = String(input).includes('/bill-reminders/rules') && init?.method === 'PUT'
+      return isRulesSave && response.ok ? json(200, {}) : response
+    })
+    renderPage()
+    await editorReady()
+
+    fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    expect(
+      await screen.findByText(
+        "The rules were saved, but the settings couldn't be saved. Try again.",
+      ),
+    ).toBeTruthy()
+    expect(
+      within(card('A scanned receipt still unconfirmed'))
+        .getByRole('switch')
+        .getAttribute('aria-checked'),
+    ).toBe('true')
+
+    // Only the settings are left: Save sends them alone, and taking the edit back leaves nothing.
+    forcedSettings = null
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(settingsBodies).toHaveLength(2))
     expect(rulesBodies).toHaveLength(1)
     expect(await screen.findByText('Saved.')).toBeTruthy()
   })
@@ -1095,9 +1246,11 @@ describe('the reminders screen in Arabic', () => {
     expect(pressed(before, 'قبل ٧ أيام')).toBe('true')
     expect(pressed(before, 'قبل يومين')).toBe('true')
     expect(pressed(before, 'في اليوم نفسه')).toBe('false')
-    // One rule is on. The recurring row has no switch and is not counted.
-    expect(within(card('فاتورة متكررة لم تصل')).queryByRole('switch')).toBeNull()
-    expect(screen.getByText('قاعدة واحدة مفعّلة')).toBeTruthy()
+    // One rule is on, and the recurring row, drawn on, is counted with it.
+    expect(
+      within(card('فاتورة متكررة لم تصل')).getByRole('switch').getAttribute('aria-checked'),
+    ).toBe('true')
+    expect(screen.getByText('قاعدتان مفعّلتان')).toBeTruthy()
 
     // The unnamed person, in Arabic.
     expect(await screen.findByText('بريد واحد · 08:00 · إلى أحد أعضاء الفريق')).toBeTruthy()

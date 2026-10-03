@@ -64,13 +64,14 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
         'One of the people chosen is no longer on the team. Choose again.',
         'أحد الأشخاص المختارين لم يعد ضمن الفريق. اختر من جديد.',
       ],
+      // The owner's sentence of 2 Oct: it does not tell the reader about "the server".
       REMINDER_RULE_OFFSET_OUT_OF_RANGE: [
-        'That number of days is outside the range the server accepts.',
-        'عدد الأيام هذا خارج المدى الذي يقبله الخادم.',
+        "That number of days isn't allowed here.",
+        'هذا العدد من الأيام غير مسموح هنا.',
       ],
       REMINDER_RULE_ESCALATION_OUT_OF_RANGE: [
-        'That number of days is outside the range the server accepts.',
-        'عدد الأيام هذا خارج المدى الذي يقبله الخادم.',
+        "That number of days isn't allowed here.",
+        'هذا العدد من الأيام غير مسموح هنا.',
       ],
     }
     for (const [code, [english, arabic]] of Object.entries(sentences)) {
@@ -132,7 +133,7 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
     )
     await i18n.changeLanguage('ar')
     expect(i18n.t(describeApiFailure(held).key)).toBe(
-      'في هذه الدفعة فاتورة معلّقة. ارفع التعليق عنها أو أخرجها من الدفعة أولًا.',
+      'في هذه الدفعة فاتورة قيد الانتظار. أفرج عنها أو أخرجها من الدفعة أولًا.',
     )
     await i18n.changeLanguage('en')
     // The payment run screens are outside this round and keep the sentence they already had.

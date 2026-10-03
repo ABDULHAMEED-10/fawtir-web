@@ -1040,7 +1040,8 @@
         "bundles": "Bundles",
         "priceRules": "Price Rules"
       },
-      "lockedOn": "Available on {{plan}}"
+      "lockedOn": "Available on {{plan}}",
+      "billRemindersUnread": "Bill reminders, {{count}} unread"
     },
     "account": {
       "premiumPlan": "Premium plan",
@@ -7051,7 +7052,8 @@
       "notYet": "Not available yet: this needs the backend.",
       "save": "Save changes"
     },
-    "sendingOff": "Reminders are not being sent yet."
+    "sendingOff": "Reminders are not being sent yet.",
+    "rulesSavedSettingsFailed": "The rules were saved, but the settings couldn't be saved. Try again."
   },
   "documents": {
     "title": "Documents",
@@ -14154,10 +14156,13 @@
       "DISCOUNT_EXPIRY": {
         "now": "The discount on bill {{name}} runs out today",
         "days_one": "The discount on bill {{name}} runs out tomorrow",
-        "days_other": "The discount on bill {{name}} runs out in {{count}} days"
+        "days_other": "The discount on bill {{name}} runs out in {{count}} days",
+        "dated": "{{percent}}% discount on bill {{name}} expires {{date}}",
+        "datedNow": "{{percent}}% discount on bill {{name}} runs out today",
+        "datedPast": "{{percent}}% discount on bill {{name}} expired {{date}}"
       },
       "APPROVAL_STALE": {
-        "now": "Bill {{name}} is waiting for approval",
+        "now": "Bill {{name}} has waited less than a day for approval",
         "days_one": "Bill {{name}} has waited {{count}} day for approval",
         "days_other": "Bill {{name}} has waited {{count}} days for approval"
       },
@@ -14167,9 +14172,9 @@
         "days_other": "The mismatch on bill {{name}} has waited {{count}} days"
       },
       "SCAN_UNCONFIRMED": {
-        "now": "{{name}} is waiting to be confirmed",
-        "days_one": "{{name}} has waited {{count}} day to be confirmed",
-        "days_other": "{{name}} has waited {{count}} days to be confirmed"
+        "now": "{{name}} still unconfirmed",
+        "days_one": "{{name}} unconfirmed for {{count}} day",
+        "days_other": "{{name}} unconfirmed for {{count}} days"
       },
       "RECURRING_LATE": {
         "now": "{{name}} has not arrived",
@@ -14186,7 +14191,49 @@
         "owed": "<b>{{amount}}</b> still to pay.",
         "usual": "Usually <b>{{amount}}</b>.",
         "above": "<b>{{percent}}%</b> above the usual amount.",
-        "below": "<b>{{percent}}%</b> below the usual amount."
+        "below": "<b>{{percent}}%</b> below the usual amount.",
+        "heldUp": "<b>{{amount}}</b> held up.",
+        "saves": "Saves <b>{{amount}}</b>."
+      },
+      "supplier": {
+        "BEFORE_DUE": {
+          "now": "{{supplier}} due today",
+          "days_one": "{{supplier}} due tomorrow",
+          "days_other": "{{supplier}} due in {{count}} days"
+        },
+        "LATE": {
+          "days_one": "{{supplier}} unpaid for {{count}} day",
+          "days_other": "{{supplier}} unpaid for {{count}} days"
+        },
+        "DISCOUNT_EXPIRY": {
+          "now": "{{supplier}} discount runs out today",
+          "days_one": "{{supplier}} discount expires tomorrow",
+          "days_other": "{{supplier}} discount expires in {{count}} days",
+          "dated": "{{supplier}} {{percent}}% discount expires {{date}}",
+          "datedNow": "{{supplier}} {{percent}}% discount runs out today",
+          "datedPast": "{{supplier}} {{percent}}% discount expired {{date}}"
+        },
+        "APPROVAL_STALE": {
+          "now": "{{supplier}} approval waiting less than a day",
+          "days_one": "{{supplier}} approval waiting {{count}} day",
+          "days_other": "{{supplier}} approval waiting {{count}} days"
+        },
+        "MISMATCH_STALE": {
+          "now": "{{supplier}} mismatch unresolved",
+          "days_one": "{{supplier}} mismatch unresolved for {{count}} day",
+          "days_other": "{{supplier}} mismatch unresolved for {{count}} days"
+        },
+        "RECURRING_LATE": {
+          "now": "{{supplier}} bill not arrived",
+          "days_one": "{{supplier}} bill not arrived, {{count}} day late",
+          "days_other": "{{supplier}} bill not arrived, {{count}} days late"
+        },
+        "RECURRING_CHASE": {
+          "title": "Chase {{supplier}} for the bill that has not arrived"
+        },
+        "RECURRING_OUT_OF_RANGE": {
+          "title": "{{supplier}} bill arrived outside the range"
+        }
       }
     },
     "unreadable": "Reminders could not be read. Reload to try again."
@@ -16184,10 +16231,10 @@
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
       "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
-      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first.",
       "reminderRepeatNotAllowed": "That reminder does not repeat.",
       "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
-      "reminderDaysOutOfRange": "That number of days is outside the range the server accepts."
+      "reminderDaysOutOfRange": "That number of days isn't allowed here.",
+      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
