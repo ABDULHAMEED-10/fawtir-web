@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -294,6 +294,19 @@ function renderPage() {
   )
 }
 
+/**
+ * A sentence that prints money: the rial sign is drawn in place of "OMR" (which stays in the page
+ * for a screen reader), so the sentence is one paragraph whose text reads "OMR 1,354.310" around
+ * a no-break space, with the drawn sign inside it.
+ */
+async function moneySentence(dialog: HTMLElement, text: string): Promise<HTMLElement> {
+  const sentence = await within(dialog).findByText(
+    (_, element) => element?.tagName === 'P' && element.textContent === text,
+  )
+  expect(sentence.querySelector('svg')).toBeTruthy()
+  return sentence
+}
+
 describe('A self-billed invoice through its own door', () => {
   it('reads the document from the authored-invoice endpoints and draws it in the design, with the parties turned round', async () => {
     renderPage()
@@ -456,6 +469,118 @@ describe('A self-billed invoice through its own door', () => {
     // The dialog stays open and nothing was recorded.
     expect(screen.getByRole('dialog')).toBeTruthy()
     expect(screen.queryByText('Payment recorded.')).toBeNull()
+  })
+
+  // The owner's approved sentences, word for word.
+  describe('why paying the supplier bill was refused, in this page\'s words', () => {
+    const GENERIC = /The server refused this\. Nothing was changed/
+    const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
+      json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+
+    // Found by key, so the same steps run in Arabic.
+    async function pay() {
+      invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+      renderPage()
+      await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+      const record = i18n.t('selfBillDetail.recordPayment')
+      const open = screen.getByRole('button', { name: record })
+      await waitFor(() => expect(open).toHaveProperty('disabled', false))
+      fireEvent.click(open)
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }),
+      )
+      return dialog
+    }
+
+    it.each([
+      [
+        'BILL_PAYMENT_ON_HOLD',
+        {},
+        'The supplier bill for this document is on hold. Release it on the bill, then record the payment.',
+      ],
+      [
+        'BILL_PAYMENT_IN_PAYMENT_RUN',
+        { paymentRunReference: 'PR-0007' },
+        'The supplier bill for this document is in payment run PR-0007. Pay it there, or take it out of the run first.',
+      ],
+    ])('%s', async (error, extra, sentence) => {
+      billPaymentResponse = refusal(error, extra)
+      const dialog = await pay()
+      expect(await within(dialog).findByText(sentence)).toBeTruthy()
+      expect(within(dialog).queryByText(GENERIC)).toBeNull()
+      expect(screen.queryByText('Payment recorded.')).toBeNull()
+    })
+
+    it('names the run in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      billPaymentResponse = refusal('BILL_PAYMENT_IN_PAYMENT_RUN', {
+        paymentRunReference: 'PR-0007',
+      })
+      const dialog = await pay()
+      expect(
+        await within(dialog).findByText(
+          'فاتورة المورّد لهذا المستند ضمن دفعة السداد PR-0007. ادفعها من هناك، أو أخرجها من الدفعة أولًا.',
+        ),
+      ).toBeTruthy()
+    })
+
+    it('says the most that can be recorded as the server names it', async () => {
+      billPaymentResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', {
+        outstandingAmount: 12.5,
+        currency: 'OMR',
+      })
+      const dialog = await pay()
+      const sentence = await moneySentence(
+        dialog,
+        'That is more than the supplier bill still owes. The most you can record is OMR\u00A012.500.',
+      )
+      expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
+      expect(within(dialog).queryByText(GENERIC)).toBeNull()
+
+      await act(async () => {
+        await i18n.changeLanguage('ar')
+      })
+      await moneySentence(
+        dialog,
+        'هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد. أقصى ما يمكن تسجيله OMR\u00A012.500.',
+      )
+    })
+
+    it('keeps its own check of the amount as it was', async () => {
+      invoiceResponse = () => json(200, invoice({ payable: PAYABLE }))
+      renderPage()
+      await screen.findByRole('heading', { level: 1, name: 'SBI-2026-0001' })
+      const open = screen.getByRole('button', { name: 'Record payment' })
+      await waitFor(() => expect(open).toHaveProperty('disabled', false))
+      fireEvent.click(open)
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.change(within(dialog).getByRole('textbox', { name: /Amount paid/ }), {
+        target: { value: '5000' },
+      })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+      expect(
+        await within(dialog).findByText('That is more than is still owed on this invoice.'),
+      ).toBeTruthy()
+      expect(calls()).not.toContain(`POST ${BILL_PAYMENTS_URL}`)
+    })
+
+    it('says the amount is more than the supplier bill owes, under the amount, when the server names no figure', async () => {
+      billPaymentResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING')
+      const dialog = await pay()
+      const sentence = await within(dialog).findByText(
+        'That is more than the supplier bill still owes.',
+      )
+      expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
+      expect(within(dialog).queryByText(/The most you can record/)).toBeNull()
+      expect(within(dialog).queryByText(GENERIC)).toBeNull()
+    })
+
+    it('keeps the general refusal for a code with no sentence of its own', async () => {
+      billPaymentResponse = refusal('BILL_PAYMENT_ACTOR_REQUIRED')
+      const dialog = await pay()
+      expect(await within(dialog).findByText(GENERIC)).toBeTruthy()
+    })
   })
 
   it('reads a draft as not sent, unpriced and with no open item', async () => {

@@ -7,6 +7,7 @@ import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import type { SupplierStatementDto } from '../../api/expenditure/supplierRecord'
 import { termsNote } from '../../lib/supplierRecord'
 import {
+  everLateOf,
   columnsOf,
   customRangeProblem,
   emailBlocker,
@@ -313,6 +314,69 @@ describe('The supplier statement, wired to the API', () => {
     expect(screen.getByText(/1 credit note still unused/)).toBeTruthy()
   })
 
+  describe('"Never been late with them", read from the supplier overview', () => {
+    const NOTHING = i18n.t('supplierStatement.nothing', { lng: 'en' })
+    const withOverview = (overview: () => Response) =>
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url === '/api/v1/me/entitlements') return json(200, who)
+        if (url === ONE) return json(200, detail)
+        if (url === `${ONE}/overview`) return overview()
+        // The statement as the backend sends it today: no `everLate` of its own.
+        if (url.startsWith(`${ONE}/statement?`)) return json(200, STATEMENT)
+        throw new Error(`unexpected ${url}`)
+      })
+    const payables = (everLate: boolean, currencyCode = 'OMR') => ({
+      tabs: { bills: 3, payments: 1, orders: 0, documents: 0 },
+      match: { agreed: 0, orderBacked: 0, summary: null },
+      usualLeadTimeDays: null,
+      payables: {
+        currencyCode,
+        notDue: { amount: 1000, bills: 1, nextDue: '2026-10-19' },
+        dueSoon: { amount: 0, bills: 0, nextDue: null },
+        late: { amount: 0, bills: 0, nextDue: null },
+        onHold: { amount: 0, bills: 0, nextDue: null },
+        everLate,
+        total: 1000,
+      },
+    })
+
+    it('is said under the first late figure when the overview says they never were', async () => {
+      withOverview(() => json(200, payables(false)))
+      renderStatement()
+      expect(await screen.findByText('Never been late with them')).toBeTruthy()
+      expect(calls('GET', `${ONE}/overview`)).toHaveLength(1)
+    })
+
+    it('is not said when a bill was paid late before', async () => {
+      withOverview(() => json(200, payables(true)))
+      renderStatement()
+      await screen.findByRole('heading', { level: 1, name: 'Statement' })
+      await waitFor(() => expect(calls('GET', `${ONE}/overview`)).toHaveLength(1))
+      // The strip is drawn: its empty buckets say so.
+      await waitFor(() => expect(screen.getAllByText(NOTHING).length).toBeGreaterThan(0))
+      expect(screen.queryByText('Never been late with them')).toBeNull()
+    })
+
+    it('is not said, and the statement still reads, when the overview cannot be read', async () => {
+      withOverview(() => json(500, { status: 500 }))
+      renderStatement()
+      expect(await screen.findByRole('heading', { level: 1, name: 'Statement' })).toBeTruthy()
+      await waitFor(() => expect(screen.getAllByText(NOTHING).length).toBeGreaterThan(0))
+      expect(screen.queryByText('Never been late with them')).toBeNull()
+    })
+
+    it('takes the statement’s own answer first, and the overview’s only in the same currency', () => {
+      const overview = payables(false) as never
+      expect(everLateOf({ everLate: true, currencyCode: 'OMR' }, overview)).toBe(true)
+      expect(everLateOf({ currencyCode: 'OMR' }, overview)).toBe(false)
+      expect(everLateOf({ everLate: null, currencyCode: 'OMR' }, payables(true) as never)).toBe(
+        true,
+      )
+      expect(everLateOf({ currencyCode: 'USD' }, overview)).toBeNull()
+      expect(everLateOf({ currencyCode: 'OMR' }, null)).toBeNull()
+    })
+  })
+
   it('emails the statement to an address already on the record, and says when email is off', async () => {
     renderStatement()
     await screen.findByRole('heading', { level: 1, name: 'Statement' })
@@ -326,7 +390,12 @@ describe('The supplier statement, wired to the API', () => {
         detail: 'E-mail delivery is not switched on for this deployment',
       })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Send it' }))
-    expect(await screen.findByText(/Email isn't switched on for this deployment/)).toBeTruthy()
+    // A server from before the codes: its code-less 400 still reads as e-mail not switched on.
+    expect(
+      await screen.findByText(
+        "Email isn't switched on. Download the statement and send it yourself.",
+      ),
+    ).toBeTruthy()
     expect(JSON.parse(String(calls('POST', `${ONE}/statement/email`)[0][1]?.body))).toEqual({
       recipient: 'finance@soharpack.om',
     })
@@ -334,6 +403,85 @@ describe('The supplier statement, wired to the API', () => {
     emailResponse = () => json(200, { recipient: 'finance@soharpack.om', nameSubstituted: false })
     fireEvent.click(screen.getByRole('button', { name: 'Send it' }))
     expect(await screen.findByText('Sent to finance@soharpack.om.')).toBeTruthy()
+  })
+
+  // The owner's approved sentences, word for word.
+  describe('why the statement was not e-mailed, in its own sentence', () => {
+    const GENERIC = /The server refused this\. Nothing was changed/
+    const refusal = (status: number, error: string) => () =>
+      json(status, { type: 'https://api.fawtir.om/problems/expenditure-refused', error })
+
+    async function send() {
+      renderStatement()
+      await screen.findByRole('heading', { level: 1, name: i18n.t('supplierStatement.title') })
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('supplierStatement.emailIt') }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(within(dialog).getByRole('radio', { name: 'finance@soharpack.om' }))
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: i18n.t('supplierStatement.email.send') }),
+      )
+      return dialog
+    }
+
+    it.each([
+      [
+        400,
+        'SUPPLIER_STATEMENT_EMAIL_NOT_SWITCHED_ON',
+        "Email isn't switched on. Download the statement and send it yourself.",
+      ],
+      [400, 'SUPPLIER_SWITCHED_OFF', 'This supplier is switched off, so nothing is sent to them.'],
+      [
+        400,
+        'SUPPLIER_STATEMENT_NO_EMAIL_ADDRESS',
+        'This supplier has no email address on file. Add one on their page.',
+      ],
+      [
+        400,
+        'SUPPLIER_STATEMENT_RECIPIENT_NOT_ON_RECORD',
+        "finance@soharpack.om is not on this supplier's record. Choose an address from the list, or add it on their page.",
+      ],
+      [
+        400,
+        'SUPPLIER_STATEMENT_PERIOD_INVALID',
+        'The start date is after the end date. Fix the period, then send.',
+      ],
+      [
+        503,
+        'SUPPLIER_STATEMENT_SEND_FAILED',
+        'The statement could not be sent just now. Try again, or download it and send it yourself.',
+      ],
+    ])('%i %s', async (status, error, sentence) => {
+      emailResponse = refusal(status, error)
+      const dialog = await send()
+      expect(await within(dialog).findByText(sentence)).toBeTruthy()
+      expect(within(dialog).queryByText(GENERIC)).toBeNull()
+    })
+
+    it('names the address in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      emailResponse = refusal(400, 'SUPPLIER_STATEMENT_RECIPIENT_NOT_ON_RECORD')
+      const dialog = await send()
+      expect(
+        await within(dialog).findByText(
+          'finance@soharpack.om ليس في سجل هذا المورّد. اختر عنوانًا من القائمة، أو أضفه من صفحته.',
+        ),
+      ).toBeTruthy()
+    })
+
+    it('keeps the general refusal for a code with no sentence of its own', async () => {
+      emailResponse = refusal(400, 'SUPPLIER_STATEMENT_SOMETHING_NEW')
+      const dialog = await send()
+      expect(await within(dialog).findByText(GENERIC)).toBeTruthy()
+      expect(within(dialog).queryByText(/Email isn't switched on/)).toBeNull()
+    })
+
+    it('does not call a failure that is not a refusal "not switched on"', async () => {
+      emailResponse = () =>
+        json(500, { type: 'https://api.fawtir.om/problems/internal-error', detail: 'boom' })
+      const dialog = await send()
+      expect(await within(dialog).findByRole('alert')).toBeTruthy()
+      expect(within(dialog).queryByText(/Email isn't switched on/)).toBeNull()
+    })
   })
 
   it('offers no email without the permission, and none at all to a switched-off supplier', async () => {

@@ -33,7 +33,7 @@ import {
   CATEGORY_OPTIONS,
   INTERVALS,
   LATE_AFTER_OPTIONS,
-  RECURRING_REFUSALS,
+  RECURRING_FORM_REFUSALS,
   VAT_TREATMENTS,
   WEEKDAY_OPTIONS,
   blankRecurringForm,
@@ -200,8 +200,8 @@ function RecurringBillForm({ id }: { id: string | null }) {
       navigate(`/expenditure/recurring-bills/${saved.id}`, { replace: true })
     } catch (error) {
       const code = error instanceof ApiError ? error.code : null
-      if (code && RECURRING_REFUSALS[code]) {
-        setFailure(t(RECURRING_REFUSALS[code]))
+      if (code && RECURRING_FORM_REFUSALS[code]) {
+        setFailure(t(RECURRING_FORM_REFUSALS[code]))
       } else {
         const message = describeApiFailure(error)
         const body = t(message.key, message.values)

@@ -128,7 +128,11 @@ let who: Entitlements
 let nudgeResponse: () => Response
 /** The summary asked for with a search or a source: its tab counts are the filtered ones. */
 let countsResponse: (url: string) => Response
+/** Whether the mocked server narrows `GET /bills/intake` by `source`, or ignores the parameter. */
+let intakeSourceKnown: boolean
 let exportResponse: () => Response
+/** What a reject, a hold or a release answers. */
+let decisionResponse: () => Response
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -142,8 +146,10 @@ beforeEach(async () => {
   unconfirmed = []
   listResponses = [() => json(200, itemsPage([bill()], 1))]
   countsResponse = () => json(200, SUMMARY)
+  intakeSourceKnown = true
   nudgeResponse = () =>
     json(202, { billId: ID, nudgedOn: '2026-10-01', approvers: 1 })
+  decisionResponse = () => json(200, {})
   exportResponse = () =>
     new Response('supplier\n', {
       status: 200,
@@ -161,13 +167,18 @@ beforeEach(async () => {
     if (url.startsWith(`${SUMMARY_URL}?`)) return countsResponse(url)
     if (url.endsWith('/approval/approve') && init?.method === 'POST') return json(200, {})
     if (/\/(approval\/reject|hold|release)$/.test(url) && init?.method === 'POST')
-      return json(200, {})
+      return decisionResponse()
     if (url.startsWith('/api/v1/bills?') || url === '/api/v1/bills') {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
     }
-    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED'))
-      return json(200, { items: unconfirmed, page: 0, pageSize: 20, count: unconfirmed.length })
+    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED')) {
+      // A server that knows `source` answers that kind only; an older one answers every kind.
+      const asked = new URL(url, 'http://x').searchParams.get('source')
+      const items =
+        intakeSourceKnown && asked ? unconfirmed.filter((row) => row.source === asked) : unconfirmed
+      return json(200, { items, page: 0, pageSize: 20, count: items.length })
+    }
     if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && init?.method === 'DELETE')
       return new Response(null, { status: 204 })
     throw new Error(`unexpected request to ${url}`)
@@ -1103,27 +1114,53 @@ describe('draft rows under the source filter', () => {
   const badge = (name: RegExp) => within(screen.getByRole('button', { name })).getByText(/^\d+$/)
   const SLOW = { timeout: 5000 }
 
-  it('shows both kinds with no source filter on', async () => {
+  const draftReads = () => calls('/api/v1/bills/intake?status=UNCONFIRMED')
+
+  it('shows both kinds with no source filter on, and asks the server for no kind', async () => {
     withDrafts()
     renderBills()
     expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
     expect(screen.getByText('receipt.jpg')).toBeTruthy()
+    expect(draftReads()).toEqual(['/api/v1/bills/intake?status=UNCONFIRMED&page=0&page_size=20'])
   })
 
-  it('keeps the uploads and hides the receipts under "Uploaded"', async () => {
+  it('asks the server for the uploads under "Uploaded"', async () => {
     withDrafts()
     renderBills('/expenditure/bills?source=uploaded')
     expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
     await screen.findByText('Qalhat Marine Supplies')
     expect(screen.queryByText('receipt.jpg')).toBeNull()
+    expect(draftReads()).toEqual([
+      '/api/v1/bills/intake?status=UNCONFIRMED&source=UPLOADED&page=0&page_size=20',
+    ])
   })
 
-  it('keeps the receipts and hides the uploads under "Scanned"', async () => {
+  it('asks the server for the receipts under "Scanned"', async () => {
     withDrafts()
     renderBills('/expenditure/bills?source=scanned')
     expect(await screen.findByText('receipt.jpg')).toBeTruthy()
     expect(screen.queryByText('Nizwa Hardware Store')).toBeNull()
+    expect(draftReads()).toEqual([
+      '/api/v1/bills/intake?status=UNCONFIRMED&source=SCANNED&page=0&page_size=20',
+    ])
   })
+
+  it.each([
+    ['uploaded', 'Nizwa Hardware Store', 'receipt.jpg'],
+    ['scanned', 'receipt.jpg', 'Nizwa Hardware Store'],
+  ])(
+    'still filters "%s" on the page when an older server ignores the parameter',
+    async (source, shown, hidden) => {
+      withDrafts()
+      intakeSourceKnown = false
+      renderBills(`/expenditure/bills?source=${source}`)
+      expect(await screen.findByText(shown)).toBeTruthy()
+      await screen.findByText('Qalhat Marine Supplies')
+      // Both kinds came back; only the kind the filter names is drawn.
+      expect(draftReads()).toHaveLength(1)
+      expect(screen.queryByText(hidden)).toBeNull()
+    },
+  )
 
   it.each([['peppol'], ['recurring'], ['selfBilled']])(
     'shows no draft under "%s", and the badge is the count of the rows that are left',
@@ -1135,11 +1172,8 @@ describe('draft rows under the source filter', () => {
       renderBills(`/expenditure/bills?source=${source}`)
       await screen.findByText('Qalhat Marine Supplies')
       await waitFor(() => expect(badge(/^Needs attention/).textContent).toBe('1'), SLOW)
-      // The drafts were read; the filter is what leaves them out.
-      await waitFor(
-        () => expect(calls('/api/v1/bills/intake?status=UNCONFIRMED')).toHaveLength(1),
-        SLOW,
-      )
+      // No draft is of this source, so none is asked for, from a newer server or an older one.
+      expect(draftReads()).toEqual([])
       expect(screen.queryByText('Nizwa Hardware Store')).toBeNull()
       expect(screen.queryByText('receipt.jpg')).toBeNull()
       expect(screen.getAllByRole('row')).toHaveLength(2) // the header and the one bill
@@ -1158,5 +1192,82 @@ describe('draft rows under the source filter', () => {
     renderBills('/expenditure/bills?source=peppol')
     expect(await screen.findByText('No bills match these filters.')).toBeTruthy()
     expect(screen.queryByText(/No bills yet/)).toBeNull()
+  })
+})
+
+// The owner's approved sentences, word for word.
+describe('why a rejection was refused, in its own sentence', () => {
+  const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
+    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+  const GENERIC = /The server refused this\. Nothing was changed/
+
+  // Found by key, so the same steps run in Arabic.
+  async function decide(menuKey: string, confirmKey: string) {
+    renderBills()
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: i18n.t('billsPage.rowMenuLabel') }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: i18n.t(menuKey) }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Not ours' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t(confirmKey) }))
+  }
+  const reject = () => decide('billDetail.actions.reject', 'billDetail.reject.confirm')
+  const hold = () => decide('billDetail.decision.putOnHold', 'billDetail.hold.confirm')
+
+  // A hold with no reason, or one that is too long.
+  it.each([
+    ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],
+    [
+      'BILL_HOLD_REASON_TOO_LONG',
+      'That reason is too long. Shorten it and put the bill on hold again.',
+    ],
+  ])('a hold: %s', async (error, sentence) => {
+    decisionResponse = refusal(error)
+    await hold()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('says a hold reason is too long in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    decisionResponse = refusal('BILL_HOLD_REASON_TOO_LONG')
+    await hold()
+    expect(
+      await screen.findByText('السبب طويل أكثر من اللازم. اختصره ثم ضع الفاتورة قيد الانتظار من جديد.'),
+    ).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'APPROVAL_REJECT_PAYMENT_RECORDED',
+      {},
+      'A payment is already recorded on this bill, so it can no longer be rejected.',
+    ],
+    [
+      'APPROVAL_REJECT_IN_PAYMENT_RUN',
+      { paymentRunReference: 'PR-0007' },
+      'This bill is in payment run PR-0007. Take it out of the run before rejecting it.',
+    ],
+    ['APPROVAL_REASON_TOO_LONG', {}, 'That reason is too long. Shorten it and reject again.'],
+  ])('%s', async (error, extra, sentence) => {
+    decisionResponse = refusal(error, extra)
+    await reject()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('names the run in Arabic too', async () => {
+    await i18n.changeLanguage('ar')
+    decisionResponse = refusal('APPROVAL_REJECT_IN_PAYMENT_RUN', { paymentRunReference: 'PR-0007' })
+    await reject()
+    expect(
+      await screen.findByText('هذه الفاتورة ضمن دفعة السداد PR-0007. أخرجها من الدفعة قبل رفضها.'),
+    ).toBeTruthy()
+  })
+
+  it('keeps the general refusal for a code with no sentence of its own', async () => {
+    decisionResponse = refusal('APPROVAL_CODE_WITH_NO_SENTENCE')
+    await reject()
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
   })
 })

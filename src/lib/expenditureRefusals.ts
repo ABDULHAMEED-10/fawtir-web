@@ -78,6 +78,9 @@ const REFUSALS: Record<string, string> = {
   BILL_PAYMENT_ALREADY_REVERSED: 'apiErrors.refused.paymentAlreadyReversed',
   APPROVAL_ALREADY_GIVEN: 'apiErrors.refused.approvalAlreadyGiven',
   APPROVAL_REJECTION_REASON_REQUIRED: 'apiErrors.refused.approvalReasonRequired',
+  // Exporting or marking paid a run that holds a held bill. The payment run screens name this
+  // code themselves (`RUN_REFUSALS`), so this is what any other screen says.
+  PAYMENT_RUN_BILL_ON_HOLD: 'apiErrors.refused.paymentRunBillOnHold',
   // Reachable from Settings > Bill approvals since E-17.
   APPROVAL_POLICY_INVALID: 'apiErrors.refused.approvalPolicyInvalid',
 }

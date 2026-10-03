@@ -34,6 +34,7 @@ import {
   SUPPLIER_PAGE_SIZE,
   SUPPLIER_SORTS,
   SUPPLIER_TABS,
+  channelParam,
   switchOffRequest,
   tabCount,
   toSupplierListItem,
@@ -164,6 +165,7 @@ function SuppliersScreen() {
     filter: SUPPLIER_TABS.find((entry) => entry.id === tab)?.filter ?? 'ALL',
     q: query,
     sort: SUPPLIER_SORTS.find((option) => option.value === sortKey)?.sort ?? 'NAME',
+    channel: channelParam(channel),
     page: pageNumber - 1,
     pageSize: SUPPLIER_PAGE_SIZE,
   })
@@ -408,7 +410,8 @@ function SuppliersScreen() {
                 value: option.value,
                 label: t(option.labelKey),
               }))}
-              onChange={(value) => update({ channel: value === 'all' ? null : value })}
+              // Back to the first page, as a new search does: the filtered list has its own pages.
+              onChange={(value) => update({ channel: value === 'all' ? null : value, page: null })}
             />
             <SortMenu
               value={sortKey}

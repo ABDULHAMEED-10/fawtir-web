@@ -21,7 +21,12 @@ import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './Erp
 import { saveGuidedMapping, type GuidedMappingValidationDto } from '../../api/erp/mapping'
 import { ApiError } from '../../api'
 import { withOrdinals, type DraftEntry } from '../../lib/erp/draft'
-import { flattenKeys, sessionSamples, type SessionSample } from '../../lib/erp/sample'
+import {
+  SAMPLE_LIMIT,
+  flattenKeys,
+  sessionSamples,
+  type SessionSample,
+} from '../../lib/erp/sample'
 import { TARGET_BY_ID } from '../../lib/erpCatalogue'
 import { shortDate } from '../../lib/settings'
 import infoIcon from '../../assets/settings/info.svg'
@@ -29,7 +34,6 @@ import downloadIcon from '../../assets/settings/download-ink.svg'
 import plusIcon from '../../assets/settings/plus-white.svg'
 import tickIcon from '../../assets/settings/check-green.svg'
 
-const SAMPLE_LIMIT = 10
 const LABEL_MAX = 80
 const PAYLOAD_MAX = 256 * 1024
 const IMPORT_MAX = 1024 * 1024

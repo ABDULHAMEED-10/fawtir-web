@@ -328,6 +328,9 @@ function listPage(query) {
   const page = Number(query.get('page') ?? 0)
   const pageSize = Number(query.get('page_size') ?? 10)
   let rows = SUPPLIERS.filter(filter)
+  // `channel=` narrows the rows and the total, as the backend does.
+  const channel = query.get('channel')
+  if (channel) rows = rows.filter((row) => row.billingChannel === channel)
   if (q) {
     rows = rows.filter(
       (row) =>

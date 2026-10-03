@@ -252,8 +252,45 @@ describe('Suppliers list, wired to the API', () => {
     await waitFor(() => expect(screen.queryByText('Qalhat Marine Supplies')).toBeNull())
     expect(screen.getByText('Paper Trail Stationery')).toBeTruthy()
     expect(screen.getByText('Showing 1 of 2 suppliers')).toBeTruthy()
-    // No channel parameter exists on the API yet: the request is the same page.
-    expect(listCalls().at(-1)).toBe('/api/v1/suppliers?page=0&page_size=10')
+    // The server is asked for the channel. This one ignored it (an older backend answers every
+    // channel), and the list still shows only the matching rows of the page, as it did before.
+    expect(listCalls().at(-1)).toBe('/api/v1/suppliers?channel=PAPER&page=0&page_size=10')
+  })
+
+  it('lets the server narrow the rows and the total by channel', async () => {
+    const paper = row({
+      id: '2',
+      displayName: 'Paper Trail Stationery',
+      billingChannel: 'PAPER',
+      participantId: null,
+    })
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === ENTITLEMENTS_URL) return json(200, who)
+      if (url === SUMMARY_URL) return summaryResponse()
+      // A backend that filters: only the paper suppliers, and how many of them there are.
+      if (url.includes('channel=PAPER'))
+        return json(200, { items: [paper], page: 0, pageSize: 10, count: 1, total: 14 })
+      return json(200, { items: [row(), paper], page: 2, pageSize: 10, count: 2, total: 23 })
+    })
+    renderSuppliers('/suppliers?page=3')
+    await screen.findByText('Qalhat Marine Supplies')
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Paper' }))
+    await waitFor(() => expect(screen.queryByText('Qalhat Marine Supplies')).toBeNull())
+    expect(screen.getByText('Paper Trail Stationery')).toBeTruthy()
+    expect(screen.getByText('Showing 1 of 14 suppliers')).toBeTruthy()
+    // The filtered list starts at its own first page.
+    expect(listCalls().at(-1)).toBe('/api/v1/suppliers?channel=PAPER&page=0&page_size=10')
+
+    // The menu's button now names the channel chosen.
+    fireEvent.click(screen.getByRole('button', { name: /Paper/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Email PDF' }))
+    await waitFor(() =>
+      expect(listCalls().at(-1)).toBe('/api/v1/suppliers?channel=EMAIL_PDF&page=0&page_size=10'),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Email PDF/ }))
+    fireEvent.click(await screen.findByRole('option', { name: 'All channels' }))
+    await waitFor(() => expect(listCalls().at(-1)).toBe('/api/v1/suppliers?page=0&page_size=10'))
   })
 
   it('offers a new order and a new bill in the row menu of an active supplier', async () => {

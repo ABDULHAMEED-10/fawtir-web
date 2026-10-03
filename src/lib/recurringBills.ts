@@ -126,6 +126,18 @@ export function chaseBlocker(bill: RecurringBillDto): string | null {
 export const RECURRING_REFUSALS: Record<string, string> = {
   RECURRING_BILL_ARRIVAL_DAY_REQUIRED: 'recurringBills.error.arrivalDayRequired',
   RECURRING_BILL_ARRIVAL_DAY_INVALID: 'recurringBills.error.arrivalDayInvalid',
+  // Refusals with a sentence of their own, in the owner's approved wording.
+  // Resume is hidden where the page knows it would be refused, so the first two show when the
+  // page is out of date; the next five are Mark as received; the last is a save. Keyed on the
+  // code alone: the period and the bill that are gone answer 404, the rest 400.
+  RECURRING_BILL_ENDED: 'recurringBills.refused.ended',
+  RECURRING_BILL_SUPPLIER_SWITCHED_OFF: 'recurringBills.refused.supplierSwitchedOff',
+  RECURRING_BILL_PERIOD_NOT_FOUND: 'recurringBills.refused.periodNotWatched',
+  RECURRING_BILL_PERIOD_ALREADY_RECEIVED: 'recurringBills.refused.periodAlreadyReceived',
+  RECURRING_BILL_ARRIVAL_BILL_NOT_FOUND: 'recurringBills.refused.billGone',
+  RECURRING_BILL_ARRIVAL_ALREADY_MATCHED: 'recurringBills.refused.billAlreadyMatched',
+  RECURRING_BILL_ARRIVAL_NOT_ELIGIBLE: 'recurringBills.refused.billNotEligible',
+  RECURRING_BILL_END_BEFORE_NEXT_RUN: 'recurringBills.refused.endBeforeNext',
   RECURRING_BILL_DUE_DAY_INVALID: 'recurringBills.error.dueDayInvalid',
   RECURRING_BILL_TOLERANCE_INVALID: 'recurringBills.error.toleranceInvalid',
   RECURRING_BILL_LATE_AFTER_INVALID: 'recurringBills.error.lateAfterInvalid',
@@ -134,6 +146,18 @@ export const RECURRING_REFUSALS: Record<string, string> = {
   RECURRING_BILL_VAT_EXCEEDS_TOTAL: 'recurringBills.error.vatExceedsTotal',
   RECURRING_BILL_NOT_EXPECTING: 'recurringBills.chase.notExpecting',
   RECURRING_BILL_PAUSED: 'recurringBills.chase.paused',
+}
+
+/**
+ * The same refusals as the add / edit form says them. A switched-off supplier is one code with two sentences: on
+ * the list and the detail it refuses a Resume ("then resume this recurring bill"), on the form
+ * it refuses the save, where there is nothing to resume. The person under "who gets told" is
+ * chosen on the form alone.
+ */
+export const RECURRING_FORM_REFUSALS: Record<string, string> = {
+  ...RECURRING_REFUSALS,
+  RECURRING_BILL_SUPPLIER_SWITCHED_OFF: 'recurringBills.refused.formSupplierSwitchedOff',
+  RECURRING_BILL_RECIPIENT_UNKNOWN: 'recurringBills.refused.recipientUnknown',
 }
 
 /* -------------------------------------------------------------- the row's words */

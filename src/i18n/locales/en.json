@@ -5571,7 +5571,12 @@
       "reasonRequired": "A rejection needs a reason.",
       "paidCannotHold": "A bill that is paid cannot be put on hold.",
       "notPayable": "Nothing is owed on this bill, so it cannot be put on hold.",
-      "wrongReceipt": "That receipt belongs to a different order."
+      "wrongReceipt": "That receipt belongs to a different order.",
+      "paymentRecorded": "A payment is already recorded on this bill, so it can no longer be rejected.",
+      "inRun": "This bill is in payment run {{run}}. Take it out of the run before rejecting it.",
+      "reasonTooLong": "That reason is too long. Shorten it and reject again.",
+      "holdReasonRequired": "A hold has to say why.",
+      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again."
     },
     "done": {
       "approved": "Approved.",
@@ -5602,7 +5607,10 @@
       "amount": "Amount paid",
       "date": "Paid on",
       "notApproved": "This bill has not been approved yet. Approve it, then record the payment.",
-      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first."
+      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "onHold": "This bill is on hold. Release it, then record the payment.",
+      "tooMuch": "That is more than this bill still owes.",
+      "tooMuchMost": "That is more than this bill still owes. The most you can record is {{amount}}."
     }
   },
   "uploadBill": {
@@ -6233,6 +6241,18 @@
     },
     "supplier": {
       "pausedWhileOff": "Its recurring bills are paused while it is switched off."
+    },
+    "refused": {
+      "ended": "This recurring bill has ended. Set up a new one to keep watching.",
+      "supplierSwitchedOff": "The supplier is switched off. Switch it back on, then resume this recurring bill.",
+      "periodNotWatched": "That period is no longer being watched. Reload to see the current one.",
+      "periodAlreadyReceived": "A bill is already marked as received for this period.",
+      "billGone": "That bill is not on this account. Reload and choose another.",
+      "billAlreadyMatched": "That bill is already matched to a recurring bill. Choose another.",
+      "billNotEligible": "That bill cannot be used here. Choose one of this supplier's own bills in the same currency.",
+      "endBeforeNext": "The end date is before the next expected bill. Choose a later end date.",
+      "formSupplierSwitchedOff": "This supplier is switched off. Switch it back on to add a recurring bill for it.",
+      "recipientUnknown": "The person chosen is no longer on the team. Choose someone else."
     }
   },
   "supplierCreditNotes": {
@@ -8678,7 +8698,10 @@
       "note": "Only an address already on the supplier's record can be used. Add another on the supplier's page.",
       "switchedOff": "This supplier is switched off, so nothing is sent to them.",
       "noAddress": "This supplier has no email address on file. Add one on their page.",
-      "unavailable": "Email isn't switched on for this deployment. Download the statement and send it yourself."
+      "unavailable": "Email isn't switched on. Download the statement and send it yourself.",
+      "notOnRecord": "{{address}} is not on this supplier's record. Choose an address from the list, or add it on their page.",
+      "periodInvalid": "The start date is after the end date. Fix the period, then send.",
+      "sendFailed": "The statement could not be sent just now. Try again, or download it and send it yourself."
     },
     "unusedCredits_one": "{{count}} credit note still unused",
     "unusedCredits_other": "{{count}} credit notes still unused"
@@ -14921,8 +14944,7 @@
       "transport": {
         "REST": "REST API",
         "JDBC": "Database (JDBC)",
-        "FILE": "File",
-        "SOAP": "SOAP"
+        "SFTP": "SFTP (file transfer)"
       },
       "credentialType": {
         "BASIC_AUTH": "Username and password",
@@ -14965,7 +14987,8 @@
         "lastChecked": "Last checked",
         "version_label": "Revision",
         "created": "Created",
-        "updated": "Last changed"
+        "updated": "Last changed",
+        "extraction": "Extraction"
       },
       "create": {
         "heading": "Add a connection",
@@ -15072,7 +15095,17 @@
         "ENDPOINT_INVALID": "That address was not accepted. Give the address on its own, with no user name or password in it.",
         "CONFIGURATION_INVALID": "The transport settings were not accepted. They must be a JSON object and must not contain passwords or tokens.",
         "CREDENTIAL_ENCRYPTION_UNAVAILABLE": "Sign-in details cannot be saved right now. An administrator needs to finish setting up encryption.",
-        "NOT_FOUND": "This connection no longer exists."
+        "NOT_FOUND": "This connection no longer exists.",
+        "EXTRACTION_SETTINGS_ABSENT": "This connection has no extraction settings yet. Configure extraction first.",
+        "EXTRACTION_SETTINGS_INVALID": "The extraction settings were refused. Check the pointers, the cursor and the transaction type.",
+        "EXTRACTION_NOT_READY": "Production collection can only be enabled on a ready connection. Mark it ready first.",
+        "EXTRACTION_NOT_CERTIFIED": "The mapping has not passed a test invoice for this transaction type. Certify it before enabling collection.",
+        "EXTRACTION_MODE_UNSUPPORTED": "This connection does not collect by pulling from an ERP.",
+        "EXTRACTION_TRANSPORT_UNSUPPORTED": "Collection is supported over REST only. Change the transport on the Settings tab.",
+        "SAMPLE_NO_DOCUMENTS": "The ERP answered but returned no documents. Check the documents pointer and the start position.",
+        "SAMPLE_IN_PROGRESS": "A sample is already being fetched for this connection. Wait for it to finish.",
+        "SAMPLE_CREDENTIAL_UNAVAILABLE": "This connection has no usable credential, so a sample cannot be fetched.",
+        "SAMPLE_ARCHIVED": "This connection is archived and makes no outbound calls."
       },
       "reload": "Reload",
       "permission": {
@@ -16019,6 +16052,135 @@
       "VALUE_MAPS": "Code-to-code tables are not supported yet. Use a transform instead.",
       "ERP_VERSION": "Fawtir records the ERP, not its version.",
       "PROFILE_ORIGIN": "Whether the live expression came from the wizard is inferred, not recorded."
+    },
+    "extraction": {
+      "done": {
+        "save": "Extraction settings saved.",
+        "enable": "Production collection enabled.",
+        "disable": "Production collection disabled.",
+        "sample": "Sample fetched."
+      },
+      "state": {
+        "GLOBALLY_DISABLED": "Automation off",
+        "NOT_CONFIGURED": "Not configured",
+        "CONNECTION_NOT_READY": "Connection not ready",
+        "DISABLED_BY_OPERATOR": "Production off",
+        "MAPPING_NOT_CERTIFIED": "Mapping not certified",
+        "RUNNING": "Running",
+        "BACKOFF": "Retry backoff",
+        "FAILED_LAST_RUN": "Last run failed",
+        "WAITING": "Ready, waiting"
+      },
+      "stateHelp": {
+        "GLOBALLY_DISABLED": "Scheduled collection is switched off for the whole platform. This connection keeps its own settings.",
+        "NOT_CONFIGURED": "Add the extraction settings below before anything can run.",
+        "CONNECTION_NOT_READY": "Mark the connection ready on the Settings tab first.",
+        "DISABLED_BY_OPERATOR": "Someone switched production collection off for this connection.",
+        "MAPPING_NOT_CERTIFIED": "Collection would fetch invoices and reject every one. Certify the mapping first.",
+        "RUNNING": "A collection cycle is in progress.",
+        "BACKOFF": "A run failed, so the next attempt is being held back.",
+        "FAILED_LAST_RUN": "The most recent run failed, and the schedule carries no penalty.",
+        "WAITING": "Nothing to do. The next run is scheduled."
+      },
+      "runState": {
+        "CREATED": "Created",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "COMPLETED_WITH_ERRORS": "Completed with rejections",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled"
+      },
+      "cursorKind": {
+        "TIMESTAMP": "Updated-at timestamp",
+        "SEQUENCE": "Sequence number",
+        "CONTINUATION_TOKEN": "Continuation token",
+        "PAGE_TOKEN": "Page token",
+        "derivedHint": "Reads the next position from each document",
+        "opaqueHint": "Reads the next position from the response envelope"
+      },
+      "status": {
+        "title": "Collection status",
+        "description": "Read from the server. Fawtir decides this, not this screen.",
+        "automation": "Platform automation",
+        "automationOn": "On",
+        "automationOff": "Off",
+        "cadence": "Effective cadence",
+        "nextRun": "Next run",
+        "notScheduled": "Not scheduled yet",
+        "failures": "Consecutive failures",
+        "backoffUntil": "Held until",
+        "lastRun": "Last run",
+        "lastRunCounts": "Last run documents",
+        "lastFailure": "Last failure",
+        "retryable": "will retry",
+        "counts": "{{discovered}} found, {{accepted}} accepted, {{rejected}} rejected, {{duplicates}} duplicate"
+      },
+      "config": {
+        "title": "Configure extraction",
+        "description": "Where the invoices are in the ERP response, and how to page through them.",
+        "save": "Save settings",
+        "saving": "Saving...",
+        "readOnly": "You do not have permission to change these settings.",
+        "none": "Extraction is not configured for this connection.",
+        "platformDefault": "Platform default"
+      },
+      "field": {
+        "interval": "How often to collect",
+        "intervalHint": "ISO-8601, for example PT30M. Leave empty for the platform default. Effective: {{effective}}",
+        "transactionType": "Transaction type",
+        "transactionTypeHint": "20-character BTOM-001 bitmap. The mapping certification is scoped to this value.",
+        "documentsPointer": "Documents pointer",
+        "documentIdPointer": "Document id pointer",
+        "documentVersionPointer": "Document version pointer",
+        "pointerHint": "RFC 6901 JSON Pointer, for example /data",
+        "optionalPointerHint": "Optional. RFC 6901 JSON Pointer.",
+        "cursorKind": "How to continue",
+        "cursorParameter": "Cursor query parameter",
+        "cursorParameterHint": "The query parameter the cursor is sent in. Required unless you chose Page token.",
+        "documentCursorPointer": "Document cursor pointer",
+        "documentCursorPointerHint": "Where each document carries its ordering value.",
+        "nextCursorPointer": "Next cursor pointer",
+        "nextCursorPointerHint": "Where the response carries the token for the next page.",
+        "pageSizeParameter": "Page size parameter",
+        "pageSizeParameterHint": "The query parameter the page size is sent in. The size itself is a platform setting.",
+        "initialCursor": "Start from",
+        "initialCursorHint": "Optional. Where a first collection begins, and what a sample fetch reads from."
+      },
+      "sample": {
+        "title": "Fetch a sample invoice",
+        "description": "Asks Fawtir to collect one document, exactly as production would. Nothing is recorded and no invoice is created.",
+        "fetch": "Fetch sample",
+        "fetching": "Fetching...",
+        "noPermission": "You do not have permission to fetch a sample.",
+        "documentId": "Document id",
+        "version": "Version",
+        "size": "Size",
+        "latency": "Round trip",
+        "bytes": "{{count}} bytes",
+        "ms": "{{count}} ms",
+        "payload": "Source document, exactly as received",
+        "useInMapping": "Open mapping",
+        "handover": {
+          "ready": "Adds this document to the mapping samples for this visit and opens the preview. Nothing is stored.",
+          "notJson": "The mapping preview needs a JSON document, and this one is not JSON.",
+          "atLimit": "The mapping samples for this visit are full ({{limit}}). Remove one on the Samples screen first."
+        }
+      },
+      "enablement": {
+        "title": "Production collection",
+        "description": "Turning this on lets Fawtir collect from this ERP on its own, at the cadence above.",
+        "enable": "Enable production collection",
+        "enabling": "Enabling...",
+        "disable": "Disable production collection",
+        "disabling": "Disabling...",
+        "needConfig": "Extraction settings saved",
+        "needReady": "Connection marked ready",
+        "needCertified": "Mapping certified for this transaction type",
+        "ok": "Done",
+        "outstanding": "Outstanding",
+        "enabledNote": "Collection is on. It still only runs while platform automation is on.",
+        "disabledNote": "Collection is off. Nothing runs automatically."
+      }
     }
   },
   "apiErrors": {
@@ -16067,7 +16229,8 @@
       "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
       "reminderRepeatNotAllowed": "That reminder does not repeat.",
       "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
-      "reminderDaysOutOfRange": "That number of days isn't allowed here."
+      "reminderDaysOutOfRange": "That number of days isn't allowed here.",
+      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -16087,7 +16250,8 @@
       "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
       "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue.",
       "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
-      "supplierIsicAction": "Go to agreements"
+      "supplierIsicAction": "Go to agreements",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on, then issue."
     }
   },
   "appAccess": {
@@ -16674,7 +16838,8 @@
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
-      "empty": "That file is empty."
+      "empty": "That file is empty.",
+      "fileRequired": "Choose the bill's file first."
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -16770,7 +16935,17 @@
       "toCheck_other": "{{count}} fields still to check",
       "notReported": "uploaded bills are not validated or reported like Peppol ones"
     },
-    "noOpenOrders": "This supplier has no open orders to link to."
+    "noOpenOrders": "This supplier has no open orders to link to.",
+    "refused": {
+      "paidTotalZero": "A bill paid on the spot needs a total above zero.",
+      "paymentMethodRequired": "Choose how this bill was paid.",
+      "purchaseOrderGone": "That purchase order is not on this account. Choose another, or save the bill without one.",
+      "vatCategoryInvalid": "That VAT category cannot be used on a bill. Choose another.",
+      "vatRateMismatch": "That VAT rate does not match the VAT category. Choose the rate that goes with it.",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
+      "pettyCashNotCash": "Petty cash can only be recorded as cash.",
+      "noteTooLong": "That note is too long. Shorten it to 500 characters."
+    }
   },
   "salesNote": {
     "credit": {
@@ -17950,7 +18125,11 @@
     "pay": {
       "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.",
       "amount": "Amount paid",
-      "date": "Paid on"
+      "date": "Paid on",
+      "onHold": "The supplier bill for this document is on hold. Release it on the bill, then record the payment.",
+      "inRun": "The supplier bill for this document is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "tooMuch": "That is more than the supplier bill still owes.",
+      "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
     "creditNote": "Credit note"
   },

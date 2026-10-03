@@ -78,11 +78,22 @@ const STEP_CIRCLE: Record<BillStepState, string> = {
 
 /**
  * What the bill payment route refuses, as the dialog says it. The button is already hidden for a
- * bill that is unapproved or in a run, so those two only show when the bill changed after the
+ * bill that is unapproved, held or in a run, so those only show when the bill changed after the
  * page loaded. Decimals and the date read as the invoice dialog's own lines.
+ *
+ * The dialog refuses an amount above the outstanding amount it holds before asking
+ * ({@link BILL_AMOUNT_TOO_MUCH}), so when the server refuses one, the figure the page holds is
+ * the stale one: the sentence names the figure the server sends with the refusal, and is said
+ * without one when a server from before that field sends none.
  */
 const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0]['refusals']> = {
   BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'billDetail.pay.notApproved' },
+  BILL_PAYMENT_ON_HOLD: { field: null, key: 'billDetail.pay.onHold' },
+  BILL_PAYMENT_EXCEEDS_OUTSTANDING: {
+    field: 'amount',
+    key: 'billDetail.pay.tooMuch',
+    keyWithOwed: 'billDetail.pay.tooMuchMost',
+  },
   BILL_PAYMENT_IN_PAYMENT_RUN: {
     field: null,
     key: 'billDetail.pay.inRun',
@@ -98,15 +109,25 @@ const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0
   },
 }
 
+/** The dialog's own check of the amount against what the bill still owes, in a bill's words. */
+const BILL_AMOUNT_TOO_MUCH = 'billDetail.pay.tooMuchMost'
+
 /** Server refusals worth their own sentence; anything else reads through `describeApiFailure`. */
 const REFUSALS: Record<string, string> = {
   APPROVAL_ALREADY_GIVEN: 'billDetail.refused.alreadyApproved',
   APPROVAL_TRANSITION_INVALID: 'billDetail.refused.changed',
   APPROVAL_REJECTION_REASON_REQUIRED: 'billDetail.refused.reasonRequired',
+  // Rejecting a bill that has a payment, is in a run, or with a reason that is too long.
+  APPROVAL_REJECT_PAYMENT_RECORDED: 'billDetail.refused.paymentRecorded',
+  APPROVAL_REJECT_IN_PAYMENT_RUN: 'billDetail.refused.inRun',
+  APPROVAL_REASON_TOO_LONG: 'billDetail.refused.reasonTooLong',
   BILL_HOLD_ALREADY_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_NOT_OPEN: 'billDetail.refused.changed',
   BILL_HOLD_ON_PAID_REFUSED: 'billDetail.refused.paidCannotHold',
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
+  // A hold with no reason, or one that is too long.
+  BILL_HOLD_REASON_REQUIRED: 'billDetail.refused.holdReasonRequired',
+  BILL_HOLD_REASON_TOO_LONG: 'billDetail.refused.holdReasonTooLong',
   GOODS_RECEIPT_WRONG_ORDER: 'billDetail.refused.wrongReceipt',
 }
 
@@ -801,6 +822,7 @@ function BillScreen() {
             recordBillPayment(id, key, { ...payment, currency: detail.settlement.currency })
           }
           refusals={BILL_PAYMENT_REFUSALS}
+          amountTooMuchKey={BILL_AMOUNT_TOO_MUCH}
           labelKeys={{ amount: 'billDetail.pay.amount', date: 'billDetail.pay.date' }}
           onClose={() => setPaying(false)}
           onRecorded={() => {
@@ -835,7 +857,8 @@ function Breadcrumb({ title }: { title: string | null }) {
 
 /**
  * The VAT cell: "5%" on a standard line; "0% · Exempt" with its reason code beneath on a line
- * that is not (TODO(backend): EXPENDITURE.md R.2, the category rides on the line).
+ * that is not. The category rides on the line (`taxCategoryCode`); the reason code is still
+ * TODO(backend): EXPENDITURE.md R.2.
  */
 function LineVat({ line }: { line: BillDetailDto['lines'][number] }) {
   const { t } = useTranslation()
@@ -944,7 +967,8 @@ function netAndVat(
 
 function refusalText(t: Translate, error: unknown): string {
   if (error instanceof ApiError && error.code && REFUSALS[error.code])
-    return t(REFUSALS[error.code])
+    // The run is the one value a sentence here names; the server sends it beside the code.
+    return t(REFUSALS[error.code], { run: String(error.problem.paymentRunReference ?? '') })
   const message = describeApiFailure(error)
   const body = t(message.key, message.values)
   return message.reference ? `${body} ${t('apiErrors.reference', { id: message.reference })}` : body

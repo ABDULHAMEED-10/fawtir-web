@@ -38,8 +38,27 @@ export type ErpConnectionState = 'DRAFT' | 'READY' | 'DISABLED' | 'ARCHIVED'
 /** `ErpConnectionMode`. Fixed at creation and never editable. */
 export type ErpConnectionMode = 'MANAGED_PULL' | 'BRIDGE_UPLOAD' | 'API_PUSH'
 
-/** `ErpTransportType`. */
-export type ErpTransportType = 'REST' | 'JDBC' | 'FILE' | 'SOAP'
+/**
+ * `ErpTransportType`. Three values, and the backend accepts no others.
+ *
+ * This previously read `REST | JDBC | FILE | SOAP`, which was wrong in both directions: FILE and SOAP
+ * are not on the backend enum, so the create and edit forms offered two choices the server answers
+ * 400 to, and SFTP was missing, so a connection carrying it had no label to render.
+ */
+export type ErpTransportType = 'REST' | 'JDBC' | 'SFTP'
+
+/**
+ * The transports a tenant may CHOOSE — deliberately narrower than the contract.
+ *
+ * Only REST has an adapter. `ExtractionSourcePort.supports` answers false for the other two, and
+ * extraction settings address responses with JSON Pointers, which no other transport can satisfy, so
+ * the extraction endpoints refuse them outright with EXTRACTION_TRANSPORT_UNSUPPORTED. Offering JDBC
+ * or SFTP would let a tenant build a connection that reads as fully configured and can never run.
+ *
+ * The full enum stays in the type because a stored connection may hold any of the three and must
+ * still display. {@link ErpTransportType} is the contract; this is the offer.
+ */
+export const SELECTABLE_TRANSPORTS: readonly ErpTransportType[] = ['REST']
 
 /** `ErpCredentialType`, all four values the database admits. */
 export type ErpCredentialType =

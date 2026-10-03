@@ -306,7 +306,7 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     lines: form.lines.map((line, index) => ({
       description: line.description.trim(),
       quantity: Number(line.quantity.trim()),
-      // TODO(backend): EXPENDITURE.md 7.11. The unit is sent; the server may still ignore it.
+      // The unit chosen on the row goes with the line (EXPENDITURE.md 7.11); the server takes it.
       unit: line.unit?.trim() ? line.unit.trim() : null,
       unitPrice: Number(line.unitPrice.trim()),
       vatRate: Number(line.vatRate.trim()),
@@ -372,11 +372,39 @@ export const CONFIRM_REFUSALS: Record<string, { field: BillField | null; key: st
   BILL_INTAKE_NOT_FOUND: { field: null, key: 'billIntake.error.intakeGone' },
 }
 
+/**
+ * What a bill's capture screens (Upload a bill, Record a bill, Scan receipts) add to
+ * {@link CONFIRM_REFUSALS}, in the owner's approved wording. Kept off the shared map because each sentence says "bill", and a supplier's credit or
+ * debit note is captured through the same confirm route.
+ *
+ * Keyed on the code alone: `PURCHASE_ORDER_NOT_FOUND` answers 404, the rest 400. None belongs to
+ * one input of the form, so each reads in the page's notice, where the general refusal read.
+ */
+export const BILL_CONFIRM_REFUSALS: Record<string, { field: BillField | null; key: string }> = {
+  ...CONFIRM_REFUSALS,
+  BILL_INTAKE_PAYMENT_AMOUNT_INVALID: { field: null, key: 'billIntake.refused.paidTotalZero' },
+  BILL_INTAKE_PAYMENT_METHOD_REQUIRED: {
+    field: null,
+    key: 'billIntake.refused.paymentMethodRequired',
+  },
+  PURCHASE_ORDER_NOT_FOUND: { field: null, key: 'billIntake.refused.purchaseOrderGone' },
+  BILL_TAX_CATEGORY_INVALID: { field: null, key: 'billIntake.refused.vatCategoryInvalid' },
+  BILL_TAX_CATEGORY_RATE_MISMATCH: { field: null, key: 'billIntake.refused.vatRateMismatch' },
+  SUPPLIER_SWITCHED_OFF: { field: null, key: 'billIntake.refused.supplierSwitchedOff' },
+  // Only Scan receipts sends petty cash or a note today; the codes belong to the confirm route,
+  // so all three screens read them.
+  BILL_INTAKE_PETTY_CASH_NOT_CASH: { field: null, key: 'billIntake.refused.pettyCashNotCash' },
+  BILL_NOTE_TOO_LONG: { field: null, key: 'billIntake.refused.noteTooLong' },
+}
+
 /** Why an upload was refused, by the server's code. */
 export const UPLOAD_REFUSALS: Record<string, string> = {
   BILL_INTAKE_TOO_LARGE: 'billIntake.upload.tooLarge',
   BILL_INTAKE_TYPE_UNSUPPORTED: 'billIntake.upload.wrongType',
   BILL_INTAKE_EMPTY: 'billIntake.upload.empty',
+  // The pickers always send a file, so this shows only if a request reaches the server without
+  // one.
+  BILL_INTAKE_FILE_REQUIRED: 'billIntake.upload.fileRequired',
 }
 
 /** The picker's `accept`, and what the server takes. */

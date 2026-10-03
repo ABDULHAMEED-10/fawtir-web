@@ -23,6 +23,10 @@ import type { ErpConnectionDto } from '../../../api/erp/connections'
 const CONNECTION_TABS = [
   { id: 'overview', path: '' },
   { id: 'settings', path: '/settings' },
+  // Extraction joins the strip because it now has a backend behind it: configuration, sample,
+  // activation and status are all real endpoints. The runs, records, write-back and per-connection
+  // mapping screens stay off the strip until the same is true of them.
+  { id: 'extraction', path: '/extraction' },
 ] as const
 type ConnectionTab = (typeof CONNECTION_TABS)[number]['id']
 

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { selectAllOnFocus } from '../../components/invoice/numericInput'
 import { useTranslation } from 'react-i18next'
 import { paymentMethodOptions, useReferenceData } from '../../lib/reference/referenceData'
-import { DateField, Input, Modal, Rial, Select } from '../../components/ui'
+import { DateField, Input, Modal, Rial, Select, withRial } from '../../components/ui'
 import { Notice } from '../../components/feedback/ApiNotice'
 import {
   Field,
@@ -21,6 +21,27 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount } from '../../lib/format'
 
 const FORM_ID = 'record-invoice-payment'
+
+/** What a refusal says is still owed, when it says so and something is: a paid bill has no "most". */
+function owedIn(
+  problem: Readonly<Record<string, unknown>>,
+): { amount: number; currency: string } | null {
+  const amount = problem.outstandingAmount
+  const currency = problem.currency
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) return null
+  if (typeof currency !== 'string' || currency === '') return null
+  return { amount, currency }
+}
+
+/**
+ * A figure as a sentence prints it: its currency, then the amount at that currency's decimals
+ * (three for the rial). `withRial` draws the rial sign in place of "OMR"; any other currency
+ * keeps its code.
+ */
+function figureInSentence(amount: number, currency: string, language: string): string {
+  return `${currency} ${formatAmount(amount, currency, language)}`
+}
+
 const ORDER: PaymentField[] = ['amount', 'methodCode', 'paymentDate', 'reference']
 
 /**
@@ -39,6 +60,7 @@ export function RecordPaymentModal({
   record,
   refusals,
   labelKeys,
+  amountTooMuchKey,
 }: {
   invoiceId: string
   invoiceNumber: string | null
@@ -64,6 +86,12 @@ export function RecordPaymentModal({
       field: PaymentField | null
       key: string
       values?: (problem: Readonly<Record<string, unknown>>) => Record<string, unknown>
+      /**
+       * The sentence when the server names what is still owed beside the code (a bill's
+       * `outstandingAmount` and `currency`). `{{amount}}` is that figure, with the rial sign and
+       * three decimals. Without the figure, or with nothing left to pay, `key` is said.
+       */
+      keyWithOwed?: string
     }
   >
   /**
@@ -71,6 +99,12 @@ export function RecordPaymentModal({
    * tenant pays its supplier, so "Amount paid" / "Paid on" rather than received.
    */
   labelKeys?: { amount: string; date: string }
+  /**
+   * What an amount above what is still owed reads as, when it is not an invoice that is owed (a
+   * bill). `{{amount}}` is the outstanding amount the dialog holds, with the rial sign and three
+   * decimals.
+   */
+  amountTooMuchKey?: string
 }) {
   const { t, i18n } = useTranslation()
   const reference = useReferenceData()
@@ -86,6 +120,9 @@ export function RecordPaymentModal({
   const [errors, setErrors] = useState<Partial<Record<PaymentField, string>>>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // What the server said is still owed, when a refusal named it: the figure the page holds is
+  // the stale one by then.
+  const [owed, setOwed] = useState<{ amount: number; currency: string } | null>(null)
 
   const change = (field: PaymentField, value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -96,8 +133,11 @@ export function RecordPaymentModal({
     event.preventDefault()
     const target = event.currentTarget
     const problems = paymentProblems(form, { outstanding, currency, issueDate, today })
+    if (amountTooMuchKey && problems.amount === 'invoiceDetails.pay.error.amountTooMuch')
+      problems.amount = amountTooMuchKey
     setErrors(problems)
     setFailure(null)
+    setOwed(null)
     if (Object.values(problems).some(Boolean)) {
       focusFirstInvalidField(target, ORDER, problems)
       return
@@ -119,7 +159,12 @@ export function RecordPaymentModal({
       const refusal =
         named ??
         (error instanceof ApiError && error.code ? PAYMENT_REFUSALS[error.code] : undefined)
-      if (refusal?.field) {
+      const namedOwed =
+        named?.keyWithOwed && error instanceof ApiError ? owedIn(error.problem) : null
+      if (refusal?.field && named?.keyWithOwed && namedOwed) {
+        setOwed(namedOwed)
+        setErrors({ [refusal.field]: named.keyWithOwed })
+      } else if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {
         setFailure(
@@ -174,7 +219,19 @@ export function RecordPaymentModal({
               leadingIcon={<Rial className="text-text-secondary" />}
               value={form.amount}
               onChange={(event) => change('amount', event.target.value)}
-              error={errors.amount ? t(errors.amount) : undefined}
+              error={
+                errors.amount
+                  ? withRial(
+                      t(errors.amount, {
+                        amount: owed
+                          ? figureInSentence(owed.amount, owed.currency, i18n.language)
+                          : outstanding === null
+                            ? ''
+                            : figureInSentence(outstanding, currency, i18n.language),
+                      }),
+                    )
+                  : undefined
+              }
               hint={t('invoiceDetails.pay.amountHint')}
             />
           </div>
