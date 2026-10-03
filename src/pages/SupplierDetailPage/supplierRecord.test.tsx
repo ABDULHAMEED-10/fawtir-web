@@ -370,6 +370,8 @@ beforeEach(async () => {
       })
     if (/^\/api\/v1\/bills\/intake\/intake-\d+\/confirm$/.test(url) && method === 'POST')
       return confirmResponse()
+    // A bill typed in with no file: the same body and the same answer, and no intake.
+    if (url === '/api/v1/bills' && method === 'POST') return confirmResponse()
     if (/^\/api\/v1\/bills\/intake\/intake-\d+$/.test(url) && method === 'DELETE')
       return new Response(null, { status: 204 })
     if (url.startsWith(`${ONE}/statement.pdf`))
@@ -697,11 +699,6 @@ describe('Record a bill (Figma 163:27781)', () => {
     fireEvent.change(screen.getByLabelText('Line 1: quantity'), { target: { value: '10' } })
     fireEvent.change(screen.getByLabelText('Line 1: unit price'), { target: { value: '10' } })
 
-    // Without a file the API cannot create the bill (backend ask 7.9): the page says so and sends nothing.
-    fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
-    expect(await screen.findByText(/Attach the bill's file first/)).toBeTruthy()
-    expect(calls('POST', '/api/v1/bills/intake')).toHaveLength(0)
-
     const file = new File(['%PDF'], 'bill.pdf', { type: 'application/pdf' })
     fireEvent.change(screen.getByLabelText('Attach a file'), { target: { files: [file] } })
     fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
@@ -761,6 +758,170 @@ describe('Record a bill (Figma 163:27781)', () => {
       target: { files: [new File(['%PDF'], name, { type: 'application/pdf' })] },
     })
   const send = () => fireEvent.click(screen.getByRole('button', { name: 'Send for approval' }))
+
+  it('saves a typed bill with no file attached, with no upload behind it', async () => {
+    await typeBill()
+    send()
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(screen.queryByText(/Attach the bill's file first/)).toBeNull()
+    const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+    expect(posted).toHaveLength(1)
+    // The body a confirm would have carried, to the route that needs no intake.
+    expect(JSON.parse(String(posted[0][1]?.body))).toMatchObject({
+      supplierId: ID,
+      billNumber: 'QMS-2050',
+      documentTypeCode: '380',
+      purchaseOrderId: 'po-1',
+      total: 105,
+      vat: 5,
+      notDuplicateOf: null,
+      lines: [{ description: 'Marine rope', quantity: 10, unitPrice: 10, lineNet: 100 }],
+    })
+    expect(uploaded()).toHaveLength(0)
+    expect(calls('POST', '/api/v1/bills/intake/')).toHaveLength(0)
+  })
+
+  const noFilePosts = () =>
+    calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+  const keyOf = (call: unknown[]) =>
+    ((call[1] as RequestInit).headers as Record<string, string>)['Idempotency-Key']
+  const ready = () =>
+    waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Send for approval' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+
+  it('sends a bill with no file under an idempotency key the API accepts', async () => {
+    await typeBill()
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(1)
+    expect(keyOf(noFilePosts()[0])).toMatch(/^[A-Za-z0-9._:-]{16,128}$/)
+  })
+
+  it('sends the same key again when the same bill is retried after the answer was lost', async () => {
+    const succeed = confirmResponse
+    // The request left and no answer came back: the bill may or may not have been recorded.
+    confirmResponse = () => {
+      throw new TypeError('Failed to fetch')
+    }
+    await typeBill()
+    send()
+    await waitFor(() => expect(noFilePosts()).toHaveLength(1))
+    await ready()
+    expect(screen.queryByText('bill page')).toBeNull()
+
+    confirmResponse = succeed
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(2)
+    expect(keyOf(noFilePosts()[1])).toBe(keyOf(noFilePosts()[0]))
+    expect(String(noFilePosts()[1][1]?.body)).toBe(String(noFilePosts()[0][1]?.body))
+  })
+
+  it('takes a new key once the bill is changed before the retry', async () => {
+    const succeed = confirmResponse
+    confirmResponse = refused
+    await typeBill()
+    send()
+    await waitFor(() => expect(noFilePosts()).toHaveLength(1))
+    await ready()
+
+    // Sent again untouched: the same request, the same key.
+    send()
+    await waitFor(() => expect(noFilePosts()).toHaveLength(2))
+    await ready()
+    expect(keyOf(noFilePosts()[1])).toBe(keyOf(noFilePosts()[0]))
+
+    // A different bill number is a different bill, so a different request.
+    confirmResponse = succeed
+    fireEvent.change(screen.getByLabelText(/Their bill number/), { target: { value: 'QMS-2051' } })
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(3)
+    expect(keyOf(noFilePosts()[2])).not.toBe(keyOf(noFilePosts()[0]))
+    expect(JSON.parse(String(noFilePosts()[2][1]?.body)).billNumber).toBe('QMS-2051')
+  })
+
+  it('sends no idempotency key on the confirm of a bill that has a file', async () => {
+    await typeBill()
+    attach('bill.pdf')
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFilePosts()).toHaveLength(0)
+    const headers = (confirmed('intake-1')[0][1] as RequestInit).headers as
+      | Record<string, string>
+      | undefined
+    expect(headers?.['Idempotency-Key']).toBeUndefined()
+  })
+
+  it('still checks a bill with no file before sending it', async () => {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    renderRecord()
+    await screen.findByRole('radio', { name: /PO-0033/ })
+    // No bill number, no line: nothing is posted, with or without a file.
+    send()
+    expect(
+      await screen.findByText('Some fields need attention before the bill can be saved.'),
+    ).toBeTruthy()
+    expect(calls('POST', '/api/v1/bills')).toHaveLength(0)
+  })
+
+  it('says why a bill with no file was refused, and sends it again once', async () => {
+    const succeed = confirmResponse
+    confirmResponse = refused
+    await typeBill()
+    send()
+    const noFile = () => calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+    await waitFor(() => expect(noFile()).toHaveLength(1))
+    await waitFor(() =>
+      expect(
+        (screen.getByRole('button', { name: 'Send for approval' }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    )
+    expect(screen.queryByText('bill page')).toBeNull()
+
+    confirmResponse = succeed
+    send()
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    expect(noFile()).toHaveLength(2)
+    expect(uploaded()).toHaveLength(0)
+  })
+
+  it('answers a possible duplicate of a bill with no file on the same route', async () => {
+    const succeed = confirmResponse
+    confirmResponse = () =>
+      new Response(
+        JSON.stringify({
+          type: 'about:blank',
+          status: 409,
+          code: 'BILL_INTAKE_POSSIBLE_DUPLICATE',
+          duplicateOf: {
+            billId: 'bill-old',
+            supplierBillNumber: 'QMS-2050',
+            issueDate: '2026-09-01',
+            total: 105,
+            currencyCode: 'OMR',
+            source: 'UPLOADED',
+          },
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    await typeBill()
+    send()
+    const different = await screen.findByRole('button', { name: "It's a different bill. Save it" })
+    confirmResponse = succeed
+    await waitFor(() => expect((different as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(different)
+
+    expect(await screen.findByText('bill page')).toBeTruthy()
+    const posted = calls('POST', '/api/v1/bills').filter(([url]) => url === '/api/v1/bills')
+    expect(posted).toHaveLength(2)
+    expect(JSON.parse(String(posted[1][1]?.body)).notDuplicateOf).toBe('bill-old')
+    expect(uploaded()).toHaveLength(0)
+  })
 
   it('retries a refused save on the intake it already uploaded, not on a new one', async () => {
     const succeed = confirmResponse

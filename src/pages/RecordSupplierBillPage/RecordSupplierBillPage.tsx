@@ -15,7 +15,9 @@ import { ApiError, type Page } from '../../api'
 import {
   confirmIntake,
   discardIntake,
+  newBillKey,
   possibleDuplicateOf,
+  recordBillWithoutFile,
   uploadIntake,
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
@@ -83,10 +85,11 @@ const round3 = (value: number) => Math.round(value * 1000) / 1000
  * Suppliers › one supplier › Record a bill (Figma 163:27781): a supplier's bill typed in by hand,
  * with the order it settles chosen from their open ones.
  *
- * The API only creates a bill from a stored file (bill intake, D12a): with a file attached in
- * step 4 the bill is uploaded and confirmed in one go, as the design's one button says. Without
- * one the save says so and asks for the file (§7.9 of the backend asks: a typed bill without a
- * file). The "straight for approval" switch is drawn as designed and kept on the client (§7.10).
+ * With a file attached in step 4 the bill is uploaded and confirmed in one go (bill intake,
+ * D12a), as the design's one button says. Without one the typed bill is recorded as it is
+ * (`POST /bills`, §7.9; owner decision 2026-10-01: a bill may have no file), and its page then
+ * says no original is on record. The "straight for approval" switch is drawn as designed and
+ * kept on the client (§7.10).
  */
 export function RecordSupplierBillPage() {
   const { slug = '' } = useParams()
@@ -148,6 +151,10 @@ function RecordBill({ id }: { id: string }) {
   // The file already stored, and the intake it became: a save that failed is retried on the same
   // intake, as Upload a bill does, so a refused confirm leaves no upload behind per attempt.
   const stored = useRef<{ file: File; intakeId: string } | null>(null)
+  // The key a bill with no file is sent under, and the body it was made for. A save sent again
+  // unchanged (a lost answer, a second try) reuses it, so the server records one bill; a changed
+  // bill is another request and takes a new key, as does the next bill after this one is saved.
+  const attempt = useRef<{ body: string; key: string } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   // The order waiting for its bill comes first, as the design chooses it; else the first open one.
@@ -215,24 +222,19 @@ function RecordBill({ id }: { id: string }) {
       setNotice(t('billIntake.fixFirst'))
       return
     }
-    if (!file) {
-      // TODO(backend): a typed bill with no file has no endpoint (§7.9); the file is asked for.
-      setNotice(t('recordBill.needsFile'))
-      return
-    }
     inFlight.current = true
     setBusy(true)
     try {
       if (stored.current && stored.current.file !== file) {
-        // Another file was chosen: the stored one goes, as "Replace the file" does on Upload a bill.
+        // Another file was chosen, or the file was taken off: the stored one goes, as "Replace
+        // the file" does on Upload a bill.
         await discardIntake(stored.current.intakeId).catch(() => undefined)
         stored.current = null
       }
-      if (!stored.current) {
+      if (file && !stored.current) {
         const uploaded = await uploadIntake(file, 'UPLOADED')
         stored.current = { file, intakeId: uploaded.id }
       }
-      const intakeId = stored.current.intakeId
       const form = {
         ...blankBillForm(),
         supplierId: profile.id,
@@ -246,8 +248,18 @@ function RecordBill({ id }: { id: string }) {
         total: totals?.total ?? '0',
         purchaseOrderId: chosen?.id ?? '',
       }
-      const bill = await confirmIntake(intakeId, toConfirmation(form, { notDuplicateOf }))
+      const confirmation = toConfirmation(form, { notDuplicateOf })
+      // No file attached: the typed bill is recorded on its own, with no intake behind it.
+      let bill
+      if (stored.current) {
+        bill = await confirmIntake(stored.current.intakeId, confirmation)
+      } else {
+        const body = JSON.stringify(confirmation)
+        if (attempt.current?.body !== body) attempt.current = { body, key: newBillKey() }
+        bill = await recordBillWithoutFile(attempt.current.key, confirmation)
+      }
       stored.current = null
+      attempt.current = null
       navigate(`/expenditure/bills/${bill.id}`)
     } catch (failure) {
       // An intake that is gone or already a bill cannot be confirmed again: the next save uploads.

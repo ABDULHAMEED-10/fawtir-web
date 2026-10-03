@@ -43,6 +43,7 @@ import {
   termsDaysOf,
   threeWayOf,
   type BillStepState,
+  type ComplianceNote,
   type Note,
 } from '../../lib/billDetail'
 import { toBillListItem } from '../../lib/billList'
@@ -669,7 +670,7 @@ function BillScreen() {
                     className="mt-0.5 size-4 shrink-0"
                   />
                   <span className="text-sm font-medium leading-[1.3] text-text-tertiary">
-                    <NoteText note={note} />
+                    <ComplianceText note={note} />
                   </span>
                 </li>
               ))}
@@ -834,7 +835,8 @@ function Breadcrumb({ title }: { title: string | null }) {
 
 /**
  * The VAT cell: "5%" on a standard line; "0% · Exempt" with its reason code beneath on a line
- * that is not (TODO(backend): EXPENDITURE.md R.2, the category rides on the line).
+ * that is not. The category rides on the line (`taxCategoryCode`); the reason code is still
+ * TODO(backend): EXPENDITURE.md R.2.
  */
 function LineVat({ line }: { line: BillDetailDto['lines'][number] }) {
   const { t } = useTranslation()
@@ -857,6 +859,40 @@ function LineVat({ line }: { line: BillDetailDto['lines'][number] }) {
 function NoteText({ note }: { note: Note }) {
   const { t } = useTranslation()
   return <>{t(note.key, note.values)}</>
+}
+
+/** Stands in for a value while its sentence is translated, so the value can be drawn as a link. */
+const LINK_MARK = '\u2063'
+
+/**
+ * A compliance line. One that leads somewhere links the reference its sentence names (a
+ * self-billed bill's agreement, to the self-billing document); with no reference to name, the
+ * whole line is the link.
+ */
+function ComplianceText({ note }: { note: ComplianceNote }) {
+  const { t } = useTranslation()
+  if (!note.link) return <NoteText note={note} />
+  const linkClass = 'font-semibold text-primary-700 hover:underline'
+  const reference = note.values?.reference
+  if (reference === undefined) {
+    return (
+      <Link to={note.link} className={linkClass}>
+        {t(note.key, note.values)}
+      </Link>
+    )
+  }
+  const [before, after = ''] = t(note.key, { ...note.values, reference: LINK_MARK }).split(
+    LINK_MARK,
+  )
+  return (
+    <>
+      {before}
+      <Link to={note.link} className={linkClass}>
+        {reference}
+      </Link>
+      {after}
+    </>
+  )
 }
 
 /** A step's detail: the source under "Arrived" is named through its own key. */
@@ -1083,6 +1119,7 @@ function LinkedDocuments({
   const { t } = useTranslation()
   const match = detail.bill.match
   const order = match && match.verdict !== 'NO_ORDER' && match.purchaseOrderNumber ? match : null
+  const note = detail.bill.note?.trim() ?? ''
   const originalName =
     detail.intake?.filename ??
     (detail.bill.inboundDeliveryId ? `${detail.bill.supplierBillNumber ?? 'bill'}.xml` : null)
@@ -1094,6 +1131,8 @@ function LinkedDocuments({
     to?: string
     kindKey: string
     detail: string
+    /** The sub-line is a typed note: kept to one line, with the whole of it on hover. */
+    detailIsNote?: boolean
     onClick?: () => void
   }[] = []
   if (order) {
@@ -1132,7 +1171,10 @@ function LinkedDocuments({
       icon: /\.pdf$/i.test(originalName) ? pdfIcon : fileIcon,
       title: originalName,
       kindKey: 'billDetail.linked.originalFile',
-      detail: t('billDetail.linked.originalNote'),
+      // The note typed when the receipt was captured takes the row's sub-line (owner decision
+      // 2026-10-01: nothing new is drawn for it).
+      detail: note ? t('billDetail.linked.note', { text: note }) : t('billDetail.linked.originalNote'),
+      detailIsNote: note !== '',
       onClick: onDownload ?? undefined,
     })
   }
@@ -1202,7 +1244,13 @@ function LinkedDocuments({
                     {t(doc.kindKey)}
                   </span>
                 </p>
-                <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
+                <p
+                  title={doc.detailIsNote ? doc.detail : undefined}
+                  className={[
+                    'mt-1 text-xs font-medium leading-[1.2] text-text-quaternary',
+                    doc.detailIsNote ? 'truncate' : '',
+                  ].join(' ')}
+                >
                   {doc.detail}
                 </p>
               </div>

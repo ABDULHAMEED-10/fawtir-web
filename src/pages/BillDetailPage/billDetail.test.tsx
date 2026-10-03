@@ -4,7 +4,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
-import { canRecordPayment, complianceOf, decisionsOf, stepsOf } from '../../lib/billDetail'
+import {
+  canRecordPayment,
+  complianceOf,
+  decisionsOf,
+  lineVatOf,
+  singleVatRate,
+  stepsOf,
+} from '../../lib/billDetail'
 import { BillDetailPage } from './BillDetailPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -326,6 +333,128 @@ describe('A bill, wired to the API', () => {
     expect(screen.queryByText(/Archived/)).toBeNull()
   })
 
+  const selfBilled = (selfBilling: BillDetailDto['selfBilling']): BillDetailDto => ({
+    ...detail(),
+    bill: {
+      ...detail().bill,
+      source: 'SELF_BILLED',
+      documentTypeCode: '389',
+      inboundDeliveryId: null,
+      issuedInvoiceId: 'sb-1',
+    },
+    intake: null,
+    selfBilling,
+    compliance: { source: 'SELF_BILLED', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
+  })
+  const AGREED = {
+    issuedInvoiceId: 'sb-1',
+    invoiceNumber: 'SB-2026-0007',
+    agreementId: 'ag-1',
+    agreementReference: 'SBA-2026-003',
+  }
+
+  it('says a self-billed bill was issued by you, under which agreement, and that its VAT is reclaimable', async () => {
+    billResponse = () => json(200, selfBilled(AGREED))
+    renderBill()
+    const line = await screen.findByText("Issued by you through Fawtir on the supplier's behalf")
+    const card = within(line.closest('ul') as HTMLElement)
+    expect(card.getByText('Valid tax invoice: VAT is reclaimable')).toBeTruthy()
+    // The agreement's reference is the link, and it leads to the self-billing document.
+    expect(card.getByText(/^Self-billing agreement/)).toBeTruthy()
+    const link = card.getByRole('link', { name: 'SBA-2026-003' })
+    expect(link.getAttribute('href')).toBe('/income/self-billing/sb-1')
+    // None of the three lines that were wrong for a document this company issued itself.
+    expect(card.queryByText(/Not validated/)).toBeNull()
+    expect(card.queryByText(/No PINT-OM validation/)).toBeNull()
+    expect(card.queryByText('No original file on record')).toBeNull()
+    // No em dash in the owner's line.
+    expect(card.queryByText(/—/)).toBeNull()
+    // Those three are the whole block: nothing is "reported by the sender" on your own document.
+    expect(card.getAllByRole('listitem')).toHaveLength(3)
+    expect(card.queryByText(/Reported by the sender/)).toBeNull()
+  })
+
+  const scanned = (note: string | null | undefined): BillDetailDto => ({
+    ...detail(),
+    bill: { ...detail().bill, source: 'SCANNED', inboundDeliveryId: null, note },
+    intake: {
+      id: 'in-1',
+      source: 'SCANNED',
+      filename: 'receipt-4471.jpg',
+      contentType: 'image/jpeg',
+      uploadedAt: '2026-09-12T08:00:00Z',
+    },
+    compliance: { source: 'SCANNED', networkVerified: false, obligation: 'PENDING_COMPLIANCE_INPUT' },
+  })
+  const fileRow = async () =>
+    (await screen.findByRole('button', { name: 'receipt-4471.jpg' })).closest('li') as HTMLElement
+
+  it("shows a receipt's note as the sub-line of its row in Linked documents", async () => {
+    billResponse = () => json(200, scanned('Fixing the drain behind the roastery'))
+    renderBill()
+    const row = within(await fileRow())
+    const line = row.getByText('Note: Fixing the drain behind the roastery')
+    // The row's own sub-line, in its own style: nothing new is drawn for the note.
+    expect(line.tagName).toBe('P')
+    expect(line.className).toContain('text-xs')
+    expect(line.className).toContain('text-text-quaternary')
+    expect(row.queryByText('The original file as the supplier sent it')).toBeNull()
+  })
+
+  it('cuts a long note to one line and keeps the whole of it on hover', async () => {
+    const long = 'Drain cover, wire brush and sealant for the roastery floor. '.repeat(6).trim()
+    billResponse = () => json(200, scanned(long))
+    renderBill()
+    const line = within(await fileRow()).getByText(`Note: ${long}`)
+    expect(line.className).toContain('truncate')
+    expect(line.getAttribute('title')).toBe(`Note: ${long}`)
+  })
+
+  it.each([[null], [undefined], ['   ']])(
+    'leaves the row as it was when the bill has no note (%j)',
+    async (note) => {
+      billResponse = () => json(200, scanned(note))
+      renderBill()
+      const row = within(await fileRow())
+      const line = row.getByText('The original file as the supplier sent it')
+      expect(line.className).not.toContain('truncate')
+      expect(line.getAttribute('title')).toBeNull()
+      expect(screen.queryByText(/^Note:/)).toBeNull()
+    },
+  )
+
+  it('reads the note line in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, scanned('Drain cover'))
+    renderBill()
+    expect(await screen.findByText('ملاحظة: Drain cover')).toBeTruthy()
+  })
+
+  it('keeps the agreement line, as the link, when the document has no agreement on record', async () => {
+    billResponse = () =>
+      json(200, selfBilled({ ...AGREED, agreementId: null, agreementReference: null }))
+    renderBill()
+    await screen.findByText("Issued by you through Fawtir on the supplier's behalf")
+    expect(
+      screen.getByRole('link', { name: 'Self-billing agreement' }).getAttribute('href'),
+    ).toBe('/income/self-billing/sb-1')
+  })
+
+  it('reads the self-billed lines in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () => json(200, selfBilled(AGREED))
+    renderBill()
+    const line = await screen.findByText('أصدرتها أنت عبر فوتر نيابةً عن المورّد')
+    const card = within(line.closest('ul') as HTMLElement)
+    expect(
+      card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد'),
+    ).toBeTruthy()
+    expect(card.getByText(/^اتفاقية الفوترة الذاتية/)).toBeTruthy()
+    expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
+      '/income/self-billing/sb-1',
+    )
+  })
+
   it('says when our receipt report was accepted by the Tax Authority', async () => {
     billResponse = () =>
       json(200, {
@@ -375,6 +504,41 @@ describe('A bill, wired to the API', () => {
     expect(screen.getByText('VATZR-OM-01')).toBeTruthy()
     expect(screen.getByText('VATEX-OM-01')).toBeTruthy()
     expect(screen.getByText('5%')).toBeTruthy()
+    expect(screen.queryByText('VAT · 5%')).toBeNull()
+  })
+
+  it('names each line\'s VAT category from the letter the server sends: S, Z, E, O and none', async () => {
+    const base = detail()
+    const line = (lineNo: number, description: string, vatRate: number | null, code?: string | null) => ({
+      ...base.lines[0],
+      lineNo,
+      description,
+      vatRate,
+      ...(code === undefined ? {} : { taxCategoryCode: code }),
+    })
+    billResponse = () =>
+      json(200, {
+        ...base,
+        lines: [
+          line(1, 'Standard line', 5, 'S'),
+          line(2, 'Zero line', 0, 'Z'),
+          line(3, 'Exempt line', 0, 'E'),
+          line(4, 'Out of scope line', 0, 'O'),
+          line(5, 'Null line', 5, null),
+          line(6, 'Missing line', 0),
+        ],
+      })
+    renderBill()
+    const cell = async (description: string) =>
+      (await screen.findByText(description)).closest('tr')!.querySelectorAll('td')[3].textContent
+    // A standard line, and a line with no category, read as the rate alone, as before.
+    expect(await cell('Standard line')).toBe('5%')
+    expect(await cell('Null line')).toBe('5%')
+    expect(await cell('Missing line')).toBe('0%')
+    expect(await cell('Zero line')).toBe('0% · Zero-rated')
+    expect(await cell('Exempt line')).toBe('0% · Exempt')
+    expect(await cell('Out of scope line')).toBe('0% · Out of scope')
+    // Categories mix, so the totals name no single rate.
     expect(screen.queryByText('VAT · 5%')).toBeNull()
   })
 
@@ -871,5 +1035,87 @@ describe('bill detail mapping', () => {
       'billDetail.compliance.pendingInput',
       'billDetail.compliance.noOriginal',
     ])
+  })
+
+  it('writes a self-billed bill as this company\'s own document, not as one that never arrived', () => {
+    const selfBilledBill: BillDetailDto = {
+      ...detail(),
+      bill: { ...detail().bill, source: 'SELF_BILLED', inboundDeliveryId: null },
+      compliance: { source: 'SELF_BILLED', networkVerified: true, obligation: 'REPORTED_BY_SENDER' },
+    }
+    const withAgreement = complianceOf({
+      ...selfBilledBill,
+      selfBilling: {
+        issuedInvoiceId: 'sb-1',
+        invoiceNumber: 'SB-2026-0007',
+        agreementId: 'ag-1',
+        agreementReference: 'SBA-2026-003',
+      },
+    })
+    expect(withAgreement).toEqual([
+      { key: 'billDetail.compliance.selfBilled.issuedByYou', ok: true },
+      {
+        key: 'billDetail.compliance.selfBilled.agreement',
+        values: { reference: 'SBA-2026-003' },
+        ok: true,
+        link: '/income/self-billing/sb-1',
+      },
+      { key: 'billDetail.compliance.selfBilled.validTaxInvoice', ok: true },
+    ])
+    // A response that names no document (an older server) still says who issued it, and links nowhere.
+    const bare = complianceOf(selfBilledBill)
+    expect(bare.map((note) => note.key)).toEqual([
+      'billDetail.compliance.selfBilled.issuedByYou',
+      'billDetail.compliance.selfBilled.agreementNoReference',
+      'billDetail.compliance.selfBilled.validTaxInvoice',
+    ])
+    expect(bare[1].link).toBeUndefined()
+    // Whatever the obligation says, a self-billed bill has these three lines and no fourth.
+    for (const obligation of ['PENDING_COMPLIANCE_INPUT', 'NOT_APPLICABLE'] as const) {
+      expect(
+        complianceOf({
+          ...selfBilledBill,
+          compliance: { ...selfBilledBill.compliance, obligation },
+        }),
+      ).toHaveLength(3)
+    }
+    // The row's own id is enough to reach the document.
+    expect(
+      complianceOf({
+        ...selfBilledBill,
+        bill: { ...selfBilledBill.bill, issuedInvoiceId: 'sb-9' },
+      })[1].link,
+    ).toBe('/income/self-billing/sb-9')
+    // Every other source keeps its four lines.
+    expect(complianceOf(detail()).map((note) => note.key)).toEqual([
+      'billDetail.compliance.overPeppol',
+      'billDetail.compliance.passedPintOm',
+      'billDetail.compliance.receipt.unavailable',
+      'billDetail.compliance.originalKept',
+    ])
+  })
+
+  it('reads the VAT cell from the category letter, and the rate alone without one', () => {
+    const line = (vatRate: number | null, taxCategoryCode?: string | null) => ({
+      ...detail().lines[0],
+      vatRate,
+      taxCategoryCode,
+    })
+    expect(lineVatOf(line(5, 'S'))).toEqual({ rate: 5, categoryKey: null, reason: null })
+    expect(lineVatOf(line(0, 'Z')).categoryKey).toBe('invoiceDetails.category.Z')
+    expect(lineVatOf(line(0, 'E')).categoryKey).toBe('invoiceDetails.category.E')
+    expect(lineVatOf(line(0, 'O')).categoryKey).toBe('invoiceDetails.category.O')
+    // An exempt or out-of-scope line may carry no rate at all: it reads as 0%.
+    expect(lineVatOf(line(null, 'E')).rate).toBe(0)
+    // No category: what the page showed before the server sent one.
+    expect(lineVatOf(line(5, null))).toEqual({ rate: 5, categoryKey: null, reason: null })
+    expect(lineVatOf(line(0, undefined))).toEqual({ rate: 0, categoryKey: null, reason: null })
+    expect(lineVatOf(line(null, null))).toEqual({ rate: null, categoryKey: null, reason: null })
+    // A letter the page does not know is never drawn as a raw key.
+    expect(lineVatOf(line(0, 'X')).categoryKey).toBeNull()
+
+    // Two 0% lines of different categories are two kinds of VAT, not one rate.
+    expect(singleVatRate({ ...detail(), lines: [line(0, 'Z'), line(0, 'E')] })).toBeNull()
+    expect(singleVatRate({ ...detail(), lines: [line(5, 'S'), line(5, null)] })).toBe(5)
   })
 })

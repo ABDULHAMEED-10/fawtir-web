@@ -21,9 +21,13 @@ import {
   BILL_SUMMARY_PATH,
   approveBill,
   billListPath,
+  billTabCountsPath,
+  exportBills,
   holdBill,
   loadBillPage,
   loadBillSummary,
+  loadBillTabCounts,
+  nudgeBillApprover,
   rejectBill,
   releaseBill,
   type BillRowDto,
@@ -78,6 +82,7 @@ import actChevronIcon from '../../assets/bills/act-chevron.svg'
 import filterIcon from '../../assets/bills/filter.svg'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import searchIcon from '../../assets/invoices/search.svg'
+import exportIcon from '../../assets/invoices/export.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import pauseIcon from '../../assets/actions/pause.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
@@ -145,6 +150,19 @@ const REFUSALS: Record<string, string> = {
   BILL_HOLD_NOT_PAYABLE: 'billDetail.refused.notPayable',
 }
 
+/**
+ * Why a nudge was refused, as its own sentence.
+ */
+const NUDGE_REFUSALS: Record<string, string> = {
+  BILL_NUDGE_ALREADY_SENT: 'billsPage.nudge.alreadySent',
+  BILL_APPROVAL_NOT_PENDING: 'billsPage.nudge.notPending',
+  BILL_NUDGE_NO_APPROVER: 'billsPage.nudge.noApprover',
+  BILL_NUDGE_DELIVERY_UNAVAILABLE: 'billsPage.nudge.unavailable',
+}
+
+/** The Invoices list's Export button, as it is drawn there. */
+const OUTLINE_BUTTON =
+  'inline-flex h-[46px] items-center gap-2 rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-60'
 const PRIMARY_BUTTON =
   'inline-flex h-[46px] items-center justify-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-60'
 const QUIET_BUTTON =
@@ -215,25 +233,39 @@ function BillsScreen() {
   }, [typed])
 
   const summary = useApiRead<BillSummaryDto>(BILL_SUMMARY_PATH, loadBillSummary)
-  const listPath = billListPath({
+  // What the list is showing, less its page: the export sends the same four.
+  const showing = {
     filter: BILL_TABS.find((entry) => entry.id === tab)?.filter ?? 'NEEDS_ATTENTION',
     q: query,
     source: BILL_SOURCES.find((option) => option.id === sourceKey)?.source ?? null,
     sort: BILL_SORTS.find((option) => option.value === sortKey)?.sort ?? 'NEWEST',
-    page: pageNumber - 1,
-    pageSize: size,
-  })
+  }
+  const listPath = billListPath({ ...showing, page: pageNumber - 1, pageSize: size })
+  // With a search or a source filter on, the tab badges are counted over the same bills as the
+  // rows (owner decision 2026-10-01). A read of its own, so the cards above, which describe the
+  // whole ledger, stay on screen while the counts follow the typing.
+  const countsPath = billTabCountsPath(showing)
+  const counts = useApiRead<BillSummaryDto>(countsPath, () => loadBillTabCounts(countsPath!))
+  // The badges keep their last figures while the next ones load, rather than flashing the
+  // whole ledger's between two searches.
+  const lastTabs = useRef<BillSummaryDto['tabs'] | null>(null)
   const list = useApiRead<Page<BillRowDto>>(listPath, () => loadBillPage(listPath))
 
   // The uploads and receipts nobody has confirmed, drawn as the design's draft rows at the top
   // of the first page of Needs attention and All. The API lists them apart from the bills.
   const known = summary.read.status === 'ready' ? summary.read.data : null
+  // A draft is an upload or a receipt, and the source filter shows or hides it as it does a
+  // bill: "Uploaded" keeps the uploads, "Scanned" the receipts, any other source neither. The
+  // server narrows the read, so the twenty it answers are twenty of the kind asked for.
+  const draftSource =
+    showing.source === 'UPLOADED' || showing.source === 'SCANNED' ? showing.source : null
   const showDrafts =
     (tab === 'needsAttention' || tab === 'all') &&
     pageNumber === 1 &&
     query === '' &&
+    (showing.source === null || draftSource !== null) &&
     (known?.needsAttention.draft ?? 0) > 0
-  const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20) : null
+  const intakesPath = showDrafts ? unconfirmedIntakesPath(0, 20, draftSource) : null
   const intakes = useApiRead<IntakePageDto>(intakesPath, () => loadIntakes(intakesPath!))
 
   const [notice, setNotice] = useState<string | null>(null)
@@ -243,6 +275,7 @@ function BillsScreen() {
 
   const refresh = () => {
     summary.retry()
+    if (countsPath) counts.retry()
     list.retry()
     if (intakesPath) intakes.retry()
   }
@@ -259,6 +292,41 @@ function BillsScreen() {
       return false
     } finally {
       setBusy(null)
+    }
+  }
+
+  // A nudge changes nothing the list shows, so there is nothing to read again after it.
+  const nudge = async (billId: string) => {
+    setNotice(null)
+    setBusy(billId)
+    try {
+      await nudgeBillApprover(billId)
+      setNotice(t('billsPage.nudge.sent'))
+    } catch (error) {
+      const refusal = error instanceof ApiError && error.code ? NUDGE_REFUSALS[error.code] : null
+      setNotice(refusal ? t(refusal) : refusalText(t, error))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const [exporting, setExporting] = useState(false)
+  const onExport = async () => {
+    setExporting(true)
+    setNotice(null)
+    try {
+      const file = await exportBills(showing)
+      const url = URL.createObjectURL(file.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.filename ?? 'fawtir-bills.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+      if (file.truncated) setNotice(t('billsPage.exportTruncated'))
+    } catch (error) {
+      setNotice(refusalText(t, error))
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -324,8 +392,22 @@ function BillsScreen() {
 
   const totals = summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
-  const drafts = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
-  const truncated = (page?.truncated ?? false) || (tab !== 'all' && totals.tabs.truncated)
+  const unconfirmed = showDrafts && intakes.read.status === 'ready' ? intakes.read.data.items : []
+  // Checked again here by each row's own source: a server that does not know the `source`
+  // parameter answers uploads and receipts alike.
+  const drafts =
+    draftSource === null
+      ? unconfirmed
+      : unconfirmed.filter((intake) => intake.source === draftSource)
+  // The whole ledger's counts with no filter on, and when the filtered read fails.
+  const tabs =
+    countsPath === null || counts.read.status === 'failed'
+      ? totals.tabs
+      : counts.read.status === 'ready'
+        ? counts.read.data.tabs
+        : (lastTabs.current ?? totals.tabs)
+  lastTabs.current = countsPath === null ? null : tabs
+  const truncated = (page?.truncated ?? false) || (tab !== 'all' && tabs.truncated)
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
@@ -360,7 +442,7 @@ function BillsScreen() {
                       : 'bg-primary-25 text-text-quaternary',
                   ].join(' ')}
                 >
-                  {count(billTabCount(totals, entry.id))}
+                  {count(billTabCount(tabs, entry.id))}
                 </span>
                 {active ? (
                   <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary-800" />
@@ -383,7 +465,8 @@ function BillsScreen() {
               className="h-full w-full border-0 bg-transparent text-sm font-medium text-text-primary outline-none placeholder:text-text-placeholder"
             />
           </label>
-          <div className="flex items-center gap-3">
+          {/* Wraps, so a third button does not push a phone-width toolbar sideways. */}
+          <div className="flex flex-wrap items-center gap-3">
             <FilterMenu
               label={t('billsPage.filters')}
               value={sourceKey}
@@ -402,6 +485,19 @@ function BillsScreen() {
               width={240}
               onChange={(value) => update({ sort: value === 'newest' ? null : value, page: null })}
             />
+            {/* The frame (163:21928) draws no Export, so it sits with the list's filters, as the
+                owner placed it: the Invoices list's button, for whoever may export. */}
+            {can(session, 'invoice.export') ? (
+              <button
+                type="button"
+                onClick={() => void onExport()}
+                disabled={exporting}
+                className={OUTLINE_BUTTON}
+              >
+                <img src={exportIcon} alt="" className="size-6 rotate-180" />
+                {exporting ? t('billsPage.exporting') : t('billsPage.export')}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -430,7 +526,7 @@ function BillsScreen() {
             canApprove={canApprove}
             canManage={canCapture}
             busy={busy}
-            ledgerEmpty={totals.tabs.all === 0 && drafts.length === 0}
+            ledgerEmpty={totals.tabs.all === 0 && totals.needsAttention.draft === 0}
             onApprove={(id) => void act(id, () => approveBill(id))}
             onRelease={(id) => void act(id, () => releaseBill(id))}
             onAsk={(next) => {
@@ -438,7 +534,7 @@ function BillsScreen() {
               setAsking(next)
             }}
             onDiscard={(intakeId) => void act(intakeId, () => discardIntake(intakeId))}
-            onUnavailable={(key) => setNotice(t(key))}
+            onNudge={(id) => void nudge(id)}
           />
         )}
 
@@ -735,7 +831,7 @@ function BillTable({
   onRelease,
   onAsk,
   onDiscard,
-  onUnavailable,
+  onNudge,
 }: {
   page: Page<BillRowDto> | null
   drafts: IntakePageDto['items']
@@ -747,8 +843,7 @@ function BillTable({
   onRelease: (billId: string) => void
   onAsk: (asking: Asking) => void
   onDiscard: (intakeId: string) => void
-  /** An action the design offers and the API cannot do yet; the key names the sentence. */
-  onUnavailable: (key: string) => void
+  onNudge: (billId: string) => void
 }) {
   const { t } = useTranslation()
   const rows = useMemo(
@@ -825,7 +920,7 @@ function BillTable({
                       : [...current, row.id],
                   )
                 }
-                action={rowActionOf(row, canApprove)}
+                action={rowActionOf(row, { canApprove, canCapture: canManage })}
                 canApprove={canApprove}
                 canManage={canManage}
                 busy={busy === row.id || (row.draft !== null && busy === row.draft.intakeId)}
@@ -833,7 +928,7 @@ function BillTable({
                 onRelease={() => onRelease(row.id)}
                 onAsk={(kind) => onAsk({ kind, billId: row.id, number: row.number ?? row.id })}
                 onDiscard={() => row.draft && onDiscard(row.draft.intakeId)}
-                onUnavailable={onUnavailable}
+                onNudge={() => onNudge(row.id)}
               />
             ))
           )}
@@ -855,7 +950,7 @@ function BillTableRow({
   onRelease,
   onAsk,
   onDiscard,
-  onUnavailable,
+  onNudge,
 }: {
   row: BillListItem
   selected: boolean
@@ -868,7 +963,7 @@ function BillTableRow({
   onRelease: () => void
   onAsk: (kind: 'reject' | 'hold') => void
   onDiscard: () => void
-  onUnavailable: (key: string) => void
+  onNudge: () => void
 }) {
   const { t, i18n } = useTranslation()
   const language = i18n.language
@@ -876,16 +971,23 @@ function BillTableRow({
   const dueNote = dueNoteOf(row)
   const to = draftRowPath(row) ?? `/expenditure/bills/${row.id}`
   const scanned = row.source === 'scanned'
+  const name = row.number
+    ? scanned
+      ? t('billsPage.rows.receipt', { number: row.number })
+      : row.number
+    : (row.draft?.filename ?? t('billsPage.rows.noNumber'))
 
   /**
    * The row menu. No frame draws it for bills (163:24153 is a payment run's), so it offers what
    * the row's state allows: the bill itself, and the decisions the detail page takes.
    */
+  // A draft is finished and discarded with the capture permission; without it the row offers
+  // neither, and its name is not a link to a page that would only say "no access".
   const menu: ActionMenuItem[] = row.draft
     ? [
-        { id: 'check', labelKey: 'billsPage.actions.checkAndSave', icon: actEditIcon, to },
         ...(canManage
           ? [
+              { id: 'check', labelKey: 'billsPage.actions.checkAndSave', icon: actEditIcon, to },
               {
                 id: 'discard',
                 labelKey: 'billsPage.unconfirmed.discard',
@@ -969,16 +1071,16 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <Link
-          to={to}
-          className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline"
-        >
-          {row.number
-            ? scanned
-              ? t('billsPage.rows.receipt', { number: row.number })
-              : row.number
-            : (row.draft?.filename ?? t('billsPage.rows.noNumber'))}
-        </Link>
+        {row.draft && !canManage ? (
+          <span className="text-sm font-semibold leading-[1.2] text-primary-900">{name}</span>
+        ) : (
+          <Link
+            to={to}
+            className="text-sm font-semibold leading-[1.2] text-primary-900 hover:underline"
+          >
+            {name}
+          </Link>
+        )}
         {row.draft ? (
           <p className="mt-1 text-xs font-medium leading-[1.2] text-text-tertiary">
             {t('billsPage.rows.read', { date: formatInstantDay(row.draft.uploadedAt, language) })}
@@ -1082,7 +1184,7 @@ function BillTableRow({
                 action === 'approve'
                   ? onApprove
                   : action === 'nudge'
-                    ? () => onUnavailable('billsPage.notice.nudgeUnavailable')
+                    ? onNudge
                     : undefined
               }
             />
@@ -1118,7 +1220,9 @@ function BillTableRow({
       </td>
 
       <td className="px-2 py-2.5 align-middle">
-        <ActionMenu items={menu} label={t('billsPage.rowMenuLabel')} floating />
+        {menu.length > 0 ? (
+          <ActionMenu items={menu} label={t('billsPage.rowMenuLabel')} floating />
+        ) : null}
       </td>
     </tr>
   )

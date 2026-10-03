@@ -58,6 +58,8 @@ export type IntakeDto = {
   confirmedBillId: string | null
   workflowState: string | null
   uploadedAt: string
+  /** A note saved on the intake earlier; confirm sends it again, it is not carried over. */
+  note?: string | null
 }
 
 /** `invoice.payment.manage`. PDF, JPEG, PNG or UBL XML, at most 10 MiB. */
@@ -108,8 +110,16 @@ export type ConfirmIntakeDto = {
   goodsReceiptId: null
   purchaseOrderReference: null
   category: string | null
-  /** UNCL4461: `10` cash, `48` card. */
-  paidOnTheSpot: { methodCode: '10' | '48'; paymentReference: null; paidOn: string | null } | null
+  /**
+   * UNCL4461: `10` cash, `48` card. Petty cash is cash (`10`) with `pettyCash: true`; the server
+   * then writes its fixed reference, "Petty cash", on the payment.
+   */
+  paidOnTheSpot: {
+    methodCode: '10' | '48'
+    paymentReference: null
+    paidOn: string | null
+    pettyCash?: true
+  } | null
   /** The bill a possible-duplicate refusal named, which the person says is a different bill. */
   notDuplicateOf: string | null
   /**
@@ -117,6 +127,8 @@ export type ConfirmIntakeDto = {
    * E0): 0% and Exempt both carry a zero rate and are otherwise sent the same.
    */
   taxCategoryCode?: string | null
+  /** Free text kept on the bill, at most 500 characters. Sent only when something was typed. */
+  note?: string
 }
 
 /** `ConfirmedBillResponse`. */
@@ -134,6 +146,29 @@ export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<Confi
   })
 }
 
+/** 16–128 characters of `[A-Za-z0-9._:-]`, as the API requires of an `Idempotency-Key`. */
+export function newBillKey(): string {
+  return `bill-${crypto.randomUUID()}`
+}
+
+/**
+ * A bill typed in with no file behind it (`POST /bills`, `invoice.payment.manage`): the confirm
+ * body, and no intake. There is no intake to stop a second bill, so the request carries an
+ * `Idempotency-Key`, as a bill payment does: the same key with the same body is the same bill,
+ * recorded once however often it is sent. The refusals are confirm's, less the two about the
+ * intake itself.
+ */
+export function recordBillWithoutFile(
+  idempotencyKey: string,
+  body: ConfirmIntakeDto,
+): Promise<ConfirmedBillDto> {
+  return apiRequest<ConfirmedBillDto>('/v1/bills', {
+    method: 'POST',
+    body,
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+}
+
 /** `PossibleDuplicateBill`: the bill on file with the same supplier, type and number. */
 export type PossibleDuplicateDto = {
   billId: string
@@ -141,7 +176,8 @@ export type PossibleDuplicateDto = {
   issueDate: string | null
   total: number | null
   currencyCode: string | null
-  source: 'PEPPOL' | 'UPLOADED' | 'SCANNED'
+  /** Any bill can be the one on file: the server's check does not look at where it came from. */
+  source: 'PEPPOL' | 'UPLOADED' | 'SCANNED' | 'RECURRING' | 'SELF_BILLED'
 }
 
 /** The bill a 409 `BILL_INTAKE_POSSIBLE_DUPLICATE` named, or null for any other failure. */
@@ -156,8 +192,18 @@ export function possibleDuplicateOf(error: unknown): PossibleDuplicateDto | null
 /** `IntakePage`. `status=UNCONFIRMED` (the server's default) lists what was uploaded or scanned and never confirmed. */
 export type IntakePageDto = { items: IntakeDto[]; page: number; pageSize: number; count: number }
 
-export function unconfirmedIntakesPath(page = 0, pageSize = 20): string {
-  return `${BILL_INTAKE_PATH}?status=UNCONFIRMED&page=${page}&page_size=${pageSize}`
+/**
+ * `source` narrows the list on the server to uploads or to receipts, so a page of twenty is twenty
+ * of that kind. A server that does not know the parameter answers every kind; the caller still
+ * checks each row's own `source`.
+ */
+export function unconfirmedIntakesPath(
+  page = 0,
+  pageSize = 20,
+  source: IntakeSourceDto | null = null,
+): string {
+  const narrowed = source ? `&source=${source}` : ''
+  return `${BILL_INTAKE_PATH}?status=UNCONFIRMED${narrowed}&page=${page}&page_size=${pageSize}`
 }
 
 export function loadIntakes(path: string): Promise<IntakePageDto> {

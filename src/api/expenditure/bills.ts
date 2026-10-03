@@ -53,6 +53,10 @@ export type BillRowDto = {
   hold: { reason: string | null; openedAt: string } | null
   paymentRunReference: string | null
   paidOnTheSpot: boolean
+  /** What was typed on the receipt or the bill when it was captured (at most 500 characters). */
+  note?: string | null
+  /** The self-billed invoice or credit note this payable was raised from; null for any other source. */
+  issuedInvoiceId?: string | null
 }
 
 /** `BillController.BillSummaryResponse`. */
@@ -79,6 +83,8 @@ export type BillSummaryDto = {
     paid: number
     truncated: boolean
   }
+  /** Every bill on the ledger, whatever search and source the tab counts were asked for. */
+  totalCount?: number
 }
 
 export type BillListQuery = {
@@ -110,12 +116,51 @@ export function billListPath(query: BillListQuery): string {
   })
 }
 
+export type BillExport = ApiDownload & {
+  /** The server stopped at its row cap; the file is not every matching bill. */
+  truncated: boolean
+}
+
+/**
+ * The CSV of the bills the list is showing (`invoice.export`): the same tab, search, source and
+ * order. No page: the file runs to the server's cap, and says when it stopped there.
+ */
+export async function exportBills(
+  query: Pick<BillListQuery, 'filter' | 'q' | 'source' | 'sort'>,
+): Promise<BillExport> {
+  const file = await apiDownload(
+    withQuery(`${BILLS_PATH}/export.csv`, {
+      filter: query.filter === 'ALL' ? undefined : query.filter,
+      q: query.q.trim(),
+      source: query.source,
+      sort: query.sort === 'NEWEST' ? undefined : query.sort,
+    }),
+  )
+  return { ...file, truncated: file.headers.get('X-Fawtir-Export-Truncated') === 'true' }
+}
+
 export async function loadBillPage(path: string): Promise<Page<BillRowDto>> {
   return fromItemsPage(await apiRequest<ItemsPage<BillRowDto>>(path))
 }
 
 export function loadBillSummary(): Promise<BillSummaryDto> {
   return apiRequest<BillSummaryDto>(BILL_SUMMARY_PATH)
+}
+
+/**
+ * The summary whose tab counts are counted over the bills a search and a source filter leave:
+ * each then equals the `total` of the list under that tab. The money cards and the attention
+ * card are the whole ledger's either way. Null with neither, where the plain summary already
+ * says it.
+ */
+export function billTabCountsPath(query: Pick<BillListQuery, 'q' | 'source'>): string | null {
+  const q = query.q.trim()
+  if (q === '' && query.source === null) return null
+  return withQuery(BILL_SUMMARY_PATH, { q, source: query.source })
+}
+
+export function loadBillTabCounts(path: string): Promise<BillSummaryDto> {
+  return apiRequest<BillSummaryDto>(path)
 }
 
 const billPath = (billId: string) => `${BILLS_PATH}/${encodeURIComponent(billId)}`
@@ -136,6 +181,17 @@ export function holdBill(billId: string, reason: string): Promise<unknown> {
 
 export function releaseBill(billId: string): Promise<unknown> {
   return apiRequest(`${billPath(billId)}/release`, { method: 'POST' })
+}
+
+/** `BillController.NudgeView`: accepted, and for how many approvers. Delivery follows. */
+export type BillNudgeDto = { billId: string; nudgedOn: string; approvers: number }
+
+/**
+ * Reminds the people who can still approve this bill (`invoice.payment.manage` or
+ * `invoice.approve`). One a day per bill: a second is refused with `BILL_NUDGE_ALREADY_SENT`.
+ */
+export function nudgeBillApprover(billId: string): Promise<BillNudgeDto> {
+  return apiRequest<BillNudgeDto>(`${billPath(billId)}/approval/nudge`, { method: 'POST' })
 }
 
 /** `RecordBillPayment`. The currency must be the bill's own: there is no buy-side exchange rate. */
@@ -211,7 +267,7 @@ export type BillDetailDto = {
     lineNet: number | null
     purchaseOrderLineId: string | null
     goodsReceiptId: string | null
-    /** IBT-151, CL-04-OM: S, Z, E or O. TODO(backend): EXPENDITURE.md R.2. */
+    /** IBT-151, CL-04-OM: S, Z, E or O; null on a line captured without one (EXPENDITURE.md R.2). */
     taxCategoryCode?: string | null
     /** IBT-121: VATZR-OM-nn on a Z line, VATEX-OM-nn on an E line. TODO(backend): EXPENDITURE.md R.2. */
     exemptionReasonCode?: string | null
@@ -244,6 +300,17 @@ export type BillDetailDto = {
   }[]
   paymentRunReference: string | null
   intake: { id: string; source: BillSourceDto; filename: string | null; contentType: string | null; uploadedAt: string } | null
+  /**
+   * Present exactly when the bill is self-billed: the document this company issued through
+   * Fawtir on the supplier's behalf, and the agreement it was issued under. The agreement is
+   * null for a document issued before agreements were linked.
+   */
+  selfBilling?: {
+    issuedInvoiceId: string
+    invoiceNumber: string | null
+    agreementId: string | null
+    agreementReference: string | null
+  } | null
   compliance: {
     source: BillSourceDto
     networkVerified: boolean

@@ -70,7 +70,7 @@ type Receipt = {
   /** The VAT field follows the rate until someone types in it. */
   vatTyped: boolean
   category: string
-  /** TODO(backend): the design's optional note has no field on the confirm request; kept here only. */
+  /** The design's optional note: sent on confirm and kept on the bill (EXPENDITURE.md 1.8). */
   note: string
   paid: Paid
   method: Method
@@ -83,8 +83,9 @@ const VAT_RATES: { id: VatRate; key: string; category: 'S5' | 'Z0' | 'E0' }[] = 
 ]
 
 /**
- * UNCL4461, as the payment ledger records it. Petty cash is cash in the ledger's eyes.
- * TODO(backend): a way to tell petty cash from the till, if the books need it.
+ * UNCL4461, as the payment ledger records it. Petty cash is cash in the ledger's eyes: it goes
+ * as `10` with `pettyCash: true`, and the server writes its fixed reference on the payment
+ * (EXPENDITURE.md 1.9).
  */
 const METHOD_CODES: Record<Method, '10' | '48'> = { cash: '10', card: '48', pettyCash: '10' }
 
@@ -102,7 +103,7 @@ function receiptOf({ intake, file }: { intake: IntakeDto; file: File }): Receipt
     vatRate: '5',
     vatTyped: form.vat !== '',
     category: '',
-    note: '',
+    note: intake.note ?? '',
     paid: 'onSpot',
     method: 'cash',
   }
@@ -515,6 +516,7 @@ function ReceiptEditor({
         receipt.intake.id,
         toConfirmation(form, {
           category: receipt.category || null,
+          note: receipt.note,
           notDuplicateOf,
           // 0% and Exempt are both a zero rate; the category is what tells them apart.
           taxCategoryCode: VAT_RATES.find((rate) => rate.id === receipt.vatRate)?.category ?? null,
@@ -524,6 +526,7 @@ function ReceiptEditor({
                   methodCode: METHOD_CODES[receipt.method],
                   paymentReference: null,
                   paidOn: form.issueDate,
+                  ...(receipt.method === 'pettyCash' ? { pettyCash: true as const } : {}),
                 }
               : null,
         }),

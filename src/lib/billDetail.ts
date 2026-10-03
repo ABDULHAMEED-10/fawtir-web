@@ -238,17 +238,50 @@ export function receiptReportNote(
   }
 }
 
+/** A compliance line. `link` is where the value named `{{reference}}` in its sentence leads. */
+export type ComplianceNote = Note & { ok: boolean; link?: string }
+
+/** The page of the self-billing document a self-billed bill was raised from. */
+export function selfBillPath(issuedInvoiceId: string): string {
+  return `/income/self-billing/${encodeURIComponent(issuedInvoiceId)}`
+}
+
 /**
  * The compliance card's four lines (Figma 163:23284: validity, PINT-OM, tax reporting, the
  * archive), each written from a fact the platform holds. A line whose fact is missing says so
  * rather than claiming it. For a bill received over Peppol the reporting line is our own receipt
  * report (om-tdd, reporter role 02), not the supplier's.
+ *
+ * A self-billed bill is this company's own document, issued through Fawtir on the supplier's
+ * behalf: it did not "arrive" and has no supplier's file, so the three lines that said "not
+ * validated", "no PINT-OM" and "no original" give way to who issued it, the agreement it was
+ * issued under (linking to the self-billing document) and its tax standing (owner decision
+ * 2026-10-01, in his words). Those three are the whole block: "Reported by the sender" is not
+ * said of a document this company issued itself.
  */
 export function complianceOf(
   detail: BillDetailDto,
   instantDay: (iso: string) => string = (iso) => iso.slice(0, 10),
-): (Note & { ok: boolean })[] {
+): ComplianceNote[] {
   const { compliance, intake, bill } = detail
+  if (compliance.source === 'SELF_BILLED') {
+    const issued = detail.selfBilling ?? null
+    const documentId = issued?.issuedInvoiceId ?? bill.issuedInvoiceId ?? null
+    const link = documentId ? selfBillPath(documentId) : undefined
+    return [
+      { key: 'billDetail.compliance.selfBilled.issuedByYou', ok: true },
+      // An older document may have no agreement on record: the line stays, without a reference.
+      issued?.agreementReference
+        ? {
+            key: 'billDetail.compliance.selfBilled.agreement',
+            values: { reference: issued.agreementReference },
+            ok: true,
+            link,
+          }
+        : { key: 'billDetail.compliance.selfBilled.agreementNoReference', ok: true, link },
+      { key: 'billDetail.compliance.selfBilled.validTaxInvoice', ok: true },
+    ]
+  }
   const verified = compliance.source === 'PEPPOL' && compliance.networkVerified
   const reporting: Note & { ok: boolean } =
     compliance.source === 'PEPPOL'
@@ -259,7 +292,7 @@ export function complianceOf(
           ? { key: 'billDetail.compliance.pendingInput', ok: false }
           : { key: 'billDetail.compliance.notApplicable', ok: true }
   const kept = intake !== null || bill.inboundDeliveryId !== null
-  return [
+  const lines: ComplianceNote[] = [
     verified
       ? { key: 'billDetail.compliance.overPeppol', ok: true }
       : { key: 'billDetail.compliance.notValidated', ok: false },
@@ -271,6 +304,7 @@ export function complianceOf(
       ? { key: 'billDetail.compliance.originalKept', ok: true }
       : { key: 'billDetail.compliance.noOriginal', ok: false },
   ]
+  return lines
 }
 
 export type ThreeWayTile = {
@@ -408,9 +442,9 @@ function categoryOf(line: BillLine): string {
 /**
  * What a line's VAT cell says: the rate, and for a zero-rated, exempt or out-of-scope line its
  * category and the reason it carries (VATZR-OM-nn, VATEX-OM-nn, or free text on O). A line with
- * no category keeps today's rate alone.
+ * no category keeps the rate alone.
  *
- * TODO(backend): EXPENDITURE.md R.2. The line's category and exemption reason on the response.
+ * The category is on the response. TODO(backend): EXPENDITURE.md R.2, the exemption reason.
  */
 export function lineVatOf(line: BillLine): {
   rate: number | null
