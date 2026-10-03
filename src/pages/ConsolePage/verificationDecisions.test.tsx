@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, peekEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CompanyDetail, HistoryEntry } from '../../lib/console/companyVerification'
 import { formatMoment } from '../../lib/console/format'
@@ -156,6 +157,9 @@ async function openPending(extra: Record<string, Handler | Handler[]> = {}) {
 }
 
 beforeEach(async () => {
+  // Several tests end right after a click that starts a re-read. Left in the shared registry, that
+  // read would be joined by the next test on the same company (see `inflight.ts`).
+  resetSharedRequests()
   await i18n.changeLanguage('en')
   forgetEntitlements()
   sessionStorage.clear()
