@@ -11,15 +11,15 @@ import {
 } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import {
+  FALLBACK_COLUMNS_PATH,
   IMPORT_MAX_BYTES,
   checkImport,
   commitImport,
   downloadFailedRows,
   downloadImportTemplate,
   importBatchPath,
-  importTemplatePath,
+  loadFallbackColumns,
   loadImportBatch,
-  loadImportColumns,
   type ImportBatchDto,
   type ImportBatchRowDto,
   type ImportCommitResultDto,
@@ -34,6 +34,7 @@ import {
   IMPORT_ROUTES,
   IMPORT_TABS,
   alreadyOnFile,
+  alreadyOnFileCount,
   batchBlocker,
   comingIn,
   commitSelection,
@@ -105,14 +106,19 @@ function StagedImport({ target }: { target: ImportTarget }) {
     batchId ? () => loadImportBatch(target, batchId) : undefined,
   )
   const batch = read.read.status === 'ready' ? read.read.data : null
-  // The template's column order, which is the order of every row's `cells`: read with the review,
-  // so the field box and the first card can say what the file holds. Without it they say less.
-  const columnsRead = useApiRead<string[]>(batch ? importTemplatePath(target) : null, () =>
-    loadImportColumns(target),
+  // The order of every row's `cells`, so the field box and the first card can say what the file
+  // holds: the batch's own `columns` when it names them (a file in the supplier template), and
+  // otherwise the customer template's keys, read with the review. Without either they say less.
+  const namedColumns = batch?.columns ?? null
+  const columnsRead = useApiRead<string[]>(
+    batch && !namedColumns ? FALLBACK_COLUMNS_PATH : null,
+    loadFallbackColumns,
   )
-  const columns = columnsRead.read.status === 'ready' ? columnsRead.read.data : null
+  const columns =
+    namedColumns ?? (columnsRead.read.status === 'ready' ? columnsRead.read.data : null)
   const onPeppol = batch ? readyOnPeppol(batch, columns) : null
   const blocker = useMemo(() => (batch ? batchBlocker(batch, new Date()) : null), [batch])
+  const onFileCount = batch ? alreadyOnFileCount(batch) : 0
 
   if (!can(session, 'customer.import')) {
     return (
@@ -122,7 +128,8 @@ function StagedImport({ target }: { target: ImportTarget }) {
     )
   }
 
-  // The first read of a batch decides what is kept: everything the check would bring in.
+  // The first read of a batch decides what is kept: everything the check would bring in, which
+  // leaves out a row that repeats an earlier row of the file.
   if (batch && seeded !== batch.id) {
     setSeeded(batch.id)
     setKeep(initialSelection(batch))
@@ -155,7 +162,7 @@ function StagedImport({ target }: { target: ImportTarget }) {
     setNotice(null)
     try {
       saveDownload(
-        await downloadImportTemplate(target),
+        await downloadImportTemplate(target, language),
         `fawtir-${target.toLowerCase()}-template.csv`,
       )
     } catch (error) {
@@ -168,7 +175,7 @@ function StagedImport({ target }: { target: ImportTarget }) {
     setNotice(null)
     try {
       saveDownload(
-        await downloadFailedRows(target, batch.id),
+        await downloadFailedRows(target, batch.id, language),
         `${target.toLowerCase()}-rows-that-failed.csv`,
       )
     } catch (error) {
@@ -509,7 +516,14 @@ function StagedImport({ target }: { target: ImportTarget }) {
                     total: batch.totalRows,
                   })}
                 </span>{' '}
-                {t('stagedImport.leftOut', { count: batch.totalRows - comingIn(batch, keep) })}
+                {/* Rows already on file are counted on their own (owner's Round 5 answer 9): they
+                    cannot be brought in, so "unless you fix them" is not said of them. */}
+                {onFileCount > 0
+                  ? `· ${t('stagedImport.alreadyOnFile', { count: onFileCount })} `
+                  : null}
+                {t('stagedImport.leftOut', {
+                  count: Math.max(0, batch.totalRows - comingIn(batch, keep) - onFileCount),
+                })}
               </p>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Link
@@ -546,7 +560,14 @@ function StagedImport({ target }: { target: ImportTarget }) {
   )
 }
 
-const NAME_FIELDS = new Set(['legalRegisteredName', 'entityMinistryName', 'firstName', 'lastName'])
+const NAME_FIELDS = new Set([
+  'legalRegisteredName',
+  'entityMinistryName',
+  'firstName',
+  'lastName',
+  // The supplier template's name column.
+  'legalName',
+])
 
 function ImportRow({
   row,
@@ -629,7 +650,7 @@ function ImportRow({
               alt=""
               className="mt-0.5 size-4 shrink-0"
             />
-            {'key' in note ? t(note.key) : note.text}
+            {'key' in note ? t(note.key, note.values) : note.text}
           </p>
         ) : (
           <p className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-success-700">
@@ -654,8 +675,9 @@ function ImportRow({
                 : t('stagedImport.action.bringItIn')}
           </button>
         ) : onFile ? (
-          // Its VAT number or Peppol ID is on another record, so it cannot come in: the row names
-          // that record instead of offering "Bring in anyway".
+          // Its VAT number or Peppol ID is on another record, so it cannot come in and has no
+          // button (hidden, not disabled): the row says so, and names that record when the
+          // server names one that has a page.
           onFile.to ? (
             <Link
               to={onFile.to}

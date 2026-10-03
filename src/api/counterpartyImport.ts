@@ -3,7 +3,9 @@ import { apiDownload, apiRequest, type ApiDownload } from './client'
 /**
  * The staged import both counterparty screens use (E-06): check a CSV, review what it would do,
  * then bring in the rows that were kept. Suppliers and customers have the same routes under their
- * own prefix, and the file is the same template — a supplier is a customer row flagged as one.
+ * own prefix. The supplier template is the supplier form's fields in the form's order, in English
+ * or Arabic (owner's answer 5, 2 Oct 2026); a server from before that answers the customer
+ * template on the supplier route, and a file in the customer template's shape is still taken.
  *
  * Every call needs `customer.import`.
  */
@@ -32,6 +34,12 @@ export type ImportBatchRowDto = {
    */
   onFile?: { id: string; displayName: string; supplier: boolean } | null
   /**
+   * The server's own word that this row's counterparty is already on file, on either import. Such
+   * a row is never brought in. Absent from a server that predates it: the page then tells it from
+   * `onFile`, and failing that from the verdict's sentence (`isAlreadyOnFile` in lib/stagedImport).
+   */
+  alreadyOnFile?: boolean
+  /**
    * The line under the name in the review ("Net 30 · rustaq@timber.om"). The server does not send
    * it. TODO(owner): it could be written from `cells`, but which of the VAT number, the terms and
    * the e-mail it names, in what order, and what it says when one is missing is not decided
@@ -55,12 +63,24 @@ export type ImportBatchDto = {
   /** A batch is reviewable for 24 hours; committing after that is refused. */
   expiresAt: string | null
   committedAt: string | null
+  /**
+   * The key of each column, in the order of every row's `cells`, whatever order or language the
+   * uploaded file used. Only on a supplier batch checked from a file in the supplier template's
+   * shape; absent on a customer batch, on a supplier batch checked from a customer-shaped file,
+   * and from a server that predates it. Without it the cells follow the customer template.
+   */
+  columns?: string[] | null
   rows: ImportBatchRowDto[]
   counts: {
     ready: number
     needsALook: number
     cannotImport: number
     wouldImport: number
+    /**
+     * How many rows are already on file, for the review's "N already on file". Absent from a
+     * server that predates it: the page counts the rows it tells so itself.
+     */
+    alreadyOnFile?: number
     /**
      * How many of the ready rows are on Peppol; the review's first card says so. The server does
      * not send it; the page counts it from `cells` (`readyOnPeppol` in lib/stagedImport).
@@ -97,7 +117,11 @@ export function loadImportBatch(target: ImportTarget, batchId: string): Promise<
   return apiRequest<ImportBatchDto>(importBatchPath(target, batchId))
 }
 
-/** `rowNumbers` names the rows to bring in; null means every importable row. */
+/**
+ * `rowNumbers` names the rows to bring in. Null sends none and lets the server choose (every
+ * importable row that does not repeat an earlier row of the file); the import screen always names
+ * its rows, so what is brought in is what was ticked.
+ */
 export function commitImport(
   target: ImportTarget,
   batchId: string,
@@ -109,23 +133,46 @@ export function commitImport(
   })
 }
 
+/**
+ * The supplier routes head their files in the reader's language: `ar` for Arabic, `en` for
+ * anything else, as the invoice import's template does. The customer routes take no language.
+ */
+function inLanguage(target: ImportTarget, path: string, language: string): string {
+  if (target !== 'SUPPLIER') return path
+  return `${path}?language=${language.startsWith('ar') ? 'ar' : 'en'}`
+}
+
 /** The rows that cannot be imported, in the template's shape, to fix in the file and check again. */
-export function downloadFailedRows(target: ImportTarget, batchId: string): Promise<ApiDownload> {
-  return apiDownload(`${importBatchPath(target, batchId)}/failed.csv`)
+export function downloadFailedRows(
+  target: ImportTarget,
+  batchId: string,
+  language: string,
+): Promise<ApiDownload> {
+  return apiDownload(inLanguage(target, `${importBatchPath(target, batchId)}/failed.csv`, language))
 }
 
 export const importTemplatePath = (target: ImportTarget) => `${base(target)}/template`
 
-export function downloadImportTemplate(target: ImportTarget): Promise<ApiDownload> {
-  return apiDownload(importTemplatePath(target))
+export function downloadImportTemplate(
+  target: ImportTarget,
+  language: string,
+): Promise<ApiDownload> {
+  return apiDownload(inLanguage(target, importTemplatePath(target), language))
 }
 
 /**
- * The template's column names, in order: its header line. A checked row's `cells` are in this
- * order whatever order the uploaded file used, so this is what tells one cell from another.
+ * Where the column keys of a batch that names none are read: the customer template, whose header
+ * line is its keys. Such a batch is a customer's, or a supplier's checked from a customer-shaped
+ * file (every supplier batch, on a server from before the supplier template).
  */
-export async function loadImportColumns(target: ImportTarget): Promise<string[]> {
-  const { blob } = await downloadImportTemplate(target)
+export const FALLBACK_COLUMNS_PATH = importTemplatePath('CUSTOMER')
+
+/**
+ * The customer template's column keys, in order: its header line. The `cells` of a batch that
+ * names no `columns` are in this order whatever order the uploaded file used.
+ */
+export async function loadFallbackColumns(): Promise<string[]> {
+  const { blob } = await apiDownload(FALLBACK_COLUMNS_PATH)
   const header = (await blob.text()).replace(/^\uFEFF/, '').split(/\r?\n/)[0] ?? ''
   return header
     .split(',')

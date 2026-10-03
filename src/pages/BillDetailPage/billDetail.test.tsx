@@ -5,7 +5,9 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { BillDetailDto, BillMatchDto } from '../../api/expenditure/bills'
 import {
+  activityOf,
   canRecordPayment,
+  decisionNoteOf,
   complianceOf,
   decisionsOf,
   lineVatOf,
@@ -372,6 +374,130 @@ describe('A bill, wired to the API', () => {
     // Those three are the whole block: nothing is "reported by the sender" on your own document.
     expect(card.getAllByRole('listitem')).toHaveLength(3)
     expect(card.queryByText(/Reported by the sender/)).toBeNull()
+  })
+
+  // Owner's answer 3 (2 Oct): a self-billed bill shows the document's lines under the self-bill
+  // page's own heading, and the Activity block, from the self-billed document's history.
+  const SELF_BILLED_LINES: BillDetailDto['lines'] = [
+    {
+      lineNo: 1,
+      description: 'Haulage, Sohar to Muscat',
+      quantity: 2,
+      unit: 'EA',
+      unitPrice: 150,
+      vatRate: 5,
+      lineNet: 300,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+      taxCategoryCode: 'S',
+    },
+    {
+      lineNo: 2,
+      description: 'Customs paperwork',
+      quantity: 1,
+      unit: 'EA',
+      unitPrice: 176.19,
+      vatRate: 0,
+      lineNet: 176.19,
+      purchaseOrderLineId: null,
+      goodsReceiptId: null,
+      taxCategoryCode: 'Z',
+    },
+  ]
+  const SELF_BILLED_ACTIVITY = [
+    { at: '2026-10-01T08:30:00Z', kind: 'APPROVED', detail: null, actor: 'u-2' },
+    { at: '2026-10-01T08:00:00Z', kind: 'ISSUED', detail: null, actor: 'u-1' },
+    { at: '2026-10-01T07:50:00Z', kind: 'DRAFT_CREATED', detail: null, actor: 'u-3' },
+  ] as BillDetailDto['activity']
+
+  it('shows a self-billed bill\'s lines under "Items supplied to you", not as sent by the supplier', async () => {
+    billResponse = () =>
+      json(200, { ...selfBilled(AGREED), lines: SELF_BILLED_LINES, activity: SELF_BILLED_ACTIVITY })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getByText('Haulage, Sohar to Muscat')).toBeTruthy()
+    expect(card.getByText('Customs paperwork')).toBeTruthy()
+    expect(card.getByText('2 EA')).toBeTruthy()
+    expect(card.getByText('300.000')).toBeTruthy()
+    expect(card.getByText('176.190', { selector: 'td.text-base' })).toBeTruthy()
+    // The supplier sent nothing: this company issued the document.
+    expect(screen.queryByRole('heading', { name: "What they're charging for" })).toBeNull()
+    expect(screen.queryByText('as sent by the supplier')).toBeNull()
+    expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
+  })
+
+  it('shows a self-billed bill\'s Activity from the document\'s history, in the self-bill page\'s words', async () => {
+    billResponse = () =>
+      json(200, {
+        ...selfBilled(AGREED),
+        lines: SELF_BILLED_LINES,
+        activity: [
+          {
+            at: '2026-10-02T06:10:00Z',
+            kind: 'CANCELLED',
+            detail: 'Raised against the wrong supplier',
+            actor: 'u-2',
+          },
+          ...SELF_BILLED_ACTIVITY,
+        ],
+      })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getAllByRole('listitem')).toHaveLength(4)
+    expect(card.getByText('Draft created')).toBeTruthy()
+    expect(card.getByText('Cancelled')).toBeTruthy()
+    expect(card.getByText(/^Raised against the wrong supplier · /)).toBeTruthy()
+    // The signed-in user (u-1) issued it: "by you" is said as for every other entry.
+    const issued = card.getByText('Issued').closest('li') as HTMLElement
+    expect(within(issued).getByText(/by you/)).toBeTruthy()
+    expect(card.getByText('Approved')).toBeTruthy()
+    // Never the key itself.
+    expect(card.queryByText(/billDetail\.activity/)).toBeNull()
+  })
+
+  it('reads a self-billed bill\'s heading and history in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    billResponse = () =>
+      json(200, { ...selfBilled(AGREED), lines: SELF_BILLED_LINES, activity: SELF_BILLED_ACTIVITY })
+    renderBill()
+    expect(await screen.findByRole('heading', { level: 2, name: 'البنود المورَّدة إليك' })).toBeTruthy()
+    expect(screen.getByText('صدرت')).toBeTruthy()
+    expect(screen.getByText('أُنشئت المسودة')).toBeTruthy()
+    expect(screen.queryByText('كما أرسله المورد')).toBeNull()
+  })
+
+  it('never says "the supplier sent no lines" of a self-billed bill, from a server that sends none', async () => {
+    // A server from before the change, or a document that can no longer be read: 200, no lines.
+    billResponse = () => json(200, { ...selfBilled(AGREED), lines: [], activity: [] })
+    renderBill()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Items supplied to you' })).toBeTruthy()
+    expect(screen.queryByText('The supplier sent no lines with this bill.')).toBeNull()
+    expect(screen.queryByText('as sent by the supplier')).toBeNull()
+    expect(screen.getByText('Nothing has been recorded against this bill yet.')).toBeTruthy()
+  })
+
+  it('keeps the supplier\'s heading and empty line for a bill the supplier sent', async () => {
+    billResponse = () => json(200, { ...detail(), lines: [] })
+    renderBill()
+    expect(await screen.findByRole('heading', { level: 2, name: "What they're charging for" })).toBeTruthy()
+    expect(screen.getByText('as sent by the supplier')).toBeTruthy()
+    expect(screen.getByText('The supplier sent no lines with this bill.')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Items supplied to you' })).toBeNull()
+  })
+
+  it('says "Recorded" for an activity kind it has no wording for, never the key', async () => {
+    billResponse = () =>
+      json(200, {
+        ...detail(),
+        activity: [{ at: '2026-10-01T08:00:00Z', kind: 'SOMETHING_NEW', detail: null, actor: null }],
+      })
+    renderBill()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Activity' })
+    const card = within(heading.closest('section') as HTMLElement)
+    expect(card.getByText('Recorded')).toBeTruthy()
+    expect(card.queryByText(/SOMETHING_NEW/)).toBeNull()
   })
 
   const scanned = (note: string | null | undefined): BillDetailDto => ({
@@ -757,6 +883,183 @@ describe('A bill, wired to the API', () => {
     ).toBeTruthy()
   })
 
+  it('offers no Record payment on an approved bill whose mismatch is unresolved, and offers it once matched by hand', async () => {
+    const mismatched = (verdict: 'MISMATCH' | 'MATCHED_BY_HAND') =>
+      detail({
+        readiness: APPROVED,
+        bill: {
+          ...detail().bill,
+          workflowState: 'APPROVED',
+          readiness: APPROVED,
+          match: { ...detail().bill.match!, verdict, byHand: verdict === 'MATCHED_BY_HAND' },
+        },
+      })
+    billResponse = () => json(200, mismatched('MISMATCH'))
+    const first = renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    first.unmount()
+    cleanup()
+
+    billResponse = () => json(200, mismatched('MATCHED_BY_HAND'))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
+  // Owner's Round 5 answer 1 (2 Oct): a bill approved while its mismatch is unresolved keeps
+  // showing Mismatch. The server will say `MISMATCH`; today's still says `APPROVED` beside the
+  // mismatch verdict, and both read the same here.
+  for (const workflowState of ['MISMATCH', 'APPROVED'] as const) {
+    it(`keeps showing Mismatch on a bill people approved while it differs from its order (server says ${workflowState})`, async () => {
+      billResponse = () =>
+        json(
+          200,
+          detail({
+            readiness: APPROVED,
+            bill: {
+              ...detail().bill,
+              workflowState,
+              readiness: APPROVED,
+              match: { ...detail().bill.match!, verdict: 'MISMATCH', summary: null },
+            },
+          }),
+        )
+      renderBill()
+      const title = await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+      const header = title.parentElement as HTMLElement
+      expect(within(header).getByText('Mismatch found')).toBeTruthy()
+      expect(within(header).queryByText('Approved')).toBeNull()
+      // The decision panel says what stands in the way, in the words the match card already uses.
+      const decision = screen.getByRole('heading', { name: 'Your decision' }).closest('section')!
+      expect(within(decision).getByText('This bill differs from the order')).toBeTruthy()
+      expect(screen.queryByText(/Approved for payment\./)).toBeNull()
+      expect(screen.queryByText(/It can be paid\./)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    })
+  }
+
+  // The state the server sends for it (contract note, Round 7): one approver required, one person
+  // approved, the verdict still a mismatch. Approve is offered from the approvals, never from the
+  // word "Mismatch", or the click would answer APPROVAL_TRANSITION_INVALID.
+  it('offers the match actions, and no Approve, on a bill one person approved that still reads Mismatch', async () => {
+    const oneOfOne = { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false } as const
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: oneOfOne,
+          bill: {
+            ...detail().bill,
+            workflowState: 'MISMATCH',
+            // Sent beside the state; the page reads the approvals from `readiness`.
+            approval: 'APPROVED',
+            readiness: oneOfOne,
+            match: {
+              ...detail().bill.match!,
+              verdict: 'MISMATCH',
+              summary: '3 KGM more than we received on Arabica beans',
+            },
+          },
+        }),
+      )
+    renderBill()
+    const title = await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(within(title.parentElement as HTMLElement).getByText('Mismatch found')).toBeTruthy()
+    // Nothing left to approve, in the header or in the decision panel; nobody to nudge.
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Nudge/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Record payment' })).toBeNull()
+    // The way forward is the match: change it or take it off.
+    expect(screen.getByRole('button', { name: 'Change the match' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove the match' })).toBeTruthy()
+    // What it says: the difference, in the page's own words, and that it was approved.
+    expect(screen.getByRole('heading', { name: 'This bill differs from the order' })).toBeTruthy()
+    expect(screen.getByText('3 KGM more than we received on Arabica beans')).toBeTruthy()
+    const decision = screen.getByRole('heading', { name: 'Your decision' }).closest('section')!
+    expect(within(decision).getByText('This bill differs from the order')).toBeTruthy()
+    expect(screen.queryByText(/Approved for payment\./)).toBeNull()
+    expect(screen.queryByText(/It can be paid\./)).toBeNull()
+    expect(screen.queryByText(/Waiting for approval/)).toBeNull()
+    const steps = stepsOf(
+      detail({
+        readiness: oneOfOne,
+        bill: {
+          ...detail().bill,
+          workflowState: 'MISMATCH',
+          match: { ...detail().bill.match!, verdict: 'MISMATCH' },
+        },
+      }),
+      { day: (iso) => iso, instantDay: (iso) => iso },
+    )
+    expect(steps.find((step) => step.id === 'matched')).toMatchObject({
+      state: 'current',
+      detail: { key: 'billDetail.steps.differs' },
+    })
+    expect(steps.find((step) => step.id === 'approved')).toMatchObject({
+      state: 'done',
+      detail: { key: 'billDetail.steps.approvedDone' },
+    })
+    // Rejecting it and putting it on hold are still the reader's to choose.
+    expect(within(decision).getByRole('button', { name: 'Query it' })).toBeTruthy()
+    expect(within(decision).getByRole('button', { name: 'Put on hold' })).toBeTruthy()
+  })
+
+  it('does not say a bill approved by its amount can be paid while it differs from its order', () => {
+    const byAmount = { ...APPROVED, distinctApprovals: 0, autoApproved: true }
+    const approved = detail({ readiness: byAmount })
+    const withVerdict = (verdict: 'MISMATCH' | 'MATCHED_BY_HAND') => ({
+      ...approved,
+      bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } },
+    })
+    expect(decisionNoteOf(withVerdict('MISMATCH'))).toEqual({ key: 'billDetail.match.differs' })
+    // Resolved, the sentence it had comes back.
+    expect(decisionNoteOf(withVerdict('MATCHED_BY_HAND'))).toEqual({
+      key: 'billDetail.decision.belowLimit',
+    })
+    // Paid, held and rejected bills keep their own sentence, mismatch or not.
+    expect(
+      decisionNoteOf({
+        ...withVerdict('MISMATCH'),
+        settlement: { ...approved.settlement, paymentState: 'PAID' },
+      }),
+    ).toEqual({ key: 'billDetail.decision.paid' })
+    // Not yet approved: the sentence about approving stays, the match card says the difference.
+    const pending = detail()
+    expect(
+      decisionNoteOf({
+        ...pending,
+        bill: { ...pending.bill, match: { ...pending.bill.match!, verdict: 'MISMATCH' } },
+      }).key,
+    ).toBe('billDetail.decision.needsMore')
+  })
+
+  // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
+  it('shows a bill approved by its amount as Approved, with nothing left to approve and a payment on offer', async () => {
+    const byAmount = { state: 'READY', distinctApprovals: 0, required: 2, autoApproved: true } as const
+    billResponse = () =>
+      json(
+        200,
+        detail({
+          readiness: byAmount,
+          approvals: [],
+          bill: { ...detail().bill, workflowState: 'APPROVED', readiness: byAmount },
+        }),
+      )
+    renderBill()
+    const title = await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(within(title.parentElement as HTMLElement).getByText('Approved')).toBeTruthy()
+    expect(screen.queryByText(/Waiting on approval/)).toBeNull()
+    expect(screen.getByText('No approval needed')).toBeTruthy()
+    expect(
+      screen.getByText('Below your approval limit, so no approval is needed. It can be paid.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Approve for payment' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Record payment' })).toBeTruthy()
+  })
+
   it('leaves Record payment showing for the rest after a part payment', async () => {
     billResponse = () =>
       json(
@@ -944,6 +1247,30 @@ describe('bill detail mapping', () => {
     ).toBe(false)
   })
 
+  it('offers no payment while the bill does not match its order, whoever approved it', () => {
+    const all = () => true
+    const withVerdict = (verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER') => {
+      const approved = detail({ readiness: APPROVED })
+      return { ...approved, bill: { ...approved.bill, match: { ...approved.bill.match!, verdict } } }
+    }
+    expect(canRecordPayment(withVerdict('MISMATCH'), all)).toBe(false)
+    // Approved by its amount, not by a person: the same rule.
+    expect(
+      canRecordPayment(
+        { ...withVerdict('MISMATCH'), readiness: { ...APPROVED, autoApproved: true } },
+        all,
+      ),
+    ).toBe(false)
+    // Resolved: matched by hand, matched again, no order found, or the match taken off.
+    expect(canRecordPayment(withVerdict('MATCHED_BY_HAND'), all)).toBe(true)
+    expect(canRecordPayment(withVerdict('MATCHED'), all)).toBe(true)
+    expect(canRecordPayment(withVerdict('NO_ORDER'), all)).toBe(true)
+    const unmatched = detail({ readiness: APPROVED })
+    expect(canRecordPayment({ ...unmatched, bill: { ...unmatched.bill, match: null } }, all)).toBe(
+      true,
+    )
+  })
+
   it('offers no rejection once a payment is recorded or the bill is in a run', () => {
     const all = () => true
     const approved = detail({ readiness: APPROVED })
@@ -1095,6 +1422,32 @@ describe('bill detail mapping', () => {
     ])
   })
 
+  it('words the self-billed document\'s steps, keeps the bill\'s own kinds, and has a word for an unknown one', () => {
+    const entry = (kind: string) =>
+      ({ at: '2026-10-01T08:00:00Z', kind, detail: null, actor: 'u-1' }) as BillDetailDto['activity'][number]
+    const keys = activityOf(
+      {
+        ...detail(),
+        activity: ['DRAFT_CREATED', 'ISSUED', 'CANCELLED', 'APPROVED', 'PAID', 'BRAND_NEW'].map(entry),
+      },
+      'u-1',
+    ).map((item) => item.key)
+    expect(keys).toEqual([
+      'billDetail.activity.kind.DRAFT_CREATED',
+      'billDetail.activity.kind.ISSUED',
+      'billDetail.activity.kind.CANCELLED',
+      'billDetail.activity.kind.APPROVED',
+      'billDetail.activity.kind.PAID',
+      'invoiceDetails.event.other',
+    ])
+    // The three document steps say what the self-bill page says for the same events.
+    for (const kind of ['DRAFT_CREATED', 'ISSUED', 'CANCELLED'])
+      for (const lng of ['en', 'ar'])
+        expect(i18n.t(`billDetail.activity.kind.${kind}`, { lng }), `${kind} ${lng}`).toBe(
+          i18n.t(`invoiceDetails.event.${kind}`, { lng }),
+        )
+  })
+
   it('reads the VAT cell from the category letter, and the rate alone without one', () => {
     const line = (vatRate: number | null, taxCategoryCode?: string | null) => ({
       ...detail().lines[0],
@@ -1163,6 +1516,32 @@ describe('why a bill was refused, in its own sentence', () => {
       await within(dialog).findByText('This bill is on hold. Release it, then record the payment.'),
     ).toBeTruthy()
     expect(within(dialog).queryByText(GENERIC)).toBeNull()
+  })
+
+  // Owner's answer 2 (2 Oct): a single payment is refused while a mismatch is unresolved, the
+  // same as a payment run. The sentence is the payment run's own, word for word.
+  it('says the bill does not match its order when the server refuses the payment for that', async () => {
+    actionResponse = refusal('BILL_PAYMENT_MISMATCHED')
+    const dialog = await pay()
+    expect(await within(dialog).findByText("That bill doesn't match its order.")).toBeTruthy()
+    expect(within(dialog).queryByText(GENERIC)).toBeNull()
+    // Nothing was recorded: the dialog stays open.
+    expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('says the same in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    actionResponse = refusal('BILL_PAYMENT_MISMATCHED')
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    const record = i18n.t('billDetail.actions.recordPayment')
+    fireEvent.click(screen.getByRole('button', { name: record }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: i18n.t('invoiceDetails.pay.submit') }),
+    )
+    expect(await within(dialog).findByText('هذه الفاتورة لا تطابق أمر الشراء.')).toBeTruthy()
   })
 
   it('says the most that can be recorded when the amount typed is more than the bill owes', async () => {
@@ -1309,5 +1688,89 @@ describe('why a bill was refused, in its own sentence', () => {
     actionResponse = refusal('BILL_PAYMENT_ACTOR_REQUIRED')
     const dialog = await pay()
     expect(await within(dialog).findByText(GENERIC)).toBeTruthy()
+  })
+})
+
+describe('the original file, for someone who only reads bills', () => {
+  // Both file routes take `invoice.read` on the server, and the page asks for nothing more: a
+  // Viewer downloads the original like anyone else. A bill typed in with no file has no original,
+  // and then nobody is offered a Download.
+  const uploaded = (): BillDetailDto => ({
+    ...detail(),
+    bill: { ...detail().bill, source: 'UPLOADED', inboundDeliveryId: null },
+    intake: {
+      id: 'in-7',
+      source: 'UPLOADED',
+      filename: 'qms-7781.pdf',
+      contentType: 'application/pdf',
+      uploadedAt: '2026-09-12T08:00:00Z',
+    },
+  })
+  const typedIn = (): BillDetailDto => ({
+    ...detail(),
+    bill: { ...detail().bill, source: 'UPLOADED', inboundDeliveryId: null },
+    intake: null,
+  })
+
+  /** Answers the two file routes; everything else goes to the page's usual mock. */
+  const serveFiles = () => {
+    const usual = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      url.endsWith('/file') || url.endsWith('/document')
+        ? new Response('the original', {
+            status: 200,
+            headers: { 'Content-Disposition': 'attachment; filename="qms-7781.pdf"' },
+          })
+        : usual(url, init),
+    )
+  }
+
+  const objectUrls = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:original')
+    URL.revokeObjectURL = vi.fn()
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    URL.createObjectURL = objectUrls.create
+    URL.revokeObjectURL = objectUrls.revoke
+  })
+
+  it.each([
+    ['a Viewer', READ_ONLY],
+    ['an Administrator', ADMIN],
+  ])('lets %s download an uploaded bill', async (_who, entitlements) => {
+    who = entitlements
+    billResponse = () => json(200, uploaded())
+    serveFiles()
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(calls()).toContain('GET /api/v1/bills/intake/in-7/file'))
+    await waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1))
+    // The file's row in Linked documents downloads it too.
+    fireEvent.click(screen.getByRole('button', { name: 'qms-7781.pdf' }))
+    await waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('No access')).toBeNull()
+  })
+
+  it('lets a Viewer download a bill that came over Peppol', async () => {
+    who = READ_ONLY
+    serveFiles()
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(calls()).toContain('GET /api/v1/inbound-invoices/d-1/document'))
+  })
+
+  it.each([
+    ['a Viewer', READ_ONLY],
+    ['an Administrator', ADMIN],
+  ])('offers %s no Download on a bill with no original file', async (_who, entitlements) => {
+    who = entitlements
+    billResponse = () => json(200, typedIn())
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
   })
 })

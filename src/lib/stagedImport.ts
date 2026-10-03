@@ -33,35 +33,74 @@ export function tabCount(batch: ImportBatchDto, tab: ImportTabId): number {
   return batch.counts[tab]
 }
 
+/** The check's verdict on a row whose VAT number or Peppol ID another record already holds. */
+const ALREADY_ON_FILE = /already on file/i
+
+/**
+ * Whether the counterparty in this row is already on file (owner's Round 5 answer 9, 2 Oct 2026:
+ * such a row stays left out and cannot be brought in). The server's own `alreadyOnFile` says so
+ * when it sends it. Without it, the record the row names (`onFile`, suppliers) does, and failing
+ * that the verdict's sentence: the customer import names no record, and neither does an older
+ * supplier server.
+ */
+export function isAlreadyOnFile(row: ImportBatchRowDto): boolean {
+  if (typeof row.alreadyOnFile === 'boolean') return row.alreadyOnFile
+  if (row.onFile) return true
+  return row.severity === 'NEEDS_A_LOOK' && row.message !== null && ALREADY_ON_FILE.test(row.message)
+}
+
 /**
  * A row that can be brought in. A refused row is never sent, whatever is ticked; nor is a row
- * whose VAT number or Peppol ID is already on file, since the server would only skip it.
+ * whose counterparty is already on file, since the server would only skip it.
  */
 export function importable(row: ImportBatchRowDto): boolean {
-  return row.severity !== 'CANNOT_IMPORT' && !row.onFile
-}
-
-/** The record a row duplicates, and its page when it has one (a supplier's; the import is theirs). */
-export function alreadyOnFile(row: ImportBatchRowDto): { to: string | null } | null {
-  if (!row.onFile) return null
-  return { to: row.onFile.supplier ? `/suppliers/${encodeURIComponent(row.onFile.id)}` : null }
+  return row.severity !== 'CANNOT_IMPORT' && !isAlreadyOnFile(row)
 }
 
 /**
- * What to send as `rowNumbers`: null when every importable row is kept, which is what the server
- * reads as "all of them", and the explicit list otherwise.
+ * A row already on file, and the page of the record it duplicates when the server names one that
+ * has a page (a supplier's; the import is theirs). Null for any other row.
  */
-export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>): number[] | null {
-  const chosen = batch.rows
-    .filter((row) => importable(row) && keep.has(row.rowNumber))
-    .map((row) => row.rowNumber)
-  // `wouldImport` counts a row already on file, which is never chosen: the list then goes out
-  // in full, so the server is not asked for a row it would skip.
-  return chosen.length === Number(batch.counts.wouldImport) ? null : chosen
+export function alreadyOnFile(row: ImportBatchRowDto): { to: string | null } | null {
+  if (!isAlreadyOnFile(row)) return null
+  return {
+    to: row.onFile?.supplier ? `/suppliers/${encodeURIComponent(row.onFile.id)}` : null,
+  }
 }
 
+/** How many rows are already on file: the server's count when it sends one, else the rows told so. */
+export function alreadyOnFileCount(batch: ImportBatchDto): number {
+  if (typeof batch.counts.alreadyOnFile === 'number') return batch.counts.alreadyOnFile
+  return batch.rows.filter(isAlreadyOnFile).length
+}
+
+/**
+ * What to send as `rowNumbers`: always the rows that are kept, named one by one.
+ *
+ * It used to send nothing ("all of them") when as many rows were kept as the server's
+ * `wouldImport`. The two numbers can match while the rows differ: in a file where B repeats A,
+ * keeping A and B and leaving G out is two rows, as is the server's own A and G. The reader would
+ * then get rows they did not choose, so the list always goes out. The server takes a list equal
+ * to its default set as it takes no list.
+ */
+export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>): number[] {
+  return batch.rows
+    .filter((row) => importable(row) && keep.has(row.rowNumber))
+    .map((row) => row.rowNumber)
+}
+
+/**
+ * What the first read of a batch keeps: every importable row, less a row that repeats an earlier
+ * row of the file. Only one of such a pair can come in, so the first stays kept and the repeat
+ * starts left out, which is also what the server counts in `wouldImport`. The reader can still
+ * bring the repeat in by hand (and leave the first out).
+ */
 export function initialSelection(batch: ImportBatchDto): Set<number> {
-  return new Set(batch.rows.filter(importable).map((row) => row.rowNumber))
+  return new Set(
+    batch.rows
+      .filter((row) => importable(row) && repeatsEarlierRow(row) === null)
+      .map((row) => row.rowNumber),
+  )
 }
 
 export function comingIn(batch: ImportBatchDto, keep: ReadonlySet<number>): number {
@@ -104,6 +143,24 @@ const FIELD_LABELS: Record<string, string> = {
   bankIban: 'stagedImport.field.iban',
   bankBic: 'stagedImport.field.bic',
   bankName: 'stagedImport.field.bankName',
+  // The supplier template's own columns (owner's answer 5, 2 Oct 2026), each in the words of the
+  // supplier form's field it fills.
+  type: 'newSupplier.sections.supplierType',
+  legalName: 'supplierEdit.legalName',
+  tradingName: 'supplierEdit.tradingName',
+  commercialRegistrationNumber: 'supplierEdit.commercialRegistration',
+  country: 'supplierEdit.country',
+  registeredOnPeppol: 'supplierEdit.onPeppol',
+  autoMatchPurchaseOrders: 'supplierEdit.autoMatch',
+  earlyPaymentDiscountPercent: 'supplierForm.earlyPercent',
+  earlyPaymentDiscountDays: 'supplierForm.earlyDays',
+  contactPerson: 'supplierEdit.mainContact',
+  streetName: 'supplierEdit.address',
+  cityName: 'addressContact.city',
+  governorate: 'addressContact.governorate',
+  postalCode: 'addressContact.postalCode',
+  supplierCategory: 'supplierEdit.category',
+  tags: 'supplierEdit.tags',
 }
 
 export function fieldLabel(field: string | null): { key: string } | { text: string } | null {
@@ -112,19 +169,53 @@ export function fieldLabel(field: string | null): { key: string } | { text: stri
   return key ? { key } : { text: field }
 }
 
+/** "Row 2 of this file has the same VAT number, and only one of them can be brought in". */
+const REPEATS_EARLIER_ROW = /^Row (\d+) of this file has the same (VAT number|Peppol identifier)/
+
 /**
- * The one verdict the check gives today for a row it will still import: the counterparty is
- * already on file. Everything else is a validation refusal in the server's own words, which is
- * more use to the reader than a guess at what it meant.
+ * Whether the check marked this row as repeating an earlier row of the same file, and which: the
+ * earlier row's line in the file and the identifier the two share. The server stores no kind for
+ * a row that is worth a look, so its message is what says it, as it is for "already on file"
+ * below. Null for any other row, and for every row of a server that does not flag repeats.
  */
-export function problemNote(row: ImportBatchRowDto): { key: string } | { text: string } | null {
+export function repeatsEarlierRow(
+  row: ImportBatchRowDto,
+): { row: number; identifier: 'vat' | 'peppol' } | null {
+  if (row.severity !== 'NEEDS_A_LOOK' || !row.message) return null
+  const match = REPEATS_EARLIER_ROW.exec(row.message)
+  if (!match) return null
+  return { row: Number(match[1]), identifier: match[2] === 'VAT number' ? 'vat' : 'peppol' }
+}
+
+/** What the review says is wrong with a row: a sentence of the app's, or the server's own words. */
+export type ProblemNote =
+  | { key: string; values?: Record<string, string | number> }
+  | { text: string }
+
+/**
+ * The verdicts the check gives for a row it will still import, each in a sentence of the app's
+ * own: the counterparty is already on file, or the row repeats an earlier row of the same file
+ * (the owner's sentence of 2 Oct 2026, naming that row). Everything else is a validation refusal
+ * in the server's own words, which is more use to the reader than a guess at what it meant.
+ */
+export function problemNote(row: ImportBatchRowDto): ProblemNote | null {
   if (!row.message) return null
-  if (row.severity === 'NEEDS_A_LOOK' && /already on file/i.test(row.message)) {
+  if (row.severity === 'NEEDS_A_LOOK' && ALREADY_ON_FILE.test(row.message)) {
     return {
       key:
         row.field === 'vatRegistrationNumber'
           ? 'stagedImport.problem.duplicateVat'
           : 'stagedImport.problem.duplicatePeppol',
+    }
+  }
+  const repeat = repeatsEarlierRow(row)
+  if (repeat) {
+    return {
+      key:
+        repeat.identifier === 'vat'
+          ? 'stagedImport.problem.repeatsRowVat'
+          : 'stagedImport.problem.repeatsRowPeppol',
+      values: { row: repeat.row },
     }
   }
   return { text: row.message }

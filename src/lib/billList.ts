@@ -96,8 +96,22 @@ const STATUS: Record<BillWorkflowState, BillStatusChip> = {
 /** A supplier's credit note (381) or a self-billed one (261): it lowers a bill, nothing is owed on it. */
 const CREDIT_NOTES = new Set(['381', '261'])
 
+/**
+ * What a bill reads as. A bill approved while it still differs from its order keeps showing
+ * Mismatch (owner's Round 5 answer 1, 2 Oct 2026): nothing pays it until the difference is
+ * resolved. The server says `MISMATCH` for it; one from before that says `APPROVED` beside the
+ * mismatch verdict, and that pair is read the same way.
+ */
+export function workflowStateOf(
+  row: Pick<BillRowDto, 'workflowState'> & { match: { verdict: string } | null },
+): BillWorkflowState {
+  return row.workflowState === 'APPROVED' && row.match?.verdict === 'MISMATCH'
+    ? 'MISMATCH'
+    : row.workflowState
+}
+
 export function toBillListItem(row: BillRowDto): BillListItem {
-  const status = STATUS[row.workflowState]
+  const status = STATUS[workflowStateOf(row)]
   const pending = row.readiness.state === 'PENDING'
   return {
     id: row.id,

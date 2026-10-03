@@ -131,6 +131,12 @@ function SupplierRecord({ id }: { id: string }) {
   const canManage = can(session, 'supplier.manage')
   const canPay = can(session, 'invoice.payment.manage')
   const canOrder = can(session, 'purchase-order.manage')
+  // The Orders tab is the supplier's purchase orders (`purchase-order.read`), each a link to its
+  // order. A Viewer or an Approver reads suppliers without that permission, so the tab, whose
+  // only content the server would refuse them, is not drawn for them.
+  const tabs = DETAIL_TABS.filter(
+    (entry) => entry !== 'orders' || can(session, 'purchase-order.read'),
+  )
   const today = muscatToday()
   const [tab, setTab] = useState<DetailTabId>('overview')
   const [notice, setNotice] = useState<Note | { body: string } | null>(null)
@@ -193,6 +199,9 @@ function SupplierRecord({ id }: { id: string }) {
         })
       : '—'
   const switchedOff = profile.status === 'SWITCHED_OFF'
+  // The server refuses a switched-off supplier's bills in a payment run, so nothing that opens
+  // the pay dialog is drawn for one. A run their bills already sit in can still be opened.
+  const canPayThem = canPay && !switchedOff
   const complete = profile.health.length === 0
   const terms = termsNote(profile.paymentTerms)
   const run = openRun(latest, runList)
@@ -407,7 +416,8 @@ function SupplierRecord({ id }: { id: string }) {
               })}
             </ul>
           </Popover>
-          {canPay ? (
+          {/* Hidden for a switched-off supplier, as New purchase order and Record a bill are. */}
+          {canPayThem ? (
             <button
               type="button"
               onClick={() => setPaying(true)}
@@ -430,7 +440,7 @@ function SupplierRecord({ id }: { id: string }) {
         role="tablist"
         className="flex flex-wrap items-center gap-1 border-b border-border-subtle"
       >
-        {DETAIL_TABS.map((entry) => {
+        {tabs.map((entry) => {
           const active = entry === tab
           const count = tabCount(entry, head)
           return (
@@ -480,7 +490,7 @@ function SupplierRecord({ id }: { id: string }) {
                 <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
                   {t('supplierDetail.whatYouOwe')}
                 </h3>
-                {canPay ? (
+                {canPayThem ? (
                   <button
                     type="button"
                     onClick={() => setPaying(true)}
@@ -549,7 +559,7 @@ function SupplierRecord({ id }: { id: string }) {
                           const billRun = runOf(row, runList)
                           const where = whereNote(row, billRun)
                           const discount = discountOn(row, profile, today)
-                          const action = rowAction(row, billRun, canPay)
+                          const action = rowAction(row, billRun, canPayThem)
                           return (
                             <tr
                               key={row.id}
@@ -823,9 +833,11 @@ function SupplierRecord({ id }: { id: string }) {
                   >
                     {t('supplierDetail.openTheRunAction')}
                   </Link>
-                  <button type="button" onClick={() => setPaying(true)} className={SIDE_BUTTON}>
-                    {t('supplierDetail.paySeparately')}
-                  </button>
+                  {canPayThem ? (
+                    <button type="button" onClick={() => setPaying(true)} className={SIDE_BUTTON}>
+                      {t('supplierDetail.paySeparately')}
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </section>

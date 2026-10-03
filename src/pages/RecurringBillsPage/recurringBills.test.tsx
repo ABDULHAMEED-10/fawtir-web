@@ -12,6 +12,7 @@ import {
   blankRecurringForm,
   cadenceNote,
   chaseBlocker,
+  offersChase,
   chartBars,
   formOf,
   formatVariance,
@@ -148,6 +149,8 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let listResponse: () => Response
 let chaseResponse: () => Response
+/** What `GET /recurring-bills/rb-1` answers. */
+let detailBill: RecurringBillDto
 let saveResponse: () => Response
 
 const calls = (method: string, prefix: string) =>
@@ -165,6 +168,7 @@ beforeEach(async () => {
     json(200, { items: [RENT, SOFTWARE, PAUSED], page: 0, pageSize: 50, count: 3 })
   chaseResponse = () =>
     json(202, { recurringBillId: 'rb-1', notifyUserId: null, expectedOn: '2026-09-28' })
+  detailBill = RENT
   saveResponse = () => json(201, { ...RENT, id: 'rb-9' })
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
@@ -176,7 +180,7 @@ beforeEach(async () => {
     if (url.endsWith('/pause') || url.endsWith('/resume'))
       return json(200, { ...RENT, active: url.endsWith('/resume') })
     if (url.includes('/rb-1/runs')) return json(200, RUNS)
-    if (url === '/api/v1/recurring-bills/rb-1') return json(200, RENT)
+    if (url === '/api/v1/recurring-bills/rb-1') return json(200, detailBill)
     if (url === '/api/v1/recurring-bills' && method === 'POST') return saveResponse()
     if (url.startsWith('/api/v1/recurring-bills?')) return listResponse()
     if (url.startsWith('/api/v1/suppliers?'))
@@ -291,6 +295,35 @@ describe('Recurring bills, wired to the API', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Chase the supplier' })[0])
     await waitFor(() => expect(calls('POST', '/api/v1/recurring-bills/rb-1/chase')).toHaveLength(1))
     expect(await screen.findByText('Whoever is named has been told.')).toBeTruthy()
+  })
+
+  it('offers Chase on the detail only once the bill is late, as the list does', async () => {
+    // Not late yet: the header keeps its other buttons and draws no Chase, greyed or otherwise.
+    for (const state of ['DUE_TO_ARRIVE', 'ARRIVED', 'ARRIVED_OUT_OF_RANGE'] as const) {
+      detailBill = { ...RENT, expectation: { ...RENT.expectation!, state, lateDays: null } }
+      expect(offersChase(detailBill)).toBe(false)
+      const view = renderAt('/expenditure/recurring-bills/rb-1')
+      expect(await screen.findByRole('heading', { level: 1, name: 'Shop rent' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Pause watching' })).toBeTruthy()
+      expect(screen.queryByRole('button', { name: 'Chase the supplier' })).toBeNull()
+      expect(screen.queryByText('Chase the supplier')).toBeNull()
+      view.unmount()
+    }
+    expect(calls('POST', '/api/v1/recurring-bills/rb-1/chase')).toHaveLength(0)
+
+    // Late: offered, enabled, and it chases.
+    detailBill = RENT
+    expect(offersChase(RENT)).toBe(true)
+    renderAt('/expenditure/recurring-bills/rb-1')
+    const chase = await screen.findByRole('button', { name: 'Chase the supplier' })
+    expect((chase as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(chase)
+    await waitFor(() => expect(calls('POST', '/api/v1/recurring-bills/rb-1/chase')).toHaveLength(1))
+
+    // One rule for the row and the header: late, watched, and a bill that is waited for.
+    expect(offersChase(PAUSED)).toBe(false)
+    expect(offersChase(SOFTWARE)).toBe(false)
+    expect(offersChase({ ...RENT, mode: 'RAISE' })).toBe(false)
   })
 
   it('reads a refused chase as its own sentence', async () => {

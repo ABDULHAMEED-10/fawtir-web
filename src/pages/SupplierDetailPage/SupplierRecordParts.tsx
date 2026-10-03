@@ -37,6 +37,7 @@ import { formatAmount, formatDate } from '../../lib/format'
 import {
   blankContact,
   contactProblems,
+  documentKindLabelKey,
   documentMeta,
   documentRemovable,
   fileSize,
@@ -446,7 +447,7 @@ export function DocumentsTab({
                   </p>
                   <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
                     {[
-                      t(`supplierRecord.kind.${entry.document.kind}`),
+                      t(documentKindLabelKey(entry.document.kind)),
                       t(meta.key, {
                         date: formatDate(String(meta.values?.date ?? ''), i18n.language),
                       }),
@@ -557,7 +558,18 @@ export function UploadDocumentModal({
     if (Object.keys(next).length > 0 || !file) return
     setBusy(true)
     try {
-      await uploadSupplierDocument(supplierId, { file, title, kind, series, documentDate, note })
+      // This dialog draws no "How long to keep it": the paper is kept under the ten-year rule, as
+      // every paper filed from here always was, and the rule is sent rather than left to the
+      // server's default.
+      await uploadSupplierDocument(supplierId, {
+        file,
+        title,
+        kind,
+        series,
+        documentDate,
+        note,
+        keep: 'TEN_YEAR_RULE',
+      })
       onUploaded()
     } catch (error) {
       setNotice(failure(error))

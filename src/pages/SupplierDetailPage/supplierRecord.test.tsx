@@ -161,6 +161,8 @@ let detail: SupplierDetailDto
 let uploads: number
 let confirmResponse: () => Response
 let openBills: unknown[]
+/** What `GET /suppliers/{id}/documents` answers, when a case sets its own. */
+let papers: unknown[] | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -176,6 +178,7 @@ beforeEach(async () => {
   detail = DETAIL
   uploads = 0
   openBills = [BILL]
+  papers = null
   confirmResponse = () =>
     json(200, {
       id: 'bill-new',
@@ -194,6 +197,7 @@ beforeEach(async () => {
         { ...CONTACTS[1], purpose: 'MAIN', version: 6 },
         { ...CONTACTS[0], purpose: 'BILLING', version: 3 },
       ])
+    if (url === `${ONE}/documents` && method === 'GET' && papers) return json(200, papers)
     if (url === `${ONE}/documents`)
       return json(200, [
         {
@@ -563,6 +567,96 @@ describe('a supplier, opened', () => {
     expect(expired.getByRole('button', { name: 'Remove' })).toBeTruthy()
   })
 
+  // Owner's answer 4 (2 Oct): the server says whether a paper can be removed now (`removable`).
+  // A paper kept "until deleted" can go at any time; a tax document is under the ten-year rule.
+  const KEPT_PAPERS = [
+    {
+      document: paper('d-quote', 'Lapsed quotation', {
+        kind: 'CORRESPONDENCE',
+        series: null,
+        keep: 'UNTIL_DELETED',
+        retainUntil: null,
+      }),
+      standing: 'ON_FILE',
+      removable: true,
+    },
+    {
+      document: paper('d-bill', 'Bill 118', {
+        kind: 'BILL',
+        series: null,
+        keep: 'TEN_YEAR_RULE',
+        retainUntil: '2037-12-31',
+      }),
+      standing: 'ON_FILE',
+      removable: false,
+    },
+    {
+      // Past its date by this browser's reckoning, yet the server says it stays (a legal hold
+      // placed a moment ago, a clock that differs): the server's word is the one that counts.
+      document: paper('d-old', 'Old rate card', {
+        kind: 'PRICE_LIST',
+        series: null,
+        keep: 'TEN_YEAR_RULE',
+        retainUntil: '2025-12-31',
+      }),
+      standing: 'ON_FILE',
+      removable: false,
+    },
+  ]
+  const paperRow = async (title: string) =>
+    within((await screen.findByText(title)).closest('li') as HTMLElement)
+
+  it('offers Remove exactly where the server says the paper can be removed now', async () => {
+    papers = KEPT_PAPERS
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    const quote = await paperRow('Lapsed quotation')
+    expect(quote.getByRole('button', { name: 'Remove' })).toBeTruthy()
+    expect(quote.queryByText(/Kept until/)).toBeNull()
+    const bill = await paperRow('Bill 118')
+    expect(bill.queryByRole('button', { name: 'Remove' })).toBeNull()
+    expect(bill.getByText(/Kept until .*2037/)).toBeTruthy()
+    // A tax document's kind is named, never shown as a key.
+    expect(bill.getByText(/^Bill · /)).toBeTruthy()
+    expect(bill.queryByText(/supplierRecord\.kind/)).toBeNull()
+    const old = await paperRow('Old rate card')
+    expect(old.queryByRole('button', { name: 'Remove' })).toBeNull()
+    // Download stays for every paper.
+    expect(screen.getAllByRole('button', { name: 'Download' })).toHaveLength(3)
+  })
+
+  it('offers no Remove to someone who may only read suppliers, even on a removable paper', async () => {
+    who = { ...MANAGER, permissions: ['supplier.read'] }
+    papers = KEPT_PAPERS
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    const quote = await paperRow('Lapsed quotation')
+    expect(quote.getByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull()
+  })
+
+  it('files a paper from "Attach document" under the ten-year rule, said out loud', async () => {
+    // The dialog draws no "How long to keep it": the paper is kept as every paper filed from here
+    // always was, and the rule is sent rather than left to the server's default.
+    renderSupplier()
+    fireEvent.click(await screen.findByRole('tab', { name: /Documents/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Attach document' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Attach a document' })
+    expect(within(dialog).queryByRole('radiogroup')).toBeNull()
+    const input = dialog.querySelector('input[type=file]') as HTMLInputElement
+    fireEvent.change(input, {
+      target: { files: [new File(['%PDF-1.4'], 'agreement.pdf', { type: 'application/pdf' })] },
+    })
+    fireEvent.change(within(dialog).getByLabelText(/^Title/), {
+      target: { value: 'Supply agreement 2027' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Attach document' }))
+    await waitFor(() => expect(calls('POST', `${ONE}/documents`)).toHaveLength(1))
+    const form = calls('POST', `${ONE}/documents`)[0][1]?.body as FormData
+    expect(form.get('keep')).toBe('TEN_YEAR_RULE')
+    expect(form.get('title')).toBe('Supply agreement 2027')
+  })
+
   it('keeps a phone number left-to-right inside Arabic text', async () => {
     renderSupplier()
     fireEvent.click(await screen.findByRole('button', { name: 'Manage' }))
@@ -578,6 +672,98 @@ describe('a supplier, opened', () => {
     expect(screen.queryByRole('button', { name: 'Manage' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Attach document' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Switch this supplier off' })).toBeNull()
+  })
+
+  // Owner's answer 6 and confirmation (2 Oct): Viewer and Approver read Suppliers, and "read-only
+  // users see no buttons". Neither role holds any purchase-order code.
+  const ACTIONS = {
+    links: ['Edit supplier', 'New purchase order', 'Record a bill'],
+    buttons: [
+      'Pay them',
+      'Add to a payment run',
+      'Add to a run',
+      'Pay separately',
+      'Attach document',
+      'Manage',
+      'Switch this supplier off',
+      'Remove',
+    ],
+  }
+
+  it.each([
+    ['a Viewer', ['supplier.read', 'invoice.read']],
+    ['an Approver', ['supplier.read', 'invoice.read', 'invoice.approve']],
+  ])('shows %s the record with no action on it, on any tab', async (_who, permissions) => {
+    who = { ...MANAGER, username: 'reader', permissions }
+    papers = [
+      {
+        document: paper('d-quote', 'Lapsed quotation', { keep: 'UNTIL_DELETED' }),
+        standing: 'ON_FILE',
+        removable: true,
+      },
+    ]
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'QMS-2044' })).toBeTruthy()
+    const nothingOffered = () => {
+      for (const name of ACTIONS.links)
+        expect(screen.queryByRole('link', { name: new RegExp(name) }), name).toBeNull()
+      for (const name of ACTIONS.buttons)
+        expect(screen.queryByRole('button', { name }), name).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Open the run' })).toBeNull()
+    }
+    nothingOffered()
+
+    // The tabs they can read, and no tab whose only content is one the server refuses them.
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
+      'Overview',
+      'Bills',
+      'Payments',
+      'Documents',
+    ])
+    for (const tab of ['Bills', 'Payments', 'Documents']) {
+      fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${tab}`) }))
+      await waitFor(() =>
+        expect(
+          screen.getByRole('tab', { name: new RegExp(`^${tab}`) }).getAttribute('aria-selected'),
+        ).toBe('true'),
+      )
+      nothingOffered()
+    }
+    // Reading is still theirs: the paper downloads, and nothing asks for purchase orders.
+    expect(await screen.findByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(calls('GET', '/api/v1/purchase-orders')).toHaveLength(0)
+    expect(calls('GET', '/api/v1/payment-runs')).toHaveLength(0)
+  })
+
+  it('keeps the Orders tab for someone who may read purchase orders', async () => {
+    who = { ...MANAGER, permissions: ['supplier.read', 'invoice.read', 'purchase-order.read'] }
+    renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Orders/ })).toBeTruthy()
+  })
+
+  it('offers a Finance Manager the bill and payment actions, and nothing that changes the record', async () => {
+    who = {
+      ...MANAGER,
+      username: 'finance',
+      permissions: [
+        'supplier.read',
+        'invoice.read',
+        'invoice.payment.manage',
+        'invoice.approve',
+        'purchase-order.read',
+      ],
+    }
+    renderSupplier()
+    expect(await screen.findByRole('link', { name: 'Record a bill' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Pay them' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add to a payment run' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Orders/ })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Edit supplier/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
+    for (const name of ['Attach document', 'Manage', 'Switch this supplier off'])
+      expect(screen.queryByRole('button', { name }), name).toBeNull()
   })
 
   it('lists open bills only in the "Open bills" card, and every document in the Bills tab', async () => {
@@ -637,6 +823,54 @@ describe('a supplier, opened', () => {
     expect(screen.getByRole('link', { name: /Edit supplier/ })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'New purchase order' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Record a bill' })).toBeNull()
+  })
+
+  it('offers no "Pay them" for a switched-off supplier, and offers it again once it is on', async () => {
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', switchedOffAt: '2026-09-17T08:00:00Z' },
+    }
+    const off = renderSupplier()
+    expect(await screen.findByText('Laila Al Harthy')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Pay them' })).toBeNull()
+    expect(screen.queryByText('Pay them')).toBeNull()
+    off.unmount()
+
+    forgetEntitlements()
+    detail = DETAIL
+    renderSupplier()
+    expect(await screen.findByRole('button', { name: 'Pay them' })).toBeTruthy()
+  })
+
+  it('offers no way into a payment run from a switched-off supplier, and every way from one that is on', async () => {
+    // Each of these opens the same dialog, and the server refuses a switched-off supplier's bills
+    // in a run, so none is drawn. A run their bills already sit in can still be opened.
+    who = { ...MANAGER, permissions: [...MANAGER.permissions, 'invoice.payment.manage'] }
+    detail = {
+      ...DETAIL,
+      profile: { ...DETAIL.profile, status: 'SWITCHED_OFF', switchedOffAt: '2026-09-17T08:00:00Z' },
+    }
+    const off = renderSupplier()
+    // The approved bill's row opens the bill instead of offering a run.
+    expect(await screen.findByRole('link', { name: 'Open bill' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: 'Open the run' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Add to a payment run' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add to a run' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Pay separately' })).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    off.unmount()
+
+    forgetEntitlements()
+    detail = DETAIL
+    renderSupplier()
+    expect(await screen.findByRole('button', { name: 'Add to a run' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add to a payment run' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Open the run' })).toBeTruthy()
+    fireEvent.click(await screen.findByRole('button', { name: 'Pay separately' }))
+    expect(
+      await screen.findByRole('dialog', { name: 'Pay Qalhat Marine Supplies LLC' }),
+    ).toBeTruthy()
   })
 
   it('pays them: the ticked bills go into the draft run the modal offers (Figma 163:29156)', async () => {

@@ -98,7 +98,25 @@ export function loadSupplierPurchases(path: string): Promise<SupplierPurchaseDto
   return apiRequest<SupplierPurchaseDto[]>(path)
 }
 
-export type DocumentKind = 'AGREEMENT' | 'CERTIFICATE' | 'PRICE_LIST' | 'CORRESPONDENCE' | 'OTHER'
+/**
+ * `BILL`, `CREDIT_NOTE` and `DEBIT_NOTE` are the tax documents: always kept under the ten-year
+ * rule (owner's answer 4, 2 Oct 2026). The upload forms do not offer them yet.
+ */
+export type DocumentKind =
+  | 'AGREEMENT'
+  | 'CERTIFICATE'
+  | 'PRICE_LIST'
+  | 'CORRESPONDENCE'
+  | 'OTHER'
+  | 'BILL'
+  | 'CREDIT_NOTE'
+  | 'DEBIT_NOTE'
+/**
+ * Which rule a paper is kept under: `UNTIL_DELETED` can be removed at any time, `TEN_YEAR_RULE`
+ * not before `retainUntil`. Left out of an upload, the server keeps the paper under the ten-year
+ * rule, as it kept every paper before the choice existed.
+ */
+export type DocumentKeep = 'UNTIL_DELETED' | 'TEN_YEAR_RULE'
 export type DocumentStanding = 'CURRENT' | 'SUPERSEDED' | 'ON_FILE'
 
 export type SupplierDocumentDto = {
@@ -117,10 +135,21 @@ export type SupplierDocumentDto = {
     retentionClass: string | null
     /** An administrator's freeze (decision 17): the paper stays whatever its retention date says. */
     legalHold: { held: boolean; reason: string | null; setBy: string | null; setAt: string | null }
-    /** VAT Law Art. 70: the paper cannot be removed on or before this day. */
+    /** Absent from a server that predates the choice: such a paper is under the ten-year rule. */
+    keep?: DocumentKeep
+    /**
+     * VAT Law Art. 70: the paper cannot be removed on or before this day. Null for a paper kept
+     * until deleted.
+     */
     retainUntil: string | null
   }
   standing: DocumentStanding
+  /**
+   * Whether the server would remove the paper if asked today: no legal hold, and kept until
+   * deleted or past `retainUntil`. It says nothing of who is asking (`supplier.manage`). Absent
+   * from a server that predates it.
+   */
+  removable?: boolean
 }
 
 export function supplierDocumentsPath(id: string) {
@@ -138,6 +167,8 @@ export type NewSupplierDocument = {
   series: string
   documentDate: string
   note: string
+  /** Left out, the server keeps the paper under the ten-year rule. */
+  keep?: DocumentKeep
 }
 
 /** `supplier.manage`; at most 10 MiB. A later document in the same series supersedes the earlier one. */
@@ -152,6 +183,7 @@ export function uploadSupplierDocument(
   if (document.series.trim()) form.append('series', document.series.trim())
   if (document.documentDate) form.append('documentDate', document.documentDate)
   if (document.note.trim()) form.append('note', document.note.trim())
+  if (document.keep) form.append('keep', document.keep)
   return apiRequest<unknown>(supplierDocumentsPath(id), { method: 'POST', body: form })
 }
 

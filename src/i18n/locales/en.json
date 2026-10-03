@@ -5474,7 +5474,10 @@
         "RELEASED": "Released from hold",
         "PAID": "Payment recorded",
         "REVERSED": "Payment reversed",
-        "NO_ORDER": "Looked for an order"
+        "NO_ORDER": "Looked for an order",
+        "DRAFT_CREATED": "Draft created",
+        "ISSUED": "Issued",
+        "CANCELLED": "Cancelled"
       }
     },
     "decision": {
@@ -6252,7 +6255,8 @@
       "billNotEligible": "That bill cannot be used here. Choose one of this supplier's own bills in the same currency.",
       "endBeforeNext": "The end date is before the next expected bill. Choose a later end date.",
       "formSupplierSwitchedOff": "This supplier is switched off. Switch it back on to add a recurring bill for it.",
-      "recipientUnknown": "The person chosen is no longer on the team. Choose someone else."
+      "recipientUnknown": "The person chosen is no longer on the team. Choose someone else.",
+      "watchingFromTooEarly": "Watching from cannot be earlier than {{date}}. This recurring bill has already been watched from then."
     }
   },
   "supplierCreditNotes": {
@@ -17607,7 +17611,9 @@
     "nothingHere": "Nothing in this list.",
     "problem": {
       "duplicateVat": "You already have a counterparty with this VAT number. Bringing it in again would give you two.",
-      "duplicatePeppol": "You already have a counterparty with this Peppol identifier. Bringing it in again would give you two."
+      "duplicatePeppol": "You already have a counterparty with this Peppol identifier. Bringing it in again would give you two.",
+      "repeatsRowVat": "Row {{row}} of this file has the same VAT number. Only one of them can be brought in.",
+      "repeatsRowPeppol": "Row {{row}} of this file has the same Peppol identifier. Only one of them can be brought in."
     },
     "field": {
       "customerType": "Kind",
@@ -17655,7 +17661,12 @@
       "alreadyOnFile": "Already on file"
     },
     "typeAName": "Type a name",
-    "empty": "Empty"
+    "empty": "Empty",
+    "refused": {
+      "headerNotRecognised": "This file's header row doesn't match Fawtir's template. Download the template and keep its header row."
+    },
+    "alreadyOnFile_one": "{{count}} already on file",
+    "alreadyOnFile_other": "{{count}} already on file"
   },
   "paymentReminders": {
     "backToHistory": "← Reminders sent",
@@ -17890,7 +17901,7 @@
   },
   "approvalPolicy": {
     "title": "Bill approvals",
-    "subtitle": "Who must sign off a supplier's bill before it can be paid. This is the rule the Bills screen enforces. A bill that has not met it cannot be added to a payment run.",
+    "subtitle": "Who must sign off a supplier's bill before it can be paid. This rule applies to bills recorded from now on. Bills already waiting or approved keep their current decision. A bill that has not met it cannot be added to a payment run.",
     "saved": "The approval rule was saved.",
     "notSaved": "NOT SAVED",
     "save": "Save the rule",
@@ -17910,7 +17921,7 @@
       "BELOW_AMOUNT": "Bills under a set amount need no approval",
       "label": "Amount",
       "boundary": "A bill of exactly {{amount}} still needs approval. Only bills below it are let through.",
-      "removing": "This removes the {{amount}} threshold. Bills that needed no approval before will need one from now on."
+      "removing": "This removes the {{amount}} threshold. Bills recorded from now on above the new limit will need approval."
     },
     "problem": {
       "approversRequired": "Say how many approvals a bill needs.",

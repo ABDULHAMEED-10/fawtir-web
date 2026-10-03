@@ -22,6 +22,13 @@ import { describeApiFailure } from '../../lib/apiFailure'
 import { can, useSession } from '../../lib/session/session'
 import { formatDate } from '../../lib/format'
 import { formatBytes } from '../../lib/documentArchive'
+import {
+  documentKindLabelKey,
+  isTaxDocumentKind,
+  keepChoicesFor,
+  keepToSend,
+  type KeepChoice,
+} from '../../lib/supplierRecord'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import selectChevron from '../../assets/create-invoice/chevron.svg'
 import fileIcon from '../../assets/bill-capture/file.svg'
@@ -34,10 +41,22 @@ import supplierIcon from '../../assets/documents/rec-contract.svg'
 const MAX_BYTES = 10 * 1024 * 1024
 const SEARCH_DELAY_MS = 250
 
-const KINDS: DocumentKind[] = ['AGREEMENT', 'CERTIFICATE', 'PRICE_LIST', 'CORRESPONDENCE', 'OTHER']
+/**
+ * The five kinds the frame draws, then the three tax documents (owner's Round 5 answer 1,
+ * 2 Oct 2026). A tax document is named in the words the supplier's Documents tab already uses.
+ */
+const KINDS: DocumentKind[] = [
+  'AGREEMENT',
+  'CERTIFICATE',
+  'PRICE_LIST',
+  'CORRESPONDENCE',
+  'OTHER',
+  'BILL',
+  'CREDIT_NOTE',
+  'DEBIT_NOTE',
+]
 
-type Keep = 'forever' | 'matchInvoice' | 'untilDate'
-const KEEP_OPTIONS: Keep[] = ['forever', 'matchInvoice', 'untilDate']
+type Keep = KeepChoice
 
 type Picked = { id: string; name: string; vatNumber: string | null }
 
@@ -49,9 +68,16 @@ type Picked = { id: string; name: string; vatNumber: string | null }
  * and date go as the API takes them; "Valid until" and the tags ride in the document's note, which
  * is where a person reading it on the supplier's page will find them.
  *
- * TODO(backend): reading the file for a title, a date and a match (ask 3.13), a retention choice
- * (ask 3.14), attaching to a customer, an invoice, an order or a catalogue item, and tags of their
- * own (ask 3.15). Each is drawn and kept in the form; none is sent.
+ * "How long to keep it" is sent as `keep` (owner's answer 4, 2 Oct 2026): until deleted, or the
+ * ten-year rule. A tax document (bill, credit or debit note, each a "Kind of document" since his
+ * Round 5 answer 1) is always under the ten-year rule, so it is offered that rule alone. A server
+ * that is sent the other choice for one refuses it (`SUPPLIER_DOCUMENT_TAX_DOCUMENT_KEPT_TEN_YEARS`);
+ * this page cannot send that, and the refusal reads as the general one.
+ *
+ * TODO(backend): reading the file for a title, a date and a match (ask 3.13), attaching to a
+ * customer, an invoice, an order or a catalogue item, and tags of their own (ask 3.15): each is
+ * drawn and kept in the form; none is sent. A dated deletion (ask 3.14): the frame's "Until a
+ * date I choose" is not drawn until the server has one.
  */
 export function UploadDocumentPage() {
   return (
@@ -82,7 +108,6 @@ function UploadDocument() {
   const [newTag, setNewTag] = useState('')
   const [addingTag, setAddingTag] = useState(false)
   const [keep, setKeep] = useState<Keep>('forever')
-  const [deleteAfter, setDeleteAfter] = useState('')
   const [errors, setErrors] = useState<{ file?: string; title?: string; supplier?: string }>({})
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -99,9 +124,16 @@ function UploadDocument() {
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
   const hasFile = files.length > 0
 
+  // A tax document is offered the ten-year rule alone, whatever was ticked before its kind was
+  // chosen: the choice shown as on is the one that will be sent.
+  const keepOptions = keepChoicesFor(kind)
+  const keepShown: Keep = keepOptions.includes(keep) ? keep : keepOptions[0]
+
   const kindOptions: SelectOption[] = KINDS.map((value) => ({
     value,
-    label: t(`documents.upload.kinds.${value}`),
+    label: t(
+      isTaxDocumentKind(value) ? documentKindLabelKey(value) : `documents.upload.kinds.${value}`,
+    ),
   }))
 
   const note = [
@@ -132,6 +164,7 @@ function UploadDocument() {
           series: files.length > 1 ? '' : title,
           documentDate: dateOn,
           note,
+          keep: keepToSend(kind, keepShown),
         })
       }
       navigate(`/suppliers/${encodeURIComponent(supplier.id)}`)
@@ -381,7 +414,10 @@ function UploadDocument() {
                   label={t('documents.upload.alsoAttach')}
                   optional={t('documents.upload.optional')}
                 />
-                {/* TODO(backend): attaching a paper to an invoice, an order or an item (ask 3.15). */}
+                {/* Stays as drawn, with nothing to choose (owner's Round 5 answer 1, 2 Oct 2026).
+                    TODO(backend): DOCUMENTS.md row 3.29 (and 3.15). What may be attached to (the
+                    supplier's bills, notes and orders, to search), and an attachment sent with
+                    the upload and read back on both records. Nothing is sent for it today. */}
                 <Select
                   value={attachTo}
                   onChange={setAttachTo}
@@ -451,14 +487,16 @@ function UploadDocument() {
               <h2 className="text-base font-medium leading-[1.2] text-text-primary">
                 {t('documents.upload.keepTitle')}
               </h2>
-              {/* TODO(backend): a retention choice on an uploaded paper (ask 3.14); kept in the form. */}
+              {/* Sent as `keep`. TODO(backend): DOCUMENTS.md row 3.30. A chosen date and a deletion
+                  job behind the frame's third choice, "Until a date I choose"; it stays hidden
+                  until the server has them (owner's Round 5 answer 2, 2 Oct 2026). */}
               <div
                 className="mt-4 flex flex-col gap-2.5"
                 role="radiogroup"
                 aria-label={t('documents.upload.keepTitle')}
               >
-                {KEEP_OPTIONS.map((option) => {
-                  const on = keep === option
+                {keepOptions.map((option) => {
+                  const on = keepShown === option
                   return (
                     <button
                       key={option}
@@ -493,17 +531,6 @@ function UploadDocument() {
                   )
                 })}
               </div>
-              {keep === 'untilDate' ? (
-                <div className="mt-3 flex flex-col gap-2">
-                  <FieldLabel label={t('documents.upload.keep.pickDate')} />
-                  <DateField
-                    value={deleteAfter}
-                    onChange={setDeleteAfter}
-                    min={dateOn || undefined}
-                    ariaLabel={t('documents.upload.keep.pickDate')}
-                  />
-                </div>
-              ) : null}
             </section>
 
             <section className="rounded-md bg-surface-card p-6">

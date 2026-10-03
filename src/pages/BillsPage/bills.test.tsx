@@ -11,7 +11,10 @@ import {
   rowActionOf,
   statusLabelKey,
   toBillListItem,
+  workflowStateOf,
 } from '../../lib/billList'
+import { rowAction, whereNote } from '../../lib/supplierDetail'
+import { billStateKey } from '../../lib/supplierDebitNotes'
 import { BillsPage } from './BillsPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
@@ -373,6 +376,122 @@ describe('Bills list, wired to the API', () => {
     expect(calls(SUMMARY_URL).length).toBeGreaterThan(1)
   })
 
+  // Owner's Round 5 answer 1 (2 Oct): approved while the mismatch is unresolved still reads Mismatch.
+  it('keeps the Mismatch chip on a bill people approved while it differs from its order, whichever state the server names', async () => {
+    const approvedByPeople = {
+      state: 'READY',
+      distinctApprovals: 1,
+      required: 1,
+      autoApproved: false,
+    } as const
+    const differs = { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false } as const
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            // The server after the change.
+            bill({
+              id: 'new',
+              supplierName: 'Newer Server Co',
+              workflowState: 'MISMATCH',
+              readiness: approvedByPeople,
+              match: differs,
+            }),
+            // Today's server: APPROVED beside the mismatch verdict.
+            bill({
+              id: 'old',
+              supplierName: 'Older Server Co',
+              workflowState: 'APPROVED',
+              readiness: approvedByPeople,
+              match: differs,
+            }),
+            // Matched by hand since: approved reads Approved.
+            bill({
+              id: 'ok',
+              supplierName: 'Resolved Co',
+              workflowState: 'APPROVED',
+              readiness: approvedByPeople,
+              match: { verdict: 'MATCHED_BY_HAND', purchaseOrderNumber: 'PO-9', byHand: true },
+            }),
+          ]),
+        ),
+    ]
+    renderBills()
+    for (const name of ['Newer Server Co', 'Older Server Co']) {
+      const row = (await screen.findByText(name)).closest('tr')!
+      expect(within(row).getByText('Mismatch found')).toBeTruthy()
+      expect(within(row).queryByText('Approved')).toBeNull()
+      expect(within(row).queryByRole('button', { name: 'Approve' })).toBeNull()
+    }
+    const resolved = screen.getByText('Resolved Co').closest('tr')!
+    expect(within(resolved).getByText('Approved')).toBeTruthy()
+    expect(within(resolved).queryByText('Mismatch found')).toBeNull()
+  })
+
+  // The state the server sends for it (contract note, Round 7). Approve and the nudge are offered
+  // from the approvals (`readiness.state: PENDING`), never from the word "Mismatch": here they
+  // would answer APPROVAL_TRANSITION_INVALID and BILL_APPROVAL_NOT_PENDING.
+  it('offers a look at the difference, and neither Approve nor a nudge, on an approved bill that reads Mismatch', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            {
+              ...bill({
+                workflowState: 'MISMATCH',
+                readiness: {
+                  state: 'READY',
+                  distinctApprovals: 1,
+                  required: 1,
+                  autoApproved: false,
+                },
+                match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-0001', byHand: false },
+              }),
+              approval: 'APPROVED',
+            },
+          ]),
+        ),
+    ]
+    renderBills()
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    expect(within(row).getByText('Mismatch found')).toBeTruthy()
+    expect(within(row).getByText('Differs from the order')).toBeTruthy()
+    expect(within(row).queryByText(/Waiting on approval/)).toBeNull()
+    expect(within(row).getByRole('link', { name: 'Review the difference' })).toBeTruthy()
+    expect(within(row).queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Nudge the approver' })).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: 'Bill actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Approve' })).toBeNull()
+    // Holding it and rejecting it are still there.
+    expect(screen.getByRole('menuitem', { name: 'Put on hold' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Reject' })).toBeTruthy()
+    // No approve or nudge call was made.
+    expect(
+      fetchMock.mock.calls.some(([url]) => /\/approval\/(approve|nudge)/.test(String(url))),
+    ).toBe(false)
+    // The mapping itself: an approved mismatch is never approvable, whoever is reading.
+    const item = toBillListItem(
+      bill({
+        workflowState: 'MISMATCH',
+        readiness: { state: 'READY', distinctApprovals: 1, required: 1, autoApproved: false },
+        match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-0001', byHand: false },
+      }),
+    )
+    expect(item.canApprove).toBe(false)
+    expect(rowActionOf(item, { canApprove: true, canCapture: true })).toBe('reviewDifference')
+    // And an unapproved mismatch is still not approved from the list: its difference is looked at first.
+    const pending = toBillListItem(
+      bill({
+        workflowState: 'MISMATCH',
+        readiness: { state: 'PENDING', distinctApprovals: 0, required: 1, autoApproved: false },
+        match: { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-0001', byHand: false },
+      }),
+    )
+    expect(rowActionOf(pending, { canApprove: true, canCapture: true })).toBe('reviewDifference')
+  })
+
   it('offers Approve only on a new or awaiting bill, never on a mismatch, and names the approvals still needed', async () => {
     listResponses = [
       () =>
@@ -406,6 +525,65 @@ describe('Bills list, wired to the API', () => {
     const awaiting = screen.getByText('Awaiting Co').closest('tr')!
     expect(within(awaiting).getByText('Waiting on approval · 1 of 2')).toBeTruthy()
     expect(within(awaiting).getByRole('button', { name: 'Approve' })).toBeTruthy()
+  })
+
+  // Owner's answer 1 (2 Oct): a new approval policy applies to new bills only, so each bill carries
+  // the count it was recorded under and two rows of one page can differ.
+  it('names each bill\'s own approval count, never the settings page\'s', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              id: 'old',
+              supplierName: 'Recorded Before Co',
+              workflowState: 'AWAITING_APPROVAL',
+              readiness: { state: 'PENDING', distinctApprovals: 0, required: 1, autoApproved: false },
+            }),
+            bill({
+              id: 'new',
+              supplierName: 'Recorded After Co',
+              workflowState: 'AWAITING_APPROVAL',
+              readiness: { state: 'PENDING', distinctApprovals: 1, required: 2, autoApproved: false },
+            }),
+          ]),
+        ),
+    ]
+    renderBills()
+    const before = (await screen.findByText('Recorded Before Co')).closest('tr')!
+    expect(within(before).getByText('Waiting on approval')).toBeTruthy()
+    const after = screen.getByText('Recorded After Co').closest('tr')!
+    expect(within(after).getByText('Waiting on approval · 1 of 2')).toBeTruthy()
+    // The policy in Settings is what the NEXT bill is given: the list never reads it.
+    expect(calls('/api/v1/expenditure/approval-policy')).toEqual([])
+  })
+
+  // Confirmed item 21 (2 Oct): a bill approved by its amount reads APPROVED from the server.
+  it('shows a bill approved by its amount as Approved, with no Approve on the row or in its menu', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              workflowState: 'APPROVED',
+              readiness: { state: 'READY', distinctApprovals: 0, required: 2, autoApproved: true },
+            }),
+          ]),
+        ),
+    ]
+    renderBills('/expenditure/bills?tab=approved')
+    const row = (await screen.findByText('QMS-7781')).closest('tr')!
+    expect(within(row).getByText('Approved')).toBeTruthy()
+    expect(within(row).queryByText(/Waiting on approval/)).toBeNull()
+    expect(within(row).queryByText('New, not reviewed')).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(within(row).queryByRole('button', { name: 'Nudge the approver' })).toBeNull()
+    fireEvent.click(within(row).getByRole('button', { name: 'Bill actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Approve' })).toBeNull()
+    // What an approved bill still offers is still there.
+    expect(screen.getByRole('menuitem', { name: 'Put on hold' })).toBeTruthy()
   })
 
   it('says when drafts are waiting and when a tab stopped at its window', async () => {
@@ -469,6 +647,25 @@ describe('Bills list, wired to the API', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
   })
 
+  it('offers "Start a payment run" only to someone who can manage payment runs', async () => {
+    // The card and its figures stay for a reader; only the link into a new run goes.
+    who = READ_ONLY
+    const reader = renderBills()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.getByText('4 approved bills')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Start a payment run/ })).toBeNull()
+    expect(screen.queryByText('Start a payment run')).toBeNull()
+    reader.unmount()
+
+    forgetEntitlements()
+    who = CAPTURER
+    renderBills()
+    await screen.findByText('Qalhat Marine Supplies')
+    expect(screen.getByRole('link', { name: /Start a payment run/ }).getAttribute('href')).toBe(
+      '/expenditure/payments/new',
+    )
+  })
+
   it('offers no export without the export permission', async () => {
     // ADMIN here holds no `invoice.export`: hidden, not shown disabled.
     renderBills()
@@ -527,9 +724,63 @@ describe('Bills list, wired to the API', () => {
     // Latin digits either way.
     expect(screen.getByText('1,234.560')).toBeTruthy()
   })
+
+  // Owner's Round 5 answer 6 (2 Oct): "Paid on the day" is «دُفعت في الحال»; Release stays «إفراج».
+  it('says a bill paid on the day in the owner\'s Arabic', async () => {
+    listResponses = [
+      () =>
+        json(
+          200,
+          itemsPage([
+            bill({
+              id: 'spot',
+              supplierName: 'Counter Co',
+              workflowState: 'PAID',
+              paidOnTheSpot: true,
+              dueDate: null,
+              outstandingAmount: 0,
+            }),
+          ]),
+        ),
+    ]
+    await i18n.changeLanguage('ar')
+    renderBills()
+    const row = (await screen.findByText('Counter Co')).closest('tr')!
+    expect(within(row).getByText('دُفعت في الحال')).toBeTruthy()
+    expect(within(row).queryByText('دُفعت في حينها')).toBeNull()
+    expect(i18n.t('billDetail.decision.release')).toBe('إفراج')
+    await i18n.changeLanguage('en')
+    expect(i18n.t('billsPage.rows.paidOnTheDay')).toBe('Paid on the day')
+  })
 })
 
 describe('bill list mapping', () => {
+  it('reads a bill approved while it differs from its order as a mismatch, wherever its state is named', () => {
+    const differs = { verdict: 'MISMATCH', purchaseOrderNumber: 'PO-9', byHand: false } as const
+    const approved = bill({ workflowState: 'APPROVED', match: differs })
+    expect(workflowStateOf(approved)).toBe('MISMATCH')
+    expect(workflowStateOf(bill({ workflowState: 'MISMATCH', match: differs }))).toBe('MISMATCH')
+    // Only an approved bill is re-read: a paid or held one keeps the state the server gave it.
+    expect(workflowStateOf(bill({ workflowState: 'PAID', match: differs }))).toBe('PAID')
+    expect(workflowStateOf(bill({ workflowState: 'ON_HOLD', match: differs }))).toBe('ON_HOLD')
+    expect(workflowStateOf(bill({ workflowState: 'APPROVED', match: null }))).toBe('APPROVED')
+    // The supplier's page offers no payment run for it, and says where it differs.
+    expect(rowAction(approved, null, true)).toEqual({
+      key: 'supplierRecord.openBill',
+      to: `/expenditure/bills/${approved.id}`,
+    })
+    expect(whereNote(approved, null)).toEqual({
+      key: 'supplierDetail.where.mismatch',
+      values: { po: 'PO-9' },
+    })
+    expect(rowAction(bill({ workflowState: 'APPROVED', match: null }), null, true)).toEqual({
+      key: 'supplierDetail.addToRun',
+      pay: true,
+    })
+    // And a note picking a bill names it the same way.
+    expect(billStateKey(approved)).toBe('supplierNotes.billState.mismatch')
+  })
+
   it('notes a credit note, and settles counter purchases without a due date', () => {
     expect(toBillListItem(bill({ documentTypeCode: '381' })).amountNote).toEqual({
       key: 'billsPage.rows.creditNote',

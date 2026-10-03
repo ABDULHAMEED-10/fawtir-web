@@ -504,6 +504,8 @@ describe('A self-billed invoice through its own door', () => {
         { paymentRunReference: 'PR-0007' },
         'The supplier bill for this document is in payment run PR-0007. Pay it there, or take it out of the run first.',
       ],
+      // Owner's answer 2 (2 Oct): the payment run's own sentence, word for word.
+      ['BILL_PAYMENT_MISMATCHED', {}, "That bill doesn't match its order."],
     ])('%s', async (error, extra, sentence) => {
       billPaymentResponse = refusal(error, extra)
       const dialog = await pay()

@@ -38,6 +38,7 @@ import {
   lineVatOf,
   decisionNoteOf,
   decisionsOf,
+  isSelfBilled,
   singleVatRate,
   stepsOf,
   termsDaysOf,
@@ -78,8 +79,8 @@ const STEP_CIRCLE: Record<BillStepState, string> = {
 
 /**
  * What the bill payment route refuses, as the dialog says it. The button is already hidden for a
- * bill that is unapproved, held or in a run, so those only show when the bill changed after the
- * page loaded. Decimals and the date read as the invoice dialog's own lines.
+ * bill that is unapproved, held, mismatched or in a run, so those only show when the bill changed
+ * after the page loaded. Decimals and the date read as the invoice dialog's own lines.
  *
  * The dialog refuses an amount above the outstanding amount it holds before asking
  * ({@link BILL_AMOUNT_TOO_MUCH}), so when the server refuses one, the figure the page holds is
@@ -89,6 +90,8 @@ const STEP_CIRCLE: Record<BillStepState, string> = {
 const BILL_PAYMENT_REFUSALS: NonNullable<Parameters<typeof RecordPaymentModal>[0]['refusals']> = {
   BILL_NOT_READY_FOR_PAYMENT: { field: null, key: 'billDetail.pay.notApproved' },
   BILL_PAYMENT_ON_HOLD: { field: null, key: 'billDetail.pay.onHold' },
+  // The payment run's own sentence for the same refusal, word for word (owner's answer 2, 2 Oct).
+  BILL_PAYMENT_MISMATCHED: { field: null, key: 'paymentRuns.refused.mismatched' },
   BILL_PAYMENT_EXCEEDS_OUTSTANDING: {
     field: 'amount',
     key: 'billDetail.pay.tooMuch',
@@ -250,6 +253,7 @@ function BillScreen() {
   })
   const decisions = decisionsOf(detail, (permission) => can(session, permission))
   const payable = canRecordPayment(detail, (permission) => can(session, permission))
+  const selfBilled = isSelfBilled(detail)
   const original = billOriginalPath(detail)
   const orderNumber =
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
@@ -449,18 +453,27 @@ function BillScreen() {
 
           <Card>
             <div className="mb-4 flex flex-wrap items-baseline gap-2">
+              {/* A self-billed bill is this company's own document: its lines sit under the
+                  self-bill page's heading, and nothing is "as sent by the supplier" (owner's
+                  answer 3, 2 Oct). */}
               <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">
-                {t('billDetail.lines.title')}
+                {selfBilled ? t('selfBillDetail.sections.items') : t('billDetail.lines.title')}
               </h2>
-              <span className="text-sm font-medium text-text-quaternary">
-                {t('billDetail.lines.asSent')}
-              </span>
+              {selfBilled ? null : (
+                <span className="text-sm font-medium text-text-quaternary">
+                  {t('billDetail.lines.asSent')}
+                </span>
+              )}
             </div>
 
             {detail.lines.length === 0 ? (
-              <p className="py-6 text-center text-sm font-medium text-text-quaternary">
-                {t('billDetail.lines.none')}
-              </p>
+              // No lines on a self-billed bill (a server from before they were sent, or a document
+              // that can no longer be read) is not something "the supplier sent".
+              selfBilled ? null : (
+                <p className="py-6 text-center text-sm font-medium text-text-quaternary">
+                  {t('billDetail.lines.none')}
+                </p>
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] border-collapse text-start">

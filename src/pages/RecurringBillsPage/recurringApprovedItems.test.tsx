@@ -1186,7 +1186,10 @@ describe('editing a recurring bill', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Shop rent' })).toBeTruthy()
   })
 
-  it('keeps the currency, the count left and the terms of an instruction Fawtir raises (REC-14)', async () => {
+  // Owner's Round 5 answer 3 (2 Oct): the remaining count changes only when the user edits the
+  // count field itself. The form has no such field, so an edit never sends a count: null keeps
+  // the stored one on the server, and a run that used one up meanwhile is not written over.
+  it('keeps the currency and the terms of an instruction Fawtir raises, and leaves its count left to the server (REC-14)', async () => {
     await openEdit('rb-raise')
     // A raising instruction asks for its first date, not an arrival day.
     expect(screen.getByText('When it is raised')).toBeTruthy()
@@ -1198,12 +1201,24 @@ describe('editing a recurring bill', () => {
       mode: 'RAISE',
       description: 'Windows',
       currencyCode: 'USD',
-      occurrences: 6,
+      occurrences: null,
       paymentTermsDays: null,
       arrivesAroundDay: null,
       watchingFrom: null,
       toleranceEnabled: null,
     })
+  })
+
+  it('never echoes the stored count on an edit, whatever it is', () => {
+    for (const remainingOccurrences of [6, 1, 0, null]) {
+      const stored = { ...RAISING, remainingOccurrences }
+      const request = toRecurringRequest(formOf(stored, '2026-10-01'), stored)
+      expect(request.occurrences, String(remainingOccurrences)).toBeNull()
+      // The field is still sent, as null: "keep the stored count", never left to a default.
+      expect('occurrences' in request).toBe(true)
+      // What the form does not show and the server does not keep on a null still goes back.
+      expect(request.currencyCode).toBe('USD')
+    }
   })
 
   it('a new one is still in rial, with no count, and its terms as the due day says', () => {
@@ -1293,9 +1308,9 @@ describe('the detail and the list, where the audit found no test', () => {
     expect(
       screen.getByText('Fawtir writes this bill itself on the day, for the usual amount.'),
     ).toBeTruthy()
-    expect(
-      (screen.getByRole('button', { name: 'Chase the supplier' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    // Nothing is waited for, so Chase is not drawn at all (it used to be drawn greyed out).
+    expect(screen.queryByRole('button', { name: 'Chase the supplier' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Pause watching' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Mark as received' })).toBeNull()
   })
 
@@ -1360,6 +1375,78 @@ describe('a resume the server refuses, on the list', () => {
   })
 })
 
+/* ------------------------------------------------- "Watching from", moved earlier */
+// Owner's answer 13 (2 Oct): "Watching from" cannot move earlier than the first period already
+// watched. The earliest date is only known at save time, so the server says it with the refusal.
+// New wording, for the owner.
+describe('"Watching from" moved earlier than the first period already watched', () => {
+  const tooEarly = (earliestWatchingFrom?: string) =>
+    json(400, {
+      type: 'https://api.fawtir.om/problems/expenditure-refused',
+      title: 'Request refused',
+      status: 400,
+      detail:
+        'Watching from cannot be earlier than 2026-09-06: this recurring bill has already been watched from the period expected on 2026-10-05',
+      error: 'RECURRING_BILL_WATCHING_FROM_TOO_EARLY',
+      ...(earliestWatchingFrom ? { earliestWatchingFrom } : {}),
+    })
+  const ENGLISH =
+    'Watching from cannot be earlier than 6 Sept 2026. This recurring bill has already been watched from then.'
+
+  it('says the earliest date the server names, under the field, and keeps the form open', async () => {
+    await openEdit('rb-1')
+    fireEvent.change(screen.getByLabelText(/^What to call it/), { target: { value: 'Rent' } })
+    fetchMock.mockImplementationOnce(async () => tooEarly('2026-09-06'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    const sentence = await screen.findByText(ENGLISH)
+    // On the field, as every other field's refusal is: an alert under "Watching from".
+    expect(sentence.getAttribute('role')).toBe('alert')
+    expect(within(sentence.parentElement as HTMLElement).getByText('Watching from')).toBeTruthy()
+    // Never the server's English detail, the code or the general refusal.
+    expect(screen.queryByText(/expected on 2026-10-05/)).toBeNull()
+    expect(screen.queryByText(/RECURRING_BILL_WATCHING_FROM_TOO_EARLY/)).toBeNull()
+    expect(screen.queryByText(/The server refused this/)).toBeNull()
+    // Nothing was saved, and the other edits are still there.
+    expect(screen.getByRole('heading', { level: 1, name: 'Edit a recurring bill' })).toBeTruthy()
+    expect((screen.getByLabelText(/^What to call it/) as HTMLInputElement).value).toBe('Rent')
+  })
+
+  it('says it in Arabic, with the field named as the form names it', async () => {
+    await openEdit('rb-1')
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    fetchMock.mockImplementationOnce(async () => tooEarly('2026-09-06'))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('recurringBills.form.save') }))
+    const sentence = await screen.findByText(/^لا يمكن أن يكون تاريخ «المراقبة من» قبل /)
+    expect(sentence.textContent).toMatch(/\. تمت مراقبة هذه الفاتورة المتكررة منذ ذلك التاريخ\.$/)
+    expect(sentence.textContent).not.toMatch(/2026-09-06/)
+  })
+
+  it('saves once the refusal is answered: the sentence goes, and the next save goes through', async () => {
+    await openEdit('rb-1')
+    fetchMock.mockImplementationOnce(async () => tooEarly('2026-09-06'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    expect(await screen.findByText(ENGLISH)).toBeTruthy()
+    // The same form saves when the server accepts it.
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    await waitFor(() => expect(calls('PUT', '/api/v1/recurring-bills/rb-1')).toHaveLength(2))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Shop rent' })).toBeTruthy()
+    expect(screen.queryByText(ENGLISH)).toBeNull()
+  })
+
+  it('reads the general refusal when the server names no date', async () => {
+    await openEdit('rb-1')
+    fetchMock.mockImplementationOnce(async () => tooEarly())
+    fireEvent.click(screen.getByRole('button', { name: 'Save the changes' }))
+    expect(await screen.findByText(/The server refused this/)).toBeTruthy()
+    expect(screen.queryByText(/RECURRING_BILL_WATCHING_FROM_TOO_EARLY/)).toBeNull()
+  })
+})
+
+// Draft wording, pending the owner (Wording-For-Abdul.md section 8). A correction there changes
+// the sentences below with it. The supplier code is the one Resume meets on the list, where it
+// keeps its own sentence (the describe above).
 // The supplier code is the one Resume meets on the list, where it keeps its own sentence (the
 // describe above).
 describe('a save the server refuses, on the add and edit form', () => {

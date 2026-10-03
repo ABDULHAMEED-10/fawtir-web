@@ -44,6 +44,11 @@ export type BillRowDto = {
   /** The order number the supplier wrote on the bill (IBT-013), not the buyer's match. */
   purchaseOrderReference: string | null
   workflowState: BillWorkflowState
+  /**
+   * The decision as the server names it ("APPROVED" on a bill people approved, also while it
+   * reads `MISMATCH`). Not read by the screens: what is left to approve comes from `readiness`.
+   */
+  approval?: string
   readiness: { state: 'PENDING' | 'READY' | 'REJECTED'; distinctApprovals: number; required: number; autoApproved: boolean }
   match: {
     verdict: 'MATCHED' | 'MATCHED_BY_HAND' | 'MISMATCH' | 'NO_ORDER'
@@ -320,7 +325,23 @@ export type BillDetailDto = {
   }
   activity: {
     at: string | null
-    kind: 'ARRIVED' | 'CONFIRMED' | 'MATCHED' | 'APPROVED' | 'REJECTED' | 'HELD' | 'RELEASED' | 'PAID' | 'REVERSED'
+    /**
+     * The last three are the steps of the self-billed document, on a `SELF_BILLED` bill only, and
+     * only from a server that sends them.
+     */
+    kind:
+      | 'ARRIVED'
+      | 'CONFIRMED'
+      | 'MATCHED'
+      | 'APPROVED'
+      | 'REJECTED'
+      | 'HELD'
+      | 'RELEASED'
+      | 'PAID'
+      | 'REVERSED'
+      | 'DRAFT_CREATED'
+      | 'ISSUED'
+      | 'CANCELLED'
     detail: string | null
     actor: string | null
   }[]

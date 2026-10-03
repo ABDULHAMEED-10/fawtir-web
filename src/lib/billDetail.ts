@@ -161,10 +161,21 @@ export function decisionsOf(
 }
 
 /**
- * Whether a payment can be recorded on this bill now: it is approved, not on hold, not in a
- * payment run, still owes money, and the reader may record payments. Anything else and the action
- * is not offered at all (owner decision 2026-10-01: hidden, not disabled). A held bill is
- * released first; a bill in a run is paid there, or taken out of the run.
+ * The stored match verdict says the bill does not agree with its order. Until that is resolved
+ * (matched by hand, the match taken off, or matched again and agreeing) the bill is not ready to
+ * pay, whoever or whatever approved it: the server refuses a single payment with
+ * `BILL_PAYMENT_MISMATCHED`, as a payment run always has (owner's answer 2, 2 Oct 2026).
+ */
+export function mismatchUnresolved(detail: BillDetailDto): boolean {
+  return detail.bill.match?.verdict === 'MISMATCH'
+}
+
+/**
+ * Whether a payment can be recorded on this bill now: it is approved, not on hold, does not
+ * disagree with its order, is not in a payment run, still owes money, and the reader may record
+ * payments. Anything else and the action is not offered at all (owner decision 2026-10-01:
+ * hidden, not disabled). A held bill is released first; a mismatch is resolved first; a bill in a
+ * run is paid there, or taken out of the run.
  */
 export function canRecordPayment(
   detail: BillDetailDto,
@@ -175,6 +186,7 @@ export function canRecordPayment(
     !isCreditNote(detail) &&
     detail.readiness.state === 'READY' &&
     detail.hold === null &&
+    !mismatchUnresolved(detail) &&
     !inPaymentRun(detail) &&
     detail.settlement.paymentState !== 'PAID' &&
     detail.settlement.outstandingAmount > 0
@@ -192,6 +204,10 @@ export function decisionNoteOf(detail: BillDetailDto): Note {
     return { key: 'billDetail.decision.rejected', values: { reason: rejection?.reason ?? '' } }
   }
   if (readiness.state === 'READY') {
+    // Approved, by people or by its amount, but it still differs from its order: nothing pays it
+    // until that is resolved, so the panel does not say it can be paid. It says what the match
+    // card says (owner's Round 5 answer 1, 2 Oct 2026: keep showing Mismatch).
+    if (mismatchUnresolved(detail)) return { key: 'billDetail.match.differs' }
     return {
       key: readiness.autoApproved
         ? 'billDetail.decision.belowLimit'
@@ -410,6 +426,41 @@ export type ActivityEntry = {
 }
 
 /**
+ * The kinds this page has wording for, under `billDetail.activity.kind`: the bill's own events,
+ * and the steps of the self-billed document a self-billed bill was raised from (`DRAFT_CREATED`,
+ * `ISSUED`, `CANCELLED`; owner's answer 3, 2 Oct 2026: "take it from the self-billed document's
+ * history"). Those three are the invoice history's own event names and carry the same words the
+ * self-bill page uses for them (`invoiceDetails.event.*`).
+ *
+ * TODO(backend): EXPENDITURE.md row 1.23. The full history of the self-billed document in
+ * `activity[]` (owner's Round 5 answer 4: created, issued and cancelled are enough for now).
+ */
+const KNOWN_KINDS = new Set([
+  'ARRIVED',
+  'CONFIRMED',
+  'MATCHED',
+  'APPROVED',
+  'REJECTED',
+  'HELD',
+  'RELEASED',
+  'PAID',
+  'REVERSED',
+  'DRAFT_CREATED',
+  'ISSUED',
+  'CANCELLED',
+])
+
+/** A kind this page has no wording for reads "Recorded", as the invoice history does; never the key. */
+function activityKey(kind: string): string {
+  return KNOWN_KINDS.has(kind) ? `billDetail.activity.kind.${kind}` : 'invoiceDetails.event.other'
+}
+
+/** A self-billed bill: this company's own document, issued on the supplier's behalf. */
+export function isSelfBilled(detail: BillDetailDto): boolean {
+  return detail.bill.source === 'SELF_BILLED'
+}
+
+/**
  * Newest first, as the server orders it. The API names no actor, so only "you" can be said. The
  * server's own detail text leads with enum names for arrivals and matches ("UPLOADED x.pdf",
  * "MISMATCH — …"), so those two read from the structured fields instead.
@@ -420,7 +471,7 @@ export function activityOf(detail: BillDetailDto, userId: string | null): Activi
     key:
       entry.kind === 'MATCHED' && lookedAndFoundNothing
         ? 'billDetail.activity.kind.NO_ORDER'
-        : `billDetail.activity.kind.${entry.kind}`,
+        : activityKey(entry.kind),
     at: entry.at,
     detail:
       entry.kind === 'ARRIVED'

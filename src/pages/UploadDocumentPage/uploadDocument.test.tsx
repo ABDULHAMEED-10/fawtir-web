@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -52,22 +52,26 @@ const json = (status: number, body?: unknown) =>
 
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
+let postAnswer: (() => Response) | null
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = MANAGER
+  postAnswer = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.startsWith('/api/v1/suppliers?'))
       return json(200, { items: [SUPPLIER], page: 0, pageSize: 20, count: 1, total: 1 })
     if (url === '/api/v1/suppliers/s-gulf/documents' && (!init?.method || init.method === 'GET'))
       return json(200, [])
-    if (url === '/api/v1/suppliers/s-gulf/documents' && init?.method === 'POST')
+    if (url === '/api/v1/suppliers/s-gulf/documents' && init?.method === 'POST') {
+      if (postAnswer) return postAnswer()
       // The server's own answer: filing needs `supplier.manage`.
       return who.permissions.includes('supplier.manage')
         ? json(201, {})
         : json(403, { type: 'https://api.fawtir.om/problems/forbidden', status: 403 })
+    }
     throw new Error(`unexpected request to ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -79,6 +83,20 @@ afterEach(() => {
 })
 
 describe('Upload a document', () => {
+  const renderUpload = () =>
+    render(
+      <MemoryRouter initialEntries={['/compliance/documents/upload']}>
+        <Routes>
+          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
+          <Route path="/suppliers/:slug" element={<p>supplier page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+  const posts = () =>
+    fetchMock.mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+    ) as [string, RequestInit][]
+
   it('files the paper against the chosen supplier, with what the API takes', async () => {
     const { container } = render(
       <MemoryRouter initialEntries={['/compliance/documents/upload']}>
@@ -122,6 +140,175 @@ describe('Upload a document', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
   })
 
+  // Owner's answer 4 (2 Oct): the "How long to keep it" choice is sent with the paper.
+  const fileAPaper = async (choose?: string) => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/compliance/documents/upload']}>
+        <Routes>
+          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
+          <Route path="/suppliers/:slug" element={<p>supplier page</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('button', { name: /Save Document/ })
+    const input = container.querySelector('input[type=file]') as HTMLInputElement
+    const file = new File(['%PDF-1.4'], 'lapsed-quote.pdf', { type: 'application/pdf' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(await screen.findByText('lapsed-quote.pdf')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Who or what it belongs to' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Gulf Cold Logistics/ }))
+    if (choose) fireEvent.click(screen.getByRole('radio', { name: new RegExp(choose) }))
+    fireEvent.click(screen.getByRole('button', { name: /Save Document/ }))
+    expect(await screen.findByText('supplier page')).toBeTruthy()
+    const post = fetchMock.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+    )
+    return (post?.[1] as RequestInit).body as FormData
+  }
+
+  it('sends the screen\'s own default, "Keep it indefinitely", as kept until deleted', async () => {
+    // Left out, the server keeps the paper under the ten-year rule: the default has to be sent.
+    const form = await fileAPaper()
+    expect(form.get('keep')).toBe('UNTIL_DELETED')
+  })
+
+  it('sends "Match the invoice it\'s attached to" as the ten-year rule', async () => {
+    const form = await fileAPaper("Match the invoice it's attached to")
+    expect(form.get('keep')).toBe('TEN_YEAR_RULE')
+  })
+
+  it('draws the keep choice as two options, the first one on', async () => {
+    render(
+      <MemoryRouter initialEntries={['/compliance/documents/upload']}>
+        <Routes>
+          <Route path="/compliance/documents/upload" element={<UploadDocumentPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const group = await screen.findByRole('radiogroup', { name: 'How long to keep it' })
+    const options = within(group).getAllByRole('radio')
+    expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    expect(within(group).getByRole('radio', { name: /Keep it indefinitely/ })).toBeTruthy()
+    expect(
+      within(group).getByRole('radio', { name: /Match the invoice it's attached to/ }),
+    ).toBeTruthy()
+    // Hidden, not disabled: the server has no dated deletion.
+    expect(screen.queryByRole('radio', { name: /Until a date I choose/ })).toBeNull()
+    expect(screen.queryByText('Delete after')).toBeNull()
+  })
+
+  // Owner's Round 5 answer 1 (2 Oct): Bill, Credit note and Debit note are kinds of document, and
+  // a tax document always follows the ten-year rule.
+  const TAX_KINDS = [
+    ['Bill', 'BILL', 'فاتورة'],
+    ['Credit note', 'CREDIT_NOTE', 'إشعار دائن'],
+    ['Debit note', 'DEBIT_NOTE', 'إشعار مدين'],
+  ] as const
+
+  const chooseKind = async (label: string) => {
+    fireEvent.click(screen.getByRole('button', { name: 'Kind of document' }))
+    fireEvent.click(await screen.findByRole('option', { name: label }))
+  }
+
+  it('offers Bill, Credit note and Debit note as kinds, after the five it had, in both languages', async () => {
+    renderUpload()
+    await screen.findByRole('button', { name: /Save Document/ })
+    fireEvent.click(screen.getByRole('button', { name: 'Kind of document' }))
+    const names = (await screen.findAllByRole('option')).map((option) => option.textContent)
+    expect(names).toEqual([
+      'Contract',
+      'Certificate or warranty',
+      'Price list or rate card',
+      'Letter',
+      'Other',
+      'Bill',
+      'Credit note',
+      'Debit note',
+    ])
+    cleanup()
+    await i18n.changeLanguage('ar')
+    renderUpload()
+    fireEvent.click(await screen.findByRole('button', { name: 'نوع المستند' }))
+    const arabic = (await screen.findAllByRole('option')).map((option) => option.textContent)
+    expect(arabic.slice(5)).toEqual(TAX_KINDS.map(([, , ar]) => ar))
+  })
+
+  for (const [label, value] of TAX_KINDS) {
+    it(`offers a ${label} the ten-year rule alone and sends it so, whatever was ticked before`, async () => {
+      const { container } = renderUpload()
+      await screen.findByRole('button', { name: /Save Document/ })
+      // "Keep it indefinitely" is the default, and is on before the kind is chosen.
+      const group = screen.getByRole('radiogroup', { name: 'How long to keep it' })
+      expect(
+        within(group).getByRole('radio', { name: /Keep it indefinitely/ }).getAttribute('aria-checked'),
+      ).toBe('true')
+
+      await chooseKind(label)
+      // Hidden, not disabled; the choice left is on and says the rule.
+      expect(within(group).queryByRole('radio', { name: /Keep it indefinitely/ })).toBeNull()
+      const only = within(group).getAllByRole('radio')
+      expect(only).toHaveLength(1)
+      expect(only[0].getAttribute('aria-checked')).toBe('true')
+      expect(
+        within(group).getByText("Follows the ten-year rule and can't be deleted before then."),
+      ).toBeTruthy()
+
+      const input = container.querySelector('input[type=file]') as HTMLInputElement
+      const file = new File(['%PDF-1.4'], 'bill-118.pdf', { type: 'application/pdf' })
+      fireEvent.change(input, { target: { files: [file] } })
+      expect(await screen.findByText('bill-118.pdf')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Who or what it belongs to' }))
+      fireEvent.click(await screen.findByRole('option', { name: /Gulf Cold Logistics/ }))
+      fireEvent.click(screen.getByRole('button', { name: /Save Document/ }))
+      expect(await screen.findByText('supplier page')).toBeTruthy()
+      const form = posts()[0][1].body as FormData
+      expect(form.get('kind')).toBe(value)
+      expect(form.get('keep')).toBe('TEN_YEAR_RULE')
+    })
+  }
+
+  it('gives the other choice back when the kind stops being a tax document', async () => {
+    renderUpload()
+    await screen.findByRole('button', { name: /Save Document/ })
+    await chooseKind('Bill')
+    const group = screen.getByRole('radiogroup', { name: 'How long to keep it' })
+    expect(within(group).getAllByRole('radio')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Kind of document' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Letter' }))
+    expect(
+      within(group).getAllByRole('radio').map((option) => option.getAttribute('aria-checked')),
+    ).toEqual(['true', 'false'])
+  })
+
+  it('reads a server that refuses a tax document kept until deleted as the general refusal, never the code', async () => {
+    postAnswer = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/expenditure-refused',
+          title: 'Request refused',
+          status: 400,
+          detail:
+            'A bill, credit note or debit note is always kept under the ten-year rule and cannot be kept until deleted',
+          error: 'SUPPLIER_DOCUMENT_TAX_DOCUMENT_KEPT_TEN_YEARS',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    const { container } = renderUpload()
+    await screen.findByRole('button', { name: /Save Document/ })
+    const input = container.querySelector('input[type=file]') as HTMLInputElement
+    fireEvent.change(input, {
+      target: { files: [new File(['%PDF-1.4'], 'bill-118.pdf', { type: 'application/pdf' })] },
+    })
+    expect(await screen.findByText('bill-118.pdf')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Who or what it belongs to' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Gulf Cold Logistics/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Save Document/ }))
+    expect(await screen.findByText(/The server refused this\. Nothing was changed/)).toBeTruthy()
+    expect(screen.queryByText(/SUPPLIER_DOCUMENT_TAX_DOCUMENT_KEPT_TEN_YEARS/)).toBeNull()
+    expect(screen.queryByText(/is always kept under the ten-year rule/)).toBeNull()
+    expect(screen.queryByText('supplier page')).toBeNull()
+  })
+
   /**
    * The two cases below mount the bare page, which draws the shell itself: who is signed in comes
    * only from the shell's own question to the server, as it does in the app.
@@ -135,9 +322,6 @@ describe('Upload a document', () => {
         </Routes>
       </MemoryRouter>,
     )
-  const posts = () =>
-    fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === 'POST')
-
   it('tells someone who may not manage suppliers so, and holds the save back', async () => {
     who = READER
     renderBare()
