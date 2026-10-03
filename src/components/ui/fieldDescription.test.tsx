@@ -154,10 +154,31 @@ describe('Field error associations', () => {
 describe('Date picker language', () => {
   const openCalendar = () => fireEvent.click(screen.getByRole('button', { name: 'Day' }))
 
-  function Day() {
-    const [day, setDay] = useState('2026-10-25')
+  function Day({ initial = '2026-10-25' }: { initial?: string }) {
+    const [day, setDay] = useState(initial)
     return <DateField value={day} onChange={setDay} ariaLabel="Day" />
   }
+
+  it('keeps the closed field’s English text exactly, September included', () => {
+    // Intl's en-GB writes "Sept"; the field has always written "Sep".
+    render(<Day initial="2026-09-05" />)
+    expect(screen.getByRole('button', { name: 'Day' }).textContent).toBe('5 Sep 2026')
+  })
+
+  it('writes the closed field in Arabic with Latin digits, like the open calendar', async () => {
+    await act(() => i18n.changeLanguage('ar'))
+    render(<Day />)
+    const closed = screen.getByRole('button', { name: 'Day' }).textContent ?? ''
+    expect(closed).toBe(
+      new Intl.DateTimeFormat('ar-u-nu-latn', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(2026, 9, 25)),
+    )
+    expect(closed).toContain('2026')
+    expect(closed).not.toContain('Oct')
+  })
 
   it('keeps the English labels, month heading and two-letter weekdays', () => {
     render(<Day />)
@@ -183,10 +204,15 @@ describe('Date picker language', () => {
     expect(screen.getByRole('button', { name: i18n.t('common.datePicker.today') })).toBeTruthy()
     expect(screen.getByRole('button', { name: i18n.t('common.clear') })).toBeTruthy()
     expect(screen.queryByText('Today')).toBeNull()
-    const heading = new Intl.DateTimeFormat('ar', { month: 'long', year: 'numeric' }).format(
-      new Date(2026, 9, 25),
-    )
+    const heading = new Intl.DateTimeFormat('ar-u-nu-latn', {
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(2026, 9, 25))
     expect(screen.getByText(heading)).toBeTruthy()
     expect(screen.queryByText('Su')).toBeNull()
+    const narrow = new Intl.DateTimeFormat('ar-u-nu-latn', { weekday: 'narrow' })
+    for (let i = 0; i < 7; i += 1) {
+      expect(screen.getAllByText(narrow.format(new Date(2023, 0, 1 + i))).length).toBeGreaterThan(0)
+    }
   })
 })

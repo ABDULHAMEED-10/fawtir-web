@@ -272,4 +272,31 @@ describe('Modal focus', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(active()).toBe(document.body)
   })
+
+  it('gives focus back to the date field when a day, Today or Clear is chosen inside the calendar', () => {
+    function WithDate() {
+      const [day, setDay] = useState('2026-11-01')
+      return <DateField value={day} onChange={setDay} ariaLabel="Start" />
+    }
+    render(
+      <StrictMode>
+        <Page>{() => <WithDate />}</Page>
+      </StrictMode>,
+    )
+    open()
+    const start = button('Start')
+    for (const pick of [
+      () => screen.getAllByRole('button', { name: '5' })[0],
+      () => button('Today'),
+      () => button('Clear'),
+    ]) {
+      fireEvent.click(start)
+      const choice = pick()
+      choice.focus()
+      fireEvent.click(choice)
+      expect(screen.queryByRole('button', { name: 'Next month' })).toBeNull()
+      expect(active()).toBe(start)
+      expect(screen.getByRole('dialog')).toBeTruthy()
+    }
+  })
 })

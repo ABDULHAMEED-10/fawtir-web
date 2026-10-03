@@ -49,18 +49,26 @@ export function DateField({
   const selected = parseDateKey(value)
   const [cursor, setCursor] = useState(() => selected ?? new Date())
   const { t, i18n } = useTranslation()
-  const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
+  // Latin digits in Arabic too (decision D15), matching the closed field and `lib/format`.
+  const locale = i18n.language.startsWith('ar') ? 'ar-u-nu-latn' : 'en-GB'
   // From Intl rather than the English constants in `lib/dates`. English keeps its two-letter
   // headings; Arabic takes the narrow form, as a full day name does not fit a 40px column.
   const weekdays = useMemo(() => {
     if (!open) return []
-    const english = locale !== 'ar'
+    const english = locale === 'en-GB'
     const format = new Intl.DateTimeFormat(locale, { weekday: english ? 'short' : 'narrow' })
     return Array.from({ length: 7 }, (_, i) => {
       const name = format.format(new Date(2023, 0, 1 + i))
       return english ? name.slice(0, 2) : name
     })
   }, [open, locale])
+  // The calendar unmounts with focus inside it when a day is chosen, which would drop focus on the
+  // page; it goes back to the field instead, as `Select` does when an option is chosen.
+  const choose = (key: string) => {
+    onChange(key)
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
   // Built only while the calendar is open: a page can hold many closed date fields.
   const monthHeading = useMemo(
     () =>
@@ -116,7 +124,7 @@ export function DateField({
             value ? 'text-text-secondary' : 'text-text-placeholder',
           ].join(' ')}
         >
-          {value ? formatDisplayDate(value) : placeholder}
+          {value ? formatDisplayDate(value, i18n.language) : placeholder}
         </span>
         <img src={calendarIcon} alt="" aria-hidden="true" className="size-6 shrink-0" />
       </button>
@@ -163,10 +171,7 @@ export function DateField({
                   key={key}
                   type="button"
                   disabled={blocked}
-                  onClick={() => {
-                    onChange(key)
-                    setOpen(false)
-                  }}
+                  onClick={() => choose(key)}
                   className={[
                     'flex h-8 items-center justify-center rounded-sm text-sm transition-colors',
                     isSelected
@@ -188,10 +193,7 @@ export function DateField({
             <button
               type="button"
               onClick={() => {
-                if (!outOfRange(todayKey)) {
-                  onChange(todayKey)
-                  setOpen(false)
-                }
+                if (!outOfRange(todayKey)) choose(todayKey)
               }}
               className="text-sm font-semibold text-primary-800 hover:underline"
             >
@@ -199,10 +201,7 @@ export function DateField({
             </button>
             <button
               type="button"
-              onClick={() => {
-                onChange('')
-                setOpen(false)
-              }}
+              onClick={() => choose('')}
               className="text-sm font-medium text-text-tertiary hover:underline"
             >
               {t('common.clear')}
