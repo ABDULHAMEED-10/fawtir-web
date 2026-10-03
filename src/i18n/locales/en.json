@@ -9672,7 +9672,11 @@
       "approvalsTitle": "Bill approvals",
       "approvalsBody": "How many people must approve a supplier's bill before it can be paid, and the amount below which none need to.",
       "approvalsPill": "Approval rule",
-      "approvalsFoot": "Applies to every bill"
+      "approvalsFoot": "Applies to every bill",
+      "bridgeTitle": "Upload from your ERP",
+      "bridgeBody": "Send one document your ERP produced, and your mapping turns it into an invoice.",
+      "bridgePill": "One document at a time",
+      "bridgeFoot": "No connection needed"
     }
   },
   "peppolTax": {
@@ -16515,6 +16519,103 @@
         "outstanding": "Outstanding",
         "enabledNote": "Collection is on. It still only runs while platform automation is on.",
         "disabledNote": "Collection is off. Nothing runs automatically."
+      }
+    },
+    "bridge": {
+      "title": "Upload from your ERP",
+      "subtitle": "Send one document exactly as your ERP produced it. Your ERP mapping turns it into an invoice, and the same document is never invoiced twice.",
+      "channels": {
+        "title": "How documents reach Fawtir",
+        "managedPull": "Managed pull.",
+        "managedPullBody": "Fawtir collects documents from a connected ERP on its own.",
+        "managedPullLink": "Connected systems",
+        "bridge": "Upload, on this page.",
+        "bridgeBody": "You send one document yourself. No connection is needed.",
+        "apiPush": "API push.",
+        "apiPushBody": "Your ERP sends documents to Fawtir with an ERP ingestion API key. It is set up by your developers and has no screen here."
+      },
+      "readiness": {
+        "title": "Is your mapping ready?",
+        "checking": "Checking your mapping...",
+        "ready": "Ready",
+        "readyBody": "Your {{format}} mapping is certified for invoices, so uploads can become invoices.",
+        "notReady": "Not ready",
+        "notReadyBody": "Your {{format}} mapping is not certified for invoices yet. An upload now is recorded and refused, and can be sent again unchanged once the mapping is certified.",
+        "openCertification": "Open mapping certification",
+        "note": "Certified means the mapping produces a valid test invoice. Each real invoice is still checked on its own, so one can be refused even when the mapping is ready.",
+        "administratorOnly": "Your administrator manages the ERP mapping. If an upload is refused because the mapping is not ready, ask them to certify it."
+      },
+      "document": {
+        "title": "Document",
+        "format": "Format",
+        "formatHint": "The format your ERP produced the document in. Each format has its own mapping.",
+        "file": "File",
+        "drop": "Drop a {{format}} file here, or click to choose one",
+        "reading": "Reading the file...",
+        "size": "{{kb}} KB",
+        "limit": "One document, up to 4 MB"
+      },
+      "format": {
+        "JSON": "JSON",
+        "XML": "XML"
+      },
+      "problem": {
+        "empty": "The file is empty.",
+        "notJson": "The file is not valid JSON.",
+        "notObject": "The file must hold one JSON object, the document itself.",
+        "notXml": "The file does not look like XML.",
+        "size": "The file is larger than 4 MB.",
+        "type": "Choose a {{format}} file.",
+        "tooLarge": "This document is too large to send in one upload (4 MB)."
+      },
+      "identity": {
+        "title": "Your ERP's reference",
+        "documentId": "Document ID in your ERP",
+        "documentIdHint": "Your ERP's own identifier for this document. Uploading the same ID and content again does not create a second invoice.",
+        "version": "Version",
+        "versionHint": "Optional. Use a new version to send a corrected document under the same ID."
+      },
+      "invoice": {
+        "title": "Invoice details"
+      },
+      "submit": "Upload",
+      "submitting": "Uploading...",
+      "reset": "Start again",
+      "result": {
+        "accepted": "Accepted",
+        "acceptedBody": "Your mapping produced the invoice and it has entered the invoicing pipeline. Delivery and the tax report follow on their own.",
+        "duplicate": "Already uploaded",
+        "duplicateBody": "This document was uploaded before and already produced its invoice. Nothing new was submitted.",
+        "reference": "Reference:",
+        "follow": "Follow it in the compliance activity"
+      },
+      "refusal": {
+        "validation": "The invoice was refused by validation. Nothing was submitted. The checks that failed:",
+        "mapping": "Your mapping could not turn this document into an invoice. Nothing was submitted.",
+        "notSupported": "This upload cannot be accepted right now. The most common reason is a mapping that is not yet certified for invoices. Nothing was submitted.",
+        "identityConflict": "A different document was already uploaded under this ID and version. Send a corrected document under a new version.",
+        "inProgress": "This document is already being processed. Try again in a moment; sending it again is safe.",
+        "alreadyRefused": "This exact document was refused before and is not checked again. Send a corrected document under a new version.",
+        "duplicateInvoice": "The invoice in this document already exists in Fawtir. Nothing was submitted.",
+        "idempotency": "This upload clashed with an earlier one. Start again and upload once more.",
+        "notOperational": "Your company is not yet set up to issue invoices.",
+        "emissionBlocked": "Invoicing is paused for a short while on Fawtir's side. Try again later.",
+        "tooLarge": "This document is too large to send in one upload (4 MB).",
+        "notJsonBody": "The upload could not be sent in the expected form. Start again.",
+        "unreachable": "Fawtir could not be reached. Check your connection and upload again; the same upload is recognised and is not invoiced twice."
+      },
+      "layer": {
+        "L1_XSD": "Document structure",
+        "L2_ARITHMETIC": "Amounts",
+        "L3_CODE_LISTS": "Codes",
+        "L4_EN16931_BIS": "Business rules",
+        "L5_PINT_OM": "Oman rules",
+        "unknown": "Validation"
+      },
+      "finding": {
+        "noRule": "unnamed check",
+        "more_one": "and {{count}} more check",
+        "more_other": "and {{count}} more checks"
       }
     }
   },

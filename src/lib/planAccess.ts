@@ -106,6 +106,7 @@ export const ROUTE_FEATURES: { prefix: string; feature: Feature }[] = [
   { prefix: '/expenditure/recurring-bills', feature: 'recurringBills' },
   { prefix: '/settings/erp-mapping', feature: 'erpMapping' },
   { prefix: '/settings/erp/connections', feature: 'erpMapping' },
+  { prefix: '/settings/erp/bridge', feature: 'erpMapping' },
 ]
 
 export function featureForPath(pathname: string): Feature | undefined {

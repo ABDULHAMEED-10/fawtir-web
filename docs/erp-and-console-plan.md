@@ -348,6 +348,30 @@ Two things the mock cannot do: a RUNNING run (collect-now completes at once) and
 (the wizard fakes the sign-in). Per-connection mapping edits open the tenant wizard with
 `?connection=<id>`; the backend scopes the mapping by connection, the front end already passes the id.
 
+## 7.10 Upload from your ERP built (3 Oct 2026)
+
+The Extraction Bridge on the tenant side: `/settings/erp/bridge`, a third card in the Integration
+group. A signed-in user sends one document their ERP produced, in its own JSON or XML, through
+`POST /v1/invoices/bridge` (`invoice.submit`; the body is the submission body with `source`
+required; one document per request, standard invoices only). No connection is involved: Managed
+pull, this upload and API push are three ways into the same mapping and pipeline, and the page says
+so. Handoff: `docs/frontend/ERP_BRIDGE_UPLOAD_HANDOFF.md`.
+
+Decisions taken without a Figma frame (none exists for any ERP screen):
+
+- Built from the Integration templates only (`SettingsShell`, `SectionCard`, `FileDropzone`,
+  `Select`, `Input`, `Checkbox`, the hub `Card`). No new colour, token or component.
+- The transaction type (BTOM-001) and issue time are the certification run's own controls and
+  words: no mapping produces them, so the uploader supplies them, as the run does. The bit helpers
+  moved from the Certification screen into `lib/erp/mappingState.ts` and both screens use them.
+- Readiness is the server's certification status for the invoice route, read once per format and
+  transaction type, and only for a holder of `admin.settings.manage` (the mapping endpoints'
+  permission). Its prose `reason` is not shown; the reader gets our sentence and a link.
+- A validation refusal shows layer, rule and business term only. The validator's message and
+  location can quote the document, so neither is shown (the backend keeps the same three for the
+  same reason).
+- API push has no screen: it is explained in one sentence, not drawn as a connection.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |

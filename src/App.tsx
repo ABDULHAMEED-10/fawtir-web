@@ -121,6 +121,7 @@ import {
   ErpSamplesPage,
   ErpConnectionsPage,
   ErpConnectPage,
+  ErpBridgePage,
   ConnectionOverviewPage,
   ConnectionMappingPage,
   ConnectionRunsPage,
@@ -578,6 +579,14 @@ function App() {
             element={
               <PlanGated feature="erpMapping" shell="settings">
                 <ErpConnectionsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/bridge"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpBridgePage />
               </PlanGated>
             }
           />

@@ -253,6 +253,17 @@ export function SettingsPage() {
         footKey: 'settings.card.connectionsFoot',
       },
       {
+        id: 'bridge',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: connectIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/bridge',
+        pillKey: 'settings.card.bridgePill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.bridgeFoot',
+      },
+      {
         id: 'plan',
         group: 'billing',
         icon: planIcon,
