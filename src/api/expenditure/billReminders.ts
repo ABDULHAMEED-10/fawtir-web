@@ -1,5 +1,6 @@
 import { apiRequest } from '../client'
 import { withQuery } from '../query'
+import { RECURRING_RECIPIENTS_PATH, loadRecurringRecipients } from './recurringBills'
 
 /**
  * Payables reminders (`BillReminderController`, E-14).
@@ -75,6 +76,15 @@ export type ReminderSettingsDto = {
   stopWhenInRun: boolean
 }
 
+/**
+ * `SettingsResponse`: the four saved values, and whether this server sends reminders at all
+ * (`fawtir.expenditure.reminders.enabled`). Read-only and the same for every company; `false`
+ * means rules and settings save, the preview answers, and nothing is ever sent. A server from
+ * before the field leaves it out, which says nothing either way. Kept off
+ * {@link ReminderSettingsDto} because that type is the request record, field for field.
+ */
+export type ReminderSettingsAnswerDto = ReminderSettingsDto & { sendingEnabled?: boolean }
+
 export type ReminderPreviewItemDto = {
   ruleType: ReminderRuleTypeDto
   subjectType: ReminderSubjectTypeDto
@@ -99,18 +109,75 @@ export type ReminderPreviewDto = {
   groups: ReminderPreviewGroupDto[]
 }
 
+/**
+ * What a notice is about, for the page to write its own sentence. For the six bill and scan rules
+ * it is the rule type; the three recurring ones all arrive as rule type `RECURRING_LATE`.
+ */
+export type ReminderReasonDto =
+  | ConfigurableRuleType
+  | 'RECURRING_LATE'
+  | 'RECURRING_CHASE'
+  | 'RECURRING_OUT_OF_RANGE'
+
+/**
+ * `InboxItemResponse`. The first eleven fields are the original answer. The rest are what the bell
+ * needs and are all optional here: a server from before them leaves them out, and a notice
+ * recorded before them carries `subjectDisplay`, `amount` and `currency` as null.
+ */
 export type ReminderInboxItemDto = {
   id: string
   ruleType: ReminderRuleTypeDto
   subjectType: ReminderSubjectTypeDto
   subjectId: string
+  /** Set when the subject is a bill: where its line leads. */
   billId: string | null
+  /**
+   * Read by `reason`. Before due and discount: zero or negative, the days still to go. Late and
+   * the two recurring "late" reasons: days late. Approval, mismatch, scan: days it has waited.
+   */
   daysFromDue: number
   firedOn: string
+  /** The English sentence the server wrote when it recorded the notice. */
   headline: string
   outcome: string
   createdAt: string
   acknowledgedAt: string | null
+  reason?: ReminderReasonDto
+  occasion?: 'LATE' | 'CHASE' | 'OUT_OF_RANGE' | null
+  occasionDate?: string | null
+  /** The bill's number, the uploaded file's name or the recurring bill's name. */
+  subjectDisplay?: string | null
+  amount?: number | null
+  currency?: string | null
+  recurringBillId?: string | null
+  intakeId?: string | null
+  /** `RECURRING_OUT_OF_RANGE` only: the bill that arrived outside the range. */
+  arrivedBillId?: string | null
+  /** `RECURRING_OUT_OF_RANGE` only: signed, for example `16.67`. */
+  variancePercent?: number | null
+  read?: boolean
+  /**
+   * Who the bill or the recurring bill is owed to, read when the inbox is read (so a notice
+   * recorded earlier carries it too). The bell's sentence names it. Null for a scan, and for a
+   * bill that is no longer there; left out by a server from before the field.
+   */
+  supplierName?: string | null
+  /**
+   * A bill's due date as it stands now (`YYYY-MM-DD`). The bell counts "due in N days" and
+   * "unpaid for N days" from it on the day the line is read, not from `daysFromDue`, which is the
+   * count on the day the notice was recorded. Null for a scan, a recurring bill and a bill with no
+   * due date; left out by a server from before the field.
+   */
+  dueDate?: string | null
+  /**
+   * `DISCOUNT_EXPIRY` only, and only from a server that sends them: the early-payment discount's
+   * percentage (`2` for 2%), the last day it can be taken (`YYYY-MM-DD`) and what taking it saves,
+   * in the entry's `currency`. With them the bell writes the design's own line ("2% discount
+   * expires 5 Aug", "Saves ..."); without them it counts the days from `daysFromDue`.
+   */
+  discountPercent?: number | null
+  discountExpiresOn?: string | null
+  discountSaving?: number | null
 }
 
 export function loadReminderRules(): Promise<ReminderRulesDto> {
@@ -145,8 +212,8 @@ function ruleRequest(rule: ReminderRuleDto): ReminderRuleDto {
   }
 }
 
-export function loadReminderSettings(): Promise<ReminderSettingsDto> {
-  return apiRequest<ReminderSettingsDto>(BILL_REMINDER_SETTINGS_PATH)
+export function loadReminderSettings(): Promise<ReminderSettingsAnswerDto> {
+  return apiRequest<ReminderSettingsAnswerDto>(BILL_REMINDER_SETTINGS_PATH)
 }
 
 /** `SettingsRequest`, field for field, for the same reason as {@link ruleRequest}. */
@@ -179,22 +246,39 @@ export async function acknowledgeReminder(id: string): Promise<void> {
   await apiRequest<unknown>(`${BILL_REMINDERS_PATH}/inbox/${encodeURIComponent(id)}/acknowledge`, { method: 'POST' })
 }
 
-/**
- * The people a rule can name. `GET /users` needs `admin.users.manage`, which someone who may
- * edit reminder rules (`invoice.payment.manage`) does not necessarily hold — so a caller must
- * handle this being refused rather than assume a list.
- */
-export type ReminderRecipientDto = { id: string; name: string }
+export const REMINDER_UNREAD_COUNT_PATH = `${BILL_REMINDERS_PATH}/inbox/unread-count`
 
-type UsersPage = { content?: { id: string; username: string; firstName: string | null; lastName: string | null }[] }
+/** The caller's own unread notices, which no page limit caps. */
+export async function loadReminderUnreadCount(): Promise<number> {
+  const answer = await apiRequest<{ unread?: number }>(REMINDER_UNREAD_COUNT_PATH)
+  return answer.unread ?? 0
+}
+
+/** Marks every unread notice addressed to the caller as read; answers how many it marked. */
+export async function acknowledgeAllReminders(): Promise<number> {
+  const answer = await apiRequest<{ acknowledged?: number } | null>(
+    `${BILL_REMINDERS_PATH}/inbox/acknowledge-all`,
+    { method: 'POST' },
+  )
+  return answer?.acknowledged ?? 0
+}
+
+/**
+ * The people a rule can name: the names-only list a recurring bill also picks from
+ * (`GET /recurring-bills/recipients`). It needs `invoice.payment.manage`, the permission that
+ * saves these rules, so whoever may save a rule may choose who it tells. It used to be the
+ * admin-only `GET /users`, which a Finance Manager could not read.
+ *
+ * Names only: no e-mail, no role, no username. `name` is null for someone with no name on file
+ * and the page words that person. A server from before the route refuses the read, so a caller
+ * must still handle having no list.
+ */
+export type ReminderRecipientDto = { id: string; name: string | null }
 
 /** The read's own URL, so the cache key and the request it stands for cannot drift apart. */
-export const POSSIBLE_RECIPIENTS_PATH = withQuery('/v1/users', { status: 'ACTIVE', size: 100 })
+export const POSSIBLE_RECIPIENTS_PATH = RECURRING_RECIPIENTS_PATH
 
 export async function loadPossibleRecipients(): Promise<ReminderRecipientDto[]> {
-  const page = await apiRequest<UsersPage>(POSSIBLE_RECIPIENTS_PATH)
-  return (page.content ?? []).map((user) => ({
-    id: user.id,
-    name: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username,
-  }))
+  const people = await loadRecurringRecipients()
+  return people.map((person) => ({ id: person.id, name: person.displayName?.trim() || null }))
 }

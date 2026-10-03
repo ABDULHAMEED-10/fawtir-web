@@ -58,6 +58,15 @@ const REFUSALS: Record<string, string> = {
   REMINDER_RULE_TOO_MANY_RECIPIENTS: 'apiErrors.refused.reminderTooManyRecipients',
   REMINDER_RULE_ESCALATION_NOT_ALLOWED: 'apiErrors.refused.reminderEscalationNotAllowed',
   REMINDER_RULE_DUPLICATE: 'apiErrors.refused.reminderDuplicate',
+  // The page stops a rule with no timing itself and says so under the rule; the server's refusal
+  // of one (an older tab, someone else's change) says the same sentence, from the same key.
+  REMINDER_RULE_EMPTY: 'expenditureReminders.error.noTiming',
+  REMINDER_RULE_REPEAT_NOT_ALLOWED: 'apiErrors.refused.reminderRepeatNotAllowed',
+  // A null among the people: the same sentence as a rule that names nobody.
+  REMINDER_RULE_RECIPIENT_REQUIRED: 'apiErrors.refused.reminderNeedsRecipient',
+  REMINDER_RULE_RECIPIENT_UNKNOWN: 'apiErrors.refused.reminderRecipientUnknown',
+  REMINDER_RULE_OFFSET_OUT_OF_RANGE: 'apiErrors.refused.reminderDaysOutOfRange',
+  REMINDER_RULE_ESCALATION_OUT_OF_RANGE: 'apiErrors.refused.reminderDaysOutOfRange',
 
   // Bills and payments reachable from the same screens.
   BILL_NOT_FOUND: 'apiErrors.refused.billNotFound',

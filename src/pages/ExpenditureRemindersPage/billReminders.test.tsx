@@ -54,7 +54,9 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let rules: ReminderRuleDto[]
-let usersStatus: number
+/** `GET /recurring-bills/recipients`: the names-only list. 404 is a server from before it. */
+let rosterStatus: number
+let roster: { id: string; displayName: string | null }[]
 let savedRules: unknown
 let savedSettings: unknown
 let inbox: ReminderInboxItemDto[]
@@ -70,7 +72,8 @@ beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = MANAGER
-  usersStatus = 200
+  rosterStatus = 200
+  roster = [{ id: 'u-2', displayName: 'Hafidh Al Balushi' }]
   savedRules = null
   savedSettings = null
   inbox = []
@@ -111,14 +114,10 @@ beforeEach(async () => {
       return json(204)
     }
     if (url.includes('/bill-reminders/inbox')) return json(200, inbox)
-    if (url.includes('/v1/users')) {
-      return usersStatus === 200
-        ? json(200, {
-            content: [
-              { id: 'u-2', username: 'hafidh', firstName: 'Hafidh', lastName: 'Al Balushi' },
-            ],
-          })
-        : json(403, { type: 'https://api.fawtir.om/problems/forbidden' })
+    if (url.includes('/recurring-bills/recipients')) {
+      return rosterStatus === 200
+        ? json(200, roster)
+        : json(rosterStatus, { type: 'https://api.fawtir.om/problems/resource-not-found' })
     }
     return json(404)
   })
@@ -222,7 +221,9 @@ describe('payables reminder rules', () => {
     expect(toggleOffset([7], 2, true)).toEqual([7, 2])
     expect(toggleOffset([3], 1, false)).toEqual([1])
     expect(toggleOffset([3], 3, false)).toEqual([])
+    // Every rule that is on, and the recurring one, which the design draws fixed on and counts.
     expect(rulesOn([rule('LATE', { enabled: true }), rule('BEFORE_DUE')])).toBe(2)
+    expect(rulesOn([rule('LATE'), rule('BEFORE_DUE')])).toBe(1)
     const lines = flattenPreview({
       date: '2026-09-25',
       total: 2,
@@ -280,13 +281,19 @@ describe('the reminders screen', () => {
     expect(
       within(recurring).getByRole('link', { name: 'Recurring bills' }).getAttribute('href'),
     ).toBe('/expenditure/recurring-bills')
-    // Its switch is the bills' own: drawn on, and clicking it changes nothing here.
+    // Its switch is the bills' own, as the design draws it: fixed on, and clicking it changes
+    // nothing here. Seven switches in all, one per row.
+    expect(within(recurring).getByRole('switch').getAttribute('aria-checked')).toBe('true')
     fireEvent.click(within(recurring).getByRole('switch'))
     expect(within(recurring).getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    expect(screen.getAllByRole('switch').filter((node) => node.closest('article'))).toHaveLength(7)
+    // Not dimmed like a rule that is off: its link and who it tells stay readable.
+    expect(within(recurring).getByText('The person named on each')).toBeTruthy()
     // The three sections of the frame, and its footer.
     expect(screen.getByText('Money leaving')).toBeTruthy()
     expect(screen.getByText('Work sitting still')).toBeTruthy()
     expect(screen.getByText('How you get told')).toBeTruthy()
+    // Three rules are on, and the recurring row is counted with them.
     expect(screen.getByText('4 rules on')).toBeTruthy()
   })
 
@@ -372,13 +379,19 @@ describe('the reminders screen', () => {
   })
 
   it('keeps the people on a rule when it cannot list them', async () => {
-    // GET /users needs admin.users.manage, which this reader may not hold. The rule stays
-    // editable and its recipients travel back untouched: saving without them would empty it.
-    usersStatus = 403
+    // A server from before the names-only list refuses the read. The rule stays editable and
+    // its recipients travel back untouched: saving without them would empty it.
+    rosterStatus = 404
     renderPage()
     await editorReady()
 
-    expect(await screen.findByText(/needs user-admin rights/)).toBeTruthy()
+    // Said once, as what happened: the list could not be read. Not as a missing right, which
+    // it no longer is since whoever may save the rules may read the list.
+    const line = await screen.findByText(
+      'The list of people could not be read. Reload to choose who is told.',
+    )
+    expect(line.tagName).toBe('P')
+    expect(screen.queryByText(/needs user-admin rights/)).toBeNull()
     const before = card('Before a bill is due')
     expect(within(before).getByText('1 person already chosen')).toBeTruthy()
 
@@ -390,6 +403,114 @@ describe('the reminders screen', () => {
     await waitFor(() => expect(savedRules).not.toBeNull())
     expect((savedRules as { rules: ReminderRuleDto[] }).rules[0].recipients).toEqual(['u-2'])
     expect((savedRules as { rules: ReminderRuleDto[] }).rules[0].offsets).toEqual([7, 2, 0])
+  })
+
+  it('says the list of people could not be read when the read fails, in Arabic too', async () => {
+    // Not only a server from before the list: any failed read of it.
+    rosterStatus = 500
+    await i18n.changeLanguage('ar')
+    renderPage()
+    await editorReady('قبل استحقاق الفاتورة')
+    expect(
+      await screen.findByText('تعذّرت قراءة قائمة الأشخاص. أعد التحميل لاختيار من يُبلَّغ.'),
+    ).toBeTruthy()
+    expect(screen.queryByText(/صلاحية إدارة المستخدمين/)).toBeNull()
+    expect(screen.queryByText(/could not be read/)).toBeNull()
+  })
+
+  it('does not say it to a reader, for whom no list is read', async () => {
+    who = READER
+    rosterStatus = 500
+    renderPage()
+    await editorReady()
+    expect(screen.queryByText(/The list of people could not be read/)).toBeNull()
+  })
+
+  it('lets whoever may save the rules choose who is told, from the names-only list', async () => {
+    // A Finance Manager: may save the rules, may not manage users. The people come from the
+    // list a recurring bill also picks from, and the admin-only users list is never asked.
+    who = {
+      ...MANAGER,
+      roles: [{ id: 'r-2', code: 'FINANCE_MANAGER', name: 'Finance Manager', systemRole: true }],
+    }
+    roster = [
+      { id: 'u-2', displayName: 'Hafidh Al Balushi' },
+      { id: 'u-3', displayName: 'Aisha Al Hinai' },
+    ]
+    renderPage()
+    await editorReady()
+    const before = card('Before a bill is due')
+
+    // The person on the rule by first name, and no line about user-admin rights.
+    fireEvent.click(await within(before).findByRole('button', { name: 'Hafidh' }))
+    expect(screen.queryByText(/The list of people could not be read/)).toBeNull()
+    // Names, and nothing else about anyone.
+    const options = await screen.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Hafidh Al Balushi',
+      'Aisha Al Hinai',
+    ])
+    fireEvent.click(options[1])
+
+    const save = screen.getByRole('button', { name: 'Save changes' })
+    await waitFor(() => expect(save).toHaveProperty('disabled', false))
+    fireEvent.click(save)
+    await waitFor(() => expect(savedRules).not.toBeNull())
+    const sent = (savedRules as { rules: ReminderRuleDto[] }).rules
+    expect(sent).toHaveLength(1)
+    expect(sent[0].type).toBe('BEFORE_DUE')
+    expect(sent[0].recipients).toEqual(['u-3'])
+
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(asked.filter((url) => url.includes('/recurring-bills/recipients'))).toHaveLength(1)
+    expect(asked.some((url) => url.includes('/v1/users'))).toBe(false)
+  })
+
+  it('adds a person to a rule that had nobody, which then can be switched on', async () => {
+    renderPage()
+    await editorReady()
+    const mismatch = card('A mismatch nobody has resolved')
+    fireEvent.click(within(mismatch).getByRole('switch'))
+    expect(await within(mismatch).findByRole('alert', {}, { timeout: 8000 })).toBeTruthy()
+
+    fireEvent.click(await within(mismatch).findByRole('button', { name: 'Add another person' }))
+    expect(await within(mismatch).findByRole('button', { name: 'Hafidh' })).toBeTruthy()
+    await waitFor(() => expect(within(mismatch).queryByRole('alert')).toBeNull())
+  })
+
+  it('words a person with no name on file, in the chip and in the list', async () => {
+    // The list answers a null name for someone who has entered none: never a username or an
+    // address, and never the id.
+    roster = [
+      { id: 'u-2', displayName: null },
+      { id: 'u-3', displayName: 'Aisha Al Hinai' },
+    ]
+    renderPage()
+    await editorReady()
+    const before = card('Before a bill is due')
+
+    fireEvent.click(await within(before).findByRole('button', { name: 'Someone on the team' }))
+    const options = await screen.findAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Someone on the team',
+      'Aisha Al Hinai',
+    ])
+    expect(screen.queryByText(/u-2/)).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    const arabic = (await screen.findByText('قبل استحقاق الفاتورة')).closest('article')!
+    expect(await within(arabic).findByRole('button', { name: 'أحد أعضاء الفريق' })).toBeTruthy()
+  })
+
+  it('does not ask for the list of people for someone who may only read', async () => {
+    who = READER
+    renderPage()
+    await editorReady()
+    // The people on a rule are counted, not named, and no list is read.
+    expect(within(card('Before a bill is due')).getByText('1 person already chosen')).toBeTruthy()
+    const asked = fetchMock.mock.calls.map(([url]) => String(url))
+    expect(asked.some((url) => url.includes('/recurring-bills/recipients'))).toBe(false)
+    expect(asked.some((url) => url.includes('/v1/users'))).toBe(false)
   })
 
   it('saves how the reader is told with the same Save', async () => {
@@ -492,10 +613,33 @@ describe('the reminders screen', () => {
     await waitFor(() => expect(inboxCalls().length).toBeGreaterThan(1))
   })
 
+  it('does not draw "Send me today\'s now", which nothing behind it can do', async () => {
+    // No route sends today's summary on request. What cannot be done is not shown, to a manager
+    // as much as to a reader, and the footer keeps its count and its Save.
+    renderPage()
+    await editorReady()
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: "Send me today's now" })).toBeNull()
+    expect(screen.queryByText("Send me today's now")).toBeNull()
+    expect(screen.queryByText(/Not available yet/)).toBeNull()
+
+    await i18n.changeLanguage('ar')
+    expect(await screen.findByRole('button', { name: 'حفظ التغييرات' })).toBeTruthy()
+    expect(screen.queryByText('أرسل لي ملخص اليوم الآن')).toBeNull()
+  })
+
   it('offers no save to someone who may only read', async () => {
     who = READER
     renderPage()
     await editorReady()
+    // A reader sees all seven switches greyed; the recurring row's is still drawn on.
+    const recurringSwitch = within(card("A recurring bill that hasn't arrived")).getByRole('switch')
+    expect(recurringSwitch.getAttribute('aria-checked')).toBe('true')
+    expect(recurringSwitch).toHaveProperty('disabled', true)
+    expect(within(card('Before a bill is due')).getByRole('switch')).toHaveProperty(
+      'disabled',
+      true,
+    )
     expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
     expect(screen.queryByRole('button', { name: "Send me today's now" })).toBeNull()
   })

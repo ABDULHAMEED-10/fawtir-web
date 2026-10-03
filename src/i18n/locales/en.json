@@ -1040,7 +1040,8 @@
         "bundles": "Bundles",
         "priceRules": "Price Rules"
       },
-      "lockedOn": "Available on {{plan}}"
+      "lockedOn": "Available on {{plan}}",
+      "billRemindersUnread": "Bill reminders, {{count}} unread"
     },
     "account": {
       "premiumPlan": "Premium plan",
@@ -6976,7 +6977,7 @@
       "inAppOnly": "In Fawtir only · no email",
       "headline_one": "{{count}} thing needs attention this morning.",
       "headline_other": "{{count}} things need attention this morning.",
-      "nothing": "Nothing would go out today. Every rule that could fire is switched off.",
+      "nothing": "Nothing would go out today.",
       "to": "to",
       "alNoor": "Al Noor Dates unpaid for {{days}} days",
       "alNoorAmount": "OMR 411.500",
@@ -7001,7 +7002,7 @@
     "whoIsTold": "Who is told",
     "recipientCount_one": "{{count}} person already chosen",
     "recipientCount_other": "{{count}} people already chosen",
-    "noRoster": "Choosing who is told needs user-admin rights. The people already on each rule are kept as they are.",
+    "noRoster": "The list of people could not be read. Reload to choose who is told.",
     "saveRules": "Save the rules",
     "saveDelivery": "Save how you are told",
     "saved": "Saved.",
@@ -7022,7 +7023,8 @@
       "outOfRange": "Each day must be between 0 and {{maxDays}}",
       "repeated": "The same day twice",
       "notWhole": "Whole days only",
-      "recipients": "Switching this on needs at least one person to tell"
+      "recipients": "Switching this on needs at least one person to tell",
+      "noTiming": "Choose when to remind, or switch this off."
     },
     "inbox": {
       "title": "Your reminders",
@@ -7045,7 +7047,9 @@
       "sendNow": "Send me today's now",
       "notYet": "Not available yet: this needs the backend.",
       "save": "Save changes"
-    }
+    },
+    "sendingOff": "Reminders are not being sent yet.",
+    "rulesSavedSettingsFailed": "The rules were saved, but the settings couldn't be saved. Try again."
   },
   "documents": {
     "title": "Documents",
@@ -14133,7 +14137,102 @@
       "title": "{{erpNumber}} changed in the ERP after it was submitted",
       "body": "A submitted invoice cannot be changed ({{note}}). Issue a credit note in {{product}} and the connector will collect it.",
       "open": "Open the record"
-    }
+    },
+    "reminder": {
+      "BEFORE_DUE": {
+        "now": "Bill {{name}} is due today",
+        "days_one": "Bill {{name}} is due tomorrow",
+        "days_other": "Bill {{name}} is due in {{count}} days"
+      },
+      "LATE": {
+        "now": "Bill {{name}} is late",
+        "days_one": "Bill {{name}} is {{count}} day late",
+        "days_other": "Bill {{name}} is {{count}} days late"
+      },
+      "DISCOUNT_EXPIRY": {
+        "now": "The discount on bill {{name}} runs out today",
+        "days_one": "The discount on bill {{name}} runs out tomorrow",
+        "days_other": "The discount on bill {{name}} runs out in {{count}} days",
+        "dated": "{{percent}}% discount on bill {{name}} expires {{date}}",
+        "datedNow": "{{percent}}% discount on bill {{name}} runs out today",
+        "datedPast": "{{percent}}% discount on bill {{name}} expired {{date}}"
+      },
+      "APPROVAL_STALE": {
+        "now": "Bill {{name}} has waited less than a day for approval",
+        "days_one": "Bill {{name}} has waited {{count}} day for approval",
+        "days_other": "Bill {{name}} has waited {{count}} days for approval"
+      },
+      "MISMATCH_STALE": {
+        "now": "Bill {{name}} has a mismatch nobody has resolved",
+        "days_one": "The mismatch on bill {{name}} has waited {{count}} day",
+        "days_other": "The mismatch on bill {{name}} has waited {{count}} days"
+      },
+      "SCAN_UNCONFIRMED": {
+        "now": "{{name}} still unconfirmed",
+        "days_one": "{{name}} unconfirmed for {{count}} day",
+        "days_other": "{{name}} unconfirmed for {{count}} days"
+      },
+      "RECURRING_LATE": {
+        "now": "{{name}} has not arrived",
+        "days_one": "{{name}} is {{count}} day late arriving",
+        "days_other": "{{name}} is {{count}} days late arriving"
+      },
+      "RECURRING_CHASE": {
+        "title": "Please chase the supplier for {{name}}"
+      },
+      "RECURRING_OUT_OF_RANGE": {
+        "title": "{{name}} arrived outside its usual range"
+      },
+      "body": {
+        "owed": "<b>{{amount}}</b> still to pay.",
+        "usual": "Usually <b>{{amount}}</b>.",
+        "above": "<b>{{percent}}%</b> above the usual amount.",
+        "below": "<b>{{percent}}%</b> below the usual amount.",
+        "heldUp": "<b>{{amount}}</b> held up.",
+        "saves": "Saves <b>{{amount}}</b>."
+      },
+      "supplier": {
+        "BEFORE_DUE": {
+          "now": "{{supplier}} due today",
+          "days_one": "{{supplier}} due tomorrow",
+          "days_other": "{{supplier}} due in {{count}} days"
+        },
+        "LATE": {
+          "days_one": "{{supplier}} unpaid for {{count}} day",
+          "days_other": "{{supplier}} unpaid for {{count}} days"
+        },
+        "DISCOUNT_EXPIRY": {
+          "now": "{{supplier}} discount runs out today",
+          "days_one": "{{supplier}} discount expires tomorrow",
+          "days_other": "{{supplier}} discount expires in {{count}} days",
+          "dated": "{{supplier}} {{percent}}% discount expires {{date}}",
+          "datedNow": "{{supplier}} {{percent}}% discount runs out today",
+          "datedPast": "{{supplier}} {{percent}}% discount expired {{date}}"
+        },
+        "APPROVAL_STALE": {
+          "now": "{{supplier}} approval waiting less than a day",
+          "days_one": "{{supplier}} approval waiting {{count}} day",
+          "days_other": "{{supplier}} approval waiting {{count}} days"
+        },
+        "MISMATCH_STALE": {
+          "now": "{{supplier}} mismatch unresolved",
+          "days_one": "{{supplier}} mismatch unresolved for {{count}} day",
+          "days_other": "{{supplier}} mismatch unresolved for {{count}} days"
+        },
+        "RECURRING_LATE": {
+          "now": "{{supplier}} bill not arrived",
+          "days_one": "{{supplier}} bill not arrived, {{count}} day late",
+          "days_other": "{{supplier}} bill not arrived, {{count}} days late"
+        },
+        "RECURRING_CHASE": {
+          "title": "Chase {{supplier}} for the bill that has not arrived"
+        },
+        "RECURRING_OUT_OF_RANGE": {
+          "title": "{{supplier}} bill arrived outside the range"
+        }
+      }
+    },
+    "unreadable": "Reminders could not be read. Reload to try again."
   },
   "onboarding": {
     "sessionExpired": "Your signup session has ended. If you need help finishing your registration, contact Fawtir support.",
@@ -16128,6 +16227,9 @@
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
       "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
+      "reminderRepeatNotAllowed": "That reminder does not repeat.",
+      "reminderRecipientUnknown": "One of the people chosen is no longer on the team. Choose again.",
+      "reminderDaysOutOfRange": "That number of days isn't allowed here.",
       "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
     },
     "selfBilling": {

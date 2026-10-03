@@ -11,6 +11,7 @@ import {
   type NoteScope,
   type NoteTone,
 } from '../../lib/notifications'
+import { RialText } from '../ui'
 import markReadIcon from '../../assets/notifications/mark-read.svg'
 import settingsIcon from '../../assets/notifications/settings.svg'
 import dismissIcon from '../../assets/notifications/dismiss.svg'
@@ -21,6 +22,9 @@ import stockIcon from '../../assets/notifications/stock.svg'
 import acceptedIcon from '../../assets/notifications/accepted.svg'
 import inviteIcon from '../../assets/notifications/invite.svg'
 import deviceIcon from '../../assets/notifications/device.svg'
+// A bill reminder wears the sidebar's Bills icon: the same file the sidebar draws beside
+// Expenditure, whose first entry is Bills. Drawn as it is, on the tile the panel tints.
+import billIcon from '../../assets/dashboard/nav-figma/expenditure.svg'
 
 const ICON: Record<Note['icon'], string> = {
   certificate: certificateIcon,
@@ -30,6 +34,7 @@ const ICON: Record<Note['icon'], string> = {
   accepted: acceptedIcon,
   invite: inviteIcon,
   device: deviceIcon,
+  bill: billIcon,
 }
 
 /** The tinted tile behind each icon (Figma: Danger, Warning, Success, Neutral, Primary 100/200). */
@@ -107,16 +112,22 @@ function Row({ note, last, onGo }: { note: Note; last: boolean; onGo: (to: strin
       </span>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-[19.6px] text-text-primary">
-          {t(note.titleKey, values)}
+        {/* A title can now carry a file's name: one long word wraps instead of being cut off. */}
+        <p className="text-sm font-semibold leading-[19.6px] text-text-primary [overflow-wrap:anywhere]">
+          {note.titleText ?? t(note.titleKey, values)}
         </p>
-        <p className="pt-[5px] text-[12.5px] font-medium leading-[19.375px] text-[#494d56]">
-          <Trans
-            i18nKey={note.bodyKey}
-            values={values}
-            components={{ b: <span className="font-semibold text-text-primary" /> }}
-          />
-        </p>
+        {note.bodyKey ? (
+          <p className="pt-[5px] text-[12.5px] font-medium leading-[19.375px] text-[#494d56]">
+            <Trans
+              i18nKey={note.bodyKey}
+              values={values}
+              components={{
+                // The same bold run as before; an amount inside it gets the rial sign.
+                b: <RialText as="span" className="font-semibold text-text-primary" />,
+              }}
+            />
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-x-[9px] gap-y-2 pt-[9px]">
           <span className="text-[11.5px] font-medium text-text-placeholder">
             {noteWhen(note.when, t, i18n.language)}
@@ -279,9 +290,11 @@ export function NotificationsPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {groups.length === 0 ? (
+        {/* Nothing is claimed while the first read is still on its way. With no line to show,
+            the panel's one empty-state line says which it is: nothing there, or not read. */}
+        {!notes.loaded && !notes.failed ? null : groups.length === 0 ? (
           <p className="px-5 py-12 text-center text-sm font-medium text-text-tertiary">
-            {t('notes.allCaughtUp')}
+            {t(notes.failed ? 'notes.unreadable' : 'notes.allCaughtUp')}
           </p>
         ) : (
           groups.map(({ group, items }) => (

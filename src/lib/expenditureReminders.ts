@@ -27,6 +27,11 @@ export type RuleSpec = {
   options: RuleOption[]
   /** More than one timing can be on at once (7 days *and* 2 days before). */
   multi: boolean
+  /**
+   * The one timing the design starts the row on, where that is not its earliest chip. Used only
+   * to read a switched-off row that carries several days (see `withOneTiming`).
+   */
+  startsOn?: number
   /** LATE only: the "then every N days" chip, which is `repeatEveryDays`. */
   repeat?: { days: number; labelKey: string }
   /** APPROVAL_STALE only: the second chip group, which is `escalationOffsets`. */
@@ -99,6 +104,8 @@ export const RULE_SPECS: RuleSpec[] = [
     leadKey: 'expenditureReminders.leads.remindAfter',
     options: days([1, 3, 7], ['oneDay', 'threeDays', 'aWeek']),
     multi: false,
+    // The design's own starting value for this row is three days, not one.
+    startsOn: 3,
     recipients: 'people',
   },
   {
@@ -150,6 +157,37 @@ export function toggleOffset(offsets: number[], offset: number, multi: boolean):
   return offsets.includes(offset)
     ? offsets.filter((value) => value !== offset)
     : [...offsets, offset]
+}
+
+/**
+ * A row that takes one timing, holding one.
+ *
+ * The approval, mismatch and scan rows (and the owner's part of the approval row) take a single
+ * timing, but the server's starting values carry two or three, so a new company used to see
+ * several lit on a row where a click keeps one. A rule that is off and carries several is read as
+ * carrying one, the one the design starts the row on: 2 days, then the owner after 5; 3 days;
+ * 2 days. That is the earliest on file, except on the mismatch row, where it is three days when
+ * three days is among them. A row that carries one day is left on that day. Nothing is written
+ * by this; the one timing is what is sent when the rule is next saved.
+ *
+ * A rule that is ON is left exactly as it is on file. Its extra days really are firing, and the
+ * page must not show fewer than the server acts on, nor drop them without the reader choosing.
+ */
+export function withOneTiming(rule: ReminderRuleDto): ReminderRuleDto {
+  const spec = RULE_SPECS.find((entry) => entry.type === rule.type)
+  if (!spec || rule.enabled) return rule
+  const earliest = (days: number[]) => (days.length > 1 ? [Math.min(...days)] : days)
+  const start = (days: number[]) =>
+    days.length > 1 && spec.startsOn !== undefined && days.includes(spec.startsOn)
+      ? [spec.startsOn]
+      : earliest(days)
+  const offsets = spec.multi ? rule.offsets : start(rule.offsets)
+  const escalationOffsets =
+    spec.escalation && rule.escalationOffsets
+      ? earliest(rule.escalationOffsets)
+      : rule.escalationOffsets
+  if (offsets === rule.offsets && escalationOffsets === rule.escalationOffsets) return rule
+  return { ...rule, offsets, escalationOffsets }
 }
 
 /** The rules the footer counts as on: every enabled rule, and the recurring one, which is always set per bill. */

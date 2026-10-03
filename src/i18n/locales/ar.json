@@ -1043,7 +1043,8 @@
         "bundles": "الحزم",
         "priceRules": "قواعد الأسعار"
       },
-      "lockedOn": "متاح في باقة {{plan}}"
+      "lockedOn": "متاح في باقة {{plan}}",
+      "billRemindersUnread": "تذكيرات الفواتير، {{count}} غير مقروءة"
     },
     "account": {
       "premiumPlan": "الخطة المميزة",
@@ -7246,7 +7247,7 @@
       "inAppOnly": "داخل فوتر فقط · بلا بريد",
       "headline_one": "أمر واحد يحتاج إلى انتباه هذا الصباح.",
       "headline_other": "{{count}} أمر يحتاج إلى انتباه هذا الصباح.",
-      "nothing": "لن يُرسل شيء اليوم. كل قاعدة قد تُفعّل مُطفأة.",
+      "nothing": "لن يُرسل شيء اليوم.",
       "to": "إلى",
       "alNoor": "Al Noor Dates غير مدفوعة منذ {{days}} أيام",
       "alNoorAmount": "٤١١٫٥٠٠ ريال",
@@ -7255,7 +7256,7 @@
       "discount": "خصم ٢٪ ينتهي ٥ أغسطس",
       "discountAmount": "يوفّر ٤٧٫٠٩٠ ريال",
       "approvals": "اعتمادان ينتظران {{days}} أيام",
-      "approvalsAmount": "٢٬٩٩٦٫٣١٠ ريال معلّقة",
+      "approvalsAmount": "٢٬٩٩٦٫٣١٠ ريال بانتظار الاعتماد",
       "headline_two": "أمران يحتاجان إلى انتباه هذا الصباح.",
       "headline_few": "{{count}} أمور تحتاج إلى انتباه هذا الصباح.",
       "headline_many": "{{count}} أمرًا يحتاج إلى انتباه هذا الصباح."
@@ -7277,7 +7278,7 @@
     "recipientCount_few": "{{count}} أشخاص محددون بالفعل",
     "recipientCount_many": "{{count}} شخصًا محددون بالفعل",
     "recipientCount_other": "{{count}} شخص محدد بالفعل",
-    "noRoster": "اختيار من يُبلَّغ يتطلب صلاحية إدارة المستخدمين. ويبقى الأشخاص المحددون على كل قاعدة كما هم.",
+    "noRoster": "تعذّرت قراءة قائمة الأشخاص. أعد التحميل لاختيار من يُبلَّغ.",
     "saveRules": "حفظ القواعد",
     "saveDelivery": "حفظ طريقة الإبلاغ",
     "saved": "تم الحفظ.",
@@ -7301,7 +7302,8 @@
       "outOfRange": "يجب أن يكون كل يوم بين 0 و{{maxDays}}",
       "repeated": "اليوم نفسه مرتين",
       "notWhole": "أيام كاملة فقط",
-      "recipients": "تفعيل هذه القاعدة يتطلب شخصًا واحدًا على الأقل لإبلاغه"
+      "recipients": "تفعيل هذه القاعدة يتطلب شخصًا واحدًا على الأقل لإبلاغه",
+      "noTiming": "اختر موعد التذكير، أو أوقف هذا التذكير."
     },
     "inbox": {
       "title": "تذكيراتك",
@@ -7327,7 +7329,9 @@
       "sendNow": "أرسل لي ملخص اليوم الآن",
       "notYet": "غير متاح بعد: يحتاج إلى الخادم.",
       "save": "حفظ التغييرات"
-    }
+    },
+    "sendingOff": "لا تُرسل التذكيرات بعد.",
+    "rulesSavedSettingsFailed": "حُفظت القواعد، لكن تعذّر حفظ الإعدادات. حاول مرة أخرى."
   },
   "documents": {
     "title": "المستندات",
@@ -14686,7 +14690,141 @@
       "title": "تغيّر {{erpNumber}} في النظام بعد إرساله",
       "body": "لا يمكن تغيير فاتورة مُرسلة ({{note}}). أصدر إشعار دائن في {{product}} وسيجمعه الموصّل.",
       "open": "افتح السجل"
-    }
+    },
+    "reminder": {
+      "BEFORE_DUE": {
+        "now": "تستحق الفاتورة {{name}} اليوم",
+        "days_one": "تستحق الفاتورة {{name}} غدًا",
+        "days_two": "تستحق الفاتورة {{name}} خلال يومين",
+        "days_few": "تستحق الفاتورة {{name}} خلال {{count}} أيام",
+        "days_many": "تستحق الفاتورة {{name}} خلال {{count}} يومًا",
+        "days_other": "تستحق الفاتورة {{name}} خلال {{count}} يوم"
+      },
+      "LATE": {
+        "now": "الفاتورة {{name}} متأخرة",
+        "days_one": "الفاتورة {{name}} متأخرة يومًا واحدًا",
+        "days_two": "الفاتورة {{name}} متأخرة يومين",
+        "days_few": "الفاتورة {{name}} متأخرة {{count}} أيام",
+        "days_many": "الفاتورة {{name}} متأخرة {{count}} يومًا",
+        "days_other": "الفاتورة {{name}} متأخرة {{count}} يوم"
+      },
+      "DISCOUNT_EXPIRY": {
+        "now": "ينتهي خصم الفاتورة {{name}} اليوم",
+        "days_one": "ينتهي خصم الفاتورة {{name}} غدًا",
+        "days_two": "ينتهي خصم الفاتورة {{name}} خلال يومين",
+        "days_few": "ينتهي خصم الفاتورة {{name}} خلال {{count}} أيام",
+        "days_many": "ينتهي خصم الفاتورة {{name}} خلال {{count}} يومًا",
+        "days_other": "ينتهي خصم الفاتورة {{name}} خلال {{count}} يوم",
+        "dated": "خصم {{percent}}٪ على الفاتورة {{name}} ينتهي {{date}}",
+        "datedNow": "خصم {{percent}}٪ على الفاتورة {{name}} ينتهي اليوم",
+        "datedPast": "خصم {{percent}}٪ على الفاتورة {{name}} انتهى {{date}}"
+      },
+      "APPROVAL_STALE": {
+        "now": "الفاتورة {{name}} تنتظر الاعتماد منذ أقل من يوم",
+        "days_one": "الفاتورة {{name}} بانتظار الاعتماد منذ يوم واحد",
+        "days_two": "الفاتورة {{name}} بانتظار الاعتماد منذ يومين",
+        "days_few": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} أيام",
+        "days_many": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} يومًا",
+        "days_other": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} يوم"
+      },
+      "MISMATCH_STALE": {
+        "now": "في الفاتورة {{name}} اختلاف لم يحلّه أحد",
+        "days_one": "اختلاف الفاتورة {{name}} لم يُحلّ منذ يوم واحد",
+        "days_two": "اختلاف الفاتورة {{name}} لم يُحلّ منذ يومين",
+        "days_few": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} أيام",
+        "days_many": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يومًا",
+        "days_other": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يوم"
+      },
+      "SCAN_UNCONFIRMED": {
+        "now": "{{name}} لم يُؤكَّد بعد",
+        "days_one": "{{name}} لم يُؤكَّد منذ يوم واحد",
+        "days_two": "{{name}} لم يُؤكَّد منذ يومين",
+        "days_few": "{{name}} لم يُؤكَّد منذ {{count}} أيام",
+        "days_many": "{{name}} لم يُؤكَّد منذ {{count}} يومًا",
+        "days_other": "{{name}} لم يُؤكَّد منذ {{count}} يوم"
+      },
+      "RECURRING_LATE": {
+        "now": "لم تصل {{name}} بعد",
+        "days_one": "تأخر وصول {{name}} يومًا واحدًا",
+        "days_two": "تأخر وصول {{name}} يومين",
+        "days_few": "تأخر وصول {{name}} {{count}} أيام",
+        "days_many": "تأخر وصول {{name}} {{count}} يومًا",
+        "days_other": "تأخر وصول {{name}} {{count}} يوم"
+      },
+      "RECURRING_CHASE": {
+        "title": "يُرجى متابعة المورّد بشأن {{name}}"
+      },
+      "RECURRING_OUT_OF_RANGE": {
+        "title": "وصلت {{name}} خارج نطاقها المعتاد"
+      },
+      "body": {
+        "owed": "<b>{{amount}}</b> لم تُسدَّد بعد.",
+        "usual": "المبلغ المعتاد <b>{{amount}}</b>.",
+        "above": "أعلى من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>.",
+        "below": "أقل من المبلغ المعتاد بنسبة <b>{{percent}}٪</b>.",
+        "heldUp": "<b>{{amount}}</b> بانتظار الاعتماد.",
+        "saves": "يوفّر <b>{{amount}}</b>."
+      },
+      "supplier": {
+        "BEFORE_DUE": {
+          "now": "فاتورة {{supplier}} تستحق اليوم",
+          "days_one": "فاتورة {{supplier}} تستحق غدًا",
+          "days_two": "فاتورة {{supplier}} تستحق خلال يومين",
+          "days_few": "فاتورة {{supplier}} تستحق خلال {{count}} أيام",
+          "days_many": "فاتورة {{supplier}} تستحق خلال {{count}} يومًا",
+          "days_other": "فاتورة {{supplier}} تستحق خلال {{count}} يوم"
+        },
+        "LATE": {
+          "days_one": "فاتورة {{supplier}} غير مدفوعة منذ يوم واحد",
+          "days_two": "فاتورة {{supplier}} غير مدفوعة منذ يومين",
+          "days_few": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} أيام",
+          "days_many": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يومًا",
+          "days_other": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يوم"
+        },
+        "DISCOUNT_EXPIRY": {
+          "now": "خصم {{supplier}} ينتهي اليوم",
+          "days_one": "خصم {{supplier}} ينتهي غدًا",
+          "days_two": "خصم {{supplier}} ينتهي خلال يومين",
+          "days_few": "خصم {{supplier}} ينتهي خلال {{count}} أيام",
+          "days_many": "خصم {{supplier}} ينتهي خلال {{count}} يومًا",
+          "days_other": "خصم {{supplier}} ينتهي خلال {{count}} يوم",
+          "dated": "خصم {{percent}}٪ من {{supplier}} ينتهي {{date}}",
+          "datedNow": "خصم {{percent}}٪ من {{supplier}} ينتهي اليوم",
+          "datedPast": "خصم {{percent}}٪ من {{supplier}} انتهى {{date}}"
+        },
+        "APPROVAL_STALE": {
+          "now": "اعتماد {{supplier}} ينتظر منذ أقل من يوم",
+          "days_one": "اعتماد {{supplier}} ينتظر يومًا واحدًا",
+          "days_two": "اعتماد {{supplier}} ينتظر يومين",
+          "days_few": "اعتماد {{supplier}} ينتظر {{count}} أيام",
+          "days_many": "اعتماد {{supplier}} ينتظر {{count}} يومًا",
+          "days_other": "اعتماد {{supplier}} ينتظر {{count}} يوم"
+        },
+        "MISMATCH_STALE": {
+          "now": "اختلاف {{supplier}} لم يُحلّ",
+          "days_one": "اختلاف {{supplier}} لم يُحلّ منذ يوم واحد",
+          "days_two": "اختلاف {{supplier}} لم يُحلّ منذ يومين",
+          "days_few": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} أيام",
+          "days_many": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يومًا",
+          "days_other": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يوم"
+        },
+        "RECURRING_LATE": {
+          "now": "فاتورة {{supplier}} لم تصل",
+          "days_one": "فاتورة {{supplier}} لم تصل، متأخرة يومًا",
+          "days_two": "فاتورة {{supplier}} لم تصل، متأخرة يومين",
+          "days_few": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} أيام",
+          "days_many": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يومًا",
+          "days_other": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يوم"
+        },
+        "RECURRING_CHASE": {
+          "title": "طالِب {{supplier}} بالفاتورة التي لم تصل"
+        },
+        "RECURRING_OUT_OF_RANGE": {
+          "title": "فاتورة {{supplier}} وصلت خارج النطاق"
+        }
+      }
+    },
+    "unreadable": "تعذّرت قراءة التذكيرات. أعد التحميل للمحاولة مجددًا."
   },
   "onboarding": {
     "sessionExpired": "انتهت جلسة التسجيل. إذا احتجت مساعدة لإكمال تسجيلك، تواصل مع دعم فواتير.",
@@ -16813,6 +16951,9 @@
       "approvalReasonRequired": "الرفض يجب أن يذكر سببه.",
       "applyAmountInvalid": "المبلغ المخصوم يجب أن يكون أكبر من صفر.",
       "approvalPolicyInvalid": "قاعدة الاعتماد يجب أن تشترط معتمدًا واحدًا على الأقل.",
+      "reminderRepeatNotAllowed": "هذا التذكير لا يتكرر.",
+      "reminderRecipientUnknown": "أحد الأشخاص المختارين لم يعد ضمن الفريق. اختر من جديد.",
+      "reminderDaysOutOfRange": "هذا العدد من الأيام غير مسموح هنا.",
       "paymentRunBillOnHold": "في هذه الدفعة فاتورة قيد الانتظار. أفرج عنها أو أخرجها من الدفعة أولًا."
     },
     "selfBilling": {

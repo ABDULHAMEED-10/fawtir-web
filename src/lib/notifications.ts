@@ -1,5 +1,16 @@
 import { useSyncExternalStore } from 'react'
 import type { TFunction } from 'i18next'
+import { ApiError } from '../api'
+import {
+  acknowledgeAllReminders,
+  acknowledgeReminder,
+  loadReminderInbox,
+  loadReminderUnreadCount,
+  reminderInboxPath,
+  type ReminderInboxItemDto,
+} from '../api/expenditure/billReminders'
+import { formatAmount } from './format'
+import { isAcknowledged, reminderNote, type ReminderNoteIcon } from './reminderNotices'
 import { usageForecast } from './settings'
 import { SIGNING_CERTIFICATE, certificateState } from './settingsCompany'
 import { invited } from './settingsPeople'
@@ -22,6 +33,11 @@ import { STOCK_BOOK, SUPPLIER } from './catalogStock'
  *
  * Dates are handed over as `Date`s and written out by the panel in the reader's language — the
  * Arabic line used to say "the 26th" in English.
+ *
+ * What the bell shows now is the reader's own bill reminders, read from the server
+ * (`GET /bill-reminders/inbox`): see the store below and `reminderNotices.ts`. The design's seven
+ * sample lines (`NOTES`) are kept here as drawn but are no longer shown: none of them has a
+ * source, and typed-in sample lines beside real ones would be read as real.
  */
 
 export type NoteTone = 'danger' | 'warning' | 'success' | 'neutral' | 'brand'
@@ -46,11 +62,29 @@ export type Note = {
   id: string
   group: 'today' | 'earlier'
   tone: NoteTone
-  icon: 'certificate' | 'quota' | 'refused' | 'stock' | 'accepted' | 'invite' | 'device'
+  icon:
+    | 'certificate'
+    | 'quota'
+    | 'refused'
+    | 'stock'
+    | 'accepted'
+    | 'invite'
+    | 'device'
+    | ReminderNoteIcon
   titleKey: string
-  bodyKey: string
+  /** A title that arrives already written (a reminder's own sentence from the server). */
+  titleText?: string
+  /** Left out for a line with nothing to add under its title. */
+  bodyKey?: string
   /** Dates are formatted by the panel, in the reader's language. */
   values: Record<string, string | number | Date>
+  /**
+   * How a date in `values` is written: "29 September" unless a line asks for the short form the
+   * design gives a bill reminder ("5 Aug"), which keeps Latin digits in Arabic as bills do.
+   */
+  dates?: 'short'
+  /** An amount for the body, written out by the panel in the reader's language as `{{amount}}`. */
+  money?: { amount: number; currency: string }
   /** When it happened — phrased by the panel in the reader's language. */
   when: NoteWhen
   actions: NoteAction[]
@@ -66,6 +100,8 @@ const invitee = invited[0]
 // three failed runs, and a record superseded in the ERP. Neither state exists -- Phase 2 has no
 // extraction, no runs and no ERROR state -- so the bell was telling tenants their integration
 // had failed and deep-linking them at screens that now say the feature is not switched on.
+//
+// The design's sample list. Not shown by the bell any more (see the note at the top).
 export const NOTES: Note[] = [
   {
     id: 'certificate',
@@ -211,24 +247,45 @@ export const NOTES: Note[] = [
 /* --------------------------------------------------------------------- store */
 
 /**
- * What the reader has done to the list — read, dismissed, acted on.
+ * The reader's reminders as last read from the server, and what they have done to the list.
  *
  * Kept outside React because every page mounts its own shell, so a panel's state would otherwise
- * be thrown away on every navigation: mark everything read, open Settings, and the bell would be
- * back to 2. One store shared by the badge and the panel keeps the two in step.
+ * be thrown away on every navigation: the badge would drop to nothing and come back on every
+ * page. One store shared by the badge and the panel keeps the two in step.
+ *
+ * Read is the server's to say. Marking a line read shows at once and is then sent
+ * (`POST /inbox/{id}/acknowledge`, or `/inbox/acknowledge-all`); if the server does not take it,
+ * the list is read again and shows what is true.
  */
 type NotesState = {
-  read: ReadonlySet<string>
+  /** Whose inbox this is (`tenant:user`), or null when there is nobody's to read. */
+  owner: string | null
+  /** The newest lines, or null before the first answer. */
+  items: readonly ReminderInboxItemDto[] | null
+  /** The latest read of the lines did not answer. Any lines read before it are kept. */
+  listFailed: boolean
+  /** The server's own count of unread, which no page of the list caps. */
+  unread: number
+  /** Put away for this visit. "See them all" brings them back. */
   dismissed: ReadonlySet<string>
   /** Notes whose in-place action has run, and the line that replaces their buttons. */
   done: ReadonlyMap<string, string>
 }
 
-let state: NotesState = {
-  read: new Set(NOTES.filter((note) => !note.unread).map((note) => note.id)),
+const EMPTY: NotesState = {
+  owner: null,
+  items: null,
+  listFailed: false,
+  unread: 0,
   dismissed: new Set(),
   done: new Map(),
 }
+
+let state: NotesState = EMPTY
+/** Acknowledgements on their way to the server, in order. A read waits for them to land. */
+let writes: Promise<unknown> = Promise.resolve()
+/** Counts what the reader has marked read. An answer that set out before the latest is stale. */
+let edits = 0
 
 const listeners = new Set<() => void>()
 
@@ -242,65 +299,188 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
+/** A server from before the route answers "no such thing", which is not a failure to report. */
+const routeMissing = (error: unknown) =>
+  error instanceof ApiError && (error.status === 404 || error.status === 405)
+
+/**
+ * The unread count. A server from before `GET /inbox/unread-count` is asked for its unread lines
+ * instead and they are counted, which stops at the read's own limit.
+ */
+async function readUnread(): Promise<number> {
+  try {
+    return await loadReminderUnreadCount()
+  } catch (error) {
+    if (!routeMissing(error)) throw error
+    return (await loadReminderInbox(reminderInboxPath(true))).length
+  }
+}
+
+/**
+ * Reads the count, and the list too when the panel is open. Never throws: a read that fails
+ * leaves what was last read in place, and the page the reader is on is not disturbed by its bell.
+ */
+async function read(withList: boolean): Promise<void> {
+  const owner = state.owner
+  if (owner === null) return
+  // Let anything marked read reach the server first, so the answer includes it.
+  for (let pending = writes; ; pending = writes) {
+    await pending
+    if (pending === writes) break
+  }
+  const before = edits
+  const [list, count] = await Promise.allSettled([
+    withList ? loadReminderInbox(reminderInboxPath(false)) : Promise.resolve(null),
+    readUnread(),
+  ])
+  if (state.owner !== owner) return
+  // Something was marked read while this was on its way: ask again rather than undo it.
+  if (edits !== before) return read(withList)
+  const items = list.status === 'fulfilled' && list.value !== null ? list.value : state.items
+  set({
+    ...state,
+    items,
+    listFailed: withList ? list.status === 'rejected' : state.listFailed,
+    unread: count.status === 'fulfilled' ? count.value : state.unread,
+  })
+}
+
+const asRead = (item: ReminderInboxItemDto): ReminderInboxItemDto =>
+  isAcknowledged(item)
+    ? item
+    : { ...item, read: true, acknowledgedAt: item.acknowledgedAt ?? new Date().toISOString() }
+
 export const notesStore = {
+  /**
+   * Whose bell this is. Called by the bell each time a page mounts it: a different reader (or
+   * none) starts from nothing, and the count is asked for afresh either way.
+   */
+  watch(owner: string | null) {
+    if (state.owner !== owner) set({ ...EMPTY, owner })
+    void read(false)
+  },
+  /** The panel has been opened: read its lines and the count. */
+  refresh() {
+    void read(true)
+  },
   markRead(id: string) {
-    if (state.read.has(id)) return
-    set({ ...state, read: new Set(state.read).add(id) })
+    const item = state.items?.find((entry) => entry.id === id)
+    if (!item || isAcknowledged(item)) return
+    const owner = state.owner
+    edits += 1
+    set({
+      ...state,
+      items: state.items!.map((entry) => (entry.id === id ? asRead(entry) : entry)),
+      unread: Math.max(0, state.unread - 1),
+    })
+    writes = writes
+      .then(() => acknowledgeReminder(id))
+      .catch(() => {
+        // Not taken: show what the server holds rather than a line that only looks read.
+        if (state.owner === owner) void read(true)
+      })
   },
   markAllRead() {
-    set({ ...state, read: new Set(NOTES.map((note) => note.id)) })
+    if (state.unread === 0 && !(state.items ?? []).some((item) => !isAcknowledged(item))) return
+    const owner = state.owner
+    const shownUnread = (state.items ?? []).filter((item) => !isAcknowledged(item))
+    edits += 1
+    set({ ...state, items: state.items?.map(asRead) ?? null, unread: 0 })
+    writes = writes
+      .then(async () => {
+        try {
+          await acknowledgeAllReminders()
+        } catch (error) {
+          if (!routeMissing(error)) throw error
+          // A server from before "mark all": the lines that were on show, one at a time.
+          for (const item of shownUnread) await acknowledgeReminder(item.id)
+        }
+      })
+      .catch(() => undefined)
+      // Read again either way: the server says what is still unread.
+      .then(() => {
+        if (state.owner === owner) void read(true)
+      })
   },
   dismiss(id: string) {
-    set({
-      ...state,
-      dismissed: new Set(state.dismissed).add(id),
-      read: new Set(state.read).add(id),
-    })
+    notesStore.markRead(id)
+    set({ ...state, dismissed: new Set(state.dismissed).add(id) })
   },
   complete(id: string, doneKey: string) {
-    set({
-      ...state,
-      done: new Map(state.done).set(id, doneKey),
-      read: new Set(state.read).add(id),
-    })
+    notesStore.markRead(id)
+    set({ ...state, done: new Map(state.done).set(id, doneKey) })
   },
   /** "See them all" — brings back anything dismissed that is still inside the 30 days. */
   restoreAll() {
     set({ ...state, dismissed: new Set() })
   },
+  /** For tests: forget the reader and everything read for them. */
+  reset() {
+    writes = Promise.resolve()
+    edits = 0
+    set(EMPTY)
+  },
 }
 
 /**
- * Whose bell it is. The Super Admin console shares the topbar, but a shop's certificate and quota
- * are not the platform operator's to act on, and the console has no alerts of its own designed yet
- * — so its bell is quiet and its panel says so, rather than showing Al Bahja's list.
+ * Whose bell it is. The Super Admin console shares the topbar, but a shop's reminders are not the
+ * platform operator's to act on, and the console has no alerts of its own designed yet — so its
+ * bell is quiet and its panel says so.
  */
 export type NoteScope = 'tenant' | 'console'
 
 export function useNotes(scope: NoteScope = 'tenant') {
   const current = useSyncExternalStore(subscribe, () => state)
-  const shown = scope === 'console' ? [] : NOTES.filter((note) => !current.dismissed.has(note.id))
-  const unread = shown.filter((note) => !current.read.has(note.id)).length
+  const mine = scope === 'tenant' && current.owner !== null
+  const items = mine ? (current.items ?? []) : []
+  const now = new Date()
+  const shown = items
+    .filter((item) => !current.dismissed.has(item.id))
+    .map((item) => reminderNote(item, now))
   return {
     shown,
-    unread,
-    isRead: (id: string) => current.read.has(id),
+    unread: mine ? current.unread : 0,
+    /** False while the first read of the list is still on its way. */
+    loaded: !mine || current.items !== null,
+    /** The lines could not be read, so an empty list here is not "nothing to show". */
+    failed: mine && current.listFailed,
+    isRead: (id: string) => {
+      const item = items.find((entry) => entry.id === id)
+      return item ? isAcknowledged(item) : true
+    },
     doneKey: (id: string) => current.done.get(id),
-    anyDismissed: scope === 'tenant' && current.dismissed.size > 0,
+    anyDismissed: mine && current.dismissed.size > 0,
   }
+}
+
+/**
+ * The reader's unread bill reminders, for anything that shows the bell's number somewhere else
+ * (the Bills entry of the sidebar). It reads the bell's store and asks nothing itself: the bell
+ * does the asking, so the two always show one number. 0 when there is nobody's inbox to read.
+ */
+export function useUnreadReminders(): number {
+  return useSyncExternalStore(subscribe, () => (state.owner === null ? 0 : state.unread))
 }
 
 /** A note's values ready for `t()` — dates written out in the reader's language ("29 September"). */
 export function noteValues(note: Note, language: string) {
-  const locale = language.startsWith('ar') ? 'ar' : 'en-GB'
-  return Object.fromEntries(
+  const short = note.dates === 'short'
+  const arabic = language.startsWith('ar')
+  const locale = arabic ? (short ? 'ar-u-nu-latn' : 'ar') : 'en-GB'
+  const values: Record<string, string | number> = Object.fromEntries(
     Object.entries(note.values).map(([key, value]) => [
       key,
       value instanceof Date
-        ? value.toLocaleDateString(locale, { day: 'numeric', month: 'long' })
+        ? value.toLocaleDateString(locale, { day: 'numeric', month: short ? 'short' : 'long' })
         : value,
     ]),
   )
+  // Written as the rest of the app writes money; the panel swaps "OMR" for the rial sign.
+  if (note.money) {
+    const { amount, currency } = note.money
+    values.amount = `${currency} ${formatAmount(amount, currency, language)}`
+  }
+  return values
 }
 
 /** The time line under a note, in the reader's language. */
