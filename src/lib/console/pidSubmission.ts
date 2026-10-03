@@ -91,8 +91,8 @@ export function reasonCodeError(value: string): 'required' | 'invalid' | null {
 
 /**
  * Same shape of failure as company verification: `409` means the case moved (someone else decided
- * it, or the tenant resubmitted), `403` a missing permission or the four-eyes rule (a submitter
- * cannot verify their own filing).
+ * it, or the tenant resubmitted), `403` a missing permission. The four-eyes rule (a submitter cannot
+ * verify their own filing) arrives as `409 SELF_VERIFICATION_NOT_ALLOWED`.
  *
  * The backend names its refusals with a `code`, and only that and the status are read here; the
  * problem's `detail` is never matched or shown. A `409` without a code this screen knows, which

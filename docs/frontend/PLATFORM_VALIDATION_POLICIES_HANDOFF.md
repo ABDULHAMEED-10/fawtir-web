@@ -740,21 +740,41 @@ the accessible name. Visual rendering is unchanged.
 - In RTL the month arrows now mirror (`rtl:rotate-*`, the project's convention).
 - The formatters are built only while the calendar is open.
 - The Arabic wording is still provisional and needs native review.
-- The date shown in the closed field (`formatDisplayDate` in `lib/dates`) stays English. It is
-  shared app-wide and is a follow-up.
+- The closed field speaks the page's language too. `formatDisplayDate(key, language)` writes
+  Arabic through Intl with Latin digits (decision D15). English is still built by hand, so it
+  stays byte-identical: Intl's en-GB would turn "Sep" into "Sept". `DateField` is the only caller.
+  The calendar uses the same Latin-digit locale.
+- Choosing a day, Today or Clear inside the calendar returns focus to the field, as `Select` does.
+  The calendar unmounts with focus inside it, and the dialog's trap now leads keyboard users into
+  it.
 
-**Test isolation found on the way.** `verification.test.tsx` and `tenantDetail.test.tsx` did not
-empty the shared request registry between tests. When a test ended while its read was still
-settling, the following tests on the same screen joined that read and timed out: 11 queue tests
-and 3 tenant tests respectively. A probe that leaves one read in flight reproduces each case
-exactly, and `resetSharedRequests()` in `beforeEach` fixes both.
+**Focus after a step.** A step that succeeds or is refused re-reads the page, which removes the
+button that opened its dialog. Focus now goes to the notice that says what happened, instead of
+falling to the page. Focus that is still somewhere useful, such as an editor left open on a 409,
+is not moved.
 
-Five other console test files have the same gap and have not been seen failing: `onboard`,
-`operators`, `plans`, `tenants` and `verificationDecisions`. They are follow-ups.
+**Test isolation found on the way.**
+`verification.test.tsx`, `tenantDetail.test.tsx` and `verificationDecisions.test.tsx` did not empty
+the shared request registry between tests. When a test ended while its read was still settling,
+the next test on the same screen joined that read and timed out: 11 queue tests and 3 tenant
+tests respectively. In `verificationDecisions`, several tests end right after a click that starts a
+re-read. A probe that leaves one read in flight reproduces each case, and `resetSharedRequests()`
+in `beforeEach` fixes all three.
+
+`operators.test.tsx` and `plans.test.tsx` need it as well. Their loading test holds the read open
+until the page shows its loading state. If that lookup times out under load, the read is never
+released. One parallel run failed 99 of 108 operator tests exactly this way, and a probe
+reproduces it for both files.
+
+`tenants` holds no read open, and `onboard` reads nothing shared, so neither needs it.
 
 Also deferred:
 
-- After a write the page replaces its body with the loading state while it re-reads.
+- After a write the page briefly shows its loading state while it re-reads. No mutation can be
+  sent meanwhile, and focus goes to the notice, so this is cosmetic.
+- The operator Verification panel's approve/reject dialog drops focus to the page after a
+  decision, because its button is gone. The panel exists on `main`; the same notice-focus fix
+  would apply.
 - An absent `forceState`, type or status from the server shows a raw i18n key. The contract
   marks all three as required.
 - The operator panel's own-submission check (existing code) compares user ids in the browser.
