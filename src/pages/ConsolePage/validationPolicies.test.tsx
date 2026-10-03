@@ -710,6 +710,37 @@ describe('Lifecycle buttons follow allowedActions', () => {
     await waitFor(() => noButton('console.policies.action.create'))
   })
 
+  it('puts focus on what happened once a step removes the button that opened its dialog', async () => {
+    const draft = version({ allowedActions: actions({ submit: allow }) })
+    const submitted = {
+      ...draft,
+      status: 'SUBMITTED' as const,
+      optimisticLockVersion: 5,
+      allowedActions: actions(),
+    }
+    await openPolicy(
+      [draft],
+      {
+        [listUrl()]: [() => json(200, [draft]), () => json(200, [submitted])],
+        [stepUrl(V3, 'submit')]: () => json(200, submitted),
+      },
+      { strict: true },
+    )
+    const opener = button('console.policies.action.submit')
+    opener.focus()
+    fireEvent.click(opener)
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: t('console.policies.confirm.submit.confirm'),
+      }),
+    )
+
+    const notice = await screen.findByText(t('console.policies.done.submit', { number: '3' }))
+    // The notice's own container, not the page: `<body>` contains the notice too.
+    await waitFor(() => expect(document.activeElement).toBe(notice.parentElement))
+    noButton('console.policies.action.submit')
+  })
+
   it('SUBMITTED: a reviewer sees Start review, which sends the fixed code once', async () => {
     const submitted = version({ status: 'SUBMITTED', allowedActions: actions({ review: allow }) })
     await openPolicy([submitted], {

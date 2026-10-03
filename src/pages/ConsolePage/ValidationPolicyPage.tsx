@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../api'
@@ -103,6 +103,17 @@ function PolicyVersions({ type }: { type: BlockerType }) {
   const [dialog, setDialog] = useState<PolicyTransition | null>(null)
   const [editor, setEditor] = useState<EditorTarget | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
+  const noticeRef = useRef<HTMLDivElement>(null)
+
+  // A step that succeeds or is refused usually removes the button that opened its dialog, so the
+  // dialog has nothing to give focus back to and it falls to the page. It goes to the notice that
+  // says what happened instead. Focus that is still somewhere useful (an editor left open) stays.
+  useEffect(() => {
+    if (!notice) return
+    const active = document.activeElement
+    if (active && active !== document.body) return
+    noticeRef.current?.focus()
+  }, [notice])
 
   const versions = list.read.status === 'ready' ? list.read.data : null
   const listed =
@@ -257,15 +268,20 @@ function PolicyVersions({ type }: { type: BlockerType }) {
         ) : null}
       </div>
 
-      {notice?.kind === 'done' ? (
-        <p
-          role="status"
-          className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
-        >
-          {t(notice.message.key, notice.message.values)}
-        </p>
+      {notice ? (
+        <div ref={noticeRef} tabIndex={-1} className="outline-none">
+          {notice.kind === 'done' ? (
+            <p
+              role="status"
+              className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
+            >
+              {t(notice.message.key, notice.message.values)}
+            </p>
+          ) : (
+            <PolicyFailureNotice card failure={notice.failure} />
+          )}
+        </div>
       ) : null}
-      {notice?.kind === 'failed' ? <PolicyFailureNotice card failure={notice.failure} /> : null}
 
       {body}
 
