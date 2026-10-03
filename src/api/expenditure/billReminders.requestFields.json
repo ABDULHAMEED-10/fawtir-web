@@ -1,0 +1,15 @@
+{
+  "PUT /v1/bill-reminders/rules": {
+    "record": "BillReminderController.RulesRequest",
+    "fields": ["rules"],
+    "each": {
+      "record": "BillReminderController.RuleRequest",
+      "fields": ["type", "offsets", "repeatEveryDays", "escalationOffsets", "recipients", "enabled"]
+    }
+  },
+  "PUT /v1/bill-reminders/settings": {
+    "record": "BillReminderController.SettingsRequest",
+    "fields": ["delivery", "digestTime", "skipWeekends", "stopWhenInRun"],
+    "acceptedAndIgnored": ["sendingEnabled"]
+  }
+}
