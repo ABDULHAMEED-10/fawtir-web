@@ -9,7 +9,7 @@ import { ErpConnectionsPage } from '../ErpConnectionsPage'
 import { ErpConnectPage } from '../ErpConnectPage'
 import { ConnectionOverviewPage } from './ConnectionOverviewPage'
 import { ConnectionSettingsPage } from './ConnectionSettingsPage'
-import { ConnectionRunsPage } from './ConnectionRunsPage'
+import { ConnectionWriteBackPage } from './ConnectionWriteBackPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const CONNECTIONS_URL = '/api/v1/erp/connections'
@@ -142,7 +142,7 @@ function renderAt(path: string) {
         <Route path="/settings/erp/connections/new" element={<ErpConnectPage />} />
         <Route path="/settings/erp/connections/:id" element={<ConnectionOverviewPage />} />
         <Route path="/settings/erp/connections/:id/settings" element={<ConnectionSettingsPage />} />
-        <Route path="/settings/erp/connections/:id/runs" element={<ConnectionRunsPage />} />
+        <Route path="/settings/erp/connections/:id/write-back" element={<ConnectionWriteBackPage />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -610,8 +610,10 @@ describe('test connection', () => {
 /* =============================================================== extraction gone */
 
 describe('extraction screens', () => {
-  it('say the feature is unavailable instead of inventing runs', async () => {
-    const { container } = renderAt(`/settings/erp/connections/${ID}/runs`)
+  // Runs and records now have a backend and open the ERP activity reports (erpReporting.test);
+  // write-back still has none.
+  it('say write-back is unavailable instead of inventing an outbox', async () => {
+    const { container } = renderAt(`/settings/erp/connections/${ID}/write-back`)
     expect(await screen.findByText(/Not available yet/i)).toBeTruthy()
     const text = (container.textContent ?? '').toLowerCase()
     for (const leak of ['collected', 'rejected', 'watermark', 'succeeded', 'partial']) {
