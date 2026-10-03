@@ -35,7 +35,9 @@ export function Modal({
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      // An Escape already spent by an overlay inside the dialog (a `Popover`) closed that overlay;
+      // the next Escape is the dialog's.
+      if (event.key === 'Escape' && !event.defaultPrevented) onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     // The page behind a dialog should not scroll with it.

@@ -1903,6 +1903,97 @@ describe('Authoring the Participant ID policy', () => {
     expect(writes()).toHaveLength(0)
   })
 
+  describe('Escape with a dropdown or calendar open', () => {
+    // StrictMode, as the application mounts: listeners are added, removed and added again.
+    const openEditor = async () => {
+      await openPolicy(
+        [version({ status: 'ACTIVE', forceState: 'IN_FORCE' })],
+        {},
+        { canCreateDraft: true, strict: true },
+      )
+      fireEvent.click(
+        await screen.findByRole('button', { name: t('console.policies.action.create') }),
+      )
+      return screen.getByRole('dialog', { name: t('console.policies.editor.createTitle') })
+    }
+    const trigger = (name: string) => screen.getByRole('button', { name: labelOf(name) })
+    const escapeOn = (element: Element) => fireEvent.keyDown(element, { key: 'Escape' })
+    const editorOpen = () =>
+      screen.queryByRole('dialog', { name: t('console.policies.editor.createTitle') }) !== null
+
+    it('closes the editor on Escape when nothing inside it is open', async () => {
+      await openEditor()
+      type('participantIdentifierScheme', '0248')
+
+      escapeOn(field('participantIdentifierScheme'))
+
+      await waitFor(() => expect(editorOpen()).toBe(false))
+      expect(writes()).toHaveLength(0)
+    })
+
+    it('closes only the dropdown, keeps what was typed and the focus, then closes the editor', async () => {
+      await openEditor()
+      type('participantIdentifierScheme', '0248-TYPED')
+      type('validationPattern', '^OM\\d{10}$')
+      const normalization = trigger('normalization')
+      normalization.focus()
+      fireEvent.keyDown(normalization, { key: 'Enter' })
+      expect(screen.getByRole('listbox')).toBeTruthy()
+
+      escapeOn(normalization)
+
+      expect(screen.queryByRole('listbox')).toBeNull()
+      expect(editorOpen()).toBe(true)
+      expect(field('participantIdentifierScheme').value).toBe('0248-TYPED')
+      expect(field('validationPattern').value).toBe('^OM\\d{10}$')
+      expect(document.activeElement).toBe(normalization)
+
+      escapeOn(normalization)
+
+      await waitFor(() => expect(editorOpen()).toBe(false))
+      expect(writes()).toHaveLength(0)
+    })
+
+    it('closes only the calendar, gives focus back to its field, then closes the editor', async () => {
+      await openEditor()
+      type('participantIdentifierScheme', '0248-TYPED')
+      fireEvent.click(trigger('effectiveFrom'))
+      // Focus inside the calendar, which is portalled to the end of the body.
+      const nextMonth = screen.getByRole('button', { name: 'Next month' })
+      nextMonth.focus()
+
+      escapeOn(nextMonth)
+
+      expect(screen.queryByRole('button', { name: 'Next month' })).toBeNull()
+      expect(editorOpen()).toBe(true)
+      expect(field('participantIdentifierScheme').value).toBe('0248-TYPED')
+      expect(document.activeElement).toBe(trigger('effectiveFrom'))
+
+      escapeOn(trigger('effectiveFrom'))
+
+      await waitFor(() => expect(editorOpen()).toBe(false))
+      expect(writes()).toHaveLength(0)
+    })
+
+    it('keeps the validation messages and the values when a dropdown is dismissed', async () => {
+      const dialog = await openEditor()
+      type('participantIdentifierScheme', '0248-TYPED')
+      save()
+      const messages = within(dialog).getAllByText(t('validation.required')).length
+      expect(messages).toBeGreaterThan(0)
+      fireEvent.click(trigger('caseSensitive'))
+      expect(screen.getByRole('listbox')).toBeTruthy()
+
+      escapeOn(trigger('caseSensitive'))
+
+      expect(screen.queryByRole('listbox')).toBeNull()
+      expect(editorOpen()).toBe(true)
+      expect(within(dialog).getAllByText(t('validation.required'))).toHaveLength(messages)
+      expect(field('participantIdentifierScheme').value).toBe('0248-TYPED')
+      expect(writes()).toHaveLength(0)
+    })
+  })
+
   it('creates a draft from typed values with exactly the contract body', async () => {
     const created = version({ id: V1, versionNumber: 4, optimisticLockVersion: 0 })
     await openPolicy(

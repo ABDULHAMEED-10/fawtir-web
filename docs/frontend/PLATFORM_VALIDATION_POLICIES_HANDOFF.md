@@ -661,12 +661,35 @@ found nothing blocking. Changed here:
   It failed in 2 of 4 parallel runs. The lookup now sits inside the retry. The assertion is
   unchanged.
 
-**Left for follow-up, with reasons.** They live in shared primitives this PR does not modify, and
-which about ten other screens use:
+**Escape closes the innermost open overlay first.** It used to close a dropdown or calendar and
+the editor around it on the same key press, losing what was typed. The cause was in the shared
+primitives:
+
+- `Modal` and `Popover` both listened for Escape on `document` in the bubble phase.
+- The editor's `Modal` had registered first, so it ran first.
+- `stopPropagation` from the popover could not have helped, because both listeners sit on the
+  same node.
+
+The fix:
+
+- `Popover` now listens in the capture phase and marks the key with `preventDefault`. `Modal`
+  ignores an Escape that has been marked this way.
+- Only the most recently opened popover acts. The header search keeps its suggestions open after
+  focus tabs away, so two popovers can be open at once.
+- When focus was inside the closing panel, it goes back to that panel's trigger.
+
+Result: a first Escape closes the dropdown or calendar and keeps the editor, its values and its
+validation messages. A second Escape closes the editor as before. Click-outside, Cancel, the close
+button and the backdrop are unchanged. Tests:
+
+- `src/components/ui/nestedEscape.test.tsx` covers the bare primitives, two popovers open at once,
+  and the subscription Activate dialog (a consumer outside this feature).
+- The editor tests cover the policy editor under StrictMode.
+
+**Left for follow-up, with reasons.** They live in shared primitives that about ten other screens
+use:
 
 - The shared `Modal` has no focus trap: Tab can leave an open dialog.
-- Escape inside an open `Select` or `DateField` also reaches the `Modal`'s document listener, so
-  it closes the editor and loses what was typed.
 - `Select`, `DateField` and `TextArea` do not link their error text to the control
   (`aria-describedby`), and `Select`/`DateField` do not set `aria-invalid`. `Input` does both.
 - `DateField`'s "Today", "Clear", month and weekday names are English only.
