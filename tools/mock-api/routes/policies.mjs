@@ -11,6 +11,10 @@
  *
  * The lifecycle endpoints are not mocked: a click on a step answers 404, which the screen reports
  * as it would any refusal. These fixtures exist for screenshots and the responsive harness only.
+ *
+ * The company's Participant ID standing (Settings > Peppol and tax) is served too, verified under
+ * the version in force, because that read is the only call the settings screen makes. Its
+ * re-verification request is not mocked, for the same reason as the lifecycle steps.
  */
 const BASE = '/api/v1/platform/peppol/smp/data-blockers'
 
@@ -173,8 +177,29 @@ const OVERVIEW = Object.entries(VERSIONS).map(([type, versions]) => ({
   active: summary(versions.find((entry) => entry.forceState === 'IN_FORCE')),
 }))
 
+const IN_FORCE_PID = VERSIONS.TAXPAYER_PID_CONTRACT.find((entry) => entry.forceState === 'IN_FORCE')
+
+// Shape of `ParticipantIdStanding` in `src/api/peppol/participantStanding.ts`.
+const STANDING = {
+  state: 'VERIFIED',
+  currentPolicySatisfied: true,
+  reverificationRequired: false,
+  reverificationAvailable: false,
+  policyInForce: { id: IN_FORCE_PID.id, versionNumber: IN_FORCE_PID.versionNumber },
+  verification: {
+    submissionId: '2d6f1a3b-9c4e-4f7a-8b21-5e0c9d7a1f64',
+    submissionVersion: 1,
+    participantScheme: '0248',
+    participantValue: 'OM1100000001',
+    policyVersionId: IN_FORCE_PID.id,
+    policyVersionNumber: IN_FORCE_PID.versionNumber,
+    verifiedAt: '2026-09-21T08:30:00Z',
+  },
+}
+
 export default [
   { match: BASE, reply: () => OVERVIEW },
+  { match: '/api/v1/peppol/smp/data-submissions/standing', reply: () => STANDING },
   {
     match: /^\/api\/v1\/platform\/peppol\/smp\/data-blockers\/([A-Z_]+)\/versions$/,
     reply: ({ params }) => (VERSIONS[params[0]] ? VERSIONS[params[0]] : { status: 403 }),
