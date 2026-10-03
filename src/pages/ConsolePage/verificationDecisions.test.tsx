@@ -993,11 +993,15 @@ describe('Peppol Participant ID', () => {
         reasonCode: 'POLICY_V2_RECHECKED',
       })
       await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
-      expect(
-        await within(statusLine()).findByText(
-          i18n.t('console.verification.participant.submissionStatus.VERIFIED'),
-        ),
-      ).toBeTruthy()
+      // The card shows its loading state while the second read is in flight, so the status line
+      // itself is looked up inside the retry, not once before it.
+      await waitFor(() =>
+        expect(
+          within(statusLine()).getByText(
+            i18n.t('console.verification.participant.submissionStatus.VERIFIED'),
+          ),
+        ).toBeTruthy(),
+      )
       expect(
         participantCard().queryByText(i18n.t('console.verification.participant.previousId')),
       ).toBeNull()
