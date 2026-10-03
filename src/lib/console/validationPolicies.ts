@@ -79,8 +79,11 @@ export type AllowedActions = {
   approve: ActionDecision
   activate: ActionDecision
   reject: ActionDecision
-  /** The server's revoke, offered only on a SCHEDULED version whose date is still ahead. */
-  withdraw: ActionDecision
+  /**
+   * The server's revoke, offered only on a SCHEDULED version whose date is still ahead. Optional
+   * because a backend without fawtir-backend#436 does not send it; absent means not offered.
+   */
+  withdraw?: ActionDecision
 }
 
 /** `displayName` is null when the server cannot resolve the id to a person. */

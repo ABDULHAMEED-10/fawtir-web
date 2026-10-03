@@ -419,7 +419,7 @@ function VersionView({
   const canReject = allowedActions.reject.allowed
   // Never inferred from the status and the effective date here: a schedule that took effect is no
   // longer withdrawable, and only the server's clock can say it has.
-  const canWithdraw = allowedActions.withdraw.allowed
+  const canWithdraw = allowedActions.withdraw?.allowed === true
   // The editor exists for one type only, so a draft of any other type is never offered for editing
   // even where the server would allow it.
   const canEdit = authorable && allowedActions.editDraft.allowed

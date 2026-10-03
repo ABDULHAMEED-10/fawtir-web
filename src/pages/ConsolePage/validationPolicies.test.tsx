@@ -1588,6 +1588,16 @@ describe('Withdrawing a scheduled version', () => {
     noButton('console.policies.action.withdraw')
   })
 
+  it('reads a backend that does not send withdraw as not offered, and still renders the page', async () => {
+    const older: AllowedActions = { ...scheduled.allowedActions }
+    delete older.withdraw
+    await openPolicy([{ ...scheduled, allowedActions: older }, inForce])
+
+    expect(screen.getAllByText(t('console.policies.status.SCHEDULED')).length).toBeGreaterThan(0)
+    noButton('console.policies.action.withdraw')
+    expect(writes()).toHaveLength(0)
+  })
+
   it('confirms with the date, the status and what stays in force, then sends exactly one revoke', async () => {
     let release: (response: Response) => void = () => {}
     await openPolicy([scheduled, inForce], {
