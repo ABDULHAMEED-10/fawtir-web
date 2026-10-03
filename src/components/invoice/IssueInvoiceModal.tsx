@@ -6,7 +6,13 @@ import { Field, ModalFooter, focusFirstInvalidField } from '../../pages/ConsoleP
 import { issueDraft, newIdempotencyKey, previewDraft, type DraftPreview } from '../../api/invoices/drafts'
 import type { InvoiceDetailDto } from '../../api/invoices/detail'
 import { describeApiFailure } from '../../lib/apiFailure'
-import { SELF_BILLING_AGREEMENTS_ROUTE, SUPPLIER_ISIC_MISSING_KEY, isSupplierIsicMissing } from '../../lib/selfBillingRefusals'
+import {
+  SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY,
+  SELF_BILLING_AGREEMENTS_ROUTE,
+  SUPPLIER_ISIC_MISSING_KEY,
+  isSelfBilledSupplierSwitchedOff,
+  isSupplierIsicMissing,
+} from '../../lib/selfBillingRefusals'
 import { formatAmount } from '../../lib/format'
 import { issueProblems, issueRefusalOf, muscatToday, type IssueField, type IssueForm } from '../../lib/invoiceIssue'
 
@@ -106,6 +112,8 @@ export function IssueInvoiceModal({
       if (selfBilled && isSupplierIsicMissing(error)) {
         setFailure(t(SUPPLIER_ISIC_MISSING_KEY))
         setFailureLink(SELF_BILLING_AGREEMENTS_ROUTE)
+      } else if (selfBilled && isSelfBilledSupplierSwitchedOff(error)) {
+        setFailure(t(SELF_BILLED_SUPPLIER_SWITCHED_OFF_KEY))
       } else if (refusal?.field) {
         setErrors({ [refusal.field]: refusal.key })
       } else if (refusal) {

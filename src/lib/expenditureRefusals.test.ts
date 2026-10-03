@@ -3,6 +3,7 @@ import i18n from '../i18n'
 import { ApiError, NetworkError } from '../api'
 import { describeApiFailure } from './apiFailure'
 import { MAPPED_REFUSAL_CODES, REFUSAL_FALLBACK_KEY, refusalMessageKey } from './expenditureRefusals'
+import { refusalOf } from './paymentRuns'
 
 const refusal = (code: string | null) =>
   new ApiError({
@@ -55,5 +56,20 @@ describe('an Expenditure refusal is a decision, not a fault', () => {
       expect(i18n.t(message.key), code).not.toBe(message.key)
     }
     await i18n.changeLanguage('en')
+  })
+
+  it('says a run holds a held bill, on any screen that does not name the code itself', async () => {
+    const held = refusal('PAYMENT_RUN_BILL_ON_HOLD')
+    expect(MAPPED_REFUSAL_CODES).toContain('PAYMENT_RUN_BILL_ON_HOLD')
+    expect(i18n.t(describeApiFailure(held).key)).toBe(
+      'A bill in this run is on hold. Release it or take it out of the run first.',
+    )
+    await i18n.changeLanguage('ar')
+    expect(i18n.t(describeApiFailure(held).key)).toBe(
+      'في هذه الدفعة فاتورة قيد الانتظار. أفرج عنها أو أخرجها من الدفعة أولًا.',
+    )
+    await i18n.changeLanguage('en')
+    // The payment run screens are outside this round and keep the sentence they already had.
+    expect(refusalOf(held, i18n.t)).toBe('That bill is on hold. Release it before paying.')
   })
 })

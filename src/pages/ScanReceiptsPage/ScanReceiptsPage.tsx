@@ -27,7 +27,7 @@ import {
 } from '../../api/expenditure/billIntake'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
-  CONFIRM_REFUSALS,
+  BILL_CONFIRM_REFUSALS,
   EXPENSE_CATEGORIES,
   RECEIPT_FILE_TYPES,
   UPLOAD_REFUSALS,
@@ -535,8 +535,8 @@ function ReceiptEditor({
     } catch (failure) {
       const same = possibleDuplicateOf(failure)
       if (same) setDuplicate(same)
-      else if (failure instanceof ApiError && failure.code && CONFIRM_REFUSALS[failure.code]) {
-        const refusal = CONFIRM_REFUSALS[failure.code]
+      else if (failure instanceof ApiError && failure.code && BILL_CONFIRM_REFUSALS[failure.code]) {
+        const refusal = BILL_CONFIRM_REFUSALS[failure.code]
         if (refusal.field) setErrors({ [refusal.field]: refusal.key })
         setNotice(refusal.field ? t('billIntake.fixFirst') : t(refusal.key))
       } else {

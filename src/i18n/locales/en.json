@@ -5570,7 +5570,12 @@
       "reasonRequired": "A rejection needs a reason.",
       "paidCannotHold": "A bill that is paid cannot be put on hold.",
       "notPayable": "Nothing is owed on this bill, so it cannot be put on hold.",
-      "wrongReceipt": "That receipt belongs to a different order."
+      "wrongReceipt": "That receipt belongs to a different order.",
+      "paymentRecorded": "A payment is already recorded on this bill, so it can no longer be rejected.",
+      "inRun": "This bill is in payment run {{run}}. Take it out of the run before rejecting it.",
+      "reasonTooLong": "That reason is too long. Shorten it and reject again.",
+      "holdReasonRequired": "A hold has to say why.",
+      "holdReasonTooLong": "That reason is too long. Shorten it and put the bill on hold again."
     },
     "done": {
       "approved": "Approved.",
@@ -5601,7 +5606,10 @@
       "amount": "Amount paid",
       "date": "Paid on",
       "notApproved": "This bill has not been approved yet. Approve it, then record the payment.",
-      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first."
+      "inRun": "This bill is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "onHold": "This bill is on hold. Release it, then record the payment.",
+      "tooMuch": "That is more than this bill still owes.",
+      "tooMuchMost": "That is more than this bill still owes. The most you can record is {{amount}}."
     }
   },
   "uploadBill": {
@@ -6232,6 +6240,18 @@
     },
     "supplier": {
       "pausedWhileOff": "Its recurring bills are paused while it is switched off."
+    },
+    "refused": {
+      "ended": "This recurring bill has ended. Set up a new one to keep watching.",
+      "supplierSwitchedOff": "The supplier is switched off. Switch it back on, then resume this recurring bill.",
+      "periodNotWatched": "That period is no longer being watched. Reload to see the current one.",
+      "periodAlreadyReceived": "A bill is already marked as received for this period.",
+      "billGone": "That bill is not on this account. Reload and choose another.",
+      "billAlreadyMatched": "That bill is already matched to a recurring bill. Choose another.",
+      "billNotEligible": "That bill cannot be used here. Choose one of this supplier's own bills in the same currency.",
+      "endBeforeNext": "The end date is before the next expected bill. Choose a later end date.",
+      "formSupplierSwitchedOff": "This supplier is switched off. Switch it back on to add a recurring bill for it.",
+      "recipientUnknown": "The person chosen is no longer on the team. Choose someone else."
     }
   },
   "supplierCreditNotes": {
@@ -8674,7 +8694,10 @@
       "note": "Only an address already on the supplier's record can be used. Add another on the supplier's page.",
       "switchedOff": "This supplier is switched off, so nothing is sent to them.",
       "noAddress": "This supplier has no email address on file. Add one on their page.",
-      "unavailable": "Email isn't switched on for this deployment. Download the statement and send it yourself."
+      "unavailable": "Email isn't switched on. Download the statement and send it yourself.",
+      "notOnRecord": "{{address}} is not on this supplier's record. Choose an address from the list, or add it on their page.",
+      "periodInvalid": "The start date is after the end date. Fix the period, then send.",
+      "sendFailed": "The statement could not be sent just now. Try again, or download it and send it yourself."
     },
     "unusedCredits_one": "{{count}} credit note still unused",
     "unusedCredits_other": "{{count}} credit notes still unused"
@@ -16104,7 +16127,8 @@
       "approvalAlreadyGiven": "You have already approved this bill.",
       "approvalReasonRequired": "A rejection has to say why.",
       "applyAmountInvalid": "An applied amount has to be above zero.",
-      "approvalPolicyInvalid": "An approval rule has to require at least one approver."
+      "approvalPolicyInvalid": "An approval rule has to require at least one approver.",
+      "paymentRunBillOnHold": "A bill in this run is on hold. Release it or take it out of the run first."
     },
     "selfBilling": {
       "generic": "The server refused this because of the self-billing agreement with this supplier. Check the agreement before trying again.",
@@ -16124,7 +16148,8 @@
       "counterpartyVat": "This supplier has no VAT registration number on its record. Add it, then issue.",
       "counterpartyAddress": "This supplier has no registered address on its record. Add it, then issue.",
       "supplierIsicMissing": "This supplier has no business activity (ISIC code) on its record. A self-billed document carries the supplier's activity, not yours. In Self-billing, Agreements, choose Set business activity from the agreement's menu, then issue.",
-      "supplierIsicAction": "Go to agreements"
+      "supplierIsicAction": "Go to agreements",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on, then issue."
     }
   },
   "appAccess": {
@@ -16711,7 +16736,8 @@
       "sending": "Uploading…",
       "tooLarge": "That file is larger than 10 MB.",
       "wrongType": "Use a PDF, JPG, PNG or XML file.",
-      "empty": "That file is empty."
+      "empty": "That file is empty.",
+      "fileRequired": "Choose the bill's file first."
     },
     "record": {
       "subtitle": "A bill from {{name}}. Add their file first, then type the bill in beside it.",
@@ -16807,7 +16833,17 @@
       "toCheck_other": "{{count}} fields still to check",
       "notReported": "uploaded bills are not validated or reported like Peppol ones"
     },
-    "noOpenOrders": "This supplier has no open orders to link to."
+    "noOpenOrders": "This supplier has no open orders to link to.",
+    "refused": {
+      "paidTotalZero": "A bill paid on the spot needs a total above zero.",
+      "paymentMethodRequired": "Choose how this bill was paid.",
+      "purchaseOrderGone": "That purchase order is not on this account. Choose another, or save the bill without one.",
+      "vatCategoryInvalid": "That VAT category cannot be used on a bill. Choose another.",
+      "vatRateMismatch": "That VAT rate does not match the VAT category. Choose the rate that goes with it.",
+      "supplierSwitchedOff": "This supplier is switched off. Switch it back on to record a bill for it.",
+      "pettyCashNotCash": "Petty cash can only be recorded as cash.",
+      "noteTooLong": "That note is too long. Shorten it to 500 characters."
+    }
   },
   "salesNote": {
     "credit": {
@@ -17987,7 +18023,11 @@
     "pay": {
       "notApproved": "The supplier bill for this document has not been approved yet. Approve it in Expenditure, then record the payment.",
       "amount": "Amount paid",
-      "date": "Paid on"
+      "date": "Paid on",
+      "onHold": "The supplier bill for this document is on hold. Release it on the bill, then record the payment.",
+      "inRun": "The supplier bill for this document is in payment run {{run}}. Pay it there, or take it out of the run first.",
+      "tooMuch": "That is more than the supplier bill still owes.",
+      "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
     "creditNote": "Credit note"
   },

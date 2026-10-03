@@ -103,6 +103,8 @@ function json(status: number, body?: unknown) {
 let fetchMock: ReturnType<typeof vi.fn>
 let uploads: IntakeDto[]
 let confirmAnswers: Response[]
+/** What the next upload answers instead of an intake, when set. */
+let uploadRefusal: (() => Response) | null
 /** The intake a resume link (`/upload/:intakeId`) finds, when one is set. */
 let resumed: IntakeDto | null
 
@@ -119,12 +121,13 @@ beforeEach(async () => {
   forgetEntitlements()
   uploads = []
   confirmAnswers = []
+  uploadRefusal = null
   resumed = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, MANAGER)
     if (url.startsWith('/api/v1/bills/intake?source=') && method === 'POST')
-      return json(201, uploads.shift())
+      return uploadRefusal ? uploadRefusal() : json(201, uploads.shift())
     if (/\/api\/v1\/bills\/intake\/[^/]+\/confirm$/.test(url))
       return (
         confirmAnswers.shift() ??
@@ -663,5 +666,142 @@ describe('upload a supplier note', () => {
     expect(bodyOf(calls('POST', '/api/v1/bills/intake/i-xml/confirm')[0]).documentTypeCode).toBe(
       '380',
     )
+  })
+})
+
+// The owner's approved sentences, word for word.
+describe('why a captured bill was refused, in its own sentence', () => {
+  // [code, status, problem type, sentence]: the purchase order is the one that answers 404.
+  const CAPTURE: [string, number, string, string][] = [
+    [
+      'BILL_INTAKE_PAYMENT_AMOUNT_INVALID',
+      400,
+      'expenditure-refused',
+      'A bill paid on the spot needs a total above zero.',
+    ],
+    [
+      'BILL_INTAKE_PAYMENT_METHOD_REQUIRED',
+      400,
+      'expenditure-refused',
+      'Choose how this bill was paid.',
+    ],
+    [
+      'PURCHASE_ORDER_NOT_FOUND',
+      404,
+      'resource-not-found',
+      'That purchase order is not on this account. Choose another, or save the bill without one.',
+    ],
+    [
+      'BILL_TAX_CATEGORY_INVALID',
+      400,
+      'expenditure-refused',
+      'That VAT category cannot be used on a bill. Choose another.',
+    ],
+    [
+      'BILL_TAX_CATEGORY_RATE_MISMATCH',
+      400,
+      'expenditure-refused',
+      'That VAT rate does not match the VAT category. Choose the rate that goes with it.',
+    ],
+    [
+      'SUPPLIER_SWITCHED_OFF',
+      400,
+      'expenditure-refused',
+      'This supplier is switched off. Switch it back on to record a bill for it.',
+    ],
+    // Section 5 of the wording file.
+    [
+      'BILL_INTAKE_PETTY_CASH_NOT_CASH',
+      400,
+      'expenditure-refused',
+      'Petty cash can only be recorded as cash.',
+    ],
+    [
+      'BILL_NOTE_TOO_LONG',
+      400,
+      'expenditure-refused',
+      'That note is too long. Shorten it to 500 characters.',
+    ],
+  ]
+  const GENERIC = /The server refused this\. Nothing was changed/
+  const refusal = (status: number, type: string, error: string) =>
+    json(status, { type: `https://api.fawtir.om/problems/${type}`, error })
+
+  async function uploadAndSave(path: string, save: string) {
+    uploads.push(XML_INTAKE)
+    renderAt(path)
+    await pick([new File(['<Invoice/>'], 'bill.xml', { type: 'application/xml' })])
+    await screen.findByDisplayValue('MR-INV-8821')
+    fireEvent.click(screen.getByRole('button', { name: save }))
+  }
+
+  async function scanAndSave() {
+    uploads.push({ ...intake('r-1'), source: 'SCANNED' })
+    renderAt('/expenditure/bills/scan')
+    await pick([new File(['a'], 'one.jpg', { type: 'image/jpeg' })])
+    await screen.findByText('Receipt 1 of 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier' }))
+    fireEvent.change(await screen.findByPlaceholderText('Search your suppliers'), {
+      target: { value: 'Al Noor Hardware' },
+    })
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Use “Al Noor Hardware” as written/ }),
+    )
+    fireEvent.change(screen.getByLabelText(/Total paid/), { target: { value: '10.500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Card' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }))
+  }
+
+  it.each(CAPTURE)('Upload a bill: %s', async (error, status, type, sentence) => {
+    confirmAnswers.push(refusal(status, type, error))
+    await uploadAndSave('/expenditure/bills/upload', 'Save the bill')
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+    expect(screen.queryByText('bill page')).toBeNull()
+  })
+
+  it.each(CAPTURE)('Scan receipts: %s', async (error, status, type, sentence) => {
+    confirmAnswers.push(refusal(status, type, error))
+    await scanAndSave()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('says a switched-off supplier in Arabic', async () => {
+    confirmAnswers.push(refusal(400, 'expenditure-refused', 'SUPPLIER_SWITCHED_OFF'))
+    await i18n.changeLanguage('ar')
+    await uploadAndSave('/expenditure/bills/upload', i18n.t('uploadBill.saveBill'))
+    expect(await screen.findByText('هذا المورّد موقوف. أعد تفعيله لتسجيل فاتورة له.')).toBeTruthy()
+  })
+
+  it('keeps the general refusal for a code with no sentence of its own', async () => {
+    confirmAnswers.push(refusal(400, 'expenditure-refused', 'BILL_INTAKE_CODE_WITH_NO_SENTENCE'))
+    await uploadAndSave('/expenditure/bills/upload', 'Save the bill')
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+  })
+
+  it.each([
+    ['/expenditure/bills/upload', new File(['%PDF-1.4'], 'bill.pdf', { type: 'application/pdf' })],
+    ['/expenditure/bills/scan', new File(['a'], 'one.jpg', { type: 'image/jpeg' })],
+  ])('says an upload with no file needs one, on %s', async (path, file) => {
+    uploadRefusal = () => refusal(400, 'expenditure-refused', 'BILL_INTAKE_FILE_REQUIRED')
+    renderAt(path)
+    await pick([file])
+    expect(await screen.findByText("Choose the bill's file first.")).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('says petty cash is cash in Arabic', async () => {
+    confirmAnswers.push(refusal(400, 'expenditure-refused', 'BILL_INTAKE_PETTY_CASH_NOT_CASH'))
+    await i18n.changeLanguage('ar')
+    await uploadAndSave('/expenditure/bills/upload', i18n.t('uploadBill.saveBill'))
+    expect(await screen.findByText('المصروف النثري لا يُسجَّل إلا نقدًا.')).toBeTruthy()
+  })
+
+  it('does not call a debit note a bill: its capture keeps the general refusal', async () => {
+    confirmAnswers.push(refusal(400, 'expenditure-refused', 'SUPPLIER_SWITCHED_OFF'))
+    await uploadAndSave('/expenditure/debit-notes/upload', 'Save the debit note')
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+    expect(screen.queryByText(/to record a bill for it/)).toBeNull()
   })
 })

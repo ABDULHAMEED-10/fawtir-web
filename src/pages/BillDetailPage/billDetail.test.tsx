@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -449,7 +449,7 @@ describe('A bill, wired to the API', () => {
     expect(
       card.getByText('فاتورة ضريبية صحيحة: ضريبة القيمة المضافة قابلة للاسترداد'),
     ).toBeTruthy()
-    expect(card.getByText(/^اتفاقية الفوترة الذاتية/)).toBeTruthy()
+    expect(card.getByText(/^اتفاقية فوترة ذاتية/)).toBeTruthy()
     expect(card.getByRole('link', { name: 'SBA-2026-003' }).getAttribute('href')).toBe(
       '/income/self-billing/sb-1',
     )
@@ -1117,5 +1117,197 @@ describe('bill detail mapping', () => {
     // Two 0% lines of different categories are two kinds of VAT, not one rate.
     expect(singleVatRate({ ...detail(), lines: [line(0, 'Z'), line(0, 'E')] })).toBeNull()
     expect(singleVatRate({ ...detail(), lines: [line(5, 'S'), line(5, null)] })).toBe(5)
+  })
+})
+
+/**
+ * A sentence that prints money: the rial sign is drawn in place of "OMR" (which stays in the page
+ * for a screen reader), so the sentence is one paragraph whose text reads "OMR 1,354.310" around
+ * a no-break space, with the drawn sign inside it.
+ */
+async function moneySentence(dialog: HTMLElement, text: string): Promise<HTMLElement> {
+  const sentence = await within(dialog).findByText(
+    (_, element) => element?.tagName === 'P' && element.textContent === text,
+  )
+  expect(sentence.querySelector('svg')).toBeTruthy()
+  return sentence
+}
+
+describe('why a bill was refused, in its own sentence', () => {
+  const refusal = (error: string, extra: Record<string, unknown> = {}) => () =>
+    json(400, { type: 'https://api.fawtir.om/problems/expenditure-refused', error, ...extra })
+  const GENERIC = /The server refused this\. Nothing was changed/
+
+  async function pay() {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+    return dialog
+  }
+
+  async function reject() {
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Reject' })[0])
+    fireEvent.change(await screen.findByRole('textbox'), { target: { value: 'Not ours' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reject the bill' }))
+  }
+
+  it('says a held bill is released before it is paid', async () => {
+    actionResponse = refusal('BILL_PAYMENT_ON_HOLD')
+    const dialog = await pay()
+    expect(
+      await within(dialog).findByText('This bill is on hold. Release it, then record the payment.'),
+    ).toBeTruthy()
+    expect(within(dialog).queryByText(GENERIC)).toBeNull()
+  })
+
+  it('says the most that can be recorded when the amount typed is more than the bill owes', async () => {
+    billResponse = () => json(200, detail({ readiness: APPROVED }))
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getByRole('button', { name: 'Record payment' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Amount paid/ }), {
+      target: { value: '3000' },
+    })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record payment' }))
+
+    // The figure is the one the dialog's subtitle prints, and nothing is sent.
+    const sentence = await moneySentence(
+      dialog,
+      'That is more than this bill still owes. The most you can record is OMR\u00A02,354.310.',
+    )
+    expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
+    expect(within(dialog).queryByText(/on this invoice/)).toBeNull()
+    expect(calls()).not.toContain(`POST ${BILL_URL}/payments`)
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    await moneySentence(
+      dialog,
+      'هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله OMR\u00A02,354.310.',
+    )
+  })
+
+  // The dialog refuses an amount above the figure it holds before asking, so a refusal from the
+  // server means that figure is out of date: the sentence names the figure the server sends.
+  it('says the most that can be recorded as the server names it, not as the page holds it', async () => {
+    actionResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', {
+      outstandingAmount: 1354.31,
+      currency: 'OMR',
+    })
+    const dialog = await pay()
+    const sentence = await moneySentence(
+      dialog,
+      'That is more than this bill still owes. The most you can record is OMR\u00A01,354.310.',
+    )
+    expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
+    expect(sentence.textContent).not.toContain('2,354.310')
+    expect(within(dialog).queryByText(GENERIC)).toBeNull()
+
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    await moneySentence(
+      dialog,
+      'هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة. أقصى ما يمكن تسجيله OMR\u00A01,354.310.',
+    )
+  })
+
+  // The sign is the rial's: a bill in another currency names its own code and its own decimals.
+  it('prints a figure in another currency with that currency, not with the rial sign', async () => {
+    actionResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', {
+      outstandingAmount: 1354.3,
+      currency: 'USD',
+    })
+    const dialog = await pay()
+    const sentence = await within(dialog).findByText(
+      'That is more than this bill still owes. The most you can record is USD 1,354.30.',
+    )
+    expect(sentence.querySelector('svg')).toBeNull()
+  })
+
+  it('names no "most" when the server says nothing is left to pay', async () => {
+    actionResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING', {
+      outstandingAmount: 0,
+      currency: 'OMR',
+    })
+    const dialog = await pay()
+    expect(await within(dialog).findByText('That is more than this bill still owes.')).toBeTruthy()
+    expect(within(dialog).queryByText(/The most you can record/)).toBeNull()
+  })
+
+  // A server from before the figure was sent with the refusal.
+  it('says the amount is more than the bill owes without a figure when the server names none', async () => {
+    actionResponse = refusal('BILL_PAYMENT_EXCEEDS_OUTSTANDING')
+    const dialog = await pay()
+    const sentence = await within(dialog).findByText('That is more than this bill still owes.')
+    // On the amount, where the invoice dialog says the same of an invoice; not the general notice.
+    expect(sentence.closest('[data-field="amount"]')).toBeTruthy()
+    expect(within(dialog).queryByText(/The most you can record/)).toBeNull()
+    expect(within(dialog).queryByText(GENERIC)).toBeNull()
+
+    // A refusal on a field is held as its key, so it follows the language.
+    await act(async () => {
+      await i18n.changeLanguage('ar')
+    })
+    expect(
+      await within(dialog).findByText('هذا أكثر مما تبقّى مستحقًا على هذه الفاتورة.'),
+    ).toBeTruthy()
+  })
+
+  it.each([
+    [
+      'APPROVAL_REJECT_PAYMENT_RECORDED',
+      {},
+      'A payment is already recorded on this bill, so it can no longer be rejected.',
+    ],
+    [
+      'APPROVAL_REJECT_IN_PAYMENT_RUN',
+      { paymentRunReference: 'PR-0007' },
+      'This bill is in payment run PR-0007. Take it out of the run before rejecting it.',
+    ],
+    ['APPROVAL_REASON_TOO_LONG', {}, 'That reason is too long. Shorten it and reject again.'],
+  ])('says why a rejection was refused: %s', async (error, extra, sentence) => {
+    actionResponse = refusal(error, extra)
+    await reject()
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  // A hold with no reason, or one that is too long.
+  it.each([
+    ['BILL_HOLD_REASON_REQUIRED', 'A hold has to say why.'],
+    [
+      'BILL_HOLD_REASON_TOO_LONG',
+      'That reason is too long. Shorten it and put the bill on hold again.',
+    ],
+  ])('says why a hold was refused: %s', async (error, sentence) => {
+    actionResponse = refusal(error)
+    renderBill()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-7781' })
+    fireEvent.click(screen.getAllByRole('button', { name: i18n.t('billDetail.decision.putOnHold') })[0])
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'Disputed' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('billDetail.hold.confirm') }))
+    await waitFor(() => expect(calls()).toContain(`POST ${BILL_URL}/hold`))
+    expect(await screen.findByText(sentence)).toBeTruthy()
+    expect(screen.queryByText(GENERIC)).toBeNull()
+  })
+
+  it('keeps the general refusal for a code with no sentence of its own', async () => {
+    actionResponse = refusal('APPROVAL_CODE_WITH_NO_SENTENCE')
+    await reject()
+    expect(await screen.findByText(GENERIC)).toBeTruthy()
+
+    cleanup()
+    actionResponse = refusal('BILL_PAYMENT_ACTOR_REQUIRED')
+    const dialog = await pay()
+    expect(await within(dialog).findByText(GENERIC)).toBeTruthy()
   })
 })
