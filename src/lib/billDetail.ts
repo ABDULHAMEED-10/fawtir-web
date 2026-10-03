@@ -442,9 +442,9 @@ function categoryOf(line: BillLine): string {
 /**
  * What a line's VAT cell says: the rate, and for a zero-rated, exempt or out-of-scope line its
  * category and the reason it carries (VATZR-OM-nn, VATEX-OM-nn, or free text on O). A line with
- * no category keeps today's rate alone.
+ * no category keeps the rate alone.
  *
- * TODO(backend): EXPENDITURE.md R.2. The line's category and exemption reason on the response.
+ * The category is on the response. TODO(backend): EXPENDITURE.md R.2, the exemption reason.
  */
 export function lineVatOf(line: BillLine): {
   rate: number | null

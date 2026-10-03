@@ -11,6 +11,7 @@ import { useErpAccess } from '../../hooks/useErpAccess'
 import {
   createErpConnection,
   type ErpConnectionMode,
+  SELECTABLE_TRANSPORTS,
   type ErpTransportType,
 } from '../../api/erp/connections'
 
@@ -29,7 +30,10 @@ import {
  */
 
 const MODES: ErpConnectionMode[] = ['MANAGED_PULL', 'BRIDGE_UPLOAD', 'API_PUSH']
-const TRANSPORTS: ErpTransportType[] = ['REST', 'JDBC', 'FILE', 'SOAP']
+// Only REST is offered: it is the one transport with an adapter, and the extraction endpoints
+// refuse the others outright. FILE and SOAP were offered here and are not on the backend enum at
+// all, so choosing either answered 400.
+const TRANSPORTS: readonly ErpTransportType[] = SELECTABLE_TRANSPORTS
 
 /**
  * Source systems offered as a starting point. The server accepts any string up to 40 characters,

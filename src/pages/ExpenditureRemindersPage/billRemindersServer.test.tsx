@@ -64,6 +64,8 @@ let settingsOnFile: MockReminderSettings
 let refusals: 'coded' | 'legacy'
 /** A refusal the page cannot provoke by itself: someone else changed the rules meanwhile. */
 let forced: { status: number; body: Record<string, unknown> } | null
+/** The settings save refused whatever it carries, as a server fault or a lost permission would. */
+let forcedSettings: { status: number; body: Record<string, unknown> } | null
 let rulesBodies: Record<string, unknown>[]
 let settingsBodies: Record<string, unknown>[]
 let preview: ReminderPreviewDto
@@ -91,6 +93,7 @@ beforeEach(async () => {
   settingsOnFile = defaultSettings()
   refusals = 'coded'
   forced = null
+  forcedSettings = null
   rulesBodies = []
   settingsBodies = []
   extraOnRead = {}
@@ -117,6 +120,7 @@ beforeEach(async () => {
       if (init?.method !== 'PUT') return json(200, settingsAnswer(settingsOnFile))
       const body = JSON.parse(String(init.body))
       settingsBodies.push(body)
+      if (forcedSettings) return json(forcedSettings.status, forcedSettings.body)
       const answer = saveSettings(body)
       if (answer.settings) settingsOnFile = answer.settings
       return json(answer.status, answer.body)
@@ -145,6 +149,22 @@ const renderPage = () =>
       </Routes>
     </MemoryRouter>,
   )
+
+/**
+ * The editor is up AND its mount effects have run. `findByText` alone can answer in the gap
+ * between React committing the editor and running its effects; one of those effects copies the
+ * rules on file into the draft, so a click made in that gap is overwritten and the test fails
+ * about once in sixty. The preview's read is started by the same round of effects, so once it has
+ * been asked for, the round is over.
+ */
+async function editorReady(title = 'Before a bill is due') {
+  await screen.findByText(title)
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes('/bill-reminders/preview')),
+    ).toBe(true),
+  )
+}
 
 const card = (title: string) => screen.getByText(title).closest('article')!
 const pressed = (within_: HTMLElement, name: string) =>
@@ -187,7 +207,7 @@ describe('the two request bodies, field for field', () => {
     // would be refused if it rode back on the save.
     extraOnRead = { revision: 4 }
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
@@ -216,7 +236,7 @@ describe('the two request bodies, field for field', () => {
 
   it('sends the settings as exactly the four fields the record declares', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
@@ -239,7 +259,7 @@ describe('the two request bodies, field for field', () => {
 describe('a company that has saved nothing', () => {
   it('draws the defaults exactly as the server returns them, and has nothing to save', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     // Six rules, all off; the recurring row is the bills' own and reads on.
     for (const title of [
@@ -293,7 +313,7 @@ describe('saving', () => {
     // the page's list; the same days in another order are the same ladder.
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
@@ -312,7 +332,7 @@ describe('saving', () => {
 
   it('still says "Saved." once the page has read the saved values back', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const readsBefore = rulesReads()
 
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
@@ -342,7 +362,7 @@ describe('a save the server refuses', () => {
   async function saveAnEmptyRule() {
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
@@ -410,7 +430,7 @@ describe('a save the server refuses', () => {
       },
     }
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
     await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
     fireEvent.click(saveButton())
@@ -427,7 +447,7 @@ describe('a save the server refuses', () => {
     // Two calls, rules first. A refusal stops the second, so the page never reports a half.
     seed({ type: 'BEFORE_DUE', offsets: [2, 7], recipients: [HAFIDH], enabled: true })
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     const before = card('Before a bill is due')
     await waitFor(() =>
       expect(within(before).getByRole('button', { name: '2 days before' })).toHaveProperty(
@@ -446,6 +466,88 @@ describe('a save the server refuses', () => {
     expect(rulesBodies).toHaveLength(1)
     expect(settingsBodies).toHaveLength(0)
     expect(settingsOnFile.delivery).toBe('DAILY_DIGEST')
+    // Both edits are kept, and Save is still offered for them.
+    expect(screen.queryByText('Saved.')).toBeNull()
+    expect(screen.getByRole('button', { name: /In Fawtir/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    expect(pressed(before, '7 days before')).toBe('false')
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+  })
+
+  it('shows the rules as saved when they were, and only the settings as still to save', async () => {
+    // Rules first, then settings. The rules are written; the settings are refused. The rules
+    // must then read as on file (they are), and the settings edit stays for another go.
+    forcedSettings = {
+      status: 400,
+      body: {
+        type: 'https://api.fawtir.om/problems/validation-failed',
+        title: 'Request rejected',
+        status: 400,
+        detail: 'digestTime must be HH:mm',
+      },
+    }
+    renderPage()
+    await editorReady()
+    const readsBefore = rulesReads()
+
+    fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+
+    // The failure, where and as the page shows any failed save. Nothing claims the lot was saved.
+    expect(
+      await screen.findByText('Some details were not accepted. Check the form and try again.'),
+    ).toBeTruthy()
+    expect(screen.getByText('Not done')).toBeTruthy()
+    expect(screen.queryByText('Saved.')).toBeNull()
+    expect(rulesBodies).toHaveLength(1)
+    expect(settingsBodies).toHaveLength(1)
+    expect(onFile.find((rule) => rule.type === 'SCAN_UNCONFIRMED')!.enabled).toBe(true)
+    expect(settingsOnFile.delivery).toBe('DAILY_DIGEST')
+
+    // The rule reads on, the settings edit is still there, and Save is lit for it.
+    const scan = card('A scanned receipt still unconfirmed')
+    expect(within(scan).getByRole('switch').getAttribute('aria-checked')).toBe('true')
+    const inFawtir = screen.getByRole('button', { name: /In Fawtir/ })
+    expect(inFawtir.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    // The editor was not taken down to learn this: the failure and the edit are both still up.
+    expect(rulesReads()).toBe(readsBefore)
+
+    // Save again sends the settings alone: the rules are on file and are not sent twice.
+    forcedSettings = null
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(settingsBodies).toHaveLength(2))
+    await waitFor(() => expect(settingsOnFile.delivery).toBe('IN_APP'))
+    expect(rulesBodies).toHaveLength(1)
+    expect(await screen.findByText('Saved.')).toBeTruthy()
+  })
+
+  it('has nothing left to save once the refused settings edit is taken back', async () => {
+    forcedSettings = {
+      status: 500,
+      body: { type: 'https://api.fawtir.om/problems/internal-error' },
+    }
+    renderPage()
+    await editorReady()
+
+    fireEvent.click(within(card('A scanned receipt still unconfirmed')).getByRole('switch'))
+    fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', false))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(settingsBodies).toHaveLength(1))
+    await screen.findByText('Not done')
+
+    // Back to the delivery on file: the only thing unsaved was the settings edit.
+    fireEvent.click(screen.getByRole('button', { name: /One email a day/ }))
+    await waitFor(() => expect(saveButton()).toHaveProperty('disabled', true))
+    expect(
+      within(card('A scanned receipt still unconfirmed'))
+        .getByRole('switch')
+        .getAttribute('aria-checked'),
+    ).toBe('true')
   })
 })
 
@@ -525,7 +627,7 @@ describe('the reminders screen in Arabic', () => {
     }
     const { container } = renderPage()
 
-    expect(await screen.findByText('قبل استحقاق الفاتورة')).toBeTruthy()
+    await editorReady('قبل استحقاق الفاتورة')
     expect(screen.getByRole('heading', { level: 1, name: 'التذكيرات' })).toBeTruthy()
     for (const title of [
       'بعد تأخر الفاتورة',

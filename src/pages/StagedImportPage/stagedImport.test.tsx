@@ -14,6 +14,8 @@ import {
   importable,
   initialSelection,
   problemNote,
+  problemValue,
+  readyOnPeppol,
   rowsInTab,
   tabCount,
 } from '../../lib/stagedImport'
@@ -101,6 +103,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let batch: ImportBatchDto
 let commitResponse: () => Response
+let templateCsv: string
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -120,12 +123,13 @@ beforeEach(async () => {
   who = IMPORTER
   batch = BATCH
   commitResponse = () => json(200, { batchId: BATCH_ID, selected: 3, created: 3, skipped: 1 })
+  templateCsv = 'customerType\n'
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.endsWith('/import/check') && method === 'POST') return json(200, batch)
     if (url.endsWith('/import/template'))
-      return new Response('customerType\n', {
+      return new Response(templateCsv, {
         status: 200,
         headers: { 'Content-Type': 'text/csv' },
       })
@@ -300,6 +304,85 @@ describe('The staged import, wired to the API', () => {
       await waitFor(() => expect(screen.getAllByRole('tab').length).toBeGreaterThan(0))
       fireEvent.click(screen.getAllByRole('tab')[1])
       expect(await screen.findByRole('link', { name: 'مسجّل مسبقًا' })).toBeTruthy()
+    })
+  })
+
+  describe('what the file holds, read from each row’s cells', () => {
+    // The template's columns, in the order every checked row's `cells` follow.
+    const COLUMNS = 'customerType,legalRegisteredName,vatRegistrationNumber,peppolParticipantId'
+    const cellsOf: Record<number, string[]> = {
+      2: ['BUSINESS', 'Rustaq Timber Trading', 'OM11004471', ''],
+      3: ['BUSINESS', 'Sohar Packaging LLC', 'OM1100628391', '0248:OM1100628391'],
+      4: ['BUSINESS', 'Barka Glass Works', 'OM1100300211', '0248:OM1100300211'],
+      5: ['BUSINESS', 'Ibri Motors', '', '  '],
+    }
+    const withCells = (): ImportBatchDto => ({
+      ...BATCH,
+      rows: BATCH.rows.map((row) => ({ ...row, cells: cellsOf[row.rowNumber] })),
+    })
+    const boxOf = (name: string) =>
+      within(screen.getByText(name).closest('tr')!).getByRole('textbox') as HTMLInputElement
+
+    it('fills the problem field box with the file’s value in the column at fault', async () => {
+      templateCsv = `\uFEFF${COLUMNS}\r\n`
+      batch = withCells()
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(boxOf('Rustaq Timber Trading').value).toBe('OM11004471'))
+      fireEvent.click(screen.getByRole('tab', { name: /Worth a look/ }))
+      expect(boxOf('Sohar Packaging LLC').value).toBe('OM1100628391')
+    })
+
+    it('says how many of the ready rows are on Peppol: the ones that carry a Peppol ID', async () => {
+      templateCsv = `${COLUMNS}\n`
+      batch = withCells()
+      renderImport()
+      await uploadFile()
+      // Two rows are ready; one of them has a Peppol ID, the other a blank.
+      expect(
+        await screen.findByText('Everything checks out. 1 of them are on Peppol.'),
+      ).toBeTruthy()
+    })
+
+    it('says no more than before when the cells do not line up with the columns', async () => {
+      templateCsv = `${COLUMNS}\n`
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(1))
+      expect(await screen.findByText('Everything checks out.')).toBeTruthy()
+      expect(boxOf('Rustaq Timber Trading').value).toBe('')
+    })
+
+    it('says no more than before when the template cannot be read', async () => {
+      batch = withCells()
+      const usual = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        url.endsWith('/import/template') ? json(500, { status: 500 }) : usual(url, init),
+      )
+      renderImport()
+      await uploadFile()
+      expect(await screen.findByText('Everything checks out.')).toBeTruthy()
+      expect(boxOf('Rustaq Timber Trading').value).toBe('')
+      expect(screen.getByText('3 of 4 would come in')).toBeTruthy()
+    })
+
+    it('prefers the server’s own value and count when it sends them', () => {
+      const columns = COLUMNS.split(',')
+      const rows = withCells().rows
+      expect(problemValue({ ...rows[0], value: 'from the server' }, columns)).toBe(
+        'from the server',
+      )
+      expect(problemValue(rows[0], columns)).toBe('OM11004471')
+      expect(problemValue(rows[0], null)).toBeUndefined()
+      // A row with no column at fault, and a column the template does not have.
+      expect(problemValue(rows[2], columns)).toBeUndefined()
+      expect(problemValue({ ...rows[0], field: 'bankIban' }, columns)).toBeUndefined()
+      const counted = { ...withCells(), counts: { ...BATCH.counts, onPeppol: 33 } }
+      expect(readyOnPeppol(counted, columns)).toBe(33)
+      expect(readyOnPeppol(withCells(), columns)).toBe(1)
+      expect(readyOnPeppol(withCells(), null)).toBeNull()
+      expect(readyOnPeppol(withCells(), ['customerType'])).toBeNull()
+      expect(readyOnPeppol(BATCH, columns)).toBeNull()
     })
   })
 

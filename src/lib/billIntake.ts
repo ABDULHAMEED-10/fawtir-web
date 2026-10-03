@@ -306,7 +306,7 @@ export function toConfirmation(form: BillForm, extras: ConfirmExtras = {}): Conf
     lines: form.lines.map((line, index) => ({
       description: line.description.trim(),
       quantity: Number(line.quantity.trim()),
-      // TODO(backend): EXPENDITURE.md 7.11. The unit is sent; the server may still ignore it.
+      // The unit chosen on the row goes with the line (EXPENDITURE.md 7.11); the server takes it.
       unit: line.unit?.trim() ? line.unit.trim() : null,
       unitPrice: Number(line.unitPrice.trim()),
       vatRate: Number(line.vatRate.trim()),

@@ -136,6 +136,22 @@ const renderPage = () =>
     </MemoryRouter>,
   )
 
+/**
+ * The editor is up AND its mount effects have run. `findByText` alone can answer in the gap
+ * between React committing the editor and running its effects; one of those effects copies the
+ * rules on file into the draft, so a click made in that gap is overwritten and the test fails
+ * about once in sixty. The preview's read is started by the same round of effects, so once it has
+ * been asked for, the round is over.
+ */
+async function editorReady(title = 'Before a bill is due') {
+  await screen.findByText(title)
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes('/bill-reminders/preview')),
+    ).toBe(true),
+  )
+}
+
 const card = (title: string) => screen.getByText(title).closest('article')!
 
 describe('payables reminder rules', () => {
@@ -276,7 +292,7 @@ describe('the reminders screen', () => {
 
   it('offers a repeat on the late rule alone, and an escalation on the stale-approval rule alone', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     // The server refuses either field on any other type, so neither is drawn there.
     const late = card('Once a bill is late')
@@ -298,7 +314,7 @@ describe('the reminders screen', () => {
 
   it('will not switch on a rule that would fire at nobody', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     const mismatch = card('A mismatch nobody has resolved')
     fireEvent.click(within(mismatch).getByRole('switch'))
@@ -314,7 +330,7 @@ describe('the reminders screen', () => {
     // APPROVAL_STALE and SCAN_UNCONFIRMED derive their recipients, so the guard above must not
     // catch them: a "cannot enable" check that caught everything would pass either way.
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     const scan = card('A scanned receipt still unconfirmed')
     expect(within(scan).getByText('Whoever scanned it')).toBeTruthy()
@@ -331,7 +347,7 @@ describe('the reminders screen', () => {
 
   it('sends only the changed rules, with their people still on them', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     // A rule that is off has its chips dimmed and still, as the frame draws; the late rule is on.
     const discount = card('Before an early-payment discount runs out')
@@ -360,7 +376,7 @@ describe('the reminders screen', () => {
     // editable and its recipients travel back untouched: saving without them would empty it.
     usersStatus = 403
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     expect(await screen.findByText(/needs user-admin rights/)).toBeTruthy()
     const before = card('Before a bill is due')
@@ -378,7 +394,7 @@ describe('the reminders screen', () => {
 
   it('saves how the reader is told with the same Save', async () => {
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
 
     fireEvent.click(screen.getByRole('button', { name: /In Fawtir/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
@@ -479,7 +495,7 @@ describe('the reminders screen', () => {
   it('offers no save to someone who may only read', async () => {
     who = READER
     renderPage()
-    await screen.findByText('Before a bill is due')
+    await editorReady()
     expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
     expect(screen.queryByRole('button', { name: "Send me today's now" })).toBeNull()
   })

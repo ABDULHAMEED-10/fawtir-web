@@ -128,6 +128,8 @@ let who: Entitlements
 let nudgeResponse: () => Response
 /** The summary asked for with a search or a source: its tab counts are the filtered ones. */
 let countsResponse: (url: string) => Response
+/** Whether the mocked server narrows `GET /bills/intake` by `source`, or ignores the parameter. */
+let intakeSourceKnown: boolean
 let exportResponse: () => Response
 /** What a reject, a hold or a release answers. */
 let decisionResponse: () => Response
@@ -144,6 +146,7 @@ beforeEach(async () => {
   unconfirmed = []
   listResponses = [() => json(200, itemsPage([bill()], 1))]
   countsResponse = () => json(200, SUMMARY)
+  intakeSourceKnown = true
   nudgeResponse = () =>
     json(202, { billId: ID, nudgedOn: '2026-10-01', approvers: 1 })
   decisionResponse = () => json(200, {})
@@ -169,8 +172,13 @@ beforeEach(async () => {
       const next = listResponses.length > 1 ? listResponses.shift()! : listResponses[0]
       return next()
     }
-    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED'))
-      return json(200, { items: unconfirmed, page: 0, pageSize: 20, count: unconfirmed.length })
+    if (url.startsWith('/api/v1/bills/intake?status=UNCONFIRMED')) {
+      // A server that knows `source` answers that kind only; an older one answers every kind.
+      const asked = new URL(url, 'http://x').searchParams.get('source')
+      const items =
+        intakeSourceKnown && asked ? unconfirmed.filter((row) => row.source === asked) : unconfirmed
+      return json(200, { items, page: 0, pageSize: 20, count: items.length })
+    }
     if (/\/api\/v1\/bills\/intake\/[^/]+$/.test(url) && init?.method === 'DELETE')
       return new Response(null, { status: 204 })
     throw new Error(`unexpected request to ${url}`)
@@ -1106,27 +1114,53 @@ describe('draft rows under the source filter', () => {
   const badge = (name: RegExp) => within(screen.getByRole('button', { name })).getByText(/^\d+$/)
   const SLOW = { timeout: 5000 }
 
-  it('shows both kinds with no source filter on', async () => {
+  const draftReads = () => calls('/api/v1/bills/intake?status=UNCONFIRMED')
+
+  it('shows both kinds with no source filter on, and asks the server for no kind', async () => {
     withDrafts()
     renderBills()
     expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
     expect(screen.getByText('receipt.jpg')).toBeTruthy()
+    expect(draftReads()).toEqual(['/api/v1/bills/intake?status=UNCONFIRMED&page=0&page_size=20'])
   })
 
-  it('keeps the uploads and hides the receipts under "Uploaded"', async () => {
+  it('asks the server for the uploads under "Uploaded"', async () => {
     withDrafts()
     renderBills('/expenditure/bills?source=uploaded')
     expect(await screen.findByText('Nizwa Hardware Store')).toBeTruthy()
     await screen.findByText('Qalhat Marine Supplies')
     expect(screen.queryByText('receipt.jpg')).toBeNull()
+    expect(draftReads()).toEqual([
+      '/api/v1/bills/intake?status=UNCONFIRMED&source=UPLOADED&page=0&page_size=20',
+    ])
   })
 
-  it('keeps the receipts and hides the uploads under "Scanned"', async () => {
+  it('asks the server for the receipts under "Scanned"', async () => {
     withDrafts()
     renderBills('/expenditure/bills?source=scanned')
     expect(await screen.findByText('receipt.jpg')).toBeTruthy()
     expect(screen.queryByText('Nizwa Hardware Store')).toBeNull()
+    expect(draftReads()).toEqual([
+      '/api/v1/bills/intake?status=UNCONFIRMED&source=SCANNED&page=0&page_size=20',
+    ])
   })
+
+  it.each([
+    ['uploaded', 'Nizwa Hardware Store', 'receipt.jpg'],
+    ['scanned', 'receipt.jpg', 'Nizwa Hardware Store'],
+  ])(
+    'still filters "%s" on the page when an older server ignores the parameter',
+    async (source, shown, hidden) => {
+      withDrafts()
+      intakeSourceKnown = false
+      renderBills(`/expenditure/bills?source=${source}`)
+      expect(await screen.findByText(shown)).toBeTruthy()
+      await screen.findByText('Qalhat Marine Supplies')
+      // Both kinds came back; only the kind the filter names is drawn.
+      expect(draftReads()).toHaveLength(1)
+      expect(screen.queryByText(hidden)).toBeNull()
+    },
+  )
 
   it.each([['peppol'], ['recurring'], ['selfBilled']])(
     'shows no draft under "%s", and the badge is the count of the rows that are left',
@@ -1138,11 +1172,8 @@ describe('draft rows under the source filter', () => {
       renderBills(`/expenditure/bills?source=${source}`)
       await screen.findByText('Qalhat Marine Supplies')
       await waitFor(() => expect(badge(/^Needs attention/).textContent).toBe('1'), SLOW)
-      // The drafts were read; the filter is what leaves them out.
-      await waitFor(
-        () => expect(calls('/api/v1/bills/intake?status=UNCONFIRMED')).toHaveLength(1),
-        SLOW,
-      )
+      // No draft is of this source, so none is asked for, from a newer server or an older one.
+      expect(draftReads()).toEqual([])
       expect(screen.queryByText('Nizwa Hardware Store')).toBeNull()
       expect(screen.queryByText('receipt.jpg')).toBeNull()
       expect(screen.getAllByRole('row')).toHaveLength(2) // the header and the one bill

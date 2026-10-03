@@ -776,6 +776,15 @@ function OrderFormsTable({
 }
 
 export function OrderFormsPage() {
+  return (
+    <AppShell>
+      <OrderForms />
+    </AppShell>
+  )
+}
+
+/** Inside the shell, where the session is: what the reader may see decides the self-billing check. */
+function OrderForms() {
   const [mode, setMode] = useState<OrderMode>('all')
   const [activeTab, setActiveTab] = useState<OrderTabId>('all')
   const navigate = useNavigate()
@@ -818,7 +827,7 @@ export function OrderFormsPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
         <OrderFormsHeader onUnavailable={notice.unavailable} />
         <ModeSelector
@@ -840,6 +849,6 @@ export function OrderFormsPage() {
           isBlocked={(row) => row.action.kind === 'selfbill' && !gateFor(row).allowed}
         />
       </div>
-    </AppShell>
+    </>
   )
 }

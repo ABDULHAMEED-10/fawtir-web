@@ -67,6 +67,8 @@ export type SupplierListQuery = {
   filter: SupplierListFilter
   q: string
   sort: SupplierListSort
+  /** Only suppliers whose bills arrive this way; left out, every channel. Narrows `total` too. */
+  channel?: BillingChannel | null
   /** Zero-based. */
   page: number
   pageSize: number
@@ -78,6 +80,7 @@ export function supplierListPath(query: SupplierListQuery): string {
     filter: query.filter === 'ALL' ? undefined : query.filter,
     q: query.q.trim(),
     sort: query.sort === 'NAME' ? undefined : query.sort,
+    channel: query.channel ?? undefined,
     page: query.page,
     page_size: query.pageSize,
   })

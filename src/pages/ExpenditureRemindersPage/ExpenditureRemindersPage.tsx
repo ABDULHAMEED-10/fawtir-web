@@ -205,11 +205,15 @@ function Editor({
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState<ReminderRuleDto[]>(savedRules)
+  // The rules on file. The page's read, until a save writes the rules and then fails on the
+  // settings: the rules are saved all the same, so the server's answer to that save stands here.
+  const [onFile, setOnFile] = useState<ReminderRuleDto[]>(savedRules)
   const [delivery, setDelivery] = useState<ReminderSettingsDto>(savedSettings)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
 
   useEffect(() => setDraft(savedRules), [savedRules])
+  useEffect(() => setOnFile(savedRules), [savedRules])
   useEffect(() => setDelivery(savedSettings), [savedSettings])
 
   // The picker needs admin.users.manage, which someone who may edit these rules does not
@@ -234,7 +238,7 @@ function Editor({
       problems.set(type, 'recipients')
   }
 
-  const changed = editable.filter((rule) => ruleChanged(savedRules, rule))
+  const changed = editable.filter((rule) => ruleChanged(onFile, rule))
   const deliveryDirty =
     delivery.delivery !== savedSettings.delivery ||
     delivery.digestTime !== savedSettings.digestTime ||
@@ -252,12 +256,24 @@ function Editor({
   const save = async () => {
     setBusy(true)
     setFailure(null)
+    // Two calls, rules first. What the rules call answered, if it went through.
+    let rulesNowOnFile: ReminderRuleDto[] | null = null
     try {
-      if (changed.length > 0) await saveReminderRules(changed)
+      if (changed.length > 0) rulesNowOnFile = (await saveReminderRules(changed)).rules ?? null
       if (deliveryDirty) await saveReminderSettings(delivery)
       setNotice(t('expenditureReminders.saved'))
       onSaved()
     } catch (error) {
+      // The rules were written and the settings were not. The rules are shown as the server now
+      // holds them, so they no longer read as unsaved and are not sent again; the settings edit
+      // stays as typed and Save stays lit for it. Taken from the save's own answer, not a fresh
+      // read: a read takes this editor down, and the settings edit and this failure with it.
+      // TODO(owner): the failure below is the settings' own, in the sentence the page already
+      // has. It does not say that the rules were saved. Whether it should is the owner's call.
+      if (rulesNowOnFile) {
+        setOnFile(rulesNowOnFile)
+        setDraft(rulesNowOnFile)
+      }
       setNotice(null)
       const message = describeApiFailure(error)
       const body = t(message.key, message.values)

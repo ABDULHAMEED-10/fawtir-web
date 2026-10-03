@@ -1001,7 +1001,10 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   done={Boolean(record.profile.paymentTerms)}
                   label={t('supplierEdit.complete.terms')}
                 />
-                {/* TODO(backend): a contacts count on the record; the second contact is read as absent until then. */}
+                {/* TODO(owner): `GET /suppliers/{id}/contacts` lists the people in "Who to speak
+                    to", but the main contact on this form is kept apart from that list and may
+                    or may not be entered there too. Is the line ticked with one person in the
+                    list, or only with two? Until that is decided it stays unticked (§6.14). */}
                 <CheckItem
                   done={false}
                   label={t('supplierEdit.complete.secondContact', {

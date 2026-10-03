@@ -8,7 +8,7 @@ import type { SupplierRecurringStandingDto } from '../../api/expenditure/recurri
 import { EditSupplierPage } from '../EditSupplierPage'
 
 /**
- * Item 30 (Decisions-Abdul-Answers, round 2): a switched-off supplier's recurring bills are
+ * Owner's decision of 1 Oct 2026 (item 30): a switched-off supplier's recurring bills are
  * paused, and the supplier's page says so in its existing switched-off notice.
  */
 
