@@ -131,6 +131,7 @@ export const SEED_ROUTES = [
   '/settings/erp-mapping/samples',
   '/settings/erp/connections',
   '/settings/erp/connections/new',
+  '/settings/erp/bridge',
   '/settings/erp/connections/cx-odoo-ho',
   '/settings/erp/connections/cx-odoo-ho/mapping',
   '/settings/erp/connections/cx-odoo-ho/runs',

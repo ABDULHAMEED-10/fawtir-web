@@ -141,6 +141,43 @@ export const DEFAULT_TRANSACTION_TYPE: Record<MappingCertificationRoute, string>
   SELF_BILLING: 'XX1XXXXXXXXXXXXXXXXX',
 }
 
+/**
+ * The fifteen obligation-bearing BTOM-001 positions. Positions 16–20 are reserved placeholders no
+ * rule references, so they stay unset and the scope the gate keys on masks them anyway.
+ */
+export const TRANSACTION_BITS = [
+  'fullTax',
+  'simplified',
+  'selfBilled',
+  'thirdParty',
+  'summary',
+  'continuous',
+  'export',
+  'deemed',
+  'importOfServices',
+  'profitMargin',
+  'profitMarginSelf',
+  'eCommerce',
+  'importOfGoods',
+  'specialZone',
+  'prepayment',
+] as const
+
+/**
+ * The bitmap, in the `1`/`X` alphabet.
+ *
+ * `X` for an unset position, not `0`: the certification run body is validated against
+ * `^[X1]{20}$` and a `0` is refused outright. The design mock composed `0`s, which would have
+ * failed every run. Both alphabets are accepted where a *scope* is derived, so the status query is
+ * unaffected — but one alphabet throughout keeps a status check and the run that answers it in
+ * agreement.
+ */
+export const composeTransactionType = (bits: readonly boolean[]) =>
+  `${bits.map((on) => (on ? '1' : 'X')).join('')}XXXXX`
+/** The positions a bitmap sets, in {@link TRANSACTION_BITS} order. */
+export const decomposeTransactionType = (type: string) =>
+  TRANSACTION_BITS.map((_, index) => type.charAt(index) === '1')
+
 /* -------------------------------------------------------------------- loading */
 
 /** A 404 is "not started", which is a state, not a failure. Anything else is a real error. */
