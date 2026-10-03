@@ -7,7 +7,7 @@ import { ConsoleShell } from '../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice, ConsoleReadFailure } from '../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead, type ConsoleRead } from '../../layouts/ConsoleShell/useConsoleRead'
-import { formatMoment, localeFor } from '../../lib/console/format'
+import { formatMoment, formatUtcMoment, localeFor } from '../../lib/console/format'
 import {
   BLOCKERS_PATH,
   FORWARD_TRANSITIONS,
@@ -142,6 +142,7 @@ function PolicyVersions({ type }: { type: BlockerType }) {
     setAnswered(null)
     list.retry()
     single.retry()
+    overview.retry()
   }
 
   const moved = (failure: PolicyFailure) => {
@@ -159,8 +160,10 @@ function PolicyVersions({ type }: { type: BlockerType }) {
       message: { key: messageKey, values: { number: number.format(updated.versionNumber) } },
     })
     // The step may have moved other versions too (an activation supersedes the one in force), so
-    // the list is read again rather than patched.
+    // the list is read again rather than patched. The overview too: a new or ended draft changes
+    // whether the server still offers "Create draft".
     list.retry()
+    overview.retry()
   }
 
   let body: ReactNode
@@ -402,6 +405,7 @@ function VersionView({
   const none = t('console.policies.none')
   const number = new Intl.NumberFormat(localeFor(language))
   const moment = (iso: string | null) => (iso ? formatMoment(iso, language) : none)
+  const effective = (iso: string | null) => (iso ? formatUtcMoment(iso, language) : none)
   const code = (value: string | null) =>
     value ? (
       <span dir="ltr" className="break-all font-mono">
@@ -460,11 +464,11 @@ function VersionView({
           ) : null}
           <ReviewLine
             label={t('console.policies.detail.field.effectiveFrom')}
-            value={moment(version.effectiveFrom)}
+            value={effective(version.effectiveFrom)}
           />
           <ReviewLine
             label={t('console.policies.detail.field.effectiveTo')}
-            value={moment(version.effectiveTo)}
+            value={effective(version.effectiveTo)}
           />
           <ReviewLine
             label={t('console.policies.detail.field.evidence')}

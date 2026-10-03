@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { formatMoment } from '../../../lib/console/format'
+import { formatUtcMoment } from '../../../lib/console/format'
 import { queueLabelKey, type BlockerVersionSummary } from '../../../lib/console/validationPolicies'
 
 /**
@@ -13,7 +13,7 @@ export function PolicyQueueLabel({
 }) {
   const { t, i18n } = useTranslation()
   const date = version.effectiveFrom
-    ? formatMoment(version.effectiveFrom, i18n.language)
+    ? formatUtcMoment(version.effectiveFrom, i18n.language)
     : t('console.policies.none')
   return <>{t(queueLabelKey(version), { date })}</>
 }

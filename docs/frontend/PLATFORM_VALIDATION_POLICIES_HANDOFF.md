@@ -1,8 +1,9 @@
 # Platform: validation policies console handoff
 
-**Branch:** `feat/console-validation-policies` (worktree), based on `origin/dev` at `3122c2e`.
-**State:** built and tested locally against stubbed requests and the local mock API. Not committed,
-not pushed, not deployed, and never run against a real backend.
+**Branch:** `feat/console-validation-policies`, PR #136 to `main` (rebased onto `main` at
+`d2e0ce77`). **State:** open and not merged, not deployed. Tested with stubbed requests, the local
+mock API, and a disposable local backend (never TEST). Sections below that describe an earlier
+state say so where it matters.
 
 ## Purpose and scope
 
@@ -634,6 +635,57 @@ horizontal overflow on any screen (`scrollWidth` equal to `clientWidth`, and no 
 viewport unless an ancestor clips it). In Arabic the page and the dialog are right to left and the
 dialog buttons mirror. This is a layout check only: the Arabic wording is still provisional and
 needs native review.
+
+## Hardening pass
+
+A gap audit of the whole feature (35 points: UX, mutations, accessibility, dates, compatibility)
+found nothing blocking. Changed here:
+
+- **Effective dates are shown in UTC, labelled.** A policy day starts at 00:00 UTC (operator
+  guide), and the editor stores that instant. The detail page, the work-queue label and the
+  confirmation dialog printed it in the browser's zone with no label: "05:00" in Karachi, "04:00"
+  in Muscat, and the previous day west of UTC. They now use `formatUtcMoment`
+  (`src/lib/console/format.ts`), for example "25 Oct 2026, 00:00 UTC". Times that record events
+  (updated, trail) stay in the reader's zone. Nothing switches state on a local timer.
+- **"Create draft" follows the server after every write.** `done()` and `reload()` re-read the
+  overview as well as the versions, so `canCreateDraft` is never left as it was before the write.
+- **Confirmation dialog focus.** Focus starts on Cancel (the choice that writes nothing) and goes
+  back to the button that opened the dialog when that button still exists. The opener is read
+  during the first render, and focus is restored only once the dialog has left the page, so React
+  StrictMode's rehearsed unmount does not pull focus off Cancel. A StrictMode test covers it.
+- **Mock API.** `GET /v1/peppol/smp/data-submissions/standing` is served (verified under the
+  version in force). It is the only call the Peppol settings screen makes, so against the mock
+  that screen renders instead of showing an error card.
+- **Test stabilisation.** The `verificationDecisions` re-verification approval test looked up the
+  status line once, while the card could still be showing its loading state for the second read.
+  It failed in 2 of 4 parallel runs. The lookup now sits inside the retry. The assertion is
+  unchanged.
+
+**Left for follow-up, with reasons.** They live in shared primitives this PR does not modify, and
+which about ten other screens use:
+
+- The shared `Modal` has no focus trap: Tab can leave an open dialog.
+- Escape inside an open `Select` or `DateField` also reaches the `Modal`'s document listener, so
+  it closes the editor and loses what was typed.
+- `Select`, `DateField` and `TextArea` do not link their error text to the control
+  (`aria-describedby`), and `Select`/`DateField` do not set `aria-invalid`. `Input` does both.
+- `DateField`'s "Today", "Clear", month and weekday names are English only.
+
+Also deferred:
+
+- After a write the page replaces its body with the loading state while it re-reads.
+- An absent `forceState`, type or status from the server shows a raw i18n key. The contract
+  marks all three as required.
+- The operator panel's own-submission check (existing code) compares user ids in the browser.
+  The server also refuses with `SELF_VERIFICATION_NOT_ALLOWED`, which this PR handles.
+
+**Checked in a real browser** against the local backend, at 390, 768 and 1440 px, in English and
+Arabic:
+
+- Screens: list, scheduled detail, withdraw dialog, draft editor, and the Verification screen.
+- No horizontal overflow and no clipped buttons on any of them.
+- The keyboard alone reaches "Withdraw schedule", opens the dialog, closes it with Escape or
+  Cancel, and lands back on the button. The focus ring is visible.
 
 **Formatting.** This document was run through `npx prettier --write`. The only changes were padded
 markdown tables, and the working copy is now LF (the index already stored LF); nothing else moved.

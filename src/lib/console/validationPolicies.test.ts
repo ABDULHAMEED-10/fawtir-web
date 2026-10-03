@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, NetworkError } from '../../api'
+import { formatUtcMoment } from './format'
 import { describeParticipantFailure, isPolicyNotActive } from './pidSubmission'
 import { problemReference } from './problemReference'
 import {
@@ -860,5 +861,14 @@ describe('describeParticipantFailure', () => {
     expect(isPolicyNotActive(problem(400, 'PID_POLICY_NOT_ACTIVE', 'validation-failed'))).toBe(true)
     expect(isPolicyNotActive(problem(409, 'PID_POLICY_NOT_ACTIVE'))).toBe(false)
     expect(isPolicyNotActive(new NetworkError('offline'))).toBe(false)
+  })
+})
+
+describe('effective dates', () => {
+  it('shows the stored 00:00 UTC instant as that UTC day and hour, labelled, whatever the browser zone', () => {
+    // A policy day starts at 00:00 UTC (operator guide). Local formatting would print 04:00 in
+    // Muscat and the previous day west of UTC.
+    expect(formatUtcMoment('2026-10-25T00:00:00Z', 'en')).toBe('25 Oct 2026, 00:00 UTC')
+    expect(formatUtcMoment('2026-10-25T00:00:00Z', 'ar')).toContain('UTC')
   })
 })

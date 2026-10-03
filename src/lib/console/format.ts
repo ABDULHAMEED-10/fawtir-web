@@ -24,6 +24,23 @@ export function formatMoment(iso: string, language: string): string {
 }
 
 /**
+ * A policy's effective instant, in UTC and labelled so. The operator guide defines a policy day as
+ * starting at 00:00 UTC, and the editor stores that instant; shown in the browser's zone it would
+ * read as another hour, and west of UTC as the day before the one chosen.
+ */
+export function formatUtcMoment(iso: string, language: string): string {
+  return new Intl.DateTimeFormat(localeFor(language), {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  }).format(new Date(iso))
+}
+
+/**
  * An ISO 3166 code as the country's name in the reader's language. The code itself is shown if the
  * runtime cannot name it, rather than a guess.
  */

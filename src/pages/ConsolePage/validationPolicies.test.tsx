@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
 import { resetSharedRequests } from '../../api'
-import { formatMoment } from '../../lib/console/format'
+import { formatMoment, formatUtcMoment } from '../../lib/console/format'
 import { toDateKey } from '../../lib/dates'
 import {
   forgetEntitlements,
@@ -204,16 +205,19 @@ function Probe() {
   return <p data-testid="location">{`${location.pathname}${location.search}`}</p>
 }
 
-function renderAt(path: string) {
-  return render(
+function renderAt(path: string, { strict = false } = {}) {
+  const tree = (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/console/policies" element={<ValidationPoliciesPage />} />
         <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
         <Route path="*" element={<Probe />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
+  // Opt-in: StrictMode rehearses effects twice, which the request-count assertions elsewhere
+  // would see as extra reads.
+  return render(strict ? <StrictMode>{tree}</StrictMode> : tree)
 }
 
 const t = (key: string, values?: Record<string, string | number>) => i18n.t(key, values)
@@ -255,7 +259,7 @@ function renderRtlAt(path: string) {
 async function openPolicy(
   versions: BlockerVersionView[],
   extra: Record<string, Handler | Handler[]> = {},
-  { canCreateDraft = false, path = `/console/policies/${PID}` } = {},
+  { canCreateDraft = false, path = `/console/policies/${PID}`, strict = false } = {},
 ) {
   answer({
     [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
@@ -263,7 +267,7 @@ async function openPolicy(
     [listUrl()]: () => json(200, versions),
     ...extra,
   })
-  renderAt(path)
+  renderAt(path, { strict })
   await screen.findByRole('heading', {
     level: 2,
     name: t('console.policies.detail.section.details'),
@@ -422,7 +426,7 @@ describe('Overview', () => {
     expect(
       pid.getByText(
         t('console.policies.queue.scheduled', {
-          date: formatMoment('2026-11-01T00:00:00Z', 'en'),
+          date: formatUtcMoment('2026-11-01T00:00:00Z', 'en'),
         }),
       ),
     ).toBeTruthy()
@@ -675,6 +679,37 @@ describe('Lifecycle buttons follow allowedActions', () => {
     expect(screen.getAllByText(t('console.policies.queue.draft')).length).toBeGreaterThan(0)
   })
 
+  it('reads the overview again after a step, so "Create draft" follows the server', async () => {
+    const draft = version({ allowedActions: actions({ submit: allow }) })
+    await openPolicy([draft], {
+      [OVERVIEW_URL]: [
+        () => json(200, [entry({ canCreateDraft: true })]),
+        () => json(200, [entry({ canCreateDraft: false })]),
+      ],
+      [stepUrl(V3, 'submit')]: () =>
+        json(200, {
+          ...draft,
+          status: 'SUBMITTED',
+          optimisticLockVersion: 5,
+          allowedActions: actions(),
+        }),
+    })
+    expect(
+      await screen.findByRole('button', { name: t('console.policies.action.create') }),
+    ).toBeTruthy()
+
+    fireEvent.click(button('console.policies.action.submit'))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: t('console.policies.confirm.submit.confirm'),
+      }),
+    )
+
+    await screen.findByText(t('console.policies.done.submit', { number: '3' }))
+    await waitFor(() => expect(callsTo(OVERVIEW_URL)).toHaveLength(2))
+    await waitFor(() => noButton('console.policies.action.create'))
+  })
+
   it('SUBMITTED: a reviewer sees Start review, which sends the fixed code once', async () => {
     const submitted = version({ status: 'SUBMITTED', allowedActions: actions({ review: allow }) })
     await openPolicy([submitted], {
@@ -915,7 +950,7 @@ describe('Lifecycle buttons follow allowedActions', () => {
       name: t('console.policies.confirm.activate.title'),
     })
     expect(within(dialog).getByText(t('console.policies.detail.field.effectiveFrom'))).toBeTruthy()
-    expect(within(dialog).getByText(formatMoment(from, 'en'))).toBeTruthy()
+    expect(within(dialog).getByText(formatUtcMoment(from, 'en'))).toBeTruthy()
     expect(within(dialog).getByText(t('console.policies.confirm.activate.scheduled'))).toBeTruthy()
     expect(writes()).toHaveLength(0)
   })
@@ -955,8 +990,9 @@ describe('Lifecycle buttons follow allowedActions', () => {
     for (const key of STEP_KEYS) noButton(key)
     expect(screen.getAllByText(t('console.policies.status.SCHEDULED')).length).toBeGreaterThan(0)
     expect(
-      screen.getAllByText(t('console.policies.queue.scheduled', { date: formatMoment(from, 'en') }))
-        .length,
+      screen.getAllByText(
+        t('console.policies.queue.scheduled', { date: formatUtcMoment(from, 'en') }),
+      ).length,
     ).toBeGreaterThan(0)
     expect(screen.queryByText(t('console.policies.queue.inForce'))).toBeNull()
   })
@@ -1613,7 +1649,7 @@ describe('Withdrawing a scheduled version', () => {
     const dateLine = within(dialog)
       .getByText(t('console.policies.detail.field.effectiveFrom'))
       .closest('div') as HTMLElement
-    expect(within(dateLine).getByText(formatMoment(FROM, 'en'))).toBeTruthy()
+    expect(within(dateLine).getByText(formatUtcMoment(FROM, 'en'))).toBeTruthy()
     expect(
       within(dialog).getByText(
         'The policy in force now stays in force, and this version will not take effect.',
@@ -1759,6 +1795,22 @@ describe('Withdrawing a scheduled version', () => {
     fireEvent.click(button('common.cancel'))
 
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('starts focus on Cancel and gives it back to the button that opened the dialog', async () => {
+    await openPolicy([scheduled, inForce], {}, { strict: true })
+    const opener = button('console.policies.action.withdraw')
+    opener.focus()
+
+    fireEvent.click(opener)
+    expect(document.activeElement).toBe(
+      within(screen.getByRole('dialog')).getByRole('button', { name: t('common.cancel') }),
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.activeElement).toBe(button('console.policies.action.withdraw'))
     expect(writes()).toHaveLength(0)
   })
 
@@ -2323,7 +2375,7 @@ describe('Language and privacy', () => {
       const dialog = screen.getByRole('dialog', { name: 'سحب هذا الإصدار المجدول؟' })
       expect(directionOf(dialog)).toBe('rtl')
       expect(within(dialog).getByText('مجدول')).toBeTruthy()
-      expect(within(dialog).getByText(formatMoment(from, 'ar'))).toBeTruthy()
+      expect(within(dialog).getByText(formatUtcMoment(from, 'ar'))).toBeTruthy()
       expect(
         within(dialog).getByText('تبقى السياسة السارية الآن سارية، ولن يبدأ سريان هذا الإصدار.'),
       ).toBeTruthy()
