@@ -1,12 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-
-/**
- * Open popovers, oldest first. Escape belongs to the newest only: two can be open at once (the
- * header search keeps its suggestions open after focus tabs away), and the capture listeners run
- * in registration order, so without this the older one took the key and the one in use stayed open.
- */
-const openPopovers: object[] = []
+import { isTopOverlay, openPopover, type OpenPopover } from './overlayStack'
 
 /**
  * Anchored popup rendered into `document.body`.
@@ -71,21 +65,19 @@ export function Popover({
     }
   }, [open, anchorRef, width, align])
 
-  // Keyed on `open` alone: the listener effect below re-runs whenever a caller passes a new
-  // `onClose`, which would otherwise move an older popover back to the top.
-  const self = useRef({})
+  // Registered on `open` alone: the listener effect below re-runs whenever a caller passes a new
+  // `onClose`, which would otherwise move an older popover back to the top. That effect also
+  // refreshes the anchor, since one caller builds a new ref object on every render.
+  const self = useRef<OpenPopover>({ panel: panelRef, anchor: anchorRef })
   useEffect(() => {
     if (!open) return
     const entry = self.current
-    openPopovers.push(entry)
-    return () => {
-      const index = openPopovers.lastIndexOf(entry)
-      if (index !== -1) openPopovers.splice(index, 1)
-    }
+    return openPopover(entry)
   }, [open])
 
   useEffect(() => {
     if (!open) return
+    self.current.anchor = anchorRef
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node
       if (panelRef.current?.contains(target)) return
@@ -100,7 +92,7 @@ export function Popover({
     // panel is about to unmount and would otherwise drop it on the body.
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (openPopovers[openPopovers.length - 1] !== self.current) return
+      if (!isTopOverlay(self.current)) return
       event.preventDefault()
       const focusWasInPanel = panelRef.current?.contains(document.activeElement) ?? false
       onClose()

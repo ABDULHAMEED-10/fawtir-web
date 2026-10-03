@@ -14,7 +14,12 @@
     "digit": "Digit {{number}}",
     "saving": "Saving…",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "datePicker": {
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "today": "Today"
+    }
   },
   "language": {
     "label": "Language",

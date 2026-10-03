@@ -686,13 +686,71 @@ button and the backdrop are unchanged. Tests:
   and the subscription Activate dialog (a consumer outside this feature).
 - The editor tests cover the policy editor under StrictMode.
 
-**Left for follow-up, with reasons.** They live in shared primitives that about ten other screens
-use:
+## Shared accessibility hardening
 
-- The shared `Modal` has no focus trap: Tab can leave an open dialog.
-- `Select`, `DateField` and `TextArea` do not link their error text to the control
-  (`aria-describedby`), and `Select`/`DateField` do not set `aria-invalid`. `Input` does both.
-- `DateField`'s "Today", "Clear", month and weekday names are English only.
+The three shared-primitive follow-ups above are now done. They change every dialog, dropdown,
+calendar and multi-line field in the app, not only this console.
+
+**Dialog focus (`Modal`).**
+
+- Focus moves into the dialog when it opens. Content that already took focus on mount keeps it,
+  as the confirmation dialog's Cancel does. Otherwise the dialog element itself is focused.
+- Tab and Shift+Tab wrap inside the dialog, plus any dropdown or calendar opened from it. Those
+  panels are portalled to the end of the body. `popoverPanelsOwnedBy` finds the ones whose
+  trigger sits inside the dialog.
+- The trap places every Tab itself (`focusScope.ts`). The dialog is not portalled, so the
+  browser's next element could be page content behind it. A Tab a control has already handled,
+  such as a code editor's indent, is left alone. A radio group counts as one stop.
+- Only the newest dialog traps.
+- On close, focus returns to whatever had it when the dialog opened. The opener is read while
+  rendering, before an `autoFocus` moves it. Focus is restored only once the dialog has left the
+  page, so React StrictMode's rehearsed unmount cannot move it. It is not restored to an opener
+  that has gone, or when something else already placed focus on purpose. The confirmation
+  dialog's own restore code is removed; `Modal` now does it for every dialog.
+
+**Escape order across dialogs and popovers (`overlayStack.ts`).** Popovers and dialogs now share
+one open order, and Escape belongs to the newest. Found in the browser: the header search keeps
+its suggestions open after focus tabs past it to "Create draft". With an order per kind, those
+stale suggestions behind the editor took the second Escape, and the editor did not close.
+
+Now Escape closes in this order:
+
+1. a popover opened inside a dialog;
+2. then the dialog itself;
+3. then anything left open underneath it.
+
+A dialog opened from another dialog closes alone. Everything from the nested-Escape fix stays:
+the capture phase, newest-popover-first, the `preventDefault` marker, and focus back to the
+trigger.
+
+**Field errors (`fieldDescription.ts`).** `Field` provides the id of its error or hint text and
+whether it is in error. `Select` and `DateField` read it onto their trigger button as
+`aria-describedby` and `aria-invalid`. Explicit `ariaDescribedBy` / `ariaInvalid` props are added
+to it, not replaced. `TextArea` links its own message and keeps any `aria-describedby` a caller
+passes. Every id comes from `useId`, so several fields on one page stay unique. The label stays
+the accessible name. Visual rendering is unchanged.
+
+**Calendar language (`DateField`).**
+
+- "Previous month", "Next month" and "Today" are `common.datePicker.*` keys; "Clear" reuses
+  `common.clear`.
+- Month and weekday names come from `Intl` in the page's language. English output is unchanged:
+  "October 2026", "Su Mo Tu…". Arabic uses the narrow weekday form, because a full day name
+  does not fit a 40px column.
+- In RTL the month arrows now mirror (`rtl:rotate-*`, the project's convention).
+- The formatters are built only while the calendar is open.
+- The Arabic wording is still provisional and needs native review.
+- The date shown in the closed field (`formatDisplayDate` in `lib/dates`) stays English. It is
+  shared app-wide and is a follow-up.
+
+**Test isolation found on the way.** `verification.test.tsx` and `tenantDetail.test.tsx` did not
+empty the shared request registry between tests. When a test ended while its read was still
+settling, the following tests on the same screen joined that read and timed out: 11 queue tests
+and 3 tenant tests respectively. A probe that leaves one read in flight reproduces each case
+exactly, and `resetSharedRequests()` in `beforeEach` fixes both.
+
+Five other console test files have the same gap and have not been seen failing: `onboard`,
+`operators`, `plans`, `tenants` and `verificationDecisions`. They are follow-ups.
 
 Also deferred:
 

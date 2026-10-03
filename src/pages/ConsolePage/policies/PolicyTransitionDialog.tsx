@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
@@ -48,22 +48,6 @@ export function PolicyTransitionDialog({
   // worst recorded against a version the first one already moved.
   const inFlight = useRef(false)
 
-  // The shared Modal neither moves focus in nor gives it back. Focus starts on Cancel, the choice
-  // that writes nothing, and returns to the button that opened the dialog when that button is
-  // still on the page (a step that succeeded usually removes it). The opener is read during the
-  // first render: by the time an effect runs, autoFocus has already moved focus to Cancel. Focus is
-  // given back only once the dialog has left the page; StrictMode's rehearsal of an unmount keeps
-  // it there, and restoring then would pull focus off Cancel.
-  const [opener] = useState(() => document.activeElement)
-  const content = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const node = content.current
-    return () => {
-      if (node?.isConnected) return
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
-    }
-  }, [opener])
-
   const key = (suffix: string) => `console.policies.confirm.${transition}.${suffix}`
   const number = new Intl.NumberFormat(localeFor(i18n.language)).format(version.versionNumber)
 
@@ -100,6 +84,7 @@ export function PolicyTransitionDialog({
       title={t(key('title'))}
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">
+          {/* Focus opens on Cancel, the choice that writes nothing; Modal returns it on close. */}
           <Button
             type="button"
             size="md"
@@ -116,7 +101,7 @@ export function PolicyTransitionDialog({
         </div>
       }
     >
-      <div ref={content} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         <div>
           <ReviewLine
             label={t('console.policies.confirm.policy')}

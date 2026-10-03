@@ -1975,6 +1975,23 @@ describe('Authoring the Participant ID policy', () => {
       expect(writes()).toHaveLength(0)
     })
 
+    it('marks an unanswered dropdown and calendar invalid and points them at their message', async () => {
+      await openEditor()
+      save()
+
+      for (const name of ['normalization', 'caseSensitive', 'vatinRelationship', 'effectiveFrom']) {
+        const control = trigger(name)
+        expect(control.getAttribute('aria-invalid'), name).toBe('true')
+        const ids = (control.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean)
+        expect(
+          ids.map((id) => document.getElementById(id)?.textContent),
+          name,
+        ).toEqual([t('validation.required')])
+      }
+      // An optional date with nothing wrong is not marked.
+      expect(trigger('effectiveTo').getAttribute('aria-invalid')).toBeNull()
+    })
+
     it('keeps the validation messages and the values when a dropdown is dismissed', async () => {
       const dialog = await openEditor()
       type('participantIdentifierScheme', '0248-TYPED')

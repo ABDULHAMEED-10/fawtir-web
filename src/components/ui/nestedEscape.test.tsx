@@ -62,10 +62,8 @@ describe('Escape across nested overlays', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
-  it('gives Escape to the newest of two open popovers, then to the older one, then to the Modal', () => {
-    // The header search keeps its suggestions open after focus tabs away, so a calendar opened
-    // later in a dialog is the second popover on the page.
-    function Two({ onModalClose }: { onModalClose: () => void }) {
+  it('gives Escape to the newest of two open popovers, then to the older one', () => {
+    function Two() {
       const olderAnchor = useRef<HTMLButtonElement>(null)
       const newerAnchor = useRef<HTMLButtonElement>(null)
       const [older, setOlder] = useState(true)
@@ -78,11 +76,68 @@ describe('Escape across nested overlays', () => {
           <Popover open={older} anchorRef={olderAnchor} onClose={() => setOlder(false)}>
             <p>Suggestions</p>
           </Popover>
-          <Modal open onClose={onModalClose} title="Editor">
-            <button ref={newerAnchor} type="button" onClick={() => setNewer(true)}>
+          <button ref={newerAnchor} type="button" onClick={() => setNewer(true)}>
+            Pick a day
+          </button>
+          <Popover open={newer} anchorRef={newerAnchor} onClose={() => setNewer(false)}>
+            <p>Calendar</p>
+          </Popover>
+        </>
+      )
+    }
+    render(
+      <StrictMode>
+        <Two />
+      </StrictMode>,
+    )
+    const pick = screen.getByRole('button', { name: 'Pick a day' })
+    fireEvent.click(pick)
+
+    escapeOn(pick)
+    expect(screen.queryByText('Calendar')).toBeNull()
+    expect(screen.getByText('Suggestions')).toBeTruthy()
+
+    escapeOn(pick)
+    expect(screen.queryByText('Suggestions')).toBeNull()
+  })
+
+  it('closes a dialog before a popover left open underneath it, and its own popover before both', () => {
+    // The header search keeps its suggestions open after focus tabs away to the button that
+    // opens a dialog. Those suggestions are underneath the dialog: Escape must not be spent on
+    // them while the dialog is still open.
+    function Stale({ onModalClose }: { onModalClose: () => void }) {
+      const searchAnchor = useRef<HTMLButtonElement>(null)
+      const dayAnchor = useRef<HTMLButtonElement>(null)
+      const [suggestions, setSuggestions] = useState(true)
+      const [dialog, setDialog] = useState(false)
+      const [calendar, setCalendar] = useState(false)
+      return (
+        <>
+          <button ref={searchAnchor} type="button">
+            Search
+          </button>
+          <Popover
+            open={suggestions}
+            anchorRef={searchAnchor}
+            onClose={() => setSuggestions(false)}
+          >
+            <p>Suggestions</p>
+          </Popover>
+          <button type="button" onClick={() => setDialog(true)}>
+            Create draft
+          </button>
+          <Modal
+            open={dialog}
+            onClose={() => {
+              onModalClose()
+              setDialog(false)
+            }}
+            title="Editor"
+          >
+            <button ref={dayAnchor} type="button" onClick={() => setCalendar(true)}>
               Pick a day
             </button>
-            <Popover open={newer} anchorRef={newerAnchor} onClose={() => setNewer(false)}>
+            <Popover open={calendar} anchorRef={dayAnchor} onClose={() => setCalendar(false)}>
               <p>Calendar</p>
             </Popover>
           </Modal>
@@ -92,24 +147,27 @@ describe('Escape across nested overlays', () => {
     const onModalClose = vi.fn()
     render(
       <StrictMode>
-        <Two onModalClose={onModalClose} />
+        <Stale onModalClose={onModalClose} />
       </StrictMode>,
     )
+    const opener = screen.getByRole('button', { name: 'Create draft' })
+    opener.focus()
+    fireEvent.click(opener)
     const pick = screen.getByRole('button', { name: 'Pick a day' })
     fireEvent.click(pick)
-    expect(screen.getByText('Calendar')).toBeTruthy()
 
     escapeOn(pick)
     expect(screen.queryByText('Calendar')).toBeNull()
-    expect(screen.getByText('Suggestions')).toBeTruthy()
-    expect(onModalClose).not.toHaveBeenCalled()
-
-    escapeOn(pick)
-    expect(screen.queryByText('Suggestions')).toBeNull()
     expect(onModalClose).not.toHaveBeenCalled()
 
     escapeOn(pick)
     expect(onModalClose).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(opener)
+    expect(screen.getByText('Suggestions')).toBeTruthy()
+
+    escapeOn(opener)
+    expect(screen.queryByText('Suggestions')).toBeNull()
   })
 
   it('in the subscription Activate dialog, closes the dropdown first and the dialog second', () => {

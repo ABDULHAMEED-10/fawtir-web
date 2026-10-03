@@ -1,12 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Popover } from './Popover'
-import {
-  MONTH_NAMES,
-  WEEKDAY_NAMES,
-  formatDisplayDate,
-  parseDateKey,
-  toDateKey,
-} from '../../lib/dates'
+import { useFieldDescription } from './fieldDescription'
+import { formatDisplayDate, parseDateKey, toDateKey } from '../../lib/dates'
 import calendarIcon from '../../assets/create-invoice/calendar.svg'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
 
@@ -23,6 +19,8 @@ export function DateField({
   value,
   onChange,
   ariaLabel,
+  ariaDescribedBy,
+  ariaInvalid,
   min,
   max,
   highlighted,
@@ -34,6 +32,9 @@ export function DateField({
   value: string
   onChange: (value: string) => void
   ariaLabel?: string
+  /** Ids of text that describes the field, such as its error; added to any a wrapping field provides. */
+  ariaDescribedBy?: string
+  ariaInvalid?: boolean
   min?: string
   max?: string
   highlighted?: boolean
@@ -44,8 +45,30 @@ export function DateField({
 }) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const description = useFieldDescription(ariaDescribedBy, ariaInvalid)
   const selected = parseDateKey(value)
   const [cursor, setCursor] = useState(() => selected ?? new Date())
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language.startsWith('ar') ? 'ar' : 'en-GB'
+  // From Intl rather than the English constants in `lib/dates`. English keeps its two-letter
+  // headings; Arabic takes the narrow form, as a full day name does not fit a 40px column.
+  const weekdays = useMemo(() => {
+    if (!open) return []
+    const english = locale !== 'ar'
+    const format = new Intl.DateTimeFormat(locale, { weekday: english ? 'short' : 'narrow' })
+    return Array.from({ length: 7 }, (_, i) => {
+      const name = format.format(new Date(2023, 0, 1 + i))
+      return english ? name.slice(0, 2) : name
+    })
+  }, [open, locale])
+  // Built only while the calendar is open: a page can hold many closed date fields.
+  const monthHeading = useMemo(
+    () =>
+      open
+        ? new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor)
+        : '',
+    [open, locale, cursor],
+  )
 
   const grid = useMemo(() => {
     const year = cursor.getFullYear()
@@ -74,6 +97,7 @@ export function DateField({
           setOpen((v) => !v)
         }}
         aria-label={ariaLabel}
+        {...description}
         aria-haspopup="dialog"
         aria-expanded={open}
         className={[
@@ -102,29 +126,27 @@ export function DateField({
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
-              aria-label="Previous month"
+              aria-label={t('common.datePicker.previousMonth')}
               onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
               className="flex size-8 items-center justify-center rounded-sm hover:bg-primary-25"
             >
-              <img src={chevronIcon} alt="" className="size-5 rotate-180" />
+              <img src={chevronIcon} alt="" className="size-5 rotate-180 rtl:rotate-0" />
             </button>
-            <span className="text-sm font-semibold text-text-primary">
-              {MONTH_NAMES[cursor.getMonth()]} {cursor.getFullYear()}
-            </span>
+            <span className="text-sm font-semibold text-text-primary">{monthHeading}</span>
             <button
               type="button"
-              aria-label="Next month"
+              aria-label={t('common.datePicker.nextMonth')}
               onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
               className="flex size-8 items-center justify-center rounded-sm hover:bg-primary-25"
             >
-              <img src={chevronIcon} alt="" className="size-5" />
+              <img src={chevronIcon} alt="" className="size-5 rtl:rotate-180" />
             </button>
           </div>
 
           <div className="mt-3 grid grid-cols-7 gap-1">
-            {WEEKDAY_NAMES.map((day) => (
+            {weekdays.map((day, column) => (
               <span
-                key={day}
+                key={column}
                 className="flex h-7 items-center justify-center text-[11px] font-semibold uppercase text-text-quaternary"
               >
                 {day}
@@ -173,7 +195,7 @@ export function DateField({
               }}
               className="text-sm font-semibold text-primary-800 hover:underline"
             >
-              Today
+              {t('common.datePicker.today')}
             </button>
             <button
               type="button"
@@ -183,7 +205,7 @@ export function DateField({
               }}
               className="text-sm font-medium text-text-tertiary hover:underline"
             >
-              Clear
+              {t('common.clear')}
             </button>
           </div>
         </div>

@@ -14,7 +14,12 @@
     "digit": "الرقم {{number}}",
     "saving": "جارٍ الحفظ…",
     "previous": "السابق",
-    "next": "التالي"
+    "next": "التالي",
+    "datePicker": {
+      "previousMonth": "الشهر السابق",
+      "nextMonth": "الشهر التالي",
+      "today": "اليوم"
+    }
   },
   "language": {
     "label": "اللغة",
