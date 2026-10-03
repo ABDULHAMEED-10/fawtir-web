@@ -1755,7 +1755,8 @@
       "addFirst": "أضف أول مورد",
       "importList": "استيراد قائمة من Excel"
     },
-    "vatNumber": "الرقم الضريبي {{vat}}"
+    "vatNumber": "الرقم الضريبي {{vat}}",
+    "switchedOffOnReason": "أُوقف في {{date}} · {{reason}}"
   },
   "newSupplier": {
     "title": "مورّد جديد",
@@ -18238,7 +18239,8 @@
     "action": {
       "leaveOut": "اتركه",
       "bringInAnyway": "أدخله على أي حال",
-      "bringItIn": "أدخله"
+      "bringItIn": "أدخله",
+      "alreadyOnFile": "مسجّل مسبقًا"
     },
     "typeAName": "اكتب اسمًا",
     "empty": "فارغ"

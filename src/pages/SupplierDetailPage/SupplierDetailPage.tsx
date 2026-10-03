@@ -130,6 +130,7 @@ function SupplierRecord({ id }: { id: string }) {
   const session = useSession()
   const canManage = can(session, 'supplier.manage')
   const canPay = can(session, 'invoice.payment.manage')
+  const canOrder = can(session, 'purchase-order.manage')
   const today = muscatToday()
   const [tab, setTab] = useState<DetailTabId>('overview')
   const [notice, setNotice] = useState<Note | { body: string } | null>(null)
@@ -151,7 +152,8 @@ function SupplierRecord({ id }: { id: string }) {
   const documents = useApiRead<SupplierDocumentDto[]>(supplierDocumentsPath(id), () =>
     loadSupplierDocuments(id),
   )
-  const recentBillsPath = supplierBillsPath(id, 0, 5)
+  // The "Open bills" card: the five newest bills still owed, not the five newest documents.
+  const recentBillsPath = supplierBillsPath(id, 0, 5, true)
   const recentBills = useApiRead<Page<BillRowDto>>(recentBillsPath, () =>
     loadSupplierBills(recentBillsPath),
   )
@@ -268,19 +270,24 @@ function SupplierRecord({ id }: { id: string }) {
               {t('supplierDetail.editSupplier')}
             </Link>
           ) : null}
-          <Link
-            to={`/suppliers/${id}/purchase-order`}
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('supplierDetail.newPurchaseOrder')}
-          </Link>
-          <Link
-            to={`/suppliers/${id}/record-bill`}
-            className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            <img src={plusIcon} alt="" className="size-4 brightness-0 invert" />
-            {t('supplierDetail.recordBill')}
-          </Link>
+          {/* Neither is offered for a switched-off supplier, nor to someone who may not do it. */}
+          {canOrder && !switchedOff ? (
+            <Link
+              to={`/suppliers/${id}/purchase-order`}
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              {t('supplierDetail.newPurchaseOrder')}
+            </Link>
+          ) : null}
+          {canPay && !switchedOff ? (
+            <Link
+              to={`/suppliers/${id}/record-bill`}
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-4 brightness-0 invert" />
+              {t('supplierDetail.recordBill')}
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -514,7 +521,7 @@ function SupplierRecord({ id }: { id: string }) {
               {recentBills.read.status === 'ready' ? (
                 latest.length === 0 ? (
                   <p className="mt-4 text-sm font-medium text-text-quaternary">
-                    {t('supplierRecord.noBills')}
+                    {t('suppliersPage.owedNote.nothingOpen')}
                   </p>
                 ) : (
                   <div className="mt-4 overflow-x-auto">

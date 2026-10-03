@@ -33,9 +33,18 @@ export function tabCount(batch: ImportBatchDto, tab: ImportTabId): number {
   return batch.counts[tab]
 }
 
-/** A row the server would bring in. A refused row is never sent, whatever is ticked. */
+/**
+ * A row that can be brought in. A refused row is never sent, whatever is ticked; nor is a row
+ * whose VAT number or Peppol ID is already on file, since the server would only skip it.
+ */
 export function importable(row: ImportBatchRowDto): boolean {
-  return row.severity !== 'CANNOT_IMPORT'
+  return row.severity !== 'CANNOT_IMPORT' && !row.onFile
+}
+
+/** The record a row duplicates, and its page when it has one (a supplier's; the import is theirs). */
+export function alreadyOnFile(row: ImportBatchRowDto): { to: string | null } | null {
+  if (!row.onFile) return null
+  return { to: row.onFile.supplier ? `/suppliers/${encodeURIComponent(row.onFile.id)}` : null }
 }
 
 /**
@@ -46,6 +55,8 @@ export function commitSelection(batch: ImportBatchDto, keep: ReadonlySet<number>
   const chosen = batch.rows
     .filter((row) => importable(row) && keep.has(row.rowNumber))
     .map((row) => row.rowNumber)
+  // `wouldImport` counts a row already on file, which is never chosen: the list then goes out
+  // in full, so the server is not asked for a row it would skip.
   return chosen.length === Number(batch.counts.wouldImport) ? null : chosen
 }
 
@@ -117,6 +128,55 @@ export function problemNote(row: ImportBatchRowDto): { key: string } | { text: s
     }
   }
   return { text: row.message }
+}
+
+/**
+ * What the file holds in one column of a row, or undefined when it cannot be told: the columns are
+ * not known yet, the template has no such column, or the row's cells are not the template's width
+ * (a row the check could not map is kept as it was typed, in the file's own order).
+ */
+function cellOf(
+  row: ImportBatchRowDto,
+  columns: readonly string[] | null,
+  column: string,
+): string | undefined {
+  if (!columns || row.cells.length !== columns.length) return undefined
+  const index = columns.indexOf(column)
+  return index < 0 ? undefined : row.cells[index]
+}
+
+/**
+ * The file's value in the column at fault, for the review's field box: the server's own `value`
+ * when it sends one, else the row's cell in that column.
+ */
+export function problemValue(
+  row: ImportBatchRowDto,
+  columns: readonly string[] | null,
+): string | undefined {
+  if (typeof row.value === 'string') return row.value
+  return row.field ? cellOf(row, columns, row.field) : undefined
+}
+
+/**
+ * How many of the ready rows are on Peppol, for the review's first card: the server's count when
+ * it sends one, else the ready rows that carry a Peppol ID. That is the rule the Suppliers list's
+ * "On Peppol" card counts by (a record with a participant identifier), so the card says what the
+ * list will say once the rows are in. Null when it cannot be told, and the card then says less.
+ */
+export function readyOnPeppol(
+  batch: ImportBatchDto,
+  columns: readonly string[] | null,
+): number | null {
+  if (typeof batch.counts.onPeppol === 'number') return batch.counts.onPeppol
+  if (!columns || !columns.includes('peppolParticipantId')) return null
+  let count = 0
+  for (const row of batch.rows) {
+    if (row.severity !== 'READY') continue
+    const id = cellOf(row, columns, 'peppolParticipantId')
+    if (id === undefined) return null
+    if (id.trim()) count += 1
+  }
+  return count
 }
 
 export type FileProblem = 'type' | 'size' | null

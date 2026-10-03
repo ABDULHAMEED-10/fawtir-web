@@ -15,8 +15,8 @@ import keepIcon from '../../assets/suppliers/consequence-keep.svg'
  * loose ends the frame lists (a draft payment run, an unused credit note) are not on the list row;
  * what is there, the open bills and what they come to, is drawn in their place.
  *
- * The reason and the note are asked as the frame asks them. `POST /suppliers/{id}/switch-off`
- * takes no body today, so they stay on the screen: TODO(backend) accept `{ reason, note }`.
+ * The reason and the note are asked as the frame asks them and go with the call
+ * (`switchOffRequest` in `lib/supplierList`): `POST /suppliers/{id}/switch-off` keeps them with the record.
  */
 
 export type SwitchOffTarget = {

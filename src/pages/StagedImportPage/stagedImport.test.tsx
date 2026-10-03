@@ -5,13 +5,17 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { ImportBatchDto } from '../../api/counterpartyImport'
 import {
+  alreadyOnFile,
   batchBlocker,
   commitSelection,
   comingIn,
   fieldLabel,
   fileProblem,
+  importable,
   initialSelection,
   problemNote,
+  problemValue,
+  readyOnPeppol,
   rowsInTab,
   tabCount,
 } from '../../lib/stagedImport'
@@ -99,6 +103,7 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 let batch: ImportBatchDto
 let commitResponse: () => Response
+let templateCsv: string
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -118,12 +123,13 @@ beforeEach(async () => {
   who = IMPORTER
   batch = BATCH
   commitResponse = () => json(200, { batchId: BATCH_ID, selected: 3, created: 3, skipped: 1 })
+  templateCsv = 'customerType\n'
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.endsWith('/import/check') && method === 'POST') return json(200, batch)
     if (url.endsWith('/import/template'))
-      return new Response('customerType\n', {
+      return new Response(templateCsv, {
         status: 200,
         headers: { 'Content-Type': 'text/csv' },
       })
@@ -228,6 +234,158 @@ describe('The staged import, wired to the API', () => {
     ).toEqual({ rowNumbers: [4, 5] })
   })
 
+  describe('a row whose VAT number is already on file', () => {
+    const ON_FILE_ID = '99999999-9999-9999-9999-999999999999'
+    const withOnFile = (supplier: boolean): ImportBatchDto => ({
+      ...BATCH,
+      rows: BATCH.rows.map((row) =>
+        row.rowNumber === 3
+          ? { ...row, onFile: { id: ON_FILE_ID, displayName: 'Sohar Packaging LLC', supplier } }
+          : { ...row, onFile: null },
+      ),
+    })
+    const soharRow = () => within(screen.getByText('Sohar Packaging LLC').closest('tr')!)
+
+    it('loses "Bring in anyway" and links to the supplier it duplicates', async () => {
+      batch = withOnFile(true)
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      const link = soharRow().getByRole('link', { name: 'Already on file' })
+      expect(link.getAttribute('href')).toBe(`/suppliers/${ON_FILE_ID}`)
+      expect(soharRow().queryByRole('button')).toBeNull()
+      // It is not counted among the rows that would come in, and is never sent to the commit.
+      expect(screen.getByText('2 of 4 would come in')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Bring in 2 suppliers' }))
+      await waitFor(() =>
+        expect(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)).toHaveLength(1),
+      )
+      expect(
+        JSON.parse(
+          String(calls('POST', `/api/v1/suppliers/import/${BATCH_ID}/commit`)[0][1]?.body),
+        ),
+      ).toEqual({ rowNumbers: [4, 5] })
+    })
+
+    it('says so without a link when the record on file is not a supplier', async () => {
+      batch = withOnFile(false)
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      expect(soharRow().getByText('Already on file')).toBeTruthy()
+      expect(soharRow().queryByRole('link')).toBeNull()
+      expect(soharRow().queryByRole('button')).toBeNull()
+    })
+
+    it('keeps the button on rows that can be imported', async () => {
+      batch = withOnFile(true)
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /^Ready/ }))
+      const ready = within(screen.getByText('Barka Glass Works').closest('tr')!)
+      fireEvent.click(ready.getByRole('button', { name: 'Leave it out' }))
+      expect(ready.getByRole('button', { name: 'Bring it in' })).toBeTruthy()
+    })
+
+    it('still offers "Bring in anyway" on a row worth a look that names no record on file', async () => {
+      renderImport()
+      await uploadFile()
+      fireEvent.click(await screen.findByRole('tab', { name: /Worth a look/ }))
+      fireEvent.click(soharRow().getByRole('button', { name: 'Leave it out' }))
+      expect(soharRow().getByRole('button', { name: 'Bring in anyway' })).toBeTruthy()
+      expect(soharRow().queryByText('Already on file')).toBeNull()
+    })
+
+    it('reads in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      batch = withOnFile(true)
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(screen.getAllByRole('tab').length).toBeGreaterThan(0))
+      fireEvent.click(screen.getAllByRole('tab')[1])
+      expect(await screen.findByRole('link', { name: 'مسجّل مسبقًا' })).toBeTruthy()
+    })
+  })
+
+  describe('what the file holds, read from each row’s cells', () => {
+    // The template's columns, in the order every checked row's `cells` follow.
+    const COLUMNS = 'customerType,legalRegisteredName,vatRegistrationNumber,peppolParticipantId'
+    const cellsOf: Record<number, string[]> = {
+      2: ['BUSINESS', 'Rustaq Timber Trading', 'OM11004471', ''],
+      3: ['BUSINESS', 'Sohar Packaging LLC', 'OM1100628391', '0248:OM1100628391'],
+      4: ['BUSINESS', 'Barka Glass Works', 'OM1100300211', '0248:OM1100300211'],
+      5: ['BUSINESS', 'Ibri Motors', '', '  '],
+    }
+    const withCells = (): ImportBatchDto => ({
+      ...BATCH,
+      rows: BATCH.rows.map((row) => ({ ...row, cells: cellsOf[row.rowNumber] })),
+    })
+    const boxOf = (name: string) =>
+      within(screen.getByText(name).closest('tr')!).getByRole('textbox') as HTMLInputElement
+
+    it('fills the problem field box with the file’s value in the column at fault', async () => {
+      templateCsv = `\uFEFF${COLUMNS}\r\n`
+      batch = withCells()
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(boxOf('Rustaq Timber Trading').value).toBe('OM11004471'))
+      fireEvent.click(screen.getByRole('tab', { name: /Worth a look/ }))
+      expect(boxOf('Sohar Packaging LLC').value).toBe('OM1100628391')
+    })
+
+    it('says how many of the ready rows are on Peppol: the ones that carry a Peppol ID', async () => {
+      templateCsv = `${COLUMNS}\n`
+      batch = withCells()
+      renderImport()
+      await uploadFile()
+      // Two rows are ready; one of them has a Peppol ID, the other a blank.
+      expect(
+        await screen.findByText('Everything checks out. 1 of them are on Peppol.'),
+      ).toBeTruthy()
+    })
+
+    it('says no more than before when the cells do not line up with the columns', async () => {
+      templateCsv = `${COLUMNS}\n`
+      renderImport()
+      await uploadFile()
+      await waitFor(() => expect(calls('GET', '/api/v1/suppliers/import/template')).toHaveLength(1))
+      expect(await screen.findByText('Everything checks out.')).toBeTruthy()
+      expect(boxOf('Rustaq Timber Trading').value).toBe('')
+    })
+
+    it('says no more than before when the template cannot be read', async () => {
+      batch = withCells()
+      const usual = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+        url.endsWith('/import/template') ? json(500, { status: 500 }) : usual(url, init),
+      )
+      renderImport()
+      await uploadFile()
+      expect(await screen.findByText('Everything checks out.')).toBeTruthy()
+      expect(boxOf('Rustaq Timber Trading').value).toBe('')
+      expect(screen.getByText('3 of 4 would come in')).toBeTruthy()
+    })
+
+    it('prefers the server’s own value and count when it sends them', () => {
+      const columns = COLUMNS.split(',')
+      const rows = withCells().rows
+      expect(problemValue({ ...rows[0], value: 'from the server' }, columns)).toBe(
+        'from the server',
+      )
+      expect(problemValue(rows[0], columns)).toBe('OM11004471')
+      expect(problemValue(rows[0], null)).toBeUndefined()
+      // A row with no column at fault, and a column the template does not have.
+      expect(problemValue(rows[2], columns)).toBeUndefined()
+      expect(problemValue({ ...rows[0], field: 'bankIban' }, columns)).toBeUndefined()
+      const counted = { ...withCells(), counts: { ...BATCH.counts, onPeppol: 33 } }
+      expect(readyOnPeppol(counted, columns)).toBe(33)
+      expect(readyOnPeppol(withCells(), columns)).toBe(1)
+      expect(readyOnPeppol(withCells(), null)).toBeNull()
+      expect(readyOnPeppol(withCells(), ['customerType'])).toBeNull()
+      expect(readyOnPeppol(BATCH, columns)).toBeNull()
+    })
+  })
+
   it('says when fewer rows were created than were chosen', async () => {
     commitResponse = () => json(200, { batchId: BATCH_ID, selected: 3, created: 2, skipped: 1 })
     renderImport()
@@ -321,6 +479,24 @@ describe('The staged import, wired to the API', () => {
 })
 
 describe('staged import helpers', () => {
+  it('never keeps, counts or sends a row that is already on file', () => {
+    const batch: ImportBatchDto = {
+      ...BATCH,
+      rows: BATCH.rows.map((row) =>
+        row.rowNumber === 3
+          ? { ...row, onFile: { id: 'x', displayName: 'Sohar Packaging LLC', supplier: true } }
+          : row,
+      ),
+    }
+    expect(importable(batch.rows[1])).toBe(false)
+    expect([...initialSelection(batch)]).toEqual([4, 5])
+    expect(comingIn(batch, new Set([3, 4, 5]))).toBe(2)
+    // `wouldImport` still counts it, so the kept rows go out as a list, not as "all of them".
+    expect(commitSelection(batch, new Set([3, 4, 5]))).toEqual([4, 5])
+    expect(alreadyOnFile(batch.rows[1])).toEqual({ to: '/suppliers/x' })
+    expect(alreadyOnFile(batch.rows[2])).toBeNull()
+  })
+
   it('sends null for every importable row and a list otherwise', () => {
     const all = initialSelection(BATCH)
     expect([...all].sort()).toEqual([3, 4, 5])

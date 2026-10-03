@@ -24,9 +24,24 @@ export type ImportBatchRowDto = {
   /** Null until the batch is committed, then CREATED or SKIPPED. */
   outcome: string | null
   outcomeMessage: string | null
-  /** TODO(backend): the line under the name in the review ("Net 30 · rustaq@timber.om"). */
+  /**
+   * The record already on file with this row's VAT number or Peppol ID (`field` says which). Only
+   * one live record may hold either, so such a row can never be created. `supplier` false means
+   * the record is a customer that is not a supplier, which has no supplier page to link to.
+   * Suppliers only: the customer import always answers null.
+   */
+  onFile?: { id: string; displayName: string; supplier: boolean } | null
+  /**
+   * The line under the name in the review ("Net 30 · rustaq@timber.om"). The server does not send
+   * it. TODO(owner): it could be written from `cells`, but which of the VAT number, the terms and
+   * the e-mail it names, in what order, and what it says when one is missing is not decided
+   * (EXPENDITURE.md 6.15); the line stays undrawn until it is.
+   */
   summary?: string | null
-  /** TODO(backend): what the file holds in the column at fault, for the review's field box. */
+  /**
+   * What the file holds in the column at fault, for the review's field box. The server does not
+   * send it; the page reads it from `cells` (`problemValue` in lib/stagedImport).
+   */
   value?: string | null
 }
 
@@ -46,7 +61,10 @@ export type ImportBatchDto = {
     needsALook: number
     cannotImport: number
     wouldImport: number
-    /** TODO(backend): how many of the ready rows are on Peppol; the review's first card says so. */
+    /**
+     * How many of the ready rows are on Peppol; the review's first card says so. The server does
+     * not send it; the page counts it from `cells` (`readyOnPeppol` in lib/stagedImport).
+     */
     onPeppol?: number
   }
 }
@@ -96,6 +114,21 @@ export function downloadFailedRows(target: ImportTarget, batchId: string): Promi
   return apiDownload(`${importBatchPath(target, batchId)}/failed.csv`)
 }
 
+export const importTemplatePath = (target: ImportTarget) => `${base(target)}/template`
+
 export function downloadImportTemplate(target: ImportTarget): Promise<ApiDownload> {
-  return apiDownload(`${base(target)}/template`)
+  return apiDownload(importTemplatePath(target))
+}
+
+/**
+ * The template's column names, in order: its header line. A checked row's `cells` are in this
+ * order whatever order the uploaded file used, so this is what tells one cell from another.
+ */
+export async function loadImportColumns(target: ImportTarget): Promise<string[]> {
+  const { blob } = await downloadImportTemplate(target)
+  const header = (await blob.text()).replace(/^\uFEFF/, '').split(/\r?\n/)[0] ?? ''
+  return header
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
 }

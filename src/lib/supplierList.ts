@@ -4,6 +4,8 @@ import type {
   SupplierListRowDto,
   SupplierListSort,
   SupplierSummaryDto,
+  SwitchOffReasonDto,
+  SwitchOffRequestDto,
 } from '../api/expenditure/suppliers'
 import { initialsOf } from './format'
 
@@ -48,6 +50,11 @@ export type SupplierListItem = {
   active: boolean
   /** When they were switched off, for the line under the name (Figma "Switched off 12 Apr 2026"). */
   switchedOffAt: string | null
+  /**
+   * Why it was switched off, as the switch-off dialog names it (`supplierOff.reason.{id}`); null
+   * when no reason was given, or the server sent one this build does not know.
+   */
+  switchedOffReason: SwitchOffReasonId | null
 }
 
 const CHANNEL: Record<BillingChannel, SupplierChannel> = {
@@ -169,9 +176,33 @@ export function toSupplierListItem(row: SupplierListRowDto, now = Date.now()): S
     score: scoreOf(row),
     recordNote: recordNoteOf(row, issue),
     active: row.status === 'ACTIVE',
-    // TODO(backend): `switchedOffAt` on list rows (typed optional); the frame dates the switch-off.
+    // The frame dates the switch-off under the name; a row without the date says "Switched off".
     switchedOffAt: row.status === 'SWITCHED_OFF' ? (row.switchedOffAt ?? null) : null,
+    switchedOffReason:
+      row.status === 'SWITCHED_OFF' ? switchOffReasonId(row.switchedOffReason ?? null) : null,
   }
+}
+
+/** The switch-off dialog's five answers, and the code the server stores for each. */
+const SWITCH_OFF_REASON_CODE = {
+  stoppedTrading: 'STOPPED_TRADING',
+  closedDown: 'CLOSED_DOWN',
+  duplicate: 'DUPLICATE',
+  movedSupplier: 'MOVED_SUPPLIER',
+  somethingElse: 'SOMETHING_ELSE',
+} as const satisfies Record<string, SwitchOffReasonDto>
+
+export type SwitchOffReasonId = keyof typeof SWITCH_OFF_REASON_CODE
+
+/** What the dialog asked, as `POST /suppliers/{id}/switch-off` takes it; an empty note is none. */
+export function switchOffRequest(reason: SwitchOffReasonId, note: string): SwitchOffRequestDto {
+  return { reason: SWITCH_OFF_REASON_CODE[reason], note: note.trim() || null }
+}
+
+/** The dialog's answer a stored reason stands for, so a row can say it in the dialog's words. */
+export function switchOffReasonId(code: string | null): SwitchOffReasonId | null {
+  const ids = Object.keys(SWITCH_OFF_REASON_CODE) as SwitchOffReasonId[]
+  return ids.find((id) => SWITCH_OFF_REASON_CODE[id] === code) ?? null
 }
 
 /** The action offered on each row follows from what is wrong with it. */
@@ -249,10 +280,19 @@ export function isSupplierChannelFilter(value: string | null): value is Supplier
   return SUPPLIER_CHANNEL_FILTERS.some((option) => option.value === value)
 }
 
+/** The `channel=` value `GET /v1/suppliers` takes for a Filters choice; null for every channel. */
+export function channelParam(channel: SupplierChannelFilter): BillingChannel | null {
+  if (channel === 'all') return null
+  const found = (Object.keys(CHANNEL) as BillingChannel[]).find((code) => CHANNEL[code] === channel)
+  return found ?? null
+}
+
 /**
- * The frame's Filters menu narrows the list by channel. The API has no channel parameter
- * (TODO(backend): `channel=` on GET /v1/suppliers), so until it does the page it fetched is
- * narrowed here, and the line under the table says how many of the page are shown.
+ * The frame's Filters menu narrows the list by channel. The server does it (`channelParam`), rows
+ * and total alike. The page that comes back is narrowed here as well: a server older than the
+ * parameter ignores it and answers every channel, and the list then shows what it showed before
+ * the parameter existed, the matching rows of the fetched page. On a server that filtered, every
+ * row already matches and this changes nothing.
  */
 export function inChannel(item: SupplierListItem, channel: SupplierChannelFilter): boolean {
   return channel === 'all' || item.channel === channel

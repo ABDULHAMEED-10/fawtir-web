@@ -7,6 +7,7 @@ import type { SupplierDetailDto } from '../../api/expenditure/suppliers'
 import type { SupplierStatementDto } from '../../api/expenditure/supplierRecord'
 import { termsNote } from '../../lib/supplierRecord'
 import {
+  everLateOf,
   columnsOf,
   customRangeProblem,
   emailBlocker,
@@ -311,6 +312,69 @@ describe('The supplier statement, wired to the API', () => {
     expect(screen.getByText('1 bill · next due 19 Oct 2026')).toBeTruthy()
     expect(screen.getByText('Never been late with them')).toBeTruthy()
     expect(screen.getByText(/1 credit note still unused/)).toBeTruthy()
+  })
+
+  describe('"Never been late with them", read from the supplier overview', () => {
+    const NOTHING = i18n.t('supplierStatement.nothing', { lng: 'en' })
+    const withOverview = (overview: () => Response) =>
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url === '/api/v1/me/entitlements') return json(200, who)
+        if (url === ONE) return json(200, detail)
+        if (url === `${ONE}/overview`) return overview()
+        // The statement as the backend sends it today: no `everLate` of its own.
+        if (url.startsWith(`${ONE}/statement?`)) return json(200, STATEMENT)
+        throw new Error(`unexpected ${url}`)
+      })
+    const payables = (everLate: boolean, currencyCode = 'OMR') => ({
+      tabs: { bills: 3, payments: 1, orders: 0, documents: 0 },
+      match: { agreed: 0, orderBacked: 0, summary: null },
+      usualLeadTimeDays: null,
+      payables: {
+        currencyCode,
+        notDue: { amount: 1000, bills: 1, nextDue: '2026-10-19' },
+        dueSoon: { amount: 0, bills: 0, nextDue: null },
+        late: { amount: 0, bills: 0, nextDue: null },
+        onHold: { amount: 0, bills: 0, nextDue: null },
+        everLate,
+        total: 1000,
+      },
+    })
+
+    it('is said under the first late figure when the overview says they never were', async () => {
+      withOverview(() => json(200, payables(false)))
+      renderStatement()
+      expect(await screen.findByText('Never been late with them')).toBeTruthy()
+      expect(calls('GET', `${ONE}/overview`)).toHaveLength(1)
+    })
+
+    it('is not said when a bill was paid late before', async () => {
+      withOverview(() => json(200, payables(true)))
+      renderStatement()
+      await screen.findByRole('heading', { level: 1, name: 'Statement' })
+      await waitFor(() => expect(calls('GET', `${ONE}/overview`)).toHaveLength(1))
+      // The strip is drawn: its empty buckets say so.
+      await waitFor(() => expect(screen.getAllByText(NOTHING).length).toBeGreaterThan(0))
+      expect(screen.queryByText('Never been late with them')).toBeNull()
+    })
+
+    it('is not said, and the statement still reads, when the overview cannot be read', async () => {
+      withOverview(() => json(500, { status: 500 }))
+      renderStatement()
+      expect(await screen.findByRole('heading', { level: 1, name: 'Statement' })).toBeTruthy()
+      await waitFor(() => expect(screen.getAllByText(NOTHING).length).toBeGreaterThan(0))
+      expect(screen.queryByText('Never been late with them')).toBeNull()
+    })
+
+    it('takes the statement’s own answer first, and the overview’s only in the same currency', () => {
+      const overview = payables(false) as never
+      expect(everLateOf({ everLate: true, currencyCode: 'OMR' }, overview)).toBe(true)
+      expect(everLateOf({ currencyCode: 'OMR' }, overview)).toBe(false)
+      expect(everLateOf({ everLate: null, currencyCode: 'OMR' }, payables(true) as never)).toBe(
+        true,
+      )
+      expect(everLateOf({ currencyCode: 'USD' }, overview)).toBeNull()
+      expect(everLateOf({ currencyCode: 'OMR' }, null)).toBeNull()
+    })
   })
 
   it('emails the statement to an address already on the record, and says when email is off', async () => {

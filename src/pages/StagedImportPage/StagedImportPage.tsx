@@ -17,7 +17,9 @@ import {
   downloadFailedRows,
   downloadImportTemplate,
   importBatchPath,
+  importTemplatePath,
   loadImportBatch,
+  loadImportColumns,
   type ImportBatchDto,
   type ImportBatchRowDto,
   type ImportCommitResultDto,
@@ -31,6 +33,7 @@ import { saveDownload } from '../../lib/supplierRecord'
 import {
   IMPORT_ROUTES,
   IMPORT_TABS,
+  alreadyOnFile,
   batchBlocker,
   comingIn,
   commitSelection,
@@ -38,6 +41,8 @@ import {
   importable,
   initialSelection,
   problemNote,
+  problemValue,
+  readyOnPeppol,
   rowsInTab,
   tabCount,
   type ImportTabId,
@@ -100,6 +105,13 @@ function StagedImport({ target }: { target: ImportTarget }) {
     batchId ? () => loadImportBatch(target, batchId) : undefined,
   )
   const batch = read.read.status === 'ready' ? read.read.data : null
+  // The template's column order, which is the order of every row's `cells`: read with the review,
+  // so the field box and the first card can say what the file holds. Without it they say less.
+  const columnsRead = useApiRead<string[]>(batch ? importTemplatePath(target) : null, () =>
+    loadImportColumns(target),
+  )
+  const columns = columnsRead.read.status === 'ready' ? columnsRead.read.data : null
+  const onPeppol = batch ? readyOnPeppol(batch, columns) : null
   const blocker = useMemo(() => (batch ? batchBlocker(batch, new Date()) : null), [batch])
 
   if (!can(session, 'customer.import')) {
@@ -384,8 +396,8 @@ function StagedImport({ target }: { target: ImportTarget }) {
               title={t('stagedImport.card.ready')}
               value={batch.counts.ready}
               note={
-                typeof batch.counts.onPeppol === 'number'
-                  ? t('stagedImport.card.readyNotePeppol', { count: batch.counts.onPeppol })
+                onPeppol !== null
+                  ? t('stagedImport.card.readyNotePeppol', { count: onPeppol })
                   : t('stagedImport.card.readyNote')
               }
             />
@@ -468,6 +480,7 @@ function StagedImport({ target }: { target: ImportTarget }) {
                       <ImportRow
                         key={row.rowNumber}
                         row={row}
+                        columns={columns}
                         kept={keep.has(row.rowNumber)}
                         disabled={blocker !== null}
                         onToggle={() =>
@@ -537,11 +550,14 @@ const NAME_FIELDS = new Set(['legalRegisteredName', 'entityMinistryName', 'first
 
 function ImportRow({
   row,
+  columns,
   kept,
   disabled,
   onToggle,
 }: {
   row: ImportBatchRowDto
+  /** The template's column names in the order of `row.cells`; null until they are read. */
+  columns: readonly string[] | null
   kept: boolean
   disabled: boolean
   onToggle: () => void
@@ -550,9 +566,10 @@ function ImportRow({
   const field = fieldLabel(row.field)
   const note = problemNote(row)
   const canKeep = importable(row)
+  const onFile = alreadyOnFile(row)
   // TODO(backend): a correction typed here should re-check the row; until then it stays on screen.
   const [typed, setTyped] = useState<string | null>(null)
-  const value = typed ?? row.value ?? ''
+  const value = typed ?? problemValue(row, columns) ?? ''
 
   return (
     <tr
@@ -636,6 +653,21 @@ function ImportRow({
                 ? t('stagedImport.action.bringInAnyway')
                 : t('stagedImport.action.bringItIn')}
           </button>
+        ) : onFile ? (
+          // Its VAT number or Peppol ID is on another record, so it cannot come in: the row names
+          // that record instead of offering "Bring in anyway".
+          onFile.to ? (
+            <Link
+              to={onFile.to}
+              className="inline-flex h-[38px] items-center whitespace-nowrap text-sm font-semibold text-primary-700 hover:underline"
+            >
+              {t('stagedImport.action.alreadyOnFile')}
+            </Link>
+          ) : (
+            <span className="inline-flex h-[38px] items-center whitespace-nowrap text-sm font-semibold text-text-quaternary">
+              {t('stagedImport.action.alreadyOnFile')}
+            </span>
+          )
         ) : (
           // The check refuses the row whatever is chosen; it comes back in through the file.
           <span className="inline-flex h-[38px] items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3.5 text-sm font-semibold text-text-quaternary">

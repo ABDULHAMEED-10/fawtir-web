@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { paymentTermOptions, useReferenceData } from '../../lib/reference/referenceData'
 import { AppShell } from '../../layouts/AppShell'
@@ -33,6 +33,7 @@ import {
   updateSupplier,
   type SupplierDetailDto,
   type SupplierTypeDto,
+  type SwitchOffRequestDto,
 } from '../../api/expenditure/suppliers'
 import {
   loadSupplierOverview,
@@ -46,12 +47,17 @@ import * as validate from '../../lib/validation'
 import { candidateParticipantId } from '../../lib/peppolParticipant'
 import { GOVERNORATES, GOVERNORATE_NAMES, governorateIdFor } from '../../lib/governorates'
 import {
+  MAX_TAGS,
+  TAG_MAX_LENGTH,
   blankSupplierForm,
+  copyOfSupplier,
+  copySupplierPath,
   fromSupplierDetail,
   hasBankAccount,
   placeSupplierErrors,
   supplierProblems,
   toSupplierRequest,
+  withTag,
   type AddressField,
   type LoadedBank,
   type PlacedError,
@@ -62,6 +68,7 @@ import {
   SwitchSupplierOffModal,
   type SwitchOffTarget,
 } from '../SuppliersPage/SwitchSupplierOffModal'
+import { switchOffRequest } from '../../lib/supplierList'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import checkIcon from '../../assets/bill-detail/tick.svg'
 import tickIcon from '../../assets/supplier-credit-notes/act-set.svg'
@@ -90,6 +97,7 @@ const CATEGORIES: { value: string; key: string }[] = [
 const ORDER: SupplierField[] = [
   'type',
   'legalName',
+  'tradingName',
   'commercialRegistrationNumber',
   'vatNumber',
   'peppolId',
@@ -177,14 +185,16 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     supplierId ? supplierOverviewPath(supplierId) : null,
     () => loadSupplierOverview(supplierId!),
   )
+  // "Copy into a new supplier" names the record to start from; an edit has its own.
+  const [params] = useSearchParams()
+  const copyId = editing ? null : params.get('copy')
+  const source = useApiRead<SupplierDetailDto>(copyId ? supplierPath(copyId) : null, () =>
+    loadSupplier(copyId!),
+  )
   const [record, setRecord] = useState<SupplierDetailDto | null>(null)
   const [values, setValues] = useState<SupplierFormValues>(blankSupplierForm)
   const [bank, setBank] = useState<LoadedBank>(null)
-  // TODO(backend): the frame's trading name, "match bills to purchase orders" switch and tags have
-  // no field on `SupplierRequest`; they are asked as drawn and kept on the screen.
-  const [tradingName, setTradingName] = useState('')
-  const [autoMatch, setAutoMatch] = useState(true)
-  const [tags, setTags] = useState<string[]>([])
+  // What is being typed into "Add tag"; the tags themselves are part of the form's values.
   const [newTag, setNewTag] = useState('')
   const [errors, setErrors] = useState<Partial<Record<SupplierField, PlacedError>>>({})
   const arrived = (location.state as { saved?: string } | null)?.saved
@@ -212,6 +222,22 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     setBank(next.bank)
   }, [loadedRecord])
 
+  const sourceRecord = source.read.status === 'ready' ? source.read.data : null
+  useEffect(() => {
+    if (sourceRecord) setValues(copyOfSupplier(sourceRecord))
+  }, [sourceRecord])
+
+  if (copyId && source.read.status !== 'ready') {
+    return (
+      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
+        {source.read.status === 'loading' ? (
+          <LoadingNotice />
+        ) : (
+          <ApiReadFailure error={source.read.error} retry={source.retry} />
+        )}
+      </div>
+    )
+  }
   if (editing && loaded.read.status !== 'ready') {
     return (
       <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4">
@@ -359,12 +385,12 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
     }
   }
 
-  const switchTo = async (to: 'off' | 'on') => {
+  const switchTo = async (to: 'off' | 'on', why?: SwitchOffRequestDto) => {
     if (!record) return
     setBusy(true)
     setNotice(null)
     try {
-      await switchSupplier(record.profile.id, to)
+      await switchSupplier(record.profile.id, to, why)
       setOffTarget(null)
       loaded.retry()
       setNotice({
@@ -505,7 +531,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                         labelKey: 'suppliersPage.menu.copyToNew',
                         descriptionKey: 'suppliersPage.menu.copyToNewNote',
                         icon: menuCopyIcon,
-                        to: '/suppliers/new',
+                        to: copySupplierPath(record.profile.id),
                       },
                       switchedOff
                         ? {
@@ -612,8 +638,9 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   label={t('supplierEdit.tradingName')}
                   placeholder={t('newSupplier.details.commercialNamePlaceholder')}
                   maxLength={200}
-                  value={tradingName}
-                  onChange={setTradingName}
+                  value={values.tradingName}
+                  onChange={(next) => change('tradingName', next)}
+                  error={errorText('tradingName')}
                 />
                 <TextField
                   id={inputId('commercialRegistrationNumber')}
@@ -692,8 +719,8 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
               <ToggleRow
                 label={t('supplierEdit.autoMatch')}
                 hint={t('supplierEdit.autoMatchHint')}
-                checked={autoMatch}
-                onChange={setAutoMatch}
+                checked={values.autoMatch}
+                onChange={(next) => change('autoMatch', next)}
                 name="autoMatch"
               />
               <div className="flex items-start justify-between gap-4">
@@ -900,7 +927,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   {t('supplierEdit.tags')}
                 </span>
                 <div className="flex flex-wrap items-center gap-2.5">
-                  {tags.map((tag) => (
+                  {values.tags.map((tag) => (
                     <span
                       key={tag}
                       className="inline-flex h-[34px] items-center gap-2 rounded-sm bg-primary-50 px-3 text-sm font-medium text-primary-800"
@@ -910,31 +937,36 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                         type="button"
                         aria-label={t('supplierEdit.removeTag', { tag })}
                         onClick={() =>
-                          setTags((current) => current.filter((entry) => entry !== tag))
+                          change(
+                            'tags',
+                            values.tags.filter((entry) => entry !== tag),
+                          )
                         }
                       >
                         <img src={removeIcon} alt="" className="size-3.5" />
                       </button>
                     </span>
                   ))}
-                  <label className="inline-flex h-[34px] items-center gap-1.5 rounded-sm border border-dashed border-border-default bg-white px-3 text-sm font-medium text-text-secondary focus-within:border-primary-300">
-                    <img src={plusIcon} alt="" className="size-3.5" />
-                    <input
-                      value={newTag}
-                      onChange={(event) => setNewTag(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter') return
-                        event.preventDefault()
-                        const tag = newTag.trim()
-                        if (tag && !tags.includes(tag)) setTags((current) => [...current, tag])
-                        setNewTag('')
-                      }}
-                      maxLength={40}
-                      placeholder={t('supplierEdit.addTag')}
-                      aria-label={t('supplierEdit.addTag')}
-                      className="w-[110px] bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-secondary"
-                    />
-                  </label>
+                  {/* A record holds twenty tags; with twenty there is no room to add one. */}
+                  {values.tags.length < MAX_TAGS ? (
+                    <label className="inline-flex h-[34px] items-center gap-1.5 rounded-sm border border-dashed border-border-default bg-white px-3 text-sm font-medium text-text-secondary focus-within:border-primary-300">
+                      <img src={plusIcon} alt="" className="size-3.5" />
+                      <input
+                        value={newTag}
+                        onChange={(event) => setNewTag(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key !== 'Enter') return
+                          event.preventDefault()
+                          change('tags', withTag(values.tags, newTag))
+                          setNewTag('')
+                        }}
+                        maxLength={TAG_MAX_LENGTH}
+                        placeholder={t('supplierEdit.addTag')}
+                        aria-label={t('supplierEdit.addTag')}
+                        className="w-[110px] bg-transparent text-sm font-medium text-text-secondary outline-none placeholder:text-text-secondary"
+                      />
+                    </label>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -964,7 +996,10 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
                   done={Boolean(record.profile.paymentTerms)}
                   label={t('supplierEdit.complete.terms')}
                 />
-                {/* TODO(backend): a contacts count on the record; the second contact is read as absent until then. */}
+                {/* TODO(owner): `GET /suppliers/{id}/contacts` lists the people in "Who to speak
+                    to", but the main contact on this form is kept apart from that list and may
+                    or may not be entered there too. Is the line ticked with one person in the
+                    list, or only with two? Until that is decided it stays unticked (§6.14). */}
                 <CheckItem
                   done={false}
                   label={t('supplierEdit.complete.secondContact', {
@@ -1026,8 +1061,7 @@ function SupplierFormPage({ supplierId }: { supplierId: string | null }) {
         target={offTarget}
         busy={busy}
         onClose={() => setOffTarget(null)}
-        // TODO(backend): send the reason and the note once `POST /suppliers/{id}/switch-off` takes them.
-        onConfirm={() => void switchTo('off')}
+        onConfirm={(_target, reason, note) => void switchTo('off', switchOffRequest(reason, note))}
       />
     </form>
   )

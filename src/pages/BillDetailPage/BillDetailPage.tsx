@@ -233,6 +233,7 @@ function BillScreen() {
     row.match?.verdict !== 'NO_ORDER' ? (row.match?.purchaseOrderNumber ?? null) : null
   const profile = supplier.read.status === 'ready' ? supplier.read.data.profile : null
   const payables = standing.read.status === 'ready' ? standing.read.data.payables : null
+  const openBills = standing.read.status === 'ready' ? standing.read.data.tabs?.openBills : undefined
 
   const download = async () => {
     if (!original) return
@@ -688,11 +689,14 @@ function BillScreen() {
                   'billDetail.supplier.openBills',
                   payables
                     ? t('billDetail.supplier.openBillsValue', {
+                        // The supplier's open bills, as their page counts them; a server
+                        // older than the count gives the four bands, which it adds up to.
                         count:
+                          openBills ??
                           payables.notDue.bills +
-                          payables.dueSoon.bills +
-                          payables.late.bills +
-                          payables.onHold.bills,
+                            payables.dueSoon.bills +
+                            payables.late.bills +
+                            payables.onHold.bills,
                         amount: formatAmount(payables.total, payables.currencyCode, language),
                       })
                     : t('billDetail.notStated'),
