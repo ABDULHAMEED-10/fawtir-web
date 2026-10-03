@@ -43,6 +43,7 @@ import {
   validatePidForm,
   versionPath,
   versionsPath,
+  withdraw,
   type ActionDecision,
   type AllowedActions,
   type BlockerStatus,
@@ -62,6 +63,7 @@ const actions = (overrides: Partial<AllowedActions> = {}): AllowedActions => ({
   approve: deny('INVALID_STATE'),
   activate: deny('INVALID_STATE'),
   reject: deny('INVALID_STATE'),
+  withdraw: deny('INVALID_STATE'),
   ...overrides,
 })
 
@@ -192,6 +194,7 @@ describe('lifecycle requests', () => {
       approve: 'POLICY_APPROVED',
       activate: 'POLICY_ACTIVATED',
       reject: 'POLICY_REJECTED',
+      withdraw: 'POLICY_SCHEDULE_WITHDRAWN',
     })
   })
 
@@ -201,6 +204,8 @@ describe('lifecycle requests', () => {
     ['approve', approve, 'POLICY_APPROVED'],
     ['activate', activate, 'POLICY_ACTIVATED'],
     ['reject', reject, 'POLICY_REJECTED'],
+    // Withdrawing is the backend's revoke endpoint.
+    ['revoke', withdraw, 'POLICY_SCHEDULE_WITHDRAWN'],
   ] as const)(
     'sends %s as one POST carrying only the lock version and the fixed code',
     async (segment, send, code) => {
@@ -554,6 +559,21 @@ describe('work queue', () => {
     expect(FORWARD_TRANSITIONS).toEqual(['submit', 'review', 'approve', 'activate'])
   })
 
+  it('does not count being allowed to withdraw a schedule as a step waiting for the reader', () => {
+    expect(needsMyAction(actions({ withdraw: allow }))).toBe(false)
+    expect(POLICY_TRANSITIONS).toContain('withdraw')
+    expect(
+      queueLabel({
+        status: 'SCHEDULED',
+        forceState: 'NOT_YET_EFFECTIVE',
+        allowedActions: actions({ withdraw: allow }),
+      }),
+    ).toBe('scheduled')
+    expect(queueLabel({ status: 'REVOKED', forceState: null, allowedActions: actions() })).toBe(
+      'revoked',
+    )
+  })
+
   it('reads a version under review the same whether or not the reader may reject it', () => {
     const both = actions({ approve: deny('SELF_APPROVAL_NOT_ALLOWED'), reject: allow })
     expect(queueLabel(at('PENDING_REVIEW', both))).toBe('awaitingIndependentApproval')
@@ -608,6 +628,24 @@ describe('version helpers', () => {
     expect(policyTrail(approved)[2].actor).toEqual({ id: 'u-reviewer', displayName: null })
   })
 
+  it('names the end of a revoked version as revoked, and of any other as ended', () => {
+    const ender = { id: 'u-activator', displayName: 'Hamad Activator' }
+    const ended = {
+      approvedAt: '2026-10-04T08:00:00Z',
+      activatedAt: '2026-10-05T08:00:00Z',
+      endedBy: ender.id,
+      endedAt: '2026-10-06T08:00:00Z',
+      actors: { ...version().actors, endedBy: ender },
+    }
+
+    expect(policyTrail(version({ status: 'REVOKED', ...ended })).slice(-1)).toEqual([
+      { step: 'revoked', actor: ender, at: '2026-10-06T08:00:00Z' },
+    ])
+    expect(policyTrail(version({ status: 'SUPERSEDED', ...ended })).slice(-1)).toEqual([
+      { step: 'ended', actor: ender, at: '2026-10-06T08:00:00Z' },
+    ])
+  })
+
   it('lists a rejection after the review, with the rejecter apart from the reviewer', () => {
     const rejected = version({
       status: 'REJECTED',
@@ -635,6 +673,7 @@ describe('version helpers', () => {
       'approved',
       'activated',
       'ended',
+      'revoked',
     ])
     expect(policyTrail(rejected).map((entry) => entry.step)).toEqual([
       'created',

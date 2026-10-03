@@ -271,7 +271,16 @@ function PolicyVersions({ type }: { type: BlockerType }) {
           version={selected}
           transition={dialog}
           onClose={() => setDialog(null)}
-          onDone={(updated) => done(updated, `console.policies.done.${dialog}`)}
+          onDone={(updated) =>
+            done(
+              updated,
+              // A future effective date makes the server answer SCHEDULED, not ACTIVE: the policy in
+              // force has not changed, so the notice must not say it has.
+              dialog === 'activate' && updated.status === 'SCHEDULED'
+                ? 'console.policies.done.activateScheduled'
+                : `console.policies.done.${dialog}`,
+            )
+          }
           onMoved={moved}
         />
       ) : null}
@@ -408,6 +417,9 @@ function VersionView({
   // Read on its own and not from the reason approval was refused: rejecting has no separation of
   // duties, so an author who may not approve their own version may still be allowed to reject it.
   const canReject = allowedActions.reject.allowed
+  // Never inferred from the status and the effective date here: a schedule that took effect is no
+  // longer withdrawable, and only the server's clock can say it has.
+  const canWithdraw = allowedActions.withdraw.allowed
   // The editor exists for one type only, so a draft of any other type is never offered for editing
   // even where the server would allow it.
   const canEdit = authorable && allowedActions.editDraft.allowed
@@ -421,7 +433,8 @@ function VersionView({
         ? 'console.policies.action.scheduledPending'
         : null
   const blocked = blockedKey !== null
-  const nothingOffered = transitions.length === 0 && !canReject && !canEdit && !canCopy
+  const nothingOffered =
+    transitions.length === 0 && !canReject && !canWithdraw && !canEdit && !canCopy
 
   return (
     <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
@@ -520,6 +533,18 @@ function VersionView({
                   onClick={() => onTransition('reject')}
                 >
                   {t('console.policies.action.reject')}
+                </Button>
+              ) : null}
+              {canWithdraw ? (
+                // Secondary like Reject: it ends a version instead of advancing it.
+                <Button
+                  type="button"
+                  size="md"
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => onTransition('withdraw')}
+                >
+                  {t('console.policies.action.withdraw')}
                 </Button>
               ) : null}
               {canEdit ? (

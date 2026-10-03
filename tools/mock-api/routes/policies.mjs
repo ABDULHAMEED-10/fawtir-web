@@ -23,6 +23,7 @@ const actions = (overrides = {}) => ({
   approve: deny('INVALID_STATE'),
   activate: deny('INVALID_STATE'),
   reject: deny('INVALID_STATE'),
+  withdraw: deny('INVALID_STATE'),
   ...overrides,
 })
 

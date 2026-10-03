@@ -79,6 +79,8 @@ export type AllowedActions = {
   approve: ActionDecision
   activate: ActionDecision
   reject: ActionDecision
+  /** The server's revoke, offered only on a SCHEDULED version whose date is still ahead. */
+  withdraw: ActionDecision
 }
 
 /** `displayName` is null when the server cannot resolve the id to a person. */
@@ -179,15 +181,26 @@ export function isVersionId(value: string | null): value is string {
 
 /* ---------------------------------------------------------------- lifecycle */
 
-/** The steps this console offers. Deactivate and revoke exist server-side and are not exposed. */
-export const POLICY_TRANSITIONS = ['submit', 'review', 'approve', 'activate', 'reject'] as const
+/**
+ * The steps this console offers. Deactivate is not exposed. Revoke is exposed only as `withdraw`,
+ * and only where the server's `allowedActions.withdraw` offers it: a schedule not yet in effect.
+ */
+export const POLICY_TRANSITIONS = [
+  'submit',
+  'review',
+  'approve',
+  'activate',
+  'reject',
+  'withdraw',
+] as const
 export type PolicyTransition = (typeof POLICY_TRANSITIONS)[number]
 
 /**
  * The steps that carry a version towards being in force. `reject` is kept out on purpose: it ends
  * a version instead of advancing it, and it has no separation of duties, so every reviewer may
  * take it on every version under review. Counting it as a step would put each of those versions
- * in every reviewer's "needs my action" queue.
+ * in every reviewer's "needs my action" queue. `withdraw` is kept out for the same reason: the
+ * activation authority may withdraw every scheduled version until it starts.
  */
 export const FORWARD_TRANSITIONS = [
   'submit',
@@ -206,6 +219,17 @@ export const TRANSITION_REASON_CODES: Record<PolicyTransition, string> = {
   approve: 'POLICY_APPROVED',
   activate: 'POLICY_ACTIVATED',
   reject: 'POLICY_REJECTED',
+  withdraw: 'POLICY_SCHEDULE_WITHDRAWN',
+}
+
+/** Withdrawing is the backend's existing revoke endpoint; every other step is sent by its name. */
+const TRANSITION_SEGMENTS: Record<PolicyTransition, string> = {
+  submit: 'submit',
+  review: 'review',
+  approve: 'approve',
+  activate: 'activate',
+  reject: 'reject',
+  withdraw: 'revoke',
 }
 
 type VersionRef = Pick<BlockerVersionView, 'id' | 'optimisticLockVersion'>
@@ -220,14 +244,17 @@ export function transitionVersion(
   type: BlockerType,
   version: VersionRef,
 ): Promise<BlockerVersionView> {
-  return apiRequest<BlockerVersionView>(`${versionPath(type, version.id)}/${transition}`, {
-    method: 'POST',
-    body: {
-      expectedOptimisticLockVersion: version.optimisticLockVersion,
-      reasonCode: TRANSITION_REASON_CODES[transition],
+  return apiRequest<BlockerVersionView>(
+    `${versionPath(type, version.id)}/${TRANSITION_SEGMENTS[transition]}`,
+    {
+      method: 'POST',
+      body: {
+        expectedOptimisticLockVersion: version.optimisticLockVersion,
+        reasonCode: TRANSITION_REASON_CODES[transition],
+      },
+      credentials: 'same-origin',
     },
-    credentials: 'same-origin',
-  })
+  )
 }
 
 export const submit = (type: BlockerType, version: VersionRef) =>
@@ -240,6 +267,8 @@ export const activate = (type: BlockerType, version: VersionRef) =>
   transitionVersion('activate', type, version)
 export const reject = (type: BlockerType, version: VersionRef) =>
   transitionVersion('reject', type, version)
+export const withdraw = (type: BlockerType, version: VersionRef) =>
+  transitionVersion('withdraw', type, version)
 
 /** What a draft carries besides its lock version. */
 export type DraftContent = {
@@ -403,6 +432,7 @@ export const TRAIL_STEPS = [
   'approved',
   'activated',
   'ended',
+  'revoked',
 ] as const
 export type TrailStep = (typeof TRAIL_STEPS)[number]
 export type TrailEntry = { step: TrailStep; actor: Actor | null; at: string }
@@ -419,7 +449,9 @@ export function policyTrail(version: BlockerVersionView): TrailEntry[] {
     ['rejected', actors.rejectedBy, version.rejectedAt],
     ['approved', actors.approvedBy, version.approvedAt],
     ['activated', actors.activatedBy, version.activatedAt],
-    ['ended', actors.endedBy, version.endedAt],
+    // Named "Revoked" rather than "Ended" so the trail agrees with the status pill; the reason
+    // code line then says whether it was a withdrawn schedule.
+    [version.status === 'REVOKED' ? 'revoked' : 'ended', actors.endedBy, version.endedAt],
   ]
   return steps.flatMap(([step, actor, at]) => (at === null ? [] : [{ step, actor, at }]))
 }

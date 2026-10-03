@@ -104,7 +104,9 @@ export function PolicyTransitionDialog({
             label={t('console.policies.confirm.status')}
             value={<PolicyStatusPill status={version.status} />}
           />
-          {transition === 'activate' ? (
+          {/* Printed only, never compared to the browser's clock: whether a schedule is still
+              ahead, and so withdrawable, is the server's `allowedActions.withdraw`. */}
+          {transition === 'activate' || transition === 'withdraw' ? (
             <ReviewLine
               label={t('console.policies.detail.field.effectiveFrom')}
               value={

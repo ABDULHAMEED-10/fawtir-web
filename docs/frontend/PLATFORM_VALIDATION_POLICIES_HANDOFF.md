@@ -12,14 +12,14 @@ separation of duties along the way. Until now there was no screen for any of it,
 Peppol Participant ID could be refused at approval (`PID_POLICY_NOT_ACTIVE`) with nothing in the
 console to explain why or to fix it.
 
-| Delivered | What |
-|---|---|
-| **Overview** `/console/policies` | One row per policy type the operator may read: the version in force, the newest version, its work-queue label, and a "Needs my action" filter kept in the URL |
-| **Policy** `/console/policies/:type` | The version list, the selected version in full (details, contents, people and times), and the lifecycle steps the server allows this operator |
-| **Lifecycle steps** | Submit, Start review, Approve, Activate, and Reject for a version under review. Each behind a confirmation dialog, each one request with a fixed reason code |
-| **Authoring** | Create draft, Edit draft and New draft from this version, for `TAXPAYER_PID_CONTRACT` only |
-| **Onboarding** | The Participant ID card on a company's verification page now says when approval is blocked by a missing policy, links to it, and reads the new refusal codes |
-| **Navigation** | One item, "Validation policies", under THE PLATFORM |
+| Delivered                            | What                                                                                                                                                                                                                      |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview** `/console/policies`     | One row per policy type the operator may read: the version in force, the newest version, its work-queue label, and a "Needs my action" filter kept in the URL                                                             |
+| **Policy** `/console/policies/:type` | The version list, the selected version in full (details, contents, people and times), and the lifecycle steps the server allows this operator                                                                             |
+| **Lifecycle steps**                  | Submit, Start review, Approve, Activate, Reject for a version under review, and Withdraw schedule for a scheduled version not yet in effect. Each behind a confirmation dialog, each one request with a fixed reason code |
+| **Authoring**                        | Create draft, Edit draft and New draft from this version, for `TAXPAYER_PID_CONTRACT` only                                                                                                                                |
+| **Onboarding**                       | The Participant ID card on a company's verification page now says when approval is blocked by a missing policy, links to it, and reads the new refusal codes                                                              |
+| **Navigation**                       | One item, "Validation policies", under THE PLATFORM                                                                                                                                                                       |
 
 **No design exists for these screens.** There is no Figma frame for a validation-policy console.
 Both pages are flagged as no-design screens, built only from components the console already draws:
@@ -37,24 +37,25 @@ built field by field.
 
 Reads:
 
-| Request | Returns |
-|---|---|
-| `GET /data-blockers` | `BlockerOverviewEntry[]`, only the types the caller may read |
-| `GET /data-blockers/{type}/versions?page=0&size=20` | `BlockerVersionView[]`, newest first, no total |
-| `GET /data-blockers/{type}/versions/{versionId}` | `BlockerVersionView`, or `404` |
-| `GET /data-blockers/{type}/current` | `BlockerVersionView`, or `404` when nothing is in force |
+| Request                                             | Returns                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------ |
+| `GET /data-blockers`                                | `BlockerOverviewEntry[]`, only the types the caller may read |
+| `GET /data-blockers/{type}/versions?page=0&size=20` | `BlockerVersionView[]`, newest first, no total               |
+| `GET /data-blockers/{type}/versions/{versionId}`    | `BlockerVersionView`, or `404`                               |
+| `GET /data-blockers/{type}/current`                 | `BlockerVersionView`, or `404` when nothing is in force      |
 
 Writes, each answering the full updated `BlockerVersionView`:
 
-| Request | Body |
-|---|---|
-| `POST /data-blockers/{type}/versions` | `{ data, evidenceReference, testOnly, effectiveFrom, effectiveTo }` |
-| `PUT /data-blockers/{type}/versions/{id}` | the same plus `expectedOptimisticLockVersion` |
-| `POST .../{id}/submit` | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_SUBMITTED" }` |
-| `POST .../{id}/review` | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_REVIEW_STARTED" }` |
-| `POST .../{id}/approve` | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_APPROVED" }` |
-| `POST .../{id}/activate` | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_ACTIVATED" }` |
-| `POST .../{id}/reject` | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_REJECTED" }` |
+| Request                                    | Body                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `POST /data-blockers/{type}/versions`      | `{ data, evidenceReference, testOnly, effectiveFrom, effectiveTo }`          |
+| `PUT /data-blockers/{type}/versions/{id}`  | the same plus `expectedOptimisticLockVersion`                                |
+| `POST .../{id}/submit`                     | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_SUBMITTED" }`          |
+| `POST .../{id}/review`                     | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_REVIEW_STARTED" }`     |
+| `POST .../{id}/approve`                    | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_APPROVED" }`           |
+| `POST .../{id}/activate`                   | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_ACTIVATED" }`          |
+| `POST .../{id}/reject`                     | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_REJECTED" }`           |
+| `POST .../{id}/revoke` (Withdraw schedule) | `{ expectedOptimisticLockVersion, reasonCode: "POLICY_SCHEDULE_WITHDRAWN" }` |
 
 Separation of duties, enforced by the server: the approver cannot be the creator, submitter or
 reviewer, and the activator cannot be the approver. The screen never works this out. It renders the
@@ -81,19 +82,19 @@ shown. `correlationId` is shown as "Reference: <id>".
 **Work-queue label.** Derived from `status` and `allowedActions` alone
 (`queueLabel` in `src/lib/console/validationPolicies.ts`):
 
-| Status | Condition | Label |
-|---|---|---|
-| DRAFT | | Draft |
-| SUBMITTED | | Submitted, awaiting review |
-| PENDING_REVIEW | `approve.allowed` | Pending your approval |
-| PENDING_REVIEW | `approve.reason = SELF_APPROVAL_NOT_ALLOWED` | Awaiting independent approval |
-| PENDING_REVIEW | otherwise | Pending review |
-| APPROVED | `activate.allowed` | Approved, awaiting your activation |
-| APPROVED | `activate.reason = APPROVER_CANNOT_ACTIVATE` | Approved, awaiting activation by another operator |
-| APPROVED | `activate.reason = ACTIVATION_PRECONDITION_FAILED` | Approved, cannot be activated as it stands |
-| APPROVED | otherwise | Approved, awaiting activation |
-| ACTIVE, NOT_APPLICABLE | | In force |
-| REJECTED, EXPIRED, REVOKED, SUPERSEDED | | the plain status |
+| Status                                 | Condition                                          | Label                                             |
+| -------------------------------------- | -------------------------------------------------- | ------------------------------------------------- |
+| DRAFT                                  |                                                    | Draft                                             |
+| SUBMITTED                              |                                                    | Submitted, awaiting review                        |
+| PENDING_REVIEW                         | `approve.allowed`                                  | Pending your approval                             |
+| PENDING_REVIEW                         | `approve.reason = SELF_APPROVAL_NOT_ALLOWED`       | Awaiting independent approval                     |
+| PENDING_REVIEW                         | otherwise                                          | Pending review                                    |
+| APPROVED                               | `activate.allowed`                                 | Approved, awaiting your activation                |
+| APPROVED                               | `activate.reason = APPROVER_CANNOT_ACTIVATE`       | Approved, awaiting activation by another operator |
+| APPROVED                               | `activate.reason = ACTIVATION_PRECONDITION_FAILED` | Approved, cannot be activated as it stands        |
+| APPROVED                               | otherwise                                          | Approved, awaiting activation                     |
+| ACTIVE, NOT_APPLICABLE                 |                                                    | In force                                          |
+| REJECTED, EXPIRED, REVOKED, SUPERSEDED |                                                    | the plain status                                  |
 
 "Needs my action" keeps the rows whose newest version has `submit`, `review`, `approve` or
 `activate` allowed. Being allowed to edit a draft does not count, and neither does being allowed
@@ -185,10 +186,10 @@ Changed:
 
 ## Routes
 
-| Route | Page | Gate |
-|---|---|---|
-| `/console/policies` | `ValidationPoliciesPage` | `platform.support` |
-| `/console/policies/:type` | `ValidationPolicyPage` | `platform.support` |
+| Route                     | Page                     | Gate               |
+| ------------------------- | ------------------------ | ------------------ |
+| `/console/policies`       | `ValidationPoliciesPage` | `platform.support` |
+| `/console/policies/:type` | `ValidationPolicyPage`   | `platform.support` |
 
 Query: `?filter=mine` on the overview, `?version=<id>` on a policy. An unknown `:type` is answered
 locally as not found, with no request.
@@ -198,27 +199,27 @@ locally as not found, with no request.
 Entitlements (`GET /v1/me/entitlements`) are asked once per session by the shell and are not
 counted below.
 
-| Screen or action | Requests |
-|---|---|
-| Open the overview | 1: `GET /data-blockers` |
-| Toggle "Needs my action" | 0 |
-| Open `TAXPAYER_PID_CONTRACT` | 2: `GET .../versions?page=0&size=20`, `GET /data-blockers` (for `canCreateDraft`) |
-| Open any other type | 1: `GET .../versions?page=0&size=20` |
-| Open with `?version=` in the list | no extra |
-| Open with `?version=` not in the list | +1: `GET .../versions/{id}` |
-| Open with a malformed `?version=` or unknown `:type` | no extra, answered locally |
-| Select another listed version | 0 |
-| Submit, Start review, Approve, Activate or Reject, accepted | 2: 1 `POST`, then 1 `GET .../versions` |
-| The same, refused with `409` or `404` | 2: 1 `POST`, then 1 `GET .../versions` (+1 `GET .../versions/{id}` when the version is not in the list). No resend |
-| The same, refused with `403`, `400`, `5xx` or no answer | 1: the `POST` |
-| Open a confirmation dialog or the editor, or cancel it | 0 |
-| Create draft, accepted | 2: 1 `POST .../versions`, then 1 `GET .../versions` |
-| Edit draft, accepted | 2: 1 `PUT .../versions/{id}`, then 1 `GET .../versions` |
-| Save draft refused locally (validation) | 0 |
-| Save draft refused with `409` | 2: the write, then 1 `GET .../versions`. The form stays open and cannot be sent again |
-| Company verification page, Participant ID card with a decision to offer | +1: `GET /data-blockers/TAXPAYER_PID_CONTRACT/current` |
-| The same card with nothing to decide | +0 |
-| Approve refused with `PID_POLICY_NOT_ACTIVE` | 2: 1 `POST .../verify`, then 1 `GET .../current`. No resend |
+| Screen or action                                                               | Requests                                                                                                           |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Open the overview                                                              | 1: `GET /data-blockers`                                                                                            |
+| Toggle "Needs my action"                                                       | 0                                                                                                                  |
+| Open `TAXPAYER_PID_CONTRACT`                                                   | 2: `GET .../versions?page=0&size=20`, `GET /data-blockers` (for `canCreateDraft`)                                  |
+| Open any other type                                                            | 1: `GET .../versions?page=0&size=20`                                                                               |
+| Open with `?version=` in the list                                              | no extra                                                                                                           |
+| Open with `?version=` not in the list                                          | +1: `GET .../versions/{id}`                                                                                        |
+| Open with a malformed `?version=` or unknown `:type`                           | no extra, answered locally                                                                                         |
+| Select another listed version                                                  | 0                                                                                                                  |
+| Submit, Start review, Approve, Activate, Reject or Withdraw schedule, accepted | 2: 1 `POST`, then 1 `GET .../versions`                                                                             |
+| The same, refused with `409` or `404`                                          | 2: 1 `POST`, then 1 `GET .../versions` (+1 `GET .../versions/{id}` when the version is not in the list). No resend |
+| The same, refused with `403`, `400`, `5xx` or no answer                        | 1: the `POST`                                                                                                      |
+| Open a confirmation dialog or the editor, or cancel it                         | 0                                                                                                                  |
+| Create draft, accepted                                                         | 2: 1 `POST .../versions`, then 1 `GET .../versions`                                                                |
+| Edit draft, accepted                                                           | 2: 1 `PUT .../versions/{id}`, then 1 `GET .../versions`                                                            |
+| Save draft refused locally (validation)                                        | 0                                                                                                                  |
+| Save draft refused with `409`                                                  | 2: the write, then 1 `GET .../versions`. The form stays open and cannot be sent again                              |
+| Company verification page, Participant ID card with a decision to offer        | +1: `GET /data-blockers/TAXPAYER_PID_CONTRACT/current`                                                             |
+| The same card with nothing to decide                                           | +0                                                                                                                 |
+| Approve refused with `PID_POLICY_NOT_ACTIVE`                                   | 2: 1 `POST .../verify`, then 1 `GET .../current`. No resend                                                        |
 
 ## RBAC and security notes
 
@@ -243,14 +244,14 @@ counted below.
 
 Run on Windows, 2 to 3 October 2026, on the uncommitted tree.
 
-| Gate | Result |
-|---|---|
-| `npm run build` (the type-check) | Passed: `✓ built in 12.41s` |
-| Focused: `validationPolicies.test.ts`, `validationPolicies.test.tsx`, `verificationDecisions.test.tsx`, `verification.test.tsx` | `Test Files 4 passed (4)`, `Tests 187 passed (187)` |
-| `npm run test`, whole suite | `Test Files 2 failed, 99 passed (101)`, `Tests 6 failed, 1687 passed (1693)`. All six are 15 s timeouts in `src/pages/onboarding.test.tsx` (5) and `src/pages/CreateInvoicePage/invoiceDraft.test.tsx` (1), neither touched here |
-| Those two files re-run alone | `onboarding.test.tsx` 53 passed (53); `invoiceDraft.test.tsx` 27 passed (27) |
-| `npm run lint` | 29 errors, 3 warnings. All 29 are `react-refresh/only-export-components` in files that already had them; none is in a file created here. The one in `ParticipantPanel.tsx` is the existing `proposedParticipantId` export |
-| Prettier | The new files pass `--check` with the project flags. Existing files were not reformatted |
+| Gate                                                                                                                            | Result                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build` (the type-check)                                                                                                | Passed: `✓ built in 12.41s`                                                                                                                                                                                                      |
+| Focused: `validationPolicies.test.ts`, `validationPolicies.test.tsx`, `verificationDecisions.test.tsx`, `verification.test.tsx` | `Test Files 4 passed (4)`, `Tests 187 passed (187)`                                                                                                                                                                              |
+| `npm run test`, whole suite                                                                                                     | `Test Files 2 failed, 99 passed (101)`, `Tests 6 failed, 1687 passed (1693)`. All six are 15 s timeouts in `src/pages/onboarding.test.tsx` (5) and `src/pages/CreateInvoicePage/invoiceDraft.test.tsx` (1), neither touched here |
+| Those two files re-run alone                                                                                                    | `onboarding.test.tsx` 53 passed (53); `invoiceDraft.test.tsx` 27 passed (27)                                                                                                                                                     |
+| `npm run lint`                                                                                                                  | 29 errors, 3 warnings. All 29 are `react-refresh/only-export-components` in files that already had them; none is in a file created here. The one in `ParticipantPanel.tsx` is the existing `proposedParticipantId` export        |
+| Prettier                                                                                                                        | The new files pass `--check` with the project flags. Existing files were not reformatted                                                                                                                                         |
 
 The first whole-suite run had nine timeouts across six files, one of them the long typed-create
 test in the new page suite. That test now carries its own 60 s ceiling, with the reason beside it,
@@ -258,13 +259,13 @@ and passed in the second whole-suite run.
 
 **Reject, 3 October 2026, on the uncommitted tree.** The whole suite was not re-run in this pass.
 
-| Gate | Result |
-|---|---|
-| `npx tsc -p tsconfig.app.json --noEmit` | No output, exit 0 |
-| Focused, the same four files | `Test Files 4 passed (4)`, `Tests 207 passed (207)` |
-| `npm run build` | Passed: `✓ built in 11.43s` |
-| `npm run lint` | 32 problems (29 errors, 3 warnings), unchanged. The only one in a file of this feature is still the `proposedParticipantId` export in `ParticipantPanel.tsx` |
-| Prettier | The five changed source files pass `--check` with the project flags |
+| Gate                                    | Result                                                                                                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npx tsc -p tsconfig.app.json --noEmit` | No output, exit 0                                                                                                                                            |
+| Focused, the same four files            | `Test Files 4 passed (4)`, `Tests 207 passed (207)`                                                                                                          |
+| `npm run build`                         | Passed: `✓ built in 11.43s`                                                                                                                                  |
+| `npm run lint`                          | 32 problems (29 errors, 3 warnings), unchanged. The only one in a file of this feature is still the `proposedParticipantId` export in `ParticipantPanel.tsx` |
+| Prettier                                | The five changed source files pass `--check` with the project flags                                                                                          |
 
 Reject added 4 tests to the lib suite and 16 to the page suite. A mutation check was run and
 reverted: counting `reject` in `needsMyAction` and drawing Reject from the status instead of
@@ -417,8 +418,10 @@ lifecycle endpoints are still not mocked: a click on Reject there answers `404`.
 
 ## Deliberately not built
 
-- **Deactivate and Revoke.** They exist on the server and the contract forbids exposing them
-  here. Reject was in this list until the contract delta of 3 October 2026 and is now built.
+- **Deactivate, and Revoke of anything but a pending schedule.** Deactivate exists on the server
+  and is not exposed. Revoke is exposed only as "Withdraw schedule", only where
+  `allowedActions.withdraw` allows it (see "Withdrawing a scheduled version"). Reject was in this
+  list until the contract delta of 3 October 2026 and is now built.
 - **Authoring for the other seven types.** They are read-only lists of stored keys and values, with
   no editor of any kind, even where the server would allow an edit.
 - **A history timeline.** The people trail shows the seven recorded steps of one version only.
@@ -428,8 +431,9 @@ lifecycle endpoints are still not mocked: a click on Reject there answers `404`.
 ## Next slice (needs authorisation)
 
 - A browser pass against a real backend with two operators, to see the separation of duties and the
-  refusal codes end to end. Reject has had none: it needs the backend that implements the delta.
-- A native Arabic review of the copy, and Arabic and 390 px screenshots that include Reject.
+  refusal codes end to end. Reject and Withdraw schedule have had none.
+- A native Arabic review of the copy, and Arabic and 390 px screenshots that include Reject and
+  Withdraw schedule.
 - A Figma frame, or the owner's sign-off on this layout.
 - Adding the two routes to the responsive harness with a baseline.
 
@@ -443,18 +447,18 @@ stubbed requests only.
 
 ### Screens
 
-| Screen | What changed |
-|---|---|
+| Screen                                                        | What changed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Console › Verification › company › Peppol Participant ID card | Reads `verificationStanding` from the existing `.../data-submissions/current` answer. `REVERIFICATION_REQUIRED` and `NO_POLICY_IN_FORCE` replace the "Verified" status word with a qualified one and add a note; the stored verified ID still shows (LTR). When a verification exists and the state is not `VERIFIED`, lines show the previously verified ID (only when it is a different row from the one on screen), the policy version it was verified under, when, and the version in force. An open re-verification (`AWAITING_REVIEW` with a verification) and a rejection with an older verification get their own neutral note. Approve ID, Reject ID, reason codes, the policy-in-force check, `409` handling and the reference line are unchanged. No operator or user identity is shown. |
-| Settings › Peppol and tax (`/settings/peppol`) | One new section, "Participant ID verification", after the "Live on the network" card, in the page's own `rounded-md bg-surface-card` section pattern. It shows the state's sentence, a pill (none for `NOT_SUBMITTED`, `DRAFT`, `NO_POLICY_IN_FORCE`), the verified ID (LTR), its date, its policy version and the version in force, and "Request verification against the current policy" only when `reverificationAvailable` and a policy is in force. Every existing section, constant and style of the page is untouched; the rest of the page is still the static design mock. |
+| Settings › Peppol and tax (`/settings/peppol`)                | One new section, "Participant ID verification", after the "Live on the network" card, in the page's own `rounded-md bg-surface-card` section pattern. It shows the state's sentence, a pill (none for `NOT_SUBMITTED`, `DRAFT`, `NO_POLICY_IN_FORCE`), the verified ID (LTR), its date, its policy version and the version in force, and "Request verification against the current policy" only when `reverificationAvailable` and a policy is in force. Every existing section, constant and style of the page is untouched; the rest of the page is still the static design mock.                                                                                                                                                                                                                 |
 
 ### Endpoints and request counts
 
-| Call | When |
-|---|---|
-| `GET /api/v1/platform/peppol/smp/tenants/{tenantId}/data-submissions/current` | Unchanged. No extra console request: the standing arrives with it. A backend without the field leaves the card as before (`verificationStanding` is optional in the type). |
-| `GET /api/v1/peppol/smp/data-submissions/standing` | Once on mount of the settings section; once more only after a `409` `POLICY_CHANGED`, `SUBMISSION_IN_PROGRESS` or `REVERIFICATION_NOT_REQUIRED`; or after a `201` that lacks `verificationStanding` (defensive, contract says it is always there). |
-| `POST /api/v1/peppol/smp/data-submissions/reverification` | One per click. Body exactly `{"expectedPolicyVersionId": standing.policyInForce.id}`; headers `X-Correlation-Id` (a fresh `crypto.randomUUID()`) and the shared client's `X-CSRF-Token`. A ref guard plus the disabled button stop a double click or Enter. The `201` body's `verificationStanding` replaces the shown standing; nothing is re-read. |
+| Call                                                                          | When                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/platform/peppol/smp/tenants/{tenantId}/data-submissions/current` | Unchanged. No extra console request: the standing arrives with it. A backend without the field leaves the card as before (`verificationStanding` is optional in the type).                                                                                                                                                                           |
+| `GET /api/v1/peppol/smp/data-submissions/standing`                            | Once on mount of the settings section; once more only after a `409` `POLICY_CHANGED`, `SUBMISSION_IN_PROGRESS` or `REVERIFICATION_NOT_REQUIRED`; or after a `201` that lacks `verificationStanding` (defensive, contract says it is always there).                                                                                                   |
+| `POST /api/v1/peppol/smp/data-submissions/reverification`                     | One per click. Body exactly `{"expectedPolicyVersionId": standing.policyInForce.id}`; headers `X-Correlation-Id` (a fresh `crypto.randomUUID()`) and the shared client's `X-CSRF-Token`. A ref guard plus the disabled button stop a double click or Enter. The `201` body's `verificationStanding` replaces the shown standing; nothing is re-read. |
 
 The shared `apiRequest` client sends no correlation id and no module had one, so
 `src/api/peppol/participantStanding.ts` mints it per request, the same way modules mint their
@@ -462,15 +466,15 @@ The shared `apiRequest` client sends no correlation id and no module had one, so
 
 ### Error mapping (company side, by status and `code` only)
 
-| Answer | Shown | Re-read |
-|---|---|---|
-| `409 POLICY_CHANGED` | policy changed while the page was open; check and ask again | once, never resent |
-| `409 SUBMISSION_IN_PROGRESS` | a request is already waiting | once |
-| `409 REVERIFICATION_NOT_REQUIRED` | no new verification needed | once |
-| `400 PID_POLICY_NOT_ACTIVE` | no policy in force, try later | no |
-| `403` (not CSRF) | no permission to ask | no |
-| anything else | `describeApiFailure` (shared), with `apiErrors.reference` | no |
-| `401` | to Login, as `useApiRead` does | n/a |
+| Answer                            | Shown                                                       | Re-read            |
+| --------------------------------- | ----------------------------------------------------------- | ------------------ |
+| `409 POLICY_CHANGED`              | policy changed while the page was open; check and ask again | once, never resent |
+| `409 SUBMISSION_IN_PROGRESS`      | a request is already waiting                                | once               |
+| `409 REVERIFICATION_NOT_REQUIRED` | no new verification needed                                  | once               |
+| `400 PID_POLICY_NOT_ACTIVE`       | no policy in force, try later                               | no                 |
+| `403` (not CSRF)                  | no permission to ask                                        | no                 |
+| anything else                     | `describeApiFailure` (shared), with `apiErrors.reference`   | no                 |
+| `401`                             | to Login, as `useApiRead` does                              | n/a                |
 
 A known code on the wrong status (e.g. `400 POLICY_CHANGED`) is not treated as that refusal. The
 problem `detail` is never read. A `403` on the standing read says the reader lacks access.
@@ -511,14 +515,14 @@ Every version view and every overview summary now carries the server-computed `f
 (`IN_FORCE`, `NOT_YET_EFFECTIVE`, `ENDED`, `REPLACED`, or `null` for a status that is not live).
 The console reads in-force-ness from it alone; the browser clock no longer decides it anywhere.
 
-| `forceState` | Work-queue label |
-|---|---|
-| `IN_FORCE` | In force |
-| `NOT_YET_EFFECTIVE`, status `SCHEDULED` | Scheduled, takes effect on {date} |
-| `NOT_YET_EFFECTIVE`, other live status | Activated, not yet in force |
-| `ENDED` | Activated, effective period ended |
-| `REPLACED` | Replaced by a newer version |
-| `null` on a live status (not expected) | Activated (never claimed to be in force) |
+| `forceState`                            | Work-queue label                         |
+| --------------------------------------- | ---------------------------------------- |
+| `IN_FORCE`                              | In force                                 |
+| `NOT_YET_EFFECTIVE`, status `SCHEDULED` | Scheduled, takes effect on {date}        |
+| `NOT_YET_EFFECTIVE`, other live status  | Activated, not yet in force              |
+| `ENDED`                                 | Activated, effective period ended        |
+| `REPLACED`                              | Replaced by a newer version              |
+| `null` on a live status (not expected)  | Activated (never claimed to be in force) |
 
 - `SCHEDULED` has its own status word and the `pending` pill tone (the one approved versions use).
   It is never green: the status lags, and in-force-ness is shown by the label beside it.
@@ -532,7 +536,8 @@ The console reads in-force-ness from it alone; the browser clock no longer decid
   activation is not available while another replacement is scheduled.
 - `409 SCHEDULED_REPLACEMENT_PENDING` from activate: its own localized message on the page with the
   reference, the list is read again, and the step is never resent (as every `409`).
-- Withdrawing a scheduled version (revoke or deactivate) is deliberately not exposed here.
+- Withdrawing a scheduled version is now built; see "Withdrawing a scheduled version" below.
+  Deactivate is still not exposed.
 - The mock API fixtures carry `forceState`; the overview's `active` and `/current` pick the
   `IN_FORCE` version.
 - Participant ID standing is unchanged in shape: before a scheduled version takes effect the
@@ -548,3 +553,87 @@ The console reads in-force-ness from it alone; the browser clock no longer decid
   The two `ACTIVE`/`NOT_APPLICABLE` rows of the status table moved to a `forceState` table.
 
 ARABIC_TRANSLATION_STATUS = PROVISIONAL_REQUIRES_NATIVE_REVIEW
+
+## Withdrawing a scheduled version
+
+**Contract (backend merged).** Every version view, the versions list and every lifecycle answer
+carry a seventh `allowedActions` entry, `withdraw: { allowed, reason }`. It is the existing revoke,
+offered only while a version is `SCHEDULED` with its effective date still ahead, and only to the
+activation authority. Denied reasons: `INVALID_STATE` (not a pending schedule) and
+`MISSING_PERMISSION`. The request is `POST .../{id}/revoke` with exactly
+`{ expectedOptimisticLockVersion, reasonCode: "POLICY_SCHEDULE_WITHDRAWN" }`. Success is `200`
+with the view at `status: "REVOKED"`, `forceState: null`, `endedBy` and `endedAt` set. The version
+in force before the withdrawal stays in force.
+
+**Button.** "Withdraw schedule", drawn only when `allowedActions.withdraw.allowed`, never from the
+status or the effective date: a schedule that started is no longer withdrawable, and only the
+server's clock can say so. It is the `secondary` variant and sits under Reject, where the
+version's other ending decision is. No danger variant exists and none was added.
+
+**Dialog.** Title "Withdraw this scheduled version?". It names the policy, the version number,
+the current status (the "Scheduled" pill) and the "Effective from" date, printed only. It says
+"This action records you as the operator who withdrew it." and "The policy in force now stays in
+force, and this version will not take effect." The confirm button is "Withdraw schedule". It uses
+the same `PolicyTransitionDialog` as every step: one request per confirmation (`inFlight` guard),
+a `409` or `404` closes it, shows the message with its reference on the page, reads the list again
+once and never resends, a `403` stays in the dialog with its reference and reads nothing, a `401`
+leaves for Login.
+
+**After success.** "Version {number} was withdrawn." as a status line, the answer replaces the
+selected version and the list is read again, as for every step.
+
+**Naming of the ended state: "Revoked".** The status pill (`danger` tone, unchanged), the
+work-queue label and the people trail all say "Revoked" for a `REVOKED` version. The trail entry
+built from `endedBy`/`endedAt` is named "Revoked" instead of "Ended" when the status is
+`REVOKED` (new trail step `revoked`); every other ended version still reads "Ended". The action
+and the success line say "withdraw" because that is what the operator does; the state keeps the
+server's word because a `REVOKED` version is not necessarily a withdrawn schedule. The reason code
+line (`POLICY_SCHEDULE_WITHDRAWN`) says which it was.
+
+**Work queue.** Being allowed to withdraw does not put a version in "Needs my action", for the
+same reason as Reject (`FORWARD_TRANSITIONS` is unchanged).
+
+**i18n** via `tools/i18n/merge.cjs`, en and ar: `action.withdraw`, `confirm.withdraw.*` (five),
+`done.withdraw`, `trail.revoked`. `status.REVOKED` and `queue.revoked` already existed.
+ARABIC_TRANSLATION_STATUS = PROVISIONAL_REQUIRES_NATIVE_REVIEW.
+
+**Mock API.** `actions()` gained `withdraw` denied with `INVALID_STATE`. No fixture offers it and
+`/revoke` is not mocked (answers `404`, as every lifecycle endpoint there).
+
+**Tests.** Lib: the reason-code map and the "sends %s as one POST" table gained `withdraw`
+(sent to `/revoke`), plus a work-queue test and a trail-naming test. Page: a new "Withdrawing a
+scheduled version" block (shown only when allowed, hidden for `MISSING_PERMISSION` and
+`INVALID_STATE` and for a `SCHEDULED` version the server does not offer it on, dialog content,
+exactly one `POST` with exactly the contract body on a double click, `REVOKED` state and trail
+after success with the in-force version untouched, `409 STALE_VERSION` when the schedule took
+effect meanwhile reloads once and never resends, `409 INVALID_STATE`, `403`, cancel, not in
+"Needs my action"), and a right-to-left check of the Arabic dialog. A mutation check was run and
+reverted: drawing the button from `status === 'SCHEDULED'` instead of `allowedActions.withdraw`
+failed 4 of the withdraw tests.
+
+**Existing assertions changed.** None removed or loosened. The exact-match reason-code map and
+`TRAIL_STEPS` lists gained `withdraw` and `revoked`; `STEP_KEYS` in the page suite gained
+`console.policies.action.withdraw`, so every existing "no lifecycle button" loop also asserts it
+is absent. Fixtures `actions()` and `NO_PERMISSION` gained `withdraw`, forced by the type.
+
+**Scheduled activation notice.** Activating an approved version with a future effective date
+answers `SCHEDULED`, but the notice used to say "Version {number} is now the policy in force."
+When the answer is `SCHEDULED`, the notice is now `done.activateScheduled` ("Version {number} is
+scheduled. The policy in force now stays in force until it takes effect."). It is chosen from the
+server's status, not from the date. One page test covers it.
+
+**Live check.** Run against a disposable local backend built from the follow-up branch, not TEST.
+A version was drafted, approved by a second operator, activated as `SCHEDULED`, then withdrawn
+through the dialog. The server returned `REVOKED` with the withdrawing operator as `ended_by`, the
+`ACTIVE` version stayed in force, and `SmpDataBlockerRevoked` was recorded with `actorId`.
+
+**Visual check.** Real browser, desktop 1440 px and mobile 390 px, English and Arabic. Screens:
+policy list, policy detail with a `SCHEDULED` version, the withdraw dialog, the console
+Verification screen, and the company's Participant ID section in settings. There was no
+horizontal overflow on any screen (`scrollWidth` equal to `clientWidth`, and no element outside the
+viewport unless an ancestor clips it). In Arabic the page and the dialog are right to left and the
+dialog buttons mirror. This is a layout check only: the Arabic wording is still provisional and
+needs native review.
+
+**Formatting.** This document was run through `npx prettier --write`. The only changes were padded
+markdown tables, and the working copy is now LF (the index already stored LF); nothing else moved.

@@ -55,6 +55,7 @@ const actions = (overrides: Partial<AllowedActions> = {}): AllowedActions => ({
   approve: deny('INVALID_STATE'),
   activate: deny('INVALID_STATE'),
   reject: deny('INVALID_STATE'),
+  withdraw: deny('INVALID_STATE'),
   ...overrides,
 })
 const NO_PERMISSION = actions({
@@ -64,6 +65,7 @@ const NO_PERMISSION = actions({
   approve: deny('MISSING_PERMISSION'),
   activate: deny('MISSING_PERMISSION'),
   reject: deny('MISSING_PERMISSION'),
+  withdraw: deny('MISSING_PERMISSION'),
 })
 
 const DATA = {
@@ -223,6 +225,7 @@ const STEP_KEYS = [
   'console.policies.action.approve',
   'console.policies.action.activate',
   'console.policies.action.reject',
+  'console.policies.action.withdraw',
   'console.policies.action.edit',
 ]
 const sectionOf = (key: string) =>
@@ -840,6 +843,38 @@ describe('Lifecycle buttons follow allowedActions', () => {
       name: t('console.policies.detail.section.details'),
     })
     for (const key of STEP_KEYS) noButton(key)
+  })
+
+  it('APPROVED with a future date: the notice says scheduled, because the server answered SCHEDULED', async () => {
+    const approved = version({
+      status: 'APPROVED',
+      effectiveFrom: '2999-01-01T00:00:00Z',
+      allowedActions: actions({ activate: allow }),
+    })
+    const scheduled = {
+      ...approved,
+      status: 'SCHEDULED' as const,
+      forceState: 'NOT_YET_EFFECTIVE' as const,
+      optimisticLockVersion: 5,
+      allowedActions: actions(),
+    }
+    await openPolicy([approved], {
+      [listUrl()]: [() => json(200, [approved]), () => json(200, [scheduled])],
+      [stepUrl(V3, 'activate')]: () => json(200, scheduled),
+    })
+
+    fireEvent.click(button('console.policies.action.activate'))
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: t('console.policies.confirm.activate.confirm'),
+      }),
+    )
+
+    expect(
+      await screen.findByText(t('console.policies.done.activateScheduled', { number: '3' })),
+    ).toBeTruthy()
+    expect(screen.queryByText(t('console.policies.done.activate', { number: '3' }))).toBeNull()
+    expect(writes()).toHaveLength(1)
   })
 
   it('states only the replacement, not the Participant ID impact, for another policy type', async () => {
@@ -1468,6 +1503,277 @@ describe('Rejecting a version under review', () => {
   })
 })
 
+describe('Withdrawing a scheduled version', () => {
+  const REVOKE_URL = stepUrl(V3, 'revoke')
+  const FROM = '2026-11-01T00:00:00Z'
+  const inForce = version({
+    id: V2,
+    versionNumber: 2,
+    status: 'ACTIVE',
+    forceState: 'IN_FORCE',
+    effectiveFrom: '2026-09-01T00:00:00Z',
+    optimisticLockVersion: 7,
+  })
+  const scheduled = version({
+    status: 'SCHEDULED',
+    forceState: 'NOT_YET_EFFECTIVE',
+    effectiveFrom: FROM,
+    reasonCode: 'POLICY_ACTIVATED',
+    approvedBy: RASHID.id,
+    approvedAt: '2026-10-03T08:00:00Z',
+    activatedBy: AISHA.id,
+    activatedAt: '2026-10-04T08:00:00Z',
+    actors: {
+      createdBy: AISHA,
+      submittedBy: null,
+      reviewedBy: null,
+      rejectedBy: null,
+      approvedBy: RASHID,
+      activatedBy: AISHA,
+      endedBy: null,
+    },
+    allowedActions: actions({ withdraw: allow }),
+  })
+  // What the server answers: the version ends without taking effect, and the one in force stays.
+  const withdrawn: BlockerVersionView = {
+    ...scheduled,
+    status: 'REVOKED',
+    forceState: null,
+    reasonCode: 'POLICY_SCHEDULE_WITHDRAWN',
+    endedBy: ME.id,
+    endedAt: '2026-10-05T10:30:00Z',
+    updatedAt: '2026-10-05T10:30:00Z',
+    optimisticLockVersion: 5,
+    actors: { ...scheduled.actors, endedBy: ME },
+    allowedActions: actions(),
+  }
+  const confirmWithdraw = () =>
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: t('console.policies.confirm.withdraw.confirm'),
+      }),
+    )
+
+  it('SCHEDULED: offers Withdraw schedule only because the server allows it, as a secondary button', async () => {
+    await openPolicy([scheduled, inForce])
+
+    const withdraw = button('console.policies.action.withdraw')
+    expect(withdraw.textContent).toBe('Withdraw schedule')
+    // Drawn like Reject: the secondary button, never the primary fill of a forward step.
+    expect(withdraw.className).toContain('border-border-brand-subtle')
+    expect(withdraw.className).not.toContain('bg-primary-700')
+    expect(screen.queryByText(t('console.policies.action.none'))).toBeNull()
+    for (const key of STEP_KEYS.filter((step) => step !== 'console.policies.action.withdraw')) {
+      noButton(key)
+    }
+    expect(writes()).toHaveLength(0)
+  })
+
+  it.each(['MISSING_PERMISSION', 'INVALID_STATE'] as const)(
+    'renders no Withdraw schedule button when withdraw is refused for %s',
+    async (reason) => {
+      await openPolicy([{ ...scheduled, allowedActions: actions({ withdraw: deny(reason) }) }])
+
+      noButton('console.policies.action.withdraw')
+      expect(screen.getByText(t('console.policies.action.none'))).toBeTruthy()
+      expect(writes()).toHaveLength(0)
+    },
+  )
+
+  it('never offers it from the status alone: a scheduled version the server does not offer has no button', async () => {
+    // Scheduled, date ahead by the dates, yet the server says no: the button follows the server.
+    await openPolicy([{ ...scheduled, allowedActions: actions() }])
+
+    expect(screen.getAllByText(t('console.policies.status.SCHEDULED')).length).toBeGreaterThan(0)
+    noButton('console.policies.action.withdraw')
+  })
+
+  it('confirms with the date, the status and what stays in force, then sends exactly one revoke', async () => {
+    let release: (response: Response) => void = () => {}
+    await openPolicy([scheduled, inForce], {
+      [listUrl()]: [() => json(200, [scheduled, inForce]), () => json(200, [withdrawn, inForce])],
+      [REVOKE_URL]: () => new Promise<Response>((resolve) => (release = resolve)),
+    })
+
+    fireEvent.click(button('console.policies.action.withdraw'))
+    const dialog = screen.getByRole('dialog', { name: 'Withdraw this scheduled version?' })
+    expect(within(dialog).getByText(t(`console.policies.type.${PID}`))).toBeTruthy()
+    expect(within(dialog).getByText('3')).toBeTruthy()
+    expect(within(dialog).getByText(t('console.policies.status.SCHEDULED'))).toBeTruthy()
+    const dateLine = within(dialog)
+      .getByText(t('console.policies.detail.field.effectiveFrom'))
+      .closest('div') as HTMLElement
+    expect(within(dateLine).getByText(formatMoment(FROM, 'en'))).toBeTruthy()
+    expect(
+      within(dialog).getByText(
+        'The policy in force now stays in force, and this version will not take effect.',
+      ),
+    ).toBeTruthy()
+    expect(
+      within(dialog).getByText('This action records you as the operator who withdrew it.'),
+    ).toBeTruthy()
+    // Neither the activation's wording nor anything to type.
+    expect(within(dialog).queryByText(t('console.policies.confirm.activate.replaces'))).toBeNull()
+    expect(dialog.querySelector('input, textarea')).toBeNull()
+    expect(dialog.textContent).not.toContain('—')
+    expect(writes()).toHaveLength(0)
+
+    const confirm = within(dialog).getByRole('button', { name: 'Withdraw schedule' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    expect(callsTo(REVOKE_URL)).toHaveLength(1)
+    expect(
+      within(dialog).getByRole('button', { name: t('console.policies.confirm.withdraw.sending') }),
+    ).toBeTruthy()
+
+    await act(async () => release(json(200, withdrawn)))
+
+    const notice = await screen.findByText('Version 3 was withdrawn.')
+    expect(notice.getAttribute('role')).toBe('status')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(writes()).toHaveLength(1)
+    expect(initOf(REVOKE_URL).method).toBe('POST')
+    expect(bodyOf(REVOKE_URL)).toEqual({
+      expectedOptimisticLockVersion: 4,
+      reasonCode: 'POLICY_SCHEDULE_WITHDRAWN',
+    })
+    expect((initOf(REVOKE_URL).headers as Record<string, string>)['X-CSRF-Token']).toBe(CSRF)
+
+    await waitFor(() => expect(callsTo(listUrl())).toHaveLength(2))
+    const details = sectionOf('console.policies.detail.section.details')
+    expect(details.getByText(t('console.policies.status.REVOKED'))).toBeTruthy()
+    expect(details.getByText('POLICY_SCHEDULE_WITHDRAWN')).toBeTruthy()
+    const offered = sectionOf('console.policies.detail.section.actions')
+    expect(offered.getByText(t('console.policies.queue.revoked'))).toBeTruthy()
+    expect(offered.queryAllByRole('button')).toHaveLength(0)
+    noButton('console.policies.action.withdraw')
+
+    // The withdrawer and the time, named "Revoked" like the status.
+    const ended = within(
+      sectionOf('console.policies.detail.section.trail')
+        .getByText(t('console.policies.trail.revoked'))
+        .closest('li') as HTMLElement,
+    )
+    expect(
+      ended.getByText(`Omar Operator ${t('console.policies.actor.you')}`, { exact: false }),
+    ).toBeTruthy()
+    expect(ended.getByText(formatMoment('2026-10-05T10:30:00Z', 'en'))).toBeTruthy()
+    expect(
+      sectionOf('console.policies.detail.section.trail').queryByText(
+        t('console.policies.trail.ended'),
+      ),
+    ).toBeNull()
+
+    // The version in force is untouched.
+    const rows = within(sectionOf('console.policies.detail.versions').getByRole('table'))
+    const v2 = within(
+      rows
+        .getByRole('button', { name: t('console.policies.version', { number: '2' }) })
+        .closest('tr') as HTMLElement,
+    )
+    expect(v2.getByText(t('console.policies.queue.inForce'))).toBeTruthy()
+  })
+
+  it('on 409 STALE_VERSION (the schedule took effect meanwhile) reloads once and never resends', async () => {
+    const tookEffect: BlockerVersionView = {
+      ...scheduled,
+      forceState: 'IN_FORCE',
+      optimisticLockVersion: 6,
+      allowedActions: actions({ withdraw: deny('INVALID_STATE') }),
+    }
+    await openPolicy([scheduled, inForce], {
+      [listUrl()]: [
+        () => json(200, [scheduled, inForce]),
+        () => json(200, [tookEffect, { ...inForce, forceState: 'REPLACED' }]),
+      ],
+      [REVOKE_URL]: () => problem(409, 'resource-conflict', 'STALE_VERSION'),
+    })
+    fireEvent.click(button('console.policies.action.withdraw'))
+    confirmWithdraw()
+
+    expect(
+      await screen.findByText(
+        'This policy changed since you opened it. The latest version has been loaded.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    await waitFor(() => expect(callsTo(listUrl())).toHaveLength(2))
+    expect(
+      (await screen.findAllByText(t('console.policies.queue.inForce'))).length,
+    ).toBeGreaterThan(0)
+    noButton('console.policies.action.withdraw')
+    expect(callsTo(REVOKE_URL)).toHaveLength(1)
+    expect(writes()).toHaveLength(1)
+    expect(callsTo(listUrl())).toHaveLength(2)
+    const alert = screen.getByRole('alert')
+    expect(within(alert).getByText('corr-7f3a').getAttribute('dir')).toBe('ltr')
+    expect(screen.queryByText('Version 3 was withdrawn.')).toBeNull()
+    expect(document.body.textContent).not.toContain('Server prose')
+  })
+
+  it('on 409 INVALID_STATE says the policy changed and reloads without resending', async () => {
+    await openPolicy([scheduled], {
+      [listUrl()]: [() => json(200, [scheduled]), () => json(200, [withdrawn])],
+      [REVOKE_URL]: () => problem(409, 'resource-conflict', 'INVALID_STATE'),
+    })
+    fireEvent.click(button('console.policies.action.withdraw'))
+    confirmWithdraw()
+
+    expect(
+      await screen.findByText(
+        'This policy changed since you opened it. The latest version has been loaded.',
+      ),
+    ).toBeTruthy()
+    await waitFor(() => expect(callsTo(listUrl())).toHaveLength(2))
+    expect(callsTo(REVOKE_URL)).toHaveLength(1)
+  })
+
+  it('on 403 says the account lacks permission, keeps the dialog, and reloads nothing', async () => {
+    await openPolicy([scheduled], {
+      [REVOKE_URL]: () => problem(403, 'insufficient-permission'),
+    })
+    fireEvent.click(button('console.policies.action.withdraw'))
+    confirmWithdraw()
+
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText(t('console.policies.error.forbidden'))).toBeTruthy()
+    expect(within(dialog).getByText('corr-7f3a').getAttribute('dir')).toBe('ltr')
+    expect(callsTo(listUrl())).toHaveLength(1)
+    expect(callsTo(REVOKE_URL)).toHaveLength(1)
+    expect(document.body.textContent).not.toContain('Server prose')
+  })
+
+  it('can be cancelled without sending anything', async () => {
+    await openPolicy([scheduled])
+    fireEvent.click(button('console.policies.action.withdraw'))
+    fireEvent.click(button('common.cancel'))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('does not put a withdrawable schedule in "Needs my action"', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [OVERVIEW_URL]: () =>
+        json(200, [
+          entry({
+            latest: summary({
+              status: 'SCHEDULED',
+              forceState: 'NOT_YET_EFFECTIVE',
+              effectiveFrom: FROM,
+              allowedActions: actions({ withdraw: allow }),
+            }),
+          }),
+        ]),
+    })
+    renderAt('/console/policies')
+    await screen.findByRole('table')
+
+    expect(screen.getByText(t('console.policies.summary', { mine: '0', total: '1' }))).toBeTruthy()
+  })
+})
+
 describe('Authoring the Participant ID policy', () => {
   const field = (name: string) =>
     document.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`)!
@@ -1986,6 +2292,37 @@ describe('Language and privacy', () => {
       expect(within(alert).getByText('corr-7f3a').getAttribute('dir')).toBe('ltr')
       await waitFor(() => expect(callsTo(listUrl())).toHaveLength(2))
       expect(callsTo(stepUrl(V3, 'reject'))).toHaveLength(1)
+    })
+
+    it('lays the withdraw dialog out right to left, in Arabic, with its date and in-force sentence', async () => {
+      const from = '2026-11-01T00:00:00Z'
+      const scheduled = version({
+        status: 'SCHEDULED',
+        forceState: 'NOT_YET_EFFECTIVE',
+        effectiveFrom: from,
+        allowedActions: actions({ withdraw: allow }),
+      })
+      answer({
+        [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+        [OVERVIEW_URL]: () => json(200, [entry()]),
+        [listUrl()]: () => json(200, [scheduled]),
+      })
+      renderRtlAt(`/console/policies/${PID}`)
+      fireEvent.click(await screen.findByRole('button', { name: 'سحب الجدولة' }))
+
+      const dialog = screen.getByRole('dialog', { name: 'سحب هذا الإصدار المجدول؟' })
+      expect(directionOf(dialog)).toBe('rtl')
+      expect(within(dialog).getByText('مجدول')).toBeTruthy()
+      expect(within(dialog).getByText(formatMoment(from, 'ar'))).toBeTruthy()
+      expect(
+        within(dialog).getByText('تبقى السياسة السارية الآن سارية، ولن يبدأ سريان هذا الإصدار.'),
+      ).toBeTruthy()
+      expect(within(dialog).getByText('يسجّلك هذا الإجراء بصفتك المشغّل الذي سحبه.')).toBeTruthy()
+      // None of the English copy leaks into the Arabic dialog, and nothing in it sets a direction.
+      expect(dialog.textContent).not.toMatch(/Withdraw|withdrew|in force/)
+      expect(dialog.querySelectorAll('[dir]')).toHaveLength(0)
+      expect(within(dialog).getByRole('button', { name: 'سحب الجدولة' })).toBeTruthy()
+      expect(writes()).toHaveLength(0)
     })
   })
 

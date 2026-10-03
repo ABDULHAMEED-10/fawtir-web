@@ -14181,7 +14181,8 @@
         "approved": "Approved",
         "activated": "Activated",
         "ended": "Ended",
-        "rejected": "Rejected"
+        "rejected": "Rejected",
+        "revoked": "Revoked"
       },
       "actor": {
         "unnamed": "Operator",
@@ -14197,7 +14198,8 @@
         "activate": "Activate",
         "none": "No action is available to you on this version.",
         "reject": "Reject",
-        "scheduledPending": "Activation is not available while another replacement of this policy is scheduled and has not taken effect."
+        "scheduledPending": "Activation is not available while another replacement of this policy is scheduled and has not taken effect.",
+        "withdraw": "Withdraw schedule"
       },
       "separation": {
         "approve": "Approval requires another authorized platform operator because you took part in creating or reviewing this version.",
@@ -14243,6 +14245,13 @@
           "consequence": "A rejected version cannot be approved or activated. To continue, prepare a new draft.",
           "confirm": "Reject",
           "sending": "Rejecting…"
+        },
+        "withdraw": {
+          "title": "Withdraw this scheduled version?",
+          "records": "This action records you as the operator who withdrew it.",
+          "consequence": "The policy in force now stays in force, and this version will not take effect.",
+          "confirm": "Withdraw schedule",
+          "sending": "Withdrawing…"
         }
       },
       "done": {
@@ -14250,9 +14259,11 @@
         "review": "The review of version {{number}} has started.",
         "approve": "Version {{number}} was approved.",
         "activate": "Version {{number}} is now the policy in force.",
+        "activateScheduled": "Version {{number}} is scheduled. The policy in force now stays in force until it takes effect.",
         "created": "Draft version {{number}} was created.",
         "saved": "Draft version {{number}} was saved.",
-        "reject": "Version {{number}} was rejected."
+        "reject": "Version {{number}} was rejected.",
+        "withdraw": "Version {{number}} was withdrawn."
       },
       "error": {
         "forbidden": "Your account doesn't have permission for this action.",
