@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Popover } from './Popover'
+import { useFieldDescription } from './fieldDescription'
 import chevronIcon from '../../assets/create-invoice/chevron.svg'
 
 /**
@@ -28,6 +29,8 @@ export function Select({
   options,
   placeholder,
   ariaLabel,
+  ariaDescribedBy,
+  ariaInvalid,
   disabled,
   highlighted,
   unsure,
@@ -42,6 +45,9 @@ export function Select({
   options: SelectOption[]
   placeholder?: string
   ariaLabel?: string
+  /** Ids of text that describes the field, such as its error; added to any a wrapping field provides. */
+  ariaDescribedBy?: string
+  ariaInvalid?: boolean
   disabled?: boolean
   highlighted?: boolean
   /** Amber shell: a value a reader guessed and a person still has to confirm. */
@@ -60,6 +66,7 @@ export function Select({
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const description = useFieldDescription(ariaDescribedBy, ariaInvalid)
 
   const selected = options.find((option) => option.value === value)
 
@@ -110,6 +117,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        {...description}
         className={[
           'flex w-full items-center justify-between rounded-sm border text-start transition-colors',
           small ? 'h-9 gap-1 px-2' : tight ? 'gap-1 ps-3 pe-1.5' : 'gap-2 px-4',

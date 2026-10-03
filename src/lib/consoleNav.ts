@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import {
   NavCustomersIcon,
   NavDocumentsIcon,
+  NavInvoicesIcon,
   NavReportsIcon,
   NavSettingsIcon,
   NavTddIcon,
@@ -124,6 +125,12 @@ export const CONSOLE_NAV: ConsoleNavGroup[] = [
         labelKey: 'console.nav.operators',
         to: '/console/operators',
         Icon: NavCustomersIcon,
+      },
+      {
+        id: 'policies',
+        labelKey: 'console.nav.policies',
+        to: '/console/policies',
+        Icon: NavInvoicesIcon,
       },
       {
         id: 'audit',

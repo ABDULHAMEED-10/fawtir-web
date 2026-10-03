@@ -172,6 +172,8 @@ import {
   SubscriptionsPage,
   SubscriptionInvoicesPage,
   ConsoleSettingsPage,
+  ValidationPoliciesPage,
+  ValidationPolicyPage,
 } from './pages/ConsolePage'
 import { VerifyCodePage } from './pages/VerifyCodePage'
 import { PlanFromQuery, PlanGated } from './components/plan'
@@ -722,6 +724,8 @@ function App() {
           <Route path="/console/onboarding/:companyId" element={<VerificationCompanyPage />} />
           <Route path="/console/plans" element={<ConsolePlansPage />} />
           <Route path="/console/operators" element={<OperatorsPage />} />
+          <Route path="/console/policies" element={<ValidationPoliciesPage />} />
+          <Route path="/console/policies/:type" element={<ValidationPolicyPage />} />
           <Route path="/console/audit" element={<ConsoleAuditPage />} />
           <Route path="/console/erp" element={<ConsoleErpPage />} />
           <Route path="/console/erp/connections/:id" element={<ConsoleErpConnectionPage />} />

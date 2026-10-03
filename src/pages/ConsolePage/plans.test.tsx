@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, peekEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { SubscriptionPlan } from '../../lib/subscriptionPlans'
 import { ConsolePlansPage } from './PlansPage'
@@ -129,6 +130,9 @@ async function save() {
 }
 
 beforeEach(async () => {
+  // The loading test holds its read open until the page shows it. If that times out under load the
+  // read stays in the shared registry and every later test joins it (see `inflight.ts`).
+  resetSharedRequests()
   await i18n.changeLanguage('en')
   forgetEntitlements()
   sessionStorage.clear()

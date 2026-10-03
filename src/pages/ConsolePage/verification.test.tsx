@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import {
   forgetEntitlements,
   peekEntitlements,
@@ -186,6 +187,9 @@ const QUEUE_READY = {
 const table = () => screen.getByRole('table')
 
 beforeEach(async () => {
+  // A test that ends while its queue read is still settling leaves the read in the shared
+  // registry, and every later queue test joins it and waits out its timeout (see `inflight.ts`).
+  resetSharedRequests()
   await i18n.changeLanguage('en')
   forgetEntitlements()
   sessionStorage.clear()

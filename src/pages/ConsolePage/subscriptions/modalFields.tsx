@@ -1,6 +1,6 @@
-import { useId, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { useId, useMemo, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../components/ui'
+import { Button, FieldDescriptionContext } from '../../../components/ui'
 import { formatDay } from '../../../lib/console/format'
 import { parseDateKey, toDateKey } from '../../../lib/dates'
 import {
@@ -56,6 +56,14 @@ export function Field({
   children: ReactNode
 }) {
   const id = useId()
+  const messageId = `${id}-message`
+  const shown = Boolean(error || hint)
+  // The wrapped `Select` or `DateField` reads this and points its trigger at the message below,
+  // so a screen reader hears the error with the field; its label stays its accessible name.
+  const description = useMemo(
+    () => ({ describedBy: shown ? messageId : undefined, invalid: Boolean(error) }),
+    [shown, messageId, error],
+  )
   return (
     <div className="flex w-full flex-col gap-1" data-field={name}>
       <span
@@ -66,15 +74,19 @@ export function Field({
         {required ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
       </span>
       <div aria-labelledby={id} className={error ? 'rounded-sm ring-1 ring-border-danger' : ''}>
-        {children}
+        <FieldDescriptionContext.Provider value={description}>
+          {children}
+        </FieldDescriptionContext.Provider>
       </div>
       {error ? (
-        <p role="alert" className="text-xs font-medium text-text-danger">
+        <p id={messageId} role="alert" className="text-xs font-medium text-text-danger">
           {error}
         </p>
       ) : null}
       {!error && hint ? (
-        <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">{hint}</p>
+        <p id={messageId} className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
+          {hint}
+        </p>
       ) : null}
     </div>
   )
@@ -95,6 +107,10 @@ export function TextArea({
   hint?: string
 }) {
   const id = useId()
+  const messageId = `${id}-message`
+  const describedBy =
+    [props['aria-describedby'], error || hint ? messageId : undefined].filter(Boolean).join(' ') ||
+    undefined
   return (
     <div className="flex w-full flex-col gap-1" data-field={props.name}>
       <label
@@ -114,14 +130,17 @@ export function TextArea({
           className,
         ].join(' ')}
         {...props}
+        aria-describedby={describedBy}
       />
       {error ? (
-        <p role="alert" className="text-xs font-medium text-text-danger">
+        <p id={messageId} role="alert" className="text-xs font-medium text-text-danger">
           {error}
         </p>
       ) : null}
       {!error && hint ? (
-        <p className="text-[10px] font-medium leading-[1.2] text-text-tertiary">{hint}</p>
+        <p id={messageId} className="text-[10px] font-medium leading-[1.2] text-text-tertiary">
+          {hint}
+        </p>
       ) : null}
     </div>
   )

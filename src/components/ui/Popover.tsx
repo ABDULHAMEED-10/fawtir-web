@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { isTopOverlay, openPopover, type OpenPopover } from './overlayStack'
 
 /**
  * Anchored popup rendered into `document.body`.
@@ -64,22 +65,44 @@ export function Popover({
     }
   }, [open, anchorRef, width, align])
 
+  // Registered on `open` alone: the listener effect below re-runs whenever a caller passes a new
+  // `onClose`, which would otherwise move an older popover back to the top. That effect also
+  // refreshes the anchor, since one caller builds a new ref object on every render.
+  const self = useRef<OpenPopover>({ panel: panelRef, anchor: anchorRef })
   useEffect(() => {
     if (!open) return
+    const entry = self.current
+    return openPopover(entry)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    self.current.anchor = anchorRef
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node
       if (panelRef.current?.contains(target)) return
       if (anchorRef.current?.contains(target)) return
       onClose()
     }
+    // Escape closes the deepest overlay only. A Modal around this popover also listens on the
+    // document, and was registered first, so in the bubble phase it closed the dialog (and lost
+    // what was typed in it) on the same key press. The capture phase runs before every bubble
+    // listener on the document whatever the registration order; `preventDefault` marks the key as
+    // spent, which `Modal` honours. Focus inside the panel goes back to the trigger, since the
+    // panel is about to unmount and would otherwise drop it on the body.
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      if (!isTopOverlay(self.current)) return
+      event.preventDefault()
+      const focusWasInPanel = panelRef.current?.contains(document.activeElement) ?? false
+      onClose()
+      if (focusWasInPanel) anchorRef.current?.focus()
     }
     document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey, true)
     }
   }, [open, anchorRef, onClose])
 

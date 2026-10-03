@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, peekEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { CompanyDetail, HistoryEntry } from '../../lib/console/companyVerification'
+import { formatMoment } from '../../lib/console/format'
 import { VerificationCompanyPage } from './VerificationCompanyPage'
 
 const ID = '11111111-1111-4111-8111-111111111111'
@@ -155,6 +157,9 @@ async function openPending(extra: Record<string, Handler | Handler[]> = {}) {
 }
 
 beforeEach(async () => {
+  // Several tests end right after a click that starts a re-read. Left in the shared registry, that
+  // read would be joined by the next test on the same company (see `inflight.ts`).
+  resetSharedRequests()
   await i18n.changeLanguage('en')
   forgetEntitlements()
   sessionStorage.clear()
@@ -422,8 +427,25 @@ describe('Peppol Participant ID', () => {
     ...overrides,
   })
 
-  async function openWithPid(pid: Handler | Handler[] = () => json(200, submission())) {
-    answer({ ...reads(), [PID_URL]: pid })
+  // A reviewable candidate that is not the reviewer's own makes the card ask whether the taxpayer
+  // Participant ID validation policy is in force, before it offers an approval.
+  const POLICY_URL = '/api/v1/platform/peppol/smp/data-blockers/TAXPAYER_PID_CONTRACT/current'
+  const POLICY_IN_FORCE = {
+    [POLICY_URL]: () => json(200, { id: 'p-1', type: 'TAXPAYER_PID_CONTRACT', status: 'ACTIVE' }),
+  }
+  const coded = (status: number, type: string, code: string) =>
+    json(status, {
+      type: `https://api.fawtir.om/problems/${type}`,
+      detail: 'Server prose that must not be shown.',
+      correlationId: 'corr-pid-42',
+      code,
+    })
+
+  async function openWithPid(
+    pid: Handler | Handler[] = () => json(200, submission()),
+    extra: Record<string, Handler | Handler[]> = POLICY_IN_FORCE,
+  ) {
+    answer({ ...reads(), [PID_URL]: pid, ...extra })
     renderDetail()
     await screen.findByRole('heading', { level: 2, name: i18n.t('console.verification.participant.title') })
   }
@@ -444,12 +466,15 @@ describe('Peppol Participant ID', () => {
     expect(
       participantCard().getByText(i18n.t('console.verification.participant.submissionStatus.SUBMITTED')),
     ).toBeTruthy()
-    expect(button('console.verification.participant.approve').disabled).toBe(false)
+    // Approve waits for the policy read, so it is awaited; it is still required to be there and enabled.
+    const approve = await screen.findByRole('button', { name: i18n.t('console.verification.participant.approve') })
+    expect((approve as HTMLButtonElement).disabled).toBe(false)
     expect(button('console.verification.participant.reject').disabled).toBe(false)
+    expect(callsTo(POLICY_URL)).toHaveLength(1)
   })
 
   it('shows a plain "not submitted" state, with no actions, when there is no submission yet', async () => {
-    await openWithPid(() => json(200, null))
+    await openWithPid(() => json(200, null), {})
 
     expect(await screen.findByText(i18n.t('console.verification.participant.notSubmitted'))).toBeTruthy()
     expect(screen.getByText(i18n.t('console.verification.participant.awaitingSubmission'))).toBeTruthy()
@@ -459,15 +484,16 @@ describe('Peppol Participant ID', () => {
   })
 
   it('reports the operator has no access, distinctly from any other failure', async () => {
-    await openWithPid(() => problem(403, 'insufficient-permission'))
+    await openWithPid(() => problem(403, 'insufficient-permission'), {})
 
     expect(await screen.findByText(i18n.t('console.access.missingPermission'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
   })
 
   it('shows the verified ID and offers no action once decided', async () => {
-    await openWithPid(() =>
-      json(200, submission({ status: 'VERIFIED', verifiedPidScheme: '0248', verifiedPidValue: 'OM1100000001' })),
+    await openWithPid(
+      () => json(200, submission({ status: 'VERIFIED', verifiedPidScheme: '0248', verifiedPidValue: 'OM1100000001' })),
+      {},
     )
 
     expect(
@@ -478,7 +504,7 @@ describe('Peppol Participant ID', () => {
   })
 
   it('tells the submitter someone else must decide their own filing', async () => {
-    await openWithPid(() => json(200, submission({ createdBy: OPERATOR.userId, submittedBy: OPERATOR.userId })))
+    await openWithPid(() => json(200, submission({ createdBy: OPERATOR.userId, submittedBy: OPERATOR.userId })), {})
 
     expect(await screen.findByText(i18n.t('console.verification.participant.ownSubmission'))).toBeTruthy()
     expect(screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') })).toBeNull()
@@ -506,6 +532,7 @@ describe('Peppol Participant ID', () => {
     let release: (response: Response) => void = () => {}
     answer({
       ...reads(),
+      ...POLICY_IN_FORCE,
       [PID_URL]: [
         () => json(200, submission()),
         () => json(200, submission({ status: 'VERIFIED', verifiedPidScheme: '0248', verifiedPidValue: 'OM1100000001' })),
@@ -535,10 +562,12 @@ describe('Peppol Participant ID', () => {
     })
     await act(async () => release(json(200, submission({ status: 'VERIFIED' }))))
     await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
+    // The policy was asked once, before the decision; a decided submission asks nothing more.
+    expect(callsTo(POLICY_URL)).toHaveLength(1)
   })
 
   it('rejects with a reason code the same way', async () => {
-    answer({ ...reads(), [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => json(200, submission({ status: 'REJECTED' })) })
+    answer({ ...reads(), ...POLICY_IN_FORCE, [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => json(200, submission({ status: 'REJECTED' })) })
     renderDetail()
     const reject = await screen.findByRole('button', { name: i18n.t('console.verification.participant.reject') })
 
@@ -557,7 +586,7 @@ describe('Peppol Participant ID', () => {
   })
 
   it('on a moved case (409) explains it and reloads when asked', async () => {
-    answer({ ...reads(), [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => problem(409, 'resource-conflict') })
+    answer({ ...reads(), ...POLICY_IN_FORCE, [PID_URL]: () => json(200, submission()), [VERIFY_URL]: () => problem(409, 'resource-conflict') })
     renderDetail()
     const approve = await screen.findByRole('button', { name: i18n.t('console.verification.participant.approve') })
 
@@ -569,5 +598,498 @@ describe('Peppol Participant ID', () => {
     expect(await screen.findByText(i18n.t('console.verification.participant.conflict'))).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: i18n.t('console.verification.decision.reload') }))
     await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
+  })
+
+  describe('validation policy in force', () => {
+    const approveName = () => i18n.t('console.verification.participant.approve')
+    const blocked =
+      'Participant ID approval is blocked because the Taxpayer Participant ID validation policy is not active.'
+
+    function fillReasonAndConfirm(confirmKey: string, code = 'VERIFIED_BY_COMPLIANCE') {
+      const reasonInput = document.querySelector<HTMLInputElement>('input[name="participantReasonCode"]')!
+      fireEvent.change(reasonInput, { target: { value: code } })
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: i18n.t(confirmKey) }))
+    }
+
+    it('asks for no policy when there is nothing to decide', async () => {
+      await openWithPid(() => json(200, submission({ createdBy: OPERATOR.userId })), {})
+      await screen.findByText(i18n.t('console.verification.participant.ownSubmission'))
+
+      expect(callsTo(POLICY_URL)).toHaveLength(0)
+    })
+
+    it('with no policy in force (404) explains why approval is blocked, links to the policy, and offers no Approve', async () => {
+      await openWithPid(undefined, { [POLICY_URL]: () => problem(404, 'resource-not-found') })
+
+      // Waited for on the screen first: the card is replaced when its own read settles.
+      expect(await screen.findByText(blocked)).toBeTruthy()
+      expect(participantCard().getByText(blocked)).toBeTruthy()
+      expect(i18n.t('console.verification.participant.policyNotActive')).toBe(blocked)
+      const link = participantCard().getByRole('link', { name: i18n.t('console.verification.participant.viewPolicy') })
+      expect(link.getAttribute('href')).toBe('/console/policies/TAXPAYER_PID_CONTRACT')
+      expect(screen.queryByRole('button', { name: approveName() })).toBeNull()
+      expect(button('console.verification.participant.reject').disabled).toBe(false)
+      expect(callsTo(POLICY_URL)).toHaveLength(1)
+      // Nothing was written to make the policy active: opening the card is reads only.
+      expect(
+        fetchMock.mock.calls.every(([, init]) => ((init as RequestInit | undefined)?.method ?? 'GET') === 'GET'),
+      ).toBe(true)
+      expect(document.body.textContent).not.toContain('Server prose')
+    })
+
+    it('still lets a candidate be rejected when no policy is in force, with the same body as ever', async () => {
+      await openWithPid(undefined, {
+        [POLICY_URL]: () => problem(404, 'resource-not-found'),
+        [VERIFY_URL]: () => json(200, submission({ status: 'REJECTED' })),
+      })
+      await screen.findByText(blocked)
+
+      fireEvent.click(button('console.verification.participant.reject'))
+      fillReasonAndConfirm('console.verification.participant.rejectConfirm', 'MISSING_EVIDENCE')
+
+      await waitFor(() => expect(callsTo(VERIFY_URL)).toHaveLength(1))
+      expect(JSON.parse(initOf(VERIFY_URL).body as string)).toEqual({
+        expectedOptimisticLockVersion: 3,
+        approved: false,
+        reasonCode: 'MISSING_EVIDENCE',
+      })
+    })
+
+    it.each([
+      ['a reviewer who may not read policies (403)', () => problem(403, 'insufficient-permission')],
+      ['a server fault', () => problem(500, 'internal-error')],
+      ['a request that never arrived', () => Promise.reject(new TypeError('offline'))],
+    ])('does not block approval for %s: the server decides', async (_label, respond) => {
+      await openWithPid(undefined, { [POLICY_URL]: respond })
+
+      expect(await screen.findByRole('button', { name: approveName() })).toBeTruthy()
+      expect(participantCard().queryByText(blocked)).toBeNull()
+      // The policy read's own failure is not shown as a failure of this card.
+      expect(participantCard().queryByText(i18n.t('console.access.missingPermission'))).toBeNull()
+      expect(participantCard().queryByRole('button', { name: i18n.t('console.access.retry') })).toBeNull()
+    })
+
+    it('on PID_POLICY_NOT_ACTIVE explains it in the dialog with the link, reads the policy again, and does not resend', async () => {
+      await openWithPid(undefined, {
+        [POLICY_URL]: [() => json(200, { id: 'p-1' }), () => problem(404, 'resource-not-found')],
+        [VERIFY_URL]: () => coded(400, 'validation-failed', 'PID_POLICY_NOT_ACTIVE'),
+      })
+
+      fireEvent.click(await screen.findByRole('button', { name: approveName() }))
+      fillReasonAndConfirm('console.verification.participant.approveConfirm')
+
+      const dialog = screen.getByRole('dialog')
+      expect(await within(dialog).findByText(blocked)).toBeTruthy()
+      expect(
+        within(dialog)
+          .getByRole('link', { name: i18n.t('console.verification.participant.viewPolicy') })
+          .getAttribute('href'),
+      ).toBe('/console/policies/TAXPAYER_PID_CONTRACT')
+      expect(within(dialog).getByText('corr-pid-42').getAttribute('dir')).toBe('ltr')
+      const confirm = within(dialog).getByRole('button', {
+        name: i18n.t('console.verification.participant.approveConfirm'),
+      }) as HTMLButtonElement
+      expect(confirm.disabled).toBe(true)
+      fireEvent.click(confirm)
+
+      await waitFor(() => expect(callsTo(POLICY_URL)).toHaveLength(2))
+      expect(callsTo(VERIFY_URL)).toHaveLength(1)
+      expect(JSON.parse(initOf(VERIFY_URL).body as string)).toEqual({
+        expectedOptimisticLockVersion: 3,
+        approved: true,
+        reasonCode: 'VERIFIED_BY_COMPLIANCE',
+      })
+      expect(document.body.textContent).not.toContain('Server prose')
+      // Behind the dialog the card has caught up: the approval is no longer offered.
+      fireEvent.click(within(dialog).getByRole('button', { name: i18n.t('common.cancel') }))
+      expect(await participantCard().findByText(blocked)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: approveName() })).toBeNull()
+    })
+
+    it.each([
+      [400, 'validation-failed', 'PID_CANDIDATE_REJECTED', 'console.verification.participant.candidateRejected'],
+      [409, 'resource-conflict', 'PID_ALREADY_VERIFIED', 'console.verification.participant.alreadyVerified'],
+      [409, 'resource-conflict', 'SELF_VERIFICATION_NOT_ALLOWED', 'console.verification.participant.ownSubmission'],
+      [409, 'resource-conflict', 'STALE_VERSION', 'console.verification.participant.conflict'],
+      [409, 'resource-conflict', 'INVALID_STATE', 'console.verification.participant.conflict'],
+    ])('reads a %i %s refusal coded %s by its code, with the reference', async (status, type, code, key) => {
+      await openWithPid(undefined, { ...POLICY_IN_FORCE, [VERIFY_URL]: () => coded(status, type, code) })
+
+      fireEvent.click(await screen.findByRole('button', { name: approveName() }))
+      fillReasonAndConfirm('console.verification.participant.approveConfirm')
+
+      const dialog = screen.getByRole('dialog')
+      expect(await within(dialog).findByText(i18n.t(key))).toBeTruthy()
+      expect(within(dialog).getByText('corr-pid-42')).toBeTruthy()
+      expect(callsTo(VERIFY_URL)).toHaveLength(1)
+      expect(callsTo(POLICY_URL)).toHaveLength(1)
+      expect(document.body.textContent).not.toContain('Server prose')
+      // A stale or already-decided submission keeps the reload it always offered.
+      const reload = within(dialog).queryByRole('button', { name: i18n.t('console.verification.decision.reload') })
+      expect(reload !== null).toBe(key === 'console.verification.participant.conflict')
+    })
+
+    it('says it in Arabic', async () => {
+      await i18n.changeLanguage('ar')
+      await openWithPid(undefined, { [POLICY_URL]: () => problem(404, 'resource-not-found') })
+
+      expect(await screen.findByText(i18n.t('console.verification.participant.policyNotActive'))).toBeTruthy()
+      expect(screen.getByRole('link', { name: 'عرض سياسة التحقق من الصحة' })).toBeTruthy()
+    })
+  })
+
+  describe('verification standing', () => {
+    const NEW_SUBMISSION_ID = '99999999-9999-4999-8999-999999999999'
+    const NEW_VERIFY_URL = `/api/v1/platform/peppol/smp/tenants/${ID}/data-submissions/${NEW_SUBMISSION_ID}/verify`
+    const POLICY_V2 = { id: '55555555-5555-4555-8555-555555555555', versionNumber: 2 }
+    const EARLIER = {
+      submissionId: SUBMISSION_ID,
+      submissionVersion: 1,
+      participantScheme: '0248',
+      participantValue: 'OM1100000001',
+      policyVersionId: '44444444-4444-4444-8444-444444444444',
+      policyVersionNumber: 1,
+      verifiedAt: '2026-09-01T08:00:00Z',
+    }
+    const standingOf = (overrides: Record<string, unknown> = {}) => ({
+      state: 'VERIFIED',
+      currentPolicySatisfied: true,
+      reverificationRequired: false,
+      reverificationAvailable: false,
+      policyInForce: POLICY_V2,
+      verification: EARLIER,
+      ...overrides,
+    })
+    const verifiedRow = (standing: Record<string, unknown>) =>
+      submission({
+        status: 'VERIFIED',
+        verifiedPidScheme: '0248',
+        verifiedPidValue: 'OM1100000001',
+        verificationStanding: standing,
+      })
+    // The re-verification the company opened: a new row, reviewable, its own lock version.
+    const reopened = (standing: Record<string, unknown>) =>
+      submission({
+        id: NEW_SUBMISSION_ID,
+        status: 'SUBMITTED',
+        optimisticLockVersion: 0,
+        createdBy: 'u-tenant-admin',
+        submittedBy: 'u-tenant-admin',
+        verificationStanding: standing,
+      })
+    const statusLine = () =>
+      participantCard().getByText(i18n.t('console.verification.participant.status')).parentElement!
+    const version = (number: number) =>
+      i18n.t('console.verification.participant.policyVersion', { number })
+
+    it('keeps the earlier row qualified after a re-verification is rejected', async () => {
+      await openWithPid(
+        () =>
+          json(
+            200,
+            verifiedRow(
+              standingOf({
+                state: 'REJECTED',
+                currentPolicySatisfied: false,
+                reverificationRequired: true,
+                reverificationAvailable: true,
+              }),
+            ),
+          ),
+        {},
+      )
+
+      expect(
+        await screen.findByText(
+          i18n.t('console.verification.participant.standing.REVERIFICATION_REQUIRED'),
+        ),
+      ).toBeTruthy()
+      expect(
+        within(statusLine()).queryByText(
+          i18n.t('console.verification.participant.submissionStatus.VERIFIED'),
+        ),
+      ).toBeNull()
+      expect(
+        participantCard().getByText(
+          i18n.t('console.verification.participant.standingNote.rejectedWithPrevious'),
+        ),
+      ).toBeTruthy()
+    })
+
+    it('qualifies a verification under an earlier policy version instead of calling it verified', async () => {
+      await openWithPid(
+        () =>
+          json(
+            200,
+            verifiedRow(
+              standingOf({
+                state: 'REVERIFICATION_REQUIRED',
+                currentPolicySatisfied: false,
+                reverificationRequired: true,
+                reverificationAvailable: true,
+              }),
+            ),
+          ),
+        {},
+      )
+
+      expect(
+        await screen.findByText(
+          i18n.t('console.verification.participant.standing.REVERIFICATION_REQUIRED'),
+        ),
+      ).toBeTruthy()
+      expect(
+        within(statusLine()).queryByText(
+          i18n.t('console.verification.participant.submissionStatus.VERIFIED'),
+        ),
+      ).toBeNull()
+      // The stored verification is still shown, and still left to right.
+      expect(
+        participantCard().getByText(i18n.t('console.verification.participant.verifiedId')),
+      ).toBeTruthy()
+      expect(
+        participantCard()
+          .getAllByText('0248:OM1100000001')
+          .every((node) => node.getAttribute('dir') === 'ltr'),
+      ).toBe(true)
+      expect(
+        participantCard().getByText(
+          i18n.t('console.verification.participant.standingNote.REVERIFICATION_REQUIRED'),
+        ),
+      ).toBeTruthy()
+      expect(participantCard().getByText(version(1))).toBeTruthy()
+      expect(participantCard().getByText(version(2))).toBeTruthy()
+      // It is the verified row itself, so no separate "previous" ID is repeated.
+      expect(
+        participantCard().queryByText(i18n.t('console.verification.participant.previousId')),
+      ).toBeNull()
+      expect(
+        screen.queryByRole('button', { name: i18n.t('console.verification.participant.approve') }),
+      ).toBeNull()
+      expect(callsTo(POLICY_URL)).toHaveLength(0)
+      expect(
+        fetchMock.mock.calls.every(
+          ([, init]) => ((init as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+        ),
+      ).toBe(true)
+    })
+
+    it('qualifies a verification while no policy is in force', async () => {
+      await openWithPid(
+        () =>
+          json(
+            200,
+            verifiedRow(
+              standingOf({
+                state: 'NO_POLICY_IN_FORCE',
+                currentPolicySatisfied: false,
+                policyInForce: null,
+              }),
+            ),
+          ),
+        {},
+      )
+
+      expect(
+        await screen.findByText(
+          i18n.t('console.verification.participant.standing.NO_POLICY_IN_FORCE'),
+        ),
+      ).toBeTruthy()
+      expect(
+        participantCard().getByText(
+          i18n.t('console.verification.participant.standingNote.NO_POLICY_IN_FORCE'),
+        ),
+      ).toBeTruthy()
+      expect(
+        participantCard().getByText(i18n.t('console.verification.participant.noPolicyInForce')),
+      ).toBeTruthy()
+    })
+
+    it('reads a VERIFIED standing exactly as the card always did', async () => {
+      await openWithPid(() => json(200, verifiedRow(standingOf())), {})
+      await screen.findByText(i18n.t('console.verification.participant.verifiedId'))
+
+      expect(
+        await within(statusLine()).findByText(
+          i18n.t('console.verification.participant.submissionStatus.VERIFIED'),
+        ),
+      ).toBeTruthy()
+      expect(participantCard().queryByRole('note')).toBeNull()
+      expect(participantCard().queryByText(version(1))).toBeNull()
+    })
+
+    it('shows an open re-verification with its earlier verification, approves it as before, and then reads as verified under the current policy', async () => {
+      const awaiting = standingOf({
+        state: 'AWAITING_REVIEW',
+        currentPolicySatisfied: false,
+        reverificationRequired: true,
+      })
+      const approved = standingOf({
+        verification: {
+          ...EARLIER,
+          submissionId: NEW_SUBMISSION_ID,
+          submissionVersion: 2,
+          policyVersionId: POLICY_V2.id,
+          policyVersionNumber: 2,
+          verifiedAt: '2026-10-03T09:00:00Z',
+        },
+      })
+      answer({
+        ...reads(),
+        ...POLICY_IN_FORCE,
+        [PID_URL]: [
+          () => json(200, reopened(awaiting)),
+          () =>
+            json(
+              200,
+              submission({
+                id: NEW_SUBMISSION_ID,
+                status: 'VERIFIED',
+                verifiedPidScheme: '0248',
+                verifiedPidValue: 'OM1100000001',
+                optimisticLockVersion: 1,
+                verificationStanding: approved,
+              }),
+            ),
+        ],
+        [NEW_VERIFY_URL]: () =>
+          json(200, submission({ id: NEW_SUBMISSION_ID, status: 'VERIFIED' })),
+      })
+      renderDetail()
+
+      const approve = await screen.findByRole('button', {
+        name: i18n.t('console.verification.participant.approve'),
+      })
+      expect(
+        participantCard().getByText(
+          i18n.t('console.verification.participant.standingNote.reverificationOpen'),
+        ),
+      ).toBeTruthy()
+      expect(
+        participantCard().getByText(i18n.t('console.verification.participant.previousId')),
+      ).toBeTruthy()
+      expect(
+        participantCard()
+          .getAllByText('0248:OM1100000001')
+          .every((node) => node.getAttribute('dir') === 'ltr'),
+      ).toBe(true)
+      expect(participantCard().getByText(version(1))).toBeTruthy()
+      expect(participantCard().getByText(version(2))).toBeTruthy()
+      expect(participantCard().getByText(formatMoment(EARLIER.verifiedAt, 'en'))).toBeTruthy()
+      // Safe context only: no operator or tenant user identity reaches the card.
+      expect(participantCard().queryByText(/u-tenant-admin|u-registrant|u-operator/)).toBeNull()
+
+      fireEvent.click(approve)
+      const reasonInput = document.querySelector<HTMLInputElement>(
+        'input[name="participantReasonCode"]',
+      )!
+      fireEvent.change(reasonInput, { target: { value: 'POLICY_V2_RECHECKED' } })
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: i18n.t('console.verification.participant.approveConfirm'),
+        }),
+      )
+
+      await waitFor(() => expect(callsTo(NEW_VERIFY_URL)).toHaveLength(1))
+      expect(JSON.parse(initOf(NEW_VERIFY_URL).body as string)).toEqual({
+        expectedOptimisticLockVersion: 0,
+        approved: true,
+        reasonCode: 'POLICY_V2_RECHECKED',
+      })
+      await waitFor(() => expect(callsTo(PID_URL)).toHaveLength(2))
+      // The card shows its loading state while the second read is in flight, so the status line
+      // itself is looked up inside the retry, not once before it.
+      await waitFor(() =>
+        expect(
+          within(statusLine()).getByText(
+            i18n.t('console.verification.participant.submissionStatus.VERIFIED'),
+          ),
+        ).toBeTruthy(),
+      )
+      expect(
+        participantCard().queryByText(i18n.t('console.verification.participant.previousId')),
+      ).toBeNull()
+      expect(participantCard().queryByRole('note')).toBeNull()
+    })
+
+    it('keeps the stale-version answer on an open re-verification', async () => {
+      await openWithPid(
+        () =>
+          json(
+            200,
+            reopened(
+              standingOf({
+                state: 'AWAITING_REVIEW',
+                currentPolicySatisfied: false,
+                reverificationRequired: true,
+              }),
+            ),
+          ),
+        {
+          ...POLICY_IN_FORCE,
+          [NEW_VERIFY_URL]: () => coded(409, 'resource-conflict', 'STALE_VERSION'),
+        },
+      )
+
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: i18n.t('console.verification.participant.reject'),
+        }),
+      )
+      const reasonInput = document.querySelector<HTMLInputElement>(
+        'input[name="participantReasonCode"]',
+      )!
+      fireEvent.change(reasonInput, { target: { value: 'MISSING_EVIDENCE' } })
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: i18n.t('console.verification.participant.rejectConfirm'),
+        }),
+      )
+
+      const dialog = screen.getByRole('dialog')
+      expect(
+        await within(dialog).findByText(i18n.t('console.verification.participant.conflict')),
+      ).toBeTruthy()
+      expect(
+        within(dialog).getByRole('button', {
+          name: i18n.t('console.verification.decision.reload'),
+        }),
+      ).toBeTruthy()
+      expect(JSON.parse(initOf(NEW_VERIFY_URL).body as string)).toEqual({
+        expectedOptimisticLockVersion: 0,
+        approved: false,
+        reasonCode: 'MISSING_EVIDENCE',
+      })
+    })
+
+    it('notes an earlier verification behind a rejected request', async () => {
+      await openWithPid(
+        () =>
+          json(
+            200,
+            submission({
+              id: NEW_SUBMISSION_ID,
+              status: 'REJECTED',
+              reasonCode: 'MISSING_EVIDENCE',
+              verificationStanding: standingOf({
+                state: 'REJECTED',
+                currentPolicySatisfied: false,
+                reverificationRequired: true,
+                reverificationAvailable: true,
+              }),
+            }),
+          ),
+        {},
+      )
+
+      expect(
+        await screen.findByText(
+          i18n.t('console.verification.participant.standingNote.rejectedWithPrevious'),
+        ),
+      ).toBeTruthy()
+      expect(
+        participantCard().getByText(i18n.t('console.verification.participant.previousId')),
+      ).toBeTruthy()
+    })
   })
 })

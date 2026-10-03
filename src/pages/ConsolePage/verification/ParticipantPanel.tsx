@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
 import { Button, Input, Modal } from '../../../components/ui'
@@ -9,14 +9,24 @@ import type { CompanyDetail } from '../../../lib/console/companyVerification'
 import {
   currentSubmissionPath,
   describeParticipantFailure,
+  isPolicyNotActive,
   isReviewable,
   reasonCodeError,
   verifyParticipant,
   type PidSubmission,
 } from '../../../lib/console/pidSubmission'
+import { formatMoment } from '../../../lib/console/format'
+import { problemReference } from '../../../lib/console/problemReference'
+import {
+  PID_POLICY_TYPE,
+  currentPolicyPath,
+  policyRoute,
+  type BlockerVersionView,
+} from '../../../lib/console/validationPolicies'
 import { forgetEntitlements } from '../../../lib/identity/entitlements'
 import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
+import { ProblemReference } from '../policies/PolicyFailureNotice'
 import { ReviewCard, ReviewLine } from './ReviewCard'
 
 /** Oman's Peppol scheme: a company is addressed as `0248:` followed by its VAT number. */
@@ -86,7 +96,7 @@ function ParticipantCard({
   operatorId: string | null
   onDecided: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const none = t('console.verification.detail.none')
   const proposed = proposedParticipantId(company.taxNumber)
@@ -97,17 +107,64 @@ function ParticipantCard({
   const [reasonTouched, setReasonTouched] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [decisionError, setDecisionError] = useState<FormMessage | null>(null)
+  const [decisionReference, setDecisionReference] = useState<string | null>(null)
   const inFlight = useRef(false)
 
   const candidate = submission ? `${submission.candidatePidScheme}:${submission.candidatePidValue}` : none
   const verified = submission?.verifiedPidScheme
     ? `${submission.verifiedPidScheme}:${submission.verifiedPidValue}`
     : null
+  // `status` describes the row; whether the company's verification counts under the policy in force
+  // is the server's `verificationStanding`, so a VERIFIED row verified under an older policy version
+  // is qualified rather than shown as plainly verified. Absent standing leaves the card as it was.
+  const standing = submission?.verificationStanding ?? null
+  const qualified =
+    standing !== null &&
+    (standing.state === 'REVERIFICATION_REQUIRED' || standing.state === 'NO_POLICY_IN_FORCE')
+  // The row shown can be VERIFIED while the state is REJECTED: a rejected re-verification leaves the
+  // earlier VERIFIED row as the current one. Its status line must still say it no longer counts, so
+  // the label follows `currentPolicySatisfied`, not the state alone.
+  const verifiedLabel =
+    standing !== null && submission?.status === 'VERIFIED' && !standing.currentPolicySatisfied
+      ? standing.policyInForce === null
+        ? 'NO_POLICY_IN_FORCE'
+        : 'REVERIFICATION_REQUIRED'
+      : null
+  const recorded = standing !== null && standing.state !== 'VERIFIED' ? standing.verification : null
+  const standingNote =
+    standing === null
+      ? null
+      : qualified
+        ? `console.verification.participant.standingNote.${standing.state}`
+        : recorded !== null && standing.state === 'AWAITING_REVIEW'
+          ? 'console.verification.participant.standingNote.reverificationOpen'
+          : recorded !== null && standing.state === 'REJECTED'
+            ? 'console.verification.participant.standingNote.rejectedWithPrevious'
+            : null
+  const policyVersion = (number: number | null | undefined) =>
+    number === null || number === undefined
+      ? none
+      : t('console.verification.participant.policyVersion', { number })
   const reviewable = submission !== null && isReviewable(submission.status)
   const ownSubmission =
     submission !== null &&
     operatorId !== null &&
     (submission.createdBy === operatorId || submission.submittedBy === operatorId)
+  const decidable = reviewable && !ownSubmission
+
+  // An approval is checked against the taxpayer Participant ID validation policy in force, and is
+  // refused when there is none. Asked only when a decision would be offered, so a card with
+  // nothing to decide costs no request. Only a `404` (nothing in force) withholds Approve: a
+  // reviewer who may not read policies (`403`), or a read that failed, proves nothing about the
+  // policy, so the button stays and the backend decides.
+  const policy = useConsoleRead<BlockerVersionView>(
+    decidable ? currentPolicyPath(PID_POLICY_TYPE) : null,
+  )
+  const policyPending = decidable && policy.read.status === 'loading'
+  const policyMissing =
+    policy.read.status === 'failed' &&
+    policy.read.error instanceof ApiError &&
+    policy.read.error.status === 404
 
   const leaveIfSignedOut = (error: unknown): boolean => {
     if (error instanceof ApiError && error.status === 401) {
@@ -120,6 +177,7 @@ function ParticipantCard({
 
   const openDialog = (next: Exclude<Dialog, null>) => {
     setDecisionError(null)
+    setDecisionReference(null)
     setReason('')
     setReasonTouched(false)
     setDialog(next)
@@ -135,6 +193,7 @@ function ParticipantCard({
     inFlight.current = true
     setDeciding(true)
     setDecisionError(null)
+    setDecisionReference(null)
     try {
       await verifyParticipant(company.tenantId, submission.id, {
         expectedOptimisticLockVersion: submission.optimisticLockVersion,
@@ -144,7 +203,13 @@ function ParticipantCard({
       setDialog(null)
       onDecided()
     } catch (error) {
-      if (!leaveIfSignedOut(error)) setDecisionError(describeParticipantFailure(error))
+      if (!leaveIfSignedOut(error)) {
+        setDecisionError(describeParticipantFailure(error))
+        setDecisionReference(problemReference(error))
+        // The policy went out of force after this card read it: read it again, so the card behind
+        // the dialog stops offering an approval that cannot succeed.
+        if (isPolicyNotActive(error)) policy.retry()
+      }
     } finally {
       inFlight.current = false
       setDeciding(false)
@@ -152,6 +217,15 @@ function ParticipantCard({
   }
 
   const conflict = decisionError?.key === 'console.verification.participant.conflict'
+  const policyRefused = decisionError?.key === 'console.verification.participant.policyNotActive'
+  const policyLink = (
+    <Link
+      to={policyRoute(PID_POLICY_TYPE)}
+      className="text-sm font-semibold text-primary-800 underline-offset-2 hover:underline"
+    >
+      {t('console.verification.participant.viewPolicy')}
+    </Link>
+  )
   const reasonProblem = reasonCodeError(reason)
 
   return (
@@ -172,7 +246,9 @@ function ParticipantCard({
         label={t('console.verification.participant.status')}
         value={
           submission
-            ? t(`console.verification.participant.submissionStatus.${submission.status}`)
+            ? verifiedLabel !== null
+              ? t(`console.verification.participant.standing.${verifiedLabel}`)
+              : t(`console.verification.participant.submissionStatus.${submission.status}`)
             : t('console.verification.participant.notSubmitted')
         }
       />
@@ -186,10 +262,52 @@ function ParticipantCard({
           }
         />
       ) : null}
+      {recorded !== null && standing !== null ? (
+        <>
+          {recorded.submissionId !== submission?.id ? (
+            <ReviewLine
+              label={t('console.verification.participant.previousId')}
+              value={
+                <span dir="ltr" className="font-mono">
+                  {`${recorded.participantScheme}:${recorded.participantValue}`}
+                </span>
+              }
+            />
+          ) : null}
+          <ReviewLine
+            label={t('console.verification.participant.verifiedUnder')}
+            value={policyVersion(recorded.policyVersionNumber)}
+          />
+          <ReviewLine
+            label={t('console.verification.participant.verifiedAt')}
+            value={formatMoment(recorded.verifiedAt, i18n.language)}
+          />
+          <ReviewLine
+            label={t('console.verification.participant.policyInForce')}
+            value={
+              standing.policyInForce
+                ? policyVersion(standing.policyInForce.versionNumber)
+                : t('console.verification.participant.noPolicyInForce')
+            }
+          />
+        </>
+      ) : null}
 
       {groupVat ? (
         <p role="note" className="mt-3 text-sm font-medium leading-[1.6] text-warning-700">
           {t('console.verification.participant.groupVat')}
+        </p>
+      ) : null}
+
+      {standingNote ? (
+        <p
+          role="note"
+          className={[
+            'mt-3 text-sm font-medium leading-[1.6]',
+            qualified ? 'text-pending-700' : 'text-text-tertiary',
+          ].join(' ')}
+        >
+          {t(standingNote)}
         </p>
       ) : null}
 
@@ -203,9 +321,18 @@ function ParticipantCard({
         </p>
       ) : reviewable ? (
         <div className="mt-4 flex flex-col gap-2.5">
-          <Button type="button" size="md" fullWidth onClick={() => openDialog('approve')}>
-            {t('console.verification.participant.approve')}
-          </Button>
+          {policyMissing ? (
+            <div role="note" className="flex flex-col items-start gap-1.5 pb-1">
+              <p className="text-sm font-medium leading-[1.6] text-pending-700">
+                {t('console.verification.participant.policyNotActive')}
+              </p>
+              {policyLink}
+            </div>
+          ) : policyPending ? null : (
+            <Button type="button" size="md" fullWidth onClick={() => openDialog('approve')}>
+              {t('console.verification.participant.approve')}
+            </Button>
+          )}
           <Button
             type="button"
             size="md"
@@ -245,7 +372,12 @@ function ParticipantCard({
                 {t('common.cancel')}
               </Button>
             )}
-            <Button type="button" size="md" disabled={deciding || conflict} onClick={() => void decide()}>
+            <Button
+              type="button"
+              size="md"
+              disabled={deciding || conflict || policyRefused}
+              onClick={() => void decide()}
+            >
               {dialog === 'approve'
                 ? deciding
                   ? t('console.verification.participant.approving')
@@ -297,9 +429,13 @@ function ParticipantCard({
               : t('console.verification.participant.rejectBody')}
           </p>
           {decisionError ? (
-            <p role="alert" className="text-sm font-medium text-danger-700">
-              {t(decisionError.key, decisionError.values)}
-            </p>
+            <div role="alert" className="flex flex-col items-start gap-1.5">
+              <p className="text-sm font-medium text-danger-700">
+                {t(decisionError.key, decisionError.values)}
+              </p>
+              {policyRefused ? policyLink : null}
+              <ProblemReference id={decisionReference} />
+            </div>
           ) : null}
         </div>
       </Modal>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
+import { ParticipantStandingSection } from './ParticipantStandingSection'
 import { Switch } from '../../components/ui'
 import { COMPANY, longDate, shortDate } from '../../lib/settings'
 import {
@@ -118,6 +119,8 @@ export function PeppolTaxPage() {
               <p className="mt-2 text-xs font-semibold text-[#3d5648]">{t('peppolTax.copied')}</p>
             ) : null}
           </section>
+
+          <ParticipantStandingSection />
 
           {/* Certificates */}
           <section className="overflow-hidden rounded-md bg-surface-card">

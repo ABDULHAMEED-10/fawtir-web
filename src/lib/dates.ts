@@ -35,10 +35,22 @@ export function parseDateKey(key: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-/** `2026-07-18` → `18 Jul 2026`, the format the rest of the app prints. */
-export function formatDisplayDate(key: string): string {
+/**
+ * `2026-07-18` → `18 Jul 2026`, or the same day in Arabic. English is built by hand rather than
+ * through Intl: en-GB writes September as "Sept" in current ICU, which would change every date
+ * field's text. Arabic keeps Latin digits (decision D15), as `formatDate` in `lib/format` does.
+ * The key is read as a local date, so no time zone can move the day.
+ */
+export function formatDisplayDate(key: string, language = 'en'): string {
   const date = parseDateKey(key)
   if (!date) return ''
+  if (language.startsWith('ar')) {
+    return new Intl.DateTimeFormat('ar-u-nu-latn', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(date)
+  }
   return `${date.getDate()} ${MONTHS[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`
 }
 

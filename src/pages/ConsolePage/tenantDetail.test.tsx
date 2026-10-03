@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
+import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { TenantOverview } from '../../lib/console/tenantOverview'
 import { TenantDetailPage } from './TenantDetailPage'
@@ -124,6 +125,9 @@ const ready = {
 }
 
 beforeEach(async () => {
+  // A test that ends while its overview read is still settling leaves the read in the shared
+  // registry, and the next tests join it and wait out their timeout (see `inflight.ts`).
+  resetSharedRequests()
   await i18n.changeLanguage('en')
   forgetEntitlements()
   sessionStorage.clear()
