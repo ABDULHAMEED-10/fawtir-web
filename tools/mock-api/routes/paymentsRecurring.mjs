@@ -1031,6 +1031,7 @@ const RECURRING = [
       lateDays: null,
     },
     pausedOn: '2026-07-22',
+    pauseReason: 'MANUAL',
   },
   {
     id: 'rb-clean',
@@ -1060,19 +1061,95 @@ const RECURRING = [
     lastVariancePercent: null,
     expectation: null,
   },
+  // A finished instruction: its end date has passed. It reads "Ended" and cannot be resumed.
+  {
+    id: 'rb-old',
+    supplierId: 's-sahl',
+    supplierName: 'Sahl Cloud LLC',
+    description: 'Point-of-sale trial licence',
+    currencyCode: 'OMR',
+    totalIncludingVat: 31.5,
+    vatAmount: 1.5,
+    paymentTermsDays: 0,
+    interval: 'MONTHLY',
+    nextRunDate: '2026-07-05',
+    endDate: '2026-06-30',
+    remainingOccurrences: null,
+    active: false,
+    lastRunDate: '2026-06-05',
+    mode: 'EXPECT',
+    category: 'Software',
+    theirReference: 'SAHL-TRIAL-88',
+    arrivesAroundDay: 5,
+    paymentDueDay: null,
+    tolerancePercent: 5,
+    lateAfterDays: 2,
+    autoApproveWithinRange: false,
+    notifyUserId: 'u-yusuf',
+    watchingFrom: '2026-01-05',
+    lastVariancePercent: 0,
+    expectation: {
+      state: 'DUE_TO_ARRIVE',
+      expectedOn: '2026-07-05',
+      lastArrivedOn: '2026-06-05',
+      lastArrivedAmount: 31.5,
+      variancePercent: 0,
+      lateDays: null,
+    },
+  },
 ]
+
+/** Spans a watch skipped instead of replaying (after a pause), newest first, by recurring bill. */
+const NOT_WATCHED = {
+  'rb-power': [
+    {
+      from: '2026-04-12',
+      to: '2026-07-11',
+      periods: 3,
+      reason: 'RESUMED',
+      recordedAt: '2026-07-06T05:40:00Z',
+    },
+  ],
+}
 
 const recurringById = (id) => RECURRING.find((r) => r.id === id)
 
-function recurringDto(r) {
-  const { pausedOn, ...dto } = r
-  // The schedule's VAT category (EXPENDITURE.md M.3): stored from the POST/PUT body as sent and
-  // echoed back; null on the seeded rows, where the screen infers it from vatAmount.
-  return { taxCategoryCode: null, ...dto }
+/** Finished: not active, and its count ran out or its end date has passed. */
+const recurringEnded = (r) =>
+  !r.active && (r.remainingOccurrences === 0 || Boolean(r.endDate && r.endDate < TODAY))
+
+const userName = (id) => {
+  const user = USERS.find((u) => u.id === id)
+  return user ? `${user.firstName} ${user.lastName}` : null
+}
+
+/**
+ * `RecurringBillResponse`. `single` is a one-instruction answer (detail, create, update, pause,
+ * resume, mark-received): only those carry the named person's name and the not-watched spans.
+ */
+function recurringDto(r, single = false) {
+  const { pausedOn, pauseReason, ...dto } = r
+  const ended = recurringEnded(r)
+  const paused = !r.active && !ended
+  return {
+    // The schedule's VAT category (EXPENDITURE.md M.3): stored from the POST/PUT body as sent and
+    // echoed back; null on the seeded rows, where the screen infers it from vatAmount.
+    taxCategoryCode: null,
+    toleranceEnabled: r.mode === 'EXPECT' && r.tolerancePercent !== null,
+    ...dto,
+    status: r.active ? 'ACTIVE' : ended ? 'ENDED' : 'PAUSED',
+    ended,
+    endedOn: ended ? (r.endDate && r.endDate < TODAY ? r.endDate : r.lastRunDate) : null,
+    pausedAt: paused && pausedOn ? `${pausedOn}T06:00:00Z` : null,
+    pauseReason: paused && pausedOn ? (pauseReason ?? 'MANUAL') : null,
+    notifyUserName: single ? userName(r.notifyUserId) : null,
+    notWatched: single ? (NOT_WATCHED[r.id] ?? []) : null,
+  }
 }
 
 function inState(r, state) {
   if (state === 'ALL') return true
+  if (state === 'ENDED') return recurringEnded(r)
   if (state === 'PAUSED') return !r.active
   if (state === 'LATE') return r.active && r.expectation?.state === 'LATE'
   return r.active
@@ -1094,6 +1171,8 @@ function recurringSummary() {
     currencyCode: 'OMR',
     recurringCount: RECURRING.length,
     activeCount: active.length,
+    pausedCount: RECURRING.filter((r) => !r.active && !recurringEnded(r)).length,
+    endedCount: RECURRING.filter(recurringEnded).length,
     lateCount: late.length,
     lateDescription: late.length
       ? `${late[0].description}, ${late[0].expectation.lateDays} days past its usual date`
@@ -1105,8 +1184,99 @@ function recurringSummary() {
   }
 }
 
+/** A run as `RunResponse` sends it: the matched bill's own number, date, total and paid date. */
+function recurringRunDto(r, run) {
+  const linked = run.billId ? (billById(run.billId) ?? LATE_ARRIVALS[run.billId] ?? null) : null
+  return {
+    ...run,
+    billNumber: linked?.number ?? null,
+    billIssueDate: linked?.issueDate ?? null,
+    billAmount: linked?.total ?? null,
+    billCurrency: linked ? 'OMR' : null,
+    paidOn: linked?.paidOn ?? null,
+    markedAsExpected: run.outcome === 'ARRIVED' && r.autoApproveWithinRange === true,
+    receivedManually: run.receivedManually === true,
+  }
+}
+
+/**
+ * Bills that came in after their period was flagged late, kept apart from `BILLS` so the Bills
+ * and Payments screens keep the figures their frames draw. They are what "Mark as received"
+ * offers; their own bill page is not served.
+ */
+const LATE_ARRIVALS = {
+  'b-abp-2026-09': {
+    id: 'b-abp-2026-09',
+    supplierId: 's-abp',
+    number: 'ABP-INV-0321',
+    issueDate: '2026-09-24',
+    total: 1200,
+    source: 'UPLOADED',
+    workflowState: 'APPROVED',
+    hold: null,
+    paidOn: null,
+  },
+  'b-abp-2026-09-b': {
+    id: 'b-abp-2026-09-b',
+    supplierId: 's-abp',
+    number: 'ABP-INV-0322',
+    issueDate: '2026-09-25',
+    total: 1260,
+    source: 'UPLOADED',
+    workflowState: 'APPROVED',
+    hold: null,
+    paidOn: null,
+  },
+}
+
+/** Periods someone answered by hand with "Mark as received", by recurring bill and expected date. */
+const RECEIVED_BY_HAND = {}
+
+const recurringRuns = (r) =>
+  seededRuns(r).map((run) =>
+    recurringRunDto(r, { ...run, ...RECEIVED_BY_HAND[`${r.id}|${run.expectedOn}`] }),
+  )
+
+/** Unmatched bills of the watch's supplier, the period's own window first, then the closest amount. */
+function receivableBills(r, expectedOn) {
+  const taken = new Set(
+    RECURRING.flatMap((other) => recurringRuns(other).map((run) => run.billId)).filter(Boolean),
+  )
+  const days = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 86_400_000
+  return [...BILLS, ...Object.values(LATE_ARRIVALS)]
+    .filter(
+      (b) =>
+        b.supplierId === r.supplierId &&
+        !taken.has(b.id) &&
+        b.source !== 'RECURRING' &&
+        b.source !== 'SELF_BILLED' &&
+        b.workflowState !== 'REJECTED' &&
+        !b.hold,
+    )
+    .map((b) => {
+      const variance = r.totalIncludingVat
+        ? Math.round(((b.total - r.totalIncludingVat) / r.totalIncludingVat) * 10000) / 100
+        : null
+      return {
+        billId: b.id,
+        billNumber: b.number,
+        issueDate: b.issueDate,
+        totalIncludingVat: b.total,
+        currencyCode: 'OMR',
+        variancePercent: variance,
+        inWindow:
+          Boolean(expectedOn) && days(b.issueDate, expectedOn) <= 7 + (r.lateAfterDays ?? 0),
+      }
+    })
+    .sort(
+      (a, b) =>
+        Number(b.inWindow) - Number(a.inWindow) ||
+        Math.abs(a.variancePercent ?? 0) - Math.abs(b.variancePercent ?? 0),
+    )
+}
+
 /** One run per period. The rent watch has eleven arrivals behind it and the current period open. */
-function recurringRuns(r) {
+function seededRuns(r) {
   if (r.id === 'rb-rent') {
     const arrived = RENT_MONTHS.map((month, index) => ({
       id: `rr-rent-${month}`,
@@ -1669,18 +1839,37 @@ export default [
 
   /* --- recurring bills --- */
   { match: '/api/v1/recurring-bills/summary', reply: () => recurringSummary() },
+  // Names only: who a recurring bill can tell, for whoever may manage recurring bills.
+  {
+    match: '/api/v1/recurring-bills/recipients',
+    reply: () => USERS.map((user) => ({ id: user.id, displayName: userName(user.id) })),
+  },
+  {
+    match: /^\/api\/v1\/recurring-bills\/by-supplier\/([^/]+)$/,
+    reply: ({ params }) => {
+      const rows = RECURRING.filter((r) => r.supplierId === params[0])
+      const paused = rows.filter((r) => !r.active && !recurringEnded(r))
+      return {
+        supplierId: params[0],
+        total: rows.length,
+        active: rows.filter((r) => r.active).length,
+        paused: paused.length,
+        pausedBySupplierSwitchOff: paused.filter((r) => r.pauseReason === 'SUPPLIER_SWITCHED_OFF')
+          .length,
+        ended: rows.filter(recurringEnded).length,
+      }
+    },
+  },
   {
     match: '/api/v1/recurring-bills',
     reply: ({ query }) => {
-      const items = RECURRING.filter((r) => inState(r, query.get('state') ?? 'ACTIVE')).map(
-        recurringDto,
-      )
-      return {
-        items,
-        page: Number(query.get('page') ?? 0),
-        pageSize: Number(query.get('page_size') ?? 50),
-        count: items.length,
-      }
+      // Absent state = ALL, and the rows are paged, as the backend does both.
+      const page = Number(query.get('page') ?? 0)
+      const pageSize = Number(query.get('page_size') ?? 50)
+      const items = RECURRING.filter((r) => inState(r, query.get('state') ?? 'ALL'))
+        .slice(page * pageSize, (page + 1) * pageSize)
+        .map((r) => recurringDto(r))
+      return { items, page, pageSize, count: items.length }
     },
   },
   {
@@ -1708,24 +1897,127 @@ export default [
               }
             : null,
       }
+      delete r.startDate
+      delete r.occurrences
+      delete r.toleranceEnabled
+      if (body?.toleranceEnabled === false) r.toleranceEnabled = false
       RECURRING.push(r)
-      return { status: 201, body: recurringDto(r) }
+      return { status: 201, body: recurringDto(r, true) }
     },
   },
   {
     match: /^\/api\/v1\/recurring-bills\/([^/]+)\/runs$/,
     reply: ({ params }) =>
-      recurringById(params[0]) ? recurringRuns(recurringById(params[0])) : { status: 404 },
+      recurringById(params[0])
+        ? recurringRuns(recurringById(params[0]))
+        : refuse('RECURRING_BILL_NOT_FOUND', 404),
+  },
+  {
+    match: /^\/api\/v1\/recurring-bills\/([^/]+)\/runs\/export\.csv$/,
+    reply: ({ params }) => {
+      const r = recurringById(params[0])
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
+      const rows = recurringRuns(r).map((run) =>
+        [
+          run.periodStart ?? '',
+          run.periodEnd ?? '',
+          run.expectedOn ?? '',
+          run.outcome,
+          run.billNumber ?? '',
+          run.billIssueDate ?? '',
+          run.billAmount === null ? '' : run.billAmount.toFixed(3),
+          run.billCurrency ?? '',
+          run.variancePercent ?? '',
+          run.paidOn ?? '',
+          run.receivedManually ? 'Yes' : 'No',
+        ].join(','),
+      )
+      return {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="recurring-bill-history-${TODAY}.csv"`,
+          'X-Fawtir-Export-Rows': String(rows.length),
+          'X-Fawtir-Export-Truncated': 'false',
+        },
+        body: [
+          'Period start,Period end,Expected on,Outcome,Bill number,Bill date,Amount,Currency,Variance %,Paid on,Received manually',
+          ...rows,
+        ].join('\n'),
+      }
+    },
+  },
+  {
+    match: /^\/api\/v1\/recurring-bills\/([^/]+)\/not-watched$/,
+    reply: ({ params }) =>
+      recurringById(params[0])
+        ? (NOT_WATCHED[params[0]] ?? [])
+        : refuse('RECURRING_BILL_NOT_FOUND', 404),
+  },
+  {
+    match: /^\/api\/v1\/recurring-bills\/([^/]+)\/receivable-bills$/,
+    reply: ({ params, query }) => {
+      const r = recurringById(params[0])
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
+      if (r.mode !== 'EXPECT') return refuse('RECURRING_BILL_NOT_EXPECTING')
+      return receivableBills(r, query.get('expectedOn') ?? r.expectation?.expectedOn ?? null)
+    },
+  },
+  {
+    method: 'POST',
+    match: /^\/api\/v1\/recurring-bills\/([^/]+)\/mark-received$/,
+    reply: ({ params, body }) => {
+      const r = recurringById(params[0])
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
+      if (r.mode !== 'EXPECT') return refuse('RECURRING_BILL_NOT_EXPECTING')
+      const expectedOn = body?.expectedOn ?? r.expectation?.expectedOn ?? null
+      const watched = expectedOn === r.expectation?.expectedOn
+      if (watched && !r.active) return refuse('RECURRING_BILL_PAUSED')
+      const run = recurringRuns(r).find((entry) => entry.expectedOn === expectedOn)
+      if (!run && !watched) return refuse('RECURRING_BILL_PERIOD_NOT_FOUND', 404)
+      if (run?.billId) return refuse('RECURRING_BILL_PERIOD_ALREADY_RECEIVED')
+      const picked = receivableBills(r, expectedOn).find((b) => b.billId === body?.billId)
+      if (!picked) return refuse('RECURRING_BILL_ARRIVAL_BILL_NOT_FOUND', 404)
+      const inRange =
+        r.tolerancePercent === null ||
+        r.toleranceEnabled === false ||
+        Math.abs(picked.variancePercent ?? 0) <= r.tolerancePercent
+      RECEIVED_BY_HAND[`${r.id}|${expectedOn}`] = {
+        billId: picked.billId,
+        outcome: inRange ? 'ARRIVED' : 'ARRIVED_OUT_OF_RANGE',
+        variancePercent: picked.variancePercent,
+        receivedManually: true,
+      }
+      if (watched) {
+        // The watch moves on to its next period, as the daily run would have moved it.
+        r.lastRunDate = expectedOn
+        r.lastVariancePercent = picked.variancePercent
+        r.expectation = {
+          state: 'DUE_TO_ARRIVE',
+          expectedOn: r.nextRunDate,
+          lastArrivedOn: picked.issueDate,
+          lastArrivedAmount: picked.totalIncludingVat,
+          variancePercent: picked.variancePercent,
+          lateDays: null,
+          lastArrivalOutcome: inRange ? 'ARRIVED' : 'ARRIVED_OUT_OF_RANGE',
+          lastArrivedBillId: picked.billId,
+        }
+      }
+      return recurringDto(r, true)
+    },
   },
   {
     method: 'POST',
     match: /^\/api\/v1\/recurring-bills\/([^/]+)\/pause$/,
     reply: ({ params }) => {
       const r = recurringById(params[0])
-      if (!r) return { status: 404 }
-      r.active = false
-      r.pausedOn = TODAY
-      return recurringDto(r)
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
+      if (r.active) {
+        r.active = false
+        r.pausedOn = TODAY
+        r.pauseReason = 'MANUAL'
+      }
+      return recurringDto(r, true)
     },
   },
   {
@@ -1733,9 +2025,12 @@ export default [
     match: /^\/api\/v1\/recurring-bills\/([^/]+)\/resume$/,
     reply: ({ params }) => {
       const r = recurringById(params[0])
-      if (!r) return { status: 404 }
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
+      if (recurringEnded(r)) return refuse('RECURRING_BILL_ENDED')
       r.active = true
-      return recurringDto(r)
+      delete r.pausedOn
+      delete r.pauseReason
+      return recurringDto(r, true)
     },
   },
   {
@@ -1743,15 +2038,20 @@ export default [
     match: /^\/api\/v1\/recurring-bills\/([^/]+)\/chase$/,
     reply: ({ params }) => {
       const r = recurringById(params[0])
-      if (!r) return { status: 404 }
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
       if (r.mode !== 'EXPECT') return refuse('RECURRING_BILL_NOT_EXPECTING')
       if (!r.active) return refuse('RECURRING_BILL_PAUSED')
+      // Says who is told, or that nobody is: no person named, or one who is no longer a member.
+      const name = userName(r.notifyUserId)
       return {
         status: 202,
         body: {
           recurringBillId: r.id,
           notifyUserId: r.notifyUserId,
           expectedOn: r.expectation?.expectedOn ?? null,
+          told: name !== null,
+          toldNames: name ? [name] : [],
+          notToldReason: name ? null : r.notifyUserId ? 'RECIPIENT_UNAVAILABLE' : 'NOBODY_NAMED',
         },
       }
     },
@@ -1759,16 +2059,35 @@ export default [
   {
     match: /^\/api\/v1\/recurring-bills\/([^/]+)$/,
     reply: ({ params }) =>
-      recurringById(params[0]) ? recurringDto(recurringById(params[0])) : { status: 404 },
+      recurringById(params[0])
+        ? recurringDto(recurringById(params[0]), true)
+        : refuse('RECURRING_BILL_NOT_FOUND', 404),
   },
   {
     method: 'PUT',
     match: /^\/api\/v1\/recurring-bills\/([^/]+)$/,
     reply: ({ params, body }) => {
       const r = recurringById(params[0])
-      if (!r) return { status: 404 }
-      Object.assign(r, body)
-      return recurringDto(r)
+      if (!r) return refuse('RECURRING_BILL_NOT_FOUND', 404)
+      // Request-only fields are not stored, and a null percentage or null terms keep what was there.
+      const {
+        startDate,
+        occurrences,
+        toleranceEnabled,
+        tolerancePercent,
+        paymentTermsDays,
+        ...rest
+      } = body ?? {}
+      Object.assign(r, rest)
+      if (startDate && r.mode === 'RAISE') r.nextRunDate = startDate
+      r.remainingOccurrences = occurrences ?? null
+      if (tolerancePercent !== null && tolerancePercent !== undefined)
+        r.tolerancePercent = tolerancePercent
+      if (paymentTermsDays !== null && paymentTermsDays !== undefined)
+        r.paymentTermsDays = paymentTermsDays
+      delete r.toleranceEnabled
+      if (toleranceEnabled === false) r.toleranceEnabled = false
+      return recurringDto(r, true)
     },
   },
 

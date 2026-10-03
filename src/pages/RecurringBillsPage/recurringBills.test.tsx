@@ -170,6 +170,8 @@ beforeEach(async () => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
     if (url.startsWith('/api/v1/recurring-bills/summary')) return json(200, SUMMARY)
+    if (url === '/api/v1/recurring-bills/recipients')
+      return json(200, [{ id: 'u-2', displayName: 'Yusuf Al Balushi' }])
     if (url.endsWith('/rb-1/chase')) return chaseResponse()
     if (url.endsWith('/pause') || url.endsWith('/resume'))
       return json(200, { ...RENT, active: url.endsWith('/resume') })
@@ -181,10 +183,6 @@ beforeEach(async () => {
       return json(200, { items: [], page: 0, pageSize: 20, count: 0, total: 0 })
     if (url.startsWith('/api/v1/suppliers/'))
       return json(404, { type: 'https://api.fawtir.om/problems/resource-not-found' })
-    if (url.startsWith('/api/v1/users'))
-      return json(200, {
-        content: [{ id: 'u-2', username: 'yusuf', firstName: 'Yusuf', lastName: 'Al Balushi' }],
-      })
     throw new Error(`unexpected request to ${method} ${url}`)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -357,7 +355,7 @@ describe('Recurring bills, wired to the API', () => {
     await i18n.changeLanguage('ar')
     renderAt('/expenditure/recurring-bills')
     expect(await screen.findByRole('heading', { level: 1, name: 'الفواتير المتكررة' })).toBeTruthy()
-    expect(screen.getByText('متأخرة يومين')).toBeTruthy()
+    expect(await screen.findByText('متأخرة يومين')).toBeTruthy()
     const paused = screen
       .getByRole('link', { name: 'Water cooler' })
       .closest('article') as HTMLElement
@@ -445,7 +443,11 @@ describe('recurring bill helpers', () => {
     expect(watching.taxCategoryCode).toBe('S5')
     expect(toRecurringRequest({ ...form, vatTreatment: 'exempt' }).taxCategoryCode).toBe('E0')
     expect(toRecurringRequest({ ...form, vatTreatment: 'outOfScope' }).taxCategoryCode).toBe('O0')
-    expect(toRecurringRequest({ ...form, flagOutsideRange: false }).tolerancePercent).toBeNull()
+    // Off is a switch of its own: the percentage stays for when it is switched back on.
+    expect(toRecurringRequest({ ...form, flagOutsideRange: false })).toMatchObject({
+      toleranceEnabled: false,
+      tolerancePercent: 10,
+    })
     const raising = toRecurringRequest({ ...form, mode: 'RAISE' })
     expect(raising).toMatchObject({
       mode: 'RAISE',

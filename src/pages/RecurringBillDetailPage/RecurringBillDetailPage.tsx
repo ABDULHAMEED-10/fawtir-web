@@ -2,39 +2,43 @@ import { useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
-import { Rial, RowsView, withRial } from '../../components/ui'
+import { Modal, Rial, RowsView, withRial } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { useApiRead } from '../../hooks'
 import { ApiError } from '../../api'
 import {
   chaseRecurringBill,
+  exportRecurringRuns,
+  loadReceivableBills,
   loadRecurringBill,
   loadRecurringRuns,
+  markRecurringReceived,
+  receivableBillsPath,
   recurringBillPath,
   recurringRunsPath,
   setRecurringActive,
+  type ReceivableBillDto,
   type RecurringBillDto,
   type RecurringRunDto,
 } from '../../api/expenditure/recurringBills'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
-import {
-  POSSIBLE_RECIPIENTS_PATH,
-  loadPossibleRecipients,
-  type ReminderRecipientDto,
-} from '../../api/expenditure/billReminders'
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatDate } from '../../lib/format'
 import { muscatToday } from '../../lib/invoiceIssue'
 import { can, useSession } from '../../lib/session/session'
+import { saveDownload } from '../../lib/supplierRecord'
 import {
   RECURRING_REFUSALS,
   activityOf,
   amountOf,
   cadenceNote,
+  canResume,
   chartBars,
   chaseBlocker,
+  chaseNotice,
   daysBetween,
   formatVariance,
+  isEnded,
   monthName,
   monthYear,
   ordinal,
@@ -125,8 +129,8 @@ function Rows({ items }: { items: [string, ReactNode][] }) {
  * period, and the two things that can be done to it: pausing the watch and chasing.
  *
  * The history is the API's own runs, one per period; the chart, the track record and the activity
- * are read off them. "Mark as received" and "Export" are drawn as the frame draws them and say
- * they are not available yet.
+ * are read off them. "Mark as received" asks which of the supplier's bills the late period's was;
+ * "Export" hands over the history as a CSV.
  */
 export function RecurringBillDetailPage() {
   const { id = '' } = useParams()
@@ -142,10 +146,13 @@ function RecurringBill({ id }: { id: string }) {
   const language = i18n.language
   const session = useSession()
   const canManage = can(session, 'invoice.payment.manage')
+  const canExport = can(session, 'invoice.export')
   const today = muscatToday()
   const [notice, setNotice] = useState<
-    { key: string; values?: Record<string, string> } | { body: string } | null
+    { key: string; values?: Record<string, string | number> } | { body: string } | null
   >(null)
+  /** The period "Mark as received" is asking about (by its expected date), while its dialog is open. */
+  const [receiving, setReceiving] = useState<{ expectedOn: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
   const [allRuns, setAllRuns] = useState(false)
 
@@ -156,10 +163,6 @@ function RecurringBill({ id }: { id: string }) {
   const supplier = useApiRead<SupplierDetailDto>(
     bill?.supplierId ? supplierPath(bill.supplierId) : null,
     () => loadSupplier(bill!.supplierId!),
-  )
-  const people = useApiRead<ReminderRecipientDto[]>(
-    canManage ? POSSIBLE_RECIPIENTS_PATH : null,
-    loadPossibleRecipients,
   )
 
   if (read.read.status !== 'ready' || !bill) {
@@ -185,16 +188,28 @@ function RecurringBill({ id }: { id: string }) {
   const bars = chartBars(history, bill.totalIncludingVat, language)
   const record = trackRecord(history, bill, today)
   const activity = activityOf(bill, history, day)
+  // A server that does not say whether the range is flagged reads as before: on with a percentage.
+  const flagsRange = bill.toleranceEnabled ?? bill.tolerancePercent !== null
   const band =
-    bill.tolerancePercent === null
-      ? null
-      : toleranceBand(bill.totalIncludingVat, bill.tolerancePercent)
-  const late = bill.active && bill.expectation?.state === 'LATE' ? bill.expectation : null
-  const whoName =
-    people.read.status === 'ready'
-      ? (people.read.data.find((person) => person.id === bill.notifyUserId)?.name ?? null)
+    flagsRange && bill.tolerancePercent !== null
+      ? toleranceBand(bill.totalIncludingVat, bill.tolerancePercent)
       : null
+  const ended = isEnded(bill)
+  const late = bill.active && bill.expectation?.state === 'LATE' ? bill.expectation : null
+  const whoName = bill.notifyUserName?.trim() || null
   const supplierProfile = supplier.read.status === 'ready' ? supplier.read.data.profile : null
+  // Resume is offered only where it can be taken. Paused with its supplier: not until the
+  // supplier's record says it is back on; a record that cannot be read leaves the server to say.
+  const resumable = canResume(
+    bill,
+    !bill.supplierId
+      ? false
+      : supplier.read.status === 'ready'
+        ? supplier.read.data.profile.status === 'SWITCHED_OFF'
+        : supplier.read.status === 'failed'
+          ? false
+          : null,
+  )
   const shownRuns = allRuns ? history : history.slice(0, 5)
 
   /** The next date the payment falls due after the expected day, when the watch names one. */
@@ -231,8 +246,7 @@ function RecurringBill({ id }: { id: string }) {
           key: bill.active ? 'recurringBills.done.paused' : 'recurringBills.done.resumed',
         })
       } else {
-        await chaseRecurringBill(id)
-        setNotice({ key: 'recurringBills.done.chased' })
+        setNotice(chaseNotice(await chaseRecurringBill(id)))
       }
       read.retry()
       runs.retry()
@@ -243,8 +257,34 @@ function RecurringBill({ id }: { id: string }) {
     }
   }
 
-  // TODO(backend): marking a period's bill as received by hand, and an export of the history.
-  const notYet = () => setNotice({ key: 'recurringBills.detail.notYet' })
+  const markReceived = async (billId: string) => {
+    if (busy) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      await markRecurringReceived(id, billId, receiving?.expectedOn ?? null)
+      read.retry()
+      runs.retry()
+    } catch (error) {
+      failed(error)
+    } finally {
+      setReceiving(null)
+      setBusy(false)
+    }
+  }
+
+  const exportHistory = async () => {
+    if (busy) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      saveDownload(await exportRecurringRuns(id), 'recurring-bill-history.csv')
+    } catch (error) {
+      failed(error)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const cadenceText = t(
     cadence.key,
@@ -363,28 +403,32 @@ function RecurringBill({ id }: { id: string }) {
               >
                 {t('recurringBills.menu.edit')}
               </Link>
-              <button
-                type="button"
-                onClick={() => void act('toggle')}
-                disabled={busy}
-                className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
-              >
-                {t(
-                  bill.active
-                    ? 'recurringBills.detail.pauseWatching'
-                    : 'recurringBills.detail.resumeWatching',
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => void act('chase')}
-                disabled={busy || blocker !== null}
-                title={blocker ? t(blocker) : undefined}
-                className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
-              >
-                <img src={mailWhiteIcon} alt="" className="size-[17px]" />
-                {t('recurringBills.actions.chase')}
-              </button>
+              {bill.active || resumable ? (
+                <button
+                  type="button"
+                  onClick={() => void act('toggle')}
+                  disabled={busy}
+                  className="inline-flex h-[46px] items-center rounded-sm border border-black/[0.06] bg-[#fdfdfd] px-4 text-sm font-semibold text-[#3a3a3a] transition-colors hover:bg-white disabled:opacity-50"
+                >
+                  {t(
+                    bill.active
+                      ? 'recurringBills.detail.pauseWatching'
+                      : 'recurringBills.detail.resumeWatching',
+                  )}
+                </button>
+              ) : null}
+              {ended ? null : (
+                <button
+                  type="button"
+                  onClick={() => void act('chase')}
+                  disabled={busy || blocker !== null}
+                  title={blocker ? t(blocker) : undefined}
+                  className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:opacity-50"
+                >
+                  <img src={mailWhiteIcon} alt="" className="size-[17px]" />
+                  {t('recurringBills.actions.chase')}
+                </button>
+              )}
             </div>
           ) : null}
         </div>
@@ -395,6 +439,10 @@ function RecurringBill({ id }: { id: string }) {
           body={'key' in notice ? t(notice.key, notice.values) : notice.body}
           action={{ label: t('common.close'), onClick: () => setNotice(null) }}
         />
+      ) : null}
+
+      {ended && bill.endedOn ? (
+        <Notice body={t('recurringBills.detail.endedLine', { date: day(bill.endedOn) })} />
       ) : null}
 
       {late ? (
@@ -421,8 +469,9 @@ function RecurringBill({ id }: { id: string }) {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={notYet}
-                className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                onClick={() => setReceiving({ expectedOn: late.expectedOn })}
+                disabled={busy}
+                className="inline-flex h-[42px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:opacity-50"
               >
                 {t('recurringBills.detail.markReceived')}
               </button>
@@ -437,13 +486,16 @@ function RecurringBill({ id }: { id: string }) {
             title={t('recurringBills.detail.whatItsCost')}
             note={t('recurringBills.detail.last12')}
             action={
-              <button
-                type="button"
-                onClick={notYet}
-                className="text-sm font-semibold text-primary-700 hover:text-primary-800"
-              >
-                {t('recurringBills.detail.export')}
-              </button>
+              canExport ? (
+                <button
+                  type="button"
+                  onClick={() => void exportHistory()}
+                  disabled={busy}
+                  className="text-sm font-semibold text-primary-700 hover:text-primary-800 disabled:opacity-50"
+                >
+                  {t('recurringBills.detail.export')}
+                </button>
+              ) : null
             }
           >
             {runs.read.status === 'loading' ? <LoadingNotice /> : null}
@@ -575,8 +627,7 @@ function RecurringBill({ id }: { id: string }) {
                                 to={`/expenditure/bills/${run.billId}`}
                                 className="text-sm font-semibold text-primary-700 hover:underline"
                               >
-                                {/* TODO(backend): the bill's number on a run; the link stands in for it. */}
-                                {t('recurringBills.detail.openBill')}
+                                {run.billNumber?.trim() || t('recurringBills.detail.openBill')}
                               </Link>
                             ) : (
                               <span className="text-sm font-medium text-text-quaternary">
@@ -614,8 +665,16 @@ function RecurringBill({ id }: { id: string }) {
                             </p>
                           </td>
                           <td className="py-3.5 ps-4">
-                            {/* TODO(backend): when the period's bill was paid; the due day is what the watch knows. */}
-                            {due ? (
+                            {run.paidOn ? (
+                              <span
+                                className={[
+                                  'inline-flex items-center rounded-sm px-2.5 py-1 text-xs font-medium leading-[1.3]',
+                                  CHIP_TONE.ok,
+                                ].join(' ')}
+                              >
+                                {t('supplierDetail.paidOn', { date: day(run.paidOn) })}
+                              </span>
+                            ) : due ? (
                               <span
                                 className={[
                                   'inline-flex items-center rounded-sm px-2.5 py-1 text-xs font-medium leading-[1.3]',
@@ -669,12 +728,14 @@ function RecurringBill({ id }: { id: string }) {
                     <p className="text-sm font-semibold leading-[1.2] text-text-primary">
                       {t(`${event.key}`, event.values)}
                     </p>
-                    <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
-                      {t(`${event.key}Detail`, {
-                        ...event.values,
-                        who: whoName ?? t('recurringBills.form.nobody'),
-                      })}
-                    </p>
+                    {event.detail === false ? null : (
+                      <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
+                        {t(`${event.key}Detail`, {
+                          ...event.values,
+                          who: whoName ?? t('recurringBills.form.nobody'),
+                        })}
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}
@@ -748,14 +809,10 @@ function RecurringBill({ id }: { id: string }) {
                 ],
                 [
                   t('recurringBills.detail.ifAmountOff'),
-                  t(
-                    bill.tolerancePercent === null
-                      ? 'recurringBills.detail.off'
-                      : 'recurringBills.detail.on',
-                  ),
+                  t(flagsRange ? 'recurringBills.detail.on' : 'recurringBills.detail.off'),
                 ],
                 [
-                  t('recurringBills.detail.approveAutomatically'),
+                  t('recurringBills.form.autoApprove'),
                   t(
                     bill.autoApproveWithinRange
                       ? 'recurringBills.detail.on'
@@ -849,6 +906,100 @@ function RecurringBill({ id }: { id: string }) {
           </Card>
         </aside>
       </div>
+
+      {receiving !== null ? (
+        <ReceivedDialog
+          path={receivableBillsPath(id, receiving.expectedOn)}
+          expectedOn={receiving.expectedOn}
+          busy={busy}
+          onPick={(picked) => void markReceived(picked.billId)}
+          onClose={() => setReceiving(null)}
+        />
+      ) : null}
     </div>
+  )
+}
+
+/**
+ * "Mark as received": which of the supplier's bills was this period's. The frame draws the button
+ * and no dialog, so this is the bill page's "match to a purchase order" dialog with bills in it:
+ * the same shell, the same one-press rows (number, date, amount), the same empty line.
+ */
+function ReceivedDialog({
+  path,
+  expectedOn,
+  busy,
+  onPick,
+  onClose,
+}: {
+  path: string
+  expectedOn: string | null
+  busy: boolean
+  onPick: (bill: ReceivableBillDto) => void
+  onClose: () => void
+}) {
+  const { t, i18n } = useTranslation()
+  const language = i18n.language
+  const bills = useApiRead<ReceivableBillDto[]>(path, () => loadReceivableBills(path))
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t('recurringBills.detail.markReceived')}
+      subtitle={
+        expectedOn
+          ? t('recurringBills.detail.expectedOn', { date: formatDate(expectedOn, language) })
+          : undefined
+      }
+    >
+      <div className="max-h-[320px] overflow-y-auto">
+        {bills.read.status === 'loading' ? <LoadingNotice /> : null}
+        {bills.read.status === 'failed' ? (
+          <ApiReadFailure error={bills.read.error} retry={bills.retry} />
+        ) : null}
+        {bills.read.status === 'ready' && bills.read.data.length === 0 ? (
+          <p className="py-6 text-center text-sm font-medium text-text-quaternary">
+            {t('recurringBills.empty')}
+          </p>
+        ) : null}
+        {bills.read.status === 'ready'
+          ? bills.read.data.map((candidate) => (
+              <button
+                key={candidate.billId}
+                type="button"
+                disabled={busy}
+                onClick={() => onPick(candidate)}
+                className="flex w-full items-center justify-between gap-3 border-b border-surface-background px-1 py-3 text-start transition-colors last:border-b-0 hover:bg-primary-25 disabled:opacity-60"
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-text-primary">
+                    {candidate.billNumber?.trim() || t('paymentRuns.unnumbered')}
+                  </span>
+                  <span className="block text-xs font-medium text-text-quaternary">
+                    {[
+                      candidate.issueDate ? formatDate(candidate.issueDate, language) : null,
+                      candidate.variancePercent === null
+                        ? null
+                        : candidate.variancePercent === 0
+                          ? t('recurringBills.detail.sameAsUsual')
+                          : t('recurringBills.detail.onUsual', {
+                              percent: formatVariance(candidate.variancePercent),
+                            }),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </span>
+                {candidate.totalIncludingVat === null ? null : (
+                  <span className="flex items-center gap-1 text-sm font-semibold text-text-secondary tabular-nums">
+                    <Rial />
+                    {formatAmount(candidate.totalIncludingVat, candidate.currencyCode, language)}
+                  </span>
+                )}
+              </button>
+            ))
+          : null}
+      </div>
+    </Modal>
   )
 }
