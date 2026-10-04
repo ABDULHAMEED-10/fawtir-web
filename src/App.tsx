@@ -122,6 +122,11 @@ import {
   ErpConnectionsPage,
   ErpConnectPage,
   ErpBridgePage,
+  ErpDocumentsPage,
+  ErpDocumentDetailPage,
+  ErpAttentionPage,
+  ErpRunsPage,
+  ErpRunDetailPage,
   ConnectionOverviewPage,
   ConnectionMappingPage,
   ConnectionRunsPage,
@@ -587,6 +592,46 @@ function App() {
             element={
               <PlanGated feature="erpMapping" shell="settings">
                 <ErpBridgePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/documents"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpDocumentsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/documents/:recordId"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpDocumentDetailPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/attention"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpAttentionPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/runs"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpRunsPage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/runs/:runId"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpRunDetailPage />
               </PlanGated>
             }
           />

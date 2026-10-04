@@ -372,6 +372,16 @@ Decisions taken without a Figma frame (none exists for any ERP screen):
   same reason).
 - API push has no screen: it is explained in one sentence, not drawn as a connection.
 
+## 7.11 ERP activity reports built (4 Oct 2026)
+
+The read side of the backend's Phase 3B reporting, under Settings › Integration: source documents
+(`/settings/erp/documents`, with the server summary), one document's detail and timeline, needs
+attention (`/settings/erp/attention`, query-time reconciliation labels) and extraction runs
+(`/settings/erp/runs`). All read-only and gated by `invoice.read`; the backend has no replay or
+recovery action, so none is offered. The old per-connection runs and records addresses redirect to
+these reports narrowed to the connection. Built from the Integration templates without a Figma
+frame. Handoff: `docs/frontend/ERP_REPORTING_HANDOFF.md`.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |

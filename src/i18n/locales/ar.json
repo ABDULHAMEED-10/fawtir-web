@@ -10089,7 +10089,11 @@
       "bridgeTitle": "الرفع من نظامك",
       "bridgeBody": "أرسل مستندا واحدا أنتجه نظامك، ويحوله الربط إلى فاتورة.",
       "bridgePill": "مستند واحد في كل مرة",
-      "bridgeFoot": "لا حاجة إلى اتصال"
+      "bridgeFoot": "لا حاجة إلى اتصال",
+      "erpActivityTitle": "نشاط نظام تخطيط الموارد",
+      "erpActivityBody": "كل مستند أرسله نظامك، وما آل إليه، وعمليات الاستخراج التي جلبته.",
+      "erpActivityPill": "تقارير",
+      "erpActivityFoot": "المستندات المصدرية، ما يحتاج إلى متابعة، العمليات"
     }
   },
   "peppolTax": {
@@ -17344,6 +17348,391 @@
         "more_few": "و{{count}} فحوص أخرى",
         "more_many": "و{{count}} فحصا آخر",
         "more_other": "و{{count}} فحص آخر"
+      }
+    },
+    "reporting": {
+      "tabs": {
+        "label": "نشاط نظام تخطيط الموارد",
+        "documents": "المستندات المصدرية",
+        "attention": "يحتاج إلى متابعة",
+        "runs": "عمليات الاستخراج"
+      },
+      "noConnection": "لا ينطبق",
+      "pager": "الصفحات",
+      "pastTheEnd": "لا يوجد شيء في هذه الصفحة لهذه المرشحات.",
+      "firstPage": "الانتقال إلى الصفحة الأولى",
+      "version": "الإصدار {{version}}",
+      "invoiceMissing": "لم يُعثر على سجل الفاتورة",
+      "noInvoice": "لا توجد فاتورة",
+      "window": {
+        "label": "تاريخ الاستلام",
+        "from": "مستلم من",
+        "to": "مستلم إلى",
+        "problem": {
+          "missing": "اختر التاريخين كليهما.",
+          "invalid": "أدخل التواريخ بالصيغة YYYY-MM-DD.",
+          "order": "يجب ألا يكون تاريخ البداية بعد تاريخ النهاية.",
+          "tooLong": "اختر 367 يومًا على الأكثر. ضيّق التواريخ لعرض مستندات أقدم."
+        },
+        "fixToRead": "صحّح التواريخ أعلاه لعرض المستندات."
+      },
+      "filters": {
+        "title": "المرشحات",
+        "channel": "القناة",
+        "connection": "الاتصال",
+        "processing": "حالة المعالجة",
+        "delivery": "حالة الفاتورة",
+        "reason": "السبب",
+        "retryable": "ما زال من الممكن قبوله",
+        "retryableYes": "نعم",
+        "retryableNo": "لا",
+        "sort": "الترتيب",
+        "document": "رقم المستند في نظامك",
+        "invoice": "رقم الفاتورة",
+        "any": "الكل",
+        "anyLabel": "كل التصنيفات",
+        "label": "التصنيف",
+        "runState": "حالة العملية",
+        "more": "مرشحات إضافية",
+        "fewer": "مرشحات أقل",
+        "reset": "إعادة ضبط المرشحات",
+        "clear": "مسح",
+        "apply": "تطبيق",
+        "exactHint": "تطابق تام"
+      },
+      "sort": {
+        "RECEIVED_NEWEST": "الأحدث أولاً",
+        "RECEIVED_OLDEST": "الأقدم أولاً"
+      },
+      "documents": {
+        "title": "المستندات المصدرية",
+        "subtitle": "كل مستند أرسله نظامك إلى فوترة، من كل القنوات، وما آل إليه.",
+        "listTitle": "المستندات",
+        "caption": "المستندات المصدرية",
+        "emptyFiltered": "لا توجد مستندات تطابق هذه المرشحات في هذه الفترة.",
+        "emptyWindow": "لم تُستلم أي مستندات في هذه الفترة."
+      },
+      "summary": {
+        "title": "هذه الفترة",
+        "note": "يحسبها الخادم على التواريخ والقناة والاتصال المختارة. المرشحات الأخرى تضيّق القائمة فقط.",
+        "received": "المستلمة",
+        "bucket": {
+          "accepted": "مقبولة",
+          "rejected": "مرفوضة",
+          "duplicate": "مكررة",
+          "waiting_for_mapping": "بانتظار الربط",
+          "retryable": "ما زال من الممكن قبولها",
+          "processing": "قيد المعالجة"
+        },
+        "downstreamTitle": "أين تقف الفواتير المقبولة الآن",
+        "downstreamNote": "يحتسب فشل التسليم الفواتير على شبكة Peppol فقط. فواتير المشترين خارج الشبكة تُحتسب منفصلة وليست حالات فشل.",
+        "events": "سُجّل أيضًا: {{replays}} إعادة إرسال على الأقل لمستندات سبقت تسويتها و{{conflicts}} تعارضًا مرفوضًا على الأقل. مصدرها سجل التدقيق، وقد يفوته حدث، ولا يسجّل شيئًا للسحب المُدار."
+      },
+      "downstream": {
+        "total": "المقبولة بكل حالاتها",
+        "queued": "في الانتظار",
+        "sending": "قيد الإرسال",
+        "sent": "مُرسلة",
+        "delivered": "مُسلّمة",
+        "delivered_unconfirmed": "مُسلّمة دون تأكيد",
+        "delivery_failed": "فشل التسليم",
+        "off_network": "خارج شبكة Peppol",
+        "without_invoice": "مقبولة دون فاتورة"
+      },
+      "col": {
+        "document": "المستند",
+        "status": "الحالة",
+        "processing": "المعالجة",
+        "invoice": "الفاتورة",
+        "channel": "القناة",
+        "connection": "الاتصال",
+        "received": "تاريخ الاستلام",
+        "labels": "يحتاج إلى متابعة لأن",
+        "started": "إنشاء العملية",
+        "runState": "حالة العملية"
+      },
+      "counter": {
+        "discovered": "المكتشفة",
+        "accepted": "المقبولة",
+        "rejected": "المرفوضة",
+        "duplicate": "المكررة",
+        "unsettled": "غير المسوّاة"
+      },
+      "displayStatus": {
+        "REJECTED": "مرفوض",
+        "DUPLICATE": "مكرر",
+        "WAITING_FOR_MAPPING": "بانتظار الربط",
+        "RETRYABLE_FAILURE": "ستُعاد المحاولة",
+        "PROCESSING": "قيد المعالجة",
+        "ACCEPTED": "مقبول",
+        "SUBMITTED": "مُقدّم",
+        "SENT": "مُرسل",
+        "DELIVERED_UNCONFIRMED": "مُسلّم دون تأكيد",
+        "DELIVERED": "مُسلّم",
+        "OFF_NETWORK": "خارج Peppol",
+        "DELIVERY_FAILED": "فشل التسليم"
+      },
+      "displayExplain": {
+        "REJECTED": "رُفض المستند ولم يصبح فاتورة.",
+        "DUPLICATE": "سبق استلام هذا المستند، فلم يصبح فاتورة ثانية.",
+        "WAITING_FOR_MAPPING": "المستند بانتظار إنشاء ربط نظامك أو اعتماده.",
+        "RETRYABLE_FAILURE": "فشلت المحاولة الأخيرة لسبب قد يزول؛ ما زال من الممكن قبول المستند.",
+        "PROCESSING": "المستند قيد المعالجة.",
+        "ACCEPTED": "قُبل المستند.",
+        "SUBMITTED": "الفاتورة موجودة ولم يؤكد النقل استلامها بعد.",
+        "SENT": "أكد النقل استلام الفاتورة؛ ولم يرد طرف المستلم بعد.",
+        "DELIVERED_UNCONFIRMED": "رد طرف المستلم دون تأكيد، أو لم يرد في الوقت المحدد.",
+        "DELIVERED": "سُلّمت الفاتورة.",
+        "OFF_NETWORK": "المشتري ليس على شبكة Peppol، فلم تُرسل الفاتورة عبرها. لا يُسجَّل هنا ما إذا كان المشتري قد استلمها بطريقة أخرى.",
+        "DELIVERY_FAILED": "انتهت مرحلة الشبكة دون وصول الفاتورة إلى المستلم، أو رفضها."
+      },
+      "processingState": {
+        "DISCOVERED": "مستلم",
+        "CLAIMED": "قيد المعالجة",
+        "ACCEPTED": "مقبول",
+        "REJECTED": "مرفوض",
+        "DUPLICATE": "مكرر",
+        "FAILED": "فشل"
+      },
+      "reason": {
+        "SOURCE_UNAVAILABLE": "تعذّر الوصول إلى نظامك",
+        "SOURCE_TIMEOUT": "لم يرد نظامك في الوقت المحدد",
+        "SOURCE_AUTHENTICATION_REJECTED": "رفض نظامك بيانات الدخول",
+        "INFRASTRUCTURE_ERROR": "تعطلت خدمة في فوترة",
+        "ATTEMPTS_EXHAUSTED": "استُنفدت كل المحاولات",
+        "SOURCE_PAYLOAD_UNREADABLE": "تعذّرت قراءة المستند بصيغته",
+        "DUPLICATE_SOURCE_RECORD": "مستلم من قبل",
+        "MAPPING_PROFILE_ABSENT": "لا يوجد ربط لنظامك",
+        "MAPPING_FAILED": "لم يتمكن الربط من إنتاج فاتورة",
+        "MAPPING_NOT_CERTIFIED": "الربط غير معتمد",
+        "INVOICE_VALIDATION_FAILED": "لم تجتز الفاتورة التحقق"
+      },
+      "stage": {
+        "SOURCE": "نظامك",
+        "MAPPING": "الربط",
+        "INVOICE_VALIDATION": "التحقق من الفاتورة",
+        "SUBMISSION": "التقديم"
+      },
+      "failureClass": {
+        "DOCUMENT": "المستند نفسه",
+        "READINESS": "الإعداد غير جاهز",
+        "PLATFORM": "منصة فوترة"
+      },
+      "sourceKind": {
+        "MANAGED_PULL": "السحب المُدار",
+        "BRIDGE_UPLOAD": "الرفع",
+        "API_PUSH": "الدفع عبر API"
+      },
+      "runState": {
+        "CREATED": "أُنشئت",
+        "RUNNING": "قيد التشغيل",
+        "COMPLETED": "اكتملت",
+        "COMPLETED_WITH_ERRORS": "اكتملت مع أخطاء",
+        "FAILED": "فشلت",
+        "CANCELLED": "أُلغيت"
+      },
+      "deliveryState": {
+        "QUEUED": "في الانتظار",
+        "SENDING": "قيد الإرسال",
+        "SENT": "مُرسلة",
+        "DELIVERED": "مُسلّمة",
+        "DELIVERED_UNCONFIRMED": "مُسلّمة دون تأكيد",
+        "UNDELIVERABLE": "تعذّر التسليم",
+        "C4_UNREACHABLE": "تعذّر الوصول إلى المستلم"
+      },
+      "route": {
+        "PEPPOL_NETWORK": "شبكة Peppol",
+        "OUTSIDE_PEPPOL": "خارج شبكة Peppol"
+      },
+      "ack": {
+        "AP": "قبلها طرف المستلم",
+        "AB": "سُلّمت دون تأكيد",
+        "RE": "رُفضت أو لم تُسلّم",
+        "NONE": "لم يُسجّل رد"
+      },
+      "taxStatus": {
+        "PENDING": "بانتظار الإرسال",
+        "SUBMITTED": "أُرسل",
+        "GENERATION_FAILED": "تعذّر إنتاجه",
+        "ACCEPTED": "مقبول",
+        "DELIVERED_UNCONFIRMED": "سُلّم دون تأكيد",
+        "REJECTED": "رُفض كرسالة",
+        "TO_DISREGARD": "سيُسحب",
+        "DISREGARD_SUBMITTED": "أُرسل السحب",
+        "DEAD_LETTERED": "تُخلّي عنه"
+      },
+      "taxVariant": {
+        "SUBMIT": "تقرير",
+        "RESUBMIT": "تقرير مصحح",
+        "DISREGARD": "سحب"
+      },
+      "label": {
+        "RECOVERY_PENDING": "بانتظار الاستعادة",
+        "WAITING_FOR_MAPPING": "بانتظار الربط",
+        "RETRYABLE_FAILURE": "فشل، ستُعاد المحاولة",
+        "ACCEPTED_WITHOUT_INVOICE": "مقبول دون فاتورة",
+        "TRANSPORT_PENDING": "لم يؤكد النقل الاستلام",
+        "RESPONSE_PENDING": "لا رد من المستلم",
+        "DELIVERY_FAILED": "فشل التسليم",
+        "TAX_REPORT_ATTENTION": "التقرير الضريبي يحتاج إلى متابعة"
+      },
+      "labelExplain": {
+        "RECOVERY_PENDING": "المستند محجوز لمحاولة لا يعمل عليها أحد. ستحرره عملية الاستعادة في فوترة.",
+        "WAITING_FOR_MAPPING": "المستند بانتظار إنشاء ربط نظامك أو اعتماده.",
+        "RETRYABLE_FAILURE": "فشلت المحاولة الأخيرة لسبب قد يزول.",
+        "ACCEPTED_WITHOUT_INVOICE": "قُبل المستند ولا توجد له فاتورة. لا ينبغي أن يحدث هذا؛ يُبلّغ عنه ولا يُصلح من هنا.",
+        "TRANSPORT_PENDING": "انتظرت الفاتورة أطول من المتوقع حتى يؤكد النقل استلامها.",
+        "RESPONSE_PENDING": "أكد النقل استلام الفاتورة ولم يرد طرف المستلم منذ مدة طويلة.",
+        "DELIVERY_FAILED": "انتهت مرحلة الشبكة دون وصول الفاتورة إلى المستلم، أو رفضها.",
+        "TAX_REPORT_ATTENTION": "تعذّر إنتاج التقرير الضريبي، أو رُفض كرسالة، أو تُخلّي عنه، أو ينتظر بعد موعده. هذا منفصل عن التسليم."
+      },
+      "labelGroup": {
+        "attention": "قبل الفاتورة",
+        "delivery": "التسليم",
+        "tax": "التقارير الضريبية"
+      },
+      "timeline": {
+        "title": "التسلسل الزمني",
+        "note": "ما سجلته السجلات وسجل التدقيق، مع وقت تسجيل كل منها. أحداث التدقيق أدلة وقد تكون ناقصة؛ ولا يسجل السحب المُدار أيًا منها.",
+        "newestFirst": "عرض الأحدث أولاً",
+        "oldestFirst": "عرض الأقدم أولاً",
+        "truncated": "توجد أحداث تدقيق أقدم لا تظهر. تُقرأ أحدث {{count}} فقط.",
+        "empty": "لم يُسجّل شيء لهذا المستند بعد.",
+        "SOURCE_RECEIVED": "استُلم",
+        "SOURCE_CLAIMED": "أُخذ للمعالجة",
+        "SOURCE_DEFERRED": "أُرجئ لمحاولة لاحقة",
+        "RECOVERY": "استُعيد",
+        "SOURCE_REJECTED": "رُفض",
+        "SOURCE_DUPLICATE": "مكرر",
+        "SOURCE_ACCEPTED": "قُبل",
+        "REPLAY": "أُرسل مجددًا",
+        "CONFLICT": "رُفض محتوى مختلف",
+        "INVOICE_SUBMITTED": "أُنشئت الفاتورة",
+        "DELIVERY_STATE": "التسليم",
+        "RECIPIENT_RESPONSE": "رد المستلم",
+        "TAX_REPORT": "التقرير الضريبي"
+      },
+      "recovery": {
+        "RELEASED": "حُرر لمحاولة أخرى",
+        "EXHAUSTED": "لم تبق محاولات"
+      },
+      "timelineTax": {
+        "SUBMITTED": "أُرسل",
+        "AP": "قُبل",
+        "AB": "سُلّم دون تأكيد",
+        "RE": "رُفض كرسالة"
+      },
+      "origin": {
+        "SOURCE_LEDGER": "سجل المصدر",
+        "AUDIT_TRAIL": "دليل التدقيق",
+        "INVOICE_LEDGER": "سجل الفاتورة"
+      },
+      "actor": {
+        "USER": "بواسطة مستخدم",
+        "API_KEY": "بواسطة مفتاح API",
+        "SYSTEM": "بواسطة فوترة",
+        "SUPPORT_USER": "بواسطة دعم فوترة"
+      },
+      "detail": {
+        "title": "مستند مصدري",
+        "subtitle": "مستند واحد من نظامك، وكل خطوة مر بها.",
+        "back": "كل المستندات",
+        "overall": "الإجمالي",
+        "overallNote": "ملخص بكلمة واحدة لأبعد نقطة وصل إليها. الأقسام أدناه هي ما تسجله السجلات.",
+        "source": "من نظامك",
+        "version": "الإصدار",
+        "run": "العملية",
+        "openRun": "فتح العملية",
+        "reason": "السبب",
+        "stage": "عند {{stage}}",
+        "failureClass": "السبب الأساسي",
+        "retryable": "ما زال من الممكن قبوله",
+        "retryableYes": "نعم، إن أُعيدت محاولة المستند نفسه",
+        "retryableNo": "لا",
+        "attempts": "المحاولات",
+        "attemptsOf": "{{used}} من {{max}}",
+        "settled": "تمت التسوية",
+        "updated": "آخر تغيير",
+        "invoice": "الفاتورة",
+        "acceptedNoInvoice": "قُبل المستند ولا توجد فاتورة مسجلة له.",
+        "noInvoice": "لم تُنشأ فاتورة من هذا المستند.",
+        "anomaly": "حالة شاذة",
+        "compliance": "التسليم والتقارير الضريبية",
+        "openCompliance": "فتح في نشاط الامتثال",
+        "delivery": "التسليم",
+        "offNetworkNote": "لم تُرسل هذه الفاتورة عبر شبكة Peppol. الحالة أدناه تصف مرحلة شبكة لا تخص الفاتورة ولا تدل على استلام المشتري لها.",
+        "route": "المسار",
+        "ledgerState": "حالة السجل",
+        "ledgerReason": "سبب السجل",
+        "validatedAt": "تم التحقق",
+        "sentAt": "أُرسلت",
+        "deliveredAt": "سُلّمت",
+        "response": "رد المستلم",
+        "responseNote": "منفصل عن التسليم: قد تُرفض هنا فاتورة أكد النقل استلامها.",
+        "responseNotApplicable": "لا ينطبق: لم تمر الفاتورة عبر شبكة Peppol.",
+        "responseNone": "لم يُسجّل شيء بعد. هذا ليس رفضًا.",
+        "tax": "التقرير الضريبي",
+        "taxNote": "منفصل عن التسليم. رفض التقرير رفض له كرسالة، وليس حكمًا ضريبيًا.",
+        "taxNone": "لم يُسجّل التزام بتقرير ضريبي بعد.",
+        "taxStatus": "الحالة",
+        "taxVariant": "النوع",
+        "taxDeadline": "الموعد النهائي",
+        "taxSubmitted": "أُرسل",
+        "taxSla": "تم الالتزام بالموعد",
+        "taxSlaOpen": "لم يُحسم بعد",
+        "taxSlaMet": "نعم",
+        "taxSlaMissed": "لا",
+        "taxObligations": "التقارير المسجلة"
+      },
+      "findings": {
+        "title": "نتائج التحقق",
+        "truncated": "احتُفظ بأول {{count}} نتيجة فقط.",
+        "layer": "الطبقة",
+        "rule": "القاعدة",
+        "field": "المصطلح أو الحقل",
+        "explanation": "الشرح",
+        "none": "لم يُحتفظ بأي نتائج لهذا المستند."
+      },
+      "attention": {
+        "title": "يحتاج إلى متابعة",
+        "subtitle": "مستندات لم تصل إلى حيث ينبغي، يحددها الخادم عند فتح هذه الصفحة. لا شيء هنا مخزّن أو يحتاج إلى إغلاق.",
+        "listTitle": "مستندات تحتاج إلى متابعة",
+        "unevaluated": "لم يُفحص: {{labels}}.",
+        "responsePendingUnevaluated": "لا توجد مدة انتظار معتمدة لرد المستلم، لذلك لا يُبلّغ عن غياب الرد على أنه متأخر.",
+        "emptyFiltered": "لا توجد مستندات تحمل هذا التصنيف في هذه الفترة.",
+        "empty": "لا شيء يحتاج إلى متابعة في هذه الفترة.",
+        "guideTitle": "معاني التصنيفات",
+        "guideOpen": "عرض التصنيفات",
+        "since": "منذ",
+        "tax": "التقرير الضريبي: {{status}}"
+      },
+      "runs": {
+        "title": "عمليات الاستخراج",
+        "subtitle": "كل مرة جُمعت فيها مستندات من نظامك أو أُرسلت منه، الأحدث أولاً.",
+        "listTitle": "العمليات",
+        "countersNote": "العدادات هي ما سجلته كل عملية عند تشغيلها. ولا تتغير بعد ذلك.",
+        "emptyFiltered": "لا توجد عمليات تطابق هذه المرشحات.",
+        "empty": "لا توجد عمليات استخراج بعد."
+      },
+      "run": {
+        "title": "عملية استخراج",
+        "subtitle": "ما سجلته العملية، وأين تقف مستنداتها الآن.",
+        "back": "كل العمليات",
+        "documentsTitle": "مستندات هذه العملية",
+        "documentsNote": "المستندات التي تحملها هذه العملية الآن. المستند الذي تولته عملية لاحقة يظهر هناك.",
+        "documentsEmpty": "لا تحمل هذه العملية أي مستندات.",
+        "metadata": "العملية",
+        "field": {
+          "state": "الحالة",
+          "channel": "القناة",
+          "connection": "الاتصال",
+          "created": "أُنشئت",
+          "started": "بدأت",
+          "completed": "اكتملت",
+          "failure": "سبب الفشل"
+        },
+        "countersTitle": "ما سجلته العملية",
+        "downstreamTitle": "فواتيرها المقبولة الآن"
       }
     }
   },

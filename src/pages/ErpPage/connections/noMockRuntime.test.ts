@@ -35,6 +35,12 @@ const GUARDED = [
   'api/erp/extraction.ts',
   'lib/erp/connectionPolicy.ts',
   'hooks/useErpAccess.ts',
+  // The extraction reports (ERP frontend Phase 2): runs, documents and reconciliation are where a
+  // tenant reads what their ERP sent, so invented figures there would be the most misleading.
+  'pages/ErpPage/reporting',
+  'api/erp/reporting.ts',
+  'lib/erp/reportingStatus.ts',
+  'lib/erp/reportingWindow.ts',
   // The console's own two connection screens, since the browser gate of 24 September 2026:
   // they drew the same invented state for an operator, who would answer a support call from
   // it. They now say the platform view is not built (ConsoleErpUnavailable). The templates,

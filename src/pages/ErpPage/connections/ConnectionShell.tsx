@@ -10,12 +10,12 @@ import type { ErpConnectionDto } from '../../../api/erp/connections'
  * The frame every real connection screen shares: Settings' shell with Integration lit, the
  * connection's name and system with its state, and the tabs.
  *
- * **Two tabs, not six.** The previous shell offered Overview · Mapping · Runs · Records ·
- * Write-back · Settings. Four of those describe extraction — collecting invoices from an ERP on a
- * schedule and writing outcomes back — which Phase 2 does not implement and this phase does not
- * build. Their URLs still resolve so an existing bookmark does not 404, but they are off the strip
- * and say plainly that the feature is not switched on. Leaving them on the strip would advertise
- * working features that do not exist.
+ * **Three tabs, not six.** The previous shell offered Overview · Mapping · Runs · Records ·
+ * Write-back · Settings. Runs and records are reported for every channel in one place
+ * (`/settings/erp/runs`, `/settings/erp/documents`), because uploads and API pushes have runs and
+ * no connection; their per-connection addresses now open those reports narrowed to the connection.
+ * Write-back and the per-connection mapping have no backend, so their URLs still resolve and say
+ * plainly that the feature is not switched on, off the strip.
  */
 
 // Module-private: nothing outside needs them, and a component module that also exports
@@ -24,8 +24,8 @@ const CONNECTION_TABS = [
   { id: 'overview', path: '' },
   { id: 'settings', path: '/settings' },
   // Extraction joins the strip because it now has a backend behind it: configuration, sample,
-  // activation and status are all real endpoints. The runs, records, write-back and per-connection
-  // mapping screens stay off the strip until the same is true of them.
+  // activation and status are all real endpoints. Write-back and the per-connection mapping stay
+  // off the strip until the same is true of them.
   { id: 'extraction', path: '/extraction' },
 ] as const
 type ConnectionTab = (typeof CONNECTION_TABS)[number]['id']
