@@ -635,7 +635,7 @@ describe('scan receipts', () => {
 
 describe('upload a supplier note', () => {
   // The note uploads are on their own frames (163:19080, 163:20010) with their own intake form;
-  // the credit note's 381 is asserted in src/pages/SupplierCreditNotesPage/creditNotes.test.tsx.
+  // the credit note's 381 is asserted in src/pages/UploadCreditNotePage/uploadCreditNote.test.tsx.
   // The type is what decides which way the money points, so it is the assertion that matters:
   // a 380 here would file a charge as an ordinary bill.
   it('confirms a debit note as a 383 and opens it on the debit-note screen', async () => {
