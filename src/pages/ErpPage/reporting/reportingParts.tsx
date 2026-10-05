@@ -12,8 +12,37 @@ import { formatInstant } from '../../../lib/format'
 import { REPORT_MAX_PAGE, type SourceDocumentDto } from '../../../api/erp/reporting'
 import { displayStatusTone, shortId, type Tone } from '../../../lib/erp/reportingStatus'
 import type { WindowProblem } from '../../../lib/erp/reportingWindow'
-import { REPORT_READ, useCode } from './reportingHooks'
+import { GLOBAL_LINKS, REPORT_READ, ltr, useCode, type ReportLinks } from './reportingHooks'
 import { TEXT_BUTTON } from '../overview/idiom'
+import chevronIcon from '../../../assets/invoices/chevron.svg'
+
+/**
+ * The plain back link Settings uses ("‹ All settings"), for a detail screen's way back to its
+ * list. A link, not a button in a card: it goes somewhere, it does not do something.
+ */
+export function BackLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-quaternary transition-colors hover:text-primary-700"
+    >
+      <img src={chevronIcon} alt="" aria-hidden="true" className="size-4 rotate-180 rtl:rotate-0" />
+      {children}
+    </Link>
+  )
+}
+
+/**
+ * The report read gate on its own, for a report drawn inside another frame (a connection's shell).
+ *
+ * A snapshot without `invoice.read` is refused here without asking the server; a snapshot that
+ * could not be fetched lets the read go ahead, and the server's own 403 is what the reader sees.
+ */
+export function ReportReadGate({ children }: { children: ReactNode }) {
+  const { entitlements, ready } = useEntitlements()
+  const denied = ready && entitlements !== null && !hasPermission(entitlements, REPORT_READ)
+  return !ready ? <LoadingNotice /> : denied ? <PermissionDeniedNotice /> : <>{children}</>
+}
 
 const REPORT_TABS = [
   { id: 'documents', to: '/settings/erp/documents' },
@@ -62,20 +91,28 @@ export function ReportingShell({
   title,
   subtitle,
   actions,
+  back,
   children,
 }: {
   title: string
   subtitle: string
   actions?: ReactNode
+  /** A detail screen's way back to its list, drawn above the title as Settings draws its own. */
+  back?: { to: string; label: string }
   children: ReactNode
 }) {
-  const { entitlements, ready } = useEntitlements()
-  const denied = ready && entitlements !== null && !hasPermission(entitlements, REPORT_READ)
   return (
     <SettingsShell group="integration">
-      <SettingsHeader title={title} subtitle={subtitle} actions={actions} />
+      {back ? (
+        <div className="flex flex-col gap-3">
+          <BackLink to={back.to}>{back.label}</BackLink>
+          <SettingsHeader title={title} subtitle={subtitle} actions={actions} />
+        </div>
+      ) : (
+        <SettingsHeader title={title} subtitle={subtitle} actions={actions} />
+      )}
       <ReportTabs />
-      {!ready ? <LoadingNotice /> : denied ? <PermissionDeniedNotice /> : children}
+      <ReportReadGate>{children}</ReportReadGate>
     </SettingsShell>
   )
 }
@@ -144,52 +181,60 @@ export function FilterSelect({
         onChange={onChange}
         options={[{ value: '', label: anyLabel }, ...options]}
         ariaLabel={label}
-        compact
       />
     </div>
   )
 }
 
-/** The received-at window: two business-zone days, both included. */
+/**
+ * The window: two business-zone days, both included. `received` for documents (their received-at
+ * time), `started` for runs (the time a run was created, which the run list's window reads).
+ *
+ * The two dates share the row the way two filter columns would, so they line up with the selects
+ * beside them; on a phone they stack full width and the dash between them goes.
+ */
 export function WindowFields({
   from,
   to,
   onChange,
   problem,
   max,
+  kind = 'received',
 }: {
   from: string
   to: string
   onChange: (next: { from: string; to: string }) => void
   problem: WindowProblem | null
   max?: string
+  kind?: 'received' | 'started'
 }) {
   const { t } = useTranslation()
   const errorId = useId()
+  const words = kind === 'started' ? 'erp.reporting.window.started' : 'erp.reporting.window'
   return (
     <fieldset className="flex min-w-0 flex-col gap-1">
       <legend className="mb-1 text-xs font-medium text-text-secondary">
-        {t('erp.reporting.window.label')}
+        {t(`${words}.label`)}
       </legend>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-[170px] max-w-full">
+      <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div className="min-w-0">
           <DateField
             value={from}
             onChange={(value) => onChange({ from: value, to })}
-            ariaLabel={t('erp.reporting.window.from')}
+            ariaLabel={t(`${words}.from`)}
             ariaDescribedBy={problem ? errorId : undefined}
             ariaInvalid={problem !== null}
             max={max}
           />
         </div>
-        <span aria-hidden="true" className="text-text-quaternary">
+        <span aria-hidden="true" className="text-text-quaternary max-sm:hidden">
           –
         </span>
-        <div className="w-[170px] max-w-full">
+        <div className="min-w-0">
           <DateField
             value={to}
             onChange={(value) => onChange({ from, to: value })}
-            ariaLabel={t('erp.reporting.window.to')}
+            ariaLabel={t(`${words}.to`)}
             ariaDescribedBy={problem ? errorId : undefined}
             ariaInvalid={problem !== null}
             max={max}
@@ -254,10 +299,12 @@ export function DocumentsTable({
   items,
   names,
   empty,
+  links = GLOBAL_LINKS,
 }: {
   items: SourceDocumentDto[]
   names: Map<string, string> | null
   empty: string
+  links?: ReportLinks
 }) {
   const { t } = useTranslation()
   const code = useCode()
@@ -282,23 +329,23 @@ export function DocumentsTable({
           ) : (
             items.map((item) => (
               <tr key={item.record_id} className={TBODY_ROW}>
-                <Td first>
+                <Td first className="md:min-w-[180px]">
                   <Link
-                    to={`/settings/erp/documents/${encodeURIComponent(item.record_id)}`}
-                    className="font-semibold text-primary-700 underline-offset-2 hover:underline break-all"
+                    to={links.document(item.record_id)}
+                    className="font-semibold text-primary-700 underline-offset-2 hover:underline break-words"
                   >
-                    <span dir="ltr">{item.external_document_id}</span>
+                    <bdi dir="ltr">{item.external_document_id}</bdi>
                   </Link>
                   {item.external_version ? (
-                    <span className="ms-1 text-xs text-text-quaternary">
-                      {t('erp.reporting.version', { version: item.external_version })}
+                    <span className="block text-xs text-text-quaternary break-words">
+                      {t('erp.reporting.version', { version: ltr(item.external_version) })}
                     </span>
                   ) : null}
                 </Td>
                 <Td>
                   <DisplayStatusPill status={item.display_status} />
                 </Td>
-                <Td>
+                <Td className="md:min-w-[150px]">
                   <span className="block">{code('processingState', item.processing_state)}</span>
                   {item.reason_code ? (
                     <span className="block text-xs text-text-quaternary">
@@ -306,11 +353,11 @@ export function DocumentsTable({
                     </span>
                   ) : null}
                 </Td>
-                <Td>
+                <Td className="md:min-w-[160px]">
                   {item.invoice?.invoice_number ? (
-                    <span dir="ltr" className="break-all">
+                    <bdi dir="ltr" className="break-words">
                       {item.invoice.invoice_number}
-                    </span>
+                    </bdi>
                   ) : item.invoice?.missing ? (
                     <span className="text-danger-700">{t('erp.reporting.invoiceMissing')}</span>
                   ) : (

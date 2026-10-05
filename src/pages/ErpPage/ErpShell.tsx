@@ -97,7 +97,7 @@ export function IntegrationSubnav() {
   return (
     <nav
       aria-label={t('erp.subnav.label')}
-      className="flex items-center gap-1 overflow-x-auto rounded-md bg-surface-card px-2"
+      className="-mb-2 flex gap-1 overflow-x-auto border-b border-border-subtle max-md:flex-wrap max-md:overflow-x-visible"
     >
       {SCREENS.map((screen) => {
         const active = pathname === screen.to
@@ -108,7 +108,7 @@ export function IntegrationSubnav() {
             to={screen.to}
             aria-current={active ? 'page' : undefined}
             className={[
-              'inline-flex h-[46px] shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors',
+              'inline-flex h-[46px] shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors max-md:h-[40px]',
               active
                 ? 'border-primary-700 text-primary-800'
                 : 'border-transparent text-text-quaternary hover:text-text-secondary',
@@ -166,7 +166,7 @@ export function CoverageBanner({ compact = false }: { compact?: boolean }) {
                 <Link
                   to="/settings/erp-mapping/advanced"
                   title={limit.guidance}
-                  className="inline-flex h-[24px] items-center rounded-[3px] bg-white px-2 text-[11px] font-semibold text-pending-700 transition-colors hover:bg-pending-100"
+                  className="inline-flex min-h-[24px] items-center rounded-[3px] bg-white px-2 py-1 text-[11px] font-semibold leading-[1.3] text-pending-700 transition-colors hover:bg-pending-100"
                 >
                   {i18n.exists(key) ? t(key) : limit.summary}
                 </Link>
@@ -199,7 +199,12 @@ export function ErpShell({
         actions={
           <>
             <ErpStatusPill status={view.status} />
-            {actions}
+            {/* On a phone the buttons share one row under the pill instead of wrapping one by one. */}
+            {actions ? (
+              <div className="flex flex-wrap items-center gap-2.5 max-md:w-full max-md:[&>*]:flex-1">
+                {actions}
+              </div>
+            ) : null}
           </>
         }
       />

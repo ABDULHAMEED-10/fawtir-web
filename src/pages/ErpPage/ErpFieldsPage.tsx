@@ -31,6 +31,7 @@ import {
   type SaveOutcome,
 } from '../../lib/erp/draft'
 import { NO_READINESS } from '../../lib/erp/mappingState'
+import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { flattenKeys, sessionSamples } from '../../lib/erp/sample'
 import { FieldRow, ReadOnlyRow } from './fields/FieldRow'
 import { SectionCard } from './fields/SectionCard'
@@ -219,12 +220,26 @@ export function ErpFieldsPage() {
   }
 
   /* ------------------------------------------------------------ per section */
+  // A required term with an entry the validator refuses is not mapped yet: counting it made a
+  // section read "4/4" in green while one of its four was flagged invalid.
+  const invalidTerms = new Set(readiness.invalidMappings.map((mapping) => mapping.businessTermId))
   const sectionCounts = (section: Section) => {
     const required = REQUIRED_TARGETS.filter((target) => target.section === section)
-    const mapped = required.filter((target) =>
-      readiness.mappedRequiredTargets.includes(target.id),
+    const mapped = required.filter(
+      (target) =>
+        readiness.mappedRequiredTargets.includes(target.id) && !invalidTerms.has(target.id),
     )
-    return { mapped: mapped.length, total: required.length }
+    // Sections with nothing required (Payment) still say how many of their fields are filled.
+    const filled = draft.entries.filter(
+      (entry) => TARGET_BY_ID[entry.businessTermId]?.section === section,
+    ).length
+    // Any refused entry in the section, required or not (IBT-009 is optional), keeps it from
+    // reading as done: the chip then says so instead of showing a green 4/4.
+    const invalid = readiness.invalidMappings.filter(
+      (mapping) =>
+        mapping.businessTermId !== null && TARGET_BY_ID[mapping.businessTermId]?.section === section,
+    ).length
+    return { mapped: mapped.length, total: required.length, filled, invalid }
   }
 
   const row = (target: Target, inGroup = false) =>
@@ -312,7 +327,7 @@ export function ErpFieldsPage() {
                   }}
                   options={MAPPING_SOURCE_SYSTEMS.map((system) => ({
                     value: system,
-                    label: t(`erp.sourceSystem.${system}`),
+                    label: sourceSystemName(t, system),
                   }))}
                 />
               </label>
@@ -357,8 +372,8 @@ export function ErpFieldsPage() {
             className="flex items-center gap-1 overflow-x-auto rounded-md bg-surface-card px-2 lg:sticky lg:top-0 lg:z-10"
           >
             {SECTIONS.map((section) => {
-              const { mapped, total } = sectionCounts(section)
-              const complete = total === 0 || mapped === total
+              const { mapped, total, filled, invalid } = sectionCounts(section)
+              const complete = (total === 0 || mapped === total) && invalid === 0
               return (
                 <button
                   key={section}
@@ -371,23 +386,39 @@ export function ErpFieldsPage() {
                     <span
                       className={[
                         'inline-flex h-[18px] items-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
-                        complete
-                          ? 'bg-success-100 text-[#3d5648]'
-                          : 'bg-pending-100 text-pending-700',
+                        invalid > 0
+                          ? 'bg-danger-100 text-danger-700'
+                          : complete
+                            ? 'bg-success-100 text-[#3d5648]'
+                            : 'bg-pending-100 text-pending-700',
                       ].join(' ')}
                     >
                       {mapped}/{total}
                     </span>
-                  ) : null}
+                  ) : (
+                    <span
+                      title={t('erp.fields.filledCount', { count: filled })}
+                      className="inline-flex h-[18px] items-center rounded-full bg-surface-background px-1.5 text-[10px] font-semibold text-text-tertiary tabular-nums"
+                    >
+                      {filled}
+                    </span>
+                  )}
                 </button>
               )
             })}
           </nav>
 
           {SECTIONS.map((section) => {
-            const { mapped, total } = sectionCounts(section)
+            const { mapped, total, filled, invalid } = sectionCounts(section)
             return (
-              <SectionCard key={section} section={section} mapped={mapped} total={total}>
+              <SectionCard
+                key={section}
+                section={section}
+                mapped={mapped}
+                total={total}
+                filled={filled}
+                invalid={invalid}
+              >
                 {rowsFor(section)}
               </SectionCard>
             )

@@ -8,6 +8,7 @@ import { PRIMARY_BUTTON, SECONDARY_BUTTON, SectionCard, SecondaryLink } from './
 import { ConnectionFailure } from './connections/connectionParts'
 import { useMutation } from './connections/connectionData'
 import { useErpAccess } from '../../hooks/useErpAccess'
+import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import {
   createErpConnection,
   type ErpConnectionMode,
@@ -113,7 +114,7 @@ export function ErpConnectPage() {
       <form onSubmit={submit} className="flex flex-col gap-5">
         <ConnectionFailure error={mutation.error} />
 
-        <SectionCard title={t('erp.connections.create.heading')}>
+        <SectionCard title={t('erp.connections.create.cardTitle')}>
           <div className="grid gap-5 p-5 pt-0 md:grid-cols-2">
             <TextField
               id="erp-connection-name"
@@ -129,7 +130,10 @@ export function ErpConnectPage() {
               id="erp-connection-source"
               name="sourceSystem"
               label={t('erp.connections.create.sourceSystem')}
-              options={SOURCE_SYSTEMS}
+              options={SOURCE_SYSTEMS.map((value) => ({
+                value,
+                label: sourceSystemName(t, value),
+              }))}
               required
               value={sourceSystem}
               onChange={setSourceSystem}
@@ -172,13 +176,14 @@ export function ErpConnectPage() {
             <TextField
               id="erp-connection-endpoint"
               name="endpoint"
+              dir="ltr"
               label={t('erp.connections.create.endpoint')}
               hint={t('erp.connections.create.endpointHint')}
               maxLength={2048}
               value={endpoint}
               onChange={setEndpoint}
             />
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 [&_textarea]:font-mono [&_textarea]:text-xs [&_textarea]:[direction:ltr]">
               <TextAreaField
                 id="erp-connection-configuration"
                 name="configuration"

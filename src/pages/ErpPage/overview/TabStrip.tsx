@@ -14,7 +14,7 @@ export function TabStrip<T extends string>({
 }) {
   const { t } = useTranslation()
   return (
-    <nav className="flex flex-wrap items-center gap-1 border-b border-surface-background px-5 pt-4">
+    <nav className="flex flex-wrap items-center gap-1 border-b border-surface-background px-2 pt-4">
       {tabs.map((tab) => {
         const active = tab.id === value
         return (

@@ -1,21 +1,27 @@
 import type { ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from '../../SettingsPage/SettingsShell'
-import { SecondaryLink } from '../overview/idiom'
-import { ConnectionStatePill } from './connectionParts'
+import { SecondaryLink, SectionCard } from '../overview/idiom'
+import { LoadingNotice } from '../../../components/feedback/ApiNotice'
+import { ConnectionFeatureUnavailable, ConnectionStatePill } from './connectionParts'
+import { useConnectionDetail } from './connectionData'
+import { useErpAccess } from '../../../hooks/useErpAccess'
+import { isNotFound } from '../../../lib/apiFailure'
+import { sourceSystemName } from '../../../lib/erp/sourceSystem'
 import type { ErpConnectionDto } from '../../../api/erp/connections'
 
 /**
  * The frame every real connection screen shares: Settings' shell with Integration lit, the
  * connection's name and system with its state, and the tabs.
  *
- * **Three tabs, not six.** The previous shell offered Overview · Mapping · Runs · Records ·
- * Write-back · Settings. Runs and records are reported for every channel in one place
- * (`/settings/erp/runs`, `/settings/erp/documents`), because uploads and API pushes have runs and
- * no connection; their per-connection addresses now open those reports narrowed to the connection.
- * Write-back and the per-connection mapping have no backend, so their URLs still resolve and say
- * plainly that the feature is not switched on, off the strip.
+ * **Five tabs.** Overview, Settings, Extraction (collecting connections only), Runs and Records.
+ * Runs and records are still reported for every channel in one place (`/settings/erp/runs`,
+ * `/settings/erp/documents`), because uploads and API pushes have runs and no connection; the
+ * per-connection Runs and Records tabs show that same report fixed to this connection, inside this
+ * frame, and a run or record opened from them keeps its parent tab lit.
+ * Write-back and the per-connection mapping have no backend, so their URLs still resolve, inside this
+ * frame, and say plainly that the feature is not switched on, off the strip.
  */
 
 // Module-private: nothing outside needs them, and a component module that also exports
@@ -27,6 +33,10 @@ const CONNECTION_TABS = [
   // activation and status are all real endpoints. Write-back and the per-connection mapping stay
   // off the strip until the same is true of them.
   { id: 'extraction', path: '/extraction' },
+  // The shared runs and documents reports, fixed to this connection. A sub-route (one run, one
+  // record) lights its parent tab, because the match below is by prefix.
+  { id: 'runs', path: '/runs' },
+  { id: 'records', path: '/records' },
 ] as const
 type ConnectionTab = (typeof CONNECTION_TABS)[number]['id']
 
@@ -94,37 +104,35 @@ export function ConnectionShell({
   children: ReactNode
 }) {
   const { t } = useTranslation()
+  const backToList = { to: '/settings/erp/connections', label: t('erp.connections.backToList') }
+  // The heading takes a string, so each part is isolated with Unicode controls (the string form
+  // of <bdi>): the version always left to right, the others by their own first letter. Without
+  // them an Arabic page ran "Odoo · 17.0" together into one left-to-right run, reading 17.0 first.
+  const isolate = (part: string, ltr = false) => `${ltr ? '\u2066' : '\u2068'}${part}\u2069`
   const subtitle = [
-    connection.sourceSystem,
-    connection.sourceVersion,
-    t(`erp.connections.mode.${connection.connectionMode}`),
+    isolate(sourceSystemName(t, connection.sourceSystem)),
+    connection.sourceVersion === null || connection.sourceVersion === ''
+      ? null
+      : isolate(connection.sourceVersion, true),
+    isolate(t(`erp.connections.mode.${connection.connectionMode}`)),
   ]
-    .filter((part): part is string => part !== null && part !== '')
+    .filter((part): part is string => part !== null)
     .join(' · ')
 
   return (
-    <SettingsShell group="integration">
-      <div className="flex flex-col gap-3">
-        <Link
-          to="/settings/erp/connections"
-          className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-primary-700 transition-colors hover:text-primary-800"
-        >
-          <span aria-hidden="true" className="rtl:rotate-180">
-            ‹
-          </span>
-          {t('erp.connections.backToList')}
-        </Link>
-        <SettingsHeader
-          title={connection.name}
-          subtitle={subtitle}
-          actions={
-            <>
-              <ConnectionStatePill state={connection.state} />
-              {actions}
-            </>
-          }
-        />
-      </div>
+    <SettingsShell group="integration" back={backToList}>
+      {/* No back link of its own: the Settings shell already draws one above the heading, and two
+          stacked back links read as a mistake. */}
+      <SettingsHeader
+        title={connection.name}
+        subtitle={subtitle}
+        actions={
+          <>
+            <ConnectionStatePill state={connection.state} />
+            {actions}
+          </>
+        }
+      />
       <ConnectionTabs connectionId={connection.id} connectionMode={connection.connectionMode} />
       {children}
     </SettingsShell>
@@ -134,8 +142,9 @@ export function ConnectionShell({
 /** The frame for a route whose connection id matches nothing, so a stale link is not a blank page. */
 export function ConnectionNotFound() {
   const { t } = useTranslation()
+  const backToList = { to: '/settings/erp/connections', label: t('erp.connections.backToList') }
   return (
-    <SettingsShell group="integration">
+    <SettingsShell group="integration" back={backToList}>
       <SettingsHeader
         title={t('erp.connector.notFound.title')}
         subtitle={t('erp.connector.notFound.subtitle')}
@@ -145,6 +154,46 @@ export function ConnectionNotFound() {
           {t('erp.connections.backToList')}
         </SecondaryLink>
       </div>
+    </SettingsShell>
+  )
+}
+
+/**
+ * A per-connection address whose feature has no backend (write-back, the per-connection mapping),
+ * drawn inside the connection's own frame so its name, state and tabs stay on screen.
+ *
+ * Reading the connection needs `erp.connection.read`; without it, or when the read fails for a
+ * reason other than a stale link, the plain notice is shown as before.
+ */
+export function ConnectionUnavailablePage() {
+  const { t } = useTranslation()
+  const backToList = { to: '/settings/erp/connections', label: t('erp.connections.backToList') }
+  const { id } = useParams<{ id: string }>()
+  const { access, ready } = useErpAccess()
+  const { read, connection } = useConnectionDetail(ready && access.read ? id : undefined)
+
+  if (connection !== null) {
+    return (
+      <ConnectionShell connection={connection}>
+        <SectionCard title={t('erp.connections.unavailable.title')}>
+          <p className="p-5 pt-0 text-sm font-medium leading-[1.6] text-text-tertiary">
+            {t('erp.connections.unavailable.body')}
+          </p>
+        </SectionCard>
+      </ConnectionShell>
+    )
+  }
+  if (ready && access.read && read.status === 'failed') {
+    return isNotFound(read.error) ? (
+      <ConnectionNotFound />
+    ) : (
+      <ConnectionFeatureUnavailable connectionId={id} />
+    )
+  }
+  if (ready && !access.read) return <ConnectionFeatureUnavailable connectionId={id} />
+  return (
+    <SettingsShell group="integration" back={backToList}>
+      <LoadingNotice />
     </SettingsShell>
   )
 }

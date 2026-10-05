@@ -1,5 +1,4 @@
-import { useParams } from 'react-router-dom'
-import { ConnectionFeatureUnavailable } from './connectionParts'
+import { ConnectionUnavailablePage } from './ConnectionShell'
 
 /**
  * The per-connection write-back screen.
@@ -13,6 +12,5 @@ import { ConnectionFeatureUnavailable } from './connectionParts'
  * does not 404, and it is off the tab strip so nothing advertises it as a working feature.
  */
 export function ConnectionWriteBackPage() {
-  const { id } = useParams<{ id: string }>()
-  return <ConnectionFeatureUnavailable connectionId={id} />
+  return <ConnectionUnavailablePage />
 }

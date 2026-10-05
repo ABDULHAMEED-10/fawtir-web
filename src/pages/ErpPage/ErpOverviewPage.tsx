@@ -28,6 +28,7 @@ import {
   deactivateMappingProfile,
 } from '../../api/erp/mapping'
 import { TARGET_BY_ID } from '../../lib/erpCatalogue'
+import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { shortDate } from '../../lib/settings'
 import routeIcon from '../../assets/settings/tile-integration.svg'
 import fieldsIcon from '../../assets/settings/check-ink.svg'
@@ -123,8 +124,10 @@ export function ErpOverviewPage() {
     return t('erp.overview.kpi.profileNote', {
       system:
         view.route === 'GUIDED' && view.guided
-          ? t(`erp.sourceSystem.${view.guided.sourceSystem}`)
-          : (view.activeProfile.erpKey ?? t('erp.overview.kpi.erpKeyUnset')),
+          ? sourceSystemName(t, view.guided.sourceSystem)
+          : view.activeProfile.erpKey
+            ? sourceSystemName(t, view.activeProfile.erpKey)
+            : t('erp.overview.kpi.erpKeyUnset'),
       version: view.activeProfile.version,
       hash: shortHash(view.activeProfile.contentHash),
     })
@@ -357,47 +360,49 @@ function CertificationTable() {
 
   return (
     <SectionCard title={t('erp.overview.cert.title')} note={t('erp.overview.cert.note')}>
-      <RowsView>
-        <table className="w-full min-w-[560px] border-collapse">
-          <thead>
-            <tr className={THEAD_ROW}>
-              <Th first>{t('erp.overview.cert.col.route')}</Th>
-              <Th>{t('erp.overview.cert.col.state')}</Th>
-              <Th>{t('erp.overview.cert.col.detail')}</Th>
-              <Th align="end">{t('erp.overview.cert.col.action')}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {MAPPING_CERTIFICATION_ROUTES.map((route) => (
-              <tr key={route} className={TBODY_ROW}>
-                <Td first>
-                  <p className="text-sm font-semibold text-text-primary">
-                    {t(`erp.certRoute.${route}`)}
-                  </p>
-                </Td>
-                <Td>
-                  <RouteStatePill state={view.certification[route].state} />
-                </Td>
-                <Td>
-                  <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
-                    {detail(route)}
-                  </p>
-                </Td>
-                <Td align="end">
-                  <Link
-                    to={`/settings/erp-mapping/certification?route=${route}`}
-                    className={`${TEXT_BUTTON} whitespace-nowrap`}
-                  >
-                    {view.certification[route].last
-                      ? t('erp.overview.cert.rerun')
-                      : t('erp.overview.cert.run')}
-                  </Link>
-                </Td>
+      <div className="max-md:px-5 max-md:pb-5">
+        <RowsView>
+          <table className="w-full min-w-[560px] border-collapse">
+            <thead>
+              <tr className={THEAD_ROW}>
+                <Th first>{t('erp.overview.cert.col.route')}</Th>
+                <Th>{t('erp.overview.cert.col.state')}</Th>
+                <Th>{t('erp.overview.cert.col.detail')}</Th>
+                <Th align="end">{t('erp.overview.cert.col.action')}</Th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </RowsView>
+            </thead>
+            <tbody>
+              {MAPPING_CERTIFICATION_ROUTES.map((route) => (
+                <tr key={route} className={TBODY_ROW}>
+                  <Td first>
+                    <p className="text-sm font-semibold text-text-primary">
+                      {t(`erp.certRoute.${route}`)}
+                    </p>
+                  </Td>
+                  <Td>
+                    <RouteStatePill state={view.certification[route].state} />
+                  </Td>
+                  <Td>
+                    <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
+                      {detail(route)}
+                    </p>
+                  </Td>
+                  <Td align="end">
+                    <Link
+                      to={`/settings/erp-mapping/certification?route=${route}`}
+                      className={`${TEXT_BUTTON} whitespace-nowrap`}
+                    >
+                      {view.certification[route].last
+                        ? t('erp.overview.cert.rerun')
+                        : t('erp.overview.cert.run')}
+                    </Link>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </RowsView>
+      </div>
     </SectionCard>
   )
 }

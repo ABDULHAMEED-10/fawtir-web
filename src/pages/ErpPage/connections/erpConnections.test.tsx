@@ -162,7 +162,9 @@ describe('connection list', () => {
 
     expect(await screen.findByText('Head office Odoo')).toBeTruthy()
     expect(screen.getByText('Salalah ERPNext')).toBeTruthy()
-    expect(screen.getByText('ODOO')).toBeTruthy()
+    // The product name, not the server's code.
+    expect(screen.getByText('Odoo')).toBeTruthy()
+    expect(screen.queryByText('ODOO')).toBeNull()
   })
 
   it('shows no invented run, sync or volume figures', async () => {
@@ -639,9 +641,11 @@ describe('extraction screens', () => {
     renderAt(`/settings/erp/connections/${ID}`)
     await screen.findByText('Head office Odoo')
     const tabs = screen.getByRole('navigation', { name: /ERP|connection/i })
-    for (const gone of ['Runs', 'Records', 'Write-back']) {
-      expect(within(tabs).queryByText(gone)).toBeNull()
-    }
+    // Write-back has no backend and stays off the strip. Runs and Records are the shared reports
+    // fixed to this connection, so they are tabs now.
+    expect(within(tabs).queryByText('Write-back')).toBeNull()
+    expect(within(tabs).getByText('Runs')).toBeTruthy()
+    expect(within(tabs).getByText('Records')).toBeTruthy()
     expect(within(tabs).getByText('Overview')).toBeTruthy()
   })
 

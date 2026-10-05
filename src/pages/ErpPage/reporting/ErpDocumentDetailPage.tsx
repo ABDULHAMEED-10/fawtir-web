@@ -1,14 +1,12 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiReadFailure, LoadingNotice } from '../../../components/feedback/ApiNotice'
 import { RowsView } from '../../../components/ui'
-import { useApiRead } from '../../../hooks/useApiRead'
 import { formatCount } from '../../../lib/format'
 import {
   MAX_VALIDATION_FINDINGS,
   TIMELINE_AUDIT_EVENT_LIMIT,
-  documentDetailPath,
   type SourceDocumentDetailDto,
   type TimelineItemDto,
   type ValidationFindingDto,
@@ -22,14 +20,19 @@ import {
   EmptyRow,
   Mono,
   SectionCard,
-  SecondaryLink,
   TBODY_ROW,
   THEAD_ROW,
   Td,
   Th,
 } from '../overview/idiom'
 import { ConnectionLabel, ReportingShell, TonePill, When } from './reportingParts'
-import { useCode, useConnectionNames, useReportReadable } from './reportingHooks'
+import {
+  GLOBAL_LINKS,
+  useCode,
+  useConnectionNames,
+  useDocumentDetail,
+  type ReportLinks,
+} from './reportingHooks'
 
 /**
  * One source document, every dimension in its own section.
@@ -46,10 +49,7 @@ import { useCode, useConnectionNames, useReportReadable } from './reportingHooks
 export function ErpDocumentDetailPage() {
   const { t } = useTranslation()
   const { recordId = '' } = useParams<{ recordId: string }>()
-  const readable = useReportReadable()
-  const path = readable ? documentDetailPath(recordId) : null
-  const detail = useApiRead<SourceDocumentDetailDto>(path)
-  const { names } = useConnectionNames()
+  const detail = useDocumentDetail(recordId)
 
   const title =
     detail.read.status === 'ready'
@@ -57,18 +57,34 @@ export function ErpDocumentDetailPage() {
       : t('erp.reporting.detail.title')
 
   return (
-    <ReportingShell title={title} subtitle={t('erp.reporting.detail.subtitle')}>
-      <div>
-        <SecondaryLink to="/settings/erp/documents">{t('erp.reporting.detail.back')}</SecondaryLink>
-      </div>
-      {detail.read.status === 'loading' ? (
-        <LoadingNotice />
-      ) : detail.read.status === 'failed' ? (
-        <ApiReadFailure error={detail.read.error} retry={detail.retry} />
-      ) : (
-        <DocumentDetail detail={detail.read.data} names={names} />
-      )}
+    <ReportingShell
+      title={title}
+      subtitle={t('erp.reporting.detail.subtitle')}
+      back={{ to: '/settings/erp/documents', label: t('erp.reporting.detail.back') }}
+    >
+      <DocumentDetailBody detail={detail} />
     </ReportingShell>
+  )
+}
+
+/**
+ * The document's sections without a frame, for the reports' shell and for a connection's Records
+ * tab, whose links stay under the connection.
+ */
+export function DocumentDetailBody({
+  detail,
+  links = GLOBAL_LINKS,
+}: {
+  detail: ReturnType<typeof useDocumentDetail>
+  links?: ReportLinks
+}) {
+  const { names } = useConnectionNames()
+  return detail.read.status === 'loading' ? (
+    <LoadingNotice />
+  ) : detail.read.status === 'failed' ? (
+    <ApiReadFailure error={detail.read.error} retry={detail.retry} />
+  ) : (
+    <DocumentDetail detail={detail.read.data} names={names} links={links} />
   )
 }
 
@@ -90,9 +106,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function DocumentDetail({
   detail,
   names,
+  links,
 }: {
   detail: SourceDocumentDetailDto
   names: Map<string, string> | null
+  links: ReportLinks
 }) {
   const { t, i18n } = useTranslation()
   const code = useCode()
@@ -124,13 +142,15 @@ function DocumentDetail({
       <SectionCard title={t('erp.reporting.detail.source')}>
         <Fields>
           <Field label={t('erp.reporting.col.document')}>
-            <span dir="ltr" className="break-all">
+            <bdi dir="ltr" className="break-words">
               {document.external_document_id}
-            </span>
+            </bdi>
           </Field>
           <Field label={t('erp.reporting.detail.version')}>
             {document.external_version ? (
-              <span dir="ltr">{document.external_version}</span>
+              <bdi dir="ltr" className="break-words">
+                {document.external_version}
+              </bdi>
             ) : (
               <span className="text-text-quaternary">—</span>
             )}
@@ -144,7 +164,7 @@ function DocumentDetail({
           <Field label={t('erp.reporting.detail.run')}>
             {document.run_id ? (
               <Link
-                to={`/settings/erp/runs/${encodeURIComponent(document.run_id)}`}
+                to={links.run(document.run_id)}
                 className="font-semibold text-primary-700 underline-offset-2 hover:underline"
               >
                 {t('erp.reporting.detail.openRun')}
@@ -208,9 +228,9 @@ function DocumentDetail({
           <Fields>
             <Field label={t('erp.reporting.col.invoice')}>
               {invoice.invoice_number ? (
-                <span dir="ltr" className="break-all">
+                <bdi dir="ltr" className="break-words">
                   {invoice.invoice_number}
-                </span>
+                </bdi>
               ) : (
                 <span className="text-text-quaternary">—</span>
               )}
@@ -377,16 +397,20 @@ export function FindingsCard({
                 <tr key={index} className={TBODY_ROW}>
                   <Td first>{item.layer ?? '—'}</Td>
                   <Td>
-                    <span dir="ltr" className="break-all font-mono text-xs">
+                    <bdi dir="ltr" className="font-mono text-xs [overflow-wrap:anywhere]">
                       {item.rule_id ?? '—'}
-                    </span>
+                    </bdi>
                   </Td>
                   <Td>
-                    <span dir="ltr" className="break-all font-mono text-xs">
-                      {item.field_path ?? '—'}
-                    </span>
+                    <bdi dir="ltr" className="font-mono text-xs [overflow-wrap:anywhere]">
+                      {item.field_path ? <PathWithBreaks path={item.field_path} /> : '—'}
+                    </bdi>
                   </Td>
-                  <Td className="break-words">{item.explanation ?? '—'}</Td>
+                  {/* The sentence can come back in the server's English: `auto` keeps its full
+                      stop at its end in an Arabic page instead of moving it to the start. */}
+                  <Td className="break-words">
+                    {item.explanation ? <span dir="auto">{item.explanation}</span> : '—'}
+                  </Td>
                 </tr>
               ))
             )}
@@ -394,6 +418,28 @@ export function FindingsCard({
         </table>
       </RowsView>
     </SectionCard>
+  )
+}
+
+/**
+ * An XPath that wraps at its steps, `/Invoice/cac:LegalMonetaryTotal/…`, rather than in the middle
+ * of a name. A step longer than the column still breaks, as a last resort.
+ */
+function PathWithBreaks({ path }: { path: string }) {
+  const steps = path.split('/')
+  return (
+    <>
+      {steps.map((step, index) => (
+        <Fragment key={index}>
+          {index > 0 ? (
+            <>
+              <wbr />/
+            </>
+          ) : null}
+          {step}
+        </Fragment>
+      ))}
+    </>
   )
 }
 

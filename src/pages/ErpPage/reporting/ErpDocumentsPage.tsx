@@ -28,7 +28,13 @@ import {
   ReportPager,
   WindowFields,
 } from './reportingParts'
-import { useConnectionNames, useEnumOptions, useReportReadable } from './reportingHooks'
+import {
+  GLOBAL_LINKS,
+  useConnectionNames,
+  useEnumOptions,
+  useReportReadable,
+  type ReportLinks,
+} from './reportingHooks'
 import { readWindow, useReportQuery } from './reportingQuery'
 
 const SORTS = ['RECEIVED_NEWEST', 'RECEIVED_OLDEST'] as const
@@ -42,6 +48,29 @@ const SORTS = ['RECEIVED_NEWEST', 'RECEIVED_OLDEST'] as const
  * defaulting to the last 30 days, and sends nothing while the one the reader typed is invalid.
  */
 export function ErpDocumentsPage() {
+  const { t } = useTranslation()
+  return (
+    <ReportingShell
+      title={t('erp.reporting.documents.title')}
+      subtitle={t('erp.reporting.documents.subtitle')}
+    >
+      <DocumentsReport />
+    </ReportingShell>
+  )
+}
+
+/**
+ * The report itself, without a frame: the global report draws it in the reports' shell, and a
+ * connection's Records tab draws it in the connection's shell with `connectionId` fixed, which
+ * narrows every read to that connection and takes the connection filter away.
+ */
+export function DocumentsReport({
+  connectionId: fixedConnection,
+  links = GLOBAL_LINKS,
+}: {
+  connectionId?: string
+  links?: ReportLinks
+}) {
   const { t, i18n } = useTranslation()
   const { get, pick, page, update } = useReportQuery()
   const { names, options: connectionOptions } = useConnectionNames()
@@ -54,7 +83,7 @@ export function ErpDocumentsPage() {
 
   const filters: DocumentFilters = {
     sourceKind: pick('channel', SOURCE_KINDS),
-    connectionId: get('connection'),
+    connectionId: fixedConnection ?? get('connection'),
     processingState: pick('state', PROCESSING_STATES),
     deliveryState: pick('delivery', DELIVERY_STATES),
     reasonCode: pick('reason', FAILURE_REASONS),
@@ -87,10 +116,7 @@ export function ErpDocumentsPage() {
   const summary = useApiRead<DocumentSummaryDto>(summaryPath)
 
   return (
-    <ReportingShell
-      title={t('erp.reporting.documents.title')}
-      subtitle={t('erp.reporting.documents.subtitle')}
-    >
+    <>
       <SectionCard title={t('erp.reporting.filters.title')}>
         <div className="grid gap-4 px-5 pb-5 md:grid-cols-2 xl:grid-cols-4">
           <div className="md:col-span-2">
@@ -109,11 +135,13 @@ export function ErpDocumentsPage() {
             options={enumOptions('sourceKind', SOURCE_KINDS)}
             onChange={(value) => update({ channel: value })}
           />
-          <ConnectionFilter
-            value={filters.connectionId ?? ''}
-            options={connectionOptions}
-            onChange={(value) => update({ connection: value })}
-          />
+          {fixedConnection === undefined ? (
+            <ConnectionFilter
+              value={filters.connectionId ?? ''}
+              options={connectionOptions}
+              onChange={(value) => update({ connection: value })}
+            />
+          ) : null}
           <FilterSelect
             label={t('erp.reporting.filters.processing')}
             anyLabel={t('erp.reporting.filters.any')}
@@ -230,8 +258,9 @@ export function ErpDocumentsPage() {
             <DocumentsTable
               items={list.read.data.items}
               names={names}
+              links={links}
               empty={
-                listOnly || filters.sourceKind || filters.connectionId
+                listOnly || filters.sourceKind || (fixedConnection === undefined && filters.connectionId)
                   ? t('erp.reporting.documents.emptyFiltered')
                   : t('erp.reporting.documents.emptyWindow')
               }
@@ -246,7 +275,7 @@ export function ErpDocumentsPage() {
           </>
         )}
       </SectionCard>
-    </ReportingShell>
+    </>
   )
 }
 

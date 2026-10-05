@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { RowsView } from '../../../components/ui'
 import { TARGETS, type Target } from '../../../lib/erpCatalogue'
 import type { MappingFindingDto } from '../../../api/erp/mapping'
+import { THEAD_ROW } from '../overview/idiom'
+import { findingLayerName } from './documentKind'
 
 /**
  * The business term a canonical path belongs to. `lines[0].tax.rate` is IBT-152; a path that
@@ -45,11 +47,11 @@ export function RuleFindingsTable({ findings }: { findings: MappingFindingDto[] 
     <RowsView>
       <table className="w-full min-w-[640px] border-collapse">
         <thead>
-          <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
-            <th className="h-[46px] px-4 text-start font-semibold">{t('erp.shared.rule')}</th>
-            <th className="h-[46px] px-4 text-start font-semibold">{t('erp.shared.message')}</th>
-            <th className="h-[46px] px-4 text-start font-semibold">{t('erp.shared.field')}</th>
-            <th className="h-[46px] px-4 text-start font-semibold" />
+          <tr className={THEAD_ROW}>
+            <th className="h-[40px] px-4 text-start font-semibold">{t('erp.shared.rule')}</th>
+            <th className="h-[40px] px-4 text-start font-semibold">{t('erp.shared.message')}</th>
+            <th className="h-[40px] px-4 text-start font-semibold">{t('erp.shared.field')}</th>
+            <th className="h-[40px] px-4 text-start font-semibold" />
           </tr>
         </thead>
         <tbody>
@@ -67,24 +69,35 @@ export function RuleFindingsTable({ findings }: { findings: MappingFindingDto[] 
                 className="border-b border-surface-background last:border-0"
               >
                 <td className="px-4 py-3 align-top">
-                  <span
-                    dir="ltr"
-                    className="inline-flex h-[24px] items-center whitespace-nowrap rounded-[3px] bg-surface-background px-2 font-mono text-[11px] font-semibold text-text-tertiary"
-                  >
-                    {finding.rule_id ?? '—'}
-                  </span>
+                  {/* One empty mark in every column: the same "—" in the same text face. */}
+                  {finding.rule_id ? (
+                    <span
+                      dir="ltr"
+                      className="inline-flex h-[24px] items-center whitespace-nowrap rounded-[3px] bg-surface-background px-2 font-mono text-[11px] font-semibold text-text-tertiary"
+                    >
+                      {finding.rule_id}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-text-quaternary">—</span>
+                  )}
                   {finding.layer ? (
-                    <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.4px] text-text-quaternary">
-                      {finding.layer}
+                    <span className="mt-1 block text-[10px] font-semibold tracking-[0.4px] text-text-quaternary">
+                      {findingLayerName(t, finding.layer)}
                     </span>
                   ) : null}
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium leading-[1.5] text-text-secondary">
-                  {finding.message ?? '—'}
+                  {finding.message ? (
+                    <span dir="auto" className="block">
+                      {finding.message}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-text-quaternary">—</span>
+                  )}
                 </td>
                 <td className="px-4 py-3 align-top">
                   {where ? (
-                    <span dir="ltr" className="block break-all font-mono text-[11px] text-text-secondary">
+                    <span dir="ltr" className="block font-mono text-[11px] text-text-secondary [overflow-wrap:anywhere]">
                       {where}
                     </span>
                   ) : (

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ErpShell, Pill, RouteStatePill } from './ErpShell'
 import { GUIDED_MAPPING_FORMAT, useErpMapping, useErpMappingReload } from './ErpMappingGate'
 import { SamplePicker } from './shared/SamplePicker'
-import { RuleFindingsTable } from './shared/RuleFindingsTable'
+import { Mono, THEAD_ROW } from './overview/idiom'
 import { Button, Checkbox, Input, Modal, RowsView, Select } from '../../components/ui'
 import {
   MAPPING_CERTIFICATION_ROUTES,
@@ -22,7 +22,10 @@ import {
   shortHash,
 } from '../../lib/erp/mappingState'
 import { sessionSamples } from '../../lib/erp/sample'
-import { shortDate } from '../../lib/settings'
+import { formatInstant, formatInstantDay } from '../../lib/format'
+import { documentKindName } from './shared/documentKind'
+import { RuleFindingsTable } from './shared/RuleFindingsTable'
+import { findingLayerName } from './shared/documentKind'
 import infoIcon from '../../assets/settings/info.svg'
 
 const isRoute = (value: string | null): value is MappingCertificationRoute =>
@@ -31,9 +34,6 @@ const isRoute = (value: string | null): value is MappingCertificationRoute =>
 
 /** Routes whose document corrects an earlier one, and therefore need the predecessor's identity. */
 const CORRECTION_ROUTES: MappingCertificationRoute[] = ['CREDIT_NOTE']
-
-const clockOf = (date: Date) =>
-  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 
 /**
  * Settings › Integration › ERP mapping › Certification (docs/erp-and-console-plan.md §2.4, A.4).
@@ -48,7 +48,7 @@ const clockOf = (date: Date) =>
  * tenant iterates, and the findings are what they came for.
  */
 export function ErpCertificationPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const view = useErpMapping()
   const [params, setParams] = useSearchParams()
 
@@ -104,10 +104,15 @@ export function ErpCertificationPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {MAPPING_CERTIFICATION_ROUTES.map((route) => {
           const { state, last, pass, status } = view.certification[route]
+          const attemptedAt = status.certified
+            ? (pass?.certified_at ?? status.certified_at ?? last?.certified_at ?? null)
+            : (last?.certified_at ?? null)
+          const testedHash = status.certified_content_hash ?? last?.content_hash ?? null
           return (
             <article key={route} className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-lg font-semibold leading-[1.2] text-text-primary">
+              {/* The pill wraps under a long route name rather than the name breaking at its hyphen. */}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h3 className="whitespace-nowrap text-lg font-semibold leading-[1.2] text-text-primary">
                   {t(`erp.certRoute.${route}`)}
                 </h3>
                 <RouteStatePill state={state} />
@@ -116,46 +121,56 @@ export function ErpCertificationPage() {
               {/*
                 Both hashes, because the interesting failure is the mismatch: a tenant who
                 certified and then edited sees a certified hash that no longer equals the active
-                one, which is exactly why submission started being refused.
+                one, which is exactly why submission started being refused. The date sits on its
+                own line; the hash beside "Certified on" used to read as if it were the date.
               */}
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs font-medium">
                 <dt className="text-text-quaternary">{t('erp.certification.activeHash')}</dt>
-                <dd dir="ltr" className="text-start font-mono text-[11px] text-text-secondary">
-                  {shortHash(status.active_content_hash)}
+                <dd className="text-start">
+                  <Mono className="font-medium text-text-secondary">
+                    {shortHash(status.active_content_hash)}
+                  </Mono>
                 </dd>
                 <dt className="text-text-quaternary">
                   {status.certified
                     ? t('erp.certification.passHash')
                     : t('erp.certification.lastHash')}
                 </dt>
-                <dd
-                  dir="ltr"
-                  className={[
-                    'text-start font-mono text-[11px]',
-                    !status.certified && last ? 'text-pending-700' : 'text-text-secondary',
-                  ].join(' ')}
-                >
-                  {shortHash(status.certified_content_hash ?? last?.content_hash ?? null)}
+                <dd className="text-text-secondary">
+                  {attemptedAt
+                    ? formatInstantDay(attemptedAt, i18n.language)
+                    : t('erp.certification.neverTried')}
                 </dd>
+                {testedHash ? (
+                  <>
+                    <dt className="text-text-quaternary">{t('erp.certification.contentHash')}</dt>
+                    <dd className="text-start">
+                      <Mono
+                        className={[
+                          'font-medium',
+                          !status.certified && last ? 'text-pending-700' : 'text-text-secondary',
+                        ].join(' ')}
+                      >
+                        {shortHash(testedHash)}
+                      </Mono>
+                    </dd>
+                  </>
+                ) : null}
               </dl>
 
-              <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
-                {pass
-                  ? t('erp.certification.certifiedOnServer', {
-                      date: shortDate(new Date(pass.certified_at)),
-                    })
-                  : last
-                    ? t('erp.certification.lastAttempt', {
-                        date: shortDate(new Date(last.certified_at)),
-                        findings: t('erp.shared.findingsCount', { count: last.error_count }),
-                      })
-                    : t('erp.certification.neverTried')}
-              </p>
+              {!status.certified && last ? (
+                <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
+                  {t('erp.shared.findingsCount', { count: last.error_count })}
+                </p>
+              ) : null}
 
-              {/* The server's reason, when it gave one — more use than any copy written here. */}
-              {!status.certified && status.reason ? (
+              {/*
+                Our own sentence for why the route is not certified. The server's `reason` is
+                English prose for developers, so the reader gets this instead (as on the Bridge).
+              */}
+              {!status.certified && view.activeProfile ? (
                 <p className="text-xs font-medium leading-[1.5] text-text-quaternary">
-                  {status.reason}
+                  {t(`erp.certification.why.${state}`)}
                 </p>
               ) : null}
 
@@ -204,7 +219,7 @@ export function ErpCertificationPage() {
  * accreditation dossier asks for — so this is the dossier, not a debug log.
  */
 function History({ attempts }: { attempts: MappingCertificationHistoryDto[] }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const columns = ['route', 'result', 'hash', 'kind', 'type', 'when', 'findings'] as const
 
@@ -212,9 +227,9 @@ function History({ attempts }: { attempts: MappingCertificationHistoryDto[] }) {
     <RowsView>
       <table className="w-full min-w-[860px] border-collapse">
         <thead>
-          <tr className="bg-[#151c2d] text-[11px] font-semibold uppercase leading-[1.5] tracking-[0.6px] text-white">
+          <tr className={THEAD_ROW}>
             {columns.map((column) => (
-              <th key={column} className="h-[46px] px-4 text-start font-semibold">
+              <th key={column} className="h-[40px] px-4 text-start font-semibold">
                 {t(`erp.certification.col.${column}`)}
               </th>
             ))}
@@ -222,10 +237,9 @@ function History({ attempts }: { attempts: MappingCertificationHistoryDto[] }) {
         </thead>
         <tbody>
           {attempts.map((attempt) => {
-            const when = new Date(attempt.certified_at)
             return (
               <tr key={attempt.id} className="border-b border-surface-background last:border-0">
-                <td className="px-4 py-3 align-top text-sm font-semibold text-text-primary">
+                <td className="whitespace-nowrap px-4 py-3 align-top text-sm font-semibold text-text-primary">
                   {t(`erp.certRoute.${attempt.route}`)}
                 </td>
                 <td className="px-4 py-3 align-top">
@@ -238,27 +252,25 @@ function History({ attempts }: { attempts: MappingCertificationHistoryDto[] }) {
                     }
                   />
                 </td>
-                <td
-                  dir="ltr"
-                  className="px-4 py-3 text-start align-top font-mono text-[11px] text-text-secondary"
-                >
-                  {shortHash(attempt.content_hash)}
+                <td className="px-4 py-3 text-start align-top">
+                  <Mono className="font-normal text-text-secondary">
+                    {shortHash(attempt.content_hash)}
+                  </Mono>
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium text-text-secondary">
-                  {attempt.document_kind}
+                  {documentKindName(t, attempt.document_kind)}
                 </td>
-                <td
-                  dir="ltr"
-                  className="px-4 py-3 text-start align-top font-mono text-[11px] text-text-secondary"
-                >
-                  {attempt.transaction_type}
+                <td className="px-4 py-3 text-start align-top">
+                  <Mono className="font-normal text-text-secondary">{attempt.transaction_type}</Mono>
                 </td>
-                <td className="px-4 py-3 align-top text-sm font-medium text-text-secondary tabular-nums">
-                  {shortDate(when)} · {clockOf(when)}
+                <td className="whitespace-nowrap px-4 py-3 align-top text-sm font-medium text-text-secondary tabular-nums">
+                  {formatInstant(attempt.certified_at, i18n.language)}
                 </td>
                 <td className="px-4 py-3 align-top text-sm font-medium text-text-secondary">
                   {attempt.summary ? (
-                    <span className="block max-w-[320px] leading-[1.5]">{attempt.summary}</span>
+                    <span dir="auto" className="block max-w-[320px] leading-[1.5]">
+                      {attempt.summary}
+                    </span>
                   ) : (
                     t('erp.shared.findingsCount', { count: attempt.error_count })
                   )}
@@ -558,8 +570,10 @@ function RunModal({
               </p>
               <p className="mt-1 text-sm font-medium leading-[1.5] text-text-secondary">
                 {t('erp.certification.failedStage', {
-                  stage: report.stage,
-                  layer: report.failed_at ?? '—',
+                  stage: t(`erp.certification.stage.${report.stage}`, {
+                    defaultValue: report.stage,
+                  }),
+                  layer: report.failed_at ? findingLayerName(t, report.failed_at) : '—',
                   count: report.error_count,
                 })}
               </p>

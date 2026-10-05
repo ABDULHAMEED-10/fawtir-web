@@ -14753,7 +14753,7 @@
       "transactionType": "Chosen per submission, not mapped.",
       "currency": "Anything but OMR needs the hand-written route.",
       "vatin": "OM followed by exactly ten digits.",
-      "sellerPhone": "Required on every invoice — most ERPs do not hold it, so a constant is fine.",
+      "sellerPhone": "Required on every invoice. Most ERPs do not hold it, so a constant is fine.",
       "buyerEndpoint": "The buyer's Peppol address; for consumers, Fawtir uses the Tax Authority's placeholder.",
       "vatCategory": "S needs rate 5, Z rate 0; E and O carry no rate.",
       "rate": "0.00 to 100.00, two decimals at most.",
@@ -14775,7 +14775,7 @@
       "TARGET_NOT_MAPPABLE": "Fawtir supplies this field; it cannot be mapped",
       "UNSUPPORTED_TARGET": "The guided path cannot express this field",
       "MISSING_SOURCE": "Give a source path or a default",
-      "MALFORMED_SOURCE_PATH": "Only letters, digits, underscores, dots and [] — no operators",
+      "MALFORMED_SOURCE_PATH": "Only letters, digits, underscores, dots and [], no operators",
       "MALFORMED_TRANSFORM": "The transform does not parse",
       "DUPLICATE_SINGLETON_TARGET": "This field is mapped twice",
       "REPEATED_TARGET_NOT_SUPPORTED": "One line term can only be mapped once",
@@ -14785,7 +14785,7 @@
       "MALFORMED_VALUE_MAP": "A code on the left is empty",
       "VALUE_MAP_NOT_ALLOWED": "Value maps are for code fields only",
       "VALUE_MAP_DEFAULT_REQUIRED": "\"Use default\" needs a default code",
-      "DUPLICATE_REPEATED_TARGET": "A line term is mapped twice — use [] on the source path instead",
+      "DUPLICATE_REPEATED_TARGET": "A line term is mapped twice. Use [] on the source path instead",
       "SOURCE_REPEATS_DEEPER_THAN_TARGET": "The source path repeats more often than this field does",
       "REPETITION_ROOT_MISMATCH": "Two line fields read from different source arrays"
     },
@@ -14809,21 +14809,25 @@
       "selfBillingType": "Self-billing takes 389 or 261, not {{type}}",
       "precedingInvoice": "Preceding invoice number, date and UUID must be present",
       "noteReason": "A credit or debit note needs a reason code",
-      "hsCode": "Line {{line}} is goods and needs a 12-digit HS code — the hand-written route",
+      "hsCode": "Line {{line}} is goods and needs a 12-digit HS code, so it needs the hand-written route",
       "lineNet": "Line {{line}}: net {{actual}} does not equal quantity × price {{expected}}",
-      "totals": "Total with VAT {{actual}} is not total without VAT plus VAT {{expected}}"
+      "totals": "Total with VAT {{actual}} is not total without VAT plus VAT {{expected}}",
+      "layer": {
+        "PINT_OM": "PINT-OM",
+        "EN16931": "EN 16931"
+      }
     },
     "event": {
-      "guidedSaved": "Mapping saved — revision {{revision}}, {{entries}} fields",
+      "guidedSaved": "Mapping saved: revision {{revision}}, {{entries}} fields",
       "guidedRestored": "Revision {{from}} restored as revision {{to}}",
-      "guidedImported": "Mapping imported — {{entries}} fields",
+      "guidedImported": "Mapping imported: {{entries}} fields",
       "guidedArchived": "Guided mapping archived",
       "profileActivated": "Profile v{{version}} activated · {{hash}}",
-      "profileDeactivated": "Profile v{{version}} deactivated — submissions stop",
+      "profileDeactivated": "Profile v{{version}} deactivated: submissions stop",
       "certificationPassed": "{{route}} certified",
-      "certificationFailed": "{{route}} certification failed — {{findings}} findings",
-      "sampleUploaded": "Sample uploaded — {{label}}",
-      "sampleDeleted": "Sample removed — {{label}}"
+      "certificationFailed": "{{route}} certification failed: {{findings}} findings",
+      "sampleUploaded": "Sample uploaded: {{label}}",
+      "sampleDeleted": "Sample removed: {{label}}"
     },
     "preset": {
       "dateDmy": "Date from DD/MM/YYYY",
@@ -14849,7 +14853,7 @@
       "sampleNote": "paths and example values come from it",
       "sampleHint_one": "{{count}} path",
       "sampleHint_other": "{{count}} paths",
-      "noSample": "No sample uploaded yet — the picker needs one.",
+      "noSample": "No sample uploaded yet. The picker needs one.",
       "uploadSample": "Upload a sample",
       "sections": "Sections",
       "requiredMapped": "{{mapped}} of {{total}} required mapped",
@@ -14871,7 +14875,7 @@
         "array": "list"
       },
       "default": "Default",
-      "defaultConstant": "Constant — sent as the value itself",
+      "defaultConstant": "Constant: sent as the value itself",
       "defaultFallback": "Used when the source is empty",
       "valueMap": "Value map",
       "valueMapCount": "Value map ({{count}})",
@@ -14882,7 +14886,7 @@
       "choosePreset": "Choose a preset…",
       "transform": "Transform",
       "transformPlaceholder": "$uppercase($trim($src))",
-      "runsOnSrc": "Runs on $src — the value after the value map, before the default.",
+      "runsOnSrc": "Runs on $src: the value after the value map, before the default.",
       "clearTransform": "Remove",
       "checklist": "Readiness",
       "version": "Version {{version}}",
@@ -14896,22 +14900,22 @@
       "unsaved": "Unsaved changes",
       "saveRefused_one": "Fix the {{count}} invalid row first",
       "saveRefused_other": "Fix the {{count}} invalid rows first",
-      "saveDraft_one": "Saved as a draft — {{count}} required field still to map",
-      "saveDraft_other": "Saved as a draft — {{count}} required fields still to map",
-      "saveActivated": "Compiled and activated — certify next.",
+      "saveDraft_one": "Saved as a draft: {{count}} required field still to map",
+      "saveDraft_other": "Saved as a draft: {{count}} required fields still to map",
+      "saveActivated": "Compiled and activated. Certify next.",
       "certifyNext": "Go to certification",
       "staleTitle": "Someone else saved this mapping",
       "staleBody": "The mapping is now at version {{version}}, saved since you opened this page. Reload to work from the saved version; your unsaved edits will be dropped.",
       "reload": "Reload",
       "modal": {
-        "title": "Value map — {{term}}",
+        "title": "Value map: {{term}}",
         "subtitle": "Match the codes your ERP sends to the {{list}} list.",
         "fromErp": "Code from your ERP",
         "becomes": "Becomes",
         "sourceIs": "Source:",
         "noPath": "Give the row a source path first, so the sample's codes can be collected.",
         "seenInSample": "Seen in the sample",
-        "empty": "No codes yet — add the ones your ERP sends.",
+        "empty": "No codes yet. Add the ones your ERP sends.",
         "addCode": "Add a code",
         "addPlaceholder": "A code as your ERP sends it",
         "add": "Add",
@@ -14922,8 +14926,8 @@
         "lookupHS": "12 digits",
         "lookupISIC": "6 digits",
         "lookupBad": "Must be exactly {{digits}} digits",
-        "groupE": "For category E — exemption reasons",
-        "groupZ": "For category Z — zero-rating reasons",
+        "groupE": "For category E: exemption reasons",
+        "groupZ": "For category Z: zero-rating reasons",
         "onUnmapped": "If a code is not listed",
         "onUnmappedNote": {
           "FAIL": "The invoice is refused before it is sent.",
@@ -14940,13 +14944,17 @@
         "save": "Save the map"
       },
       "versionNew": "Not saved yet",
-      "staleBodyServer": "Someone else saved this mapping while you were editing. Reload to take their version — your unsaved changes here will be lost.",
+      "staleBodyServer": "Someone else saved this mapping while you were editing. Reload to take their version. Your unsaved changes here will be lost.",
       "saveRefusedGeneric": "One of the rows cannot be saved. Check the invalid rows above.",
-      "requestFailed": "That did not reach the server. Try again."
+      "requestFailed": "That did not reach the server. Try again.",
+      "filledCount_one": "{{count}} field filled",
+      "filledCount_other": "{{count}} fields filled",
+      "sectionInvalid_one": "{{count}} entry to fix",
+      "sectionInvalid_other": "{{count}} entries to fix"
     },
     "overview": {
       "title": "ERP mapping",
-      "subtitle": "Where your ERP's invoices become Fawtir's — and whether the Tax Authority would accept them.",
+      "subtitle": "Where your ERP's invoices become Fawtir's, and whether the Tax Authority would accept them.",
       "kpi": {
         "route": "Route",
         "routeValue": {
@@ -14972,14 +14980,14 @@
         "samples": "Samples",
         "ofSamples": "of {{count}}",
         "samplesNone": "Upload one to preview and certify",
-        "samplesAtLimit": "At the limit — remove one to add another",
+        "samplesAtLimit": "At the limit: remove one to add another",
         "samplesRoom_one": "Room for {{count}} more",
         "samplesRoom_other": "Room for {{count}} more",
         "profileNote": "{{system}} · profile v{{version}} · {{hash}}",
         "profiles": "Mapping revisions",
         "profilesNone": "No mapping stored yet",
         "profilesActive": "Live expression {{hash}} · every save keeps the one before it",
-        "profilesInactive": "None live — the last one was deactivated",
+        "profilesInactive": "None live: the last one was deactivated",
         "erpKeyUnset": "ERP not recorded"
       },
       "actions": {
@@ -15007,12 +15015,12 @@
       },
       "empty": {
         "title": "What the Tax Authority needs from your ERP",
-        "body": "Before an invoice can leave Fawtir, the mapping has to supply all of these. Most ERPs do not hold every one — a fixed value is fine where yours does not.",
+        "body": "Before an invoice can leave Fawtir, the mapping has to supply all of these. Most ERPs do not hold every one. A fixed value is fine where yours does not.",
         "field": {
           "sellerPhone": "Seller telephone",
           "address": "Three seller address lines, city and postcode",
           "issueTime": "Issue time, not only the date",
-          "vatin": "Seller VATIN — OM and ten digits",
+          "vatin": "Seller VATIN: OM and ten digits",
           "goodsServices": "Goods-or-services flag on every line",
           "isic": "ISIC activity code",
           "lineVat": "VAT amount on every line",
@@ -15023,7 +15031,7 @@
       },
       "cert": {
         "title": "Certification",
-        "note": "One test per route. The evidence is tied to the profile that runs — change it, and the routes go stale.",
+        "note": "One test per route. The evidence is tied to the profile that runs. Change it, and the routes go stale.",
         "col": {
           "route": "Route",
           "state": "State",
@@ -15031,7 +15039,7 @@
           "action": ""
         },
         "certifiedOn": "Certified {{date}}",
-        "staleNote": "Passed on an earlier profile — run it again",
+        "staleNote": "Passed on an earlier profile. Run it again",
         "failedOn": "Failed {{date}}",
         "findings_one": "{{count}} finding",
         "findings_other": "{{count}} findings",
@@ -15057,14 +15065,14 @@
         "confirm": "Upload",
         "drop": "Drop a .json file here, or click to choose one",
         "dropNote": "One file, up to 256 KiB",
-        "chosen": "{{size}} KB — read and parsed",
+        "chosen": "{{size}} KB, read and parsed",
         "read": "What Fawtir read",
         "label": "Label",
         "labelHint": "{{count}} of {{max}} characters. Labels must be unique.",
-        "personalData": "Samples are visible to all administrators — remove personal data before uploading.",
+        "personalData": "Samples are visible to all administrators. Remove personal data before uploading.",
         "error": {
           "read": "The file could not be read.",
-          "parse": "That is not valid JSON — check for a trailing comma or a missing bracket.",
+          "parse": "That is not valid JSON. Check for a trailing comma or a missing bracket.",
           "size": "The file is larger than 256 KiB. Trim the invoice to its lines and try again.",
           "type": "Only .json files can be uploaded.",
           "labelRequired": "Give the sample a label.",
@@ -15074,7 +15082,7 @@
       },
       "list": {
         "title": "Samples",
-        "note": "{{count}} of {{limit}} — a sample is what the preview and the certification run against.",
+        "note": "{{count}} of {{limit}}. A sample is what the preview and the certification run against.",
         "empty": "No samples yet. Upload one ERP invoice as JSON to start."
       },
       "col": {
@@ -15104,9 +15112,9 @@
       },
       "file": {
         "title": "Import and export",
-        "note": "The guided mapping as a portable file — for a backup, another company, or a hand edit.",
+        "note": "The guided mapping as a portable file: for a backup, another company, or a hand edit.",
         "exportTitle": "Export",
-        "exportBody": "Downloads the guided mapping in the fawtir.guided-mapping/1 schema, with its source system and catalogue version.",
+        "exportBody": "Downloads the guided mapping as a Fawtir mapping file, with its source system and catalogue version.",
         "exportButton": "Export the guided mapping",
         "nothingToExport": "Nothing to export yet",
         "exported": "Saved as",
@@ -15117,16 +15125,16 @@
       },
       "import": {
         "activated": "Imported as revision {{revision}} and activated.",
-        "draft_one": "Imported as revision {{revision}} and saved as a draft — {{count}} required field is still missing.",
-        "draft_other": "Imported as revision {{revision}} and saved as a draft — {{count}} required fields are still missing.",
-        "refused_one": "Not imported — {{count}} entry is invalid. Fix the file and try again.",
-        "refused_other": "Not imported — {{count}} entries are invalid. Fix the file and try again.",
-        "malformed": "This is not a Fawtir guided-mapping file: it needs the fawtir.guided-mapping/1 schema and a list of entries.",
+        "draft_one": "Imported as revision {{revision}} and saved as a draft: {{count}} required field is still missing.",
+        "draft_other": "Imported as revision {{revision}} and saved as a draft: {{count}} required fields are still missing.",
+        "refused_one": "Not imported: {{count}} entry is invalid. Fix the file and try again.",
+        "refused_other": "Not imported: {{count}} entries are invalid. Fix the file and try again.",
+        "malformed": "This is not a guided mapping file exported from Fawtir, or it has no list of entries.",
         "unreadable": "The file could not be read as JSON.",
         "stale": "The mapping changed since this page was opened. Reload, then import again.",
-        "unknownTerms_one": "Not imported — {{count}} term is not in the catalogue: {{terms}}",
-        "unknownTerms_other": "Not imported — {{count}} terms are not in the catalogue: {{terms}}",
-        "activatedServer": "Imported and activated — the mapping compiled and is now what runs.",
+        "unknownTerms_one": "Not imported. {{count}} term is not in the catalogue: {{terms}}",
+        "unknownTerms_other": "Not imported. {{count}} terms are not in the catalogue: {{terms}}",
+        "activatedServer": "Imported and activated. The mapping compiled and is now what runs.",
         "draftServer": "Imported as a draft. {{count}} required field(s) are still unmapped, so nothing was activated.",
         "requestFailed": "The import did not reach the server. Try again."
       },
@@ -15150,7 +15158,7 @@
           "at": "Saved",
           "action": ""
         },
-        "empty": "No revisions yet — the first save of the guided mapping starts the ledger.",
+        "empty": "No revisions yet. The first save of the guided mapping starts the ledger.",
         "number": "Revision {{count}}",
         "origin": {
           "EDIT": "Saved from the wizard",
@@ -15166,16 +15174,16 @@
       },
       "restore": {
         "title": "Restore revision {{count}}?",
-        "body_one": "Its {{count}} field, as saved on {{date}}, becomes the guided mapping again — as a new revision, so nothing is lost. If it compiles to a profile that already passed certification, the routes come back certified.",
-        "body_other": "Its {{count}} fields, as saved on {{date}}, become the guided mapping again — as a new revision, so nothing is lost. If it compiles to a profile that already passed certification, the routes come back certified.",
+        "body_one": "Its {{count}} field, as saved on {{date}}, becomes the guided mapping again, as a new revision, so nothing is lost. If it compiles to a profile that already passed certification, the routes come back certified.",
+        "body_other": "Its {{count}} fields, as saved on {{date}}, become the guided mapping again, as a new revision, so nothing is lost. If it compiles to a profile that already passed certification, the routes come back certified.",
         "confirm": "Restore",
         "done": "Revision {{from}} restored as revision {{revision}}",
         "reacquired": "certification reacquired",
         "activated": "compiled and activated",
         "draft_one": "saved as a draft, {{count}} required field still missing",
         "draft_other": "saved as a draft, {{count}} required fields still missing",
-        "refused_one": "Not restored — {{count}} entry no longer passes the validator.",
-        "refused_other": "Not restored — {{count}} entries no longer pass the validator.",
+        "refused_one": "Not restored: {{count}} entry no longer passes the validator.",
+        "refused_other": "Not restored: {{count}} entries no longer pass the validator.",
         "stale": "The mapping changed since this page was opened. Reload, then restore again.",
         "notFound": "That revision no longer exists."
       },
@@ -15191,7 +15199,7 @@
           "state": "State",
           "at": "Stored"
         },
-        "empty": "No profile yet — a complete guided mapping compiles into one, or upload a hand-written profile.",
+        "empty": "No profile yet. A complete guided mapping compiles into one, or upload a hand-written profile.",
         "active": "Active",
         "view": "View",
         "viewTitle": "Profile v{{count}}",
@@ -15215,14 +15223,15 @@
         "passed": "Passed",
         "failed": "Failed",
         "sampleGone": "Sample removed"
-      }
+      },
+      "revisionsNote": "Draft revisions of the guided mapping are not stored yet. Profiles lists every version of the mapping that has run."
     },
     "connections": {
       "title": "Connected systems",
       "subtitle": "Let Fawtir collect invoices from your ERP by itself, instead of your ERP pushing them.",
       "card": {
         "title": "Automatic extraction",
-        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping, submits them, and writes the result — Fawtir number, status, QR — back into the ERP record."
+        "body": "Fawtir connects to your ERP, collects new invoices on a schedule, runs them through your field mapping, submits them, and writes the result back into the ERP record: the Fawtir number, the status and the QR code."
       },
       "steps": {
         "collect": {
@@ -15250,10 +15259,10 @@
       "activate": {
         "button": "Ask to activate the add-on",
         "note": "Nothing is charged now; the Fawtir team confirms first.",
-        "requested": "Requested — the Fawtir team will confirm and switch the add-on on for you.",
-        "notOffered": "Automatic extraction is not supported on the {{plan}} plan — available on {{available}}.",
+        "requested": "Requested. The Fawtir team will confirm and switch the add-on on for you.",
+        "notOffered": "Automatic extraction is not supported on the {{plan}} plan. It is available on {{available}}.",
         "seePlans": "See plans",
-        "included": "Switch on — included in your plan",
+        "included": "Switch on, included in your plan",
         "includedNote": "Part of your plan: nothing is charged and it is on straight away."
       },
       "systems": {
@@ -15262,7 +15271,7 @@
         "coming": "Coming"
       },
       "mapping": {
-        "note": "ERP field mapping is part of the Business Plus and Enterprise plans — the connector only automates the collecting.",
+        "note": "ERP field mapping is part of the Business Plus and Enterprise plans. The connector only automates the collecting.",
         "link": "Open ERP mapping"
       },
       "lead": "The ERP systems Fawtir may read invoice data from.",
@@ -15297,8 +15306,6 @@
       },
       "list": {
         "heading": "Connections",
-        "count": "{{count}} connection",
-        "count_plural": "{{count}} connections",
         "includeArchived": "Show retired",
         "add": "Add a connection",
         "empty": "No connections yet",
@@ -15312,7 +15319,9 @@
         "columnLastTest": "Last check",
         "credentialSet": "Configured",
         "credentialMissing": "Not configured",
-        "neverTested": "Never checked"
+        "neverTested": "Never checked",
+        "count_one": "{{count}} connection",
+        "count_other": "{{count}} connections"
       },
       "detail": {
         "heading": "Connection",
@@ -15331,7 +15340,9 @@
         "version_label": "Revision",
         "created": "Created",
         "updated": "Last changed",
-        "extraction": "Extraction"
+        "extraction": "Extraction",
+        "runs": "Runs",
+        "records": "Records"
       },
       "create": {
         "heading": "Add a connection",
@@ -15350,7 +15361,8 @@
         "configurationHint": "Non-secret settings only. Passwords and tokens belong in sign-in details.",
         "submit": "Save as draft",
         "submitting": "Saving…",
-        "savedNext": "Saved. Add the sign-in details next so the connection can be checked."
+        "savedNext": "Saved. Add the sign-in details next so the connection can be checked.",
+        "cardTitle": "Connection details"
       },
       "edit": {
         "heading": "Settings",
@@ -15427,7 +15439,8 @@
         "archiveConfirmTitle": "Retire this connection?",
         "archiveConfirmBody": "It becomes read-only and cannot be turned back on. Its history is kept and its name becomes reusable.",
         "archiveConfirm": "Retire it",
-        "keep": "Keep it"
+        "keep": "Keep it",
+        "changeSettings": "Change settings"
       },
       "refusal": {
         "VERSION_CONFLICT": "Somebody else changed this connection while you were working. Reload to see their version, then try again.",
@@ -15507,7 +15520,7 @@
       "handWrittenShort": "The hand-written profile runs on the server only.",
       "handWrittenHash": "Profile {{hash}}",
       "openAdvanced": "Open the profile",
-      "none": "Nothing to preview yet — finish the field mapping first.",
+      "none": "Nothing to preview yet. Finish the field mapping first.",
       "goToFields": "Go to Fields",
       "handWrittenRunnable": "This tenant runs a hand-written profile. The preview runs that stored expression.",
       "incomplete": "The guided mapping is not finished yet, so there is nothing to compile. Map the remaining required fields first.",
@@ -15524,10 +15537,10 @@
       "staleBanner": "Your mapping changed; every route needs re-certifying before invoices can be sent.",
       "noProfile": "Nothing runs yet, so there is nothing to certify. Finish the field mapping first.",
       "goToFields": "Go to Fields",
-      "activeHash": "Active",
-      "passHash": "Certified at",
+      "activeHash": "Active profile",
+      "passHash": "Certified on",
       "stalePassHash": "Passed at (earlier profile)",
-      "lastHash": "Last tried at",
+      "lastHash": "Last tried on",
       "certifiedOn": "Certified on {{date}} by {{who}}",
       "lastAttempt": "Last attempt {{date}} · {{findings}}",
       "neverTried": "Never tried",
@@ -15590,13 +15603,32 @@
       "issueTime": "Issue time",
       "issueTimeNote": "IBT-168. Fawtir needs it and no mapping can produce it, so the run supplies it.",
       "correction": "The invoice being corrected",
-      "correctionNote": "A credit note must name its predecessor — its number, issue date and UUID — and why it was issued. The rules require all four.",
+      "correctionNote": "A credit note must name its predecessor (its number, issue date and UUID) and why it was issued. The rules require all four.",
       "precedingNumber": "Invoice number",
       "precedingDate": "Issue date",
       "precedingUuid": "Invoice UUID",
       "reasonCode": "Reason code",
-      "warningsOnPass": "Passed with {{count}} warning(s) — they do not block, but read them before going live",
-      "failedStage": "Stopped at {{stage}} · layer {{layer}} · {{count}} error(s)"
+      "warningsOnPass": "Passed with {{count}} warning(s): they do not block, but read them before going live",
+      "failedStage": "Stopped at {{stage}} · {{layer}} · {{count}} error(s)",
+      "contentHash": "Content hash",
+      "kind": {
+        "STANDARD_INVOICE": "Invoice",
+        "CREDIT_NOTE": "Credit note",
+        "SELF_BILLING_INVOICE": "Self-billed invoice"
+      },
+      "why": {
+        "FAILED": "The last test invoice failed on the mapping that runs now. Fix what the findings name and run it again.",
+        "STALE": "It passed on an earlier version of the mapping. Run it again for the version that runs now.",
+        "NOT_CERTIFIED": "No test invoice has passed for this route on the mapping that runs now.",
+        "CERTIFIED": "Certified for the mapping that runs now."
+      },
+      "stage": {
+        "PASSED": "Passed",
+        "TRANSFORMATION": "Mapping",
+        "REQUEST": "Request check",
+        "VALIDATION": "Validation",
+        "BLOCKED": "Blocked"
+      }
     },
     "advanced": {
       "title": "Hand-written profile",
@@ -15606,12 +15638,12 @@
       "editorHint": "JSONata over the ERP payload; the result must be a canonical invoice.",
       "runsNow": "Runs now",
       "activeLine": "v{{version}} · {{hash}}",
-      "nothingActive": "Nothing active — submissions fail closed.",
+      "nothingActive": "Nothing active: submissions fail closed.",
       "erpKey": "ERP key",
       "erpKeyHint": "Names the system this profile reads, e.g. odoo-17.",
       "profileText": "Profile text",
       "sizeNote": "{{size}} KB · at most 256 KB",
-      "empty": "Nothing here yet — paste or write your JSONata.",
+      "empty": "Nothing here yet. Paste or write your JSONata.",
       "dryRun": "Dry-run with this text",
       "download": "Download",
       "save": "Save and activate",
@@ -15754,14 +15786,14 @@
         "title": "Connected systems",
         "subtitle": "The ERPs Fawtir collects invoices from, how each one is doing, and what the add-on has left this month.",
         "connect": "Connect a system",
-        "connectLimit": "All {{count}} connections are in use — remove one to connect another.",
+        "connectLimit": "All {{count}} connections are in use. Remove one to connect another.",
         "errorBanner": {
           "credentials": "{{label}} stopped: the ERP refused its credentials. Replace them in Settings.",
           "unreachable": "{{label}} stopped: the ERP could not be reached. Check its address in Settings.",
           "threeFailures": "{{label}} stopped after three failed runs in a row. Look at its runs before resuming.",
           "link": "Open settings"
         },
-        "pendingPayment": "Requested — waiting for billing to confirm.",
+        "pendingPayment": "Requested. Waiting for billing to confirm.",
         "suspended": "The add-on is suspended: the last add-on bill was not paid. Connections keep their settings, but nothing is collected until billing clears it.",
         "cancelled": "The add-on was cancelled. Connections and their records are kept read-only; ask to activate again to resume collecting.",
         "table": {
@@ -15779,7 +15811,7 @@
         },
         "empty": {
           "title": "No system is connected yet",
-          "body": "Connect your first ERP — the test and the field discovery take about a minute."
+          "body": "Connect your first ERP. The test and the field discovery take about a minute."
         },
         "menu": {
           "label": "Connection actions",
@@ -15791,11 +15823,11 @@
         },
         "collected": "Collecting now from {{label}} · run {{run}} started.",
         "refusal": {
-          "IN_PROGRESS": "A run is already in progress for {{label}} — wait for it to finish.",
+          "IN_PROGRESS": "A run is already in progress for {{label}}. Wait for it to finish.",
           "QUOTA": "This month's allowance is used up; collection resumes on {{date}}.",
-          "NOT_CERTIFIED": "The mapping for {{label}} is not certified yet — certify it before collecting.",
-          "PAUSED": "{{label}} is paused — resume it first.",
-          "CREDENTIALS": "The ERP refused the credentials for {{label}} — replace them in Settings."
+          "NOT_CERTIFIED": "The mapping for {{label}} is not certified yet. Certify it before collecting.",
+          "PAUSED": "{{label}} is paused. Resume it first.",
+          "CREDENTIALS": "The ERP refused the credentials for {{label}}. Replace them in Settings."
         },
         "delete": {
           "title": "Delete {{label}}?",
@@ -15844,7 +15876,7 @@
           "heading": "Which system?",
           "coming": "Coming",
           "label": "Label",
-          "labelPlaceholder": "Head office — Odoo 17",
+          "labelPlaceholder": "Head office, Odoo 17",
           "labelHint": "How this connection appears in lists and notices.",
           "baseUrl": "Base URL",
           "baseUrlHint": "The address Fawtir calls. It must use https."
@@ -15874,11 +15906,11 @@
           "oauth": {
             "button": "Sign in with {{product}}",
             "signingIn": "Opening {{product}}…",
-            "done": "Signed in — {{product}} granted Fawtir access.",
+            "done": "Signed in: {{product}} granted Fawtir access.",
             "note": "You will be sent to {{product}} to approve access; nothing is typed here."
           },
           "scopes": "Access",
-          "readHelper": "Always on — collects invoices.",
+          "readHelper": "Always on: collects invoices.",
           "writeHelper": "Needed for write-back.",
           "schedule": "Schedule",
           "writeBack": "Write back the result",
@@ -15923,9 +15955,9 @@
       },
       "runs": {
         "title": "Runs",
-        "note": "Every collection, newest first — the scheduler's every {{minutes}} minutes and the ones started by hand.",
+        "note": "Every collection, newest first: the scheduler's every {{minutes}} minutes and the ones started by hand.",
         "collectNow": "Collect now",
-        "collected": "Collected now — run {{id}} finished with {{fetched}} fetched.",
+        "collected": "Collected now: run {{id}} finished with {{fetched}} fetched.",
         "collectedLink": "Open the run",
         "refused": {
           "IN_PROGRESS": "A run is already in progress. Wait for it to finish before starting another.",
@@ -15965,7 +15997,7 @@
           "open": ""
         },
         "open": "Open",
-        "empty": "No runs yet — the first one starts on schedule, or with Collect now.",
+        "empty": "No runs yet. The first one starts on schedule, or with Collect now.",
         "emptyFiltered": "No runs in this filter.",
         "showing": "{{from}}–{{to}} of {{total}}",
         "skip": {
@@ -16070,9 +16102,9 @@
         },
         "rejected": {
           "title": "Why it was rejected",
-          "note": "Fix the data in the ERP first, then retry — the record goes back through mapping and submission.",
+          "note": "Fix the data in the ERP first, then retry. The record goes back through mapping and submission.",
           "retry": "Retry",
-          "retried": "Retried — the record is back in mapping and will be submitted on the next run.",
+          "retried": "Retried: the record is back in mapping and will be submitted on the next run.",
           "col": {
             "rule": "Rule",
             "path": "Field",
@@ -16089,7 +16121,7 @@
           "lastError": "Last error",
           "fields": "Fields to be written",
           "requeue": "Re-queue write-back",
-          "requeued": "Re-queued — the connector tries again at {{time}}.",
+          "requeued": "Re-queued: the connector tries again at {{time}}.",
           "field": {
             "fawtirStatus": "Fawtir status",
             "invoiceNumber": "Invoice number",
@@ -16100,11 +16132,11 @@
           }
         },
         "superseded": {
-          "banner": "The ERP record changed after it was submitted ({{note}}, {{time}}). A submitted invoice cannot be changed — issue a credit note in the ERP and let the connector collect it."
+          "banner": "The ERP record changed after it was submitted ({{note}}, {{time}}). A submitted invoice cannot be changed. Issue a credit note in the ERP and let the connector collect it."
         },
         "success": {
-          "writtenBack": "Written back to the ERP at {{time}} — status {{status}}, invoice {{invoice}}, UUID {{uuid}}.",
-          "queued": "Accepted as {{invoice}} — write-back queued, next attempt at {{time}}.",
+          "writtenBack": "Written back to the ERP at {{time}}: status {{status}}, invoice {{invoice}}, UUID {{uuid}}.",
+          "queued": "Accepted as {{invoice}}: write-back queued, next attempt at {{time}}.",
           "accepted": "Accepted by the Tax Authority as {{invoice}} · UUID {{uuid}}."
         },
         "payload": {
@@ -16126,30 +16158,30 @@
           "done_one": "Collected now · {{count}} new invoice",
           "done_other": "Collected now · {{count}} new invoices",
           "refused": {
-            "IN_PROGRESS": "A run is already in progress — wait for it to finish.",
-            "QUOTA": "This month's allowance is used up — nothing more is collected until it resets.",
-            "NOT_CERTIFIED": "Certify the mapping first — nothing is collected until every route it runs passes.",
-            "PAUSED": "The connection is paused — resume it first.",
-            "CREDENTIALS": "The ERP refuses the credentials — replace them first."
+            "IN_PROGRESS": "A run is already in progress. Wait for it to finish.",
+            "QUOTA": "This month's allowance is used up. Nothing more is collected until it resets.",
+            "NOT_CERTIFIED": "Certify the mapping first. Nothing is collected until every route it runs passes.",
+            "PAUSED": "The connection is paused. Resume it first.",
+            "CREDENTIALS": "The ERP refuses the credentials. Replace them first."
           },
           "openMapping": "Open the mapping",
           "openSettings": "Open settings"
         },
         "banner": {
           "error": {
-            "credentials": "Stopped after {{count}} failed runs — the ERP refused the credentials. Replace them.",
-            "unreachable": "Stopped after {{count}} failed runs — the address could not be reached. Check it.",
+            "credentials": "Stopped after {{count}} failed runs. The ERP refused the credentials. Replace them.",
+            "unreachable": "Stopped after {{count}} failed runs. The address could not be reached. Check it.",
             "threeFailures": "Stopped after {{count}} failed runs. Check the ERP and try again."
           },
           "replaceCredentials": "Replace credentials",
-          "paused": "Paused since {{date}}{{reason}} — nothing is collected until you resume.",
+          "paused": "Paused since {{date}}{{reason}}. Nothing is collected until you resume.",
           "disconnected": "This connection was deleted. Its credentials are destroyed; the runs and records below stay for your audit.",
-          "stale_one": "Nothing new for {{count}} day — the newest invoice collected is {{erpNumber}} from {{date}}. Check the ERP is still issuing, or the filter.",
-          "stale_other": "Nothing new for {{count}} days — the newest invoice collected is {{erpNumber}} from {{date}}. Check the ERP is still issuing, or the filter."
+          "stale_one": "Nothing new for {{count}} day. The newest invoice collected is {{erpNumber}} from {{date}}. Check the ERP is still issuing, or the filter.",
+          "stale_other": "Nothing new for {{count}} days. The newest invoice collected is {{erpNumber}} from {{date}}. Check the ERP is still issuing, or the filter."
         },
         "kpi": {
           "watermark": "Newest invoice collected",
-          "watermarkNote": "Issued {{date}} — the next run starts after it",
+          "watermarkNote": "Issued {{date}}. The next run starts after it",
           "watermarkNone": "Nothing collected yet",
           "lastRun": "Last run",
           "lastRunNote": "{{date}} · {{fetched}} fetched, {{created}} new",
@@ -16180,7 +16212,7 @@
           "on": "On",
           "off": "Off",
           "mappingTenant": "Runs your company's ERP mapping",
-          "mappingByHand": "Mapped by hand — no template for this system",
+          "mappingByHand": "Mapped by hand: no template for this system",
           "mappingEdited": "From template {{template}}, edited {{date}}",
           "mappingUnedited": "Template applied {{date}}, unedited",
           "createdValue": "{{date}} by {{by}}"
@@ -16225,7 +16257,7 @@
         "title": "Mapping",
         "provenance": {
           "tenant": "This connection runs your company's ERP mapping.",
-          "none": "No template for this system — the fields are mapped by hand.",
+          "none": "No template for this system. The fields are mapped by hand.",
           "unedited": "Template {{template}} applied {{date}}, unedited.",
           "edited": "From template {{template}}, edited {{date}}."
         },
@@ -16242,7 +16274,7 @@
           "templateNone": "None for this system yet"
         },
         "tenant": {
-          "body": "This connection runs your company's ERP mapping — the same one every Odoo invoice goes through. Edit it in the mapping wizard; certification there counts here.",
+          "body": "This connection runs your company's ERP mapping, the same one every Odoo invoice goes through. Edit it in the mapping wizard; certification there counts here.",
           "routesTitle": "Certification by route",
           "routesNote": "Read from the company's mapping. A route that is not certified is not collected.",
           "col": {
@@ -16253,11 +16285,11 @@
           "notTried": "Not tried yet"
         },
         "readiness": {
-          "draft": "{{count}} fields mapped from the template, edited on {{date}} — not yet certified. Nothing is collected until it is.",
-          "ready": "Template applied, nothing edited — run the certification and the connection can start collecting.",
-          "certified": "Certified — every invoice this connection collects goes through this mapping.",
-          "stale": "The mapping changed since it was certified — certify again before collecting.",
-          "unmapped": "No template for this system yet — map the fields by hand in the wizard, then certify."
+          "draft": "{{count}} fields mapped from the template, edited on {{date}}, not yet certified. Nothing is collected until it is.",
+          "ready": "Template applied, nothing edited. Run the certification and the connection can start collecting.",
+          "certified": "Certified: every invoice this connection collects goes through this mapping.",
+          "stale": "The mapping changed since it was certified. Certify again before collecting.",
+          "unmapped": "No template for this system yet. Map the fields by hand in the wizard, then certify."
         },
         "openWizard": "Open the mapping wizard",
         "certify": "Certify",
@@ -16266,7 +16298,7 @@
           "title": "Reset to the template?",
           "body": "Your edits are replaced by the {{template}} template ({{count}} fields). Certification is lost, so certify again before collecting.",
           "confirm": "Reset to template",
-          "done": "Reset to template — certify again before collecting."
+          "done": "Reset to template. Certify again before collecting."
         },
         "discovery": {
           "title": "What the template covers",
@@ -16280,7 +16312,7 @@
         "on": "On",
         "off": "Off",
         "switch": "Write-back",
-        "needsWrite": "Needs the Write scope — change it in Settings.",
+        "needsWrite": "Needs the Write scope. Change it in Settings.",
         "openSettings": "Open settings",
         "fields": {
           "title": "What is written · {{product}} fields",
@@ -16326,7 +16358,7 @@
           "attemptsOf": "{{count}} of {{max}}",
           "requeue": "Re-queue",
           "empty": "Nothing here.",
-          "emptyOff": "Write-back is off — nothing is queued."
+          "emptyOff": "Write-back is off. Nothing is queued."
         }
       },
       "settingsTab": {
@@ -16353,7 +16385,7 @@
         },
         "credentials": {
           "title": "Credentials",
-          "note": "The secret is never shown — only what it signs in as and whether it still works.",
+          "note": "The secret is never shown, only what it signs in as and whether it still works.",
           "testNow": "Test now",
           "replace": "Replace credentials",
           "signsInWith": "Signs in with",
@@ -16365,8 +16397,8 @@
           "neverTested": "Never tested",
           "testOk": "{{date}} · {{latency}} ms · {{version}}",
           "testFailed": "{{date}} ·",
-          "rotated": "Credentials replaced and tested in {{latency}} ms — the connection is back.",
-          "rotationFailed": "The new credentials were refused — {{reason}} The old ones are gone; enter working ones."
+          "rotated": "Credentials replaced and tested in {{latency}} ms. The connection is back.",
+          "rotationFailed": "The new credentials were refused: {{reason}} The old ones are gone; enter working ones."
         },
         "replace": {
           "title": "Replace credentials",
@@ -16391,7 +16423,7 @@
     "unsupported": {
       "notAvailable": "Not available yet",
       "REVISIONS": "Draft revision history is not stored yet. Mapping revisions are under History.",
-      "SAMPLES": "Samples are not saved yet — one chosen here is used for this visit only.",
+      "SAMPLES": "Samples are not saved yet. One chosen here is used for this visit only.",
       "ACTIVITY_LOG": "Mapping changes are recorded, but there is no screen to read them yet.",
       "VALUE_MAPS": "Code-to-code tables are not supported yet. Use a transform instead.",
       "ERP_VERSION": "Fawtir records the ERP, not its version.",
@@ -16458,7 +16490,8 @@
         "lastRunCounts": "Last run documents",
         "lastFailure": "Last failure",
         "retryable": "will retry",
-        "counts": "{{discovered}} found, {{accepted}} accepted, {{rejected}} rejected, {{duplicates}} duplicate"
+        "counts": "{{discovered}} found, {{accepted}} accepted, {{rejected}} rejected, {{duplicates}} duplicate",
+        "failureStage": "Stage: {{stage}}"
       },
       "config": {
         "title": "Configure extraction",
@@ -16491,7 +16524,8 @@
         "initialCursor": "Start from",
         "initialCursorHint": "Optional. Where a first collection begins, and what a sample fetch reads from.",
         "documentIssueTimePointer": "Issue time pointer",
-        "documentIssueTimePointerHint": "RFC 6901 JSON Pointer to each invoice's issue time, for example /invoice/issueTime. The value there must be a time (HH:mm:ss) or a date and time with an offset."
+        "documentIssueTimePointerHint": "RFC 6901 JSON Pointer to each invoice's issue time, for example /invoice/issueTime. The value there must be a time (HH:mm:ss) or a date and time with an offset.",
+        "documentIdPointerHint": "A JSON Pointer (RFC 6901) to each document's own id, for example /id"
       },
       "sample": {
         "title": "Fetch a sample invoice",
@@ -16607,7 +16641,8 @@
         "versionHint": "Optional. Use a new version to send a corrected document under the same ID."
       },
       "invoice": {
-        "title": "Invoice details"
+        "title": "Invoice details",
+        "composed": "Code sent with the invoice"
       },
       "submit": "Upload",
       "submitting": "Uploading...",
@@ -16673,7 +16708,12 @@
           "order": "The start date must not be after the end date.",
           "tooLong": "Choose at most 367 days. Narrow the dates to see older documents."
         },
-        "fixToRead": "Fix the dates above to see the documents."
+        "fixToRead": "Fix the dates above to see the documents.",
+        "started": {
+          "label": "Run created between",
+          "from": "Created from",
+          "to": "Created to"
+        }
       },
       "filters": {
         "title": "Filters",
@@ -16748,7 +16788,8 @@
         "received": "Received",
         "labels": "Needs attention because",
         "started": "Run created",
-        "runState": "Run state"
+        "runState": "Run state",
+        "channelConnection": "Channel and connection"
       },
       "counter": {
         "discovered": "Found",

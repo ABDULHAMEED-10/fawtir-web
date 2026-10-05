@@ -656,6 +656,51 @@ describe('extraction runs', () => {
 })
 
 describe('the per-connection addresses', () => {
+  const CONNECTION = {
+    id: CONNECTION_ID,
+    name: 'Head office Odoo',
+    sourceSystem: 'ODOO',
+    sourceVersion: null,
+    connectionMode: 'MANAGED_PULL',
+    transportType: null,
+    endpoint: null,
+    configuration: null,
+    state: 'ACTIVE',
+    credentialConfigured: true,
+    credentialType: null,
+    credentialHint: null,
+    credentialRotatedAt: null,
+    lastTestedAt: null,
+    lastTestOutcome: null,
+    lastTestReasonCode: null,
+    version: 1,
+    createdAt: '2026-09-01T00:00:00Z',
+    updatedAt: '2026-09-01T00:00:00Z',
+  }
+
+  it('keep the connection frame and narrow the documents to it', async () => {
+    who = ADMIN
+    routes[`/api/v1/erp/connections/${CONNECTION_ID}`] = () => json(200, CONNECTION)
+    renderAt(`/settings/erp/connections/${CONNECTION_ID}/records`)
+    expect(await screen.findByRole('heading', { name: 'Head office Odoo' })).toBeTruthy()
+    const link = await screen.findByRole('link', { name: 'SO-1001' })
+    expect(link.getAttribute('href')).toBe(
+      `/settings/erp/connections/${CONNECTION_ID}/records/${RECORD_ID}`,
+    )
+    const list = reportCalls().find((call) => path(call.url) === '/api/v1/erp/source-documents')!
+    expect(query(list.url).get('connection_id')).toBe(CONNECTION_ID)
+    // The connection is fixed here, so it is not offered as a filter.
+    expect(screen.queryByRole('button', { name: 'Connection' })).toBeNull()
+  })
+
+  it('keep the connection frame around one of its runs', async () => {
+    who = ADMIN
+    routes[`/api/v1/erp/connections/${CONNECTION_ID}`] = () => json(200, CONNECTION)
+    renderAt(`/settings/erp/connections/${CONNECTION_ID}/runs/${RUN_ID}`)
+    expect(await screen.findByText('Recorded by the run')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Head office Odoo' })).toBeTruthy()
+  })
+
   it('open the reports narrowed to the connection, or the record itself', async () => {
     renderAt(`/settings/erp/connections/${CONNECTION_ID}/records`)
     await screen.findByText('SO-1001')

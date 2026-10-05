@@ -4,6 +4,7 @@ import { useApiRead } from '../../../hooks/useApiRead'
 import { useEntitlements } from '../../../hooks/useEntitlements'
 import { hasPermission } from '../../../lib/identity/entitlements'
 import { listErpConnections, type ErpConnectionListDto } from '../../../api/erp/connections'
+import { documentDetailPath, type SourceDocumentDetailDto } from '../../../api/erp/reporting'
 
 /** The reporting routes' permission (`ExtractionRunReportController.READ`). */
 export const REPORT_READ = 'invoice.read'
@@ -58,4 +59,39 @@ export function useEnumOptions() {
   const code = useCode()
   return (group: string, values: readonly string[]): SelectOption[] =>
     values.map((value) => ({ value, label: code(group, value) }))
+}
+
+/**
+ * A code, id or version set inside a translated sentence, kept left to right in Arabic.
+ *
+ * Interpolated values are plain strings, so the bidi isolate goes into the string itself
+ * (U+2066 LEFT-TO-RIGHT ISOLATE ... U+2069 POP DIRECTIONAL ISOLATE): `2026-10-01T05:59:58Z`
+ * would otherwise be reordered by the Arabic around it.
+ */
+export const ltr = (value: string) => `\u2066${value}\u2069`
+
+/** Where a report's links lead: the global report, or the same report under one connection. */
+export type ReportLinks = {
+  document: (recordId: string) => string
+  run: (runId: string) => string
+}
+
+export const GLOBAL_LINKS: ReportLinks = {
+  document: (recordId) => `/settings/erp/documents/${encodeURIComponent(recordId)}`,
+  run: (runId) => `/settings/erp/runs/${encodeURIComponent(runId)}`,
+}
+
+export function connectionLinks(connectionId: string): ReportLinks {
+  const base = `/settings/erp/connections/${encodeURIComponent(connectionId)}`
+  return {
+    document: (recordId) => `${base}/records/${encodeURIComponent(recordId)}`,
+    run: (runId) => `${base}/runs/${encodeURIComponent(runId)}`,
+  }
+}
+
+/** One document's read, held back until the reader may ask for it. */
+export function useDocumentDetail(recordId: string) {
+  const readable = useReportReadable()
+  const path = readable ? documentDetailPath(recordId) : null
+  return useApiRead<SourceDocumentDetailDto>(path)
 }

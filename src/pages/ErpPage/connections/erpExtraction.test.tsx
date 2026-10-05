@@ -622,7 +622,10 @@ describe('status', () => {
     })
     renderPage()
 
-    expect(await screen.findByText(/SOURCE_TIMEOUT/)).toBeTruthy()
+    // The classified code and stage in words, never the raw codes.
+    expect(await screen.findByText(/Your ERP did not answer in time/)).toBeTruthy()
+    expect(screen.getByText(/Stage: your ERP/)).toBeTruthy()
+    expect(screen.queryByText(/SOURCE_TIMEOUT/)).toBeNull()
     expect(screen.getByText(/will retry/)).toBeTruthy()
     expect(fact('Consecutive failures')).toBe('2')
   })

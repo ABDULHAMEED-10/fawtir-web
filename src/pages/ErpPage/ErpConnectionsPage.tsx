@@ -8,13 +8,14 @@ import {
   LoadingNotice,
   PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
-import { Switch } from '../../components/ui'
+import { RowsView, Switch } from '../../components/ui'
 import { useErpAccess } from '../../hooks/useErpAccess'
 import { useLanguage } from '../../hooks'
 import { useConnectionList } from './connections/connectionData'
 import { ConnectionStatePill, TestOutcomePill } from './connections/connectionParts'
 import { testReasonKey } from '../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../lib/format'
+import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import type { ErpConnectionDto } from '../../api/erp/connections'
 
 /**
@@ -88,12 +89,23 @@ function ConnectionTable({
 }) {
   const { t } = useTranslation()
 
+  // The switch names itself only to a screen reader, so its words are drawn beside it as well;
+  // clicking them flips it too. Hidden from assistive tech, which already hears the switch's name.
   const archivedToggle = (
-    <Switch
-      checked={includeArchived}
-      onChange={onIncludeArchived}
-      label={t('erp.connections.list.includeArchived')}
-    />
+    <span className="inline-flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="cursor-pointer select-none text-sm font-medium text-text-tertiary"
+        onClick={() => onIncludeArchived(!includeArchived)}
+      >
+        {t('erp.connections.list.includeArchived')}
+      </span>
+      <Switch
+        checked={includeArchived}
+        onChange={onIncludeArchived}
+        label={t('erp.connections.list.includeArchived')}
+      />
+    </span>
   )
   const heading = t('erp.connections.list.heading')
 
@@ -123,7 +135,9 @@ function ConnectionTable({
       note={t('erp.connections.list.count', { count: total })}
       actions={archivedToggle}
     >
-      <div className="overflow-x-auto">
+      {/* Cards on a phone (the shared RowsView), the table from md up. */}
+      <div className="max-md:px-5 max-md:pb-5">
+      <RowsView>
         <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className={THEAD_ROW}>
@@ -149,6 +163,7 @@ function ConnectionTable({
             )}
           </tbody>
         </table>
+      </RowsView>
       </div>
     </SectionCard>
   )
@@ -171,10 +186,12 @@ function ConnectionRow({ connection }: { connection: ErpConnectionDto }) {
         </p>
       </Td>
       <Td>
-        <span className="font-medium text-text-secondary">{connection.sourceSystem}</span>
+        <span className="font-medium text-text-secondary">
+          {sourceSystemName(t, connection.sourceSystem)}
+        </span>
         {connection.sourceVersion !== null ? (
           <p className="mt-0.5 text-xs font-medium text-text-quaternary">
-            {connection.sourceVersion}
+            <bdi dir="ltr">{connection.sourceVersion}</bdi>
           </p>
         ) : null}
       </Td>

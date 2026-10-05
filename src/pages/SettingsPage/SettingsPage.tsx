@@ -39,9 +39,13 @@ import connectIcon from '../../assets/settings/tile-connect.svg'
 import { useApiRead } from '../../hooks/useApiRead'
 import {
   ERP_MAPPING_CARD_KEY,
+  erpMappingKey,
+  loadErpMapping,
   loadErpMappingCard,
   type ErpMappingCard,
+  type ErpMappingView,
 } from '../../lib/erp/mappingState'
+import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { listErpConnections } from '../../api/erp/connections'
 import { useErpAccess } from '../../hooks/useErpAccess'
 import { useFeature } from '../../lib/planAccess'
@@ -122,7 +126,21 @@ export function SettingsPage() {
         : { hasGuided: false, sourceSystem: null, status: 'NOT_SET_UP', mapped: 0, required: 0 },
     [mappingCard.read],
   )
-  const mappingStatus = mapping.status
+  // The two reads cannot tell "certified" from "partly certified" or "re-certify": that needs all
+  // four routes. So once a mapping has a live profile, the card reads the same view the mapping
+  // overview reads (same cache key, so opening the overview next costs nothing) and shows the
+  // overview's own status, so the hub and the page never disagree. Tenants with no live mapping,
+  // the ones who never use ERP, still make only the two reads.
+  const hasLiveMapping =
+    mappingCard.read.status === 'ready' &&
+    mappingCard.read.data.status !== 'NOT_SET_UP' &&
+    mappingCard.read.data.status !== 'DRAFT'
+  const mappingView = useApiRead<ErpMappingView>(
+    hasLiveMapping ? erpMappingKey('JSON') : null,
+    () => loadErpMapping('JSON'),
+  )
+  const mappingStatus =
+    mappingView.read.status === 'ready' ? mappingView.read.data.status : mapping.status
   // The real count, and only when the reader may see it: a user without erp.connection.read gets
   // no request rather than a 403 on every visit to Settings. The card previously showed a
   // mock-derived count, an "N need attention" badge for a state the backend does not have, and a
@@ -223,14 +241,18 @@ export function SettingsPage() {
             ? 'success'
             : mappingStatus === 'NOT_SET_UP'
               ? 'neutral'
-              : mappingStatus === 'STALE' || mappingStatus === 'DRAFT'
+              : // Same tones as the mapping screens' own status pill (ErpShell), bar STALE's red.
+                mappingStatus === 'STALE' ||
+                  mappingStatus === 'DRAFT' ||
+                  mappingStatus === 'PARTIALLY_CERTIFIED' ||
+                  mappingStatus === 'READY_UNCERTIFIED'
                 ? 'pending'
                 : 'neutral',
         footKey: mapping.hasGuided
           ? 'settings.card.erpMappingFoot'
           : 'settings.card.erpMappingFootNone',
         footValues: {
-          system: mapping.sourceSystem ? t(`erp.sourceSystem.${mapping.sourceSystem}`) : '',
+          system: mapping.sourceSystem ? sourceSystemName(t, mapping.sourceSystem) : '',
           mapped: mapping.mapped,
           required: mapping.required,
         },

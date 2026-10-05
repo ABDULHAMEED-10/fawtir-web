@@ -341,7 +341,7 @@ export function ConnectionExtractionPage() {
               id="erp-extraction-document-id-pointer"
               name="documentIdPointer"
               label={t('erp.extraction.field.documentIdPointer')}
-              hint={t('erp.extraction.field.pointerHint')}
+              hint={t('erp.extraction.field.documentIdPointerHint')}
               maxLength={200}
               dir="ltr"
               value={form.documentIdPointer}
@@ -490,8 +490,10 @@ function StatusPanel({
   status: ExtractionStatusDto | null
   missingIssueTime: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const cadence = useCadenceText()
+  // In the page's language: an Arabic page reads Arabic dates, not English ones scrambled by RTL.
+  const when = (iso: string) => formatInstant(iso, i18n.language)
   if (read.status === 'failed') {
     return (
       <SectionCard title={t('erp.extraction.status.title')}>
@@ -539,20 +541,20 @@ function StatusPanel({
           <Fact label={t('erp.extraction.status.nextRun')}>
             {status.nextRunAt === null
               ? t('erp.extraction.status.notScheduled')
-              : formatInstant(status.nextRunAt)}
+              : when(status.nextRunAt)}
           </Fact>
           {status.consecutiveFailures > 0 ? (
             <Fact label={t('erp.extraction.status.failures')}>{status.consecutiveFailures}</Fact>
           ) : null}
           {status.backoffUntil !== null ? (
             <Fact label={t('erp.extraction.status.backoffUntil')}>
-              {formatInstant(status.backoffUntil)}
+              {when(status.backoffUntil)}
             </Fact>
           ) : null}
           {status.lastRunState !== null ? (
             <Fact label={t('erp.extraction.status.lastRun')}>
               {t(`erp.extraction.runState.${status.lastRunState}`)}
-              {status.lastRunCompletedAt !== null ? ` · ${formatInstant(status.lastRunCompletedAt)}` : ''}
+              {status.lastRunCompletedAt !== null ? ` · ${when(status.lastRunCompletedAt)}` : ''}
             </Fact>
           ) : null}
           {status.lastRunState !== null ? (
@@ -567,9 +569,25 @@ function StatusPanel({
           ) : null}
           {status.lastFailureReason !== null ? (
             <Fact label={t('erp.extraction.status.lastFailure')}>
-              {/* The server's classified code and stage. No exception text exists to render. */}
-              <Mono>{status.lastFailureReason}</Mono>
-              {status.lastFailureStage !== null ? ` · ${status.lastFailureStage}` : ''}
+              {/* The server's classified code and stage, in words. A code this build has no words
+                  for is shown as the code. No exception text exists to render. */}
+              {i18n.exists(`erp.reporting.reason.${status.lastFailureReason}`) ? (
+                t(`erp.reporting.reason.${status.lastFailureReason}`)
+              ) : (
+                <Mono>{status.lastFailureReason}</Mono>
+              )}
+              {status.lastFailureStage !== null ? (
+                <>
+                  {' · '}
+                  {i18n.exists(`erp.reporting.stage.${status.lastFailureStage}`) ? (
+                    t('erp.extraction.status.failureStage', {
+                      stage: t(`erp.reporting.stage.${status.lastFailureStage}`),
+                    })
+                  ) : (
+                    <Mono>{status.lastFailureStage}</Mono>
+                  )}
+                </>
+              ) : null}
               {status.lastFailureRetryable === true
                 ? ` · ${t('erp.extraction.status.retryable')}`
                 : ''}
@@ -650,9 +668,11 @@ function SamplePanel({
           <>
             <dl className="mt-5 grid gap-4 sm:grid-cols-4">
               <Fact label={t('erp.extraction.sample.documentId')}>
-                {sample.externalDocumentId ?? '—'}
+                <bdi dir="ltr">{sample.externalDocumentId ?? '—'}</bdi>
               </Fact>
-              <Fact label={t('erp.extraction.sample.version')}>{sample.externalVersion ?? '—'}</Fact>
+              <Fact label={t('erp.extraction.sample.version')}>
+                <bdi dir="ltr">{sample.externalVersion ?? '—'}</bdi>
+              </Fact>
               <Fact label={t('erp.extraction.sample.size')}>
                 {t('erp.extraction.sample.bytes', { count: sample.payloadBytes })}
               </Fact>

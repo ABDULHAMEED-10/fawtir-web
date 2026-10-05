@@ -20,6 +20,7 @@ import {
   isProbeableCredentialType,
 } from '../../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../../lib/format'
+import { sourceSystemName } from '../../../lib/erp/sourceSystem'
 import {
   storeErpCredential,
   updateErpConnection,
@@ -210,13 +211,14 @@ function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload
           <TextField
             id="erp-edit-endpoint"
             name="endpoint"
+            dir="ltr"
             label={t('erp.connections.create.endpoint')}
             hint={t('erp.connections.create.endpointHint')}
             maxLength={2048}
             value={endpoint}
             onChange={setEndpoint}
           />
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 [&_textarea]:font-mono [&_textarea]:text-xs [&_textarea]:[direction:ltr]">
             <TextAreaField
               id="erp-edit-configuration"
               name="configuration"
@@ -235,7 +237,7 @@ function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload
                 {t('erp.connections.edit.lockedSystem')}
               </p>
               <p className="mt-1 text-sm font-medium text-text-secondary">
-                {connection.sourceSystem}
+                {sourceSystemName(t, connection.sourceSystem)}
               </p>
             </div>
             <div>
@@ -250,14 +252,14 @@ function EditForm({ connection, reload }: { connection: ErpConnectionDto; reload
               {t('erp.connections.edit.lockedWhy')}
             </p>
           </div>
+          {/* Inside the card it saves, as on the Extraction tab. */}
+          <div className="flex flex-wrap items-center gap-2.5 md:col-span-2">
+            <button type="submit" className={PRIMARY_BUTTON} disabled={busy || name.trim() === ''}>
+              {busy ? t('erp.connections.edit.saving') : t('erp.connections.edit.save')}
+            </button>
+          </div>
         </div>
       </SectionCard>
-
-      <div className="flex flex-wrap items-center gap-2.5">
-        <button type="submit" className={PRIMARY_BUTTON} disabled={busy || name.trim() === ''}>
-          {busy ? t('erp.connections.edit.saving') : t('erp.connections.edit.save')}
-        </button>
-      </div>
     </form>
   )
 }
