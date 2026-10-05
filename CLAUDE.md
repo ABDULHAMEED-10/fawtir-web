@@ -12,7 +12,12 @@ anything.** This file is the short version.
 
 1. **The Figma design is the source of truth for every screen.** File `9cUaVMybChEiMAIyNNbxHp`,
    page `0:1` (read it with the Figma MCP; find frames by name, ids change on re-upload). Look at
-   the frame's image before building or answering. POS and the invoice import dialog (owner-approved exception) are the only screens with no design.
+   the frame's image before building or answering. Screens with no frame (POS, the invoice
+   import dialog, and most **console / super admin, ERP integration and subscription** screens)
+   follow the **house standard, handbook section 3.3**: copy the nearest designed screen and use
+   only the existing shells, cards and components. Card bodies padded like their heading
+   (`p-5 pt-0`), 20 px between fields, words not codes (no raw enums, i18n keys or `PT5M`), codes
+   and URLs `dir="ltr"`, warnings inline in their card, tables never widen the page at 390 px.
 2. **Fix the designer's slips, do not copy them** (wrong arithmetic, pasted labels, duplicated
    fields), and say what you corrected.
 3. **Keep the backend integration, but the design wins.** Never delete an API call, request

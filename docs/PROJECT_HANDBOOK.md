@@ -63,7 +63,7 @@ catalogue, stock, point of sale, reports and the document archive.
 1. Sync first: `git fetch`, `git checkout dev`, `git merge --ff-only origin/main`.
 2. Open the Figma frame (section 3.1) and look at the image, not only the layer names.
 3. Build or fix the screen.
-4. Verify (section 3.3): type-check, tests, screenshot against the frame in English, Arabic and
+4. Verify (section 3.4): type-check, tests, screenshot against the frame in English, Arabic and
    at phone width, responsive sweep.
 5. Commit to `dev` with a message that says what changed and why, and push `dev`.
 6. The owner opens the `dev` to `main` PR and merges it. Do not push to `main` unless the owner
@@ -82,7 +82,7 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
    `<select>`/date input, removes a designed element, or drops a request assertion from a test.
 3. Merge it onto current `main` in a throwaway branch; `npm run build`; `npm run test`.
 4. Build with `VITE_REQUIRE_SESSION=true`, run the mock API, and screenshot every screen the PR
-   touches, in English, Arabic and at 390 px (section 3.3). Compare with the frame.
+   touches, in English, Arabic and at 390 px (section 3.4). Compare with the frame.
 5. If it is clean and the owner agrees: merge into `main` with the message
    `Merge pull request #<n> from ABDULHAMEED-10/<branch>`, push `main`, delete the PR branch
    (`git push origin --delete <branch>`), then fast-forward `dev` to `main` and push `dev`.
@@ -113,7 +113,11 @@ connect; if some part cannot, leave it for later.** The procedure used for PRs #
   `0:1`). Both work with the MCP. **Node ids change when the designer re-uploads a frame:** find
   frames by name, then take the id.
 - **Screens with no design:** POS, the **self-billed credit note** and the **supplier business activity** dialogs (below), and the **invoice import dialog** (the Invoices list's Bulk
-  upload). On these judgement decides; flag such decisions. The import dialog is an owner-approved
+  upload). Most **console (super admin)**, **ERP integration** (connections, extraction, Bridge,
+  mapping, reporting) and **subscription / plan administration** screens have no frame either:
+  Figma has only "Super Admin -> Operations" and "Super Admin -> Tenants". Every such screen
+  follows the house standard in section 3.3 instead of being invented. On these judgement decides
+  within that standard; flag such decisions. The import dialog is an owner-approved
   exception (2026-09-28, on grounds of time, per the approved Invoice Import guide): it is built on
   the existing theme and components only and changes no other screen.
 - **Self-billed credit note (approved 2026-09-30):** a necessary screen with no Figma frame (PR
@@ -198,7 +202,44 @@ These apply to every screen, every language and every width. Each one came from 
 - A form the design draws as creatable from scratch must be creatable from scratch even if the
   API only knows "copy invoice X" (periodic invoices). Copying is an optional pre-fill.
 
-### 3.3 Verifying a screen
+### 3.3 The house standard for screens with no Figma frame
+
+Console, ERP, subscription and admin work often has no design. Such a screen must look as if the
+designer drew it: same shells, cards, spacing, controls and states as its designed neighbours.
+Check the screen against this list before saying it is done, and again when reviewing a PR.
+
+- **Start from the nearest designed screen** and copy its structure: a Settings page (Peppol and
+  tax, Plan, Billing) for tenant settings and ERP, the "Super Admin -> Operations / Tenants" frames
+  for the console. Never introduce a new layout, colour, font size or button shape.
+- **Use the existing pieces only:** the shells (`SettingsShell`, `ConsoleShell` with
+  `ConsoleBreadcrumbs`), the Settings idiom in `src/pages/ErpPage/overview/idiom.tsx`
+  (`SectionCard`, `PRIMARY_BUTTON`, `SECONDARY_BUTTON`, `SMALL_BUTTON`, `Mono`), `Pill` for
+  states, the form fields in `src/components/form`, and `src/components/ui` (`Modal`, `Select`,
+  `Combobox`, `DateField`). No new primitives without the owner.
+- **Spacing:** card bodies are padded like their heading (`p-5 pt-0` inside the idiom
+  `SectionCard`, which pads only its title); content never touches a card edge. 20 px between
+  fields and between blocks (`gap-5`), two field columns from `md`, one on a phone. Cards are
+  separated by the shell's own gap; no extra empty bands.
+- **States:** loading, empty, no access, not found and failure use the shared notices
+  (`LoadingNotice`, `PermissionDeniedNotice`, `ApiReadFailure`) for the whole page. A warning
+  about one card sits **inside** that card as an inline callout, never as a page notice nested in
+  a card. Status is a `Pill` with words, not colour alone.
+- **People read words, not codes.** No raw enum values, i18n keys, ISO durations (`PT5M` reads
+  "Every 5 minutes"), HTTP codes or server prose in the UI. Map every server code to our own
+  sentence in both languages; the server's English `detail` is never shown. A code the user must
+  type (a pointer, a parameter, a bitmap) may appear in its field and in `Mono`.
+- **Codes stay left to right in Arabic:** paths, pointers, URLs, IDs and parameters get
+  `dir="ltr"` (`TextField` takes `dir`; `Mono` already sets it), so `/id` never reads `id/`.
+- **Tables:** a table scrolls inside its card or becomes cards on a phone (the existing
+  `RowsView` pattern); the page itself never scrolls sideways at 390 px.
+- **Native time inputs count as native date inputs:** do not add new ones.
+- **Console pages have breadcrumbs; every console and ERP action is gated** by the permission
+  the server checks, hidden when absent (not shown disabled) unless the design says otherwise.
+- **Same verification as a designed screen** (section 3.4): English, Arabic and 390 px
+  screenshots against the mock API, plus the neighbouring designed screen side by side to check
+  that headings, card padding and buttons match.
+
+### 3.4 Verifying a screen
 
 A passing type-check says nothing about layout. Real defects have only ever been caught by
 looking at the rendered page.
