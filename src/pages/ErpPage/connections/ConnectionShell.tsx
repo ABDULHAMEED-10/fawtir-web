@@ -33,15 +33,27 @@ type ConnectionTab = (typeof CONNECTION_TABS)[number]['id']
 const connectionPath = (id: string, tab: ConnectionTab = 'overview') =>
   `/settings/erp/connections/${id}${CONNECTION_TABS.find((x) => x.id === tab)!.path}`
 
-function ConnectionTabs({ connectionId }: { connectionId: string }) {
+function ConnectionTabs({
+  connectionId,
+  connectionMode,
+}: {
+  connectionId: string
+  connectionMode: ErpConnectionDto['connectionMode']
+}) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
+  // Extraction is how Fawtir collects from an ERP, so it exists only for MANAGED_PULL. An upload or
+  // push connection has nothing to configure there, and the server would refuse every read with
+  // EXTRACTION_CONNECTION_MODE_UNSUPPORTED.
+  const tabs = CONNECTION_TABS.filter(
+    (tab) => tab.id !== 'extraction' || connectionMode === 'MANAGED_PULL',
+  )
   return (
     <nav
       aria-label={t('erp.connector.tabs.label')}
       className="-mb-2 flex gap-1 overflow-x-auto border-b border-border-subtle"
     >
-      {CONNECTION_TABS.map((tab) => {
+      {tabs.map((tab) => {
         const to = connectionPath(connectionId, tab.id)
         const active = tab.id === 'overview' ? pathname === to : pathname.startsWith(to)
         return (
@@ -113,7 +125,7 @@ export function ConnectionShell({
           }
         />
       </div>
-      <ConnectionTabs connectionId={connection.id} />
+      <ConnectionTabs connectionId={connection.id} connectionMode={connection.connectionMode} />
       {children}
     </SettingsShell>
   )

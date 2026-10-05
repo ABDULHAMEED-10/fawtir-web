@@ -15275,7 +15275,7 @@
       },
       "stateHint": {
         "DRAFT": "Still being configured. Nothing runs from a draft.",
-        "READY": "Configuration is complete. Nothing is collected yet — that comes later.",
+        "READY": "Configuration is complete. If Fawtir collects from this ERP, set up and enable collection on the Extraction tab.",
         "DISABLED": "Paused on purpose. Turn it back on when you are ready.",
         "ARCHIVED": "Retired and read-only. Its name can be reused."
       },
@@ -15448,7 +15448,8 @@
         "SAMPLE_NO_DOCUMENTS": "The ERP answered but returned no documents. Check the documents pointer and the start position.",
         "SAMPLE_IN_PROGRESS": "A sample is already being fetched for this connection. Wait for it to finish.",
         "SAMPLE_CREDENTIAL_UNAVAILABLE": "This connection has no usable credential, so a sample cannot be fetched.",
-        "SAMPLE_ARCHIVED": "This connection is archived and makes no outbound calls."
+        "SAMPLE_ARCHIVED": "This connection is archived and makes no outbound calls.",
+        "EXTRACTION_ISSUE_TIME_POINTER_REQUIRED": "Production collection needs the invoice issue time pointer. Set it in the extraction settings and save, then enable collection."
       },
       "reload": "Reload",
       "permission": {
@@ -15458,8 +15459,8 @@
         "denied": "You do not have permission to do that."
       },
       "unavailable": {
-        "title": "Not available yet",
-        "body": "Collecting invoices from your ERP is not switched on yet. This screen will show it when it is."
+        "title": "Not available for a single connection",
+        "body": "This view is not part of a connection. Configure collection on the Extraction tab, and set up mapping once for all channels in ERP mapping."
       }
     },
     "shared": {
@@ -16423,7 +16424,8 @@
         "RUNNING": "A collection cycle is in progress.",
         "BACKOFF": "A run failed, so the next attempt is being held back.",
         "FAILED_LAST_RUN": "The most recent run failed, and the schedule carries no penalty.",
-        "WAITING": "Nothing to do. The next run is scheduled."
+        "WAITING": "Nothing to do. The next run is scheduled.",
+        "NOT_CONFIGURED_ISSUE_TIME": "Collection is paused until the invoice issue time pointer is set. Nothing has failed."
       },
       "runState": {
         "CREATED": "Created",
@@ -16487,7 +16489,9 @@
         "pageSizeParameter": "Page size parameter",
         "pageSizeParameterHint": "The query parameter the page size is sent in. The size itself is a platform setting.",
         "initialCursor": "Start from",
-        "initialCursorHint": "Optional. Where a first collection begins, and what a sample fetch reads from."
+        "initialCursorHint": "Optional. Where a first collection begins, and what a sample fetch reads from.",
+        "documentIssueTimePointer": "Issue time pointer",
+        "documentIssueTimePointerHint": "RFC 6901 JSON Pointer to each invoice's issue time, for example /invoice/issueTime. The value there must be a time (HH:mm:ss) or a date and time with an offset."
       },
       "sample": {
         "title": "Fetch a sample invoice",
@@ -16522,7 +16526,17 @@
         "ok": "Done",
         "outstanding": "Outstanding",
         "enabledNote": "Collection is on. It still only runs while platform automation is on.",
-        "disabledNote": "Collection is off. Nothing runs automatically."
+        "disabledNote": "Collection is off. Nothing runs automatically.",
+        "needIssueTime": "Issue time pointer set"
+      },
+      "issueTime": {
+        "missing": "The invoice issue time pointer is required before production collection can be enabled. Set it in the extraction settings below.",
+        "missingReadOnly": "The invoice issue time pointer is required before production collection can be enabled. Ask someone who can manage this connection to set it.",
+        "goToField": "Set the issue time pointer"
+      },
+      "modeUnsupported": {
+        "title": "Nothing to collect here",
+        "body": "Extraction settings apply only to connections Fawtir collects from. This connection receives invoices another way, so there is nothing to configure here."
       }
     },
     "bridge": {

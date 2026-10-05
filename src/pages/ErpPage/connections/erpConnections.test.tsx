@@ -423,6 +423,16 @@ describe('credential', () => {
     expect(container.querySelectorAll('input[type="password"]').length).toBe(0)
   })
 
+  it('keeps the browser from filling the secret or its label with a saved login', async () => {
+    rows = [connection()]
+    const { container } = renderAt(`/settings/erp/connections/${ID}/settings`)
+    fireEvent.click(await screen.findByText('Add sign-in details'))
+
+    const secret = container.querySelector('input[type="password"]') as HTMLInputElement
+    expect(secret.getAttribute('autocomplete')).toBe('new-password')
+    expect(screen.getByLabelText('Label').getAttribute('autocomplete')).toBe('off')
+  })
+
   it('sends the secret once and clears the field afterwards', async () => {
     rows = [connection()]
     const { container } = renderAt(`/settings/erp/connections/${ID}/settings`)
@@ -614,8 +624,11 @@ describe('extraction screens', () => {
   // write-back still has none.
   it('say write-back is unavailable instead of inventing an outbox', async () => {
     const { container } = renderAt(`/settings/erp/connections/${ID}/write-back`)
-    expect(await screen.findByText(/Not available yet/i)).toBeTruthy()
+    expect(await screen.findByText('Not available for a single connection')).toBeTruthy()
     const text = (container.textContent ?? '').toLowerCase()
+    // The old copy said collection itself was not switched on, which stopped being true when
+    // managed pull shipped.
+    expect(text).not.toContain('not switched on')
     for (const leak of ['collected', 'rejected', 'watermark', 'succeeded', 'partial']) {
       expect(text).not.toContain(leak)
     }
@@ -630,5 +643,36 @@ describe('extraction screens', () => {
       expect(within(tabs).queryByText(gone)).toBeNull()
     }
     expect(within(tabs).getByText('Overview')).toBeTruthy()
+  })
+
+  it('offers Extraction only on a connection Fawtir collects from', async () => {
+    rows = [connection()]
+    const { unmount } = renderAt(`/settings/erp/connections/${ID}`)
+    await screen.findByText('Head office Odoo')
+    expect(within(screen.getByRole('navigation', { name: /ERP|connection/i })).getByText('Extraction'))
+      .toBeTruthy()
+    unmount()
+
+    for (const mode of ['BRIDGE_UPLOAD', 'API_PUSH'] as const) {
+      resetSharedRequests()
+      rows = [connection({ connectionMode: mode })]
+      const view = renderAt(`/settings/erp/connections/${ID}`)
+      await screen.findByText('Head office Odoo')
+      const tabs = screen.getByRole('navigation', { name: /ERP|connection/i })
+      expect(within(tabs).queryByText('Extraction')).toBeNull()
+      view.unmount()
+    }
+  })
+
+  it('describes a ready connection without claiming nothing is collected', async () => {
+    rows = [connection({ state: 'READY', credentialConfigured: true })]
+    const { container } = renderAt(`/settings/erp/connections/${ID}`)
+    await screen.findByText('Head office Odoo')
+    expect(container.textContent).not.toContain('Nothing is collected yet')
+    expect(
+      screen.getByText(
+        'Configuration is complete. If Fawtir collects from this ERP, set up and enable collection on the Extraction tab.',
+      ),
+    ).toBeTruthy()
   })
 })

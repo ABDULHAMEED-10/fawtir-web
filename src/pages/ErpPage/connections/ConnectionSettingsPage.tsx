@@ -435,9 +435,11 @@ function CredentialCard({
             <TextField
               id="erp-credential-secret"
               name="secret"
-              // A password input, so it is not rendered on screen, not offered to a password
-              // manager as a reusable login, and not read out by a screen reader.
+              // A password input so the value is masked on screen. type="password" alone still lets a
+              // browser autofill the operator's own saved Fawtir login here; new-password stops that,
+              // because this is a third party's secret and must only ever be typed or pasted.
               type="password"
+              autoComplete="new-password"
               label={t('erp.connections.credential.secret')}
               hint={
                 type === 'BASIC_AUTH'
@@ -452,6 +454,9 @@ function CredentialCard({
             <TextField
               id="erp-credential-hint"
               name="hint"
+              // A text input beside a password field is what browsers treat as the user name, and
+              // would fill with the operator's own; the hint is a label for the ERP secret instead.
+              autoComplete="off"
               label={t('erp.connections.credential.hint')}
               hint={t('erp.connections.credential.hintHint')}
               maxLength={64}
