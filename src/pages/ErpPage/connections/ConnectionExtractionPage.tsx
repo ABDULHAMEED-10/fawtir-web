@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { PRIMARY_BUTTON, SECONDARY_BUTTON, SectionCard, Mono } from '../overview/idiom'
+import {
+  PRIMARY_BUTTON,
+  SECONDARY_BUTTON,
+  SMALL_BUTTON,
+  SectionCard,
+  Mono,
+} from '../overview/idiom'
 import { SelectField, TextField } from '../../../components/form/FormFields'
 import { Pill } from '../ErpShell'
 import {
   ApiReadFailure,
   LoadingNotice,
-  Notice,
   PermissionDeniedNotice,
 } from '../../../components/feedback/ApiNotice'
 import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
@@ -19,6 +24,7 @@ import { isNotFound } from '../../../lib/apiFailure'
 import { erpRefusalOf } from '../../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../../lib/format'
 import { SAMPLE_LIMIT, sessionSamples } from '../../../lib/erp/sample'
+import { cadenceParts } from '../../../lib/erp/cadence'
 import {
   EXTRACTION_CURSOR_KINDS,
   fetchExtractionSample,
@@ -124,6 +130,26 @@ const blankToNull = (value: string) => (value.trim() === '' ? null : value.trim(
 /** The same ceiling the Samples screen puts on a label an operator types, so the picker stays legible. */
 const SAMPLE_LABEL_MAX = 80
 
+/** The body of an ERP section card; the card pads only its own heading. */
+const CARD_BODY = 'p-5 pt-0'
+
+/**
+ * A cadence in words ("Every 5 minutes"), from the ISO-8601 code the server stores. A code the
+ * helper cannot name is shown as it is rather than guessed at; no value at all is a dash.
+ */
+function useCadenceText() {
+  const { t } = useTranslation()
+  return (iso: string | null, inline = false): string => {
+    if (iso === null) return '—'
+    const parts = cadenceParts(iso)
+    if (parts === null) return iso
+    const span = parts
+      .map((part) => t(`erp.extraction.cadence.${part.unit}`, { count: part.count }))
+      .join(t('erp.extraction.cadence.join'))
+    return t(inline ? 'erp.extraction.cadence.everyInline' : 'erp.extraction.cadence.every', { span })
+  }
+}
+
 export function ConnectionExtractionPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
@@ -140,6 +166,7 @@ export function ConnectionExtractionPage() {
   const settingsRead = useExtractionSettings(collects ? id : undefined)
   const statusRead = useExtractionStatus(collects ? id : undefined)
   const mutation = useMutation()
+  const cadence = useCadenceText()
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [sample, setSample] = useState<ExtractionSampleDto | null>(null)
@@ -164,7 +191,9 @@ export function ConnectionExtractionPage() {
     return (
       <ConnectionShell connection={connection}>
         <SectionCard title={t('erp.extraction.modeUnsupported.title')}>
-          <p className="text-sm text-text-tertiary">{t('erp.extraction.modeUnsupported.body')}</p>
+          <p className={`${CARD_BODY} text-sm text-text-tertiary`}>
+            {t('erp.extraction.modeUnsupported.body')}
+          </p>
         </SectionCard>
       </ConnectionShell>
     )
@@ -247,170 +276,187 @@ export function ConnectionExtractionPage() {
         title={t('erp.extraction.config.title')}
         note={t('erp.extraction.config.description')}
       >
-        {settingsRead.read.status === 'failed' ? (
-          <ConnectionFailure error={settingsRead.read.error} onReload={settingsRead.reload} />
-        ) : null}
-        {missingIssueTime ? (
-          <div className="mb-5">
-            <Notice
-              body={t(
-                canManage
-                  ? 'erp.extraction.issueTime.missing'
-                  : 'erp.extraction.issueTime.missingReadOnly',
-              )}
-              action={
-                canManage
-                  ? { label: t('erp.extraction.issueTime.goToField'), onClick: goToIssueTimeField }
+        <div className={`flex flex-col gap-5 ${CARD_BODY}`}>
+          {settingsRead.read.status === 'failed' ? (
+            <ConnectionFailure error={settingsRead.read.error} onReload={settingsRead.reload} />
+          ) : null}
+          {missingIssueTime ? (
+            // Inline, inside the card it is about: the page-level notice drew a card within a card.
+            <div
+              role="alert"
+              className="flex flex-col items-start gap-3 rounded-sm bg-pending-100 p-4 md:flex-row md:items-center md:justify-between"
+            >
+              <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+                {t(
+                  canManage
+                    ? 'erp.extraction.issueTime.missing'
+                    : 'erp.extraction.issueTime.missingReadOnly',
+                )}
+              </p>
+              {canManage ? (
+                <button type="button" className={SMALL_BUTTON} onClick={goToIssueTimeField}>
+                  {t('erp.extraction.issueTime.goToField')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {!canManage ? (
+            <ConfigFacts settings={settings} />
+          ) : (
+            <>
+          <div className="grid gap-5 md:grid-cols-2">
+            <TextField
+              id="erp-extraction-interval"
+              name="interval"
+              label={t('erp.extraction.field.interval')}
+              hint={t('erp.extraction.field.intervalHint', {
+                effective: cadence(settings?.effectiveCadence ?? null, true),
+              })}
+              maxLength={40}
+              dir="ltr"
+              value={form.interval}
+              onChange={(next) => setForm({ ...form, interval: next })}
+            />
+            <TextField
+              id="erp-extraction-transaction-type"
+              name="transactionType"
+              label={t('erp.extraction.field.transactionType')}
+              hint={t('erp.extraction.field.transactionTypeHint')}
+              maxLength={20}
+              dir="ltr"
+              value={form.transactionType}
+              onChange={(next) => setForm({ ...form, transactionType: next })}
+            />
+            <TextField
+              id="erp-extraction-documents-pointer"
+              name="documentsPointer"
+              label={t('erp.extraction.field.documentsPointer')}
+              hint={t('erp.extraction.field.pointerHint')}
+              maxLength={200}
+              dir="ltr"
+              value={form.documentsPointer}
+              onChange={(next) => setForm({ ...form, documentsPointer: next })}
+            />
+            <TextField
+              id="erp-extraction-document-id-pointer"
+              name="documentIdPointer"
+              label={t('erp.extraction.field.documentIdPointer')}
+              hint={t('erp.extraction.field.pointerHint')}
+              maxLength={200}
+              dir="ltr"
+              value={form.documentIdPointer}
+              onChange={(next) => setForm({ ...form, documentIdPointer: next })}
+            />
+            <TextField
+              id={ISSUE_TIME_FIELD_ID}
+              name="documentIssueTimePointer"
+              label={t('erp.extraction.field.documentIssueTimePointer')}
+              hint={t('erp.extraction.field.documentIssueTimePointerHint')}
+              error={
+                issueTimeRefused
+                  ? t('erp.connections.refusal.EXTRACTION_ISSUE_TIME_POINTER_REQUIRED')
                   : undefined
               }
+              maxLength={200}
+              dir="ltr"
+              value={form.documentIssueTimePointer}
+              onChange={(next) => setForm({ ...form, documentIssueTimePointer: next })}
+            />
+            <TextField
+              id="erp-extraction-document-version-pointer"
+              name="documentVersionPointer"
+              label={t('erp.extraction.field.documentVersionPointer')}
+              hint={t('erp.extraction.field.optionalPointerHint')}
+              maxLength={200}
+              dir="ltr"
+              value={form.documentVersionPointer}
+              onChange={(next) => setForm({ ...form, documentVersionPointer: next })}
+            />
+            <SelectField
+              id="erp-extraction-cursor-kind"
+              name="cursorKind"
+              label={t('erp.extraction.field.cursorKind')}
+              options={EXTRACTION_CURSOR_KINDS.map((value) => ({
+                value,
+                label: t(`erp.extraction.cursorKind.${value}`),
+                hint: t(
+                  isDerivedCursorKind(value)
+                    ? 'erp.extraction.cursorKind.derivedHint'
+                    : 'erp.extraction.cursorKind.opaqueHint',
+                ),
+              }))}
+              value={form.cursorKind}
+              onChange={(next) => setForm({ ...form, cursorKind: next as ExtractionCursorKind })}
+            />
+            <TextField
+              id="erp-extraction-cursor-parameter"
+              name="cursorParameter"
+              label={t('erp.extraction.field.cursorParameter')}
+              hint={t('erp.extraction.field.cursorParameterHint')}
+              maxLength={60}
+              dir="ltr"
+              value={form.cursorParameter}
+              onChange={(next) => setForm({ ...form, cursorParameter: next })}
+            />
+            {isDerivedCursorKind(form.cursorKind) ? (
+              <TextField
+                id="erp-extraction-document-cursor-pointer"
+                name="documentCursorPointer"
+                label={t('erp.extraction.field.documentCursorPointer')}
+                hint={t('erp.extraction.field.documentCursorPointerHint')}
+                maxLength={200}
+                dir="ltr"
+                value={form.documentCursorPointer}
+                onChange={(next) => setForm({ ...form, documentCursorPointer: next })}
+              />
+            ) : (
+              <TextField
+                id="erp-extraction-next-cursor-pointer"
+                name="nextCursorPointer"
+                label={t('erp.extraction.field.nextCursorPointer')}
+                hint={t('erp.extraction.field.nextCursorPointerHint')}
+                maxLength={200}
+                dir="ltr"
+                value={form.nextCursorPointer}
+                onChange={(next) => setForm({ ...form, nextCursorPointer: next })}
+              />
+            )}
+            <TextField
+              id="erp-extraction-page-size-parameter"
+              name="pageSizeParameter"
+              label={t('erp.extraction.field.pageSizeParameter')}
+              hint={t('erp.extraction.field.pageSizeParameterHint')}
+              maxLength={60}
+              dir="ltr"
+              value={form.pageSizeParameter}
+              onChange={(next) => setForm({ ...form, pageSizeParameter: next })}
+            />
+            <TextField
+              id="erp-extraction-initial-cursor"
+              name="initialCursor"
+              label={t('erp.extraction.field.initialCursor')}
+              hint={t('erp.extraction.field.initialCursorHint')}
+              maxLength={512}
+              dir="ltr"
+              value={form.initialCursor}
+              onChange={(next) => setForm({ ...form, initialCursor: next })}
             />
           </div>
-        ) : null}
-        {!canManage ? (
-          <ConfigFacts settings={settings} />
-        ) : (
-          <>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TextField
-            id="erp-extraction-interval"
-            name="interval"
-            label={t('erp.extraction.field.interval')}
-            hint={t('erp.extraction.field.intervalHint', {
-              effective: settings?.effectiveCadence ?? '—',
-            })}
-            maxLength={40}
-            value={form.interval}
-            onChange={(next) => setForm({ ...form, interval: next })}
-          />
-          <TextField
-            id="erp-extraction-transaction-type"
-            name="transactionType"
-            label={t('erp.extraction.field.transactionType')}
-            hint={t('erp.extraction.field.transactionTypeHint')}
-            maxLength={20}
-            value={form.transactionType}
-            onChange={(next) => setForm({ ...form, transactionType: next })}
-          />
-          <TextField
-            id="erp-extraction-documents-pointer"
-            name="documentsPointer"
-            label={t('erp.extraction.field.documentsPointer')}
-            hint={t('erp.extraction.field.pointerHint')}
-            maxLength={200}
-            value={form.documentsPointer}
-            onChange={(next) => setForm({ ...form, documentsPointer: next })}
-          />
-          <TextField
-            id="erp-extraction-document-id-pointer"
-            name="documentIdPointer"
-            label={t('erp.extraction.field.documentIdPointer')}
-            hint={t('erp.extraction.field.pointerHint')}
-            maxLength={200}
-            value={form.documentIdPointer}
-            onChange={(next) => setForm({ ...form, documentIdPointer: next })}
-          />
-          <TextField
-            id={ISSUE_TIME_FIELD_ID}
-            name="documentIssueTimePointer"
-            label={t('erp.extraction.field.documentIssueTimePointer')}
-            hint={t('erp.extraction.field.documentIssueTimePointerHint')}
-            error={
-              issueTimeRefused
-                ? t('erp.connections.refusal.EXTRACTION_ISSUE_TIME_POINTER_REQUIRED')
-                : undefined
-            }
-            maxLength={200}
-            value={form.documentIssueTimePointer}
-            onChange={(next) => setForm({ ...form, documentIssueTimePointer: next })}
-          />
-          <TextField
-            id="erp-extraction-document-version-pointer"
-            name="documentVersionPointer"
-            label={t('erp.extraction.field.documentVersionPointer')}
-            hint={t('erp.extraction.field.optionalPointerHint')}
-            maxLength={200}
-            value={form.documentVersionPointer}
-            onChange={(next) => setForm({ ...form, documentVersionPointer: next })}
-          />
-          <SelectField
-            id="erp-extraction-cursor-kind"
-            name="cursorKind"
-            label={t('erp.extraction.field.cursorKind')}
-            options={EXTRACTION_CURSOR_KINDS.map((value) => ({
-              value,
-              label: t(`erp.extraction.cursorKind.${value}`),
-              hint: t(
-                isDerivedCursorKind(value)
-                  ? 'erp.extraction.cursorKind.derivedHint'
-                  : 'erp.extraction.cursorKind.opaqueHint',
-              ),
-            }))}
-            value={form.cursorKind}
-            onChange={(next) => setForm({ ...form, cursorKind: next as ExtractionCursorKind })}
-          />
-          <TextField
-            id="erp-extraction-cursor-parameter"
-            name="cursorParameter"
-            label={t('erp.extraction.field.cursorParameter')}
-            hint={t('erp.extraction.field.cursorParameterHint')}
-            maxLength={60}
-            value={form.cursorParameter}
-            onChange={(next) => setForm({ ...form, cursorParameter: next })}
-          />
-          {isDerivedCursorKind(form.cursorKind) ? (
-            <TextField
-              id="erp-extraction-document-cursor-pointer"
-              name="documentCursorPointer"
-              label={t('erp.extraction.field.documentCursorPointer')}
-              hint={t('erp.extraction.field.documentCursorPointerHint')}
-              maxLength={200}
-              value={form.documentCursorPointer}
-              onChange={(next) => setForm({ ...form, documentCursorPointer: next })}
-            />
-          ) : (
-            <TextField
-              id="erp-extraction-next-cursor-pointer"
-              name="nextCursorPointer"
-              label={t('erp.extraction.field.nextCursorPointer')}
-              hint={t('erp.extraction.field.nextCursorPointerHint')}
-              maxLength={200}
-              value={form.nextCursorPointer}
-              onChange={(next) => setForm({ ...form, nextCursorPointer: next })}
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className={PRIMARY_BUTTON}
+              disabled={!canManage || mutation.busy !== null}
+              onClick={save}
+            >
+              {mutation.busy === 'save'
+                ? t('erp.extraction.config.saving')
+                : t('erp.extraction.config.save')}
+            </button>
+          </div>
+            </>
           )}
-          <TextField
-            id="erp-extraction-page-size-parameter"
-            name="pageSizeParameter"
-            label={t('erp.extraction.field.pageSizeParameter')}
-            hint={t('erp.extraction.field.pageSizeParameterHint')}
-            maxLength={60}
-            value={form.pageSizeParameter}
-            onChange={(next) => setForm({ ...form, pageSizeParameter: next })}
-          />
-          <TextField
-            id="erp-extraction-initial-cursor"
-            name="initialCursor"
-            label={t('erp.extraction.field.initialCursor')}
-            hint={t('erp.extraction.field.initialCursorHint')}
-            maxLength={512}
-            value={form.initialCursor}
-            onChange={(next) => setForm({ ...form, initialCursor: next })}
-          />
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className={PRIMARY_BUTTON}
-            disabled={!canManage || mutation.busy !== null}
-            onClick={save}
-          >
-            {mutation.busy === 'save'
-              ? t('erp.extraction.config.saving')
-              : t('erp.extraction.config.save')}
-          </button>
-        </div>
-          </>
-        )}
       </SectionCard>
 
       <SamplePanel
@@ -445,17 +491,22 @@ function StatusPanel({
   missingIssueTime: boolean
 }) {
   const { t } = useTranslation()
+  const cadence = useCadenceText()
   if (read.status === 'failed') {
     return (
       <SectionCard title={t('erp.extraction.status.title')}>
-        <ConnectionFailure error={read.error} />
+        <div className={CARD_BODY}>
+          <ConnectionFailure error={read.error} />
+        </div>
       </SectionCard>
     )
   }
   if (status === null) {
     return (
       <SectionCard title={t('erp.extraction.status.title')}>
-        <LoadingNotice />
+        <div className={CARD_BODY}>
+          <LoadingNotice />
+        </div>
       </SectionCard>
     )
   }
@@ -464,66 +515,68 @@ function StatusPanel({
       title={t('erp.extraction.status.title')}
       note={t('erp.extraction.status.description')}
     >
-      <div className="flex flex-wrap items-center gap-3">
-        {/* The server's code, rendered. The frontend does not decide precedence. */}
-        <Pill tone={STATUS_TONE[status.status]} label={t(`erp.extraction.state.${status.status}`)} />
-        <p className="text-sm text-text-tertiary">
-          {/* The server's code stays the headline; only the explanation is more specific when the
-              settings show the one value that is missing. */}
-          {status.status === 'NOT_CONFIGURED' && missingIssueTime
-            ? t('erp.extraction.stateHelp.NOT_CONFIGURED_ISSUE_TIME')
-            : t(`erp.extraction.stateHelp.${status.status}`)}
-        </p>
+      <div className={CARD_BODY}>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* The server's code, rendered. The frontend does not decide precedence. */}
+          <Pill tone={STATUS_TONE[status.status]} label={t(`erp.extraction.state.${status.status}`)} />
+          <p className="text-sm text-text-tertiary">
+            {/* The server's code stays the headline; only the explanation is more specific when the
+                settings show the one value that is missing. */}
+            {status.status === 'NOT_CONFIGURED' && missingIssueTime
+              ? t('erp.extraction.stateHelp.NOT_CONFIGURED_ISSUE_TIME')
+              : t(`erp.extraction.stateHelp.${status.status}`)}
+          </p>
+        </div>
+        <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+          <Fact label={t('erp.extraction.status.automation')}>
+            {t(
+              status.schedulerGloballyEnabled
+                ? 'erp.extraction.status.automationOn'
+                : 'erp.extraction.status.automationOff',
+            )}
+          </Fact>
+          <Fact label={t('erp.extraction.status.cadence')}>{cadence(status.effectiveCadence)}</Fact>
+          <Fact label={t('erp.extraction.status.nextRun')}>
+            {status.nextRunAt === null
+              ? t('erp.extraction.status.notScheduled')
+              : formatInstant(status.nextRunAt)}
+          </Fact>
+          {status.consecutiveFailures > 0 ? (
+            <Fact label={t('erp.extraction.status.failures')}>{status.consecutiveFailures}</Fact>
+          ) : null}
+          {status.backoffUntil !== null ? (
+            <Fact label={t('erp.extraction.status.backoffUntil')}>
+              {formatInstant(status.backoffUntil)}
+            </Fact>
+          ) : null}
+          {status.lastRunState !== null ? (
+            <Fact label={t('erp.extraction.status.lastRun')}>
+              {t(`erp.extraction.runState.${status.lastRunState}`)}
+              {status.lastRunCompletedAt !== null ? ` · ${formatInstant(status.lastRunCompletedAt)}` : ''}
+            </Fact>
+          ) : null}
+          {status.lastRunState !== null ? (
+            <Fact label={t('erp.extraction.status.lastRunCounts')}>
+              {t('erp.extraction.status.counts', {
+                discovered: status.lastRunDiscovered,
+                accepted: status.lastRunAccepted,
+                rejected: status.lastRunRejected,
+                duplicates: status.lastRunDuplicates,
+              })}
+            </Fact>
+          ) : null}
+          {status.lastFailureReason !== null ? (
+            <Fact label={t('erp.extraction.status.lastFailure')}>
+              {/* The server's classified code and stage. No exception text exists to render. */}
+              <Mono>{status.lastFailureReason}</Mono>
+              {status.lastFailureStage !== null ? ` · ${status.lastFailureStage}` : ''}
+              {status.lastFailureRetryable === true
+                ? ` · ${t('erp.extraction.status.retryable')}`
+                : ''}
+            </Fact>
+          ) : null}
+        </dl>
       </div>
-      <dl className="mt-5 grid gap-4 sm:grid-cols-3">
-        <Fact label={t('erp.extraction.status.automation')}>
-          {t(
-            status.schedulerGloballyEnabled
-              ? 'erp.extraction.status.automationOn'
-              : 'erp.extraction.status.automationOff',
-          )}
-        </Fact>
-        <Fact label={t('erp.extraction.status.cadence')}>{status.effectiveCadence ?? '—'}</Fact>
-        <Fact label={t('erp.extraction.status.nextRun')}>
-          {status.nextRunAt === null
-            ? t('erp.extraction.status.notScheduled')
-            : formatInstant(status.nextRunAt)}
-        </Fact>
-        {status.consecutiveFailures > 0 ? (
-          <Fact label={t('erp.extraction.status.failures')}>{status.consecutiveFailures}</Fact>
-        ) : null}
-        {status.backoffUntil !== null ? (
-          <Fact label={t('erp.extraction.status.backoffUntil')}>
-            {formatInstant(status.backoffUntil)}
-          </Fact>
-        ) : null}
-        {status.lastRunState !== null ? (
-          <Fact label={t('erp.extraction.status.lastRun')}>
-            {t(`erp.extraction.runState.${status.lastRunState}`)}
-            {status.lastRunCompletedAt !== null ? ` · ${formatInstant(status.lastRunCompletedAt)}` : ''}
-          </Fact>
-        ) : null}
-        {status.lastRunState !== null ? (
-          <Fact label={t('erp.extraction.status.lastRunCounts')}>
-            {t('erp.extraction.status.counts', {
-              discovered: status.lastRunDiscovered,
-              accepted: status.lastRunAccepted,
-              rejected: status.lastRunRejected,
-              duplicates: status.lastRunDuplicates,
-            })}
-          </Fact>
-        ) : null}
-        {status.lastFailureReason !== null ? (
-          <Fact label={t('erp.extraction.status.lastFailure')}>
-            {/* The server's classified code and stage. No exception text exists to render. */}
-            <Mono>{status.lastFailureReason}</Mono>
-            {status.lastFailureStage !== null ? ` · ${status.lastFailureStage}` : ''}
-            {status.lastFailureRetryable === true
-              ? ` · ${t('erp.extraction.status.retryable')}`
-              : ''}
-          </Fact>
-        ) : null}
-      </dl>
     </SectionCard>
   )
 }
@@ -578,68 +631,70 @@ function SamplePanel({
       title={t('erp.extraction.sample.title')}
       note={t('erp.extraction.sample.description')}
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className={SECONDARY_BUTTON}
-          disabled={!canSample || busy}
-          onClick={onFetch}
-        >
-          {busy ? t('erp.extraction.sample.fetching') : t('erp.extraction.sample.fetch')}
-        </button>
-        {!canSample ? (
-          <p className="text-sm text-text-quaternary">{t('erp.extraction.sample.noPermission')}</p>
+      <div className={CARD_BODY}>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={SECONDARY_BUTTON}
+            disabled={!canSample || busy}
+            onClick={onFetch}
+          >
+            {busy ? t('erp.extraction.sample.fetching') : t('erp.extraction.sample.fetch')}
+          </button>
+          {!canSample ? (
+            <p className="text-sm text-text-quaternary">{t('erp.extraction.sample.noPermission')}</p>
+          ) : null}
+        </div>
+
+        {sample !== null ? (
+          <>
+            <dl className="mt-5 grid gap-4 sm:grid-cols-4">
+              <Fact label={t('erp.extraction.sample.documentId')}>
+                {sample.externalDocumentId ?? '—'}
+              </Fact>
+              <Fact label={t('erp.extraction.sample.version')}>{sample.externalVersion ?? '—'}</Fact>
+              <Fact label={t('erp.extraction.sample.size')}>
+                {t('erp.extraction.sample.bytes', { count: sample.payloadBytes })}
+              </Fact>
+              <Fact label={t('erp.extraction.sample.latency')}>
+                {t('erp.extraction.sample.ms', { count: sample.latencyMs })}
+              </Fact>
+            </dl>
+            {/*
+              The payload exactly as the source sent it. Read-only, scrollable, and NOT pretty-printed:
+              the mapping is the only thing that should interpret these bytes, so what is shown here is
+              what the mapping will receive.
+            */}
+            <label
+              htmlFor="erp-extraction-sample-payload"
+              className="mt-5 block text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary"
+            >
+              {t('erp.extraction.sample.payload')}
+            </label>
+            <textarea
+              id="erp-extraction-sample-payload"
+              readOnly
+              spellCheck={false}
+              value={sample.payload}
+              rows={10}
+              className="mt-2 w-full resize-y rounded-md border border-border-subtle bg-surface-background p-3 font-mono text-xs leading-[1.6] text-text-secondary"
+            />
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className={SECONDARY_BUTTON}
+                disabled={handover.kind !== 'ready'}
+                onClick={useInMapping}
+              >
+                {t('erp.extraction.sample.useInMapping')}
+              </button>
+              <p className="text-sm text-text-quaternary">
+                {t(`erp.extraction.sample.handover.${handover.kind}`, { limit: SAMPLE_LIMIT })}
+              </p>
+            </div>
+          </>
         ) : null}
       </div>
-
-      {sample !== null ? (
-        <>
-          <dl className="mt-5 grid gap-4 sm:grid-cols-4">
-            <Fact label={t('erp.extraction.sample.documentId')}>
-              {sample.externalDocumentId ?? '—'}
-            </Fact>
-            <Fact label={t('erp.extraction.sample.version')}>{sample.externalVersion ?? '—'}</Fact>
-            <Fact label={t('erp.extraction.sample.size')}>
-              {t('erp.extraction.sample.bytes', { count: sample.payloadBytes })}
-            </Fact>
-            <Fact label={t('erp.extraction.sample.latency')}>
-              {t('erp.extraction.sample.ms', { count: sample.latencyMs })}
-            </Fact>
-          </dl>
-          {/*
-            The payload exactly as the source sent it. Read-only, scrollable, and NOT pretty-printed:
-            the mapping is the only thing that should interpret these bytes, so what is shown here is
-            what the mapping will receive.
-          */}
-          <label
-            htmlFor="erp-extraction-sample-payload"
-            className="mt-5 block text-xs font-semibold uppercase tracking-[0.4px] text-text-quaternary"
-          >
-            {t('erp.extraction.sample.payload')}
-          </label>
-          <textarea
-            id="erp-extraction-sample-payload"
-            readOnly
-            spellCheck={false}
-            value={sample.payload}
-            rows={10}
-            className="mt-2 w-full resize-y rounded-md border border-border-subtle bg-surface-background p-3 font-mono text-xs leading-[1.6] text-text-secondary"
-          />
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className={SECONDARY_BUTTON}
-              disabled={handover.kind !== 'ready'}
-              onClick={useInMapping}
-            >
-              {t('erp.extraction.sample.useInMapping')}
-            </button>
-            <p className="text-sm text-text-quaternary">
-              {t(`erp.extraction.sample.handover.${handover.kind}`, { limit: SAMPLE_LIMIT })}
-            </p>
-          </div>
-        </>
-      ) : null}
     </SectionCard>
   )
 }
@@ -683,47 +738,49 @@ function EnablementPanel({
       title={t('erp.extraction.enablement.title')}
       note={t('erp.extraction.enablement.description')}
     >
-      <ul className="mb-5 space-y-2 text-sm">
-        <Prerequisite met={!notConfigured}>{t('erp.extraction.enablement.needConfig')}</Prerequisite>
-        <Prerequisite met={!notConfigured && !missingIssueTime}>
-          {t('erp.extraction.enablement.needIssueTime')}
-        </Prerequisite>
-        <Prerequisite met={!notReady}>{t('erp.extraction.enablement.needReady')}</Prerequisite>
-        <Prerequisite met={!notCertified}>
-          {t('erp.extraction.enablement.needCertified')}
-        </Prerequisite>
-      </ul>
-      <div className="flex flex-wrap items-center gap-3">
-        {enabled ? (
-          <button
-            type="button"
-            className={SECONDARY_BUTTON}
-            disabled={!canManage || busy !== null}
-            onClick={onDisable}
-          >
-            {busy === 'disable'
-              ? t('erp.extraction.enablement.disabling')
-              : t('erp.extraction.enablement.disable')}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={PRIMARY_BUTTON}
-            disabled={!canManage || busy !== null || blocked}
-            onClick={onEnable}
-          >
-            {busy === 'enable'
-              ? t('erp.extraction.enablement.enabling')
-              : t('erp.extraction.enablement.enable')}
-          </button>
-        )}
-        <p className="text-sm text-text-quaternary">
-          {t(
-            enabled
-              ? 'erp.extraction.enablement.enabledNote'
-              : 'erp.extraction.enablement.disabledNote',
+      <div className={CARD_BODY}>
+        <ul className="mb-5 space-y-2.5 text-sm">
+          <Prerequisite met={!notConfigured}>{t('erp.extraction.enablement.needConfig')}</Prerequisite>
+          <Prerequisite met={!notConfigured && !missingIssueTime}>
+            {t('erp.extraction.enablement.needIssueTime')}
+          </Prerequisite>
+          <Prerequisite met={!notReady}>{t('erp.extraction.enablement.needReady')}</Prerequisite>
+          <Prerequisite met={!notCertified}>
+            {t('erp.extraction.enablement.needCertified')}
+          </Prerequisite>
+        </ul>
+        <div className="flex flex-wrap items-center gap-3">
+          {enabled ? (
+            <button
+              type="button"
+              className={SECONDARY_BUTTON}
+              disabled={!canManage || busy !== null}
+              onClick={onDisable}
+            >
+              {busy === 'disable'
+                ? t('erp.extraction.enablement.disabling')
+                : t('erp.extraction.enablement.disable')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={PRIMARY_BUTTON}
+              disabled={!canManage || busy !== null || blocked}
+              onClick={onEnable}
+            >
+              {busy === 'enable'
+                ? t('erp.extraction.enablement.enabling')
+                : t('erp.extraction.enablement.enable')}
+            </button>
           )}
-        </p>
+          <p className="text-sm text-text-quaternary">
+            {t(
+              enabled
+                ? 'erp.extraction.enablement.enabledNote'
+                : 'erp.extraction.enablement.disabledNote',
+            )}
+          </p>
+        </div>
       </div>
     </SectionCard>
   )
@@ -732,11 +789,12 @@ function EnablementPanel({
 function Prerequisite({ met, children }: { met: boolean; children: ReactNode }) {
   const { t } = useTranslation()
   return (
-    <li className="flex items-start gap-2 text-text-tertiary">
-      {/* Words, not only a colour or a tick: the state has to survive being read aloud. */}
-      <span className="font-semibold">
-        {met ? t('erp.extraction.enablement.ok') : t('erp.extraction.enablement.outstanding')}
-      </span>
+    <li className="flex items-center gap-3 text-text-tertiary">
+      {/* Words, not only a colour: the state has to survive being read aloud. */}
+      <Pill
+        tone={met ? 'success' : 'pending'}
+        label={met ? t('erp.extraction.enablement.ok') : t('erp.extraction.enablement.outstanding')}
+      />
       <span>{children}</span>
     </li>
   )
@@ -751,6 +809,7 @@ function Prerequisite({ met, children }: { met: boolean; children: ReactNode }) 
  */
 function ConfigFacts({ settings }: { settings: ExtractionSettingsDto | null }) {
   const { t } = useTranslation()
+  const cadence = useCadenceText()
   if (settings === null) return <LoadingNotice />
   if (!settings.configured) {
     return <p className="text-sm text-text-tertiary">{t('erp.extraction.config.none')}</p>
@@ -759,9 +818,11 @@ function ConfigFacts({ settings }: { settings: ExtractionSettingsDto | null }) {
     <>
       <dl className="grid gap-4 sm:grid-cols-3">
         <Fact label={t('erp.extraction.field.interval')}>
-          {settings.configuredInterval ?? t('erp.extraction.config.platformDefault')}
+          {settings.configuredInterval === null
+            ? t('erp.extraction.config.platformDefault')
+            : cadence(settings.configuredInterval)}
         </Fact>
-        <Fact label={t('erp.extraction.status.cadence')}>{settings.effectiveCadence ?? '—'}</Fact>
+        <Fact label={t('erp.extraction.status.cadence')}>{cadence(settings.effectiveCadence)}</Fact>
         <Fact label={t('erp.extraction.field.transactionType')}>
           <Mono>{settings.transactionType ?? '—'}</Mono>
         </Fact>

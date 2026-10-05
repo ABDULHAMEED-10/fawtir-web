@@ -17261,6 +17261,35 @@
       "modeUnsupported": {
         "title": "لا يوجد ما يُجمع هنا",
         "body": "تنطبق إعدادات الاستخراج فقط على الاتصالات التي يجمع منها فوتر. يستقبل هذا الاتصال الفواتير بطريقة أخرى، لذا لا يوجد ما يُعَدّ هنا."
+      },
+      "cadence": {
+        "every": "كل {{span}}",
+        "everyInline": "كل {{span}}",
+        "join": " و",
+        "days_zero": "{{count}} يوم",
+        "days_one": "يوم",
+        "days_two": "يومين",
+        "days_few": "{{count}} أيام",
+        "days_many": "{{count}} يومًا",
+        "days_other": "{{count}} يوم",
+        "hours_zero": "{{count}} ساعة",
+        "hours_one": "ساعة",
+        "hours_two": "ساعتين",
+        "hours_few": "{{count}} ساعات",
+        "hours_many": "{{count}} ساعة",
+        "hours_other": "{{count}} ساعة",
+        "minutes_zero": "{{count}} دقيقة",
+        "minutes_one": "دقيقة",
+        "minutes_two": "دقيقتين",
+        "minutes_few": "{{count}} دقائق",
+        "minutes_many": "{{count}} دقيقة",
+        "minutes_other": "{{count}} دقيقة",
+        "seconds_zero": "{{count}} ثانية",
+        "seconds_one": "ثانية",
+        "seconds_two": "ثانيتين",
+        "seconds_few": "{{count}} ثوانٍ",
+        "seconds_many": "{{count}} ثانية",
+        "seconds_other": "{{count}} ثانية"
       }
     },
     "bridge": {

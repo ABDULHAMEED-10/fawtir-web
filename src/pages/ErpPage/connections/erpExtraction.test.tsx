@@ -333,7 +333,9 @@ describe('extraction configuration', () => {
     await seededForm()
 
     expect((screen.getByLabelText('How often to collect') as HTMLInputElement).value).toBe('PT1M')
-    expect(screen.getByText(/Effective: PT5M/)).toBeTruthy()
+    expect(screen.getByText(/Effective: every 5 minutes/)).toBeTruthy()
+    // People read the cadence in words; the code stays in the field, where it is typed.
+    expect(await screen.findByText('Every 5 minutes')).toBeTruthy()
   })
 
   it('sends the typed settings request with the connection version', async () => {

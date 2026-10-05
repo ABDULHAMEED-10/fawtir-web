@@ -16537,6 +16537,19 @@
       "modeUnsupported": {
         "title": "Nothing to collect here",
         "body": "Extraction settings apply only to connections Fawtir collects from. This connection receives invoices another way, so there is nothing to configure here."
+      },
+      "cadence": {
+        "every": "Every {{span}}",
+        "everyInline": "every {{span}}",
+        "join": ", ",
+        "days_one": "day",
+        "days_other": "{{count}} days",
+        "hours_one": "hour",
+        "hours_other": "{{count}} hours",
+        "minutes_one": "minute",
+        "minutes_other": "{{count}} minutes",
+        "seconds_one": "second",
+        "seconds_other": "{{count}} seconds"
       }
     },
     "bridge": {
