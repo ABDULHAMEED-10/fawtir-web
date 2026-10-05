@@ -148,6 +148,21 @@ beforeEach(async () => {
     if (url === SALES_SUMMARY_URL) return salesSummaryResponse()
     if (url.startsWith('/api/v1/authored-invoices/export.csv')) return exportResponse()
     if (url.startsWith('/api/v1/invoice-drafts/')) return discardResponse()
+    if (url === '/api/v1/authored-invoices/inv-1/send')
+      return json(200, {
+        invoiceId: 'inv-1',
+        invoiceNumber: 'INV-2026-0042',
+        outcome: 'DISPATCHED',
+        reasonCode: null,
+        dispatch: {
+          state: 'QUEUED',
+          reasonCode: null,
+          attempts: 0,
+          nextAttemptAt: null,
+          dispatchedAt: '2026-10-04T10:00:00Z',
+          sendable: false,
+        },
+      })
     if (url === '/api/v1/branches')
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
@@ -433,11 +448,34 @@ describe('Invoices list, wired to the API', () => {
     expect(screen.queryByRole('link', { name: /Create Invoice/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /Export/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /Bulk upload/ })).toBeNull()
-    // The menu stays (view, send, duplicate); what needs a permission is left out of it.
+    // The menu stays (view, duplicate); what needs a permission is left out of it, Send included.
     fireEvent.click(screen.getAllByRole('button', { name: 'Invoice actions' })[1])
     expect(await screen.findByRole('menuitem', { name: 'View invoice' })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Issue credit note' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Send' })).toBeNull()
+  })
+
+  it('sends an issued row from its menu, once, and offers no Send on a draft', async () => {
+    who = { ...ADMIN, permissions: [...ADMIN.permissions, 'invoice.issue'] }
+    renderInvoices()
+    const draftRow = (await screen.findByText('Nizwa Dates Co')).closest('tr')!
+    fireEvent.click(within(draftRow).getByRole('button', { name: 'Invoice actions' }))
+    expect(await screen.findByRole('menuitem', { name: 'View invoice' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Send' })).toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    const issuedRow = screen.getByText('INV-2026-0042').closest('tr')!
+    fireEvent.click(within(issuedRow).getByRole('button', { name: 'Invoice actions' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Send' }))
+    const dialog = await screen.findByRole('dialog')
+    const submit = within(dialog).getByRole('button', { name: 'Send invoice' })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+
+    expect(await screen.findByText('The invoice was validated and queued for sending.')).toBeTruthy()
+    expect(calls('/api/v1/authored-invoices/inv-1/send')).toHaveLength(1)
+    await waitFor(() => expect(listCalls()).toHaveLength(2))
   })
 
   it('exports the list it is showing, and warns when the file stops at the cap', async () => {

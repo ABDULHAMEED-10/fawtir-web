@@ -1518,7 +1518,17 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               customer={customer}
               onPick={(picked) => {
                 setCustomer(picked)
-                change({ customerId: picked.id })
+                // IBT-010 starts from the customer's default. Only a value the reader has not
+                // changed is replaced: empty, or still the previous customer's default.
+                const previousDefault = customer?.profile.details?.defaultBuyerReference ?? ''
+                const untouched =
+                  form.buyerReference === '' || form.buyerReference === previousDefault
+                change({
+                  customerId: picked.id,
+                  ...(untouched
+                    ? { buyerReference: picked.profile.details?.defaultBuyerReference ?? '' }
+                    : {}),
+                })
                 // Another customer's order or delivery note cannot settle this invoice.
                 setLinkedDocs((cur) => cur.filter((doc) => doc.customerId === picked.id))
               }}
@@ -1701,6 +1711,36 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
               </FieldShell>
             </div>
           </div>
+          {/* IBT-010 on an ordinary invoice: the invoice's own value, pre-filled from the
+              customer's default and frozen at issue. Blank is allowed and falls back to that
+              default on the server. The same control as the self-billed reference below. */}
+          {!selfBilled && !consumer ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <FieldLabel label={t('createInvoice.fields.buyerReference')} />
+                <FieldShell>
+                  <input
+                    value={form.buyerReference}
+                    onChange={(e) => change({ buyerReference: e.target.value })}
+                    maxLength={200}
+                    aria-label={t('createInvoice.fields.buyerReference')}
+                    className={INPUT}
+                  />
+                </FieldShell>
+                <p className="text-xs font-medium text-text-quaternary">
+                  {t('createInvoice.fields.buyerReferenceHint')}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {/* Informational only. CUS-CB-005 (whether a government invoice must carry IBT-010 and
+              IBT-013) awaits compliance input and no PINT-OM rule checks either, so this neither
+              blocks issuing nor speaks as a validation result. */}
+          {!selfBilled && form.customerType === 'government' ? (
+            <p className="text-xs font-medium text-text-quaternary">
+              {t('createInvoice.fields.governmentReferencesNote')}
+            </p>
+          ) : null}
           <div className="grid gap-4">
             <div className="flex flex-col gap-1">
               <FieldLabel label={t('createInvoice.fields.subject')} />
@@ -1744,10 +1784,10 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           )}
 
           {/*
-            IBT-010 and IBT-012, and only here. On every other document the buyer is the customer
-            and both come from the customer record, so the server refuses them outright
-            (BUYER_REFERENCES_NOT_SELF_BILLED). On a self-billed document the tenant IS the buyer,
-            which makes this the only place those references can come from.
+            The tenant's own IBT-010 and IBT-012 as buyer. On a self-billed document the tenant IS
+            the buyer, so this is the only place they can come from. An ordinary invoice states
+            its own IBT-010 in the field above; IBT-012 there is refused by the server
+            (BUYER_REFERENCES_NOT_SELF_BILLED).
           */}
           {selfBilled ? (
             <div className="grid gap-4 md:grid-cols-2">

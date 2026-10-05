@@ -1977,8 +1977,78 @@
     },
     "notIssuedYet": "Not issued yet",
     "bulkUnavailable": "Bulk upload is not available yet: the import endpoint has not been built.",
-    "sendUnavailable": "Sending is not available yet: documents are not delivered over Peppol or by e-mail from here until the delivery service exists.",
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document."
+  },
+  "invoiceDispatch": {
+    "state": {
+      "notSent": "Not sent yet",
+      "processing": "Being prepared for sending",
+      "retryScheduled": "Sending failed and will be retried",
+      "deadLettered": "Not sent: needs attention",
+      "cancelled": "Not sent: the invoice was cancelled",
+      "dispatched": "Accepted for sending",
+      "queued": "Validated and queued for sending",
+      "sending": "Sending",
+      "sent": "Sent, awaiting confirmation",
+      "delivered": "Delivered",
+      "deliveredUnconfirmed": "Delivered (not confirmed)",
+      "undeliverable": "Could not be delivered"
+    },
+    "reason": {
+      "sellerAddress": "Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.",
+      "sellerContact": "Your company telephone number was missing when this invoice was issued, so it cannot be sent: cancel it and issue a new one after adding the number.",
+      "buyerAddress": "The customer's address on this invoice is incomplete. It was fixed at issue, so this invoice cannot be sent: cancel it and issue a new one after completing the customer's address.",
+      "lineClassification": "A line on this invoice is missing its goods/services classification or business activity, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "lineHsCode": "A goods line on this invoice has no HS code, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "lineTaxReason": "A zero-rated or exempt line on this invoice has no reason code, so it cannot be sent: cancel it and issue a corrected invoice.",
+      "unsupportedShape": "This kind of self-billed invoice cannot be sent electronically.",
+      "correctionReason": "This note has no correction reason, so it cannot be sent: cancel it and issue a corrected note.",
+      "precedingUnavailable": "The invoice this note corrects could not be read. Sending will be retried.",
+      "validationFailed": "The e-invoice failed validation, so it was not sent. Cancel it and issue a corrected invoice, or contact support with the invoice number.",
+      "notSupported": "This invoice cannot be expressed as an e-invoice, so it was not sent. Contact support with the invoice number.",
+      "duplicateConflict": "Another document was already submitted under this invoice number, so this one was not sent. Contact support with the invoice number.",
+      "noLongerIssued": "The invoice is no longer issued, so it will not be sent.",
+      "temporary": "A temporary problem stopped sending. It will be retried.",
+      "unknown": "Sending stopped (code {{code}}). Contact support with the invoice number."
+    },
+    "sent": {
+      "dispatched": "The invoice was validated and queued for sending.",
+      "already": "This invoice has already been sent.",
+      "superseded": "This invoice is already being sent.",
+      "notSent": "The invoice was not sent."
+    },
+    "refused": {
+      "notSendable": "This invoice has nothing left to send.",
+      "inProgress": "This invoice is already being sent. Check again in a moment.",
+      "deadLettered": "Sending this invoice stopped and needs support before it can be retried.",
+      "unavailable": "Sending is not available right now."
+    },
+    "buyer": {
+      "peppol": "The buyer receives it over Peppol",
+      "notPermitted": "No buyer copy: a deemed supply must not be shared with the buyer",
+      "emailPending": "Buyer e-mail copy pending",
+      "emailHeld": "Buyer e-mail copy held: e-mail delivery is switched off",
+      "emailSent": "E-mailed to the buyer",
+      "emailFailed": "The buyer e-mail could not be sent; contact support",
+      "sentManually": "Delivered to the buyer by hand",
+      "printedReceipt": "Hand the buyer the printed receipt with its QR code",
+      "manualRequired": "Deliver this invoice to the buyer by hand, then mark it as sent manually",
+      "selfBilling": "Self-billing: delivered as agreed with the supplier"
+    },
+    "release": {
+      "action": "Send held e-mail to buyer",
+      "done": "The held e-mail was released to the buyer.",
+      "notHeld": "There is no held e-mail for this invoice.",
+      "disabled": "Buyer e-mail delivery is switched off, so nothing can be released."
+    },
+    "modal": {
+      "title": "Send invoice {{number}}?",
+      "subtitle": "To your customer and the Tax Authority.",
+      "body": "Fawtir will create the e-invoice, validate it against the Oman rules and queue it for delivery to your customer and reporting to the Tax Authority.",
+      "final": "Once sent, the invoice cannot be cancelled; correct it with a credit note.",
+      "submit": "Send invoice",
+      "sending": "Sending…"
+    }
   },
   "invoiceDetails": {
     "breadcrumbIncome": "Income",
@@ -2178,7 +2248,6 @@
       "DEBIT_NOTE": "Debit note {{id}}"
     },
     "notSentYet": "Not sent yet",
-    "sendUnavailable": "Sending is not available yet: documents are not delivered over Peppol or by e-mail from here until the delivery service exists.",
     "duplicateUnavailable": "Duplicating is not available yet: there is no route to copy a document.",
     "delivered": {
       "sentManually": "Sent manually to {{customer}} · {{when}}",
@@ -2286,6 +2355,9 @@
       "project": "Project",
       "subject": "Subject / about",
       "po": "Purchase order reference",
+      "buyerReference": "Buyer reference",
+      "buyerReferenceHint": "Filled in from the customer. Change it for this invoice, or leave it blank to use the customer's default.",
+      "governmentReferencesNote": "Government buyers may ask for a buyer reference and a purchase order reference on the invoice. Fawtir does not check this yet, so confirm with the buyer before issuing.",
       "paymentMethod": "Payment method",
       "paymentReference": "Payment reference",
       "paymentDate": "Payment date",

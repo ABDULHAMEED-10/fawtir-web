@@ -36,6 +36,17 @@ const CUSTOMER = {
   updatedAt: '2026-09-10T08:00:00Z',
 }
 
+const GOVERNMENT_CUSTOMER = {
+  ...CUSTOMER,
+  id: 'g-1',
+  type: 'GOVERNMENT',
+  displayName: 'Ministry of Health',
+  profile: {
+    ...CUSTOMER.profile,
+    details: { vatRegistrationNumber: null, defaultBuyerReference: 'MOH-BR-7' },
+  },
+}
+
 const PRODUCT = {
   id: 'p-1',
   code: 'FLT-1',
@@ -190,6 +201,14 @@ beforeEach(async () => {
       return json(200, [
         { id: 'b-1', code: 'MAIN', name: 'Head office', type: 'HEAD_OFFICE', city: 'Muscat' },
       ])
+    if (url.startsWith('/api/v1/customers?') && url.includes('type=GOVERNMENT'))
+      return json(200, {
+        content: [GOVERNMENT_CUSTOMER],
+        page: 0,
+        size: 20,
+        totalElements: 1,
+        totalPages: 1,
+      })
     if (url.startsWith('/api/v1/customers?'))
       return json(200, { content: [CUSTOMER], page: 0, size: 20, totalElements: 1, totalPages: 1 })
     if (url === '/api/v1/customers/c-1') return json(200, CUSTOMER)
@@ -327,6 +346,19 @@ describe('a new invoice draft', () => {
     await waitFor(async () => expect(await terms()).toContain('Net 30 days'))
   })
 
+  it('notes, without blocking, that a government buyer may ask for its references', async () => {
+    renderAt('/invoices/new')
+    const note = /Government buyers may ask for a buyer reference/
+    expect(await screen.findByRole('button', { name: 'Payment terms' })).toBeTruthy()
+    expect(screen.queryByText(note)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Government/ }))
+    expect(await screen.findByText(note)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Business/ }))
+    await waitFor(() => expect(screen.queryByText(note)).toBeNull())
+  })
+
   it("shows the company's stored business activity, or warns that none is set", async () => {
     renderAt('/invoices/new')
     expect(await screen.findByText('Business activity: 561001 · Restaurants')).toBeTruthy()
@@ -342,6 +374,70 @@ describe('a new invoice draft', () => {
     renderAt('/invoices/new')
     expect(await screen.findByText('Assigned when the invoice is issued')).toBeTruthy()
     expect(screen.getByText('New draft · not saved yet')).toBeTruthy()
+  })
+})
+
+describe('the buyer reference (IBT-010) on an ordinary invoice', () => {
+  const field = () => screen.getByRole('textbox', { name: 'Buyer reference' })
+
+  it('is offered on a business invoice, sent as typed, and not offered to a consumer', async () => {
+    renderAt('/invoices/new')
+    await chooseCustomerAndProduct()
+    expect(field()).toHaveProperty('value', '')
+    fireEvent.change(field(), { target: { value: 'BR-2026-14' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/invoice-drafts')[0]).draft.details).toMatchObject({
+      buyerReference: 'BR-2026-14',
+    })
+
+    cleanup()
+    renderAt('/invoices/new')
+    fireEvent.click(await screen.findByRole('button', { name: /Consumer/ }))
+    await waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: 'Buyer reference' })).toBeNull(),
+    )
+  })
+
+  it("starts from a government customer's default, which this invoice may change", async () => {
+    renderAt('/invoices/new')
+    fireEvent.click(await screen.findByRole('button', { name: /Government/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Select customer' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Ministry of Health/ }))
+    await waitFor(() => expect(field()).toHaveProperty('value', 'MOH-BR-7'))
+
+    fireEvent.change(field(), { target: { value: 'MOH-BR-OCT' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pick from catalogue/ }))
+    fireEvent.click(await screen.findByRole('option', { name: /Flat White/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+
+    await waitFor(() => expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(1))
+    expect(bodyOf(calls('POST', '/api/v1/invoice-drafts')[0]).draft.details).toMatchObject({
+      buyerReference: 'MOH-BR-OCT',
+    })
+  })
+
+  it('reads a saved buyer reference and PO reference back and keeps both on the next save', async () => {
+    loaded = draft({
+      details: {
+        ...draft().details,
+        buyerReference: 'BR-SAVED',
+        purchaseOrderReference: 'PO-77',
+      },
+    })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByDisplayValue('BR-SAVED')).toBeTruthy()
+    expect(
+      screen.getByRole('textbox', { name: 'Purchase order reference' }),
+    ).toHaveProperty('value', 'PO-77')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+    await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1))
+    expect(bodyOf(calls('PUT', '/api/v1/invoice-drafts/d-1')[0]).draft.details).toMatchObject({
+      buyerReference: 'BR-SAVED',
+      purchaseOrderReference: 'PO-77',
+    })
   })
 })
 
