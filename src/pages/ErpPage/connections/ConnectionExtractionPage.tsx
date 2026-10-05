@@ -7,6 +7,7 @@ import { Pill } from '../ErpShell'
 import {
   ApiReadFailure,
   LoadingNotice,
+  Notice,
   PermissionDeniedNotice,
 } from '../../../components/feedback/ApiNotice'
 import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
@@ -15,6 +16,7 @@ import { useConnectionDetail, useMutation } from './connectionData'
 import { useExtractionSettings, useExtractionStatus } from './extractionData'
 import { useErpAccess } from '../../../hooks/useErpAccess'
 import { isNotFound } from '../../../lib/apiFailure'
+import { erpRefusalOf } from '../../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../../lib/format'
 import { SAMPLE_LIMIT, sessionSamples } from '../../../lib/erp/sample'
 import {
@@ -69,6 +71,7 @@ type FormState = {
   pageSizeParameter: string
   initialCursor: string
   transactionType: string
+  documentIssueTimePointer: string
 }
 
 const EMPTY_FORM: FormState = {
@@ -83,6 +86,7 @@ const EMPTY_FORM: FormState = {
   pageSizeParameter: '',
   initialCursor: '',
   transactionType: '',
+  documentIssueTimePointer: '',
 }
 
 function formOf(settings: ExtractionSettingsDto): FormState {
@@ -99,8 +103,21 @@ function formOf(settings: ExtractionSettingsDto): FormState {
     pageSizeParameter: settings.pageSizeParameter ?? '',
     initialCursor: settings.initialCursor ?? '',
     transactionType: settings.transactionType ?? '',
+    documentIssueTimePointer: settings.documentIssueTimePointer ?? '',
   }
 }
+
+/**
+ * A channel saved before the issue-time pointer existed: configured, but missing the one value the
+ * server now requires before it will collect. Read from the settings the screen already holds, not
+ * from the status code — NOT_CONFIGURED also means "no settings at all", and the two need different
+ * words.
+ */
+function isMissingIssueTime(settings: ExtractionSettingsDto | null): boolean {
+  return settings !== null && settings.configured && settings.documentIssueTimePointer === null
+}
+
+const ISSUE_TIME_FIELD_ID = 'erp-extraction-document-issue-time-pointer'
 
 const blankToNull = (value: string) => (value.trim() === '' ? null : value.trim())
 
@@ -111,9 +128,17 @@ export function ConnectionExtractionPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const { access, ready: accessReady } = useErpAccess()
-  const { read, connection, reload: reloadConnection } = useConnectionDetail(id)
-  const settingsRead = useExtractionSettings(id)
-  const statusRead = useExtractionStatus(id)
+  // Each read waits for the one before it: nothing about this connection is requested until the
+  // operator is known to be allowed to read it, and nothing about extraction until the connection
+  // is known to be one Fawtir collects from. Any other mode answers
+  // EXTRACTION_CONNECTION_MODE_UNSUPPORTED.
+  const readable = accessReady && access.read
+  const { read, connection, reload: reloadConnection } = useConnectionDetail(
+    readable ? id : undefined,
+  )
+  const collects = connection?.connectionMode === 'MANAGED_PULL'
+  const settingsRead = useExtractionSettings(collects ? id : undefined)
+  const statusRead = useExtractionStatus(collects ? id : undefined)
   const mutation = useMutation()
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
@@ -135,10 +160,27 @@ export function ConnectionExtractionPage() {
     return isNotFound(read.error) ? <ConnectionNotFound /> : <ApiReadFailure error={read.error} retry={reloadConnection} />
   }
   if (connection === null) return <LoadingNotice />
+  if (!collects) {
+    return (
+      <ConnectionShell connection={connection}>
+        <SectionCard title={t('erp.extraction.modeUnsupported.title')}>
+          <p className="text-sm text-text-tertiary">{t('erp.extraction.modeUnsupported.body')}</p>
+        </SectionCard>
+      </ConnectionShell>
+    )
+  }
 
   const version = connection.version
   const canManage = access.manage
   const canSample = access.test
+  const missingIssueTime = isMissingIssueTime(settings)
+  // The refusal belongs next to the field it names as well as in the banner, because the banner
+  // sits above the form and the field may be off screen when Enable is pressed.
+  const issueTimeRefused = erpRefusalOf(mutation.error) === 'EXTRACTION_ISSUE_TIME_POINTER_REQUIRED'
+
+  function goToIssueTimeField() {
+    document.getElementById(ISSUE_TIME_FIELD_ID)?.focus()
+  }
 
   async function save() {
     if (id === undefined) return
@@ -158,6 +200,9 @@ export function ConnectionExtractionPage() {
         pageSizeParameter: blankToNull(form.pageSizeParameter),
         initialCursor: blankToNull(form.initialCursor),
         transactionType: form.transactionType.trim(),
+        // Always sent, so what the operator sees is what is stored: empty clears it on the server,
+        // and an empty field over a pointer that was never set leaves it unset.
+        documentIssueTimePointer: form.documentIssueTimePointer.trim(),
         expectedVersion: version,
       }),
     )
@@ -196,7 +241,7 @@ export function ConnectionExtractionPage() {
         <ConnectionNotice>{t(`erp.extraction.done.${mutation.done}`)}</ConnectionNotice>
       ) : null}
 
-      <StatusPanel read={statusRead.read} status={status} />
+      <StatusPanel read={statusRead.read} status={status} missingIssueTime={missingIssueTime} />
 
       <SectionCard
         title={t('erp.extraction.config.title')}
@@ -204,6 +249,22 @@ export function ConnectionExtractionPage() {
       >
         {settingsRead.read.status === 'failed' ? (
           <ConnectionFailure error={settingsRead.read.error} onReload={settingsRead.reload} />
+        ) : null}
+        {missingIssueTime ? (
+          <div className="mb-5">
+            <Notice
+              body={t(
+                canManage
+                  ? 'erp.extraction.issueTime.missing'
+                  : 'erp.extraction.issueTime.missingReadOnly',
+              )}
+              action={
+                canManage
+                  ? { label: t('erp.extraction.issueTime.goToField'), onClick: goToIssueTimeField }
+                  : undefined
+              }
+            />
+          </div>
         ) : null}
         {!canManage ? (
           <ConfigFacts settings={settings} />
@@ -247,6 +308,20 @@ export function ConnectionExtractionPage() {
             maxLength={200}
             value={form.documentIdPointer}
             onChange={(next) => setForm({ ...form, documentIdPointer: next })}
+          />
+          <TextField
+            id={ISSUE_TIME_FIELD_ID}
+            name="documentIssueTimePointer"
+            label={t('erp.extraction.field.documentIssueTimePointer')}
+            hint={t('erp.extraction.field.documentIssueTimePointerHint')}
+            error={
+              issueTimeRefused
+                ? t('erp.connections.refusal.EXTRACTION_ISSUE_TIME_POINTER_REQUIRED')
+                : undefined
+            }
+            maxLength={200}
+            value={form.documentIssueTimePointer}
+            onChange={(next) => setForm({ ...form, documentIssueTimePointer: next })}
           />
           <TextField
             id="erp-extraction-document-version-pointer"
@@ -363,9 +438,11 @@ export function ConnectionExtractionPage() {
 function StatusPanel({
   read,
   status,
+  missingIssueTime,
 }: {
   read: ReturnType<typeof useExtractionStatus>['read']
   status: ExtractionStatusDto | null
+  missingIssueTime: boolean
 }) {
   const { t } = useTranslation()
   if (read.status === 'failed') {
@@ -391,7 +468,11 @@ function StatusPanel({
         {/* The server's code, rendered. The frontend does not decide precedence. */}
         <Pill tone={STATUS_TONE[status.status]} label={t(`erp.extraction.state.${status.status}`)} />
         <p className="text-sm text-text-tertiary">
-          {t(`erp.extraction.stateHelp.${status.status}`)}
+          {/* The server's code stays the headline; only the explanation is more specific when the
+              settings show the one value that is missing. */}
+          {status.status === 'NOT_CONFIGURED' && missingIssueTime
+            ? t('erp.extraction.stateHelp.NOT_CONFIGURED_ISSUE_TIME')
+            : t(`erp.extraction.stateHelp.${status.status}`)}
         </p>
       </div>
       <dl className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -590,8 +671,12 @@ function EnablementPanel({
    */
   const notReady = status !== null && status.connectionState !== 'READY'
   const notConfigured = settings !== null && !settings.configured
+  const missingIssueTime = isMissingIssueTime(settings)
   const notCertified = status !== null && status.status === 'MAPPING_NOT_CERTIFIED'
-  const blocked = notReady || notConfigured
+  // Unknown counts as blocked: before both reads land, a pressable Enable would be offered on the
+  // strength of nothing, which is what the permission gate already refuses to do.
+  const unknown = settings === null || status === null
+  const blocked = unknown || notReady || notConfigured || missingIssueTime
 
   return (
     <SectionCard
@@ -600,6 +685,9 @@ function EnablementPanel({
     >
       <ul className="mb-5 space-y-2 text-sm">
         <Prerequisite met={!notConfigured}>{t('erp.extraction.enablement.needConfig')}</Prerequisite>
+        <Prerequisite met={!notConfigured && !missingIssueTime}>
+          {t('erp.extraction.enablement.needIssueTime')}
+        </Prerequisite>
         <Prerequisite met={!notReady}>{t('erp.extraction.enablement.needReady')}</Prerequisite>
         <Prerequisite met={!notCertified}>
           {t('erp.extraction.enablement.needCertified')}
@@ -682,6 +770,9 @@ function ConfigFacts({ settings }: { settings: ExtractionSettingsDto | null }) {
         </Fact>
         <Fact label={t('erp.extraction.field.documentIdPointer')}>
           <Mono>{settings.documentIdPointer ?? '—'}</Mono>
+        </Fact>
+        <Fact label={t('erp.extraction.field.documentIssueTimePointer')}>
+          <Mono>{settings.documentIssueTimePointer ?? '—'}</Mono>
         </Fact>
         <Fact label={t('erp.extraction.field.cursorKind')}>
           {settings.cursorKind === null
