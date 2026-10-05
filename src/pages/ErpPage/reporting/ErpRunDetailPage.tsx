@@ -12,7 +12,7 @@ import {
   type RunDetailDto,
   type SourceDocumentDto,
 } from '../../../api/erp/reporting'
-import { SectionCard, SecondaryLink } from '../overview/idiom'
+import { SectionCard } from '../overview/idiom'
 import {
   ConnectionLabel,
   DocumentsTable,
@@ -21,7 +21,13 @@ import {
   ReportPager,
   When,
 } from './reportingParts'
-import { useCode, useConnectionNames, useReportReadable } from './reportingHooks'
+import {
+  GLOBAL_LINKS,
+  useCode,
+  useConnectionNames,
+  useReportReadable,
+  type ReportLinks,
+} from './reportingHooks'
 import { useReportQuery } from './reportingQuery'
 
 /**
@@ -35,8 +41,31 @@ import { useReportQuery } from './reportingQuery'
  * so a document taken over by a later run is listed there instead.
  */
 export function ErpRunDetailPage() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { runId = '' } = useParams<{ runId: string }>()
+  return (
+    <ReportingShell
+      title={t('erp.reporting.run.title')}
+      subtitle={t('erp.reporting.run.subtitle')}
+      back={{ to: '/settings/erp/runs', label: t('erp.reporting.run.back') }}
+    >
+      <RunDetailBody runId={runId} />
+    </ReportingShell>
+  )
+}
+
+/**
+ * The run's sections without a frame, for the reports' shell and for a connection's Runs tab,
+ * whose document links stay under the connection.
+ */
+export function RunDetailBody({
+  runId,
+  links = GLOBAL_LINKS,
+}: {
+  runId: string
+  links?: ReportLinks
+}) {
+  const { t, i18n } = useTranslation()
   const { page, update } = useReportQuery()
   const { names } = useConnectionNames()
   const code = useCode()
@@ -50,10 +79,7 @@ export function ErpRunDetailPage() {
   )
 
   return (
-    <ReportingShell title={t('erp.reporting.run.title')} subtitle={t('erp.reporting.run.subtitle')}>
-      <div>
-        <SecondaryLink to="/settings/erp/runs">{t('erp.reporting.run.back')}</SecondaryLink>
-      </div>
+    <>
       {detail.read.status === 'loading' ? (
         <LoadingNotice />
       ) : detail.read.status === 'failed' ? (
@@ -81,6 +107,7 @@ export function ErpRunDetailPage() {
               <DocumentsTable
                 items={documents.read.data.items}
                 names={names}
+                links={links}
                 empty={t('erp.reporting.run.documentsEmpty')}
               />
               <div className="flex justify-end px-5 py-4">
@@ -94,7 +121,7 @@ export function ErpRunDetailPage() {
           )}
         </SectionCard>
       )}
-    </ReportingShell>
+    </>
   )
 }
 

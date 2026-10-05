@@ -236,23 +236,22 @@ function AttentionTable({
             <Th>{t('erp.reporting.col.labels')}</Th>
             <Th>{t('erp.reporting.col.status')}</Th>
             <Th>{t('erp.reporting.col.invoice')}</Th>
-            <Th>{t('erp.reporting.col.channel')}</Th>
-            <Th>{t('erp.reporting.col.connection')}</Th>
+            <Th>{t('erp.reporting.col.channelConnection')}</Th>
             <Th>{t('erp.reporting.col.received')}</Th>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <EmptyRow columns={7}>{empty}</EmptyRow>
+            <EmptyRow columns={6}>{empty}</EmptyRow>
           ) : (
             items.map((item) => (
               <tr key={item.record_id} className={TBODY_ROW}>
-                <Td first>
+                <Td first className="md:min-w-[210px]">
                   <Link
                     to={`/settings/erp/documents/${encodeURIComponent(item.record_id)}`}
-                    className="font-semibold text-primary-700 underline-offset-2 hover:underline break-all"
+                    className="font-semibold text-primary-700 underline-offset-2 hover:underline break-words"
                   >
-                    <span dir="ltr">{item.external_document_id}</span>
+                    <bdi dir="ltr">{item.external_document_id}</bdi>
                   </Link>
                 </Td>
                 <Td>
@@ -279,11 +278,11 @@ function AttentionTable({
                     {item.reason_code ? ` · ${code('reason', item.reason_code)}` : ''}
                   </span>
                 </Td>
-                <Td>
+                <Td className="md:min-w-[170px]">
                   {item.invoice?.invoice_number ? (
-                    <span dir="ltr" className="break-all">
+                    <bdi dir="ltr" className="block break-words">
                       {item.invoice.invoice_number}
-                    </span>
+                    </bdi>
                   ) : item.invoice?.missing ? (
                     <span className="text-danger-700">{t('erp.reporting.invoiceMissing')}</span>
                   ) : (
@@ -305,9 +304,12 @@ function AttentionTable({
                     </span>
                   ) : null}
                 </Td>
-                <Td>{code('sourceKind', item.source_kind)}</Td>
+                {/* Channel and connection share a column so the document and invoice have room. */}
                 <Td>
-                  <ConnectionLabel id={item.connection_id} names={names} />
+                  <span className="block">{code('sourceKind', item.source_kind)}</span>
+                  <span className="block text-xs text-text-quaternary">
+                    <ConnectionLabel id={item.connection_id} names={names} />
+                  </span>
                 </Td>
                 <Td>
                   <When at={item.received_at} />

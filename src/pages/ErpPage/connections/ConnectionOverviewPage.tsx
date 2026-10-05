@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell } from '../../SettingsPage/SettingsShell'
 import {
   ConfirmModal,
-  Mono,
   SECONDARY_BUTTON,
   SMALL_BUTTON,
   SectionCard,
@@ -15,13 +14,14 @@ import {
   PermissionDeniedNotice,
 } from '../../../components/feedback/ApiNotice'
 import { ConnectionShell, ConnectionNotFound } from './ConnectionShell'
-import { ConnectionFailure, ConnectionNotice, TestOutcomePill } from './connectionParts'
+import { ConnectionFailure, TestOutcomePill } from './connectionParts'
 import { useConnectionDetail, useMutation } from './connectionData'
 import { useErpAccess } from '../../../hooks/useErpAccess'
 import { useLanguage } from '../../../hooks'
 import { isNotFound } from '../../../lib/apiFailure'
 import { erpConnectionControls, testReasonKey } from '../../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../../lib/format'
+import { sourceSystemName } from '../../../lib/erp/sourceSystem'
 import {
   testErpConnection,
   transitionErpConnection,
@@ -122,10 +122,14 @@ function Overview({
         >
           <dl className="grid gap-x-8 gap-y-4 p-5 pt-0 md:grid-cols-2">
             <Fact label={t('erp.connections.detail.system')}>
-              {connection.sourceSystem}
+              {sourceSystemName(t, connection.sourceSystem)}
             </Fact>
             <Fact label={t('erp.connections.detail.version')}>
-              {connection.sourceVersion ?? t('erp.connections.detail.noVersion')}
+              {connection.sourceVersion === null ? (
+                t('erp.connections.detail.noVersion')
+              ) : (
+                <bdi dir="ltr">{connection.sourceVersion}</bdi>
+              )}
             </Fact>
             <Fact label={t('erp.connections.detail.connects')}>
               {connection.transportType === null
@@ -136,7 +140,9 @@ function Overview({
               {connection.endpoint === null ? (
                 t('erp.connections.detail.noEndpoint')
               ) : (
-                <Mono>{connection.endpoint}</Mono>
+                <bdi dir="ltr" className="font-mono">
+                  {connection.endpoint}
+                </bdi>
               )}
             </Fact>
             <Fact label={t('erp.connections.detail.credential')}>
@@ -153,7 +159,7 @@ function Overview({
                 : t('erp.connections.credential.notConfigured')}
             </Fact>
             <Fact label={t('erp.connections.detail.version_label')}>
-              <Mono>{String(connection.version)}</Mono>
+              <bdi dir="ltr">{String(connection.version)}</bdi>
             </Fact>
             <Fact label={t('erp.connections.detail.created')}>
               {formatInstant(connection.createdAt, language)}
@@ -225,7 +231,7 @@ function Overview({
                   onClick={() => navigate(`/settings/erp/connections/${connection.id}/settings`)}
                   disabled={mutation.busy !== null}
                 >
-                  {t('erp.connections.edit.heading')}
+                  {t('erp.connections.actions.changeSettings')}
                 </button>
               ) : null}
               {controls.canArchive ? (
@@ -346,7 +352,8 @@ function TestPanel({
             ) : null}
           </div>
         ) : connection.lastTestOutcome !== null && connection.lastTestedAt !== null ? (
-          <ConnectionNotice>
+          // Flush with the card's heading: the notice's own padding indented it a further 20px.
+          <div role="status" className="text-sm font-medium leading-[1.6] text-text-tertiary">
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <TestOutcomePill outcome={connection.lastTestOutcome} />
@@ -358,7 +365,7 @@ function TestPanel({
               </div>
               <p>{t(testReasonKey(connection.lastTestReasonCode))}</p>
             </div>
-          </ConnectionNotice>
+          </div>
         ) : (
           <p className="text-sm font-medium text-text-quaternary">
             {t('erp.connections.list.neverTested')}

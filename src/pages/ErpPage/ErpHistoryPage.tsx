@@ -17,6 +17,8 @@ import {
 import { deactivateMappingProfile } from '../../api/erp/mapping'
 import { shortHash } from '../../lib/erp/mappingState'
 import { shortDate } from '../../lib/settings'
+import { sourceSystemName } from '../../lib/erp/sourceSystem'
+import { documentKindName } from './shared/documentKind'
 import infoIcon from '../../assets/settings/info.svg'
 
 const TABS = [
@@ -51,7 +53,7 @@ export function ErpHistoryPage() {
       <div className="flex gap-3 rounded-md border border-border-subtle bg-surface-card p-4">
         <img src={infoIcon} alt="" aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
         <p className="text-sm font-medium leading-[1.5] text-text-tertiary">
-          {t('erp.unsupported.REVISIONS')}
+          {t('erp.history.revisionsNote')}
         </p>
       </div>
 
@@ -93,69 +95,71 @@ function Profiles() {
 
   return (
     <>
-      <RowsView>
-        <table className="w-full min-w-[760px] border-collapse">
-          <thead>
-            <tr className={THEAD_ROW}>
-              <Th first>{t('erp.history.profiles.col.version')}</Th>
-              <Th>{t('erp.history.profiles.col.hash')}</Th>
-              <Th>{t('erp.history.profiles.col.erp')}</Th>
-              <Th>{t('erp.history.profiles.col.state')}</Th>
-              <Th>{t('erp.history.profiles.col.at')}</Th>
-              <Th align="end">{t('erp.history.profiles.col.action')}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {view.profiles.length === 0 ? (
-              <EmptyRow columns={6}>{t('erp.history.profiles.empty')}</EmptyRow>
-            ) : (
-              view.profiles.map((profile) => (
-                <tr key={profile.id} className={TBODY_ROW}>
-                  <Td first>
-                    <span className="text-sm font-semibold text-text-primary tabular-nums">
-                      {profile.version}
-                    </span>
-                  </Td>
-                  <Td>
-                    <Mono>{shortHash(profile.contentHash)}</Mono>
-                  </Td>
-                  <Td>
-                    <span className="text-sm font-medium text-text-secondary">
-                      {profile.erpKey ?? '—'}
-                    </span>
-                  </Td>
-                  <Td>
-                    <Pill
-                      tone={profile.active ? 'success' : 'neutral'}
-                      label={
-                        profile.active
-                          ? t('erp.history.profiles.active')
-                          : t('erp.history.profiles.superseded')
-                      }
-                    />
-                  </Td>
-                  <Td>
-                    <span className="text-sm font-medium text-text-secondary tabular-nums">
-                      {shortDate(new Date(profile.createdAt))}
-                    </span>
-                  </Td>
-                  <Td align="end">
-                    {profile.active ? (
-                      <button
-                        type="button"
-                        onClick={() => setConfirming(true)}
-                        className={SMALL_BUTTON}
-                      >
-                        {t('erp.history.profiles.deactivate')}
-                      </button>
-                    ) : null}
-                  </Td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </RowsView>
+      <div className="max-md:px-5 max-md:pb-5">
+        <RowsView>
+          <table className="w-full min-w-[760px] border-collapse">
+            <thead>
+              <tr className={THEAD_ROW}>
+                <Th first>{t('erp.history.profiles.col.version')}</Th>
+                <Th>{t('erp.history.profiles.col.hash')}</Th>
+                <Th>{t('erp.history.profiles.col.erp')}</Th>
+                <Th>{t('erp.history.profiles.col.state')}</Th>
+                <Th>{t('erp.history.profiles.col.at')}</Th>
+                <Th align="end">{t('erp.history.profiles.col.action')}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.profiles.length === 0 ? (
+                <EmptyRow columns={6}>{t('erp.history.profiles.empty')}</EmptyRow>
+              ) : (
+                view.profiles.map((profile) => (
+                  <tr key={profile.id} className={TBODY_ROW}>
+                    <Td first>
+                      <span className="text-sm font-semibold text-text-primary tabular-nums">
+                        {profile.version}
+                      </span>
+                    </Td>
+                    <Td>
+                      <Mono>{shortHash(profile.contentHash)}</Mono>
+                    </Td>
+                    <Td>
+                      <span className="text-sm font-medium text-text-secondary">
+                        {profile.erpKey ? sourceSystemName(t, profile.erpKey) : '—'}
+                      </span>
+                    </Td>
+                    <Td>
+                      <Pill
+                        tone={profile.active ? 'success' : 'neutral'}
+                        label={
+                          profile.active
+                            ? t('erp.history.profiles.active')
+                            : t('erp.history.profiles.superseded')
+                        }
+                      />
+                    </Td>
+                    <Td>
+                      <span className="text-sm font-medium text-text-secondary tabular-nums">
+                        {shortDate(new Date(profile.createdAt))}
+                      </span>
+                    </Td>
+                    <Td align="end">
+                      {profile.active ? (
+                        <button
+                          type="button"
+                          onClick={() => setConfirming(true)}
+                          className={`${SMALL_BUTTON} md:-my-[9px]`}
+                        >
+                          {t('erp.history.profiles.deactivate')}
+                        </button>
+                      ) : null}
+                    </Td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </RowsView>
+      </div>
 
       <ConfirmModal
         open={confirming}
@@ -178,67 +182,69 @@ function Certifications() {
   const view = useErpMapping()
 
   return (
-    <RowsView>
-      <table className="w-full min-w-[820px] border-collapse">
-        <thead>
-          <tr className={THEAD_ROW}>
-            <Th first>{t('erp.certification.col.route')}</Th>
-            <Th>{t('erp.certification.col.result')}</Th>
-            <Th>{t('erp.certification.col.hash')}</Th>
-            <Th>{t('erp.certification.col.kind')}</Th>
-            <Th>{t('erp.certification.col.type')}</Th>
-            <Th>{t('erp.certification.col.when')}</Th>
-            <Th>{t('erp.certification.col.findings')}</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {view.history.length === 0 ? (
-            <EmptyRow columns={7}>{t('erp.certification.noHistory')}</EmptyRow>
-          ) : (
-            view.history.map((attempt) => (
-              <tr key={attempt.id} className={TBODY_ROW}>
-                <Td first>
-                  <span className="text-sm font-semibold text-text-primary">
-                    {t(`erp.certRoute.${attempt.route}`)}
-                  </span>
-                </Td>
-                <Td>
-                  <Pill
-                    tone={attempt.verdict === 'PASSED' ? 'success' : 'danger'}
-                    label={
-                      attempt.verdict === 'PASSED'
-                        ? t('erp.certification.passedPill')
-                        : t('erp.certification.failedPill')
-                    }
-                  />
-                </Td>
-                <Td>
-                  <Mono>{shortHash(attempt.content_hash)}</Mono>
-                </Td>
-                <Td>
-                  <span className="text-sm font-medium text-text-secondary">
-                    {attempt.document_kind}
-                  </span>
-                </Td>
-                <Td>
-                  <Mono>{attempt.transaction_type}</Mono>
-                </Td>
-                <Td>
-                  <span className="text-sm font-medium text-text-secondary tabular-nums">
-                    {shortDate(new Date(attempt.certified_at))}
-                  </span>
-                </Td>
-                <Td>
-                  <span className="block max-w-[280px] text-sm font-medium leading-[1.5] text-text-secondary">
-                    {attempt.summary ??
-                      t('erp.shared.findingsCount', { count: attempt.error_count })}
-                  </span>
-                </Td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </RowsView>
+    <div className="max-md:px-5 max-md:pb-5">
+      <RowsView>
+        <table className="w-full min-w-[820px] border-collapse">
+          <thead>
+            <tr className={THEAD_ROW}>
+              <Th first>{t('erp.certification.col.route')}</Th>
+              <Th>{t('erp.certification.col.result')}</Th>
+              <Th>{t('erp.certification.col.hash')}</Th>
+              <Th>{t('erp.certification.col.kind')}</Th>
+              <Th>{t('erp.certification.col.type')}</Th>
+              <Th>{t('erp.certification.col.when')}</Th>
+              <Th>{t('erp.certification.col.findings')}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {view.history.length === 0 ? (
+              <EmptyRow columns={7}>{t('erp.certification.noHistory')}</EmptyRow>
+            ) : (
+              view.history.map((attempt) => (
+                <tr key={attempt.id} className={TBODY_ROW}>
+                  <Td first>
+                    <span className="whitespace-nowrap text-sm font-semibold text-text-primary">
+                      {t(`erp.certRoute.${attempt.route}`)}
+                    </span>
+                  </Td>
+                  <Td>
+                    <Pill
+                      tone={attempt.verdict === 'PASSED' ? 'success' : 'danger'}
+                      label={
+                        attempt.verdict === 'PASSED'
+                          ? t('erp.certification.passedPill')
+                          : t('erp.certification.failedPill')
+                      }
+                    />
+                  </Td>
+                  <Td>
+                    <Mono>{shortHash(attempt.content_hash)}</Mono>
+                  </Td>
+                  <Td>
+                    <span className="text-sm font-medium text-text-secondary">
+                      {documentKindName(t, attempt.document_kind)}
+                    </span>
+                  </Td>
+                  <Td>
+                    <Mono>{attempt.transaction_type}</Mono>
+                  </Td>
+                  <Td>
+                    <span className="text-sm font-medium text-text-secondary tabular-nums">
+                      {shortDate(new Date(attempt.certified_at))}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span dir="auto" className="block max-w-[280px] text-sm font-medium leading-[1.5] text-text-secondary">
+                      {attempt.summary ??
+                        t('erp.shared.findingsCount', { count: attempt.error_count })}
+                    </span>
+                  </Td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </RowsView>
+    </div>
   )
 }

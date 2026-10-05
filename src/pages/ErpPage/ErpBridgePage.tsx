@@ -10,7 +10,7 @@ import {
   Notice,
   PermissionDeniedNotice,
 } from '../../components/feedback/ApiNotice'
-import { PRIMARY_BUTTON, SECONDARY_BUTTON, SectionCard, SecondaryLink } from './overview/idiom'
+import { Mono, PRIMARY_BUTTON, SECONDARY_BUTTON, SectionCard, SecondaryLink } from './overview/idiom'
 import { Pill } from './ErpShell'
 import { useApiRead } from '../../hooks/useApiRead'
 import { useEntitlements } from '../../hooks/useEntitlements'
@@ -358,7 +358,7 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
                         : 'border-border-default bg-surface-background hover:bg-primary-25',
                     ].join(' ')}
                   >
-                    <span className="break-all text-sm font-semibold text-text-primary">
+                    <span className="text-sm font-semibold text-text-primary [overflow-wrap:anywhere]">
                       {chosen ? chosen.name : t('erp.bridge.document.drop', { format })}
                     </span>
                     <span className="text-xs font-medium text-text-quaternary">
@@ -387,6 +387,7 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
             <TextField
               id="erp-bridge-document-id"
               name="externalDocumentId"
+              dir="ltr"
               label={t('erp.bridge.identity.documentId')}
               hint={t('erp.bridge.identity.documentIdHint')}
               required
@@ -400,6 +401,7 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
             <TextField
               id="erp-bridge-document-version"
               name="externalVersion"
+              dir="ltr"
               label={t('erp.bridge.identity.version')}
               hint={t('erp.bridge.identity.versionHint')}
               maxLength={BRIDGE_VERSION_MAX}
@@ -431,13 +433,10 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
               </span>
               <p className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-text-quaternary">
                 <span>
-                  {t('erp.certification.composed')}{' '}
-                  <span
-                    dir="ltr"
-                    className="inline-block font-mono text-[11px] font-semibold text-text-secondary"
-                  >
+                  {t('erp.bridge.invoice.composed')}{' '}
+                  <Mono className="inline-block text-text-secondary [overflow-wrap:anywhere]">
                     {transactionType}
-                  </span>
+                  </Mono>
                 </span>
                 <button
                   type="button"

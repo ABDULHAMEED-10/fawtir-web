@@ -276,12 +276,12 @@ export function ErpAdvancedPage() {
             </p>
           ) : null}
 
-          <div className="flex flex-wrap items-center gap-2.5 border-t border-surface-background pt-4">
+          <div className="flex flex-wrap items-center gap-2.5 border-t border-surface-background pt-4 max-md:flex-col max-md:items-stretch">
             <button
               type="button"
               onClick={dryRun}
               disabled={!text.trim() || !sample || busy}
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-[46px] items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('erp.advanced.dryRun')}
             </button>
@@ -289,7 +289,7 @@ export function ErpAdvancedPage() {
               type="button"
               onClick={download}
               disabled={!text.trim()}
-              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-[46px] items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <img src={downloadIcon} alt="" className="size-[18px]" />
               {t('erp.advanced.download')}
@@ -298,7 +298,7 @@ export function ErpAdvancedPage() {
               type="button"
               onClick={save}
               disabled={!text.trim() || busy}
-              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
+              className="inline-flex h-[46px] items-center justify-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
             >
               {busy ? t('erp.shared.working') : t('erp.advanced.save')}
             </button>
@@ -306,7 +306,7 @@ export function ErpAdvancedPage() {
               type="button"
               onClick={() => setConfirming(true)}
               disabled={!active || busy}
-              className="ms-auto inline-flex h-[46px] items-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:ms-0"
+              className="ms-auto inline-flex h-[46px] items-center justify-center rounded-sm bg-danger-700 px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:ms-0"
             >
               {t('erp.advanced.deactivate')}
             </button>

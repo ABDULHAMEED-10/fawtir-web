@@ -24,7 +24,14 @@ import {
   When,
   WindowFields,
 } from './reportingParts'
-import { useCode, useConnectionNames, useEnumOptions, useReportReadable } from './reportingHooks'
+import {
+  GLOBAL_LINKS,
+  useCode,
+  useConnectionNames,
+  useEnumOptions,
+  useReportReadable,
+  type ReportLinks,
+} from './reportingHooks'
 import { readWindow, useReportQuery } from './reportingQuery'
 
 /**
@@ -36,6 +43,28 @@ import { readWindow, useReportQuery } from './reportingQuery'
  */
 export function ErpRunsPage() {
   const { t } = useTranslation()
+  return (
+    <ReportingShell
+      title={t('erp.reporting.runs.title')}
+      subtitle={t('erp.reporting.runs.subtitle')}
+    >
+      <RunsReport />
+    </ReportingShell>
+  )
+}
+
+/**
+ * The run list without a frame. A connection's Runs tab draws it with `connectionId` fixed, which
+ * narrows the read to that connection and takes the connection filter away.
+ */
+export function RunsReport({
+  connectionId: fixedConnection,
+  links = GLOBAL_LINKS,
+}: {
+  connectionId?: string
+  links?: ReportLinks
+}) {
+  const { t } = useTranslation()
   const { get, pick, page, update } = useReportQuery()
   const { names, options: connectionOptions } = useConnectionNames()
   const enumOptions = useEnumOptions()
@@ -46,7 +75,7 @@ export function ErpRunsPage() {
     problem === null && range.from && range.to ? windowBounds(range.from, range.to) : {}
   const sourceKind = pick('channel', SOURCE_KINDS)
   const state = pick('state', RUN_STATES)
-  const connectionId = get('connection')
+  const connectionId = fixedConnection ?? get('connection')
 
   const readable = useReportReadable()
   const path =
@@ -54,13 +83,16 @@ export function ErpRunsPage() {
       ? runListPath({ sourceKind, state, connectionId, ...bounds }, page - 1)
       : null
   const list = useApiRead<Page<RunDto>>(path, () => loadRunList(path!))
-  const filtered = Boolean(sourceKind || state || connectionId || range.from || range.to)
+  const filtered = Boolean(
+    sourceKind ||
+    state ||
+    (fixedConnection === undefined && connectionId) ||
+    range.from ||
+    range.to,
+  )
 
   return (
-    <ReportingShell
-      title={t('erp.reporting.runs.title')}
-      subtitle={t('erp.reporting.runs.subtitle')}
-    >
+    <>
       <SectionCard title={t('erp.reporting.filters.title')}>
         <div className="grid gap-4 px-5 pb-5 md:grid-cols-2 xl:grid-cols-4">
           <div className="md:col-span-2">
@@ -69,6 +101,7 @@ export function ErpRunsPage() {
               to={range.to}
               problem={problem}
               max={businessToday()}
+              kind="started"
               onChange={(next) => update({ from: next.from, to: next.to })}
             />
           </div>
@@ -86,11 +119,13 @@ export function ErpRunsPage() {
             options={enumOptions('runState', RUN_STATES)}
             onChange={(value) => update({ state: value })}
           />
-          <ConnectionFilter
-            value={connectionId}
-            options={connectionOptions}
-            onChange={(value) => update({ connection: value })}
-          />
+          {fixedConnection === undefined ? (
+            <ConnectionFilter
+              value={connectionId}
+              options={connectionOptions}
+              onChange={(value) => update({ connection: value })}
+            />
+          ) : null}
         </div>
         <div className="border-t border-surface-background px-5 py-3">
           <button
@@ -128,6 +163,7 @@ export function ErpRunsPage() {
             <RunsTable
               items={list.read.data.items}
               names={names}
+              links={links}
               empty={
                 filtered ? t('erp.reporting.runs.emptyFiltered') : t('erp.reporting.runs.empty')
               }
@@ -142,7 +178,7 @@ export function ErpRunsPage() {
           </>
         )}
       </SectionCard>
-    </ReportingShell>
+    </>
   )
 }
 
@@ -150,10 +186,12 @@ function RunsTable({
   items,
   names,
   empty,
+  links,
 }: {
   items: RunDto[]
   names: Map<string, string> | null
   empty: string
+  links: ReportLinks
 }) {
   const { t, i18n } = useTranslation()
   const code = useCode()
@@ -183,7 +221,7 @@ function RunsTable({
               <tr key={run.run_id} className={TBODY_ROW}>
                 <Td first>
                   <Link
-                    to={`/settings/erp/runs/${encodeURIComponent(run.run_id)}`}
+                    to={links.run(run.run_id)}
                     className="font-semibold text-primary-700 underline-offset-2 hover:underline"
                   >
                     <When at={run.created_at} />

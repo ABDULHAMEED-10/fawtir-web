@@ -132,7 +132,11 @@ export function ErpPreviewPage() {
       ) : null}
 
       {/* Toolbar */}
-      <section className="flex flex-wrap items-end gap-3 rounded-md bg-surface-card p-5">
+      {/*
+        Top-aligned, with the button dropped by the picker's caption (20 px line + 4 px gap), so it
+        lines up with the select even when the picker shows a note underneath.
+      */}
+      <section className="flex flex-wrap items-end gap-3 rounded-md bg-surface-card p-5 lg:items-start">
         <div className="w-full max-w-[460px] max-lg:max-w-none">
           <SamplePicker samples={samples} value={sampleId} onChange={choose} />
         </div>
@@ -140,7 +144,7 @@ export function ErpPreviewPage() {
           type="button"
           onClick={run}
           disabled={!canRun || running}
-          className="inline-flex h-[50px] items-center rounded-sm bg-primary-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
+          className="inline-flex h-[50px] items-center rounded-sm bg-primary-700 px-5 lg:mt-6 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200"
         >
           {running
             ? t('erp.shared.working')
@@ -149,10 +153,7 @@ export function ErpPreviewPage() {
               : t('erp.preview.run')}
         </button>
         <div className="ms-auto flex flex-col items-end gap-1 max-lg:w-full max-lg:items-start">
-          <span
-            dir="ltr"
-            className="inline-flex h-[24px] items-center rounded-[3px] bg-primary-50 px-2 font-mono text-[11px] font-semibold text-primary-800"
-          >
+          <span className="inline-flex min-h-[24px] items-center rounded-[3px] bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-800">
             {t('erp.preview.level')}
           </span>
           <span className="text-xs font-medium text-text-quaternary">

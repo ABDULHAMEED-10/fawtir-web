@@ -117,6 +117,12 @@ export type ExtractionSettingsDto = {
   pageSizeParameter: string | null
   initialCursor: string | null
   transactionType: string | null
+  /**
+   * Where each document carries its issue time (IBT-168). Null on a connection saved before the field
+   * existed: the server refuses to enable such a channel and reports it NOT_CONFIGURED while it stays
+   * enabled from earlier. Never defaulted by the server, so never defaulted here.
+   */
+  documentIssueTimePointer: string | null
   /** Derived, not authored: false means the channel re-reads the same window and never advances. */
   supportsResume: boolean
   version: number
@@ -199,6 +205,11 @@ export type UpdateExtractionSettingsRequest = {
   pageSizeParameter?: string | null
   initialCursor?: string | null
   transactionType: string
+  /**
+   * Omitted keeps the stored pointer and an empty string clears it — the server's rule, so that a
+   * client written before the field existed cannot erase it by saving.
+   */
+  documentIssueTimePointer?: string
   expectedVersion: number
 }
 

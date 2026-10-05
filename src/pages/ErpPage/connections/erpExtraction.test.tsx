@@ -95,6 +95,7 @@ function settings(overrides: Partial<ExtractionSettingsDto> = {}): ExtractionSet
     pageSizeParameter: 'limit',
     initialCursor: '2026-01-01T00:00:00Z',
     transactionType: BITMAP,
+    documentIssueTimePointer: '/issued_at',
     supportsResume: true,
     version: 7,
     ...overrides,
@@ -113,6 +114,7 @@ const UNCONFIGURED: ExtractionSettingsDto = settings({
   pageSizeParameter: null,
   initialCursor: null,
   transactionType: null,
+  documentIssueTimePointer: null,
   supportsResume: false,
 })
 
@@ -296,6 +298,15 @@ async function seededForm() {
   )
 }
 
+/**
+ * Both server answers are in: the settings in the form and the status pill on screen. Enable is held
+ * disabled until then, so a click made earlier would test the loading state rather than the action.
+ */
+async function serverAnswered() {
+  await seededForm()
+  await screen.findByText(i18n.t(`erp.extraction.state.${reported.status}`))
+}
+
 /** The value beside a status label, scoped so a stray match elsewhere on the page cannot pass. */
 function fact(label: string): string {
   const term = screen.getByText(label)
@@ -322,7 +333,9 @@ describe('extraction configuration', () => {
     await seededForm()
 
     expect((screen.getByLabelText('How often to collect') as HTMLInputElement).value).toBe('PT1M')
-    expect(screen.getByText(/Effective: PT5M/)).toBeTruthy()
+    expect(screen.getByText(/Effective: every 5 minutes/)).toBeTruthy()
+    // People read the cadence in words; the code stays in the field, where it is typed.
+    expect(await screen.findByText('Every 5 minutes')).toBeTruthy()
   })
 
   it('sends the typed settings request with the connection version', async () => {
@@ -609,7 +622,10 @@ describe('status', () => {
     })
     renderPage()
 
-    expect(await screen.findByText(/SOURCE_TIMEOUT/)).toBeTruthy()
+    // The classified code and stage in words, never the raw codes.
+    expect(await screen.findByText(/Your ERP did not answer in time/)).toBeTruthy()
+    expect(screen.getByText(/Stage: your ERP/)).toBeTruthy()
+    expect(screen.queryByText(/SOURCE_TIMEOUT/)).toBeNull()
     expect(screen.getByText(/will retry/)).toBeTruthy()
     expect(fact('Consecutive failures')).toBe('2')
   })
@@ -638,7 +654,7 @@ describe('status', () => {
 describe('production enablement', () => {
   it('uses the dedicated enablement endpoint, not the connection update', async () => {
     renderPage()
-    await screen.findByLabelText('Documents pointer')
+    await serverAnswered()
     fireEvent.click(enableButton())
 
     await waitFor(() => expect(to('/extraction/enablement').length).toBe(1))
@@ -664,7 +680,9 @@ describe('production enablement', () => {
     stored = settings({ enabled: true })
     reported = status('WAITING', { enabled: true })
     renderPage()
-    await screen.findByLabelText('Documents pointer')
+    // The settings read is what says the channel is on; extraction reads now start only once the
+    // connection is known to be MANAGED_PULL, so the form's label alone is too early to act on.
+    await seededForm()
     fireEvent.click(disableButton())
 
     await waitFor(() => expect(to('/extraction/enablement').length).toBe(1))
@@ -691,6 +709,9 @@ describe('production enablement', () => {
     renderPage()
 
     await screen.findByText('Connection marked ready')
+    // The status pill proves the server's answer is in, so the disabled button below is explained by
+    // the prerequisites and not merely by reads still in flight.
+    await screen.findByText(i18n.t('erp.extraction.state.CONNECTION_NOT_READY'))
     expect(screen.getByText('Extraction settings saved')).toBeTruthy()
     expect(screen.getByText('Mapping certified for this transaction type')).toBeTruthy()
     // Pre-disabled as a courtesy; the backend refuses it regardless.
@@ -702,9 +723,10 @@ describe('production enablement', () => {
     // second implementation of its rule, and would block an operator the server would have allowed.
     reported = status('MAPPING_NOT_CERTIFIED')
     renderPage()
-    await screen.findByLabelText('Documents pointer')
+    await seededForm()
 
-    expect((enableButton() as HTMLButtonElement).disabled).toBe(false)
+    // Disabled while either read is in flight, then pressable once the server's answers are in.
+    await waitFor(() => expect((enableButton() as HTMLButtonElement).disabled).toBe(false))
   })
 
   it('does not activate production when the backend refuses', async () => {
@@ -715,7 +737,7 @@ describe('production enablement', () => {
     }
     reported = status('MAPPING_NOT_CERTIFIED')
     renderPage()
-    await screen.findByLabelText('Documents pointer')
+    await serverAnswered()
     fireEvent.click(enableButton())
 
     await waitFor(() => expect(to('/extraction/enablement').length).toBe(1))
@@ -725,7 +747,7 @@ describe('production enablement', () => {
   it('does not retry a version conflict behind the operator back', async () => {
     refuse = { on: '/extraction/enablement', status: 409, code: 'CONNECTION_VERSION_CONFLICT' }
     renderPage()
-    await screen.findByLabelText('Documents pointer')
+    await serverAnswered()
     fireEvent.click(enableButton())
 
     await waitFor(() => expect(to('/extraction/enablement').length).toBe(1))
@@ -742,7 +764,7 @@ describe('permissions', () => {
   it('shows a reader the facts and none of the controls', async () => {
     who = READER
     renderPage()
-    await screen.findByText('Collection status')
+    await screen.findByText('You do not have permission to change these settings.')
 
     expect(screen.queryByRole('button', { name: 'Save settings' })).toBeNull()
     expect(screen.queryByLabelText('Documents pointer')).toBeNull()
@@ -790,5 +812,183 @@ describe('permissions', () => {
     expect(screen.queryByRole('button', { name: 'Enable production collection' })).toBeNull()
 
     await screen.findByLabelText('Documents pointer')
+  })
+})
+
+/* ============================================================ issue time (Phase 5) */
+
+const ISSUE_TIME_LABEL = 'Issue time pointer'
+const issueTimeField = () => screen.getByLabelText(ISSUE_TIME_LABEL) as HTMLInputElement
+
+/** A channel saved before the issue-time pointer existed and left enabled: the server's legacy case. */
+function legacyChannel() {
+  stored = settings({ enabled: true, documentIssueTimePointer: null })
+  reported = status('NOT_CONFIGURED', { enabled: true })
+}
+
+describe('issue time pointer', () => {
+  it('shows the stored pointer for a connection Fawtir collects from', async () => {
+    renderPage()
+    await seededForm()
+
+    expect(issueTimeField().value).toBe('/issued_at')
+  })
+
+  it('saves the typed pointer, trimmed, in the documented field', async () => {
+    renderPage()
+    await seededForm()
+    fireEvent.change(issueTimeField(), { target: { value: '  /invoice/issueTime ' } })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(to('/extraction').length).toBe(1))
+    expect((to('/extraction')[0].body as Record<string, unknown>).documentIssueTimePointer).toBe(
+      '/invoice/issueTime',
+    )
+  })
+
+  it('sends an emptied pointer as an empty string, which is how the server clears it', async () => {
+    // Not null: the server reads an omitted or null field as "keep the stored value", so null would
+    // leave the old pointer in place while the screen showed the field empty.
+    renderPage()
+    await seededForm()
+    fireEvent.change(issueTimeField(), { target: { value: '' } })
+    fireEvent.click(saveButton())
+
+    await waitFor(() => expect(to('/extraction').length).toBe(1))
+    expect((to('/extraction')[0].body as Record<string, unknown>).documentIssueTimePointer).toBe('')
+  })
+
+  it('explains a legacy channel instead of calling it failed, and blocks enabling', async () => {
+    stored = settings({ enabled: false, documentIssueTimePointer: null })
+    reported = status('NOT_CONFIGURED')
+    renderPage()
+    await screen.findByText('Not configured')
+
+    expect(
+      screen.getByText(
+        'The invoice issue time pointer is required before production collection can be enabled. Set it in the extraction settings below.',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Collection is paused until the invoice issue time pointer is set. Nothing has failed.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('Failed')).toBeNull()
+    expect((enableButton() as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('Issue time pointer set').previousElementSibling?.textContent).toBe(
+      'Outstanding',
+    )
+  })
+
+  it('takes the operator straight to the field from the notice', async () => {
+    legacyChannel()
+    renderPage()
+    await screen.findByText('Not configured')
+    fireEvent.click(screen.getByRole('button', { name: 'Set the issue time pointer' }))
+
+    expect(document.activeElement).toBe(issueTimeField())
+  })
+
+  it('tells a reader who to ask, and offers no edit action', async () => {
+    who = READER
+    legacyChannel()
+    renderPage()
+    await screen.findByText('Not configured')
+
+    expect(
+      screen.getByText(
+        'The invoice issue time pointer is required before production collection can be enabled. Ask someone who can manage this connection to set it.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Set the issue time pointer' })).toBeNull()
+    // The reader's facts name the missing value rather than skipping it.
+    expect(fact(ISSUE_TIME_LABEL)).toBe('—')
+  })
+
+  it('keeps the generic explanation for a channel with no settings at all', async () => {
+    stored = UNCONFIGURED
+    reported = status('NOT_CONFIGURED', { configured: false })
+    renderPage()
+    await screen.findByText('Not configured')
+
+    expect(screen.getByText('Add the extraction settings below before anything can run.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Set the issue time pointer' })).toBeNull()
+  })
+
+  it('renders the server refusal in the banner and beside the field', async () => {
+    // The pre-disabled button is a courtesy; the server still has the last word, so a stale screen
+    // that lets Enable through must say exactly what is missing.
+    reported = status('DISABLED_BY_OPERATOR')
+    refuse = {
+      on: '/extraction/enablement',
+      status: 400,
+      code: 'EXTRACTION_ISSUE_TIME_POINTER_REQUIRED',
+    }
+    renderPage()
+    await seededForm()
+    fireEvent.click(enableButton())
+
+    const message =
+      'Production collection needs the invoice issue time pointer. Set it in the extraction settings and save, then enable collection.'
+    await waitFor(() => expect(screen.getAllByText(message)).toHaveLength(2))
+    expect(issueTimeField().getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('has the Arabic copy for every new string', async () => {
+    legacyChannel()
+    await i18n.changeLanguage('ar')
+    renderPage()
+
+    await screen.findByText(
+      'يلزم تحديد مؤشر وقت إصدار الفاتورة قبل تفعيل الجمع الإنتاجي. حدّده في إعدادات الاستخراج أدناه.',
+    )
+    expect(screen.getByLabelText('مؤشر وقت الإصدار')).toBeTruthy()
+    expect(
+      screen.getByText('الجمع متوقف مؤقتًا إلى أن يُحدَّد مؤشر وقت إصدار الفاتورة. لم يفشل أي شيء.'),
+    ).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'تحديد مؤشر وقت الإصدار' })).toBeTruthy()
+  })
+})
+
+/* ============================================================ mode gate (Phase 5) */
+
+describe('connection mode', () => {
+  it.each(['BRIDGE_UPLOAD', 'API_PUSH'] as const)(
+    'a %s connection shows no extraction settings and requests none',
+    async (mode) => {
+      row = connection({ connectionMode: mode })
+      renderPage()
+
+      await screen.findByText('Nothing to collect here')
+      expect(screen.queryByLabelText('Documents pointer')).toBeNull()
+      expect(screen.queryByLabelText(ISSUE_TIME_LABEL)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Enable production collection' })).toBeNull()
+      // The server would refuse these with EXTRACTION_CONNECTION_MODE_UNSUPPORTED; they are not sent.
+      expect(calls.some((call) => call.url.startsWith(EXTRACTION_URL))).toBe(false)
+    },
+  )
+})
+
+describe('read sequencing', () => {
+  it('requests nothing about the connection without erp.connection.read', async () => {
+    who = NOBODY
+    renderPage()
+
+    await waitFor(() =>
+      expect(calls.some((call) => call.url.startsWith(ENTITLEMENTS_URL))).toBe(true),
+    )
+    await waitFor(() => expect(screen.queryByText('Collection status')).toBeNull())
+    expect(calls.some((call) => call.url.startsWith(CONNECTION_URL))).toBe(false)
+  })
+
+  it('reads extraction only after the connection is known to be one Fawtir collects from', async () => {
+    renderPage()
+    await seededForm()
+
+    const firstConnection = calls.findIndex((call) => call.url === CONNECTION_URL)
+    const firstExtraction = calls.findIndex((call) => call.url.startsWith(EXTRACTION_URL))
+    expect(firstConnection).toBeGreaterThanOrEqual(0)
+    expect(firstExtraction).toBeGreaterThan(firstConnection)
   })
 })

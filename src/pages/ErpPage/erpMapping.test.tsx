@@ -600,11 +600,10 @@ describe('Certification', () => {
     renderScreen('/settings/erp-mapping/certification', <ErpCertificationPage />)
     await screen.findByRole('heading', { name: i18n.t('erp.certification.title') })
 
-    // Four route cards, none certified, and the server's reason rendered.
+    // Four route cards, none certified, each saying why in our words, not the server's prose.
     expect(screen.getAllByText(i18n.t('erp.routeState.NOT_CERTIFIED')).length).toBe(4)
-    expect(
-      screen.getAllByText(/has not passed a test invoice for this document kind/).length,
-    ).toBe(4)
+    expect(screen.getAllByText(i18n.t('erp.certification.why.NOT_CERTIFIED')).length).toBe(4)
+    expect(screen.queryByText(/has not passed a test invoice for this document kind/)).toBeNull()
     // The active hash is the server's, shortened.
     expect(screen.getAllByText('abcdef01').length).toBeGreaterThan(0)
   })
@@ -685,7 +684,7 @@ describe('History', () => {
     renderScreen('/settings/erp-mapping/history', <ErpHistoryPage />)
     await screen.findByRole('heading', { name: i18n.t('erp.history.title') })
 
-    expect(screen.getByText(i18n.t('erp.unsupported.REVISIONS'))).toBeTruthy()
+    expect(screen.getByText(i18n.t('erp.history.revisionsNote'))).toBeTruthy()
     expect(screen.getByText(i18n.t('erp.history.profiles.active'))).toBeTruthy()
     expect(screen.getByText(i18n.t('erp.history.profiles.superseded'))).toBeTruthy()
     expect(screen.getByText('abcdef01')).toBeTruthy()

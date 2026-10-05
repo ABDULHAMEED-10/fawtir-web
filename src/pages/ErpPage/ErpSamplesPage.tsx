@@ -5,7 +5,6 @@ import { ErpShell } from './ErpShell'
 import {
   ConfirmModal,
   DANGER_TEXT_BUTTON,
-  EmptyRow,
   Mono,
   PRIMARY_BUTTON,
   SECONDARY_BUTTON,
@@ -78,72 +77,81 @@ export function ErpSamplesPage() {
         title={t('erp.samples.list.title')}
         note={t('erp.samples.list.note', { count: samples.length, limit: SAMPLE_LIMIT })}
       >
-        <RowsView>
-          <table className="w-full min-w-[820px] border-collapse">
-            <thead>
-              <tr className={THEAD_ROW}>
-                <Th first>{t('erp.samples.col.label')}</Th>
-                <Th align="end">{t('erp.samples.col.size')}</Th>
-                <Th>{t('erp.samples.col.when')}</Th>
-                <Th align="end">{t('erp.samples.col.actions')}</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {samples.length === 0 ? (
-                <EmptyRow columns={4}>{t('erp.samples.list.empty')}</EmptyRow>
-              ) : null}
-              {samples.map((sample) => {
-                const previewing = selected?.id === sample.id
-                return (
-                  <tr key={sample.id} className={TBODY_ROW}>
-                    <Td first>
-                      <p className="text-sm font-semibold leading-[1.4] text-text-primary">
-                        {sample.label}
-                      </p>
-
-                    </Td>
-                    <Td align="end">
-                      <span className="text-sm font-medium text-text-secondary tabular-nums">
-                        {t('erp.samples.kb', { size: kilobytes(sample.byteSize) })}
-                      </span>
-                    </Td>
-                    {/*
-                      No "added by" and no payload hash. Both were properties of a stored sample:
-                      nothing records who added one, because the reader added it themselves in this
-                      browser, and no digest of a sample payload is kept anywhere.
-                    */}
-                    <Td>
-                      <span className="text-sm font-medium text-text-secondary">
-                        {shortDate(sample.addedAt)}
-                      </span>
-                    </Td>
-                    <Td align="end">
-                      <span className="flex items-center justify-end gap-4 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedId(sample.id)}
-                          disabled={previewing}
-                          className={TEXT_BUTTON}
-                        >
-                          {previewing
-                            ? t('erp.samples.previewing')
-                            : t('erp.samples.previewButton')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleting(sample)}
-                          className={DANGER_TEXT_BUTTON}
-                        >
-                          {t('erp.samples.delete')}
-                        </button>
-                      </span>
-                    </Td>
+        {/*
+          With nothing to list there is no table to switch to cards, so the empty line stands on
+          its own: no card/table toggle, and the text wraps inside the card on a phone.
+        */}
+        {samples.length === 0 ? (
+          <p className="border-t border-surface-background px-5 py-8 text-center text-sm font-medium leading-[1.5] text-text-quaternary">
+            {t('erp.samples.list.empty')}
+          </p>
+        ) : (
+          <div className="max-md:px-5 max-md:pb-5">
+            <RowsView>
+              <table className="w-full min-w-[820px] border-collapse">
+                <thead>
+                  <tr className={THEAD_ROW}>
+                    <Th first>{t('erp.samples.col.label')}</Th>
+                    <Th align="end">{t('erp.samples.col.size')}</Th>
+                    <Th>{t('erp.samples.col.when')}</Th>
+                    <Th align="end">{t('erp.samples.col.actions')}</Th>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </RowsView>
+                </thead>
+                <tbody>
+                  {samples.map((sample) => {
+                    const previewing = selected?.id === sample.id
+                    return (
+                      <tr key={sample.id} className={TBODY_ROW}>
+                        <Td first>
+                          <p className="text-sm font-semibold leading-[1.4] text-text-primary">
+                            {sample.label}
+                          </p>
+
+                        </Td>
+                        <Td align="end">
+                          <span className="text-sm font-medium text-text-secondary tabular-nums">
+                            {t('erp.samples.kb', { size: kilobytes(sample.byteSize) })}
+                          </span>
+                        </Td>
+                        {/*
+                          No "added by" and no payload hash. Both were properties of a stored sample:
+                          nothing records who added one, because the reader added it themselves in this
+                          browser, and no digest of a sample payload is kept anywhere.
+                        */}
+                        <Td>
+                          <span className="text-sm font-medium text-text-secondary">
+                            {shortDate(sample.addedAt)}
+                          </span>
+                        </Td>
+                        <Td align="end">
+                          <span className="flex items-center justify-end gap-4 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedId(sample.id)}
+                              disabled={previewing}
+                              className={TEXT_BUTTON}
+                            >
+                              {previewing
+                                ? t('erp.samples.previewing')
+                                : t('erp.samples.previewButton')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleting(sample)}
+                              className={DANGER_TEXT_BUTTON}
+                            >
+                              {t('erp.samples.delete')}
+                            </button>
+                          </span>
+                        </Td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </RowsView>
+          </div>
+        )}
       </SectionCard>
 
       {selected ? <SamplePreview sample={selected} /> : null}
@@ -532,7 +540,7 @@ function ImportExport() {
           <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('erp.samples.file.exportBody')}
           </p>
-          <div className="mt-auto flex flex-wrap items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
               type="button"
               onClick={exportFile}

@@ -75,6 +75,8 @@ export function TextField({
   onChange,
   inputMode,
   maxLength,
+  autoComplete,
+  dir,
 }: {
   id: string
   name: string
@@ -91,6 +93,10 @@ export function TextField({
   onChange?: (next: string) => void
   inputMode?: 'text' | 'decimal' | 'numeric' | 'email'
   maxLength?: number
+  /** Omitted leaves the browser default, so existing fields are unchanged. */
+  autoComplete?: string
+  /** `ltr` for a code typed in an Arabic page (a path, a parameter): `/id` must not read `id/`. */
+  dir?: 'ltr' | 'rtl'
 }) {
   const filled = value !== undefined ? value !== '' : Boolean(defaultValue)
   return (
@@ -104,6 +110,8 @@ export function TextField({
         placeholder={placeholder}
         inputMode={inputMode}
         maxLength={maxLength}
+        autoComplete={autoComplete}
+        dir={dir}
         {...(value !== undefined ? { value, onChange: (event) => onChange?.(event.target.value) } : { defaultValue })}
         aria-invalid={error ? true : undefined}
         className={[

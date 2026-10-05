@@ -17,10 +17,13 @@ import chevronIcon from '../../assets/invoices/chevron.svg'
 export function SettingsShell({
   group,
   children,
+  back,
 }: {
   /** Which tab is lit while this screen is open. */
   group: SettingsTab
   children: ReactNode
+  /** Where the back link goes, for a screen nested under another one; All settings otherwise. */
+  back?: { to: string; label: string }
 }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
@@ -68,7 +71,7 @@ export function SettingsShell({
 
         {!onHub ? (
           <Link
-            to="/settings"
+            to={back?.to ?? '/settings'}
             className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-text-quaternary transition-colors hover:text-primary-700"
           >
             <img
@@ -77,7 +80,7 @@ export function SettingsShell({
               aria-hidden="true"
               className="size-4 rotate-180 rtl:rotate-0"
             />
-            {t('settings.backToSettings')}
+            {back?.label ?? t('settings.backToSettings')}
           </Link>
         ) : null}
 
