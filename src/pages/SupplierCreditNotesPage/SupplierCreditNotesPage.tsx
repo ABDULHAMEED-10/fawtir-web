@@ -33,6 +33,7 @@ import {
   isNoteSort,
   noteSortOf,
   reasonLabelKey,
+  supplierFilterOf,
   supplierOptions,
   toCreditNoteItem,
   type CreditChipTone,
@@ -107,7 +108,8 @@ function CreditNotesScreen() {
     ? (params.get('tab') as CreditTabId)
     : DEFAULT_CREDIT_TAB
   const pageNumber = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
-  const supplier = params.get('supplier') ?? 'all'
+  // A supplier record's id; an older link that held the supplier's name filters nothing.
+  const supplier = supplierFilterOf(params.get('supplier'))
   const sort: NoteSort = isNoteSort(params.get('sort'))
     ? (params.get('sort') as NoteSort)
     : 'natural'

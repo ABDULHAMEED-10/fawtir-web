@@ -15,6 +15,8 @@ const BILL_ID = '70000000-0000-0000-0000-000000000002'
 const OTHER_BILL_ID = '70000000-0000-0000-0000-000000000003'
 const SETTLED_BILL_ID = '70000000-0000-0000-0000-000000000004'
 const DEBIT_BILL_ID = '70000000-0000-0000-0000-000000000005'
+/** A supplier record's id, as the server's are. */
+const NIZWA = '5d000000-0000-4000-8000-000000000002'
 
 /** A row of our own supplier's, to vary one field at a time. */
 const OURS = {
@@ -383,7 +385,7 @@ describe('Credit notes list, wired to the API', () => {
       note({
         id: 'other',
         creditNoteNumber: 'NDT-CN-2',
-        supplierId: 's-2',
+        supplierId: NIZWA,
         supplierName: 'Nizwa Dates Trading',
       }),
     ]
@@ -394,18 +396,28 @@ describe('Credit notes list, wired to the API', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Nizwa Dates Trading' }))
     await waitFor(() =>
       expect(calls('/api/v1/credit-notes?').at(-1)).toBe(
-        '/api/v1/credit-notes?status=ALL&supplier_id=s-2&page=0&page_size=20',
+        `/api/v1/credit-notes?status=ALL&supplier_id=${NIZWA}&page=0&page_size=20`,
       ),
     )
-    expect(calls(`${SUMMARY_URL}?`)).toEqual([`${SUMMARY_URL}?supplier_id=s-2`])
+    expect(calls(`${SUMMARY_URL}?`)).toEqual([`${SUMMARY_URL}?supplier_id=${NIZWA}`])
 
     fireEvent.click(screen.getByRole('button', { name: /Sort/ }))
     fireEvent.click(screen.getByRole('option', { name: 'Amount: high to low' }))
     await waitFor(() =>
       expect(calls('/api/v1/credit-notes?').at(-1)).toBe(
-        '/api/v1/credit-notes?status=ALL&supplier_id=s-2&sort=AMOUNT_HIGHEST&page=0&page_size=20',
+        `/api/v1/credit-notes?status=ALL&supplier_id=${NIZWA}&sort=AMOUNT_HIGHEST&page=0&page_size=20`,
       ),
     )
+  })
+
+  it('ignores an old link whose supplier was a name, rather than sending it as supplier_id', async () => {
+    renderList('/expenditure/credit-notes?supplier=Nizwa%20Dates%20Trading')
+    await screen.findByText('QMS-CN-1')
+    expect(calls('/api/v1/credit-notes?')).toEqual([
+      '/api/v1/credit-notes?status=ALL&page=0&page_size=20',
+    ])
+    expect(calls(`${SUMMARY_URL}?`)).toEqual([])
+    expect(screen.getByRole('button', { name: /^Filters/ })).toBeTruthy()
   })
 
   it('says when the note arrived, and downloads an uploaded note from its upload', async () => {

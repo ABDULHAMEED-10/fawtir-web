@@ -45,6 +45,16 @@ export function noteSortOf(value: NoteSort): NoteSortDto {
   return NOTE_SORTS.find((option) => option.value === value)?.sort ?? 'NEWEST'
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The supplier filter from the address: a supplier record's id, else `all`. A link saved before
+ * the filter went to the server held the supplier's name, which `supplier_id` would refuse.
+ */
+export function supplierFilterOf(value: string | null): string {
+  return value !== null && UUID.test(value) ? value : 'all'
+}
+
 /**
  * The suppliers the filter offers, by record id: the server narrows on `supplier_id`. A note
  * whose supplier was never matched to a record has no id to narrow by, so it is not offered.

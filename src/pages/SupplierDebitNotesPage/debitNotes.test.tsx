@@ -15,6 +15,8 @@ import { SupplierDebitNoteDetailPage } from '../SupplierDebitNoteDetailPage'
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SUMMARY_URL = '/api/v1/debit-notes/summary'
 const NOTE_ID = '80000000-0000-0000-0000-000000000001'
+/** A supplier record's id, as the server's are. */
+const NIZWA = '5d000000-0000-4000-8000-000000000002'
 
 const APPROVER: Entitlements = {
   userId: 'u-1',
@@ -145,9 +147,9 @@ beforeEach(async () => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-const renderList = () =>
+const renderList = (path = '/expenditure/debit-notes') =>
   render(
-    <MemoryRouter initialEntries={['/expenditure/debit-notes']}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/expenditure/debit-notes" element={<SupplierDebitNotesPage />} />
       </Routes>
@@ -202,7 +204,7 @@ describe('Debit notes list, wired to the API', () => {
       note({
         id: 'other',
         debitNoteNumber: 'NDT-DN-2',
-        supplierId: 's-2',
+        supplierId: NIZWA,
         supplierName: 'Nizwa Dates Trading',
       }),
     ]
@@ -231,10 +233,19 @@ describe('Debit notes list, wired to the API', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Supplier A to Z' }))
     await waitFor(() =>
       expect(calls('/api/v1/debit-notes?').at(-1)).toBe(
-        '/api/v1/debit-notes?status=ALL&q=late+fee&supplier_id=s-2&sort=SUPPLIER&page=0&page_size=20',
+        `/api/v1/debit-notes?status=ALL&q=late+fee&supplier_id=${NIZWA}&sort=SUPPLIER&page=0&page_size=20`,
       ),
     )
-    expect(calls(`${SUMMARY_URL}?`).at(-1)).toBe(`${SUMMARY_URL}?q=late+fee&supplier_id=s-2`)
+    expect(calls(`${SUMMARY_URL}?`).at(-1)).toBe(`${SUMMARY_URL}?q=late+fee&supplier_id=${NIZWA}`)
+  })
+
+  it('ignores an old link whose supplier was a name, rather than sending it as supplier_id', async () => {
+    renderList('/expenditure/debit-notes?supplier=Nizwa%20Dates%20Trading')
+    await screen.findByText('QMS-DN-1')
+    expect(calls('/api/v1/debit-notes?')).toEqual([
+      '/api/v1/debit-notes?status=ALL&page=0&page_size=20',
+    ])
+    expect(calls(`${SUMMARY_URL}?`)).toEqual([])
   })
 
   it('reaches what needs checking from the highlighted card, as a server filter', async () => {
