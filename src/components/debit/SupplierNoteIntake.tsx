@@ -21,7 +21,7 @@ import {
   type PossibleDuplicateDto,
 } from '../../api/expenditure/billIntake'
 import { billListPath, loadBillPage, type BillRowDto } from '../../api/expenditure/bills'
-import { applyCreditNote, acceptDebitNote, refuseDebitNote } from '../../api/expenditure/notes'
+import { acceptDebitNote, refuseDebitNote } from '../../api/expenditure/notes'
 import { describeApiFailure } from '../../lib/apiFailure'
 import {
   CONFIRM_REFUSALS,
@@ -82,10 +82,10 @@ export type NoteKind = 'credit' | 'debit'
  * Both frames draw the same composer, one green and one sand: the file, who sent it, which bill
  * it corrects or adds to and what that changes, the lines, and then the choice the note calls
  * for: how to use a credit, or whether to accept a charge. It is confirmed exactly as a bill is
- * (`POST /v1/bills/intake/{id}/confirm`, `documentTypeCode` 381 or 383), and the choice is then
- * carried out with the note's own endpoints: `POST /credit-notes/{id}/apply`, or
- * `POST /debit-notes/{id}/accept` / `/refuse`. The total and the VAT sent are the lines' own
- * figures, through the same engine every invoice uses.
+ * (`POST /v1/bills/intake/{id}/confirm`, `documentTypeCode` 381 or 383). A credit set against
+ * the chosen bill is applied by that same request (`relatedBillId`); a charge's decision is then
+ * carried out with the note's own endpoints, `POST /debit-notes/{id}/accept` / `/refuse`. The
+ * total and the VAT sent are the lines' own figures, through the same engine every invoice uses.
  *
  * Nothing is read out of a PDF or a photo; only a Peppol/UBL XML file fills fields in.
  */
@@ -220,26 +220,31 @@ export function SupplierNoteIntake({
     setBusy(true)
     setNotice(null)
     try {
-      // TODO(backend): `ConfirmRequest` has no place for the note's reason (BTOM-032, mandatory
-      // under IBR-023-OM) nor for the bill it corrects; both are typed here and neither is
-      // sent (row 5.12 in docs/backend-guides/EXPENDITURE.md).
+      // A credit note sends the reason as typed (`reasonDetail`; the form has no CL-02-OM code
+      // to pick, so no `reasonCode`) and, when it is to be set against the chosen bill, that
+      // bill: the server then takes the credit off it in the same request (the largest amount
+      // that fits) or refuses the whole save. Held as credit, no bill is sent, so nothing is
+      // applied. A debit note's form has no reason box, so it sends neither.
       const note = await confirmIntake(
         intake.id,
         toConfirmation(submitted, {
           notDuplicateOf,
           documentTypeCode: kind === 'credit' ? '381' : '383',
+          ...(kind === 'credit' ? { reasonDetail: reason } : {}),
+          ...(followUp === 'apply' ? { relatedBillId: chosenBill!.id } : {}),
         }),
       )
       setSaved(note)
+      // A bill that already owed nothing takes none of the credit, so it is held, not set
+      // against it. The confirm answer does not say what was applied; the bill as listed does.
       let doneKey =
         kind === 'credit'
-          ? 'supplierCreditNotes.upload.savedHeld'
+          ? followUp === 'apply' && chosenBill!.outstandingAmount > 0
+            ? 'supplierCreditNotes.upload.savedApplied'
+            : 'supplierCreditNotes.upload.savedHeld'
           : 'supplierDebitNotes.upload.savedHeld'
       try {
-        if (followUp === 'apply') {
-          await applyCreditNote(note.id, chosenBill!.id, null)
-          doneKey = 'supplierCreditNotes.upload.savedApplied'
-        } else if (followUp === 'accept') {
+        if (followUp === 'accept') {
           await acceptDebitNote(note.id)
           doneKey = 'supplierDebitNotes.upload.savedAccepted'
         } else if (followUp === 'refuse') {

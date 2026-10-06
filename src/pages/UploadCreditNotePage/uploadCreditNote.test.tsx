@@ -5,7 +5,6 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { BillRowDto } from '../../api/expenditure/bills'
-import type { CreditNoteActionDto } from '../../api/expenditure/notes'
 import { UploadCreditNotePage } from './UploadCreditNotePage'
 
 const MANAGER: Entitlements = {
@@ -87,22 +86,6 @@ const BILL: BillRowDto = {
   paidOnTheSpot: false,
 }
 
-const APPLIED: CreditNoteActionDto = {
-  settlement: {
-    id: 's-1',
-    creditNoteId: NOTE_ID,
-    billId: BILL_ID,
-    kind: 'APPLIED',
-    amount: 105,
-    paymentReference: null,
-    settledOn: '2026-09-17',
-    actorId: 'u-1',
-    occurredAt: '2026-09-17T08:01:00Z',
-  },
-  status: 'APPLIED',
-  balance: { applied: 105, refunded: 0, remaining: 0 },
-}
-
 function json(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
     status,
@@ -114,8 +97,6 @@ let fetchMock: ReturnType<typeof vi.fn>
 let who: Entitlements
 /** What the confirm answers, when set; a saved note otherwise. */
 let confirmAnswer: (() => Promise<Response>) | null
-/** What the apply answers, when set; a settlement otherwise. */
-let applyAnswer: (() => Response) | null
 
 const calls = (method: string, prefix: string) =>
   fetchMock.mock.calls.filter(
@@ -126,14 +107,12 @@ const calls = (method: string, prefix: string) =>
 const bodyOf = (call: unknown[]) => JSON.parse((call[1] as RequestInit).body as string)
 
 const CONFIRM = `/api/v1/bills/intake/${XML_NOTE.id}/confirm`
-const APPLY = `/api/v1/credit-notes/${NOTE_ID}/apply`
 
 beforeEach(async () => {
   await i18n.changeLanguage('en')
   forgetEntitlements()
   who = MANAGER
   confirmAnswer = null
-  applyAnswer = null
   fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
     if (url === '/api/v1/me/entitlements') return json(200, who)
@@ -148,7 +127,6 @@ beforeEach(async () => {
             totalIncludingVat: 105,
             currencyCode: 'OMR',
           })
-    if (url === APPLY && method === 'POST') return applyAnswer ? applyAnswer() : json(200, APPLIED)
     if (url.startsWith('/api/v1/bills/intake/') && method === 'DELETE')
       return new Response(null, { status: 204 })
     if (url.startsWith('/api/v1/bills?') && method === 'GET')
@@ -245,39 +223,46 @@ describe('upload a supplier credit note', () => {
       category: null,
       paidOnTheSpot: null,
       notDuplicateOf: null,
+      // The reason as typed; the form has no CL-02-OM code to pick, so no `reasonCode`.
+      reasonDetail: REASON,
     })
-    // The current contract (row 5.12): the confirm request has no place for the note's reason,
-    // so the reason typed on the screen is not sent anywhere. When the backend adds the field,
-    // this assertion is the one to turn around.
-    expect(JSON.stringify(body)).not.toContain(REASON)
-    // No bill was chosen, so nothing follows the save.
+    // No bill was chosen, so none is named and nothing follows the save.
+    expect(body).not.toHaveProperty('relatedBillId')
     expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
 
-  it('sets the credit against the chosen bill after saving it', async () => {
+  it('names the chosen bill on the confirm, which sets the credit against it, and calls no apply', async () => {
     await uploadNote()
     await chooseBill()
     fireEvent.change(reasonField(), { target: { value: REASON } })
     fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
 
     expect(await screen.findByText('credit note page')).toBeTruthy()
-    // The current contract (row 5.12): the confirm request has no place for the bill the note
-    // corrects either; the bill only reaches the server through the apply call that follows.
     const confirmed = bodyOf(calls('POST', CONFIRM)[0])
     expect(confirmed.documentTypeCode).toBe('381')
-    expect(JSON.stringify(confirmed)).not.toContain(BILL_ID)
-    expect(JSON.stringify(confirmed)).not.toContain(REASON)
-
-    expect(calls('POST', APPLY)).toHaveLength(1)
-    // A null amount asks for the largest amount that fits both the credit and the bill.
-    expect(bodyOf(calls('POST', APPLY)[0])).toEqual({ billId: BILL_ID, amount: null })
-    // The save comes first: the apply names the note the confirm created.
-    const order = fetchMock.mock.calls.map(([url]) => String(url))
-    expect(order.indexOf(CONFIRM)).toBeLessThan(order.indexOf(APPLY))
+    expect(confirmed.relatedBillId).toBe(BILL_ID)
+    expect(confirmed.reasonDetail).toBe(REASON)
+    expect(confirmed).not.toHaveProperty('reasonCode')
+    // The server applies the credit in the confirm itself; a second apply would be refused.
+    expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
   })
 
-  it('keeps the note saved when setting it against the bill is refused, and says so', async () => {
-    applyAnswer = () =>
+  it('names no bill when the credit is held, so the server applies nothing', async () => {
+    await uploadNote()
+    await chooseBill()
+    fireEvent.click(screen.getByRole('radio', { name: /Hold it as credit/ }))
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save the credit note' }))
+
+    expect(await screen.findByText('credit note page')).toBeTruthy()
+    const confirmed = bodyOf(calls('POST', CONFIRM)[0])
+    expect(confirmed).not.toHaveProperty('relatedBillId')
+    expect(confirmed.reasonDetail).toBe(REASON)
+    expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
+  })
+
+  it('saves nothing when the chosen bill cannot take the credit, and stays on the form to choose again', async () => {
+    confirmAnswer = async () =>
       json(400, {
         type: 'https://api.fawtir.om/problems/expenditure-refused',
         error: 'CREDIT_NOTE_SUPPLIER_MISMATCH',
@@ -289,19 +274,30 @@ describe('upload a supplier credit note', () => {
 
     expect(
       await screen.findByText(
-        'The note is saved, but the next step did not go through. This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.',
+        'This credit note is from a different supplier than that bill. A credit can only reduce a bill from the supplier who issued it.',
       ),
     ).toBeTruthy()
-    // Still on the form, which now points at the saved note instead of offering to save again.
     expect(screen.queryByText('credit note page')).toBeNull()
-    expect(screen.getByRole('link', { name: 'Open the note' }).getAttribute('href')).toBe(
-      `/expenditure/credit-notes/${NOTE_ID}`,
-    )
+    // Nothing was saved, so the form offers to save again rather than to open a note.
+    expect(screen.queryByRole('link', { name: 'Open the note' })).toBeNull()
     const primary = screen.getByRole('button', { name: 'Save and set against the bill' })
-    expect((primary as HTMLButtonElement).disabled).toBe(true)
-    fireEvent.click(primary)
+    expect((primary as HTMLButtonElement).disabled).toBe(false)
+    expect(calls('POST', '/api/v1/credit-notes/')).toHaveLength(0)
+  })
+
+  it('reads a refusal it has no sentence for as the generic refusal, not a retry', async () => {
+    confirmAnswer = async () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        error: 'CREDIT_NOTE_TARGET_ON_HOLD',
+      })
+    await uploadNote()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+
+    expect(await screen.findByText(/^The server refused this\. Nothing was changed/)).toBeTruthy()
     expect(calls('POST', CONFIRM)).toHaveLength(1)
-    expect(calls('POST', APPLY)).toHaveLength(1)
   })
 
   it('sends one confirm however quickly the button is pressed twice', async () => {

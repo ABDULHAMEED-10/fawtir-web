@@ -129,6 +129,17 @@ export type ConfirmIntakeDto = {
   taxCategoryCode?: string | null
   /** Free text kept on the bill, at most 500 characters. Sent only when something was typed. */
   note?: string
+  /**
+   * A credit or debit note's reason in the person's words (beside BTOM-032), at most 500
+   * characters. Refused on a 380. Sent only by a note's upload, and only when typed.
+   */
+  reasonDetail?: string
+  /**
+   * The bill on file a credit or debit note corrects (IBT-025/026 are copied from it). On a
+   * credit note (381) the server also takes the credit off that bill in the same request: the
+   * largest amount that fits, any excess stays as credit, and a refusal refuses the confirm.
+   */
+  relatedBillId?: string
 }
 
 /** `ConfirmedBillResponse`. */
