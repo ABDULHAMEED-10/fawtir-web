@@ -382,20 +382,19 @@ describe('a new invoice draft', () => {
   })
 })
 
-describe('the buyer reference (IBT-010) on an ordinary invoice', () => {
+describe('the buyer reference (IBT-010) on a government invoice', () => {
   const field = () => screen.getByRole('textbox', { name: 'Buyer reference' })
 
-  it('is offered on a business invoice, sent as typed, and not offered to a consumer', async () => {
+  // Owner, 6 Oct 2026: government invoices only; the design draws no such row for business.
+  it('is not offered on a business or a consumer invoice', async () => {
     renderAt('/invoices/new')
     await chooseCustomerAndProduct()
-    expect(field()).toHaveProperty('value', '')
-    fireEvent.change(field(), { target: { value: 'BR-2026-14' } })
+    expect(screen.queryByRole('textbox', { name: 'Buyer reference' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
-
     await waitFor(() => expect(calls('POST', '/api/v1/invoice-drafts')).toHaveLength(1))
-    expect(bodyOf(calls('POST', '/api/v1/invoice-drafts')[0]).draft.details).toMatchObject({
-      buyerReference: 'BR-2026-14',
-    })
+    expect(bodyOf(calls('POST', '/api/v1/invoice-drafts')[0]).draft.details).not.toHaveProperty(
+      'buyerReference',
+    )
 
     cleanup()
     renderAt('/invoices/new')
@@ -433,9 +432,10 @@ describe('the buyer reference (IBT-010) on an ordinary invoice', () => {
     })
     renderAt('/invoices/d-1/edit')
     expect(await screen.findByDisplayValue('BR-SAVED')).toBeTruthy()
-    expect(
-      screen.getByRole('textbox', { name: 'Purchase order reference' }),
-    ).toHaveProperty('value', 'PO-77')
+    expect(screen.getByRole('textbox', { name: 'Purchase order reference' })).toHaveProperty(
+      'value',
+      'PO-77',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
     await waitFor(() => expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(1))

@@ -461,7 +461,8 @@ function InvoiceScreen() {
       setNotice({ key: 'invoiceDispatch.release.done' })
       history.retry()
     } catch (error) {
-      const refusal = error instanceof ApiError && error.code ? RELEASE_REFUSALS[error.code] : undefined
+      const refusal =
+        error instanceof ApiError && error.code ? RELEASE_REFUSALS[error.code] : undefined
       setNotice(refusal ? { key: refusal } : { body: refusalText(t, error) })
     }
   }
@@ -524,8 +525,13 @@ function InvoiceScreen() {
   const canReverse = data.authoringState === 'ISSUED' && can(session, 'invoice.payment.manage')
   const issuedInvoice = !draft && data.type === 'INVOICE' && data.authoringState === 'ISSUED'
   // The server says whether this document may be sent now; the permission is the one issue needs.
+  // The design draws Send on every issued invoice. When the dispatch could not be read, it stays
+  // and the server answers the press (the modal shows its refusal); only a dispatch the server
+  // reports as not sendable takes it away.
   const canSend =
-    data.authoringState === 'ISSUED' && can(session, 'invoice.issue') && dispatch?.sendable === true
+    data.authoringState === 'ISSUED' &&
+    can(session, 'invoice.issue') &&
+    (dispatch ? dispatch.sendable : dispatchRead.read.status === 'failed')
   const dispatchLine = dispatch ? dispatchNotes(dispatch) : null
   const buyerLine = buyerDeliveryNote(dispatch)
   const canManageAttachments = attachmentsEditable(data, (permission) => can(session, permission))
@@ -953,9 +959,9 @@ function InvoiceScreen() {
                             .filter(Boolean)
                             .join(' · ')
                         : // A reader who may not see the customer gets the fact without a placeholder name.
-                        customer.read.status === 'ready'
-                        ? t('invoiceDetails.delivered.notSent', { customer: customerName })
-                        : t('invoiceDetails.notSentYet')}
+                          customer.read.status === 'ready'
+                          ? t('invoiceDetails.delivered.notSent', { customer: customerName })
+                          : t('invoiceDetails.notSentYet')}
                 </p>
               </div>
             </section>

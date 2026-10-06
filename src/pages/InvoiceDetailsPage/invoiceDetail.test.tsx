@@ -1071,7 +1071,9 @@ describe('Send', () => {
     fireEvent.click(submit)
     fireEvent.click(submit)
 
-    expect(await screen.findByText('The invoice was validated and queued for sending.')).toBeTruthy()
+    expect(
+      await screen.findByText('The invoice was validated and queued for sending.'),
+    ).toBeTruthy()
     expect(sends()).toHaveLength(1)
     const [, init] = fetchMock.mock.calls.find(([url]) => String(url) === `${URL_BASE}/send`)!
     expect(new Headers((init as RequestInit).headers).get('Idempotency-Key')).toMatch(
@@ -1088,6 +1090,17 @@ describe('Send', () => {
     await screen.findByRole('heading', { level: 1, name: 'Invoice INV-2026-0042' })
     await waitFor(() => expect(dispatchReads()).toHaveLength(1))
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+  })
+
+  // The design draws Send on every issued invoice: an unreadable dispatch keeps it, and the server
+  // answers the press.
+  it('keeps the designed Send when the dispatch cannot be read', async () => {
+    who = SENDER
+    dispatchResponse = () => json(404, { type: 'https://api.fawtir.om/problems/not-found' })
+    renderInvoice()
+    await waitFor(() => expect(dispatchReads()).toHaveLength(1))
+    expect(await screen.findByRole('button', { name: 'Send' })).toBeTruthy()
+    expect(sends()).toHaveLength(0)
   })
 
   it('offers no Send once the server says the invoice is not sendable, and says where it stands', async () => {
@@ -1113,7 +1126,9 @@ describe('Send', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Send invoice' }))
 
     expect(
-      await within(dialog).findByText('This invoice is already being sent. Check again in a moment.'),
+      await within(dialog).findByText(
+        'This invoice is already being sent. Check again in a moment.',
+      ),
     ).toBeTruthy()
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
@@ -1136,7 +1151,9 @@ describe('Send', () => {
       })
     renderInvoice()
     fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
-    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }))
+    fireEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Send invoice' }),
+    )
 
     const sentence =
       'Your company address on this invoice is incomplete. It was fixed when the invoice was issued, so this invoice cannot be sent: cancel it and issue a new one after completing the address.'

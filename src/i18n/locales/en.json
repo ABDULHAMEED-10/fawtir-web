@@ -9880,7 +9880,7 @@
     "subdivisionCodeNone": "Not set",
     "contactPerson": "Contact person",
     "addressAmendNote": "You can update your registered address and contact. Changes apply to invoices you issue from now on; invoices already issued keep the details they were issued with.",
-    "amendConflict": "Someone else updated the company details while you were editing. The latest version is now shown — make your change again.",
+    "amendConflict": "Someone else updated the company details while you were editing. The latest version is now shown, so make your change again.",
     "amendFieldsRefused": "Complete these before saving: {{fields}}.",
     "title": "Company profile",
     "subtitle": "What appears on every invoice you send, and what the Tax Authority holds about you",
@@ -9894,7 +9894,7 @@
     "commercialRegistration": "Commercial registration",
     "vatNumber": "VAT number",
     "locked": "locked",
-    "lockedNote": "Part of your verified tax identity. Changing it needs re-verification — contact support.",
+    "lockedNote": "Part of your verified tax identity. Changing it needs re-verification, so contact support.",
     "vatRegisteredSince": "VAT registered since",
     "whereYouAre": "Where you are",
     "whereYouAreNote": "the registered address; branches have their own",
@@ -9972,7 +9972,7 @@
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
     "saveFailed": "That did not save. Check your connection and try again.",
-    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification — contact support."
+    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification, so contact support."
   },
   "branches": {
     "title": "Branches",
