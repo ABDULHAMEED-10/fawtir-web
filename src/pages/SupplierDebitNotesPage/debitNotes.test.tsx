@@ -38,6 +38,7 @@ const SUMMARY: DebitNoteSummaryDto = {
   rejectedThisYearCount: 3,
   rejectedThisYearTotal: 95.5,
   excludedFromTotals: 0,
+  tabs: { all: 10, unchecked: 2, accepted: 5, refused: 3 },
 }
 
 function note(overrides: Partial<DebitNoteRowDto> = {}): DebitNoteRowDto {
@@ -104,6 +105,9 @@ beforeEach(async () => {
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
     )
     if (url.startsWith(ENTITLEMENTS_URL)) return json(200, who)
+    // Narrowed by a search or a supplier, the summary counts its tabs over what is left.
+    if (url.startsWith(`${SUMMARY_URL}?`))
+      return json(200, { ...SUMMARY, tabs: { all: 1, unchecked: 1, accepted: 0, refused: 0 } })
     if (url.startsWith(SUMMARY_URL)) return json(200, SUMMARY)
     if (url.includes(`/debit-notes/${NOTE_ID}/decisions`)) return json(200, decisions)
     if (url.includes(`/debit-notes/${NOTE_ID}/accept`)) {
@@ -172,12 +176,65 @@ describe('Debit notes list, wired to the API', () => {
       '/api/v1/debit-notes?status=ALL&page=0&page_size=20',
     ])
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Accepted' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Accepted/ }))
     await waitFor(() =>
       expect(calls('/api/v1/debit-notes?').at(-1)).toBe(
         '/api/v1/debit-notes?status=ACCEPTED&page=0&page_size=20',
       ),
     )
+  })
+
+  it("counts every tab from the summary's tabs", async () => {
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    await waitFor(() =>
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'All10',
+        'Accepted5',
+        'Rejected3',
+      ]),
+    )
+  })
+
+  it('sends the search, the supplier and the sort to the server, and counts the tabs over them', async () => {
+    notes = [
+      note(),
+      note({
+        id: 'other',
+        debitNoteNumber: 'NDT-DN-2',
+        supplierId: 's-2',
+        supplierName: 'Nizwa Dates Trading',
+      }),
+    ]
+    renderList()
+    await screen.findByText('NDT-DN-2')
+
+    fireEvent.change(screen.getByLabelText('Search supplier, bill number...'), {
+      target: { value: 'late fee' },
+    })
+    await waitFor(() =>
+      expect(calls('/api/v1/debit-notes?').at(-1)).toBe(
+        '/api/v1/debit-notes?status=ALL&q=late+fee&page=0&page_size=20',
+      ),
+    )
+    await waitFor(() =>
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'All1',
+        'Accepted0',
+        'Rejected0',
+      ]),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Filters/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Nizwa Dates Trading' }))
+    fireEvent.click(screen.getByRole('button', { name: /Sort/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Supplier A to Z' }))
+    await waitFor(() =>
+      expect(calls('/api/v1/debit-notes?').at(-1)).toBe(
+        '/api/v1/debit-notes?status=ALL&q=late+fee&supplier_id=s-2&sort=SUPPLIER&page=0&page_size=20',
+      ),
+    )
+    expect(calls(`${SUMMARY_URL}?`).at(-1)).toBe(`${SUMMARY_URL}?q=late+fee&supplier_id=s-2`)
   })
 
   it('reaches what needs checking from the highlighted card, as a server filter', async () => {

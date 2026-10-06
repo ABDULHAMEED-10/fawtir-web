@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
@@ -10,6 +10,7 @@ import { pageCountOf, type Page } from '../../api'
 import {
   DEBIT_NOTE_SUMMARY_PATH,
   debitNoteListPath,
+  debitNoteTabCountsPath,
   loadDebitNotePage,
   loadDebitNoteSummary,
   type DebitNoteRowDto,
@@ -26,9 +27,9 @@ import {
   debitAmountNoteKey,
   isDebitTab,
   isNoteSort,
-  narrowNotes,
+  noteSortOf,
   reasonLabelKey,
-  supplierNames,
+  supplierOptions,
   toDebitNoteItem,
   type DebitNoteItem,
   type DebitTabId,
@@ -47,6 +48,9 @@ import filterIcon from '../../assets/bills/filter.svg'
 import viewIcon from '../../assets/actions/view.svg'
 import statementIcon from '../../assets/actions/statement.svg'
 import omrIcon from '../../assets/invoices/omr.svg'
+
+/** The pause after typing before the search is sent, as on the Bills list. */
+const SEARCH_DELAY_MS = 300
 
 const CHIP: Record<DebitNoteItem['status'], { bg: string; fg: string; dot: string }> = {
   UNCHECKED: { bg: 'bg-pending-100', fg: 'text-pending-700', dot: 'bg-pending-700' },
@@ -89,6 +93,8 @@ function DebitNotesScreen() {
     ? (params.get('sort') as NoteSort)
     : 'natural'
   const [query, setQuery] = useState('')
+  // What the server was last asked for: the box as typed, once typing pauses.
+  const [searched, setSearched] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 
   const update = (changes: Record<string, string | null>) =>
@@ -104,22 +110,56 @@ function DebitNotesScreen() {
       { replace: true },
     )
 
+  // The search, supplier and sort go to the server, as on the credit-notes list.
+  useEffect(() => {
+    if (query.trim() === searched) return
+    const timer = window.setTimeout(() => {
+      setSearched(query.trim())
+      update({ page: null })
+    }, SEARCH_DELAY_MS)
+    return () => window.clearTimeout(timer)
+    // Armed by typing only; `update` reads the params when it runs, so nothing goes stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query])
+
+  const narrowing = {
+    q: searched,
+    supplierId: supplier === 'all' ? null : supplier,
+    sort: noteSortOf(sort),
+  }
   const summary = useApiRead<DebitNoteSummaryDto>(DEBIT_NOTE_SUMMARY_PATH, loadDebitNoteSummary)
-  const listPath = debitNoteListPath(DEBIT_TAB_STATUS[tab], pageNumber - 1)
+  const countsPath = debitNoteTabCountsPath(narrowing)
+  const counts = useApiRead<DebitNoteSummaryDto>(countsPath, () =>
+    loadDebitNoteSummary(countsPath!),
+  )
+  const lastTabs = useRef<DebitNoteSummaryDto['tabs'] | null>(null)
+  const listPath = debitNoteListPath(DEBIT_TAB_STATUS[tab], pageNumber - 1, narrowing)
   const list = useApiRead<Page<DebitNoteRowDto>>(listPath, () => loadDebitNotePage(listPath))
 
   const page = list.read.status === 'ready' ? list.read.data : null
-  const items = page ? page.items.map(toDebitNoteItem) : []
-  const rows = narrowNotes(items, { query, supplier, sort })
+  const rows = page ? page.items.map(toDebitNoteItem) : []
   const totals = summary.read.status === 'ready' ? summary.read.data : null
   const count = (value: number) => formatCount(value, language)
   const money = (value: number, currency: string) => formatAmount(value, currency, language)
 
-  // See the credit-notes list: the server totals only the tab asked for (row 5.2).
-  const [tabTotals, setTabTotals] = useState<Partial<Record<DebitTabId, number>>>({})
+  // The summary's per-tab counts; with a search or a supplier, counted over the same notes.
+  const tabs =
+    countsPath === null
+      ? (totals?.tabs ?? null)
+      : counts.read.status === 'ready'
+        ? counts.read.data.tabs
+        : (lastTabs.current ?? totals?.tabs ?? null)
+  lastTabs.current = countsPath === null ? null : tabs
+
+  // The suppliers met so far, so the filter keeps offering the others once one is chosen.
+  const [suppliers, setSuppliers] = useState<Record<string, string>>({})
   useEffect(() => {
-    if (page && page.total !== null) setTabTotals((known) => ({ ...known, [tab]: page.total! }))
-  }, [page, tab])
+    if (!page) return
+    const found = supplierOptions(page.items.map(toDebitNoteItem))
+    setSuppliers((known) =>
+      Object.keys(found).every((id) => known[id] === found[id]) ? known : { ...known, ...found },
+    )
+  }, [page])
 
   const onFailure = (error: unknown) => {
     const message = describeApiFailure(error)
@@ -255,7 +295,7 @@ function DebitNotesScreen() {
         >
           {strip.map((entry) => {
             const active = entry === tab
-            const total = tabTotals[entry]
+            const total = tabs?.[entry]
             return (
               <button
                 key={entry}
@@ -305,10 +345,10 @@ function DebitNotesScreen() {
               defaultValue="all"
               icon={filterIcon}
               width={260}
-              onChange={(value) => update({ supplier: value === 'all' ? null : value })}
+              onChange={(value) => update({ supplier: value === 'all' ? null : value, page: null })}
               options={[
                 { value: 'all', label: t('supplierDebitNotes.allSuppliers') },
-                ...supplierNames(items).map((name) => ({ value: name, label: name })),
+                ...Object.entries(suppliers).map(([id, name]) => ({ value: id, label: name })),
               ]}
             />
             <SortMenu
@@ -316,7 +356,7 @@ function DebitNotesScreen() {
               options={NOTE_SORTS}
               label={t('billsPage.sort')}
               width={230}
-              onChange={(value) => update({ sort: value === 'natural' ? null : value })}
+              onChange={(value) => update({ sort: value === 'natural' ? null : value, page: null })}
             />
           </div>
         </div>

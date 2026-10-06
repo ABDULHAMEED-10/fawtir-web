@@ -40,6 +40,7 @@ import {
   type BillDetailDto,
   type BillRowDto,
 } from '../../api/expenditure/bills'
+import { intakePath } from '../../api/expenditure/billIntake'
 import { loadSupplier, supplierPath, type SupplierDetailDto } from '../../api/expenditure/suppliers'
 import {
   loadSupplierOverview,
@@ -163,11 +164,14 @@ function CreditNoteDetail() {
     )
   }
 
+  // The note's own bill read names its file; until it answers, the row's delivery or upload.
   const original = own
     ? billOriginalPath(own)
     : row?.inboundDeliveryId
       ? `/v1/inbound-invoices/${encodeURIComponent(row.inboundDeliveryId)}/document`
-      : null
+      : row?.intakeId
+        ? `${intakePath(row.intakeId)}/file`
+        : null
   const download = async () => {
     if (!original) return
     try {
@@ -200,7 +204,7 @@ function CreditNoteDetail() {
   const vat = vatEffect(bill?.vatAmount ?? null, row.vatAmount)
   const reason = reasonLabelKey(row.reasonCode, row.reasonDetail ?? null)
   // "QTY · Quantity correction": the code in the Tax Authority's list (CL-02-OM), under the
-  // friendly label. TODO(backend): EXPENDITURE.md R.3.
+  // supplier's words (`reasonDetail`) or, without them, the code's own label.
   const cl02 = cl02ReasonOf(row.reasonCode)
   const reasonText = reason
     ? t(reason.key, { defaultValue: reason.fallback })
@@ -405,8 +409,6 @@ function CreditNoteDetail() {
               {reasonText}
             </p>
             {row.reasonCode ? (
-              // TODO(backend): the frame quotes the supplier's own note text; the row carries
-              // only the CL-02-OM code (row 5.8).
               <p className="mt-2 text-xs font-medium text-text-quaternary">
                 {cl02
                   ? t('expenditureNotes.reasonCodeLine', {
