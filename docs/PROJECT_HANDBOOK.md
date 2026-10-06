@@ -503,8 +503,8 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 7. Self-billing keeps its seller in a **customer** record (the backend built it on the sales
    invoice engine), so a supplier must also be created as a customer to be self-billed, and the
    same company is kept twice. Should agreements and self-billed invoices be linked to the
-   supplier record instead? (Asked of the backend in `EXPENDITURE.md` S.2; the screens keep the
-   current behaviour until then.)
+   supplier record instead? (Asked of the backend in `EXPENDITURE.md` S.2, detailed in S.5 to S.7
+   with the order of work and checks; the screens keep the current behaviour until then.)
 
 ---
 
