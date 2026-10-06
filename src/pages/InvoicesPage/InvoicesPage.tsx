@@ -28,8 +28,10 @@ import {
   type InvoiceTypeDto,
 } from '../../api/invoices/list'
 import { discardDraft, loadBranches, type BranchDto } from '../../api/invoices/drafts'
-import { cancelInvoice } from '../../api/invoices/detail'
+import { cancelInvoice, type InvoiceSendResultDto } from '../../api/invoices/detail'
 import { InvoiceImportModal } from '../../components/invoice/InvoiceImportModal'
+import { SendInvoiceModal } from '../../components/invoice/SendInvoiceModal'
+import { sendResultNote } from '../../lib/invoiceDispatch'
 import {
   INVOICE_SORTS,
   INVOICE_TYPES,
@@ -333,6 +335,14 @@ function InvoicesScreen() {
     }
   }
 
+  const [sendingRow, setSendingRow] = useState<InvoiceListItem | null>(null)
+  const onSent = (result: InvoiceSendResultDto) => {
+    setSendingRow(null)
+    const note = sendResultNote(result)
+    setNotice({ body: t(note.key, note.values) })
+    list.retry()
+  }
+
   const count = (value: number) => formatCount(value, language)
 
   const header = (
@@ -520,9 +530,19 @@ function InvoicesScreen() {
             nothingYet={totals.all === 0 && query === '' && type === null}
             onDiscard={setDiscarding}
             onCancel={setCancelling}
+            onSend={setSendingRow}
             onUnavailable={(key) => setNotice({ body: t(key) })}
           />
         )}
+
+        {sendingRow ? (
+          <SendInvoiceModal
+            invoiceId={sendingRow.id}
+            invoiceNumber={sendingRow.number}
+            onClose={() => setSendingRow(null)}
+            onSent={onSent}
+          />
+        ) : null}
 
         {page && page.items.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
@@ -834,6 +854,7 @@ function InvoiceTable({
   nothingYet,
   onDiscard,
   onCancel,
+  onSend,
   onUnavailable,
 }: {
   page: Page<InvoiceRowDto> | null
@@ -841,6 +862,7 @@ function InvoiceTable({
   nothingYet: boolean
   onDiscard: (item: InvoiceListItem) => void
   onCancel: (item: InvoiceListItem) => void
+  onSend: (item: InvoiceListItem) => void
   /** An action the design offers and the API cannot yet do; the key names the sentence. */
   onUnavailable: (key: string) => void
 }) {
@@ -852,10 +874,12 @@ function InvoiceTable({
   const allOnPageSelected = rows.length > 0 && rows.every((row) => selected.includes(row.id))
   const someOnPageSelected = !allOnPageSelected && rows.some((row) => selected.includes(row.id))
   const canDraft = can(session, 'invoice.draft')
+  const canSend = can(session, 'invoice.issue')
 
   /**
    * The design's row menu (Figma "Actions" 154:173140): view, send, duplicate, credit note,
-   * periodic, delete. Send has no endpoint yet (TODO(backend)) and says so when chosen. Duplicate
+   * periodic, delete. Send is offered on an issued document to a reader who may issue; the row
+   * does not carry where its dispatch stands, so the server answers an already-sent one. Duplicate
    * opens the composer filled from an invoice, saved only when the reader saves; the notes and
    * self-billed documents have their own composers, so for them it still says it is unavailable.
    * Delete is a draft's discard, or an issued document's cancel with a reason.
@@ -869,12 +893,16 @@ function InvoiceTable({
         icon: viewIcon,
         to: `/invoices/${row.id}`,
       },
-      {
-        id: 'send',
-        labelKey: 'rowActions.invoice.send',
-        icon: sendIcon,
-        onSelect: () => onUnavailable('invoicesPage.sendUnavailable'),
-      },
+      ...(canSend && row.authoring === 'issued'
+        ? [
+            {
+              id: 'send',
+              labelKey: 'rowActions.invoice.send',
+              icon: sendIcon,
+              onSelect: () => onSend(row),
+            },
+          ]
+        : []),
       row.type === 'INVOICE' && canDraft
         ? {
             id: 'duplicate',

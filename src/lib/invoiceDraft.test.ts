@@ -187,6 +187,28 @@ describe('the draft a form saves', () => {
       toDraftRequest(SEEDED_REFERENCE, form({ internalNote: '' }), true).details.internalNote,
     ).toBe('')
   })
+
+  it('keeps an ordinary invoice’s own buyer reference (IBT-010), but never its contract reference', () => {
+    const details = toDraftRequest(
+      SEEDED_REFERENCE,
+      form({ buyerReference: 'BR-41', contractReference: 'CTR-9' }),
+      true,
+      false,
+    ).details
+    expect(details).toMatchObject({ buyerReference: 'BR-41' })
+    expect(details).not.toHaveProperty('contractReference')
+    expect(
+      toDraftRequest(SEEDED_REFERENCE, form({ buyerReference: '  ' }), true, false).details,
+    ).not.toHaveProperty('buyerReference')
+    expect(
+      toDraftRequest(
+        SEEDED_REFERENCE,
+        form({ customerType: 'consumer', buyerReference: 'BR-41' }),
+        true,
+        false,
+      ).details,
+    ).not.toHaveProperty('buyerReference')
+  })
 })
 
 describe('a saved draft back into the form', () => {

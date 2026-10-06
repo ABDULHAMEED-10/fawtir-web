@@ -225,7 +225,7 @@ describe('the self-billed composer', () => {
     })
   })
 
-  it('never sends those references on an ordinary invoice, which the server refuses outright', async () => {
+  it('offers neither field on an ordinary invoice and sends neither reference it was not given', async () => {
     who = ORDINARY_WRITER
     renderAt('/invoices/new')
     await fillOneLine()
