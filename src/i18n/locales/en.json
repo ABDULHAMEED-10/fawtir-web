@@ -997,7 +997,6 @@
       "invoices": "Invoices",
       "incomeChildren": {
         "invoice": "Invoice",
-        "selfBilling": "Self-billing",
         "reminders": "Reminders",
         "periodic": "Periodic invoices",
         "creditNotes": "Credit notes",
@@ -1020,7 +1019,8 @@
         "recurringBills": "Recurring bills",
         "creditNotes": "Credit notes",
         "debitNotes": "Debit notes",
-        "reminders": "Reminders"
+        "reminders": "Reminders",
+        "selfBilling": "Self-billing"
       },
       "catalogStock": "Catalog & stock",
       "contacts": "Contacts",
@@ -3085,7 +3085,6 @@
       "confirm": "Withdraw it",
       "withdrawing": "Withdrawing…"
     },
-    "breadcrumbIncome": "Income",
     "export": "Export",
     "newAgreement": "New agreement",
     "exportUnavailable": "Exporting agreements is not available yet: there is no route to download them.",
@@ -18894,7 +18893,6 @@
     }
   },
   "selfBillDetail": {
-    "breadcrumbIncome": "Income",
     "breadcrumbSelfBilled": "Self-billed",
     "raisedFor": "Raised for",
     "issuedOn": "issued {{date}}",
@@ -19031,7 +19029,8 @@
       "tooMuch": "That is more than the supplier bill still owes.",
       "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
-    "creditNote": "Credit note"
+    "creditNote": "Credit note",
+    "breadcrumbExpenditure": "Expenditure"
   },
   "supplierNotes": {
     "searchPlaceholder": "Search supplier, bill number...",

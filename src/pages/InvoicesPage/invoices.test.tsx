@@ -9,10 +9,11 @@ import { InvoicesPage } from './InvoicesPage'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const SUMMARY_URL = '/api/v1/authored-invoices/summary'
-// The payment tabs' counts: sales documents only (a self-billed invoice's debt is a payable).
+// Every tab and count asks for sales documents only: self-billed documents are purchases and live
+// under Expenditure › Self-billing (owner decision, 6 Oct 2026).
 const SALES_SUMMARY_URL = `${SUMMARY_URL}?type=INVOICE%2CCREDIT_NOTE%2CDEBIT_NOTE`
 const FIRST_PAGE =
-  '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=0&size=10'
+  '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&type=INVOICE%2CCREDIT_NOTE%2CDEBIT_NOTE&sort=UPDATED&page=0&size=10'
 
 const ADMIN: Entitlements = {
   userId: 'u-1',
@@ -357,13 +358,15 @@ describe('Invoices list, wired to the API', () => {
     fireEvent.click(screen.getByRole('button', { name: '3' }))
     expect(await screen.findByText('INV-2026-0009')).toBeTruthy()
     expect(listCalls().at(-1)).toBe(
-      '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&sort=UPDATED&page=2&size=10',
+      '/api/v1/authored-invoices?state=DRAFT%2CISSUED%2CCANCELLED&type=INVOICE%2CCREDIT_NOTE%2CDEBIT_NOTE&sort=UPDATED&page=2&size=10',
     )
   })
 
   it('says there are no invoices yet, and separately that a filter matched none', async () => {
     summaryResponse = () =>
       json(200, { ...SUMMARY, all: 0, drafts: 0, awaiting: 0, overdue: 0, paid: 0 })
+    // The page counts sales documents, so the empty account is empty in the sales summary too.
+    salesSummaryResponse = summaryResponse
     listResponses = [() => json(200, springPage([], 0))]
     const { unmount } = renderInvoices()
     expect(await screen.findByText(/No invoices yet/)).toBeTruthy()

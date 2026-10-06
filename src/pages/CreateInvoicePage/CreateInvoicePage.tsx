@@ -623,6 +623,18 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     ;(async () => {
       try {
         const loaded = await loadDraft(id)
+        // A self-billed draft is edited under Expenditure › Self-billing (owner decision,
+        // 6 Oct 2026), never in the sales composer.
+        if (!selfBilled && loaded.type === 'SELF_BILLED_INVOICE') {
+          navigate(`/expenditure/self-billing/${encodeURIComponent(id)}/edit`, { replace: true })
+          return
+        }
+        if (!selfBilled && loaded.type === 'SELF_BILLED_CREDIT_NOTE') {
+          navigate(`/expenditure/self-billing/credit-notes/${encodeURIComponent(id)}/edit`, {
+            replace: true,
+          })
+          return
+        }
         const record = await apiRequest<CustomerDto>(
           `/v1/customers/${encodeURIComponent(loaded.customerId)}`,
         ).catch(() => null)
@@ -1163,7 +1175,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       if (!meta) {
         justCreated.current = result.id
         navigate(
-          selfBilled ? `/income/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`,
+          selfBilled
+            ? `/expenditure/self-billing/${result.id}/edit`
+            : `/invoices/${result.id}/edit`,
           {
             replace: true,
           },
@@ -1231,7 +1245,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     if (!meta) return
     try {
       await discardDraft(meta.id, meta.version)
-      navigate(selfBilled ? '/income/self-billing' : '/invoices')
+      navigate(selfBilled ? '/expenditure/self-billing' : '/invoices')
     } catch (error) {
       setDiscardOpen(false)
       setNotice({
@@ -1370,7 +1384,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={selfBilled ? '/income/self-billing' : '/invoices'}
+            to={selfBilled ? '/expenditure/self-billing' : '/invoices'}
             className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary"
           >
             {t(selfBilled ? 'selfBilledComposer.breadcrumb' : 'createInvoice.breadcrumb')}

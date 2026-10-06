@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AddressContactPage } from './pages/AddressContactPage'
 import { AboutBusinessPage } from './pages/AboutBusinessPage'
@@ -446,7 +446,7 @@ function App() {
           <Route path="/income/debit-notes/:id/edit" element={<NewDebitNotePage />} />
           <Route path="/income/debit-notes/:id" element={<DebitNoteDetailPage />} />
           <Route
-            path="/income/self-billing"
+            path="/expenditure/self-billing"
             element={
               <PlanGated feature="selfBilling">
                 <SelfBillingPage />
@@ -454,7 +454,7 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/agreements"
+            path="/expenditure/self-billing/agreements"
             element={
               <PlanGated feature="selfBilling">
                 <AgreementsPage />
@@ -463,7 +463,7 @@ function App() {
           />
           {/* The design's dedicated composer (Figma 154:161180), writing a self-billed draft. */}
           <Route
-            path="/income/self-billing/new"
+            path="/expenditure/self-billing/new"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBillPage />
@@ -472,7 +472,7 @@ function App() {
           />
           {/* A self-billed credit note, in the credit-note composer (D6), from an issued self-billed invoice. */}
           <Route
-            path="/income/self-billing/credit-notes/new"
+            path="/expenditure/self-billing/credit-notes/new"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBilledCreditNotePage />
@@ -480,7 +480,7 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/credit-notes/:id/edit"
+            path="/expenditure/self-billing/credit-notes/:id/edit"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBilledCreditNotePage />
@@ -488,7 +488,7 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/:id/edit"
+            path="/expenditure/self-billing/:id/edit"
             element={
               <PlanGated feature="selfBilling">
                 <NewSelfBillPage />
@@ -496,13 +496,16 @@ function App() {
             }
           />
           <Route
-            path="/income/self-billing/:id"
+            path="/expenditure/self-billing/:id"
             element={
               <PlanGated feature="selfBilling">
                 <SelfBillDetailPage />
               </PlanGated>
             }
           />
+          {/* Self-billing moved from Income to Expenditure (owner decision, 6 Oct 2026). The old
+              addresses keep working, with the rest of the path and the query carried over. */}
+          <Route path="/income/self-billing/*" element={<SelfBillingMovedRedirect />} />
           {/* One settings page, one address. It lived at both paths, so the Settings one now
               points at the Income one rather than rendering a second copy of it. */}
           <Route
@@ -796,3 +799,11 @@ function App() {
 }
 
 export default App
+
+/** `/income/self-billing/...` to `/expenditure/self-billing/...`, keeping the rest of the address. */
+function SelfBillingMovedRedirect() {
+  const { pathname, search, hash } = useLocation()
+  const to =
+    pathname.replace(/^\/income\/self-billing/, '/expenditure/self-billing') + search + hash
+  return <Navigate to={to} replace />
+}

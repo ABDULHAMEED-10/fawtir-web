@@ -59,7 +59,6 @@ export type NavGroup = {
 
 export const INCOME_PATHS = [
   '/invoices',
-  '/income/self-billing',
   '/income/reminders',
   '/income/periodic',
   '/income/credit-notes',
@@ -68,6 +67,7 @@ export const INCOME_PATHS = [
 
 export const EXPENDITURE_PATHS = [
   '/expenditure/bills',
+  '/expenditure/self-billing',
   '/expenditure/payments',
   '/expenditure/recurring-bills',
   '/expenditure/reminders',
@@ -102,12 +102,6 @@ export const DASHBOARD_NAV: NavGroup[] = [
         requires: 'invoice.read',
         children: [
           { id: 'invoice', labelKey: 'dashboard.nav.incomeChildren.invoice', to: '/invoices' },
-          {
-            id: 'selfBilling',
-            labelKey: 'dashboard.nav.incomeChildren.selfBilling',
-            to: '/income/self-billing',
-            feature: 'selfBilling',
-          },
           {
             id: 'reminders',
             labelKey: 'dashboard.nav.incomeChildren.reminders',
@@ -144,6 +138,14 @@ export const DASHBOARD_NAV: NavGroup[] = [
             labelKey: 'dashboard.nav.expenditureChildren.bills',
             to: '/expenditure/bills',
             count: 'billReminders',
+          },
+          {
+            // A self-billed invoice is a purchase written on the supplier's behalf (owner decision
+            // 6 Oct 2026: the Figma placement under Income was a design slip).
+            id: 'selfBilling',
+            labelKey: 'dashboard.nav.expenditureChildren.selfBilling',
+            to: '/expenditure/self-billing',
+            feature: 'selfBilling',
           },
           {
             id: 'payments',

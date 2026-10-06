@@ -1000,7 +1000,6 @@
       "invoices": "الفواتير",
       "incomeChildren": {
         "invoice": "فاتورة",
-        "selfBilling": "الفوترة الذاتية",
         "reminders": "تذكيرات",
         "periodic": "فواتير دورية",
         "creditNotes": "إشعارات دائن",
@@ -1023,7 +1022,8 @@
         "recurringBills": "فواتير متكررة",
         "creditNotes": "إشعارات دائن",
         "debitNotes": "إشعارات مدين",
-        "reminders": "تذكيرات"
+        "reminders": "تذكيرات",
+        "selfBilling": "الفوترة الذاتية"
       },
       "catalogStock": "الكتالوج والمخزون",
       "contacts": "جهات التعامل",
@@ -3222,7 +3222,6 @@
       "confirm": "اسحبها",
       "withdrawing": "جارٍ السحب…"
     },
-    "breadcrumbIncome": "الدخل",
     "export": "تصدير",
     "newAgreement": "اتفاقية جديدة",
     "exportUnavailable": "تصدير الاتفاقيات غير متاح بعد: لا يوجد مسار لتنزيلها.",
@@ -19732,7 +19731,6 @@
     }
   },
   "selfBillDetail": {
-    "breadcrumbIncome": "الدخل",
     "breadcrumbSelfBilled": "الفوترة الذاتية",
     "raisedFor": "صادرة لصالح",
     "issuedOn": "صدرت في {{date}}",
@@ -19881,7 +19879,8 @@
       "tooMuch": "هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد.",
       "tooMuchMost": "هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد. أقصى ما يمكن تسجيله {{amount}}."
     },
-    "creditNote": "إشعار دائن"
+    "creditNote": "إشعار دائن",
+    "breadcrumbExpenditure": "المصروفات"
   },
   "supplierNotes": {
     "searchPlaceholder": "ابحث بالمورّد أو رقم الفاتورة...",

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AppShell } from '../../layouts/AppShell'
 import {
@@ -314,6 +314,11 @@ function InvoiceScreen() {
   }
 
   const data = invoice.read.data
+  // A self-billed document is a purchase: its page is under Expenditure › Self-billing (owner
+  // decision, 6 Oct 2026), so an old /invoices link to one lands there.
+  if (data.type === 'SELF_BILLED_INVOICE' || data.type === 'SELF_BILLED_CREDIT_NOTE') {
+    return <Navigate to={`/expenditure/self-billing/${encodeURIComponent(data.id)}`} replace />
+  }
   const draft = isDraft(data)
   const noteType = data.type === 'CREDIT_NOTE' || data.type === 'DEBIT_NOTE' ? data.type : null
   // Self-billing inverts the parties: the tenant is the buyer and customerId names the seller,

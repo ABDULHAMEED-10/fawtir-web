@@ -815,7 +815,7 @@ function OrderForms() {
     else if (action.kind === 'selfbill') {
       // Only under a signed, active self-billing agreement with this supplier (handbook 5.1).
       const gate = gateFor(row)
-      if (gate.allowed) navigate('/income/self-billing/new')
+      if (gate.allowed) navigate('/expenditure/self-billing/new')
       else notice.show(gate.reasonKey, gate.values)
     }
   }
