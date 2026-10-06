@@ -353,6 +353,7 @@ function renderInvoice() {
           <Route path="/invoices/:id/edit" element={<p>draft editor</p>} />
           <Route path="/invoices" element={<p>invoices list</p>} />
           <Route path="/login" element={<p>sign-in page</p>} />
+          <Route path="/expenditure/self-billing/:id" element={<p>self-billing page</p>} />
         </Routes>
       </MemoryRouter>
     </ReferenceDataContext.Provider>,
@@ -1224,4 +1225,17 @@ describe('Send', () => {
     expect(await screen.findByText('تم التحقق من الفاتورة ووُضعت في قائمة الإرسال.')).toBeTruthy()
     expect(screen.getAllByText('تم التحقق منها وهي في قائمة الإرسال')).toHaveLength(2)
   })
+})
+
+describe('self-billed documents', () => {
+  // Owner decision, 6 Oct 2026: self-billing is a purchase and lives under Expenditure, so an old
+  // /invoices link to a self-billed document opens its Expenditure page instead.
+  it.each(['SELF_BILLED_INVOICE', 'SELF_BILLED_CREDIT_NOTE'] as const)(
+    'sends a %s to Expenditure › Self-billing',
+    async (type) => {
+      invoiceResponse = () => json(200, invoice({ type }))
+      renderInvoice()
+      expect(await screen.findByText('self-billing page')).toBeTruthy()
+    },
+  )
 })

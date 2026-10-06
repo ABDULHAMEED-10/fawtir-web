@@ -370,6 +370,8 @@ function SelfBillComposer() {
     canSeeAgreements ? AGREEMENTS_PATH : null,
     loadAgreements,
   )
+  // TODO(backend): EXPENDITURE.md S.2. The seller is kept in a customer record (`customerId` on
+  // the agreements and the draft), so the supplier picker reads the customers list, not suppliers.
   const customersPath = customerListPath({
     type: null,
     search: '',
@@ -592,7 +594,7 @@ function SelfBillComposer() {
       setPriced(null)
       if (!meta) {
         filledFrom.current = result.id
-        navigate(`/income/self-billing/${result.id}/edit`, { replace: true })
+        navigate(`/expenditure/self-billing/${result.id}/edit`, { replace: true })
       }
       const uploadsDone = await uploadHeld(result.id)
       return forIssue && !uploadsDone ? null : saved
@@ -657,7 +659,7 @@ function SelfBillComposer() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              to="/income/self-billing"
+              to="/expenditure/self-billing"
               className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
             >
               {t('newSelfBill.breadcrumb')}
@@ -897,7 +899,7 @@ function SelfBillComposer() {
                   })}
                 </p>
                 <Link
-                  to="/income/self-billing/agreements"
+                  to="/expenditure/self-billing/agreements"
                   className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
                 >
                   {t('newSelfBill.viewAgreement')}
@@ -913,7 +915,7 @@ function SelfBillComposer() {
                   })}
                 </p>
                 <Link
-                  to="/income/self-billing/agreements"
+                  to="/expenditure/self-billing/agreements"
                   className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
                 >
                   {t('newSelfBill.viewAgreement')}
@@ -926,7 +928,7 @@ function SelfBillComposer() {
                   {t('apiErrors.selfBilling.missing')}
                 </p>
                 <Link
-                  to="/income/self-billing/agreements"
+                  to="/expenditure/self-billing/agreements"
                   className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-700 hover:underline"
                 >
                   {t('newSelfBill.openAgreement')}
@@ -1370,7 +1372,7 @@ function SelfBillComposer() {
           onClose={() => setIssuing(null)}
           onIssued={(invoice) => {
             setIssuing(null)
-            navigate(`/income/self-billing/${invoice.id}`)
+            navigate(`/expenditure/self-billing/${invoice.id}`)
           }}
         />
       ) : null}

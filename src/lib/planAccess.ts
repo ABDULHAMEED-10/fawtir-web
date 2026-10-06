@@ -99,7 +99,7 @@ export function useFeature(feature: Feature): FeatureAccess {
  */
 export const ROUTE_FEATURES: { prefix: string; feature: Feature }[] = [
   { prefix: '/income/periodic', feature: 'recurringInvoices' },
-  { prefix: '/income/self-billing', feature: 'selfBilling' },
+  { prefix: '/expenditure/self-billing', feature: 'selfBilling' },
   { prefix: '/trade-documents', feature: 'tradeDocuments' },
   { prefix: '/expenditure/credit-notes', feature: 'supplierNotes' },
   { prefix: '/expenditure/debit-notes', feature: 'supplierNotes' },

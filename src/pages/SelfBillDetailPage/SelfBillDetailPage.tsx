@@ -245,14 +245,14 @@ function Breadcrumb() {
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <Link
-        to="/invoices"
+        to="/expenditure/bills"
         className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
       >
-        {t('selfBillDetail.breadcrumbIncome')}
+        {t('selfBillDetail.breadcrumbExpenditure')}
       </Link>
       <img src={backIcon} alt="" aria-hidden="true" className="size-6 rotate-180 rtl:rotate-0" />
       <Link
-        to="/income/self-billing"
+        to="/expenditure/self-billing"
         className="text-2xl font-medium leading-[1.2] text-text-quaternary transition-colors hover:text-text-secondary"
       >
         {t('selfBillDetail.breadcrumbSelfBilled')}
@@ -499,7 +499,7 @@ function SelfBillScreen() {
           </button>
           {canCredit ? (
             <Link
-              to={`/income/self-billing/credit-notes/new?invoice=${encodeURIComponent(data.id)}`}
+              to={`/expenditure/self-billing/credit-notes/new?invoice=${encodeURIComponent(data.id)}`}
               className={OUTLINE_BUTTON}
             >
               <img src={creditNoteIcon} alt="" className="size-5" />
@@ -574,7 +574,7 @@ function SelfBillScreen() {
                 value={
                   original.read.status === 'ready' ? (original.read.data.invoiceNumber ?? '—') : '—'
                 }
-                to={`/income/self-billing/${data.correctionOfInvoiceId}`}
+                to={`/expenditure/self-billing/${data.correctionOfInvoiceId}`}
               />
             ) : null}
             <DetailField label={t('selfBillDetail.fields.issueDate')} value={day(data.issueDate)} />

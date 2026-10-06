@@ -5,8 +5,8 @@ API does not provide yet, and what to add.
 
 | Area | Guide |
 |---|---|
-| Income and Customers (invoices, notes, periodic, reminders, self-billing, customers, PINT-OM line classification, the sign-up answers invoices depend on) | [INCOME.md](INCOME.md) |
-| Expenditure and Suppliers (bills, payments, recurring bills, bill reminders, supplier notes, suppliers) | [EXPENDITURE.md](EXPENDITURE.md) |
+| Income and Customers (invoices, notes, periodic, reminders, self-billing up to 6 Oct 2026, customers, PINT-OM line classification, the sign-up answers invoices depend on) | [INCOME.md](INCOME.md) |
+| Expenditure and Suppliers (bills, payments, recurring bills, bill reminders, supplier notes, suppliers, self-billing since 6 Oct 2026) | [EXPENDITURE.md](EXPENDITURE.md) |
 | Documents (the archive) | [DOCUMENTS.md](DOCUMENTS.md) |
 | Trade documents (quotations, order forms, delivery notes, purchase receipts, converting them to invoices) | [TRADE_DOCUMENTS.md](TRADE_DOCUMENTS.md) |
 | Reports (the six report pages) | [REPORTS.md](REPORTS.md) |
