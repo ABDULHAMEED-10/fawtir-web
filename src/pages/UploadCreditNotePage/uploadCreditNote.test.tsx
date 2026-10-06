@@ -5,6 +5,8 @@ import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { IntakeDto } from '../../api/expenditure/billIntake'
 import type { BillRowDto } from '../../api/expenditure/bills'
+import { SessionContext } from '../../lib/session/session'
+import { SupplierNoteIntake } from '../../components/debit/SupplierNoteIntake'
 import { UploadCreditNotePage } from './UploadCreditNotePage'
 
 const MANAGER: Entitlements = {
@@ -344,5 +346,60 @@ describe('upload a supplier credit note', () => {
     expect(document.querySelector('input[type=file]')).toBeNull()
     expect(screen.queryByText("Choose the supplier's credit note")).toBeNull()
     expect(calls('POST', '/api/v1/bills/intake')).toHaveLength(0)
+  })
+})
+
+/**
+ * What the composer reports once saved: the confirm answer's `creditApplied` says whether any
+ * credit came off the chosen bill; an older server that omits it leaves the bill as listed to
+ * decide.
+ */
+describe('the outcome of a credit note set against its bill on upload', () => {
+  async function saveAgainstBill(creditApplied: unknown) {
+    confirmAnswer = async () =>
+      json(201, {
+        id: NOTE_ID,
+        supplierBillNumber: 'MR-CN-0042',
+        totalIncludingVat: 105,
+        currencyCode: 'OMR',
+        ...(creditApplied === undefined ? {} : { creditApplied }),
+      })
+    const onSaved = vi.fn()
+    render(
+      <MemoryRouter>
+        <SessionContext.Provider value={MANAGER}>
+          <SupplierNoteIntake
+            kind="credit"
+            intake={XML_NOTE}
+            file={new File(['<CreditNote/>'], 'note.xml', { type: 'application/xml' })}
+            cancelTo="/expenditure/credit-notes"
+            onReplace={() => {}}
+            onSaved={onSaved}
+          />
+        </SessionContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByDisplayValue('MR-CN-0042')).toBeTruthy()
+    await chooseBill()
+    fireEvent.change(reasonField(), { target: { value: REASON } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save and set against the bill' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    expect(bodyOf(calls('POST', CONFIRM)[0]).relatedBillId).toBe(BILL_ID)
+    return onSaved.mock.calls[0][1]
+  }
+
+  it('says it was set against the bill when the server took credit off it', async () => {
+    expect(await saveAgainstBill({ billId: BILL_ID, amount: 105 })).toBe(
+      'supplierCreditNotes.upload.savedApplied',
+    )
+  })
+
+  it('says the credit is held when the server took nothing off the bill', async () => {
+    expect(await saveAgainstBill(null)).toBe('supplierCreditNotes.upload.savedHeld')
+  })
+
+  it('falls back to the bill as listed when the server does not say', async () => {
+    // The chosen bill still owed 315.000, so the credit came off it.
+    expect(await saveAgainstBill(undefined)).toBe('supplierCreditNotes.upload.savedApplied')
   })
 })

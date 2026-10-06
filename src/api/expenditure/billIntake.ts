@@ -148,6 +148,12 @@ export type ConfirmedBillDto = {
   supplierBillNumber: string | null
   totalIncludingVat: number
   currencyCode: string | null
+  /**
+   * The credit this confirm took off the chosen bill (a credit note with `relatedBillId`), or null
+   * when nothing was applied: no bill, a debit note, or a bill that already owed nothing. Absent
+   * from an older server, which does not say.
+   */
+  creditApplied?: { billId: string; amount: number } | null
 }
 
 export function confirmIntake(id: string, body: ConfirmIntakeDto): Promise<ConfirmedBillDto> {

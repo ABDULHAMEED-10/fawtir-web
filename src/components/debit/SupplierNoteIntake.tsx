@@ -235,11 +235,16 @@ export function SupplierNoteIntake({
         }),
       )
       setSaved(note)
-      // A bill that already owed nothing takes none of the credit, so it is held, not set
-      // against it. The confirm answer does not say what was applied; the bill as listed does.
+      // Whether any credit came off the bill is the confirm answer's to say (`creditApplied`):
+      // a bill that already owed nothing takes none, so the credit is held. An older server
+      // does not say; then the bill as listed decides.
+      const applied =
+        note.creditApplied !== undefined
+          ? note.creditApplied !== null
+          : followUp === 'apply' && chosenBill!.outstandingAmount > 0
       let doneKey =
         kind === 'credit'
-          ? followUp === 'apply' && chosenBill!.outstandingAmount > 0
+          ? applied
             ? 'supplierCreditNotes.upload.savedApplied'
             : 'supplierCreditNotes.upload.savedHeld'
           : 'supplierDebitNotes.upload.savedHeld'

@@ -59,24 +59,36 @@ const REFERENCE_DATA = {
 /* ------------------------------------------------------------------ suppliers */
 
 const SUPPLIERS = [
-  supplier('s-and', 'Al Noor Dates LLC', 'OM1100518844', 'Al Noor Dates LLC', '0248:OM1100518844'),
   supplier(
-    's-mr',
+    '5a000000-0000-4000-8000-000000000001',
+    'Al Noor Dates LLC',
+    'OM1100518844',
+    'Al Noor Dates LLC',
+    '0248:OM1100518844',
+  ),
+  supplier(
+    '5a000000-0000-4000-8000-000000000002',
     'Muscat Roastery Co',
     'OM1100711290',
     'Muscat Roastery Co LLC',
     '0248:OM1100711290',
   ),
-  supplier('s-sp', 'Sohar Packaging LLC', 'OM1100628391', 'Sohar Packaging LLC', null),
   supplier(
-    's-mz',
+    '5a000000-0000-4000-8000-000000000003',
+    'Sohar Packaging LLC',
+    'OM1100628391',
+    'Sohar Packaging LLC',
+    null,
+  ),
+  supplier(
+    '5a000000-0000-4000-8000-000000000004',
     'Mazoon Electricity',
     'OM1100200330',
     'Mazoon Electricity Company SAOC',
     '0248:OM1100200330',
   ),
   supplier(
-    's-gcl',
+    '5a000000-0000-4000-8000-000000000005',
     'Gulf Cold Logistics',
     'OM1100554027',
     'Gulf Cold Logistics LLC',
@@ -170,7 +182,7 @@ function supplierDetail(row) {
 const BILLS = [
   bill(
     'b-and-3382',
-    's-and',
+    '5a000000-0000-4000-8000-000000000001',
     'AND-INV-3382',
     '2026-07-28',
     '2026-08-27',
@@ -182,7 +194,7 @@ const BILLS = [
   ),
   bill(
     'b-and-3301',
-    's-and',
+    '5a000000-0000-4000-8000-000000000001',
     'AND-INV-3301',
     '2026-07-02',
     '2026-08-01',
@@ -194,7 +206,7 @@ const BILLS = [
   ),
   bill(
     'b-and-3150',
-    's-and',
+    '5a000000-0000-4000-8000-000000000001',
     'AND-INV-3150',
     '2026-06-20',
     '2026-07-20',
@@ -206,7 +218,7 @@ const BILLS = [
   ),
   bill(
     'b-mr-8790',
-    's-mr',
+    '5a000000-0000-4000-8000-000000000002',
     'MR-INV-8790',
     '2026-07-24',
     '2026-08-23',
@@ -218,7 +230,7 @@ const BILLS = [
   ),
   bill(
     'b-sp-1140',
-    's-sp',
+    '5a000000-0000-4000-8000-000000000003',
     'SP-INV-1140',
     '2026-07-24',
     '2026-08-23',
@@ -231,7 +243,7 @@ const BILLS = [
   ),
   bill(
     'b-sp-1108',
-    's-sp',
+    '5a000000-0000-4000-8000-000000000003',
     'SP-INV-1108',
     '2026-07-10',
     '2026-08-09',
@@ -243,7 +255,7 @@ const BILLS = [
   ),
   bill(
     'b-mz-2288',
-    's-mz',
+    '5a000000-0000-4000-8000-000000000004',
     'MZ-INV-2288',
     '2026-07-05',
     '2026-08-04',
@@ -255,7 +267,7 @@ const BILLS = [
   ),
   bill(
     'b-mz-7801',
-    's-mz',
+    '5a000000-0000-4000-8000-000000000004',
     'MZ-INV-7801',
     '2026-06-06',
     '2026-07-06',
@@ -267,7 +279,7 @@ const BILLS = [
   ),
   bill(
     'b-gcl-2301',
-    's-gcl',
+    '5a000000-0000-4000-8000-000000000005',
     'GCL-2301',
     '2026-07-25',
     '2026-08-25',
@@ -279,7 +291,7 @@ const BILLS = [
   ),
   bill(
     'b-gcl-2288',
-    's-gcl',
+    '5a000000-0000-4000-8000-000000000005',
     'GCL-2288',
     '2026-07-18',
     '2026-08-17',
@@ -350,7 +362,7 @@ function receiptReportOf(id, source, issueDate) {
 const CREDIT_NOTES = [
   creditNote({
     id: 'cn-and-0442',
-    supplierId: 's-and',
+    supplierId: '5a000000-0000-4000-8000-000000000001',
     number: 'AND-CN-0442',
     issueDate: '2026-07-30',
     source: 'PEPPOL',
@@ -364,7 +376,7 @@ const CREDIT_NOTES = [
   }),
   creditNote({
     id: 'cn-mr-0118',
-    supplierId: 's-mr',
+    supplierId: '5a000000-0000-4000-8000-000000000002',
     number: 'MR-CN-0118',
     issueDate: '2026-07-28',
     source: 'PEPPOL',
@@ -378,7 +390,7 @@ const CREDIT_NOTES = [
   }),
   creditNote({
     id: 'cn-sp-0067',
-    supplierId: 's-sp',
+    supplierId: '5a000000-0000-4000-8000-000000000003',
     number: 'SP-CN-0067',
     issueDate: '2026-07-24',
     source: 'UPLOADED',
@@ -392,7 +404,7 @@ const CREDIT_NOTES = [
   }),
   creditNote({
     id: 'cn-mz-2210',
-    supplierId: 's-mz',
+    supplierId: '5a000000-0000-4000-8000-000000000004',
     number: 'MZ-CN-2210',
     issueDate: '2026-07-18',
     source: 'PEPPOL',
@@ -406,7 +418,7 @@ const CREDIT_NOTES = [
   }),
   creditNote({
     id: 'cn-and-0391',
-    supplierId: 's-and',
+    supplierId: '5a000000-0000-4000-8000-000000000001',
     number: 'AND-CN-0391',
     issueDate: '2026-07-11',
     source: 'PEPPOL',
@@ -556,7 +568,7 @@ function creditTabs(notes) {
 const DEBIT_NOTES = [
   debitNote({
     id: 'dn-gcl-0091',
-    supplierId: 's-gcl',
+    supplierId: '5a000000-0000-4000-8000-000000000005',
     number: 'GCL-DN-0091',
     issueDate: '2026-07-26',
     dueDate: '2026-08-25',
@@ -572,7 +584,7 @@ const DEBIT_NOTES = [
   }),
   debitNote({
     id: 'dn-mr-0034',
-    supplierId: 's-mr',
+    supplierId: '5a000000-0000-4000-8000-000000000002',
     number: 'MR-DN-0034',
     issueDate: '2026-07-27',
     dueDate: '2026-08-26',
@@ -589,7 +601,7 @@ const DEBIT_NOTES = [
   }),
   debitNote({
     id: 'dn-sp-0012',
-    supplierId: 's-sp',
+    supplierId: '5a000000-0000-4000-8000-000000000003',
     number: 'SP-DN-0012',
     issueDate: '2026-07-22',
     dueDate: '2026-08-21',
@@ -606,7 +618,7 @@ const DEBIT_NOTES = [
   }),
   debitNote({
     id: 'dn-mz-0088',
-    supplierId: 's-mz',
+    supplierId: '5a000000-0000-4000-8000-000000000004',
     number: 'MZ-DN-0088',
     issueDate: '2026-07-16',
     dueDate: '2026-08-15',
@@ -624,7 +636,7 @@ const DEBIT_NOTES = [
   }),
   debitNote({
     id: 'dn-and-0021',
-    supplierId: 's-and',
+    supplierId: '5a000000-0000-4000-8000-000000000001',
     number: 'AND-DN-0021',
     issueDate: '2026-07-09',
     dueDate: '2026-08-08',
@@ -1316,6 +1328,7 @@ export default [
         reasonCode: body?.reasonCode ?? null,
         reasonDetail: body?.reasonDetail ?? null,
       }
+      let creditApplied = null
       const related = body?.relatedBillId ? BILLS.find((b) => b.id === body.relatedBillId) : null
       if (body?.relatedBillId && !related)
         return refusal(400, 'BILL_INTAKE_RELATED_BILL_UNKNOWN', 'No such bill.')
@@ -1363,6 +1376,7 @@ export default [
           note.status = note.balance.remaining > 0 ? 'UNAPPLIED' : 'APPLIED'
           note.credits.applied = true
           related.outstandingAmount = round(related.outstandingAmount - amount)
+          creditApplied = { billId: related.id, amount }
           ;(CREDIT_SETTLEMENTS[note.id] ??= []).push({
             id: `st-${Date.now()}`,
             creditNoteId: note.id,
@@ -1387,6 +1401,8 @@ export default [
         supplierBillNumber: body?.billNumber ?? null,
         totalIncludingVat: body?.total ?? 0,
         currencyCode: body?.currency ?? 'OMR',
+        // The credit this confirm took off the chosen bill; null when nothing was applied.
+        creditApplied,
       }
     },
   },
