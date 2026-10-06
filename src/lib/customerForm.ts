@@ -59,6 +59,10 @@ export type CustomerField =
   | Exclude<keyof CustomerFormValues, 'invoice' | 'delivery' | 'kept'>
   | `invoice.${AddressField}`
   | `delivery.${AddressField}`
+  // PINT-OM IBR-019-OM needs both on a business buyer's invoice address; the delivery address does
+  // not draw them, so only the invoice one can be refused on them.
+  | 'invoice.additionalStreetName'
+  | 'invoice.addressLine3'
 
 export function blankCustomerForm(type: CustomerTypeDto = 'BUSINESS'): CustomerFormValues {
   return {
@@ -326,9 +330,12 @@ export function placeCustomerErrors(errors: readonly ProblemFieldError[]): {
   const other: string[] = []
   for (const error of errors) {
     const address = /^(invoiceAddress|deliveryAddress)\.(attention|countryCode|cityName|streetName|poBox|postalCode)$/.exec(error.field)
+    const invoiceLine = /^invoiceAddress\.(additionalStreetName|addressLine3)$/.exec(error.field)
     const field: CustomerField | undefined = address
       ? (`${address[1] === 'invoiceAddress' ? 'invoice' : 'delivery'}.${address[2]}` as CustomerField)
-      : MODEL_TO_FORM[error.field]
+      : invoiceLine
+        ? (`invoice.${invoiceLine[1]}` as CustomerField)
+        : MODEL_TO_FORM[error.field]
     if (!field) {
       other.push(error.message)
       continue
