@@ -455,11 +455,15 @@ function creditNote({
     creditedAmount: credited,
     vatAmount: vat,
     reasonCode,
-    // The app's finer reason behind the CL-02-OM code: EXPENDITURE.md R.3.
+    // The words beside the CL-02-OM code (older rows hold the app's reason ids): R.3.
     reasonDetail,
     approval: 'NONE',
     status,
     balance,
+    receivedAt: `${issueDate}T11:05:00Z`,
+    intakeId: source === 'UPLOADED' ? `intake-${id}` : null,
+    onHold: false,
+    hold: null,
     credits: {
       billNumber: billRow ? billRow.supplierBillNumber : billNumber,
       issueDate: billRow ? billRow.issueDate : null,
@@ -512,7 +516,7 @@ const CREDIT_SETTLEMENTS = {
   ],
 }
 
-function creditSummary() {
+function creditSummary(query) {
   const usable = CREDIT_NOTES.filter((n) => n.balance.remaining > 0)
   const recovered = CREDIT_NOTES.filter((n) => n.status === 'APPLIED' || n.status === 'REFUNDED')
   const tally = new Map()
@@ -532,6 +536,18 @@ function creditSummary() {
       noteCount: topCount,
     },
     excludedFromTotals: 0,
+    tabs: creditTabs(narrowed(CREDIT_NOTES, query)),
+  }
+}
+
+function creditTabs(notes) {
+  const of = (status) => notes.filter((n) => n.status === status).length
+  return {
+    all: notes.length,
+    unapplied: of('UNAPPLIED'),
+    waitingForBill: of('WAITING_FOR_BILL'),
+    applied: of('APPLIED'),
+    refunded: of('REFUNDED'),
   }
 }
 
@@ -666,9 +682,11 @@ function debitNote({
     vatAmount: vat,
     amountDue: total,
     reasonCode,
-    // The app's finer reason behind the CL-02-OM code: EXPENDITURE.md R.3.
+    // The words beside the CL-02-OM code (older rows hold the app's reason ids): R.3.
     reasonDetail,
     approval: 'NONE',
+    receivedAt: `${issueDate}T11:05:00Z`,
+    intakeId: source === 'UPLOADED' ? `intake-${id}` : null,
     paidAmount: paid,
     creditedAmount: 0,
     outstandingAmount: outstanding,
@@ -716,7 +734,7 @@ const DEBIT_DECISIONS = {
   ],
 }
 
-function debitSummary() {
+function debitSummary(query) {
   const unchecked = DEBIT_NOTES.filter((n) => n.status === 'UNCHECKED')
   const accepted = DEBIT_NOTES.filter((n) => n.status === 'ACCEPTED')
   const refused = DEBIT_NOTES.filter((n) => n.status === 'REFUSED')
@@ -730,6 +748,7 @@ function debitSummary() {
     rejectedThisYearCount: refused.length,
     rejectedThisYearTotal: round(refused.reduce((sum, n) => sum + n.totalIncludingVat, 0)),
     excludedFromTotals: 0,
+    tabs: debitTabs(narrowed(DEBIT_NOTES, query)),
   }
 }
 
@@ -888,7 +907,7 @@ function noteAsBillDetail(note, kind) {
     intake:
       note.source === 'UPLOADED'
         ? {
-            id: `intake-${note.id}`,
+            id: note.intakeId ?? `intake-${note.id}`,
             source: 'UPLOADED',
             filename: `${number}.pdf`,
             contentType: 'application/pdf',
@@ -902,6 +921,14 @@ function noteAsBillDetail(note, kind) {
       receiptReport: note.receiptReport ?? null,
     },
     activity: [{ at: `${note.issueDate}T11:05:00Z`, kind: 'ARRIVED', detail: null, actor: null }],
+    // The note's reason and the bill it corrects, as `GET /bills/{id}` answers for a 381/383.
+    correction: {
+      reasonCode: note.reasonCode,
+      reasonDetail: note.reasonDetail ?? null,
+      relatedBillId: kind === 'credit' ? note.credits.billId : null,
+      relatedBillNumber: kind === 'credit' ? note.credits.billNumber : note.relatesTo?.billNumber,
+      relatedBillIssueDate: kind === 'credit' ? note.credits.issueDate : note.relatesTo?.issueDate,
+    },
   }
 }
 
@@ -1011,9 +1038,57 @@ function page(items, query) {
   return { items: slice, page: pageNo, pageSize: size, count: slice.length, total: items.length }
 }
 
+function debitTabs(notes) {
+  const of = (status) => notes.filter((n) => n.status === status).length
+  return {
+    all: notes.length,
+    unchecked: of('UNCHECKED'),
+    accepted: of('ACCEPTED'),
+    refused: of('REFUSED'),
+  }
+}
+
 function byStatus(items, query) {
   const status = query.get('status') ?? 'ALL'
   return status === 'ALL' ? items : items.filter((n) => n.status === status)
+}
+
+/**
+ * The lists' `q` (the note's number, the supplier's name or Peppol id, the bill it names) and
+ * `supplier_id`, which also narrow the summaries' `tabs`.
+ */
+function narrowed(items, query) {
+  const q = (query.get('q') ?? '').trim().toLowerCase()
+  const supplierId = query.get('supplier_id')
+  return items.filter((n) => {
+    if (supplierId && n.supplierId !== supplierId) return false
+    if (!q) return true
+    const bill = n.credits?.billNumber ?? n.relatesTo?.billNumber
+    return [
+      n.creditNoteNumber ?? n.debitNoteNumber,
+      n.supplierName,
+      n.supplierParticipantId,
+      bill,
+    ].some((value) => (value ?? '').toLowerCase().includes(q))
+  })
+}
+
+/** The lists' `sort`: NEWEST (the default, as listed), AMOUNT_HIGHEST, AMOUNT_LOWEST, SUPPLIER. */
+function sorted(items, query) {
+  const sort = query.get('sort') ?? 'NEWEST'
+  const amount = (n) => n.creditedAmount ?? n.totalIncludingVat ?? 0
+  if (sort === 'NEWEST') return items
+  return [...items].sort((a, b) =>
+    sort === 'SUPPLIER'
+      ? (a.supplierName ?? '').localeCompare(b.supplierName ?? '')
+      : sort === 'AMOUNT_LOWEST'
+        ? amount(a) - amount(b)
+        : amount(b) - amount(a),
+  )
+}
+
+function noteList(items, query) {
+  return page(sorted(byStatus(narrowed(items, query), query), query), query)
 }
 
 function billsFor(query) {
@@ -1045,10 +1120,10 @@ export default [
   { match: '/api/v1/reference-data', reply: () => REFERENCE_DATA },
 
   /* credit notes */
-  { match: '/api/v1/credit-notes/summary', reply: () => creditSummary() },
+  { match: '/api/v1/credit-notes/summary', reply: ({ query }) => creditSummary(query) },
   {
     match: '/api/v1/credit-notes',
-    reply: ({ query }) => page(byStatus(CREDIT_NOTES, query), query),
+    reply: ({ query }) => noteList(CREDIT_NOTES, query),
   },
   {
     match: /^\/api\/v1\/credit-notes\/([^/]+)$/,
@@ -1138,8 +1213,8 @@ export default [
   },
 
   /* debit notes */
-  { match: '/api/v1/debit-notes/summary', reply: () => debitSummary() },
-  { match: '/api/v1/debit-notes', reply: ({ query }) => page(byStatus(DEBIT_NOTES, query), query) },
+  { match: '/api/v1/debit-notes/summary', reply: ({ query }) => debitSummary(query) },
+  { match: '/api/v1/debit-notes', reply: ({ query }) => noteList(DEBIT_NOTES, query) },
   {
     match: /^\/api\/v1\/debit-notes\/([^/]+)$/,
     reply: ({ params }) => DEBIT_NOTES.find((n) => n.id === params[0]) ?? { status: 404 },
@@ -1200,6 +1275,15 @@ export default [
   /* intake */
   { method: 'POST', match: '/api/v1/bills/intake', reply: ({ query }) => newIntake(query) },
   {
+    // The file an uploaded note was confirmed from (`intakeId` on its row).
+    match: /^\/api\/v1\/bills\/intake\/([^/]+)\/file$/,
+    reply: ({ params }) => ({
+      status: 200,
+      headers: { 'Content-Disposition': `attachment; filename="${params[0]}.pdf"` },
+      body: '%PDF-1.4',
+    }),
+  },
+  {
     match: /^\/api\/v1\/bills\/intake\/([^/]+)$/,
     reply: ({ params }) => INTAKES.get(params[0]) ?? { status: 404 },
   },
@@ -1229,9 +1313,14 @@ export default [
         number: body?.billNumber ?? null,
         issueDate: body?.issueDate ?? '2026-09-25',
         source: 'UPLOADED',
-        reasonCode: 'OTH',
-        reasonDetail: 'OTHER',
+        reasonCode: body?.reasonCode ?? null,
+        reasonDetail: body?.reasonDetail ?? null,
       }
+      const related = body?.relatedBillId ? BILLS.find((b) => b.id === body.relatedBillId) : null
+      if (body?.relatedBillId && !related)
+        return refusal(400, 'BILL_INTAKE_RELATED_BILL_UNKNOWN', 'No such bill.')
+      if (related && supplierRow && related.supplierId !== supplierRow.id)
+        return refusal(400, 'BILL_INTAKE_RELATED_BILL_SUPPLIER_MISMATCH', 'Another supplier.')
       if (body?.documentTypeCode === '383') {
         DEBIT_NOTES.unshift(
           debitNote({
@@ -1255,10 +1344,43 @@ export default [
             vat: body?.vat ?? 0,
             status: 'UNAPPLIED',
             balance: { applied: 0, refunded: 0, remaining: body?.total ?? 0 },
+            billId: related?.id ?? null,
           }),
         )
         CREDIT_NOTES[0].supplierName = supplierRow?.displayName ?? body?.supplierName ?? 'Unknown'
+        // A credit note naming its bill is set against it in the same request: the largest
+        // amount that fits; any excess stays as credit, and a bill owing nothing takes none.
+        const note = CREDIT_NOTES[0]
+        const amount = related
+          ? round(Math.min(note.balance.remaining, Math.max(0, related.outstandingAmount)))
+          : 0
+        if (amount > 0) {
+          note.balance = {
+            applied: amount,
+            refunded: 0,
+            remaining: round(note.balance.remaining - amount),
+          }
+          note.status = note.balance.remaining > 0 ? 'UNAPPLIED' : 'APPLIED'
+          note.credits.applied = true
+          related.outstandingAmount = round(related.outstandingAmount - amount)
+          ;(CREDIT_SETTLEMENTS[note.id] ??= []).push({
+            id: `st-${Date.now()}`,
+            creditNoteId: note.id,
+            billId: related.id,
+            kind: 'APPLIED',
+            amount,
+            paymentReference: null,
+            settledOn: '2026-09-25',
+            actorId: 'u-hafidh',
+            occurredAt: new Date().toISOString(),
+          })
+        } else {
+          note.credits.applied = false
+          note.credits.billId = null
+        }
       }
+      const confirmed = (body?.documentTypeCode === '383' ? DEBIT_NOTES : CREDIT_NOTES)[0]
+      confirmed.intakeId = intake.id
       intake.confirmedBillId = id
       return {
         id,
