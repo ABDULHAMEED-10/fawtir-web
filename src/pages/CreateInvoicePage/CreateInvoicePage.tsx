@@ -1728,7 +1728,11 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
           {/* IBT-010 on an ordinary invoice: the invoice's own value, pre-filled from the
               customer's default and frozen at issue. Blank is allowed and falls back to that
               default on the server. The same control as the self-billed reference below. */}
-          {!selfBilled && !consumer ? (
+          {/* Government only (owner, 6 Oct 2026): the one case it is pre-filled and asked for; the
+              design has no such row. A business draft that already carries one still shows it,
+              so nothing saved is sent unseen. */}
+          {!selfBilled &&
+          (form.customerType === 'government' || (!consumer && form.buyerReference !== '')) ? (
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <FieldLabel label={t('createInvoice.fields.buyerReference')} />

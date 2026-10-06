@@ -475,6 +475,16 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     (`selfbilling.create`, `selfbilling.agreement.manage`), the plan gate (`selfBilling`) and the
     self-billed bill in Expenditure › Bills. No backend change is needed for the move.
   - Still not on mobile. Backend asks: `EXPENDITURE.md`, section S.
+- **Owner decisions, 6 Oct 2026, on #141 and #143:**
+  - Settings › Company, "Where you are": address lines 2 and 3, PO box, governorate, subdivision
+    code (CL-13-OM, BTOM-024) and contact person are **required parts of the company record**, not
+    extras, though the design does not draw them. Lines 2 and 3 and the phone are what every
+    invoice must state for the seller (IBR-010-OM, IBR-011-OM). A VERIFIED company changes them
+    through `POST /company-profile/amendments`; its legal and tax identity stays locked.
+  - The invoice form's Buyer reference (IBT-010) shows on **government** invoices only: no PINT-OM
+    rule requires it, and it is pre-filled from a government customer's default.
+  - The invoice page keeps the designed Send when the dispatch cannot be read; the server answers
+    the press.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
