@@ -1163,7 +1163,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       if (!meta) {
         justCreated.current = result.id
         navigate(
-          selfBilled ? `/income/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`,
+          selfBilled ? `/expenditure/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`,
           {
             replace: true,
           },
@@ -1231,7 +1231,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     if (!meta) return
     try {
       await discardDraft(meta.id, meta.version)
-      navigate(selfBilled ? '/income/self-billing' : '/invoices')
+      navigate(selfBilled ? '/expenditure/self-billing' : '/invoices')
     } catch (error) {
       setDiscardOpen(false)
       setNotice({
@@ -1370,7 +1370,7 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to={selfBilled ? '/income/self-billing' : '/invoices'}
+            to={selfBilled ? '/expenditure/self-billing' : '/invoices'}
             className="inline-flex items-center gap-1 text-2xl font-medium leading-[1.2] text-text-quaternary"
           >
             {t(selfBilled ? 'selfBilledComposer.breadcrumb' : 'createInvoice.breadcrumb')}

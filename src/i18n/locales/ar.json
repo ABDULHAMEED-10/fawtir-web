@@ -1023,7 +1023,8 @@
         "recurringBills": "فواتير متكررة",
         "creditNotes": "إشعارات دائن",
         "debitNotes": "إشعارات مدين",
-        "reminders": "تذكيرات"
+        "reminders": "تذكيرات",
+        "selfBilling": "الفوترة الذاتية"
       },
       "catalogStock": "الكتالوج والمخزون",
       "contacts": "جهات التعامل",
@@ -19881,7 +19882,8 @@
       "tooMuch": "هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد.",
       "tooMuchMost": "هذا أكثر مما تبقّى مستحقًا على فاتورة المورّد. أقصى ما يمكن تسجيله {{amount}}."
     },
-    "creditNote": "إشعار دائن"
+    "creditNote": "إشعار دائن",
+    "breadcrumbExpenditure": "المصروفات"
   },
   "supplierNotes": {
     "searchPlaceholder": "ابحث بالمورّد أو رقم الفاتورة...",

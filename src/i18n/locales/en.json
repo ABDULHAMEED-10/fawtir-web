@@ -1020,7 +1020,8 @@
         "recurringBills": "Recurring bills",
         "creditNotes": "Credit notes",
         "debitNotes": "Debit notes",
-        "reminders": "Reminders"
+        "reminders": "Reminders",
+        "selfBilling": "Self-billing"
       },
       "catalogStock": "Catalog & stock",
       "contacts": "Contacts",
@@ -19031,7 +19032,8 @@
       "tooMuch": "That is more than the supplier bill still owes.",
       "tooMuchMost": "That is more than the supplier bill still owes. The most you can record is {{amount}}."
     },
-    "creditNote": "Credit note"
+    "creditNote": "Credit note",
+    "breadcrumbExpenditure": "Expenditure"
   },
   "supplierNotes": {
     "searchPlaceholder": "Search supplier, bill number...",

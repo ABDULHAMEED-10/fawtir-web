@@ -137,7 +137,7 @@ Sections on page `0:1` (children are the frames; list them with `get_metadata` o
 | Section                                                                       | Node                                                              |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | Auth Screens (sign-in, sign-up, onboarding)                                   | `154:79063`                                                       |
-| Income frames (invoices, notes, periodic, reminders, self-billing, customers) | top-level frames, e.g. Invoice `154:86625`, Customers `154:91007` |
+| Income frames (invoices, notes, periodic, reminders, self-billing*, customers) | top-level frames, e.g. Invoice `154:86625`, Customers `154:91007` |
 | Reports                                                                       | `154:105574`                                                      |
 | TDD & OTA (shown in the app as **TDD & OTA**, as in Figma)                     | `154:108266`                                                      |
 | Super Admin                                                                   | `154:111760`                                                      |
@@ -148,6 +148,9 @@ Sections on page `0:1` (children are the frames; list them with `get_metadata` o
 | Documents                                                                     | `154:139157`                                                      |
 | Suppliers                                                                     | `154:141044`                                                      |
 | Notifications                                                                 | `154:144757`                                                      |
+
+\* Self-billing is drawn among the Income frames, but the app places it under **Expenditure**
+(owner decision of 6 Oct 2026, section 6): the frames are followed, the placement is not.
 
 Frames that are named misleadingly in Figma: "Credit note detail" (`154:97418`) is the **debit**
 note detail; "Reminder" is the per-invoice reminder card, while the reminders pages are "Payment
@@ -452,6 +455,20 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   4. On a sales invoice the ISIC code is always the company's (5.2). An ERP or API import that
      sends a different line code has it replaced by the company's code, and the import report
      says so; the import is not refused.
+- **Owner decision, 6 Oct 2026: self-billing sits under Expenditure.** A self-billed invoice
+  (389; its credit note 261) is a purchase: the company is the buyer, writes it on the supplier's
+  behalf under an agreement, and owes the money. Figma's placement under Income was a design slip
+  (rule 2: fix the designer's slips).
+  - The menu entry moved from Income to Expenditure, after Bills, and the section lights as
+    Expenditure.
+  - The pages moved from `/income/self-billing/...` to `/expenditure/self-billing/...` (list,
+    agreements, new, edit, detail, credit notes). The old addresses redirect with the rest of the
+    path and the query kept, so bookmarks and links in e-mails still work. Breadcrumbs start at
+    Expenditure.
+  - Unchanged: the screens and their layout, every API call, the permissions
+    (`selfbilling.create`, `selfbilling.agreement.manage`), the plan gate (`selfBilling`) and the
+    self-billed bill in Expenditure › Bills. No backend change is needed for the move.
+  - Still not on mobile. Backend asks: `EXPENDITURE.md`, section S.
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses
@@ -477,6 +494,11 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
 6. Retention: do the ten years (fifteen for property) run from the document date or from the end
    of the tax year? To be checked against the Oman VAT law; if the latter, every "Kept until"
    date on Documents is early.
+7. Self-billing keeps its seller in a **customer** record (the backend built it on the sales
+   invoice engine), so a supplier must also be created as a customer to be self-billed, and the
+   same company is kept twice. Should agreements and self-billed invoices be linked to the
+   supplier record instead? (Asked of the backend in `EXPENDITURE.md` S.2; the screens keep the
+   current behaviour until then.)
 
 ---
 

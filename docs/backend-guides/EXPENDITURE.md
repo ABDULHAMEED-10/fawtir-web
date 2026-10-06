@@ -1,6 +1,6 @@
 # Expenditure and Suppliers: backend guide
 
-**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, and suppliers. **Last updated:** 30 September 2026.
+**For:** the backend team. **Covers:** bills, payments, recurring bills, bill reminders, supplier credit and debit notes, suppliers, and self-billing (since 6 Oct 2026). **Last updated:** 6 October 2026.
 
 This is the single guide for this area. It lists every place where a screen draws something the
 API does not provide yet, and what to add. It replaces the older per-pass "design realignment,
@@ -229,3 +229,24 @@ Expenditure is the **buyer** side. A bill that arrives over Peppol carries the s
 | M.4 | Supplier form address: street, City, Governorate (Oman only), Postal code (3 digits); the Peppol ID prefilled as `0248:` + the VAT number | `street`, `city`, `countrySubentity` (governorate), `postalCode` stored as separate fields on `POST/PUT /v1/suppliers` and returned on `GET /v1/suppliers/{id}`. Needed before self-billing: on a self-billed invoice the supplier is the seller, and PINT-OM IBR-019-OM requires the address line, city and post code |
 | M.5 | Supplier form, a supplier whose country is not Oman | a reverse-charge marker on the supplier (or derived from the country), so buying from abroad can point to the statutory self-billed invoice (import of services RCM, import of goods; BTOM-001 bits 9 and 13, IBR-017-OM, IBR-160-OM). Drawn later, with the self-billing rounds |
 | M.6 | Record a bill: the unit chosen on each line is now sent (row 7.11) | none if the server stores `unit`; otherwise store it and return it on the bill lines |
+
+---
+
+## Update 2026-10-06: self-billing moves to Expenditure
+
+**Owner decision (6 Oct 2026):** a self-billed invoice (PINT-OM self-billing, type 389; its credit
+note 261) is a **purchase**. The company is the buyer, writes the invoice on the supplier's behalf
+under a signed agreement, and owes the money. The Figma file draws it under Income; that placement
+was a design slip. Its menu entry now sits in Expenditure, after Bills, and its pages moved from
+`/income/self-billing/...` to `/expenditure/self-billing/...` (list, agreements, new, edit,
+detail, credit notes). The old addresses redirect, with the rest of the path and the query kept.
+The screens, API calls and permissions are unchanged. The earlier self-billing rows stay in
+`INCOME.md` section 7; new self-billing asks are added here.
+
+### S. Self-billing
+
+| # | The screen shows | Ask |
+|---|---|---|
+| S.1 | Menu entry Expenditure › Self-billing; every page under `/expenditure/self-billing/...` | none for the move. Any link the server writes into an e-mail, notification or agreement invitation that points at `/income/self-billing/...` should point at `/expenditure/self-billing/...` (the old address still redirects, so this is tidying, not a fault) |
+| S.2 | New self-billed invoice and Agreements: the supplier picker | The seller is stored as a **customer** record today: `customerId` on `/v1/self-billing-agreements` and on the self-billed draft names the seller, so the picker lists Contacts › Customers (consumers excluded) and a supplier must be created as a customer to be self-billed. The same company then exists twice (a customer and a supplier record) whose VAT number, address and Peppol ID can drift apart, and suppliers appear in the Customers list. Ask: link agreements, self-billed drafts and issued self-billed invoices to the **supplier** record (`supplierId`), read the picker from `GET /v1/suppliers`, and map existing sellers to their supplier records (keep accepting `customerId` while that runs). The bill raised from a self-billed invoice (`selfBilling` on `GET /v1/bills/{id}`) should then name the same supplier record |
+| S.3 | Self-billed invoice detail and its XML | Confirm the roles in the issued 389 / 261: the supplier is the **seller** (`cac:AccountingSupplierParty`, with its address per IBR-019-OM, row M.4) and the company is the **buyer** (`cac:AccountingCustomerParty`), even though the seller is read from a customer record today (S.2) |
