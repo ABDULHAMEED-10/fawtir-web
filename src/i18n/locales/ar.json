@@ -1000,7 +1000,6 @@
       "invoices": "الفواتير",
       "incomeChildren": {
         "invoice": "فاتورة",
-        "selfBilling": "الفوترة الذاتية",
         "reminders": "تذكيرات",
         "periodic": "فواتير دورية",
         "creditNotes": "إشعارات دائن",
@@ -3223,7 +3222,6 @@
       "confirm": "اسحبها",
       "withdrawing": "جارٍ السحب…"
     },
-    "breadcrumbIncome": "الدخل",
     "export": "تصدير",
     "newAgreement": "اتفاقية جديدة",
     "exportUnavailable": "تصدير الاتفاقيات غير متاح بعد: لا يوجد مسار لتنزيلها.",
@@ -19733,7 +19731,6 @@
     }
   },
   "selfBillDetail": {
-    "breadcrumbIncome": "الدخل",
     "breadcrumbSelfBilled": "الفوترة الذاتية",
     "raisedFor": "صادرة لصالح",
     "issuedOn": "صدرت في {{date}}",

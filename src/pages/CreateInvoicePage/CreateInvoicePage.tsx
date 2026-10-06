@@ -623,6 +623,18 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
     ;(async () => {
       try {
         const loaded = await loadDraft(id)
+        // A self-billed draft is edited under Expenditure › Self-billing (owner decision,
+        // 6 Oct 2026), never in the sales composer.
+        if (!selfBilled && loaded.type === 'SELF_BILLED_INVOICE') {
+          navigate(`/expenditure/self-billing/${encodeURIComponent(id)}/edit`, { replace: true })
+          return
+        }
+        if (!selfBilled && loaded.type === 'SELF_BILLED_CREDIT_NOTE') {
+          navigate(`/expenditure/self-billing/credit-notes/${encodeURIComponent(id)}/edit`, {
+            replace: true,
+          })
+          return
+        }
         const record = await apiRequest<CustomerDto>(
           `/v1/customers/${encodeURIComponent(loaded.customerId)}`,
         ).catch(() => null)
@@ -1163,7 +1175,9 @@ function InvoiceComposer({ selfBilled }: { selfBilled: boolean }) {
       if (!meta) {
         justCreated.current = result.id
         navigate(
-          selfBilled ? `/expenditure/self-billing/${result.id}/edit` : `/invoices/${result.id}/edit`,
+          selfBilled
+            ? `/expenditure/self-billing/${result.id}/edit`
+            : `/invoices/${result.id}/edit`,
           {
             replace: true,
           },

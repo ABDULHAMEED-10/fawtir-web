@@ -252,6 +252,11 @@ function renderAt(path: string) {
           <Route path="/invoices/:id/edit" element={<CreateInvoicePage />} />
           <Route path="/invoices" element={<p>invoices list</p>} />
           <Route path="/invoices/:id" element={<IssuedLanding />} />
+          <Route path="/expenditure/self-billing/:id/edit" element={<p>self-billing editor</p>} />
+          <Route
+            path="/expenditure/self-billing/credit-notes/:id/edit"
+            element={<p>self-billed credit note editor</p>}
+          />
         </Routes>
       </MemoryRouter>
     </ReferenceDataContext.Provider>,
@@ -807,6 +812,20 @@ describe('payment, attachments and duplicate (INCOME.md 3.4, 3.5, 1.4)', () => {
     expect(body.draft.details.subject).toBe('September supply')
     expect(body.draft.lines[0].description).toBe('Flat White')
     expect(body.draft.details.deliveryDate).toBeNull()
+    expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
+  })
+})
+
+describe('a self-billed draft opened from an Income address', () => {
+  // Owner decision, 6 Oct 2026: self-billing lives under Expenditure, so its drafts are never
+  // edited in the sales composer, and nothing is saved on the way.
+  it.each([
+    ['SELF_BILLED_INVOICE', 'self-billing editor'],
+    ['SELF_BILLED_CREDIT_NOTE', 'self-billed credit note editor'],
+  ] as const)('sends a %s draft to its Expenditure editor', async (type, landing) => {
+    loaded = draft({ type })
+    renderAt('/invoices/d-1/edit')
+    expect(await screen.findByText(landing)).toBeTruthy()
     expect(calls('PUT', '/api/v1/invoice-drafts/d-1')).toHaveLength(0)
   })
 })

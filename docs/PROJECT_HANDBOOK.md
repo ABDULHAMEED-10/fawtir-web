@@ -465,6 +465,12 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     agreements, new, edit, detail, credit notes). The old addresses redirect with the rest of the
     path and the query kept, so bookmarks and links in e-mails still work. Breadcrumbs start at
     Expenditure.
+  - Nothing of self-billing stays in Income: the Income › Invoices list, its tab counts and cards
+    ask for sales types only (`type=INVOICE,CREDIT_NOTE,DEBIT_NOTE`) and its Type filter no
+    longer offers the two self-billed types; an `/invoices/{id}` or `/invoices/{id}/edit` link to
+    a self-billed document opens it under Expenditure › Self-billing; Income › Credit notes never
+    listed 261. A self-billed credit note is created in Self-billing and its credit is managed in
+    Expenditure › Credit notes (source "Self-billed").
   - Unchanged: the screens and their layout, every API call, the permissions
     (`selfbilling.create`, `selfbilling.agreement.manage`), the plan gate (`selfBilling`) and the
     self-billed bill in Expenditure › Bills. No backend change is needed for the move.

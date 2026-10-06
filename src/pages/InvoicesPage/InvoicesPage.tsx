@@ -123,12 +123,11 @@ const isTab = (value: string | null): value is TabId => value === 'toSend' || is
 type ChannelId = 'all' | 'peppol' | 'email'
 
 /**
- * The payment tabs are the customer's side of the ledger. A self-billed invoice's debt is what the
- * tenant owes its supplier (its Expenditure payable, decision D2), so it is left to the
- * Self-billing page: with no Type chosen, these tabs and their counts ask for the sales types only
- * (Zain, 30 Sep 2026). A Type the user picks is sent as it is.
+ * Income lists sales documents only. A self-billed invoice or credit note is a purchase written on
+ * the supplier's behalf (its debt is the tenant's Expenditure payable, decision D2), so it lives
+ * under Expenditure › Self-billing (owner decision, 6 Oct 2026): with no Type chosen, every tab and
+ * its count ask for the sales types, and the Type filter offers nothing else.
  */
-const PAYMENT_TABS: ReadonlySet<TabId> = new Set<TabId>(['awaiting', 'overdue', 'paid'])
 const SALES_TYPES: InvoiceTypeDto[] = ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE']
 const SALES_SUMMARY_PATH = withQuery(INVOICE_SUMMARY_PATH, { type: SALES_TYPES.join(',') })
 const CHANNELS: ChannelId[] = ['all', 'peppol', 'email']
@@ -234,13 +233,13 @@ function InvoicesScreen() {
                 state: 'ISSUED',
                 delivery: 'TO_SEND' as const,
                 payment: null,
-                type,
+                type: type ?? SALES_TYPES,
                 ...periodRange(period, summary.read.data.asOf),
                 search: query,
               }
             : {
                 ...listFilter(tab, type, period, summary.read.data.asOf, query),
-                ...(type === null && PAYMENT_TABS.has(tab) ? { type: SALES_TYPES } : {}),
+                ...(type === null ? { type: SALES_TYPES } : {}),
               }),
           channel: channelFilter,
         }
@@ -295,6 +294,7 @@ function InvoicesScreen() {
     try {
       await discardDraft(target.id, target.version)
       summary.retry()
+      salesSummary.retry()
       list.retry()
     } catch (error) {
       setNotice({
@@ -322,6 +322,7 @@ function InvoicesScreen() {
       await cancelInvoice(cancelling.id, cancelling.version, reason.trim())
       closeCancel()
       summary.retry()
+      salesSummary.retry()
       list.retry()
     } catch (error) {
       setNotice({ body: failureText(t, error) })
@@ -378,6 +379,7 @@ function InvoicesScreen() {
         onClose={() => setImporting(false)}
         onCreated={() => {
           summary.retry()
+          salesSummary.retry()
           list.retry()
         }}
       />
@@ -397,7 +399,8 @@ function InvoicesScreen() {
     )
   }
 
-  const totals = summary.read.data
+  // Counts and cards are the sales figures; the unfiltered summary only stands in until they load.
+  const totals = salesSummary.read.status === 'ready' ? salesSummary.read.data : summary.read.data
   const page = list.read.status === 'ready' ? list.read.data : null
 
   return (
@@ -416,14 +419,7 @@ function InvoicesScreen() {
           {TABS.map((entry) => {
             const active = entry.id === tab
             // The owner asked for 0 rather than an empty badge when the summary is unavailable.
-            const tally =
-              entry.id === 'toSend'
-                ? (totals.toSend ?? 0)
-                : PAYMENT_TABS.has(entry.id)
-                  ? salesSummary.read.status === 'ready'
-                    ? tabCount(salesSummary.read.data, entry.id)
-                    : 0
-                  : tabCount(totals, entry.id)
+            const tally = entry.id === 'toSend' ? (totals.toSend ?? 0) : tabCount(totals, entry.id)
             return (
               <button
                 key={entry.id}

@@ -997,7 +997,6 @@
       "invoices": "Invoices",
       "incomeChildren": {
         "invoice": "Invoice",
-        "selfBilling": "Self-billing",
         "reminders": "Reminders",
         "periodic": "Periodic invoices",
         "creditNotes": "Credit notes",
@@ -3086,7 +3085,6 @@
       "confirm": "Withdraw it",
       "withdrawing": "Withdrawing…"
     },
-    "breadcrumbIncome": "Income",
     "export": "Export",
     "newAgreement": "New agreement",
     "exportUnavailable": "Exporting agreements is not available yet: there is no route to download them.",
@@ -18895,7 +18893,6 @@
     }
   },
   "selfBillDetail": {
-    "breadcrumbIncome": "Income",
     "breadcrumbSelfBilled": "Self-billed",
     "raisedFor": "Raised for",
     "issuedOn": "issued {{date}}",
