@@ -29,6 +29,8 @@ export type CompanyProfileDto = {
   registeredPostalCode: string | null
   registeredCountrySubdivision: string | null
   registeredPoBox: string | null
+  /** BTOM-024, a CL-13-OM code (V109). Absent from servers that predate it. */
+  registeredCountrySubdivisionCode?: string | null
   contactPersonName: string | null
   contactPhone: string | null
   contactEmail: string | null
@@ -67,6 +69,34 @@ export function loadCompanyProfile(): Promise<CompanyProfileDto> {
 export function saveCompanyProfile(command: UpdateCompanyProfileCommand): Promise<CompanyProfileDto> {
   return apiRequest<CompanyProfileDto>(COMPANY_PROFILE_PATH, {
     method: 'PUT',
+    body: command,
+  })
+}
+
+/**
+ * `POST /company-profile/amendments`: a VERIFIED company correcting its registered address and
+ * invoice contact without re-verification. The body carries those fields and nothing else; the
+ * server refuses any identity field by name rather than ignoring it. A stale `expectedRevision`
+ * answers 409.
+ */
+export type AmendCompanyProfileCommand = {
+  expectedRevision: number
+  registeredAddress: string | null
+  registeredAddressLine2: string | null
+  registeredAddressLine3: string | null
+  registeredCity: string | null
+  registeredPostalCode: string | null
+  registeredPoBox: string | null
+  registeredCountrySubdivision: string | null
+  registeredCountrySubdivisionCode: string | null
+  contactPersonName: string | null
+  contactPhone: string | null
+  contactEmail: string | null
+}
+
+export function amendCompanyProfile(command: AmendCompanyProfileCommand): Promise<CompanyProfileDto> {
+  return apiRequest<CompanyProfileDto>(`${COMPANY_PROFILE_PATH}/amendments`, {
+    method: 'POST',
     body: command,
   })
 }

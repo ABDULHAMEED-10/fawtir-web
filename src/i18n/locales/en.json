@@ -1379,6 +1379,10 @@
       "autoRemindersHint": "Fawtir chases overdue invoices for this customer on a schedule."
     },
     "address": {
+      "additionalStreet": "Additional street or area",
+      "additionalStreetPlaceholder": "e.g. Al Khuwair",
+      "addressLine3": "Building or address line 3",
+      "addressLine3Placeholder": "e.g. Building 12, Office 4",
       "invoicing": "Invoicing address",
       "delivery": "Delivery address",
       "sameAsInvoicing": "Same as invoicing address",
@@ -9796,6 +9800,16 @@
     }
   },
   "companyProfile": {
+    "addressLine2": "Additional street or area",
+    "addressLine3": "Building or address line 3",
+    "poBox": "PO Box",
+    "governorate": "Governorate",
+    "subdivisionCode": "Subdivision code",
+    "subdivisionCodeNone": "Not set",
+    "contactPerson": "Contact person",
+    "addressAmendNote": "You can update your registered address and contact. Changes apply to invoices you issue from now on; invoices already issued keep the details they were issued with.",
+    "amendConflict": "Someone else updated the company details while you were editing. The latest version is now shown — make your change again.",
+    "amendFieldsRefused": "Complete these before saving: {{fields}}.",
     "title": "Company profile",
     "subtitle": "What appears on every invoice you send, and what the Tax Authority holds about you",
     "sampleInvoice": "See a full sample invoice",
@@ -9808,7 +9822,7 @@
     "commercialRegistration": "Commercial registration",
     "vatNumber": "VAT number",
     "locked": "locked",
-    "lockedNote": "Changing this means re-registering on Peppol. Talk to support first.",
+    "lockedNote": "Part of your verified tax identity. Changing it needs re-verification — contact support.",
     "vatRegisteredSince": "VAT registered since",
     "whereYouAre": "Where you are",
     "whereYouAreNote": "the registered address; branches have their own",
@@ -9886,7 +9900,7 @@
     "industrialClassificationUnset": "Not set yet. Business and government invoices cannot be created until a business activity is set. Consumer invoices are not affected.",
     "industrialClassificationFailed": "The business activity was not saved. Check the code and try again.",
     "saveFailed": "That did not save. Check your connection and try again.",
-    "identityLockedNote": "Verified companies can't edit these details here yet. Contact support if something needs correcting."
+    "identityLockedNote": "Your legal and tax identity is verified and locked. Changing it needs a controlled re-verification — contact support."
   },
   "branches": {
     "title": "Branches",
@@ -17299,6 +17313,8 @@
       "dueDateBeforeIssue": "The due date can't be before the issue date."
     },
     "refused": {
+      "sellerAddressIncomplete": "Your company address is incomplete, so this invoice cannot be issued. Complete it in Settings › Company, then issue again.",
+      "sellerContactIncomplete": "Your company's contact phone is missing, so this invoice cannot be issued. Add it in Settings › Company, then issue again.",
       "companyPending": "Your company is still being verified, so it can't issue invoices yet.",
       "companyRejected": "Your company's verification was declined, so it can't issue invoices. Contact support.",
       "tenantInactive": "Your account isn't active, so it can't issue invoices.",

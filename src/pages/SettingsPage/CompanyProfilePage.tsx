@@ -27,11 +27,14 @@ import {
 } from '../../api/company/invoiceDefaults'
 import {
   COMPANY_PROFILE_PATH,
+  amendCompanyProfile,
   loadCompanyProfile,
   saveCompanyProfile,
   type CompanyProfileDto,
 } from '../../api/company/companyProfile'
+import { ApiError } from '../../api/errors'
 import { isicOptions as isicOptionsFor } from '../../lib/codeLists/isic'
+import { CODE_LISTS } from '../../lib/erpCodeLists'
 import infoIcon from '../../assets/settings/info.svg'
 import tickIcon from '../../assets/settings/check-white.svg'
 import lockIcon from '../../assets/settings/menu-key.svg'
@@ -48,6 +51,21 @@ const LANGUAGE_FROM_API: Record<string, string> = { AR_EN: 'both', AR: 'ar', EN:
 const COUNTRY_TO_API: Record<string, string> = { Oman: 'OM', 'United Arab Emirates': 'AE' }
 const COUNTRY_FROM_API: Record<string, string> = { OM: 'Oman', AE: 'United Arab Emirates' }
 
+/** The amendment's field names, as the server refuses them, to the label this screen shows. */
+const FIELD_LABEL: Record<string, string> = {
+  registeredAddress: 'streetAddress',
+  registeredAddressLine2: 'addressLine2',
+  registeredAddressLine3: 'addressLine3',
+  registeredCity: 'townOrCity',
+  registeredPostalCode: 'postalCode',
+  registeredPoBox: 'poBox',
+  registeredCountrySubdivision: 'governorate',
+  registeredCountrySubdivisionCode: 'subdivisionCode',
+  contactPersonName: 'contactPerson',
+  contactPhone: 'phone',
+  contactEmail: 'emailOnInvoices',
+}
+
 /** The shape the form edits. Kept flat so a dirty-field diff is a plain key comparison. */
 type Profile = {
   registeredName: string
@@ -58,9 +76,15 @@ type Profile = {
   industrialClassification: string
   vatRegisteredSince: string
   street: string
+  addressLine2: string
+  addressLine3: string
   town: string
   postalCode: string
+  poBox: string
+  governorate: string
+  subdivisionCode: string
   country: string
+  contactPerson: string
   phone: string
   email: string
   website: string
@@ -72,6 +96,39 @@ type Profile = {
   footerNote: string
 }
 
+/** What a VERIFIED company may still change: the registered address and the invoice contact. */
+const OPERATIONAL_FIELDS = [
+  'street',
+  'addressLine2',
+  'addressLine3',
+  'town',
+  'postalCode',
+  'poBox',
+  'governorate',
+  'subdivisionCode',
+  'contactPerson',
+  'phone',
+  'email',
+] as const satisfies readonly (keyof Profile)[]
+
+type OperationalFields = Pick<Profile, (typeof OPERATIONAL_FIELDS)[number]>
+
+function operationalFrom(stored: CompanyProfileDto): OperationalFields {
+  return {
+    street: stored.registeredAddress,
+    addressLine2: stored.registeredAddressLine2 ?? '',
+    addressLine3: stored.registeredAddressLine3 ?? '',
+    town: stored.registeredCity ?? '',
+    postalCode: stored.registeredPostalCode ?? '',
+    poBox: stored.registeredPoBox ?? '',
+    governorate: stored.registeredCountrySubdivision ?? '',
+    subdivisionCode: stored.registeredCountrySubdivisionCode ?? '',
+    contactPerson: stored.contactPersonName ?? '',
+    phone: stored.contactPhone ?? '',
+    email: stored.contactEmail ?? '',
+  }
+}
+
 const INITIAL: Profile = {
   registeredName: COMPANY.legalName,
   arabicName: COMPANY.arabicName,
@@ -80,9 +137,15 @@ const INITIAL: Profile = {
   industrialClassification: '',
   vatRegisteredSince: COMPANY.vatRegisteredSince,
   street: COMPANY.street,
+  addressLine2: '',
+  addressLine3: '',
   town: COMPANY.town,
   postalCode: COMPANY.postalCode,
+  poBox: '',
+  governorate: '',
+  subdivisionCode: '',
   country: COMPANY.country,
+  contactPerson: '',
   phone: COMPANY.phone,
   email: COMPANY.email,
   website: COMPANY.website,
@@ -127,9 +190,13 @@ export function CompanyProfilePage() {
   const [storedActivity, setStoredActivity] = useState<string | null | undefined>(undefined)
   const [storedProfile, setStoredProfile] = useState<CompanyProfileDto | undefined>(undefined)
   const [profileSaveFailed, setProfileSaveFailed] = useState(false)
-  // Once VERIFIED, PUT /company-profile refuses outright ("requires an approved amendment
-  // workflow", which does not exist) — the identity fields below go read-only rather than offer a
-  // save that always fails (Zain, 2026-09-28: wire what's safe, read-only once verified).
+  /** Someone else saved the profile first; the operational fields were reloaded from the server. */
+  const [profileConflict, setProfileConflict] = useState(false)
+  /** Fields the server refused by name (a 400 from the amendment), shown as one sentence. */
+  const [profileFieldErrors, setProfileFieldErrors] = useState<string[]>([])
+  // Once VERIFIED, the legal and tax identity is locked: PUT /company-profile refuses it and there
+  // is no re-verification procedure yet. The registered address and contact stay editable through
+  // POST /company-profile/amendments (approved 2026-10-06), which leaves the verification as it is.
   const verified = storedProfile?.verificationStatus === 'VERIFIED'
   const [storedBrandColour, setStoredBrandColour] = useState<string | undefined>(undefined)
   // receiptMonochrome round-trips unchanged on save: the screen's own control for it
@@ -182,9 +249,15 @@ export function CompanyProfilePage() {
       tradingAs: data.tradingName ?? '',
       commercialRegistration: data.commercialRegistrationNumber,
       street: data.registeredAddress,
+      addressLine2: data.registeredAddressLine2 ?? '',
+      addressLine3: data.registeredAddressLine3 ?? '',
       town: data.registeredCity ?? '',
       postalCode: data.registeredPostalCode ?? '',
+      poBox: data.registeredPoBox ?? '',
+      governorate: data.registeredCountrySubdivision ?? '',
+      subdivisionCode: data.registeredCountrySubdivisionCode ?? '',
       country: COUNTRY_FROM_API[data.country] ?? current.country,
+      contactPerson: data.contactPersonName ?? '',
       phone: data.contactPhone ?? '',
       email: data.contactEmail ?? '',
     }))
@@ -206,9 +279,15 @@ export function CompanyProfilePage() {
             tradingAs: storedProfile.tradingName ?? '',
             commercialRegistration: storedProfile.commercialRegistrationNumber,
             street: storedProfile.registeredAddress,
+            addressLine2: storedProfile.registeredAddressLine2 ?? '',
+            addressLine3: storedProfile.registeredAddressLine3 ?? '',
             town: storedProfile.registeredCity ?? '',
             postalCode: storedProfile.registeredPostalCode ?? '',
+            poBox: storedProfile.registeredPoBox ?? '',
+            governorate: storedProfile.registeredCountrySubdivision ?? '',
+            subdivisionCode: storedProfile.registeredCountrySubdivisionCode ?? '',
             country: COUNTRY_FROM_API[storedProfile.country] ?? INITIAL.country,
+            contactPerson: storedProfile.contactPersonName ?? '',
             phone: storedProfile.contactPhone ?? '',
             email: storedProfile.contactEmail ?? '',
           }
@@ -221,6 +300,17 @@ export function CompanyProfilePage() {
   // TODO(backend): `GET /v1/code-lists/isic?q=` for the search, and the choice stored as
   // `industrialClassification { code, name }` on `GET/PUT /v1/settings/company`.
   const isicOptions = useMemo<SelectOption[]>(() => isicOptionsFor(i18n.language), [i18n.language])
+  // CL-13-OM, the closed list the server accepts (BTOM-024); none is a valid choice.
+  const subdivisionOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: '', label: t('companyProfile.subdivisionCodeNone') },
+      ...CODE_LISTS.COUNTRY_SUBDIVISION.values.map((entry) => ({
+        value: entry.code,
+        label: `${entry.code} · ${(i18n.language.startsWith('ar') ? entry.nameAr : entry.name) ?? entry.code}`,
+      })),
+    ],
+    [i18n.language, t],
+  )
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -367,39 +457,58 @@ export function CompanyProfilePage() {
           <Panel
             title={t('companyProfile.whereYouAre')}
             note={
-              verified ? t('companyProfile.identityLockedNote') : t('companyProfile.whereYouAreNote')
+              verified ? t('companyProfile.addressAmendNote') : t('companyProfile.whereYouAreNote')
             }
           >
+            {/* The registered address and contact stay editable once VERIFIED: they go through the
+                amendment, which leaves the verification as it is. Country is identity and stays
+                locked. The five address parts and the phone are what every invoice must state
+                (IBR-010-OM, IBR-011-OM), hence the required marks. */}
             <div className="grid gap-4">
               <Field label={t('companyProfile.streetAddress')} required>
                 <textarea
+                  aria-label={t('companyProfile.streetAddress')}
                   value={form.street}
                   onChange={(event) => set('street', event.target.value)}
                   rows={2}
-                  readOnly={verified}
-                  className={[
-                    'w-full resize-none rounded-sm border border-border-default px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors',
-                    verified ? 'bg-surface-background text-text-tertiary' : 'bg-white focus:border-border-brand',
-                  ].join(' ')}
+                  maxLength={500}
+                  className="w-full resize-none rounded-sm border border-border-default bg-white px-3 py-2.5 text-sm font-medium text-text-primary outline-none transition-colors focus:border-border-brand"
                 />
               </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  bordered
+                  label={t('companyProfile.addressLine2')}
+                  requiredMark
+                  maxLength={500}
+                  value={form.addressLine2}
+                  onChange={(event) => set('addressLine2', event.target.value)}
+                />
+                <Input
+                  bordered
+                  label={t('companyProfile.addressLine3')}
+                  requiredMark
+                  maxLength={500}
+                  value={form.addressLine3}
+                  onChange={(event) => set('addressLine3', event.target.value)}
+                />
+              </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   bordered
                   label={t('companyProfile.townOrCity')}
                   requiredMark
+                  maxLength={100}
                   value={form.town}
                   onChange={(event) => set('town', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
                 <Input
                   bordered
                   label={t('companyProfile.postalCode')}
+                  requiredMark
+                  maxLength={20}
                   value={form.postalCode}
                   onChange={(event) => set('postalCode', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
                 <Field label={t('companyProfile.country')} required>
                   <Select
@@ -417,19 +526,55 @@ export function CompanyProfilePage() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <Input
                   bordered
-                  label={t('companyProfile.phone')}
-                  value={form.phone}
-                  onChange={(event) => set('phone', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
+                  label={t('companyProfile.poBox')}
+                  hint={t('companyProfile.optional')}
+                  maxLength={30}
+                  value={form.poBox}
+                  onChange={(event) => set('poBox', event.target.value)}
                 />
                 <Input
                   bordered
+                  label={t('companyProfile.governorate')}
+                  hint={t('companyProfile.optional')}
+                  maxLength={100}
+                  value={form.governorate}
+                  onChange={(event) => set('governorate', event.target.value)}
+                />
+                <Field label={t('companyProfile.subdivisionCode')} hint={t('companyProfile.optional')}>
+                  <Select
+                    ariaLabel={t('companyProfile.subdivisionCode')}
+                    value={form.subdivisionCode}
+                    onChange={(value) => set('subdivisionCode', value)}
+                    disabled={!verified}
+                    options={subdivisionOptions}
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  bordered
+                  label={t('companyProfile.contactPerson')}
+                  hint={t('companyProfile.optional')}
+                  maxLength={200}
+                  value={form.contactPerson}
+                  onChange={(event) => set('contactPerson', event.target.value)}
+                />
+                <Input
+                  bordered
+                  label={t('companyProfile.phone')}
+                  requiredMark
+                  maxLength={30}
+                  value={form.phone}
+                  onChange={(event) => set('phone', event.target.value)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  bordered
                   label={t('companyProfile.emailOnInvoices')}
+                  maxLength={255}
                   value={form.email}
                   onChange={(event) => set('email', event.target.value)}
-                  readOnly={verified}
-                  readOnlyAppearance={verified}
                 />
                 {/* TODO(backend): docs/backend-guides/SETTINGS.md row 2 — /company-profile has no
                     website field at all; this stays local-only until one exists. */}
@@ -440,6 +585,20 @@ export function CompanyProfilePage() {
                   onChange={(event) => set('website', event.target.value)}
                 />
               </div>
+              {profileConflict ? (
+                <p role="alert" className="text-xs font-medium text-warning-700">
+                  {t('companyProfile.amendConflict')}
+                </p>
+              ) : null}
+              {profileFieldErrors.length > 0 ? (
+                <p role="alert" className="text-xs font-medium text-danger-700">
+                  {t('companyProfile.amendFieldsRefused', {
+                    fields: profileFieldErrors
+                      .map((field) => t(`companyProfile.${FIELD_LABEL[field] ?? 'streetAddress'}`))
+                      .join(t('companyProfile.andJoin')),
+                  })}
+                </p>
+              ) : null}
               {profileSaveFailed ? (
                 <p role="alert" className="text-xs font-medium text-danger-700">
                   {t('companyProfile.saveFailed')}
@@ -859,6 +1018,47 @@ export function CompanyProfilePage() {
               setBrandingSaveFailed(false)
               setDefaultsSaveFailed(false)
               setProfileSaveFailed(false)
+              setProfileConflict(false)
+              setProfileFieldErrors([])
+              const operationalDirty = OPERATIONAL_FIELDS.some((key) => form[key] !== baseline[key])
+              if (verified && operationalDirty && storedProfile) {
+                try {
+                  const stored = await amendCompanyProfile({
+                    expectedRevision: storedProfile.profileRevision,
+                    registeredAddress: form.street || null,
+                    registeredAddressLine2: form.addressLine2 || null,
+                    registeredAddressLine3: form.addressLine3 || null,
+                    registeredCity: form.town || null,
+                    registeredPostalCode: form.postalCode || null,
+                    registeredPoBox: form.poBox || null,
+                    registeredCountrySubdivision: form.governorate || null,
+                    registeredCountrySubdivisionCode: form.subdivisionCode || null,
+                    contactPersonName: form.contactPerson || null,
+                    contactPhone: form.phone || null,
+                    contactEmail: form.email || null,
+                  })
+                  setStoredProfile(stored)
+                } catch (error) {
+                  if (error instanceof ApiError && error.status === 409) {
+                    // Someone saved first. Their values replace these fields rather than being
+                    // overwritten by a save built on what this screen read earlier.
+                    try {
+                      const latest = await loadCompanyProfile()
+                      setStoredProfile(latest)
+                      setForm((current) => ({ ...current, ...operationalFrom(latest) }))
+                    } catch {
+                      setProfileSaveFailed(true)
+                      return
+                    }
+                    setProfileConflict(true)
+                  } else if (error instanceof ApiError && error.status === 400 && error.fieldErrors.length > 0) {
+                    setProfileFieldErrors(error.fieldErrors.map((refused) => refused.field))
+                  } else {
+                    setProfileSaveFailed(true)
+                  }
+                  return
+                }
+              }
               const identityDirty =
                 !verified &&
                 storedProfile &&
@@ -866,12 +1066,8 @@ export function CompanyProfilePage() {
                   form.arabicName !== baseline.arabicName ||
                   form.tradingAs !== baseline.tradingAs ||
                   form.commercialRegistration !== baseline.commercialRegistration ||
-                  form.street !== baseline.street ||
-                  form.town !== baseline.town ||
-                  form.postalCode !== baseline.postalCode ||
                   form.country !== baseline.country ||
-                  form.phone !== baseline.phone ||
-                  form.email !== baseline.email)
+                  operationalDirty)
               if (identityDirty && storedProfile) {
                 try {
                   const stored = await saveCompanyProfile({
@@ -884,13 +1080,13 @@ export function CompanyProfilePage() {
                     commercialRegistrationNumber: form.commercialRegistration,
                     country: COUNTRY_TO_API[form.country] ?? storedProfile.country,
                     registeredAddress: form.street,
-                    registeredAddressLine2: storedProfile.registeredAddressLine2,
-                    registeredAddressLine3: storedProfile.registeredAddressLine3,
+                    registeredAddressLine2: form.addressLine2 || null,
+                    registeredAddressLine3: form.addressLine3 || null,
                     registeredCity: form.town || null,
                     registeredPostalCode: form.postalCode || null,
-                    registeredCountrySubdivision: storedProfile.registeredCountrySubdivision,
-                    registeredPoBox: storedProfile.registeredPoBox,
-                    contactPersonName: storedProfile.contactPersonName,
+                    registeredCountrySubdivision: form.governorate || null,
+                    registeredPoBox: form.poBox || null,
+                    contactPersonName: form.contactPerson || null,
                     contactPhone: form.phone || null,
                     contactEmail: form.email || null,
                   })
