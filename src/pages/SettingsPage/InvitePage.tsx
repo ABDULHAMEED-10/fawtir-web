@@ -103,9 +103,11 @@ export function InvitePage() {
                 />
               </div>
               <label className="block">
-                <span className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-medium text-text-secondary">
+                <span className="mb-1 flex flex-wrap items-center gap-x-1.5 text-sm font-medium text-text-primary">
                   {t('invite.note')}
-                  <span className="font-normal text-text-quaternary">{t('invite.noteHint')}</span>
+                  <span className="text-xs font-normal text-text-quaternary">
+                    {t('invite.noteHint')}
+                  </span>
                 </span>
                 <textarea
                   value={note}
@@ -238,14 +240,10 @@ export function InvitePage() {
                               : branch.turnoverNoteKey
                                 ? t('invite.wholesaleOnly')
                                 : branch.address.split(',').slice(0, 2).join(',')}{' '}
-                            ·{' '}
+                            · {t('invite.peopleCount', { count: branch.staff.length })} ·{' '}
                             {branch.tills === 0
-                              ? t('invite.branchNoTill', { people: branch.staff.length })
-                              : t('invite.branchMeta', {
-                                  people: branch.staff.length,
-                                  tills: branch.tills,
-                                  count: branch.staff.length,
-                                })}
+                              ? t('invite.noTill')
+                              : t('invite.tillCount', { count: branch.tills })}
                           </span>
                         </span>
                         <TableCheckbox

@@ -369,7 +369,7 @@ export function BillingPage() {
                   ].join(' ')}
                 >
                   <td className="px-5 py-4 align-top">
-                    <p className="font-mono text-sm font-semibold text-primary-700">
+                    <p className="whitespace-nowrap font-mono text-sm font-semibold text-primary-700">
                       {row.reference}
                     </p>
                     <p className="mt-1 text-xs font-medium text-text-quaternary">{row.issued}</p>

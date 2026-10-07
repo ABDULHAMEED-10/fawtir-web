@@ -6,6 +6,7 @@ import { Combobox, Input, Select, withRial, type SelectOption } from '../../comp
 import { COMPANY } from '../../lib/settings'
 import { useApiRead } from '../../hooks/useApiRead'
 import { useSession } from '../../lib/session/session'
+import { initialsOf } from '../../lib/format'
 import {
   INDUSTRIAL_CLASSIFICATION_PATH,
   readIndustrialClassification,
@@ -159,8 +160,8 @@ const INITIAL: Profile = {
 
 /** What the sample invoice on the right is built from, so the preview totals are real. */
 const SAMPLE_LINES = [
-  { name: 'House Blend — 1 kg', quantity: 4, unit: 9.5 },
-  { name: 'Roasting — per batch', quantity: 2, unit: 4.2 },
+  { name: 'House Blend, 1 kg', quantity: 4, unit: 9.5 },
+  { name: 'Roasting, per batch', quantity: 2, unit: 4.2 },
 ]
 
 const VAT_RATE = 0.05
@@ -231,7 +232,9 @@ export function CompanyProfilePage() {
     setStoredDefaults(defaultsRead.data)
     setForm((current) => ({
       ...current,
-      language: defaultsRead.data.language ? LANGUAGE_FROM_API[defaultsRead.data.language] : current.language,
+      language: defaultsRead.data.language
+        ? LANGUAGE_FROM_API[defaultsRead.data.language]
+        : current.language,
       currency: defaultsRead.data.currency ?? current.currency,
       paymentTerms: defaultsRead.data.paymentTerms ?? current.paymentTerms,
       footerNote: defaultsRead.data.footerNote ?? '',
@@ -268,7 +271,9 @@ export function CompanyProfilePage() {
       ...INITIAL,
       industrialClassification: storedActivity ?? '',
       brandColour: storedBrandColour ?? INITIAL.brandColour,
-      language: storedDefaults?.language ? LANGUAGE_FROM_API[storedDefaults.language] : INITIAL.language,
+      language: storedDefaults?.language
+        ? LANGUAGE_FROM_API[storedDefaults.language]
+        : INITIAL.language,
       currency: storedDefaults?.currency ?? INITIAL.currency,
       paymentTerms: storedDefaults?.paymentTerms ?? INITIAL.paymentTerms,
       footerNote: storedDefaults?.footerNote ?? '',
@@ -381,7 +386,7 @@ export function CompanyProfilePage() {
                 <Input
                   bordered
                   label={t('companyProfile.tradingAs')}
-                  hint={t('companyProfile.optional')}
+                  labelNote={t('companyProfile.optional')}
                   value={form.tradingAs}
                   onChange={(event) => set('tradingAs', event.target.value)}
                   readOnly={verified}
@@ -527,7 +532,7 @@ export function CompanyProfilePage() {
                 <Input
                   bordered
                   label={t('companyProfile.poBox')}
-                  hint={t('companyProfile.optional')}
+                  labelNote={t('companyProfile.optional')}
                   maxLength={30}
                   value={form.poBox}
                   onChange={(event) => set('poBox', event.target.value)}
@@ -535,12 +540,15 @@ export function CompanyProfilePage() {
                 <Input
                   bordered
                   label={t('companyProfile.governorate')}
-                  hint={t('companyProfile.optional')}
+                  labelNote={t('companyProfile.optional')}
                   maxLength={100}
                   value={form.governorate}
                   onChange={(event) => set('governorate', event.target.value)}
                 />
-                <Field label={t('companyProfile.subdivisionCode')} hint={t('companyProfile.optional')}>
+                <Field
+                  label={t('companyProfile.subdivisionCode')}
+                  hint={t('companyProfile.optional')}
+                >
                   <Select
                     ariaLabel={t('companyProfile.subdivisionCode')}
                     value={form.subdivisionCode}
@@ -554,7 +562,7 @@ export function CompanyProfilePage() {
                 <Input
                   bordered
                   label={t('companyProfile.contactPerson')}
-                  hint={t('companyProfile.optional')}
+                  labelNote={t('companyProfile.optional')}
                   maxLength={200}
                   value={form.contactPerson}
                   onChange={(event) => set('contactPerson', event.target.value)}
@@ -645,7 +653,7 @@ export function CompanyProfilePage() {
               >
                 {logoBroken ? (
                   <span className="flex size-14 items-center justify-center rounded-sm bg-primary-100 text-lg font-semibold text-primary-800">
-                    {(session?.tenantName ?? '').trim().charAt(0).toUpperCase() || '?'}
+                    {initialsOf(form.registeredName || session?.tenantName || '')}
                   </span>
                 ) : (
                   <img
@@ -837,7 +845,7 @@ export function CompanyProfilePage() {
                   <span className="flex items-start gap-2">
                     {logoBroken ? (
                       <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-primary-100 text-xs font-semibold text-primary-800">
-                        {(session?.tenantName ?? '').trim().charAt(0).toUpperCase() || '?'}
+                        {initialsOf(form.registeredName || session?.tenantName || '')}
                       </span>
                     ) : (
                       <img
@@ -1051,7 +1059,11 @@ export function CompanyProfilePage() {
                       return
                     }
                     setProfileConflict(true)
-                  } else if (error instanceof ApiError && error.status === 400 && error.fieldErrors.length > 0) {
+                  } else if (
+                    error instanceof ApiError &&
+                    error.status === 400 &&
+                    error.fieldErrors.length > 0
+                  ) {
                     setProfileFieldErrors(error.fieldErrors.map((refused) => refused.field))
                   } else {
                     setProfileSaveFailed(true)
@@ -1186,11 +1198,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-medium text-text-secondary">
+      <span className="mb-1 flex flex-wrap items-center gap-0.5 text-sm font-medium text-text-primary">
         {label}
-        {required ? <span className="text-danger-700">*</span> : null}
-        {hint ? <span className="font-normal text-text-quaternary">{hint}</span> : null}
-        {badge}
+        {required ? <span className="text-xl leading-4 text-primary-700">*</span> : null}
+        {hint ? (
+          <span className="ms-1.5 text-xs font-normal text-text-quaternary">{hint}</span>
+        ) : null}
+        {badge ? <span className="ms-1.5 inline-flex">{badge}</span> : null}
       </span>
       {children}
     </label>

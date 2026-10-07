@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { ActionMenu, Rial } from '../../components/ui'
 import { useApiRead } from '../../hooks'
+import { formatAmount, formatDate } from '../../lib/format'
 import {
   BRANCHES_OVERVIEW_PATH,
   loadBranchOverview,
@@ -142,7 +143,7 @@ function Kpi({
 }
 
 function BranchCard({ branch }: { branch: BranchOverviewRow }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const closed = !branch.active
 
   return (
@@ -259,16 +260,15 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
 
       {closed ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-surface-background bg-surface-background/50 px-5 py-4">
-          <p className="flex items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
+          <p className="flex min-w-0 flex-1 basis-[320px] items-start gap-2 text-sm font-medium leading-[1.5] text-text-tertiary">
             <img src={lockIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-60" />
-            <span
-              dangerouslySetInnerHTML={{
-                __html: t('branches.closedNote', {
-                  count: branch.invoicesThisMonth.toLocaleString('en-US'),
-                  prefix: `${branch.invoicePrefix ?? ''}-INV`,
-                }),
-              }}
-            />
+            {/* TODO(backend): SETTINGS.md row 3.1. The frame counts the branch's invoices ("Its 612
+                invoices"); the overview has this month's count only, which is 0 once closed. */}
+            <span>
+              {t('branches.closedNoteNoCount', {
+                prefix: branch.invoicePrefix ? `${branch.invoicePrefix}-INV` : 'INV',
+              })}
+            </span>
           </p>
           <button
             type="button"
@@ -301,7 +301,7 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
               </span>
             </p>
             <p className="mt-1 text-xs font-medium text-text-quaternary">
-              <Rial /> {branch.invoicedThisMonth.toFixed(3)}
+              <Rial /> {formatAmount(branch.invoicedThisMonth, 'OMR', i18n.language)}
             </p>
           </Cell>
 
@@ -346,12 +346,14 @@ function BranchCard({ branch }: { branch: BranchOverviewRow }) {
 }
 
 function StatePill({ branch }: { branch: BranchOverviewRow }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   if (!branch.active) {
     return (
       <span className="inline-flex h-[22px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
         <span className="size-1.5 rounded-full bg-[#a8abb2]" />
-        {branch.closedOn ? t('branches.closedOn', { date: branch.closedOn }) : t('branches.open')}
+        {branch.closedOn
+          ? t('branches.closedOn', { date: formatDate(branch.closedOn, i18n.language) })
+          : t('branches.open')}
       </span>
     )
   }

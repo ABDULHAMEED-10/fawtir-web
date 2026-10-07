@@ -58,7 +58,7 @@ export function PlanPage() {
                 {forecast.used}
               </span>
               <span className="text-lg font-medium text-text-quaternary">
-                / {forecast.allowance}
+                / {forecast.allowance.toLocaleString('en-US')}
               </span>
             </p>
             <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.6px] text-text-quaternary">
@@ -80,7 +80,7 @@ export function PlanPage() {
                   days: forecast.daysLeft,
                   short: Math.abs(forecast.shortfall),
                   spare: Math.abs(forecast.shortfall),
-                  allowance: forecast.allowance,
+                  allowance: forecast.allowance.toLocaleString('en-US'),
                 }}
                 components={{ b: <b className="font-semibold text-text-primary" /> }}
               />
@@ -157,7 +157,9 @@ export function PlanPage() {
           <Stat
             label={t('plan.stat.lastMonth')}
             value={String(USAGE_STATS.lastMonth)}
-            unit={t('plan.stat.lastMonthOf', { allowance: forecast.allowance })}
+            unit={t('plan.stat.lastMonthOf', {
+              allowance: forecast.allowance.toLocaleString('en-US'),
+            })}
             note={
               USAGE_STATS.lastMonth > forecast.allowance * 0.9
                 ? t('plan.stat.lastMonthNote')

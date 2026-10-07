@@ -60,3 +60,9 @@ the page the server answered, and says so.
 | 2.5 | The search box ("Search an invoice number, a name, anything...") | A `q` parameter searching the event, the resource and its number or name. Until then the search looks through the words shown on the page answered |
 | 2.6 | Sort: newest or oldest first | A `sort` parameter (`occurred_at` ascending or descending). Until then the page answered is reversed |
 | 2.7 | Each entry: who did it (the frame shows the person's initials and name, "Hafidh Saif changed the price of Flat White"), and a link to what it concerns | (1) `actor_display_name` on each item (the people list is not readable here); (2) a readable label for the resource (an invoice number, a customer or item name) beside `resource_id`; (3) where an event changed a value, the before and after (the frame's price change), from `metadata` in a documented shape. Until then a person shows the person glyph, the event is named in words, and the resource by its kind and a short id |
+
+## 3. Branches (`GET /v1/branches/overview`)
+
+| # | Element on the screen | What the backend needs to add |
+|---|---|---|
+| 3.1 | A closed branch's note: "Closed, not deleted. Its **612 invoices** stay reachable…" | The branch's all-time invoice count on each overview row (`invoicesTotal`). Until then the note leaves the number out: the row's `invoicesThisMonth` is 0 for a closed branch, and it used to print "Its 0 invoices" |

@@ -65,7 +65,7 @@ export function ActivityHistory({
     <section className="overflow-hidden rounded-md bg-surface-card">
       <div className="grid gap-4 p-5 sm:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-xs font-medium text-text-secondary">
+          <span className="text-sm font-medium text-text-primary">
             {t('activityLog.filter.resource')}
           </span>
           <Select
@@ -79,7 +79,7 @@ export function ActivityHistory({
           />
         </div>
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-xs font-medium text-text-secondary">
+          <span className="text-sm font-medium text-text-primary">
             {t('activityLog.filter.outcome')}
           </span>
           <Select

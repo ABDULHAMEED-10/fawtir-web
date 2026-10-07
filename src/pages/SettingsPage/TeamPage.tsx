@@ -24,7 +24,7 @@ import {
 import plusIcon from '../../assets/settings/plus-white.svg'
 import searchIcon from '../../assets/invoices/search.svg'
 import twoStepOnIcon from '../../assets/settings/check-green.svg'
-import twoStepOffIcon from '../../assets/settings/cert-urgent.svg'
+import twoStepOffIcon from '../../assets/settings/alert-amber.svg'
 import twoStepNeverIcon from '../../assets/settings/minus-amber.svg'
 import editIcon from '../../assets/settings/menu-edit.svg'
 import listIcon from '../../assets/settings/menu-list.svg'
@@ -36,7 +36,7 @@ import removeIcon from '../../assets/settings/menu-remove.svg'
 
 const TWO_STEP = {
   on: { icon: twoStepOnIcon, tint: 'bg-success-100', labelKey: 'team.twoStepOn' },
-  off: { icon: twoStepOffIcon, tint: 'bg-danger-100', labelKey: 'team.twoStepOff' },
+  off: { icon: twoStepOffIcon, tint: 'bg-pending-100', labelKey: 'team.twoStepOff' },
   never: { icon: twoStepNeverIcon, tint: 'bg-surface-background', labelKey: 'team.twoStepNever' },
 }
 
