@@ -48,6 +48,32 @@ const GUARDED = [
   'pages/ConsolePage/erp/ConsoleErpPage.tsx',
   'pages/ConsolePage/erp/ConsoleErpConnectionPage.tsx',
   'pages/ConsolePage/erp/ConsoleErpUnavailable.tsx',
+  // Phase 9: the integration overview, access and history, and the Plan page, whose ERP add-on
+  // section drew a state, a monthly usage figure and a working-looking "switch on" button from
+  // the connector mock.
+  'pages/ErpPage/ErpHomePage.tsx',
+  'pages/ErpPage/ErpAccessPage.tsx',
+  'pages/SettingsPage/PlanPage.tsx',
+  'pages/SettingsPage/IntegrationAreaNav.tsx',
+  'pages/SettingsPage/ActivityHistory.tsx',
+  'pages/SettingsPage/ActivityLogPage.tsx',
+  'api/erp/overview.ts',
+  'api/settings/activityLog.ts',
+  'lib/erp/setupChecklist.ts',
+  'lib/erp/integrationAreas.ts',
+  'lib/erp/erpAccess.ts',
+  'lib/activityLog.ts',
+]
+
+/**
+ * The activity log screens read the server's log only. They used to draw invented entries, people
+ * and monthly counts from `settingsRecords` (the design sample), which a tenant could not tell
+ * from their own organisation's history.
+ */
+const ACTIVITY_LOG_SCREENS = [
+  'pages/SettingsPage/ActivityLogPage.tsx',
+  'pages/SettingsPage/ActivityHistory.tsx',
+  'pages/ErpPage/ErpAccessPage.tsx',
 ]
 
 /**
@@ -82,6 +108,16 @@ describe('the production ERP connection screens', () => {
     expect(guardedFiles).toContain('pages/ErpPage/connections/ConnectionExtractionPage.tsx')
     expect(guardedFiles).toContain('pages/ErpPage/connections/extractionData.ts')
     expect(guardedFiles).toContain('api/erp/extraction.ts')
+  })
+
+  it.each(ACTIVITY_LOG_SCREENS)('%s does not read the sample activity log', (file) => {
+    expect(importsOf(file).filter((specifier) => specifier.includes('settingsRecords'))).toEqual([])
+  })
+
+  it('include the Phase 9 pages', () => {
+    expect(guardedFiles).toContain('pages/SettingsPage/PlanPage.tsx')
+    expect(guardedFiles).toContain('pages/ErpPage/ErpHomePage.tsx')
+    expect(guardedFiles).toContain('pages/SettingsPage/ActivityLogPage.tsx')
   })
 
   it.each(guardedFiles)('%s does not import the mock runtime', (file) => {

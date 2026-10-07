@@ -395,6 +395,23 @@ API push activity. GENERAL keys are not shown here. The Bridge page's API push l
 it. Built from the Integration templates without a Figma frame. Handoff:
 `docs/frontend/ERP_API_PUSH_HANDOFF.md`.
 
+## 7.13 ERP integration administration unified (7 Oct 2026)
+
+Settings › Integration now has one ERP integration area with its own strip: Overview
+(`/settings/erp`), Connections, Bridge upload, API push, Mapping, Activity and Access & history
+(`/settings/erp/access`). The strip shows only the areas the reader's permissions open. The
+overview draws `GET /v1/erp/overview` (backend Phase 6) for a chosen window: document buckets,
+attention counts linked by label, connection health, mapping readiness and the latest runs, with
+nothing totalled in the browser. A setup checklist per channel (managed pull, upload, API push) is
+worked out from server reads only, never stored, and neither upload nor API push asks for a
+connection. The connection list gained a Collection column from its own `health` field. Needs
+attention shows the recipient's recorded answer; RESPONSE_PENDING is still not evaluated (DEC-G).
+The activity log is now the server's (`/v1/settings/activity-log`, admins only); the sample log
+is gone, and so is the Plan page's mock ERP add-on. Access & history shows the reader's own
+permissions against each ERP capability and the plan's personas as permission sets (presentation
+only: the server has no persona roles). An ERP-scoped history for non-administrators is blocked on
+the backend (R22). Handoff: `docs/frontend/ERP_PHASE9_ADMINISTRATION_HANDOFF.md`.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |

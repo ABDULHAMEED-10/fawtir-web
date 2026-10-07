@@ -12,7 +12,7 @@ import { RowsView, Switch } from '../../components/ui'
 import { useErpAccess } from '../../hooks/useErpAccess'
 import { useLanguage } from '../../hooks'
 import { useConnectionList } from './connections/connectionData'
-import { ConnectionStatePill, TestOutcomePill } from './connections/connectionParts'
+import { CollectionCell, ConnectionStatePill, TestOutcomePill } from './connections/connectionParts'
 import { testReasonKey } from '../../lib/erp/connectionPolicy'
 import { formatInstant } from '../../lib/format'
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
@@ -138,7 +138,7 @@ function ConnectionTable({
       {/* Cards on a phone (the shared RowsView), the table from md up. */}
       <div className="max-md:px-5 max-md:pb-5">
       <RowsView>
-        <table className="w-full min-w-[820px] border-collapse text-sm">
+        <table className="w-full min-w-[940px] border-collapse text-sm">
           <thead>
             <tr className={THEAD_ROW}>
               <Th first>{t('erp.connections.list.columnName')}</Th>
@@ -147,11 +147,12 @@ function ConnectionTable({
               <Th>{t('erp.connections.list.columnState')}</Th>
               <Th>{t('erp.connections.list.columnCredential')}</Th>
               <Th>{t('erp.connections.list.columnLastTest')}</Th>
+              <Th>{t('erp.connections.list.columnCollection')}</Th>
             </tr>
           </thead>
           <tbody>
             {connections.length === 0 ? (
-              <EmptyRow columns={6}>
+              <EmptyRow columns={7}>
                 {canManage
                   ? `${t('erp.connections.list.empty')} ${t('erp.connections.list.emptyBody')}`
                   : t('erp.connections.list.emptyReadOnly')}
@@ -231,6 +232,10 @@ function ConnectionRow({ connection }: { connection: ErpConnectionDto }) {
             ) : null}
           </div>
         )}
+      </Td>
+      <Td>
+        {/* The list's own health field (backend Phase 6): no status read per row. */}
+        <CollectionCell health={connection.health} />
       </Td>
     </tr>
   )

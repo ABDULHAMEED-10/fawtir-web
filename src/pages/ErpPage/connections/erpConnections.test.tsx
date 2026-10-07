@@ -640,7 +640,7 @@ describe('extraction screens', () => {
     rows = [connection()]
     renderAt(`/settings/erp/connections/${ID}`)
     await screen.findByText('Head office Odoo')
-    const tabs = screen.getByRole('navigation', { name: /ERP|connection/i })
+    const tabs = screen.getByRole('navigation', { name: 'Connection screens' })
     // Write-back has no backend and stays off the strip. Runs and Records are the shared reports
     // fixed to this connection, so they are tabs now.
     expect(within(tabs).queryByText('Write-back')).toBeNull()
@@ -653,7 +653,7 @@ describe('extraction screens', () => {
     rows = [connection()]
     const { unmount } = renderAt(`/settings/erp/connections/${ID}`)
     await screen.findByText('Head office Odoo')
-    expect(within(screen.getByRole('navigation', { name: /ERP|connection/i })).getByText('Extraction'))
+    expect(within(screen.getByRole('navigation', { name: 'Connection screens' })).getByText('Extraction'))
       .toBeTruthy()
     unmount()
 
@@ -662,7 +662,7 @@ describe('extraction screens', () => {
       rows = [connection({ connectionMode: mode })]
       const view = renderAt(`/settings/erp/connections/${ID}`)
       await screen.findByText('Head office Odoo')
-      const tabs = screen.getByRole('navigation', { name: /ERP|connection/i })
+      const tabs = screen.getByRole('navigation', { name: 'Connection screens' })
       expect(within(tabs).queryByText('Extraction')).toBeNull()
       view.unmount()
     }

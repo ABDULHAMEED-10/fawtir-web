@@ -111,6 +111,8 @@ export const ROUTE_FEATURES: { prefix: string; feature: Feature }[] = [
   { prefix: '/settings/erp/documents', feature: 'erpMapping' },
   { prefix: '/settings/erp/attention', feature: 'erpMapping' },
   { prefix: '/settings/erp/runs', feature: 'erpMapping' },
+  { prefix: '/settings/erp/access', feature: 'erpMapping' },
+  { prefix: '/settings/erp', feature: 'erpMapping' },
 ]
 
 export function featureForPath(pathname: string): Feature | undefined {

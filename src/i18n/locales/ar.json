@@ -10136,7 +10136,10 @@
         "READY_UNCERTIFIED": "جاهز، غير معتمد",
         "PARTIALLY_CERTIFIED": "معتمد جزئيًا",
         "CERTIFIED": "معتمد",
-        "STALE": "يحتاج إعادة اعتماد"
+        "STALE": "يحتاج إعادة اعتماد",
+        "NO_ACCESS": "لا صلاحية",
+        "CHECKING": "جارٍ التحقق",
+        "UNAVAILABLE": "غير متاح"
       },
       "erpMappingFoot": "موجّه · {{system}} · {{mapped}} من {{required}} حقلًا مطلوبًا",
       "erpMappingFootNone": "ابدأ بفاتورة نموذجية من نظامك",
@@ -10174,7 +10177,18 @@
       "apiPushTitle": "الإرسال عبر الواجهة البرمجية",
       "apiPushBody": "المفاتيح التي يستخدمها نظام تخطيط الموارد لإرسال المستندات إلى فوترة، وطريقة استدعاء الواجهة البرمجية.",
       "apiPushPill": "مفاتيح استقبال ERP",
-      "apiPushFoot": "إنشاء وتدوير وإلغاء"
+      "apiPushFoot": "إنشاء وتدوير وإلغاء",
+      "erpOverviewTitle": "تكامل ERP",
+      "erpOverviewBody": "كيف تصل المستندات إلى فوتر من نظام ERP، وما يحتاج إلى متابعة، وما بقي لإعداده.",
+      "erpOverviewPill": "نظرة عامة",
+      "erpOverviewFoot": "الاتصالات، الرفع، الإرسال عبر الواجهة، الربط",
+      "erpAccessTitle": "صلاحيات وسجل ERP",
+      "erpAccessBody": "من يستطيع فعل ماذا في تكامل ERP، وسجل التغييرات التي أُجريت عليه.",
+      "erpAccessPill": "الصلاحيات",
+      "erpAccessFoot": "الصلاحيات وسجل النشاط",
+      "logFootReal": "يسجّله الخادم",
+      "erpMappingFootNoAccess": "لا يتيح دورك عرض الربط",
+      "erpMappingFootUnknown": "الحالة غير متاحة الآن"
     }
   },
   "peppolTax": {
@@ -11015,13 +11029,14 @@
     },
     "addons": {
       "title": "الإضافات",
-      "subtitle": "ما تدفعه فوق الخطة.",
+      "subtitle": "ما لدى مؤسستك فوق الخطة.",
       "extraction": {
-        "name": "الاستخراج التلقائي من ERP",
-        "body": "يجمع فوتر الفواتير من نظامك وفق جدول، ويمررها عبر ربط الحقول، ويرسلها، ويكتب النتيجة في سجل النظام.",
+        "name": "تكامل ERP",
+        "body": "يستقبل فوتر المستندات من نظام ERP عبر اتصال مُدار أو بالرفع أو بالإرسال عبر الواجهة البرمجية، ويمررها عبر ربط الحقول ويرسلها.",
         "price": "{{amount}} شهريًا · {{documents}} مستند مجموع · ثم {{overage}} لكل مستند",
         "includedPrice": "مشمول في خطتك · {{documents}} مستند مجموع شهريًا",
-        "usage": "{{used}} من {{allowance}} جُمعت هذا الشهر · يتجدد {{resets}}"
+        "usage": "{{used}} من {{allowance}} جُمعت هذا الشهر · يتجدد {{resets}}",
+        "realState": "يفعّل فوتر تكامل ERP لكل مؤسسة على حدة. ما إذا كان مفعّلًا لمؤسستك وما أنجزه يظهر في تكامل ERP. لا يوجد بعد عدد استخدام أو سعر منفصل لعرضه هنا."
       },
       "state": {
         "active": "مفعّل",
@@ -11029,13 +11044,15 @@
         "pending": "مطلوب",
         "off": "غير مفعّل",
         "includedOff": "مشمول · متوقف",
-        "notSupported": "غير مدعوم على خطتك"
+        "notSupported": "غير مدعوم على خطتك",
+        "managedByFawtir": "يفعّله فوتر"
       },
       "ask": "اطلب التفعيل",
       "switchOn": "تفعيل",
       "openConnections": "افتح الأنظمة المتصلة",
       "pendingNote": "مطلوب. يؤكد فريق فوتر ويفعّله.",
-      "notSupportedNote": "متاح على {{plan}}. انتقل إلى خطة أعلى لإضافته."
+      "notSupportedNote": "متاح على {{plan}}. انتقل إلى خطة أعلى لإضافته.",
+      "openIntegration": "افتح تكامل ERP"
     }
   },
   "bills": {
@@ -11208,7 +11225,74 @@
       "leftAlone": "٣ دون تغيير",
       "dailyCheck": "فحص يومي الساعة ٠٦:٠٠"
     },
-    "openEntry": "افتح هذا القيد"
+    "openEntry": "افتح هذا القيد",
+    "filter": {
+      "resource": "يخص",
+      "anyResource": "أي شيء",
+      "outcome": "النتيجة",
+      "anyOutcome": "أي نتيجة"
+    },
+    "outcome": {
+      "SUCCESS": "نجح",
+      "FAILURE": "فشل",
+      "DENIED": "رُفض",
+      "THROTTLED": "أُبطئ"
+    },
+    "actor": {
+      "USER": "شخص",
+      "API_KEY": "مفتاح واجهة",
+      "SYSTEM": "فوتر",
+      "SUPPORT_USER": "دعم فوتر"
+    },
+    "resource": {
+      "USER": "مستخدم",
+      "SESSION": "تسجيل دخول",
+      "DEVICE": "جهاز",
+      "ERP_CONNECTION": "اتصال ERP",
+      "API_KEY": "مفتاح واجهة",
+      "MAPPING_PROFILE": "الربط",
+      "MAPPING_CERTIFICATION": "اعتماد الربط",
+      "ERP_SOURCE_DOCUMENT": "مستند ERP",
+      "ERP_EXTRACTION_RUN": "عملية جمع",
+      "ERP_ENTITLEMENT": "تفعيل ERP"
+    },
+    "event": {
+      "other": "حدث مسجّل",
+      "ApiKeyCreated": "أُنشئ مفتاح واجهة",
+      "ApiKeyRevoked": "أُلغي مفتاح واجهة",
+      "ApiKeyRotationCompleted": "اكتمل تبديل مفتاح الواجهة",
+      "ApiKeyRotationStarted": "بدأ تبديل مفتاح الواجهة",
+      "ErpConnectionArchived": "أُوقف اتصال نهائيًا",
+      "ErpConnectionCreated": "أُضيف اتصال",
+      "ErpConnectionStateChanged": "تغيّرت حالة اتصال",
+      "ErpConnectionTested": "جرى التحقق من اتصال",
+      "ErpConnectionUpdated": "عُدّل اتصال",
+      "ErpCredentialConfigured": "ضُبطت بيانات الدخول",
+      "ErpCredentialReencrypted": "أُعيد تشفير بيانات الدخول",
+      "ErpCredentialReplaced": "استُبدلت بيانات الدخول",
+      "ErpEntitlementGranted": "فُعّل تكامل ERP",
+      "ErpEntitlementRevoked": "أُوقف تكامل ERP",
+      "ErpExtractionClaimReleased": "حُررت عملية جمع",
+      "ErpExtractionDisabled": "أُوقف الجمع",
+      "ErpExtractionEnabled": "شُغّل الجمع",
+      "ErpExtractionRunRecovered": "استُعيدت عملية جمع",
+      "ErpExtractionSampleFetched": "جُلبت عينة",
+      "ErpExtractionSettingsChanged": "تغيّرت إعدادات الجمع",
+      "ErpSourceDocumentAccepted": "قُبل مستند ERP",
+      "ErpSourceDocumentConflict": "تعارض مستند ERP",
+      "ErpSourceDocumentDeferred": "أُجّل مستند ERP",
+      "ErpSourceDocumentDuplicate": "مستند ERP مكرر",
+      "ErpSourceDocumentRejected": "رُفض مستند ERP",
+      "MappingActivated": "فُعّل الربط",
+      "MappingArchived": "أُرشف الربط",
+      "MappingCertificationFailed": "فشل اعتماد الربط",
+      "MappingCertificationGateRejected": "رُفض اعتماد الربط",
+      "MappingCertificationPassed": "اعتُمد الربط",
+      "MappingCertificationStarted": "بدأ اعتماد الربط",
+      "MappingDraftSaved": "حُفظت مسودة الربط",
+      "MappingProfileDeactivated": "أُلغي تفعيل الربط",
+      "MappingProfileStored": "حُفظ الربط"
+    }
   },
   "export": {
     "title": "خذ بياناتك معك",
@@ -16195,7 +16279,8 @@
         "count_two": "اتصالان",
         "count_few": "{{count}} اتصالات",
         "count_many": "{{count}} اتصالًا",
-        "count_other": "{{count}} اتصال"
+        "count_other": "{{count}} اتصال",
+        "columnCollection": "الجمع"
       },
       "detail": {
         "heading": "الاتصال",
@@ -17540,7 +17625,8 @@
         "bridgeBody": "ترسل مستندا واحدا بنفسك. لا حاجة إلى اتصال.",
         "apiPush": "الدفع عبر الواجهة البرمجية.",
         "apiPushBody": "يرسل نظام تخطيط الموارد المستندات إلى فوترة بنفسه، باستخدام مفتاح واجهة برمجية لاستقبال ERP يعدّه المطورون لديكم.",
-        "apiPushLink": "مفاتيح الإرسال عبر الواجهة البرمجية"
+        "apiPushLink": "مفاتيح الإرسال عبر الواجهة البرمجية",
+        "bridgeActivityLink": "المستندات المرفوعة"
       },
       "readiness": {
         "title": "هل الربط جاهز؟",
@@ -17991,7 +18077,8 @@
         "guideTitle": "معاني التصنيفات",
         "guideOpen": "عرض التصنيفات",
         "since": "منذ",
-        "tax": "التقرير الضريبي: {{status}}"
+        "tax": "التقرير الضريبي: {{status}}",
+        "response": "رد المستلم: {{answer}}"
       },
       "runs": {
         "title": "عمليات الاستخراج",
@@ -18122,6 +18209,169 @@
         "sample": "مثال على الطلب",
         "activity": "عرض نشاط الإرسال عبر الواجهة البرمجية",
         "mapping": "فتح الربط"
+      }
+    },
+    "area": {
+      "label": "أقسام تكامل ERP",
+      "overview": "نظرة عامة",
+      "connections": "الاتصالات",
+      "bridge": "رفع المستندات",
+      "apiPush": "الإرسال عبر الواجهة",
+      "mapping": "الربط",
+      "activity": "النشاط",
+      "access": "الصلاحيات والسجل"
+    },
+    "home": {
+      "title": "تكامل ERP",
+      "subtitle": "كيف تصل المستندات إلى فوتر من نظام ERP، كما يحسبها الخادم للفترة التي تختارها.",
+      "noAccess": "تحتاج هذه النظرة العامة إلى صلاحية قراءة اتصالات ERP والفواتير. اطلبها من المسؤول إن احتجت إليها.",
+      "window": "الفترة",
+      "notEntitled": "تكامل ERP غير مفعّل",
+      "notEntitledBody": "لم يفعّل فوتر تكامل ERP لمؤسستك. تواصل مع فوتر لتفعيله.",
+      "automationOff": "الجمع المجدول متوقف مؤقتًا في فوتر الآن، فلن تجمع الاتصالات المُدارة حتى يُستأنف.",
+      "attention": {
+        "title": "يحتاج إلى متابعة",
+        "note": "أعداد الفترة كما يحسبها الخادم. افتح تصنيفًا لترى المستندات.",
+        "deliveryFailed": "فشل التسليم",
+        "taxReport": "التقرير الضريبي يحتاج إلى متابعة",
+        "unevaluated": "لم يُتحقق منه: {{labels}}."
+      },
+      "connections": {
+        "title": "الاتصالات",
+        "note_zero": "{{count}} اتصال",
+        "note_one": "اتصال واحد",
+        "note_two": "اتصالان",
+        "note_few": "{{count}} اتصالات",
+        "note_many": "{{count}} اتصالًا",
+        "note_other": "{{count}} اتصال",
+        "open": "افتح الاتصالات",
+        "name": "الاسم",
+        "state": "الحالة",
+        "collection": "الجمع",
+        "lastCompleted": "آخر عملية مكتملة",
+        "lastFailed": "آخر عملية فاشلة",
+        "empty": "لا توجد اتصالات بعد.",
+        "counts": "جاهز {{ready}} · مسودة {{draft}} · معطّل {{disabled}}",
+        "notPulled": "لا يُجمع",
+        "unreadable": "تتعذر قراءته",
+        "failures_zero": "{{count}} إخفاق متتالٍ",
+        "failures_one": "إخفاق واحد متتالٍ",
+        "failures_two": "إخفاقان متتاليان",
+        "failures_few": "{{count}} إخفاقات متتالية",
+        "failures_many": "{{count}} إخفاقًا متتاليًا",
+        "failures_other": "{{count}} إخفاق متتالٍ"
+      },
+      "mapping": {
+        "title": "الربط",
+        "active": "ربط مفعّل",
+        "none": "لا يوجد ربط مفعّل",
+        "uncertified_zero": "{{count}} قناة بلا ربط معتمد.",
+        "uncertified_one": "قناة واحدة بلا ربط معتمد.",
+        "uncertified_two": "قناتان بلا ربط معتمد.",
+        "uncertified_few": "{{count}} قنوات بلا ربط معتمد.",
+        "uncertified_many": "{{count}} قناة بلا ربط معتمد.",
+        "uncertified_other": "{{count}} قناة بلا ربط معتمد.",
+        "open": "افتح الربط"
+      },
+      "checklist": {
+        "title": "الإعداد",
+        "note": "محسوب مما يحفظه الخادم الآن. لا يتذكر هذا المتصفح شيئًا هنا.",
+        "progress": "أُنجز {{done}} من {{total}}.",
+        "noConnection": "لا حاجة إلى اتصال.",
+        "windowNote": "الخطوة التي تعدّ المستندات تنظر في الفترة المختارة أعلاه.",
+        "step": {
+          "connection": "أضف اتصالًا",
+          "credentials": "اضبط بيانات الدخول",
+          "test": "تحقق من الاتصال",
+          "sample": "اجلب عينة (اختياري)",
+          "extraction": "اضبط الجمع",
+          "documentIdPointer": "حدد رقم المستند",
+          "issueTimePointer": "حدد وقت الإصدار",
+          "mapping": "فعّل ربطًا",
+          "certification": "اعتمد الربط",
+          "enable": "شغّل الجمع",
+          "firstAccepted": "قُبل أول مستند",
+          "monitor": "تابع النشاط وما يحتاج إلى متابعة",
+          "upload": "ارفع مستندًا",
+          "verify": "تحقق من النتيجة",
+          "activity": "اعرض المستندات المرفوعة",
+          "entitlement": "تكامل ERP مفعّل",
+          "apiKey": "أنشئ مفتاح إرسال عبر الواجهة",
+          "instructions": "أعطِ المطورين التعليمات",
+          "testPush": "أرسل أول مستند",
+          "rotate": "بدّل المفتاح عند الحاجة"
+        },
+        "state": {
+          "done": "تم",
+          "todo": "مطلوب",
+          "unknown": "غير معروف",
+          "info": "إرشاد"
+        }
+      },
+      "runs": {
+        "latest": "آخر العمليات",
+        "failed": "آخر العمليات الفاشلة",
+        "open": "افتح العمليات",
+        "none": "لا توجد عمليات في هذه الفترة.",
+        "noneFailed": "لا توجد عمليات فاشلة في هذه الفترة."
+      }
+    },
+    "access": {
+      "title": "الصلاحيات والسجل",
+      "subtitle": "ما يستطيع دورك فعله في تكامل ERP، وسجل التغييرات التي أُجريت عليه.",
+      "yours": {
+        "title": "صلاحياتك",
+        "note": "من الصلاحيات التي منحها الخادم لجلستك. لا يغيّرها إلا المسؤول.",
+        "capability": "العملية",
+        "permission": "تحتاج إلى",
+        "held": "أنت",
+        "yes": "نعم",
+        "no": "لا"
+      },
+      "capability": {
+        "readConnections": "عرض الاتصالات",
+        "manageConnections": "إضافة الاتصالات وتغييرها",
+        "replaceCredentials": "استبدال بيانات الدخول",
+        "testConnections": "التحقق من اتصال",
+        "fetchSample": "جلب عينة",
+        "readMapping": "عرض الربط",
+        "manageMapping": "تغيير الربط",
+        "certifyMapping": "اعتماد الربط",
+        "submitDocuments": "رفع المستندات",
+        "readActivity": "عرض المستندات والعمليات",
+        "manageApiKeys": "إدارة مفاتيح الإرسال عبر الواجهة",
+        "readHistory": "عرض سجل التغييرات"
+      },
+      "personas": {
+        "title": "أدوار نموذجية",
+        "note": "لا يوجد في فوتر دور جاهز لهذه. يبني المسؤول دورًا من الصلاحيات المذكورة."
+      },
+      "persona": {
+        "tenantAdministrator": {
+          "name": "مسؤول المؤسسة",
+          "body": "كل شيء، بما في ذلك مفاتيح الواجهة البرمجية وسجل التغييرات ومن يملك الصلاحيات."
+        },
+        "integrationAdministrator": {
+          "name": "مسؤول التكامل",
+          "body": "يُعدّ الاتصالات وبيانات الدخول والربط، ويعتمده."
+        },
+        "integrationOperator": {
+          "name": "مشغّل التكامل",
+          "body": "يتابع الاتصالات والمستندات ويتحقق من الاتصال عندما يبدو أن هناك خللًا."
+        },
+        "invoiceSubmitter": {
+          "name": "مُرسل الفواتير",
+          "body": "يرفع المستندات ويتابع ما آلت إليه."
+        },
+        "reportingViewer": {
+          "name": "مدقق أو مطّلع على التقارير",
+          "body": "يقرأ الاتصالات والمستندات والعمليات ولا يغيّر شيئًا. سجل التغييرات يحتاج إلى مسؤول."
+        }
+      },
+      "history": {
+        "title": "سجل التغييرات",
+        "note": "من سجل نشاط المؤسسة، مقصورًا على تكامل ERP. هذا القصر للعرض فقط وليس قيدًا على من يقرأ السجل.",
+        "adminOnly": "يُعرض سجل التغييرات للمسؤولين فقط، لأن الخادم لا يوفر بعد سجلًا مقصورًا على تكامل ERP للأدوار الأخرى."
       }
     }
   },

@@ -123,7 +123,13 @@ function ChannelsCard() {
         </li>
         <li>
           <span className="font-semibold text-text-primary">{t('erp.bridge.channels.bridge')}</span>{' '}
-          {t('erp.bridge.channels.bridgeBody')}
+          {t('erp.bridge.channels.bridgeBody')}{' '}
+          <Link
+            to="/settings/erp/documents?channel=BRIDGE_UPLOAD"
+            className="font-semibold text-primary-700 hover:text-primary-800"
+          >
+            {t('erp.bridge.channels.bridgeActivityLink')}
+          </Link>
         </li>
         <li>
           <span className="font-semibold text-text-primary">
@@ -338,10 +344,13 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
               </p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium text-text-primary">
+              <span id="erp-bridge-file-label" className="text-sm font-medium text-text-primary">
                 {t('erp.bridge.document.file')}
               </span>
               <FileDropzone
+                id="erp-bridge-file"
+                labelledBy="erp-bridge-file-label erp-bridge-file"
+                describedBy={problem !== null ? 'erp-bridge-file-problem' : undefined}
                 accept={BRIDGE_ACCEPT[format]}
                 maxBytes={BRIDGE_MAX_BODY_BYTES}
                 onFiles={(files) => {
@@ -380,7 +389,11 @@ function UploadForm({ canReadMapping }: { canReadMapping: boolean }) {
                 )}
               </FileDropzone>
               {problem !== null ? (
-                <p role="alert" className="text-xs font-medium leading-[1.5] text-danger-700">
+                <p
+                  id="erp-bridge-file-problem"
+                  role="alert"
+                  className="text-xs font-medium leading-[1.5] text-danger-700"
+                >
                   {t(`erp.bridge.problem.${problem}`, { format })}
                 </p>
               ) : null}
