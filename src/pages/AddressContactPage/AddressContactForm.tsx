@@ -54,6 +54,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   // contact's phone and email are personal data, and pre-filled ones would be saved unedited.
   // Muscat stays the default only because a native select always shows a value.
   const [addressLine, setAddressLine] = useState(saved?.addressLine ?? '')
+  const [addressLine2, setAddressLine2] = useState(saved?.addressLine2 ?? '')
+  const [addressLine3, setAddressLine3] = useState(saved?.addressLine3 ?? '')
   const [postalCode, setPostalCode] = useState(saved?.postalCode ?? '')
   const [city, setCity] = useState(saved?.city ?? '')
   const [governorate, setGovernorate] = useState<GovernorateId>(saved?.governorate ?? 'muscat')
@@ -83,11 +85,22 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
       accentColor: accentColor(identity?.accent ?? INVOICE_ACCENTS[0].id),
       logoUrl: identity?.logoUrl ?? null,
       addressLine,
+      addressLine2,
+      addressLine3,
       city,
       governorate: governorateLabel,
       postalCode,
     }),
-    [addressLine, city, governorateLabel, identity, peppolPending, postalCode],
+    [
+      addressLine,
+      addressLine2,
+      addressLine3,
+      city,
+      governorateLabel,
+      identity,
+      peppolPending,
+      postalCode,
+    ],
   )
 
   useEffect(() => {
@@ -97,7 +110,18 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = event.currentTarget
-    const values = { addressLine, postalCode, city, governorate, contactName, role, phone, email }
+    const values = {
+      addressLine,
+      addressLine2,
+      addressLine3,
+      postalCode,
+      city,
+      governorate,
+      contactName,
+      role,
+      phone,
+      email,
+    }
     const next = validateAddressContact(values)
     setErrors(next)
     if (!isClean(next)) {
@@ -162,8 +186,38 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
                 ) : null
               }
             />
+            {/* Not in the frame, which draws one line: every invoice states the seller's
+                address lines 1, 2 and 3 and postal code (IBR-010-OM), so sign-up asks for them
+                rather than leaving the first invoice to be refused. */}
+            <Input
+              label={t('addressContact.addressLine2')}
+              requiredMark
+              name="addressLine2"
+              autoComplete="address-line2"
+              value={addressLine2}
+              onChange={(e) => {
+                setAddressLine2(e.target.value)
+                clearError('addressLine2')
+              }}
+              error={errors.addressLine2 ? t(errors.addressLine2) : undefined}
+              leadingIcon={<LocationPinIcon size={20} />}
+            />
+            <Input
+              label={t('addressContact.addressLine3')}
+              requiredMark
+              name="addressLine3"
+              autoComplete="address-line3"
+              value={addressLine3}
+              onChange={(e) => {
+                setAddressLine3(e.target.value)
+                clearError('addressLine3')
+              }}
+              error={errors.addressLine3 ? t(errors.addressLine3) : undefined}
+              leadingIcon={<BuildingIcon size={20} />}
+            />
             <Input
               label={t('addressContact.postalCode')}
+              requiredMark
               name="postalCode"
               autoComplete="postal-code"
               inputMode="numeric"

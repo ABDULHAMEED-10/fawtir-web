@@ -424,6 +424,9 @@ describe('Address and contact', () => {
     expect(field('email').value).toBe('')
 
     await user.type(field('addressLine'), 'Building 4, Way 2301')
+    await user.type(field('addressLine2'), 'Falaj Al Qabail')
+    await user.type(field('addressLine3'), 'Villa 12')
+    await user.type(field('postalCode'), '322')
     await user.type(field('city'), 'Sohar')
     await user.selectOptions(field('governorate'), 'northBatinah')
     await user.type(field('contactName'), 'Salim Al Harthy')
@@ -438,6 +441,7 @@ describe('Address and contact', () => {
         body: {
           onboardingToken: TOKEN,
           addressLine: 'Building 4, Way 2301',
+          postalCode: '322',
           city: 'Sohar',
           governorate: 'North Al Batinah',
           contactPersonName: 'Salim Al Harthy',
@@ -449,10 +453,28 @@ describe('Address and contact', () => {
     // Review exists to show these; submission sends none of the answers onward.
     const forwarded = JSON.parse(screen.getByTestId('state').textContent ?? '{}')
     expect(forwarded.address).toMatchObject({
+      addressLine2: 'Falaj Al Qabail',
+      addressLine3: 'Villa 12',
       city: 'Sohar',
       governorate: 'northBatinah',
       email: 'salim@example.test',
     })
+  })
+
+  it('asks for address lines 2 and 3 and the postal code before saving', async () => {
+    const user = userEvent.setup({ delay: null })
+    renderAt('/address-contact', AFTER_IDENTITY)
+    await user.type(field('addressLine'), 'Building 4')
+    await user.type(field('city'), 'Sohar')
+    await user.type(field('contactName'), 'Salim')
+    await user.type(field('phone'), '91234567')
+    await user.type(field('email'), 'salim@example.test')
+    await user.click(submit())
+
+    expect(requests()).toEqual([])
+    expect(document.activeElement).toBe(field('addressLine2'))
+    expect(field('addressLine3').getAttribute('aria-invalid')).toBe('true')
+    expect(field('postalCode').getAttribute('aria-invalid')).toBe('true')
   })
 
   it('shows the invoice preview from the identity step with localized governorate', async () => {
@@ -470,6 +492,9 @@ describe('Address and contact', () => {
     const user = userEvent.setup({ delay: null })
     renderAt('/address-contact', AFTER_IDENTITY)
     await user.type(field('addressLine'), 'Building 4')
+    await user.type(field('addressLine2'), 'Falaj Al Qabail')
+    await user.type(field('addressLine3'), 'Villa 12')
+    await user.type(field('postalCode'), '322')
     await user.type(field('city'), 'Sohar')
     await user.type(field('contactName'), 'Salim')
     await user.type(field('phone'), '91234567')

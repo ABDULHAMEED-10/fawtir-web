@@ -29,6 +29,8 @@ export function SignupReviewPage() {
         accentColor: accentColor(identity.accent),
         logoUrl: identity.logoUrl,
         addressLine: address?.addressLine,
+        addressLine2: address?.addressLine2,
+        addressLine3: address?.addressLine3,
         city: address?.city,
         governorate: address ? t(`governorate.${address.governorate}`) : undefined,
         postalCode: address?.postalCode,
