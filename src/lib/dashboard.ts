@@ -317,12 +317,6 @@ export const ACCOUNT = {
   planKey: 'dashboard.account.premiumPlan',
 }
 
-export const USER = {
-  name: 'Hafidh Saif',
-  roleKey: 'dashboard.account.owner',
-  firstName: 'Hafidh',
-}
-
 export type InvoiceStatus = 'reported' | 'rejected' | 'sent' | 'draft'
 
 export type RecentInvoice = {

@@ -299,9 +299,11 @@ The owner then ruled (25 Sep 2026) that **the design wins**. The balance:
   the design changes layout or copy, update only those assertions, and say which request
   assertions no longer apply and why.
 - **Reference data:** tax categories, units, payment terms and methods come from
-  `GET /v1/reference-data`, which the app shell only fetches inside the session guard. The
-  deployed build has `VITE_REQUIRE_SESSION=false`, so every consumer must fall back to the
-  design's own lists: `useReferenceData() ?? DESIGN_REFERENCE` (`src/lib/invoiceDraft.ts`).
+  `GET /v1/reference-data`, which the app shell only fetches inside the session guard. A
+  production build always runs inside the guard; `VITE_REQUIRE_SESSION=false` is honoured only by
+  a development build (`src/lib/session/session.ts`). The list still arrives after first paint,
+  so every consumer must fall back to the design's own lists:
+  `useReferenceData() ?? DESIGN_REFERENCE` (`src/lib/invoiceDraft.ts`).
 - **Mock API:** every integrated area has fixtures in `tools/mock-api/routes/<area>.mjs` in the
   DTO shapes. Modules load alphabetically and the first match wins, so `agreements.mjs` and
   `invoices.mjs` shadow some shared paths (`/me/entitlements`, `/authored-invoices*`); for a

@@ -1109,7 +1109,8 @@
       "output": "ضريبة المخرجات",
       "input": "ضريبة المدخلات"
     },
-    "openNav": "فتح التنقل"
+    "openNav": "فتح التنقل",
+    "greetingNoName": "صباح الخير"
   },
   "rowActions": {
     "delete": "حذف",
@@ -15140,7 +15141,8 @@
     "account": {
       "branches": "الفروع",
       "planNote": "كل الفروع على {{plan}}.",
-      "unnamed": "شركتك"
+      "unnamed": "شركتك",
+      "loading": "جارٍ التحميل…"
     },
     "plan": {
       "premium": "الخطة المميزة",
@@ -15153,7 +15155,9 @@
       "signOut": "تسجيل الخروج",
       "signingOut": "جارٍ تسجيل الخروج…",
       "signOutFailed": "تعذّر الخروج. أعد المحاولة",
-      "signOutFailedStatus": "تعذّر تسجيل الخروج. ما زالت جلستك نشطة — حاول مرة أخرى."
+      "signOutFailedStatus": "تعذّر تسجيل الخروج. ما زالت جلستك نشطة — حاول مرة أخرى.",
+      "loading": "جارٍ التحميل…",
+      "previewNoSession": "لم يتم تسجيل الدخول"
     }
   },
   "notes": {

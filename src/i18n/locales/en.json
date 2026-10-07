@@ -1106,7 +1106,8 @@
       "output": "Output VAT",
       "input": "Input VAT"
     },
-    "openNav": "Open navigation"
+    "openNav": "Open navigation",
+    "greetingNoName": "Good morning"
   },
   "rowActions": {
     "delete": "Delete",
@@ -14571,7 +14572,8 @@
     "account": {
       "branches": "Branches",
       "planNote": "All branches are on the {{plan}}.",
-      "unnamed": "Your company"
+      "unnamed": "Your company",
+      "loading": "Loading…"
     },
     "plan": {
       "premium": "Premium plan",
@@ -14584,7 +14586,9 @@
       "signOut": "Sign out",
       "signingOut": "Signing out…",
       "signOutFailed": "Couldn't sign out. Retry",
-      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again."
+      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again.",
+      "loading": "Loading…",
+      "previewNoSession": "Not signed in"
     }
   },
   "notes": {

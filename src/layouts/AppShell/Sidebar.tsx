@@ -6,13 +6,12 @@ import { useDrawer } from '../../hooks/useDrawer'
 import {
   DASHBOARD_NAV,
   SETTINGS_NAV,
-  USER,
   type NavChild,
   type NavGroup,
   type NavItem,
 } from '../../lib/dashboard'
 import { useUnreadReminders } from '../../lib/notifications'
-import { can, useSession } from '../../lib/session/session'
+import { REQUIRE_SESSION, can, useSession } from '../../lib/session/session'
 import type { Entitlements } from '../../lib/identity/entitlements'
 import type { AnyPlanId, Feature } from '../../lib/plans'
 import { featureAccess, useTenantPlan } from '../../lib/planAccess'
@@ -362,9 +361,15 @@ export function Sidebar({ open = false, onClose = () => {} }: SidebarProps) {
           Icon={SETTINGS_NAV.Icon}
           label={t(SETTINGS_NAV.labelKey)}
         />
+        {/* No session means the answer is still loading (or, in a development build with the
+            guard off, that nobody signed in). The card says so rather than naming somebody: it
+            used to fall back to a demo user, whom every real user then saw as themselves. */}
         <UserMenu
-          name={session?.username ?? USER.name}
-          roleKey={session ? roleKeyOf(session) : USER.roleKey}
+          name={
+            session?.username ??
+            t(REQUIRE_SESSION ? 'shell.user.loading' : 'shell.user.previewNoSession')
+          }
+          roleKey={session ? roleKeyOf(session) : null}
           avatar={avatar}
         />
       </div>
