@@ -927,7 +927,7 @@
     "method": {
       "cardLink": {
         "title": "بطاقة",
-        "subtitle": "رابط آمن · ثواني"
+        "subtitle": "رابط آمن · Paymob"
       },
       "bankTransfer": {
         "title": "تحويل بنكي",
@@ -939,14 +939,14 @@
       }
     },
     "cardLink": {
-      "note": "تُدخل بطاقتك في بوابة ثواني الآمنة، لا في فوتر. لا نحتفظ بأي شيء عنها.",
+      "note": "تُدخل بطاقتك في بوابة Paymob الآمنة، لا في فوتر. لا نحتفظ بأي شيء عنها.",
       "how": "كيف تريد الدفع؟",
       "via": {
         "now": "افتح البوابة الآن",
         "whatsapp": "أرسل لي الرابط عبر واتساب",
         "email": "أرسل لي الرابط عبر البريد"
       },
-      "viaNowNote": "تنتقل إلى بوابة ثواني وتعود مباشرة.",
+      "viaNowNote": "تنتقل إلى بوابة Paymob وتعود مباشرة.",
       "viaWhatsAppNote": "إلى {{phone}} · صالح {{days}} أيام",
       "viaEmailNote": "إلى {{email}} · صالح {{days}} أيام",
       "yourPhone": "هاتفك",
@@ -982,7 +982,7 @@
     "subscription": {
       "title": "اشتراكك",
       "awaiting": "{{plan}} · بانتظار التفعيل من فريق فوتر",
-      "cardLink": "دُفع بالبطاقة عبر ثواني — يُفعَّل حسابك فور تأكيد الدفع.",
+      "cardLink": "دُفع بالبطاقة عبر Paymob، يُفعَّل حسابك فور تأكيد الدفع.",
       "cardLinkSent": "رابط الدفع في طريقه إليك عبر {{via}}. يُفعَّل حسابك بعد سداده.",
       "bankTransfer": "بانتظار تحويلك البنكي. يُفعَّل حسابك فور وصوله، عادةً خلال يوم عمل.",
       "cash": "بانتظار دفعك النقدي. يُفعَّل حسابك فور تسجيله، عادةً في اليوم نفسه.",
@@ -1577,7 +1577,15 @@
       "weekly": "يوم {{weekday}}",
       "monthly_ordinal_other": "في اليوم {{count}}",
       "quarterly_ordinal_other": "في اليوم {{count}} من الربع",
-      "yearly": "في {{date}}"
+      "yearly": "في {{date}}",
+      "monthly_ordinal_zero": "في اليوم {{count}}",
+      "monthly_ordinal_two": "في اليوم {{count}}",
+      "monthly_ordinal_few": "في اليوم {{count}}",
+      "monthly_ordinal_many": "في اليوم {{count}}",
+      "quarterly_ordinal_zero": "في اليوم {{count}} من الربع",
+      "quarterly_ordinal_two": "في اليوم {{count}} من الربع",
+      "quarterly_ordinal_few": "في اليوم {{count}} من الربع",
+      "quarterly_ordinal_many": "في اليوم {{count}} من الربع"
     },
     "weekday": {
       "sunday": "الأحد",
@@ -5512,7 +5520,10 @@
       "payableDisputed_two": "{{amount}} متنازع عليها على فاتورتين مرفوضتين",
       "payableDisputed_few": "{{amount}} متنازع عليها على {{count}} فواتير مرفوضة",
       "payableDisputed_many": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
-      "payableDisputed_other": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة"
+      "payableDisputed_other": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة",
+      "attentionDrafts_zero": "{{count}} مرفوعة للتأكيد",
+      "otherCurrencies_zero": "{{count}} فاتورة بعملة أخرى غير مشمولة في إجماليات {{currency}}.",
+      "payableDisputed_zero": "{{amount}} متنازع عليها على {{count}} فاتورة مرفوضة"
     },
     "tabs": {
       "needsAttention": "تحتاج انتباهك",
@@ -5625,7 +5636,10 @@
       "noDueDate": "بلا تاريخ استحقاق",
       "noOrderNote": "لا يوجد طلب شراء وراءها",
       "noAmount": "لا مبلغ بعد",
-      "queried": "استُفسر عنها {{date}}"
+      "queried": "استُفسر عنها {{date}}",
+      "inDays_zero": "خلال {{count}} يوم",
+      "daysOverdue_zero": "متأخرة {{count}} يوم",
+      "wasDue_zero": "كانت مستحقة منذ {{count}} يوم"
     },
     "state": {
       "newNotReviewed": "جديدة، لم تُراجع",
@@ -5647,7 +5661,8 @@
       "drafts_many": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
       "drafts_other": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها.",
       "truncated": "يعرض هذا التبويب أحدث {{window}} فاتورة فقط، لذا قد لا تظهر الفواتير الأقدم.",
-      "nudgeUnavailable": "تنبيه المعتمِد غير متاح بعد. تواصل معه مباشرة في الوقت الحالي."
+      "nudgeUnavailable": "تنبيه المعتمِد غير متاح بعد. تواصل معه مباشرة في الوقت الحالي.",
+      "drafts_zero": "{{count}} فاتورة مرفوعة أو ممسوحة بانتظار تفاصيلها، وستظهر هنا بعد تأكيدها."
     },
     "emptyLedger": "لا توجد فواتير بعد. تصل فواتير المورّدين المسجلين على Peppol إلى هنا تلقائيًا.",
     "pages": "الصفحات",
@@ -5739,7 +5754,15 @@
       "onReceipt": "{{receipt}}",
       "thisBill": "هذه الفاتورة",
       "quantityUnitMore_one": "{{quantity}} {{unit}} + بند واحد",
-      "quantityUnitMore_other": "{{quantity}} {{unit}} + {{count}} بنود"
+      "quantityUnitMore_other": "{{quantity}} {{unit}} + {{count}} بنود",
+      "lineCount_zero": "{{count}} بنود",
+      "lineCount_two": "{{count}} بنود",
+      "lineCount_few": "{{count}} بنود",
+      "lineCount_many": "{{count}} بنود",
+      "quantityUnitMore_zero": "{{quantity}} {{unit}} + {{count}} بنود",
+      "quantityUnitMore_two": "{{quantity}} {{unit}} + {{count}} بنود",
+      "quantityUnitMore_few": "{{quantity}} {{unit}} + {{count}} بنود",
+      "quantityUnitMore_many": "{{quantity}} {{unit}} + {{count}} بنود"
     },
     "lines": {
       "title": "ما يطالبون به",
@@ -5917,7 +5940,11 @@
       "none": "لا يوجد",
       "bank": "البنك",
       "noBank": "لا بيانات بنكية مسجلة",
-      "saving": "الدفع بحلول {{date}} يوفّر"
+      "saving": "الدفع بحلول {{date}} يوفّر",
+      "netDays_zero": "صافي {{count}} يومًا",
+      "netDays_two": "صافي {{count}} يومًا",
+      "netDays_few": "صافي {{count}} يومًا",
+      "netDays_many": "صافي {{count}} يومًا"
     },
     "pay": {
       "amount": "المبلغ المدفوع",
@@ -6029,7 +6056,11 @@
     "footer": {
       "toCheck_one": "حقل واحد يحتاج مراجعة",
       "toCheck_other": "{{count}} حقول تحتاج مراجعة",
-      "onThisOne": "في هذا الإيصال"
+      "onThisOne": "في هذا الإيصال",
+      "toCheck_zero": "{{count}} حقول تحتاج مراجعة",
+      "toCheck_two": "{{count}} حقول تحتاج مراجعة",
+      "toCheck_few": "{{count}} حقول تحتاج مراجعة",
+      "toCheck_many": "{{count}} حقول تحتاج مراجعة"
     },
     "discardThisOne": "تجاهل هذا الإيصال"
   },
@@ -6082,7 +6113,8 @@
       "more_two": "فاتورتان أخريان لا يمكن دفعهما بعد",
       "more_few": "{{count}} فواتير أخرى لا يمكن دفعها بعد",
       "more_many": "{{count}} فاتورة أخرى لا يمكن دفعها بعد",
-      "more_other": "{{count}} فاتورة أخرى لا يمكن دفعها بعد"
+      "more_other": "{{count}} فاتورة أخرى لا يمكن دفعها بعد",
+      "more_zero": "{{count}} فاتورة أخرى لا يمكن دفعها بعد"
     },
     "whenAndWhere": "متى ومن أين",
     "paymentDate": "تاريخ الدفع",
@@ -6356,7 +6388,8 @@
       "noPastBills": "لا شيء مسجّل من {{supplier}} بعد.",
       "pastBillsUnavailable": "تعذّرت قراءة فواتيرهم السابقة.",
       "aboutFrom": "حوالي {{amount}} من {{supplier}}",
-      "add": "إضافة الفاتورة المتكررة"
+      "add": "إضافة الفاتورة المتكررة",
+      "afterDays_zero": "بعد {{count}} يوم"
     },
     "plain": {
       "expect_zero": "{{supplier}} يرسل {{description}} بنحو {{amount}}، عادة في اليوم {{day}}. أخبرني إن تغيّر أكثر من {{tolerance}}٪، أو إن لم تصل في موعدها.",
@@ -6520,7 +6553,13 @@
       "onPeppol": "على بيبول. تصل فواتيرهم بنفسها موثّقة.",
       "notOnPeppol": "ليس على بيبول. الانضمام إليه يغني عن الرفع والمطالبة.",
       "openSupplier": "فتح المورّد",
-      "endedLine": "انتهت هذه التعليمة في {{date}}. أنشئ تعليمة جديدة لمواصلة المراقبة."
+      "endedLine": "انتهت هذه التعليمة في {{date}}. أنشئ تعليمة جديدة لمواصلة المراقبة.",
+      "lateArriving_zero": "متأخرة {{count}} يوم",
+      "alertDue_zero": "السداد مستحق في {{due}}، فبقي {{count}} يوم لتدبير الأمر.",
+      "flatFor_zero": "ثابتة عند {{amount}} لمدة {{count}} شهر",
+      "movedTimes_zero": "تغيّر المبلغ {{count}} مرة",
+      "daysLate_zero": "متأخرة {{count}} يوم",
+      "times_zero": "{{count}} مرة"
     },
     "runCol": {
       "period": "الفترة",
@@ -6563,7 +6602,8 @@
         "MONTHLY": "شهريًا",
         "QUARTERLY": "كل ربع سنة",
         "ANNUALLY": "سنويًا"
-      }
+      },
+      "inDays_zero": "خلال {{count}} يوم"
     },
     "cadence": {
       "weekly": "أسبوعيًا، {{weekday}}",
@@ -6921,7 +6961,12 @@
       "acceptedNote": "{{count}} مقبولة · {{open}} ما زالت مفتوحة",
       "rejectedNote_two": "رُفض رسمان",
       "rejectedNote_few": "رُفضت {{count}} رسوم",
-      "rejectedNote_many": "رُفض {{count}} رسمًا"
+      "rejectedNote_many": "رُفض {{count}} رسمًا",
+      "needsCheckingNote_zero": "{{count}} رسوم لم يقبلها أحد بعد",
+      "needsCheckingNote_two": "{{count}} رسوم لم يقبلها أحد بعد",
+      "needsCheckingNote_few": "{{count}} رسوم لم يقبلها أحد بعد",
+      "needsCheckingNote_many": "{{count}} رسوم لم يقبلها أحد بعد",
+      "rejectedNote_zero": "{{count}} رسوم مرفوضة"
     },
     "tabs": {
       "all": "الكل",
@@ -7063,7 +7108,11 @@
       "footerFine": "لا شيء لافت",
       "footerNote": "لا يُضاف شيء إلى ما تدين به حتى تقبل",
       "noDecisionRight": "يمكنك حفظ الرسم؛ أما قبوله أو رفضه فيحتاج صلاحية الاعتماد.",
-      "acceptNoteNoBill": "يُسجَّل OMR {{amount}} مستحقًا لهذا المورّد."
+      "acceptNoteNoBill": "يُسجَّل OMR {{amount}} مستحقًا لهذا المورّد.",
+      "footerLead_zero": "{{count}} أمور تستحق المراجعة",
+      "footerLead_two": "{{count}} أمور تستحق المراجعة",
+      "footerLead_few": "{{count}} أمور تستحق المراجعة",
+      "footerLead_many": "{{count}} أمور تستحق المراجعة"
     },
     "refuse": {
       "notInRates": "ليس في أسعارنا المتفق عليها",
@@ -7263,7 +7312,15 @@
         "rejected": "استُلم عبر بيبول وتُحقق منه. رُفض إبلاغ الاستلام.",
         "notSubmitted": "استُلم عبر بيبول وتُحقق منه. لم يُبلَّغ عن الاستلام بعد.",
         "unavailable": "استُلم عبر بيبول وتُحقق منه. حالة إبلاغ الاستلام غير متاحة بعد."
-      }
+      },
+      "summaryWorries_zero": "{{count}} أسباب للتدقيق.",
+      "summaryWorries_two": "{{count}} أسباب للتدقيق.",
+      "summaryWorries_few": "{{count}} أسباب للتدقيق.",
+      "summaryWorries_many": "{{count}} أسباب للتدقيق.",
+      "summaryBeforeAccept_zero": "{{count}} أمور تستحق النظر قبل القبول.",
+      "summaryBeforeAccept_two": "{{count}} أمور تستحق النظر قبل القبول.",
+      "summaryBeforeAccept_few": "{{count}} أمور تستحق النظر قبل القبول.",
+      "summaryBeforeAccept_many": "{{count}} أمور تستحق النظر قبل القبول."
     }
   },
   "expenditureReminders": {
@@ -7304,7 +7361,8 @@
       "nDays_two": "يومان",
       "nDays_few": "{{count}} أيام",
       "nDays_many": "{{count}} يومًا",
-      "nDays_other": "{{count}} يوم"
+      "nDays_other": "{{count}} يوم",
+      "nDays_zero": "{{count}} يوم"
     },
     "rules": {
       "beforeDue": {
@@ -7367,7 +7425,8 @@
       "approvalsAmount": "٢٬٩٩٦٫٣١٠ ريال بانتظار الاعتماد",
       "headline_two": "أمران يحتاجان إلى انتباه هذا الصباح.",
       "headline_few": "{{count}} أمور تحتاج إلى انتباه هذا الصباح.",
-      "headline_many": "{{count}} أمرًا يحتاج إلى انتباه هذا الصباح."
+      "headline_many": "{{count}} أمرًا يحتاج إلى انتباه هذا الصباح.",
+      "headline_zero": "{{count}} أمر يحتاج إلى انتباه هذا الصباح."
     },
     "notSupplier": "لا شيء من هذا يصل إلى المورّد. أما مطالبة العميل بما عليه فتُضبط",
     "underIncome": "ضمن الإيرادات",
@@ -7422,7 +7481,11 @@
       "acknowledged": "مقروء",
       "openBill": "افتح الفاتورة",
       "count_one": "معروض {{count}}",
-      "count_other": "معروض {{count}}"
+      "count_other": "معروض {{count}}",
+      "count_zero": "معروض {{count}}",
+      "count_two": "معروض {{count}}",
+      "count_few": "معروض {{count}}",
+      "count_many": "معروض {{count}}"
     },
     "footer": {
       "rulesOn_one": "قاعدة واحدة مفعّلة",
@@ -7436,10 +7499,13 @@
       "weekendsSkipped": "مع تخطي عطلة الأسبوع",
       "sendNow": "أرسل لي ملخص اليوم الآن",
       "notYet": "غير متاح بعد: يحتاج إلى الخادم.",
-      "save": "حفظ التغييرات"
+      "save": "حفظ التغييرات",
+      "rulesOn_zero": "{{count}} قاعدة مفعّلة"
     },
     "sendingOff": "لا تُرسل التذكيرات بعد.",
-    "rulesSavedSettingsFailed": "حُفظت القواعد، لكن تعذّر حفظ الإعدادات. حاول مرة أخرى."
+    "rulesSavedSettingsFailed": "حُفظت القواعد، لكن تعذّر حفظ الإعدادات. حاول مرة أخرى.",
+    "recipientCount_zero": "{{count}} شخص محدد بالفعل",
+    "unsaved_zero": "تغيّرت {{count}} قاعدة"
   },
   "documents": {
     "title": "المستندات",
@@ -9496,7 +9562,11 @@
       "documentsWithMls_other": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}",
       "documentsNoMls": "الفاتورة، المستند الضريبي",
       "notOnRecord": "غير مسجل بعد",
-      "noStandInExport": "لا يوجد: يُبلَّغ عن التصدير ضمن نطاق مستنده"
+      "noStandInExport": "لا يوجد: يُبلَّغ عن التصدير ضمن نطاق مستنده",
+      "documentsWithMls_zero": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}",
+      "documentsWithMls_two": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}",
+      "documentsWithMls_few": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}",
+      "documentsWithMls_many": "الفاتورة، المستند الضريبي، إشعارات MLS ×{{count}}"
     },
     "checkItYourself": "تحقق بنفسك",
     "fawtaraReference": "مرجع فوترة",
@@ -9532,7 +9602,11 @@
       "latest": "آخر تقرير",
       "xmlMeta": "XML المستند الضريبي · النسخة {{version}}",
       "repliesMeta_one": "إشعار MLS واحد",
-      "repliesMeta_other": "{{count}} إشعارات MLS"
+      "repliesMeta_other": "{{count}} إشعارات MLS",
+      "repliesMeta_zero": "{{count}} إشعارات MLS",
+      "repliesMeta_two": "{{count}} إشعارات MLS",
+      "repliesMeta_few": "{{count}} إشعارات MLS",
+      "repliesMeta_many": "{{count}} إشعارات MLS"
     },
     "sendItAgain": "أعد الإرسال",
     "resend": {
@@ -9587,7 +9661,11 @@
       "invoice": "السبب في الفاتورة نفسها، فتُصحَّح بإشعار دائن وفاتورة جديدة، لا بإعادة إرسال التقرير.",
       "report": "السبب في التقرير وحده لا في الفاتورة: بعد تصحيحه يمكن إعادة إرساله. ولا شيء يذهب إلى العميل.",
       "unknown": "لا يوضح الرفض إن كان السبب في الفاتورة أم في التقرير. إن كان في الفاتورة نفسها فيلزم إشعار دائن وفاتورة جديدة."
-    }
+    },
+    "earlierSuperseded_zero": "استُبدلت {{count}} تقارير سابقة",
+    "earlierSuperseded_two": "استُبدلت {{count}} تقارير سابقة",
+    "earlierSuperseded_few": "استُبدلت {{count}} تقارير سابقة",
+    "earlierSuperseded_many": "استُبدلت {{count}} تقارير سابقة"
   },
   "callLog": {
     "title": "سجل مكالمات الهيئة",
@@ -9634,7 +9712,10 @@
       "minutes_many": "قبل {{count}} دقيقة",
       "hours_two": "قبل ساعتين",
       "hours_few": "قبل {{count}} ساعات",
-      "hours_many": "قبل {{count}} ساعة"
+      "hours_many": "قبل {{count}} ساعة",
+      "seconds_zero": "قبل {{count}} ثانية",
+      "minutes_zero": "قبل {{count}} دقائق",
+      "hours_zero": "قبل {{count}} ساعات"
     },
     "purpose": {
       "askingDecided": "استفسار عمّا إذا بُتّ في {{invoice}}",
@@ -9705,7 +9786,8 @@
       "whoHears": "من يُبلَّغ بمشكلات الامتثال",
       "whoHearsNote": "المالكون والمشرفون في فريقك",
       "retention": "الحفظ والأرشيف",
-      "retentionNote": "عشر سنوات، وخمس عشرة للعقارات"
+      "retentionNote": "عشر سنوات، وخمس عشرة للعقارات",
+      "retryWaitingNote_zero": "{{count}} إرسال · تستهلك {{count}} من حصتك"
     },
     "direction": {
       "sent": "مُرسلة",
@@ -9727,7 +9809,11 @@
       "sameCause": "السبب نفسه هذا الأسبوع",
       "invoices_one": "فاتورة واحدة",
       "invoices_other": "{{count}} فواتير",
-      "sameCauseOpen": "السبب نفسه، ما زالت مفتوحة"
+      "sameCauseOpen": "السبب نفسه، ما زالت مفتوحة",
+      "invoices_zero": "{{count}} فواتير",
+      "invoices_two": "{{count}} فواتير",
+      "invoices_few": "{{count}} فواتير",
+      "invoices_many": "{{count}} فواتير"
     },
     "fixItWhere": "صحّحها من حيث أخطأت",
     "customerNote": "الرقم الضريبي مسجّل. أما معرّف Peppol فلم يُسجّل قط، منذ إنشاء السجل في مارس.",
@@ -9767,7 +9853,8 @@
       "vatMissingQuarter": "<b>{{amount}}</b> من ضريبة القيمة المضافة لن تظهر في إقرار الربع {{quarter}}.",
       "salesUndeclaredCount_two": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير.",
       "salesUndeclaredCount_few": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير.",
-      "salesUndeclaredCount_many": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير."
+      "salesUndeclaredCount_many": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير.",
+      "salesUndeclaredCount_zero": "<b>{{amount}}</b> من المبيعات تبقى غير مُصرَّح بها عبر {{count}} فواتير."
     },
     "thisAttempt": "هذه المحاولة",
     "attempt": {
@@ -9841,8 +9928,13 @@
       "report_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
       "unknown_two": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
       "unknown_few": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
-      "unknown_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل"
-    }
+      "unknown_many": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "invoice_zero": "{{count}} فواتير · يذهب إشعار دائن وفاتورة جديدة إلى العميل عن كل منها",
+      "report_zero": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل",
+      "unknown_zero": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل"
+    },
+    "stopRecurringCount_zero": "كلّفك هذا {{count}} حالات رفض لأن العميل التجاري يمكن حفظه دون معرّف Peppol. جعل الحقل إلزاميًا كان سيكشف ذلك عند إنشاء السجل.",
+    "footerCount_zero": "{{count}} فواتير · {{count}} من حصتك · لا شيء يذهب إلى العميل"
   },
   "complianceReport": {
     "title": "تقرير الامتثال",
@@ -9912,7 +10004,11 @@
     },
     "customFrom": "من",
     "customTo": "إلى",
-    "notAvailableYet": "غير متاح بعد"
+    "notAvailableYet": "غير متاح بعد",
+    "nInvoices_zero": "{{count}} فاتورة",
+    "nInvoices_two": "{{count}} فاتورة",
+    "nInvoices_few": "{{count}} فاتورة",
+    "nInvoices_many": "{{count}} فاتورة"
   },
   "builtReport": {
     "ready": "جاهز",
@@ -10013,7 +10109,8 @@
     "numberingNotConfirmed": "تسلسل الترقيم دون انقطاع: غير مؤكد.",
     "numberingGaps_two": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}.",
     "numberingGaps_few": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}.",
-    "numberingGaps_many": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}."
+    "numberingGaps_many": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}.",
+    "numberingGaps_zero": "يمتد الترقيم من {{from}} إلى {{to}} مع {{count}} فجوات: {{gaps}}."
   },
   "callDetail": {
     "subtitle": "{{date}}، {{at}} · بشأن {{invoice}} · رُدّ خلال {{seconds}}",
@@ -10084,7 +10181,8 @@
     "xmlKeptWithRecord": "ملف TDD بصيغة XML الموقّع محفوظ مع سجل {{invoice}}: نزّله من هناك.",
     "nCalls_two": "{{count}} رسائل",
     "nCalls_few": "{{count}} رسائل",
-    "nCalls_many": "{{count}} رسائل"
+    "nCalls_many": "{{count}} رسائل",
+    "nCalls_zero": "{{count}} رسائل"
   },
   "settings": {
     "title": "الإعدادات",
@@ -10124,7 +10222,7 @@
       "teamPill": "{{used}} من {{seats}} مستخدمة",
       "teamFoot": "التالي {{amount}} ر.ع./شهر",
       "rolesTitle": "ما يستطيعه كل دور",
-      "rolesBody": "المالك والمدير والمحاسب وموظف الكاشير — ودور صنعته بنفسك.",
+      "rolesBody": "المالك والمدير والمحاسب وموظف الكاشير، ودور صنعته بنفسك.",
       "rolesPill": "{{count}} أدوار",
       "signingTitle": "تسجيل الدخول",
       "signingBody": "التحقق بخطوتين، ومدة الجلسة، وقاعدة الجهاز الواحد على الجوال.",
@@ -10241,7 +10339,7 @@
     "renewIt": "جدّدها",
     "details": "التفاصيل",
     "renewingTitle": "ما يتطلبه التجديد",
-    "renewingNote": "ابدأ الآن وسترتاح — أجّله أسبوعين ولن ترتاح",
+    "renewingNote": "ابدأ الآن وسترتاح؛ أجّله أسبوعين ولن ترتاح",
     "step": {
       "warned": "نبّهناك",
       "warnedNote": "قبل ٣٠ يومًا · {{date}}",
@@ -10324,7 +10422,15 @@
         "policyNotActive": "لا توجد حاليًا سياسة تحقق سارية، لذا لا يمكن تقديم الطلب. حاول مرة أخرى لاحقًا.",
         "forbidden": "لا يملك حسابك صلاحية طلب التحقق. اطلب ذلك من أحد المسؤولين في شركتك إذا كنت بحاجة إليه."
       }
-    }
+    },
+    "daysLeft_zero": "{{count}} أيام متبقية",
+    "daysLeft_two": "{{count}} أيام متبقية",
+    "daysLeft_few": "{{count}} أيام متبقية",
+    "daysLeft_many": "{{count}} أيام متبقية",
+    "monthsLeft_zero": "{{count}} أشهر متبقية",
+    "monthsLeft_two": "{{count}} أشهر متبقية",
+    "monthsLeft_few": "{{count}} أشهر متبقية",
+    "monthsLeft_many": "{{count}} أشهر متبقية"
   },
   "companyProfile": {
     "addressLine2": "الشارع الإضافي أو المنطقة",
@@ -10420,7 +10526,7 @@
     "saved": "حُفظ",
     "andJoin": " و",
     "industrialClassification": "النشاط التجاري (ISIC)",
-    "industrialClassificationHint": "ينسخه النظام على كل سطر في الفاتورة؛ ولا يُطلب في نموذج الفاتورة",
+    "industrialClassificationHint": "يضعه فوتر على كل سطر في الفاتورة نيابة عنك؛ ولا يُطلب في نموذج الفاتورة",
     "industrialClassificationPlaceholder": "اختر النشاط التجاري",
     "industrialClassificationSearch": "ابحث باسم النشاط",
     "industrialClassificationNone": "لا يوجد نشاط مطابق",
@@ -10447,7 +10553,11 @@
       "includedNote": "لا رسوم إضافية حتى السادس",
       "openNoteGeneric": "بما في ذلك ما أغلقته",
       "invoicesNoteGeneric": "عبر كل فرع مفتوح",
-      "peopleNoteGeneric": "عبر كل فرع"
+      "peopleNoteGeneric": "عبر كل فرع",
+      "peopleNote_zero": "{{count}} يعملون في أكثر من فرع",
+      "peopleNote_two": "{{count}} يعملون في أكثر من فرع",
+      "peopleNote_few": "{{count}} يعملون في أكثر من فرع",
+      "peopleNote_many": "{{count}} يعملون في أكثر من فرع"
     },
     "headOffice": "المكتب الرئيسي",
     "open": "مفتوح",
@@ -10493,12 +10603,25 @@
     "peopleCount_other": "{{count}} أشخاص",
     "empty": {
       "title": "أضف فرعك الأول",
-      "body": "ستحتاج فرعًا واحدًا على الأقل — من حيث تعمل — قبل أن تتمكن من إنشاء فاتورة."
-    }
+      "body": "ستحتاج فرعًا واحدًا على الأقل، من حيث تعمل، قبل أن تتمكن من إنشاء فاتورة."
+    },
+    "closedNoteNoCount": "مغلق، لا محذوف. تبقى فواتيره في المتناول وتُحتسب ضمن الاحتفاظ لعشر سنوات. سلسلة {{prefix}} مجمّدة ولن تُستخدم مجددًا.",
+    "peopleManages_zero": "{{count}} أشخاص · يديره {{who}}",
+    "peopleManages_two": "{{count}} أشخاص · يديره {{who}}",
+    "peopleManages_few": "{{count}} أشخاص · يديره {{who}}",
+    "peopleManages_many": "{{count}} أشخاص · يديره {{who}}",
+    "devices_zero": "{{count}} أجهزة",
+    "devices_two": "{{count}} أجهزة",
+    "devices_few": "{{count}} أجهزة",
+    "devices_many": "{{count}} أجهزة",
+    "peopleCount_zero": "{{count}} أشخاص",
+    "peopleCount_two": "{{count}} أشخاص",
+    "peopleCount_few": "{{count}} أشخاص",
+    "peopleCount_many": "{{count}} أشخاص"
   },
   "addBranch": {
     "title": "أضف فرعًا",
-    "subtitle": "مكان جديد تعمل منه. يشارك رقمك الضريبي ومعرّف Peppol — يتغير العنوان والترقيم فقط.",
+    "subtitle": "مكان جديد تعمل منه. يشارك رقمك الضريبي ومعرّف Peppol؛ يتغير العنوان والترقيم فقط.",
     "cancel": "إلغاء",
     "step": {
       "whereItIs": "أين هو",
@@ -10526,7 +10649,7 @@
     "firstInvoiceWillBe": "أول فاتورة ستكون",
     "thenOnwards": "ثم ٠٠٠٢ و٠٠٠٣ وهكذا",
     "whoWorksThere": "من يعمل فيه",
-    "whoWorksThereNote": "يمكن تغيير هذا لاحقًا — لا يلزم تعيين أحد الآن",
+    "whoWorksThereNote": "يمكن تغيير هذا لاحقًا، لا يلزم تعيين أحد الآن",
     "inviteSomeoneNew": "ادعُ شخصًا جديدًا",
     "alreadyManages": "يدير {{branch}} أصلًا · سيعمل في الاثنين",
     "canReachAnyway": "المالك · يصل إلى كل فرع على أي حال",
@@ -10560,9 +10683,9 @@
       "prefixFree": "البادئة {{prefix}} متاحة",
       "prefixMissing": "أعطه بادئة",
       "someoneToManage": "شخص يديره",
-      "nobodyAssigned": "لم يُعيَّن أحد بعد — اختياري",
+      "nobodyAssigned": "لم يُعيَّن أحد بعد (اختياري)",
       "phone": "أُضيف رقم هاتف",
-      "noPhone": "لا رقم هاتف — اختياري"
+      "noPhone": "لا رقم هاتف (اختياري)"
     },
     "cost": "كم يكلّف",
     "branchesUsed": "الفروع المستخدمة",
@@ -10575,7 +10698,7 @@
     "footerUnnamed": "سمِّ الفرع للمتابعة",
     "saveDraft": "احفظ كمسودة",
     "addTheBranch": "أضف الفرع",
-    "editTitle": "{{name}} — بياناته وكيف يفوتر",
+    "editTitle": "{{name}}: بياناته وكيف يفوتر",
     "editSubtitle": "عنوانه وترقيمه. الرقم الضريبي ومعرّف Peppol يأتيان من الشركة ولا يمكن تغييرهما هنا.",
     "saveChanges": "احفظ التغييرات",
     "closeThisBranch": "أغلق هذا الفرع",
@@ -10600,7 +10723,11 @@
       "twoStepNote": "غير مطلوب في خطتك",
       "cost": "تكلفة الأشخاص الإضافيين",
       "costNote": "لا شيء يتجاوز الخطة بعد",
-      "costNoteOver": "{{count}} فوق الخمسة المشمولين"
+      "costNoteOver": "{{count}} فوق الخمسة المشمولين",
+      "withLoginNote_zero": "{{count}} دعوات بالانتظار",
+      "withLoginNote_two": "{{count}} دعوات بالانتظار",
+      "withLoginNote_few": "{{count}} دعوات بالانتظار",
+      "withLoginNote_many": "{{count}} دعوات بالانتظار"
     },
     "tab": {
       "all": "الكل",
@@ -10672,7 +10799,19 @@
       "remove": "أزلهم",
       "freesAPlace": "يحرّر مقعدًا",
       "oneDevice": "جهاز واحد"
-    }
+    },
+    "invitedAgo_zero": "دُعي قبل {{count}} أيام",
+    "invitedAgo_two": "دُعي قبل {{count}} أيام",
+    "invitedAgo_few": "دُعي قبل {{count}} أيام",
+    "invitedAgo_many": "دُعي قبل {{count}} أيام",
+    "hoursAgo_zero": "قبل {{count}} ساعات",
+    "hoursAgo_two": "قبل {{count}} ساعات",
+    "hoursAgo_few": "قبل {{count}} ساعات",
+    "hoursAgo_many": "قبل {{count}} ساعات",
+    "inviteExpires_zero": "تنتهي الدعوة خلال {{count}} أيام",
+    "inviteExpires_two": "تنتهي الدعوة خلال {{count}} أيام",
+    "inviteExpires_few": "تنتهي الدعوة خلال {{count}} أيام",
+    "inviteExpires_many": "تنتهي الدعوة خلال {{count}} أيام"
   },
   "invite": {
     "title": "ادعُ شخصًا",
@@ -10692,7 +10831,7 @@
     "roleBody": {
       "till": "يستلم المدفوعات ويصدر الفواتير في الفروع المسندة إليه. لا يرى أرباح العمل ولا يغيّر الأسعار ولا يصل إلى عمل غيره.",
       "manager": "يدير فرعًا. كل ما يفعله الكاشير، إضافة إلى الأسعار والمخزون والمورّدين وتقارير فروعه.",
-      "accountant": "يقرأ كل شيء ولا يغيّر شيئًا. مخصص لمحاسب خارجي — يسحب التقارير وينزّل المستندات لكن لا يصدر فاتورة ولا يعدّلها.",
+      "accountant": "يقرأ كل شيء ولا يغيّر شيئًا. مخصص لمحاسب خارجي: يسحب التقارير وينزّل المستندات لكن لا يصدر فاتورة ولا يعدّلها.",
       "owner": "كل شيء، بما فيه الفوترة والخطة وإضافة الأشخاص أو إزالتهم. لا تمنحه إلا لمن تأتمنه على بيانات البنك."
     },
     "chip": {
@@ -10738,15 +10877,36 @@
       "branchChosen_one": "فرع واحد · {{names}}",
       "branchChosen_other": "{{count}} فروع · {{names}}",
       "noBranch": "لم يُحدد فرع بعد",
-      "allBranches": "كل الفروع — الدور يصل إليها جميعًا",
+      "allBranches": "كل الفروع: الدور يصل إليها جميعًا",
       "costs": "يكلّف {{amount}} ر.ع. شهريًا",
-      "free": "ضمن الخمسة المشمولين"
+      "free": "ضمن الخمسة المشمولين",
+      "branchChosen_zero": "{{count}} فروع · {{names}}",
+      "branchChosen_two": "{{count}} فروع · {{names}}",
+      "branchChosen_few": "{{count}} فروع · {{names}}",
+      "branchChosen_many": "{{count}} فروع · {{names}}"
     },
     "footer": "{{name}} · {{role}} في {{branches}} · {{amount}} ر.ع. شهريًا عند القبول",
     "footerFree": "{{name}} · {{role}} في {{branches}} · ضمن الخطة",
     "footerIncomplete": "أدخل اسمًا وبريدًا للإرسال",
     "send": "أرسل الدعوة",
-    "sent": "أُرسلت الدعوة"
+    "sent": "أُرسلت الدعوة",
+    "peopleCount_one": "شخص واحد",
+    "peopleCount_two": "شخصان",
+    "peopleCount_few": "{{count}} أشخاص",
+    "peopleCount_many": "{{count}} شخصًا",
+    "peopleCount_other": "{{count}} شخص",
+    "peopleCount_zero": "لا أحد",
+    "tillCount_one": "كاشير واحد",
+    "tillCount_two": "كاشيران",
+    "tillCount_few": "{{count}} أجهزة كاشير",
+    "tillCount_many": "{{count}} جهاز كاشير",
+    "tillCount_other": "{{count}} جهاز كاشير",
+    "tillCount_zero": "بلا كاشير",
+    "noTill": "بلا كاشير",
+    "branchMeta_zero": "{{people}} أشخاص · {{tills}} كاشير",
+    "branchMeta_two": "{{people}} أشخاص · {{tills}} كاشير",
+    "branchMeta_few": "{{people}} أشخاص · {{tills}} كاشير",
+    "branchMeta_many": "{{people}} أشخاص · {{tills}} كاشير"
   },
   "roles": {
     "title": "ما يستطيعه كل دور",
@@ -10823,7 +10983,15 @@
       "cant": "لا يستطيع"
     },
     "tapToChange": "انقر أي علامة لتغييرها",
-    "ownerFixed": "المالك يملك كل شيء ولا يمكن تقليصه."
+    "ownerFixed": "المالك يملك كل شيء ولا يمكن تقليصه.",
+    "people_zero": "{{count}} أشخاص",
+    "people_two": "{{count}} أشخاص",
+    "people_few": "{{count}} أشخاص",
+    "people_many": "{{count}} أشخاص",
+    "invited_zero": "{{count}} مدعوون",
+    "invited_two": "{{count}} مدعوون",
+    "invited_few": "{{count}} مدعوون",
+    "invited_many": "{{count}} مدعوون"
   },
   "makeRole": {
     "title": "اصنع دورًا",
@@ -10855,7 +11023,7 @@
     "groupCount": "{{on}} من {{total}} مفعّلة",
     "ownerOnly": "للمالك فقط",
     "offBecauseNoBranch": "مغلق لأن هذا الدور بلا فرع كاشير مسند",
-    "ownerOnlyNote": "الأربعة الأخيرة <b>للمالك فقط ولا يمكن منحها</b> — لا بد أن يبقى شخص قادرًا على دفع الفاتورة وإعادة إدخال الناس.",
+    "ownerOnlyNote": "الأربعة الأخيرة <b>للمالك فقط ولا يمكن منحها</b>: لا بد أن يبقى شخص قادرًا على دفع الفاتورة وإعادة إدخال الناس.",
     "howItReads": "كيف يُقرأ",
     "nothingOnYet": "لم يُفعّل شيء بعد",
     "worthThinking": "مما يستحق التفكير",
@@ -10863,8 +11031,8 @@
       "named": "له اسم وسبب مكتوب",
       "unnamed": "أعطه اسمًا وسببًا",
       "noBilling": "لا يصل إلى الفوترة ولا الأشخاص",
-      "hasBilling": "يصل إلى الفوترة — غير معتاد لدور مصنوع",
-      "billsNoFigures": "يعتمد فواتير المورّدين دون رؤية الأرقام — غير معتاد، وإن لم يكن خطأ",
+      "hasBilling": "يصل إلى الفوترة، وهذا غير معتاد لدور مصنوع",
+      "billsNoFigures": "يعتمد فواتير المورّدين دون رؤية الأرقام. غير معتاد، وإن لم يكن خطأ",
       "nobodyHasIt": "لا أحد يحمل هذا الدور بعد"
     },
     "giveItToSomeone": "امنحه لشخص",
@@ -10934,7 +11102,10 @@
       "overage": "{{amount}} ر.ع. لكل فاتورة تتجاوز الحصة",
       "noOverage": "تتوقف الفوترة عند بلوغ الحصة",
       "everythingIn": "كل ما في {{plan}}، إضافةً إلى",
-      "extraction": "{{name}}: {{availability}}"
+      "extraction": "{{name}}: {{availability}}",
+      "people_zero": "{{count}} شخص",
+      "peopleThen_zero": "{{count}} شخص، ثم {{amount}} ر.ع. لكل إضافي",
+      "branches_zero": "{{count}} فرع"
     },
     "tooSmall": "أصغر من حاجتك",
     "atTheCeiling": "أنت عند الحد الأقصى في الفواتير والأشخاص.",
@@ -11152,14 +11323,14 @@
       "cheque": "شيك"
     },
     "methodHint": {
-      "cardLink": "بوابة ثواني · لا نحتفظ بشيء",
+      "cardLink": "بوابة Paymob · لا نحتفظ بشيء",
       "bankTransfer": "بنك مسقط · اذكر رقم الفاتورة",
       "cash": "في مكتب فوتر أو لدى مندوبك",
       "cheque": "باسم Insight Technology LLC"
     },
     "confirmedBy": {
-      "thawani": "سُدّدت عبر الرابط · أكّدتها ثواني {{date}}",
-      "fawtir": "أكّدها فريق فوتر {{date}}"
+      "fawtir": "أكّدها فريق فوتر {{date}}",
+      "paymob": "سُدّدت عبر الرابط · أكّدتها Paymob {{date}}"
     },
     "pay": {
       "title": "كيف تدفع",
@@ -11176,7 +11347,7 @@
         "cheque": "سلّم شيكًا باسم Insight Technology LLC إلى مندوبك. تُفعَّل الفترة بعد تحصيله."
       },
       "linkTitle": "بطاقة عبر رابط آمن",
-      "linkNote": "يصلك رابط ثواني عبر {{to}} قبل كل فاتورة بأسبوع، صالح {{days}} أيام. فوتر لا يرى بطاقتك ولا يحفظها.",
+      "linkNote": "يصلك رابط Paymob عبر {{to}} قبل كل فاتورة بأسبوع، صالح {{days}} أيام. فوتر لا يرى بطاقتك ولا يحفظها.",
       "transferTitle": "تحويل بنكي",
       "transferNote": "المرجع: {{reference}}. يفعّله فريق فوتر بعد تأكيد التحويل.",
       "copyIban": "انسخ رقم الآيبان",
@@ -11203,7 +11374,8 @@
       "byApiNote": "كلها من مفتاح مزامنة ERP",
       "keptFor": "يُحفظ",
       "years": "سنوات",
-      "keptForNote": "لا يمكن تعديله ولا مسحه"
+      "keptForNote": "لا يمكن تعديله ولا مسحه",
+      "notCounted": "لا يستطيع فوتر عدّها بعد"
     },
     "tab": {
       "all": "الكل",
@@ -11229,10 +11401,10 @@
       "reportedAccepted": "بلّغ فوتر {{link}} لهيئة الضرائب و<b>قُبلت</b>",
       "invited": "دعا <b>{{who}}</b> <b>{{person}}</b> بصفة {{role}}",
       "newDevice": "سجّل <b>{{who}}</b> الدخول من جهاز جديد في {{branch}}",
-      "refusedNoPeppol": "رفض فوتر إرسال {{link}} — لا يملك المشتري معرّف Peppol",
+      "refusedNoPeppol": "رفض فوتر إرسال {{link}}: لا يملك المشتري معرّف Peppol",
       "wroteOff": "أتلف <b>{{who}}</b> {{count}} كيسًا من",
       "bulkPriceChange": "غيّر <b>{{who}}</b> أسعار <b>{{count}} صنفًا</b> في {{group}} دفعة واحدة",
-      "certChecked": "فُحصت <b>شهادة التوقيع</b> — بقي {{days}} أيام حينها"
+      "certChecked": "فُحصت <b>شهادة التوقيع</b>، وبقي {{days}} أيام حينها"
     },
     "tag": {
       "catalog": "الكتالوج",
@@ -11314,13 +11486,17 @@
       "MappingDraftSaved": "حُفظت مسودة الربط",
       "MappingProfileDeactivated": "أُلغي تفعيل الربط",
       "MappingProfileStored": "حُفظ الربط"
-    }
+    },
+    "notAvailable": "غير متاح بعد",
+    "exportUnavailable": "تصدير السجل كملف PDF غير متاح بعد.",
+    "pageScope": "تشمل التبويبات والبحث والترتيب الإدخالات في هذه الصفحة فقط.",
+    "onThisPage": "{{count}} في هذه الصفحة"
   },
   "export": {
     "title": "خذ بياناتك معك",
     "subtitle": "كل ما أدخلته وكل ما أنشأه فوتر، في تنزيل واحد",
     "whatToInclude": "ما الذي يُضمَّن",
-    "whatToIncludeNote": "كل شيء محدد — أزل تحديد ما لا تحتاجه",
+    "whatToIncludeNote": "كل شيء محدد، أزل تحديد ما لا تحتاجه",
     "untickEverything": "أزل تحديد الكل",
     "tickEverything": "حدد الكل",
     "schedule": {
@@ -11344,7 +11520,7 @@
       "activityLog": "سجل النشاط",
       "activityLogNote": "كل تغيير، ومن أجراه ومتى، رجوعًا إلى يوم بدايتك.",
       "reports": "التقارير كجداول",
-      "reportsNote": "الإقرارات الضريبية وأعمار الديون والمبيعات شهريًا. <b>محسوبة من الفواتير أعلاه</b>، فتركها لا يفقدك شيئًا — بل يوفّر عليك إعادة بنائها فقط."
+      "reportsNote": "الإقرارات الضريبية وأعمار الديون والمبيعات شهريًا. <b>محسوبة من الفواتير أعلاه</b>، فتركها لا يفقدك شيئًا؛ بل يوفّر عليك إعادة بنائها فقط."
     },
     "files": "{{count}} ملف",
     "bills": "{{count}} فاتورة",
@@ -11372,7 +11548,7 @@
     "footerTime": "يستغرق تجميعه ٢٠ إلى ٤٠ دقيقة · سيصلك بريد عندما يجهز",
     "justTheInvoices": "الفواتير فقط",
     "startDownload": "ابدأ التنزيل",
-    "started": "بدأ — سنرسل لك بريدًا"
+    "started": "بدأ. سنرسل لك بريدًا"
   },
   "closing": {
     "title": "إغلاق الحساب",
@@ -11382,7 +11558,7 @@
     "sortFirstNote_other": "{{count}} منها تمنع إغلاق الحساب تمامًا",
     "blocker": {
       "neverAccepted": "فاتورة واحدة لم تقبلها هيئة الضرائب قط",
-      "neverAcceptedNote": "رُفضت <b>{{invoice}}</b> ولم تُصحَّح. أغلق الآن وستبقى غير مبلّغ عنها — <b>وتلك مسؤوليتك أنت، لا فوتر</b>.",
+      "neverAcceptedNote": "رُفضت <b>{{invoice}}</b> ولم تُصحَّح. أغلق الآن وستبقى غير مبلّغ عنها، <b>وتلك مسؤوليتك أنت، لا فوتر</b>.",
       "billNotCharged": "فاتورة هذا الشهر لم تُخصم بعد",
       "billNotChargedNote": "تستحق <b>{{amount}} ر.ع.</b> في {{date}}. يمكنك الإغلاق من ذلك التاريخ، أو تسديدها الآن والإغلاق اليوم.",
       "openQuotations": "{{count}} عروض أسعار ما زالت مفتوحة",
@@ -11394,14 +11570,14 @@
     "settleItNow": "سدّدها الآن",
     "seeThem": "اعرضها",
     "whatHappens": "ماذا يحدث، ومتى",
-    "whatHappensNote": "لا شيء فوري — لديك شهر لتغيّر رأيك",
+    "whatHappensNote": "لا شيء فوري، لديك شهر لتغيّر رأيك",
     "stage": {
       "theDay": "يوم الإغلاق",
       "theDayTitle": "تتوقف الفوترة",
       "theDayBody": "لا فواتير جديدة، ولا مبيعات كاشير، ولا نداءات للواجهة البرمجية. ويتوقف معرّف Peppol لديك عن <b>استقبال فواتير المورّدين</b>، فمن يرسل لك واحدة يتلقى فشلًا. ولا يتأثر شيء مما بُلّغ لهيئة الضرائب.",
       "thirtyDays": "خلال الـ{{days}} يومًا التالية",
       "thirtyDaysTitle": "ما زال بإمكانك الدخول وتغيير رأيك",
-      "thirtyDaysBody": "للقراءة فقط. تستطيع الاطلاع على كل شيء وتنزيل أي شيء و<b>إعادة فتح الحساب بنقرة واحدة</b> — لم يُفقد شيء بعد. وقد توقفت الفوترة أصلًا.",
+      "thirtyDaysBody": "للقراءة فقط. تستطيع الاطلاع على كل شيء وتنزيل أي شيء و<b>إعادة فتح الحساب بنقرة واحدة</b>. لم يُفقد شيء بعد. وقد توقفت الفوترة أصلًا.",
       "afterThirty": "بعد {{days}} يومًا",
       "afterThirtyTitle": "ينتهي الدخول للجميع",
       "afterThirtyBody": "لن يصل إليه فريقك بعد ذلك. وإعادة الفتح من هنا تعني <b>مراسلة الدعم</b> بدل نقر زر.",
@@ -11416,7 +11592,7 @@
       "everyInvoice": "كل فاتورة، في النسخة التي تنزّلها",
       "taxRecord": "سجل التبليغ الضريبي ومراجع فوترة",
       "contactLists": "قوائم عملائك ومورّديك",
-      "yourIdentifiers": "رقمك الضريبي ومعرّف Peppol — وهما لك، لا لفوتر"
+      "yourIdentifiers": "رقمك الضريبي ومعرّف Peppol: وهما لك، لا لفوتر"
     },
     "lose": {
       "raiseOrReport": "القدرة على إصدار فاتورة أو التبليغ عنها",
@@ -11440,14 +11616,18 @@
     },
     "months": "{{count}} شهرًا",
     "movingProvider": "تنتقل إلى مزوّد آخر؟",
-    "movingNote": "<b>أنشئ الجديد أولًا، ثم أغلق هذا.</b> ينتقل معرّف Peppol معك — يسجّله المزوّد الجديد باسمه، وعادة يمر يوم لا يكون فيه أي منهما فعّالًا. والإغلاق أولًا يطيل تلك الفجوة.",
+    "movingNote": "<b>أنشئ الجديد أولًا، ثم أغلق هذا.</b> ينتقل معرّف Peppol معك: يسجّله المزوّد الجديد باسمه، وعادة يمر يوم لا يكون فيه أي منهما فعّالًا. والإغلاق أولًا يطيل تلك الفجوة.",
     "howHandoverWorks": "كيف يجري التسليم",
     "closeTheAccount": "أغلق الحساب",
-    "closeBody": "يجب معالجة أمرين أعلاه أولًا — <b>الفاتورة غير المبلّغ عنها وفاتورة هذا الشهر</b>. وبعد تسويتهما، سيطلب منك هذا الزر كتابة اسم الشركة ويؤكد بالبريد إلى <b>{{email}}</b> قبل أن يحدث أي شيء.",
+    "closeBody": "يجب معالجة أمرين أعلاه أولًا: <b>الفاتورة غير المبلّغ عنها وفاتورة هذا الشهر</b>. وبعد تسويتهما، سيطلب منك هذا الزر كتابة اسم الشركة ويؤكد بالبريد إلى <b>{{email}}</b> قبل أن يحدث أي شيء.",
     "closeBodyClear": "لا شيء يمنعه الآن. سيطلب منك هذا الزر كتابة اسم الشركة ويؤكد بالبريد إلى <b>{{email}}</b> قبل أن يحدث أي شيء.",
     "closeCompany": "أغلق {{company}}",
     "talkFirst": "تحدث إلى أحدهم أولًا",
-    "ownerOnlyRecorded": "للمالك فقط · يُسجَّل في سجل النشاط"
+    "ownerOnlyRecorded": "للمالك فقط · يُسجَّل في سجل النشاط",
+    "sortFirstNote_zero": "{{count}} منها تمنع إغلاق الحساب تمامًا",
+    "sortFirstNote_two": "{{count}} منها تمنع إغلاق الحساب تمامًا",
+    "sortFirstNote_few": "{{count}} منها تمنع إغلاق الحساب تمامًا",
+    "sortFirstNote_many": "{{count}} منها تمنع إغلاق الحساب تمامًا"
   },
   "signingIn": {
     "title": "تسجيل الدخول",
@@ -11609,7 +11789,11 @@
       "moveGroup": "انقله إلى مجموعة",
       "switchOff": "أوقف عرضه",
       "switchOn": "أعد عرضه"
-    }
+    },
+    "selected_zero": "{{count}} أصناف محددة",
+    "selected_two": "{{count}} أصناف محددة",
+    "selected_few": "{{count}} أصناف محددة",
+    "selected_many": "{{count}} أصناف محددة"
   },
   "changePrices": {
     "title_one": "غيّر صنفًا واحدًا دفعة واحدة",
@@ -11666,7 +11850,23 @@
     "cancel": "إلغاء",
     "apply_one": "غيّر سعرًا واحدًا",
     "apply_other": "غيّر {{count}} سعرًا",
-    "applied": "غُيّرت الأسعار"
+    "applied": "غُيّرت الأسعار",
+    "title_zero": "غيّر {{count}} صنفًا دفعة واحدة",
+    "title_two": "غيّر {{count}} صنفًا دفعة واحدة",
+    "title_few": "غيّر {{count}} صنفًا دفعة واحدة",
+    "title_many": "غيّر {{count}} صنفًا دفعة واحدة",
+    "changingNote_zero": "{{count}} بأسعار مضبوطة يدويًا",
+    "changingNote_two": "{{count}} بأسعار مضبوطة يدويًا",
+    "changingNote_few": "{{count}} بأسعار مضبوطة يدويًا",
+    "changingNote_many": "{{count}} بأسعار مضبوطة يدويًا",
+    "footer_zero": "{{count}} أسعار {{direction}} {{amount}}٪ · {{left}} دون تغيير",
+    "footer_two": "{{count}} أسعار {{direction}} {{amount}}٪ · {{left}} دون تغيير",
+    "footer_few": "{{count}} أسعار {{direction}} {{amount}}٪ · {{left}} دون تغيير",
+    "footer_many": "{{count}} أسعار {{direction}} {{amount}}٪ · {{left}} دون تغيير",
+    "apply_zero": "غيّر {{count}} سعرًا",
+    "apply_two": "غيّر {{count}} سعرًا",
+    "apply_few": "غيّر {{count}} سعرًا",
+    "apply_many": "غيّر {{count}} سعرًا"
   },
   "catalogEmpty": {
     "subtitle": "كل ما تبيعه، يُحفظ مرة ويُستخدم في كل فاتورة وعرض سعر وبيع. تبقى الأسعار والفئات الضريبية والأوصاف كما هي.",
@@ -11981,7 +12181,11 @@
       "name": "الاسم",
       "bestSelling": "الأكثر مبيعًا",
       "saving": "الأكبر توفيرًا"
-    }
+    },
+    "parts_zero": "{{count}} أجزاء",
+    "parts_two": "{{count}} أجزاء",
+    "parts_few": "{{count}} أجزاء",
+    "parts_many": "{{count}} أجزاء"
   },
   "bundle": {
     "savesTheCustomer": "يوفّر للعميل {{amount}} ر.ع.",
@@ -12185,7 +12389,11 @@
     "cappedAt": "محدودة بـ{{count}}",
     "openQuotations": "عروض أسعار مفتوحة",
     "recurringOrders": "طلبات متكررة",
-    "none": "لا شيء"
+    "none": "لا شيء",
+    "days_zero": "{{count}} أيام",
+    "days_two": "{{count}} أيام",
+    "days_few": "{{count}} أيام",
+    "days_many": "{{count}} أيام"
   },
   "priceRules": {
     "title": "قواعد الأسعار",
@@ -12437,7 +12645,15 @@
     "cancel": "إلغاء",
     "saveForLater": "احفظ وأكمل لاحقًا",
     "addToCatalog": "أضف {{count}} إلى الكتالوج",
-    "added": "أُضيفت"
+    "added": "أُضيفت",
+    "kindsPicked_zero": "{{count}} أنواع محددة",
+    "kindsPicked_two": "{{count}} أنواع محددة",
+    "kindsPicked_few": "{{count}} أنواع محددة",
+    "kindsPicked_many": "{{count}} أنواع محددة",
+    "sizesPicked_zero": "{{count}} أحجام محددة",
+    "sizesPicked_two": "{{count}} أحجام محددة",
+    "sizesPicked_few": "{{count}} أحجام محددة",
+    "sizesPicked_many": "{{count}} أحجام محددة"
   },
   "rowsView": {
     "label": "طريقة عرض القائمة",
@@ -13068,7 +13284,8 @@
         "revoked": "أُلغيت الدعوة إلى {{email}}.",
         "error": {
           "closed": "لم تعد هذه الدعوة مفتوحة: قُبلت أو أُلغيت. أعد التحميل لرؤية القائمة الحالية."
-        }
+        },
+        "sentTimes_zero": "أُرسلت {{count}} مرة"
       },
       "lockedUntil": "يُفتح {{time}}",
       "deactivated": {
@@ -13112,7 +13329,8 @@
         "doneNoSessions": "أُعيد ضبط التحقق بخطوتين لـ{{name}}. لم تكن لديه جلسات مفتوحة.",
         "error": {
           "refused": "رفضت فوترة إعادة الضبط هذه. لا يمكنك إعادة ضبط التحقق بخطوتين لحسابك، وربما لم تعد تملك الصلاحية."
-        }
+        },
+        "done_zero": "أُعيد ضبط التحقق بخطوتين لـ{{name}} وأُنهيت {{count}} جلسة."
       },
       "actionsFor": "إجراءات {{name}}",
       "emailChange": {
@@ -13597,7 +13815,7 @@
           "bankTransfer": "مرجع التحويل",
           "cheque": "رقم الشيك والبنك",
           "cash": "رقم الإيصال",
-          "cardLink": "معرّف معاملة ثواني"
+          "cardLink": "معرّف معاملة Paymob"
         },
         "proof": "الإثبات",
         "proofHint": "اختياري: إشعار تحويل أو إيصال أو صورة الشيك. لا يُرفع شيء بعد.",
@@ -13608,7 +13826,7 @@
       },
       "sendLink": {
         "title": "إرسال رابط دفع",
-        "subtitle": "صفحة دفع ثواني لـ {{tenant}}. تحتفظ اللوحة بالرابط وحالته.",
+        "subtitle": "صفحة دفع Paymob لـ {{tenant}}. تحتفظ اللوحة بالرابط وحالته.",
         "channel": "أرسله عبر",
         "whatsapp": {
           "title": "واتساب",
@@ -13636,7 +13854,7 @@
           "copied": "نسخ الرابط"
         },
         "sentTitle": "أُرسل الرابط",
-        "sentBody": "يظهر «لم يُدفع بعد» حتى تؤكد ثواني دفع البطاقة، أو ينتهي في {{date}}.",
+        "sentBody": "يظهر «لم يُدفع بعد» حتى تؤكد Paymob دفع البطاقة، أو ينتهي في {{date}}.",
         "copy": "نسخ",
         "copiedNow": "نُسخ",
         "done": "تم",
@@ -13750,7 +13968,7 @@
         },
         "payments": {
           "title": "المدفوعات",
-          "note": "كيف تُدفع فاتورة الاشتراك ومتى يُفعَّل الحساب. كل دفع إلكتروني يمرّ عبر ثواني؛ والطرق الأخرى يسوّيها مشغّل."
+          "note": "كيف تُدفع فاتورة الاشتراك ومتى يُفعَّل الحساب. كل دفع إلكتروني يمرّ عبر Paymob؛ والطرق الأخرى يسوّيها مشغّل."
         },
         "promotional": {
           "title": "العروض",
@@ -13951,10 +14169,10 @@
       },
       "payments": {
         "provider": {
-          "thawani": "ثواني",
           "publishableKey": "المفتاح العام",
           "keysNote": "المفاتيح محفوظة في الخادم؛ ولا ترى اللوحة المفتاح السري أبدًا. تبديل الوضع يغيّر المفتاح الذي يستخدمه الخادم.",
-          "modeLabel": "وضع المزوّد"
+          "modeLabel": "وضع المزوّد",
+          "paymob": "Paymob"
         },
         "mode": {
           "test": "تجريبي",
@@ -13968,7 +14186,7 @@
           "cheque": "شيك"
         },
         "methodNote": {
-          "cardLink": "رابط ثواني على الفاتورة وفي رسالة واتساب.",
+          "cardLink": "رابط Paymob على الفاتورة وفي رسالة واتساب.",
           "bankTransfer": "تُطبع البيانات البنكية أدناه على الفاتورة.",
           "cash": "يسوّيه مشغّل مع مرجع.",
           "cheque": "يسوّيه مشغّل بعد صرف الشيك."
@@ -13987,7 +14205,7 @@
         "reminderDays": "تذكيرات فاتورة الاشتراك غير المدفوعة",
         "reminderDaysHint": "أيام بعد تاريخ الفاتورة. وتتبعها تنبيهات مهلة السماح بعد فشل الدفع.",
         "autoActivate": "تفعيل تلقائي عند الدفع الإلكتروني",
-        "autoActivateNote": "إيقاف: يظهر دفع ثواني مدفوعًا ويفعّل المشغّل الحساب. تفعيل: يفعّل الحساب نفسه لحظة تأكيد ثواني.",
+        "autoActivateNote": "إيقاف: يظهر دفع Paymob مدفوعًا ويفعّل المشغّل الحساب. تفعيل: يفعّل الحساب نفسه لحظة تأكيد Paymob.",
         "proofRequired": "إثبات مطلوب للنقد والشيك",
         "proofRequiredNote": "عند الإيقاف يكفي مرجع. عند التفعيل يجب على المشغّل إرفاق الإيصال أو صورة الشيك قبل وسم الفاتورة مدفوعة.",
         "templatesGroup": "قوالب رسائل واتساب",
@@ -15340,7 +15558,8 @@
         "days_two": "تستحق الفاتورة {{name}} خلال يومين",
         "days_few": "تستحق الفاتورة {{name}} خلال {{count}} أيام",
         "days_many": "تستحق الفاتورة {{name}} خلال {{count}} يومًا",
-        "days_other": "تستحق الفاتورة {{name}} خلال {{count}} يوم"
+        "days_other": "تستحق الفاتورة {{name}} خلال {{count}} يوم",
+        "days_zero": "تستحق الفاتورة {{name}} خلال {{count}} يوم"
       },
       "LATE": {
         "now": "الفاتورة {{name}} متأخرة",
@@ -15348,7 +15567,8 @@
         "days_two": "الفاتورة {{name}} متأخرة يومين",
         "days_few": "الفاتورة {{name}} متأخرة {{count}} أيام",
         "days_many": "الفاتورة {{name}} متأخرة {{count}} يومًا",
-        "days_other": "الفاتورة {{name}} متأخرة {{count}} يوم"
+        "days_other": "الفاتورة {{name}} متأخرة {{count}} يوم",
+        "days_zero": "الفاتورة {{name}} متأخرة {{count}} يوم"
       },
       "DISCOUNT_EXPIRY": {
         "now": "ينتهي خصم الفاتورة {{name}} اليوم",
@@ -15359,7 +15579,8 @@
         "days_other": "ينتهي خصم الفاتورة {{name}} خلال {{count}} يوم",
         "dated": "خصم {{percent}}٪ على الفاتورة {{name}} ينتهي {{date}}",
         "datedNow": "خصم {{percent}}٪ على الفاتورة {{name}} ينتهي اليوم",
-        "datedPast": "خصم {{percent}}٪ على الفاتورة {{name}} انتهى {{date}}"
+        "datedPast": "خصم {{percent}}٪ على الفاتورة {{name}} انتهى {{date}}",
+        "days_zero": "ينتهي خصم الفاتورة {{name}} خلال {{count}} يوم"
       },
       "APPROVAL_STALE": {
         "now": "الفاتورة {{name}} تنتظر الاعتماد منذ أقل من يوم",
@@ -15367,7 +15588,8 @@
         "days_two": "الفاتورة {{name}} بانتظار الاعتماد منذ يومين",
         "days_few": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} أيام",
         "days_many": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} يومًا",
-        "days_other": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} يوم"
+        "days_other": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} يوم",
+        "days_zero": "الفاتورة {{name}} بانتظار الاعتماد منذ {{count}} يوم"
       },
       "MISMATCH_STALE": {
         "now": "في الفاتورة {{name}} اختلاف لم يحلّه أحد",
@@ -15375,7 +15597,8 @@
         "days_two": "اختلاف الفاتورة {{name}} لم يُحلّ منذ يومين",
         "days_few": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} أيام",
         "days_many": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يومًا",
-        "days_other": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يوم"
+        "days_other": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يوم",
+        "days_zero": "اختلاف الفاتورة {{name}} لم يُحلّ منذ {{count}} يوم"
       },
       "SCAN_UNCONFIRMED": {
         "now": "{{name}} لم يُؤكَّد بعد",
@@ -15383,7 +15606,8 @@
         "days_two": "{{name}} لم يُؤكَّد منذ يومين",
         "days_few": "{{name}} لم يُؤكَّد منذ {{count}} أيام",
         "days_many": "{{name}} لم يُؤكَّد منذ {{count}} يومًا",
-        "days_other": "{{name}} لم يُؤكَّد منذ {{count}} يوم"
+        "days_other": "{{name}} لم يُؤكَّد منذ {{count}} يوم",
+        "days_zero": "{{name}} لم يُؤكَّد منذ {{count}} يوم"
       },
       "RECURRING_LATE": {
         "now": "لم تصل {{name}} بعد",
@@ -15391,7 +15615,8 @@
         "days_two": "تأخر وصول {{name}} يومين",
         "days_few": "تأخر وصول {{name}} {{count}} أيام",
         "days_many": "تأخر وصول {{name}} {{count}} يومًا",
-        "days_other": "تأخر وصول {{name}} {{count}} يوم"
+        "days_other": "تأخر وصول {{name}} {{count}} يوم",
+        "days_zero": "تأخر وصول {{name}} {{count}} يوم"
       },
       "RECURRING_CHASE": {
         "title": "يُرجى متابعة المورّد بشأن {{name}}"
@@ -15414,14 +15639,16 @@
           "days_two": "فاتورة {{supplier}} تستحق خلال يومين",
           "days_few": "فاتورة {{supplier}} تستحق خلال {{count}} أيام",
           "days_many": "فاتورة {{supplier}} تستحق خلال {{count}} يومًا",
-          "days_other": "فاتورة {{supplier}} تستحق خلال {{count}} يوم"
+          "days_other": "فاتورة {{supplier}} تستحق خلال {{count}} يوم",
+          "days_zero": "فاتورة {{supplier}} تستحق خلال {{count}} يوم"
         },
         "LATE": {
           "days_one": "فاتورة {{supplier}} غير مدفوعة منذ يوم واحد",
           "days_two": "فاتورة {{supplier}} غير مدفوعة منذ يومين",
           "days_few": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} أيام",
           "days_many": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يومًا",
-          "days_other": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يوم"
+          "days_other": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يوم",
+          "days_zero": "فاتورة {{supplier}} غير مدفوعة منذ {{count}} يوم"
         },
         "DISCOUNT_EXPIRY": {
           "now": "خصم {{supplier}} ينتهي اليوم",
@@ -15432,7 +15659,8 @@
           "days_other": "خصم {{supplier}} ينتهي خلال {{count}} يوم",
           "dated": "خصم {{percent}}٪ من {{supplier}} ينتهي {{date}}",
           "datedNow": "خصم {{percent}}٪ من {{supplier}} ينتهي اليوم",
-          "datedPast": "خصم {{percent}}٪ من {{supplier}} انتهى {{date}}"
+          "datedPast": "خصم {{percent}}٪ من {{supplier}} انتهى {{date}}",
+          "days_zero": "خصم {{supplier}} ينتهي خلال {{count}} يوم"
         },
         "APPROVAL_STALE": {
           "now": "اعتماد {{supplier}} ينتظر منذ أقل من يوم",
@@ -15440,7 +15668,8 @@
           "days_two": "اعتماد {{supplier}} ينتظر يومين",
           "days_few": "اعتماد {{supplier}} ينتظر {{count}} أيام",
           "days_many": "اعتماد {{supplier}} ينتظر {{count}} يومًا",
-          "days_other": "اعتماد {{supplier}} ينتظر {{count}} يوم"
+          "days_other": "اعتماد {{supplier}} ينتظر {{count}} يوم",
+          "days_zero": "اعتماد {{supplier}} ينتظر {{count}} يوم"
         },
         "MISMATCH_STALE": {
           "now": "اختلاف {{supplier}} لم يُحلّ",
@@ -15448,7 +15677,8 @@
           "days_two": "اختلاف {{supplier}} لم يُحلّ منذ يومين",
           "days_few": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} أيام",
           "days_many": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يومًا",
-          "days_other": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يوم"
+          "days_other": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يوم",
+          "days_zero": "اختلاف {{supplier}} لم يُحلّ منذ {{count}} يوم"
         },
         "RECURRING_LATE": {
           "now": "فاتورة {{supplier}} لم تصل",
@@ -15456,7 +15686,8 @@
           "days_two": "فاتورة {{supplier}} لم تصل، متأخرة يومين",
           "days_few": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} أيام",
           "days_many": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يومًا",
-          "days_other": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يوم"
+          "days_other": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يوم",
+          "days_zero": "فاتورة {{supplier}} لم تصل، متأخرة {{count}} يوم"
         },
         "RECURRING_CHASE": {
           "title": "طالِب {{supplier}} بالفاتورة التي لم تصل"
@@ -19188,7 +19419,11 @@
     "footer": {
       "toCheck_one": "حقل واحد ما زال يحتاج مراجعة",
       "toCheck_other": "{{count}} حقول ما زالت تحتاج مراجعة",
-      "notReported": "الفواتير المرفوعة لا يُتحقق منها ولا يُبلغ عنها كفواتير بيبول"
+      "notReported": "الفواتير المرفوعة لا يُتحقق منها ولا يُبلغ عنها كفواتير بيبول",
+      "toCheck_zero": "{{count}} حقول ما زالت تحتاج مراجعة",
+      "toCheck_two": "{{count}} حقول ما زالت تحتاج مراجعة",
+      "toCheck_few": "{{count}} حقول ما زالت تحتاج مراجعة",
+      "toCheck_many": "{{count}} حقول ما زالت تحتاج مراجعة"
     },
     "noOpenOrders": "لا طلبات شراء مفتوحة لهذا المورّد لربطها.",
     "refused": {
@@ -19952,7 +20187,8 @@
     "alreadyOnFile_two": "صفّان مسجّلان مسبقًا",
     "alreadyOnFile_few": "{{count}} صفوف مسجّلة مسبقًا",
     "alreadyOnFile_many": "{{count}} صفًا مسجّلًا مسبقًا",
-    "alreadyOnFile_other": "{{count}} صف مسجّل مسبقًا"
+    "alreadyOnFile_other": "{{count}} صف مسجّل مسبقًا",
+    "alreadyOnFile_zero": "{{count}} صف مسجّل مسبقًا"
   },
   "paymentReminders": {
     "backToHistory": "← التذكيرات المرسلة",

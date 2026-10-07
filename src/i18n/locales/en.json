@@ -924,7 +924,7 @@
     "method": {
       "cardLink": {
         "title": "Card",
-        "subtitle": "Secure link · Thawani"
+        "subtitle": "Secure link · Paymob"
       },
       "bankTransfer": {
         "title": "Bank transfer",
@@ -936,14 +936,14 @@
       }
     },
     "cardLink": {
-      "note": "Your card is entered on Thawani's secure checkout, never on Fawtir. Nothing about it is stored with us.",
+      "note": "Your card is entered on Paymob's secure checkout, never on Fawtir. Nothing about it is stored with us.",
       "how": "How would you like the checkout?",
       "via": {
         "now": "Open it now",
         "whatsapp": "Send me the link by WhatsApp",
         "email": "Send me the link by email"
       },
-      "viaNowNote": "You go to Thawani's checkout and come straight back.",
+      "viaNowNote": "You go to Paymob's checkout and come straight back.",
       "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
       "viaEmailNote": "To {{email}} · valid {{days}} days",
       "yourPhone": "your phone",
@@ -979,7 +979,7 @@
     "subscription": {
       "title": "Your subscription",
       "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
-      "cardLink": "Paid by card through Thawani — you'll be activated as soon as the payment is confirmed.",
+      "cardLink": "Paid by card through Paymob: you'll be activated as soon as the payment is confirmed.",
       "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
       "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
       "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
@@ -9719,7 +9719,7 @@
       "teamPill": "{{used}} of {{seats}} used",
       "teamFoot": "Next is OMR {{amount}}/mo",
       "rolesTitle": "What each role can do",
-      "rolesBody": "Owner, manager, accountant, till staff — and one you made yourself.",
+      "rolesBody": "Owner, manager, accountant, till staff, and one you made yourself.",
       "rolesPill": "{{count}} roles",
       "signingTitle": "Signing in",
       "signingBody": "Two-step sign-in, session length, and the one-device rule on mobile.",
@@ -9828,7 +9828,7 @@
     "renewIt": "Renew it",
     "details": "Details",
     "renewingTitle": "What renewing involves",
-    "renewingNote": "start now and you'll be comfortable — leave it two weeks and you won't",
+    "renewingNote": "start now and you'll be comfortable; leave it two weeks and you won't",
     "step": {
       "warned": "We warned you",
       "warnedNote": "30 days out · {{date}}",
@@ -10007,7 +10007,7 @@
     "saved": "Saved",
     "andJoin": " and ",
     "industrialClassification": "Business activity (ISIC)",
-    "industrialClassificationHint": "Copied onto every invoice line by the backend; never asked on the invoice",
+    "industrialClassificationHint": "Fawtir puts it on every invoice line for you; it is never asked on the invoice",
     "industrialClassificationPlaceholder": "Choose your business activity",
     "industrialClassificationSearch": "Search by activity name",
     "industrialClassificationNone": "No activity matches",
@@ -10081,11 +10081,12 @@
     "empty": {
       "title": "Add your first branch",
       "body": "You'll need at least one branch, where you trade from, before you can create an invoice."
-    }
+    },
+    "closedNoteNoCount": "Closed, not deleted. Its invoices stay reachable and still count toward the ten-year retention. The {{prefix}} series is frozen and won't be reused."
   },
   "addBranch": {
     "title": "Add a branch",
-    "subtitle": "A new place you trade from. It shares your VAT number and Peppol ID — only the address and numbering change.",
+    "subtitle": "A new place you trade from. It shares your VAT number and Peppol ID; only the address and numbering change.",
     "cancel": "Cancel",
     "step": {
       "whereItIs": "Where it is",
@@ -10113,7 +10114,7 @@
     "firstInvoiceWillBe": "First invoice will be",
     "thenOnwards": "then 0002, 0003 and so on",
     "whoWorksThere": "Who works there",
-    "whoWorksThereNote": "you can change this later — nobody has to be assigned now",
+    "whoWorksThereNote": "you can change this later, nobody has to be assigned now",
     "inviteSomeoneNew": "Invite someone new",
     "alreadyManages": "Already manages {{branch}} · would work at both",
     "canReachAnyway": "Owner · can reach every branch anyway",
@@ -10147,9 +10148,9 @@
       "prefixFree": "{{prefix}} prefix is free to use",
       "prefixMissing": "Give it a prefix",
       "someoneToManage": "Someone to manage it",
-      "nobodyAssigned": "Nobody assigned yet — optional",
+      "nobodyAssigned": "Nobody assigned yet (optional)",
       "phone": "Phone number added",
-      "noPhone": "No phone number — optional"
+      "noPhone": "No phone number (optional)"
     },
     "cost": "What it costs",
     "branchesUsed": "Branches used",
@@ -10162,7 +10163,7 @@
     "footerUnnamed": "Name the branch to carry on",
     "saveDraft": "Save as a draft",
     "addTheBranch": "Add the branch",
-    "editTitle": "{{name}} — what it is and how it invoices",
+    "editTitle": "{{name}}: what it is and how it invoices",
     "editSubtitle": "Its address and numbering. The VAT number and Peppol ID come from the company and cannot be changed here.",
     "saveChanges": "Save the changes",
     "closeThisBranch": "Close this branch",
@@ -10279,7 +10280,7 @@
     "roleBody": {
       "till": "Takes payments and raises invoices at the branches they're assigned to. Can't see what the business earns, change prices, or reach anyone else's work.",
       "manager": "Runs a branch. Everything till staff can do, plus prices, stock, suppliers and reports for their own branches.",
-      "accountant": "Reads everything and changes nothing. Meant for an outside bookkeeper — they can pull reports and download documents but can't raise or alter an invoice.",
+      "accountant": "Reads everything and changes nothing. Meant for an outside bookkeeper: they can pull reports and download documents but can't raise or alter an invoice.",
       "owner": "Everything, including billing, the plan, and adding or removing people. Only give this to someone you'd trust with the bank details."
     },
     "chip": {
@@ -10325,7 +10326,7 @@
       "branchChosen_one": "One branch · {{names}}",
       "branchChosen_other": "{{count}} branches · {{names}}",
       "noBranch": "No branch ticked yet",
-      "allBranches": "Every branch — the role reaches all of them",
+      "allBranches": "Every branch: the role reaches all of them",
       "costs": "Costs OMR {{amount}} a month",
       "free": "Within the five included"
     },
@@ -10333,7 +10334,12 @@
     "footerFree": "{{name}} · {{role}} at {{branches}} · within the plan",
     "footerIncomplete": "Fill in a name and an email to send it",
     "send": "Send the invitation",
-    "sent": "Invitation sent"
+    "sent": "Invitation sent",
+    "peopleCount_one": "{{count}} person",
+    "peopleCount_other": "{{count}} people",
+    "tillCount_one": "{{count}} till",
+    "tillCount_other": "{{count}} tills",
+    "noTill": "no till"
   },
   "roles": {
     "title": "What each role can do",
@@ -10442,7 +10448,7 @@
     "groupCount": "{{on}} of {{total}} on",
     "ownerOnly": "owner only",
     "offBecauseNoBranch": "Off because this role has no till branch assigned",
-    "ownerOnlyNote": "The last four are <b>owner only and can't be given away</b> — somebody has to be able to pay the bill and let people back in.",
+    "ownerOnlyNote": "The last four are <b>owner only and can't be given away</b>: somebody has to be able to pay the bill and let people back in.",
     "howItReads": "How it reads",
     "nothingOnYet": "Nothing turned on yet",
     "worthThinking": "Worth thinking about",
@@ -10450,8 +10456,8 @@
       "named": "Named, with a reason written down",
       "unnamed": "Give it a name and a reason",
       "noBilling": "Can't reach billing or people",
-      "hasBilling": "Can reach billing — unusual for a made role",
-      "billsNoFigures": "Can approve supplier bills but can't see the figures — unusual, though not wrong",
+      "hasBilling": "Can reach billing, unusual for a made role",
+      "billsNoFigures": "Can approve supplier bills but can't see the figures. Unusual, though not wrong",
       "nobodyHasIt": "Nobody has this role yet"
     },
     "giveItToSomeone": "Give it to someone",
@@ -10663,8 +10669,8 @@
     "yourNextBill": "Your next bill",
     "inDays_one": "in {{count}} day",
     "inDays_other": "in {{count}} days",
-    "nothingExtra": "Nothing extra this month. You're within the plan on both documents and people. <b>If you add the sixth person</b> before the {{day}}, it would come to OMR {{amount}}.",
-    "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on the {{day}}.",
+    "nothingExtra": "Nothing extra this month. You're within the plan on both documents and people. <b>If you add the sixth person</b> before {{day}}, it would come to OMR {{amount}}.",
+    "extraThisMonth": "{{count}} people beyond the five included, at OMR {{each}} each. Charged with the plan on {{day}}.",
     "line": {
       "plan": "{{plan}} plan",
       "planNote": "{{invoices}} documents · {{people}} people · {{branches}} branches",
@@ -10726,14 +10732,14 @@
       "cheque": "Cheque"
     },
     "methodHint": {
-      "cardLink": "Thawani checkout · nothing stored with us",
+      "cardLink": "Paymob checkout · nothing stored with us",
       "bankTransfer": "Bank Muscat · quote the invoice number",
       "cash": "At Fawtir's office or to your representative",
       "cheque": "Made out to Insight Technology LLC"
     },
     "confirmedBy": {
-      "thawani": "Paid by link · confirmed by Thawani {{date}}",
-      "fawtir": "Confirmed by the Fawtir team {{date}}"
+      "fawtir": "Confirmed by the Fawtir team {{date}}",
+      "paymob": "Paid by link · confirmed by Paymob {{date}}"
     },
     "pay": {
       "title": "How you pay",
@@ -10750,7 +10756,7 @@
         "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
-      "linkNote": "A Thawani link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
+      "linkNote": "A Paymob link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
       "transferTitle": "Bank transfer",
       "transferNote": "Reference: {{reference}}. Activated by the Fawtir team once the transfer is confirmed.",
       "copyIban": "Copy the IBAN",
@@ -10773,7 +10779,8 @@
       "byApiNote": "All from the ERP sync key",
       "keptFor": "Kept for",
       "years": "years",
-      "keptForNote": "Can't be edited or cleared"
+      "keptForNote": "Can't be edited or cleared",
+      "notCounted": "Fawtir can't count these yet"
     },
     "tab": {
       "all": "All",
@@ -10799,10 +10806,10 @@
       "reportedAccepted": "Fawtir reported {{link}} to the Tax Authority and it was <b>accepted</b>",
       "invited": "<b>{{who}}</b> invited <b>{{person}}</b> as an {{role}}",
       "newDevice": "<b>{{who}}</b> signed in from a new device in {{branch}}",
-      "refusedNoPeppol": "Fawtir refused to send {{link}} — the buyer had no Peppol ID",
+      "refusedNoPeppol": "Fawtir refused to send {{link}}: the buyer had no Peppol ID",
       "wroteOff": "<b>{{who}}</b> wrote off {{count}} bag of",
       "bulkPriceChange": "<b>{{who}}</b> changed prices on <b>{{count}} items</b> in {{group}} at once",
-      "certChecked": "Your <b>signing certificate</b> was checked — {{days}} days left at the time"
+      "certChecked": "Your <b>signing certificate</b> was checked, {{days}} days left at the time"
     },
     "tag": {
       "catalog": "Catalog",
@@ -10884,13 +10891,17 @@
       "MappingDraftSaved": "Mapping draft saved",
       "MappingProfileDeactivated": "Mapping deactivated",
       "MappingProfileStored": "Mapping saved"
-    }
+    },
+    "notAvailable": "Not available yet",
+    "exportUnavailable": "Exporting the log as a PDF is not available yet.",
+    "pageScope": "Tabs, search and sort cover the entries on this page only.",
+    "onThisPage": "{{count}} on this page"
   },
   "export": {
     "title": "Take your data with you",
     "subtitle": "Everything you've put in and everything Fawtir has generated, in one download",
     "whatToInclude": "What to include",
-    "whatToIncludeNote": "everything is ticked — untick what you don't need",
+    "whatToIncludeNote": "everything is ticked, untick what you don't need",
     "untickEverything": "Untick everything",
     "tickEverything": "Tick everything",
     "schedule": {
@@ -10914,7 +10925,7 @@
       "activityLog": "The activity log",
       "activityLogNote": "Every change, who made it and when, going back to the day you started.",
       "reports": "Reports as spreadsheets",
-      "reportsNote": "VAT returns, aged debtors, sales by month. <b>Worked out from the invoices above</b>, so leaving them out loses nothing — it just saves you rebuilding them."
+      "reportsNote": "VAT returns, aged debtors, sales by month. <b>Worked out from the invoices above</b>, so leaving them out loses nothing; it just saves you rebuilding them."
     },
     "files": "{{count}} files",
     "bills": "{{count}} bills",
@@ -10942,7 +10953,7 @@
     "footerTime": "Takes 20 to 40 minutes to put together · you'll get an email when it's ready",
     "justTheInvoices": "Just the invoices",
     "startDownload": "Start the download",
-    "started": "Started — we will email you"
+    "started": "Started. We will email you"
   },
   "closing": {
     "title": "Closing the account",
@@ -10952,7 +10963,7 @@
     "sortFirstNote_other": "{{count}} of these stop the account being closed at all",
     "blocker": {
       "neverAccepted": "One invoice was never accepted by the Tax Authority",
-      "neverAcceptedNote": "<b>{{invoice}}</b> was refused and never corrected. Close now and it stays unreported — <b>that's your problem to answer for, not Fawtir's</b>.",
+      "neverAcceptedNote": "<b>{{invoice}}</b> was refused and never corrected. Close now and it stays unreported, and <b>that's your problem to answer for, not Fawtir's</b>.",
       "billNotCharged": "This month's bill hasn't been charged yet",
       "billNotChargedNote": "<b>OMR {{amount}}</b> falls due on {{date}}. You can close from that date, or settle it now and close today.",
       "openQuotations": "{{count}} quotations are still open",
@@ -10964,14 +10975,14 @@
     "settleItNow": "Settle it now",
     "seeThem": "See them",
     "whatHappens": "What happens, and when",
-    "whatHappensNote": "nothing is instant — there's a month to change your mind",
+    "whatHappensNote": "nothing is instant, there's a month to change your mind",
     "stage": {
       "theDay": "The day you close it",
       "theDayTitle": "Invoicing stops",
       "theDayBody": "No new invoices, no till sales, no API calls. Your Peppol ID <b>stops accepting bills from suppliers</b>, so anyone sending you one gets a failure. Everything already reported to the Tax Authority is unaffected.",
       "thirtyDays": "For the next {{days}} days",
       "thirtyDaysTitle": "You can still sign in and change your mind",
-      "thirtyDaysBody": "Read-only. You can look at everything, download anything, and <b>reopen the account with one click</b> — nothing has been lost yet. Billing has already stopped.",
+      "thirtyDaysBody": "Read-only. You can look at everything, download anything, and <b>reopen the account with one click</b>. Nothing has been lost yet. Billing has already stopped.",
       "afterThirty": "After {{days}} days",
       "afterThirtyTitle": "Sign-in ends for everyone",
       "afterThirtyBody": "Your team can no longer reach it. Reopening from here means <b>contacting support</b> rather than clicking a button.",
@@ -10986,7 +10997,7 @@
       "everyInvoice": "Every invoice, in the copy you download",
       "taxRecord": "The tax reporting record and Fawtara references",
       "contactLists": "Your customer and supplier lists",
-      "yourIdentifiers": "Your VAT number and Peppol ID — those are yours, not Fawtir's"
+      "yourIdentifiers": "Your VAT number and Peppol ID: those are yours, not Fawtir's"
     },
     "lose": {
       "raiseOrReport": "The ability to raise or report an invoice",
@@ -11010,10 +11021,10 @@
     },
     "months": "{{count}} months",
     "movingProvider": "Moving to another provider?",
-    "movingNote": "<b>Set the new one up first, then close this.</b> Your Peppol ID moves with you — the new provider registers it against themselves, and there's usually a day where neither is live. Closing first makes that gap longer.",
+    "movingNote": "<b>Set the new one up first, then close this.</b> Your Peppol ID moves with you: the new provider registers it against themselves, and there's usually a day where neither is live. Closing first makes that gap longer.",
     "howHandoverWorks": "How a handover works",
     "closeTheAccount": "Close the account",
-    "closeBody": "Two things above have to be dealt with first — <b>the unreported invoice and this month's bill</b>. Once they're clear, this button asks you to type the company name and confirms by email to <b>{{email}}</b> before anything happens.",
+    "closeBody": "Two things above have to be dealt with first: <b>the unreported invoice and this month's bill</b>. Once they're clear, this button asks you to type the company name and confirms by email to <b>{{email}}</b> before anything happens.",
     "closeBodyClear": "Nothing is blocking it now. This button asks you to type the company name and confirms by email to <b>{{email}}</b> before anything happens.",
     "closeCompany": "Close {{company}}",
     "talkFirst": "Talk to someone first",
@@ -13101,7 +13112,7 @@
           "bankTransfer": "Transfer reference",
           "cheque": "Cheque number and bank",
           "cash": "Receipt number",
-          "cardLink": "Thawani transaction id"
+          "cardLink": "Paymob transaction id"
         },
         "proof": "Proof",
         "proofHint": "Optional: a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
@@ -13112,7 +13123,7 @@
       },
       "sendLink": {
         "title": "Send a payment link",
-        "subtitle": "A Thawani checkout for {{tenant}}. The console keeps the link and its status.",
+        "subtitle": "A Paymob checkout for {{tenant}}. The console keeps the link and its status.",
         "channel": "Send it by",
         "whatsapp": {
           "title": "WhatsApp",
@@ -13136,7 +13147,7 @@
           "copied": "Copy link"
         },
         "sentTitle": "Link sent",
-        "sentBody": "Shown as Not paid yet until Thawani confirms the card payment, or it expires on {{date}}.",
+        "sentBody": "Shown as Not paid yet until Paymob confirms the card payment, or it expires on {{date}}.",
         "copy": "Copy",
         "copiedNow": "Copied",
         "done": "Done",
@@ -13250,7 +13261,7 @@
         },
         "payments": {
           "title": "Payments",
-          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Thawani; the other methods are settled by an operator."
+          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Paymob; the other methods are settled by an operator."
         },
         "promotional": {
           "title": "Promotional",
@@ -13451,10 +13462,10 @@
       },
       "payments": {
         "provider": {
-          "thawani": "Thawani",
           "publishableKey": "Publishable key",
           "keysNote": "The keys are held by the backend; the console never sees the secret. Switching mode changes which key the backend uses.",
-          "modeLabel": "Provider mode"
+          "modeLabel": "Provider mode",
+          "paymob": "Paymob"
         },
         "mode": {
           "test": "Test",
@@ -13468,7 +13479,7 @@
           "cheque": "Cheque"
         },
         "methodNote": {
-          "cardLink": "A Thawani link on the invoice and in the WhatsApp message.",
+          "cardLink": "A Paymob link on the invoice and in the WhatsApp message.",
           "bankTransfer": "The bank details below are printed on the invoice.",
           "cash": "Settled by an operator, with a reference.",
           "cheque": "Settled by an operator once the cheque clears."
@@ -13487,7 +13498,7 @@
         "reminderDays": "Reminders for an unpaid subscription invoice",
         "reminderDaysHint": "Days after the invoice date. The grace notices follow once a payment has failed.",
         "autoActivate": "Auto-activate on online payment",
-        "autoActivateNote": "Off: a Thawani payment shows as paid and an operator activates the account. On: the account activates itself the moment Thawani confirms.",
+        "autoActivateNote": "Off: a Paymob payment shows as paid and an operator activates the account. On: the account activates itself the moment Paymob confirms.",
         "proofRequired": "Proof required for cash and cheque",
         "proofRequiredNote": "Off, a reference is enough. On, an operator must attach the receipt or cheque image before the invoice is marked paid.",
         "templatesGroup": "WhatsApp message templates",

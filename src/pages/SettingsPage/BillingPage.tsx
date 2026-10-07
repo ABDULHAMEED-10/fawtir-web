@@ -31,7 +31,7 @@ const METHODS: TenantPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash', 'che
  * Settings › Bills and payment (Figma 135:40971, redrawn 15 Sep 2026 for how Fawtir is actually
  * paid).
  *
- * The design kept a card on file. Fawtir never holds one: a card payment opens Thawani's own
+ * The design kept a card on file. Fawtir never holds one: a card payment opens Paymob's own
  * checkout from a link sent a week before the bill falls due, and bank transfer and cash are
  * always open — someone at Fawtir confirms those and activates the period. So the card panel is
  * gone and "How you pay" stands where it was.
@@ -369,7 +369,7 @@ export function BillingPage() {
                   ].join(' ')}
                 >
                   <td className="px-5 py-4 align-top">
-                    <p className="font-mono text-sm font-semibold text-primary-700">
+                    <p className="whitespace-nowrap font-mono text-sm font-semibold text-primary-700">
                       {row.reference}
                     </p>
                     <p className="mt-1 text-xs font-medium text-text-quaternary">{row.issued}</p>

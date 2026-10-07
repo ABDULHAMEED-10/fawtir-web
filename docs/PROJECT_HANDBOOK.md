@@ -50,13 +50,19 @@ catalogue, stock, point of sale, reports and the document archive.
 
 ### The order of priority
 
-1. **The Figma design is the source of truth for every screen.** Layout, spacing, icons, colours,
-   copy, field order, sections, states. Look at the frame before guessing or asking.
+1. **Figma is the starting point, not the last word** (owner, 7 Oct 2026). Look at the frame
+   before guessing or asking, and follow it for layout, spacing, icons, colours and look. But
+   Figma can be wrong or out of date. Where requirements have changed, where a feature is new,
+   or where a screen is wired to the API (Branches, Company settings, Plans and many others),
+   build from the requirement and the API in the house style (section 3.3), not from the frame.
+   Do not add placeholders only to match a frame the product has moved past; say what differs.
 2. **Logic beats a designer's slip.** The design is the authority on intent, not arithmetic or
    typos. Figures that do not add up, a label pasted from another screen, a duplicated field, tab
    counts that contradict the cards: fix them, keep the screen, and say what changed.
-3. **Integration is kept wherever it fits the design, and set aside where it does not.** The
-   backend adapts to the screen, not the other way round (section 4).
+3. **Integration is kept.** Never delete an API call, request assertion or permission check to
+   make a screen look like a frame. A designed element the product still wants but the API cannot
+   answer yet is drawn and marked `TODO(backend)` with a guide row (section 4); an element the
+   product no longer wants is not.
 
 ### A normal piece of work
 
@@ -325,6 +331,24 @@ Suppliers), `REPORTS.md`, `ACTIVITY.md`, `DOCUMENTS.md`, and a `README.md` index
 onboarding and console integration handoffs are older, separate files in `docs/frontend/`; ERP and
 the console plan are in `docs/erp-and-console-plan.md`.
 
+### The mobile changes doc (owner, 7 Oct 2026)
+
+Every web change that touches what the mobile app shows or sends is added to the mobile changes doc
+the same day: https://claude.ai/code/artifact/fc142745-a943-450b-8568-f6b6cc1879d4 ("Fawtir mobile:
+what changed…"). It covers only the mobile scope (section 6): onboarding, company settings,
+customers and suppliers, Income (invoices, credit notes, debit notes) and Expenditure (bills).
+The six guides already sent to him (29 Sep to 3 Oct) are kept in `docs/mobile/` for reference only
+(index in its `README.md`). **Always guide mobile from the current code and setup** (the web app on
+`main`, its API calls, i18n files and the backend guides), never from those PDFs; read the matching
+PDF only to see what he was told, so the doc can say what differs.
+
+- Each change goes in its area's section: what changed, the fields with English and Arabic labels
+  and limits, the API call and fields, refusal codes and their text, and whether the server takes it
+  yet. Update the summary table and the checklist with it.
+- A change that waits on the backend says so ("not sent until …"), as sign-up lines 2 and 3 do.
+- The owner shares the doc with the mobile developer only once the backend APIs behind the web
+  changes are live. Until then it is kept current, not sent.
+
 ---
 
 ## 5. Oman compliance and PINT-OM decisions
@@ -415,7 +439,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   never hidden.
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
   included), offered at payment and managed in Settings, Plan. White label was removed.
-- **Payments for subscriptions:** Thawani hosted checkout, owned by the backend; the app never
+- **Payments for subscriptions:** Paymob hosted checkout (owner, 7 Oct 2026: Paymob, not Thawani), owned by the backend; the app never
   takes card details (never Stripe). Operators record offline payments and activate tenants in
   the console. Operators land on `/console` after sign-in.
 - **Sign-up:** "Tell us about your business" asks **"Will you use Fawtir POS?"** (unticked by

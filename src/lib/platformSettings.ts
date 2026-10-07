@@ -119,7 +119,7 @@ export type PlatformSettings = {
     pos: 'noSeparatePlan'
   }
   payments: {
-    provider: 'thawani'
+    provider: 'paymob'
     mode: 'test' | 'live'
     /** Masked; the real key lives in the backend. */
     publishableKeyTail: string
@@ -205,7 +205,7 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
     pos: 'noSeparatePlan',
   },
   payments: {
-    provider: 'thawani',
+    provider: 'paymob',
     mode: 'live',
     publishableKeyTail: '…7f3a',
     methods: { cardLink: true, bankTransfer: true, cash: true, cheque: true },

@@ -123,9 +123,8 @@ export function SettingsPage() {
     entitlements !== null &&
     (hasPermission(entitlements, 'admin.settings.manage') ||
       hasPermission(entitlements, 'mapping.read'))
-  const mappingCard = useApiRead<ErpMappingCard>(
-    mayReadMapping ? ERP_MAPPING_CARD_KEY : null,
-    () => loadErpMappingCard('JSON'),
+  const mappingCard = useApiRead<ErpMappingCard>(mayReadMapping ? ERP_MAPPING_CARD_KEY : null, () =>
+    loadErpMappingCard('JSON'),
   )
   /** Why the card has no status yet, when it has none: never folded into "not set up". */
   const mappingWait: 'NO_ACCESS' | 'CHECKING' | 'UNAVAILABLE' | null = !mayReadMapping
@@ -167,9 +166,8 @@ export function SettingsPage() {
   // mock-derived count, an "N need attention" badge for a state the backend does not have, and a
   // "{{collected}} of {{limit}} this month" figure for extraction that does not run.
   const { access: erpAccess } = useErpAccess()
-  const connectionCount = useApiRead(
-    erpAccess.read ? 'settings-erp-connection-count' : null,
-    () => listErpConnections(false).then((page) => page.total),
+  const connectionCount = useApiRead(erpAccess.read ? 'settings-erp-connection-count' : null, () =>
+    listErpConnections(false).then((page) => page.total),
   )
   const connections = connectionCount.read.status === 'ready' ? connectionCount.read.data : null
 
@@ -272,16 +270,16 @@ export function SettingsPage() {
           mappingWait !== null
             ? 'neutral'
             : mappingStatus === 'CERTIFIED'
-            ? 'success'
-            : mappingStatus === 'NOT_SET_UP'
-              ? 'neutral'
-              : // Same tones as the mapping screens' own status pill (ErpShell), bar STALE's red.
-                mappingStatus === 'STALE' ||
-                  mappingStatus === 'DRAFT' ||
-                  mappingStatus === 'PARTIALLY_CERTIFIED' ||
-                  mappingStatus === 'READY_UNCERTIFIED'
-                ? 'pending'
-                : 'neutral',
+              ? 'success'
+              : mappingStatus === 'NOT_SET_UP'
+                ? 'neutral'
+                : // Same tones as the mapping screens' own status pill (ErpShell), bar STALE's red.
+                  mappingStatus === 'STALE' ||
+                    mappingStatus === 'DRAFT' ||
+                    mappingStatus === 'PARTIALLY_CERTIFIED' ||
+                    mappingStatus === 'READY_UNCERTIFIED'
+                  ? 'pending'
+                  : 'neutral',
         footKey:
           mappingWait === 'NO_ACCESS'
             ? 'settings.card.erpMappingFootNoAccess'
@@ -301,7 +299,8 @@ export function SettingsPage() {
         group: 'integration',
         feature: 'erpMapping',
         icon: connectIcon,
-        iconTint: connections !== null && connections > 0 ? 'bg-success-100' : 'bg-surface-background',
+        iconTint:
+          connections !== null && connections > 0 ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/erp/connections',
         // Until the count arrives — or when the reader may not see it — the card says nothing
         // about how many there are, rather than guessing at zero.
@@ -367,7 +366,7 @@ export function SettingsPage() {
         figure: {
           value: forecast.used.toLocaleString('en-US'),
           unitKey: 'settings.card.planOf',
-          values: { allowance: forecast.allowance },
+          values: { allowance: forecast.allowance.toLocaleString('en-US') },
         },
         bar: { spent: forecast.used / forecast.allowance, tone: 'pending' },
         pillKey: 'settings.card.planPill',

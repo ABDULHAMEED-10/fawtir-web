@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { SettingsShell, SettingsHeader } from './SettingsShell'
 import { Switch, Select } from '../../components/ui'
 import { MEMBERS, withoutTwoStep, withLogin } from '../../lib/settingsPeople'
-import infoIcon from '../../assets/settings/info.svg'
 import onIcon from '../../assets/settings/check-green.svg'
 import offIcon from '../../assets/settings/cert-urgent.svg'
 import neverIcon from '../../assets/settings/minus-amber.svg'
@@ -42,11 +41,6 @@ export function SigningInPage() {
   return (
     <SettingsShell group="people">
       <SettingsHeader title={t('signingIn.title')} subtitle={t('signingIn.subtitle')} />
-
-      <p className="flex items-start gap-2.5 rounded-sm bg-pending-100 px-4 py-3.5 text-sm font-medium leading-[1.5] text-pending-700">
-        <img src={infoIcon} alt="" className="mt-0.5 size-4 shrink-0" />
-        {t('signingIn.note')}
-      </p>
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -90,7 +84,7 @@ export function SigningInPage() {
             </div>
             <div className="grid gap-4 border-t border-surface-background p-5 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+                <span className="mb-1 block text-sm font-medium text-text-primary">
                   {t('signingIn.sessionLength')}
                 </span>
                 <Select
@@ -104,7 +98,7 @@ export function SigningInPage() {
                 />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-text-secondary">
+                <span className="mb-1 block text-sm font-medium text-text-primary">
                   {t('signingIn.tillLength')}
                 </span>
                 <Select

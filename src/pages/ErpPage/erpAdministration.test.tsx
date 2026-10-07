@@ -331,7 +331,7 @@ describe('access and history', () => {
 })
 
 describe('the activity log', () => {
-  it('lists only what the server holds, worded, with an unknown event by its code', async () => {
+  it('lists only what the server holds, worded, never by a server code', async () => {
     routes['/api/v1/settings/activity-log'] = () =>
       json(200, {
         items: [LOG_ENTRY, { ...LOG_ENTRY, id: 'e-2', event_type: 'SomethingNew' }],
@@ -341,23 +341,61 @@ describe('the activity log', () => {
       })
     renderAt('/settings/activity-log')
     expect(await screen.findByText('Connection added')).toBeTruthy()
-    expect(screen.getByText('SomethingNew')).toBeTruthy()
-    // The sample log's people and the invented monthly figures are gone.
-    expect(screen.queryByText(/Export as PDF/)).toBeNull()
-    expect(screen.queryByText(/This month/)).toBeNull()
+    // An event this build has no words for is named generically, never by its code.
+    expect(screen.getByText('Recorded event')).toBeTruthy()
+    expect(screen.queryByText(/SomethingNew/)).toBeNull()
+    // The designed tiles and export are drawn, but no invented figure: the log returns no counts.
+    expect(screen.getByText('Export as PDF')).toBeTruthy()
+    expect(screen.getByText('This month')).toBeTruthy()
+    expect(screen.getAllByText('Not available yet')).toHaveLength(3)
     expect(query(requested('/settings/activity-log')[0]).get('resource_type')).toBeNull()
   })
 
   it('sends a filter as the server names it and starts again at the first page', async () => {
     renderAt('/settings/activity-log')
     await screen.findByText('Connection added')
-    fireEvent.click(screen.getByRole('button', { name: 'Result' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
     fireEvent.click(await screen.findByRole('option', { name: 'Refused' }))
     await waitFor(() => {
       const last = requested('/settings/activity-log').at(-1)!
       expect(query(last).get('outcome')).toBe('DENIED')
       expect(query(last).get('page')).toBe('0')
     })
+  })
+
+  it('narrows by tab and search within the page, and shows no actor code', async () => {
+    routes['/api/v1/settings/activity-log'] = () =>
+      json(200, {
+        items: [
+          LOG_ENTRY,
+          {
+            ...LOG_ENTRY,
+            id: 'e-2',
+            event_type: 'ApiKeyCreated',
+            actor_type: 'API_KEY',
+            resource_type: 'API_KEY',
+          },
+        ],
+        page: 0,
+        page_size: 50,
+        has_more: false,
+      })
+    renderAt('/settings/activity-log')
+    expect(await screen.findByText('Connection added')).toBeTruthy()
+    expect(screen.queryByText('USR')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /By the API/ }))
+    expect(screen.queryByText('Connection added')).toBeNull()
+    expect(screen.getByText('API key created')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /^All/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: /Search/ }), {
+      target: { value: 'connection' },
+    })
+    expect(screen.getByText('Connection added')).toBeTruthy()
+    expect(screen.queryByText('API key created')).toBeNull()
+    // Tabs and search never ask the server: it has no parameter for them.
+    expect(requested('/settings/activity-log')).toHaveLength(1)
   })
 
   it('asks nothing of a reader without the permission', async () => {
