@@ -16,6 +16,8 @@ import {
 } from '../../lib/console/validationPolicies'
 import { PolicyQueueLabel } from './policies/PolicyQueueLabel'
 import { PolicyStatusPill } from './policies/PolicyStatusPill'
+import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_TABLE, CONSOLE_TABLE_BODY, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 
 const FILTERS = ['all', 'mine'] as const
 type Filter = (typeof FILTERS)[number]
@@ -80,20 +82,16 @@ function PolicyOverview() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.policies' }]} />
-      <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-          {t('console.policies.title')}
-        </h1>
-        <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-          {t('console.policies.subtitle')}
-        </p>
-      </div>
+      <ConsolePageHeader
+        title={t('console.policies.title')}
+        subtitle={t('console.policies.subtitle')}
+      />
 
-      <section className="flex flex-col rounded-md bg-surface-card">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
+      <section className="flex flex-col rounded-sm bg-surface-card">
+        <div className="flex flex-wrap items-center justify-between gap-x-6 border-b border-border-subtle px-5">
+          <div className="flex flex-wrap gap-x-6">
             {FILTERS.map((entry) => {
               const active = entry === filter
               return (
@@ -102,23 +100,18 @@ function PolicyOverview() {
                   type="button"
                   onClick={() => choose(entry)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={consoleTab(active)}
                 >
                   {t(`console.policies.filter.${entry}`)}
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={CONSOLE_TAB_LINE} />
                   ) : null}
                 </button>
               )
             })}
           </div>
           {entries && entries.length > 0 ? (
-            <p className="pb-3 text-sm font-medium text-text-tertiary">
+            <p className="py-3 text-sm font-medium text-text-tertiary">
               {t('console.policies.summary', {
                 mine: number.format(mine.length),
                 total: number.format(entries.length),
@@ -127,7 +120,7 @@ function PolicyOverview() {
           ) : null}
         </div>
 
-        <div className="px-6 py-4">{body}</div>
+        <div className={CONSOLE_TABLE_BODY}>{body}</div>
       </section>
     </div>
   )
@@ -153,10 +146,10 @@ function PolicyTable({ rows }: { rows: BlockerOverviewEntry[] }) {
   const { t } = useTranslation()
 
   return (
-    <RowsView>
-      <table className="w-full min-w-[760px] border-collapse text-start">
+    <RowsView className={CONSOLE_ROWS}>
+      <table className={`${CONSOLE_TABLE} min-w-[760px]`}>
         <thead>
-          <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+          <tr className={CONSOLE_THEAD}>
             <th className="px-4 py-3 text-start font-semibold">
               {t('console.policies.col.policy')}
             </th>

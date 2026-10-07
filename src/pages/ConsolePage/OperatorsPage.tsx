@@ -44,6 +44,16 @@ import { InviteOperatorDialog } from './operators/InviteOperatorDialog'
 import { PendingInvitations } from './operators/PendingInvitations'
 import { ResetMfaDialog } from './operators/ResetMfaDialog'
 import { RolesDialog } from './operators/RolesDialog'
+import {
+  CONSOLE_CARD_TITLE,
+  CONSOLE_PAGE,
+  CONSOLE_PRIMARY,
+  CONSOLE_ROWS,
+  CONSOLE_TABLE,
+  CONSOLE_TABLE_BODY,
+  CONSOLE_THEAD,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 function pageFrom(params: URLSearchParams): number {
   const page = Number(params.get('page'))
@@ -141,7 +151,7 @@ function OperatorsList() {
   } else if (team.length === 0) {
     body =
       read.data.totalElements === 0 ? (
-        <p className="rounded-md bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+        <p className="rounded-sm bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
           {t('console.operators.empty')}
         </p>
       ) : (
@@ -152,8 +162,8 @@ function OperatorsList() {
       )
   } else {
     body = (
-      <section className="flex flex-col rounded-md bg-surface-card">
-        <div className="px-6 py-4">
+      <section className="flex flex-col rounded-sm bg-surface-card">
+        <div className={CONSOLE_TABLE_BODY}>
           <TeamTable
             team={team}
             selfId={selfId}
@@ -176,7 +186,7 @@ function OperatorsList() {
           />
         </div>
         {loaded && loaded.totalPages > 1 ? (
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <p className="text-sm font-medium text-text-tertiary">
               {t('console.verification.showing', {
                 from: number.format(loaded.number * loaded.size + 1),
@@ -201,33 +211,29 @@ function OperatorsList() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.operators' }]} />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.operators.title')}
-          </h1>
-          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.operators.subtitle')}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setNotice(null)
-            setInviting(true)
-          }}
-          className="inline-flex h-[46px] shrink-0 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-        >
-          {t('console.operators.invite.open')}
-        </button>
-      </div>
+      <ConsolePageHeader
+        title={t('console.operators.title')}
+        subtitle={t('console.operators.subtitle')}
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              setNotice(null)
+              setInviting(true)
+            }}
+            className={CONSOLE_PRIMARY}
+          >
+            {t('console.operators.invite.open')}
+          </button>
+        }
+      />
 
       {notice ? (
         <p
           role="status"
-          className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
+          className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
         >
           {t(notice.key, notice.values)}
         </p>
@@ -415,10 +421,10 @@ function TeamTable({
         : null
 
   return (
-    <RowsView>
-      <table className="w-full min-w-[760px] border-collapse text-start">
+    <RowsView className={CONSOLE_ROWS}>
+      <table className={`${CONSOLE_TABLE} min-w-[760px]`}>
         <thead>
-          <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+          <tr className={CONSOLE_THEAD}>
             <th className="px-4 py-3 text-start font-semibold">
               {t('console.operators.col.person')}
             </th>
@@ -446,7 +452,7 @@ function TeamTable({
             return (
               <tr key={user.id} className="border-b border-[#f3f3f3] last:border-b-0">
                 <td className="px-4 py-4">
-                  <span className="text-base font-medium leading-[1.2] text-text-primary">
+                  <span className={CONSOLE_CARD_TITLE}>
                     {name}
                     {user.id === selfId ? (
                       <span className="ms-2 text-xs font-semibold text-primary-800">

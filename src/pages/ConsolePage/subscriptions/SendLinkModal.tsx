@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Modal, Select, SelectionCard, withRial } from '../../../components/ui'
+import { Modal, Select, SelectionCard, withRial } from '../../../components/ui'
 import {
   invoicesOf,
   linksOf,
@@ -24,6 +24,7 @@ import {
   type ActionModalProps,
   type Errors,
 } from './modalFields'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 const FORM_ID = 'send-link'
 const CHANNELS: LinkChannel[] = ['whatsapp', 'email', 'copied']
@@ -184,9 +185,9 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
       footer={
         sent ? (
           <div className="flex flex-wrap justify-end gap-2.5">
-            <Button type="button" size="md" onClick={finish}>
+            <ConsoleButton type="button" size="md" onClick={finish}>
               {t('console.subscriptionActions.sendLink.done')}
-            </Button>
+            </ConsoleButton>
           </div>
         ) : (
           <ModalFooter
@@ -217,11 +218,11 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
             >
               {sent.url}
             </span>
-            <Button type="button" size="md" variant="secondary" onClick={() => void copy(sent.url)}>
+            <ConsoleButton type="button" size="md" variant="secondary" onClick={() => void copy(sent.url)}>
               {copied
                 ? t('console.subscriptionActions.sendLink.copiedNow')
                 : t('console.subscriptionActions.sendLink.copy')}
-            </Button>
+            </ConsoleButton>
           </div>
           <div>
             <p className="text-sm font-medium text-text-primary">

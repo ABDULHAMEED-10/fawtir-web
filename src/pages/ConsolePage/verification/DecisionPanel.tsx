@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, FileDropzone, Input, Modal, Select } from '../../../components/ui'
+import { FileDropzone, Input, Modal, Select } from '../../../components/ui'
 import {
   EVIDENCE_ACCEPT,
   EVIDENCE_MAX_BYTES,
@@ -23,6 +23,7 @@ import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import uploadIcon from '../../../assets/create-invoice/upload.svg'
 import { ReviewCard, ReviewLine } from './ReviewCard'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 type Dialog = 'verify' | 'reject' | null
 
@@ -248,10 +249,10 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
       </div>
 
       <div className="mt-4 flex flex-col gap-2.5">
-        <Button type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
+        <ConsoleButton type="button" size="md" fullWidth disabled={!canVerify} onClick={() => openDialog('verify')}>
           {t('console.verification.decision.verify')}
-        </Button>
-        <Button
+        </ConsoleButton>
+        <ConsoleButton
           type="button"
           size="md"
           variant="secondary"
@@ -260,7 +261,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
           onClick={() => openDialog('reject')}
         >
           {t('console.verification.decision.reject')}
-        </Button>
+        </ConsoleButton>
       </div>
 
       <Modal
@@ -276,11 +277,11 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
         footer={
           <div className="flex flex-wrap justify-end gap-2.5">
             {conflict ? (
-              <Button type="button" size="md" variant="secondary" onClick={() => onDecided(null)}>
+              <ConsoleButton type="button" size="md" variant="secondary" onClick={() => onDecided(null)}>
                 {t('console.verification.decision.reload')}
-              </Button>
+              </ConsoleButton>
             ) : (
-              <Button
+              <ConsoleButton
                 type="button"
                 size="md"
                 variant="secondary"
@@ -288,9 +289,9 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
                 onClick={() => setDialog(null)}
               >
                 {t('common.cancel')}
-              </Button>
+              </ConsoleButton>
             )}
-            <Button type="button" size="md" disabled={deciding || conflict} onClick={() => void decide()}>
+            <ConsoleButton type="button" size="md" disabled={deciding || conflict} onClick={() => void decide()}>
               {dialog === 'verify'
                 ? deciding
                   ? t('console.verification.decision.verifying')
@@ -298,7 +299,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
                 : deciding
                   ? t('console.verification.decision.rejecting')
                   : t('console.verification.decision.rejectConfirm')}
-            </Button>
+            </ConsoleButton>
           </div>
         }
       >

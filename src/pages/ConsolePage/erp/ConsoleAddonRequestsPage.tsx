@@ -41,6 +41,8 @@ import {
 import { QueueKpiCard } from '../subscriptions/QueueKpiCard'
 import pauseIcon from '../../../assets/actions/pause.svg'
 import deleteIcon from '../../../assets/actions/delete.svg'
+import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_SMALL_PRIMARY, CONSOLE_TABLE, CONSOLE_TAB_BAR, CONSOLE_TAB_COUNT, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../../layouts/ConsoleShell/consoleTones'
 
 type Tab = 'pending' | 'history'
 type Action = 'approve' | 'trial' | 'decline'
@@ -50,8 +52,7 @@ const TRIAL_DAYS = [7, 14, 30]
 const TRIAL_DOCUMENTS = [100, 200, 500]
 const DAY = 24 * 60 * 60 * 1000
 
-const PRIMARY_BUTTON =
-  'inline-flex h-10 items-center whitespace-nowrap rounded-sm bg-primary-700 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-700/40 disabled:hover:bg-primary-700/40'
+const PRIMARY_BUTTON = CONSOLE_SMALL_PRIMARY
 
 /** The subscription states that should give an operator pause before switching a paid add-on on. */
 const SUBSCRIPTION_WARNING: Partial<Record<SubscriptionState, 'danger' | 'pending'>> = {
@@ -150,21 +151,18 @@ export function ConsoleAddonRequestsPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.group.erp' },
             { labelKey: 'console.nav.erpRequests' },
           ]}
         />
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
-            {t('console.erp.requests.title')}
-          </h1>
-          <p className="mt-1.5 max-w-[760px] text-sm font-medium leading-[1.5] text-text-quaternary">
-            {t('console.erp.requests.subtitle')}
-          </p>
-        </div>
+        <ConsolePageHeader
+          title={t('console.erp.requests.title')}
+          subtitle={t('console.erp.requests.subtitle')}
+          subtitleClassName="max-w-[760px]"
+        />
 
         {done ? (
           <ConsoleNotice
@@ -179,7 +177,7 @@ export function ConsoleAddonRequestsPage() {
 
         <div className="flex flex-wrap gap-4">
           <QueueKpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-pending-700" />}
+            icon={<ConsoleClockIcon className="size-4 text-pending-500" />}
             title={t('console.erp.requests.kpi.pending')}
             value={String(pending.length)}
             note={
@@ -190,19 +188,20 @@ export function ConsoleAddonRequestsPage() {
             tone={pending.length ? 'watch' : 'calm'}
           />
           <QueueKpiCard
-            icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+            icon={<ConsoleTickIcon className="size-4 text-success-700" />}
+            tone="good"
             title={t('console.erp.requests.kpi.approved', { month })}
             value={String(approvedThisMonth)}
             note={t('console.erp.requests.kpi.approvedNote')}
           />
           <QueueKpiCard
-            icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
+            icon={<ConsoleIncidentIcon className="size-4 text-danger-700" />}
             title={t('console.erp.requests.kpi.declined', { month })}
             value={String(declinedThisMonth)}
             note={t('console.erp.requests.kpi.declinedNote')}
           />
           <QueueKpiCard
-            icon={<ConsoleBuildingIcon className="size-[18px] text-primary-700" />}
+            icon={<ConsoleBuildingIcon className="size-4 text-primary-700" />}
             title={t('console.erp.requests.kpi.onAddon')}
             value={count(kpis.tenantsOnAddon)}
             note={t('console.erp.requests.kpi.onAddonNote', {
@@ -212,8 +211,8 @@ export function ConsoleAddonRequestsPage() {
           />
         </div>
 
-        <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+        <section className="flex flex-col rounded-sm bg-surface-card">
+          <div className={CONSOLE_TAB_BAR}>
             {(['pending', 'history'] as Tab[]).map((entry) => {
               const active = entry === tab
               const total = entry === 'pending' ? pending.length : history.length
@@ -223,17 +222,12 @@ export function ConsoleAddonRequestsPage() {
                   type="button"
                   onClick={() => setTab(entry)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={consoleTab(active)}
                 >
                   {t(`console.erp.requests.tab.${entry}`)}
-                  <span className="text-xs font-semibold text-text-quaternary">{count(total)}</span>
+                  <span className={CONSOLE_TAB_COUNT}>{count(total)}</span>
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={CONSOLE_TAB_LINE} />
                   ) : null}
                 </button>
               )
@@ -241,10 +235,10 @@ export function ConsoleAddonRequestsPage() {
           </div>
 
           {tab === 'pending' ? (
-            <RowsView className="px-6 pb-6 pt-4">
-              <table className="w-full min-w-[980px] border-collapse text-start">
+            <RowsView className={`${CONSOLE_ROWS} max-md:pt-4`}>
+              <table className={`${CONSOLE_TABLE} min-w-[980px]`}>
                 <thead>
-                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                  <tr className={CONSOLE_THEAD}>
                     <th className="w-[260px] px-4 py-3 text-start font-semibold">
                       {t('console.erp.requests.col.tenant')}
                     </th>
@@ -387,10 +381,10 @@ export function ConsoleAddonRequestsPage() {
               ) : null}
             </RowsView>
           ) : (
-            <RowsView className="px-6 pb-6 pt-4">
-              <table className="w-full min-w-[980px] border-collapse text-start">
+            <RowsView className={`${CONSOLE_ROWS} max-md:pt-4`}>
+              <table className={`${CONSOLE_TABLE} min-w-[980px]`}>
                 <thead>
-                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                  <tr className={CONSOLE_THEAD}>
                     <th className="px-4 py-3 text-start font-semibold">
                       {t('console.erp.requests.col.tenant')}
                     </th>

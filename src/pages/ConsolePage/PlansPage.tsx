@@ -15,6 +15,12 @@ import { formatOmr, planFeatures, type SubscriptionPlan } from '../../lib/subscr
 import { PlanEditor } from './plans/PlanEditor'
 import { displayPlanName } from './plans/planName'
 import tickIcon from '../../assets/settings/check-ink.svg'
+import {
+  CONSOLE_PAGE,
+  CONSOLE_PRIMARY,
+  CONSOLE_SECONDARY,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 /** `{ plan: null }` is adding a plan. */
 type Editing = { plan: SubscriptionPlan | null } | null
@@ -52,7 +58,7 @@ function PlanCatalogue() {
     body = <ConsoleReadFailure error={read.error} retry={retry} />
   } else if (plans && plans.length === 0) {
     body = (
-      <p className="rounded-md bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
+      <p className="rounded-sm bg-surface-card px-6 py-12 text-center text-sm font-medium text-text-tertiary">
         {t('console.plans.empty')}
       </p>
     )
@@ -67,32 +73,24 @@ function PlanCatalogue() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.plans' }]} />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.plans.title')}
-          </h1>
-          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.plans.subtitle')}
-          </p>
-        </div>
-        {plans ? (
-          <button
-            type="button"
-            onClick={() => edit(null)}
-            className="inline-flex h-[46px] shrink-0 items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            {t('console.plans.add')}
-          </button>
-        ) : null}
-      </div>
+      <ConsolePageHeader
+        title={t('console.plans.title')}
+        subtitle={t('console.plans.subtitle')}
+        actions={
+          plans ? (
+            <button type="button" onClick={() => edit(null)} className={CONSOLE_PRIMARY}>
+              {t('console.plans.add')}
+            </button>
+          ) : null
+        }
+      />
 
       {savedName ? (
         <p
           role="status"
-          className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
+          className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
         >
           {t('console.plans.saved', { name: savedName })}
         </p>
@@ -120,7 +118,7 @@ function PlanCatalogue() {
 function PlanCard({ plan, onEdit }: { plan: SubscriptionPlan; onEdit: () => void }) {
   const { t, i18n } = useTranslation()
   return (
-    <article className="flex flex-col rounded-md bg-surface-card p-5">
+    <article className="flex flex-col rounded-sm bg-surface-card p-5">
       <div className="flex items-center justify-between gap-3">
         <ConsoleStatusPill
           tone={plan.active ? 'success' : 'neutral'}
@@ -164,7 +162,7 @@ function PlanCard({ plan, onEdit }: { plan: SubscriptionPlan; onEdit: () => void
           type="button"
           onClick={onEdit}
           aria-label={t('console.plans.editPlan', { name: displayPlanName(plan, t, i18n.language) })}
-          className="inline-flex h-[46px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          className={`${CONSOLE_SECONDARY} w-full`}
         >
           {t('console.plans.edit')}
         </button>

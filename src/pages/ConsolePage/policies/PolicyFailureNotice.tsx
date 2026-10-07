@@ -29,7 +29,7 @@ export function PolicyFailureNotice({
 }) {
   const { t } = useTranslation()
   return (
-    <div role="alert" className={card ? 'rounded-md bg-surface-card p-5' : ''}>
+    <div role="alert" className={card ? 'rounded-sm bg-surface-card p-5' : ''}>
       <p className="text-sm font-medium leading-[1.6] text-danger-700">
         {t(failure.message.key, failure.message.values)}
       </p>

@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, DateField, Input, Modal, Select } from '../../../components/ui'
+import { DateField, Input, Modal, Select } from '../../../components/ui'
 import { localeFor } from '../../../lib/console/format'
 import {
   EMPTY_PID_FORM,
@@ -31,6 +31,7 @@ import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import { isClean } from '../../../lib/validation'
 import { Field, TextArea, focusFirstInvalidField } from '../subscriptions/modalFields'
 import { PolicyFailureNotice } from './PolicyFailureNotice'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * `edit` changes the draft it names. `create` starts a new one, empty or filled from `source`,
@@ -193,12 +194,12 @@ export function PidPolicyEditor({
       subtitle={t('console.policies.editor.note')}
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">
-          <Button type="button" size="md" variant="secondary" disabled={saving} onClick={onClose}>
+          <ConsoleButton type="button" size="md" variant="secondary" disabled={saving} onClick={onClose}>
             {t(moved ? 'common.close' : 'common.cancel')}
-          </Button>
-          <Button type="submit" form={FORM_ID} size="md" disabled={saving || moved}>
+          </ConsoleButton>
+          <ConsoleButton type="submit" form={FORM_ID} size="md" disabled={saving || moved}>
             {saving ? t('console.policies.editor.saving') : t('console.policies.editor.save')}
-          </Button>
+          </ConsoleButton>
         </div>
       }
     >

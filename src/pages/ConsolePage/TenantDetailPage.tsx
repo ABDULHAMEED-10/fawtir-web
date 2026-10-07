@@ -49,6 +49,8 @@ import { TenantErpTab } from './erp/TenantErpTab'
 import invoiceIcon from '../../assets/actions/invoice.svg'
 import creditNoteIcon from '../../assets/actions/credit-note.svg'
 import deleteIcon from '../../assets/actions/delete.svg'
+import { CONSOLE_H1, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_SECONDARY, CONSOLE_SUBTITLE, CONSOLE_TAB_LINE } from '../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../layouts/ConsoleShell/consoleTones'
 
 type Tab = 'subscription' | 'filing' | 'erp'
 const TABS: Tab[] = ['subscription', 'filing', 'erp']
@@ -57,13 +59,13 @@ type Request = { action: SubscriptionAction; invoiceId?: string }
 
 const CHIP_TONE = {
   bad: 'bg-danger-100 text-danger-700',
-  watch: 'bg-pending-100 text-pending-700',
+  watch: 'bg-pending-100 text-pending-500',
   calm: 'bg-primary-50 text-primary-800',
 } as const
 
 const HEALTH_TONE = {
   bad: 'text-danger-700',
-  watch: 'text-pending-700',
+  watch: 'text-pending-500',
   calm: 'text-text-quaternary',
 } as const
 
@@ -75,15 +77,13 @@ const DAY_COLOUR: Record<FilingDay, string> = {
   none: 'bg-neutral-100',
 }
 
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800'
-const SECONDARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25'
+const PRIMARY_BUTTON = CONSOLE_PRIMARY
+const SECONDARY_BUTTON = CONSOLE_SECONDARY
 
 function Chip({ label, tone }: { label: string; tone: 'bad' | 'watch' | 'calm' }) {
   return (
     <span
-      className={`inline-flex h-[22px] shrink-0 items-center gap-1.5 rounded-full px-2 text-[11px] font-semibold uppercase tracking-[0.03em] ${CHIP_TONE[tone]}`}
+      className={`inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-sm px-[11px] text-[11.5px] font-semibold uppercase tracking-[0.3px] ${CHIP_TONE[tone]}`}
     >
       <span className="size-1.5 rounded-full bg-current" />
       {label}
@@ -174,7 +174,7 @@ export function TenantDetailPage() {
 /** The tenants breadcrumb, for the states that have no tenant to name yet. */
 function DetailFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants', to: '/console/tenants' }]} />
       {children}
     </div>
@@ -324,7 +324,7 @@ function TenantDetail({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       {/* A long company name ends in an ellipsis instead of pushing the trail onto three lines. */}
       <div className="min-w-0 [&_nav>span:last-child]:min-w-0 [&_nav>span:last-child]:max-w-full [&_nav>span:last-child>span]:min-w-0 [&_nav>span:last-child>span]:truncate">
         <ConsoleBreadcrumbs items={[...parentCrumbs, { label: overview.identity.tenantName }]} />
@@ -332,12 +332,12 @@ function TenantDetail({
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-md bg-surface-card text-base font-semibold text-text-tertiary">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-sm bg-primary-50 text-base font-bold text-primary-700">
             {initialsOf(overview.identity.tenantName)}
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
+              <h1 className={`${CONSOLE_H1} max-md:text-2xl`}>
                 {overview.identity.tenantName}
               </h1>
               {overview.identity.tenantStatus ? (
@@ -352,9 +352,10 @@ function TenantDetail({
                           : 'neutral'
                   }
                   label={t(`console.tenants.status.${overview.identity.tenantStatus}`)}
+                  size="header"
                 />
               ) : null}
-              {subscription ? <SubscriptionStatePill state={subscription.state} /> : null}
+              {subscription ? <SubscriptionStatePill state={subscription.state} size="header" /> : null}
               {subscription ? (
                 <Chip
                   tone="calm"
@@ -365,7 +366,7 @@ function TenantDetail({
                 />
               ) : null}
             </div>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
+            <p className={CONSOLE_SUBTITLE}>
               {[
                 legalNameOf(overview, i18n.language),
                 overview.company.taxNumber ? (
@@ -441,7 +442,7 @@ function TenantDetail({
       */}
       {prototype ? (
         <>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-md bg-surface-card px-6 pt-4">
+          <div className="flex flex-wrap gap-x-6 rounded-sm bg-surface-card px-5">
             {TABS.map((entry) => {
               const active = entry === tab
               return (
@@ -450,16 +451,11 @@ function TenantDetail({
                   type="button"
                   onClick={() => setTab(entry)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={consoleTab(active)}
                 >
                   {t(`console.tenantDetail.tabs.${entry}`)}
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={CONSOLE_TAB_LINE} />
                   ) : null}
                 </button>
               )
@@ -470,7 +466,7 @@ function TenantDetail({
             <SubscriptionTab tenantId={tenantId} ledger={ledger} onAction={open} />
           ) : tab === 'filing' ? (
             filing ? (
-              <section className="grid grid-cols-3 gap-4 rounded-md bg-surface-card p-5 max-md:grid-cols-1">
+              <section className="grid grid-cols-3 gap-4 rounded-sm bg-surface-card p-5 max-md:grid-cols-1">
                 <div>
                   <p className="text-xs font-semibold uppercase leading-[1.5] text-text-quaternary">
                     {t('console.tenants.col.health')}
@@ -535,7 +531,7 @@ function TenantDetail({
                 </div>
               </section>
             ) : (
-              <p className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
+              <p className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
                 {t('console.tenantDetail.filing.noData')}
               </p>
             )
@@ -576,7 +572,7 @@ function TenantFacts({ overview }: { overview: TenantOverview }) {
   const pending = verification.status === 'PENDING_VERIFICATION'
 
   return (
-    <section className="flex flex-col gap-5 rounded-md bg-surface-card p-5">
+    <section className="flex flex-col gap-5 rounded-sm bg-surface-card p-5">
       <div className="grid grid-cols-3 gap-x-8 gap-y-4 max-md:grid-cols-1">
         <Fact label={t('console.tenantDetail.field.code')} value={identity.tenantCode} ltr />
         <Fact

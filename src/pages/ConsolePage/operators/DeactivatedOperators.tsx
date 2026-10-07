@@ -1,13 +1,22 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmailText } from './EmailText'
-import { Button, RowsView } from '../../../components/ui'
+import { RowsView } from '../../../components/ui'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
 import { localeFor } from '../../../lib/console/format'
 import { DEACTIVATED_OPERATORS_PATH } from '../../../lib/console/operatorReactivation'
 import { displayName, type PlatformUser, type UserPage } from '../../../lib/console/platformOperators'
 import { ReactivateOperatorDialog } from './ReactivateOperatorDialog'
+import {
+  CONSOLE_CARD,
+  CONSOLE_CARD_TITLE,
+  CONSOLE_ROWS,
+  CONSOLE_TABLE,
+  CONSOLE_TABLE_BODY,
+  CONSOLE_THEAD,
+  ConsoleButton,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
 /** Where each person changed on this screen now stands, as the page tracks it. */
 export type LifecycleStatus = 'active' | 'deactivated'
@@ -41,9 +50,9 @@ export function DeactivatedOperators({
     body = (
       <div className="flex flex-col items-center gap-3 py-6 text-center">
         <p className="text-sm font-medium text-text-tertiary">{t('console.operators.deactivated.intro')}</p>
-        <Button type="button" size="md" variant="secondary" onClick={() => setShown(true)}>
+        <ConsoleButton type="button" size="md" variant="secondary" onClick={() => setShown(true)}>
           {t('console.operators.deactivated.show')}
-        </Button>
+        </ConsoleButton>
       </div>
     )
   } else if (read.status === 'loading') {
@@ -60,10 +69,10 @@ export function DeactivatedOperators({
         </p>
       ) : (
         <>
-          <RowsView>
-            <table className="w-full min-w-[640px] border-collapse text-start">
+          <RowsView className={CONSOLE_ROWS}>
+            <table className={`${CONSOLE_TABLE} min-w-[640px]`}>
               <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                <tr className={CONSOLE_THEAD}>
                   <th className="px-4 py-3 text-start font-semibold">{t('console.operators.col.person')}</th>
                   <th className="px-2 py-3 text-start font-semibold">{t('console.operators.col.email')}</th>
                   <th className="px-4 py-3 text-end font-semibold">
@@ -77,7 +86,7 @@ export function DeactivatedOperators({
                   return (
                     <tr key={user.id} className="border-b border-[#f3f3f3] last:border-b-0">
                       <td className="px-4 py-4">
-                        <span className="text-base font-medium leading-[1.2] text-text-primary">{name}</span>
+                        <span className={CONSOLE_CARD_TITLE}>{name}</span>
                         {name !== user.username ? (
                           <span className="mt-1 block text-xs font-medium text-text-quaternary">
                             <bdi>{user.username}</bdi>
@@ -88,15 +97,15 @@ export function DeactivatedOperators({
                         <EmailText email={user.email} />
                       </td>
                       <td className="px-4 py-4 text-end">
-                        <Button
+                        <ConsoleButton
                           type="button"
                           size="md"
-                          variant="secondary"
+                          variant="small"
                           aria-label={t('console.operators.deactivated.reactivateFor', { name })}
                           onClick={() => setReactivating(user)}
                         >
                           {t('console.operators.deactivated.reactivate')}
-                        </Button>
+                        </ConsoleButton>
                       </td>
                     </tr>
                   )
@@ -119,7 +128,7 @@ export function DeactivatedOperators({
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-xl font-medium leading-[1.2] text-text-primary">{t('console.operators.deactivated.title')}</h2>
-      <div className="rounded-md bg-surface-card px-6 py-4">{body}</div>
+      <div className={`${CONSOLE_CARD} ${CONSOLE_TABLE_BODY}`}>{body}</div>
       {reactivating ? (
         <ReactivateOperatorDialog
           user={reactivating}

@@ -8,6 +8,7 @@ import { ConsoleAccessRefreshContext } from './consoleAccessRefresh'
 import { ConsoleNotice, ConsoleReadFailure } from './ConsoleNotice'
 import { ConsoleSidebar } from './ConsoleSidebar'
 import { useConsoleAccess, type ConsoleAccess } from './useConsoleAccess'
+import { CONSOLE_PAGE } from './consoleStyle'
 
 /** One permission, or several that must all be held. */
 type Requirement = string | readonly string[]
@@ -109,5 +110,5 @@ function AccessGate({
     return children
   }
 
-  return <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">{notice}</div>
+  return <div className={CONSOLE_PAGE}>{notice}</div>
 }

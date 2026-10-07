@@ -16,6 +16,11 @@ import {
   whenLabel,
   type AddonAction,
 } from './erpShared'
+import {
+  CONSOLE_ROWS,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * The tenant page's ERP tab (docs/erp-and-console-plan.md §9.3): the tenant's add-on and its
@@ -59,10 +64,10 @@ export function TenantErpTab({ tenantId }: { tenantId: string }) {
               {t(key('connections.empty'))}
             </p>
           ) : (
-            <RowsView className="p-4">
-              <table className="w-full min-w-[720px] border-collapse text-start">
+            <RowsView className={`${CONSOLE_ROWS} max-md:pt-4`}>
+              <table className={`${CONSOLE_TABLE} min-w-[720px]`}>
                 <thead>
-                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                  <tr className={CONSOLE_THEAD}>
                     <th className={TH}>{t(key('col.connection'))}</th>
                     <th className={TH}>{t(key('col.state'))}</th>
                     <th className={TH}>{t(key('col.mapping'))}</th>

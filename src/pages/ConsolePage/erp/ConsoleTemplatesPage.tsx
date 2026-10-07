@@ -13,12 +13,16 @@ import {
   type MappingTemplate,
 } from '../../../lib/consoleErp'
 import type { Product } from '../../../lib/erpConnector'
+import {
+  CONSOLE_PAGE,
+  CONSOLE_SMALL,
+  ConsolePageHeader,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
 /** The products the connect wizard lists that have no starter mapping yet. */
 const COMING: Product[] = ['DYNAMICS_365', 'SAP_S4', 'ORACLE_FUSION', 'ZOHO_BOOKS']
 
-const OPEN_BUTTON =
-  'inline-flex h-[46px] shrink-0 items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25'
+const OPEN_BUTTON = CONSOLE_SMALL
 
 /**
  * ERP › Mapping templates (docs/erp-and-console-plan.md §9.3): one card per template — the
@@ -38,7 +42,7 @@ export function ConsoleTemplatesPage() {
     return (
       <article
         key={template.id}
-        className="flex flex-wrap items-start justify-between gap-4 rounded-md bg-surface-card p-6"
+        className="flex flex-wrap items-start justify-between gap-4 rounded-sm bg-surface-card p-5"
       >
         <div className="flex min-w-0 flex-1 basis-[420px] flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -122,25 +126,22 @@ export function ConsoleTemplatesPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.group.erp' },
             { labelKey: 'console.nav.erpTemplates' },
           ]}
         />
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
-            {t('console.erp.templates.title')}
-          </h1>
-          <p className="mt-1.5 max-w-[760px] text-sm font-medium leading-[1.5] text-text-quaternary">
-            {t('console.erp.templates.subtitle')}
-          </p>
-        </div>
+        <ConsolePageHeader
+          title={t('console.erp.templates.title')}
+          subtitle={t('console.erp.templates.subtitle')}
+          subtitleClassName="max-w-[760px]"
+        />
 
         <div className="flex flex-col gap-3">{state.templates.map(card)}</div>
 
-        <section className="flex flex-col gap-3 rounded-md bg-surface-card p-6">
+        <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-5">
           <div>
             <h2 className="text-base font-semibold leading-[1.2] text-text-primary">
               {t('console.erp.templates.coming')}

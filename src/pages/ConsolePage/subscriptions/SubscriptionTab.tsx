@@ -27,6 +27,12 @@ import { PLATFORM_SETTINGS } from '../../../lib/platformSettings'
 import { count, omr } from '../../../lib/superAdmin'
 import { InvoiceStatusPill, LinkStatusPill } from './SubscriptionStatePill'
 import { dayLabel, type Ledger } from './modalFields'
+import {
+  CONSOLE_CARD_HEAD,
+  CONSOLE_CARD_TITLE,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
 export type SubscriptionAction =
   | 'recordPayment'
@@ -72,23 +78,23 @@ function Card({
   padded?: boolean
 }) {
   return (
-    <section className="flex flex-col rounded-md bg-surface-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
-        <h2 className="text-base font-medium leading-[1.2] text-text-primary">{title}</h2>
+    <section className="flex flex-col rounded-sm bg-surface-card">
+      <div className={CONSOLE_CARD_HEAD}>
+        <h2 className={CONSOLE_CARD_TITLE}>{title}</h2>
         {aside}
       </div>
-      <div className={padded ? 'px-5 py-2' : ''}>{children}</div>
+      <div className={padded ? 'p-5' : ''}>{children}</div>
     </section>
   )
 }
 
 function Line({ label, value, tone }: { label: string; value: ReactNode; tone?: 'bad' | 'watch' }) {
   const valueTone =
-    tone === 'bad' ? 'text-danger-700' : tone === 'watch' ? 'text-pending-700' : 'text-text-primary'
+    tone === 'bad' ? 'text-danger-700' : tone === 'watch' ? 'text-pending-500' : 'text-text-primary'
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-border-subtle py-2.5 last:border-b-0">
-      <span className="shrink-0 text-sm font-medium text-text-tertiary">{label}</span>
-      <span className={`min-w-0 text-end text-sm font-semibold ${valueTone}`}>{value}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-border-subtle py-[9px] text-[13.5px] last:border-b-0">
+      <span className="shrink-0 font-medium text-text-muted">{label}</span>
+      <span className={`min-w-0 text-end font-semibold ${valueTone}`}>{value}</span>
     </div>
   )
 }
@@ -341,9 +347,9 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
             </p>
           ) : (
             <RowsView className="px-0 pb-1">
-              <table className="w-full min-w-[640px] border-collapse text-start">
+              <table className={`${CONSOLE_TABLE} min-w-[640px]`}>
                 <thead>
-                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                  <tr className={CONSOLE_THEAD}>
                     <th className={TH}>{t('console.tenantDetail.invoices.col.number')}</th>
                     <th className={TH}>{t('console.tenantDetail.invoices.col.period')}</th>
                     <th className={`${TH} text-end`}>
@@ -414,9 +420,9 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
             </p>
           ) : (
             <RowsView className="px-0 pb-1">
-              <table className="w-full min-w-[640px] border-collapse text-start">
+              <table className={`${CONSOLE_TABLE} min-w-[640px]`}>
                 <thead>
-                  <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                  <tr className={CONSOLE_THEAD}>
                     <th className={TH}>{t('console.tenantDetail.payments.col.date')}</th>
                     <th className={TH}>{t('console.tenantDetail.payments.col.method')}</th>
                     <th className={`${TH} text-end`}>

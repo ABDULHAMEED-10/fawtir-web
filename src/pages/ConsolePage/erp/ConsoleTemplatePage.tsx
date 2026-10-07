@@ -8,7 +8,7 @@ import {
   ConsoleStatusPill,
   type ConsolePillTone,
 } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
-import { Button, Input, Modal, RowsView, Select, type SelectOption } from '../../../components/ui'
+import { Input, Modal, RowsView, Select, type SelectOption } from '../../../components/ui'
 import { formatMoment } from '../../../lib/console/format'
 import {
   TEMPLATE_SAMPLES,
@@ -43,13 +43,21 @@ import { JsonTree } from '../../ErpPage/shared/JsonTree'
 import { ModalFooter, SummaryLine } from '../subscriptions/modalFields'
 import trashIcon from '../../../assets/catalog/trash-danger.svg'
 import plusIcon from '../../../assets/catalog/plus-brand.svg'
+import {
+  CONSOLE_DANGER,
+  CONSOLE_PAGE,
+  CONSOLE_PRIMARY,
+  CONSOLE_ROWS,
+  CONSOLE_SECONDARY,
+  CONSOLE_TABLE,
+  CONSOLE_THEAD,
+  ConsoleButton,
+  ConsolePageHeader,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:bg-primary-200'
-const SECONDARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50'
-const DANGER_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100/60'
+const PRIMARY_BUTTON = CONSOLE_PRIMARY
+const SECONDARY_BUTTON = CONSOLE_SECONDARY
+const DANGER_BUTTON = CONSOLE_DANGER
 /** The 42px shell `Select compact` draws, for the two free-text cells of an entry row. */
 const CELL_INPUT =
   'h-[42px] w-full min-w-0 rounded-sm border border-border-default bg-white px-2.5 font-mono text-xs font-medium text-text-primary outline-none transition-colors placeholder:text-text-placeholder focus:border-border-brand'
@@ -95,7 +103,7 @@ export function ConsoleTemplatePage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         {template ? (
           <TemplateScreen template={template} state={state} />
         ) : (
@@ -146,26 +154,21 @@ function TemplateScreen({
         ]}
       />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
-              {template.name}
-            </h1>
-            <ConsoleStatusPill
-              tone="neutral"
-              label={t(`erp.connector.product.${template.product}`)}
-            />
-          </div>
-          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.erp.template.productLine', {
-              product: t(`erp.connector.product.${template.product}`),
-              erpVersion: template.erpVersion,
-              schema: selected.schemaVersion,
-            })}
-          </p>
-        </div>
-      </div>
+      <ConsolePageHeader
+        title={template.name}
+        aside={
+          <ConsoleStatusPill
+            size="header"
+            tone="neutral"
+            label={t(`erp.connector.product.${template.product}`)}
+          />
+        }
+        subtitle={t('console.erp.template.productLine', {
+          product: t(`erp.connector.product.${template.product}`),
+          erpVersion: template.erpVersion,
+          schema: selected.schemaVersion,
+        })}
+      />
 
       {done ? (
         <p
@@ -176,7 +179,7 @@ function TemplateScreen({
         </p>
       ) : null}
 
-      <section className="flex flex-col gap-3 rounded-md bg-surface-card p-6">
+      <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-5">
         <h2 className="text-xs font-semibold uppercase tracking-[0.04em] text-text-quaternary">
           {t('console.erp.template.versions')}
         </h2>
@@ -365,7 +368,7 @@ function VersionEditor({
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-surface-card px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-surface-card px-5 py-4">
         <div className="flex min-w-0 flex-1 basis-[320px] items-center gap-3">
           <ConsoleStatusPill
             tone={VERSION_TONE[version.state]}
@@ -429,8 +432,8 @@ function VersionEditor({
       </div>
 
       <div className="flex items-start gap-4 max-lg:flex-col">
-        <section className="flex min-w-0 flex-1 flex-col rounded-md bg-surface-card max-lg:w-full">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle px-6 py-4">
+        <section className="flex min-w-0 flex-1 flex-col rounded-sm bg-surface-card max-lg:w-full">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle px-5 py-4">
             <h2 className="text-base font-semibold leading-[1.2] text-text-primary">
               {t('console.erp.template.entries')}
             </h2>
@@ -438,10 +441,10 @@ function VersionEditor({
               {t('console.erp.template.entriesCount', { count: entries.length })}
             </span>
           </div>
-          <RowsView className="px-6 pb-4 pt-2">
-            <table className="w-full min-w-[700px] border-collapse text-start">
+          <RowsView className={`${CONSOLE_ROWS} max-md:pt-2`}>
+            <table className={`${CONSOLE_TABLE} min-w-[700px]`}>
               <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                <tr className={CONSOLE_THEAD}>
                   <th className="w-[136px] px-3 py-3 text-start font-semibold">
                     {t('console.erp.template.col.target')}
                   </th>
@@ -644,7 +647,7 @@ function VersionEditor({
             </table>
           </RowsView>
           {editable ? (
-            <div className="flex flex-wrap items-end gap-3 border-t border-border-subtle px-6 py-4">
+            <div className="flex flex-wrap items-end gap-3 border-t border-border-subtle px-5 py-4">
               <div className="min-w-0 flex-1 basis-[280px]">
                 <span className="mb-1 block text-sm font-medium text-text-primary">
                   {t('console.erp.template.addField')}
@@ -667,16 +670,16 @@ function VersionEditor({
                   </p>
                 )}
               </div>
-              <Button type="button" size="md" variant="secondary" disabled={!adding} onClick={add}>
+              <ConsoleButton type="button" size="md" variant="secondary" disabled={!adding} onClick={add}>
                 <img src={plusIcon} alt="" className="me-1.5 size-4" />
                 {t('console.erp.template.add')}
-              </Button>
+              </ConsoleButton>
             </div>
           ) : null}
         </section>
 
         <aside className="flex w-[300px] shrink-0 flex-col gap-4 self-start max-lg:w-full lg:sticky lg:top-4">
-          <section className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
+          <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-semibold leading-[1.2] text-text-primary">
                 {t('console.erp.template.readiness.title')}
@@ -755,14 +758,14 @@ function VersionEditor({
             ) : null}
           </section>
 
-          <section className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
+          <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-5">
             <h2 className="text-base font-semibold leading-[1.2] text-text-primary">
               {t('console.erp.template.dryRun.title')}
             </h2>
             <p className="text-xs font-medium leading-[1.5] text-text-tertiary">
               {t('console.erp.template.dryRun.hint', { product: productLabel })}
             </p>
-            <Button
+            <ConsoleButton
               type="button"
               size="md"
               variant={result ? 'secondary' : 'primary'}
@@ -771,7 +774,7 @@ function VersionEditor({
               {t(result ? 'console.erp.template.dryRun.rerun' : 'console.erp.template.dryRun.run', {
                 product: productLabel,
               })}
-            </Button>
+            </ConsoleButton>
             {result ? (
               result.canonical ? (
                 <div className="flex flex-col gap-2">
@@ -836,7 +839,7 @@ function VersionEditor({
             ) : null}
           </section>
 
-          <section className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
+          <section className="flex flex-col gap-3 rounded-sm bg-surface-card p-5">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="min-w-0 text-base font-semibold leading-[1.2] text-text-primary">
                 {t('console.erp.template.tenants.title')}
@@ -1073,7 +1076,7 @@ function ValueMapEditor({
             </p>
           )}
           <div>
-            <Button
+            <ConsoleButton
               type="button"
               size="md"
               variant="ghost"
@@ -1081,7 +1084,7 @@ function ValueMapEditor({
             >
               <img src={plusIcon} alt="" className="me-1.5 size-4" />
               {t('console.erp.template.valueMap.addPair')}
-            </Button>
+            </ConsoleButton>
           </div>
         </div>
         <Input

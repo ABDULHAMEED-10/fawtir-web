@@ -1627,7 +1627,7 @@ describe('Withdrawing a scheduled version', () => {
     const withdraw = button('console.policies.action.withdraw')
     expect(withdraw.textContent).toBe('Withdraw schedule')
     // Drawn like Reject: the secondary button, never the primary fill of a forward step.
-    expect(withdraw.className).toContain('border-border-brand-subtle')
+    expect(withdraw.className).toContain('border-border-default')
     expect(withdraw.className).not.toContain('bg-primary-700')
     expect(screen.queryByText(t('console.policies.action.none'))).toBeNull()
     for (const key of STEP_KEYS.filter((step) => step !== 'console.policies.action.withdraw')) {

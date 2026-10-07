@@ -24,6 +24,7 @@ import { DecisionPanel } from './verification/DecisionPanel'
 import { ParticipantPanel } from './verification/ParticipantPanel'
 import { ReviewCard, ReviewLine } from './verification/ReviewCard'
 import { VerificationStatusPill } from './verification/VerificationStatusPill'
+import { CONSOLE_H1, CONSOLE_PAGE } from '../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * One registration as a reviewer reads it: the company as submitted, where verification stands,
@@ -78,7 +79,7 @@ function CompanyReview() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       {/* A long company name ends in an ellipsis instead of pushing the trail onto three lines. */}
       <div className="min-w-0 [&_nav>span:last-child]:min-w-0 [&_nav>span:last-child]:max-w-full [&_nav>span:last-child>span]:min-w-0 [&_nav>span:last-child>span]:truncate">
         <ConsoleBreadcrumbs
@@ -121,11 +122,15 @@ function CompanyView({
   return (
     <>
       <div>
-        <h1 className="break-words text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
+        <h1 className={`${CONSOLE_H1} max-md:text-2xl`}>
           {company.tenantName}
         </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2.5">
-          <VerificationStatusPill status={company.verificationStatus} submitted={submitted} />
+          <VerificationStatusPill
+            status={company.verificationStatus}
+            submitted={submitted}
+            size="header"
+          />
           <bdi dir="ltr" className="min-w-0 text-sm font-medium text-text-quaternary [overflow-wrap:anywhere]">
             {company.tenantCode}
           </bdi>
@@ -133,7 +138,7 @@ function CompanyView({
       </div>
 
       {submitted ? null : (
-        <p className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
+        <p className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary">
           {t('console.verification.detail.notSubmitted')}
         </p>
       )}
@@ -141,7 +146,7 @@ function CompanyView({
       {decided === 'VERIFIED' || decided === 'REJECTED' ? (
         <p
           role="status"
-          className="rounded-md bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
+          className="rounded-sm bg-surface-card p-5 text-sm font-medium leading-[1.6] text-text-tertiary"
         >
           {t(
             decided === 'VERIFIED'

@@ -6,6 +6,7 @@ import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcr
 import { ConsoleNotice } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import {
   ConsoleStatusPill,
+  type ConsolePillSize,
   type ConsolePillTone,
 } from '../../../layouts/ConsoleShell/ConsoleStatusPill'
 import {
@@ -13,7 +14,7 @@ import {
   ConsoleIncidentIcon,
   ConsoleTickIcon,
 } from '../../../layouts/ConsoleShell/consoleIcons'
-import { Button, Input, Modal, Select } from '../../../components/ui'
+import { Input, Modal, Select } from '../../../components/ui'
 import { count } from '../../../lib/superAdmin'
 import { formatMoment } from '../../../lib/console/format'
 import {
@@ -36,6 +37,8 @@ import {
   focusFirstInvalidField,
   type Errors,
 } from '../subscriptions/modalFields'
+import { CONSOLE_CARD_TITLE, CONSOLE_PAGE, CONSOLE_PRIMARY, CONSOLE_SECONDARY, CONSOLE_TABLE, CONSOLE_TAB_BAR, CONSOLE_TAB_COUNT, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsoleButton, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../../layouts/ConsoleShell/consoleTones'
 
 /**
  * Platform incidents — docs/erp-and-console-plan.md §9.3. The list of what is (or was) wrong on
@@ -58,18 +61,23 @@ const SEVERITY_TONE: Record<Severity, ConsolePillTone> = {
   critical: 'danger',
 }
 
-function IncidentStatePill({ state }: { state: IncidentState }) {
+function IncidentStatePill({ state, size }: { state: IncidentState; size?: ConsolePillSize }) {
   const { t } = useTranslation()
   return (
-    <ConsoleStatusPill tone={STATE_TONE[state]} label={t(`console.incidents.state.${state}`)} />
+    <ConsoleStatusPill
+      tone={STATE_TONE[state]}
+      label={t(`console.incidents.state.${state}`)}
+      size={size}
+    />
   )
 }
-function SeverityPill({ severity }: { severity: Severity }) {
+function SeverityPill({ severity, size }: { severity: Severity; size?: ConsolePillSize }) {
   const { t } = useTranslation()
   return (
     <ConsoleStatusPill
       tone={SEVERITY_TONE[severity]}
       label={t(`console.incidents.severity.${severity}`)}
+      size={size}
     />
   )
 }
@@ -265,37 +273,26 @@ function IncidentsList() {
   const moment = (date: Date) => formatMoment(date.toISOString(), i18n.language)
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.incidents' }]} />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.incidents.title')}
-          </h1>
-          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.incidents.subtitle', { count: open.length })}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-          <Link
-            to="/console/queue"
-            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-          >
-            {t('console.incidents.queueLink')}
-          </Link>
-          <button
-            type="button"
-            onClick={() => setOpening(true)}
-            className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
-            {t('console.incidents.openButton')}
-          </button>
-        </div>
-      </div>
+      <ConsolePageHeader
+        title={t('console.incidents.title')}
+        subtitle={t('console.incidents.subtitle', { count: open.length })}
+        actions={
+          <>
+            <Link to="/console/queue" className={CONSOLE_SECONDARY}>
+              {t('console.incidents.queueLink')}
+            </Link>
+            <button type="button" onClick={() => setOpening(true)} className={CONSOLE_PRIMARY}>
+              {t('console.incidents.openButton')}
+            </button>
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-4">
         <QueueKpiCard
-          icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
+          icon={<ConsoleIncidentIcon className="size-4 text-danger-700" />}
           title={t('console.incidents.kpi.open')}
           value={String(open.length)}
           note={t('console.incidents.kpi.openNote', {
@@ -306,13 +303,14 @@ function IncidentsList() {
           }
         />
         <QueueKpiCard
-          icon={<ConsoleBuildingIcon className="size-[18px] text-primary-700" />}
+          icon={<ConsoleBuildingIcon className="size-4 text-primary-700" />}
           title={t('console.incidents.kpi.affected')}
           value={count(affected)}
           note={t('console.incidents.kpi.affectedNote')}
         />
         <QueueKpiCard
-          icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+          icon={<ConsoleTickIcon className="size-4 text-success-700" />}
+          tone="good"
           title={t('console.incidents.kpi.resolved')}
           value={String(resolvedThisMonth)}
           note={t('console.incidents.kpi.resolvedNote', {
@@ -323,8 +321,8 @@ function IncidentsList() {
         />
       </div>
 
-      <section className="flex flex-col rounded-md bg-surface-card">
-        <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+      <section className="flex flex-col rounded-sm bg-surface-card">
+        <div className={CONSOLE_TAB_BAR}>
           {(['open', 'resolved'] as ListTab[]).map((id) => {
             const active = id === tab
             return (
@@ -333,29 +331,24 @@ function IncidentsList() {
                 type="button"
                 onClick={() => setTab(id)}
                 aria-pressed={active}
-                className={[
-                  'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                  active
-                    ? 'font-semibold text-primary-800'
-                    : 'font-medium text-text-tertiary hover:text-text-secondary',
-                ].join(' ')}
+                className={consoleTab(active)}
               >
                 {t(`console.incidents.tab.${id}`)}
-                <span className="text-xs font-semibold text-text-quaternary">
+                <span className={CONSOLE_TAB_COUNT}>
                   {id === 'open' ? open.length : resolved.length}
                 </span>
                 {active ? (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                  <span className={CONSOLE_TAB_LINE} />
                 ) : null}
               </button>
             )
           })}
         </div>
 
-        <div className="overflow-x-auto px-6 py-6">
-          <table className="w-full min-w-[1000px] border-collapse text-start">
+        <div className="overflow-x-auto">
+          <table className={`${CONSOLE_TABLE} min-w-[1000px]`}>
             <thead>
-              <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+              <tr className={CONSOLE_THEAD}>
                 <th className="px-4 py-3 text-start font-semibold">
                   {t('console.incidents.col.incident')}
                 </th>
@@ -526,9 +519,9 @@ function UpdateForm({ incident }: { incident: Incident }) {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-md bg-surface-card p-5">
+    <section className="flex flex-col gap-4 rounded-sm bg-surface-card p-5">
       <div>
-        <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+        <h2 className={CONSOLE_CARD_TITLE}>
           {t('console.incidents.update.title')}
         </h2>
         <p className="mt-1 text-xs font-medium text-text-quaternary">
@@ -570,9 +563,9 @@ function UpdateForm({ incident }: { incident: Incident }) {
           ) : (
             <span />
           )}
-          <Button type="submit" size="md">
+          <ConsoleButton type="submit" size="md">
             {t('console.incidents.update.submit')}
-          </Button>
+          </ConsoleButton>
         </div>
       </form>
     </section>
@@ -599,9 +592,9 @@ function NoticeCard({ incident }: { incident: Incident }) {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-md bg-surface-card p-5">
+    <section className="flex flex-col gap-4 rounded-sm bg-surface-card p-5">
       <div>
-        <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+        <h2 className={CONSOLE_CARD_TITLE}>
           {t('console.incidents.notice.title')}
         </h2>
         <p className="mt-1 text-xs font-medium leading-[1.4] text-text-quaternary">
@@ -668,9 +661,9 @@ function NoticeCard({ incident }: { incident: Incident }) {
             error={errors.ar}
           />
           <div className="flex justify-end">
-            <Button type="submit" size="md">
+            <ConsoleButton type="submit" size="md">
               {t('console.incidents.notice.submit')}
-            </Button>
+            </ConsoleButton>
           </div>
         </form>
       )}
@@ -687,7 +680,7 @@ function IncidentDetail({ id }: { id: string }) {
 
   if (!incident) {
     return (
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[{ labelKey: 'console.nav.incidents', to: '/console/incidents' }, { label: id }]}
         />
@@ -701,7 +694,7 @@ function IncidentDetail({ id }: { id: string }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs
         items={[
           { labelKey: 'console.nav.incidents', to: '/console/incidents' },
@@ -710,26 +703,26 @@ function IncidentDetail({ id }: { id: string }) {
       />
 
       {/* The page header every console page has, as on a tenant's page; the facts stay in the card. */}
-      <div className="min-w-0">
-        <h1 className="break-words text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
-          {incident.title}
-        </h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2.5">
-          <bdi
-            dir="ltr"
-            className="whitespace-nowrap font-mono text-sm font-semibold text-text-quaternary"
-          >
-            {incident.number}
-          </bdi>
-          <IncidentStatePill state={incident.state} />
-          <SeverityPill severity={incident.severity} />
-          <span className="inline-flex h-[26px] items-center rounded-full bg-surface-card px-2.5 text-xs font-semibold uppercase tracking-[0.04em] text-text-tertiary">
-            {t(`console.incidents.component.${incident.component}`)}
-          </span>
-        </div>
-      </div>
+      <ConsolePageHeader
+        title={incident.title}
+        below={
+          <div className="mt-2 flex flex-wrap items-center gap-2.5">
+            <bdi
+              dir="ltr"
+              className="whitespace-nowrap font-mono text-sm font-semibold text-text-quaternary"
+            >
+              {incident.number}
+            </bdi>
+            <IncidentStatePill state={incident.state} size="header" />
+            <SeverityPill severity={incident.severity} size="header" />
+            <span className="inline-flex h-[26px] items-center rounded-sm bg-surface-card px-[11px] text-[11.5px] font-semibold uppercase tracking-[0.3px] text-text-muted">
+              {t(`console.incidents.component.${incident.component}`)}
+            </span>
+          </div>
+        }
+      />
 
-      <section className="flex flex-col gap-4 rounded-md bg-surface-card p-5">
+      <section className="flex flex-col gap-4 rounded-sm bg-surface-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <dl className="grid shrink-0 grid-cols-3 gap-x-6 gap-y-1 text-sm max-md:grid-cols-1">
             <div>
@@ -769,9 +762,9 @@ function IncidentDetail({ id }: { id: string }) {
         <div className="flex min-w-[320px] flex-1 flex-col gap-4 max-md:min-w-0 max-md:basis-full">
           <UpdateForm key={`${incident.id}-${incident.state}`} incident={incident} />
 
-          <section className="flex flex-col rounded-md bg-surface-card">
+          <section className="flex flex-col rounded-sm bg-surface-card">
             <div className="border-b border-border-subtle px-5 py-4">
-              <h2 className="text-base font-medium leading-[1.2] text-text-primary">
+              <h2 className={CONSOLE_CARD_TITLE}>
                 {t('console.incidents.timeline.title')}
               </h2>
               <p className="mt-1 text-xs font-medium text-text-quaternary">

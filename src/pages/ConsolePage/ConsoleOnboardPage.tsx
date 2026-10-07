@@ -51,6 +51,13 @@ import {
   useTermOptions,
   type Errors,
 } from './subscriptions/modalFields'
+import {
+  CONSOLE_CARD_TITLE,
+  CONSOLE_PAGE,
+  CONSOLE_PRIMARY,
+  CONSOLE_SECONDARY,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 const STEPS = ['company', 'owner', 'plan', 'review'] as const
 type Step = (typeof STEPS)[number]
@@ -136,10 +143,8 @@ const ORDER: Record<Exclude<Step, 'review'>, FieldName[]> = {
   plan: ['plan', 'term', 'method', 'amount', 'receivedOn', 'reference'],
 }
 
-const PRIMARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50'
-const SECONDARY_BUTTON =
-  'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 disabled:cursor-not-allowed disabled:opacity-50'
+const PRIMARY_BUTTON = CONSOLE_PRIMARY
+const SECONDARY_BUTTON = CONSOLE_SECONDARY
 const TEXT_BUTTON =
   'inline-flex h-[46px] items-center text-sm font-semibold text-text-tertiary transition-colors hover:text-text-secondary'
 
@@ -345,23 +350,20 @@ export function ConsoleOnboardPage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.tenants', to: '/console/tenants' },
             { labelKey: 'console.onboard.title' },
           ]}
         />
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.onboard.title')}
-          </h1>
-          <p className="mt-1.5 max-w-[720px] text-sm font-medium leading-[1.4] text-text-quaternary">
-            {t('console.onboard.subtitle')}
-          </p>
-        </div>
+        <ConsolePageHeader
+          title={t('console.onboard.title')}
+          subtitle={t('console.onboard.subtitle')}
+          subtitleClassName="max-w-[720px]"
+        />
 
-        <section className="overflow-hidden rounded-md bg-surface-card">
+        <section className="overflow-hidden rounded-sm bg-surface-card">
           {/* The shared tracker prints its labels at 9 px; here they read at 12 px, with longer connectors (wider columns that let a label wrap on a phone) so they do not touch. */}
           <div className="flex justify-center border-b border-border-subtle px-5 py-5 max-md:overflow-x-auto [&_span.whitespace-nowrap]:text-xs md:[&_span.h-px]:w-16 max-md:[&_span.h-px]:w-2 max-md:[&_div.flex-col]:w-[60px] max-md:[&_span.whitespace-nowrap]:whitespace-normal max-md:[&_span.whitespace-nowrap]:text-center">
             <StepTracker steps={trackerSteps} size="md" />
@@ -428,7 +430,7 @@ type StepProps = {
 function StepHeading({ children, note }: { children: string; note?: string }) {
   return (
     <div>
-      <h2 className="text-lg font-semibold leading-[1.2] text-text-primary">{children}</h2>
+      <h2 className={CONSOLE_CARD_TITLE}>{children}</h2>
       {note ? (
         <p className="mt-1 max-w-[680px] text-sm font-medium leading-[1.6] text-text-tertiary">
           {note}

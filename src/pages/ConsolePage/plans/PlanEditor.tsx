@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Input, Modal, Rial, Switch } from '../../../components/ui'
+import { Input, Modal, Rial, Switch } from '../../../components/ui'
 import { focusFirstInvalid } from '../../../lib/forms'
 import {
   EMPTY_PLAN_FORM,
@@ -22,6 +22,7 @@ import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import type { SubscriptionPlan } from '../../../lib/subscriptionPlans'
 import { isClean } from '../../../lib/validation'
 import { displayPlanName } from './planName'
+import { ConsoleButton } from '../../../layouts/ConsoleShell/consoleStyle'
 
 type PlanEditorProps = {
   /** The plan being edited, or `null` to add one. */
@@ -133,12 +134,12 @@ export function PlanEditor({ plan, takenCodes, onClose, onSaved }: PlanEditorPro
       subtitle={plan ? t('console.plans.editNote') : t('console.plans.addNote')}
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">
-          <Button type="button" size="md" variant="secondary" disabled={saving} onClick={onClose}>
+          <ConsoleButton type="button" size="md" variant="secondary" disabled={saving} onClick={onClose}>
             {t('common.cancel')}
-          </Button>
-          <Button type="submit" form={FORM_ID} size="md" disabled={saving}>
+          </ConsoleButton>
+          <ConsoleButton type="submit" form={FORM_ID} size="md" disabled={saving}>
             {saving ? t('console.plans.saving') : t('console.plans.save')}
-          </Button>
+          </ConsoleButton>
         </div>
       }
     >

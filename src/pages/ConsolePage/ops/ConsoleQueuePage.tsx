@@ -33,6 +33,8 @@ import {
 } from '../../../lib/consoleOps'
 import { QueueKpiCard } from '../subscriptions/QueueKpiCard'
 import searchIcon from '../../../assets/dashboard/search.svg'
+import { CONSOLE_PAGE, CONSOLE_ROWS, CONSOLE_SECONDARY, CONSOLE_SMALL, CONSOLE_SMALL_PRIMARY, CONSOLE_TABLE, CONSOLE_TAB_BAR, CONSOLE_TAB_COUNT, CONSOLE_TAB_LINE, CONSOLE_THEAD, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
+import { consoleTab } from '../../../layouts/ConsoleShell/consoleTones'
 
 /**
  * The cross-tenant submission queue — docs/erp-and-console-plan.md §9.3. What is on its way to
@@ -150,40 +152,30 @@ export function ConsoleQueuePage() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.queue' }]} />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-              {t('console.queue.title')}
-            </h1>
-            <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-              {t('console.queue.subtitle', {
-                waiting: count(kpis.waiting),
-                stuck: kpis.stuck,
-                refused: count(kpis.refusedToday),
-              })}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-            <Link
-              to="/console/incidents"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.queue.incidentsLink')}
-            </Link>
-            <Link
-              to="/console"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('console.queue.operationsLink')}
-            </Link>
-          </div>
-        </div>
+        <ConsolePageHeader
+          title={t('console.queue.title')}
+          subtitle={t('console.queue.subtitle', {
+            waiting: count(kpis.waiting),
+            stuck: kpis.stuck,
+            refused: count(kpis.refusedToday),
+          })}
+          actions={
+            <>
+              <Link to="/console/incidents" className={CONSOLE_SECONDARY}>
+                {t('console.queue.incidentsLink')}
+              </Link>
+              <Link to="/console" className={CONSOLE_SECONDARY}>
+                {t('console.queue.operationsLink')}
+              </Link>
+            </>
+          }
+        />
 
         <div className="flex flex-wrap gap-4">
           <QueueKpiCard
-            icon={<ConsoleClockIcon className="size-[18px] text-pending-700" />}
+            icon={<ConsoleClockIcon className="size-4 text-pending-500" />}
             title={t('console.queue.kpi.waiting')}
             value={count(kpis.waiting)}
             note={t('console.queue.kpi.waitingNote', {
@@ -193,14 +185,14 @@ export function ConsoleQueuePage() {
             tone="watch"
           />
           <QueueKpiCard
-            icon={<ConsoleIncidentIcon className="size-[18px] text-danger-700" />}
+            icon={<ConsoleIncidentIcon className="size-4 text-danger-700" />}
             title={t('console.queue.kpi.stuck')}
             value={String(kpis.stuck)}
             note={t('console.queue.kpi.stuckNote')}
             tone={kpis.stuck > 0 ? 'bad' : 'calm'}
           />
           <QueueKpiCard
-            icon={<ConsoleQueueIcon className="size-[18px] text-primary-700" />}
+            icon={<ConsoleQueueIcon className="size-4 text-primary-700" />}
             title={t('console.queue.kpi.refused')}
             value={count(kpis.refusedToday)}
             note={t('console.queue.kpi.refusedNote', {
@@ -208,7 +200,8 @@ export function ConsoleQueuePage() {
             })}
           />
           <QueueKpiCard
-            icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
+            icon={<ConsoleTickIcon className="size-4 text-success-700" />}
+            tone="good"
             title={t('console.queue.kpi.accepted')}
             value={count(kpis.acceptedToday)}
             note={t('console.queue.kpi.acceptedNote', {
@@ -226,7 +219,7 @@ export function ConsoleQueuePage() {
         ) : null}
 
         {/* The pipeline: every stage a document passes through, with what is at each one now. */}
-        <section className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-md bg-surface-card px-6 py-4">
+        <section className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-sm bg-surface-card px-5 py-4">
           <ol className="flex flex-wrap items-center gap-y-2 max-md:gap-x-2">
             {PIPELINE.map((stage, index) => {
               const active = stageFilter === stage
@@ -284,8 +277,8 @@ export function ConsoleQueuePage() {
           </div>
         </section>
 
-        <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+        <section className="flex flex-col rounded-sm bg-surface-card">
+          <div className={CONSOLE_TAB_BAR}>
             {LANES.map((id) => {
               const active = id === lane
               return (
@@ -294,26 +287,21 @@ export function ConsoleQueuePage() {
                   type="button"
                   onClick={() => setLane(id)}
                   aria-pressed={active}
-                  className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-primary-800'
-                      : 'font-medium text-text-tertiary hover:text-text-secondary',
-                  ].join(' ')}
+                  className={consoleTab(active)}
                 >
                   {t(`console.queue.lane.${id}`)}
-                  <span className="text-xs font-semibold text-text-quaternary">
+                  <span className={CONSOLE_TAB_COUNT}>
                     {laneCount(id)}
                   </span>
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className={CONSOLE_TAB_LINE} />
                   ) : null}
                 </button>
               )
             })}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
             <label className="flex h-11 w-full max-w-[346px] items-center gap-2 rounded-sm border border-border-subtle bg-surface-tab-bar px-4 max-md:max-w-none max-md:basis-full">
               <img src={searchIcon} alt="" className="size-5 shrink-0" />
               <input
@@ -355,10 +343,10 @@ export function ConsoleQueuePage() {
             </div>
           </div>
 
-          <RowsView className="px-6 pb-6">
-            <table className="w-full min-w-[1000px] border-collapse text-start">
+          <RowsView className={CONSOLE_ROWS}>
+            <table className={`${CONSOLE_TABLE} min-w-[1000px]`}>
               <thead>
-                <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+                <tr className={CONSOLE_THEAD}>
                   <th className="px-4 py-3 text-start font-semibold">
                     {t('console.queue.col.tenant')}
                   </th>
@@ -461,7 +449,7 @@ export function ConsoleQueuePage() {
                           <button
                             type="button"
                             onClick={() => redrive(s)}
-                            className="inline-flex h-9 items-center rounded-sm bg-primary-700 px-3 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+                            className={CONSOLE_SMALL_PRIMARY}
                           >
                             {t('console.queue.action.redrive')}
                           </button>
@@ -471,7 +459,7 @@ export function ConsoleQueuePage() {
                             <button
                               type="button"
                               disabled
-                              className="inline-flex h-9 cursor-not-allowed items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-quaternary"
+                              className={`${CONSOLE_SMALL} cursor-not-allowed whitespace-nowrap text-text-disabled hover:bg-white hover:text-text-disabled`}
                             >
                               {t('console.queue.action.told', { time: timeOf(s.tenantNotifiedAt) })}
                             </button>
@@ -479,7 +467,7 @@ export function ConsoleQueuePage() {
                             <button
                               type="button"
                               onClick={() => notify(s)}
-                              className="inline-flex h-9 items-center whitespace-nowrap rounded-sm border border-border-subtle bg-white px-3 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+                              className={`${CONSOLE_SMALL} whitespace-nowrap`}
                             >
                               {t('console.queue.action.notify')}
                             </button>
@@ -498,7 +486,7 @@ export function ConsoleQueuePage() {
             ) : null}
           </RowsView>
 
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <div>
               <p className="text-sm font-medium text-text-tertiary">
                 {rows.length === 0

@@ -38,6 +38,12 @@ import {
   focusFirstInvalidField,
   type Errors,
 } from '../subscriptions/modalFields'
+import {
+  CONSOLE_CARD_HEAD,
+  CONSOLE_CARD_TITLE,
+  CONSOLE_DANGER,
+  CONSOLE_SECONDARY,
+} from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * What the console's ERP screens share: the pills (the tenant-side `ConnectionShell` tones, so a
@@ -133,10 +139,8 @@ export function whenLabel(date: Date | undefined, language: string): string {
 export const TH = 'px-3 py-3 text-start font-semibold first:ps-4 last:pe-4'
 export const TD = 'px-3 py-3.5 align-top first:ps-4 last:pe-4'
 
-export const SECONDARY_BUTTON =
-  'inline-flex h-11 items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25'
-export const DANGER_BUTTON =
-  'inline-flex h-11 items-center justify-center rounded-sm border border-border-danger bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100'
+export const SECONDARY_BUTTON = CONSOLE_SECONDARY
+export const DANGER_BUTTON = CONSOLE_DANGER
 
 /** The console's card: a titled header and a body, as the Operations screen draws its panels. */
 export function Card({
@@ -151,12 +155,12 @@ export function Card({
   padded?: boolean
 }) {
   return (
-    <section className="flex flex-col rounded-md bg-surface-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-5 py-4">
-        <h2 className="text-base font-medium leading-[1.2] text-text-primary">{title}</h2>
+    <section className="flex flex-col rounded-sm bg-surface-card">
+      <div className={CONSOLE_CARD_HEAD}>
+        <h2 className={CONSOLE_CARD_TITLE}>{title}</h2>
         {aside}
       </div>
-      <div className={padded ? 'px-5 py-2' : ''}>{children}</div>
+      <div className={padded ? 'p-5' : ''}>{children}</div>
     </section>
   )
 }
@@ -164,10 +168,10 @@ export function Card({
 /** A label/value line, as the Operations connection card and the subscription cards draw it. */
 export function Line({ label, value, tone }: { label: string; value: ReactNode; tone?: 'bad' }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-2.5 last:border-b-0">
-      <span className="text-sm font-medium text-text-tertiary">{label}</span>
+    <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-[9px] text-[13.5px] last:border-b-0">
+      <span className="font-medium text-text-muted">{label}</span>
       <span
-        className={`text-end text-sm font-semibold ${tone === 'bad' ? 'text-danger-700' : 'text-text-primary'}`}
+        className={`text-end font-semibold ${tone === 'bad' ? 'text-danger-700' : 'text-text-primary'}`}
       >
         {value}
       </span>

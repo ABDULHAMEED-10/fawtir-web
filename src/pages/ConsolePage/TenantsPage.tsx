@@ -15,6 +15,17 @@ import {
   type TenantStatus,
 } from '../../lib/console/companyVerification'
 import { countryName, formatDay, localeFor } from '../../lib/console/format'
+import {
+  CONSOLE_CARD,
+  CONSOLE_LINK,
+  CONSOLE_PAGE,
+  CONSOLE_PRIMARY,
+  CONSOLE_ROWS,
+  CONSOLE_TABLE,
+  CONSOLE_TABLE_BODY,
+  CONSOLE_THEAD,
+  ConsolePageHeader,
+} from '../../layouts/ConsoleShell/consoleStyle'
 
 const TENANTS_ROUTE = '/console/tenants'
 
@@ -97,36 +108,30 @@ function TenantsRegister() {
   const loaded = read.status === 'ready' && read.data.items.length > 0 ? read.data : null
 
   return (
-    <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+    <div className={CONSOLE_PAGE}>
       <ConsoleBreadcrumbs items={[{ labelKey: 'console.nav.tenants' }]} />
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
-            {t('console.tenants.title')}
-          </h1>
-          <p className="mt-1.5 text-sm font-medium leading-[1.4] text-text-quaternary">
-            {read.status === 'ready'
-              ? t('console.tenants.registered', {
-                  total: number.format(read.data.totalElements),
-                })
-              : t('console.tenants.subtitlePlain')}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
-          <Link
-            to="/console/tenants/new"
-            className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-          >
+      <ConsolePageHeader
+        title={t('console.tenants.title')}
+        subtitle={
+          read.status === 'ready'
+            ? t('console.tenants.registered', {
+                total: number.format(read.data.totalElements),
+              })
+            : t('console.tenants.subtitlePlain')
+        }
+        actions={
+          <Link to="/console/tenants/new" className={CONSOLE_PRIMARY}>
             {t('console.tenants.onboard')}
           </Link>
-        </div>
-      </div>
+        }
+      />
 
-      <section className="flex flex-col rounded-md bg-surface-card">
-        <div className="px-6 py-4">{body}</div>
+      <section className={`flex flex-col overflow-hidden ${CONSOLE_CARD}`}>
+        {/* The table runs to the card's edges; a notice keeps the card's padding. */}
+        <div className={CONSOLE_TABLE_BODY}>{body}</div>
 
         {loaded ? (
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-5 py-4">
             <p className="text-sm font-medium text-text-tertiary">
               {t('console.tenants.showingRange', {
                 from: number.format(loaded.page * loaded.size + 1),
@@ -158,10 +163,10 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
   const none = t('console.tenants.none')
 
   return (
-    <RowsView>
-      <table className="w-full min-w-[760px] border-collapse text-start">
+    <RowsView className={CONSOLE_ROWS}>
+      <table className={`${CONSOLE_TABLE} min-w-[760px]`}>
         <thead>
-          <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
+          <tr className={CONSOLE_THEAD}>
             <th className="px-4 py-3 text-start font-semibold">
               {t('console.tenants.col.business')}
             </th>
@@ -177,15 +182,15 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
         </thead>
         <tbody>
           {rows.map((tenant) => (
-            <tr key={tenant.tenantId} className="border-b border-[#f3f3f3] last:border-b-0">
+            <tr key={tenant.tenantId} className="border-b border-border-subtle last:border-b-0">
               <td className="px-4 py-4">
                 <Link
                   to={`${TENANTS_ROUTE}/${tenant.tenantId}`}
-                  className="text-base font-medium leading-[1.2] text-text-primary hover:text-primary-800"
+                  className="text-[15.5px] font-semibold leading-[1.2] text-text-primary hover:text-primary-800"
                 >
                   {tenant.tenantName}
                 </Link>
-                <span className="mt-1 block text-xs font-medium text-text-quaternary">
+                <span className="mt-1 block text-xs font-medium text-text-muted">
                   {tenant.legalName ?? t('console.tenants.noLegalName')}
                   {tenant.country ? ` · ${countryName(tenant.country, i18n.language)}` : ''}
                 </span>
@@ -229,7 +234,7 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
                 tenant.verificationStatus === 'REJECTED' ? (
                   <Link
                     to={`${VERIFICATION_ROUTE}/${tenant.tenantId}`}
-                    className="whitespace-nowrap text-sm font-semibold text-primary-800 hover:text-primary-700"
+                    className={`whitespace-nowrap ${CONSOLE_LINK}`}
                   >
                     {/* A refused company has nothing left to review; its record says why. */}
                     {t(

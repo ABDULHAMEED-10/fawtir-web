@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { ConsoleShell } from '../../../layouts/ConsoleShell'
 import { ConsoleBreadcrumbs } from '../../../layouts/ConsoleShell/ConsoleBreadcrumbs'
 import { ConsoleNotice } from '../../../layouts/ConsoleShell/ConsoleNotice'
+import { CONSOLE_PAGE, ConsolePageHeader } from '../../../layouts/ConsoleShell/consoleStyle'
 
 /**
  * The platform's view of tenant ERP connections, which does not exist yet.
@@ -26,21 +27,18 @@ export function ConsoleErpUnavailable() {
 
   return (
     <ConsoleShell>
-      <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
+      <div className={CONSOLE_PAGE}>
         <ConsoleBreadcrumbs
           items={[
             { labelKey: 'console.nav.group.erp' },
             { labelKey: 'console.erp.unavailable.crumb' },
           ]}
         />
-        <div>
-          <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
-            {t('console.erp.unavailable.title')}
-          </h1>
-          <p className="mt-1.5 max-w-[760px] text-sm font-medium leading-[1.5] text-text-quaternary">
-            {t('console.erp.unavailable.subtitle')}
-          </p>
-        </div>
+        <ConsolePageHeader
+          title={t('console.erp.unavailable.title')}
+          subtitle={t('console.erp.unavailable.subtitle')}
+          subtitleClassName="max-w-[760px]"
+        />
         <ConsoleNotice
           badge={t('console.erp.unavailable.badge')}
           body={t('console.erp.unavailable.body')}
