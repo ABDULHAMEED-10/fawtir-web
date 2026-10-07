@@ -286,6 +286,17 @@ export function SettingsPage() {
         footKey: 'settings.card.bridgeFoot',
       },
       {
+        id: 'apiPush',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: connectIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/api-push',
+        pillKey: 'settings.card.apiPushPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.apiPushFoot',
+      },
+      {
         id: 'erpActivity',
         group: 'integration',
         feature: 'erpMapping',

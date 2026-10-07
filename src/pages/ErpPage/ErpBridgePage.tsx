@@ -129,7 +129,13 @@ function ChannelsCard() {
           <span className="font-semibold text-text-primary">
             {t('erp.bridge.channels.apiPush')}
           </span>{' '}
-          {t('erp.bridge.channels.apiPushBody')}
+          {t('erp.bridge.channels.apiPushBody')}{' '}
+          <Link
+            to="/settings/erp/api-push"
+            className="font-semibold text-primary-700 hover:text-primary-800"
+          >
+            {t('erp.bridge.channels.apiPushLink')}
+          </Link>
         </li>
       </ul>
     </SectionCard>
@@ -140,7 +146,7 @@ function ChannelsCard() {
  * Whether the mapping will accept a standard invoice from this format, as the server says. Read
  * once per format and transaction type, which is what the FR-005 gate is keyed on.
  */
-function ReadinessCard({
+export function ReadinessCard({
   format,
   transactionType,
 }: {
