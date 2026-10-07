@@ -150,6 +150,7 @@ describe('address and contact', () => {
     addressLine2: ' Al Khoud ',
     addressLine3: ' Villa 12 ',
     postalCode: ' 132 ',
+    poBox: '',
     city: ' Seeb ',
     governorate: 'ashSharqiyahNorth',
     contactName: ' Salim Al Harthy ',
@@ -161,6 +162,8 @@ describe('address and contact', () => {
   it('sends the governorate by its stable English name and the phone as +968', () => {
     expect(buildAddressContactRequest(valid)).toEqual({
       addressLine: 'Building 4, Way 2301',
+      addressLine2: 'Al Khoud',
+      addressLine3: 'Villa 12',
       postalCode: '132',
       city: 'Seeb',
       governorate: 'Ash Sharqiyah North',
@@ -175,8 +178,25 @@ describe('address and contact', () => {
     expect(JSON.stringify(buildAddressContactRequest(valid))).not.toMatch(/contactRole/)
   })
 
-  it('keeps address lines 2 and 3 out of the request until the endpoint takes them', () => {
-    expect(JSON.stringify(buildAddressContactRequest(valid))).not.toMatch(/addressLine[23]/)
+  it('sends address lines 2 and 3, which IBR-010-OM needs on the first invoice', () => {
+    // The defect this pins: both lines were asked for and then dropped from the request, so every
+    // self-service company was refused its first invoice (SELLER_ADDRESS_INCOMPLETE).
+    const request = buildAddressContactRequest(valid)
+    expect(request.addressLine2).toBe('Al Khoud')
+    expect(request.addressLine3).toBe('Villa 12')
+  })
+
+  it('omits a blank PO Box and sends it, trimmed, when filled', () => {
+    expect(JSON.stringify(buildAddressContactRequest(valid))).not.toMatch(/poBox/)
+    expect(buildAddressContactRequest({ ...valid, poBox: ' 1234 ' }).poBox).toBe('1234')
+  })
+
+  it('leaves the PO Box optional within the server limit of 30', () => {
+    expect(validateAddressContact(valid).poBox).toBeUndefined()
+    expect(validateAddressContact({ ...valid, poBox: 'x'.repeat(30) }).poBox).toBeUndefined()
+    expect(validateAddressContact({ ...valid, poBox: 'x'.repeat(31) }).poBox).toBe(
+      'validation.tooLong',
+    )
   })
 
   it('applies the service limits, not the wider record ones', () => {

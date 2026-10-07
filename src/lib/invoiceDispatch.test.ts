@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import en from '../i18n/locales/en.json'
 import ar from '../i18n/locales/ar.json'
 import { ApiError } from '../api'
-import type { InvoiceDispatchDto, InvoiceDispatchStateDto } from '../api/invoices/detail'
+import type {
+  InvoiceDispatchDto,
+  InvoiceDispatchStateDto,
+  InvoiceTransportLegDto,
+  InvoiceTransportLegStateDto,
+} from '../api/invoices/detail'
 import {
   DISPATCH_REASONS,
   RELEASE_REFUSALS,
@@ -13,6 +18,7 @@ import {
   dispatchSucceeded,
   sendRefusalKey,
   sendResultNote,
+  transportNotes,
 } from './invoiceDispatch'
 
 const STATES: InvoiceDispatchStateDto[] = [
@@ -129,5 +135,107 @@ describe('invoice dispatch sentences', () => {
     )
     expect(sendRefusalKey(new ApiError({ status: 409, problemType: 'x', code: 'OTHER' }))).toBeNull()
     expect(sendRefusalKey(new Error('offline'))).toBeNull()
+  })
+})
+
+describe('transport progress', () => {
+  const LEG_STATES: InvoiceTransportLegStateDto[] = [
+    'QUEUED_NOT_ATTEMPTED',
+    'TRANSMITTING',
+    'RETRY_SCHEDULED',
+    'TRANSMITTED',
+    'FAILED',
+  ]
+  const leg = (state: InvoiceTransportLegStateDto, nextAttemptAt: string | null = null): InvoiceTransportLegDto => ({
+    messageId: 'm-1',
+    state,
+    attempts: state === 'QUEUED_NOT_ATTEMPTED' ? 0 : 1,
+    lastAttemptAt: state === 'QUEUED_NOT_ATTEMPTED' ? null : '2026-10-07T10:00:00Z',
+    nextAttemptAt,
+  })
+  const withLegs = (
+    state: InvoiceDispatchStateDto,
+    buyer: InvoiceTransportLegDto | null,
+    taxAuthority: InvoiceTransportLegDto | null = null,
+  ): InvoiceDispatchDto => ({ ...dispatch(state), transport: { buyer, taxAuthority } })
+  const when = (instant: string) => `at ${instant}`
+
+  it('has every transport sentence in English and Arabic', () => {
+    const keys = new Set<string>(['invoiceDispatch.transport.leg.buyer', 'invoiceDispatch.transport.leg.taxAuthority'])
+    for (const state of LEG_STATES) {
+      keys.add(dispatchNotes(withLegs('SENDING', leg(state)))!.state!.key)
+      keys.add(transportNotes(withLegs('SENDING', leg(state)), when)[0].state.key)
+      keys.add(transportNotes(withLegs('SENDING', leg(state, '2026-10-07T11:00:00Z')), when)[0].state.key)
+    }
+    for (const key of keys) {
+      expect(typeof lookup(en, key), `en ${key}`).toBe('string')
+      expect(typeof lookup(ar, key), `ar ${key}`).toBe('string')
+    }
+  })
+
+  it('never says sending for a leg that has not been attempted', () => {
+    for (const state of ['DISPATCHED', 'QUEUED', 'SENDING'] as const) {
+      expect(dispatchNotes(withLegs(state, leg('QUEUED_NOT_ATTEMPTED'))).state?.key).toBe(
+        'invoiceDispatch.transport.headline.queuedNotAttempted',
+      )
+    }
+    expect(en.invoiceDispatch.transport.headline.queuedNotAttempted).toMatch(/not yet sent/)
+    expect(en.invoiceDispatch.transport.headline.queuedNotAttempted).not.toMatch(/sending/i)
+  })
+
+  it('tells transmitting, retry, receipt and failure apart', () => {
+    const headline = (state: InvoiceTransportLegStateDto) =>
+      dispatchNotes(withLegs('SENDING', leg(state))).state?.key
+    expect(headline('TRANSMITTING')).toBe('invoiceDispatch.state.sending')
+    expect(headline('RETRY_SCHEDULED')).toBe('invoiceDispatch.transport.headline.retryScheduled')
+    expect(headline('TRANSMITTED')).toBe('invoiceDispatch.transport.headline.transmitted')
+    expect(headline('FAILED')).toBe('invoiceDispatch.transport.headline.failed')
+    // A receipt from the receiving access point is not the buyer accepting the document.
+    expect(en.invoiceDispatch.transport.state.transmitted).not.toMatch(/deliver|accept/i)
+  })
+
+  it('leaves a ledger verdict past transport alone', () => {
+    expect(dispatchNotes(withLegs('SENT', leg('TRANSMITTED'))).state?.key).toBe('invoiceDispatch.state.sent')
+    expect(dispatchNotes(withLegs('UNDELIVERABLE', leg('FAILED'))).state?.key).toBe(
+      'invoiceDispatch.state.undeliverable',
+    )
+  })
+
+  it('reads as before when the server sends no transport', () => {
+    expect(dispatchNotes(dispatch('SENDING')).state?.key).toBe('invoiceDispatch.state.sending')
+    expect(transportNotes(dispatch('SENDING'), when)).toEqual([])
+    expect(transportNotes({ ...dispatch('SENDING'), transport: null }, when)).toEqual([])
+  })
+
+  it('lists the buyer leg first, then the Tax Authority, with the next attempt time', () => {
+    const notes = transportNotes(
+      withLegs('SENDING', leg('RETRY_SCHEDULED', '2026-10-07T11:00:00Z'), leg('QUEUED_NOT_ATTEMPTED')),
+      when,
+    )
+    expect(notes).toEqual([
+      {
+        legKey: 'invoiceDispatch.transport.leg.buyer',
+        state: { key: 'invoiceDispatch.transport.state.retryScheduled', values: { when: 'at 2026-10-07T11:00:00Z' } },
+      },
+      {
+        legKey: 'invoiceDispatch.transport.leg.taxAuthority',
+        state: { key: 'invoiceDispatch.transport.state.queuedNotAttempted' },
+      },
+    ])
+  })
+
+  it('leads with the Tax Authority leg when the buyer is not reached over Peppol', () => {
+    expect(dispatchNotes(withLegs('SENDING', null, leg('QUEUED_NOT_ATTEMPTED'))).state?.key).toBe(
+      'invoiceDispatch.transport.headline.queuedNotAttempted',
+    )
+  })
+
+  it('stops watching a document whose transmission is waiting rather than under way', () => {
+    expect(dispatchIsMoving(withLegs('SENDING', leg('QUEUED_NOT_ATTEMPTED')))).toBe(false)
+    expect(dispatchIsMoving(withLegs('SENDING', leg('RETRY_SCHEDULED')))).toBe(false)
+    expect(dispatchIsMoving(withLegs('SENDING', leg('FAILED')))).toBe(false)
+    expect(dispatchIsMoving(withLegs('SENDING', leg('TRANSMITTING')))).toBe(true)
+    expect(dispatchIsMoving(withLegs('SENDING', leg('TRANSMITTED')))).toBe(true)
+    expect(dispatchIsMoving(dispatch('SENDING'))).toBe(true)
   })
 })

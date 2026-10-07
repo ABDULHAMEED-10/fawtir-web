@@ -1244,6 +1244,77 @@ describe('Send', () => {
   })
 })
 
+describe('Transport progress', () => {
+  // TEST, 7 October 2026: the ledger said SENDING the moment a transport record existed, and the
+  // page said "Sending" while nothing had been attempted.
+  const queuedLeg = (messageId: string) => ({
+    messageId,
+    state: 'QUEUED_NOT_ATTEMPTED' as const,
+    attempts: 0,
+    lastAttemptAt: null,
+    nextAttemptAt: null,
+  })
+  const SENDING_UNATTEMPTED: InvoiceDispatchDto = {
+    ...QUEUED,
+    state: 'SENDING',
+    buyerDelivery: 'PEPPOL',
+    transport: { buyer: queuedLeg('m-1'), taxAuthority: queuedLeg('m-2') },
+  }
+
+  it('says queued, not sending, while no transmission has been attempted', async () => {
+    dispatchResponse = () => json(200, SENDING_UNATTEMPTED)
+    renderInvoice()
+    expect(await screen.findByText('Queued for transmission, not yet sent')).toBeTruthy()
+    expect(
+      screen.getByText(
+        [
+          'Queued for transmission, not yet sent',
+          'The buyer receives it over Peppol',
+          'To the buyer: queued for transmission, not yet sent',
+          'To the Tax Authority: queued for transmission, not yet sent',
+        ].join(' · '),
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText('Sending')).toBeNull()
+  })
+
+  it('names a scheduled retry and the leg it belongs to', async () => {
+    dispatchResponse = () =>
+      json(200, {
+        ...SENDING_UNATTEMPTED,
+        transport: {
+          buyer: {
+            ...queuedLeg('m-1'),
+            state: 'RETRY_SCHEDULED',
+            attempts: 2,
+            lastAttemptAt: '2026-10-07T10:00:00Z',
+            nextAttemptAt: '2026-10-07T10:04:00Z',
+          },
+          taxAuthority: null,
+        },
+      } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(await screen.findByText('Transmission failed and will be retried')).toBeTruthy()
+    expect(screen.getByText(/To the buyer: failed, next attempt /)).toBeTruthy()
+    expect(screen.queryByText(/To the Tax Authority/)).toBeNull()
+  })
+
+  it('keeps the ledger sentence when the server sends no transport record', async () => {
+    dispatchResponse = () => json(200, { ...QUEUED, state: 'SENDING' } satisfies InvoiceDispatchDto)
+    renderInvoice()
+    expect(await screen.findAllByText('Sending')).toHaveLength(2)
+  })
+
+  it('says it in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    dispatchResponse = () => json(200, SENDING_UNATTEMPTED)
+    renderInvoice()
+    expect(await screen.findByText('في قائمة الإرسال، لم تُرسل بعد')).toBeTruthy()
+    expect(screen.getByText(/إلى جهاز الضرائب: في قائمة الإرسال، لم تُرسل بعد/)).toBeTruthy()
+    expect(screen.queryByText('جارٍ الإرسال')).toBeNull()
+  })
+})
+
 describe('self-billed documents', () => {
   // Owner decision, 6 Oct 2026: self-billing is a purchase and lives under Expenditure, so an old
   // /invoices link to a self-billed document opens its Expenditure page instead.

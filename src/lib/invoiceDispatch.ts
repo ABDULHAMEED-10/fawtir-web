@@ -4,6 +4,8 @@ import type {
   InvoiceDispatchDto,
   InvoiceDispatchStateDto,
   InvoiceSendResultDto,
+  InvoiceTransportLegDto,
+  InvoiceTransportLegStateDto,
 } from '../api/invoices/detail'
 
 /** A sentence key and its values; the values are tokens, so always strings. */
@@ -66,10 +68,76 @@ function reasonNote(code: string | null): DispatchNote | null {
 
 /** The state sentence, and the reason beneath it when the server recorded one. */
 export function dispatchNotes(dispatch: InvoiceDispatchDto): { state: DispatchNote | null; reason: DispatchNote | null } {
-  const key = STATE_KEYS[dispatch.state]
+  const leg = leadingLeg(dispatch)
+  // The ledger says SENDING as soon as a transport record exists, before any attempt. Shown as
+  // it stands, "Sending" told the reader a transmission had happened when nothing had left
+  // (TEST, 7 October 2026). While the ledger has not moved past that, the transport's own record
+  // decides the sentence.
+  const key =
+    leg && LEDGER_BEFORE_TRANSPORT.has(dispatch.state)
+      ? LEG_HEADLINES[leg.state]
+      : STATE_KEYS[dispatch.state]
   const failed =
     dispatch.state === 'RETRY_SCHEDULED' || dispatch.state === 'DEAD_LETTERED'
   return { state: key ? { key } : null, reason: failed ? reasonNote(dispatch.reasonCode) : null }
+}
+
+const LEDGER_BEFORE_TRANSPORT: ReadonlySet<InvoiceDispatchStateDto> = new Set([
+  'DISPATCHED',
+  'QUEUED',
+  'SENDING',
+])
+
+const LEG_HEADLINES: Record<InvoiceTransportLegStateDto, string> = {
+  QUEUED_NOT_ATTEMPTED: 'invoiceDispatch.transport.headline.queuedNotAttempted',
+  TRANSMITTING: 'invoiceDispatch.state.sending',
+  RETRY_SCHEDULED: 'invoiceDispatch.transport.headline.retryScheduled',
+  TRANSMITTED: 'invoiceDispatch.transport.headline.transmitted',
+  FAILED: 'invoiceDispatch.transport.headline.failed',
+}
+
+const LEG_STATES: Record<InvoiceTransportLegStateDto, string> = {
+  QUEUED_NOT_ATTEMPTED: 'invoiceDispatch.transport.state.queuedNotAttempted',
+  TRANSMITTING: 'invoiceDispatch.transport.state.transmitting',
+  RETRY_SCHEDULED: 'invoiceDispatch.transport.state.retryScheduled',
+  TRANSMITTED: 'invoiceDispatch.transport.state.transmitted',
+  FAILED: 'invoiceDispatch.transport.state.failed',
+}
+
+const RETRY_UNTIMED = 'invoiceDispatch.transport.state.retryUntimed'
+
+/** The buyer's leg when there is one, since it is the delivery the page is about. */
+function leadingLeg(dispatch: InvoiceDispatchDto | null): InvoiceTransportLegDto | null {
+  return dispatch?.transport?.buyer ?? dispatch?.transport?.taxAuthority ?? null
+}
+
+/** One transport leg's sentence: who it goes to (`legKey`) and where it stands (`state`). */
+export type TransportNote = { legKey: string; state: DispatchNote }
+
+/**
+ * One sentence per transport leg, buyer first. `formatWhen` renders the next attempt in the
+ * reader's locale.
+ */
+export function transportNotes(
+  dispatch: InvoiceDispatchDto | null,
+  formatWhen: (instant: string) => string,
+): TransportNote[] {
+  const legs: [string, InvoiceTransportLegDto | null | undefined][] = [
+    ['invoiceDispatch.transport.leg.buyer', dispatch?.transport?.buyer],
+    ['invoiceDispatch.transport.leg.taxAuthority', dispatch?.transport?.taxAuthority],
+  ]
+  return legs.flatMap(([legKey, leg]) =>
+    leg
+      ? [
+          {
+            legKey,
+            state: leg.nextAttemptAt
+              ? { key: LEG_STATES[leg.state], values: { when: formatWhen(leg.nextAttemptAt) } }
+              : { key: leg.state === 'RETRY_SCHEDULED' ? RETRY_UNTIMED : LEG_STATES[leg.state] },
+          },
+        ]
+      : [],
+  )
 }
 
 /** Whether the document has left Fawtir's hands, for the delivery bar's tick. */
@@ -87,7 +155,12 @@ export function dispatchSucceeded(dispatch: InvoiceDispatchDto | null): boolean 
  * queued document waits on the transport schedule, which can be hours, so it is not watched.
  */
 export function dispatchIsMoving(dispatch: InvoiceDispatchDto | null): boolean {
-  return dispatch !== null && (dispatch.state === 'PROCESSING' || dispatch.state === 'SENDING')
+  if (dispatch === null) return false
+  if (dispatch.state === 'PROCESSING') return true
+  if (dispatch.state !== 'SENDING') return false
+  // SENDING with a leg still waiting for, or between, attempts is the same wait as QUEUED.
+  const leg = leadingLeg(dispatch)
+  return !leg || leg.state === 'TRANSMITTING' || leg.state === 'TRANSMITTED'
 }
 
 /** What a completed Send says, from its outcome and reason. */

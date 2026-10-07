@@ -716,7 +716,8 @@
     "noteSuffix": ": quota warnings, rejected invoices and OTA notices, so nothing slips through.",
     "submit": "Continue",
     "addressLine2": "Additional street or area",
-    "addressLine3": "Building or address line 3"
+    "addressLine3": "Building or address line 3",
+    "poBox": "PO Box"
   },
   "plans": {
     "title": "Pick the plan that fits your volume",
@@ -1106,7 +1107,8 @@
       "output": "Output VAT",
       "input": "Input VAT"
     },
-    "openNav": "Open navigation"
+    "openNav": "Open navigation",
+    "greetingNoName": "Good morning"
   },
   "rowActions": {
     "delete": "Delete",
@@ -2054,6 +2056,26 @@
       "final": "Once sent, the invoice cannot be cancelled; correct it with a credit note.",
       "submit": "Send invoice",
       "sending": "Sending…"
+    },
+    "transport": {
+      "headline": {
+        "queuedNotAttempted": "Queued for transmission, not yet sent",
+        "retryScheduled": "Transmission failed and will be retried",
+        "transmitted": "Transmitted, awaiting confirmation",
+        "failed": "Transmission failed"
+      },
+      "leg": {
+        "buyer": "To the buyer: {{state}}",
+        "taxAuthority": "To the Tax Authority: {{state}}"
+      },
+      "state": {
+        "queuedNotAttempted": "queued for transmission, not yet sent",
+        "transmitting": "transmitting now",
+        "retryScheduled": "failed, next attempt {{when}}",
+        "transmitted": "transmitted, receipt received",
+        "failed": "transmission failed",
+        "retryUntimed": "failed, will be retried"
+      }
     }
   },
   "invoiceDetails": {
@@ -14655,7 +14677,8 @@
     "account": {
       "branches": "Branches",
       "planNote": "All branches are on the {{plan}}.",
-      "unnamed": "Your company"
+      "unnamed": "Your company",
+      "loading": "Loading…"
     },
     "plan": {
       "premium": "Premium plan",
@@ -14668,7 +14691,9 @@
       "signOut": "Sign out",
       "signingOut": "Signing out…",
       "signOutFailed": "Couldn't sign out. Retry",
-      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again."
+      "signOutFailedStatus": "Couldn't sign out. Your session is still active — try again.",
+      "loading": "Loading…",
+      "previewNoSession": "Not signed in"
     }
   },
   "notes": {

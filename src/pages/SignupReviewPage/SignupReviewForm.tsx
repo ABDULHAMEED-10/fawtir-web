@@ -134,6 +134,7 @@ export function SignupReviewForm() {
         { label: t('addressContact.addressLine2'), value: address?.addressLine2 ?? saved },
         { label: t('addressContact.addressLine3'), value: address?.addressLine3 ?? saved },
         { label: t('addressContact.postalCode'), value: address?.postalCode ?? saved },
+        { label: t('addressContact.poBox'), value: optional(address?.poBox) },
         { label: t('addressContact.city'), value: address?.city ?? saved },
         { label: t('addressContact.governorate'), value: shown(governorateKey) },
         { label: t('addressContact.contactName'), value: address?.contactName ?? saved },

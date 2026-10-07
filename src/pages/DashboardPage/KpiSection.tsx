@@ -3,16 +3,18 @@ import { OmAmount } from '../../components/ui'
 import { KPI } from '../../lib/dashboard'
 import trendIcon from '../../assets/dashboard/kpi-trend.svg'
 import { PeriodSelect } from './DashboardCard'
-import { USER } from '../../lib/dashboard'
+import { useSession } from '../../lib/session/session'
 
 export function DashboardHeader() {
   const { t } = useTranslation()
+  // The username is the only name the session carries (`/me/entitlements` has no display name).
+  const name = useSession()?.username
 
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 className="text-[32px] font-semibold leading-[1.2] text-text-primary">
-          {t('dashboard.greeting', { name: USER.firstName })}
+          {name ? t('dashboard.greeting', { name }) : t('dashboard.greetingNoName')}
         </h1>
         <p className="text-sm font-medium leading-[1.2] text-text-quaternary">
           {t('dashboard.date')}

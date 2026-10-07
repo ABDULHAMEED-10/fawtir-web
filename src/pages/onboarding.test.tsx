@@ -427,6 +427,7 @@ describe('Address and contact', () => {
     await user.type(field('addressLine2'), 'Falaj Al Qabail')
     await user.type(field('addressLine3'), 'Villa 12')
     await user.type(field('postalCode'), '322')
+    await user.type(field('poBox'), '1234')
     await user.type(field('city'), 'Sohar')
     await user.selectOptions(field('governorate'), 'northBatinah')
     await user.type(field('contactName'), 'Salim Al Harthy')
@@ -441,7 +442,10 @@ describe('Address and contact', () => {
         body: {
           onboardingToken: TOKEN,
           addressLine: 'Building 4, Way 2301',
+          addressLine2: 'Falaj Al Qabail',
+          addressLine3: 'Villa 12',
           postalCode: '322',
+          poBox: '1234',
           city: 'Sohar',
           governorate: 'North Al Batinah',
           contactPersonName: 'Salim Al Harthy',
@@ -455,10 +459,58 @@ describe('Address and contact', () => {
     expect(forwarded.address).toMatchObject({
       addressLine2: 'Falaj Al Qabail',
       addressLine3: 'Villa 12',
+      poBox: '1234',
       city: 'Sohar',
       governorate: 'northBatinah',
       email: 'salim@example.test',
     })
+  })
+
+  it('restores every address answer, the PO Box included, when the page is reloaded', () => {
+    // Router state survives a reload; an answer missing from it would be silently re-asked, and
+    // one missing from the form would be silently dropped from the request.
+    renderAt('/address-contact', {
+      ...AFTER_IDENTITY,
+      address: {
+        addressLine: 'Building 4',
+        addressLine2: 'Falaj Al Qabail',
+        addressLine3: 'Villa 12',
+        postalCode: '322',
+        poBox: '1234',
+        city: 'Sohar',
+        governorate: 'northBatinah',
+        contactName: 'Salim',
+        role: '',
+        phone: '91234567',
+        email: 'salim@example.test',
+      },
+    })
+    expect(field('addressLine2').value).toBe('Falaj Al Qabail')
+    expect(field('addressLine3').value).toBe('Villa 12')
+    expect(field('poBox').value).toBe('1234')
+  })
+
+  it('starts the PO Box empty for answers saved before it was asked', () => {
+    const legacy = {
+      addressLine: 'Building 4',
+      addressLine2: 'Falaj Al Qabail',
+      addressLine3: 'Villa 12',
+      postalCode: '322',
+      city: 'Sohar',
+      governorate: 'northBatinah',
+      contactName: 'Salim',
+      role: '',
+      phone: '91234567',
+      email: 'salim@example.test',
+    } as unknown as OnboardingState['address']
+    renderAt('/address-contact', { ...AFTER_IDENTITY, address: legacy })
+    expect(field('poBox').value).toBe('')
+  })
+
+  it('labels the PO Box in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    renderAt('/address-contact', AFTER_IDENTITY)
+    expect(screen.getByLabelText('صندوق البريد')).toBe(field('poBox'))
   })
 
   it('asks for address lines 2 and 3 and the postal code before saving', async () => {

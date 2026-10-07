@@ -330,6 +330,7 @@ export type AddressContactValues = {
   addressLine2: string
   addressLine3: string
   postalCode: string
+  poBox: string
   city: string
   governorate: GovernorateId
   contactName: string
@@ -343,6 +344,7 @@ export type AddressContactField =
   | 'addressLine2'
   | 'addressLine3'
   | 'postalCode'
+  | 'poBox'
   | 'city'
   | 'governorate'
   | 'contactName'
@@ -355,6 +357,7 @@ export const ADDRESS_CONTACT_FIELD_ORDER: readonly AddressContactField[] = [
   'addressLine2',
   'addressLine3',
   'postalCode',
+  'poBox',
   'city',
   'governorate',
   'contactName',
@@ -366,13 +369,17 @@ export const ADDRESS_CONTACT_FIELD_ORDER: readonly AddressContactField[] = [
 /**
  * `SignupAddressContactRequest` minus the token; optional members are omitted when blank.
  *
- * TODO(backend): SETTINGS.md row 1.5. Address lines 2 and 3 are asked (IBR-010-OM requires them
- * on every invoice) but not sent: the request has no field for them and the server refuses
- * unknown members. Add `addressLine2` / `addressLine3` here once the endpoint takes them.
+ * Lines 2 and 3 were once collected here and then dropped, on the belief that the request had no
+ * field for them; it had (SETTINGS.md row 1.6), so every self-service company reached its first
+ * invoice without them and was refused it (`SELLER_ADDRESS_INCOMPLETE`, IBR-010-OM).
  */
 export type AddressContactRequest = {
   addressLine: string
+  addressLine2: string
+  addressLine3: string
   postalCode: string
+  /** IBT-038 as Oman reads it (the PO Box); a company may have it beside a postal code. */
+  poBox?: string
   city: string
   governorate: string
   contactPersonName: string
@@ -387,6 +394,7 @@ export type AddressContactRequest = {
  */
 const ADDRESS_LINE_MAX_LENGTH = 140
 const CITY_MAX_LENGTH = 100
+const PO_BOX_MAX_LENGTH = 30
 const CONTACT_NAME_MAX_LENGTH = 200
 const CONTACT_ROLE_MAX_LENGTH = 100
 
@@ -404,6 +412,7 @@ export function validateAddressContact(
     addressLine2: addressLine(values.addressLine2),
     addressLine3: addressLine(values.addressLine3),
     postalCode: required(values.postalCode) ?? postalCode(values.postalCode),
+    poBox: tooLong(values.poBox, PO_BOX_MAX_LENGTH),
     city: required(values.city) ?? tooLong(values.city, CITY_MAX_LENGTH),
     contactName:
       required(values.contactName) ?? tooLong(values.contactName, CONTACT_NAME_MAX_LENGTH),
@@ -418,7 +427,10 @@ const optional = (value: string) => value.trim() || undefined
 export function buildAddressContactRequest(values: AddressContactValues): AddressContactRequest {
   return {
     addressLine: values.addressLine.trim(),
+    addressLine2: values.addressLine2.trim(),
+    addressLine3: values.addressLine3.trim(),
     postalCode: values.postalCode.trim(),
+    poBox: optional(values.poBox),
     city: values.city.trim(),
     governorate: GOVERNORATE_NAMES[values.governorate],
     contactPersonName: values.contactName.trim(),
@@ -438,7 +450,10 @@ export function recordAddressContact(
 
 export const ADDRESS_CONTACT_SERVER_FIELDS: ServerFieldMap<AddressContactField> = new Map([
   ['addressLine', { field: 'addressLine', key: 'validation.addressTooLong' }],
+  ['addressLine2', { field: 'addressLine2', key: 'validation.addressTooLong' }],
+  ['addressLine3', { field: 'addressLine3', key: 'validation.addressTooLong' }],
   ['postalCode', { field: 'postalCode', key: 'validation.postalCode' }],
+  ['poBox', { field: 'poBox', key: 'validation.tooLong' }],
   ['city', { field: 'city', key: 'validation.required' }],
   ['governorate', { field: 'governorate', key: 'validation.required' }],
   ['contactPersonName', { field: 'contactName', key: 'validation.required' }],
