@@ -2056,6 +2056,26 @@
       "final": "Once sent, the invoice cannot be cancelled; correct it with a credit note.",
       "submit": "Send invoice",
       "sending": "Sending…"
+    },
+    "transport": {
+      "headline": {
+        "queuedNotAttempted": "Queued for transmission, not yet sent",
+        "retryScheduled": "Transmission failed and will be retried",
+        "transmitted": "Transmitted, awaiting confirmation",
+        "failed": "Transmission failed"
+      },
+      "leg": {
+        "buyer": "To the buyer: {{state}}",
+        "taxAuthority": "To the Tax Authority: {{state}}"
+      },
+      "state": {
+        "queuedNotAttempted": "queued for transmission, not yet sent",
+        "transmitting": "transmitting now",
+        "retryScheduled": "failed, next attempt {{when}}",
+        "transmitted": "transmitted, receipt received",
+        "failed": "transmission failed",
+        "retryUntimed": "failed, will be retried"
+      }
     }
   },
   "invoiceDetails": {

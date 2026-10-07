@@ -63,6 +63,7 @@ import {
   dispatchIsMoving,
   dispatchNotes,
   dispatchSucceeded,
+  transportNotes,
   sendResultNote,
 } from '../../lib/invoiceDispatch'
 import { dueDateFor, muscatToday } from '../../lib/invoiceIssue'
@@ -534,6 +535,7 @@ function InvoiceScreen() {
     (dispatch ? dispatch.sendable : dispatchRead.read.status === 'failed')
   const dispatchLine = dispatch ? dispatchNotes(dispatch) : null
   const buyerLine = buyerDeliveryNote(dispatch)
+  const transportLines = transportNotes(dispatch, (instant) => formatInstant(instant, language))
   const canManageAttachments = attachmentsEditable(data, (permission) => can(session, permission))
 
   const download = async (file: InvoiceAttachmentDto) => {
@@ -955,6 +957,9 @@ function InvoiceScreen() {
                               ? t(dispatchLine.reason.key, dispatchLine.reason.values)
                               : null,
                             buyerLine ? t(buyerLine.key) : null,
+                            ...transportLines.map((line) =>
+                              t(line.legKey, { state: t(line.state.key, line.state.values) }),
+                            ),
                           ]
                             .filter(Boolean)
                             .join(' · ')

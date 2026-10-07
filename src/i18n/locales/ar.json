@@ -2139,6 +2139,26 @@
       "final": "بعد الإرسال لا يمكن إلغاء الفاتورة؛ صحّحها بإشعار دائن.",
       "submit": "إرسال الفاتورة",
       "sending": "جارٍ الإرسال…"
+    },
+    "transport": {
+      "headline": {
+        "queuedNotAttempted": "في قائمة الإرسال، لم تُرسل بعد",
+        "retryScheduled": "تعذّر الإرسال وستُعاد المحاولة",
+        "transmitted": "أُرسلت، بانتظار التأكيد",
+        "failed": "تعذّر الإرسال"
+      },
+      "leg": {
+        "buyer": "إلى المشتري: {{state}}",
+        "taxAuthority": "إلى جهاز الضرائب: {{state}}"
+      },
+      "state": {
+        "queuedNotAttempted": "في قائمة الإرسال، لم تُرسل بعد",
+        "transmitting": "جارٍ الإرسال الآن",
+        "retryScheduled": "تعذّر الإرسال، المحاولة التالية {{when}}",
+        "transmitted": "أُرسلت، ووصل إيصال الاستلام",
+        "failed": "تعذّر الإرسال",
+        "retryUntimed": "تعذّر الإرسال، ستُعاد المحاولة"
+      }
     }
   },
   "invoiceDetails": {
