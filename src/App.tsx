@@ -122,6 +122,7 @@ import {
   ErpConnectionsPage,
   ErpConnectPage,
   ErpBridgePage,
+  ErpApiPushPage,
   ErpDocumentsPage,
   ErpDocumentDetailPage,
   ErpAttentionPage,
@@ -595,6 +596,14 @@ function App() {
             element={
               <PlanGated feature="erpMapping" shell="settings">
                 <ErpBridgePage />
+              </PlanGated>
+            }
+          />
+          <Route
+            path="/settings/erp/api-push"
+            element={
+              <PlanGated feature="erpMapping" shell="settings">
+                <ErpApiPushPage />
               </PlanGated>
             }
           />

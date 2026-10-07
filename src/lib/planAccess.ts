@@ -107,6 +107,7 @@ export const ROUTE_FEATURES: { prefix: string; feature: Feature }[] = [
   { prefix: '/settings/erp-mapping', feature: 'erpMapping' },
   { prefix: '/settings/erp/connections', feature: 'erpMapping' },
   { prefix: '/settings/erp/bridge', feature: 'erpMapping' },
+  { prefix: '/settings/erp/api-push', feature: 'erpMapping' },
   { prefix: '/settings/erp/documents', feature: 'erpMapping' },
   { prefix: '/settings/erp/attention', feature: 'erpMapping' },
   { prefix: '/settings/erp/runs', feature: 'erpMapping' },

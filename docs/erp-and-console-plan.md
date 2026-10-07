@@ -382,6 +382,19 @@ recovery action, so none is offered. The old per-connection runs and records add
 these reports narrowed to the connection. Built from the Integration templates without a Figma
 frame. Handoff: `docs/frontend/ERP_REPORTING_HANDOFF.md`.
 
+## 7.12 API push keys built (7 Oct 2026)
+
+`/settings/erp/api-push`, a card in the Integration group after Upload from your ERP: create,
+list, rotate, complete rotation and revoke the organisation's ERP ingestion keys
+(`/v1/apikeys`, `admin.settings.manage`, backend Phase 7). The raw key is shown once, in a dialog,
+and is gone when it closes. Status is the server's; last used is worded as the once-a-minute value
+it is; ERP keys always expire (365-day default, 730-day maximum, no "never"). Refusals for ERP not
+enabled and for a plan without API access come from the server on create and rotate, in our words.
+The page also explains how an ERP calls the API (headers, idempotency, source block) and links to
+API push activity. GENERAL keys are not shown here. The Bridge page's API push line now links to
+it. Built from the Integration templates without a Figma frame. Handoff:
+`docs/frontend/ERP_API_PUSH_HANDOFF.md`.
+
 ## 8. Build order (supersedes §6)
 
 | Phase | Screens |

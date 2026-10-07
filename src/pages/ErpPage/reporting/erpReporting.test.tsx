@@ -266,6 +266,31 @@ describe('the read gate', () => {
   })
 })
 
+describe('a report past its statement budget (Phase 4, ERP_REPORT_TIMEOUT)', () => {
+  it('renders 503 as a temporary failure with a retry and the reference, never the server text', async () => {
+    const timeout = () =>
+      new Response(
+        JSON.stringify({
+          type: 'https://api.fawtir.om/problems/erp-report-timeout',
+          title: 'Service unavailable',
+          status: 503,
+          detail: 'SERVER-PROSE-MARKER statement_timeout 15000 ms',
+          code: 'ERP_REPORT_TIMEOUT',
+          correlationId: 'corr-503',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/problem+json' } },
+      )
+    routes['/api/v1/erp/source-documents'] = timeout
+    routes['/api/v1/erp/source-documents/summary'] = timeout
+    renderAt('/settings/erp/documents')
+    expect((await screen.findAllByText(/temporarily unavailable/)).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/corr-503/).length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0)
+    expect(document.body.textContent).not.toContain('SERVER-PROSE-MARKER')
+    expect(screen.queryByText('No documents were received in this period.')).toBeNull()
+  })
+})
+
 describe('source documents', () => {
   it('reads one list and one summary over the default window, as business-zone instants', async () => {
     renderAt('/settings/erp/documents')

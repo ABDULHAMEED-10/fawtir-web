@@ -132,6 +132,7 @@ export const SEED_ROUTES = [
   '/settings/erp/connections',
   '/settings/erp/connections/new',
   '/settings/erp/bridge',
+  '/settings/erp/api-push',
   '/settings/erp/documents',
   '/settings/erp/attention',
   '/settings/erp/runs',

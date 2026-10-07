@@ -9755,7 +9755,11 @@
       "erpActivityTitle": "ERP activity",
       "erpActivityBody": "Every document your ERP sent, what became of it, and the extraction runs that brought it in.",
       "erpActivityPill": "Reports",
-      "erpActivityFoot": "Source documents, needs attention, runs"
+      "erpActivityFoot": "Source documents, needs attention, runs",
+      "apiPushTitle": "API push",
+      "apiPushBody": "Keys your ERP uses to send documents to Fawtir, and how to call the API.",
+      "apiPushPill": "ERP ingestion keys",
+      "apiPushFoot": "Create, rotate and revoke"
     }
   },
   "peppolTax": {
@@ -16682,7 +16686,8 @@
         "bridge": "Upload, on this page.",
         "bridgeBody": "You send one document yourself. No connection is needed.",
         "apiPush": "API push.",
-        "apiPushBody": "Your ERP sends documents to Fawtir with an ERP ingestion API key. It is set up by your developers and has no screen here."
+        "apiPushBody": "Your ERP sends documents to Fawtir itself, with an ERP ingestion API key your developers set up.",
+        "apiPushLink": "API push keys"
       },
       "readiness": {
         "title": "Is your mapping ready?",
@@ -17158,6 +17163,108 @@
         },
         "countersTitle": "Recorded by the run",
         "downstreamTitle": "Its accepted invoices now"
+      }
+    },
+    "apiPush": {
+      "title": "API push",
+      "subtitle": "Your ERP sends each document to Fawtir's API with one of these keys. Your mapping turns it into an invoice.",
+      "working": "Working…",
+      "create": {
+        "open": "Create key",
+        "title": "Create an ERP ingestion key",
+        "subtitle": "The key can submit documents only. It cannot read data or change settings.",
+        "name": "Name",
+        "nameHint": "Say which system uses it, for example \"Odoo production\".",
+        "documents": "Documents it may send",
+        "documentsRequired": "Choose at least one kind of document.",
+        "expiry": "Expires on",
+        "expiryHint": "Leave empty and the key expires in {{defaultDays}} days. It can last at most {{maxDays}} days. Keys for ERP push always expire.",
+        "submit": "Create key"
+      },
+      "keys": {
+        "title": "ERP ingestion keys",
+        "note": "Last used is updated about once a minute, so recent use can take a minute or two to show.",
+        "columnName": "Name",
+        "columnStatus": "Status",
+        "columnCreated": "Created",
+        "columnExpires": "Expires",
+        "columnLastUsed": "Last used",
+        "columnActions": "Actions",
+        "empty": "No ERP ingestion keys yet. Create one for each system that sends documents.",
+        "graceUntil": "Still works until {{when}}",
+        "replacedBy": "Replaced by {{name}}",
+        "noExpiry": "Does not expire"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "ROTATION_GRACE": "Being replaced",
+        "ROTATED": "Replaced",
+        "REVOKED": "Revoked",
+        "EXPIRED": "Expired"
+      },
+      "lastUsed": {
+        "never": "Not used yet",
+        "recently": "Recently used",
+        "about": "About {{when}}"
+      },
+      "actions": {
+        "label": "Actions for {{name}}",
+        "rotate": "Rotate key",
+        "complete": "Complete rotation",
+        "revoke": "Revoke key"
+      },
+      "confirm": {
+        "rotateTitle": "Rotate {{name}}?",
+        "rotateBody": "A new key is created and shown once. The current key keeps working for a short grace period so you can update your ERP, then it stops.",
+        "completeTitle": "Complete the rotation of {{name}}?",
+        "completeBody": "This old key stops working now instead of at {{when}}. Do this once every system uses the new key.",
+        "revokeTitle": "Revoke {{name}}?",
+        "revokeBody": "The key stops working immediately and cannot be restored. Turning ERP off and on again does not bring it back. Create a new key if you need one."
+      },
+      "refusal": {
+        "erpNotEnabled": "ERP is not enabled for your organisation, so ERP ingestion keys cannot be created or rotated. Ask Fawtir to enable ERP.",
+        "noApiAccess": "Your plan does not include API access, so API keys cannot be created or rotated. Move to a plan that includes it.",
+        "forbidden": "You do not have permission to manage API keys.",
+        "conflict": "This key was already rotated or revoked. The list now shows its current state.",
+        "notFound": "This key no longer exists. The list has been refreshed.",
+        "invalid": "Fawtir could not accept these details. Check the expiry date and try again.",
+        "unreachable": "Fawtir could not be reached. Check your connection and try again."
+      },
+      "scope": {
+        "invoice_submit": "Invoices",
+        "creditnote_submit": "Credit notes",
+        "debitnote_submit": "Debit notes",
+        "selfbilling_submit": "Self-billed invoices"
+      },
+      "secret": {
+        "title": "Your new key",
+        "rotatedTitle": "Your replacement key",
+        "once": "Copy this key now. It is shown only once and cannot be shown again. If you lose it, rotate the key to get a new one.",
+        "key": "API key",
+        "copy": "Copy key",
+        "copied": "Copied",
+        "copyFailed": "Copy did not work. Select the key and copy it by hand.",
+        "grace": "The previous key keeps working until {{when}}. Update your ERP before then, or complete the rotation once it uses this key.",
+        "noGrace": "The previous key no longer works.",
+        "done": "I have copied the key"
+      },
+      "guide": {
+        "title": "How your ERP calls the API",
+        "note": "Share this with the developers who connect your ERP.",
+        "endpoint": "Address",
+        "keyHeader": "X-API-Key",
+        "keyHeaderBody": "The ERP ingestion key, in this header on every request. Keep it on your server, never in a browser or a shared file.",
+        "idempotency": "Idempotency-Key",
+        "idempotencyBody": "Required. 16 to 128 characters, letters, digits and . _ : -. Use one value per submission attempt and send the same value again when you retry it, so a retry is never taken as a second invoice.",
+        "source": "source",
+        "sourceBody": "The document's own number in your ERP (external_document_id) and its version (external_version). Fawtir uses them to recognise a document it already has, so sending it again does not create a duplicate.",
+        "supplement": "supplement",
+        "supplementBody": "The issue time and the transaction type (BTOM-001), which an ERP document does not carry.",
+        "answers": "Answers",
+        "answersBody": "202 accepted. 200 already received. 409 a conflict with an earlier document. 422 refused, for example because the mapping is not certified. 401 the key is wrong, expired or revoked. 403 ERP is not enabled.",
+        "sample": "Example request",
+        "activity": "See API push activity",
+        "mapping": "Open the mapping"
       }
     }
   },
