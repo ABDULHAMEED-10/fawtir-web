@@ -23,7 +23,8 @@ export function UserMenu({
   extraItems = [],
 }: {
   name: string
-  roleKey: string
+  /** Null while there is nobody to describe yet; the line is left out rather than guessed. */
+  roleKey: string | null
   avatar: string
   /** Entries only one shell offers, listed after the shared ones. */
   extraItems?: readonly UserMenuEntry[]
@@ -94,9 +95,11 @@ export function UserMenu({
             <span className="block truncate text-sm font-medium leading-[1.2] text-white">
               {name}
             </span>
-            <span className="block truncate text-xs font-medium leading-[1.2] text-white/70">
-              {t(roleKey)}
-            </span>
+            {roleKey ? (
+              <span className="block truncate text-xs font-medium leading-[1.2] text-white/70">
+                {t(roleKey)}
+              </span>
+            ) : null}
           </span>
         </span>
         <img src={chevron} alt="" className="size-5 rotate-90 brightness-0 invert opacity-80" />

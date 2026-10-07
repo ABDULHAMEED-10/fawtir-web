@@ -308,6 +308,38 @@ export type InvoiceDispatchDto = {
   buyerDelivery: InvoiceBuyerDeliveryDto | null
   /** A held buyer e-mail may be released now. */
   buyerEmailReleasable: boolean
+  /**
+   * What the AS4 transport has actually done with each leg, read from its own records. Absent from
+   * a server older than this field, and null before anything was queued for transport.
+   */
+  transport?: InvoiceTransportDto | null
+}
+
+/**
+ * One transport leg as its message record stands. `QUEUED_NOT_ATTEMPTED` is a document waiting
+ * for the transport, with no attempt made: the ledger already says SENDING at that point, which
+ * is why this is reported separately.
+ */
+export type InvoiceTransportLegStateDto =
+  | 'QUEUED_NOT_ATTEMPTED'
+  | 'TRANSMITTING'
+  | 'RETRY_SCHEDULED'
+  | 'TRANSMITTED'
+  | 'FAILED'
+
+export type InvoiceTransportLegDto = {
+  messageId: string
+  state: InvoiceTransportLegStateDto
+  attempts: number
+  lastAttemptAt: string | null
+  nextAttemptAt: string | null
+}
+
+export type InvoiceTransportDto = {
+  /** The Peppol leg to the buyer's access point; null when the buyer is not reached over Peppol. */
+  buyer: InvoiceTransportLegDto | null
+  /** The tax data document to the Tax Authority. */
+  taxAuthority: InvoiceTransportLegDto | null
 }
 
 export type InvoiceBuyerDeliveryDto =

@@ -7,7 +7,7 @@ import {
   type BranchOverviewRow,
 } from '../../api/settings/branches'
 import { useApiRead } from '../../hooks/useApiRead'
-import { useSession } from '../../lib/session/session'
+import { REQUIRE_SESSION, useSession } from '../../lib/session/session'
 import { useTenantPlan } from '../../lib/planAccess'
 import { CompanyAvatar } from './CompanyAvatar'
 import chevron from '../../assets/dashboard/chevron.svg'
@@ -35,8 +35,14 @@ export function AccountSwitcher() {
   const [branch, setBranch] = useState<BranchOverviewRow | null>(null)
   const session = useSession()
   // `tenantName` is null when RLS hides the tenant row; a blank card is worse than a generic
-  // label, and a fabricated company name (this card's old fallback) is worse than either.
-  const accountName = branch?.name ?? session?.tenantName ?? t('shell.account.unnamed')
+  // label, and a fabricated company name (this card's old fallback) is worse than either. Before
+  // the session has answered there is no company to name yet, and "Your company" would read as
+  // an answer, so the card says it is loading instead.
+  const accountName =
+    branch?.name ??
+    (session
+      ? (session.tenantName ?? t('shell.account.unnamed'))
+      : t(REQUIRE_SESSION ? 'shell.account.loading' : 'shell.account.unnamed'))
   // Loads once the popover is worth opening; failing silently (wrong role, or none yet) shows the
   // signed-in company alone rather than an error on chrome every screen renders.
   const { read } = useApiRead<BranchOverviewDto>(BRANCHES_OVERVIEW_PATH)

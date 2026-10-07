@@ -33,6 +33,7 @@ const COMPLETE: OnboardingState = {
     addressLine2: 'Falaj Al Qabail',
     addressLine3: 'Villa 12',
     postalCode: '322',
+    poBox: '',
     city: 'Sohar',
     governorate: 'northBatinah',
     contactName: 'Salim Al Harthy',

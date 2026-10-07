@@ -57,6 +57,8 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
   const [addressLine2, setAddressLine2] = useState(saved?.addressLine2 ?? '')
   const [addressLine3, setAddressLine3] = useState(saved?.addressLine3 ?? '')
   const [postalCode, setPostalCode] = useState(saved?.postalCode ?? '')
+  // Router state saved before the PO Box was asked has none, so it starts empty rather than undefined.
+  const [poBox, setPoBox] = useState(saved?.poBox ?? '')
   const [city, setCity] = useState(saved?.city ?? '')
   const [governorate, setGovernorate] = useState<GovernorateId>(saved?.governorate ?? 'muscat')
   const [contactName, setContactName] = useState(saved?.contactName ?? '')
@@ -115,6 +117,7 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
       addressLine2,
       addressLine3,
       postalCode,
+      poBox,
       city,
       governorate,
       contactName,
@@ -227,6 +230,19 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
                 clearError('postalCode')
               }}
               error={errors.postalCode ? t(errors.postalCode) : undefined}
+              leadingIcon={<HashIcon size={14} />}
+            />
+            {/* Optional: Oman puts the PO Box in the element other countries use for the postal
+                code (IBR-040-OM), and a company may have both. */}
+            <Input
+              label={t('addressContact.poBox')}
+              name="poBox"
+              value={poBox}
+              onChange={(e) => {
+                setPoBox(e.target.value)
+                clearError('poBox')
+              }}
+              error={errors.poBox ? t(errors.poBox) : undefined}
               leadingIcon={<HashIcon size={14} />}
             />
             <Input
