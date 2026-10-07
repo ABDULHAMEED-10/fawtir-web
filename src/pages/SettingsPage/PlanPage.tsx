@@ -26,6 +26,14 @@ import infoIcon from '../../assets/settings/info.svg'
  * month, the run-out date from what is left at that rate, and the shortfall from the days still
  * to run. The design printed a rate, a day count and a shortfall that no single calendar
  * supported; here they move together or not at all.
+ *
+ * Every plan figure here is configured by the super admin, not by this screen: prices, document
+ * and people limits, branches, which features each plan switches on, overage, and which plans may
+ * buy or get automatic ERP extraction are all set in the console (Plans and rates, and Console
+ * settings › Add-ons) and served from `/v1/platform/plans`. Until this screen reads that, it shows
+ * the launch defaults in `src/lib/plans.ts` and `src/lib/platformSettings.ts`, the same ones
+ * /plans and /pricing read, so the three never disagree (SITE.md row 2.1, CONSOLE.md row 1.5).
+ * TODO(backend): read the tenant's plan and the catalogue from the API instead of those defaults.
  */
 export function PlanPage() {
   const { t } = useTranslation()
@@ -281,9 +289,8 @@ function Stat({
  */
 function EnterpriseCard() {
   const { t } = useTranslation()
-  const features = (['f1', 'f2', 'f3', 'f4', 'f5'] as const).map((key) =>
-    t(`plans.enterprise.features.${key}`),
-  )
+  // The same three lines /plans prints for Enterprise.
+  const features = (['f1', 'f2', 'f3'] as const).map((key) => t(`plans.enterprise.features.${key}`))
 
   return (
     <article className="flex flex-col rounded-md bg-surface-card p-5">
