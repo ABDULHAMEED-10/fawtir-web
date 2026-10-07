@@ -52,7 +52,7 @@ const DANGER_BUTTON =
   'inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100/60'
 /** The 42px shell `Select compact` draws, for the two free-text cells of an entry row. */
 const CELL_INPUT =
-  'h-[42px] w-full min-w-0 rounded-sm border border-border-default bg-white px-3 font-mono text-xs font-medium text-text-primary outline-none transition-colors placeholder:text-text-placeholder focus:border-border-brand'
+  'h-[42px] w-full min-w-0 rounded-sm border border-border-default bg-white px-2.5 font-mono text-xs font-medium text-text-primary outline-none transition-colors placeholder:text-text-placeholder focus:border-border-brand'
 
 const VERSION_TONE: Record<TemplateVersionState, ConsolePillTone> = {
   draft: 'pending',
@@ -442,16 +442,16 @@ function VersionEditor({
             <table className="w-full min-w-[700px] border-collapse text-start">
               <thead>
                 <tr className="bg-text-secondary text-xs font-semibold uppercase leading-[1.5] text-white">
-                  <th className="w-[150px] px-3 py-3 text-start font-semibold">
+                  <th className="w-[136px] px-3 py-3 text-start font-semibold">
                     {t('console.erp.template.col.target')}
                   </th>
                   <th className="px-2 py-3 text-start font-semibold">
                     {t('console.erp.template.col.sourceDefault')}
                   </th>
-                  <th className="w-[170px] px-2 py-3 text-start font-semibold">
+                  <th className="w-[160px] px-2 py-3 text-start font-semibold">
                     {t('console.erp.template.col.transformMap')}
                   </th>
-                  <th className="w-[150px] px-2 py-3 text-start font-semibold">
+                  <th className="w-[136px] px-2 py-3 text-start font-semibold">
                     {t('console.erp.template.col.onUnmapped')}
                   </th>
                   {editable ? <th className="w-10 px-1 py-3" /> : null}
@@ -512,6 +512,7 @@ function VersionEditor({
                               spellCheck={false}
                               autoComplete="off"
                               aria-label={sourceLabel}
+                              title={entry.sourcePath || undefined}
                               value={entry.sourcePath ?? ''}
                               placeholder={t('console.erp.template.sourcePlaceholder')}
                               onChange={(event) =>
@@ -529,6 +530,7 @@ function VersionEditor({
                                 dir="ltr"
                                 autoComplete="off"
                                 aria-label={defaultLabel}
+                                title={entry.defaultValue || undefined}
                                 value={entry.defaultValue ?? ''}
                                 placeholder={t('console.erp.template.defaultPlaceholder')}
                                 onChange={(event) =>
@@ -542,7 +544,7 @@ function VersionEditor({
                           <>
                             <span
                               dir="ltr"
-                              className="block break-all font-mono text-xs font-medium leading-[1.5] text-text-primary"
+                              className="block font-mono text-xs [overflow-wrap:anywhere] font-medium leading-[1.5] text-text-primary"
                             >
                               {entry.sourcePath ?? '—'}
                             </span>
@@ -835,11 +837,11 @@ function VersionEditor({
           </section>
 
           <section className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold leading-[1.2] text-text-primary">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="min-w-0 text-base font-semibold leading-[1.2] text-text-primary">
                 {t('console.erp.template.tenants.title')}
               </h2>
-              <span className="text-xs font-medium text-text-quaternary">
+              <span className="shrink-0 whitespace-nowrap text-xs font-medium text-text-quaternary">
                 {t('console.erp.template.tenants.count', { count: onVersion.length })}
               </span>
             </div>

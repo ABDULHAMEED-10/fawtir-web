@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Modal, Select, SelectionCard } from '../../../components/ui'
+import { Button, Modal, Select, SelectionCard, withRial } from '../../../components/ui'
 import {
   invoicesOf,
   linksOf,
@@ -101,6 +101,8 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
         '{{period}}',
         `${dayLabel(target.periodStart, i18n.language)} – ${dayLabel(target.periodEnd, i18n.language)}`,
       )
+      // The letters stay in the text that leaves Fawtir (WhatsApp, email have no rial sign);
+      // the preview on screen draws the sign through withRial.
       .replace('{{amount}}', `OMR ${omr(target.total)}`)
       .replace('{{link}}', url)
       .replace('{{days}}', String(days))
@@ -229,7 +231,7 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
               dir="auto"
               className="mt-1 whitespace-pre-wrap rounded-sm bg-surface-background px-4 py-3 text-sm font-medium leading-[1.6] text-text-tertiary"
             >
-              {preview}
+              {withRial(preview)}
             </p>
           </div>
         </div>
@@ -287,7 +289,7 @@ export function SendLinkModal({ tenantId, ledger, invoiceId, onClose, onDone }: 
               dir="auto"
               className="mt-1 whitespace-pre-wrap rounded-sm bg-surface-background px-4 py-3 text-sm font-medium leading-[1.6] text-text-tertiary"
             >
-              {preview}
+              {withRial(preview)}
             </p>
           </div>
         </form>

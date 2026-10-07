@@ -196,10 +196,10 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
                     {company.country ? ` · ${countryName(company.country, i18n.language)}` : ''}
                   </span>
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
-                  {company.tenantCode}
+                <td className="px-2 py-4 text-sm font-medium text-text-secondary [overflow-wrap:anywhere]">
+                  <bdi dir="ltr">{company.tenantCode}</bdi>
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                <td className="whitespace-nowrap px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.submittedAt ? formatDay(company.submittedAt, i18n.language) : none}
                 </td>
                 <td className="px-2 py-4">
@@ -208,7 +208,7 @@ function QueueTable({ rows, returnTo }: { rows: CompanySummary[]; returnTo: Queu
                     submitted={submitted}
                   />
                 </td>
-                <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+                <td className="whitespace-nowrap px-2 py-4 text-sm font-medium text-text-secondary">
                   {company.decidedAt ? formatDay(company.decidedAt, i18n.language) : none}
                 </td>
               </tr>

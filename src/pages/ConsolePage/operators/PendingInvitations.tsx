@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { EmailText } from './EmailText'
 import { ApiError } from '../../../api'
 import { Button, RowsView } from '../../../components/ui'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
@@ -92,7 +93,7 @@ export function PendingInvitations({
               return (
                 <tr key={invitation.id} className="border-b border-[#f3f3f3] last:border-b-0">
                   <td className="px-4 py-4 text-sm font-medium text-text-primary">
-                    <bdi>{invitation.email}</bdi>
+                    <EmailText email={invitation.email} />
                     {failure?.id === invitation.id ? (
                       <span role="alert" className="mt-1 block text-xs font-medium text-danger-700">
                         {t(failure.message.key, failure.message.values)}

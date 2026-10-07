@@ -18,6 +18,7 @@ import {
   Rial,
   Select,
   StepTracker,
+  withRial,
   Switch,
   type TrackerStep,
 } from '../../components/ui'
@@ -35,6 +36,7 @@ import {
 import { PLATFORM_SETTINGS } from '../../lib/platformSettings'
 import { omr } from '../../lib/superAdmin'
 import { omanPhone } from '../../lib/validation'
+import { countryName } from '../../lib/console/format'
 import {
   Field,
   SummaryLine,
@@ -65,6 +67,9 @@ const BUSINESS_TYPES = [
   'education',
   'professional',
 ] as const
+
+/** The countries the company picker offers, as ISO codes; the request carries the code. */
+const COUNTRIES = ['OM'] as const
 
 /** Every town a known tenant sits in, once each — the picker's list. */
 const TOWNS = [...new Set(Object.values(TENANT_IDENTITIES).map((tenant) => tenant.town))].sort(
@@ -357,7 +362,8 @@ export function ConsoleOnboardPage() {
         </div>
 
         <section className="overflow-hidden rounded-md bg-surface-card">
-          <div className="flex justify-center border-b border-border-subtle px-5 py-5 max-md:overflow-x-auto">
+          {/* The shared tracker prints its labels at 9 px; here they read at 12 px, with longer connectors (wider columns that let a label wrap on a phone) so they do not touch. */}
+          <div className="flex justify-center border-b border-border-subtle px-5 py-5 max-md:overflow-x-auto [&_span.whitespace-nowrap]:text-xs md:[&_span.h-px]:w-16 max-md:[&_span.h-px]:w-2 max-md:[&_div.flex-col]:w-[60px] max-md:[&_span.whitespace-nowrap]:whitespace-normal max-md:[&_span.whitespace-nowrap]:text-center">
             <StepTracker steps={trackerSteps} size="md" />
           </div>
 
@@ -433,7 +439,7 @@ function StepHeading({ children, note }: { children: string; note?: string }) {
 }
 
 function CompanyStep({ draft, errors, patch }: StepProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const k = (name: string) => t(`console.onboard.company.${name}`)
   return (
     <div className="flex flex-col gap-5">
@@ -475,19 +481,21 @@ function CompanyStep({ draft, errors, patch }: StepProps) {
             error={errors.tenantCode}
           />
         </div>
-        <div data-field="country">
-          <Input
-            bordered
-            name="country"
-            label={k('country')}
-            requiredMark
-            autoComplete="country"
-            maxLength={2}
+        {/*
+          Fawtir onboards Omani companies, so the picker offers Oman by name; the value it keeps is
+          still the ISO code "OM" the request has always carried.
+        */}
+        <Field name="country" label={k('country')} required error={errors.country}>
+          <Select
             value={draft.country}
-            onChange={(event) => patch({ country: event.target.value.toUpperCase() })}
-            error={errors.country}
+            onChange={(value) => patch({ country: value })}
+            options={COUNTRIES.map((code) => ({
+              value: code,
+              label: countryName(code, i18n.language),
+            }))}
+            ariaLabel={k('country')}
           />
-        </div>
+        </Field>
         <div data-field="registeredAddress" className="md:col-span-2">
           <Input
             bordered
@@ -536,7 +544,10 @@ function CompanyStep({ draft, errors, patch }: StepProps) {
             value={draft.town}
             onChange={(value) => patch({ town: value })}
             placeholder={k('townPlaceholder')}
-            options={TOWNS.map((town) => ({ value: town, label: town }))}
+            options={TOWNS.map((town) => ({
+              value: town,
+              label: t(`console.operations.town.${town}`, { defaultValue: town }),
+            }))}
             ariaLabel={k('town')}
           />
         </Field>
@@ -822,7 +833,10 @@ function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => v
             label={c('vat')}
             value={<span dir="ltr">{draft.vat.replace(/\s/g, '').toUpperCase()}</span>}
           />
-          <SummaryLine label={c('town')} value={draft.town} />
+          <SummaryLine
+            label={c('town')}
+            value={t(`console.operations.town.${draft.town}`, { defaultValue: draft.town })}
+          />
           <SummaryLine
             label={c('businessType')}
             value={draft.businessType ? t(`businessType.options.${draft.businessType}`) : '—'}
@@ -880,7 +894,9 @@ function ReviewStep({ draft, onEdit }: { draft: Draft; onEdit: (step: Step) => v
         </ReviewCard>
         <section className="flex flex-col gap-2 rounded-sm bg-primary-25 p-4">
           <h3 className="text-sm font-semibold text-primary-800">{k('result')}</h3>
-          <p className="text-sm font-medium leading-[1.6] text-text-secondary">{result}</p>
+          <p className="text-sm font-medium leading-[1.6] text-text-secondary">
+            {withRial(result)}
+          </p>
           <p className="text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('console.onboard.review.invitation', { email: draft.ownerEmail.trim() })}
           </p>

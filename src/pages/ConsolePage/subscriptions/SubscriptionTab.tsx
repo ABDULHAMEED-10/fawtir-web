@@ -118,7 +118,9 @@ function UsageBar({
   ofLabel: (used: string, allowance: string) => string
 }) {
   const share = allowance ? Math.min(used / allowance, 1) : 0
-  const colour = share >= 1 ? 'bg-danger-700' : share >= 0.85 ? 'bg-pending-500' : 'bg-success-700'
+  // Red only past the allowance: a seat or branch limit that is exactly used is full, not wrong.
+  const over = allowance !== null && used > allowance
+  const colour = over ? 'bg-danger-700' : share >= 0.85 ? 'bg-pending-500' : 'bg-success-700'
   return (
     <div className="flex flex-col gap-1.5 py-2.5">
       <div className="flex items-center justify-between gap-3">
@@ -274,9 +276,9 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
             </div>
             {openInvoice ? (
               <div className="flex items-center gap-2.5">
-                <span className="text-sm font-semibold text-text-secondary">
+                <bdi dir="ltr" className="text-sm font-semibold text-text-secondary">
                   {openInvoice.number}
-                </span>
+                </bdi>
                 <InvoiceStatusPill status={openInvoice.status} />
               </div>
             ) : null}
@@ -359,7 +361,7 @@ export function SubscriptionTab({ tenantId, ledger, onAction }: Props) {
                     <tr key={invoice.id} className="border-b border-[#f3f3f3] last:border-b-0">
                       <td className={TD}>
                         <span className="block text-sm font-semibold text-text-primary">
-                          {invoice.number}
+                          <bdi dir="ltr" className="whitespace-nowrap">{invoice.number}</bdi>
                         </span>
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
                           {t(invoice.coverKey, {

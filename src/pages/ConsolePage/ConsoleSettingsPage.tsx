@@ -15,6 +15,7 @@ import {
   usePlatformSettings,
   type Section,
 } from '../../lib/platformSettings'
+import { localeFor } from '../../lib/console/format'
 import { focusFirstInvalid } from '../../lib/forms'
 import { isClean } from '../../lib/validation'
 import type { Forms, SectionProps, Update } from './settings/draft'
@@ -219,7 +220,7 @@ function SectionHost<S extends Section>({
   const savedBy = mark
     ? t('console.settings.savedBy', {
         by: mark.by,
-        when: new Intl.DateTimeFormat(i18n.language === 'ar' ? 'ar' : 'en-GB', {
+        when: new Intl.DateTimeFormat(localeFor(i18n.language), {
           day: 'numeric',
           month: 'short',
           hour: '2-digit',

@@ -13,7 +13,7 @@ import {
   ConsoleSubscriptionIcon,
   ConsoleTickIcon,
 } from '../../layouts/ConsoleShell/consoleIcons'
-import { FilterMenu, Pager, RowsView, Select } from '../../components/ui'
+import { FilterMenu, Pager, RowsView } from '../../components/ui'
 import {
   AUDIT_AREAS,
   useConsoleAudit,
@@ -78,6 +78,8 @@ function readableValues(
     else if (key === 'term') out[key] = t(`console.subscriptions.term.${raw}`).toLowerCase()
     else if (key === 'amount' && typeof raw === 'number') out[key] = omr(raw)
     else if (key === 'documents' && typeof raw === 'number') out[key] = count(raw)
+    else if (key === 'state' && entry.area === 'incidents')
+      out[key] = t(`console.incidents.state.${raw}`, { defaultValue: String(raw) })
     else out[key] = raw
   }
   return out
@@ -311,18 +313,16 @@ export function ConsoleAuditPage() {
                   ...operators.map((name) => ({ value: name, label: name })),
                 ]}
               />
-              <div className="w-[180px] max-md:w-full">
-                <Select
-                  compact
-                  value={range}
-                  onChange={(value) => filter(setRange)(value as Range)}
-                  ariaLabel={t('console.audit.filter.range')}
-                  options={RANGES.map((id) => ({
-                    value: id,
-                    label: t(`console.audit.range.${id}`),
-                  }))}
-                />
-              </div>
+              <FilterMenu<Range>
+                label={t('console.audit.filter.range')}
+                value={range}
+                defaultValue="all"
+                onChange={filter(setRange)}
+                options={RANGES.map((id) => ({
+                  value: id,
+                  label: t(`console.audit.range.${id}`),
+                }))}
+              />
             </div>
           </div>
 
@@ -340,11 +340,12 @@ export function ConsoleAuditPage() {
               </thead>
               {groups.map((group) => (
                 <tbody key={group.key}>
-                  <tr>
+                  {/* On a phone card list the day is a plain label over its cards, not a card. */}
+                  <tr className="[.rows-cards_&]:!mb-1 [.rows-cards_&]:!border-0 [.rows-cards_&]:!bg-transparent [.rows-cards_&]:!p-0">
                     <th
                       scope="colgroup"
                       colSpan={6}
-                      className="bg-surface-background px-4 py-2 text-start text-xs font-semibold uppercase tracking-[0.04em] text-text-quaternary"
+                      className="bg-surface-background px-4 py-2 text-start text-xs font-semibold uppercase tracking-[0.04em] text-text-quaternary [.rows-cards_&]:!block [.rows-cards_&]:!bg-transparent [.rows-cards_&]:!px-0 [.rows-cards_&]:!pt-3"
                     >
                       {group.heading}
                     </th>

@@ -11955,7 +11955,7 @@
     },
     "health": {
       "renewalNotStarted": "Renewal not started",
-      "overageOff": "Overage off — would block",
+      "overageOff": "Overage off, would block",
       "sameCause": "Same cause repeating",
       "stoppedAfterKey": "Stopped after key rotation",
       "peppolTesting": "Peppol registered, testing",
@@ -11972,13 +11972,13 @@
       "waiting": "Waiting to be filed",
       "waitingNote": "Oldest waiting {{oldest}} min · normal is under {{normal}} sec",
       "ourFault": "Our fault, not theirs",
-      "ourFaultNote": "Timeouts and 5xx from the OTA · all retrying",
+      "ourFaultNote": "Timeouts and server errors from the OTA · all retrying",
       "filingToday": "Tenants filing today",
       "ofTenants": "of {{total}}",
-      "filingTodayNote": "{{quiet}} quiet — most are weekend-only businesses",
+      "filingTodayNote": "{{quiet}} quiet, most are weekend-only businesses",
       "byHour": "Filed by the hour",
       "byHourNote": "today against the same day last week",
-      "byHourStory": "Tracking last week almost exactly until {{time}}, then falling away as the queue backs up. The work hasn't gone — it's waiting.",
+      "byHourStory": "Tracking last week almost exactly until {{time}}, then falling away as the queue backs up. The work hasn't gone: it's waiting.",
       "slowedAt": "OTA slowed at {{time}}",
       "now": "now",
       "connection": "The OTA connection",
@@ -11992,6 +11992,14 @@
         "allClear": "Every ERP connection is healthy.",
         "more_one": "{{count}} more on the ERP connections screen",
         "more_other": "{{count}} more on the ERP connections screen"
+      },
+      "town": {
+        "Sur": "Sur",
+        "Nizwa": "Nizwa",
+        "Muscat": "Muscat",
+        "Barka": "Barka",
+        "Salalah": "Salalah",
+        "Sohar": "Sohar"
       }
     },
     "ota": {
@@ -12021,7 +12029,7 @@
       "sameCause": "Same cause · buyer Peppol ID missing",
       "quiet": "Quiet {{days}} days",
       "wasFiling": "Was filing {{count}} a day",
-      "story": "A tenant going quiet usually means a broken integration rather than a lost customer. Nizwa Wholesale stopped the same day their API key was rotated — worth checking before anyone assumes they have left."
+      "story": "A tenant going quiet usually means a broken integration rather than a lost customer. Nizwa Wholesale stopped the same day their API key was rotated. Worth checking before anyone assumes they have left."
     },
     "across": {
       "title": "Across all tenants",
@@ -12112,12 +12120,13 @@
         "PENDING": "Pending",
         "SUSPENDED": "Suspended",
         "CLOSED": "Closed"
-      }
+      },
+      "seeDecision": "See decision"
     },
     "soon": {
       "title": "Not built yet",
       "badge": "Not built yet",
-      "body": "This part of the console has no design behind it yet. It is listed so the shape of the console is honest — the screen will follow the same template as Operations and Tenants once it is drawn.",
+      "body": "This part of the console has no design behind it yet. It is listed so the shape of the console is honest. The screen will follow the same template as Operations and Tenants once it is drawn.",
       "back": "Back to Operations"
     },
     "access": {
@@ -12218,7 +12227,7 @@
           "PENDING": "Not ready",
           "READY": "Ready"
         },
-        "noRegistrant": "Set up by Fawtir — there is no self-service registrant.",
+        "noRegistrant": "Set up by Fawtir. There is no self-service registrant.",
         "event": {
           "PROFILE_SUBMITTED": "Submitted for review",
           "PROFILE_UPDATED": "Details changed",
@@ -12346,14 +12355,14 @@
         "code": "Code",
         "codeHint": "Capital letters, digits and underscores, starting with a letter. It cannot be changed later.",
         "name": "Name",
-        "monthlyPrice": "Monthly price (OMR)",
+        "monthlyPrice": "Monthly price",
         "invoicesPerMonth": "Invoices a month",
         "peopleIncluded": "People included",
-        "extraPersonPrice": "Price per extra person (OMR)",
+        "extraPersonPrice": "Price per extra person",
         "extraPersonHint": "Leave empty to make the people count a hard limit.",
         "branchesIncluded": "Branches included",
         "branchesHint": "Leave empty for unlimited branches.",
-        "overagePrice": "Price per invoice over the quota (OMR)",
+        "overagePrice": "Price per invoice over the quota",
         "overageHint": "Leave empty if overage is not offered.",
         "sortOrder": "Position in the list",
         "sortOrderHint": "Lower numbers come first.",
@@ -12362,7 +12371,7 @@
         "active": "Offered to companies"
       },
       "validation": {
-        "money": "Enter an amount in OMR with up to 3 decimals",
+        "money": "Enter an amount in rials with up to 3 decimals",
         "whole": "Enter a whole number",
         "atLeastOne": "Enter 1 or more",
         "code": "Use 2–30 capital letters, digits or underscores, starting with a letter",
@@ -12550,6 +12559,9 @@
         "error": {
           "refused": "Fawtir refused this change. You may no longer have access."
         }
+      },
+      "otherRole": {
+        "PLATFORM_OPERATOR": "Platform operator"
       }
     },
     "subscriptions": {
@@ -12603,19 +12615,19 @@
         "planBranches_other": "{{plan}} plan · {{count}} extra branches"
       },
       "event": {
-        "paymentRecorded": "Payment recorded — {{method}}, OMR {{amount}}",
+        "paymentRecorded": "Payment recorded: {{method}}, OMR {{amount}}",
         "activated": "Activated until {{until}}",
-        "activatedWithoutPayment": "Activated until {{until}} — {{reason}}",
+        "activatedWithoutPayment": "Activated until {{until}}. Reason: {{reason}}",
         "linkSent": "Payment link sent by {{via}}",
-        "suspended": "Suspended — {{reason}}",
-        "resumed": "Resumed — {{reason}}",
-        "cancelled": "Cancelled — {{reason}}; runs to {{until}}",
+        "suspended": "Suspended. Reason: {{reason}}",
+        "resumed": "Resumed. Reason: {{reason}}",
+        "cancelled": "Cancelled, runs to {{until}}. Reason: {{reason}}",
         "trialStarted": "Trial started, {{days}} days",
-        "planChanged": "Moved to {{plan}}, {{term}} — {{reason}}",
-        "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}} — {{reason}}",
-        "quotaGranted": "{{documents}} extra documents until {{expires}} — {{reason}}",
-        "overageWaived": "Overage of OMR {{amount}} waived — {{reason}}",
-        "tenantOnboarded": "Onboarded at the desk — {{plan}}, {{term}}, pays by {{method}}; owner {{owner}}"
+        "planChanged": "Moved to {{plan}}, {{term}}. Reason: {{reason}}",
+        "planChangeScheduled": "Moving to {{plan}}, {{term}} on {{at}}. Reason: {{reason}}",
+        "quotaGranted": "{{documents}} extra documents until {{expires}}. Reason: {{reason}}",
+        "overageWaived": "Overage of OMR {{amount}} waived. Reason: {{reason}}",
+        "tenantOnboarded": "Onboarded at the desk: {{plan}}, {{term}}, pays by {{method}}; owner {{owner}}"
       },
       "queue": {
         "title": "Subscriptions",
@@ -12728,7 +12740,9 @@
         "showing": "Showing {{shown}} of {{total}} {{tab}}",
         "showingAll": "Showing {{shown}} of {{total}}",
         "allCount": "{{count}} subscription invoices in total",
-        "issued": "Issued {{date}}"
+        "issued": "Issued {{date}}",
+        "pastDue_one": "Due {{count}} day ago",
+        "pastDue_other": "Due {{count}} days ago"
       }
     },
     "tenantDetail": {
@@ -12756,7 +12770,7 @@
         "erp": "ERP"
       },
       "filing": {
-        "noData": "No filing data yet — this tenant has not filed through the platform this week.",
+        "noData": "No filing data yet: this tenant has not filed through the platform this week.",
         "billed": "Billed this month"
       },
       "erp": {
@@ -12773,7 +12787,7 @@
         "branches": "Branches included",
         "unlimited": "Unlimited",
         "overageRate": "Overage per document",
-        "grandfathered": "Grandfathered since {{date}} — keeps this price until the plan changes",
+        "grandfathered": "Grandfathered since {{date}}: keeps this price until the plan changes",
         "scheduled": "Moving to {{plan}}, {{term}} on {{date}}",
         "contract": "Contract",
         "contractValue": "{{from}} → {{to}}",
@@ -12791,7 +12805,7 @@
         "daysLeft_one": "{{count}} day left",
         "daysLeft_other": "{{count}} days left",
         "trialAllowance": "{{documents}} documents in the trial, no card",
-        "suspendedSince": "Suspended since {{date}} — read-only, the compliance record stays open",
+        "suspendedSince": "Suspended since {{date}}: read-only, the compliance record stays open",
         "cancelledOn": "Cancelled on {{date}} · access ran to {{until}}",
         "grace": "Day {{day}} of {{total}} of grace · suspends on {{date}}",
         "amountDue": "Amount due",
@@ -12801,9 +12815,9 @@
         "people": "People",
         "branches": "Branches",
         "ofAllowance": "{{used}} of {{allowance}}",
-        "overageOn": "Overage on — documents past the allowance are billed at the plan's rate",
-        "overageOff": "Overage off — filing stops at the allowance",
-        "grant": "+{{documents}} granted until {{date}} — {{reason}}"
+        "overageOn": "Overage on: documents past the allowance are billed at the plan's rate",
+        "overageOff": "Overage off: filing stops at the allowance",
+        "grant": "+{{documents}} granted until {{date}}: {{reason}}"
       },
       "invoices": {
         "title": "Subscription invoices",
@@ -12818,7 +12832,7 @@
         "paidVia": "{{date}} · {{method}}",
         "notPaid": "—",
         "download": "Download",
-        "empty": "No invoices yet — a trial has no invoice until it is activated."
+        "empty": "No invoices yet. A trial has no invoice until it is activated."
       },
       "payments": {
         "title": "Payments",
@@ -12858,15 +12872,15 @@
         "by": "{{by}} · {{when}}"
       },
       "done": {
-        "recorded": "Payment recorded — {{tenant}} is active until {{date}}",
-        "recordedOnly": "Payment recorded for {{tenant}} — the subscription was left as it was",
+        "recorded": "Payment recorded. {{tenant}} is active until {{date}}",
+        "recordedOnly": "Payment recorded for {{tenant}}. The subscription was left as it was",
         "linkSent": "Payment link sent by {{channel}} to {{contact}}",
         "activated": "{{tenant}} is active until {{date}}",
         "planChanged": "{{tenant}} is now on {{plan}}, {{term}}",
         "planScheduled": "{{tenant}} moves to {{plan}}, {{term}} on {{date}}",
-        "suspended": "{{tenant}} is suspended — read-only until it is resumed",
+        "suspended": "{{tenant}} is suspended: read-only until it is resumed",
         "resumed": "{{tenant}} is active again",
-        "cancelled": "{{tenant}}'s subscription is cancelled — paid features run to {{date}}",
+        "cancelled": "{{tenant}}'s subscription is cancelled. Paid features run to {{date}}",
         "quotaGranted": "{{documents}} extra documents granted to {{tenant}} until {{date}}",
         "overageWaived": "OMR {{amount}} waived on {{invoice}}"
       },
@@ -12874,7 +12888,7 @@
       "noCompanyDetails": "No company details submitted yet",
       "planDefault": "platform default",
       "planPrice": "OMR {{amount}} a month, plan price",
-      "planAllowance": "{{count}} invoices a month included",
+      "planAllowance": "{{total}} invoices a month included",
       "readiness": {
         "ready": "Ready to submit",
         "notReady": "Not ready to submit"
@@ -12896,13 +12910,24 @@
         "revision": "Profile revision",
         "plan": "Plan",
         "readiness": "Invoice submission"
+      },
+      "planAllowance_one": "{{total}} invoice a month included",
+      "planAllowance_other": "{{total}} invoices a month included",
+      "readinessReason": {
+        "COMPANY_NOT_VERIFIED": "The company is not verified yet",
+        "COMPANY_VERIFICATION_PENDING": "Company verification is waiting for review",
+        "COMPANY_VERIFICATION_REJECTED": "Company verification was rejected",
+        "TENANT_SUSPENDED": "The account is suspended",
+        "TENANT_NOT_ACTIVE": "The account is not active yet",
+        "TENANT_CLOSED": "The account is closed",
+        "IDENTITY_NOT_READY": "Sign-in setup is not finished"
       }
     },
     "subscriptionActions": {
       "common": {
         "invoice": "Invoice",
         "invoiceHint": "{{period}} · OMR {{total}}",
-        "noOpenInvoice": "There is no unpaid invoice to act on — nothing is due for this period.",
+        "noOpenInvoice": "There is no unpaid invoice to act on. Nothing is due for this period.",
         "plan": "Plan",
         "term": "Billing term",
         "reason": "Reason",
@@ -12910,7 +12935,8 @@
         "note": "Note",
         "notePlaceholder": "Anything the next person should know",
         "excludingVat": "excl. VAT",
-        "includingVat": "incl. VAT"
+        "includingVat": "incl. VAT",
+        "invoicePlaceholder": "Choose an invoice"
       },
       "error": {
         "amount": "Enter an amount above zero",
@@ -12933,7 +12959,7 @@
           "cardLink": "Thawani transaction id"
         },
         "proof": "Proof",
-        "proofHint": "Optional — a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
+        "proofHint": "Optional: a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
         "proofDrop": "Drop a file here, or click to choose one",
         "proofRemove": "Remove",
         "activate": "Activate the subscription for this period now",
@@ -12941,7 +12967,7 @@
       },
       "sendLink": {
         "title": "Send a payment link",
-        "subtitle": "A Thawani checkout for {{tenant}} — the console keeps the link and its status",
+        "subtitle": "A Thawani checkout for {{tenant}}. The console keeps the link and its status.",
         "channel": "Send it by",
         "whatsapp": {
           "title": "WhatsApp",
@@ -12969,11 +12995,11 @@
         "copy": "Copy",
         "copiedNow": "Copied",
         "done": "Done",
-        "emailSubject": "Your Fawtir subscription — {{plan}}"
+        "emailSubject": "Your Fawtir subscription: {{plan}}"
       },
       "activate": {
         "title": "Activate without a payment",
-        "subtitle": "For a pilot, a plan that includes Fawtir, or a trial extension — the reason goes on the record.",
+        "subtitle": "For a pilot, a plan that includes Fawtir, or a trial extension. The reason goes on the record.",
         "startDate": "Start date",
         "quick": {
           "pilot": "Pilot",
@@ -12995,9 +13021,9 @@
         },
         "periodEnd": {
           "title": "At the end of the period",
-          "description": "On {{date}} — nothing changes until then"
+          "description": "On {{date}}. Nothing changes until then."
         },
-        "enterpriseNote": "Enterprise terms — price, band, seats — are set on the Enterprise panel, not here.",
+        "enterpriseNote": "Enterprise terms (price, band, seats) are set on the Enterprise panel, not here.",
         "newPrice": "New price for the period",
         "submit": "Change plan"
       },
@@ -13162,7 +13188,7 @@
           "draft": "Not yet issued.",
           "voided": "Cancelled before it was transmitted.",
           "failedValidation": "Never left the platform.",
-          "rejectedByOta": "Transmitted and refused — the attempt still counts.",
+          "rejectedByOta": "Transmitted and refused. The attempt still counts.",
           "resubmission": "Counts again, as a fresh transmission."
         },
         "consumedAt": "Quota consumed at",
@@ -13268,10 +13294,10 @@
         "extractionOverageHint": "Charged past the included documents.",
         "includedAt": "Included at",
         "includedAtHint": "The plan level that gets extraction without the add-on price.",
-        "includedAtNone": "None — always an add-on",
+        "includedAtNone": "None, always an add-on",
         "posGroup": "Point of sale",
         "pos": "Point of sale",
-        "posNote": "No separate plan and no terminal charge — POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
+        "posNote": "No separate plan and no terminal charge. POS simplified invoices count against the plan allowance (settled 15 Sep 2026).",
         "posValue": "No separate plan",
         "erpMappingValue": "Follows the plan's feature switch",
         "availabilityGroup": "Availability per plan",
@@ -13360,7 +13386,7 @@
           "complianceFeatures": "Never gated. Invoices, credit notes, debit notes and Peppol send and receive are on every plan and never a plan switch.",
           "livePlanChange": "Applies to new subscriptions only. Tenants on the old terms keep them."
         },
-        "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate — so they are listed here, and nowhere else."
+        "why": "These are legal obligations, not choices. A setting would let a plan be sold that cannot meet the mandate, so they are listed here, and nowhere else."
       }
     },
     "crumb": {
@@ -13483,7 +13509,7 @@
           "title": "Publish v{{version}}?",
           "body": "v{{version}} becomes the published {{name}} template. The {{count}} connections on v{{current}} keep their mapping until they reset.",
           "bodyFirst": "v{{version}} becomes the published {{name}} template. New connections start from it.",
-          "notValid": "The draft is not valid yet — fix the entries in red first.",
+          "notValid": "The draft is not valid yet. Fix the entries in red first.",
           "confirm": "Publish"
         },
         "discardModal": {
@@ -13492,7 +13518,7 @@
           "confirm": "Discard"
         },
         "valueMap": {
-          "title": "Value map — {{term}}",
+          "title": "Value map: {{term}}",
           "subtitle": "What the ERP sends on the left, the PINT-OM code it becomes on the right.",
           "from": "ERP value",
           "to": "Becomes",
@@ -13566,8 +13592,8 @@
           "trial": "Free while on trial"
         },
         "subscription": {
-          "grace": "Subscription in grace — settle first",
-          "suspended": "Subscription suspended — resume first",
+          "grace": "Subscription in grace: settle first",
+          "suspended": "Subscription suspended: resume first",
           "awaitingPayment": "Awaiting first payment",
           "trial": "Plan on trial",
           "ok": "Active"
@@ -13586,11 +13612,11 @@
           "allowanceValue": "{{connections}} connections · {{documents}} documents a month",
           "billing": "Billing",
           "billingValue": "The add-on line joins the next invoice",
-          "billingIncluded": "Included in the {{plan}} plan — nothing to bill",
+          "billingIncluded": "Included in the {{plan}} plan, nothing to bill",
           "note": "Note (optional)",
           "notePlaceholder": "Anything the record should say",
           "confirm": "Approve",
-          "priceIncluded": "Included in the plan — no charge"
+          "priceIncluded": "Included in the plan, no charge"
         },
         "trialModal": {
           "title": "Approve on trial for {{tenant}}",
@@ -13609,7 +13635,7 @@
           "reason": "Reason",
           "reasonPlaceholder": "Why the add-on is not switched on",
           "quick": {
-            "grace": "Subscription is in grace — settle the open bill first",
+            "grace": "Subscription is in grace. Settle the open bill first.",
             "plan": "Not available on the current plan",
             "verify": "Verification is still open"
           },
@@ -13617,8 +13643,8 @@
         },
         "done": {
           "badge": "Done",
-          "approved": "Approved for {{tenant}} — active now.",
-          "trial": "Approved on a {{days}}-day trial for {{tenant}} — active now.",
+          "approved": "Approved for {{tenant}}. Active now.",
+          "trial": "Approved on a {{days}}-day trial for {{tenant}}. Active now.",
           "declined": "Declined for {{tenant}}. The reason is on record.",
           "link": "Open the tenant's ERP tab"
         },
@@ -13631,7 +13657,7 @@
           "history": "No decisions yet."
         },
         "noNote": "—",
-        "notOffered": "Not supported on {{plan}} — upgrade first",
+        "notOffered": "Not supported on {{plan}}: upgrade first",
         "notOfferedHint": "The add-on is not supported on the {{plan}} plan. The tenant moves up a plan first, or the plan's availability changes in Console settings › Add-ons."
       },
       "connections": {
@@ -13643,19 +13669,19 @@
           "connections": "Connections",
           "connectionsNote": "{{paused}} paused · {{rejections}} pending rejections",
           "inError": "In error",
-          "inErrorNote": "Credentials refused or ERP unreachable — the tenant must act",
+          "inErrorNote": "Credentials refused or ERP unreachable. The tenant must act.",
           "stale": "Stale",
           "staleNote": "Connected, but nothing new for {{days}} days or more",
           "collected": "Collected this month",
           "collectedNote": "OMR {{amount}} a month from {{paying}} purchased add-ons",
           "requests": "Add-on requests",
-          "requestsNote": "Waiting for a decision — open the queue",
+          "requestsNote": "Waiting for a decision. Open the queue.",
           "requestsOpen": "Open the add-on requests"
         },
         "attention": {
           "title": "Needs attention",
           "subtitle": "Errors first, then connections that have gone quiet",
-          "none": "Every connection is healthy — nothing is in error or stale."
+          "none": "Every connection is healthy. Nothing is in error or stale."
         },
         "reason": {
           "credentials": "ERP refused credentials",
@@ -13701,13 +13727,13 @@
         "showing": "Showing {{shown}} of {{total}} connections"
       },
       "connection": {
-        "notFound": "There is no connection with this id — the tenant may have deleted it.",
+        "notFound": "There is no connection with this id. The tenant may have deleted it.",
         "notFoundBack": "Back to connections",
         "meta": "{{product}} {{version}} · {{schedule}}",
-        "readOnly": "Support view — read-only. Credentials are never shown or entered here.",
+        "readOnly": "Support view, read-only. Credentials are never shown or entered here.",
         "banner": {
-          "credentials": "The ERP refused this connection's credentials — {{failures}} runs failed in a row. Only the tenant can replace credentials: send them to Settings › Integration › Connected systems.",
-          "unreachable": "The ERP is unreachable — {{failures}} runs failed in a row. Only the tenant can change the address or credentials: send them to Settings › Integration › Connected systems.",
+          "credentials": "The ERP refused this connection's credentials: {{failures}} runs failed in a row. Only the tenant can replace credentials: send them to Settings › Integration › Connected systems.",
+          "unreachable": "The ERP is unreachable: {{failures}} runs failed in a row. Only the tenant can change the address or credentials: send them to Settings › Integration › Connected systems.",
           "threeFailures": "Three runs failed in a row, so the connection stopped. Only the tenant can restart it from Settings › Integration › Connected systems.",
           "stale_one": "Connected and running, but the newest invoice collected is {{count}} day old. Ask the tenant whether their ERP is still posting invoices.",
           "stale_other": "Connected and running, but the newest invoice collected is {{count}} days old. Ask the tenant whether their ERP is still posting invoices."
@@ -13723,8 +13749,8 @@
           "never": "Never",
           "lastRunNote": "{{state}} · {{fetched}} fetched, {{created}} created, {{errors}} errors",
           "nextRun": "Next run",
-          "nextRunError": "Not scheduled — the connection is in error",
-          "nextRunPaused": "Not scheduled — the connection is paused",
+          "nextRunError": "Not scheduled: the connection is in error",
+          "nextRunPaused": "Not scheduled: the connection is paused",
           "collected": "Collected this month",
           "collectedOf": "of {{allowance}}",
           "collectedNote": "{{used}} across the tenant's connections · {{percent}} of the allowance",
@@ -13735,7 +13761,7 @@
           "product": "Product",
           "schedule": "Schedule",
           "writeBack": "Write-back",
-          "writeBackOn": "On — status, number and QR written to the ERP",
+          "writeBackOn": "On: status, number and QR written to the ERP",
           "writeBackOff": "Off",
           "template": "Mapping template",
           "templateVersion": "{{name}} v{{version}} · published {{date}}",
@@ -13757,8 +13783,8 @@
         },
         "addon": {
           "title": "Automatic extraction add-on",
-          "none": "No add-on — the tenant has not asked for automatic extraction.",
-          "pendingRequest": "They have a request waiting — open the add-on requests.",
+          "none": "No add-on. The tenant has not asked for automatic extraction.",
+          "pendingRequest": "They have a request waiting. Open the add-on requests.",
           "source": "Source",
           "sourceValue": {
             "PURCHASED": "Purchased",
@@ -13775,7 +13801,7 @@
           "of": "{{used}} of {{allowance}}",
           "collected": "Collected this month",
           "grants": "Quota grants",
-          "noGrants": "None — the allowance is the plan's own.",
+          "noGrants": "None. The allowance is the plan's own.",
           "grantLine": "+{{documents}} documents until {{date}} · {{by}}",
           "grant": "Grant extraction quota",
           "suspend": "Suspend add-on",
@@ -13793,7 +13819,7 @@
           "title": "Suspend the add-on",
           "subtitle": "Scheduled runs stop for {{tenant}} until it is resumed; connections and mappings are kept",
           "submit": "Suspend",
-          "done": "{{tenant}}'s add-on is suspended — runs stop until it is resumed"
+          "done": "{{tenant}}'s add-on is suspended. Runs stop until it is resumed."
         },
         "resume": {
           "title": "Resume the add-on",
@@ -13913,7 +13939,7 @@
     },
     "onboard": {
       "title": "Onboard a business",
-      "subtitle": "For a customer who never signed up online: the company, who owns it, what they pay — then the tenant is created in the ledger.",
+      "subtitle": "For a customer who never signed up online: the company, who owns it and what they pay. Then the tenant is created in the ledger.",
       "steps": {
         "company": "Company",
         "owner": "Owner",
@@ -13954,11 +13980,11 @@
         "plan": "Plan",
         "term": "Billing term",
         "method": "How they pay",
-        "enterpriseNote": "Enterprise terms — price, band, seats — are set on the tenant's page after creation; enter the amount agreed.",
+        "enterpriseNote": "Enterprise terms (price, band, seats) are set on the tenant's page after creation; enter the amount agreed.",
         "periodEnd": "First period ends",
         "firstInvoice": "First invoice",
         "paidNow": "Payment received now",
-        "paidNowHint": "Turn on when the money is already in hand — cash at the desk, a transfer that has landed, a cheque received.",
+        "paidNowHint": "Turn on when the money is already in hand: cash at the desk, a transfer that has landed, a cheque received.",
         "amount": "Amount received",
         "receivedOn": "Received on",
         "activateNow": "Activate the subscription now",
@@ -13976,7 +14002,7 @@
         "resultAwaiting": "{{name}} is created Awaiting payment, with an open invoice of OMR {{amount}} due today. Record the payment from its page.",
         "invitation": "{{email}} receives an invitation to set a password; the company then goes through verification.",
         "paidLine": "{{amount}} · {{method}} · {{date}}",
-        "notPaid": "Not yet — the invoice stays open",
+        "notPaid": "Not yet. The invoice stays open",
         "edit": "Edit"
       },
       "creating": "Creating…",
@@ -14056,7 +14082,7 @@
       "done": {
         "badge": "Done",
         "redriven": "{{document}} is back in the queue with one more attempt.",
-        "notified": "{{tenant}} has been told about {{document}} — the notice is in their bell.",
+        "notified": "{{tenant}} has been told about {{document}}. The notice is in their bell.",
         "dismiss": "Dismiss"
       },
       "noResults": "Nothing in this lane matches.",
@@ -14151,12 +14177,12 @@
       "update": {
         "title": "Post an update",
         "hint": "Moves the incident to the state you pick and adds to the timeline.",
-        "resolvedHint": "Resolved — reopen by posting an update.",
+        "resolvedHint": "Resolved. Reopen by posting an update.",
         "nextState": "Next state",
         "text": "Update",
         "textPlaceholder": "What changed, what tenants should expect",
         "submit": "Post update",
-        "posted": "Posted — the incident is now {{state}}."
+        "posted": "Posted. The incident is now {{state}}."
       },
       "notice": {
         "title": "Notice to tenants",
@@ -14273,7 +14299,7 @@
           "effectiveFrom": "Effective from",
           "effectiveTo": "Effective to",
           "evidence": "Evidence reference",
-          "reasonCode": "Last reason code",
+          "reasonCode": "Last step",
           "contentHash": "Content hash",
           "updated": "Last updated"
         }
@@ -14290,7 +14316,8 @@
       },
       "actor": {
         "unnamed": "Operator",
-        "you": "(you)"
+        "you": "(you)",
+        "idLabel": "id"
       },
       "action": {
         "create": "Create draft",
@@ -14433,6 +14460,11 @@
             "TRIM_UPPERCASE": "Trim and convert to upper case",
             "TRIM_LOWERCASE": "Trim and convert to lower case"
           }
+        },
+        "value": {
+          "TENANT_VAT_NUMBER": "The company’s VAT number",
+          "UPPERCASE_NO_SEPARATORS": "Upper case, no separators",
+          "UNIQUE_ACROSS_ALL_TENANTS": "Unique across all companies"
         }
       },
       "validation": {
@@ -14443,6 +14475,14 @@
         "evidence": "Keep the evidence reference to 500 characters or fewer.",
         "effectiveTo": "The end day must be after the start day.",
         "server": "Fawtir did not accept this value."
+      },
+      "reason": {
+        "POLICY_SUBMITTED": "Submitted for review",
+        "POLICY_REVIEW_STARTED": "Review started",
+        "POLICY_APPROVED": "Version approved",
+        "POLICY_ACTIVATED": "Version activated",
+        "POLICY_REJECTED": "Version rejected",
+        "POLICY_SCHEDULE_WITHDRAWN": "Schedule withdrawn"
       }
     }
   },

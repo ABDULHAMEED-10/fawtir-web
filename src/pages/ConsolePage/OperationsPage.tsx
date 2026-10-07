@@ -20,7 +20,6 @@ import {
   REVENUE_PER_TENANT,
   WORTH_A_LOOK,
   count,
-  omr,
   percent,
   tenantById,
 } from '../../lib/superAdmin'
@@ -31,6 +30,7 @@ import {
   useConsoleErp,
 } from '../../lib/consoleErp'
 import { attentionReason } from './erp/erpShared'
+import { formatAmount } from '../../lib/format'
 
 const TONE = {
   bad: 'text-danger-700',
@@ -244,7 +244,8 @@ function IntegrationsCard() {
                         {tenantName(c.tenantId)}
                       </span>
                       <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                        {c.label}
+                        {/* The sample names join place and system with a dash; the copy uses a dot. */}
+                        {c.label.replace(/\s+—\s+/g, ' · ')}
                       </span>
                     </span>
                     <span
@@ -447,7 +448,10 @@ export function OperationsPage() {
                       to="/console/tenants"
                       className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition-colors hover:bg-primary-25"
                     >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary">
+                      <span
+                        dir="ltr"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-surface-background text-xs font-semibold text-text-tertiary"
+                      >
                         {tenant.initials}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -455,7 +459,8 @@ export function OperationsPage() {
                           {tenant.name}
                         </span>
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                          {tenant.town} · {t(`console.plan.${tenant.plan}`)} ·{' '}
+                          {t(`console.operations.town.${tenant.town}`, { defaultValue: tenant.town })}{' '}
+                          · {t(`console.plan.${tenant.plan}`)} ·{' '}
                           {t(tenant.ageKey, tenant.ageValues)}
                         </span>
                       </span>
@@ -511,14 +516,21 @@ export function OperationsPage() {
                 value={t('console.across.within30', { count: PLATFORM.certificatesExpiring })}
                 tone="bad"
               />
-              <ConnectionLine label={t('console.across.revenue')} value={`OMR ${omr(REVENUE)}`} />
+              <ConnectionLine
+                label={t('console.across.revenue')}
+                value={`OMR ${formatAmount(REVENUE, 'OMR', i18n.language)}`}
+              />
               <ConnectionLine
                 label={t('console.across.left')}
                 value={String(PLATFORM.leftThisMonth)}
               />
             </div>
             <p className="mt-3 text-xs font-medium leading-[1.5] text-text-quaternary">
-              {withRial(t('console.across.average', { amount: omr(REVENUE_PER_TENANT) }))}
+              {withRial(
+                t('console.across.average', {
+                  amount: formatAmount(REVENUE_PER_TENANT, 'OMR', i18n.language),
+                }),
+              )}
             </p>
           </section>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { EmailText } from './EmailText'
 import { Button, RowsView } from '../../../components/ui'
 import { ConsoleNotice, ConsoleReadFailure } from '../../../layouts/ConsoleShell/ConsoleNotice'
 import { useConsoleRead } from '../../../layouts/ConsoleShell/useConsoleRead'
@@ -84,7 +85,7 @@ export function DeactivatedOperators({
                         ) : null}
                       </td>
                       <td className="px-2 py-4 text-sm font-medium text-text-secondary">
-                        <bdi>{user.email}</bdi>
+                        <EmailText email={user.email} />
                       </td>
                       <td className="px-4 py-4 text-end">
                         <Button

@@ -11,7 +11,7 @@ export function ProblemReference({ id }: { id: string | null }) {
   return (
     <p className="mt-1 text-xs font-medium text-text-quaternary">
       {t('console.policies.reference')}{' '}
-      <span dir="ltr" className="break-all font-mono">
+      <span dir="ltr" className="font-mono [overflow-wrap:anywhere]">
         {id}
       </span>
     </p>

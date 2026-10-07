@@ -387,9 +387,12 @@ function IncidentsList() {
                 <tr key={incident.id} className="border-b border-[#f3f3f3] last:border-b-0">
                   <td className="px-4 py-4">
                     <Link to={`/console/incidents/${incident.id}`} className="group block min-w-0">
-                      <span className="block font-mono text-xs font-semibold text-text-quaternary">
+                      <bdi
+                        dir="ltr"
+                        className="block font-mono text-xs font-semibold text-text-quaternary !whitespace-nowrap"
+                      >
                         {incident.number}
-                      </span>
+                      </bdi>
                       <span className="mt-1 block text-sm font-medium leading-[1.3] text-text-primary transition-colors group-hover:text-primary-700">
                         {incident.title}
                       </span>
@@ -706,23 +709,28 @@ function IncidentDetail({ id }: { id: string }) {
         ]}
       />
 
+      {/* The page header every console page has, as on a tenant's page; the facts stay in the card. */}
+      <div className="min-w-0">
+        <h1 className="break-words text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
+          {incident.title}
+        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2.5">
+          <bdi
+            dir="ltr"
+            className="whitespace-nowrap font-mono text-sm font-semibold text-text-quaternary"
+          >
+            {incident.number}
+          </bdi>
+          <IncidentStatePill state={incident.state} />
+          <SeverityPill severity={incident.severity} />
+          <span className="inline-flex h-[26px] items-center rounded-full bg-surface-card px-2.5 text-xs font-semibold uppercase tracking-[0.04em] text-text-tertiary">
+            {t(`console.incidents.component.${incident.component}`)}
+          </span>
+        </div>
+      </div>
+
       <section className="flex flex-col gap-4 rounded-md bg-surface-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <span className="block font-mono text-xs font-semibold text-text-quaternary">
-              {incident.number}
-            </span>
-            <h1 className="mt-1 text-2xl font-medium leading-[1.2] text-text-primary">
-              {incident.title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <IncidentStatePill state={incident.state} />
-              <SeverityPill severity={incident.severity} />
-              <span className="inline-flex h-[26px] items-center rounded-full bg-surface-background px-2.5 text-xs font-semibold uppercase tracking-[0.04em] text-text-tertiary">
-                {t(`console.incidents.component.${incident.component}`)}
-              </span>
-            </div>
-          </div>
           <dl className="grid shrink-0 grid-cols-3 gap-x-6 gap-y-1 text-sm max-md:grid-cols-1">
             <div>
               <dt className="text-xs font-medium text-text-quaternary">

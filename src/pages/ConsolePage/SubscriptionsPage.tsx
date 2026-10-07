@@ -39,7 +39,7 @@ import {
   type SubscriptionTabId,
   type Term,
 } from '../../lib/consoleSubscriptions'
-import { QueueKpiCard } from './subscriptions/QueueKpiCard'
+import { QueueKpiCard, RialFigure } from './subscriptions/QueueKpiCard'
 import { LinkStatusPill, SubscriptionStatePill } from './subscriptions/SubscriptionStatePill'
 import searchIcon from '../../assets/dashboard/search.svg'
 
@@ -203,16 +203,17 @@ export function SubscriptionsPage() {
               })}
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5 max-md:shrink max-md:flex-wrap">
+          {/* On a phone the two links stack at one full width, not two ragged ones. */}
+          <div className="flex shrink-0 items-center gap-2.5 max-md:w-full max-md:shrink max-md:flex-col max-md:items-stretch">
             <Link
               to="/console/subscriptions/invoices"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 max-md:justify-center"
             >
               {t('console.subscriptions.queue.invoicesLink')}
             </Link>
             <Link
               to="/console/settings"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25 max-md:justify-center"
             >
               {t('console.subscriptions.queue.settingsLink')}
             </Link>
@@ -248,7 +249,7 @@ export function SubscriptionsPage() {
           <QueueKpiCard
             icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
             title={t('console.subscriptions.queue.kpi.collected')}
-            value={`OMR ${omr(kpis.collectedThisMonth)}`}
+            value={<RialFigure amount={kpis.collectedThisMonth} />}
             note={t('console.subscriptions.queue.kpi.collectedNote', {
               count: paymentsThisMonth,
               month,
@@ -257,7 +258,8 @@ export function SubscriptionsPage() {
         </div>
 
         <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+          {/* On a phone the strip scrolls sideways inside itself rather than wrapping to three lines. */}
+          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]">
             {SUBSCRIPTION_TABS.map((entry) => {
               const active = entry.id === tab
               return (
@@ -267,7 +269,7 @@ export function SubscriptionsPage() {
                   onClick={() => setTab(entry.id)}
                   aria-pressed={active}
                   className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
+                    'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 text-base transition-colors',
                     active
                       ? 'font-semibold text-primary-800'
                       : 'font-medium text-text-tertiary hover:text-text-secondary',
@@ -278,7 +280,7 @@ export function SubscriptionsPage() {
                     {count(entry.count)}
                   </span>
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700 max-md:bottom-0" />
                   ) : null}
                 </button>
               )
@@ -385,7 +387,7 @@ export function SubscriptionsPage() {
                               {tenant.name}
                             </Link>
                             <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                              {tenant.town} · {t('console.subscriptions.queue.vat')} {tenant.vat} ·{' '}
+                              {tenant.town} · {t('console.subscriptions.queue.vat')} <bdi dir="ltr">{tenant.vat}</bdi> ·{' '}
                               {tenant.contact.name}
                             </span>
                           </span>
@@ -467,11 +469,14 @@ export function SubscriptionsPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border-subtle px-6 py-4">
             <p className="text-sm font-medium text-text-tertiary">{footer}</p>
-            <p className="text-xs font-medium text-text-quaternary">
-              {t('console.subscriptions.queue.allCount', {
-                count: count(SUBSCRIPTION_TABS[0].count),
-              })}
-            </p>
+            {/* On "All" the sentence on the left already gives the platform total. */}
+            {tab === 'all' ? null : (
+              <p className="text-xs font-medium text-text-quaternary">
+                {t('console.subscriptions.queue.allCount', {
+                  count: count(SUBSCRIPTION_TABS[0].count),
+                })}
+              </p>
+            )}
           </div>
         </section>
       </div>

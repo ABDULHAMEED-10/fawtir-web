@@ -190,34 +190,53 @@ function TenantsTable({ rows }: { rows: CompanySummary[] }) {
                   {tenant.country ? ` · ${countryName(tenant.country, i18n.language)}` : ''}
                 </span>
               </td>
-              <td className="px-2 py-4 text-sm font-medium text-text-secondary">
-                {tenant.tenantCode}
+              <td className="px-2 py-4 text-sm font-medium text-text-secondary [overflow-wrap:anywhere]">
+                <bdi dir="ltr">{tenant.tenantCode}</bdi>
               </td>
               <td className="px-2 py-4">
-                {tenant.tenantStatus ? (
-                  <ConsoleStatusPill
-                    tone={STATUS_TONE[tenant.tenantStatus] ?? 'neutral'}
-                    label={t(`console.tenants.status.${tenant.tenantStatus}`)}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-text-secondary">{none}</span>
-                )}
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {tenant.tenantStatus ? (
+                    <ConsoleStatusPill
+                      tone={STATUS_TONE[tenant.tenantStatus] ?? 'neutral'}
+                      label={t(`console.tenants.status.${tenant.tenantStatus}`)}
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-text-secondary">{none}</span>
+                  )}
+                  {/*
+                    A refused registration keeps its account pending, so "Pending" alone would read
+                    as still waiting. The verification outcome the row already carries says why.
+                  */}
+                  {tenant.verificationStatus === 'REJECTED' ? (
+                    <ConsoleStatusPill
+                      tone="danger"
+                      label={t('console.verification.status.REJECTED')}
+                    />
+                  ) : null}
+                </span>
               </td>
-              <td className="px-2 py-4 text-sm font-medium text-text-secondary">
+              <td className="whitespace-nowrap px-2 py-4 text-sm font-medium text-text-secondary">
                 {tenant.submittedAt ? formatDay(tenant.submittedAt, i18n.language) : none}
               </td>
-              <td className="px-2 py-4 text-end">
+              {/* On a phone card, a row with nothing to do drops the empty "Action" line. */}
+              <td className="px-2 py-4 text-end [.rows-cards_&:empty]:!hidden">
                 {/*
                   A company awaiting a decision is work, and the decision belongs to the
                   verification queue alone — this directory links to it rather than carrying a
                   second attest/reject implementation.
                 */}
-                {tenant.verificationStatus === 'PENDING_VERIFICATION' ? (
+                {tenant.verificationStatus === 'PENDING_VERIFICATION' ||
+                tenant.verificationStatus === 'REJECTED' ? (
                   <Link
                     to={`${VERIFICATION_ROUTE}/${tenant.tenantId}`}
-                    className="text-sm font-semibold text-primary-800 hover:text-primary-700"
+                    className="whitespace-nowrap text-sm font-semibold text-primary-800 hover:text-primary-700"
                   >
-                    {t('console.tenants.review')}
+                    {/* A refused company has nothing left to review; its record says why. */}
+                    {t(
+                      tenant.verificationStatus === 'REJECTED'
+                        ? 'console.tenants.seeDecision'
+                        : 'console.tenants.review',
+                    )}
                   </Link>
                 ) : null}
               </td>

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   PID_POLICY_TYPE,
@@ -10,12 +10,38 @@ import {
 } from '../../../lib/console/validationPolicies'
 import { ReviewLine } from '../verification/ReviewCard'
 
-/** A stored token: a pattern, a code, a fixture. Never mirrored, and allowed to break anywhere. */
-function Code({ children }: { children: ReactNode }) {
+/**
+ * A stored token: a pattern, a code, a fixture. Never mirrored. A long one wraps after an
+ * underscore when it can, and mid-word only when nothing else fits.
+ */
+function Code({ children }: { children: string }) {
+  const parts = children.split(/(?<=_)/)
   return (
-    <span dir="ltr" className="break-all font-mono">
-      {children}
+    <span dir="ltr" className="break-words font-mono">
+      {parts.map((part, index) => (
+        <Fragment key={index}>
+          {index > 0 ? <wbr /> : null}
+          {part}
+        </Fragment>
+      ))}
     </span>
+  )
+}
+
+/**
+ * A server code shown by its meaning when one is known, with the code itself underneath for an
+ * operator who needs to quote it. An unknown code is shown as it is.
+ */
+export function NamedCode({ value, labelKey }: { value: string; labelKey: string }) {
+  const { t, i18n } = useTranslation()
+  if (!/^[A-Z0-9_]+$/.test(value) || !i18n.exists(labelKey)) return <Code>{value}</Code>
+  return (
+    <>
+      {t(labelKey)}
+      <span className="mt-0.5 block text-xs font-medium text-text-quaternary">
+        <Code>{value}</Code>
+      </span>
+    </>
   )
 }
 
@@ -30,7 +56,7 @@ function Block({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const MONO_BLOCK =
-  'block whitespace-pre-wrap break-all rounded-sm bg-surface-background px-3 py-2 font-mono text-xs font-medium leading-[1.6] text-text-secondary'
+  'block whitespace-pre-wrap break-words rounded-sm bg-surface-background px-3 py-2 font-mono text-xs font-medium leading-[1.6] text-text-secondary'
 
 function Fixtures({ values, none }: { values: string[]; none: string }) {
   if (values.length === 0) return <p className="text-sm font-semibold text-text-primary">{none}</p>
@@ -99,7 +125,9 @@ export function PolicyContents({ version }: { version: BlockerVersionView }) {
   const policy = pidPolicySummary(version.data)
   const field = (name: string) => t(`console.policies.pid.field.${name}`)
   const code = (value: string) => (value ? <Code>{value}</Code> : none)
-  const plain = (value: string) => value || none
+  // Free text the server stores; the values it uses most are named, anything else is shown as is.
+  const named = (value: string) =>
+    value ? <NamedCode value={value} labelKey={`console.policies.pid.value.${value}`} /> : none
 
   return (
     <>
@@ -142,12 +170,12 @@ export function PolicyContents({ version }: { version: BlockerVersionView }) {
         label={field('caseSensitive')}
         value={policy.caseSensitive === null ? none : yesNo(policy.caseSensitive)}
       />
-      <ReviewLine label={field('valueSource')} value={plain(policy.valueSource)} />
+      <ReviewLine label={field('valueSource')} value={named(policy.valueSource)} />
       <ReviewLine
         label={field('canonicalRepresentation')}
-        value={plain(policy.canonicalRepresentation)}
+        value={named(policy.canonicalRepresentation)}
       />
-      <ReviewLine label={field('uniquenessRule')} value={plain(policy.uniquenessRule)} />
+      <ReviewLine label={field('uniquenessRule')} value={named(policy.uniquenessRule)} />
       <Block label={field('positiveFixtures')}>
         <Fixtures values={policy.positiveFixtures} none={none} />
       </Block>

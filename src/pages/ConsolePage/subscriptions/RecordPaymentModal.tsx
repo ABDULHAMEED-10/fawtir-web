@@ -146,157 +146,163 @@ export function RecordPaymentModal({
           <p className="rounded-sm bg-surface-background px-4 py-3 text-sm font-medium leading-[1.5] text-text-tertiary">
             {t('console.subscriptionActions.common.noOpenInvoice')}
           </p>
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field
-            name="invoice"
-            label={t('console.subscriptionActions.common.invoice')}
-            required
-            error={errors.invoice}
-          >
-            <Select
-              value={invoice}
-              onChange={(value) => {
-                setInvoice(value)
-                const picked = open.find((entry) => entry.id === value)
-                if (picked) setAmount(picked.total.toFixed(3))
-                clear('invoice')
-              }}
-              options={invoiceOptions}
-              disabled={open.length === 0}
-              ariaLabel={t('console.subscriptionActions.common.invoice')}
-            />
-          </Field>
-          <Field
-            name="method"
-            label={t('console.subscriptionActions.recordPayment.method')}
-            required
-            error={errors.method}
-          >
-            <Select
-              value={method}
-              onChange={(value) => {
-                setMethod(value as PaymentMethod)
-                clear('method')
-                clear('reference')
-              }}
-              options={methodOptions}
-              ariaLabel={t('console.subscriptionActions.recordPayment.method')}
-            />
-          </Field>
-          <div data-field="amount">
-            <Input
-              bordered
-              name="amount"
-              label={t('console.subscriptionActions.recordPayment.amount')}
-              requiredMark
-              inputMode="decimal"
-              autoComplete="off"
-              leadingIcon={<Rial className="text-text-secondary" />}
-              value={amount}
-              onChange={(event) => {
-                setAmount(event.target.value)
-                clear('amount')
-              }}
-              error={errors.amount}
-              hint={
-                chosen
-                  ? `${chosen.number} · ${t('console.subscriptionActions.common.includingVat')}`
-                  : undefined
-              }
-            />
-          </div>
-          <Field
-            name="receivedOn"
-            label={t('console.subscriptionActions.recordPayment.receivedOn')}
-            required
-            error={errors.receivedOn}
-          >
-            <DateField
-              value={receivedOn}
-              onChange={(value) => {
-                setReceivedOn(value)
-                clear('receivedOn')
-              }}
-              max={TODAY_KEY}
-              ariaLabel={t('console.subscriptionActions.recordPayment.receivedOn')}
-            />
-          </Field>
-        </div>
-
-        <div data-field="reference">
-          <Input
-            bordered
-            name="reference"
-            label={t(`console.subscriptionActions.recordPayment.reference.${method || 'cash'}`)}
-            requiredMark={method !== 'cash'}
-            autoComplete="off"
-            spellCheck={false}
-            value={reference}
-            onChange={(event) => {
-              setReference(event.target.value)
-              clear('reference')
-            }}
-            error={errors.reference}
-          />
-        </div>
-
-        <TextArea
-          name="note"
-          label={t('console.subscriptionActions.common.note')}
-          placeholder={t('console.subscriptionActions.common.notePlaceholder')}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-
-        <Field
-          name="proof"
-          label={t('console.subscriptionActions.recordPayment.proof')}
-          hint={t('console.subscriptionActions.recordPayment.proofHint')}
-        >
-          {proof ? (
-            <div className="flex items-center justify-between gap-3 rounded-sm border border-primary-300 bg-primary-25 px-4 py-3">
-              <span dir="ltr" className="min-w-0 truncate text-sm font-medium text-text-secondary">
-                {proof.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => setProof(null)}
-                className="shrink-0 text-sm font-semibold text-primary-700 hover:text-primary-800"
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field
+                name="invoice"
+                label={t('console.subscriptionActions.common.invoice')}
+                required
+                error={errors.invoice}
               >
-                {t('console.subscriptionActions.recordPayment.proofRemove')}
-              </button>
+                <Select
+                  value={invoice}
+                  onChange={(value) => {
+                    setInvoice(value)
+                    const picked = open.find((entry) => entry.id === value)
+                    if (picked) setAmount(picked.total.toFixed(3))
+                    clear('invoice')
+                  }}
+                  options={invoiceOptions}
+                  placeholder={t('console.subscriptionActions.common.invoicePlaceholder')}
+                  disabled={open.length === 0}
+                  ariaLabel={t('console.subscriptionActions.common.invoice')}
+                />
+              </Field>
+              <Field
+                name="method"
+                label={t('console.subscriptionActions.recordPayment.method')}
+                required
+                error={errors.method}
+              >
+                <Select
+                  value={method}
+                  onChange={(value) => {
+                    setMethod(value as PaymentMethod)
+                    clear('method')
+                    clear('reference')
+                  }}
+                  options={methodOptions}
+                  ariaLabel={t('console.subscriptionActions.recordPayment.method')}
+                />
+              </Field>
+              <div data-field="amount">
+                <Input
+                  bordered
+                  name="amount"
+                  label={t('console.subscriptionActions.recordPayment.amount')}
+                  requiredMark
+                  inputMode="decimal"
+                  autoComplete="off"
+                  leadingIcon={<Rial className="text-text-secondary" />}
+                  value={amount}
+                  onChange={(event) => {
+                    setAmount(event.target.value)
+                    clear('amount')
+                  }}
+                  error={errors.amount}
+                  hint={
+                    chosen
+                      ? `${chosen.number} · ${t('console.subscriptionActions.common.includingVat')}`
+                      : undefined
+                  }
+                />
+              </div>
+              <Field
+                name="receivedOn"
+                label={t('console.subscriptionActions.recordPayment.receivedOn')}
+                required
+                error={errors.receivedOn}
+              >
+                <DateField
+                  value={receivedOn}
+                  onChange={(value) => {
+                    setReceivedOn(value)
+                    clear('receivedOn')
+                  }}
+                  max={TODAY_KEY}
+                  ariaLabel={t('console.subscriptionActions.recordPayment.receivedOn')}
+                />
+              </Field>
             </div>
-          ) : (
-            <FileDropzone
-              accept=".pdf,.jpg,.jpeg,.png"
-              maxBytes={5 * 1024 * 1024}
-              onFiles={(files) => setProof(files[0] ?? null)}
-            >
-              {({ dragging }) => (
-                <span
-                  className={[
-                    'flex min-h-[72px] items-center justify-center rounded-sm border border-dashed px-4 py-3 text-center text-sm font-medium transition-colors',
-                    dragging
-                      ? 'border-primary-500 bg-primary-25 text-primary-800'
-                      : 'border-primary-300 bg-surface-tab-bar text-text-tertiary hover:border-primary-500',
-                  ].join(' ')}
-                >
-                  {t('console.subscriptionActions.recordPayment.proofDrop')}
-                </span>
-              )}
-            </FileDropzone>
-          )}
-        </Field>
 
-        {alreadyActive ? null : (
-          <Checkbox
-            label={t('console.subscriptionActions.recordPayment.activate')}
-            checked={activate}
-            onChange={(event) => setActivate(event.target.checked)}
-            className="!text-sm"
-          />
+            <div data-field="reference">
+              <Input
+                bordered
+                name="reference"
+                label={t(`console.subscriptionActions.recordPayment.reference.${method || 'cash'}`)}
+                requiredMark={method !== 'cash'}
+                autoComplete="off"
+                spellCheck={false}
+                value={reference}
+                onChange={(event) => {
+                  setReference(event.target.value)
+                  clear('reference')
+                }}
+                error={errors.reference}
+              />
+            </div>
+
+            <TextArea
+              name="note"
+              label={t('console.subscriptionActions.common.note')}
+              placeholder={t('console.subscriptionActions.common.notePlaceholder')}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
+
+            <Field
+              name="proof"
+              label={t('console.subscriptionActions.recordPayment.proof')}
+              hint={t('console.subscriptionActions.recordPayment.proofHint')}
+            >
+              {proof ? (
+                <div className="flex items-center justify-between gap-3 rounded-sm border border-primary-300 bg-primary-25 px-4 py-3">
+                  <span
+                    dir="ltr"
+                    className="min-w-0 truncate text-sm font-medium text-text-secondary"
+                  >
+                    {proof.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setProof(null)}
+                    className="shrink-0 text-sm font-semibold text-primary-700 hover:text-primary-800"
+                  >
+                    {t('console.subscriptionActions.recordPayment.proofRemove')}
+                  </button>
+                </div>
+              ) : (
+                <FileDropzone
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  maxBytes={5 * 1024 * 1024}
+                  onFiles={(files) => setProof(files[0] ?? null)}
+                >
+                  {({ dragging }) => (
+                    <span
+                      className={[
+                        'flex min-h-[72px] items-center justify-center rounded-sm border border-dashed px-4 py-3 text-center text-sm font-medium transition-colors',
+                        dragging
+                          ? 'border-primary-500 bg-primary-25 text-primary-800'
+                          : 'border-primary-300 bg-surface-tab-bar text-text-tertiary hover:border-primary-500',
+                      ].join(' ')}
+                    >
+                      {t('console.subscriptionActions.recordPayment.proofDrop')}
+                    </span>
+                  )}
+                </FileDropzone>
+              )}
+            </Field>
+
+            {alreadyActive ? null : (
+              <Checkbox
+                label={t('console.subscriptionActions.recordPayment.activate')}
+                checked={activate}
+                onChange={(event) => setActivate(event.target.checked)}
+                className="!text-sm"
+              />
+            )}
+          </>
         )}
       </form>
     </Modal>

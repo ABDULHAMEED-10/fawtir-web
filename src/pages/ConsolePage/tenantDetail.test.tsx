@@ -178,7 +178,8 @@ describe('Tenant detail — real backend data', () => {
     await screen.findByRole('heading', { name: 'Al Noor Bakery' })
 
     expect(screen.getByText('Standard')).toBeTruthy()
-    expect(screen.getByText(/39\.000 a month, plan price/)).toBeTruthy()
+    // The price is drawn with the rial sign, so the words sit beside the figure, not in one node.
+    expect(document.body.textContent).toMatch(/39\.000 a month, plan price/)
     expect(screen.getByText(/500 invoices a month included/)).toBeTruthy()
 
     const body = document.body.textContent ?? ''
@@ -196,7 +197,8 @@ describe('Tenant detail — real backend data', () => {
     await screen.findByRole('heading', { name: 'Al Noor Bakery' })
 
     expect(screen.getByText('Not ready to submit')).toBeTruthy()
-    expect(screen.getByText('COMPANY_VERIFICATION_PENDING')).toBeTruthy()
+    expect(screen.getByText('Company verification is waiting for review')).toBeTruthy()
+    expect(screen.queryByText('COMPANY_VERIFICATION_PENDING')).toBeNull()
     const body = document.body.textContent ?? ''
     for (const forbidden of ['Gone quiet', 'At risk', 'Filing health', 'Certificate']) {
       expect(body).not.toContain(forbidden)

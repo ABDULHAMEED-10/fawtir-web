@@ -291,15 +291,22 @@ describe('Catalogue', () => {
 
   it('reads in Arabic, right to left, with the plan data as the backend holds it', async () => {
     await i18n.changeLanguage('ar')
-    await openCatalogue({}, () =>
-      json(200, [{ ...STARTER, peopleIncluded: 1 }, { ...GROWTH, branchesIncluded: 5 }, { ...LEGACY, peopleIncluded: 12 }]),
+    answer(
+      reads(() =>
+        json(200, [{ ...STARTER, peopleIncluded: 1 }, { ...GROWTH, branchesIncluded: 5 }, { ...LEGACY, peopleIncluded: 12 }]),
+      ),
     )
+    renderPlans()
+    // A standard plan still under its standard name reads in Arabic; a plan the operator named
+    // keeps that name.
+    const starter = i18n.t('plan.planName.starter')
+    await screen.findByRole('heading', { level: 3, name: starter })
 
     expect(screen.getByRole('heading', { level: 1, name: i18n.t('console.plans.title') })).toBeTruthy()
     expect(within(card('Growth')).getByText(i18n.t('console.plans.active'))).toBeTruthy()
     // Arabic has six plural forms; a missing one falls back to English ("5 branches").
-    expect(card('Starter').textContent).toContain('شخص واحد')
-    expect(card('Starter').textContent).toContain('فرع واحد')
+    expect(card(starter).textContent).toContain('شخص واحد')
+    expect(card(starter).textContent).toContain('فرع واحد')
     expect(card('Growth').textContent).toContain('6 أشخاص')
     expect(card('Growth').textContent).toContain('5 فروع')
     expect(card('Legacy 2025').textContent).toContain('12 شخصًا')

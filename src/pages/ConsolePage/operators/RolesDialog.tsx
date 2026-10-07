@@ -143,7 +143,7 @@ export function RolesDialog({ user, team, wholeTeam, selfId, onClose, onChanged 
     >
       <ul className="flex flex-col">
         {PLATFORM_ROLES.map((role) => {
-          const held = user.roles.includes(role)
+          const held = (user.roles ?? []).includes(role)
           const blocked = held
             ? isLastTenantAdmin(user, team, wholeTeam) && role === TENANT_ADMIN
               ? 'console.operators.lastAdmin'

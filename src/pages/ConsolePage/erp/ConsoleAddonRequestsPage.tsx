@@ -139,7 +139,7 @@ export function ConsoleAddonRequestsPage() {
             {tenant.name}
           </Link>
           <span className="mt-1 block text-xs font-medium text-text-quaternary">
-            {tenant.town} · {t('console.tenants.vat')} {tenant.vat}
+            {tenant.town} · {t('console.tenants.vat')} <bdi dir="ltr">{tenant.vat}</bdi>
           </span>
         </span>
       </span>
@@ -350,7 +350,10 @@ export function ConsoleAddonRequestsPage() {
                             <span className="text-sm font-medium text-text-quaternary">—</span>
                           )}
                         </td>
-                        <td className="px-2 py-4">
+                        {/* On a phone card the actions are its footer row: the shared card style
+                            pins an unlabelled last cell over the card's top corner, where Approve
+                            would cover the tenant's name. */}
+                        <td className="px-2 py-4 max-md:[.rows-cards_&]:!static max-md:[.rows-cards_&]:!mt-2 max-md:[.rows-cards_&]:!border-t max-md:[.rows-cards_&]:!border-border-subtle max-md:[.rows-cards_&]:!pt-3">
                           <span className="flex items-center justify-end gap-2">
                             <button
                               type="button"

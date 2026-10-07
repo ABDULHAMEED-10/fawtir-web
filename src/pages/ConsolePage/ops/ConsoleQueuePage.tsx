@@ -227,13 +227,17 @@ export function ConsoleQueuePage() {
 
         {/* The pipeline: every stage a document passes through, with what is at each one now. */}
         <section className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-md bg-surface-card px-6 py-4">
-          <ol className="flex flex-wrap items-center gap-y-2">
+          <ol className="flex flex-wrap items-center gap-y-2 max-md:gap-x-2">
             {PIPELINE.map((stage, index) => {
               const active = stageFilter === stage
               return (
                 <li key={stage} className="flex items-center">
                   {index > 0 ? (
-                    <span aria-hidden="true" className="mx-1.5 h-px w-4 bg-border-default" />
+                    // The connector only reads as a pipeline on one line; stacked on a phone it dangles.
+                    <span
+                      aria-hidden="true"
+                      className="mx-1.5 h-px w-4 bg-border-default max-md:hidden"
+                    />
                   ) : null}
                   <button
                     type="button"
@@ -395,9 +399,12 @@ export function ConsoleQueuePage() {
                       </Link>
                     </td>
                     <td className="px-2 py-4">
-                      <span className="block whitespace-nowrap text-sm font-semibold text-text-primary">
+                      <bdi
+                        dir="ltr"
+                        className="block text-sm font-semibold text-text-primary !whitespace-nowrap"
+                      >
                         {s.documentNo}
-                      </span>
+                      </bdi>
                       <span className="mt-1 block text-xs font-medium text-text-quaternary">
                         {t(`console.queue.kind.${s.kind}`)}
                       </span>
@@ -433,9 +440,12 @@ export function ConsoleQueuePage() {
                       <td className="px-2 py-4">
                         {s.error ? (
                           <>
-                            <span className="inline-flex h-6 items-center rounded-sm bg-danger-100 px-1.5 font-mono text-xs font-semibold text-danger-700">
+                            <bdi
+                              dir="ltr"
+                              className="inline-flex h-6 items-center rounded-sm bg-danger-100 px-1.5 font-mono text-xs font-semibold text-danger-700"
+                            >
                               {s.error.code}
-                            </span>
+                            </bdi>
                             <span className="mt-1 block max-w-[300px] text-xs font-medium leading-[1.4] text-text-tertiary">
                               {s.error.message}
                             </span>

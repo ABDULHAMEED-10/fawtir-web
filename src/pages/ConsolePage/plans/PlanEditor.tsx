@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
-import { Button, Input, Modal, Switch } from '../../../components/ui'
+import { Button, Input, Modal, Rial, Switch } from '../../../components/ui'
 import { focusFirstInvalid } from '../../../lib/forms'
 import {
   EMPTY_PLAN_FORM,
@@ -21,6 +21,7 @@ import type { FormMessage } from '../../../lib/identity/errors'
 import { LOGIN_ROUTE } from '../../../lib/identity/login'
 import type { SubscriptionPlan } from '../../../lib/subscriptionPlans'
 import { isClean } from '../../../lib/validation'
+import { displayPlanName } from './planName'
 
 type PlanEditorProps = {
   /** The plan being edited, or `null` to add one. */
@@ -44,7 +45,7 @@ type TextField = Exclude<PlanField, 'apiAccess' | 'prioritySupport' | 'active'>
  * left out would not be kept, it would be reset (see `PlanUpsertRequest`).
  */
 export function PlanEditor({ plan, takenCodes, onClose, onSaved }: PlanEditorProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const mode = plan ? 'edit' : 'add'
   const [values, setValues] = useState<PlanFormValues>(() => (plan ? planFormFrom(plan) : EMPTY_PLAN_FORM))
@@ -104,7 +105,14 @@ export function PlanEditor({ plan, takenCodes, onClose, onSaved }: PlanEditorPro
       requiredMark={extra.required}
       hint={extra.hint}
       readOnly={extra.readOnly}
-      readOnlyAppearance={extra.readOnly}
+      // Read-only reads grey, like the console's other fixed values, not the brand tint.
+      className={
+        extra.readOnly
+          ? '!border-border-subtle !bg-surface-background [&_input]:!text-text-tertiary'
+          : undefined
+      }
+      dir={name === 'code' ? 'ltr' : undefined}
+      leadingIcon={extra.decimal ? <Rial className="text-text-secondary" /> : undefined}
       inputMode={name === 'name' || name === 'code' ? undefined : extra.decimal ? 'decimal' : 'numeric'}
       autoComplete="off"
       spellCheck={false}
@@ -121,7 +129,7 @@ export function PlanEditor({ plan, takenCodes, onClose, onSaved }: PlanEditorPro
       onClose={() => {
         if (!saving) onClose()
       }}
-      title={plan ? t('console.plans.editPlan', { name: plan.name }) : t('console.plans.addTitle')}
+      title={plan ? t('console.plans.editPlan', { name: displayPlanName(plan, t, i18n.language) }) : t('console.plans.addTitle')}
       subtitle={plan ? t('console.plans.editNote') : t('console.plans.addNote')}
       footer={
         <div className="flex flex-wrap justify-end gap-2.5">

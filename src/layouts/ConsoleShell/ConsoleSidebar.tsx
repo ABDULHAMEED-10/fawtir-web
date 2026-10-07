@@ -82,7 +82,8 @@ export function ConsoleSidebar({ open = false, onClose = () => {}, userName }: C
                     to={item.to}
                     aria-current={active ? 'page' : undefined}
                     className={[
-                      'flex h-11 w-full items-center gap-1.5 rounded-md px-3 transition-colors',
+                      // A long label wraps to a second line rather than being cut off.
+                      'flex min-h-11 w-full items-center gap-1.5 rounded-md px-3 py-2 transition-colors',
                       active
                         ? 'bg-primary-50 text-primary-900'
                         : 'text-text-tertiary hover:bg-primary-25 hover:text-text-secondary',
@@ -91,7 +92,7 @@ export function ConsoleSidebar({ open = false, onClose = () => {}, userName }: C
                     <item.Icon active={active} className="size-5 shrink-0" />
                     <span
                       className={[
-                        'truncate text-base leading-[1.2]',
+                        'min-w-0 break-words text-base leading-[1.2]',
                         active ? 'font-semibold text-primary-900' : 'font-medium',
                       ].join(' ')}
                     >
@@ -108,10 +109,10 @@ export function ConsoleSidebar({ open = false, onClose = () => {}, userName }: C
       <div className="mt-auto px-[21px] pb-4">
         <Link
           to="/console/settings"
-          className="flex h-11 w-full items-center gap-1.5 rounded-md px-3 text-text-tertiary transition-colors hover:bg-primary-25 hover:text-text-secondary"
+          className="flex min-h-11 w-full items-center gap-1.5 rounded-md px-3 py-2 text-text-tertiary transition-colors hover:bg-primary-25 hover:text-text-secondary"
         >
           <NavSettingsIcon className="size-5 shrink-0" />
-          <span className="truncate text-base font-medium leading-[1.2]">
+          <span className="min-w-0 break-words text-base font-medium leading-[1.2]">
             {t('console.nav.bottomSettings')}
           </span>
         </Link>

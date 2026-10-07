@@ -23,7 +23,7 @@ import {
   type SubscriptionInvoice,
   type SubscriptionPlanId,
 } from '../../lib/consoleSubscriptions'
-import { QueueKpiCard } from './subscriptions/QueueKpiCard'
+import { QueueKpiCard, RialFigure } from './subscriptions/QueueKpiCard'
 import { InvoiceStatusPill } from './subscriptions/SubscriptionStatePill'
 import searchIcon from '../../assets/dashboard/search.svg'
 
@@ -98,8 +98,16 @@ export function SubscriptionInvoicesPage() {
         line: '',
         tone: 'text-pending-700',
       }
+    // Only an invoice whose status is Overdue says so; an Unpaid one past its date, still inside
+    // the days before it turns Overdue, says how long ago it fell due, so the line never
+    // contradicts the Unpaid pill beside it.
     return {
-      text: t('console.subscriptions.invoices.overdue', { count: -left }),
+      text: t(
+        invoice.status === 'overdue'
+          ? 'console.subscriptions.invoices.overdue'
+          : 'console.subscriptions.invoices.pastDue',
+        { count: -left },
+      ),
       line: day(invoice.due),
       tone: invoice.status === 'overdue' ? 'text-danger-700' : 'text-pending-700',
     }
@@ -157,7 +165,7 @@ export function SubscriptionInvoicesPage() {
           <QueueKpiCard
             icon={<ConsoleTickIcon className="size-[18px] text-success-700" />}
             title={t('console.subscriptions.invoices.kpi.paid')}
-            value={`OMR ${omr(paidThisMonth.reduce((sum, invoice) => sum + invoice.total, 0))}`}
+            value={<RialFigure amount={paidThisMonth.reduce((sum, invoice) => sum + invoice.total, 0)} />}
             note={t('console.subscriptions.invoices.kpi.paidNote', {
               count: paidThisMonth.length,
               month,
@@ -172,7 +180,7 @@ export function SubscriptionInvoicesPage() {
         </div>
 
         <section className="flex flex-col rounded-md bg-surface-card">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border-subtle px-6 pt-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]">
             {TABS.map((id) => {
               const active = id === tab
               return (
@@ -182,7 +190,7 @@ export function SubscriptionInvoicesPage() {
                   onClick={() => setTab(id)}
                   aria-pressed={active}
                   className={[
-                    'relative flex items-center gap-1.5 pb-3 text-base transition-colors',
+                    'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap pb-3 text-base transition-colors',
                     active
                       ? 'font-semibold text-primary-800'
                       : 'font-medium text-text-tertiary hover:text-text-secondary',
@@ -193,7 +201,7 @@ export function SubscriptionInvoicesPage() {
                     {count(tabCount(id))}
                   </span>
                   {active ? (
-                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700" />
+                    <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary-700 max-md:bottom-0" />
                   ) : null}
                 </button>
               )
@@ -252,7 +260,7 @@ export function SubscriptionInvoicesPage() {
                     <tr key={invoice.id} className="border-b border-[#f3f3f3] last:border-b-0">
                       <td className="px-4 py-4">
                         <span className="block text-sm font-semibold text-text-primary">
-                          {invoice.number}
+                          <bdi dir="ltr" className="whitespace-nowrap">{invoice.number}</bdi>
                         </span>
                         <span className="mt-1 block text-xs font-medium text-text-quaternary">
                           {cover(invoice)}

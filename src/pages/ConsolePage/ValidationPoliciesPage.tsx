@@ -184,7 +184,7 @@ function PolicyTable({ rows }: { rows: BlockerOverviewEntry[] }) {
                 {/* The code is inline inside a block so it keeps its own direction and still starts
                     where the name above it starts, in either language. */}
                 <span className="mt-1 block text-xs font-medium text-text-quaternary">
-                  <span dir="ltr" className="break-all font-mono">
+                  <span dir="ltr" className="break-words font-mono">
                     {entry.type}
                   </span>
                 </span>

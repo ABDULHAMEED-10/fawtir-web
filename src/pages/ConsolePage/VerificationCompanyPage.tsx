@@ -79,12 +79,15 @@ function CompanyReview() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1144px] flex-col gap-4 pb-10">
-      <ConsoleBreadcrumbs
-        items={[
-          { labelKey: 'console.nav.verification', to: backTo },
-          ...(detail.read.status === 'ready' ? [{ label: detail.read.data.tenantName }] : []),
-        ]}
-      />
+      {/* A long company name ends in an ellipsis instead of pushing the trail onto three lines. */}
+      <div className="min-w-0 [&_nav>span:last-child]:min-w-0 [&_nav>span:last-child]:max-w-full [&_nav>span:last-child>span]:min-w-0 [&_nav>span:last-child>span]:truncate">
+        <ConsoleBreadcrumbs
+          items={[
+            { labelKey: 'console.nav.verification', to: backTo },
+            ...(detail.read.status === 'ready' ? [{ label: detail.read.data.tenantName }] : []),
+          ]}
+        />
+      </div>
       {body}
     </div>
   )
@@ -118,12 +121,14 @@ function CompanyView({
   return (
     <>
       <div>
-        <h1 className="text-[32px] font-medium leading-[1.2] text-text-primary">
+        <h1 className="break-words text-[32px] font-medium leading-[1.2] text-text-primary max-md:text-2xl">
           {company.tenantName}
         </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2.5">
           <VerificationStatusPill status={company.verificationStatus} submitted={submitted} />
-          <span className="text-sm font-medium text-text-quaternary">{company.tenantCode}</span>
+          <bdi dir="ltr" className="min-w-0 text-sm font-medium text-text-quaternary [overflow-wrap:anywhere]">
+            {company.tenantCode}
+          </bdi>
         </div>
       </div>
 
@@ -146,8 +151,13 @@ function CompanyView({
         </p>
       ) : null}
 
+      {/*
+        History sits under Account on a wide screen, so the left column does not end in a tall
+        empty band beside the decision cards. Below xl the two columns dissolve into one list and
+        History goes back to the end, after the decision.
+      */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 max-xl:contents">
           <ReviewCard title={t('console.verification.detail.section.company')}>
             <ReviewLine
               label={t('console.verification.detail.field.legalName')}
@@ -155,15 +165,15 @@ function CompanyView({
             />
             <ReviewLine
               label={t('console.verification.detail.field.code')}
-              value={company.tenantCode}
+              value={<bdi dir="ltr">{company.tenantCode}</bdi>}
             />
             <ReviewLine
               label={t('console.verification.detail.field.taxNumber')}
-              value={company.taxNumber ?? none}
+              value={<bdi dir="ltr">{company.taxNumber ?? none}</bdi>}
             />
             <ReviewLine
               label={t('console.verification.detail.field.crNumber')}
-              value={company.commercialRegistrationNumber ?? none}
+              value={<bdi dir="ltr">{company.commercialRegistrationNumber ?? none}</bdi>}
             />
             <ReviewLine
               label={t('console.verification.detail.field.country')}
@@ -175,7 +185,7 @@ function CompanyView({
             />
             <ReviewLine
               label={t('console.verification.detail.field.timezone')}
-              value={company.timezone ?? none}
+              value={<bdi dir="ltr">{company.timezone ?? none}</bdi>}
             />
           </ReviewCard>
 
@@ -217,9 +227,15 @@ function CompanyView({
               </p>
             )}
           </ReviewCard>
+
+          <div className="max-xl:order-last">
+            <ReviewCard title={t('console.verification.detail.section.history')}>
+              <History read={history} retry={retryHistory} />
+            </ReviewCard>
+          </div>
         </div>
 
-        <div className="flex w-full flex-col gap-4 xl:w-[380px] xl:shrink-0">
+        <div className="flex w-full flex-col gap-4 xl:w-[380px] xl:shrink-0 max-xl:contents">
           {submitted && company.verificationStatus === 'PENDING_VERIFICATION' ? (
             <DecisionPanel
               // Remounted per revision, so evidence filed against an older profile never carries over.
@@ -271,12 +287,8 @@ function CompanyView({
             />
             <ReviewLine
               label={t('console.verification.detail.field.attestation')}
-              value={company.attestationReference ?? none}
+              value={<bdi dir="ltr">{company.attestationReference ?? none}</bdi>}
             />
-          </ReviewCard>
-
-          <ReviewCard title={t('console.verification.detail.section.history')}>
-            <History read={history} retry={retryHistory} />
           </ReviewCard>
         </div>
       </div>

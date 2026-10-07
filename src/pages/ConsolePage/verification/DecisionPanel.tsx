@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../../../api'
@@ -50,6 +50,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   const [uploadError, setUploadError] = useState<FormMessage | null>(null)
   const [reference, setReference] = useState('')
   const [referenceTouched, setReferenceTouched] = useState(false)
+  const referenceHintId = useId()
   const [dialog, setDialog] = useState<Dialog>(null)
   const [reason, setReason] = useState<RejectionReason | ''>('')
   const [reasonTouched, setReasonTouched] = useState(false)
@@ -139,6 +140,7 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
   }
 
   const conflict = decisionError?.key === 'console.verification.decision.conflict'
+  const referenceShowsError = Boolean(referenceTouched && referenceProblem)
   const size = evidence
     ? new Intl.NumberFormat(localeFor(i18n.language), {
         style: 'unit',
@@ -216,7 +218,9 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
           requiredMark
           name="attestationReference"
           label={t('console.verification.decision.reference')}
-          hint={t('console.verification.decision.referenceHint')}
+          // The field's own hint prints at 10 px; this one is drawn below at the 12 px helper size
+          // and stays tied to the field for screen readers. An error replaces it, as before.
+          aria-describedby={referenceShowsError ? undefined : referenceHintId}
           value={reference}
           maxLength={100}
           autoComplete="off"
@@ -233,6 +237,14 @@ export function DecisionPanel({ company, operatorId, onDecided }: DecisionPanelP
               : undefined
           }
         />
+        {referenceShowsError ? null : (
+          <p
+            id={referenceHintId}
+            className="mt-1.5 text-xs font-medium leading-[1.4] text-text-tertiary"
+          >
+            {t('console.verification.decision.referenceHint')}
+          </p>
+        )}
       </div>
 
       <div className="mt-4 flex flex-col gap-2.5">

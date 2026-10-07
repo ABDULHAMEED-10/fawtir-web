@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { withRial } from '../../../components/ui'
+import { Rial, withRial } from '../../../components/ui'
+import { omr } from '../../../lib/superAdmin'
 
 /**
  * The KPI card the Subscriptions screens draw — the Tenants card (rial sign in value and note)
@@ -15,7 +16,8 @@ export function QueueKpiCard({
 }: {
   icon: ReactNode
   title: string
-  value: string
+  /** A count as text, or a money figure built with `RialFigure`. */
+  value: ReactNode
   suffix?: string
   note: string
   tone?: 'bad' | 'watch' | 'calm'
@@ -38,5 +40,16 @@ export function QueueKpiCard({
       </p>
       <p className="text-xs font-medium leading-[1.4] text-text-quaternary">{withRial(note)}</p>
     </article>
+  )
+}
+
+/** A KPI money figure: the rial sign and the amount at three decimals, kept on one line. */
+export function RialFigure({ amount }: { amount: number }) {
+  return (
+    <span className="whitespace-nowrap">
+      <Rial />
+      {'\u00A0'}
+      {omr(amount)}
+    </span>
   )
 }

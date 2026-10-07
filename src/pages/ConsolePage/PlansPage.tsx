@@ -13,6 +13,7 @@ import {
 } from '../../lib/console/planCatalogue'
 import { formatOmr, planFeatures, type SubscriptionPlan } from '../../lib/subscriptionPlans'
 import { PlanEditor } from './plans/PlanEditor'
+import { displayPlanName } from './plans/planName'
 import tickIcon from '../../assets/settings/check-ink.svg'
 
 /** `{ plan: null }` is adding a plan. */
@@ -117,7 +118,7 @@ function PlanCatalogue() {
 
 /** The tenant plan screen's card, showing the catalogue's own figures rather than a sales pitch. */
 function PlanCard({ plan, onEdit }: { plan: SubscriptionPlan; onEdit: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   return (
     <article className="flex flex-col rounded-md bg-surface-card p-5">
       <div className="flex items-center justify-between gap-3">
@@ -125,12 +126,17 @@ function PlanCard({ plan, onEdit }: { plan: SubscriptionPlan; onEdit: () => void
           tone={plan.active ? 'success' : 'neutral'}
           label={plan.active ? t('console.plans.active') : t('console.plans.inactive')}
         />
-        <span dir="ltr" className="text-xs font-semibold tracking-[0.04em] text-text-quaternary">
+        <bdi
+          dir="ltr"
+          className="min-w-0 font-mono text-[11px] font-medium text-text-quaternary [overflow-wrap:anywhere]"
+        >
           {plan.code}
-        </span>
+        </bdi>
       </div>
 
-      <h3 className="mt-3 text-xl font-medium leading-[1.2] text-text-primary">{plan.name}</h3>
+      <h3 className="mt-3 text-xl font-medium leading-[1.2] text-text-primary">
+        {displayPlanName(plan, t, i18n.language)}
+      </h3>
 
       <p className="mt-2 flex items-baseline gap-1.5">
         <span className="text-[28px] font-semibold leading-[1.1] text-text-primary">
@@ -157,7 +163,7 @@ function PlanCard({ plan, onEdit }: { plan: SubscriptionPlan; onEdit: () => void
         <button
           type="button"
           onClick={onEdit}
-          aria-label={t('console.plans.editPlan', { name: plan.name })}
+          aria-label={t('console.plans.editPlan', { name: displayPlanName(plan, t, i18n.language) })}
           className="inline-flex h-[46px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
         >
           {t('console.plans.edit')}

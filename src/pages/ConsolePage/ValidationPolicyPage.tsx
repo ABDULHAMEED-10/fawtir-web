@@ -31,7 +31,7 @@ import {
 import { peekEntitlements } from '../../lib/identity/entitlements'
 import type { FormMessage } from '../../lib/identity/errors'
 import { PidPolicyEditor, type EditorTarget } from './policies/PidPolicyEditor'
-import { PolicyContents } from './policies/PolicyContents'
+import { NamedCode, PolicyContents } from './policies/PolicyContents'
 import { PolicyFailureNotice } from './policies/PolicyFailureNotice'
 import { PolicyQueueLabel } from './policies/PolicyQueueLabel'
 import { PolicyStatusPill } from './policies/PolicyStatusPill'
@@ -248,7 +248,7 @@ function PolicyVersions({ type }: { type: BlockerType }) {
             {t(`console.policies.type.${type}`)}
           </h1>
           <p className="mt-1.5 text-sm font-medium text-text-quaternary">
-            <span dir="ltr" className="break-all font-mono">
+            <span dir="ltr" className="break-words font-mono">
               {type}
             </span>
           </p>
@@ -422,9 +422,10 @@ function VersionView({
   const number = new Intl.NumberFormat(localeFor(language))
   const moment = (iso: string | null) => (iso ? formatMoment(iso, language) : none)
   const effective = (iso: string | null) => (iso ? formatUtcMoment(iso, language) : none)
+  // A URL or a hash is one long token: it may break anywhere, but only once it no longer fits.
   const code = (value: string | null) =>
     value ? (
-      <span dir="ltr" className="break-all font-mono">
+      <span dir="ltr" className="font-mono [overflow-wrap:anywhere]">
         {value}
       </span>
     ) : (
@@ -492,7 +493,16 @@ function VersionView({
           />
           <ReviewLine
             label={t('console.policies.detail.field.reasonCode')}
-            value={code(version.reasonCode)}
+            value={
+              version.reasonCode ? (
+                <NamedCode
+                  value={version.reasonCode}
+                  labelKey={`console.policies.reason.${version.reasonCode}`}
+                />
+              ) : (
+                none
+              )
+            }
           />
           <ReviewLine
             label={t('console.policies.detail.field.contentHash')}

@@ -546,7 +546,7 @@ describe('Policy detail reads', () => {
     // A name the server could not resolve: a neutral word and the start of the id, never the whole id.
     expect(trail.getByText('abcdef12').getAttribute('dir')).toBe('ltr')
     expect(trail.getByText('abcdef12').parentElement?.textContent).toContain(
-      `${t('console.policies.actor.unnamed')} abcdef12`,
+      `${t('console.policies.actor.unnamed')} (${t('console.policies.actor.idLabel')} abcdef12)`,
     )
     expect(document.body.textContent).not.toContain('abcdef12-0000')
     expect(

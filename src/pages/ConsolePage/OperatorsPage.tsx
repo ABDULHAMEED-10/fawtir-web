@@ -37,6 +37,7 @@ import { peekEntitlements } from '../../lib/identity/entitlements'
 import type { FormMessage } from '../../lib/identity/errors'
 import { afterLifecycle, type LifecycleAction } from '../../lib/console/operatorLifecycle'
 import { ChangeEmailDialog } from './operators/ChangeEmailDialog'
+import { EmailText } from './operators/EmailText'
 import { DeactivatedOperators, type LifecycleStatus } from './operators/DeactivatedOperators'
 import { LifecycleDialog } from './operators/LifecycleDialog'
 import { InviteOperatorDialog } from './operators/InviteOperatorDialog'
@@ -405,6 +406,13 @@ function TeamTable({
   onLifecycle: (user: PlatformUser, action: LifecycleAction) => void
 }) {
   const { t, i18n } = useTranslation()
+  // A role outside the platform catalogue, named when a label exists for it; null leaves the code.
+  const otherRoleName = (code: string): string | null =>
+    i18n.exists(`console.operators.otherRole.${code}`)
+      ? t(`console.operators.otherRole.${code}`)
+      : i18n.exists(`sessionRoles.${code}`)
+        ? t(`sessionRoles.${code}`)
+        : null
 
   return (
     <RowsView>
@@ -431,8 +439,10 @@ function TeamTable({
         <tbody>
           {team.map((user) => {
             const name = displayName(user)
-            const platformRoles = PLATFORM_ROLES.filter((role) => user.roles.includes(role))
-            const otherRoles = user.roles.filter((code) => !isPlatformRole(code))
+            // Display only: a person the server sends without a roles list is shown with none.
+            const roles = user.roles ?? []
+            const platformRoles = PLATFORM_ROLES.filter((role) => roles.includes(role))
+            const otherRoles = roles.filter((code) => !isPlatformRole(code))
             return (
               <tr key={user.id} className="border-b border-[#f3f3f3] last:border-b-0">
                 <td className="px-4 py-4">
@@ -451,7 +461,7 @@ function TeamTable({
                   ) : null}
                 </td>
                 <td className="px-2 py-4 text-sm font-medium text-text-secondary">
-                  <bdi>{user.email}</bdi>
+                  <EmailText email={user.email} />
                 </td>
                 <td className="px-2 py-4">
                   {!user.enabled ? (
@@ -487,11 +497,15 @@ function TeamTable({
                   ) : (
                     <span className="text-text-quaternary">{t('console.operators.noRoles')}</span>
                   )}
-                  {otherRoles.length ? (
-                    <span className="mt-1 block text-xs text-text-quaternary">
-                      <bdi>{otherRoles.join(', ')}</bdi>
+                  {otherRoles.map((code) => (
+                    <span key={code} className="mt-1 block text-xs text-text-quaternary">
+                      {otherRoleName(code) ?? (
+                        <bdi dir="ltr" className="break-words font-mono">
+                          {code}
+                        </bdi>
+                      )}
                     </span>
-                  ) : null}
+                  ))}
                 </td>
                 <td className="px-4 py-4 text-end">
                   <div className="flex justify-end">
