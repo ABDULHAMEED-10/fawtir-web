@@ -10773,7 +10773,8 @@
       "byApiNote": "All from the ERP sync key",
       "keptFor": "Kept for",
       "years": "years",
-      "keptForNote": "Can't be edited or cleared"
+      "keptForNote": "Can't be edited or cleared",
+      "notCounted": "Fawtir can't count these yet"
     },
     "tab": {
       "all": "All",
@@ -10884,7 +10885,11 @@
       "MappingDraftSaved": "Mapping draft saved",
       "MappingProfileDeactivated": "Mapping deactivated",
       "MappingProfileStored": "Mapping saved"
-    }
+    },
+    "notAvailable": "Not available yet",
+    "exportUnavailable": "Exporting the log as a PDF is not available yet.",
+    "pageScope": "Tabs, search and sort cover the entries on this page only.",
+    "onThisPage": "{{count}} on this page"
   },
   "export": {
     "title": "Take your data with you",

@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import i18next from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Select } from '../../components/ui'
+import { Select, UserIcon } from '../../components/ui'
 import { ApiReadFailure, LoadingNotice } from '../../components/feedback/ApiNotice'
 import { ReportPager } from '../ErpPage/reporting/reportingParts'
 import { useApiRead } from '../../hooks/useApiRead'
@@ -146,16 +147,31 @@ function groupByDay(
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
-/** A resource kind in words where this build has them, as its code otherwise. */
+/** A resource kind in words where this build has them; '' otherwise, never the server's code. */
 function resourceWord(t: Translate, code: string): string {
-  return t(`activityLog.resource.${code}`, { defaultValue: code })
+  const key = `activityLog.resource.${code}`
+  return i18next.exists(key) ? t(key) : ''
 }
 
 function Entry({ entry }: { entry: ActivityLogItemDto }) {
   const { t, i18n } = useTranslation()
   const known = i18n.exists(`activityLog.event.${entry.event_type}`)
+  // A person shows the person glyph: the log carries no name yet (SETTINGS.md row 2.7).
   const actor =
-    entry.actor_type === 'API_KEY' ? 'API' : entry.actor_type === 'SYSTEM' ? 'SYS' : 'USR'
+    entry.actor_type === 'USER' ? (
+      <UserIcon size={16} />
+    ) : entry.actor_type === 'API_KEY' ? (
+      'API'
+    ) : (
+      'SYS'
+    )
+  const actorWord = i18n.exists(`activityLog.actor.${entry.actor_type}`)
+    ? t(`activityLog.actor.${entry.actor_type}`)
+    : ''
+  const resource = entry.resource_type ? resourceWord(t, entry.resource_type) : ''
+  const outcome = i18n.exists(`activityLog.outcome.${entry.outcome}`)
+    ? t(`activityLog.outcome.${entry.outcome}`)
+    : ''
 
   return (
     <li className="flex items-start gap-4 border-b border-surface-background px-5 py-4 last:border-0">
@@ -166,7 +182,7 @@ function Entry({ entry }: { entry: ActivityLogItemDto }) {
         aria-hidden="true"
         className={[
           'flex size-8 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
-          entry.actor_type === 'USER' || entry.actor_type === 'SUPPORT_USER'
+          entry.actor_type === 'USER'
             ? 'bg-primary-700 text-white'
             : 'bg-surface-background text-text-tertiary',
         ].join(' ')}
@@ -175,39 +191,34 @@ function Entry({ entry }: { entry: ActivityLogItemDto }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium leading-[1.5] text-text-secondary">
-          {known ? (
-            t(`activityLog.event.${entry.event_type}`)
-          ) : (
-            <>
-              {t('activityLog.event.other')}{' '}
-              <bdi dir="ltr" className="font-mono text-xs">
-                {entry.event_type}
-              </bdi>
-            </>
-          )}
+          {known ? t(`activityLog.event.${entry.event_type}`) : t('activityLog.event.other')}
         </p>
         <span className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="inline-flex h-[22px] items-center rounded-[3px] bg-surface-background px-2 text-[11px] font-medium text-text-tertiary">
-            {t(`activityLog.actor.${entry.actor_type}`, { defaultValue: entry.actor_type })}
-          </span>
-          {entry.resource_type ? (
-            <span className="inline-flex h-[22px] items-center rounded-[3px] bg-primary-50 px-2 text-[11px] font-medium text-primary-800">
-              {resourceWord(t, entry.resource_type)}
+          {actorWord ? (
+            <span className="inline-flex h-[22px] items-center rounded-[3px] bg-surface-background px-2 text-[11px] font-medium text-text-tertiary">
+              {actorWord}
+            </span>
+          ) : null}
+          {resource ? (
+            <span className="inline-flex h-[22px] items-center gap-1 rounded-[3px] bg-primary-50 px-2 text-[11px] font-medium text-primary-800">
+              {resource}
               {entry.resource_id ? (
-                <bdi dir="ltr" className="ms-1 font-mono">
+                <bdi dir="ltr" className="font-mono">
                   {entry.resource_id.slice(0, 8)}
                 </bdi>
               ) : null}
             </span>
           ) : null}
-          <span
-            className={[
-              'inline-flex h-[22px] items-center rounded-[3px] px-2 text-[11px] font-medium',
-              OUTCOME_TONE[entry.outcome] ?? OUTCOME_TONE.SUCCESS,
-            ].join(' ')}
-          >
-            {t(`activityLog.outcome.${entry.outcome}`, { defaultValue: entry.outcome })}
-          </span>
+          {outcome ? (
+            <span
+              className={[
+                'inline-flex h-[22px] items-center rounded-[3px] px-2 text-[11px] font-medium',
+                OUTCOME_TONE[entry.outcome] ?? OUTCOME_TONE.SUCCESS,
+              ].join(' ')}
+            >
+              {outcome}
+            </span>
+          ) : null}
         </span>
       </div>
     </li>
