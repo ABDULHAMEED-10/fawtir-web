@@ -924,7 +924,7 @@
     "method": {
       "cardLink": {
         "title": "Card",
-        "subtitle": "Secure link · Thawani"
+        "subtitle": "Secure link · Paymob"
       },
       "bankTransfer": {
         "title": "Bank transfer",
@@ -936,14 +936,14 @@
       }
     },
     "cardLink": {
-      "note": "Your card is entered on Thawani's secure checkout, never on Fawtir. Nothing about it is stored with us.",
+      "note": "Your card is entered on Paymob's secure checkout, never on Fawtir. Nothing about it is stored with us.",
       "how": "How would you like the checkout?",
       "via": {
         "now": "Open it now",
         "whatsapp": "Send me the link by WhatsApp",
         "email": "Send me the link by email"
       },
-      "viaNowNote": "You go to Thawani's checkout and come straight back.",
+      "viaNowNote": "You go to Paymob's checkout and come straight back.",
       "viaWhatsAppNote": "To {{phone}} · valid {{days}} days",
       "viaEmailNote": "To {{email}} · valid {{days}} days",
       "yourPhone": "your phone",
@@ -979,7 +979,7 @@
     "subscription": {
       "title": "Your subscription",
       "awaiting": "{{plan}} · awaiting activation by the Fawtir team",
-      "cardLink": "Paid by card through Thawani — you'll be activated as soon as the payment is confirmed.",
+      "cardLink": "Paid by card through Paymob: you'll be activated as soon as the payment is confirmed.",
       "cardLinkSent": "Your payment link is on its way by {{via}}. Your account is activated once you've paid it.",
       "bankTransfer": "Waiting for your bank transfer. Your account is activated once it arrives, usually within one business day.",
       "cash": "Waiting for your cash payment. Your account is activated once it is recorded, usually the same day.",
@@ -10732,14 +10732,14 @@
       "cheque": "Cheque"
     },
     "methodHint": {
-      "cardLink": "Thawani checkout · nothing stored with us",
+      "cardLink": "Paymob checkout · nothing stored with us",
       "bankTransfer": "Bank Muscat · quote the invoice number",
       "cash": "At Fawtir's office or to your representative",
       "cheque": "Made out to Insight Technology LLC"
     },
     "confirmedBy": {
-      "thawani": "Paid by link · confirmed by Thawani {{date}}",
-      "fawtir": "Confirmed by the Fawtir team {{date}}"
+      "fawtir": "Confirmed by the Fawtir team {{date}}",
+      "paymob": "Paid by link · confirmed by Paymob {{date}}"
     },
     "pay": {
       "title": "How you pay",
@@ -10756,7 +10756,7 @@
         "cheque": "Hand a cheque made out to Insight Technology LLC to your representative. The period is activated once it clears."
       },
       "linkTitle": "Card by secure link",
-      "linkNote": "A Thawani link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
+      "linkNote": "A Paymob link comes by {{to}} a week before each bill, valid {{days}} days. Fawtir never sees or stores your card.",
       "transferTitle": "Bank transfer",
       "transferNote": "Reference: {{reference}}. Activated by the Fawtir team once the transfer is confirmed.",
       "copyIban": "Copy the IBAN",
@@ -13112,7 +13112,7 @@
           "bankTransfer": "Transfer reference",
           "cheque": "Cheque number and bank",
           "cash": "Receipt number",
-          "cardLink": "Thawani transaction id"
+          "cardLink": "Paymob transaction id"
         },
         "proof": "Proof",
         "proofHint": "Optional: a bank slip, a receipt, a photo of the cheque. Nothing is uploaded yet.",
@@ -13123,7 +13123,7 @@
       },
       "sendLink": {
         "title": "Send a payment link",
-        "subtitle": "A Thawani checkout for {{tenant}}. The console keeps the link and its status.",
+        "subtitle": "A Paymob checkout for {{tenant}}. The console keeps the link and its status.",
         "channel": "Send it by",
         "whatsapp": {
           "title": "WhatsApp",
@@ -13147,7 +13147,7 @@
           "copied": "Copy link"
         },
         "sentTitle": "Link sent",
-        "sentBody": "Shown as Not paid yet until Thawani confirms the card payment, or it expires on {{date}}.",
+        "sentBody": "Shown as Not paid yet until Paymob confirms the card payment, or it expires on {{date}}.",
         "copy": "Copy",
         "copiedNow": "Copied",
         "done": "Done",
@@ -13261,7 +13261,7 @@
         },
         "payments": {
           "title": "Payments",
-          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Thawani; the other methods are settled by an operator."
+          "note": "How a subscription invoice is paid and when the account is activated. Every online payment goes through Paymob; the other methods are settled by an operator."
         },
         "promotional": {
           "title": "Promotional",
@@ -13462,10 +13462,10 @@
       },
       "payments": {
         "provider": {
-          "thawani": "Thawani",
           "publishableKey": "Publishable key",
           "keysNote": "The keys are held by the backend; the console never sees the secret. Switching mode changes which key the backend uses.",
-          "modeLabel": "Provider mode"
+          "modeLabel": "Provider mode",
+          "paymob": "Paymob"
         },
         "mode": {
           "test": "Test",
@@ -13479,7 +13479,7 @@
           "cheque": "Cheque"
         },
         "methodNote": {
-          "cardLink": "A Thawani link on the invoice and in the WhatsApp message.",
+          "cardLink": "A Paymob link on the invoice and in the WhatsApp message.",
           "bankTransfer": "The bank details below are printed on the invoice.",
           "cash": "Settled by an operator, with a reference.",
           "cheque": "Settled by an operator once the cheque clears."
@@ -13498,7 +13498,7 @@
         "reminderDays": "Reminders for an unpaid subscription invoice",
         "reminderDaysHint": "Days after the invoice date. The grace notices follow once a payment has failed.",
         "autoActivate": "Auto-activate on online payment",
-        "autoActivateNote": "Off: a Thawani payment shows as paid and an operator activates the account. On: the account activates itself the moment Thawani confirms.",
+        "autoActivateNote": "Off: a Paymob payment shows as paid and an operator activates the account. On: the account activates itself the moment Paymob confirms.",
         "proofRequired": "Proof required for cash and cheque",
         "proofRequiredNote": "Off, a reference is enough. On, an operator must attach the receipt or cheque image before the invoice is marked paid.",
         "templatesGroup": "WhatsApp message templates",

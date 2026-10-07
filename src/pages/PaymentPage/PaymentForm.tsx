@@ -21,7 +21,7 @@ import tickIcon from '../../assets/payment/tick-circle.svg'
 /**
  * How a new account pays its first bill (15 Sep 2026).
  *
- * Fawtir never takes card details: a card payment opens Thawani's own checkout, either straight
+ * Fawtir never takes card details: a card payment opens Paymob's own checkout, either straight
  * from here or from a link sent to the customer's phone or inbox. Bank transfer and cash are the
  * other two doors, and every one of them ends the same way — someone at Fawtir confirms the money
  * arrived and activates the account. So the design's card form is gone; the three routes stand

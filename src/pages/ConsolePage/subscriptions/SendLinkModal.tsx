@@ -68,7 +68,7 @@ function LinkIcon() {
 }
 
 /**
- * Sends a Thawani checkout link for an unpaid invoice. The backend creates the session; here the
+ * Sends a Paymob checkout link for an unpaid invoice. The backend creates the session; here the
  * operator picks the channel — a `wa.me` chat with the message filled in, an email draft, or the
  * bare link to paste anywhere — and the console keeps the link with its status and expiry.
  * Resending expires the earlier link for the same invoice (the store does that).

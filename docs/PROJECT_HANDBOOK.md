@@ -433,7 +433,7 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
   never hidden.
 - **ERP extraction** is a separate add-on with per-plan availability (not offered, priced,
   included), offered at payment and managed in Settings, Plan. White label was removed.
-- **Payments for subscriptions:** Thawani hosted checkout, owned by the backend; the app never
+- **Payments for subscriptions:** Paymob hosted checkout (owner, 7 Oct 2026: Paymob, not Thawani), owned by the backend; the app never
   takes card details (never Stripe). Operators record offline payments and activate tenants in
   the console. Operators land on `/console` after sign-in.
 - **Sign-up:** "Tell us about your business" asks **"Will you use Fawtir POS?"** (unticked by

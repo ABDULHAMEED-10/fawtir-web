@@ -8,7 +8,7 @@ import { PLATFORM_SETTINGS } from './platformSettings'
  * of a tenant (docs/erp-and-console-plan.md §7).
  *
  * The rule the client set on 15 Sep 2026: every subscription is activated by an operator here.
- * Money arrives four ways — a Thawani payment link sent over WhatsApp, email or any channel, a
+ * Money arrives four ways — a Paymob payment link sent over WhatsApp, email or any channel, a
  * bank transfer, cash at the office, or a cheque — and how it arrives changes who confirms it,
  * not what happens next: someone at Insight sees it, an operator records it, the account is
  * activated for the period.
@@ -69,7 +69,7 @@ export type Payment = {
   method: PaymentMethod
   amount: number
   receivedOn: Date
-  /** A transfer reference, a cheque number and bank, a Thawani transaction id. */
+  /** A transfer reference, a cheque number and bank, a Paymob transaction id. */
   reference?: string
   confirmedBy: string
   note?: string
@@ -971,7 +971,7 @@ function build(): Ledger {
           method: seed.paid.method,
           amount: invoice.total,
         }
-        const by = seed.paid.method === 'cardLink' ? 'Thawani' : (seed.paid.by ?? OPERATOR)
+        const by = seed.paid.method === 'cardLink' ? 'Paymob' : (seed.paid.by ?? OPERATOR)
         ledger.payments.push({
           id: `pay-${seed.tenantId}-${index}`,
           tenantId: seed.tenantId,
@@ -1003,7 +1003,7 @@ function build(): Ledger {
           id: `link-${seed.tenantId}`,
           tenantId: seed.tenantId,
           invoiceId: invoice.id,
-          url: `https://checkout.thawani.om/pay/${seed.tenantId.replace(/-/g, '')}${index}?key=pk_live`,
+          url: `https://accept.paymob.com/unifiedcheckout/?publicKey=pk_live&clientSecret=${seed.tenantId.replace(/-/g, '')}${index}`,
           sentVia: seed.open.link.via,
           sentAt,
           sentBy: OPERATORS[index % OPERATORS.length],
@@ -1215,7 +1215,7 @@ export const subscriptionsStore = {
       id: nextId('link'),
       tenantId: input.tenantId,
       invoiceId: input.invoiceId,
-      url: `https://checkout.thawani.om/pay/${input.tenantId.replace(/-/g, '')}${actionSequence}?key=pk_live`,
+      url: `https://accept.paymob.com/unifiedcheckout/?publicKey=pk_live&clientSecret=${input.tenantId.replace(/-/g, '')}${actionSequence}`,
       sentVia: input.via,
       sentAt: now,
       sentBy: OPERATOR,

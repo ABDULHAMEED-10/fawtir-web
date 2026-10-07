@@ -39,7 +39,7 @@ type FieldName = 'invoice' | 'method' | 'amount' | 'receivedOn' | 'reference' | 
 const ORDER: FieldName[] = ['invoice', 'method', 'amount', 'receivedOn', 'reference', 'note']
 
 /**
- * Money arrived — by transfer, cash, cheque, or a card link Thawani confirmed — and someone at
+ * Money arrived — by transfer, cash, cheque, or a card link Paymob confirmed — and someone at
  * Insight is recording it. The invoice goes to Paid and, unless the box is unticked, the account
  * is activated for the period the invoice covers (§7.1: activation always happens here).
  */
