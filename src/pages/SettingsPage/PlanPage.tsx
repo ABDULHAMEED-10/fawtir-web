@@ -170,7 +170,10 @@ export function PlanPage() {
       </section>
 
       {/* Plans */}
-      {/* All four plans, as /plans and /pricing list them; Enterprise has no price to print. */}
+      {/* All four plans, as /plans and /pricing list them; Enterprise has no price to print.
+          TODO: show the Enterprise card only to companies on Business Plus, the one plan it is the
+          next step from; everyone else sees the three priced plans (owner, 7 Oct 2026: agreed, to
+          be done later). */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {PLANS.map((plan) => (
           <PlanCard key={plan.id} plan={plan} />
