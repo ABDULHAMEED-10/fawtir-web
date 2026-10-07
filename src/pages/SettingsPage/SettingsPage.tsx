@@ -21,7 +21,7 @@ import {
 } from '../../lib/settingsCompany'
 import { MEMBERS, withoutTwoStep, ROLES, SEATS } from '../../lib/settingsPeople'
 import { nextBill, HOW_YOU_PAY } from '../../lib/settingsBilling'
-import { LOG_BOOK, LAST_EXPORT_ON } from '../../lib/settingsRecords'
+import { LAST_EXPORT_ON } from '../../lib/settingsRecords'
 import chevronIcon from '../../assets/invoices/chevron.svg'
 import peppolIcon from '../../assets/settings/tile-peppol.svg'
 import companyIcon from '../../assets/settings/tile-company.svg'
@@ -48,6 +48,9 @@ import {
 import { sourceSystemName } from '../../lib/erp/sourceSystem'
 import { listErpConnections } from '../../api/erp/connections'
 import { useErpAccess } from '../../hooks/useErpAccess'
+import { useEntitlements } from '../../hooks/useEntitlements'
+import { hasPermission } from '../../lib/identity/entitlements'
+import { isPermissionDenied } from '../../lib/apiFailure'
 import { useFeature } from '../../lib/planAccess'
 import type { Feature } from '../../lib/plans'
 import { LockIcon } from '../../components/ui/icons'
@@ -111,11 +114,29 @@ export function SettingsPage() {
 
   const forecast = usageForecast()
   const bill = nextBill()
-  // Two reads, not the mapping screens' eight — see loadErpMappingCard. Until they land the card
-  // shows the neutral "not set up" pill rather than a figure it does not have yet.
-  const mappingCard = useApiRead<ErpMappingCard>(ERP_MAPPING_CARD_KEY, () =>
-    loadErpMappingCard('JSON'),
+  // Two reads, not the mapping screens' eight — see loadErpMappingCard. Asked only of a reader the
+  // mapping routes admit (Phase 9): the card used to read for everyone and fold a 403, a failure
+  // and the wait itself into "Not set up", telling a reader without access that the company had
+  // no mapping.
+  const { entitlements } = useEntitlements()
+  const mayReadMapping =
+    entitlements !== null &&
+    (hasPermission(entitlements, 'admin.settings.manage') ||
+      hasPermission(entitlements, 'mapping.read'))
+  const mappingCard = useApiRead<ErpMappingCard>(
+    mayReadMapping ? ERP_MAPPING_CARD_KEY : null,
+    () => loadErpMappingCard('JSON'),
   )
+  /** Why the card has no status yet, when it has none: never folded into "not set up". */
+  const mappingWait: 'NO_ACCESS' | 'CHECKING' | 'UNAVAILABLE' | null = !mayReadMapping
+    ? 'NO_ACCESS'
+    : mappingCard.read.status === 'loading'
+      ? 'CHECKING'
+      : mappingCard.read.status === 'failed'
+        ? isPermissionDenied(mappingCard.read.error)
+          ? 'NO_ACCESS'
+          : 'UNAVAILABLE'
+        : null
   // Memoized so the fallback object is not a fresh identity on every render, which would make the
   // cards memo below recompute each time. It was already in that memo's dependency list; the
   // lint only surfaced once the mock connector values left the list and stopped masking it.
@@ -226,6 +247,17 @@ export function SettingsPage() {
         pillTone: 'pending',
       },
       {
+        id: 'erpOverview',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: integrationIcon,
+        iconTint: 'bg-primary-50',
+        to: '/settings/erp',
+        pillKey: 'settings.card.erpOverviewPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.erpOverviewFoot',
+      },
+      {
         id: 'erpMapping',
         group: 'integration',
         feature: 'erpMapping',
@@ -235,9 +267,11 @@ export function SettingsPage() {
             ? 'bg-pending-100'
             : 'bg-primary-50',
         to: '/settings/erp-mapping',
-        pillKey: `settings.card.erpMappingPill.${mappingStatus}`,
+        pillKey: `settings.card.erpMappingPill.${mappingWait ?? mappingStatus}`,
         pillTone:
-          mappingStatus === 'CERTIFIED'
+          mappingWait !== null
+            ? 'neutral'
+            : mappingStatus === 'CERTIFIED'
             ? 'success'
             : mappingStatus === 'NOT_SET_UP'
               ? 'neutral'
@@ -248,9 +282,14 @@ export function SettingsPage() {
                   mappingStatus === 'READY_UNCERTIFIED'
                 ? 'pending'
                 : 'neutral',
-        footKey: mapping.hasGuided
-          ? 'settings.card.erpMappingFoot'
-          : 'settings.card.erpMappingFootNone',
+        footKey:
+          mappingWait === 'NO_ACCESS'
+            ? 'settings.card.erpMappingFootNoAccess'
+            : mappingWait !== null
+              ? 'settings.card.erpMappingFootUnknown'
+              : mapping.hasGuided
+                ? 'settings.card.erpMappingFoot'
+                : 'settings.card.erpMappingFootNone',
         footValues: {
           system: mapping.sourceSystem ? sourceSystemName(t, mapping.sourceSystem) : '',
           mapped: mapping.mapped,
@@ -308,6 +347,17 @@ export function SettingsPage() {
         footKey: 'settings.card.erpActivityFoot',
       },
       {
+        id: 'erpAccess',
+        group: 'integration',
+        feature: 'erpMapping',
+        icon: logIcon,
+        iconTint: 'bg-surface-background',
+        to: '/settings/erp/access',
+        pillKey: 'settings.card.erpAccessPill',
+        pillTone: 'neutral',
+        footKey: 'settings.card.erpAccessFoot',
+      },
+      {
         id: 'plan',
         group: 'billing',
         icon: planIcon,
@@ -345,8 +395,8 @@ export function SettingsPage() {
         pillKey: 'settings.card.logPill',
         pillValues: { years: BOOK.retentionYears },
         pillTone: 'neutral',
-        footKey: 'settings.card.logFoot',
-        footValues: { count: LOG_BOOK.thisMonth.toLocaleString('en-US') },
+        // The monthly count was the sample log's; the real log has no count endpoint.
+        footKey: 'settings.card.logFootReal',
       },
       {
         id: 'export',
@@ -383,7 +433,7 @@ export function SettingsPage() {
         footKey: 'settings.card.closingFoot',
       },
     ],
-    [forecast, bill, t, mapping, mappingStatus, connections],
+    [forecast, bill, t, mapping, mappingStatus, mappingWait, connections],
   )
 
   const groups = SETTINGS_TABS.filter((tab) => tab.id !== 'all').filter(

@@ -73,8 +73,9 @@ status for JSON standard invoices.
 | `src/pages/ErpPage/erpApiPush.test.tsx`, `src/lib/erp/apiPush.test.ts` | new tests |
 | `src/pages/ErpPage/reporting/erpReporting.test.tsx` | one test: 503 `ERP_REPORT_TIMEOUT` (Phase 4 follow-up) |
 
-## Phase 4 follow-up: 503 `ERP_REPORT_TIMEOUT`
+## Phase 4 follow-up: 503 `ERP_REPORT_TIMEOUT` (RESOLVED)
 
+**Status: RESOLVED** (closed in Phase 9, 7 Oct 2026; nothing further to do).
 Verified: the reporting pages render it through the shared failure text ("Fawtir is temporarily
 unavailable. Please try again shortly."), with the support reference and Try again, and never the
 server's text. No UI change was needed; a test now holds it.

@@ -9731,7 +9731,10 @@
         "READY_UNCERTIFIED": "Ready, not certified",
         "PARTIALLY_CERTIFIED": "Partly certified",
         "CERTIFIED": "Certified",
-        "STALE": "Re-certify"
+        "STALE": "Re-certify",
+        "NO_ACCESS": "No access",
+        "CHECKING": "Checking",
+        "UNAVAILABLE": "Unavailable"
       },
       "erpMappingFoot": "Guided · {{system}} · {{mapped}} of {{required}} required fields",
       "erpMappingFootNone": "Start with your ERP's sample invoice",
@@ -9761,7 +9764,18 @@
       "apiPushTitle": "API push",
       "apiPushBody": "Keys your ERP uses to send documents to Fawtir, and how to call the API.",
       "apiPushPill": "ERP ingestion keys",
-      "apiPushFoot": "Create, rotate and revoke"
+      "apiPushFoot": "Create, rotate and revoke",
+      "erpOverviewTitle": "ERP integration",
+      "erpOverviewBody": "How documents reach Fawtir from your ERP, what needs attention, and what is left to set up.",
+      "erpOverviewPill": "Overview",
+      "erpOverviewFoot": "Connections, upload, API push, mapping",
+      "erpAccessTitle": "ERP access and history",
+      "erpAccessBody": "Who can do what in ERP integration, and the record of changes made to it.",
+      "erpAccessPill": "Access",
+      "erpAccessFoot": "Permissions and activity log",
+      "logFootReal": "Recorded by the server",
+      "erpMappingFootNoAccess": "Your role cannot see the mapping",
+      "erpMappingFootUnknown": "Status not available right now"
     }
   },
   "peppolTax": {
@@ -10593,13 +10607,14 @@
     },
     "addons": {
       "title": "Add-ons",
-      "subtitle": "What you pay for on top of the plan.",
+      "subtitle": "What your organisation has on top of the plan.",
       "extraction": {
-        "name": "Automatic ERP extraction",
-        "body": "Fawtir collects invoices from your ERP on a schedule, runs them through your field mapping, submits them, and writes the result back into the ERP record.",
+        "name": "ERP integration",
+        "body": "Fawtir takes documents from your ERP by a managed connection, by upload, or by API push, runs them through your field mapping and submits them.",
         "price": "{{amount}} a month · {{documents}} documents collected · then {{overage}} each",
         "includedPrice": "Included in your plan · {{documents}} documents collected a month",
-        "usage": "{{used}} of {{allowance}} collected this month · resets {{resets}}"
+        "usage": "{{used}} of {{allowance}} collected this month · resets {{resets}}",
+        "realState": "Fawtir switches ERP integration on for each organisation. Whether it is on for yours, and what it has done, is shown in ERP integration. There is no separate usage count or price to show here yet."
       },
       "state": {
         "active": "Active",
@@ -10607,13 +10622,15 @@
         "pending": "Requested",
         "off": "Not active",
         "includedOff": "Included · off",
-        "notSupported": "Not supported on your plan"
+        "notSupported": "Not supported on your plan",
+        "managedByFawtir": "Enabled by Fawtir"
       },
       "ask": "Ask to activate",
       "switchOn": "Switch on",
       "openConnections": "Open Connected systems",
       "pendingNote": "Requested. The Fawtir team confirms and switches it on.",
-      "notSupportedNote": "Available on {{plan}}. Move up a plan to add it."
+      "notSupportedNote": "Available on {{plan}}. Move up a plan to add it.",
+      "openIntegration": "Open ERP integration"
     }
   },
   "bills": {
@@ -10778,7 +10795,74 @@
       "leftAlone": "3 left alone",
       "dailyCheck": "Daily check at 06:00"
     },
-    "openEntry": "Open this entry"
+    "openEntry": "Open this entry",
+    "filter": {
+      "resource": "What it concerns",
+      "anyResource": "Anything",
+      "outcome": "Result",
+      "anyOutcome": "Any result"
+    },
+    "outcome": {
+      "SUCCESS": "Succeeded",
+      "FAILURE": "Failed",
+      "DENIED": "Refused",
+      "THROTTLED": "Slowed down"
+    },
+    "actor": {
+      "USER": "Person",
+      "API_KEY": "API key",
+      "SYSTEM": "Fawtir",
+      "SUPPORT_USER": "Fawtir support"
+    },
+    "resource": {
+      "USER": "User",
+      "SESSION": "Sign-in",
+      "DEVICE": "Device",
+      "ERP_CONNECTION": "ERP connection",
+      "API_KEY": "API key",
+      "MAPPING_PROFILE": "Mapping",
+      "MAPPING_CERTIFICATION": "Mapping certification",
+      "ERP_SOURCE_DOCUMENT": "ERP document",
+      "ERP_EXTRACTION_RUN": "Collection run",
+      "ERP_ENTITLEMENT": "ERP enablement"
+    },
+    "event": {
+      "other": "Recorded event",
+      "ApiKeyCreated": "API key created",
+      "ApiKeyRevoked": "API key revoked",
+      "ApiKeyRotationCompleted": "API key rotation completed",
+      "ApiKeyRotationStarted": "API key rotation started",
+      "ErpConnectionArchived": "Connection retired",
+      "ErpConnectionCreated": "Connection added",
+      "ErpConnectionStateChanged": "Connection state changed",
+      "ErpConnectionTested": "Connection checked",
+      "ErpConnectionUpdated": "Connection changed",
+      "ErpCredentialConfigured": "Sign-in details set",
+      "ErpCredentialReencrypted": "Sign-in details re-encrypted",
+      "ErpCredentialReplaced": "Sign-in details replaced",
+      "ErpEntitlementGranted": "ERP integration enabled",
+      "ErpEntitlementRevoked": "ERP integration disabled",
+      "ErpExtractionClaimReleased": "Collection run released",
+      "ErpExtractionDisabled": "Collection switched off",
+      "ErpExtractionEnabled": "Collection switched on",
+      "ErpExtractionRunRecovered": "Collection run recovered",
+      "ErpExtractionSampleFetched": "Sample fetched",
+      "ErpExtractionSettingsChanged": "Collection settings changed",
+      "ErpSourceDocumentAccepted": "ERP document accepted",
+      "ErpSourceDocumentConflict": "ERP document conflicted",
+      "ErpSourceDocumentDeferred": "ERP document deferred",
+      "ErpSourceDocumentDuplicate": "ERP document was a duplicate",
+      "ErpSourceDocumentRejected": "ERP document rejected",
+      "MappingActivated": "Mapping activated",
+      "MappingArchived": "Mapping archived",
+      "MappingCertificationFailed": "Mapping certification failed",
+      "MappingCertificationGateRejected": "Mapping certification refused",
+      "MappingCertificationPassed": "Mapping certified",
+      "MappingCertificationStarted": "Mapping certification started",
+      "MappingDraftSaved": "Mapping draft saved",
+      "MappingProfileDeactivated": "Mapping deactivated",
+      "MappingProfileStored": "Mapping saved"
+    }
   },
   "export": {
     "title": "Take your data with you",
@@ -15491,7 +15575,8 @@
         "credentialMissing": "Not configured",
         "neverTested": "Never checked",
         "count_one": "{{count}} connection",
-        "count_other": "{{count}} connections"
+        "count_other": "{{count}} connections",
+        "columnCollection": "Collection"
       },
       "detail": {
         "heading": "Connection",
@@ -16768,7 +16853,8 @@
         "bridgeBody": "You send one document yourself. No connection is needed.",
         "apiPush": "API push.",
         "apiPushBody": "Your ERP sends documents to Fawtir itself, with an ERP ingestion API key your developers set up.",
-        "apiPushLink": "API push keys"
+        "apiPushLink": "API push keys",
+        "bridgeActivityLink": "Uploaded documents"
       },
       "readiness": {
         "title": "Is your mapping ready?",
@@ -17215,7 +17301,8 @@
         "guideTitle": "What the labels mean",
         "guideOpen": "Show the labels",
         "since": "since",
-        "tax": "Tax report: {{status}}"
+        "tax": "Tax report: {{status}}",
+        "response": "Recipient answer: {{answer}}"
       },
       "runs": {
         "title": "Extraction runs",
@@ -17346,6 +17433,157 @@
         "sample": "Example request",
         "activity": "See API push activity",
         "mapping": "Open the mapping"
+      }
+    },
+    "area": {
+      "label": "ERP integration areas",
+      "overview": "Overview",
+      "connections": "Connections",
+      "bridge": "Bridge upload",
+      "apiPush": "API push",
+      "mapping": "Mapping",
+      "activity": "Activity",
+      "access": "Access and history"
+    },
+    "home": {
+      "title": "ERP integration",
+      "subtitle": "How documents reach Fawtir from your ERP, worked out by the server for the period you choose.",
+      "noAccess": "This overview needs permission to read ERP connections and invoices. Ask an administrator if you need it.",
+      "window": "Period",
+      "notEntitled": "ERP integration is not enabled",
+      "notEntitledBody": "Fawtir has not switched ERP integration on for your organisation. Contact Fawtir to enable it.",
+      "automationOff": "Scheduled collection is paused across Fawtir right now, so managed connections will not collect until it resumes.",
+      "attention": {
+        "title": "Needs attention",
+        "note": "Counts for the period, worked out by the server. Open a label to see the documents.",
+        "deliveryFailed": "Delivery failed",
+        "taxReport": "Tax report needs attention",
+        "unevaluated": "Not checked: {{labels}}."
+      },
+      "connections": {
+        "title": "Connections",
+        "note_one": "{{count}} connection",
+        "note_other": "{{count}} connections",
+        "open": "Open connections",
+        "name": "Name",
+        "state": "State",
+        "collection": "Collection",
+        "lastCompleted": "Last completed run",
+        "lastFailed": "Last failed run",
+        "empty": "No connections yet.",
+        "counts": "Ready {{ready}} · Draft {{draft}} · Disabled {{disabled}}",
+        "notPulled": "Not collected",
+        "unreadable": "Cannot be read",
+        "failures_one": "{{count}} failure in a row",
+        "failures_other": "{{count}} failures in a row"
+      },
+      "mapping": {
+        "title": "Mapping",
+        "active": "Active mapping",
+        "none": "No active mapping",
+        "uncertified_one": "{{count}} channel has no certified mapping.",
+        "uncertified_other": "{{count}} channels have no certified mapping.",
+        "open": "Open mapping"
+      },
+      "checklist": {
+        "title": "Setup",
+        "note": "Worked out from what the server holds now. Nothing here is remembered by this browser.",
+        "progress": "{{done}} of {{total}} done.",
+        "noConnection": "No connection is needed.",
+        "windowNote": "A step that counts documents looks at the period chosen above.",
+        "step": {
+          "connection": "Add a connection",
+          "credentials": "Set the sign-in",
+          "test": "Check the connection",
+          "sample": "Fetch a sample (optional)",
+          "extraction": "Set up collection",
+          "documentIdPointer": "Point to the document number",
+          "issueTimePointer": "Point to the issue time",
+          "mapping": "Activate a mapping",
+          "certification": "Certify the mapping",
+          "enable": "Switch collection on",
+          "firstAccepted": "First document accepted",
+          "monitor": "Watch activity and attention",
+          "upload": "Upload a document",
+          "verify": "Check the result",
+          "activity": "See uploaded documents",
+          "entitlement": "ERP integration enabled",
+          "apiKey": "Create an API push key",
+          "instructions": "Give your developers the instructions",
+          "testPush": "Send a first document",
+          "rotate": "Rotate the key when needed"
+        },
+        "state": {
+          "done": "Done",
+          "todo": "To do",
+          "unknown": "Not known",
+          "info": "Guidance"
+        }
+      },
+      "runs": {
+        "latest": "Latest runs",
+        "failed": "Latest failed runs",
+        "open": "Open runs",
+        "none": "No runs in this period.",
+        "noneFailed": "No failed runs in this period."
+      }
+    },
+    "access": {
+      "title": "Access and history",
+      "subtitle": "What your role can do in ERP integration, and the record of changes made to it.",
+      "yours": {
+        "title": "Your access",
+        "note": "From the permissions the server gave your session. Only an administrator can change them.",
+        "capability": "What",
+        "permission": "Needs",
+        "held": "You",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "capability": {
+        "readConnections": "See connections",
+        "manageConnections": "Add and change connections",
+        "replaceCredentials": "Replace sign-in details",
+        "testConnections": "Check a connection",
+        "fetchSample": "Fetch a sample",
+        "readMapping": "See the mapping",
+        "manageMapping": "Change the mapping",
+        "certifyMapping": "Certify the mapping",
+        "submitDocuments": "Upload documents",
+        "readActivity": "See documents and runs",
+        "manageApiKeys": "Manage API push keys",
+        "readHistory": "See the change history"
+      },
+      "personas": {
+        "title": "Typical roles",
+        "note": "Fawtir has no ready-made role for these. An administrator builds a role from the permissions listed."
+      },
+      "persona": {
+        "tenantAdministrator": {
+          "name": "Tenant administrator",
+          "body": "Everything, including API keys, the change history and who has access."
+        },
+        "integrationAdministrator": {
+          "name": "Integration administrator",
+          "body": "Sets up connections, sign-in details and the mapping, and certifies it."
+        },
+        "integrationOperator": {
+          "name": "Integration operator",
+          "body": "Watches connections and documents and checks a connection when something looks wrong."
+        },
+        "invoiceSubmitter": {
+          "name": "Invoice submitter",
+          "body": "Uploads documents and follows what became of them."
+        },
+        "reportingViewer": {
+          "name": "Auditor or reporting viewer",
+          "body": "Reads connections, documents and runs. Cannot change anything. The change history needs an administrator."
+        }
+      },
+      "history": {
+        "title": "Change history",
+        "note": "From the organisation's activity log, narrowed to ERP integration. The narrowing is a view, not a limit on who can read the log.",
+        "adminOnly": "The change history is shown to administrators only, because the server has no history limited to ERP integration for other roles yet."
       }
     }
   },
