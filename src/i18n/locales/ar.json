@@ -12506,7 +12506,12 @@
         "quiet": "صامتون",
         "quietNote": "لا إرسال منذ 7 أيام أو أكثر · {{broken}} يبدو تكاملهم معطلًا",
         "revenue": "الإيراد المتكرر",
-        "revenueNote": "بمتوسط {{average}} ر.ع. للمشترك"
+        "revenueNote": "بمتوسط {{average}} ر.ع. للمشترك",
+        "liveOf": "من أصل {{total}} على المنصة",
+        "livePaged": "لم يُبلَّغ بعد: يتطلب عدًّا عبر كل الصفحات",
+        "atRiskEmpty": "لم يُبلَّغ بعد: انتهاء الشهادات واستخدام الحصة",
+        "quietEmpty": "لم يُبلَّغ بعد: نشاط الإرسال لكل مشترك",
+        "revenueEmpty": "لم يُبلَّغ بعد: إيراد الاشتراكات"
       },
       "tab": {
         "all": "الكل",
@@ -12555,7 +12560,53 @@
         "SUSPENDED": "موقوف",
         "CLOSED": "مغلق"
       },
-      "seeDecision": "عرض القرار"
+      "seeDecision": "عرض القرار",
+      "subtitleTotal": "كل منشأة تُفوتر عبر فوتر · {{total}} على المنصة",
+      "exportSoon": "غير متاح بعد: لا تتيح المنصة تصدير هذه القائمة",
+      "tabsLabel": "مجموعات المشتركين",
+      "searchLabel": "ابحث في المشتركين",
+      "searchLoaded": "الاسم أو رمز المشترك…",
+      "filter": {
+        "all": "الكل",
+        "ACTIVE": "نشط",
+        "PENDING": "قيد التسجيل",
+        "SUSPENDED": "موقوف",
+        "CLOSED": "مغلق",
+        "REFUSED": "مرفوضة"
+      },
+      "sort": {
+        "newest": "الأحدث أولًا",
+        "oldest": "الأقدم أولًا"
+      },
+      "notReportedTab": "لم يُبلَّغ بعد. تمتلئ هذه القائمة حين تُبلِّغ المنصة عن نشاط الإرسال واستخدام الحصة لكل مشترك.",
+      "showingShown": "عرض {{shown}} من {{total}}",
+      "showingShownPage": "عرض {{shown}} من {{total}} في هذه الصفحة",
+      "pageOnly": "أعداد التبويبات والبحث والتصفية والترتيب تشمل هذه الصفحة فقط.",
+      "pill": {
+        "onboarding": "قيد التسجيل"
+      },
+      "notSubmitted": "لم يكتمل التسجيل",
+      "notReported": "لم يُبلَّغ بعد",
+      "tenure": {
+        "days_zero": "اليوم",
+        "days_one": "يوم واحد",
+        "days_two": "يومان",
+        "days_few": "{{count}} أيام",
+        "days_many": "{{count}} يومًا",
+        "days_other": "{{count}} يوم",
+        "months_zero": "أقل من شهر",
+        "months_one": "شهر واحد",
+        "months_two": "شهران",
+        "months_few": "{{count}} أشهر",
+        "months_many": "{{count}} شهرًا",
+        "months_other": "{{count}} شهر",
+        "years_zero": "أقل من سنة",
+        "years_one": "سنة واحدة",
+        "years_two": "سنتان",
+        "years_few": "{{count}} سنوات",
+        "years_many": "{{count}} سنة",
+        "years_other": "{{count}} سنة"
+      }
     },
     "soon": {
       "title": "لم يُبنَ بعد",

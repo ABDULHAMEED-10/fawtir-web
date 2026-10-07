@@ -12072,7 +12072,12 @@
         "quiet": "Gone quiet",
         "quietNote": "No filing in 7 days or more · {{broken}} look like broken integrations",
         "revenue": "Monthly recurring",
-        "revenueNote": "Average OMR {{average}} a tenant"
+        "revenueNote": "Average OMR {{average}} a tenant",
+        "liveOf": "Of {{total}} on the platform",
+        "livePaged": "Not reported yet: needs a count across every page",
+        "atRiskEmpty": "Not reported yet: certificate expiry and quota use",
+        "quietEmpty": "Not reported yet: filing activity per tenant",
+        "revenueEmpty": "Not reported yet: subscription revenue"
       },
       "tab": {
         "all": "All",
@@ -12121,7 +12126,41 @@
         "SUSPENDED": "Suspended",
         "CLOSED": "Closed"
       },
-      "seeDecision": "See decision"
+      "seeDecision": "See decision",
+      "subtitleTotal": "Every business invoicing through Fawtir · {{total}} on the platform",
+      "exportSoon": "Not available yet: the platform has no export for this list",
+      "tabsLabel": "Tenant groups",
+      "searchLabel": "Search tenants",
+      "searchLoaded": "Name or tenant code…",
+      "filter": {
+        "all": "Everything",
+        "ACTIVE": "Active",
+        "PENDING": "Onboarding",
+        "SUSPENDED": "Suspended",
+        "CLOSED": "Closed",
+        "REFUSED": "Rejected"
+      },
+      "sort": {
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      },
+      "notReportedTab": "Not reported yet. This tab fills once the platform reports filing activity and quota use for each tenant.",
+      "showingShown": "Showing {{shown}} of {{total}}",
+      "showingShownPage": "Showing {{shown}} of the {{total}} on this page",
+      "pageOnly": "Tab counts, search, filters and sort cover this page only.",
+      "pill": {
+        "onboarding": "Onboarding"
+      },
+      "notSubmitted": "sign-up not finished",
+      "notReported": "Not reported yet",
+      "tenure": {
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
+        "months_one": "{{count}} month",
+        "months_other": "{{count}} months",
+        "years_one": "{{count}} year",
+        "years_other": "{{count}} years"
+      }
     },
     "soon": {
       "title": "Not built yet",

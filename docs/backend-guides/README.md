@@ -13,8 +13,10 @@ API does not provide yet, and what to add.
 | Activity ("TDD & OTA" in Figma) | [ACTIVITY.md](ACTIVITY.md) |
 | Settings (Company profile) | [SETTINGS.md](SETTINGS.md) |
 | Public site (Home, Pricing, Features, Contact Us) | [SITE.md](SITE.md) |
+| Super Admin console (Tenants list) | [CONSOLE.md](CONSOLE.md) |
 
 Every gap is also a `// TODO(backend)` comment in the code, citing its row number here.
 
 Sign-in, sign-up, onboarding and the Super Admin console have their own integration handoffs in
-`docs/frontend/`; ERP and the console plan are in `docs/erp-and-console-plan.md`.
+`docs/frontend/` (the console's screen gaps are in [CONSOLE.md](CONSOLE.md)); ERP and the console
+plan are in `docs/erp-and-console-plan.md`.

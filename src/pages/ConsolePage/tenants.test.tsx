@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import i18n from '../../i18n'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
@@ -121,7 +121,7 @@ describe('Tenants register', () => {
     expect(document.body.textContent).not.toContain('Sur Trading Co')
   })
 
-  it('renders no plan, quota, filing-health or revenue figures', async () => {
+  it('draws the designed columns but invents no plan, quota, filing-health or revenue figures', async () => {
     answer({
       [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
       [LIST_URL]: () => json(200, pageOf([TENANT])),
@@ -130,9 +130,96 @@ describe('Tenants register', () => {
     await screen.findByText('Al Noor Bakery')
 
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent)
-    expect(headers).toEqual(['Business', 'Code', 'Status', 'Submitted', 'Action'])
+    expect(headers).toEqual(['Business', 'Plan', 'Quota this month', 'Filing health · 7 days', 'Monthly', ''])
+    // The cells the summary cannot fill read as empty, never as a figure.
+    const cells = screen.getAllByRole('cell').map((cell) => cell.textContent)
+    expect(cells[1]).toBe('—')
+    expect(cells[2]).toBe('—')
+    expect(cells[3]).toBe('Not reported yet')
+    expect(cells[4]?.startsWith('—')).toBe(true)
     // OMR would only appear if a commercial figure were being invented.
     expect(document.body.textContent).not.toContain('OMR')
+  })
+
+  it('shows "—" for the KPIs the platform does not report, and counts only what the rows hold', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([TENANT, PENDING])),
+    })
+    renderAt('/console/tenants')
+    await screen.findByText('Al Noor Bakery')
+
+    const figure = (title: string) =>
+      screen.getByRole('heading', { name: title }).closest('article')?.querySelector('p')
+        ?.textContent
+    // One page holds the whole register, so the live count is the platform's own.
+    expect(figure('Live tenants')).toBe('1')
+    expect(figure('At risk of stopping')).toBe('—')
+    expect(figure('Gone quiet')).toBe('—')
+    expect(figure('Monthly recurring')).toBe('—')
+    const button = screen.getByRole('button', { name: 'Export the list' }) as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+  })
+
+  it('counts the tabs from the loaded rows and filters the list by tab', async () => {
+    const CLOSED: CompanySummary = {
+      ...TENANT,
+      tenantId: '33333333-3333-4333-8333-333333333333',
+      tenantCode: 'FTCLOSED01',
+      tenantName: 'Ruwi Closed Trading',
+      tenantStatus: 'CLOSED',
+    }
+    const SUSPENDED: CompanySummary = {
+      ...TENANT,
+      tenantId: '44444444-4444-4444-8444-444444444444',
+      tenantCode: 'FTSUSP0001',
+      tenantName: 'Sohar Suspended Co',
+      tenantStatus: 'SUSPENDED',
+    }
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([TENANT, PENDING, CLOSED, SUSPENDED])),
+    })
+    renderAt('/console/tenants')
+    await screen.findByText('Al Noor Bakery')
+
+    const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}`) })
+    expect(tab('All').textContent).toBe('All4')
+    expect(tab('Needs attention').textContent).toBe('Needs attention2')
+    expect(tab('Onboarding').textContent).toBe('Onboarding1')
+    expect(tab('Closed').textContent).toBe('Closed1')
+    // Filing activity and quota use are not on the summary: drawn, never counted.
+    expect(tab('Gone quiet').textContent).toBe('Gone quiet—')
+    expect(tab('Near their quota').textContent).toBe('Near their quota—')
+
+    fireEvent.click(tab('Closed'))
+    expect(screen.getByText('Ruwi Closed Trading')).toBeTruthy()
+    expect(screen.queryByText('Al Noor Bakery')).toBeNull()
+
+    fireEvent.click(tab('Gone quiet'))
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getByText(/^Not reported yet\. This tab fills/)).toBeTruthy()
+  })
+
+  it('searches the loaded rows without asking the backend again', async () => {
+    answer({
+      [ENTITLEMENTS_URL]: () => json(200, OPERATOR),
+      [LIST_URL]: () => json(200, pageOf([TENANT, PENDING])),
+    })
+    renderAt('/console/tenants')
+    await screen.findByText('Al Noor Bakery')
+
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ftkhf' } })
+    expect(screen.getByText('Sadam Company')).toBeTruthy()
+    expect(screen.queryByText('Al Noor Bakery')).toBeNull()
+
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'nothing like it' } })
+    expect(screen.getByText('No tenant matches that.')).toBeTruthy()
+
+    // The list request is the one the register always made: same URL, same params, once.
+    expect(callsTo(LIST_URL)).toHaveLength(1)
+    const urls = fetchMock.mock.calls.map(([called]) => called)
+    expect(urls.filter((url) => url !== ENTITLEMENTS_URL)).toEqual([LIST_URL])
   })
 
   it('asks the backend once per screen, even under StrictMode', async () => {
