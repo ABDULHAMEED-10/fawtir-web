@@ -303,6 +303,15 @@ function AttentionTable({
                       })}
                     </span>
                   ) : null}
+                  {/* The recipient's answer as the server records it (MLS). Never a pending verdict:
+                      RESPONSE_PENDING is not evaluated while no response window is approved (DEC-G). */}
+                  {item.recipient_response_code ? (
+                    <span className="block text-xs text-text-quaternary">
+                      {t('erp.reporting.attention.response', {
+                        answer: code('ack', item.recipient_response_code),
+                      })}
+                    </span>
+                  ) : null}
                 </Td>
                 {/* Channel and connection share a column so the document and invoice have room. */}
                 <Td>

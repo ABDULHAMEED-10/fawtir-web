@@ -615,6 +615,25 @@ describe('needs attention', () => {
     }
   })
 
+  it('shows the recipient answer the server recorded, in words (Phase 9)', async () => {
+    routes['/api/v1/erp/source-documents/reconciliation'] = () =>
+      json(200, {
+        ...page([
+          {
+            ...doc(),
+            delivery_route: 'PEPPOL_NETWORK',
+            tax_report_status: null,
+            recipient_response_code: 'RE',
+            findings: [{ label: 'DELIVERY_FAILED', since: '2026-10-01T07:00:00Z' }],
+          },
+        ]),
+        unevaluated_labels: ['RESPONSE_PENDING'],
+      })
+    renderAt('/settings/erp/attention')
+    const row = (await screen.findByText('SO-1001')).closest('tr')!
+    expect(within(row).getByText('Recipient answer: Refused or not delivered')).toBeTruthy()
+  })
+
   it('repeats that RESPONSE_PENDING was not evaluated instead of timing it here', async () => {
     renderAt('/settings/erp/attention')
     expect(
