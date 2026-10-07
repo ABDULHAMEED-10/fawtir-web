@@ -67,6 +67,8 @@ export type InvoicePreviewData = {
   /** Data URL of the picked logo; the preview falls back to initials when absent. */
   logoUrl?: string | null
   addressLine?: string
+  addressLine2?: string
+  addressLine3?: string
   city?: string
   governorate?: string
   postalCode?: string

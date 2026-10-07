@@ -30,7 +30,9 @@ const COMPLETE: OnboardingState = {
   },
   address: {
     addressLine: 'Building 4, Way 2301',
-    postalCode: '',
+    addressLine2: 'Falaj Al Qabail',
+    addressLine3: 'Villa 12',
+    postalCode: '322',
     city: 'Sohar',
     governorate: 'northBatinah',
     contactName: 'Salim Al Harthy',
@@ -125,7 +127,9 @@ describe('Review and submit', () => {
     expect(valueOf('businessIdentity.vatinLabel')).toBe('OM1200000001')
     expect(valueOf('businessIdentity.accentLabel')).toBe(i18n.t('businessIdentity.accents.PURPLE'))
     expect(valueOf('addressContact.governorate')).toBe(i18n.t('governorate.northBatinah'))
-    expect(valueOf('addressContact.postalCode')).toBe('—')
+    expect(valueOf('addressContact.addressLine2')).toBe('Falaj Al Qabail')
+    expect(valueOf('addressContact.addressLine3')).toBe('Villa 12')
+    expect(valueOf('addressContact.postalCode')).toBe('322')
     expect(valueOf('addressContact.phone')).toBe('+96891234567')
     expect(screen.getByLabelText(i18n.t('addressContact.email')).hasAttribute('readonly')).toBe(
       true,

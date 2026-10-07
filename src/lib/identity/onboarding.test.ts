@@ -147,7 +147,9 @@ describe('business identity', () => {
 describe('address and contact', () => {
   const valid: AddressContactValues = {
     addressLine: ' Building 4, Way 2301 ',
-    postalCode: '',
+    addressLine2: ' Al Khoud ',
+    addressLine3: ' Villa 12 ',
+    postalCode: ' 132 ',
     city: ' Seeb ',
     governorate: 'ashSharqiyahNorth',
     contactName: ' Salim Al Harthy ',
@@ -159,6 +161,7 @@ describe('address and contact', () => {
   it('sends the governorate by its stable English name and the phone as +968', () => {
     expect(buildAddressContactRequest(valid)).toEqual({
       addressLine: 'Building 4, Way 2301',
+      postalCode: '132',
       city: 'Seeb',
       governorate: 'Ash Sharqiyah North',
       contactPersonName: 'Salim Al Harthy',
@@ -167,15 +170,20 @@ describe('address and contact', () => {
     })
   })
 
-  it('omits blank optional fields and sends them when filled', () => {
-    const request = buildAddressContactRequest({ ...valid, postalCode: '133', role: 'Owner' })
-    expect(request.postalCode).toBe('133')
-    expect(request.contactRole).toBe('Owner')
-    expect(JSON.stringify(buildAddressContactRequest(valid))).not.toMatch(/postalCode|contactRole/)
+  it('omits a blank role and sends it when filled', () => {
+    expect(buildAddressContactRequest({ ...valid, role: 'Owner' }).contactRole).toBe('Owner')
+    expect(JSON.stringify(buildAddressContactRequest(valid))).not.toMatch(/contactRole/)
+  })
+
+  it('keeps address lines 2 and 3 out of the request until the endpoint takes them', () => {
+    expect(JSON.stringify(buildAddressContactRequest(valid))).not.toMatch(/addressLine[23]/)
   })
 
   it('applies the service limits, not the wider record ones', () => {
     expect(validateAddressContact({ ...valid, addressLine: 'x'.repeat(141) }).addressLine).toBe(
+      'validation.addressTooLong',
+    )
+    expect(validateAddressContact({ ...valid, addressLine3: 'x'.repeat(141) }).addressLine3).toBe(
       'validation.addressTooLong',
     )
     expect(validateAddressContact({ ...valid, role: 'x'.repeat(101) }).role).toBe(
@@ -187,6 +195,9 @@ describe('address and contact', () => {
     const errors = validateAddressContact({
       ...valid,
       addressLine: '',
+      addressLine2: '',
+      addressLine3: ' ',
+      postalCode: '',
       city: '',
       contactName: '',
       phone: '123',
@@ -194,10 +205,16 @@ describe('address and contact', () => {
     })
     expect(errors).toMatchObject({
       addressLine: 'validation.required',
+      addressLine2: 'validation.required',
+      addressLine3: 'validation.required',
+      postalCode: 'validation.required',
       city: 'validation.required',
       contactName: 'validation.required',
       phone: 'validation.phoneLength',
       email: 'validation.email',
     })
+    expect(validateAddressContact({ ...valid, postalCode: '1234' }).postalCode).toBe(
+      'validation.postalCode',
+    )
   })
 })

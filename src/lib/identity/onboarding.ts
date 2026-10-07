@@ -16,10 +16,19 @@ import {
 /** `SignupBusinessSize`, `SignupInvoicingMethod`, `SignupBusinessCategory`, `SignupBusinessType`. */
 export type SignupBusinessSize = 'JUST_ME' | 'PEOPLE_2_TO_10' | 'PEOPLE_11_TO_50' | 'PEOPLE_50_PLUS'
 export type SignupInvoicingMethod =
-  'PAPER_OR_MANUAL' | 'SPREADSHEETS' | 'ACCOUNTING_SOFTWARE' | 'FULL_ERP_SYSTEM'
+  | 'PAPER_OR_MANUAL'
+  | 'SPREADSHEETS'
+  | 'ACCOUNTING_SOFTWARE'
+  | 'FULL_ERP_SYSTEM'
 export type SignupBusinessCategory = 'FOOD_AND_BEVERAGE'
 export type SignupBusinessType =
-  'COFFEE_SHOP' | 'RESTAURANT' | 'BAKERY' | 'FAST_FOOD' | 'JUICE_BAR' | 'DESSERT_SHOP' | 'CATERING'
+  | 'COFFEE_SHOP'
+  | 'RESTAURANT'
+  | 'BAKERY'
+  | 'FAST_FOOD'
+  | 'JUICE_BAR'
+  | 'DESSERT_SHOP'
+  | 'CATERING'
 
 export const BUSINESS_SIZE: Record<BusinessSize, SignupBusinessSize> = {
   'just-me': 'JUST_ME',
@@ -236,7 +245,10 @@ export type BusinessIdentityValues = {
 }
 
 export type BusinessIdentityField =
-  'companyName' | 'crNumber' | 'industrialClassification' | 'vatin'
+  | 'companyName'
+  | 'crNumber'
+  | 'industrialClassification'
+  | 'vatin'
 export const BUSINESS_IDENTITY_FIELD_ORDER: readonly BusinessIdentityField[] = [
   'companyName',
   'crNumber',
@@ -315,6 +327,8 @@ export const BUSINESS_IDENTITY_SERVER_FIELDS: ServerFieldMap<BusinessIdentityFie
 
 export type AddressContactValues = {
   addressLine: string
+  addressLine2: string
+  addressLine3: string
   postalCode: string
   city: string
   governorate: GovernorateId
@@ -325,10 +339,21 @@ export type AddressContactValues = {
 }
 
 export type AddressContactField =
-  'addressLine' | 'postalCode' | 'city' | 'governorate' | 'contactName' | 'role' | 'phone' | 'email'
+  | 'addressLine'
+  | 'addressLine2'
+  | 'addressLine3'
+  | 'postalCode'
+  | 'city'
+  | 'governorate'
+  | 'contactName'
+  | 'role'
+  | 'phone'
+  | 'email'
 
 export const ADDRESS_CONTACT_FIELD_ORDER: readonly AddressContactField[] = [
   'addressLine',
+  'addressLine2',
+  'addressLine3',
   'postalCode',
   'city',
   'governorate',
@@ -338,10 +363,16 @@ export const ADDRESS_CONTACT_FIELD_ORDER: readonly AddressContactField[] = [
   'email',
 ]
 
-/** `SignupAddressContactRequest` minus the token; optional members are omitted when blank. */
+/**
+ * `SignupAddressContactRequest` minus the token; optional members are omitted when blank.
+ *
+ * TODO(backend): SETTINGS.md row 1.5. Address lines 2 and 3 are asked (IBR-010-OM requires them
+ * on every invoice) but not sent: the request has no field for them and the server refuses
+ * unknown members. Add `addressLine2` / `addressLine3` here once the endpoint takes them.
+ */
 export type AddressContactRequest = {
   addressLine: string
-  postalCode?: string
+  postalCode: string
   city: string
   governorate: string
   contactPersonName: string
@@ -364,13 +395,15 @@ export function validateAddressContact(
 ): Partial<Record<AddressContactField, FieldError>> {
   const tooLong = (value: string, max: number) =>
     value.trim().length > max ? 'validation.tooLong' : undefined
+  // All three lines and the postal code are printed for the seller on every invoice (IBR-010-OM).
+  const addressLine = (value: string) =>
+    required(value) ??
+    (value.trim().length > ADDRESS_LINE_MAX_LENGTH ? 'validation.addressTooLong' : undefined)
   return {
-    addressLine:
-      required(values.addressLine) ??
-      (values.addressLine.trim().length > ADDRESS_LINE_MAX_LENGTH
-        ? 'validation.addressTooLong'
-        : undefined),
-    postalCode: postalCode(values.postalCode),
+    addressLine: addressLine(values.addressLine),
+    addressLine2: addressLine(values.addressLine2),
+    addressLine3: addressLine(values.addressLine3),
+    postalCode: required(values.postalCode) ?? postalCode(values.postalCode),
     city: required(values.city) ?? tooLong(values.city, CITY_MAX_LENGTH),
     contactName:
       required(values.contactName) ?? tooLong(values.contactName, CONTACT_NAME_MAX_LENGTH),
@@ -385,7 +418,7 @@ const optional = (value: string) => value.trim() || undefined
 export function buildAddressContactRequest(values: AddressContactValues): AddressContactRequest {
   return {
     addressLine: values.addressLine.trim(),
-    postalCode: optional(values.postalCode),
+    postalCode: values.postalCode.trim(),
     city: values.city.trim(),
     governorate: GOVERNORATE_NAMES[values.governorate],
     contactPersonName: values.contactName.trim(),

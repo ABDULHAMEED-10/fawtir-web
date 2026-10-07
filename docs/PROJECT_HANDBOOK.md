@@ -485,6 +485,12 @@ false` in `src/lib/planAccess.ts`); when on, locked modules are greyed with an u
     rule requires it, and it is pre-filled from a government customer's default.
   - The invoice page keeps the designed Send when the dispatch cannot be read; the server answers
     the press.
+- **Owner decision, 7 Oct 2026, sign-up address:** the sign-up "Address & contact" step asks for
+  address lines 1, 2 and 3 and the postal code, all required, so a new company can issue its
+  first invoice without visiting Settings › Company (IBR-010-OM). The frame draws one line; the
+  two extra lines follow it. Lines 2 and 3 are not sent until the endpoint takes them
+  (`SETTINGS.md` row 1.5; Abrar has the backend part). Existing companies are told at issue
+  (`SELLER_ADDRESS_INCOMPLETE`, pointing to Settings › Company).
 - **Zain's DW/CW note PRs** (29 Sep 2026): approved except removing the credit note detail's
   "Refund due" figure, which stays (design wins; mark it `TODO(backend)`). Conditions: a retry
   after a timeout reuses its idempotency key; `0248:` is not added twice; a partial credit uses

@@ -713,8 +713,10 @@
     "countryOman": "Oman",
     "notePrefix": "Your primary contact receives",
     "noteHighlight": "COMPLIANCE ALERTS",
-    "noteSuffix": "— quota warnings, rejected invoices and OTA notices — so nothing slips through.",
-    "submit": "Continue"
+    "noteSuffix": ": quota warnings, rejected invoices and OTA notices, so nothing slips through.",
+    "submit": "Continue",
+    "addressLine2": "Additional street or area",
+    "addressLine3": "Building or address line 3"
   },
   "plans": {
     "title": "Pick the plan that fits your volume",
