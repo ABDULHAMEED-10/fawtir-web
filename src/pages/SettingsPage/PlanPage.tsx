@@ -15,10 +15,6 @@ import {
   type Plan,
 } from '../../lib/settingsBilling'
 import { OPEN_BRANCHES } from '../../lib/settingsCompany'
-import { ANY_PLAN_IDS } from '../../lib/plans'
-import { usePlatformSettings } from '../../lib/platformSettings'
-import { useTenantPlan } from '../../lib/planAccess'
-import { connectorStore, useConnector } from '../../lib/erpConnector'
 import tickIcon from '../../assets/settings/check-ink.svg'
 import tickGreenIcon from '../../assets/settings/check-green.svg'
 import infoIcon from '../../assets/settings/info.svg'
@@ -184,33 +180,16 @@ export function PlanPage() {
 }
 
 /**
- * What the account pays for on top of the plan: today only automatic ERP extraction. The same
- * facts as the Connected systems card, kept short — state, price, and the one action the plan
- * allows (ask, switch on, or move up a plan).
+ * What the account has on top of the plan: today only ERP integration.
+ *
+ * This section used to draw an ERP add-on from the in-memory connector mock: a state, a monthly
+ * usage figure, a reset date, launch prices and a "switch on" button that changed nothing but the
+ * page. None of it was the organisation's. ERP is enabled per organisation by Fawtir (backend
+ * Phase 3) and has no billing or usage endpoint yet, so the section says that and points to where
+ * the real state is shown, rather than inventing one.
  */
 function AddonsSection() {
   const { t } = useTranslation()
-  const { addon } = useConnector()
-  const { settings } = usePlatformSettings()
-  const plan = useTenantPlan()
-  const config = settings.addons.erpExtraction
-  const availability = config.availability[plan]
-  const lowestOffered = ANY_PLAN_IDS.find((id) => config.availability[id] !== 'notOffered')
-  const active = addon.state === 'ACTIVE'
-  const pending = addon.state === 'PENDING_PAYMENT'
-
-  const statusKey = active
-    ? addon.source === 'PLAN_INCLUDED'
-      ? 'includedActive'
-      : 'active'
-    : pending
-      ? 'pending'
-      : availability === 'notOffered'
-        ? 'notSupported'
-        : availability === 'included'
-          ? 'includedOff'
-          : 'off'
-
   return (
     <section className="overflow-hidden rounded-md bg-surface-card">
       <div className="p-5">
@@ -227,77 +206,25 @@ function AddonsSection() {
             <p className="text-base font-semibold text-text-primary">
               {t('plan.addons.extraction.name')}
             </p>
-            <span
-              className={[
-                'inline-flex h-[24px] items-center gap-1.5 rounded-[3px] px-2 text-[10px] font-semibold uppercase tracking-[0.4px]',
-                active
-                  ? 'bg-success-100 text-[#3d5648]'
-                  : pending
-                    ? 'bg-pending-100 text-pending-700'
-                    : 'bg-surface-background text-text-tertiary',
-              ].join(' ')}
-            >
+            <span className="inline-flex h-[24px] items-center gap-1.5 rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
               <span className="size-1.5 rounded-full bg-current" />
-              {t(`plan.addons.state.${statusKey}`)}
+              {t('plan.addons.state.managedByFawtir')}
             </span>
           </div>
           <p className="mt-1 max-w-[560px] text-sm font-medium leading-[1.6] text-text-tertiary">
             {t('plan.addons.extraction.body')}
           </p>
-          <p className="mt-3 text-sm font-medium text-text-secondary">
-            {availability === 'included' || (active && addon.source === 'PLAN_INCLUDED')
-              ? t('plan.addons.extraction.includedPrice', {
-                  documents: config.documents.toLocaleString('en-US'),
-                })
-              : withRial(
-                  t('plan.addons.extraction.price', {
-                    amount: config.monthly.toFixed(3),
-                    documents: config.documents.toLocaleString('en-US'),
-                    overage: config.overage.toFixed(3),
-                  }),
-                )}
+          <p className="mt-3 max-w-[560px] text-sm font-medium leading-[1.6] text-text-secondary">
+            {t('plan.addons.extraction.realState')}
           </p>
-          {active ? (
-            <p className="mt-1 text-xs font-medium text-text-quaternary">
-              {t('plan.addons.extraction.usage', {
-                used: addon.collectedThisMonth.toLocaleString('en-US'),
-                allowance: addon.limits.documentsPerMonth.toLocaleString('en-US'),
-                resets: longDate(addon.resetsOn),
-              })}
-            </p>
-          ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-          {active ? (
-            <Link
-              to="/settings/erp/connections"
-              className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
-            >
-              {t('plan.addons.openConnections')}
-            </Link>
-          ) : pending ? (
-            <span className="text-sm font-medium text-text-tertiary">
-              {t('plan.addons.pendingNote')}
-            </span>
-          ) : availability === 'notOffered' ? (
-            <span className="text-sm font-medium text-text-tertiary">
-              {t('plan.addons.notSupportedNote', {
-                plan: t(`plan.planName.${lowestOffered ?? 'businessPlus'}`),
-              })}
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() =>
-                connectorStore.requestAddon(
-                  availability === 'included' ? 'PLAN_INCLUDED' : 'PURCHASED',
-                )
-              }
-              className="inline-flex h-[46px] items-center rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              {availability === 'included' ? t('plan.addons.switchOn') : t('plan.addons.ask')}
-            </button>
-          )}
+          <Link
+            to="/settings/erp"
+            className="inline-flex h-[46px] items-center rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+          >
+            {t('plan.addons.openIntegration')}
+          </Link>
         </div>
       </div>
     </section>
