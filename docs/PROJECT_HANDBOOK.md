@@ -329,9 +329,10 @@ Every web change that touches what the mobile app shows or sends is added to the
 the same day: https://claude.ai/code/artifact/fc142745-a943-450b-8568-f6b6cc1879d4 ("Fawtir mobile:
 what changed…"). It covers only the mobile scope (section 6): onboarding, company settings,
 customers and suppliers, Income (invoices, credit notes, debit notes) and Expenditure (bills).
-The six guides already sent to him (29 Sep to 3 Oct) are the baseline, kept in `docs/mobile/`
-(index in its `README.md`); read the matching one before writing a change, so the doc says what
-differs from it.
+The six guides already sent to him (29 Sep to 3 Oct) are kept in `docs/mobile/` for reference only
+(index in its `README.md`). **Always guide mobile from the current code and setup** (the web app on
+`main`, its API calls, i18n files and the backend guides), never from those PDFs; read the matching
+PDF only to see what he was told, so the doc can say what differs.
 
 - Each change goes in its area's section: what changed, the fields with English and Arabic labels
   and limits, the API call and fields, refusal codes and their text, and whether the server takes it

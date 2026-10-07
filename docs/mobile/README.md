@@ -1,8 +1,10 @@
 # Mobile app guides (reference)
 
-The guides already handed to the mobile developer (Atiq). They are the **baseline**: what mobile was
-told to build, as the web stood on each date. Do not edit these PDFs; record every later web change in
-the mobile changes doc instead (handbook section 4, "The mobile changes doc").
+The guides already handed to the mobile developer (Atiq), kept **for reference only**: they show what
+he was told, as the web stood on each date, and may be out of date. **When guiding mobile, the current
+code and setup are the truth** (the web app on `main`, its API calls in `src/api` and `src/lib`, the
+i18n files, the backend guides); where a PDF disagrees with the code, the code wins and the change goes
+in the mobile changes doc. Do not edit these PDFs (handbook section 4, "The mobile changes doc").
 
 | Date | Guide | Covers | Pages |
 | --- | --- | --- | --- |
