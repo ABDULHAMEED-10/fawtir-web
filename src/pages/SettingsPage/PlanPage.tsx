@@ -170,10 +170,12 @@ export function PlanPage() {
       </section>
 
       {/* Plans */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* All four plans, as /plans and /pricing list them; Enterprise has no price to print. */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {PLANS.map((plan) => (
           <PlanCard key={plan.id} plan={plan} />
         ))}
+        <EnterpriseCard />
       </div>
 
       <AddonsSection />
@@ -269,6 +271,57 @@ function Stat({
   )
 }
 
+/**
+ * Enterprise: Business Plus with documents, people and branches agreed on a call, so it shows
+ * "Custom" where the others show a price, and its one action is to talk to the team (the
+ * Contact page, as on /pricing). Same card as the other plans.
+ */
+function EnterpriseCard() {
+  const { t } = useTranslation()
+  const features = (['f1', 'f2', 'f3', 'f4', 'f5'] as const).map((key) =>
+    t(`plans.enterprise.features.${key}`),
+  )
+
+  return (
+    <article className="flex flex-col rounded-md bg-surface-card p-5">
+      <span className="inline-flex h-[24px] w-fit items-center rounded-[3px] bg-surface-background px-2 text-[10px] font-semibold uppercase tracking-[0.4px] text-text-tertiary">
+        {t('plan.larger')}
+      </span>
+
+      <h3 className="mt-3 text-xl font-medium leading-[1.2] text-text-primary">
+        {t('plan.planName.enterprise')}
+      </h3>
+
+      <p className="mt-2 flex items-baseline gap-1.5">
+        <span className="text-[28px] font-semibold leading-[1.1] text-text-primary">
+          {t('plans.enterprise.price')}
+        </span>
+        <span className="text-sm font-medium text-text-quaternary">
+          {t('plans.enterprise.billingNote')}
+        </span>
+      </p>
+
+      <ul className="mt-4 flex flex-col gap-2.5">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-2">
+            <img src={tickIcon} alt="" className="mt-0.5 size-4 shrink-0 opacity-70" />
+            <span className="text-sm font-medium leading-[1.4] text-text-tertiary">{feature}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-auto pt-5">
+        <Link
+          to="/contact"
+          className="inline-flex h-[46px] w-full items-center justify-center rounded-sm border border-border-subtle bg-white text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+        >
+          {t('plans.talkToTeam')}
+        </Link>
+      </div>
+    </article>
+  )
+}
+
 function PlanCard({ plan }: { plan: Plan }) {
   const { t } = useTranslation()
   const current = plan.id === CURRENT_PLAN.id
@@ -330,7 +383,7 @@ function PlanCard({ plan }: { plan: Plan }) {
         {t(`plan.planName.${plan.id}`)}
       </h3>
 
-      <p className="mt-2 flex items-baseline gap-1.5">
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
         <span
           className={[
             'font-semibold leading-[1.1] text-text-primary',
@@ -347,7 +400,9 @@ function PlanCard({ plan }: { plan: Plan }) {
         >
           {plan.monthly.toFixed(3)}
         </span>
-        <span className="text-sm font-medium text-text-quaternary">{t('plan.perMonth')}</span>
+        <span className="whitespace-nowrap text-sm font-medium text-text-quaternary">
+          {t('plan.perMonth')}
+        </span>
       </p>
 
       <ul className="mt-4 flex flex-col gap-2.5">

@@ -11246,7 +11246,8 @@
       "pendingNote": "مطلوب. يؤكد فريق فوتر ويفعّله.",
       "notSupportedNote": "متاح على {{plan}}. انتقل إلى خطة أعلى لإضافته.",
       "openIntegration": "افتح تكامل ERP"
-    }
+    },
+    "larger": "أكبر"
   },
   "bills": {
     "title": "الفواتير والدفع",

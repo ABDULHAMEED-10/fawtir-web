@@ -10659,7 +10659,8 @@
       "pendingNote": "Requested. The Fawtir team confirms and switches it on.",
       "notSupportedNote": "Available on {{plan}}. Move up a plan to add it.",
       "openIntegration": "Open ERP integration"
-    }
+    },
+    "larger": "Larger"
   },
   "bills": {
     "title": "Bills and payment",
