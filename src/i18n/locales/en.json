@@ -716,7 +716,8 @@
     "noteSuffix": ": quota warnings, rejected invoices and OTA notices, so nothing slips through.",
     "submit": "Continue",
     "addressLine2": "Additional street or area",
-    "addressLine3": "Building or address line 3"
+    "addressLine3": "Building or address line 3",
+    "poBox": "PO Box"
   },
   "plans": {
     "title": "Pick the plan that fits your volume",
