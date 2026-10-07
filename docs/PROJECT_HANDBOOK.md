@@ -50,13 +50,19 @@ catalogue, stock, point of sale, reports and the document archive.
 
 ### The order of priority
 
-1. **The Figma design is the source of truth for every screen.** Layout, spacing, icons, colours,
-   copy, field order, sections, states. Look at the frame before guessing or asking.
+1. **Figma is the starting point, not the last word** (owner, 7 Oct 2026). Look at the frame
+   before guessing or asking, and follow it for layout, spacing, icons, colours and look. But
+   Figma can be wrong or out of date. Where requirements have changed, where a feature is new,
+   or where a screen is wired to the API (Branches, Company settings, Plans and many others),
+   build from the requirement and the API in the house style (section 3.3), not from the frame.
+   Do not add placeholders only to match a frame the product has moved past; say what differs.
 2. **Logic beats a designer's slip.** The design is the authority on intent, not arithmetic or
    typos. Figures that do not add up, a label pasted from another screen, a duplicated field, tab
    counts that contradict the cards: fix them, keep the screen, and say what changed.
-3. **Integration is kept wherever it fits the design, and set aside where it does not.** The
-   backend adapts to the screen, not the other way round (section 4).
+3. **Integration is kept.** Never delete an API call, request assertion or permission check to
+   make a screen look like a frame. A designed element the product still wants but the API cannot
+   answer yet is drawn and marked `TODO(backend)` with a guide row (section 4); an element the
+   product no longer wants is not.
 
 ### A normal piece of work
 
