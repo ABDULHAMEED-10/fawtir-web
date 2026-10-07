@@ -164,31 +164,35 @@ export function AddressContactForm({ onPreviewChange }: AddressContactFormProps)
             {t('addressContact.registeredAddress')}
           </p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label={t('addressContact.addressLine')}
-              requiredMark
-              name="addressLine"
-              autoComplete="address-line1"
-              value={addressLine}
-              onChange={(e) => {
-                setAddressLine(e.target.value)
-                clearError('addressLine')
-              }}
-              error={errors.addressLine ? t(errors.addressLine) : undefined}
-              leadingIcon={<LocationPinIcon size={20} />}
-              trailingIcon={
-                addressLine ? (
-                  <button
-                    type="button"
-                    onClick={() => setAddressLine('')}
-                    className="inline-flex text-text-quaternary hover:text-text-secondary"
-                    aria-label={t('common.clear')}
-                  >
-                    <CloseIcon />
-                  </button>
-                ) : null
-              }
-            />
+            {/* Line 1 spans the row so the six fields after it pair up: lines 2 and 3, postal code
+                and PO Box, city and governorate. */}
+            <div className="md:col-span-2">
+              <Input
+                label={t('addressContact.addressLine')}
+                requiredMark
+                name="addressLine"
+                autoComplete="address-line1"
+                value={addressLine}
+                onChange={(e) => {
+                  setAddressLine(e.target.value)
+                  clearError('addressLine')
+                }}
+                error={errors.addressLine ? t(errors.addressLine) : undefined}
+                leadingIcon={<LocationPinIcon size={20} />}
+                trailingIcon={
+                  addressLine ? (
+                    <button
+                      type="button"
+                      onClick={() => setAddressLine('')}
+                      className="inline-flex text-text-quaternary hover:text-text-secondary"
+                      aria-label={t('common.clear')}
+                    >
+                      <CloseIcon />
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
             {/* Not in the frame, which draws one line: every invoice states the seller's
                 address lines 1, 2 and 3 and postal code (IBR-010-OM), so sign-up asks for them
                 rather than leaving the first invoice to be refused. */}
