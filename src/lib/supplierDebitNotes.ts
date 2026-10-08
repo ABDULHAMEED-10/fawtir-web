@@ -310,7 +310,10 @@ export function debitActivity(
       : row.status === 'ACCEPTED'
         ? {
             id: 'now',
-            titleKey: 'supplierDebitNotes.detail.activity.accepted',
+            // "Accepted by {name}" once the server names who (owner, 8 Oct 2026).
+            titleKey: row.decidedByName
+              ? 'supplierDebitNotes.state.accepted'
+              : 'supplierDebitNotes.detail.activity.accepted',
             detailKey:
               row.outstandingAmount > 0
                 ? 'supplierDebitNotes.detail.activity.acceptedDetail'
@@ -318,18 +321,22 @@ export function debitActivity(
             values: {
               amount: fmt.money(row.outstandingAmount),
               when: row.decidedAt ? fmt.when(row.decidedAt) : '',
+              who: row.decidedByName ?? '',
             },
             tone: 'current',
           }
         : {
             id: 'now',
-            titleKey: 'supplierDebitNotes.detail.activity.refused',
+            titleKey: row.decidedByName
+              ? 'supplierDebitNotes.state.refusedBy'
+              : 'supplierDebitNotes.detail.activity.refused',
             detailKey: row.decisionReason
               ? 'supplierDebitNotes.detail.activity.refusedDetail'
               : 'supplierDebitNotes.detail.activity.refusedPlain',
             values: {
               reason: row.decisionReason ?? '',
               when: row.decidedAt ? fmt.when(row.decidedAt) : '',
+              who: row.decidedByName ?? '',
             },
             tone: 'current',
           }

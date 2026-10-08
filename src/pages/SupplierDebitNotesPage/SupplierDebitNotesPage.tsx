@@ -39,6 +39,7 @@ import {
 import { describeApiFailure } from '../../lib/apiFailure'
 import { formatAmount, formatCount, formatDate } from '../../lib/format'
 import { saveDownload } from '../../lib/supplierRecord'
+import { can, useSession } from '../../lib/session/session'
 import kpiEyeIcon from '../../assets/supplier-debit-notes/kpi-eye.svg'
 import kpiPlusIcon from '../../assets/supplier-debit-notes/kpi-plus.svg'
 import kpiAlertIcon from '../../assets/supplier-debit-notes/kpi-alert.svg'
@@ -461,6 +462,10 @@ function DebitRow({
   const action = DEBIT_ROW_ACTION[note.status]
   const reason = reasonLabelKey(note.reasonCode, note.reasonDetail ?? null)
   const detailTo = `/expenditure/debit-notes/${note.id}`
+  // The bill the note adds to, linked as the credit-note row links its bill.
+  const billTo = note.againstBillId ? `/expenditure/bills/${note.againstBillId}` : null
+  // "Accept or refuse" is hidden, not greyed, from someone who may not decide (owner, 8 Oct).
+  const canDecide = can(useSession(), 'invoice.approve')
   const money = (value: number) => formatAmount(value, note.currency, language)
 
   const download = async () => {
@@ -478,15 +483,19 @@ function DebitRow({
     }
   }
 
+  // "Accepted by Hafidh" as the frame prints it, from `decidedByName` (row 5.15); without a name
+  // the chip says what it said before.
   const statusLabel =
     note.status === 'ACCEPTED'
-      ? // TODO(backend): `decidedBy` is a user id; the frame prints the person's name ("Accepted
-        // by Hafidh"). Until the name is on the row the chip says only that it was accepted (row 5.6).
-        t('supplierDebitNotes.state.acceptedPlain')
+      ? note.decidedByName
+        ? t('supplierDebitNotes.state.accepted', { who: note.decidedByName })
+        : t('supplierDebitNotes.state.acceptedPlain')
       : note.status === 'REFUSED'
-        ? note.decisionReason
-          ? t('supplierDebitNotes.state.refusedWhy', { reason: note.decisionReason })
-          : t('supplierDebitNotes.state.refused')
+        ? note.decidedByName
+          ? t('supplierDebitNotes.state.refusedBy', { who: note.decidedByName })
+          : note.decisionReason
+            ? t('supplierDebitNotes.state.refusedWhy', { reason: note.decisionReason })
+            : t('supplierDebitNotes.state.refused')
         : t('supplierDebitNotes.state.unchecked')
 
   return (
@@ -515,16 +524,24 @@ function DebitRow({
       </td>
 
       <td className="px-4 py-4 align-middle">
-        <p className="text-sm font-semibold leading-[1.2] text-text-primary">
-          {/* The API names the bill the supplier referenced but gives no id for it, so this is
-              text rather than a link: a link built from a number we have not resolved would go
-              to the wrong bill or nowhere. The note itself resolves it (row 5.5). */}
-          {note.againstBillNumber ?? (
-            <span className="font-medium text-text-quaternary">
-              {t('supplierCreditNotes.rows.noBill')}
-            </span>
-          )}
-        </p>
+        {billTo ? (
+          <Link
+            to={billTo}
+            className="text-sm font-semibold leading-[1.2] text-primary-700 hover:underline"
+          >
+            {note.againstBillNumber ?? t('supplierNotes.thisBill')}
+          </Link>
+        ) : (
+          <p className="text-sm font-semibold leading-[1.2] text-text-primary">
+            {/* Text, not a link, when the server names no bill on file (`relatesTo.billId`, row
+                5.15): a link built from a number would go to the wrong bill or nowhere. */}
+            {note.againstBillNumber ?? (
+              <span className="font-medium text-text-quaternary">
+                {t('supplierCreditNotes.rows.noBill')}
+              </span>
+            )}
+          </p>
+        )}
         <p className="mt-1 text-xs font-medium leading-[1.2] text-text-quaternary">
           {note.againstBillIssueDate
             ? t('supplierNotes.rows.billed', {
@@ -555,24 +572,26 @@ function DebitRow({
           <span className={['size-1.5 shrink-0 rounded-full', chip.dot].join(' ')} />
           <span className="truncate">{statusLabel}</span>
         </span>
-        <div className="mt-2">
-          {action.primary ? (
-            <Link
-              to={detailTo}
-              className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800"
-            >
-              {t(action.labelKey)}
-            </Link>
-          ) : (
-            <Link
-              to={detailTo}
-              className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
-            >
-              {t(action.labelKey)}
-              <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
-            </Link>
-          )}
-        </div>
+        {action.primary && !canDecide ? null : (
+          <div className="mt-2">
+            {action.primary ? (
+              <Link
+                to={detailTo}
+                className="inline-flex h-[34px] items-center rounded-sm bg-primary-700 px-3 text-xs font-semibold text-white transition-colors hover:bg-primary-800"
+              >
+                {t(action.labelKey)}
+              </Link>
+            ) : (
+              <Link
+                to={action.goesTo === 'bill' && billTo ? billTo : detailTo}
+                className="inline-flex items-center gap-1 text-xs font-medium text-text-quaternary transition-colors hover:text-text-secondary"
+              >
+                {t(action.labelKey)}
+                <img src={actChevronIcon} alt="" className="size-3 rtl:rotate-180" />
+              </Link>
+            )}
+          </div>
+        )}
       </td>
 
       <td className="px-4 py-4 align-middle">

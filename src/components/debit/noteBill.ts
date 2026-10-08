@@ -14,13 +14,13 @@ import {
  * owed, its due date, its state).
  *
  * A credit note carries the bill's id when exactly one bill carries the credit; a debit note
- * carries only the number the supplier wrote (`relatesTo`). With an id the bill is read directly.
- * With a number it is looked up among this supplier's bills, narrowed by the server, and taken
- * only on an exact match of the number: a near match would draw the wrong bill's figures.
+ * carries it as `relatesTo.billId` when the server can name one (row 5.15), and otherwise only
+ * the number the supplier wrote. With an id the bill is read directly. With a number it is looked
+ * up among this supplier's bills, narrowed by the server, and taken only on an exact match of the
+ * number: a near match would draw the wrong bill's figures.
  *
- * TODO(backend): `relatesTo.billId` on `GET /v1/debit-notes` rows, and `credits.billId` on a
- * credit note whose bill is on file but not yet applied, would make this a single read (row 5.5
- * in docs/backend-guides/EXPENDITURE.md).
+ * TODO(backend): `credits.billId` on a credit note whose bill is on file but not yet applied
+ * would make this a single read there too (row 5.5 in docs/backend-guides/EXPENDITURE.md).
  */
 export function useNoteBill({
   billId,

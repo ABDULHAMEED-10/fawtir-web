@@ -89,6 +89,8 @@ let notes: DebitNoteRowDto[]
 let decisions: DebitNoteDecisionDto[]
 let refuseBody: unknown
 let acceptCalls: number
+/** What the refusal answers when a test needs the server to refuse it. */
+let refuseFailure: (() => Response) | null
 
 const calls = (prefix: string) =>
   fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.startsWith(prefix))
@@ -101,6 +103,7 @@ beforeEach(async () => {
   decisions = []
   refuseBody = null
   acceptCalls = 0
+  refuseFailure = null
 
   fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(
@@ -123,6 +126,7 @@ beforeEach(async () => {
     }
     if (url.includes(`/debit-notes/${NOTE_ID}/refuse`)) {
       refuseBody = JSON.parse(String(init?.body))
+      if (refuseFailure) return refuseFailure()
       return json(200, {
         decision: 'REFUSED',
         reason: 'x',
@@ -349,19 +353,60 @@ describe('One debit note', () => {
   })
 
   it('offers only the opposite decision once one has been recorded', async () => {
-    // Restating a decision is refused by the server and records nothing, so it is not offered.
-    // Reversing always is: that is why the history exists.
+    // Restating a decision is refused by the server and records nothing, so it is not offered:
+    // hidden, not greyed (owner, 8 Oct 2026). Reversing always is: that is why the history exists.
     notes = [note({ status: 'ACCEPTED' })]
-    renderDetail()
+    const accepted = renderDetail()
     await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
 
-    for (const button of screen.getAllByRole('button', { name: 'Accept it' })) {
-      expect(button).toHaveProperty('disabled', true)
-    }
+    expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull()
+    // The header's and the decision card's.
+    expect(screen.getAllByRole('button', { name: 'Refuse it' })).toHaveLength(2)
     for (const button of screen.getAllByRole('button', { name: 'Refuse it' })) {
       expect(button).toHaveProperty('disabled', false)
     }
     expect(screen.getByText(/Only the opposite decision can be recorded/)).toBeTruthy()
+    accepted.unmount()
+
+    notes = [note({ status: 'REFUSED', decisionReason: 'Already charged' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.queryByRole('button', { name: 'Refuse it' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Accept it' })).toHaveLength(2)
+    for (const button of screen.getAllByRole('button', { name: 'Accept it' })) {
+      expect(button).toHaveProperty('disabled', false)
+    }
+  })
+
+  it('offers both decisions on a charge nobody has checked', async () => {
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(screen.getAllByRole('button', { name: 'Accept it' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Refuse it' })).toHaveLength(2)
+  })
+
+  it("says a note already paid cannot be refused, in the owner's words", async () => {
+    notes = [
+      note({ status: 'ACCEPTED', paidAmount: 75.5, outstandingAmount: 0, paymentState: 'PAID' }),
+    ]
+    refuseFailure = () =>
+      json(400, {
+        type: 'https://api.fawtir.om/problems/expenditure-refused',
+        status: 400,
+        error: 'DEBIT_NOTE_ALREADY_PAID',
+        detail: 'This debit note is already paid. Record a refund from the supplier instead.',
+        trace_id: 'trace-9',
+      })
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    fireEvent.click(cardButton('Refuse it'))
+    fireEvent.click(screen.getByRole('radio', { name: 'Already charged' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Record the refusal' }))
+    expect(
+      await screen.findByText(
+        /^This debit note is already paid\. Record a refund from the supplier instead\./,
+      ),
+    ).toBeTruthy()
   })
 
   it('holds the charge without a request, since an unchecked charge already is on hold', async () => {
@@ -424,5 +469,168 @@ describe('One debit note', () => {
     await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
     expect(screen.queryByRole('button', { name: 'Accept it' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Refuse it' })).toBeNull()
+  })
+})
+
+// The owner's answers of 8 Oct 2026 for the debit-note list and detail.
+describe('a debit note names its bill and who decided', () => {
+  const BILL_ID = '90000000-0000-0000-0000-000000000009'
+  const linked = {
+    billNumber: 'QMS-7781',
+    issueDate: '2026-08-20',
+    documentUuid: 'x',
+    billId: BILL_ID,
+  }
+
+  it('links the bill it adds to from the row, as the credit-note row does', async () => {
+    notes = [note({ relatesTo: linked })]
+    renderList()
+    const link = await screen.findByRole('link', { name: 'QMS-7781' })
+    expect(link.getAttribute('href')).toBe(`/expenditure/bills/${BILL_ID}`)
+  })
+
+  it('opens the bill from "View the bill" on an accepted row', async () => {
+    notes = [note({ status: 'ACCEPTED', relatesTo: linked })]
+    renderList()
+    const view = await screen.findByRole('link', { name: 'View the bill' })
+    expect(view.getAttribute('href')).toBe(`/expenditure/bills/${BILL_ID}`)
+  })
+
+  it('keeps the bill number as text when the server names no bill on file', async () => {
+    notes = [note({ status: 'ACCEPTED' })]
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByText('QMS-7781')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'QMS-7781' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'View the bill' }).getAttribute('href')).toBe(
+      `/expenditure/debit-notes/${NOTE_ID}`,
+    )
+  })
+
+  it('links the bill from the detail and reads it by its id', async () => {
+    notes = [note({ relatesTo: linked })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    await waitFor(() => expect(calls(`/api/v1/bills/${BILL_ID}`)).toHaveLength(1))
+    const links = screen
+      .getAllByRole('link', { name: /QMS-7781/ })
+      .map((link) => link.getAttribute('href'))
+    expect(links.length).toBeGreaterThan(0)
+    for (const href of links) expect(href).toBe(`/expenditure/bills/${BILL_ID}`)
+  })
+
+  it('says who accepted or refused it on the row', async () => {
+    notes = [
+      note({ status: 'ACCEPTED', decidedBy: 'u-9', decidedByName: 'Hafidh Saif' }),
+      note({
+        id: 'other',
+        debitNoteNumber: 'QMS-DN-2',
+        status: 'REFUSED',
+        decidedBy: 'u-9',
+        decidedByName: 'Hafidh Saif',
+        decisionReason: 'Already charged',
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.getByText('Accepted by Hafidh Saif')).toBeTruthy()
+    expect(screen.getByText('Refused by Hafidh Saif')).toBeTruthy()
+  })
+
+  it('keeps the row as it was when the server sends no name', async () => {
+    notes = [
+      note({ status: 'ACCEPTED', decidedBy: 'u-9' }),
+      note({
+        id: 'other',
+        debitNoteNumber: 'QMS-DN-2',
+        status: 'REFUSED',
+        decidedBy: 'u-9',
+        decisionReason: 'Already charged',
+      }),
+    ]
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    const table = within(screen.getByRole('table'))
+    expect(table.getByText('Accepted')).toBeTruthy()
+    expect(table.getByText('Refused · Already charged')).toBeTruthy()
+    expect(table.queryByText(/ by /)).toBeNull()
+  })
+
+  it('says who decided in the Activity line, and what it said before without a name', async () => {
+    notes = [
+      note({
+        status: 'ACCEPTED',
+        decidedBy: 'u-9',
+        decidedByName: 'Hafidh Saif',
+        decidedAt: '2026-09-21T10:00:00Z',
+      }),
+    ]
+    const named = renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    const activity = () => within(screen.getByRole('list', { name: 'Activity' }))
+    expect(activity().getByText('Accepted by Hafidh Saif')).toBeTruthy()
+    named.unmount()
+
+    notes = [
+      note({
+        status: 'REFUSED',
+        decidedBy: 'u-9',
+        decidedByName: 'Hafidh Saif',
+        decidedAt: '2026-09-21T10:00:00Z',
+        decisionReason: 'Already charged',
+      }),
+    ]
+    const refused = renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(activity().getByText('Refused by Hafidh Saif')).toBeTruthy()
+    refused.unmount()
+
+    notes = [note({ status: 'ACCEPTED', decidedBy: 'u-9', decidedAt: '2026-09-21T10:00:00Z' })]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(activity().getByText('Accepted')).toBeTruthy()
+    expect(activity().queryByText(/ by /)).toBeNull()
+  })
+
+  it('says who decided in Arabic', async () => {
+    await i18n.changeLanguage('ar')
+    notes = [
+      note({
+        status: 'REFUSED',
+        decidedBy: 'u-9',
+        decidedByName: 'Hafidh Saif',
+        decidedAt: '2026-09-21T10:00:00Z',
+        decisionReason: 'Already charged',
+      }),
+    ]
+    renderDetail()
+    await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+    expect(
+      within(screen.getByRole('list', { name: 'النشاط' })).getByText('رفضه Hafidh Saif'),
+    ).toBeTruthy()
+  })
+})
+
+// Owner's answer C9 (8 Oct 2026): someone without invoice.approve is offered no decision.
+describe('a debit note for someone who may only read', () => {
+  it('offers no "Accept or refuse" on the row', async () => {
+    who = READER
+    renderList()
+    await screen.findByText('QMS-DN-1')
+    expect(screen.queryByRole('link', { name: 'Accept or refuse' })).toBeNull()
+    // The note itself still opens.
+    expect(screen.getByRole('link', { name: 'QMS-DN-1' })).toBeTruthy()
+  })
+
+  it("offers no decision on the detail, whatever the note's state", async () => {
+    who = READER
+    for (const status of ['UNCHECKED', 'ACCEPTED', 'REFUSED'] as const) {
+      notes = [note({ status })]
+      const view = renderDetail()
+      await screen.findByRole('heading', { level: 1, name: 'QMS-DN-1' })
+      expect(screen.queryByRole('button', { name: 'Accept it' }), status).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Refuse it' }), status).toBeNull()
+      view.unmount()
+    }
   })
 })

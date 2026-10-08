@@ -86,7 +86,8 @@ const FIELD =
  * The one rule the server enforces is that a decision may not be restated: recording ACCEPTED
  * over ACCEPTED would add a history row that makes "when was this accepted?" ambiguous. Reversing
  * is always allowed, because reversing is why the history exists. So the button matching the
- * current status is disabled rather than sent and refused.
+ * current status is not offered (owner, 8 Oct 2026: hidden, not greyed), and neither is shown to
+ * someone without `invoice.approve`.
  */
 export function SupplierDebitNoteDetailPage() {
   return (
@@ -112,7 +113,7 @@ function DebitNoteDetail() {
   const item = row ? toDebitNoteItem(row) : null
 
   const against = useNoteBill({
-    billId: null,
+    billId: row?.relatesTo?.billId ?? null,
     billNumber: row?.relatesTo?.billNumber ?? null,
     supplierId: row?.supplierId ?? null,
   })
@@ -209,7 +210,12 @@ function DebitNoteDetail() {
   const bill = against.bill
   const total = row.totalIncludingVat ?? 0
   const billNumber = bill?.supplierBillNumber ?? row.relatesTo?.billNumber ?? null
-  const billTo = bill ? `/expenditure/bills/${bill.id}` : null
+  // As the credit-note page links its bill: the bill read, else the id the note names.
+  const billTo = bill
+    ? `/expenditure/bills/${bill.id}`
+    : row.relatesTo?.billId
+      ? `/expenditure/bills/${row.relatesTo.billId}`
+      : null
   const tone = TONE.debit
   const lines = own?.lines ?? []
   const net = total - (row.vatAmount ?? 0)
@@ -278,7 +284,7 @@ function DebitNoteDetail() {
   const acceptButton = (className: string) => (
     <button
       type="button"
-      disabled={!canAccept || busy !== null}
+      disabled={busy !== null}
       onClick={() => void decide('accept')}
       className={className}
     >
@@ -349,17 +355,21 @@ function DebitNoteDetail() {
           </button>
           {canDecide ? (
             <>
-              <button
-                type="button"
-                disabled={!canRefuse || busy !== null}
-                onClick={() => setRefusing(true)}
-                className="inline-flex h-[46px] items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100/60 disabled:opacity-40"
-              >
-                {t('supplierDebitNotes.detail.refuseAndTell')}
-              </button>
-              {acceptButton(
-                'inline-flex h-[46px] items-center gap-2 rounded-sm bg-pending-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-pending-500 disabled:opacity-40',
-              )}
+              {canRefuse ? (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => setRefusing(true)}
+                  className="inline-flex h-[46px] items-center rounded-sm border border-danger-700 bg-white px-4 text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100/60 disabled:opacity-40"
+                >
+                  {t('supplierDebitNotes.detail.refuseAndTell')}
+                </button>
+              ) : null}
+              {canAccept
+                ? acceptButton(
+                    'inline-flex h-[46px] items-center gap-2 rounded-sm bg-pending-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-pending-500 disabled:opacity-40',
+                  )
+                : null}
             </>
           ) : null}
         </div>
@@ -670,19 +680,24 @@ function DebitNoteDetail() {
                 </div>
               ) : (
                 <>
-                  <button
-                    type="button"
-                    disabled={!canRefuse || busy !== null}
-                    onClick={() => setRefusing(true)}
-                    className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm border border-danger-700 bg-white text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100/60 disabled:opacity-40"
-                  >
-                    <img src={refuseIcon} alt="" className="size-4" />
-                    {t('supplierDebitNotes.detail.refuseAndTell')}
-                  </button>
-                  <div className="mt-2.5 flex gap-2.5">
-                    {acceptButton(
-                      'inline-flex h-[42px] flex-1 items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-pending-200 disabled:opacity-40',
-                    )}
+                  {canRefuse ? (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => setRefusing(true)}
+                      className="mt-4 inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-sm border border-danger-700 bg-white text-sm font-semibold text-danger-700 transition-colors hover:bg-danger-100/60 disabled:opacity-40"
+                    >
+                      <img src={refuseIcon} alt="" className="size-4" />
+                      {t('supplierDebitNotes.detail.refuseAndTell')}
+                    </button>
+                  ) : null}
+                  {/* Keeps the card's spacing when Refuse above it is not offered. */}
+                  <div className={['flex gap-2.5', canRefuse ? 'mt-2.5' : 'mt-4'].join(' ')}>
+                    {canAccept
+                      ? acceptButton(
+                          'inline-flex h-[42px] flex-1 items-center justify-center gap-2 rounded-sm border border-border-subtle bg-white px-2 text-sm font-medium text-text-secondary transition-colors hover:border-pending-200 disabled:opacity-40',
+                        )
+                      : null}
                     <button
                       type="button"
                       disabled={row.status !== 'UNCHECKED'}
