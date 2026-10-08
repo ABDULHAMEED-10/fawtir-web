@@ -116,15 +116,17 @@ export function postalCode(value: string): FieldError {
   return DIGITS_ONLY.test(trimmed) && trimmed.length === 3 ? undefined : 'validation.postalCode'
 }
 
-const PASSWORD_MIN_LENGTH = 12
-const PASSWORD_MAX_LENGTH = 128
+/** `PasswordPolicyService`: 8 to 128 since Phase A (contract §10; it was 12). */
+export const PASSWORD_MIN_LENGTH = 8
+export const PASSWORD_MAX_LENGTH = 128
 
 /**
- * The backend `PasswordPolicyService` rules, which signup and password reset share. The
- * strength meter counts the same criteria, so a full meter and a passing password coincide.
+ * The backend `PasswordPolicyService` rules, which signup, password reset and operator
+ * invitations share. The strength meter counts the same criteria, so a full meter and a passing
+ * password coincide.
  *
- * Its common-password list is deliberately not mirrored: none of those entries has a symbol or
- * reaches 12 characters, so the composition rule already refuses every one of them.
+ * Its common-password list is deliberately not mirrored: shipping it would put the list in the
+ * bundle, and the server still refuses a listed password when it is submitted.
  */
 export function passwordCriteria(value: string) {
   return {

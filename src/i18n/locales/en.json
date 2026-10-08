@@ -5326,7 +5326,7 @@
     "fullNameLength": "Use between 2 and 200 characters",
     "fullNameDigits": "A name cannot contain numbers",
     "fullNameInvalid": "Enter a valid full name",
-    "passwordLength": "Use between 12 and 128 characters",
+    "passwordLength": "Use between 8 and 128 characters",
     "passwordComposition": "Include an uppercase letter, a lowercase letter, a number and a symbol",
     "passwordMismatch": "Passwords do not match",
     "agreeRequired": "Please accept the Terms of Service and Privacy Policy to continue",
