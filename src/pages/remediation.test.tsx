@@ -83,6 +83,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
 })
 
 const at = (path: string, element: React.ReactNode) =>
@@ -96,6 +97,7 @@ const at = (path: string, element: React.ReactNode) =>
 
 describe('the compliance report', () => {
   it("names the company from its own profile, the Participant ID once verified, and labels the document unavailable", async () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'false')
     at('/compliance/activity/report', <ComplianceReportPage />)
     expect(await screen.findByText('Real Trading LLC')).toBeTruthy()
     expect(screen.getByText('OM1100777001')).toBeTruthy()
@@ -118,12 +120,31 @@ describe('the compliance report', () => {
 
 describe('the catalog', () => {
   it("lists the company's own products and says the other tools are not available", async () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'false')
     at('/catalog', <CatalogPage />)
     const row = (await screen.findByText('Real Widget')).closest('tr')!
     expect(within(row).getByText('SKU-1')).toBeTruthy()
     expect(within(row).getByText('OMR 2.500')).toBeTruthy()
     expect(screen.getByText(i18n.t('catalogReal.toolsUnavailable'))).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/Flat White|Muscat Roastery/)
+  })
+})
+
+describe('prototypes shown by default (owner decision 2026-10-08)', () => {
+  it('the compliance report prototype names the reader\'s own company and keeps sample figures under the ribbon', async () => {
+    at('/compliance/activity/report', <ComplianceReportPage />)
+    expect((await screen.findAllByText('Real Trading LLC')).length).toBeGreaterThan(0)
+    expect(await screen.findByText('0248:OM1100777001')).toBeTruthy()
+    expect(screen.getAllByRole('status').some((node) => node.textContent === i18n.t('demoModule.ribbon'))).toBe(true)
+    // The sample company's identity never stands in for the reader's.
+    expect(document.body.textContent).not.toMatch(/Al Bahja|OM1100392000|Hafidh/)
+  })
+
+  it('the catalog keeps its real product list and offers the prototype tools', async () => {
+    at('/catalog', <CatalogPage />)
+    expect(await screen.findByText('Real Widget')).toBeTruthy()
+    expect(screen.getByRole('link', { name: i18n.t('catalog.newItem') }).getAttribute('href')).toBe('/catalog/new')
+    expect(screen.queryByText(i18n.t('catalogReal.toolsUnavailable'))).toBeNull()
   })
 })
 

@@ -3,7 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SettingsShell } from './SettingsShell'
 import { withRial } from '../../components/ui'
-import { SETTINGS_TABS, BOOK, type SettingsTab } from '../../lib/settings'
+import { SETTINGS_TABS, BOOK, longDate, type SettingsTab } from '../../lib/settings'
+import { HOW_YOU_PAY } from '../../lib/settingsBilling'
+import { LAST_EXPORT_ON } from '../../lib/settingsRecords'
+import { demoModulesEnabled } from '../../lib/demoModules'
 import { PLAN_OVERVIEW_PATH, loadPlanOverview, type PlanOverviewDto } from '../../api/settings/plan'
 import {
   PEOPLE_PATH,
@@ -198,6 +201,7 @@ export function SettingsPage() {
     peopleRead.status === 'ready' && peopleRead.data.totalElements === peopleRead.data.content.length
       ? peopleRead.data.content.filter((person) => person.enabled && !person.mfaEnabled).length
       : null
+  const demo = demoModulesEnabled()
   const periodEnd = planOverview
     ? new Date(`${planOverview.usage.period.end}T00:00:00`).toLocaleDateString(i18n.language, {
         day: 'numeric',
@@ -433,10 +437,19 @@ export function SettingsPage() {
         id: 'bills',
         group: 'billing',
         icon: billsIcon,
-        iconTint: 'bg-surface-background',
+        // Billing, export and closing have no server yet: their cards carry the prototype's sample
+        // facts exactly when their prototype pages are shown (lib/demoModules), and say "not
+        // available yet" when a build hides those pages.
+        iconTint: demo ? 'bg-success-100' : 'bg-surface-background',
         to: '/settings/bills',
-        pillKey: 'moduleUnavailable.badge',
-        pillTone: 'neutral',
+        ...(demo
+          ? {
+              pillKey: 'settings.card.billsPill',
+              pillTone: 'success' as const,
+              footKey: 'settings.card.billsFoot',
+              footValues: { method: t(`bills.method.${HOW_YOU_PAY.method}`) },
+            }
+          : { pillKey: 'moduleUnavailable.badge', pillTone: 'neutral' as const }),
       },
       {
         id: 'log',
@@ -456,8 +469,9 @@ export function SettingsPage() {
         icon: exportIcon,
         iconTint: 'bg-primary-50',
         to: '/settings/export',
-        pillKey: 'moduleUnavailable.badge',
+        pillKey: demo ? 'settings.card.exportPill' : 'moduleUnavailable.badge',
         pillTone: 'neutral',
+        ...(demo ? { footKey: 'settings.card.exportFoot', footValues: { date: longDate(LAST_EXPORT_ON) } } : {}),
       },
       {
         // The tile grid is otherwise mock-fed; this card carries no figure on purpose, so the most
@@ -478,8 +492,9 @@ export function SettingsPage() {
         icon: closingIcon,
         iconTint: 'bg-surface-background',
         to: '/settings/closing',
-        pillKey: 'moduleUnavailable.badge',
+        pillKey: demo ? 'settings.card.closingPill' : 'moduleUnavailable.badge',
         pillTone: 'neutral',
+        ...(demo ? { footKey: 'settings.card.closingFoot' } : {}),
       },
     ],
     [
@@ -489,6 +504,7 @@ export function SettingsPage() {
       planOverview,
       planFailed,
       periodEnd,
+      demo,
       i18n.language,
       mapping,
       mappingStatus,

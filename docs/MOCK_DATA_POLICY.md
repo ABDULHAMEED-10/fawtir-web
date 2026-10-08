@@ -29,6 +29,20 @@ real business workflow.
 - A failed request never shows sample data. There is no "fall back to sample data" path on an
   integrated screen.
 
+### Pages that are partly integrated
+
+A page that has both kinds of content keeps its real reads and its prototype parts side by side,
+under the ribbon while prototypes are shown:
+
+- **Compliance report** (`ComplianceReportPrototype`). The company's identity, its Participant ID once
+  verified and the signed-in requester come from the server. The figures, register, attestation and
+  sharing panels are sample data.
+- **Catalog.** The product list comes from `/v1/products`. The "Upload a menu" and "New item" actions
+  open their prototypes.
+- **Settings hub.** The bills, export and closing cards show their prototype facts.
+
+With `VITE_FAWTIR_DEMO_MODULES=false` each of these falls back to its real-only form.
+
 ## 3. Sample data never reaches a real workflow
 
 - **No writes.** Prototypes call no write endpoint. A prototype that needs one is no longer a prototype:

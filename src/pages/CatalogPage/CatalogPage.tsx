@@ -4,6 +4,10 @@ import { useApiRead } from '../../hooks'
 import { ApiReadFailure, LoadingNotice, Notice } from '../../components/feedback/ApiNotice'
 import { productSearchPath, searchProducts, type ProductDto } from '../../api/catalog/products'
 import type { Page } from '../../api'
+import { Link } from 'react-router-dom'
+import { demoModulesEnabled } from '../../lib/demoModules'
+import plusIcon from '../../assets/catalog/plus-white.svg'
+import uploadIcon from '../../assets/catalog/upload-ink.svg'
 
 /** One page large enough to see a small catalogue whole; the footer says when there are more. */
 const CATALOG_PAGE_SIZE = 100
@@ -22,8 +26,36 @@ export function CatalogPage() {
     value.toLocaleString(i18n.language, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 
   return (
-    <CatalogShell crumbs={[]} title={t('catalogReal.title')} subtitle={t('catalogReal.subtitle')}>
-      <Notice badge={t('moduleUnavailable.badge')} body={t('catalogReal.toolsUnavailable')} />
+    <CatalogShell
+      crumbs={[]}
+      title={t('catalogReal.title')}
+      subtitle={t('catalogReal.subtitle')}
+      actions={
+        // The product list is the integrated part; menu upload and the item editor have no server
+        // yet, so they open their prototypes (under the sample-data ribbon) while prototypes are on.
+        demoModulesEnabled() ? (
+          <>
+            <Link
+              to="/catalog/upload"
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm border border-border-subtle bg-white px-4 text-sm font-semibold text-text-secondary transition-colors hover:bg-primary-25"
+            >
+              <img src={uploadIcon} alt="" className="size-[18px]" />
+              {t('catalog.uploadAMenu')}
+            </Link>
+            <Link
+              to="/catalog/new"
+              className="inline-flex h-[46px] items-center gap-2 rounded-sm bg-primary-700 px-4 text-sm font-semibold text-white transition-colors hover:bg-primary-800"
+            >
+              <img src={plusIcon} alt="" className="size-4" />
+              {t('catalog.newItem')}
+            </Link>
+          </>
+        ) : undefined
+      }
+    >
+      {demoModulesEnabled() ? null : (
+        <Notice badge={t('moduleUnavailable.badge')} body={t('catalogReal.toolsUnavailable')} />
+      )}
       <section aria-labelledby="catalog-products" className="flex flex-col gap-3 rounded-md bg-surface-card p-5">
         <h2 id="catalog-products" className="text-lg font-semibold text-text-primary">
           {t('catalogReal.products')}
