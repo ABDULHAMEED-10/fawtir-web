@@ -104,6 +104,9 @@ describe('the compliance report', () => {
     expect(await screen.findByText('0248:OM1100777001')).toBeTruthy()
     expect(screen.getByText(i18n.t('reportReal.documentUnavailable'))).toBeTruthy()
     expect(await screen.findByText(/Numbering runs unbroken from INV-001 to INV-002/)).toBeTruthy()
+    // The backend accepts only its own kinds; INVOICE was refused with a 400 (local browser run).
+    const numbering = vi.mocked(fetch).mock.calls.map(([url]) => String(url)).find((url) => url.startsWith('/api/v1/compliance/activity?'))
+    expect(new URL(numbering!, 'http://x').searchParams.get('document_kind')).toBe('STANDARD_INVOICE')
     expect(document.body.textContent).not.toMatch(SAMPLE)
   })
 

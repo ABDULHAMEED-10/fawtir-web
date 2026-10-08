@@ -46,7 +46,7 @@ export function ComplianceReportPage() {
   const profile = useApiRead<CompanyProfileDto>(COMPANY_PROFILE_PATH, loadCompanyProfile)
   const standing = useApiRead<ParticipantIdStanding>(PARTICIPANT_STANDING_PATH, readParticipantStanding).read
   const numberingPath = activityListPath(
-    { direction: 'ISSUED', documentKind: 'INVOICE', from: quarter.from, to: quarter.to },
+    { direction: 'ISSUED', documentKind: 'STANDARD_INVOICE', from: quarter.from, to: quarter.to },
     0,
     100,
   )

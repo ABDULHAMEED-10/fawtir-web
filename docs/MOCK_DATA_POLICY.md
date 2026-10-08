@@ -13,7 +13,7 @@ real business workflow.
 |---|---|---|
 | **Integrated** | Every record on the screen comes from a server endpoint (`src/api/**`, `useApiRead`, `useApiResource`) | Real data only. Empty state when there is none. Error state with retry when the read fails. No sample fallback, ever. |
 | **Partially integrated** | Some facts have an endpoint, some do not | Real data for what has one. Anything without one is labelled *Not available yet* (`ModuleUnavailable`, `dashboard.notAvailableYet`, `ChartPending`). Never mix a sample record into a list of real ones. |
-| **Not yet implemented** | No endpoint at all (POS, stock, catalogue rules and bundles, trade documents, tenant billing, closing, export, the OTA call log, console operations, subscriptions, incidents, audit, ERP templates) | The prototype stays in the tree, routed through `DemoModule`. Off by default, so users see *Not available yet*. |
+| **Not yet implemented** | No endpoint at all (POS, stock, catalogue rules and bundles, trade documents, tenant billing, closing, export, the OTA call log, console operations, subscriptions, incidents, audit, ERP templates) | The prototype and its sample data stay, routed through `DemoModule`, and are shown under a sample-data ribbon until the module is integrated. Console sample tenants are reachable only by their slug ids, never by a real tenant UUID. |
 
 ## 2. Showing a prototype: `DemoModule`
 
@@ -21,13 +21,13 @@ real business workflow.
 <Route path="/pos" element={<DemoModule module="pos"><PosPage /></DemoModule>} />
 ```
 
-- A prototype route is shown only when the build sets `VITE_FAWTIR_DEMO_MODULES=true`. That is the
-  literal string `true`; anything else, including unset, is off. Never set it for a production
-  deployment, and never in the committed `.env.development`. Set it in an untracked `.env.local` or in
-  the shell for one dev or demo session.
-- With the switch on, every prototype carries a ribbon that cannot be dismissed (`demoModule.ribbon`):
+- Prototypes are shown by default (owner decision, 2026-10-08: keep the mock data of modules that
+  are not integrated). A build hides them all, and shows *Not available yet* instead, with
+  `VITE_FAWTIR_DEMO_MODULES=false`; only that literal string hides them.
+- Every prototype on screen carries a ribbon that cannot be dismissed (`demoModule.ribbon`):
   sample data, not the company's, nothing is saved.
-- A failed request never turns the switch on. There is no "fall back to sample data" path anywhere.
+- A failed request never shows sample data. There is no "fall back to sample data" path on an
+  integrated screen.
 
 ## 3. Sample data never reaches a real workflow
 
@@ -77,5 +77,6 @@ A module is production-ready only when all of these hold:
 - Sample data used only by tests lives beside the test or in `src/testing/**`, which production code
   never imports.
 - `src/pages/remediation.test.tsx` checks that integrated screens show the reader's own data.
-- `src/components/feedback/DemoModule.test.tsx` (switch in `src/lib/demoModules.ts`) checks that the switch is off by default and that the
-  ribbon is shown when it is on.
+- `src/components/feedback/DemoModule.test.tsx` checks that a prototype is shown by default only
+  under the ribbon, and that `VITE_FAWTIR_DEMO_MODULES=false` hides it. The switch is in
+  `src/lib/demoModules.ts`.

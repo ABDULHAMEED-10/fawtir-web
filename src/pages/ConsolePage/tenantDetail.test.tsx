@@ -6,6 +6,7 @@ import { resetSharedRequests } from '../../api'
 import { forgetEntitlements, type Entitlements } from '../../lib/identity/entitlements'
 import type { TenantOverview } from '../../lib/console/tenantOverview'
 import { TenantDetailPage } from './TenantDetailPage'
+import { subscriptionsStore } from '../../lib/consoleSubscriptions'
 
 const ENTITLEMENTS_URL = '/api/v1/me/entitlements'
 const TENANT_ID = '11111111-1111-4111-8111-111111111111'
@@ -260,26 +261,87 @@ describe('Tenant detail — real backend data', () => {
   })
 })
 
-describe('Tenant detail — sample tenants are gone', () => {
-  // A slug used to render the console's sample tenants with their invented subscriptions, filings
-  // and payment dialogs, which an operator could take for a real customer. Only a real tenant id
-  // reaches the page now; anything else is not found and never reads the overview.
-  it.each(['', '?tab=subscription', '?tab=erp', '?action=recordPayment', '?from=subscriptions'])(
-    'a prototype slug with "%s" is not found and opens nothing',
-    async (query) => {
-      answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
-      renderAt(`/console/tenants/${PROTOTYPE_ID}${query}`)
+describe('Tenant detail — deep-link regression', () => {
+  const TABS: Array<[string, string]> = [
+    ['', 'Subscription'],
+    ['?tab=subscription', 'Subscription'],
+    ['?tab=filing', 'Filing'],
+    ['?tab=erp', 'ERP'],
+  ]
 
-      expect(await screen.findByRole('alert')).toBeTruthy()
-      expect(screen.queryByRole('dialog')).toBeNull()
-      expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/overview'))).toHaveLength(0)
-    },
-  )
+  it.each(TABS)('prototype link "%s" selects the %s tab', async (query, tabLabel) => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    renderAt(`/console/tenants/${PROTOTYPE_ID}${query}`)
+
+    const tab = await screen.findByRole('button', { name: tabLabel })
+    expect(tab.getAttribute('aria-pressed')).toBe('true')
+    // A slug never reaches the platform overview.
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/overview'))).toHaveLength(0)
+  })
+
+  const ACTIONS = [
+    'recordPayment',
+    'sendLink',
+    'activate',
+    'changePlan',
+    'suspend',
+    'resume',
+    'cancel',
+    'grantQuota',
+    'waiveOverage',
+  ]
+
+  it.each(ACTIONS)('prototype link ?action=%s opens its dialog', async (action) => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    renderAt(`/console/tenants/${PROTOTYPE_ID}?action=${action}`)
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+  })
+
+  it('prototype link ?action=recordPayment&invoice= carries the invoice through', async () => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    renderAt(`/console/tenants/${PROTOTYPE_ID}?action=recordPayment&invoice=inv-1`)
+
+    expect(await screen.findByRole('dialog')).toBeTruthy()
+  })
+
+  it.each([
+    ['subscriptions', 'Subscriptions'],
+    ['invoices', 'Subscriptions'],
+  ])('prototype link ?from=%s leads the breadcrumb back to %s', async (from, crumb) => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    renderAt(`/console/tenants/${PROTOTYPE_ID}?from=${from}`)
+
+    expect(await screen.findByRole('link', { name: crumb })).toBeTruthy()
+  })
 
   it('an id that is neither a tenant nor a known prototype is not found', async () => {
     answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
     renderAt('/console/tenants/no-such-slug')
 
     expect(await screen.findByRole('alert')).toBeTruthy()
+  })
+
+  // The desk onboards a tenant and navigates straight to it. The prototype ids are read from the
+  // registry per render for this reason: a map built when the module loaded cannot contain a
+  // tenant created after it, and answered "no tenant with that id" for the one just created.
+  it('a tenant onboarded at the desk renders, rather than reporting itself missing', async () => {
+    answer({ [ENTITLEMENTS_URL]: () => json(200, OPERATOR) })
+    const { tenantId } = subscriptionsStore.onboard({
+      tradingName: 'Wadi Shab Provisions',
+      cr: '1234567',
+      vat: 'OM1100000000',
+      town: 'Muscat',
+      businessType: 'trading',
+      owner: { name: 'Probe', phone: '+968 9000 0000', email: 'probe@example.test' },
+      plan: 'business',
+      term: 'monthly',
+      method: 'card',
+    } as never)
+
+    renderAt(`/console/tenants/${tenantId}`)
+
+    expect(await screen.findByRole('heading', { name: /Wadi Shab Provisions/i })).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

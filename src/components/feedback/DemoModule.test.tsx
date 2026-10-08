@@ -38,29 +38,31 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+
 describe('a prototype route', () => {
-  it('shows no sample data unless the build opts in', async () => {
-    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', '')
-    renderGate('pos')
-    expect(screen.queryByText(SAMPLE)).toBeNull()
-    expect(await screen.findByRole('heading', { name: i18n.t('moduleUnavailable.pos.title') })).toBeTruthy()
-  })
-
-  it('treats anything but the literal opt-in as off', () => {
-    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'yes')
-    renderGate('pos')
-    expect(screen.queryByText(SAMPLE)).toBeNull()
-  })
-
-  it('labels the prototype as sample data when the build opts in', () => {
-    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'true')
+  it('shows the prototype under the sample-data ribbon by default', () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', undefined)
     renderGate('pos')
     expect(screen.getByText(SAMPLE)).toBeTruthy()
     expect(screen.getByRole('status').textContent).toBe(i18n.t('demoModule.ribbon'))
   })
 
-  it('falls back to the console "not built yet" page for console prototypes', () => {
-    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', '')
+  it('never shows the prototype without the ribbon', () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'true')
+    renderGate('console')
+    expect(screen.getByText(SAMPLE)).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe(i18n.t('demoModule.ribbon'))
+  })
+
+  it('is the honest "not available yet" page when a build hides prototypes', async () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'false')
+    renderGate('pos')
+    expect(screen.queryByText(SAMPLE)).toBeNull()
+    expect(await screen.findByRole('heading', { name: i18n.t('moduleUnavailable.pos.title') })).toBeTruthy()
+  })
+
+  it('hides console prototypes the same way', () => {
+    vi.stubEnv('VITE_FAWTIR_DEMO_MODULES', 'false')
     renderGate('console')
     expect(screen.queryByText(SAMPLE)).toBeNull()
   })
