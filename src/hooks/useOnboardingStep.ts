@@ -7,12 +7,25 @@ import {
   type FormMessage,
   type ServerFieldMap,
 } from '../lib/identity/errors'
-import { PENDING_ROUTE, allowedRoute, readSignupStatus } from '../lib/identity/onboarding'
+import {
+  PENDING_ROUTE,
+  SIGNUP_PAYMENT_NOT_APPLICABLE,
+  SIGNUP_PAYMENT_PREFERENCE_REQUIRED,
+  SIGNUP_PLAN_REQUIRED,
+  allowedRoute,
+  readSignupStatus,
+} from '../lib/identity/onboarding'
 import {
   endOnboardingSession,
   markOnboardingSubmitted,
   readOnboardingSession,
 } from '../lib/identity/onboardingSession'
+
+const CHOICE_CONFLICTS: Partial<Record<string, string>> = {
+  [SIGNUP_PLAN_REQUIRED]: 'onboarding.planRequired',
+  [SIGNUP_PAYMENT_PREFERENCE_REQUIRED]: 'onboarding.paymentPreferenceRequired',
+  [SIGNUP_PAYMENT_NOT_APPLICABLE]: 'onboarding.paymentNotApplicable',
+}
 
 export type StepSaveResult<F extends string> =
   | { saved: true }
@@ -61,6 +74,13 @@ export function useOnboardingStep<F extends string = never>(options: StepOptions
       if (error.status === 401) {
         endOnboardingSession()
         setFormError({ key: 'onboarding.sessionExpired' })
+        return unsaved
+      }
+      // These name exactly what is missing, so they are answered before the generic "an earlier
+      // step is missing" probe, which cannot tell a missing plan from a refused one.
+      const named = error.status === 409 && error.problemType && CHOICE_CONFLICTS[error.problemType]
+      if (named) {
+        setFormError({ key: named })
         return unsaved
       }
       if (error.status === 409) {

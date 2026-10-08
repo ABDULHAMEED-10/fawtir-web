@@ -2,9 +2,12 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, OmAmount, SelectionCard, Checkbox } from '../../components/ui'
-import { REVIEW_ROUTE } from '../../lib/identity/onboarding'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { REVIEW_ROUTE, recordPaymentPreference } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
 import {
+  formatBaisa,
   formatOmr,
   getOrderSummary,
   trialDaysFor,
@@ -21,6 +24,7 @@ import cardIcon from '../../assets/payment/card.svg'
 import bankIcon from '../../assets/payment/bank.svg'
 import emailIcon from '../../assets/payment/email.svg'
 import tickIcon from '../../assets/payment/tick-circle.svg'
+import rialIcon from '../../assets/brand/omr.svg'
 
 /**
  * How a new account will pay its first bill (15 Sep 2026; reshaped 8 Oct 2026).
@@ -29,18 +33,25 @@ import tickIcon from '../../assets/payment/tick-circle.svg'
  * the first bill goes out by the method chosen here when it ends, or on approval for a plan the
  * super admin gives no trial. Fawtir never takes card details: a card bill arrives as a Paymob
  * link. The methods on offer, the bank details and the link's life are console settings
- * (`PLATFORM_SETTINGS.payments`). TODO(backend): the choice is not saved yet, ONBOARDING.md
- * row 1.3.
+ * (`PLATFORM_SETTINGS.payments`). The choice is saved on the draft (ONBOARDING.md row 1.3).
  */
 export type { SignupPaymentMethod }
 
 const METHODS: SignupPaymentMethod[] = ['cardLink', 'bankTransfer', 'cash']
+
+/**
+ * Bank transfer stays on screen but cannot be chosen until Fawtir's beneficiary is confirmed: the
+ * registrant would otherwise expect to pay into an account the screen cannot name (A3).
+ */
+const unavailable = (method: SignupPaymentMethod) =>
+  method === 'bankTransfer' && !PLATFORM_SETTINGS.payments.bankBeneficiaryVerified
 
 export function PaymentForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const state = onboardingStateFrom(location.state)
+  const { save, submitting, formError } = useOnboardingStep()
 
   const plan: PlanId = state.plan ?? 'premium'
   const billing: BillingCycle = state.billing ?? 'annual'
@@ -54,36 +65,44 @@ export function PaymentForm() {
   )
 
   const offered = METHODS.filter((id) => PLATFORM_SETTINGS.payments.methods[id])
+  const choosable = offered.filter((id) => !unavailable(id))
   const [method, setMethod] = useState<SignupPaymentMethod>(
-    state.paymentMethod && offered.includes(state.paymentMethod)
+    state.paymentMethod && choosable.includes(state.paymentMethod)
       ? state.paymentMethod
-      : (offered[0] ?? 'cardLink'),
+      : (choosable[0] ?? 'cardLink'),
   )
   const [linkVia, setLinkVia] = useState<PaymentLinkVia>(state.linkVia ?? 'email')
 
   const planName = t(`plans.${plan}.name`)
-  const totalLabel = summary ? formatOmr(summary.total) : t('plans.enterprise.price')
-  const bank = PLATFORM_SETTINGS.payments.bank
+  const totalLabel = summary ? formatBaisa(summary.baisa.total) : t('plans.enterprise.price')
   const linkDays = PLATFORM_SETTINGS.payments.linkExpiryDays
   const when =
     trialDays === null
       ? t('payment.when.onApproval')
       : t('payment.when.afterTrial', { count: trialDays })
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (unavailable(method)) return
+    const withAddon = addon && offer === 'priced'
+    const result = await save((token, signal) =>
+      recordPaymentPreference(token, method, linkVia, withAddon, signal),
+    )
+    if (!result.saved) return
     const next: OnboardingState = {
       ...state,
       plan,
       billing,
-      addon: addon && offer === 'priced',
+      addon: withAddon,
       paymentMethod: method,
       linkVia: method === 'cardLink' ? linkVia : undefined,
     }
     navigate(REVIEW_ROUTE, { state: next })
   }
 
-  const icon = { cardLink: cardIcon, bankTransfer: bankIcon, cash: tickIcon } as const
+  // The rial sign, drawn like the card and bank outlines: the filled blue tick it replaced read
+  // as "selected" on a card that was not.
+  const icon = { cardLink: cardIcon, bankTransfer: bankIcon, cash: rialIcon } as const
 
   return (
     <form
@@ -109,11 +128,17 @@ export function PaymentForm() {
               title={t(`payment.method.${id}.title`)}
               description={t(`payment.method.${id}.subtitle`)}
               selected={method === id}
+              disabled={unavailable(id)}
               onSelect={() => setMethod(id)}
-              icon={<img src={icon[id]} alt="" className="size-6" />}
+              icon={<img src={icon[id]} alt="" className="size-6 object-contain" />}
             />
           ))}
         </div>
+        {offered.some(unavailable) ? (
+          <p className="text-xs font-medium text-text-quaternary">
+            {t('payment.bank.unavailable')}
+          </p>
+        ) : null}
 
         <div className="flex w-full flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="w-full max-w-[351px] shrink-0">
@@ -169,27 +194,7 @@ export function PaymentForm() {
                 </fieldset>
               </div>
             ) : method === 'bankTransfer' ? (
-              <div className="flex flex-col gap-3">
-                <div className="rounded-sm border border-black/10 bg-surface-card p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
-                    {t('payment.bank.detailsTitle')}
-                  </p>
-                  <dl className="mt-2 flex flex-col gap-1.5 text-sm">
-                    <Row label={t('payment.bank.accountName')} value={bank.accountName} />
-                    <Row label={t('payment.bank.bank')} value={bank.bank} />
-                    <Row label="IBAN" value={bank.iban} mono />
-                    <Row
-                      label={t('payment.bank.reference')}
-                      value={bank.referenceFormat.replace(
-                        '{invoice}',
-                        t('payment.bank.yourInvoice'),
-                      )}
-                      mono
-                    />
-                  </dl>
-                </div>
-                <Note icon={emailIcon} text={t('payment.bank.noteLater', { when })} />
-              </div>
+              <BankTransferDetails when={when} />
             ) : (
               <Note icon={tickIcon} text={t('payment.cash.noteLater', { when })} />
             )}
@@ -210,7 +215,9 @@ export function PaymentForm() {
         </div>
       </div>
 
-      <Button type="submit" className="w-full max-w-[400px] gap-1.5">
+      <OnboardingFormError error={formError} />
+
+      <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {t('payment.continueCta')}
         <ChevronRightIcon size={18} className="rtl:rotate-180" />
       </Button>
@@ -267,6 +274,38 @@ function Note({ icon, text }: { icon: string; text: string }) {
       <p className="text-sm font-medium leading-6 tracking-[0.14px] text-[rgba(58,58,58,0.8)]">
         {text}
       </p>
+    </div>
+  )
+}
+
+/**
+ * Only reachable once the beneficiary is verified (the card is disabled before). The reference
+ * reads "your invoice number" in the reader's language, so it is not set in the Latin monospace
+ * the IBAN uses.
+ */
+function BankTransferDetails({ when }: { when: string }) {
+  const { t } = useTranslation()
+  const bank = PLATFORM_SETTINGS.payments.bank
+  if (!PLATFORM_SETTINGS.payments.bankBeneficiaryVerified) {
+    return <Note icon={bankIcon} text={t('payment.bank.detailsOnRequest')} />
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-sm border border-black/10 bg-surface-card p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.5px] text-text-quaternary">
+          {t('payment.bank.detailsTitle')}
+        </p>
+        <dl className="mt-2 flex flex-col gap-1.5 text-sm">
+          <Row label={t('payment.bank.accountName')} value={bank.accountName} />
+          <Row label={t('payment.bank.bank')} value={bank.bank} />
+          <Row label="IBAN" value={bank.iban} mono />
+          <Row
+            label={t('payment.bank.reference')}
+            value={bank.referenceFormat.replace('{invoice}', t('payment.bank.yourInvoice'))}
+          />
+        </dl>
+      </div>
+      <Note icon={emailIcon} text={t('payment.bank.noteLater', { when })} />
     </div>
   )
 }
@@ -332,7 +371,7 @@ function OrderSummaryCard({
               </span>
               <OmAmount
                 size="xs"
-                amount={formatOmr(summary.planSubtotal)}
+                amount={formatBaisa(summary.baisa.planSubtotal)}
                 amountClassName="font-semibold text-text-primary/80"
               />
             </div>
@@ -355,7 +394,7 @@ function OrderSummaryCard({
                 </span>
                 <OmAmount
                   size="xs"
-                  amount={formatOmr(summary.addonSubtotal)}
+                  amount={formatBaisa(summary.baisa.addonSubtotal)}
                   amountClassName="font-semibold text-text-primary/80"
                 />
               </div>
@@ -364,7 +403,7 @@ function OrderSummaryCard({
               <span className="font-medium text-text-primary/70">{t('payment.summary.vat')}</span>
               <OmAmount
                 size="xs"
-                amount={formatOmr(summary.vat)}
+                amount={formatBaisa(summary.baisa.vat)}
                 amountClassName="font-semibold text-text-primary/80"
               />
             </div>
@@ -388,7 +427,7 @@ function OrderSummaryCard({
           {summary ? (
             <OmAmount
               size="sm"
-              amount={formatOmr(summary.total)}
+              amount={formatBaisa(summary.baisa.total)}
               amountClassName="text-[22px] font-semibold text-text-primary/90"
             />
           ) : (

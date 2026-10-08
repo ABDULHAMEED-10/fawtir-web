@@ -2,6 +2,7 @@ import { apiRequest } from '../../api'
 import type { ServerFieldMap } from './errors'
 import { GOVERNORATE_NAMES, type GovernorateId } from '../governorates'
 import type { BusinessSize, InvoiceAccent, InvoicingMethod } from '../onboarding'
+import type { BillingCycle, PaymentLinkVia, PlanId, SignupPaymentMethod } from '../pricing'
 import type { BusinessTypeId } from '../subBusinessTypes'
 import {
   email,
@@ -73,6 +74,15 @@ export function backendTypeFor(subBusinessType: string): SignupBusinessType | un
   return BUSINESS_TYPE.get(subBusinessType)
 }
 
+const keyFor = <K, V>(map: ReadonlyMap<K, V>, value: V | null | undefined): K | undefined =>
+  [...map].find(([, mapped]) => mapped === value)?.[0]
+
+/** The screen ids for a saved category and type, for a page restored from the status read. */
+export const categoryIdFor = (category: SignupBusinessCategory | null | undefined) =>
+  keyFor(BUSINESS_CATEGORY, category)
+export const subTypeIdFor = (type: SignupBusinessType | null | undefined) =>
+  keyFor(BUSINESS_TYPE, type)
+
 /**
  * The category whose trades the sub-type screen lists: the chosen one when it can be registered,
  * otherwise the one that can. A registrant reaches that screen only after a category was saved,
@@ -91,10 +101,35 @@ export type SignupStage =
   | 'BUSINESS_TYPE'
   | 'BUSINESS_IDENTITY'
   | 'ADDRESS_CONTACT'
+  | 'PLAN'
+  | 'PAYMENT'
   | 'READY_FOR_SUBMISSION'
   | 'UNDER_REVIEW'
   | 'ACTIVATED'
   | 'REJECTED'
+
+/** Phase A contract §1: the catalogue codes plus ENTERPRISE, which is not a catalogue row. */
+export type SignupPlanCode = 'STARTER' | 'BUSINESS' | 'BUSINESS_PLUS' | 'ENTERPRISE'
+export type SignupBillingCycle = 'MONTHLY' | 'ANNUAL'
+export type SignupPaymentMethodCode = 'CARD_LINK' | 'BANK_TRANSFER' | 'CASH'
+export type SignupLinkChannel = 'EMAIL' | 'WHATSAPP'
+
+/**
+ * The saved answers the status read returns (Phase A contract §4), so a reload or a new tab shows
+ * them instead of "Saved earlier". Every member may be absent: an older server sends none, and a
+ * step not yet saved has nothing to return.
+ */
+export type SignupDraft = {
+  businessProfile?: {
+    businessSize?: SignupBusinessSize | null
+    invoicingMethod?: SignupInvoicingMethod | null
+    usesPos?: boolean | null
+  } | null
+  businessCategory?: SignupBusinessCategory | null
+  businessType?: SignupBusinessType | null
+  businessIdentity?: Record<string, unknown> | null
+  addressContact?: Record<string, unknown> | null
+}
 
 export type SignupStatusResponse = {
   stage: SignupStage
@@ -106,12 +141,23 @@ export type SignupStatusResponse = {
   submitted: boolean
   verificationStatus: string | null
   loginEnabled: boolean
+  planComplete?: boolean
+  paymentPreferenceComplete?: boolean
+  plan?: { planCode: SignupPlanCode; billingCycle: SignupBillingCycle | null } | null
+  paymentPreference?: {
+    method: SignupPaymentMethodCode
+    linkChannel: SignupLinkChannel | null
+    erpExtractionAddon: boolean
+  } | null
+  /** The registrant's own email (ONBOARDING.md row 1.8). */
+  accountEmail?: string | null
+  draft?: SignupDraft | null
 }
 
 /**
- * Every registrant walks every step. The prototype skipped the two business-type screens for
- * larger teams and existing software users, but `submitForReview` refuses a draft missing the
- * category or the type, so that shortcut led to a registration that could never be submitted.
+ * The step screens in order. Size and invoicing never decide the route; only "Will you use
+ * Fawtir POS?" does: without POS the backend stores no category or type (Phase A contract §5),
+ * so the two trade screens are skipped.
  */
 export const ONBOARDING_ROUTES = [
   '/about-business',
@@ -124,8 +170,8 @@ export const ONBOARDING_ROUTES = [
 /**
  * The plan and how the first bill will be paid, chosen after the address and before review
  * (owner decision, 8 Oct 2026). Nothing is charged here: the trial starts on approval and the
- * first bill goes out when it ends. TODO(backend): neither choice is saved yet; see
- * docs/backend-guides/ONBOARDING.md rows 1.2 and 1.3.
+ * first bill goes out when it ends. Both choices are saved on the draft (ONBOARDING.md rows 1.2
+ * and 1.3, Phase A contract §1-§2).
  */
 export const PLANS_ROUTE = '/plans'
 export const PAYMENT_ROUTE = '/payment'
@@ -147,6 +193,8 @@ export const ROUTE_FOR_STAGE: Record<SignupStage, string> = {
   BUSINESS_TYPE: ONBOARDING_ROUTES[2],
   BUSINESS_IDENTITY: ONBOARDING_ROUTES[3],
   ADDRESS_CONTACT: ONBOARDING_ROUTES[4],
+  PLAN: PLANS_ROUTE,
+  PAYMENT: PAYMENT_ROUTE,
   READY_FOR_SUBMISSION: REVIEW_ROUTE,
   UNDER_REVIEW: PENDING_ROUTE,
   ACTIVATED: PENDING_ROUTE,
@@ -195,10 +243,90 @@ export function submitForReview(onboardingToken: string, signal?: AbortSignal): 
   return post('/v1/auth/signup/final-submission', { onboardingToken }, signal)
 }
 
+/**
+ * The `409` problem types Phase A adds (contract §2-§3). Each names what is missing, so the screen
+ * can say it rather than fall back to the generic conflict.
+ */
+export const SIGNUP_PLAN_REQUIRED = 'signup-plan-required'
+export const SIGNUP_PAYMENT_PREFERENCE_REQUIRED = 'signup-payment-preference-required'
+export const SIGNUP_PAYMENT_NOT_APPLICABLE = 'signup-payment-not-applicable'
+
+/** The sign-up flow's plan ids against the contract's codes; `premium` is Business. */
+export const PLAN_CODE: Record<PlanId, SignupPlanCode> = {
+  starter: 'STARTER',
+  premium: 'BUSINESS',
+  businessPlus: 'BUSINESS_PLUS',
+  enterprise: 'ENTERPRISE',
+}
+export const BILLING_CYCLE: Record<BillingCycle, SignupBillingCycle> = {
+  monthly: 'MONTHLY',
+  annual: 'ANNUAL',
+}
+export const PAYMENT_METHOD_CODE: Record<SignupPaymentMethod, SignupPaymentMethodCode> = {
+  cardLink: 'CARD_LINK',
+  bankTransfer: 'BANK_TRANSFER',
+  cash: 'CASH',
+}
+export const LINK_CHANNEL: Record<PaymentLinkVia, SignupLinkChannel> = {
+  email: 'EMAIL',
+  whatsapp: 'WHATSAPP',
+}
+
+export function buildPlanRequest(plan: PlanId, billing: BillingCycle) {
+  // The contract refuses a billing cycle on Enterprise: its terms are agreed on a call.
+  return {
+    planCode: PLAN_CODE[plan],
+    billingCycle: plan === 'enterprise' ? null : BILLING_CYCLE[billing],
+  }
+}
+
+/** Records the choice only; nothing is subscribed or charged (contract §1). */
+export function recordPlan(
+  onboardingToken: string,
+  plan: PlanId,
+  billing: BillingCycle,
+  signal?: AbortSignal,
+): Promise<void> {
+  return post('/v1/auth/signup/plan', { onboardingToken, ...buildPlanRequest(plan, billing) }, signal)
+}
+
+export function buildPaymentPreferenceRequest(
+  method: SignupPaymentMethod,
+  linkVia: PaymentLinkVia,
+  addon: boolean,
+) {
+  // The channel is required for a card link and refused for every other method (contract §2).
+  return {
+    method: PAYMENT_METHOD_CODE[method],
+    linkChannel: method === 'cardLink' ? LINK_CHANNEL[linkVia] : null,
+    erpExtractionAddon: addon,
+  }
+}
+
+export function recordPaymentPreference(
+  onboardingToken: string,
+  method: SignupPaymentMethod,
+  linkVia: PaymentLinkVia,
+  addon: boolean,
+  signal?: AbortSignal,
+): Promise<void> {
+  return post(
+    '/v1/auth/signup/payment-preference',
+    { onboardingToken, ...buildPaymentPreferenceRequest(method, linkVia, addon) },
+    signal,
+  )
+}
+
+/**
+ * `usesPos` is always sent. Without POS the backend stores no business category or type and does
+ * not require them (Phase A contract §5); a placeholder category and type used to be posted here
+ * instead, which put an invented trade on a real registration.
+ */
 export function recordBusinessProfile(
   onboardingToken: string,
   size: BusinessSize,
   method: InvoicingMethod,
+  usesPos: boolean,
   signal?: AbortSignal,
 ): Promise<void> {
   return post(
@@ -207,6 +335,7 @@ export function recordBusinessProfile(
       onboardingToken,
       businessSize: BUSINESS_SIZE[size],
       invoicingMethod: INVOICING_METHOD[method],
+      usesPos,
     },
     signal,
   )
@@ -218,26 +347,6 @@ export function recordBusinessCategory(
   signal?: AbortSignal,
 ): Promise<void> {
   return post('/v1/auth/signup/business-category', { onboardingToken, businessCategory }, signal)
-}
-
-/**
- * A registrant who will not use Fawtir POS skips the Business type and Sub business type
- * screens. The backend still requires both answers before the identity step and at submission,
- * so they are saved here with the one category it accepts and a placeholder type, never shown.
- * TODO(backend): make category and type optional when `usesPos` is false (or accept a
- * `usesPos` flag on the business profile), then drop these two calls.
- */
-export const NO_POS_PLACEHOLDER = {
-  category: 'FOOD_AND_BEVERAGE' as SignupBusinessCategory,
-  type: 'RESTAURANT' as SignupBusinessType,
-}
-
-export async function recordNoPosDefaults(
-  onboardingToken: string,
-  signal?: AbortSignal,
-): Promise<void> {
-  await recordBusinessCategory(onboardingToken, NO_POS_PLACEHOLDER.category, signal)
-  await recordBusinessType(onboardingToken, NO_POS_PLACEHOLDER.type, signal)
 }
 
 export function recordBusinessType(

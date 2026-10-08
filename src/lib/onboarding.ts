@@ -99,8 +99,9 @@ export type IdentityPreview = {
 
 /**
  * The answers carried between onboarding screens in router state, so Back restores a choice and
- * the preview can draw the header. The server holds the saved record; this is never read back as
- * truth, and nothing here is a credential.
+ * the preview can draw the header. It is a cache: the server holds the saved record, and a page
+ * opened without it (a new tab, a typed URL) refills it from `/signup/status` rather than trusting
+ * anything kept in the browser. Nothing here is a credential.
  *
  * `businessType` / `subBusinessType` keep the screen names: the "Business Type" screen answers the
  * backend's business *category*, and "Sub Business Type" answers its business *type*.
@@ -113,7 +114,7 @@ export type OnboardingState = {
   invoicingMethod?: InvoicingMethod
   /**
    * Whether the registrant will use Fawtir POS. Only a POS user is asked the business type and
-   * sub-type; `false` skips both screens. UI only: the backend has no field for it yet.
+   * sub-type; `false` skips both screens and the backend stores no category or type.
    */
   usesPos?: boolean
   businessType?: BusinessTypeId
@@ -130,6 +131,11 @@ export type OnboardingState = {
   /** Chosen on /payment; never set for Enterprise, whose terms are agreed on a call. */
   paymentMethod?: SignupPaymentMethod
   linkVia?: PaymentLinkVia
+  /**
+   * Set when this state was refilled from `/signup/status`, so the gate renders the page instead
+   * of asking again: a draft with nothing saved yet would otherwise never look "ready".
+   */
+  restored?: boolean
 }
 
 export function onboardingStateFrom(value: unknown): OnboardingState {

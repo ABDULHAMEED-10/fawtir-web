@@ -158,6 +158,8 @@ import { EditCustomerPage, NewCustomerPage } from './pages/NewCustomerPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { NewSupplierPage } from './pages/NewSupplierPage'
 import { SignupPage } from './pages/SignupPage'
+import { ResumeSignupPage } from './pages/ResumeSignupPage'
+import { RESUME_ROUTE } from './lib/identity/signupResume'
 import { SignupPendingPage } from './pages/SignupPendingPage'
 import { SignupReviewPage } from './pages/SignupReviewPage'
 import { SubBusinessTypePage } from './pages/SubBusinessTypePage'
@@ -205,6 +207,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/login/mfa" element={<LoginCodePage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path={RESUME_ROUTE} element={<ResumeSignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify-code" element={<VerifyCodePage />} />
           <Route path="/new-password" element={<NewPasswordPage />} />

@@ -902,7 +902,8 @@
       "yourInvoice": "your invoice number",
       "note": "We email you the invoice. The Fawtir team activates your account once the transfer is confirmed, usually within one business day.",
       "detailsOnRequest": "Fawtir sends you its bank details with the subscription invoice. Only pay into the account named on that invoice.",
-      "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day."
+      "noteLater": "Your first bill comes {{when}}, emailed with these details. Put the invoice number in the reference, and the Fawtir team confirms the transfer, usually within one business day.",
+      "unavailable": "Bank transfer isn't available yet."
     },
     "summary": {
       "title": "Order summary",
@@ -985,7 +986,8 @@
       "expired": "Expired before it was accepted",
       "register": "Fawtir registers you on the Oman SMP",
       "registering": "Within 3 business days of acceptance",
-      "registered": "Registered"
+      "registered": "Registered",
+      "rejected": "Not approved"
     },
     "openPortal": "Open Fawtara portal",
     "contactSupport": "Contact support",
@@ -1060,6 +1062,18 @@
       "h3": "Upload the documents it asks for and, if you like, a start date (otherwise it starts when we accept).",
       "h4": "Press Connect.",
       "switching": "Already with another provider? Sending this request disconnects you from them."
+    },
+    "rejected": {
+      "title": "Your registration wasn't approved",
+      "description": "The Fawtir team couldn't approve your registration as it stands. The email we sent explains why and what to change.",
+      "badge": "Not approved",
+      "timing": "Once you submit it again, review usually takes one business day.",
+      "emailNote": "We emailed <b>{{email}}</b> the reason.",
+      "emailNoteNoAddress": "We emailed the reason to the address you registered with."
+    },
+    "signedOut": {
+      "title": "Sign in or continue your registration",
+      "description": "This page can't tell where your registration stands without your signup session. If your account is approved, sign in. If you're still registering, continue with a code sent to your email."
     }
   },
   "dashboard": {
@@ -14936,8 +14950,11 @@
     "unreadable": "Reminders could not be read. Reload to try again."
   },
   "onboarding": {
-    "sessionExpired": "Your signup session has ended. If you need help finishing your registration, contact Fawtir support.",
-    "conflict": "This step could not be saved. Review your answers and try again."
+    "sessionExpired": "Your signup session has ended. Your answers are saved: continue your registration with a new code sent to your email.",
+    "conflict": "This step could not be saved. Review your answers and try again.",
+    "planRequired": "Choose a plan first: none is saved for this registration yet.",
+    "paymentPreferenceRequired": "Choose how you'll pay before you submit.",
+    "paymentNotApplicable": "Enterprise terms are agreed on a call, so there is no payment method to choose. Go back to the plans to pick a different one."
   },
   "signupReview": {
     "title": "Review and submit",
@@ -14994,7 +15011,10 @@
     },
     "ended": {
       "title": "Your signup session has ended",
-      "description": "If you submitted your registration, we’ll email the decision to the address you registered with. If you need help finishing it, contact Fawtir support."
+      "description": "If you submitted your registration, we'll email the decision to the address you registered with. To finish it or see where it stands, continue your registration, or sign in once it's approved."
+    },
+    "rejected": {
+      "correct": "Correct your registration"
     }
   },
   "operatorInvitation": {
@@ -20534,5 +20554,18 @@
       "price": "Unit price",
       "tax": "VAT"
     }
+  },
+  "signupResume": {
+    "cta": "Continue your registration",
+    "loginPrompt": "Registered but not approved yet?",
+    "signupPrompt": "Already started registering?",
+    "title": "Continue your registration",
+    "description": "Enter the email you registered with. If a registration with it is waiting to be finished, we'll send a 6-digit code there.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@company.com",
+    "submit": "Send code",
+    "sending": "Sending…",
+    "codeSent": "If a registration with {{contact}} is waiting to be finished, we've sent it a 6-digit code. It expires in {{minutes}} minutes.",
+    "invalid": "That code is incorrect or no longer valid. Check your latest email, or request a new code."
   }
 }

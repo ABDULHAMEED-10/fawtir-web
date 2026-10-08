@@ -238,13 +238,16 @@ describe('Review and submit', () => {
   })
 
   it('treats "already submitted" as the success it is', async () => {
-    fetchMock.mockResolvedValueOnce(conflict()).mockResolvedValueOnce(status('UNDER_REVIEW'))
+    fetchMock
+      .mockResolvedValueOnce(conflict())
+      .mockImplementation(() => Promise.resolve(status('UNDER_REVIEW')))
     renderAt('/signup-review', COMPLETE)
     await userEvent.setup({ delay: null }).click(submit())
 
     expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
     expect(readOnboardingSession()?.submitted).toBe(true)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    // The submission, the status that explained the conflict, and the waiting screen's own read.
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('reports a VATIN or CR another business registered first, and stays editable', async () => {
@@ -279,7 +282,87 @@ describe('Review and submit', () => {
     expect(hasEndedOnboardingSession()).toBe(true)
   })
 
-  it('opened by URL, asks where the registrant is once and shows saved steps honestly', async () => {
+  it('opened in a new tab, shows the saved answers the status read returns', async () => {
+    fetchMock.mockResolvedValue(
+      status('READY_FOR_SUBMISSION', {
+        planComplete: true,
+        paymentPreferenceComplete: true,
+        plan: { planCode: 'BUSINESS', billingCycle: 'ANNUAL' },
+        paymentPreference: { method: 'CARD_LINK', linkChannel: 'WHATSAPP', erpExtractionAddon: false },
+        accountEmail: 'owner@alnoor.test',
+        draft: {
+          businessProfile: {
+            businessSize: 'PEOPLE_11_TO_50',
+            invoicingMethod: 'FULL_ERP_SYSTEM',
+            usesPos: true,
+          },
+          businessCategory: 'FOOD_AND_BEVERAGE',
+          businessType: 'BAKERY',
+          businessIdentity: {
+            legalCompanyName: 'Al Noor Bakery LLC',
+            commercialRegistrationNumber: 'CR-99',
+            taxNumber: 'OM1200000001',
+            industrialClassificationCode: '561001',
+            invoiceAccent: 'PURPLE',
+          },
+          addressContact: {
+            addressLine: 'Building 4, Way 2301',
+            addressLine2: 'Falaj Al Qabail',
+            addressLine3: 'Villa 12',
+            postalCode: '322',
+            poBox: null,
+            city: 'Sohar',
+            governorate: 'North Al Batinah',
+            countryCode: 'OM',
+            contactPersonName: 'Salim Al Harthy',
+            contactRole: 'Owner',
+            contactPhone: '+96891234567',
+            contactEmail: 'salim@example.test',
+          },
+        },
+      }),
+    )
+    renderAt('/signup-review')
+
+    expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
+    expect(document.body.textContent).not.toContain(i18n.t('signupReview.savedEarlier'))
+    expect(valueOf('signupReview.fields.size')).toBe(i18n.t('aboutBusiness.size.elevenToFifty'))
+    expect(valueOf('signupReview.fields.trade')).toBe(i18n.t('subBusinessType.options.bakery'))
+    expect(valueOf('businessIdentity.vatinLabel')).toBe('OM1200000001')
+    expect(valueOf('addressContact.governorate')).toBe(i18n.t('governorate.northBatinah'))
+    expect(valueOf('addressContact.phone')).toBe('+96891234567')
+    expect(valueOf('signupReview.fields.plan')).toBe(
+      i18n.t('signupReview.planValue', {
+        plan: i18n.t('plans.premium.name'),
+        cycle: i18n.t('signupReview.billedAnnually'),
+      }),
+    )
+    expect(valueOf('signupReview.fields.payment')).toBe(
+      i18n.t('signupReview.payment.cardLink.whatsapp'),
+    )
+    expect(requests()).toEqual([
+      { url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } },
+    ])
+  })
+
+  it("reads the contract's shorter draft names as well", async () => {
+    fetchMock.mockResolvedValue(
+      status('READY_FOR_SUBMISSION', {
+        draft: {
+          businessIdentity: { legalName: 'Al Noor Bakery LLC', taxNumber: 'OM1200000001', accent: 'RED' },
+          addressContact: { registeredAddressLine: 'Building 4', city: 'Sohar', governorate: 'Muscat' },
+        },
+      }),
+    )
+    renderAt('/signup-review')
+
+    expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
+    expect(valueOf('businessIdentity.companyNameLabel')).toBe('Al Noor Bakery LLC')
+    expect(valueOf('businessIdentity.accentLabel')).toBe(i18n.t('businessIdentity.accents.RED'))
+    expect(valueOf('addressContact.addressLine')).toBe('Building 4')
+  })
+
+  it('says "Saved earlier" only for what an older server does not return', async () => {
     fetchMock.mockResolvedValue(status('READY_FOR_SUBMISSION'))
     renderAt('/signup-review')
 
@@ -290,11 +373,27 @@ describe('Review and submit', () => {
     ])
   })
 
-  it('is closed once this tab has submitted', async () => {
+  it.each([
+    ['signup-plan-required', 'onboarding.planRequired'],
+    ['signup-payment-preference-required', 'onboarding.paymentPreferenceRequired'],
+  ])('names what the server says is missing (%s)', async (type, key) => {
+    fetchMock.mockResolvedValue(json(409, { type: 'https://api.fawtir.om/problems/' + type }))
+    renderAt('/signup-review', COMPLETE)
+    await userEvent.setup({ delay: null }).click(submit())
+
+    expect(await screen.findByText(i18n.t(key))).toBeTruthy()
+    expect(requests()).toHaveLength(1)
+    expect(readOnboardingSession()?.submitted).toBe(false)
+  })
+
+  it('is closed once this tab has submitted, and the waiting screen reads the real stage', async () => {
     markOnboardingSubmitted(true)
+    fetchMock.mockResolvedValue(status('UNDER_REVIEW'))
     renderAt('/signup-review', COMPLETE)
     expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(requests()).toEqual([
+      { url: '/api/v1/auth/signup/status', body: { onboardingToken: TOKEN } },
+    ])
   })
 
   it('reads in Arabic, with no English server text', async () => {
@@ -348,9 +447,40 @@ describe('Waiting screen', () => {
     expect(screen.getByTestId('location').textContent).toBe('/login')
   })
 
-  it('sends a draft that is not (or no longer) submitted back to review', async () => {
+  it('under review, never says approved and offers no sign-in', async () => {
+    fetchMock.mockResolvedValue(status('UNDER_REVIEW', { accountEmail: 'owner@alnoor.test' }))
+    renderAt('/signup-pending')
+    expect(await screen.findByText(i18n.t('fawtaraStatus.review.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('fawtaraStatus.steps.approved'))).toBeNull()
+    expect(screen.queryByRole('button', { name: i18n.t('signupPending.approved.signIn') })).toBeNull()
+    // Named from the status read: this tab did not sign up (row 1.8).
+    expect(screen.getByText('owner@alnoor.test').tagName).toBe('B')
+  })
+
+  it('shows a rejection that reopened the draft, with the way back to correct it', async () => {
     markOnboardingSubmitted(true)
     fetchMock.mockResolvedValue(status('READY_FOR_SUBMISSION', { verificationStatus: 'REJECTED' }))
+    renderAt('/signup-pending')
+
+    expect(await screen.findByText(i18n.t('fawtaraStatus.rejected.title'))).toBeTruthy()
+    expect(screen.queryByText(i18n.t('fawtaraStatus.request.title'))).toBeNull()
+    expect(readOnboardingSession()?.submitted).toBe(false)
+    await userEvent
+      .setup({ delay: null })
+      .click(screen.getByRole('button', { name: i18n.t('signupPending.rejected.correct') }))
+    expect(await screen.findByText(i18n.t('signupReview.title'))).toBeTruthy()
+  })
+
+  it('shows a closed rejection without offering to edit', async () => {
+    fetchMock.mockResolvedValue(status('REJECTED', { submitted: true, verificationStatus: 'REJECTED' }))
+    renderAt('/signup-pending')
+    expect(await screen.findByText(i18n.t('fawtaraStatus.rejected.title'))).toBeTruthy()
+    expect(screen.queryByRole('button', { name: i18n.t('signupPending.rejected.correct') })).toBeNull()
+  })
+
+  it('sends a draft that is not submitted back to where it stands', async () => {
+    markOnboardingSubmitted(true)
+    fetchMock.mockResolvedValue(status('READY_FOR_SUBMISSION'))
     sessionStorage.setItem(
       'fawtir.signup.onboarding.v1',
       JSON.stringify({
@@ -380,6 +510,7 @@ describe('Waiting screen', () => {
       arrange()
       renderAt('/signup-pending')
       expect(screen.getByText(i18n.t('signupPending.ended.title'))).toBeTruthy()
+      expect(screen.getByRole('button', { name: i18n.t('signupResume.cta') })).toBeTruthy()
       expect(document.body.textContent).not.toMatch(/sign up again/i)
       expect(fetchMock).not.toHaveBeenCalled()
     },

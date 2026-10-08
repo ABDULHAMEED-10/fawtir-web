@@ -69,6 +69,7 @@ const FAILED = {
 
 const BADGE_TONE: Record<GoingLivePhase, { box: string; dot: string; text: string }> = {
   review: WAITING,
+  rejected: FAILED,
   request: WAITING,
   accepting: WAITING,
   registering: WAITING,

@@ -11,7 +11,9 @@ import {
   type AnyPlanId,
   type CataloguePlan,
 } from '../../lib/plans'
-import { PAYMENT_ROUTE, REVIEW_ROUTE } from '../../lib/identity/onboarding'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
+import { useOnboardingStep } from '../../hooks/useOnboardingStep'
+import { PAYMENT_ROUTE, REVIEW_ROUTE, recordPlan } from '../../lib/identity/onboarding'
 import { onboardingStateFrom, type OnboardingState } from '../../lib/onboarding'
 import type { PlanId } from '../../lib/pricing'
 import { PlanComparison, PlanFaq } from './PlanComparison'
@@ -68,8 +70,10 @@ const count = (value: number) => value.toLocaleString('en-US')
 /**
  * Step six of sign-up, after the address and before "How you'll pay" (owner decision,
  * 8 Oct 2026). Prices, limits, the trial and which plans are offered are the super admin's
- * (`/v1/platform/plans`); sign-up shows the launch catalogue until it can read the published
- * plans. TODO(backend): ONBOARDING.md rows 1.1 and 1.2.
+ * (`/v1/platform/plans`). The choice is saved on the draft (row 1.2). TODO(backend):
+ * ONBOARDING.md row 1.1 — the cards keep the launch catalogue although `readSignupPlans` can read
+ * the published one, because the two price lists disagree (35/80/150 here, 19/49/89 in the
+ * backend seed) and the owner has not said which is right.
  */
 export function PlansPage() {
   const location = useLocation()
@@ -94,8 +98,14 @@ function PlansContent() {
 
   const billingNote = billing === 'monthly' ? t('plans.billedMonthly') : t('plans.billedAnnually')
 
-  const selectPlan = (plan: PlanId) => {
-    // Enterprise is agreed on a call: no trial and no payment step, straight to review.
+  const { save, submitting, formError } = useOnboardingStep()
+
+  const selectPlan = async (plan: PlanId) => {
+    if (submitting) return
+    const result = await save((token, signal) => recordPlan(token, plan, billing, signal))
+    if (!result.saved) return
+    // Enterprise is agreed on a call: no trial and no payment step, straight to review. The
+    // server clears a saved payment preference on the same choice (contract §1).
     if (plan === 'enterprise') {
       const { paymentMethod: _method, linkVia: _via, addon: _addon, ...rest } = state
       void _method
@@ -230,7 +240,7 @@ function PlansContent() {
                     t(`plans.${key}.features.f${i + 1}`),
                   )}
                   ctaLabel={plan ? t('plans.getStarted') : t('plans.talkToTeam')}
-                  onCta={() => selectPlan(id)}
+                  onCta={() => void selectPlan(id)}
                 />
               )
             })}
@@ -246,6 +256,12 @@ function PlansContent() {
               </div>
             ))}
           </div>
+
+          {formError ? (
+            <div className="mt-5">
+              <OnboardingFormError error={formError} />
+            </div>
+          ) : null}
 
           <p className="mt-5 max-w-[640px] text-center text-[13px] font-medium leading-[1.6] text-text-quaternary">
             {t('plans.trialNote', { days: TRIAL.days, documents: TRIAL.documents })}{' '}

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { OnboardingFormError } from '../../components/auth/OnboardingFormError'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Button, ChevronRightIcon, Input } from '../../components/ui'
@@ -49,9 +50,10 @@ function ReviewSection({ title, editTo, rows }: { title: string; editTo: string;
 }
 
 /**
- * The last page before a human takes over. Shows the answers this tab saved — the backend has no
- * endpoint that reads a draft back — each section with a way to change it, because editing closes
- * once the draft is with a reviewer (backend signup guide §10a).
+ * The last page before a human takes over. Shows the saved answers — carried by this tab, or
+ * refilled from the status read's draft when the page opens without them — each section with a
+ * way to change it, because editing closes once the draft is with a reviewer (backend signup
+ * guide §10a).
  */
 export function SignupReviewForm() {
   const { t, i18n } = useTranslation()
@@ -63,8 +65,8 @@ export function SignupReviewForm() {
   })
   const [planMissing, setPlanMissing] = useState(false)
   const activity = findCode(ISIC_ACTIVITIES, state.identity?.industrialClassification)
-  // Opened without this tab's answers (a typed URL): the steps are saved on the server, but there
-  // is nothing honest to show for them, so each field says so instead of looking empty.
+  // Only for a value the server did not return (an older server, or a step it reports complete
+  // without its draft): it is saved, but there is nothing honest to show, so the field says so.
   const saved = t('signupReview.savedEarlier')
   const shown = (key: string | undefined) => (key ? t(key) : saved)
   const optional = (value: string | undefined) => (address ? value || '—' : saved)
@@ -92,8 +94,8 @@ export function SignupReviewForm() {
       setPlanMissing(true)
       return
     }
-    // TODO(backend): the plan and payment choice are not saved yet, and `submitForReview` does not
-    // yet refuse a draft without them. ONBOARDING.md rows 1.2 to 1.4.
+    // The server refuses the same draft itself (`signup-plan-required`,
+    // `signup-payment-preference-required`); this check only spares the request.
     const result = await save((token, signal) => submitForReview(token, signal))
     if (!result.saved) return
     markOnboardingSubmitted(true)
@@ -119,7 +121,7 @@ export function SignupReviewForm() {
               ? saved
               : t(state.usesPos ? 'signupReview.posYes' : 'signupReview.posNo'),
         },
-        // The trade is asked only of POS users; without POS the backend holds a placeholder.
+        // The trade is asked only of POS users; without POS the backend holds none.
         ...(state.usesPos === false
           ? []
           : [
@@ -250,11 +252,7 @@ export function SignupReviewForm() {
         </p>
       ) : null}
 
-      {formError ? (
-        <p className="text-xs font-medium text-text-danger" role="alert">
-          {t(formError.key, formError.values)}
-        </p>
-      ) : null}
+      <OnboardingFormError error={formError} />
 
       <Button type="submit" disabled={submitting} className="w-full max-w-[400px] gap-1.5">
         {submitting ? t('signupReview.submitting') : t('signupReview.submit')}

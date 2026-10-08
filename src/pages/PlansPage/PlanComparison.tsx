@@ -94,7 +94,9 @@ const LIMIT_GROUPS: Group[] = [
  * per-plan availability rather than a flag.
  */
 const FEATURE_TABLE: Group[] = FEATURE_GROUPS.map((group) => ({
-  key: group.id,
+  // Prefixed: the limits table has a "people" group too, and both render in one tbody, where the
+  // shared React key made one of them be dropped or duplicated on re-render.
+  key: `feature-${group.id}`,
   labelKey: `plan.featureGroup.${group.id}`,
   rows: [
     ...group.features.map(
